@@ -489,8 +489,8 @@ html.theme-glass.dark .el-input__wrapper:hover {
 }
 html.theme-glass .el-input__wrapper.is-focus {
   box-shadow:
-    0 0 0 2px var(--accent) inset,
-    0 0 12px var(--accent) !important;
+    0 0 0 2px rgba(var(--accent-rgb), 0.4) inset,
+    0 0 5px rgba(var(--accent-rgb), 0.12) !important;
 }
 
 /* Native input style overrides under glass */
@@ -527,8 +527,8 @@ html.theme-glass input[type='password']:focus,
 html.theme-glass input[type='email']:focus,
 html.theme-glass input[type='number']:focus,
 html.theme-glass textarea:focus {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 12px var(--accent) !important;
+  border-color: rgba(var(--accent-rgb), 0.4) !important;
+  box-shadow: 0 0 5px rgba(var(--accent-rgb), 0.12) !important;
   outline: none !important;
 }
 
@@ -641,4 +641,107 @@ html.dark.theme-glass .hover\:shadow-2xl:hover {
 }
 .glass-glow-xl {
   filter: blur(120px);
+}
+
+/* Base Glassmorphism Panels and Primitives (available everywhere) */
+.glass-panel {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.76) 0%, rgba(255, 255, 255, 0.66) 100%) !important;
+  backdrop-filter: blur(20px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.55), 0 8px 32px 0 rgba(31, 38, 135, 0.06) !important;
+}
+
+.dark .glass-panel {
+  background: linear-gradient(135deg, rgba(28, 35, 48, 0.88) 0%, rgba(18, 22, 30, 0.80) 100%) !important;
+  backdrop-filter: blur(20px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.15), 0 12px 40px 0 rgba(0, 0, 0, 0.35) !important;
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  color: var(--text-primary) !important;
+  transition: all 0.2s ease !important;
+}
+
+.dark .glass-input {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.glass-input:focus {
+  border-color: rgba(var(--accent-rgb), 0.4) !important;
+  box-shadow: 0 0 5px rgba(var(--accent-rgb), 0.12) !important;
+}
+
+/* Premium Page Header Toolbar Glassmorphism style */
+.enterprise-toolbar {
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+.dark .enterprise-toolbar {
+  background: rgba(18, 22, 30, 0.55) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Premium default glass-card styles globally */
+.glass-card {
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04) !important;
+  border-radius: var(--radius-lg) !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.dark .glass-card {
+  background: rgba(28, 33, 41, 0.45) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25) !important;
+}
+
+/* AI Assistant Message Bubble Compaction Overrides */
+html body .ai-assistant-bubble,
+html body .ai-assistant-bubble *,
+html body .ai-user-bubble,
+html body .ai-user-bubble * {
+  font-size: 12px !important;
+}
+
+html body .ai-assistant-bubble .md-editor-preview,
+html body .ai-user-bubble .md-editor-preview {
+  line-height: 1.55 !important;
+}
+
+/* Table horizontal overflow scroll styling for AI assistant */
+html body .ai-assistant-bubble .md-editor-preview table,
+html body .ai-user-bubble .md-editor-preview table {
+  display: block !important;
+  width: 100% !important;
+  overflow-x: auto !important;
+  border-collapse: collapse !important;
+}
+
+/* AI Assistant Sidebar Subscription Button overrides */
+html body .subscription-btn {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+html body .dark .subscription-btn {
+  background-color: #f5792a !important;
+  color: #ffffff !important;
+}
+
+html body .dark .subscription-btn:hover {
+  background-color: #e0661b !important;
 }

@@ -2,13 +2,7 @@
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
-import {
-  ChevronDown,
-  User as UserIcon,
-  CreditCard,
-  Bell,
-  LogOut,
-} from 'lucide-vue-next';
+import { ChevronDown, User as UserIcon, CreditCard, Bell, LogOut } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
 
@@ -43,7 +37,9 @@ const handleLogout = async () => {
     >
       <UserAvatar :user="authStore.user ?? undefined" size="md" />
       <div class="flex flex-col text-left leading-tight hidden sm:flex">
-        <span class="text-xs font-semibold text-slate-700 dark:text-slate-200 max-w-[90px] truncate">
+        <span
+          class="text-xs font-semibold text-slate-700 dark:text-slate-200 max-w-[90px] truncate"
+        >
           {{ authStore.user?.name || '未命名用户' }}
         </span>
         <div class="mt-0.5 flex items-center">
@@ -77,7 +73,9 @@ const handleLogout = async () => {
         </el-dropdown-item>
         <el-dropdown-item command="notifications" class="rounded-lg my-0.5">
           <div class="flex items-center gap-3 py-1">
-            <Bell class="w-4 h-4 text-slate-400" /><span class="font-medium" style="color: var(--text-secondary)"
+            <Bell class="w-4 h-4 text-slate-400" /><span
+              class="font-medium"
+              style="color: var(--text-secondary)"
               >{{ $t('layout.notifications') }}</span
             >
           </div>

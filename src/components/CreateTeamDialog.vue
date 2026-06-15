@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import { Plus, Users, Check } from 'lucide-vue-next';
-
 import api from '@/utils/api';
+import Modal from '@/components/ui/Modal.vue';
+import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
+import { useSystemStore } from '@/stores/system';
 
 const { t } = useI18n();
 const _props = defineProps<{
@@ -13,19 +16,34 @@ const _props = defineProps<{
 
 const emit = defineEmits(['update:visible', 'success']);
 
+const systemStore = useSystemStore();
+
 const teamName = ref('');
 const teamDescription = ref('');
-const teamCategory = ref('modeling');
+const teamCategory = ref(systemStore.settings.TEAM_CATEGORIES[0] || '');
 const teamType = ref('public');
 const loading = ref(false);
 
-const categories = computed(() => [
-  { label: t('categories.modeling'), value: 'modeling' },
-  { label: t('categories.rendering'), value: 'rendering' },
-  { label: t('categories.animation'), value: 'animation' },
-  { label: t('categories.materials'), value: 'materials' },
-  { label: t('categories.gameEngine'), value: 'gameEngine' },
-]);
+const categories = computed(() =>
+  systemStore.settings.TEAM_CATEGORIES.map((cat) => ({
+    label: cat,
+    value: cat,
+  })),
+);
+
+watch(
+  () => systemStore.settings.TEAM_CATEGORIES,
+  (newCats) => {
+    if (
+      newCats &&
+      newCats.length > 0 &&
+      (!teamCategory.value || !newCats.includes(teamCategory.value))
+    ) {
+      teamCategory.value = newCats[0];
+    }
+  },
+  { immediate: true },
+);
 
 const handleClose = () => {
   emit('update:visible', false);
@@ -61,26 +79,15 @@ const handleCreate = async () => {
 </script>
 
 <template>
-  <el-dialog
-    :model-value="visible"
-    :title="t('team.createTitle')"
-    width="min(500px, 95%)"
-    class="custom-rounded-dialog"
-    :show-close="true"
-    @update:model-value="(val: boolean) => emit('update:visible', val)"
-  >
-    <div class="space-y-4 md:space-y-6 py-2">
-      <div class="space-y-2">
-        <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{{
-          t('team.name')
-        }}</label>
-        <input
-          v-model="teamName"
-          type="text"
-          :placeholder="t('team.namePlaceholder')"
-          class="w-full px-5 py-3 rounded-2xl border-2 border-slate-100 focus:border-accent focus:ring-4 focus:ring-accent-subtle outline-none transition-all placeholder:text-slate-300"
-        />
-      </div>
+  <Modal :show="visible" :title="t('team.createTitle')" size="md" @close="handleClose">
+    <div class="space-y-4 md:space-y-6 py-2 text-left">
+      <Input
+        v-model="teamName"
+        type="text"
+        :label="t('team.name')"
+        :placeholder="t('team.namePlaceholder')"
+        input-class="!px-5 !py-3 !rounded-2xl"
+      />
 
       <div class="space-y-2">
         <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{{
@@ -90,7 +97,7 @@ const handleCreate = async () => {
           v-model="teamDescription"
           rows="3"
           :placeholder="t('team.descriptionPlaceholder')"
-          class="w-full px-5 py-3 rounded-2xl border-2 border-slate-100 focus:border-accent focus:ring-4 focus:ring-accent-subtle outline-none transition-all resize-none placeholder:text-slate-300"
+          class="w-full px-5 py-3 rounded-2xl glass-input outline-none transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-slate-600"
         ></textarea>
       </div>
 
@@ -118,11 +125,15 @@ const handleCreate = async () => {
         }}</label>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <button
-type="button" :class="
+            type="button"
+            :class="
               teamType === 'public'
-                ? 'border-accent bg-accent-subtle/50'
-                : 'border-slate-100 bg-slate-50/50 hover:border-slate-200'
-            " class="flex flex-col items-start p-4 border-2 rounded-2xl transition-all text-left group" @click="teamType = 'public'">
+                ? 'border-accent bg-accent/10'
+                : 'border-white/10 bg-white/5 dark:bg-white/5 hover:border-white/20'
+            "
+            class="flex flex-col items-start p-4 border rounded-2xl transition-all text-left group cursor-pointer"
+            @click="teamType = 'public'"
+          >
             <div class="flex items-center justify-between w-full mb-2">
               <Users
                 class="w-5 h-5"
@@ -135,15 +146,21 @@ type="button" :class="
                 <Check class="w-3 h-3 text-white" />
               </div>
             </div>
-            <span class="text-sm font-black text-slate-900">{{ t('team.public') }}</span>
+            <span class="text-sm font-black text-slate-900 dark:text-white">{{
+              t('team.public')
+            }}</span>
           </button>
 
           <button
-type="button" :class="
+            type="button"
+            :class="
               teamType === 'private'
-                ? 'border-accent bg-accent-subtle/50'
-                : 'border-slate-100 bg-slate-50/50 hover:border-slate-200'
-            " class="flex flex-col items-start p-4 border-2 rounded-2xl transition-all text-left group" @click="teamType = 'private'">
+                ? 'border-accent bg-accent/10'
+                : 'border-white/10 bg-white/5 dark:bg-white/5 hover:border-white/20'
+            "
+            class="flex flex-col items-start p-4 border rounded-2xl transition-all text-left group cursor-pointer"
+            @click="teamType = 'private'"
+          >
             <div class="flex items-center justify-between w-full mb-2">
               <Plus
                 class="w-5 h-5"
@@ -156,7 +173,9 @@ type="button" :class="
                 <Check class="w-3 h-3 text-white" />
               </div>
             </div>
-            <span class="text-sm font-black text-slate-900">{{ t('team.private') }}</span>
+            <span class="text-sm font-black text-slate-900 dark:text-white">{{
+              t('team.private')
+            }}</span>
           </button>
         </div>
       </div>
@@ -164,15 +183,43 @@ type="button" :class="
 
     <template #footer>
       <div class="flex items-center justify-end gap-3 pt-2">
-        <button type="button" class="px-6 py-2.5 rounded-full font-bold text-slate-500 hover:bg-slate-100 transition-colors" @click="handleClose">
+        <Button
+          variant="secondary"
+          class="!px-6 !py-2.5 !rounded-full font-bold"
+          @click="handleClose"
+        >
           {{ t('common.cancel') }}
-        </button>
-        <button type="button" :disabled="loading" class="px-8 py-2.5 rounded-full font-bold text-white bg-accent hover:bg-accent shadow-xl shadow-accent/20 transition-all disabled:opacity-50 active:scale-95" @click="handleCreate">
-          {{ loading ? t('common.loading') : t('common.confirm') }}
-        </button>
+        </Button>
+        <Button
+          variant="primary"
+          :loading="loading"
+          class="!px-8 !py-2.5 !rounded-full font-bold shadow-xl shadow-accent/20 hover:scale-105 transition-all"
+          @click="handleCreate"
+        >
+          {{ t('common.confirm') }}
+        </Button>
       </div>
     </template>
-  </el-dialog>
+  </Modal>
 </template>
 
-<style scoped></style>
+<style scoped>
+.custom-select :deep(.el-select__wrapper) {
+  border-radius: 1rem !important;
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: none !important;
+  height: 48px;
+  transition: all 0.2s ease !important;
+}
+.dark .custom-select :deep(.el-select__wrapper) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.custom-select :deep(.el-select__wrapper.is-focused) {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
+}
+</style>

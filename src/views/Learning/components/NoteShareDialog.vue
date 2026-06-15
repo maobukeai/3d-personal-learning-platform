@@ -1,9 +1,22 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { ElMessage } from 'element-plus';
-import { Share2, Copy, Check, Calendar, Clock, Link, MessageSquare, Download, QrCode } from 'lucide-vue-next';
+import {
+  Share2,
+  Copy,
+  Check,
+  Calendar,
+  Clock,
+  Link,
+  MessageSquare,
+  Download,
+  QrCode,
+} from 'lucide-vue-next';
 import api from '@/utils/api';
 import QRCode from 'qrcode';
+import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
+import Switch from '@/components/ui/Switch.vue';
 
 interface Note {
   id: string;
@@ -294,7 +307,7 @@ const handleCreateOrUpdate = async () => {
       payload.expireHours = null; // Permanent
     }
 
-    payload.customText = enableCustomText.value ? (customText.value.trim() || null) : null;
+    payload.customText = enableCustomText.value ? customText.value.trim() || null : null;
 
     const res = await api.post(`/api/notes/${note.value.id}/share`, payload);
     if (res.data) {
@@ -352,22 +365,21 @@ defineExpose({ open });
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    width="660px"
-    destroy-on-close
-    class="share-note-dialog"
-  >
+  <Modal :show="visible" size="lg" @close="visible = false">
     <template #header>
       <div class="flex items-center gap-2.5">
-        <div class="p-2 bg-[var(--bg-subtle)] text-[var(--text-secondary)] border border-[var(--border-base)] rounded-lg">
+        <div
+          class="p-2 bg-[var(--bg-subtle)] text-[var(--text-secondary)] border border-[var(--border-base)] rounded-lg"
+        >
           <Share2 class="w-4.5 h-4.5" />
         </div>
         <div>
           <h3 class="text-sm font-bold tracking-wide" style="color: var(--text-primary)">
             分享笔记
           </h3>
-          <p class="text-[10px] text-[var(--text-muted)] mt-0.5">生成免登录分享链接，可设置有效时长、说明文案与分享二维码</p>
+          <p class="text-[10px] text-[var(--text-muted)] mt-0.5">
+            生成免登录分享链接，可设置有效时长、说明文案与分享二维码
+          </p>
         </div>
       </div>
     </template>
@@ -376,17 +388,27 @@ defineExpose({ open });
       <!-- Left Column: Settings (7 cols) -->
       <div class="md:col-span-7 space-y-4">
         <!-- Note Summary Box -->
-        <div v-if="note" class="p-3 bg-slate-50/40 dark:bg-zinc-900/10 rounded-xl border border-[var(--border-base)] flex items-start gap-3 transition-all duration-300">
-          <div class="p-2 bg-[var(--bg-subtle)] text-[var(--text-secondary)] border border-[var(--border-base)] rounded-lg shrink-0 flex items-center justify-center">
+        <div
+          v-if="note"
+          class="p-3 bg-slate-50/40 dark:bg-zinc-900/10 rounded-xl border border-[var(--border-base)] flex items-start gap-3 transition-all duration-300"
+        >
+          <div
+            class="p-2 bg-[var(--bg-subtle)] text-[var(--text-secondary)] border border-[var(--border-base)] rounded-lg shrink-0 flex items-center justify-center"
+          >
             <Share2 class="w-4 h-4" />
           </div>
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-1.5 mb-0.5">
               <span class="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse"></span>
-              <span class="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">公开分享</span>
+              <span
+                class="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block"
+                >公开分享</span
+              >
             </div>
             <h4 class="text-xs font-bold text-[var(--text-primary)] truncate">{{ note.title }}</h4>
-            <p class="text-[9px] text-[var(--text-muted)] mt-0.5">创建于: {{ new Date(note.createdAt).toLocaleString('zh-CN') }}</p>
+            <p class="text-[9px] text-[var(--text-muted)] mt-0.5">
+              创建于: {{ new Date(note.createdAt).toLocaleString('zh-CN') }}
+            </p>
           </div>
         </div>
 
@@ -394,7 +416,9 @@ defineExpose({ open });
         <div class="space-y-3.5">
           <!-- Set Duration -->
           <div class="space-y-1.5">
-            <label class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1">
+            <label
+              class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1"
+            >
               <Clock class="w-3.5 h-3.5 text-[var(--text-secondary)]" /> 设置链接有效时长
             </label>
             <div class="grid grid-cols-3 gap-1.5">
@@ -405,7 +429,7 @@ defineExpose({ open });
                   { val: '1d', label: '1 天' },
                   { val: '7d', label: '7 天' },
                   { val: '30d', label: '30 天' },
-                  { val: 'custom', label: '自定义' }
+                  { val: 'custom', label: '自定义' },
                 ]"
                 :key="opt.val"
                 type="button"
@@ -413,9 +437,9 @@ defineExpose({ open });
                 :class="[
                   durationType === opt.val
                     ? 'bg-accent text-white font-bold border-transparent'
-                    : 'bg-white dark:bg-white/5 border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/10 hover:border-slate-300 dark:hover:border-white/20'
+                    : 'bg-white dark:bg-white/5 border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/10 hover:border-slate-300 dark:hover:border-white/20',
                 ]"
-                @click="durationType = (opt.val as any)"
+                @click="durationType = opt.val as any"
               >
                 {{ opt.label }}
               </button>
@@ -425,7 +449,9 @@ defineExpose({ open });
           <!-- Custom Expiration Picker -->
           <Transition name="fade">
             <div v-if="durationType === 'custom'" class="pt-1 space-y-1.5">
-              <label class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1">
+              <label
+                class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1"
+              >
                 <Calendar class="w-3.5 h-3.5 text-[var(--text-secondary)]" /> 选择过期时间
               </label>
               <el-date-picker
@@ -442,36 +468,40 @@ defineExpose({ open });
           <!-- Custom Share Text Toggle & Field -->
           <div class="space-y-2 pt-2.5 border-t border-[var(--border-base)]">
             <div class="flex items-center justify-between">
-              <label class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1">
-                <MessageSquare class="w-3.5 h-3.5 text-[var(--text-secondary)]" /> 附带分享留言 / 寄语
+              <label
+                class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1"
+              >
+                <MessageSquare class="w-3.5 h-3.5 text-[var(--text-secondary)]" /> 附带分享留言 /
+                寄语
               </label>
-              <el-switch
-                v-model="enableCustomText"
-                inline-prompt
-                style="--el-switch-on-color: var(--accent);"
-              />
+              <Switch v-model="enableCustomText" />
             </div>
-            
+
             <Transition name="fade">
               <div v-if="enableCustomText" class="space-y-2 mt-1">
-                <el-input
+                <textarea
                   v-model="customText"
-                  type="textarea"
-                  :rows="2"
+                  rows="2"
                   placeholder="写下几句分享留言，将渲染在分享页面的顶部..."
                   maxlength="200"
-                  show-word-limit
-                  class="custom-textarea"
-                />
-                
+                  class="w-full text-xs font-medium rounded-xl transition-all duration-300 outline-none focus:outline-none bg-slate-50 dark:bg-zinc-900 border border-[var(--border-base)] text-[var(--text-primary)] focus:border-accent p-3 focus:ring-2 focus:ring-accent/20"
+                ></textarea>
+                <div class="text-[9px] text-[var(--text-muted)] text-right mt-0.5">
+                  {{ customText.length }} / 200
+                </div>
+
                 <!-- Shortcut templates -->
-                <div class="flex items-center gap-1 pt-0.5 overflow-x-auto whitespace-nowrap shortcut-list">
-                  <span class="text-[8.5px] text-[var(--text-muted)] select-none flex-shrink-0">快捷留言:</span>
+                <div
+                  class="flex items-center gap-1 pt-0.5 overflow-x-auto whitespace-nowrap shortcut-list"
+                >
+                  <span class="text-[8.5px] text-[var(--text-muted)] select-none flex-shrink-0"
+                    >快捷留言:</span
+                  >
                   <button
                     v-for="opt in [
                       { tpl: '💡 强烈推荐收藏，满满的干货分享！', label: '💡 强烈推荐' },
                       { tpl: '📚 精选学习心得，希望能帮到大家。', label: '📚 精选心得' },
-                      { tpl: '🎯 今日学习成果复盘，欢迎交流！', label: '🎯 成果复盘' }
+                      { tpl: '🎯 今日学习成果复盘，欢迎交流！', label: '🎯 成果复盘' },
                     ]"
                     :key="opt.tpl"
                     type="button"
@@ -487,7 +517,10 @@ defineExpose({ open });
 
           <!-- Current Share Link Box -->
           <div v-if="shareConfig" class="pt-3 border-t border-[var(--border-base)] space-y-2">
-            <label class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-1">分享链接</label>
+            <label
+              class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-1"
+              >分享链接</label
+            >
             <div class="relative flex items-center">
               <input
                 :value="shareUrl"
@@ -501,14 +534,14 @@ defineExpose({ open });
                 "
               />
               <Link class="w-4 h-4 text-slate-400 absolute left-3" />
-              
+
               <button
                 type="button"
                 class="absolute right-1 top-1 bottom-1 px-3 rounded-md text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
                 :class="[
-                  isCopied 
-                    ? 'bg-emerald-500 text-white' 
-                    : 'bg-accent hover:bg-accent/90 text-white active:scale-95'
+                  isCopied
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-accent hover:bg-accent/90 text-white active:scale-95',
                 ]"
                 @click="copyLink"
               >
@@ -521,27 +554,38 @@ defineExpose({ open });
       </div>
 
       <!-- Right Column: Exquisite QR Code Card (5 cols) -->
-      <div class="md:col-span-5 flex flex-col justify-between items-stretch bg-slate-50/40 dark:bg-zinc-900/10 border border-[var(--border-base)] rounded-2xl p-4 text-center shrink-0 self-stretch min-h-[360px] transition-all duration-300 hover:shadow-md">
+      <div
+        class="md:col-span-5 flex flex-col justify-between items-stretch bg-slate-50/40 dark:bg-zinc-900/10 border border-[var(--border-base)] rounded-2xl p-4 text-center shrink-0 self-stretch min-h-[360px] transition-all duration-300 hover:shadow-md"
+      >
         <!-- Card Top Section (Stylized Note Info) -->
         <div class="space-y-2 text-left">
           <div class="flex items-center justify-between">
-            <span class="text-[9px] font-black uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1">
+            <span
+              class="text-[9px] font-black uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1"
+            >
               <QrCode class="w-3 h-3 text-[var(--accent)]" /> 分享卡片
             </span>
-            <span 
+            <span
               v-if="shareConfig"
               class="px-1.5 py-0.5 rounded text-[8px] font-bold"
-              :class="isExpired ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'"
+              :class="
+                isExpired ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'
+              "
             >
               {{ isExpired ? '已过期' : '公开可用' }}
             </span>
           </div>
-          
-          <div class="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-[var(--border-base)] shadow-xs">
+
+          <div
+            class="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-[var(--border-base)] shadow-xs"
+          >
             <h4 class="text-xs font-black text-[var(--text-primary)] line-clamp-1 leading-snug">
               {{ note?.title || '未命名笔记' }}
             </h4>
-            <p v-if="enableCustomText && customText.trim()" class="text-[9.5px] italic text-[var(--text-secondary)] mt-1.5 pl-2 border-l-2 border-accent/40 line-clamp-2">
+            <p
+              v-if="enableCustomText && customText.trim()"
+              class="text-[9.5px] italic text-[var(--text-secondary)] mt-1.5 pl-2 border-l-2 border-accent/40 line-clamp-2"
+            >
               “{{ customText.trim() }}”
             </p>
             <p v-else class="text-[9px] text-[var(--text-muted)] mt-1.5 line-clamp-1">
@@ -552,17 +596,29 @@ defineExpose({ open });
 
         <!-- Card Middle Section (QR code render) -->
         <div class="flex flex-col items-center justify-center py-4">
-          <div class="relative p-2 bg-white rounded-xl border border-[var(--border-base)] shadow-md transition-all duration-300 hover:scale-[1.02] flex items-center justify-center w-40 h-40 group">
+          <div
+            class="relative p-2 bg-white rounded-xl border border-[var(--border-base)] shadow-md transition-all duration-300 hover:scale-[1.02] flex items-center justify-center w-40 h-40 group"
+          >
             <template v-if="qrCodeDataUrl && !isExpired">
-              <img :src="qrCodeDataUrl" alt="分享二维码" class="w-full h-full object-contain animate-fade-in" />
+              <img
+                :src="qrCodeDataUrl"
+                alt="分享二维码"
+                class="w-full h-full object-contain animate-fade-in"
+              />
             </template>
             <template v-else>
               <!-- Locked/Empty QR code state -->
-              <div class="flex flex-col items-center justify-center text-center p-3 text-[var(--text-muted)]">
-                <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-2">
+              <div
+                class="flex flex-col items-center justify-center text-center p-3 text-[var(--text-muted)]"
+              >
+                <div
+                  class="w-10 h-10 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-2"
+                >
                   <QrCode class="w-5 h-5 text-slate-400" />
                 </div>
-                <span class="text-[9.5px] font-bold">{{ isExpired ? '分享链接已过期' : '等待生成链接' }}</span>
+                <span class="text-[9.5px] font-bold">{{
+                  isExpired ? '分享链接已过期' : '等待生成链接'
+                }}</span>
               </div>
             </template>
           </div>
@@ -573,16 +629,17 @@ defineExpose({ open });
 
         <!-- Card Bottom Section (Download/Actions) -->
         <div class="pt-2">
-          <button
-            type="button"
-            :disabled="!qrCodeDataUrl || isExpired || renderingCard"
-            class="w-full py-2 bg-white dark:bg-zinc-900 border border-[var(--border-base)] hover:border-accent hover:text-accent rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:pointer-events-none active:scale-98 shadow-2xs"
+          <Button
+            variant="outline"
+            size="sm"
+            full-width
+            :disabled="!qrCodeDataUrl || isExpired"
+            :loading="renderingCard"
+            :icon="Download"
             @click="downloadQrCode"
           >
-            <span v-if="renderingCard" class="w-3.5 h-3.5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin"></span>
-            <Download v-else class="w-4 h-4" />
-            <span>{{ renderingCard ? '正在生成卡片...' : '保存二维码卡片' }}</span>
-          </button>
+            保存二维码卡片
+          </Button>
         </div>
       </div>
     </div>
@@ -591,87 +648,36 @@ defineExpose({ open });
     <template #footer>
       <div class="flex justify-between items-center gap-2 w-full">
         <div>
-          <button
+          <Button
             v-if="shareConfig"
-            type="button"
-            class="px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer text-red-500 hover:bg-red-500/5 border border-red-500/10 hover:border-red-500/20 flex items-center gap-1 disabled:opacity-50"
+            variant="danger"
+            size="sm"
             :disabled="saving"
             @click="handleCancelShare"
           >
-            <span>取消分享</span>
-          </button>
+            取消分享
+          </Button>
         </div>
         <div class="flex gap-2">
-          <button 
-            type="button" 
-            class="px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-[var(--text-secondary)] border border-[var(--border-base)]"
-            @click="visible = false"
-          >
-            关闭
-          </button>
-          <button
-            type="button"
-            class="px-4 py-2 bg-accent hover:bg-accent/90 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-xs"
-            :disabled="saving"
-            @click="handleCreateOrUpdate"
-          >
-            <span v-if="saving" class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-            <span>{{ shareConfig ? '保存设置' : '生成链接' }}</span>
-          </button>
+          <Button variant="secondary" size="sm" @click="visible = false"> 关闭 </Button>
+          <Button variant="primary" size="sm" :loading="saving" @click="handleCreateOrUpdate">
+            {{ shareConfig ? '保存设置' : '生成链接' }}
+          </Button>
         </div>
       </div>
     </template>
-  </el-dialog>
+  </Modal>
 </template>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active {
+.fade-enter-active,
+.fade-leave-active {
   transition: all 0.2s ease-in-out;
 }
-.fade-enter-from, .fade-leave-to {
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
   transform: translateY(-8px);
-}
-
-:deep(.share-note-dialog) {
-  background: var(--bg-card) !important;
-  border: 1px solid var(--border-base) !important;
-  border-radius: 16px !important;
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.08) !important;
-  max-width: 95vw !important;
-}
-
-:deep(.share-note-dialog .el-dialog__header) {
-  padding: 16px 20px 12px !important;
-  margin-right: 0 !important;
-  border-bottom: 1px solid var(--border-base) !important;
-}
-
-:deep(.share-note-dialog .el-dialog__header .el-dialog__headerbtn) {
-  top: 16px !important;
-  right: 20px !important;
-  width: 28px !important;
-  height: 28px !important;
-  border-radius: 8px !important;
-  background-color: var(--bg-subtle) !important;
-  border: 1px solid var(--border-base) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  transition: all 0.2s !important;
-}
-
-:deep(.share-note-dialog .el-dialog__header .el-dialog__headerbtn:hover) {
-  background-color: var(--bg-card-hover) !important;
-}
-
-:deep(.share-note-dialog .el-dialog__body) {
-  padding: 16px 20px !important;
-}
-
-:deep(.share-note-dialog .el-dialog__footer) {
-  padding: 12px 20px 16px !important;
-  border-top: 1px solid var(--border-base) !important;
 }
 
 :deep(.custom-datepicker .el-input__wrapper) {
@@ -713,20 +719,11 @@ defineExpose({ open });
   color: var(--text-muted) !important;
 }
 
-.dark :deep(.share-note-dialog) {
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4) !important;
-}
 .shortcut-list::-webkit-scrollbar {
   display: none;
 }
 .shortcut-list {
   -ms-overflow-style: none;
   scrollbar-width: none;
-}
-
-@media (max-width: 680px) {
-  :deep(.share-note-dialog) {
-    width: 90% !important;
-  }
 }
 </style>

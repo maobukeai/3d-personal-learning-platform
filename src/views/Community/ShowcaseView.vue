@@ -1,16 +1,13 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   Award,
   Box,
-  Check,
-  ChevronLeft,
   ChevronRight,
   Clock,
   Download,
-  Edit3,
   Eye,
   Filter,
   Flame,
@@ -21,36 +18,35 @@ import {
   MonitorPlay,
   PanelRightClose,
   PanelRightOpen,
-  Play,
   Plus,
   RefreshCw,
-  Save,
   Search,
-  Send,
-  Share2,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   Tag,
-  Trash2,
   TrendingUp,
   Trophy,
   Type,
   Users,
   Video,
-  X,
+  Grid3X3,
+  LayoutList,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import api, { getAssetUrl } from '@/utils/api';
+import { ElMessage } from 'element-plus';
+import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import type { Asset } from '@/types';
 
 import PageHeader from '@/components/PageHeader.vue';
 import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
-import ShowcaseCard from '@/components/ShowcaseCard.vue';
+import UnifiedCard from '@/components/UnifiedCard.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import ShowcaseDetail from './components/ShowcaseDetail.vue';
+import Input from '@/components/ui/Input.vue';
+import Tabs from '@/components/ui/Tabs.vue';
+import Button from '@/components/ui/Button.vue';
 
 type ShowcaseType = 'IMAGE' | 'VIDEO' | 'MODEL' | 'TEXT' | 'OTHER';
 type ShowcaseSortKey = 'popular' | 'newest' | 'trending' | 'viewed' | 'discussed' | 'featured';
@@ -87,13 +83,6 @@ interface ShowcaseItem {
   asset?: Asset | null;
   assetId?: string | null;
   status?: ShowcaseStatus;
-}
-
-interface CommentItem {
-  id: string;
-  content: string;
-  createdAt: string;
-  user: ShowcaseUser;
 }
 
 interface ShowcaseActivity {
@@ -147,8 +136,13 @@ const activeSort = ref<ShowcaseSortKey>('trending');
 const activeType = ref<ShowcaseType | 'all'>('all');
 const activeScope = ref<ShowcaseScope>('all');
 const activeBucket = ref<ShowcaseBucket>('all');
-const viewMode = ref<'grid' | 'dense'>('grid');
+const viewMode = ref<'grid' | 'list'>('grid');
+const viewModeOptions = computed(() => [
+  { value: 'grid', label: '', icon: Grid3X3 },
+  { value: 'list', label: '', icon: LayoutList },
+]);
 const showInsights = ref(false);
+const isFilterOpen = ref(false);
 const showcases = ref<ShowcaseItem[]>([]);
 const page = ref(1);
 const total = ref(0);
@@ -223,17 +217,6 @@ const formatTime = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString('zh-CN');
 };
 
-const getTypeLabel = (type: ShowcaseType | 'all') =>
-  typeOptions.find((option) => option.value === type)?.label ?? '作品';
-
-const getTypeClass = (type: ShowcaseType | 'all') => {
-  if (type === 'MODEL') return 'tone-blue';
-  if (type === 'VIDEO') return 'tone-rose';
-  if (type === 'IMAGE') return 'tone-green';
-  if (type === 'TEXT') return 'tone-amber';
-  return 'tone-slate';
-};
-
 const getRouteWorkId = () => {
   const work = route.query.work;
   return Array.isArray(work) ? work[0] : work;
@@ -250,6 +233,38 @@ const setWorkQuery = (workId: string | null) => {
 };
 
 const pendingReviewCount = computed(() => stats.value?.myPendingWorks ?? 0);
+
+const scopeTabOptions = computed(() => {
+  return scopeOptions.map((option) => ({
+    label: option.label,
+    value: option.value,
+    icon: option.icon,
+  }));
+});
+
+const smartFilterTabOptions = computed(() => {
+  return smartFilterOptions.value.map((filter) => ({
+    label: `${filter.label} ${filter.metric}`,
+    value: filter.value,
+    icon: filter.icon,
+  }));
+});
+
+const typeTabOptions = computed(() => {
+  return typeOptions.map((option) => ({
+    label: option.label,
+    value: option.value,
+    icon: option.icon,
+  }));
+});
+
+const sortTabOptions = computed(() => {
+  return sortOptions.map((option) => ({
+    label: option.label,
+    value: option.value,
+    icon: option.icon,
+  }));
+});
 
 const smartFilterOptions = computed<
   Array<{
@@ -386,7 +401,7 @@ const fetchShowcases = async (append = false) => {
         bucket: activeBucket.value,
         q: searchQuery.value,
         page: nextPage,
-        limit: viewMode.value === 'dense' ? 60 : 36,
+        limit: viewMode.value === 'list' ? 60 : 36,
         withMeta: true,
       },
     });
@@ -565,89 +580,102 @@ onUnmounted(() => {
   <div class="showcase-view">
     <PageHeader title="创意作品集" :icon="MonitorPlay">
       <div class="showcase-header-actions">
-        <div class="showcase-search">
-          <Search class="w-4 h-4" />
-          <input v-model="searchInput" type="search" placeholder="搜索作品、作者、标签..." />
-        </div>
-        <button type="button" class="icon-button" title="刷新作品集" @click="refreshAll">
+        <Input
+          v-model="searchInput"
+          type="search"
+          placeholder="搜索作品、作者、标签..."
+          :icon="Search"
+          clearable
+          input-class="!py-1.5 !h-8.5 !rounded-lg"
+          class="max-w-[200px] shrink-0"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          class="!w-8.5 !h-8.5 !p-0 !rounded-lg shrink-0"
+          title="刷新作品集"
+          @click="refreshAll"
+        >
           <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading || statsLoading }" />
-        </button>
-        <button
-          type="button"
-          class="icon-button"
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          class="!w-8.5 !h-8.5 !p-0 !rounded-lg shrink-0"
           :title="showInsights ? '收起洞察面板' : '打开洞察面板'"
           @click="showInsights = !showInsights"
         >
           <component :is="showInsights ? PanelRightClose : PanelRightOpen" class="w-4 h-4" />
-        </button>
-        <button type="button" class="publish-button" @click="openPublishDialog">
-          <Plus class="w-4 h-4" />
+        </Button>
+        <Button
+          variant="primary"
+          size="sm"
+          :icon="Plus"
+          class="!h-8.5 !rounded-lg shrink-0 font-bold"
+          @click="openPublishDialog"
+        >
           发布
-        </button>
+        </Button>
       </div>
     </PageHeader>
 
     <div class="showcase-layout" :class="{ 'showcase-layout--with-rail': showInsights }">
+      <aside class="filter-panel" :class="{ open: isFilterOpen }">
+        <div class="panel-section">
+          <div class="section-title">
+            <Users class="w-4 h-4 text-accent" />
+            范围
+          </div>
+          <Tabs v-model="activeScope" :options="scopeTabOptions" direction="vertical" size="sm" />
+        </div>
+
+        <div class="panel-section">
+          <div class="section-title">
+            <SlidersHorizontal class="w-4 h-4 text-accent" />
+            过滤
+          </div>
+          <Tabs
+            :model-value="activeBucket"
+            :options="smartFilterTabOptions"
+            direction="vertical"
+            size="sm"
+            @update:model-value="setBucket"
+          />
+        </div>
+
+        <div class="panel-section">
+          <div class="section-title">
+            <Layers3 class="w-4 h-4 text-accent" />
+            类型
+          </div>
+          <Tabs v-model="activeType" :options="typeTabOptions" direction="vertical" size="sm" />
+        </div>
+      </aside>
+
       <main class="showcase-main">
         <section class="showcase-controls">
-          <!-- Row 1: Scope & Smart Filters (Scrollable on mobile) -->
-          <div class="controls-row controls-row--primary">
-            <div
-              class="flex flex-row lg:justify-between items-center overflow-x-auto lg:overflow-x-visible no-scrollbar gap-2 flex-1 w-full pb-0.5 lg:pb-0 select-none"
-            >
-              <div class="scope-strip shrink-0" aria-label="范围">
-                <button
-                  v-for="option in scopeOptions"
-                  :key="option.value"
-                  type="button"
-                  :class="{ active: activeScope === option.value }"
-                  @click="activeScope = option.value"
-                >
-                  <component :is="option.icon" class="w-3.5 h-3.5" />
-                  {{ option.label }}
-                </button>
-              </div>
+          <div class="controls-row controls-row--secondary justify-between w-full">
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                class="icon-button mobile-filter"
+                @click="isFilterOpen = !isFilterOpen"
+              >
+                <SlidersHorizontal class="w-4 h-4" />
+              </button>
 
-              <div class="divider-v block lg:hidden"></div>
-
-              <div class="smart-filter-strip shrink-0" aria-label="智能筛选">
-                <button
-                  v-for="filter in smartFilterOptions"
-                  :key="filter.value"
-                  type="button"
-                  :class="{ active: activeBucket === filter.value }"
-                  @click="setBucket(filter.value)"
+              <div class="sort-strip-container flex items-center gap-2">
+                <span
+                  class="control-label hidden md:inline-flex text-xs font-bold text-[var(--text-secondary)]"
                 >
-                  <component :is="filter.icon" class="w-3.5 h-3.5" />
-                  <span>{{ filter.label }}</span>
-                  <b class="ml-0.5">{{ filter.metric }}</b>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Row 2: Types & Sorting/View -->
-          <div class="controls-row controls-row--secondary">
-            <div class="type-strip-container w-full lg:w-auto">
-              <span class="control-label hidden md:inline-flex">
-                <Filter class="w-3.5 h-3.5" />
-                类型
-              </span>
-              <div class="type-strip w-full lg:w-auto" aria-label="类型筛选">
-                <button
-                  v-for="option in typeOptions"
-                  :key="option.value"
-                  type="button"
-                  :class="[{ active: activeType === option.value }, getTypeClass(option.value)]"
-                  @click="activeType = option.value"
-                >
-                  <component :is="option.icon" class="w-3.5 h-3.5" />
-                  {{ option.label }}
-                </button>
+                  <SlidersHorizontal class="w-3.5 h-3.5" />
+                  排序
+                </span>
+                <Tabs v-model="activeSort" :options="sortTabOptions" size="sm" />
               </div>
             </div>
 
-            <div class="right-actions-group w-full lg:w-auto">
+            <div class="right-actions-group">
               <!-- Review Pill -->
               <button
                 v-if="pendingReviewCount"
@@ -675,53 +703,42 @@ onUnmounted(() => {
                 <span>清除筛选</span>
               </button>
 
-              <div class="sort-strip-container flex-1 lg:flex-initial">
-                <span class="control-label hidden md:inline-flex">
-                  <SlidersHorizontal class="w-3.5 h-3.5" />
-                  排序
-                </span>
-                <div class="sort-strip w-full lg:w-auto" aria-label="排序">
-                  <button
-                    v-for="option in sortOptions"
-                    :key="option.value"
-                    type="button"
-                    :class="{ active: activeSort === option.value }"
-                    :title="option.hint"
-                    @click="activeSort = option.value"
-                  >
-                    <component :is="option.icon" class="w-3.5 h-3.5" />
-                    <span>{{ option.label }}</span>
-                  </button>
-                </div>
-              </div>
-
               <!-- Compact Result Summary -->
               <span
                 class="text-[10px] text-slate-550 dark:text-slate-400 font-semibold hidden sm:inline select-none"
                 >{{ resultSummary }}</span
               >
+
+              <Tabs v-model="viewMode" :options="viewModeOptions" size="sm" />
             </div>
           </div>
         </section>
 
-        <section v-if="isLoading" class="showcase-grid" :class="{ dense: viewMode === 'dense' }">
-          <div v-for="idx in 12" :key="idx" class="skeleton-card"></div>
+        <section
+          v-if="isLoading"
+          :class="viewMode === 'list' ? 'flex flex-col gap-3' : 'showcase-grid'"
+        >
+          <div
+            v-for="idx in 12"
+            :key="idx"
+            class="skeleton-card"
+            :class="{ 'list-row': viewMode === 'list' }"
+          ></div>
         </section>
 
         <section
           v-else-if="showcases.length"
-          class="showcase-grid"
-          :class="{ dense: viewMode === 'dense' }"
+          :class="viewMode === 'list' ? 'flex flex-col gap-3' : 'showcase-grid'"
         >
-          <ShowcaseCard
-            v-for="(item, index) in showcases"
+          <UnifiedCard
+            v-for="item in showcases"
             :key="item.id"
             :item="item"
-            :compact="viewMode === 'dense'"
-            :featured="viewMode === 'grid' && index === 0 && showcases.length > 2"
-            @click="openDetail"
-            @like="toggleLike"
-            @share="handleCardShare"
+            kind="showcase"
+            :view-mode="viewMode"
+            @click="openDetail(item)"
+            @like="toggleLike(item)"
+            @share="handleCardShare(item)"
             @user-click="openUserProfile"
           />
         </section>
@@ -730,18 +747,28 @@ onUnmounted(() => {
           <MonitorPlay class="w-11 h-11" />
           <h3>还没有找到作品</h3>
           <p>换一个关键词或类型筛选，也可以现在发布一个作品把这里点亮。</p>
-          <button type="button" @click="openPublishDialog">
-            <Plus class="w-4 h-4" />
+          <Button
+            variant="primary"
+            size="md"
+            :icon="Plus"
+            class="hover:scale-105 transition-transform"
+            @click="openPublishDialog"
+          >
             发布作品
-          </button>
+          </Button>
         </section>
 
         <div v-if="hasMore && !isLoading" class="load-more-row">
-          <button type="button" :disabled="isLoadingMore" @click="fetchShowcases(true)">
-            <RefreshCw v-if="isLoadingMore" class="w-4 h-4 animate-spin" />
-            <ChevronRight v-else class="w-4 h-4" />
-            {{ isLoadingMore ? '加载中' : '加载更多作品' }}
-          </button>
+          <Button
+            variant="secondary"
+            :loading="isLoadingMore"
+            :icon="ChevronRight"
+            icon-position="left"
+            class="hover:scale-105 transition-all !rounded-xl"
+            @click="fetchShowcases(true)"
+          >
+            加载更多作品
+          </Button>
         </div>
       </main>
 
@@ -931,7 +958,7 @@ onUnmounted(() => {
 
 .showcase-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: 180px minmax(0, 1fr);
   gap: 16px;
   min-height: 0;
   flex: 1;
@@ -940,7 +967,58 @@ onUnmounted(() => {
 }
 
 .showcase-layout--with-rail {
-  grid-template-columns: minmax(0, 1fr) minmax(290px, 330px);
+  grid-template-columns: 180px minmax(0, 1fr) minmax(290px, 330px);
+}
+
+.filter-panel {
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 10px;
+  box-shadow: var(--shadow-card);
+}
+
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.section-title svg {
+  color: var(--accent);
+}
+
+@media (max-width: 1100px) {
+  .filter-panel {
+    display: none;
+  }
+  .filter-panel.open {
+    display: flex;
+    position: fixed;
+    top: 50px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    border-radius: 0;
+    border: 0;
+    background: var(--bg-card);
+    overflow: auto;
+  }
 }
 
 .showcase-main,
@@ -1240,10 +1318,10 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 12px;
   margin-top: 14px;
-  padding: 12px;
+  padding: 6px 12px;
   background: var(--bg-card);
   border: 1px solid var(--border-base);
-  border-radius: 8px;
+  border-radius: 12px;
   box-shadow: var(--shadow-enterprise);
 }
 
@@ -1623,15 +1701,15 @@ onUnmounted(() => {
 
 .showcase-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
   margin-top: 14px;
   padding-bottom: 22px;
 }
 
 .showcase-grid.dense {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
 .skeleton-card {

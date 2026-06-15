@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Lock } from 'lucide-vue-next';
 import api from '@/utils/api';
+import Modal from '@/components/ui/Modal.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -16,20 +17,23 @@ const emit = defineEmits<{
 
 const visible = computed({
   get: () => props.modelValue,
-  set: (val) => emit('update:modelValue', val)
+  set: (val) => emit('update:modelValue', val),
 });
 
 const importForm = ref({
-  password: ''
+  password: '',
 });
 
 const isLoading = ref(false);
 
-watch(() => props.modelValue, (newVal) => {
-  if (newVal) {
-    importForm.value.password = '';
-  }
-});
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    if (newVal) {
+      importForm.value.password = '';
+    }
+  },
+);
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const binaryString = window.atob(base64);
@@ -48,19 +52,19 @@ async function getEncryptionKey(password: string, salt: Uint8Array): Promise<Cry
     enc.encode(password),
     { name: 'PBKDF2' },
     false,
-    ['deriveBits', 'deriveKey']
+    ['deriveBits', 'deriveKey'],
   );
   return window.crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
       salt: salt.buffer as ArrayBuffer,
       iterations: 100000,
-      hash: 'SHA-256'
+      hash: 'SHA-256',
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     false,
-    ['encrypt', 'decrypt']
+    ['encrypt', 'decrypt'],
   );
 }
 
@@ -79,10 +83,10 @@ async function decryptData(encryptedJsonStr: string, password: string): Promise<
   const decryptedBuffer = await window.crypto.subtle.decrypt(
     {
       name: 'AES-GCM',
-      iv: iv
+      iv: iv,
     },
     key,
-    ciphertext
+    ciphertext,
   );
   return dec.decode(decryptedBuffer);
 }
@@ -100,7 +104,7 @@ async function submitDecryptAndImport() {
     if (!Array.isArray(parsed)) {
       throw new Error('解密后的数据格式有误');
     }
-    
+
     const res = await api.post('/api/two-factor/accounts/import', { accounts: parsed });
     if (res.data && res.data.success) {
       ElMessage.success(`成功导入 ${res.data.count} 个 2FA 账号！`);
@@ -117,14 +121,12 @@ async function submitDecryptAndImport() {
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
+  <Modal
+    :show="visible"
     title="解密并导入备份"
-    width="90%"
-    style="max-width: 380px"
-    destroy-on-close
-    class="custom-el-dialog"
-    :close-on-click-modal="false"
+    size="sm"
+    :close-on-outside-click="false"
+    @close="visible = false"
   >
     <div class="space-y-4">
       <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2">
@@ -149,24 +151,26 @@ async function submitDecryptAndImport() {
     </div>
 
     <template #footer>
-      <div class="flex justify-end gap-3 pt-2">
-        <el-button
-          style="background-color: var(--bg-app); border: 1px solid var(--border-base); color: var(--text-secondary)"
-          class="px-4 py-2 rounded-xl"
-          :disabled="isLoading"
-          @click="visible = false"
-        >
-          取消
-        </el-button>
-        <el-button
-          type="primary"
-          class="bg-indigo-600 hover:bg-indigo-500 border-none font-semibold px-5 py-2.5 rounded-xl transition-all"
-          :loading="isLoading"
-          @click="submitDecryptAndImport"
-        >
-          解密导入
-        </el-button>
-      </div>
+      <el-button
+        style="
+          background-color: var(--bg-app);
+          border: 1px solid var(--border-base);
+          color: var(--text-secondary);
+        "
+        class="px-4 py-2 rounded-xl text-xs font-semibold"
+        :disabled="isLoading"
+        @click="visible = false"
+      >
+        取消
+      </el-button>
+      <el-button
+        type="primary"
+        class="bg-indigo-600 hover:bg-indigo-500 border-none font-semibold px-5 py-2.5 rounded-xl transition-all"
+        :loading="isLoading"
+        @click="submitDecryptAndImport"
+      >
+        解密导入
+      </el-button>
     </template>
-  </el-dialog>
+  </Modal>
 </template>

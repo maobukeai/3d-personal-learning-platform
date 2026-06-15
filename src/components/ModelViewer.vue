@@ -362,14 +362,18 @@ const optimizeTexturesForGPULimit = (object: Object3D) => {
           'bumpMap',
           'alphaMap',
           'displacementMap',
-          'lightMap'
+          'lightMap',
         ];
 
-        let activeSlots = textureSlots.filter(slot => material[slot] && material[slot] instanceof Texture);
+        let activeSlots = textureSlots.filter(
+          (slot) => material[slot] && material[slot] instanceof Texture,
+        );
 
         if (activeSlots.length > maxAllowed) {
-          console.warn(`Mesh "${child.name}" material textures (${activeSlots.length}) exceed GPU limit (${maxAllowed}). Optimizing...`);
-          
+          console.warn(
+            `Mesh "${child.name}" material textures (${activeSlots.length}) exceed GPU limit (${maxAllowed}). Optimizing...`,
+          );
+
           const slotsToPrune = [
             'lightMap',
             'displacementMap',
@@ -377,13 +381,15 @@ const optimizeTexturesForGPULimit = (object: Object3D) => {
             'bumpMap',
             'aoMap',
             'specularMap',
-            'emissiveMap'
+            'emissiveMap',
           ];
 
           for (const slot of slotsToPrune) {
             if (material[slot]) {
               material[slot] = null;
-              activeSlots = textureSlots.filter(s => material[s] && material[s] instanceof Texture);
+              activeSlots = textureSlots.filter(
+                (s) => material[s] && material[s] instanceof Texture,
+              );
               if (activeSlots.length <= maxAllowed) break;
             }
           }
@@ -923,18 +929,26 @@ defineExpose({
       v-if="isLoading"
       class="absolute inset-0 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm z-10"
     >
-      <div class="flex flex-col items-center gap-4 p-6 glass-card border border-white/15 max-w-xs text-center">
+      <div
+        class="flex flex-col items-center gap-4 p-6 glass-card border border-white/15 max-w-xs text-center"
+      >
         <div class="relative w-16 h-16">
           <!-- Outer glowing spinning circle -->
-          <div class="absolute inset-0 border-4 border-t-accent border-r-transparent border-b-indigo-500 border-l-transparent rounded-full animate-spin"></div>
+          <div
+            class="absolute inset-0 border-4 border-t-accent border-r-transparent border-b-indigo-500 border-l-transparent rounded-full animate-spin"
+          ></div>
           <!-- Inner pulsing circle -->
-          <div class="absolute inset-2 bg-gradient-to-tr from-accent to-indigo-600 rounded-full animate-pulse opacity-90 flex items-center justify-center text-white">
+          <div
+            class="absolute inset-2 bg-gradient-to-tr from-accent to-indigo-600 rounded-full animate-pulse opacity-90 flex items-center justify-center text-white"
+          >
             <span class="text-[10px] font-bold">{{ Math.round(loadingProgress) }}%</span>
           </div>
         </div>
         <div>
           <p class="text-xs font-black tracking-wider text-white uppercase">Engine Loading</p>
-          <p class="text-[10px] text-slate-400 mt-1">正在解析 {{ modelFormat || '3D' }} 资产数据...</p>
+          <p class="text-[10px] text-slate-400 mt-1">
+            正在解析 {{ modelFormat || '3D' }} 资产数据...
+          </p>
         </div>
       </div>
     </div>
@@ -947,7 +961,11 @@ defineExpose({
         :style="{ transform: `translate(${h.screenX}px, ${h.screenY}px)` }"
       >
         <div class="relative -translate-x-1/2 -translate-y-1/2">
-          <button type="button" class="w-6 h-6 bg-accent border-2 border-white rounded-full shadow-lg flex items-center justify-center text-white hover:scale-110 transition-transform pointer-events-auto group/dot" @click.stop="handleHotspotClick(i)">
+          <button
+            type="button"
+            class="w-6 h-6 bg-accent border-2 border-white rounded-full shadow-lg flex items-center justify-center text-white hover:scale-110 transition-transform pointer-events-auto group/dot"
+            @click.stop="handleHotspotClick(i)"
+          >
             <span class="text-[10px] font-bold">{{ i + 1 }}</span>
             <div
               class="absolute inset-0 rounded-full bg-accent animate-ping opacity-25 group-hover:opacity-55"
@@ -957,7 +975,7 @@ defineExpose({
             <div
               v-if="activeHotspot === i"
               class="absolute bottom-8 left-0 -translate-x-1/2 w-52 glass-card p-3.5 text-white shadow-2xl pointer-events-auto border border-white/20 dark:border-white/10"
-              style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px);"
+              style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px)"
             >
               <h4 class="text-xs font-bold text-accent mb-1 flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
@@ -974,13 +992,27 @@ defineExpose({
     <div
       class="absolute right-4 top-4 flex flex-col gap-2.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
     >
-      <button type="button" class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md" title="模型信息" @click="showStats = !showStats">
+      <button
+        type="button"
+        class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"
+        title="模型信息"
+        @click="showStats = !showStats"
+      >
         <Info class="w-4.5 h-4.5" />
       </button>
-      <button type="button" class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md" title="重置视角" @click="resetCamera">
+      <button
+        type="button"
+        class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"
+        title="重置视角"
+        @click="resetCamera"
+      >
         <RefreshCw class="w-4.5 h-4.5" />
       </button>
-      <button type="button" class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md" @click="toggleFullscreen">
+      <button
+        type="button"
+        class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"
+        @click="toggleFullscreen"
+      >
         <Layers class="w-4.5 h-4.5" />
       </button>
     </div>

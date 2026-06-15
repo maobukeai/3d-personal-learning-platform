@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { BookOpen, ChevronRight } from 'lucide-vue-next';
-import BaseCard from '@/components/BaseCard.vue';
+import Card from '@/components/ui/Card.vue';
 
 interface RoadmapCardItem {
   id: string;
@@ -34,7 +34,7 @@ const progressOffset = computed(() => {
 </script>
 
 <template>
-  <BaseCard
+  <Card
     clickable
     :hoverable="!active"
     padding="none"
@@ -123,7 +123,7 @@ const progressOffset = computed(() => {
     <ChevronRight
       class="absolute top-1/2 -translate-y-1/2 -right-2 w-6 h-6 md:w-12 md:h-12 text-emerald-500/5 group-hover:text-emerald-500/10 transition-colors"
     />
-  </BaseCard>
+  </Card>
 </template>
 
 <style scoped>

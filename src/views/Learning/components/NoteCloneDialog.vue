@@ -2,6 +2,8 @@
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
+import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 
 interface Note {
   id: string;
@@ -56,7 +58,7 @@ const handleClone = async () => {
     };
     await api.post('/api/notes', payload);
     ElMessage.success(`已成功转存至笔记本「${cat}」！`);
-    
+
     emit('cloned', cat);
     visible.value = false;
   } catch {
@@ -70,22 +72,31 @@ defineExpose({ open });
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    title="一键转存笔记"
-    width="400px"
-    destroy-on-close
-  >
+  <Modal :show="visible" title="一键转存笔记" size="sm" @close="visible = false">
     <div v-if="cloningNote" class="space-y-4">
       <div class="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-[var(--border-base)]">
-        <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-1">转存作品</p>
-        <h4 class="text-xs font-bold text-[var(--text-primary)] truncate">{{ cloningNote.title }}</h4>
+        <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-1">
+          转存作品
+        </p>
+        <h4 class="text-xs font-bold text-[var(--text-primary)] truncate">
+          {{ cloningNote.title }}
+        </h4>
         <p class="text-[10px] text-[var(--text-muted)] mt-0.5">作者: {{ cloningNote.user.name }}</p>
       </div>
 
       <div>
-        <label class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2 block">选择目标笔记本</label>
-        <el-select v-model="targetCategory" placeholder="请选择或输入分类" class="!w-full" filterable allow-create default-first-option>
+        <label
+          class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2 block"
+          >选择目标笔记本</label
+        >
+        <el-select
+          v-model="targetCategory"
+          placeholder="请选择或输入分类"
+          class="!w-full note-filter-select"
+          filterable
+          allow-create
+          default-first-option
+        >
           <el-option label="默认笔记本" value="默认笔记本" />
           <el-option v-for="cat in props.myNotebooksList" :key="cat" :label="cat" :value="cat" />
         </el-select>
@@ -93,11 +104,17 @@ defineExpose({ open });
     </div>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <el-button size="small" round @click="visible = false">取消</el-button>
-        <el-button type="primary" size="small" round class="font-bold" :loading="cloning" @click="handleClone">
+        <Button variant="secondary" size="sm" @click="visible = false">取消</Button>
+        <Button
+          variant="primary"
+          size="sm"
+          class="font-bold"
+          :loading="cloning"
+          @click="handleClone"
+        >
           确认转存
-        </el-button>
+        </Button>
       </div>
     </template>
-  </el-dialog>
+  </Modal>
 </template>

@@ -45,7 +45,9 @@ const props = defineProps<{
   promptOptimization: AiBotPromptOptimizationResult | null;
 }>();
 
-const optimizationForm = defineModel<PromptOptimizationForm>('optimizationForm', { required: true });
+const optimizationForm = defineModel<PromptOptimizationForm>('optimizationForm', {
+  required: true,
+});
 
 const emit = defineEmits<{
   (e: 'fetch-insights'): void;

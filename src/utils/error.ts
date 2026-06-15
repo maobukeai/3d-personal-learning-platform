@@ -7,14 +7,14 @@
 interface AxiosLikeError {
   response?: {
     data?: {
-      error?: string
-      details?: string
-      message?: string
-    }
-    status?: number
-    statusText?: string
-  }
-  message?: string
+      error?: string;
+      details?: string;
+      message?: string;
+    };
+    status?: number;
+    statusText?: string;
+  };
+  message?: string;
 }
 
 /**
@@ -26,10 +26,10 @@ interface AxiosLikeError {
  * @returns A human-readable error string
  */
 export function getApiErrorMessage(error: unknown, fallback = '操作失败'): string {
-  if (typeof error === 'string') return error
+  if (typeof error === 'string') return error;
 
   if (error && typeof error === 'object') {
-    const err = error as AxiosLikeError
+    const err = error as AxiosLikeError;
     if (err.response?.data?.error) {
       const details = err.response.data.details;
       if (details) return `${err.response.data.error} (${details})`;
@@ -40,9 +40,9 @@ export function getApiErrorMessage(error: unknown, fallback = '操作失败'): s
     if (err.message) return err.message;
   }
 
-  if (error instanceof Error) return error.message
+  if (error instanceof Error) return error.message;
 
-  return fallback
+  return fallback;
 }
 
 /**
@@ -53,8 +53,8 @@ export function getApiErrorMessage(error: unknown, fallback = '操作失败'): s
  */
 export function getApiErrorStatus(error: unknown): number | undefined {
   if (error && typeof error === 'object') {
-    const err = error as AxiosLikeError
-    return err.response?.status
+    const err = error as AxiosLikeError;
+    return err.response?.status;
   }
-  return undefined
+  return undefined;
 }

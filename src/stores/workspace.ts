@@ -190,6 +190,13 @@ export const useWorkspaceStore = defineStore('workspace', {
       } else if (currentPath?.startsWith('/manual/station/')) {
         const stationId = currentPath.split('/')[3];
         this.activeWorkspaceId = `manual-${stationId}`;
+      } else if (this.activeWorkspaceId === 'admin-workspace') {
+        const personalWs =
+          this.rawWorkspaces.find((ws) => ws.type === 'personal') ||
+          this.rawWorkspaces.find((ws) => ws.type !== 'admin');
+        if (personalWs) {
+          this.activeWorkspaceId = personalWs.id;
+        }
       }
 
       if (this.activeWorkspaceId) {

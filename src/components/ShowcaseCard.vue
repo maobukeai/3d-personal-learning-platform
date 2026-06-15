@@ -123,7 +123,9 @@ const plainDescription = computed(() => {
 });
 
 const formatNumber = (value: number) =>
-  new Intl.NumberFormat('zh-CN', { notation: 'compact', maximumFractionDigits: 1 }).format(value || 0);
+  new Intl.NumberFormat('zh-CN', { notation: 'compact', maximumFractionDigits: 1 }).format(
+    value || 0,
+  );
 
 const formatTime = (dateStr: string) => {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -159,7 +161,11 @@ function handleUserClick() {
 <template>
   <article
     class="showcase-card"
-    :class="{ 'showcase-card--compact': compact, 'showcase-card--featured': featured }"
+    :class="{
+      'showcase-card--compact': compact,
+      'showcase-card--featured': featured,
+      'list-row': compact,
+    }"
     @click="handleCardClick"
   >
     <div class="showcase-card__media">
@@ -190,9 +196,7 @@ function handleUserClick() {
         <Eye class="w-3 h-3" />
         {{ formatNumber(item.views) }}
       </div>
-      <div v-if="mediaCount > 1" class="showcase-card__gallery">
-        {{ mediaCount }} 张
-      </div>
+      <div v-if="mediaCount > 1" class="showcase-card__gallery">{{ mediaCount }} 张</div>
       <div class="showcase-card__quick-view">
         <Eye class="w-3.5 h-3.5" />
         查看详情
@@ -396,7 +400,9 @@ function handleUserClick() {
   font-weight: 900;
   opacity: 0;
   transform: translate(-50%, 6px);
-  transition: opacity 0.16s ease, transform 0.16s ease;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
 }
 
 .showcase-card:hover .showcase-card__quick-view {
@@ -552,7 +558,9 @@ function handleUserClick() {
   padding: 0;
   border: 0;
   background: transparent;
-  transition: color 0.16s ease, transform 0.16s ease;
+  transition:
+    color 0.16s ease,
+    transform 0.16s ease;
 }
 
 .showcase-card__action:hover {
@@ -617,6 +625,50 @@ function handleUserClick() {
     font-size: 20px;
     margin-bottom: 4px;
   }
+}
+
+.showcase-card.list-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.showcase-card.list-row .showcase-card__media {
+  width: 120px;
+  height: 72px;
+  aspect-ratio: auto;
+  min-height: auto;
+  flex-shrink: 0;
+}
+
+.showcase-card.list-row .showcase-card__body {
+  flex-direction: row;
+  align-items: center;
+  flex: 1;
+  padding: 8px 12px;
+  gap: 16px;
+}
+
+.showcase-card.list-row h3 {
+  margin: 0;
+  flex: 1;
+  min-height: auto;
+  font-size: 14px;
+}
+
+.showcase-card.list-row .showcase-card__tags {
+  margin: 0;
+  min-height: auto;
+  display: flex;
+}
+
+.showcase-card.list-row .showcase-card__footer {
+  margin: 0;
+  border-top: none;
+  padding-top: 0;
+  flex-shrink: 0;
+  gap: 12px;
 }
 
 .showcase-card--compact .showcase-card__media {

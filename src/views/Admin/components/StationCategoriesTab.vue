@@ -34,7 +34,7 @@ const manualCategoryDialogRef = ref<ManualCategoryDialogExpose | null>(null);
 
 function getParentCategoryName(cat: ManualCategory) {
   if (!cat.parentId) return '-';
-  const parent = props.categories.find(c => c.id === cat.parentId);
+  const parent = props.categories.find((c) => c.id === cat.parentId);
   return parent ? parent.name : '-';
 }
 
@@ -47,7 +47,7 @@ const deleteCategory = async (category: ManualCategory) => {
         confirmButtonText: t('admin.confirm_deletion_1'),
         cancelButtonText: t('admin.cancel'),
         type: 'warning',
-      }
+      },
     );
     await api.delete(`/api/admin/manual/categories/${category.id}`);
     ElMessage.success(t('admin.category_deleted_successfully'));
@@ -81,23 +81,41 @@ defineExpose({
         class="flex items-center justify-between p-3 bg-white dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-800/60 rounded-xl hover:border-slate-300 dark:hover:border-slate-700/60 transition-all"
       >
         <div class="text-left">
-          <div class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2 flex-wrap">
+          <div
+            class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2 flex-wrap"
+          >
             {{ cat.name }}
-            <span v-if="cat.slug" class="text-[9px] font-mono bg-slate-100 dark:bg-slate-800 px-1 text-slate-400 rounded">
+            <span
+              v-if="cat.slug"
+              class="text-[9px] font-mono bg-slate-100 dark:bg-slate-800 px-1 text-slate-400 rounded"
+            >
               {{ cat.slug }}
             </span>
-            <span v-if="cat.parentId" class="text-[9px] bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 px-1.5 py-0.5 rounded font-semibold">
+            <span
+              v-if="cat.parentId"
+              class="text-[9px] bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 px-1.5 py-0.5 rounded font-semibold"
+            >
               子分类 (父: {{ getParentCategoryName(cat) }})
             </span>
           </div>
-          <div class="text-[10px] text-slate-400 mt-0.5">{{ $t('admin.sorting_weight_cat_order') }}</div>
+          <div class="text-[10px] text-slate-400 mt-0.5">
+            {{ $t('admin.sorting_weight_cat_order') }}
+          </div>
         </div>
 
         <div class="flex items-center gap-1.5">
-          <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded transition-colors bg-transparent border-none cursor-pointer" @click="manualCategoryDialogRef?.openEdit(cat)">
+          <button
+            type="button"
+            class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded transition-colors bg-transparent border-none cursor-pointer"
+            @click="manualCategoryDialogRef?.openEdit(cat)"
+          >
             <Edit3 class="w-3.5 h-3.5" />
           </button>
-          <button type="button" class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded transition-colors bg-transparent border-none cursor-pointer" @click="deleteCategory(cat)">
+          <button
+            type="button"
+            class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded transition-colors bg-transparent border-none cursor-pointer"
+            @click="deleteCategory(cat)"
+          >
             <Trash2 class="w-3.5 h-3.5" />
           </button>
         </div>
@@ -109,7 +127,7 @@ defineExpose({
       ref="manualCategoryDialogRef"
       :station-id="props.stationId"
       :categories="props.categories"
-      @refresh="emit('refresh');"
+      @refresh="emit('refresh')"
     />
   </div>
 </template>

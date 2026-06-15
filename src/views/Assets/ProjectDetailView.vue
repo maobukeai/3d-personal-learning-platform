@@ -73,7 +73,7 @@ const taskSearchQuery = ref('');
 const taskDateFilter = ref('all'); // 'all', 'overdue', 'today', 'week'
 const taskAssigneeFilter = ref('all'); // 'all', 'me'
 const taskSortBy = ref<'natural' | 'createdAt_asc' | 'createdAt_desc'>(
-  (localStorage.getItem('project_task_sort_by') as any) || 'natural'
+  (localStorage.getItem('project_task_sort_by') as any) || 'natural',
 );
 
 watch(taskSortBy, (newVal) => {
@@ -95,7 +95,9 @@ const fetchProject = async () => {
 
 const isMember = computed(() => {
   if (!project.value || !authStore.user) return false;
-  return (project.value.members || []).some((member: ProjectMember) => member.userId === authStore.user?.id);
+  return (project.value.members || []).some(
+    (member: ProjectMember) => member.userId === authStore.user?.id,
+  );
 });
 
 const existingMemberIds = computed(() => {
@@ -123,9 +125,7 @@ const updateIsMobile = () => {
 };
 
 const projectTabs = computed(() => {
-  const tabs = [
-    { id: 'tasks', label: '敏捷看板', icon: KanbanSquare },
-  ];
+  const tabs = [{ id: 'tasks', label: '敏捷看板', icon: KanbanSquare }];
 
   if (project.value?.roadmap) {
     tabs.push({ id: 'roadmap', label: '学习路线', icon: Map });
@@ -347,8 +347,7 @@ const getMetricsForStep = (step: RoadmapStep, index: number) => {
     difficulty += 25;
     practical += 15;
     duration += 12;
-  }
-  else if (
+  } else if (
     title.includes('blender') ||
     title.includes('建模') ||
     title.includes('雕刻') ||
@@ -361,8 +360,7 @@ const getMetricsForStep = (step: RoadmapStep, index: number) => {
     difficulty += 10;
     practical += 28;
     duration += 8;
-  }
-  else if (
+  } else if (
     title.includes('three.js') ||
     title.includes('threejs') ||
     title.includes('交互') ||
@@ -443,7 +441,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-50 dark:bg-slate-955 font-sans relative">
+  <div
+    class="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-50 dark:bg-slate-955 font-sans relative"
+  >
     <!-- Global Loading -->
     <div
       v-if="isLoading"
@@ -477,27 +477,42 @@ onUnmounted(() => {
         >
           <!-- Segmented Control + Mobile New Button -->
           <div class="flex items-center justify-between gap-2">
-            <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl overflow-x-auto scrollbar-hide">
+            <div
+              class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl overflow-x-auto scrollbar-hide"
+            >
               <button
-                v-for="tab in projectTabs" :key="tab.id" type="button" class="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-6 py-1.5 md:py-2.5 rounded-lg text-[11px] md:text-sm font-black transition-all whitespace-nowrap shrink-0 cursor-pointer" :class="
+                v-for="tab in projectTabs"
+                :key="tab.id"
+                type="button"
+                class="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-6 py-1.5 md:py-2.5 rounded-lg text-[11px] md:text-sm font-black transition-all whitespace-nowrap shrink-0 cursor-pointer"
+                :class="
                   activeTab === tab.id
                     ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
                     : 'text-slate-555 hover:text-slate-700 dark:hover:text-slate-300'
-                " @click="activeTab = tab.id">
+                "
+                @click="activeTab = tab.id"
+              >
                 <component :is="tab.icon" class="w-3.5 h-3.5 md:w-4 md:h-4" />
                 <span>{{ tab.label }}</span>
               </button>
             </div>
 
             <!-- Mobile New Task Button -->
-            <button v-if="isMember && activeTab === 'tasks'" type="button" class="flex md:hidden items-center gap-1 px-3 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-[11px] shadow-lg shrink-0 cursor-pointer" @click="taskAddDrawerRef?.open()">
+            <button
+              v-if="isMember && activeTab === 'tasks'"
+              type="button"
+              class="flex md:hidden items-center gap-1 px-3 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-[11px] shadow-lg shrink-0 cursor-pointer"
+              @click="taskAddDrawerRef?.open()"
+            >
               <Plus class="w-3.5 h-3.5" /> 新建
             </button>
           </div>
 
           <div class="flex items-center gap-2 md:gap-4">
             <div v-if="activeTab === 'tasks'" class="relative flex-1 md:flex-none">
-              <Search class="w-3.5 h-3.5 md:w-4 md:h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search
+                class="w-3.5 h-3.5 md:w-4 md:h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
               <input
                 v-model="taskSearchQuery"
                 type="text"
@@ -506,7 +521,12 @@ onUnmounted(() => {
                 style="color: var(--text-primary)"
               />
             </div>
-            <button v-if="isMember && activeTab === 'tasks'" type="button" class="hidden md:flex px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all items-center gap-2 cursor-pointer" @click="taskAddDrawerRef?.open()">
+            <button
+              v-if="isMember && activeTab === 'tasks'"
+              type="button"
+              class="hidden md:flex px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all items-center gap-2 cursor-pointer"
+              @click="taskAddDrawerRef?.open()"
+            >
               <Plus class="w-4 h-4" /> 分配新任务
             </button>
           </div>
@@ -525,16 +545,22 @@ onUnmounted(() => {
             >
             <div class="flex p-0.5 md:p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
               <button
-v-for="f in [
+                v-for="f in [
                   { id: 'all', label: '全部' },
                   { id: 'overdue', label: '已逾期' },
                   { id: 'today', label: '今日' },
                   { id: 'week', label: '本周' },
-                ]" :key="f.id" type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer" :class="
+                ]"
+                :key="f.id"
+                type="button"
+                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer"
+                :class="
                   taskDateFilter === f.id
                     ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
                     : 'text-slate-500'
-                " @click="taskDateFilter = f.id">
+                "
+                @click="taskDateFilter = f.id"
+              >
                 {{ f.label }}
               </button>
             </div>
@@ -549,19 +575,27 @@ v-for="f in [
             >
             <div class="flex p-0.5 md:p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
               <button
-type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer" :class="
+                type="button"
+                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer"
+                :class="
                   taskAssigneeFilter === 'all'
                     ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
                     : 'text-slate-500'
-                " @click="taskAssigneeFilter = 'all'">
+                "
+                @click="taskAssigneeFilter = 'all'"
+              >
                 全部
               </button>
               <button
-type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer" :class="
+                type="button"
+                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer"
+                :class="
                   taskAssigneeFilter === 'me'
                     ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
                     : 'text-slate-500'
-                " @click="taskAssigneeFilter = 'me'">
+                "
+                @click="taskAssigneeFilter = 'me'"
+              >
                 我的
               </button>
             </div>
@@ -651,31 +685,52 @@ type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font
             <div
               class="p-4 rounded-2xl border border-slate-200/50 dark:border-white/5 bg-white/50 dark:bg-slate-900/40 backdrop-blur-md relative overflow-hidden"
             >
-              <div class="absolute -right-10 -top-10 w-36 h-36 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-3xl"></div>
-              <div class="absolute -left-10 -bottom-10 w-36 h-36 bg-accent/5 dark:bg-accent/10 rounded-full blur-3xl"></div>
-              
-              <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+              <div
+                class="absolute -right-10 -top-10 w-36 h-36 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-3xl"
+              ></div>
+              <div
+                class="absolute -left-10 -bottom-10 w-36 h-36 bg-accent/5 dark:bg-accent/10 rounded-full blur-3xl"
+              ></div>
+
+              <div
+                class="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10"
+              >
                 <div class="space-y-1.5 min-w-0">
                   <div class="flex items-center gap-2">
-                    <h2 class="text-base sm:text-lg font-black text-slate-800 dark:text-slate-100 truncate">
+                    <h2
+                      class="text-base sm:text-lg font-black text-slate-800 dark:text-slate-100 truncate"
+                    >
                       {{ project.roadmap.title }}
                     </h2>
-                    <span class="inline-flex items-center gap-0.5 px-2 py-0.5 bg-accent/10 text-accent text-[10px] font-black rounded-full">
+                    <span
+                      class="inline-flex items-center gap-0.5 px-2 py-0.5 bg-accent/10 text-accent text-[10px] font-black rounded-full"
+                    >
                       项目专属学习路线
                     </span>
                   </div>
                   <p class="text-xs text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
-                    {{ project.roadmap.description || '项目专属的学习路径规划，指引团队成员循序渐进地完成目标。' }}
+                    {{
+                      project.roadmap.description ||
+                      '项目专属的学习路径规划，指引团队成员循序渐进地完成目标。'
+                    }}
                   </p>
                 </div>
-                
+
                 <!-- Progress Indicator -->
-                <div class="flex items-center gap-3 shrink-0 self-start md:self-center bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 p-2 px-3 rounded-xl">
+                <div
+                  class="flex items-center gap-3 shrink-0 self-start md:self-center bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 p-2 px-3 rounded-xl"
+                >
                   <div class="flex flex-col items-end">
-                    <span class="text-[9px] font-black uppercase text-slate-400 tracking-wider">路线进度</span>
-                    <span class="text-xs font-black text-emerald-500">{{ calculateRoadmapProgress(project.roadmap) }}%</span>
+                    <span class="text-[9px] font-black uppercase text-slate-400 tracking-wider"
+                      >路线进度</span
+                    >
+                    <span class="text-xs font-black text-emerald-500"
+                      >{{ calculateRoadmapProgress(project.roadmap) }}%</span
+                    >
                   </div>
-                  <div class="w-24 sm:w-32 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    class="w-24 sm:w-32 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden"
+                  >
                     <div
                       class="h-full bg-gradient-to-r from-accent to-emerald-500 rounded-full transition-all duration-700"
                       :style="{ width: calculateRoadmapProgress(project.roadmap) + '%' }"
@@ -691,7 +746,9 @@ type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font
               <div class="col-span-12 lg:col-span-7 xl:col-span-8 space-y-4">
                 <div class="relative pl-[25px] sm:pl-12 space-y-4 py-2">
                   <!-- Connective vertical line -->
-                  <div class="absolute left-[11px] sm:left-[21px] top-6 bottom-6 w-0.5 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+                  <div
+                    class="absolute left-[11px] sm:left-[21px] top-6 bottom-6 w-0.5 rounded-full bg-slate-200 dark:bg-slate-800"
+                  ></div>
 
                   <div
                     v-for="(step, index) in project.roadmap.steps"
@@ -719,9 +776,18 @@ type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font
                           getStepStatus(step, index) === 'upcoming',
                       }"
                     >
-                      <CheckCircle2 v-if="getStepStatus(step, index) === 'completed'" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5" />
-                      <Lock v-else-if="getStepStatus(step, index) === 'locked'" class="w-3 h-3 sm:w-4 sm:h-4" />
-                      <Zap v-else-if="getStepStatus(step, index) === 'current'" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5" />
+                      <CheckCircle2
+                        v-if="getStepStatus(step, index) === 'completed'"
+                        class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5"
+                      />
+                      <Lock
+                        v-else-if="getStepStatus(step, index) === 'locked'"
+                        class="w-3 h-3 sm:w-4 sm:h-4"
+                      />
+                      <Zap
+                        v-else-if="getStepStatus(step, index) === 'current'"
+                        class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5"
+                      />
                       <span v-else class="text-xs font-black">{{ index + 1 }}</span>
                     </div>
 
@@ -749,7 +815,8 @@ type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font
                               :class="{
                                 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400':
                                   getStepStatus(step, index) === 'completed',
-                                'bg-accent/10 text-accent': getStepStatus(step, index) === 'current',
+                                'bg-accent/10 text-accent':
+                                  getStepStatus(step, index) === 'current',
                                 'bg-slate-100 dark:bg-white/5 text-slate-400':
                                   getStepStatus(step, index) === 'locked',
                                 'bg-slate-100 dark:bg-white/5 text-slate-500':
@@ -758,31 +825,47 @@ type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font
                             >
                               阶段 {{ index + 1 }}
                             </span>
-                            <span v-if="activeStepId === step.id" class="text-[9px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded flex items-center gap-0.5">
+                            <span
+                              v-if="activeStepId === step.id"
+                              class="text-[9px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded flex items-center gap-0.5"
+                            >
                               <Sparkle class="w-2.5 h-2.5" /> 探索中
                             </span>
                           </div>
                           <h3
                             class="text-sm sm:text-base font-bold truncate transition-colors"
                             :class="{
-                              'text-emerald-600 dark:text-emerald-400': getStepStatus(step, index) === 'completed',
+                              'text-emerald-600 dark:text-emerald-400':
+                                getStepStatus(step, index) === 'completed',
                               'text-accent': getStepStatus(step, index) === 'current',
-                              'text-slate-400 dark:text-slate-550': getStepStatus(step, index) === 'locked',
-                              'text-slate-800 dark:text-slate-100': getStepStatus(step, index) === 'upcoming',
+                              'text-slate-400 dark:text-slate-550':
+                                getStepStatus(step, index) === 'locked',
+                              'text-slate-800 dark:text-slate-100':
+                                getStepStatus(step, index) === 'upcoming',
                             }"
                           >
                             {{ step.title }}
                           </h3>
-                          <p class="text-xs text-slate-400 dark:text-slate-500 line-clamp-2 leading-relaxed">
-                            {{ step.description || '当前阶段暂无详细指引。点击卡片在右侧面板查看突围任务及关联课程。' }}
+                          <p
+                            class="text-xs text-slate-400 dark:text-slate-500 line-clamp-2 leading-relaxed"
+                          >
+                            {{
+                              step.description ||
+                              '当前阶段暂无详细指引。点击卡片在右侧面板查看突围任务及关联课程。'
+                            }}
                           </p>
                         </div>
-                        
+
                         <div class="flex items-center gap-2 shrink-0 self-center">
-                          <div v-if="isStepCompleted(step.id)" class="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                          <div
+                            v-if="isStepCompleted(step.id)"
+                            class="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center"
+                          >
                             <CheckCircle2 class="w-3.5 h-3.5" />
                           </div>
-                          <ArrowRight class="w-4 h-4 text-slate-350 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform" />
+                          <ArrowRight
+                            class="w-4 h-4 text-slate-350 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform"
+                          />
                         </div>
                       </div>
                     </div>
@@ -796,30 +879,49 @@ type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font
                   v-if="activeStep"
                   class="p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-900/50 backdrop-blur-md space-y-5 shadow-xl relative overflow-hidden text-left"
                 >
-                  <div class="absolute -right-12 -top-12 w-24 h-24 bg-accent/5 rounded-full blur-2xl"></div>
+                  <div
+                    class="absolute -right-12 -top-12 w-24 h-24 bg-accent/5 rounded-full blur-2xl"
+                  ></div>
 
-                  <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 relative z-10">
+                  <div
+                    class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 relative z-10"
+                  >
                     <div class="flex items-center gap-2">
-                      <div class="w-8 h-8 rounded-lg bg-accent text-white flex items-center justify-center shrink-0">
+                      <div
+                        class="w-8 h-8 rounded-lg bg-accent text-white flex items-center justify-center shrink-0"
+                      >
                         <Gauge class="w-4.5 h-4.5" />
                       </div>
                       <div class="space-y-0.5">
-                        <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest">智能探索分析仪</h4>
-                        <p class="text-xs font-bold text-slate-700 dark:text-slate-200">阶段详情聚焦</p>
+                        <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                          智能探索分析仪
+                        </h4>
+                        <p class="text-xs font-bold text-slate-700 dark:text-slate-200">
+                          阶段详情聚焦
+                        </p>
                       </div>
                     </div>
-                    <span class="text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-full shrink-0">
+                    <span
+                      class="text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-full shrink-0"
+                    >
                       阶段 {{ project.roadmap.steps.indexOf(activeStep) + 1 }}
                     </span>
                   </div>
 
                   <!-- Title & Desc -->
                   <div class="space-y-2 relative z-10">
-                    <h3 class="text-base font-black text-slate-800 dark:text-slate-100 leading-tight">
+                    <h3
+                      class="text-base font-black text-slate-800 dark:text-slate-100 leading-tight"
+                    >
                       {{ activeStep.title }}
                     </h3>
-                    <p class="text-xs text-slate-555 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-white/[0.01] p-3 rounded-xl border border-slate-100 dark:border-slate-850">
-                      {{ activeStep.description || '当前阶段为您的自定义攻坚节点。配合下方的技能突破清单，探索该领域并攻克技术难题。' }}
+                    <p
+                      class="text-xs text-slate-555 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-white/[0.01] p-3 rounded-xl border border-slate-100 dark:border-slate-850"
+                    >
+                      {{
+                        activeStep.description ||
+                        '当前阶段为您的自定义攻坚节点。配合下方的技能突破清单，探索该领域并攻克技术难题。'
+                      }}
                     </p>
                   </div>
 
@@ -828,48 +930,88 @@ type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font
                     <button
                       type="button"
                       class="w-full py-2.5 px-4 rounded-xl text-xs font-black text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md border-none"
-                      :class="isStepCompleted(activeStep.id) ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10' : 'bg-accent hover:bg-accent-dark shadow-accent/10'"
+                      :class="
+                        isStepCompleted(activeStep.id)
+                          ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10'
+                          : 'bg-accent hover:bg-accent-dark shadow-accent/10'
+                      "
                       @click="toggleStep(activeStep.id)"
                     >
                       <CheckCircle2 class="w-4 h-4" />
-                      <span>{{ isStepCompleted(activeStep.id) ? '已攻克阶段 (重置)' : '攻克阶段大纲目标' }}</span>
+                      <span>{{
+                        isStepCompleted(activeStep.id) ? '已攻克阶段 (重置)' : '攻克阶段大纲目标'
+                      }}</span>
                     </button>
                   </div>
 
                   <!-- Attributes -->
-                  <div class="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800 relative z-10">
-                    <div class="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                  <div
+                    class="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800 relative z-10"
+                  >
+                    <div
+                      class="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1"
+                    >
                       <TrendingUp class="w-3.5 h-3.5 text-accent" />
                       <span>技能属性评估</span>
                     </div>
 
                     <div class="space-y-2">
                       <div>
-                        <div class="flex items-center justify-between text-[10px] text-slate-500 mb-1">
+                        <div
+                          class="flex items-center justify-between text-[10px] text-slate-500 mb-1"
+                        >
                           <span>技能挑战难度</span>
                           <span class="font-bold text-slate-700 dark:text-slate-350">
-                            {{ getMetricsForStep(activeStep, project.roadmap.steps.indexOf(activeStep)).difficulty }}%
+                            {{
+                              getMetricsForStep(
+                                activeStep,
+                                project.roadmap.steps.indexOf(activeStep),
+                              ).difficulty
+                            }}%
                           </span>
                         </div>
-                        <div class="h-1.5 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
+                        <div
+                          class="h-1.5 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden"
+                        >
                           <div
                             class="h-full bg-rose-500 rounded-full transition-all duration-500"
-                            :style="{ width: getMetricsForStep(activeStep, project.roadmap.steps.indexOf(activeStep)).difficulty + '%' }"
+                            :style="{
+                              width:
+                                getMetricsForStep(
+                                  activeStep,
+                                  project.roadmap.steps.indexOf(activeStep),
+                                ).difficulty + '%',
+                            }"
                           ></div>
                         </div>
                       </div>
 
                       <div>
-                        <div class="flex items-center justify-between text-[10px] text-slate-500 mb-1">
+                        <div
+                          class="flex items-center justify-between text-[10px] text-slate-500 mb-1"
+                        >
                           <span>工程实战权重</span>
                           <span class="font-bold text-slate-700 dark:text-slate-350">
-                            {{ getMetricsForStep(activeStep, project.roadmap.steps.indexOf(activeStep)).practical }}%
+                            {{
+                              getMetricsForStep(
+                                activeStep,
+                                project.roadmap.steps.indexOf(activeStep),
+                              ).practical
+                            }}%
                           </span>
                         </div>
-                        <div class="h-1.5 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
+                        <div
+                          class="h-1.5 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden"
+                        >
                           <div
                             class="h-full bg-purple-500 rounded-full transition-all duration-500"
-                            :style="{ width: getMetricsForStep(activeStep, project.roadmap.steps.indexOf(activeStep)).practical + '%' }"
+                            :style="{
+                              width:
+                                getMetricsForStep(
+                                  activeStep,
+                                  project.roadmap.steps.indexOf(activeStep),
+                                ).practical + '%',
+                            }"
                           ></div>
                         </div>
                       </div>
@@ -880,7 +1022,10 @@ type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font
                           预估学习时间
                         </span>
                         <span class="font-black text-slate-700 dark:text-slate-200">
-                          {{ getMetricsForStep(activeStep, project.roadmap.steps.indexOf(activeStep)).duration }}
+                          {{
+                            getMetricsForStep(activeStep, project.roadmap.steps.indexOf(activeStep))
+                              .duration
+                          }}
                           <span class="text-[10px] font-normal text-slate-400">小时</span>
                         </span>
                       </div>
@@ -892,12 +1037,16 @@ type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font
                     v-if="getSubTasksForStep(activeStep).length > 0"
                     class="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800 relative z-10"
                   >
-                    <div class="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <div
+                      class="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest"
+                    >
                       <ListTodo class="w-3.5 h-3.5 text-accent" />
                       <span>技能突破细分任务</span>
                     </div>
 
-                    <div class="space-y-2 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <div
+                      class="space-y-2 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-100 dark:border-slate-800"
+                    >
                       <div
                         v-for="task in getSubTasksForStep(activeStep)"
                         :key="task.id"
@@ -906,13 +1055,24 @@ type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font
                       >
                         <div
                           class="w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors mt-0.5"
-                          :class="checkedSubTasks[task.id] ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/10' : 'border-slate-300 dark:border-slate-650 group-hover/item:border-accent bg-white dark:bg-slate-850'"
+                          :class="
+                            checkedSubTasks[task.id]
+                              ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/10'
+                              : 'border-slate-300 dark:border-slate-650 group-hover/item:border-accent bg-white dark:bg-slate-850'
+                          "
                         >
-                          <CheckCircle2 v-if="checkedSubTasks[task.id]" class="w-3 h-3 text-white" />
+                          <CheckCircle2
+                            v-if="checkedSubTasks[task.id]"
+                            class="w-3 h-3 text-white"
+                          />
                         </div>
                         <span
                           class="text-xs transition-all duration-300"
-                          :class="checkedSubTasks[task.id] ? 'text-slate-400 dark:text-slate-550 line-through' : 'text-slate-600 dark:text-slate-300 group-hover/item:text-slate-800 dark:group-hover/item:text-slate-100'"
+                          :class="
+                            checkedSubTasks[task.id]
+                              ? 'text-slate-400 dark:text-slate-550 line-through'
+                              : 'text-slate-600 dark:text-slate-300 group-hover/item:text-slate-800 dark:group-hover/item:text-slate-100'
+                          "
                         >
                           {{ task.text }}
                         </span>
@@ -925,7 +1085,9 @@ type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font
                     v-if="getRelatedCourses(activeStep).length > 0"
                     class="space-y-2.5 pt-3 border-t border-slate-100 dark:border-slate-800 relative z-10"
                   >
-                    <div class="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <div
+                      class="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest"
+                    >
                       <GraduationCap class="w-3.5 h-3.5 text-accent" />
                       <span>智能推荐关联课程</span>
                     </div>
@@ -937,7 +1099,9 @@ type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font
                         class="flex gap-2.5 p-2 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-500/[0.01] hover:border-accent/40 dark:hover:border-accent/40 hover:bg-white dark:hover:bg-slate-900/50 transition-all cursor-pointer group/card"
                         @click="router.push({ name: 'CourseDetail', params: { id: course.id } })"
                       >
-                        <div class="w-16 h-10 rounded bg-slate-100 dark:bg-slate-850 shrink-0 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden">
+                        <div
+                          class="w-16 h-10 rounded bg-slate-100 dark:bg-slate-850 shrink-0 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden"
+                        >
                           <img
                             v-if="course.thumbnail"
                             alt=""
@@ -947,14 +1111,26 @@ type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font
                           <BookOpen v-else class="w-3 h-3 text-slate-400 mx-auto my-3" />
                         </div>
                         <div class="min-w-0 flex-1 flex flex-col justify-between">
-                          <h4 class="text-xs font-bold text-slate-700 dark:text-slate-200 truncate group-hover/card:text-accent transition-colors leading-snug">
+                          <h4
+                            class="text-xs font-bold text-slate-700 dark:text-slate-200 truncate group-hover/card:text-accent transition-colors leading-snug"
+                          >
                             {{ course.title }}
                           </h4>
                           <div class="flex items-center justify-between text-[10px] text-slate-450">
-                            <span class="px-1 py-0.2 bg-slate-100 dark:bg-slate-800 rounded text-[9px]">
-                              {{ course.difficulty === 'BEGINNER' ? '入门' : course.difficulty === 'INTERMEDIATE' ? '进阶' : '高级' }}
+                            <span
+                              class="px-1 py-0.2 bg-slate-100 dark:bg-slate-800 rounded text-[9px]"
+                            >
+                              {{
+                                course.difficulty === 'BEGINNER'
+                                  ? '入门'
+                                  : course.difficulty === 'INTERMEDIATE'
+                                    ? '进阶'
+                                    : '高级'
+                              }}
                             </span>
-                            <span class="text-accent flex items-center gap-0.5 font-bold group-hover/card:translate-x-0.5 transition-transform text-[9px]">
+                            <span
+                              class="text-accent flex items-center gap-0.5 font-bold group-hover/card:translate-x-0.5 transition-transform text-[9px]"
+                            >
                               去掌握 <ArrowRight class="w-2 h-2" />
                             </span>
                           </div>

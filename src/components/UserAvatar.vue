@@ -140,7 +140,10 @@ const frameConfig = computed(() => {
 });
 
 const showBadge = computed(
-  () => props.size !== 'xs' && props.size !== 'sm' && (frameConfig.value.badgeText !== '' || frameConfig.value.badgeIcon !== ''),
+  () =>
+    props.size !== 'xs' &&
+    props.size !== 'sm' &&
+    (frameConfig.value.badgeText !== '' || frameConfig.value.badgeIcon !== ''),
 );
 const size = computed(() => sizeConfig[props.size as keyof typeof sizeConfig] || sizeConfig.md);
 
@@ -173,7 +176,12 @@ const fallbackBgColor = computed(() => {
 </script>
 
 <template>
-  <div :class="[size.container, 'relative inline-flex shrink-0 items-center justify-center group/avatar']">
+  <div
+    :class="[
+      size.container,
+      'relative inline-flex shrink-0 items-center justify-center group/avatar',
+    ]"
+  >
     <!-- Outer Glow & Neon Frame -->
     <div
       :class="[
@@ -182,11 +190,14 @@ const fallbackBgColor = computed(() => {
       ]"
       :style="{
         backgroundColor: frameConfig.innerBorder,
-        boxShadow: frameConfig.glowIntensity > 0 ? `0 2px ${8 * frameConfig.glowIntensity}px ${frameConfig.color}${Math.round(
-          frameConfig.glowIntensity * 255,
-        )
-          .toString(16)
-          .padStart(2, '0')}` : 'none',
+        boxShadow:
+          frameConfig.glowIntensity > 0
+            ? `0 2px ${8 * frameConfig.glowIntensity}px ${frameConfig.color}${Math.round(
+                frameConfig.glowIntensity * 255,
+              )
+                .toString(16)
+                .padStart(2, '0')}`
+            : 'none',
         padding: frameConfig.borderWidth,
         backgroundClip: 'content-box',
         border: `${frameConfig.borderWidth} solid ${frameConfig.color}`,
@@ -200,7 +211,13 @@ const fallbackBgColor = computed(() => {
         <div
           class="w-full h-full rounded-[inherit] overflow-hidden bg-[var(--bg-card)] relative z-10"
         >
-          <img v-if="user?.avatarUrl && !imageError" :src="user.avatarUrl" class="w-full h-full object-cover transition-transform duration-700 group-hover/avatar:scale-110" :alt="user.name || ''" @error="handleImageError" />
+          <img
+            v-if="user?.avatarUrl && !imageError"
+            :src="user.avatarUrl"
+            class="w-full h-full object-cover transition-transform duration-700 group-hover/avatar:scale-110"
+            :alt="user.name || ''"
+            @error="handleImageError"
+          />
           <div
             v-else
             class="w-full h-full flex items-center justify-center text-white font-bold"

@@ -6,6 +6,9 @@ import UserAvatar from '@/components/UserAvatar.vue';
 import api from '@/utils/api';
 import { ElMessage } from 'element-plus';
 import type { User } from '@/types';
+import Modal from '@/components/ui/Modal.vue';
+import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -92,52 +95,47 @@ const handleClose = () => {
 </script>
 
 <template>
-  <el-dialog
-    :model-value="modelValue"
-    :title="t('community.chat.groupChat')"
-    width="min(440px, 95%)"
-    class="custom-dialog"
-    :show-close="true"
-    destroy-on-close
-    @update:model-value="handleClose"
+  <Modal
+    :show="modelValue"
+    :title="t('community.chat.groupChat') || '发起群聊'"
+    size="sm"
+    @close="handleClose"
   >
-    <div class="space-y-3.5">
+    <div class="space-y-4">
       <div>
         <label
-          class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block"
+          class="text-[10px] font-bold uppercase tracking-wider mb-2 block"
           style="color: var(--text-muted)"
           >{{ t('messages.groupName') }}</label
         >
-        <input
-          v-model="groupChatName"
-          type="text"
-          :placeholder="t('messages.groupName') + '...'"
-          class="w-full px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-          style="color: var(--text-primary)"
-        />
+        <Input v-model="groupChatName" :placeholder="t('messages.groupName') + '...'" />
       </div>
 
       <!-- Selected Members -->
       <div v-if="groupChatParticipants.length > 0">
         <label
-          class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block"
+          class="text-[10px] font-bold uppercase tracking-wider mb-2 block"
           style="color: var(--text-muted)"
-          >{{ t('community.teamDetail.selectedCount', { n: groupChatParticipants.length }) || '已选择' }} ({{ groupChatParticipants.length }})</label
+          >{{
+            t('community.teamDetail.selectedCount', { n: groupChatParticipants.length }) || '已选择'
+          }}
+          ({{ groupChatParticipants.length }})</label
         >
-        <div class="flex flex-wrap gap-1 max-h-20 overflow-y-auto scrollbar-hide py-0.5">
+        <div class="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto scrollbar-hide py-0.5">
           <div
             v-for="user in groupChatParticipants"
             :key="user.id"
-            class="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium"
-            style="
-              background-color: var(--bg-app);
-              color: var(--text-primary);
-              border: 1px solid var(--border-base);
-            "
+            class="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium bg-slate-50 dark:bg-white/5 text-[var(--text-primary)] border border-[var(--border-base)]"
           >
             <UserAvatar :user="user" size="xs" />
-            <span class="max-w-[80px] md:max-w-[120px] truncate text-[11px]">{{ user.name || user.email }}</span>
-            <button type="button" class="hover:text-rose-500 transition-colors" @click="removeGroupParticipant(user.id)">
+            <span class="max-w-[80px] md:max-w-[120px] truncate text-[11px]">{{
+              user.name || user.email
+            }}</span>
+            <button
+              type="button"
+              class="hover:text-rose-500 transition-colors cursor-pointer"
+              @click="removeGroupParticipant(user.id)"
+            >
               <X class="w-2.5 h-2.5" />
             </button>
           </div>
@@ -146,18 +144,15 @@ const handleClose = () => {
 
       <div>
         <label
-          class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block"
+          class="text-[10px] font-bold uppercase tracking-wider mb-2 block"
           style="color: var(--text-muted)"
           >{{ t('community.teamDetail.addMemberTitle') }}</label
         >
-        <div class="relative mb-2">
-          <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
+        <div class="mb-2">
+          <Input
             v-model="groupChatSearchQuery"
-            type="text"
             :placeholder="t('community.teamDetail.searchUserPlaceholder')"
-            class="w-full pl-9 pr-3.5 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-            style="color: var(--text-primary)"
+            :icon="Search"
           />
         </div>
 
@@ -190,10 +185,18 @@ const handleClose = () => {
         </div>
       </div>
 
-      <button type="button" :disabled="!groupChatName.trim() || groupChatParticipants.length === 0" class="w-full py-2.5 bg-indigo-500 text-white rounded-lg font-bold shadow-md shadow-indigo-500/20 hover:bg-indigo-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2 text-xs hover:scale-102" @click="handleCreateGroup">
-        <Users class="w-3.5 h-3.5" />
-        {{ t('community.chat.groupChat') }}
-      </button>
+      <div class="pt-2">
+        <Button
+          variant="primary"
+          size="md"
+          full-width
+          :disabled="!groupChatName.trim() || groupChatParticipants.length === 0"
+          :icon="Users"
+          @click="handleCreateGroup"
+        >
+          {{ t('community.chat.groupChat') }}
+        </Button>
+      </div>
     </div>
-  </el-dialog>
+  </Modal>
 </template>

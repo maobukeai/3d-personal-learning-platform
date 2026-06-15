@@ -145,45 +145,68 @@ onMounted(() => {
             class="flex bg-[var(--bg-app)] rounded-xl p-0.5 border border-[var(--border-base)] shadow-inner shrink-0"
           >
             <button
-type="button" class="px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[9px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer" :class="
+              type="button"
+              class="px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[9px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer"
+              :class="
                 activeTab === 'plans'
                   ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              " @click="activeTab = 'plans'">
+              "
+              @click="activeTab = 'plans'"
+            >
               订阅计划
             </button>
             <button
-type="button" class="px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[9px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer" :class="
+              type="button"
+              class="px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[9px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer"
+              :class="
                 activeTab === 'subscriptions'
                   ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              " @click="activeTab = 'subscriptions'">
+              "
+              @click="activeTab = 'subscriptions'"
+            >
               用户订阅
             </button>
             <button
-type="button" class="px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[9px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer" :class="
+              type="button"
+              class="px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[9px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer"
+              :class="
                 activeTab === 'codes'
                   ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              " @click="activeTab = 'codes'">
+              "
+              @click="activeTab = 'codes'"
+            >
               激活码管理
             </button>
           </div>
         </div>
 
         <div class="flex items-center gap-1.5 sm:gap-2.5">
-          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer" @click="handleCreateAction">
+          <button
+            type="button"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+            @click="handleCreateAction"
+          >
             <Plus class="w-3.5 h-3.5" />
             <span>
               {{
                 activeTab === 'plans'
-                  ? t('admin.new_plan') : activeTab === 'subscriptions'
-                    ? t('admin.add_new_subscription') : $t('admin.generate_activation_code')
+                  ? t('admin.new_plan')
+                  : activeTab === 'subscriptions'
+                    ? t('admin.add_new_subscription')
+                    : $t('admin.generate_activation_code')
               }}
             </span>
           </button>
 
-          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="fetchData">
+          <button
+            type="button"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="fetchData"
+          >
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
             刷新
           </button>

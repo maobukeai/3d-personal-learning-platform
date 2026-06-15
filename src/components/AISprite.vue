@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import {
-  AlertTriangle,
-  Sparkles,
-  X,
-} from 'lucide-vue-next';
+import { AlertTriangle, Sparkles, X } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
@@ -45,7 +41,7 @@ const goToBilling = () => {
 const isOpen = ref(false);
 const isGeneratingMap = ref<Record<string, boolean>>({});
 const isTypingMap = ref<Record<string, boolean>>({});
-const showBubble = ref(true);
+const showBubble = ref(localStorage.getItem('ai_bubble_dismissed') !== 'true');
 const inputMessage = ref('');
 const showModelDropdown = ref(false);
 const streamMetaMap = ref<
@@ -331,11 +327,11 @@ const deleteSession = async (sessionId: string) => {
         params: { sessionId },
       });
     } catch (error: unknown) {
-    console.error('Failed to delete AI chat session on server:', error);
-    messages.value = originalMessages;
-    ElMessage.error('删除会话失败，请稍后重试');
-    return;
-  }
+      console.error('Failed to delete AI chat session on server:', error);
+      messages.value = originalMessages;
+      ElMessage.error('删除会话失败，请稍后重试');
+      return;
+    }
   } else {
     saveHistory();
   }
@@ -349,10 +345,6 @@ const deleteSession = async (sessionId: string) => {
     }
   }
 };
-
-
-
-
 
 const availableAiModels = computed(() =>
   (systemStore.settings.AI_MODEL_OPTIONS || []).filter((model) => model.enabled),
@@ -493,7 +485,7 @@ const syncActiveHistory = () => {
 
 const saveHistory = () => {
   if (!authStore.isAuthenticated) {
-    const safeMessages = messages.value.slice(-40).map((message) => ({
+    const safeMessages = messages.value.slice(-200).map((message) => ({
       ...message,
       content: redactLocalMessage(message.content),
       isThinking: false,
@@ -544,7 +536,7 @@ const loadGuestHistory = () => {
     if (Array.isArray(parsed) && parsed.length > 0) {
       messages.value = parsed
         .filter((msg: any) => msg?.role === 'user' || msg?.role === 'assistant')
-        .slice(-40)
+        .slice(-200)
         .map((msg: any) => {
           const sourcesResult = parseSourcesFromReasoning(msg.reasoning || '');
           return createMessage(msg.role, msg.content, {
@@ -585,7 +577,7 @@ const loadHistory = async () => {
     if (response.data?.success && history.length > 0) {
       const dbMessages = history
         .filter((msg: any) => msg?.role === 'user' || msg?.role === 'assistant')
-        .slice(-80)
+        .slice(-400)
         .map((msg: any) => {
           const sourcesResult = parseSourcesFromReasoning(msg.reasoning || '');
           return createMessage(msg.role, msg.content, {
@@ -606,8 +598,8 @@ const loadHistory = async () => {
         Object.keys(pendingRunPollers).filter((k) => pendingRunPollers[k] !== null),
       );
       if (activePollerSessions.size > 0) {
-        const localActiveMessages = messages.value.filter(
-          (m) => activePollerSessions.has(m.sessionId || 'default'),
+        const localActiveMessages = messages.value.filter((m) =>
+          activePollerSessions.has(m.sessionId || 'default'),
         );
         // Merge: DB messages for non-active sessions + local messages for active sessions
         messages.value = [
@@ -643,7 +635,6 @@ const loadHistory = async () => {
   }
 };
 
-
 // ---------------------------------------------------------------------------
 // Pending-run persistence helpers
 // ---------------------------------------------------------------------------
@@ -661,14 +652,18 @@ const addToPendingRunIndex = (sessionId: string) => {
       index.push(sessionId);
       preferences.setAiPendingRunsIndex(index);
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 };
 
 const removeFromPendingRunIndex = (sessionId: string) => {
   try {
     const index = getPendingRunIndex().filter((id) => id !== sessionId);
     preferences.setAiPendingRunsIndex(index);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 };
 
 const savePendingRun = (
@@ -682,17 +677,28 @@ const savePendingRun = (
   try {
     preferences.setAiPendingRun(
       sessionId,
-      JSON.stringify({ runId, userContent, sessionTitle, mode, assistantMsgId, createdAt: Date.now() }),
+      JSON.stringify({
+        runId,
+        userContent,
+        sessionTitle,
+        mode,
+        assistantMsgId,
+        createdAt: Date.now(),
+      }),
     );
     addToPendingRunIndex(sessionId);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 };
 
 const clearPendingRun = (sessionId: string) => {
   try {
     preferences.removeAiPendingRun(sessionId);
     removeFromPendingRunIndex(sessionId);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 };
 
 const getAllPendingRuns = (): Array<{
@@ -716,7 +722,9 @@ const getAllPendingRuns = (): Array<{
         } else {
           clearPendingRun(sessionId);
         }
-      } catch { /* ignore corrupted entry */ }
+      } catch {
+        /* ignore corrupted entry */
+      }
     }
   }
   return result;
@@ -731,18 +739,14 @@ const stopPendingRunPoller = (sessionId: string) => {
 };
 
 // Poll /api/projects/ai-chat/runs/:runId/status and update message content in real time
-const pollPendingRun = (
-  sessionId: string,
-  runId: string,
-  assistantMsgId: string,
-) => {
+const pollPendingRun = (sessionId: string, runId: string, assistantMsgId: string) => {
   stopPendingRunPoller(sessionId);
 
   let lastContent = '';
   let lastReasoning = '';
   let consecutiveErrors = 0;
 
-  const finishPoll = async (msgObj: typeof messages.value[0] | undefined) => {
+  const finishPoll = async (msgObj: (typeof messages.value)[0] | undefined) => {
     stopPendingRunPoller(sessionId);
     clearPendingRun(sessionId);
     isGeneratingMap.value[sessionId] = false;
@@ -842,12 +846,11 @@ const resumePendingRuns = () => {
 
     // Ensure the user message is present
     const userMsgExists = messages.value.some(
-      (m) => m.role === 'user' && (m.sessionId || 'default') === sessionId && m.content === userContent,
+      (m) =>
+        m.role === 'user' && (m.sessionId || 'default') === sessionId && m.content === userContent,
     );
     if (!userMsgExists) {
-      messages.value.push(
-        createMessage('user', userContent, { sessionId, sessionTitle }),
-      );
+      messages.value.push(createMessage('user', userContent, { sessionId, sessionTitle }));
     }
 
     // Ensure the assistant placeholder exists
@@ -889,6 +892,7 @@ watch(
 watch(isOpen, (open) => {
   if (open) {
     showBubble.value = false;
+    localStorage.setItem('ai_bubble_dismissed', 'true');
     offsetX.value = 0;
     offsetY.value = 0;
     showMobileSidebar.value = false;
@@ -998,7 +1002,7 @@ const removeUploadedImage = (index: number) => {
 };
 
 const handleSpriteClick = () => {
-  if (hasDraggedSprite) return;
+  if (hasDraggedSprite.value) return;
   isOpen.value = !isOpen.value;
 };
 
@@ -1202,7 +1206,14 @@ const handleSend = async () => {
 
   // Persist the pending run to localStorage so resumePendingRuns can pick it up on reload
   if (authStore.isAuthenticated) {
-    savePendingRun(sId, clientRunId, userContent, sessionTitle, chatMode.value, assistantMessage.id);
+    savePendingRun(
+      sId,
+      clientRunId,
+      userContent,
+      sessionTitle,
+      chatMode.value,
+      assistantMessage.id,
+    );
   }
 
   await nextTick();
@@ -1331,7 +1342,7 @@ const handleSend = async () => {
     isTypingMap.value[sId] = false;
     activeReaders[sId] = null;
     activeAbortControllers[sId] = null;
-    
+
     // Only clear the pending run if the page is NOT unloading.
     // If it is unloading (refreshing/closing), we must keep the run in localStorage
     // so that resumePendingRuns can pick it up when the page reloads.
@@ -1339,7 +1350,7 @@ const handleSend = async () => {
       clearPendingRun(sId);
       stopPendingRunPoller(sId);
     }
-    
+
     saveHistory();
     if (sId === currentSessionId.value) {
       await scrollToBottom();
@@ -1436,6 +1447,7 @@ const copyMessage = (text: string, id: string) => {
 onMounted(() => {
   bubbleTimer = setTimeout(() => {
     showBubble.value = false;
+    localStorage.setItem('ai_bubble_dismissed', 'true');
   }, 7000);
 
   window.addEventListener('click', handleDocumentClick);
@@ -1463,12 +1475,9 @@ onUnmounted(() => {
   Object.values(pendingRunPollers).forEach((timer) => {
     if (timer) clearTimeout(timer);
   });
-  // Remove global drag/resize document listeners to prevent leaks when the
-  // component unmounts while the user is mid-drag or mid-resize
-  stopDrag();
+  // Remove global resize document listeners to prevent leaks when the
+  // component unmounts while the user is mid-resize
   stopResize();
-  stopDragSprite();
-  stopDragSpriteTouch();
   window.removeEventListener('click', handleDocumentClick);
   window.removeEventListener('resize', updateWindowSize);
   if (bubbleTimer) {
@@ -1499,7 +1508,7 @@ onUnmounted(() => {
           box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
         "
       >
-        需要整理学习计划、分析项目、看代码或继续推进当前工作时，随时打开 AI 助手。
+        需要帮忙吗？随时打开 AI 助手 ✨
       </div>
     </Transition>
 
@@ -1531,8 +1540,8 @@ onUnmounted(() => {
           "
         >
           <SpriteSidebar
-            v-model:showMobileSidebar="showMobileSidebar"
-            v-model:historySearch="historySearch"
+            v-model:show-mobile-sidebar="showMobileSidebar"
+            v-model:history-search="historySearch"
             :is-mobile="isMobile"
             :current-session-id="currentSessionId"
             :recent-prompts="recentPrompts"
@@ -1548,12 +1557,12 @@ onUnmounted(() => {
 
           <SpriteChatArea
             ref="chatAreaRef"
-            v-model:showMobileSidebar="showMobileSidebar"
-            v-model:isFullscreen="isFullscreen"
-            v-model:isOpen="isOpen"
-            v-model:inputMessage="inputMessage"
-            v-model:chatMode="chatMode"
-            v-model:showModelDropdown="showModelDropdown"
+            v-model:show-mobile-sidebar="showMobileSidebar"
+            v-model:is-fullscreen="isFullscreen"
+            v-model:is-open="isOpen"
+            v-model:input-message="inputMessage"
+            v-model:chat-mode="chatMode"
+            v-model:show-model-dropdown="showModelDropdown"
             :is-mobile="isMobile"
             :current-conversation-title="currentConversationTitle"
             :current-conversation-meta="currentConversationMeta"
@@ -1831,27 +1840,54 @@ onUnmounted(() => {
   background: transparent !important;
 }
 
-.ai-preview :deep(.md-editor-preview) {
+.ai-preview .md-editor-preview {
   background: transparent !important;
   color: inherit !important;
   padding: 0 !important;
-  font-size: 14px !important;
-  line-height: 1.8 !important;
+  line-height: 1.6 !important;
 }
 
-.ai-preview :deep(.md-editor-preview-wrapper) {
+.ai-preview .md-editor-preview-wrapper {
   padding: 0 !important;
 }
 
-.ai-preview :deep(.md-editor-preview p:first-child) {
+.ai-preview .md-editor-preview p:first-child {
   margin-top: 0 !important;
 }
 
-.ai-preview :deep(.md-editor-preview p:last-child) {
+.ai-preview .md-editor-preview p:last-child {
   margin-bottom: 0 !important;
 }
 
-.ai-preview :deep(.md-editor-preview img) {
+.ai-preview .md-editor-preview p {
+  margin-top: 4px !important;
+  margin-bottom: 4px !important;
+}
+
+.ai-preview .md-editor-preview h1,
+.ai-preview .md-editor-preview h2,
+.ai-preview .md-editor-preview h3,
+.ai-preview .md-editor-preview h4,
+.ai-preview .md-editor-preview h5,
+.ai-preview .md-editor-preview h6 {
+  margin-top: 10px !important;
+  margin-bottom: 4px !important;
+  font-weight: 600 !important;
+}
+
+.ai-preview .md-editor-preview ul,
+.ai-preview .md-editor-preview ol {
+  margin-top: 4px !important;
+  margin-bottom: 4px !important;
+  padding-left: 20px !important;
+}
+
+.ai-preview .md-editor-preview li {
+  margin-top: 2px !important;
+  margin-bottom: 2px !important;
+}
+
+.ai-preview .md-editor-preview img {
   max-width: 100% !important;
   max-height: 280px !important;
   border-radius: 16px !important;
@@ -1859,13 +1895,13 @@ onUnmounted(() => {
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1) !important;
 }
 
-.ai-preview :deep(.md-editor-code pre) {
+.ai-preview .md-editor-code pre {
   border-radius: 16px !important;
   padding: 14px 16px !important;
-  font-size: 12px !important;
+  font-size: 11px !important;
 }
 
-.ai-preview :deep(.md-editor-preview blockquote) {
+.ai-preview .md-editor-preview blockquote {
   margin: 12px 0 !important;
   border-left: 3px solid rgba(244, 114, 182, 0.5) !important;
   background: rgba(255, 241, 242, 0.7) !important;
@@ -1874,11 +1910,11 @@ onUnmounted(() => {
   padding: 12px 14px !important;
 }
 
-.dark .ai-preview :deep(.md-editor-preview blockquote) {
+.dark .ai-preview .md-editor-preview blockquote {
   background: rgba(30, 41, 59, 0.75) !important;
 }
 
-.ai-preview :deep(.md-editor-preview code) {
+.ai-preview .md-editor-preview code {
   border-radius: 8px !important;
   padding: 2px 6px !important;
 }
@@ -2041,18 +2077,17 @@ html.theme-glass .ai-sidebar input[type='text']:focus,
     padding-top: 14px !important;
     padding-bottom: 14px !important;
   }
-  .ai-preview :deep(.md-editor-preview) {
-    font-size: 13px !important;
-    line-height: 1.6 !important;
+  .ai-preview .md-editor-preview {
+    line-height: 1.55 !important;
   }
-  .ai-preview :deep(.md-editor-code pre) {
+  .ai-preview .md-editor-code pre {
     padding: 10px 12px !important;
     border-radius: 10px !important;
   }
   .ai-assistant-bubble,
   .ai-user-bubble {
     border-radius: 16px !important;
-    padding: 10px 12px !important;
+    padding: 12px 14px !important;
   }
   .thinking-content {
     font-size: 11px !important;

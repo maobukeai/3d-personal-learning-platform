@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Maximize2, FileArchive, FileCode, Box } from 'lucide-vue-next';
 import { getDefaultThumbnailUrl } from '@/utils/defaultThumbnail';
-import BaseCard from '@/components/BaseCard.vue';
+import Card from '@/components/ui/Card.vue';
 
 /**
  * AssetCard Component
@@ -48,26 +48,43 @@ const getFormatIcon = (format?: string) => {
 </script>
 
 <template>
-  <BaseCard
+  <Card
     glass
-    class="asset-card-container group relative flex flex-col !overflow-hidden transition-all duration-500 hover:-translate-y-1 hover:scale-[1.01] hover:border-accent/50 hover:shadow-[0_15px_30px_-10px_rgba(var(--accent-rgb),0.25)]"
+    hoverable
+    glow
+    padding="none"
+    class="asset-card-container group relative flex flex-col !overflow-hidden transition-all duration-500 hover:scale-[1.01]"
   >
     <!-- Preview Area -->
     <div
       class="preview-area relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800"
     >
       <!-- Main Thumbnail -->
-      <img v-if="asset.thumbnail" :src="asset.thumbnail" :alt="asset.title" loading="lazy" class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" />
-      <img v-else :src="getDefaultThumbnailUrl(asset.type)" :alt="asset.title" loading="lazy" class="h-full w-full object-cover opacity-60 transition-transform duration-700 ease-out group-hover:scale-105" />
+      <img
+        v-if="asset.thumbnail"
+        :src="asset.thumbnail"
+        :alt="asset.title"
+        loading="lazy"
+        class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+      />
+      <img
+        v-else
+        :src="getDefaultThumbnailUrl(asset.type)"
+        :alt="asset.title"
+        loading="lazy"
+        class="h-full w-full object-cover opacity-60 transition-transform duration-700 ease-out group-hover:scale-105"
+      />
 
       <!-- Gradient Overlay for Contrast -->
-      <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 opacity-60 transition-opacity duration-500 group-hover:opacity-80"></div>
+      <div
+        class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 opacity-60 transition-opacity duration-500 group-hover:opacity-80"
+      ></div>
 
       <!-- Glassmorphism Hover Overlay -->
       <div
         class="absolute inset-0 z-10 flex items-center justify-center opacity-0 backdrop-blur-sm transition-all duration-500 group-hover:opacity-100"
       >
-        <div 
+        <div
           class="flex h-10 w-10 transform scale-50 items-center justify-center rounded-full bg-white/20 shadow-[0_0_20px_rgba(255,255,255,0.2)] backdrop-blur-md border border-white/30 transition-all duration-500 delay-75 group-hover:scale-100 dark:bg-black/40"
         >
           <Maximize2 class="h-4.5 w-4.5 text-white drop-shadow-md" />
@@ -75,7 +92,7 @@ const getFormatIcon = (format?: string) => {
       </div>
 
       <!-- Type Badge -->
-      <div 
+      <div
         class="absolute left-2 top-2 z-20 rounded-full border border-white/30 bg-black/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white backdrop-blur-md transition-transform duration-500 group-hover:translate-x-0.5 shadow-md"
       >
         {{ asset.type }}
@@ -83,8 +100,10 @@ const getFormatIcon = (format?: string) => {
     </div>
 
     <!-- Content Area -->
-    <div class="flex flex-col p-2.5 sm:p-3 z-20 relative bg-white dark:bg-slate-900 transition-colors duration-500 group-hover:bg-transparent">
-      <h3 
+    <div
+      class="flex flex-col p-2.5 sm:p-3 z-20 relative bg-white dark:bg-slate-900 transition-colors duration-500 group-hover:bg-transparent"
+    >
+      <h3
         class="mb-1.5 line-clamp-1 text-xs sm:text-sm font-bold tracking-tight transition-colors duration-300 group-hover:text-accent"
         style="color: var(--text-primary)"
       >
@@ -92,30 +111,42 @@ const getFormatIcon = (format?: string) => {
       </h3>
 
       <!-- Bottom Info Bar -->
-      <div class="flex items-center justify-between border-t pt-2.5" style="border-color: var(--border-base)">
+      <div
+        class="flex items-center justify-between border-t pt-2.5"
+        style="border-color: var(--border-base)"
+      >
         <!-- File Size -->
         <div class="flex items-center gap-1.5">
-          <div class="h-1 w-1 rounded-full bg-accent animate-pulse shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]"></div>
-          <span class="text-[10px] font-semibold tracking-wide" style="color: var(--text-secondary)">
+          <div
+            class="h-1 w-1 rounded-full bg-accent animate-pulse shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]"
+          ></div>
+          <span
+            class="text-[10px] font-semibold tracking-wide"
+            style="color: var(--text-secondary)"
+          >
             {{ formatSize(asset.fileSize) }}
           </span>
         </div>
 
         <!-- Format Info -->
-        <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800/80 transition-colors duration-300 group-hover:bg-accent/10">
-          <component 
-            :is="getFormatIcon(asset.format)" 
-            class="h-3 w-3 transition-colors duration-300 group-hover:text-accent" 
+        <div
+          class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800/80 transition-colors duration-300 group-hover:bg-accent/10"
+        >
+          <component
+            :is="getFormatIcon(asset.format)"
+            class="h-3 w-3 transition-colors duration-300 group-hover:text-accent"
             style="color: var(--text-secondary)"
           />
-          <span class="text-[9px] font-bold uppercase tracking-wider transition-colors duration-300 group-hover:text-accent" style="color: var(--text-muted)">
+          <span
+            class="text-[9px] font-bold uppercase tracking-wider transition-colors duration-300 group-hover:text-accent"
+            style="color: var(--text-muted)"
+          >
             {{ asset.format || 'GLB' }}
           </span>
         </div>
       </div>
     </div>
-  </BaseCard>
-
+  </Card>
 </template>
 
 <style scoped>

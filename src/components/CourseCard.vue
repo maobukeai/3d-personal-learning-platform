@@ -1,14 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import BaseCard from '@/components/BaseCard.vue';
-import {
-  Star,
-  Users,
-  BookOpen,
-  ChevronRight,
-  PlayCircle,
-  Bookmark,
-} from 'lucide-vue-next';
+import Card from '@/components/ui/Card.vue';
+import { Star, Users, BookOpen, ChevronRight, PlayCircle, Bookmark } from 'lucide-vue-next';
 
 type CourseCardItem = {
   id: string;
@@ -41,7 +34,7 @@ const props = withDefaults(
     enrolled: false,
     bookmarked: false,
     progress: 0,
-  }
+  },
 );
 
 const emit = defineEmits<{
@@ -84,9 +77,10 @@ function handleBookmarkClick(event: Event) {
 
 <template>
   <!-- layout == 'row-simple' (e.g. Continue Learning) -->
-  <BaseCard
+  <Card
     v-if="layout === 'row-simple'"
     glass
+    hoverable
     clickable
     padding="none"
     class="group flex gap-3 p-2.5 sm:p-3 !overflow-hidden"
@@ -95,7 +89,13 @@ function handleBookmarkClick(event: Event) {
     <div
       class="w-20 sm:w-24 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
     >
-      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      <img
+        alt=""
+        :src="course.thumbnail || defaultThumbnail"
+        referrerpolicy="no-referrer"
+        loading="lazy"
+        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+      />
     </div>
     <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
       <div>
@@ -112,9 +112,7 @@ function handleBookmarkClick(event: Event) {
       </div>
       <div class="mt-2">
         <div class="flex items-center justify-between mb-1">
-          <span class="text-[10px] font-bold text-emerald-500"
-            >{{ progress }}% 完成</span
-          >
+          <span class="text-[10px] font-bold text-emerald-500">{{ progress }}% 完成</span>
         </div>
         <div class="h-1 bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden">
           <div
@@ -124,12 +122,13 @@ function handleBookmarkClick(event: Event) {
         </div>
       </div>
     </div>
-  </BaseCard>
+  </Card>
 
   <!-- layout == 'row-detailed' (e.g. Featured Recommended) -->
-  <BaseCard
+  <Card
     v-else-if="layout === 'row-detailed'"
     glass
+    hoverable
     clickable
     padding="none"
     class="group flex flex-col sm:flex-row gap-3 sm:gap-3.5 p-3 sm:p-3.5 !overflow-hidden"
@@ -138,7 +137,13 @@ function handleBookmarkClick(event: Event) {
     <div
       class="w-full sm:w-36 lg:w-44 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
     >
-      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      <img
+        alt=""
+        :src="course.thumbnail || defaultThumbnail"
+        referrerpolicy="no-referrer"
+        loading="lazy"
+        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+      />
     </div>
     <div class="flex-1 min-w-0 flex flex-col justify-between py-1">
       <div>
@@ -181,19 +186,26 @@ function handleBookmarkClick(event: Event) {
         >
       </div>
     </div>
-  </BaseCard>
+  </Card>
 
   <!-- layout == 'card-simple' (e.g. Recommended Courses) -->
-  <BaseCard
+  <Card
     v-else-if="layout === 'card-simple'"
     glass
+    hoverable
     clickable
     padding="none"
     class="group !overflow-hidden"
     @click="handleCardClick"
   >
     <div class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5">
-      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      <img
+        alt=""
+        :src="course.thumbnail || defaultThumbnail"
+        referrerpolicy="no-referrer"
+        loading="lazy"
+        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+      />
       <div
         class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
       >
@@ -228,12 +240,13 @@ function handleBookmarkClick(event: Event) {
         >
       </div>
     </div>
-  </BaseCard>
+  </Card>
 
   <!-- layout == 'card' (e.g. Standard Filtered Course Grid) -->
-  <BaseCard
+  <Card
     v-else
     glass
+    hoverable
     clickable
     padding="none"
     class="group !overflow-hidden"
@@ -241,7 +254,13 @@ function handleBookmarkClick(event: Event) {
   >
     <!-- Course Cover -->
     <div class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5">
-      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      <img
+        alt=""
+        :src="course.thumbnail || defaultThumbnail"
+        referrerpolicy="no-referrer"
+        loading="lazy"
+        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+      />
       <div
         class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
       >
@@ -257,35 +276,27 @@ function handleBookmarkClick(event: Event) {
         </span>
       </div>
       <slot name="right-badges">
-        <div
-          v-if="enrolled"
-          class="absolute top-3 right-3 flex items-center gap-1.5"
-        >
-          <span
-            class="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500 text-white"
-          >
+        <div v-if="enrolled" class="absolute top-3 right-3 flex items-center gap-1.5">
+          <span class="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500 text-white">
             已加入
           </span>
         </div>
         <!-- Bookmark button -->
-        <button v-else type="button" class="absolute top-3 right-3 p-1.5 rounded-lg bg-black/30 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all hover:bg-black/50" @click.stop="handleBookmarkClick($event)">
+        <button
+          v-else
+          type="button"
+          class="absolute top-3 right-3 p-1.5 rounded-lg bg-black/30 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all hover:bg-black/50"
+          @click.stop="handleBookmarkClick($event)"
+        >
           <Bookmark
             class="w-3.5 h-3.5"
-            :class="
-              bookmarked ? 'text-amber-400 fill-amber-400' : 'text-white'
-            "
+            :class="bookmarked ? 'text-amber-400 fill-amber-400' : 'text-white'"
           />
         </button>
       </slot>
       <!-- Progress bar for enrolled courses -->
-      <div
-        v-if="enrolled && progress > 0"
-        class="absolute bottom-0 left-0 right-0 h-1 bg-black/20"
-      >
-        <div
-          class="h-full bg-emerald-400 transition-all"
-          :style="{ width: progress + '%' }"
-        ></div>
+      <div v-if="enrolled && progress > 0" class="absolute bottom-0 left-0 right-0 h-1 bg-black/20">
+        <div class="h-full bg-emerald-400 transition-all" :style="{ width: progress + '%' }"></div>
       </div>
     </div>
 
@@ -323,10 +334,14 @@ function handleBookmarkClick(event: Event) {
             "
           />
         </div>
-        <span class="xs:hidden"><Star class="w-3 h-3 text-amber-400 fill-amber-400 inline-block align-middle mr-0.5" /></span>
-        <span class="text-[10px] font-bold inline-block align-middle" style="color: var(--text-muted)">{{
-          course.avgRating || '-'
-        }}</span>
+        <span class="xs:hidden"
+          ><Star class="w-3 h-3 text-amber-400 fill-amber-400 inline-block align-middle mr-0.5"
+        /></span>
+        <span
+          class="text-[10px] font-bold inline-block align-middle"
+          style="color: var(--text-muted)"
+          >{{ course.avgRating || '-' }}</span
+        >
       </div>
 
       <div
@@ -338,10 +353,12 @@ function handleBookmarkClick(event: Event) {
           style="color: var(--text-muted)"
         >
           <span class="flex items-center gap-0.5 sm:gap-1"
-            ><BookOpen class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" /> {{ course._count?.lessons || 0 }}<span class="hidden xs:inline"> 课时</span></span
+            ><BookOpen class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" /> {{ course._count?.lessons || 0
+            }}<span class="hidden xs:inline"> 课时</span></span
           >
           <span class="flex items-center gap-0.5 sm:gap-1"
-            ><Users class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" /> {{ course._count?.enrollments || 0 }}</span
+            ><Users class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+            {{ course._count?.enrollments || 0 }}</span
           >
         </div>
         <ChevronRight
@@ -349,7 +366,7 @@ function handleBookmarkClick(event: Event) {
         />
       </div>
     </div>
-  </BaseCard>
+  </Card>
 </template>
 
 <style scoped>

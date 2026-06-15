@@ -1,11 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
-import {
-  MoreHorizontal,
-  CheckCircle2,
-  Activity,
-  Clock,
-} from 'lucide-vue-next';
+import { MoreHorizontal, CheckCircle2, Activity, Clock } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 
 interface Member {
@@ -100,7 +95,11 @@ const getStatusLabel = (status: string) => {
         </div>
         <div @click.stop>
           <el-dropdown trigger="click">
-            <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" style="color: var(--text-secondary)">
+            <button
+              type="button"
+              class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
+              style="color: var(--text-secondary)"
+            >
               <MoreHorizontal class="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </button>
             <template #dropdown>
@@ -108,7 +107,10 @@ const getStatusLabel = (status: string) => {
                 <el-dropdown-item class="!rounded-lg !mb-1 font-bold" @click="handleClick">
                   查看详情
                 </el-dropdown-item>
-                <el-dropdown-item class="!rounded-lg !mb-1 font-bold" @click="emit('edit', project)">
+                <el-dropdown-item
+                  class="!rounded-lg !mb-1 font-bold"
+                  @click="emit('edit', project)"
+                >
                   配置项目
                 </el-dropdown-item>
                 <el-divider class="!my-1" />
@@ -218,7 +220,10 @@ const getStatusLabel = (status: string) => {
           "
         >
           <CheckCircle2 v-if="project.status === 'COMPLETED'" class="w-2.5 sm:w-3 h-2.5 sm:h-3" />
-          <Activity v-else-if="project.status === 'IN_PROGRESS'" class="w-2.5 sm:w-3 h-2.5 sm:h-3" />
+          <Activity
+            v-else-if="project.status === 'IN_PROGRESS'"
+            class="w-2.5 sm:w-3 h-2.5 sm:h-3"
+          />
           <Clock v-else class="w-2.5 sm:w-3 h-2.5 sm:h-3" />
           {{ getStatusLabel(project.status) }}
         </div>
@@ -248,7 +253,9 @@ const getStatusLabel = (status: string) => {
           >
             {{ project.title }}
           </p>
-          <p class="text-[10px] font-bold text-slate-400 mt-0.5 line-clamp-1 max-w-xs md:max-w-md lg:max-w-lg">
+          <p
+            class="text-[10px] font-bold text-slate-400 mt-0.5 line-clamp-1 max-w-xs md:max-w-md lg:max-w-lg"
+          >
             {{ project.description || '暂无描述' }}
           </p>
         </div>
@@ -306,7 +313,11 @@ const getStatusLabel = (status: string) => {
     <td class="px-6 py-2 text-right">
       <div class="inline-block text-left" @click.stop>
         <el-dropdown trigger="click">
-          <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" style="color: var(--text-secondary)">
+          <button
+            type="button"
+            class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
+            style="color: var(--text-secondary)"
+          >
             <MoreHorizontal class="w-4 h-4" />
           </button>
           <template #dropdown>
@@ -332,11 +343,7 @@ const getStatusLabel = (status: string) => {
   </tr>
 
   <!-- Layout 3: Card Simple Mode (for Mobile Lists) -->
-  <div
-    v-else-if="layout === 'card-simple'"
-    class="p-5 flex flex-col gap-4"
-    @click="handleClick"
-  >
+  <div v-else-if="layout === 'card-simple'" class="p-5 flex flex-col gap-4" @click="handleClick">
     <div class="flex items-start justify-between">
       <div class="flex items-center gap-3">
         <div

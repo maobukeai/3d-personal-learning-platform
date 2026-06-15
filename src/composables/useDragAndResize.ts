@@ -1,16 +1,18 @@
 import { ref, onMounted, onUnmounted, nextTick, isRef, type Ref } from 'vue';
 
-export function useDragAndResize(options: {
-  initialWidth?: number;
-  initialHeight?: number;
-  minWidth?: number;
-  minHeight?: number;
-  maxWidth?: number;
-  maxHeight?: number;
-  storageWidthKey?: string;
-  storageHeightKey?: string;
-  onPostScroll?: () => void;
-} = {}) {
+export function useDragAndResize(
+  options: {
+    initialWidth?: number;
+    initialHeight?: number;
+    minWidth?: number;
+    minHeight?: number;
+    maxWidth?: number;
+    maxHeight?: number;
+    storageWidthKey?: string;
+    storageHeightKey?: string;
+    onPostScroll?: () => void;
+  } = {},
+) {
   const minWidth = options.minWidth ?? 260;
   const minHeight = options.minHeight ?? 300;
   const maxWidth = options.maxWidth ?? 800;
@@ -50,7 +52,12 @@ export function useDragAndResize(options: {
 
   const onDragStart = (e: MouseEvent | TouchEvent, isOpen: Ref<boolean> | boolean) => {
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('.el-dropdown')) {
+    if (
+      target.closest('button') ||
+      target.closest('a') ||
+      target.closest('input') ||
+      target.closest('.el-dropdown')
+    ) {
       return;
     }
 
@@ -142,7 +149,10 @@ export function useDragAndResize(options: {
 
       if (resizeType === 'top' || resizeType === 'top-left') {
         const newHeight = resizeStartHeight - deltaY;
-        const maxAllowedHeight = Math.max(minHeight, window.innerHeight - position.value.bottom - 90);
+        const maxAllowedHeight = Math.max(
+          minHeight,
+          window.innerHeight - position.value.bottom - 90,
+        );
         chatBoxHeight.value = Math.max(minHeight, Math.min(maxAllowedHeight, maxHeight, newHeight));
       }
     };
@@ -200,10 +210,12 @@ export function useDragAndResize(options: {
     position,
     isDragging,
     getHasMoved: () => hasMoved,
-    resetHasMoved: () => { hasMoved = false; },
+    resetHasMoved: () => {
+      hasMoved = false;
+    },
     onDragStart,
     onResizeStart,
     toggleMaximize,
-    adjustBoxSizeForViewport
+    adjustBoxSizeForViewport,
   };
 }

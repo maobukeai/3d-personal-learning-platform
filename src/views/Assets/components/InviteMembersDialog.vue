@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import { Users, X } from 'lucide-vue-next';
+import { Users } from 'lucide-vue-next';
 import api from '@/utils/api';
+import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 import { getApiErrorMessage } from '@/utils/error';
 import UserAvatar from '@/components/UserAvatar.vue';
 import type { User } from '@/types';
@@ -61,26 +63,12 @@ defineExpose({ open });
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    title="邀请成员"
-    width="440px"
-    class="custom-dialog"
-    :show-close="false"
-  >
-    <template #header="{ close }">
-      <div class="flex items-center justify-between">
-        <h3 class="text-xl font-black tracking-tight" style="color: var(--text-primary)">
-          邀请加入项目
-        </h3>
-        <button type="button" class="p-2 bg-slate-100 dark:bg-slate-800 hover:scale-110 rounded-full transition-all cursor-pointer" @click="close">
-          <X class="w-4 h-4 text-slate-500" />
-        </button>
-      </div>
-    </template>
+  <Modal :show="visible" title="邀请加入项目" size="md" @close="visible = false">
     <div class="space-y-4">
-      <div v-if="loading" class="text-center py-8 text-slate-400">
-        <el-icon class="is-loading" :size="24"><Loading /></el-icon>
+      <div v-if="loading" class="text-center py-8">
+        <div
+          class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto"
+        ></div>
       </div>
       <div v-else-if="teamMembersForInvite.length === 0" class="text-center py-8 text-slate-400">
         <Users class="w-10 h-10 mx-auto mb-3 opacity-50" />
@@ -105,7 +93,7 @@ defineExpose({ open });
           >
             <div class="flex items-center gap-3">
               <UserAvatar :user="m" size="xs" />
-              <span class="font-bold">{{ m.name || m.email }}</span>
+              <span class="font-bold text-xs sm:text-sm">{{ m.name || m.email }}</span>
             </div>
           </el-option>
         </el-select>
@@ -113,26 +101,37 @@ defineExpose({ open });
     </div>
     <template #footer>
       <div class="flex gap-4">
-        <button type="button" class="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl font-black transition-all cursor-pointer" style="color: var(--text-primary)" @click="visible = false">
-          取消
-        </button>
-        <button type="button" :disabled="inviteUserIds.length === 0 || loading" class="flex-[2] py-3 bg-accent text-white rounded-2xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer" @click="handleInviteMembers">
+        <Button variant="secondary" class="flex-1" @click="visible = false"> 取消 </Button>
+        <Button
+          variant="primary"
+          :disabled="inviteUserIds.length === 0 || loading"
+          class="flex-[2]"
+          @click="handleInviteMembers"
+        >
           发送邀请
-        </button>
+        </Button>
       </div>
     </template>
-  </el-dialog>
+  </Modal>
 </template>
 
 <style scoped>
-:deep(.custom-dialog) {
-  border-radius: 1.5rem !important;
-}
-.custom-select :deep(.el-input__wrapper) {
+.custom-select :deep(.el-select__wrapper) {
   border-radius: 1rem !important;
-  background-color: var(--bg-app) !important;
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
   box-shadow: none !important;
-  border: 1px solid var(--border-base);
   height: 52px;
+  transition: all 0.2s ease !important;
+}
+.dark .custom-select :deep(.el-select__wrapper) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.custom-select :deep(.el-select__wrapper.is-focused) {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
 }
 </style>

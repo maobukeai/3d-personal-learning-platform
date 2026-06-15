@@ -18,6 +18,7 @@ import {
 import { useAuthStore } from '@/stores/auth';
 import { preferences } from '@/utils/preferences';
 
+import Input from '@/components/ui/Input.vue';
 import ProfileSection from './components/ProfileSection.vue';
 import NotificationSection from './components/NotificationSection.vue';
 import SecuritySection from './components/SecuritySection.vue';
@@ -81,7 +82,8 @@ const sections = computed<SettingsSection[]>(() => [
     subtitle: label('头像、简介、作品主页', 'Avatar, bio, portfolio'),
     icon: User,
     keywords: ['profile', 'avatar', 'bio', '个人', '资料', '头像'],
-    status: profileCompletion.value >= 80 ? label('资料完整', 'Complete') : label('待完善', 'Needs Work'),
+    status:
+      profileCompletion.value >= 80 ? label('资料完整', 'Complete') : label('待完善', 'Needs Work'),
     metric: `${profileCompletion.value}%`,
     tone: profileCompletion.value >= 80 ? 'green' : 'amber',
   },
@@ -209,10 +211,13 @@ watch(filteredSections, (next) => {
       </div>
 
       <div class="rail-search-wrap">
-        <label class="settings-search">
-          <Search />
-          <input v-model="searchTerm" type="search" :placeholder="label('搜索设置项', 'Search settings')" />
-        </label>
+        <Input
+          v-model="searchTerm"
+          type="search"
+          :placeholder="label('搜索设置项', 'Search settings')"
+          :icon="Search"
+          clearable
+        />
       </div>
 
       <div class="rail-heading">
@@ -260,10 +265,21 @@ watch(filteredSections, (next) => {
           <span class="section-status" :class="`tone-${activeSectionMeta.tone}`">
             {{ activeSectionMeta.metric }}
           </span>
-          <button type="button" class="icon-action" :title="label('通知中心', 'Notifications')" @click="router.push('/notifications')">
+          <button
+            type="button"
+            class="icon-action"
+            :title="label('通知中心', 'Notifications')"
+            @click="router.push('/notifications')"
+          >
             <Bell />
           </button>
-          <button type="button" class="icon-action" :title="label('刷新账号状态', 'Refresh account status')" :disabled="isRefreshing" @click="refreshAccount">
+          <button
+            type="button"
+            class="icon-action"
+            :title="label('刷新账号状态', 'Refresh account status')"
+            :disabled="isRefreshing"
+            @click="refreshAccount"
+          >
             <RefreshCw :class="{ spinning: isRefreshing }" />
           </button>
         </div>

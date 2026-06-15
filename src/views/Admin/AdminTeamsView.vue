@@ -35,6 +35,7 @@ import { useWorkspaceStore } from '@/stores/workspace';
 import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import AdminTeamDetailDrawer from './components/AdminTeamDetailDrawer.vue';
 import AdminTeamFormDialog from './components/AdminTeamFormDialog.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 export type TeamVisibility = 'PUBLIC' | 'PRIVATE';
 type VisibilityFilter = 'ALL' | TeamVisibility;
@@ -1340,7 +1341,9 @@ void quickStats.value;
       @edit="openEditModal"
       @add-member="openAddMemberDialog"
       @delete="deleteTeam"
-      @update-member-role="(payload) => updateMemberRole(payload.teamId, payload.userId, payload.role)"
+      @update-member-role="
+        (payload) => updateMemberRole(payload.teamId, payload.userId, payload.role)
+      "
       @remove-member="(payload) => removeMember(payload.teamId, payload.userId, payload.label)"
       @handle-application="(payload) => handleApplication(payload.application, payload.accept)"
       @cancel-invitation="cancelInvitation"
@@ -1352,13 +1355,20 @@ void quickStats.value;
       :team="selectedTeam"
       :users="users"
       :is-submitting="isSubmitting"
-      @submit="async (formData) => {
-        form = formData;
-        await handleSubmit();
-      }"
+      @submit="
+        async (formData) => {
+          form = formData;
+          await handleSubmit();
+        }
+      "
     />
 
-    <el-dialog v-model="addMemberDialogVisible" title="添加团队成员" width="440px" destroy-on-close>
+    <Modal
+      :show="addMemberDialogVisible"
+      title="添加团队成员"
+      size="sm"
+      @close="addMemberDialogVisible = false"
+    >
       <div class="form-stack">
         <label>
           用户
@@ -1390,7 +1400,7 @@ void quickStats.value;
           添加
         </button>
       </template>
-    </el-dialog>
+    </Modal>
   </div>
 </template>
 

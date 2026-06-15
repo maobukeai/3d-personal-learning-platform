@@ -101,8 +101,12 @@ const handleProjectInvitation = async (notification: NotificationItem, accept: b
     const endpoint = accept ? 'accept' : 'reject';
     await api.post(`/api/projects/invitations/${inviteId}/${endpoint}`);
     respondedInvitations.value[notification.id] = accept ? 'ACCEPTED' : 'REJECTED';
-    ElMessage.success(accept ? t('notifications.invitation_accept_success') : t('notifications.invitation_reject_success'));
-    
+    ElMessage.success(
+      accept
+        ? t('notifications.invitation_accept_success')
+        : t('notifications.invitation_reject_success'),
+    );
+
     // Auto mark notification as read
     if (!notification.isRead) {
       await api.put(`/api/notifications/${notification.id}/read`);
@@ -110,7 +114,11 @@ const handleProjectInvitation = async (notification: NotificationItem, accept: b
     }
   } catch (error) {
     console.error('Handle project invitation error:', error);
-    ElMessage.error(accept ? t('notifications.invitation_accept_failed') : t('notifications.invitation_reject_failed'));
+    ElMessage.error(
+      accept
+        ? t('notifications.invitation_accept_failed')
+        : t('notifications.invitation_reject_failed'),
+    );
   } finally {
     processingInvitations.value[notification.id] = false;
   }
@@ -143,11 +151,15 @@ const handleMarkAllRead = async () => {
 
 const handleDeleteAll = async () => {
   try {
-    await ElMessageBox.confirm(t('notifications.clear_confirm_text'), t('notifications.clear_confirm_title'), {
-      confirmButtonText: t('notifications.clear_confirm_btn'),
-      cancelButtonText: t('notifications.clear_cancel_btn'),
-      type: 'warning',
-    });
+    await ElMessageBox.confirm(
+      t('notifications.clear_confirm_text'),
+      t('notifications.clear_confirm_title'),
+      {
+        confirmButtonText: t('notifications.clear_confirm_btn'),
+        cancelButtonText: t('notifications.clear_cancel_btn'),
+        type: 'warning',
+      },
+    );
     await api.delete('/api/notifications');
     notifications.value = [];
     ElMessage.success(t('notifications.clear_all_success'));
@@ -211,7 +223,9 @@ onMounted(() => {
           <Bell class="w-4 h-4 md:w-6 md:h-6" />
         </div>
         <div class="min-w-0">
-          <h1 class="text-sm md:text-xl font-bold text-slate-900 dark:text-white truncate">{{ $t('notifications.title') }}</h1>
+          <h1 class="text-sm md:text-xl font-bold text-slate-900 dark:text-white truncate">
+            {{ $t('notifications.title') }}
+          </h1>
           <p class="hidden md:block text-xs text-slate-500 dark:text-slate-400 truncate">
             {{ $t('notifications.subtitle') }}
           </p>
@@ -219,13 +233,29 @@ onMounted(() => {
       </div>
 
       <div class="flex items-center gap-1.5 md:gap-3 shrink-0">
-        <button type="button" :disabled="unreadCount === 0" class="flex items-center justify-center gap-1.5 px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-accent bg-accent/5 md:bg-transparent border border-accent/10 md:border-none hover:bg-accent/10 transition-all disabled:opacity-40" title="{{ $t('notifications.mark_all_read') }}" @click="handleMarkAllRead">
+        <button
+          type="button"
+          :disabled="unreadCount === 0"
+          class="flex items-center justify-center gap-1.5 px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-accent bg-accent/5 md:bg-transparent border border-accent/10 md:border-none hover:bg-accent/10 transition-all disabled:opacity-40"
+          title="{{ $t('notifications.mark_all_read') }}"
+          @click="handleMarkAllRead"
+        >
           <CheckCheck class="w-3.5 h-3.5 md:w-4 md:h-4" />
-          <span class="hidden sm:inline whitespace-nowrap">{{ $t('notifications.mark_all_read') }}</span>
+          <span class="hidden sm:inline whitespace-nowrap">{{
+            $t('notifications.mark_all_read')
+          }}</span>
         </button>
-        <button type="button" :disabled="notifications.length === 0" class="flex items-center justify-center gap-1.5 px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-rose-500 bg-rose-500/5 md:bg-transparent border border-rose-500/10 md:border-none hover:bg-rose-50 transition-all disabled:opacity-40" title="{{ $t('notifications.clear_all') }}" @click="handleDeleteAll">
+        <button
+          type="button"
+          :disabled="notifications.length === 0"
+          class="flex items-center justify-center gap-1.5 px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-rose-500 bg-rose-500/5 md:bg-transparent border border-rose-500/10 md:border-none hover:bg-rose-50 transition-all disabled:opacity-40"
+          title="{{ $t('notifications.clear_all') }}"
+          @click="handleDeleteAll"
+        >
           <Trash2 class="w-3.5 h-3.5 md:w-4 md:h-4" />
-          <span class="hidden sm:inline whitespace-nowrap">{{ $t('notifications.clear_all') }}</span>
+          <span class="hidden sm:inline whitespace-nowrap">{{
+            $t('notifications.clear_all')
+          }}</span>
         </button>
       </div>
     </div>
@@ -250,18 +280,36 @@ onMounted(() => {
           </div>
 
           <!-- Tabs / Filters: Horizontal scroll on mobile -->
-          <div class="flex md:flex-col gap-2 overflow-x-auto scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0">
+          <div
+            class="flex md:flex-col gap-2 overflow-x-auto scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0"
+          >
             <!-- Quick Filters (All/Unread) -->
             <div class="flex md:flex-col gap-1.5 md:gap-1 shrink-0">
               <button
-v-for="filter in [
-                  { id: 'all', label: $t('notifications.filter_all'), icon: Inbox, count: notifications.length },
-                  { id: 'unread', label: $t('notifications.filter_unread'), icon: Bell, count: unreadCount },
-                ]" :key="filter.id" type="button" class="flex items-center justify-between px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[11px] md:text-xs font-medium transition-all whitespace-nowrap shrink-0 min-w-[70px] md:min-w-0" :class="
+                v-for="filter in [
+                  {
+                    id: 'all',
+                    label: $t('notifications.filter_all'),
+                    icon: Inbox,
+                    count: notifications.length,
+                  },
+                  {
+                    id: 'unread',
+                    label: $t('notifications.filter_unread'),
+                    icon: Bell,
+                    count: unreadCount,
+                  },
+                ]"
+                :key="filter.id"
+                type="button"
+                class="flex items-center justify-between px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[11px] md:text-xs font-medium transition-all whitespace-nowrap shrink-0 min-w-[70px] md:min-w-0"
+                :class="
                   activeFilter === filter.id
                     ? 'bg-accent text-white shadow-md shadow-accent/20'
                     : 'text-slate-600 dark:text-slate-400 bg-white/40 dark:bg-white/5 hover:bg-white/60'
-                " @click="activeFilter = filter.id">
+                "
+                @click="activeFilter = filter.id"
+              >
                 <div class="flex items-center gap-1.5 md:gap-2">
                   <component :is="filter.icon" class="w-3.5 h-3.5" />
                   {{ filter.label }}
@@ -280,24 +328,62 @@ v-for="filter in [
             </div>
 
             <!-- Separator on mobile -->
-            <div class="md:hidden w-px h-6 bg-slate-200 dark:bg-slate-800 shrink-0 my-auto mx-1"></div>
+            <div
+              class="md:hidden w-px h-6 bg-slate-200 dark:bg-slate-800 shrink-0 my-auto mx-1"
+            ></div>
 
             <!-- Category List: Also in horizontal scroll on mobile -->
             <div class="flex md:flex-col gap-1.5 md:gap-1 shrink-0">
               <button
-v-for="cat in [
-                  { id: 'all', label: $t('notifications.cat_all'), icon: Inbox, color: 'text-slate-400', desktopOnly: true },
-                  { id: 'SYSTEM', label: $t('notifications.cat_system'), icon: Info, color: 'text-indigo-500' },
-                  { id: 'TEAM', label: $t('notifications.cat_team'), icon: Users, color: 'text-blue-500' },
-                  { id: 'TASK', label: $t('notifications.cat_task'), icon: Briefcase, color: 'text-amber-500' },
-                  { id: 'MESSAGE', label: $t('notifications.cat_message'), icon: MessageSquare, color: 'text-emerald-500' },
-                ]" :key="cat.id" type="button" class="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[11px] md:text-xs transition-all whitespace-nowrap shrink-0" :class="[
+                v-for="cat in [
+                  {
+                    id: 'all',
+                    label: $t('notifications.cat_all'),
+                    icon: Inbox,
+                    color: 'text-slate-400',
+                    desktopOnly: true,
+                  },
+                  {
+                    id: 'SYSTEM',
+                    label: $t('notifications.cat_system'),
+                    icon: Info,
+                    color: 'text-indigo-500',
+                  },
+                  {
+                    id: 'TEAM',
+                    label: $t('notifications.cat_team'),
+                    icon: Users,
+                    color: 'text-blue-500',
+                  },
+                  {
+                    id: 'TASK',
+                    label: $t('notifications.cat_task'),
+                    icon: Briefcase,
+                    color: 'text-amber-500',
+                  },
+                  {
+                    id: 'MESSAGE',
+                    label: $t('notifications.cat_message'),
+                    icon: MessageSquare,
+                    color: 'text-emerald-500',
+                  },
+                ]"
+                :key="cat.id"
+                type="button"
+                class="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[11px] md:text-xs transition-all whitespace-nowrap shrink-0"
+                :class="[
                   cat.desktopOnly ? 'hidden md:flex' : 'flex',
                   activeCategory === cat.id
                     ? 'bg-white shadow-sm text-slate-900 dark:bg-slate-800 dark:text-white ring-1 ring-accent/10'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/5',
-                ]" @click="handleCategoryChange(cat.id)">
-                <component :is="cat.icon" class="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" :class="cat.color" />
+                ]"
+                @click="handleCategoryChange(cat.id)"
+              >
+                <component
+                  :is="cat.icon"
+                  class="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0"
+                  :class="cat.color"
+                />
                 {{ cat.label }}
               </button>
             </div>
@@ -309,16 +395,25 @@ v-for="cat in [
       <div
         class="flex-1 overflow-y-auto p-3.5 md:p-8 scrollbar-hide bg-gradient-to-br from-transparent to-accent/5"
       >
-
         <div class="lg:hidden flex overflow-x-auto gap-2 px-4 py-2 -mx-3.5 mb-4 scrollbar-hide">
           <button
-v-for="cat in [
+            v-for="cat in [
               { id: 'all', label: $t('notifications.filter_all'), icon: Inbox },
               { id: 'SYSTEM', label: $t('notifications.cat_system'), icon: Info },
               { id: 'TEAM', label: $t('notifications.cat_team'), icon: Users },
               { id: 'TASK', label: $t('notifications.cat_task'), icon: Briefcase },
               { id: 'MESSAGE', label: $t('notifications.cat_message'), icon: MessageSquare },
-            ]" :key="cat.id" type="button" class="px-3 py-2 rounded-full text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors" :class="activeCategory === cat.id ? 'bg-accent text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-500'" @click="handleCategoryChange(cat.id)">
+            ]"
+            :key="cat.id"
+            type="button"
+            class="px-3 py-2 rounded-full text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors"
+            :class="
+              activeCategory === cat.id
+                ? 'bg-accent text-white'
+                : 'bg-slate-100 dark:bg-white/5 text-slate-500'
+            "
+            @click="handleCategoryChange(cat.id)"
+          >
             <component :is="cat.icon" class="w-3.5 h-3.5" />
             {{ cat.label }}
           </button>
@@ -338,9 +433,7 @@ v-for="cat in [
               v-for="n in filteredNotifications"
               :key="n.id"
               class="group px-4 py-3.5 md:p-6 glass-card transition-all duration-300 cursor-pointer hover:shadow-xl hover:shadow-accent/5"
-              :class="[
-                !n.isRead ? 'ring-1 ring-accent/30' : '',
-              ]"
+              :class="[!n.isRead ? 'ring-1 ring-accent/30' : '']"
               @click="handleMarkAsRead(n)"
             >
               <div class="flex gap-3 md:gap-4">
@@ -351,7 +444,9 @@ v-for="cat in [
                   <component :is="getIcon(n.type)" class="w-[18px] h-[18px] md:w-6 md:h-6" />
                 </div>
                 <div class="flex-1 min-w-0">
-                  <div class="flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4 mb-1">
+                  <div
+                    class="flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4 mb-1"
+                  >
                     <h3
                       class="text-sm font-bold truncate pr-4"
                       :class="
@@ -364,7 +459,12 @@ v-for="cat in [
                     </h3>
                     <div class="flex items-center gap-2 shrink-0">
                       <span class="text-[10px] text-slate-400 whitespace-nowrap">{{
-                        new Date(n.createdAt).toLocaleString([], { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                        new Date(n.createdAt).toLocaleString([], {
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
                       }}</span>
                       <div
                         v-if="!n.isRead"
@@ -385,32 +485,51 @@ v-for="cat in [
                   <div class="flex items-center gap-4">
                     <!-- Standard Notification Actions -->
                     <template v-if="n.type !== 'PROJECT_INVITE'">
-                      <button v-if="n.link" type="button" class="text-[10px] font-bold text-accent hover:underline flex items-center gap-1">
+                      <button
+                        v-if="n.link"
+                        type="button"
+                        class="text-[10px] font-bold text-accent hover:underline flex items-center gap-1"
+                      >
                         {{ $t('notifications.process_now') }} <ChevronRight class="w-3 h-3" />
                       </button>
-                      <button v-if="!n.isRead" type="button" class="text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors" @click.stop="handleMarkAsRead(n)">
+                      <button
+                        v-if="!n.isRead"
+                        type="button"
+                        class="text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                        @click.stop="handleMarkAsRead(n)"
+                      >
                         {{ $t('notifications.mark_read') }}
                       </button>
                     </template>
 
                     <!-- Project Invite Actions -->
                     <template v-else>
-                      <div v-if="respondedInvitations[n.id]" class="text-[10px] font-bold text-slate-400">
-                        {{ respondedInvitations[n.id] === 'ACCEPTED' ? t('notifications.invitation_accept_success') : t('notifications.invitation_reject_success') }}
+                      <div
+                        v-if="respondedInvitations[n.id]"
+                        class="text-[10px] font-bold text-slate-400"
+                      >
+                        {{
+                          respondedInvitations[n.id] === 'ACCEPTED'
+                            ? t('notifications.invitation_accept_success')
+                            : t('notifications.invitation_reject_success')
+                        }}
                       </div>
                       <div v-else class="flex items-center gap-2" @click.stop>
-                        <button 
-                          type="button" 
-                          :disabled="processingInvitations[n.id]" 
+                        <button
+                          type="button"
+                          :disabled="processingInvitations[n.id]"
                           class="px-2.5 py-1 rounded bg-accent text-white text-[10px] font-bold hover:shadow hover:shadow-accent/20 transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1 cursor-pointer"
                           @click="handleProjectInvitation(n, true)"
                         >
-                          <Loader2 v-if="processingInvitations[n.id]" class="w-3 h-3 animate-spin" />
+                          <Loader2
+                            v-if="processingInvitations[n.id]"
+                            class="w-3 h-3 animate-spin"
+                          />
                           {{ $t('notifications.accept') }}
                         </button>
-                        <button 
-                          type="button" 
-                          :disabled="processingInvitations[n.id]" 
+                        <button
+                          type="button"
+                          :disabled="processingInvitations[n.id]"
                           class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-350 text-[10px] font-bold transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                           @click="handleProjectInvitation(n, false)"
                         >
@@ -431,7 +550,9 @@ v-for="cat in [
               <Inbox class="w-10 h-10" />
             </div>
             <div class="space-y-1">
-              <h3 class="text-sm font-bold text-slate-900 dark:text-white">{{ $t('notifications.no_notifications_title') }}</h3>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+                {{ $t('notifications.no_notifications_title') }}
+              </h3>
               <p class="text-xs text-slate-400">{{ $t('notifications.no_notifications_desc') }}</p>
             </div>
           </div>

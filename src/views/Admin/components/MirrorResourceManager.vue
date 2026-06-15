@@ -171,7 +171,10 @@ function getParentCategoryName(cat: MirrorCategory) {
 async function fetchResources(sourceId: string) {
   isLoadingResources.value = true;
   try {
-    const params: ResourceQueryParams = { page: resourcePage.value, pageSize: resourcePageSize.value };
+    const params: ResourceQueryParams = {
+      page: resourcePage.value,
+      pageSize: resourcePageSize.value,
+    };
     if (resourceSearch.value) params.search = resourceSearch.value;
     if (resourceCategoryFilter.value) params.categoryId = resourceCategoryFilter.value;
     const res = await api.get(`/api/admin/mirror/sources/${sourceId}/resources`, { params });
@@ -410,25 +413,35 @@ async function deleteCategory(cat: MirrorCategory) {
 </script>
 
 <template>
-  <div class="border-t border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/10">
+  <div
+    class="border-t border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/10"
+  >
     <div class="p-4 sm:p-5">
       <!-- Tab Navigation for Mirror Sources -->
       <div class="flex border-b border-slate-200 dark:border-slate-700/60 mb-5 gap-6">
         <button
-type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1 focus:outline-none flex items-center gap-1.5 cursor-pointer" :class="
+          type="button"
+          class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1 focus:outline-none flex items-center gap-1.5 cursor-pointer"
+          :class="
             expandedTab === 'resources'
               ? 'text-cyan-500 border-cyan-500'
               : 'text-slate-400 border-transparent hover:text-slate-600 dark:hover:text-slate-300'
-          " @click="expandedTab = 'resources'">
+          "
+          @click="expandedTab = 'resources'"
+        >
           <FileText class="w-4 h-4" />
           资源管理
         </button>
         <button
-type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1 focus:outline-none flex items-center gap-1.5 cursor-pointer" :class="
+          type="button"
+          class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1 focus:outline-none flex items-center gap-1.5 cursor-pointer"
+          :class="
             expandedTab === 'categories'
               ? 'text-cyan-500 border-cyan-500'
               : 'text-slate-400 border-transparent hover:text-slate-600 dark:hover:text-slate-300'
-          " @click="expandedTab = 'categories'">
+          "
+          @click="expandedTab = 'categories'"
+        >
           <Layers class="w-4 h-4" />
           分类管理
         </button>
@@ -443,7 +456,9 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
           >
             <FileText class="w-4 h-4 text-cyan-500" />
             资源管理
-            <span class="text-xs text-slate-400 font-normal">{{ $t('admin.total_resourcetotal', { count: resourceTotal }) }}</span>
+            <span class="text-xs text-slate-400 font-normal">{{
+              $t('admin.total_resourcetotal', { count: resourceTotal })
+            }}</span>
           </h4>
           <div class="flex items-center gap-2">
             <div class="relative">
@@ -464,15 +479,15 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               @change="doResourceSearch"
             >
               <option :value="null">{{ $t('admin.all_categories') }}</option>
-              <option
-                v-for="cat in formattedMirrorCategories"
-                :key="cat.id"
-                :value="cat.id"
-              >
+              <option v-for="cat in formattedMirrorCategories" :key="cat.id" :value="cat.id">
                 {{ cat.name }}
               </option>
             </select>
-            <button type="button" class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer" @click="openCreateResource">
+            <button
+              type="button"
+              class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
+              @click="openCreateResource"
+            >
               <Plus class="w-3.5 h-3.5" />
               {{ $t('admin.add_new_resources') }}
             </button>
@@ -496,28 +511,24 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
           <table class="w-full text-xs">
             <thead>
               <tr class="border-b border-slate-200 dark:border-slate-700">
-                <th class="text-left py-2 px-2 text-slate-500 font-medium">{{ $t('admin.title') }}</th>
-                <th
-                  class="text-left py-2 px-2 text-slate-500 font-medium hidden md:table-cell"
-                >
+                <th class="text-left py-2 px-2 text-slate-500 font-medium">
+                  {{ $t('admin.title') }}
+                </th>
+                <th class="text-left py-2 px-2 text-slate-500 font-medium hidden md:table-cell">
                   分类
                 </th>
-                <th
-                  class="text-left py-2 px-2 text-slate-500 font-medium hidden sm:table-cell"
-                >
+                <th class="text-left py-2 px-2 text-slate-500 font-medium hidden sm:table-cell">
                   类型
                 </th>
-                <th
-                  class="text-center py-2 px-2 text-slate-500 font-medium hidden sm:table-cell"
-                >
+                <th class="text-center py-2 px-2 text-slate-500 font-medium hidden sm:table-cell">
                   浏览
                 </th>
-                <th
-                  class="text-center py-2 px-2 text-slate-500 font-medium hidden lg:table-cell"
-                >
+                <th class="text-center py-2 px-2 text-slate-500 font-medium hidden lg:table-cell">
                   链接
                 </th>
-                <th class="text-right py-2 px-2 text-slate-500 font-medium">{{ $t('admin.operation') }}</th>
+                <th class="text-right py-2 px-2 text-slate-500 font-medium">
+                  {{ $t('admin.operation') }}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -528,17 +539,21 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               >
                 <td class="py-2.5 px-2">
                   <div class="flex items-center gap-2 max-w-xs">
-                    <img v-if="res.thumbnailUrl" alt="" :src="res.thumbnailUrl" class="w-8 h-8 rounded object-cover flex-shrink-0 bg-slate-100 dark:bg-slate-700" />
+                    <img
+                      v-if="res.thumbnailUrl"
+                      alt=""
+                      :src="res.thumbnailUrl"
+                      class="w-8 h-8 rounded object-cover flex-shrink-0 bg-slate-100 dark:bg-slate-700"
+                    />
                     <div
                       v-else
                       class="w-8 h-8 rounded bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0"
                     >
                       <FileText class="w-3.5 h-3.5 text-slate-400" />
                     </div>
-                    <span
-                      class="text-slate-800 dark:text-slate-200 font-medium truncate"
-                      >{{ res.title }}</span
-                    >
+                    <span class="text-slate-800 dark:text-slate-200 font-medium truncate">{{
+                      res.title
+                    }}</span>
                   </div>
                 </td>
                 <td class="py-2.5 px-2 text-slate-500 hidden md:table-cell">
@@ -559,10 +574,20 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
                 </td>
                 <td class="py-2.5 px-2">
                   <div class="flex items-center justify-end gap-1">
-                    <button type="button" class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors cursor-pointer" :title="$t('admin.edit')" @click="openEditResource(res)">
+                    <button
+                      type="button"
+                      class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors cursor-pointer"
+                      :title="$t('admin.edit')"
+                      @click="openEditResource(res)"
+                    >
                       <Edit3 class="w-3.5 h-3.5" />
                     </button>
-                    <button type="button" class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer" :title="$t('admin.delete')" @click="deleteResource(res)">
+                    <button
+                      type="button"
+                      class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
+                      :title="$t('admin.delete')"
+                      @click="deleteResource(res)"
+                    >
                       <Trash2 class="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -577,14 +602,23 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
             class="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/30"
           >
             <span class="text-xs text-slate-400"
-              >第 {{ resourcePage }}/{{ resourceTotalPages }} 页，共
-              {{ resourceTotal }} 条</span
+              >第 {{ resourcePage }}/{{ resourceTotalPages }} 页，共 {{ resourceTotal }} 条</span
             >
             <div class="flex items-center gap-1">
-              <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" :disabled="resourcePage <= 1" @click="changeResourcePage(resourcePage - 1)">
+              <button
+                type="button"
+                class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                :disabled="resourcePage <= 1"
+                @click="changeResourcePage(resourcePage - 1)"
+              >
                 <ChevronLeft class="w-4 h-4" />
               </button>
-              <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer" :disabled="resourcePage >= resourceTotalPages" @click="changeResourcePage(resourcePage + 1)">
+              <button
+                type="button"
+                class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                :disabled="resourcePage >= resourceTotalPages"
+                @click="changeResourcePage(resourcePage + 1)"
+              >
                 <ChevronRight class="w-4 h-4" />
               </button>
             </div>
@@ -600,9 +634,17 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
           >
             <Layers class="w-4 h-4 text-cyan-500" />
             分类管理
-            <span class="text-xs text-slate-400 font-normal">{{ $t('admin.total_sourcecategories_length_categories', { count: sourceCategories.length }) }}</span>
+            <span class="text-xs text-slate-400 font-normal">{{
+              $t('admin.total_sourcecategories_length_categories', {
+                count: sourceCategories.length,
+              })
+            }}</span>
           </h4>
-          <button type="button" class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer" @click="openCreateCategory">
+          <button
+            type="button"
+            class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
+            @click="openCreateCategory"
+          >
             <Plus class="w-3.5 h-3.5" />
             {{ $t('admin.add_new_category') }}
           </button>
@@ -617,15 +659,17 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
           <table class="w-full text-xs">
             <thead>
               <tr class="border-b border-slate-200 dark:border-slate-700">
-                <th class="text-left py-2 px-2 text-slate-500 font-medium">{{ $t('admin.name') }}</th>
-                <th class="text-left py-2 px-2 text-slate-500 font-medium">{{ $t('admin.parent_category') }}</th>
                 <th class="text-left py-2 px-2 text-slate-500 font-medium">
-                  Slug (别名)
+                  {{ $t('admin.name') }}
                 </th>
-                <th class="text-center py-2 px-2 text-slate-500 font-medium">
-                  排序权重 (Order)
+                <th class="text-left py-2 px-2 text-slate-500 font-medium">
+                  {{ $t('admin.parent_category') }}
                 </th>
-                <th class="text-right py-2 px-2 text-slate-500 font-medium">{{ $t('admin.operation') }}</th>
+                <th class="text-left py-2 px-2 text-slate-500 font-medium">Slug (别名)</th>
+                <th class="text-center py-2 px-2 text-slate-500 font-medium">排序权重 (Order)</th>
+                <th class="text-right py-2 px-2 text-slate-500 font-medium">
+                  {{ $t('admin.operation') }}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -646,10 +690,20 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
                 </td>
                 <td class="py-2.5 px-2">
                   <div class="flex items-center justify-end gap-1">
-                    <button type="button" class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors cursor-pointer" :title="$t('admin.edit')" @click="openEditCategory(cat)">
+                    <button
+                      type="button"
+                      class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors cursor-pointer"
+                      :title="$t('admin.edit')"
+                      @click="openEditCategory(cat)"
+                    >
                       <Edit3 class="w-3.5 h-3.5" />
                     </button>
-                    <button type="button" class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer" :title="$t('admin.delete')" @click="deleteCategory(cat)">
+                    <button
+                      type="button"
+                      class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
+                      :title="$t('admin.delete')"
+                      @click="deleteCategory(cat)"
+                    >
                       <Trash2 class="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -680,7 +734,11 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               <FileText class="w-5 h-5 text-cyan-500" />
               {{ isEditingResource ? t('admin.edit_resources') : $t('admin.add_new_resources') }}
             </h2>
-            <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer" @click="showResourceDialog = false">
+            <button
+              type="button"
+              class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              @click="showResourceDialog = false"
+            >
               <X class="w-5 h-5" />
             </button>
           </div>
@@ -698,9 +756,9 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >{{ $t('admin.description') }}</label
-              >
+              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{{
+                $t('admin.description')
+              }}</label>
               <textarea
                 v-model="resourceForm.description"
                 rows="2"
@@ -710,27 +768,23 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                  >{{ $t('admin.classification') }}</label
-                >
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{{
+                  $t('admin.classification')
+                }}</label>
                 <select
                   v-model="resourceForm.categoryId"
                   class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
                 >
                   <option value="">{{ $t('admin.uncategorized') }}</option>
-                  <option
-                    v-for="cat in formattedMirrorCategories"
-                    :key="cat.id"
-                    :value="cat.id"
-                  >
+                  <option v-for="cat in formattedMirrorCategories" :key="cat.id" :value="cat.id">
                     {{ cat.name }}
                   </option>
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                  >{{ $t('admin.resource_type') }}</label
-                >
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{{
+                  $t('admin.resource_type')
+                }}</label>
                 <input
                   v-model="resourceForm.resourceType"
                   type="text"
@@ -740,9 +794,9 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               </div>
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >{{ $t('admin.thumbnail_url') }}</label
-              >
+              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{{
+                $t('admin.thumbnail_url')
+              }}</label>
               <input
                 v-model="resourceForm.thumbnailUrl"
                 type="text"
@@ -751,9 +805,9 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >{{ $t('admin.network_disk_link_contenturl') }}</label
-              >
+              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{{
+                $t('admin.network_disk_link_contenturl')
+              }}</label>
               <input
                 v-model="resourceForm.contentUrl"
                 type="text"
@@ -762,9 +816,9 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >{{ $t('admin.label') }}</label
-              >
+              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{{
+                $t('admin.label')
+              }}</label>
               <input
                 v-model="resourceForm.tags"
                 type="text"
@@ -773,9 +827,9 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >{{ $t('admin.text_html') }}</label
-              >
+              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{{
+                $t('admin.text_html')
+              }}</label>
               <textarea
                 v-model="resourceForm.contentHtml"
                 rows="6"
@@ -785,13 +839,19 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
             </div>
           </div>
 
-          <div
-            class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700"
-          >
-            <button type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer" @click="showResourceDialog = false">
+          <div class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              @click="showResourceDialog = false"
+            >
               取消
             </button>
-            <button type="button" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors cursor-pointer" @click="saveResource">
+            <button
+              type="button"
+              class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors cursor-pointer"
+              @click="saveResource"
+            >
               {{ isEditingResource ? t('admin.save') : $t('admin.create') }}
             </button>
           </div>
@@ -816,7 +876,11 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               <Layers class="w-5 h-5 text-cyan-500" />
               {{ isEditingCategory ? t('admin.edit_category') : $t('admin.add_new_category') }}
             </h2>
-            <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer" @click="showCategoryDialog = false">
+            <button
+              type="button"
+              class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              @click="showCategoryDialog = false"
+            >
               <X class="w-5 h-5" />
             </button>
           </div>
@@ -836,20 +900,16 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
                 >父级分类
-                <span class="text-xs text-slate-400 font-normal"
-                  >{{ $t('admin.optional_for_sidebar_grouping') }}</span
-                ></label
+                <span class="text-xs text-slate-400 font-normal">{{
+                  $t('admin.optional_for_sidebar_grouping')
+                }}</span></label
               >
               <select
                 v-model="categoryForm.parentExternalId"
                 class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
               >
                 <option :value="null">{{ $t('admin.none_as_a_first_1') }}</option>
-                <option
-                  v-for="cat in parentCategoryOptions"
-                  :key="cat.id"
-                  :value="cat.externalId"
-                >
+                <option v-for="cat in parentCategoryOptions" :key="cat.id" :value="cat.externalId">
                   {{ cat.name }}
                 </option>
               </select>
@@ -860,9 +920,9 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
             >
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
                 >分配子分类
-                <span class="text-xs text-slate-400 font-normal"
-                  >{{ $t('admin.select_from_existing_categories') }}</span
-                ></label
+                <span class="text-xs text-slate-400 font-normal">{{
+                  $t('admin.select_from_existing_categories')
+                }}</span></label
               >
               <div
                 class="max-h-36 overflow-y-auto border border-slate-200/60 dark:border-slate-800/80 rounded-lg p-2.5 bg-slate-50/50 dark:bg-slate-900/30 space-y-1.5 scrollbar-hide"
@@ -897,7 +957,9 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
                 >Slug (别名)
-                <span class="text-xs text-slate-400 font-normal">{{ $t('admin.optional') }}</span></label
+                <span class="text-xs text-slate-400 font-normal">{{
+                  $t('admin.optional')
+                }}</span></label
               >
               <input
                 v-model="categoryForm.slug"
@@ -909,7 +971,9 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
                 >排序权重 (Order)
-                <span class="text-xs text-slate-400 font-normal">{{ $t('admin.the_smaller_it_is') }}</span></label
+                <span class="text-xs text-slate-400 font-normal">{{
+                  $t('admin.the_smaller_it_is')
+                }}</span></label
               >
               <input
                 v-model.number="categoryForm.order"
@@ -923,10 +987,18 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
           <div
             class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40"
           >
-            <button type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer" @click="showCategoryDialog = false">
+            <button
+              type="button"
+              class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              @click="showCategoryDialog = false"
+            >
               取消
             </button>
-            <button type="button" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors cursor-pointer" @click="saveCategory">
+            <button
+              type="button"
+              class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors cursor-pointer"
+              @click="saveCategory"
+            >
               {{ isEditingCategory ? t('admin.save') : $t('admin.create') }}
             </button>
           </div>

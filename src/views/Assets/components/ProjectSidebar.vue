@@ -43,7 +43,11 @@ const openMemberProfile = (member: ProjectMember) => {
   >
     <!-- Back & Title -->
     <div class="p-8 pb-4">
-      <button type="button" class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-accent hover:scale-110 transition-all mb-8 cursor-pointer" @click="router.push('/projects')">
+      <button
+        type="button"
+        class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-accent hover:scale-110 transition-all mb-8 cursor-pointer"
+        @click="router.push('/projects')"
+      >
         <ArrowLeft class="w-5 h-5" />
       </button>
 
@@ -135,15 +139,23 @@ const openMemberProfile = (member: ProjectMember) => {
         <h3
           class="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"
         >
-          <Users class="w-4 h-4" /> 团队成员 ({{ members.length }}/{{
-            props.project.maxMembers
-          }})
+          <Users class="w-4 h-4" /> 团队成员 ({{ members.length }}/{{ props.project.maxMembers }})
         </h3>
         <div class="flex items-center gap-2">
-          <button v-if="props.isMember" type="button" class="text-xs font-bold text-accent hover:underline flex items-center gap-1 cursor-pointer" @click="emit('invite')">
+          <button
+            v-if="props.isMember"
+            type="button"
+            class="text-xs font-bold text-accent hover:underline flex items-center gap-1 cursor-pointer"
+            @click="emit('invite')"
+          >
             <UserPlus class="w-3 h-3" /> 邀请
           </button>
-          <button v-if="!props.isMember && members.length < props.project.maxMembers" type="button" class="text-xs font-bold text-accent hover:underline cursor-pointer" @click="emit('join')">
+          <button
+            v-if="!props.isMember && members.length < props.project.maxMembers"
+            type="button"
+            class="text-xs font-bold text-accent hover:underline cursor-pointer"
+            @click="emit('join')"
+          >
             报名加入
           </button>
         </div>

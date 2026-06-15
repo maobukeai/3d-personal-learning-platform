@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   ArrowDownToLine,
@@ -29,6 +29,10 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
+import Input from '@/components/ui/Input.vue';
+import Tabs from '@/components/ui/Tabs.vue';
+import UnifiedCard from '@/components/UnifiedCard.vue';
+import { useSystemStore } from '@/stores/system';
 import { formatCompactNumber, formatDate, formatFileSize } from './resourceUtils';
 import {
   MATERIAL_CATEGORIES,
@@ -59,6 +63,10 @@ const isStatsExpanded = ref(false);
 const sourceFilter = ref<'ALL' | WorkKind>('ALL');
 const statusFilter = ref<WorkStatus>('ALL');
 const viewMode = ref<ViewMode>('grid');
+const viewModeOptions = computed(() => [
+  { value: 'grid', icon: Grid3X3 },
+  { value: 'list', icon: LayoutList },
+]);
 const sortBy = ref<WorkSortKey>('newest');
 const isLoading = ref(false);
 const isSaving = ref(false);
@@ -74,8 +82,26 @@ const showcases = ref<ShowcaseWork[]>([]);
 const assetCategories = ref<CategoryType[]>([]);
 const workbenchSummary = ref<WorkbenchSummary | null>(null);
 
-const materialCategories = MATERIAL_CATEGORIES;
-const pluginCategories = PLUGIN_CATEGORIES;
+const activeTab = ref<'mine' | 'favorites'>('mine');
+const mySubmissionsCount = ref(0);
+const myFavoritesCount = ref(0);
+
+const libraryTabOptions = computed(() => [
+  { label: `我的提交 ${mySubmissionsCount.value}`, value: 'mine' },
+  { label: `我的收藏 ${myFavoritesCount.value}`, value: 'favorites' },
+]);
+
+const systemStore = useSystemStore();
+const materialCategories = computed(() =>
+  (systemStore.settings.MATERIAL_CATEGORIES || []).filter(
+    (name) => name !== '全部材料' && name !== '全部',
+  ),
+);
+const pluginCategories = computed(() =>
+  (systemStore.settings.PLUGIN_CATEGORIES || []).filter(
+    (name) => name !== '全部插件' && name !== '全部',
+  ),
+);
 
 const editForm = ref({
   title: '',
@@ -183,38 +209,129 @@ const workbenchSignals = computed(() => [
   },
 ]);
 
-const sourceTabs = computed(() => [
-  { key: 'ALL', label: '全部内容', count: allWorks.value.length, icon: Sparkles },
-  { key: 'asset', label: '资源', count: assets.value.length, icon: Box },
-  { key: 'material', label: '材料', count: materials.value.length, icon: Layers },
-  { key: 'plugin', label: '插件', count: plugins.value.length, icon: Puzzle },
-  { key: 'showcase', label: '展示', count: showcases.value.length, icon: FileImage },
-] as const);
+const sourceTabs = computed(() => {
+  const currentStatus = statusFilter.value;
+  const query = searchQuery.value.trim().toLowerCase();
 
-const statusTabs = computed(() => [
-  { key: 'ALL', label: '全部状态', count: allWorks.value.length },
-  { key: 'PENDING', label: '待审核', count: stats.value.pending },
-  { key: 'APPROVED', label: '已通过', count: stats.value.approved },
-  { key: 'REJECTED', label: '未通过', count: stats.value.rejected },
-] as const);
+  const getCountForKind = (kind: 'ALL' | WorkKind) => {
+    return allWorks.value.filter((work) => {
+      const matchesKind = kind === 'ALL' || work.kind === kind;
+      const matchesStatus = currentStatus === 'ALL' || work.status === currentStatus;
+      const matchesQuery =
+        !query ||
+        work.title.toLowerCase().includes(query) ||
+        work.description.toLowerCase().includes(query) ||
+        work.tags.some((tag) => tag.toLowerCase().includes(query)) ||
+        work.surface.toLowerCase().includes(query);
+      return matchesKind && matchesStatus && matchesQuery;
+    }).length;
+  };
+
+  return [
+    { key: 'ALL', label: '全部内容', count: getCountForKind('ALL'), icon: Sparkles },
+    { key: 'asset', label: '资源', count: getCountForKind('asset'), icon: Box },
+    { key: 'material', label: '材料', count: getCountForKind('material'), icon: Layers },
+    { key: 'plugin', label: '插件', count: getCountForKind('plugin'), icon: Puzzle },
+    { key: 'showcase', label: '展示', count: getCountForKind('showcase'), icon: FileImage },
+  ] as const;
+});
+
+const statusTabs = computed(() => {
+  const currentSource = sourceFilter.value;
+  const query = searchQuery.value.trim().toLowerCase();
+
+  const getCountForStatus = (status: WorkStatus) => {
+    return allWorks.value.filter((work) => {
+      const matchesKind = currentSource === 'ALL' || work.kind === currentSource;
+      const matchesStatus = status === 'ALL' || work.status === status;
+      const matchesQuery =
+        !query ||
+        work.title.toLowerCase().includes(query) ||
+        work.description.toLowerCase().includes(query) ||
+        work.tags.some((tag) => tag.toLowerCase().includes(query)) ||
+        work.surface.toLowerCase().includes(query);
+      return matchesKind && matchesStatus && matchesQuery;
+    }).length;
+  };
+
+  return [
+    { key: 'ALL', label: '全部状态', count: getCountForStatus('ALL') },
+    { key: 'PENDING', label: '待审核', count: getCountForStatus('PENDING') },
+    { key: 'APPROVED', label: '已通过', count: getCountForStatus('APPROVED') },
+    { key: 'REJECTED', label: '未通过', count: getCountForStatus('REJECTED') },
+  ] as const;
+});
+
+const sourceTabOptions = computed(() => {
+  return sourceTabs.value.map((tab) => ({
+    label: tab.label,
+    value: tab.key,
+    badge: tab.count,
+  }));
+});
+
+const statusTabOptions = computed(() => {
+  return statusTabs.value.map((tab) => ({
+    label: tab.label,
+    value: tab.key,
+    badge: tab.count,
+  }));
+});
 
 const fetchWorks = async () => {
   isLoading.value = true;
   try {
-    const { data } = await api.get('/api/resources/my-workbench', {
-      params: { limit: 240 },
-    });
-    assets.value = data.assets || [];
-    materials.value = data.materials || [];
-    plugins.value = data.plugins || [];
-    showcases.value = data.showcases || [];
-    workbenchSummary.value = data.summary || null;
+    if (activeTab.value === 'mine') {
+      const { data } = await api.get('/api/resources/my-workbench', {
+        params: { limit: 240 },
+      });
+      assets.value = data.assets || [];
+      materials.value = data.materials || [];
+      plugins.value = data.plugins || [];
+      showcases.value = data.showcases || [];
+      workbenchSummary.value = data.summary || null;
+      mySubmissionsCount.value =
+        (data.assets || []).length +
+        (data.materials || []).length +
+        (data.plugins || []).length +
+        (data.showcases || []).length;
+    } else {
+      const [assetsRes, materialsRes, pluginsRes] = await Promise.all([
+        api.get('/api/assets/public', { params: { favoritesOnly: 'true', limit: 100 } }),
+        api.get('/api/materials', { params: { favoritesOnly: 'true', limit: 100 } }),
+        api.get('/api/plugins/favorites'),
+      ]);
+      assets.value = assetsRes.data?.assets || [];
+      materials.value = Array.isArray(materialsRes.data)
+        ? materialsRes.data
+        : materialsRes.data?.items || [];
+      plugins.value = pluginsRes.data?.plugins || [];
+      showcases.value = [];
+      workbenchSummary.value = null;
+
+      const assetsCount =
+        assetsRes.data?.pagination?.total || (assetsRes.data?.assets || []).length;
+      const materialsCount = Array.isArray(materialsRes.data)
+        ? materialsRes.data.length
+        : materialsRes.data?.total || materialsRes.data?.items?.length || 0;
+      const pluginsCount = pluginsRes.data?.plugins?.length || 0;
+      myFavoritesCount.value = assetsCount + materialsCount + pluginsCount;
+    }
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '我的作品加载失败'));
+    ElMessage.error(
+      getApiErrorMessage(
+        error,
+        activeTab.value === 'mine' ? '我的作品加载失败' : '收藏列表加载失败',
+      ),
+    );
   } finally {
     isLoading.value = false;
   }
 };
+
+watch(activeTab, () => {
+  fetchWorks();
+});
 
 const fetchCategories = async () => {
   try {
@@ -306,7 +423,8 @@ const openEditDialog = (work: UnifiedWork) => {
     materialCategory: work.kind === 'material' ? (raw as MaterialWork).category || '其他' : '其他',
     resolution: work.kind === 'material' ? (raw as MaterialWork).resolution || '4K' : '4K',
     isProcedural: work.kind === 'material' ? !!(raw as MaterialWork).isProcedural : false,
-    pluginCategory: work.kind === 'plugin' ? (raw as PluginWork).category || '其他工具' : '其他工具',
+    pluginCategory:
+      work.kind === 'plugin' ? (raw as PluginWork).category || '其他工具' : '其他工具',
     pluginVersion: work.kind === 'plugin' ? (raw as PluginWork).version || '1.0.0' : '1.0.0',
     pluginCompatibility: work.kind === 'plugin' ? (raw as PluginWork).compatibility || '' : '',
     showcaseType: work.kind === 'showcase' ? (raw as ShowcaseWork).type || 'IMAGE' : 'IMAGE',
@@ -414,9 +532,27 @@ const publishToShowcase = async () => {
   }
 };
 
-onMounted(() => {
-  fetchWorks();
+onMounted(async () => {
+  systemStore.fetchSettings();
   fetchCategories();
+  await fetchWorks();
+
+  // Pre-fetch favorites count to display badge on tab
+  try {
+    const [assetsRes, materialsRes, pluginsRes] = await Promise.all([
+      api.get('/api/assets/public', { params: { favoritesOnly: 'true', limit: 1 } }),
+      api.get('/api/materials', { params: { favoritesOnly: 'true', limit: 1 } }),
+      api.get('/api/plugins/favorites'),
+    ]);
+    const assetsCount = assetsRes.data?.pagination?.total || 0;
+    const materialsCount = Array.isArray(materialsRes.data)
+      ? materialsRes.data.length
+      : materialsRes.data?.total || materialsRes.data?.items?.length || 0;
+    const pluginsCount = pluginsRes.data?.plugins?.length || 0;
+    myFavoritesCount.value = assetsCount + materialsCount + pluginsCount;
+  } catch (err) {
+    console.error('Failed to pre-fetch favorites count:', err);
+  }
 });
 </script>
 
@@ -425,7 +561,7 @@ onMounted(() => {
     <header class="page-header">
       <div class="title-block">
         <div class="title-icon">
-          <PackageCheck class="icon-md" />
+          <PackageCheck class="icon-sm" />
         </div>
         <div>
           <h1>我的作品</h1>
@@ -435,6 +571,7 @@ onMounted(() => {
 
       <div class="header-actions">
         <button
+          v-if="activeTab === 'mine'"
           type="button"
           class="ghost-button"
           @click="isStatsExpanded = !isStatsExpanded"
@@ -447,14 +584,19 @@ onMounted(() => {
           <Sparkles v-else class="icon-sm" />
           刷新
         </button>
-        <button type="button" class="primary-button" @click="isPublishWorkDialogOpen = true">
+        <button
+          v-if="activeTab === 'mine'"
+          type="button"
+          class="primary-button"
+          @click="isPublishWorkDialogOpen = true"
+        >
           <Plus class="icon-sm" />
           发布作品
         </button>
       </div>
     </header>
 
-    <section v-show="isStatsExpanded" class="stats-grid">
+    <section v-show="isStatsExpanded && activeTab === 'mine'" class="stats-grid">
       <article v-for="stat in statCards" :key="stat.label" class="stat-card" :data-tone="stat.tone">
         <div class="stat-icon">
           <component :is="stat.icon" class="icon-sm" />
@@ -467,7 +609,7 @@ onMounted(() => {
       </article>
     </section>
 
-    <section v-show="isStatsExpanded" class="workbench-strip">
+    <section v-show="isStatsExpanded && activeTab === 'mine'" class="workbench-strip">
       <div class="review-progress">
         <div>
           <span>审核管线</span>
@@ -488,169 +630,125 @@ onMounted(() => {
       </div>
 
       <div class="pipeline-actions">
-        <button type="button" :class="{ active: statusFilter === 'PENDING' }" @click="statusFilter = 'PENDING'">
+        <button
+          type="button"
+          :class="{ active: statusFilter === 'PENDING' }"
+          @click="statusFilter = 'PENDING'"
+        >
           待审核
         </button>
-        <button type="button" :class="{ active: statusFilter === 'REJECTED' }" @click="statusFilter = 'REJECTED'">
+        <button
+          type="button"
+          :class="{ active: statusFilter === 'REJECTED' }"
+          @click="statusFilter = 'REJECTED'"
+        >
           未通过
         </button>
-        <button type="button" :class="{ active: statusFilter === 'APPROVED' }" @click="statusFilter = 'APPROVED'">
+        <button
+          type="button"
+          :class="{ active: statusFilter === 'APPROVED' }"
+          @click="statusFilter = 'APPROVED'"
+        >
           已发布
         </button>
-        <button type="button" :class="{ active: statusFilter === 'ALL' }" @click="statusFilter = 'ALL'">
+        <button
+          type="button"
+          :class="{ active: statusFilter === 'ALL' }"
+          @click="statusFilter = 'ALL'"
+        >
           全部
         </button>
       </div>
     </section>
 
-    <section class="toolbar">
-      <label class="search-box">
-        <Search class="icon-sm" />
-        <input v-model="searchQuery" type="search" placeholder="搜索标题、说明、标签或发布位置" />
-      </label>
-
-      <div class="toolbar-actions">
-        <select v-model="sortBy" class="select-field">
-          <option value="newest">最新更新</option>
-          <option value="oldest">最早发布</option>
-          <option value="name">名称排序</option>
-          <option value="status">审核状态</option>
-        </select>
-        <div class="view-switch">
-          <button type="button" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'">
-            <Grid3X3 class="icon-sm" />
-          </button>
-          <button type="button" :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'">
-            <LayoutList class="icon-sm" />
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <section class="content-shell">
+    <section class="workspace-shell">
       <aside class="filter-panel">
-        <div class="filter-section">
-          <h2>发布位置</h2>
-          <button
-            v-for="tab in sourceTabs"
-            :key="tab.key"
-            type="button"
-            class="filter-button"
-            :class="{ active: sourceFilter === tab.key }"
-            @click="sourceFilter = tab.key"
-          >
-            <span>
-              <component :is="tab.icon" class="icon-sm" />
-              {{ tab.label }}
-            </span>
-            <strong>{{ tab.count }}</strong>
-          </button>
+        <div class="panel-section">
+          <div class="section-title">
+            <Layers class="icon-sm" />
+            发布位置
+          </div>
+          <Tabs v-model="sourceFilter" :options="sourceTabOptions" direction="vertical" size="sm" />
         </div>
 
-        <div class="filter-section">
-          <h2>审核状态</h2>
-          <button
-            v-for="tab in statusTabs"
-            :key="tab.key"
-            type="button"
-            class="filter-button"
-            :class="{ active: statusFilter === tab.key }"
-            @click="statusFilter = tab.key"
-          >
-            <span>{{ tab.label }}</span>
-            <strong>{{ tab.count }}</strong>
-          </button>
+        <div v-if="activeTab === 'mine'" class="panel-section">
+          <div class="section-title">
+            <PackageCheck class="icon-sm" />
+            审核状态
+          </div>
+          <Tabs v-model="statusFilter" :options="statusTabOptions" direction="vertical" size="sm" />
         </div>
 
-        <div class="review-note">
+        <div v-if="activeTab === 'mine'" class="review-note">
           <ShieldAlert class="icon-sm" />
           <strong>审核流</strong>
           <p>编辑已通过内容后会回到待审核，管理员通过后重新公开。</p>
         </div>
       </aside>
 
-      <main class="works-main">
-        <div v-if="isLoading" class="works-grid" :class="viewMode">
-          <article v-for="index in 8" :key="index" class="work-card skeleton-card">
-            <div class="skeleton preview"></div>
-            <div class="skeleton line wide"></div>
-            <div class="skeleton line"></div>
-          </article>
-        </div>
+      <main class="content-panel">
+        <section class="toolbar">
+          <div class="toolbar-left">
+            <Tabs v-model="activeTab" :options="libraryTabOptions" size="sm" />
+          </div>
 
-        <div v-else-if="filteredWorks.length" class="works-grid" :class="viewMode">
-          <article v-for="work in filteredWorks" :key="work.uid" class="work-card" :data-kind="work.kind">
-            <div class="work-preview" @click="openWork(work)">
-              <img :src="work.thumbnail" :alt="work.title" />
-              <div class="badge-row">
-                <span>{{ work.surface }}</span>
-                <span :data-status="work.status">{{ getStatusLabel(work.status) }}</span>
-              </div>
-            </div>
+          <div class="toolbar-center">
+            <Input
+              v-model="searchQuery"
+              type="search"
+              placeholder="搜索标题、说明、标签或发布位置"
+              :icon="Search"
+              clearable
+              input-class="!py-1.5 !h-8.5 !rounded-lg"
+              class="w-full max-w-[280px]"
+            />
+          </div>
 
-            <div class="work-body">
-              <div class="card-title">
-                <div>
-                  <h2>{{ work.title }}</h2>
-                  <p>{{ work.description || '还没有填写说明。' }}</p>
-                </div>
-                <button type="button" class="icon-button" @click="openWork(work)">
-                  <Eye class="icon-sm" />
-                </button>
-              </div>
+          <div class="toolbar-right">
+            <select v-model="sortBy" class="select-field" aria-label="排序方式">
+              <option value="newest">最新更新</option>
+              <option value="oldest">最早发布</option>
+              <option value="name">名称排序</option>
+              <option value="status">审核状态</option>
+            </select>
+            <Tabs v-model="viewMode" :options="viewModeOptions" size="sm" />
+          </div>
+        </section>
 
-              <p v-if="work.status === 'REJECTED'" class="reject-reason">
-                <XCircle class="icon-sm" />
-                {{ work.rejectReason || '管理员未填写具体原因。' }}
-              </p>
+        <div class="works-main">
+          <div v-if="isLoading" class="works-grid" :class="viewMode">
+            <article v-for="index in 8" :key="index" class="work-card skeleton-card">
+              <div class="skeleton preview"></div>
+              <div class="skeleton line wide"></div>
+              <div class="skeleton line"></div>
+            </article>
+          </div>
 
-              <div class="meta-row">
-                <span>{{ work.typeLabel }}</span>
-                <span>{{ work.format }}</span>
-                <span>{{ formatDate(work.createdAt) }}</span>
-              </div>
+          <div v-else-if="filteredWorks.length" class="works-grid" :class="viewMode">
+            <UnifiedCard
+              v-for="work in filteredWorks"
+              :key="work.uid"
+              :item="work"
+              kind="work"
+              :view-mode="viewMode"
+              :active-tab="activeTab"
+              @click="openWork(work)"
+              @edit="openEditDialog(work)"
+              @download="handleDownload(work)"
+              @share="openShowcaseDialog(work)"
+              @select="handleDeleteWork(work)"
+            />
+          </div>
 
-              <div class="tag-row">
-                <span v-for="tag in work.tags.slice(0, 4)" :key="tag">#{{ tag }}</span>
-              </div>
-
-              <footer class="card-footer">
-                <div class="metric-row">
-                  <span><ArrowDownToLine class="icon-xs" />{{ work.metric }} {{ work.metricLabel }}</span>
-                  <span><HardDrive class="icon-xs" />{{ formatFileSize(work.size, '0 MB') }}</span>
-                </div>
-                <div class="action-row">
-                  <button type="button" class="icon-button" @click="openEditDialog(work)">
-                    <Edit3 class="icon-sm" />
-                  </button>
-                  <button type="button" class="icon-button" @click="handleDownload(work)">
-                    <ArrowDownToLine class="icon-sm" />
-                  </button>
-                  <button
-                    v-if="work.kind === 'asset' && work.status === 'APPROVED'"
-                    type="button"
-                    class="icon-button"
-                    @click="openShowcaseDialog(work)"
-                  >
-                    <SendHorizonal class="icon-sm" />
-                  </button>
-                  <button type="button" class="icon-button danger" @click="handleDeleteWork(work)">
-                    <Trash2 class="icon-sm" />
-                  </button>
-                </div>
-              </footer>
-            </div>
-          </article>
-        </div>
-
-        <div v-else class="empty-state">
-          <Sparkles class="empty-icon" />
-          <h2>还没有匹配的作品</h2>
-          <p>换一个筛选条件，或发布新的资源、材料、插件或展示作品。</p>
-          <button type="button" class="primary-button" @click="isPublishWorkDialogOpen = true">
-            <Plus class="icon-sm" />
-            发布作品
-          </button>
+          <div v-else class="empty-state">
+            <Sparkles class="empty-icon" />
+            <h2>还没有匹配的作品</h2>
+            <p>换一个筛选条件，或发布新的资源、材料、插件或展示作品。</p>
+            <button type="button" class="primary-button" @click="isPublishWorkDialogOpen = true">
+              <Plus class="icon-sm" />
+              发布作品
+            </button>
+          </div>
         </div>
       </main>
     </section>
@@ -763,8 +861,15 @@ onMounted(() => {
           </div>
 
           <footer>
-            <button type="button" class="ghost-button" @click="isEditDialogOpen = false">取消</button>
-            <button type="button" class="primary-button" :disabled="isSaving" @click="handleSaveEdit">
+            <button type="button" class="ghost-button" @click="isEditDialogOpen = false">
+              取消
+            </button>
+            <button
+              type="button"
+              class="primary-button"
+              :disabled="isSaving"
+              @click="handleSaveEdit"
+            >
               <Loader2 v-if="isSaving" class="icon-sm spinning" />
               保存并提交审核
             </button>
@@ -801,8 +906,12 @@ onMounted(() => {
           </label>
 
           <footer>
-            <button type="button" class="ghost-button" @click="isShowcaseDialogOpen = false">取消</button>
-            <button type="button" class="primary-button" @click="publishToShowcase">提交审核</button>
+            <button type="button" class="ghost-button" @click="isShowcaseDialogOpen = false">
+              取消
+            </button>
+            <button type="button" class="primary-button" @click="publishToShowcase">
+              提交审核
+            </button>
           </footer>
         </section>
       </div>
@@ -846,15 +955,25 @@ onMounted(() => {
 .page-header {
   justify-content: space-between;
   gap: 12px;
-  min-height: 40px;
+  min-height: 32px;
 }
 
 .title-block {
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
-.title-icon,
+.title-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+  flex: 0 0 auto;
+}
+
 .stat-icon {
   display: grid;
   place-items: center;
@@ -878,7 +997,20 @@ h1 {
   letter-spacing: -0.02em;
 }
 
-.title-block p,
+.title-block h1 {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.title-block p {
+  margin-top: 1px;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
 .empty-state p,
 .edit-dialog header p,
 .showcase-dialog header p {
@@ -1187,8 +1319,39 @@ h1 {
 
 /* Toolbar */
 .toolbar {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 16px;
+  background: var(--bg-card);
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-base);
+  backdrop-filter: blur(12px);
+  flex-wrap: nowrap;
+}
+
+.toolbar-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.toolbar-center {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.toolbar-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .search-box {
@@ -1271,11 +1434,19 @@ h1 {
 }
 
 /* Shell & Columns */
-.content-shell {
-  align-items: stretch;
-  gap: 12px;
-  min-height: 0;
+.workspace-shell {
   flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.content-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 /* Left Sidebar - Borderless Buttons */
@@ -1293,17 +1464,24 @@ h1 {
   align-self: start;
 }
 
-.filter-section {
+.panel-section {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.filter-section h2 {
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 4px;
   color: var(--text-primary);
   font-size: 11px;
   font-weight: 600;
+}
+
+.section-title svg {
+  color: var(--accent);
 }
 
 .filter-button {
@@ -1378,16 +1556,16 @@ h1 {
   flex: 1;
 }
 
-.works-grid.grid {
+.works-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
 }
 
 .works-grid.list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .work-card {
@@ -1405,10 +1583,18 @@ h1 {
 }
 
 /* Dynamic Glow Border Hover Tones */
-.work-card[data-kind='asset']:hover { border-color: rgba(37, 99, 235, 0.45); }
-.work-card[data-kind='material']:hover { border-color: rgba(217, 119, 6, 0.45); }
-.work-card[data-kind='plugin']:hover { border-color: rgba(5, 150, 105, 0.45); }
-.work-card[data-kind='showcase']:hover { border-color: rgba(225, 29, 72, 0.45); }
+.work-card[data-kind='asset']:hover {
+  border-color: rgba(37, 99, 235, 0.45);
+}
+.work-card[data-kind='material']:hover {
+  border-color: rgba(217, 119, 6, 0.45);
+}
+.work-card[data-kind='plugin']:hover {
+  border-color: rgba(5, 150, 105, 0.45);
+}
+.work-card[data-kind='showcase']:hover {
+  border-color: rgba(225, 29, 72, 0.45);
+}
 
 .works-grid.list .work-card {
   display: grid;
@@ -1458,9 +1644,15 @@ h1 {
   font-weight: 600;
 }
 
-.badge-row [data-status='APPROVED'] { background: rgba(5, 150, 105, 0.9); }
-.badge-row [data-status='PENDING'] { background: rgba(217, 119, 6, 0.9); }
-.badge-row [data-status='REJECTED'] { background: rgba(220, 38, 38, 0.9); }
+.badge-row [data-status='APPROVED'] {
+  background: rgba(5, 150, 105, 0.9);
+}
+.badge-row [data-status='PENDING'] {
+  background: rgba(217, 119, 6, 0.9);
+}
+.badge-row [data-status='REJECTED'] {
+  background: rgba(220, 38, 38, 0.9);
+}
 
 .work-body {
   padding: 10px;
@@ -1754,7 +1946,12 @@ h1 {
 /* Skeletons */
 .skeleton {
   border-radius: 6px;
-  background: linear-gradient(90deg, rgba(148, 163, 184, 0.1), rgba(148, 163, 184, 0.2), rgba(148, 163, 184, 0.1));
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.1),
+    rgba(148, 163, 184, 0.2),
+    rgba(148, 163, 184, 0.1)
+  );
   background-size: 200% 100%;
   animation: shimmer 1.2s infinite;
 }
@@ -1836,10 +2033,30 @@ h1 {
 
   .page-header,
   .toolbar,
-  .header-actions,
-  .toolbar-actions {
+  .header-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .toolbar {
+    gap: 12px;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .toolbar-center {
+    width: 100%;
+  }
+
+  .toolbar-center :deep(.ui-input-wrapper) {
+    max-width: none;
+    width: 100%;
   }
 
   .stats-grid,

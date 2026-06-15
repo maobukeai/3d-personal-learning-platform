@@ -357,16 +357,14 @@ defineExpose({
             </div>
           </template>
 
-          <div class="group max-w-[92%] md:max-w-[78%]">
+          <div class="group max-w-[92%] md:max-w-[90%]">
             <div
-              class="rounded-[24px] px-4 py-3.5 shadow-sm"
-              :class="
-                msg.role === 'user' ? 'ai-user-bubble ml-auto' : 'ai-assistant-bubble'
-              "
+              class="rounded-[22px] px-[18px] py-[12px] shadow-xs"
+              :class="msg.role === 'user' ? 'ai-user-bubble ml-auto' : 'ai-assistant-bubble'"
             >
               <div
                 v-if="msg.role === 'assistant' && (msg.reasoning || msg.isThinking)"
-                class="mb-3 border-b border-dashed border-slate-200/80 pb-3 text-xs text-slate-500"
+                class="mb-2.5 border-b border-dashed border-slate-200/80 pb-2.5 text-xs text-slate-500"
               >
                 <button
                   type="button"
@@ -408,7 +406,7 @@ defineExpose({
               <!-- Collapsible Reference Sources -->
               <div
                 v-if="msg.role === 'assistant' && msg.sources && msg.sources.length > 0"
-                class="mb-3 border-b border-dashed border-slate-200/80 pb-3 text-xs text-slate-500"
+                class="mb-2.5 border-b border-dashed border-slate-200/80 pb-2.5 text-xs text-slate-500"
               >
                 <button
                   type="button"
@@ -426,7 +424,7 @@ defineExpose({
                   v-show="msg.isSourcesExpanded"
                   class="mt-2 max-h-[220px] overflow-y-auto rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 p-2.5 leading-6 ai-scrollbar border border-slate-100 dark:border-slate-800"
                 >
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div class="grid grid-cols-3 md:grid-cols-5 gap-1.5">
                     <a
                       v-for="(source, sIdx) in msg.sources"
                       :key="source.link"
@@ -482,10 +480,7 @@ defineExpose({
                 class="flex items-center gap-1 transition hover:text-slate-700"
                 @click="emit('copy-message', msg.content, msg.id)"
               >
-                <component
-                  :is="copiedIndex === msg.id ? Check : Copy"
-                  class="h-3.5 w-3.5"
-                />
+                <component :is="copiedIndex === msg.id ? Check : Copy" class="h-3.5 w-3.5" />
                 <span>{{ copiedIndex === msg.id ? '已复制' : '复制内容' }}</span>
               </button>
               <button
@@ -558,12 +553,12 @@ defineExpose({
         <p v-if="uploadError" class="mb-2 px-1 text-xs text-rose-500">{{ uploadError }}</p>
 
         <div
-          class="rounded-[28px] border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 p-3 shadow-[0_20px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] backdrop-blur-xl"
+          class="rounded-[20px] border border-slate-200 dark:border-slate-700 bg-white/85 dark:bg-slate-900/80 p-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] backdrop-blur-2xl"
         >
           <textarea
             ref="textareaRef"
             :value="inputMessage"
-            class="min-h-[72px] w-full resize-none border-0 bg-transparent px-2 py-1 text-sm leading-7 text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
+            class="min-h-[36px] w-full resize-none border-0 bg-transparent px-2 py-1 text-sm leading-6 text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
             placeholder="输入你的问题或需求，按 Enter 发送，Shift + Enter 换行"
             :disabled="isGenerating || isTyping"
             rows="1"
@@ -572,7 +567,7 @@ defineExpose({
             @paste="handlePaste"
           />
 
-          <div class="mt-2.5 flex items-center justify-between gap-2">
+          <div class="mt-2 flex items-center justify-between gap-2">
             <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <button
                 type="button"
@@ -622,9 +617,7 @@ defineExpose({
                     :is="getProviderMeta(currentModel?.provider || '').lucideIcon"
                     class="h-3.5 w-3.5"
                   />
-                  <span class="hidden sm:inline">{{
-                    currentModel?.name || '默认模型'
-                  }}</span>
+                  <span class="hidden sm:inline">{{ currentModel?.name || '默认模型' }}</span>
                   <ChevronDown class="h-3.5 w-3.5" />
                 </button>
 
@@ -632,12 +625,20 @@ defineExpose({
                   <div
                     v-if="showModelDropdown"
                     class="absolute bottom-[calc(100%+10px)] left-0 z-20 min-w-[280px] overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-700/60 bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-xl"
-                    style="box-shadow: 0 20px 48px rgba(15,23,42,0.14), 0 0 0 1px rgba(148,163,184,0.08);"
+                    style="
+                      box-shadow:
+                        0 20px 48px rgba(15, 23, 42, 0.14),
+                        0 0 0 1px rgba(148, 163, 184, 0.08);
+                    "
                   >
                     <!-- Header -->
-                    <div class="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 px-4 py-2.5">
+                    <div
+                      class="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 px-4 py-2.5"
+                    >
                       <Cpu class="h-4 w-4 text-slate-400" />
-                      <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">选择 AI 模型</span>
+                      <span class="text-xs font-semibold text-slate-500 dark:text-slate-400"
+                        >选择 AI 模型</span
+                      >
                     </div>
 
                     <!-- Options -->
@@ -647,21 +648,16 @@ defineExpose({
                         :key="model.id"
                         type="button"
                         class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
-                        @click="emit('select-model', model.id)"
+                        @click="
+                          emit('select-model', model.id);
+                          emit('update:showModelDropdown', false);
+                        "
                       >
                         <div class="min-w-0 flex-1">
                           <div class="flex items-center gap-2">
                             <span
-                              class="rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wide uppercase shrink-0"
-                              :style="{
-                                background: getProviderMeta(model.provider).bg,
-                                border: `1px solid ${getProviderMeta(model.provider).border}`,
-                                color: getProviderMeta(model.provider).color
-                              }"
+                              class="truncate text-xs font-semibold text-slate-800 dark:text-slate-200"
                             >
-                              {{ getProviderMeta(model.provider).label }}
-                            </span>
-                            <span class="truncate text-xs font-semibold text-slate-800 dark:text-slate-200">
                               {{ model.name }}
                             </span>
                           </div>

@@ -3,7 +3,7 @@ import { fetchUserSettings, updateUserSettings } from '@/services/account.servic
 import { preferences, type SidebarMode } from '@/utils/preferences';
 
 const CLOUD_MODE_KEY = 'layoutSidebarMode';
-const CLOUD_GROUPS_KEY = 'layoutSidebarExpandedGroups';
+const CLOUD_GROUPS_KEY = 'layoutSidebarCollapsedGroups';
 const SAVE_DEBOUNCE_MS = 320;
 
 interface SidebarPreferenceOptions {
@@ -25,7 +25,7 @@ const parseCloudGroups = (value?: string) => {
 
 export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarPreferenceOptions) {
   const sidebarMode = ref<SidebarMode>(initialMode);
-  const expandedGroupKeys = ref<Set<string>>(new Set(preferences.getSidebarExpandedGroups()));
+  const collapsedGroupKeys = ref<Set<string>>(new Set(preferences.getSidebarCollapsedGroups()));
   const cloudPreferenceLoaded = ref(false);
   const isSavingPreference = ref(false);
   const hasLocalPreferenceChange = ref(false);
@@ -34,7 +34,7 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
 
   const persistSidebarPreferences = () => {
     preferences.setSidebarMode(sidebarMode.value);
-    preferences.setSidebarExpandedGroups([...expandedGroupKeys.value]);
+    preferences.setSidebarCollapsedGroups([...collapsedGroupKeys.value]);
 
     if (!isAuthenticated.value) return;
 
@@ -44,7 +44,7 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
         isSavingPreference.value = true;
         await updateUserSettings([
           { key: CLOUD_MODE_KEY, value: sidebarMode.value },
-          { key: CLOUD_GROUPS_KEY, value: JSON.stringify([...expandedGroupKeys.value]) },
+          { key: CLOUD_GROUPS_KEY, value: JSON.stringify([...collapsedGroupKeys.value]) },
         ]);
         cloudPreferenceLoaded.value = true;
       } catch {
@@ -63,7 +63,7 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
 
   const toggleGroupKey = (key: string) => {
     hasLocalPreferenceChange.value = true;
-    const next = new Set(expandedGroupKeys.value);
+    const next = new Set(collapsedGroupKeys.value);
 
     if (next.has(key)) {
       next.delete(key);
@@ -71,16 +71,16 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
       next.add(key);
     }
 
-    expandedGroupKeys.value = next;
+    collapsedGroupKeys.value = next;
     persistSidebarPreferences();
   };
 
   const expandGroupKey = (key: string) => {
-    if (expandedGroupKeys.value.has(key)) return;
+    if (!collapsedGroupKeys.value.has(key)) return;
     hasLocalPreferenceChange.value = true;
-    const next = new Set(expandedGroupKeys.value);
-    next.add(key);
-    expandedGroupKeys.value = next;
+    const next = new Set(collapsedGroupKeys.value);
+    next.delete(key);
+    collapsedGroupKeys.value = next;
     persistSidebarPreferences();
   };
 
@@ -88,15 +88,11 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
     if (!availableGroupKeys.length) return;
 
     const availableKeys = new Set(availableGroupKeys);
-    const next = new Set([...expandedGroupKeys.value].filter((key) => availableKeys.has(key)));
+    const next = new Set([...collapsedGroupKeys.value].filter((key) => availableKeys.has(key)));
 
-    if (!next.size) {
-      availableGroupKeys.forEach((key) => next.add(key));
-    }
-
-    if (next.size !== expandedGroupKeys.value.size) {
-      expandedGroupKeys.value = next;
-      preferences.setSidebarExpandedGroups([...next]);
+    if (next.size !== collapsedGroupKeys.value.size) {
+      collapsedGroupKeys.value = next;
+      preferences.setSidebarCollapsedGroups([...next]);
     }
   };
 
@@ -119,8 +115,8 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
       }
 
       if (groups) {
-        expandedGroupKeys.value = new Set(groups);
-        preferences.setSidebarExpandedGroups(groups);
+        collapsedGroupKeys.value = new Set(groups);
+        preferences.setSidebarCollapsedGroups(groups);
       }
 
       cloudPreferenceLoaded.value = true;
@@ -141,7 +137,7 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
 
   return {
     sidebarMode,
-    expandedGroupKeys,
+    collapsedGroupKeys,
     cloudPreferenceLoaded,
     isSavingPreference,
     setSidebarMode,

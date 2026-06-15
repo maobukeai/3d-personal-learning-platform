@@ -11,6 +11,9 @@ interface SystemSettings {
   ALLOW_REGISTRATION: boolean;
   MAINTENANCE_MODE: boolean;
   MATERIAL_CATEGORIES: string[];
+  TEAM_CATEGORIES: string[];
+  SHOWCASE_CATEGORIES: string[];
+  PLUGIN_CATEGORIES: string[];
   PASSWORD_MIN_LENGTH: string;
   SESSION_TIMEOUT: string;
   AUTO_APPROVE_MATERIALS: boolean;
@@ -50,6 +53,17 @@ export const useSystemStore = defineStore('system', {
       ALLOW_REGISTRATION: true,
       MAINTENANCE_MODE: false,
       MATERIAL_CATEGORIES: ['全部材料', '金属', '木纹', '石材', '织物', '程序化', '玻璃', '其他'],
+      TEAM_CATEGORIES: ['建模', '渲染', '动画', '材质', '游戏引擎'],
+      SHOWCASE_CATEGORIES: ['角色', '场景', '硬表面', '动效', '渲染', '其他'],
+      PLUGIN_CATEGORIES: [
+        '建模',
+        '材质与纹理',
+        '渲染与灯光',
+        '动画与骨骼',
+        '导入与导出',
+        '物理与特效',
+        '其他工具',
+      ],
       PASSWORD_MIN_LENGTH: '6',
       SESSION_TIMEOUT: '7d',
       AUTO_APPROVE_MATERIALS: false,
@@ -76,7 +90,9 @@ export const useSystemStore = defineStore('system', {
       }
 
       // Update favicon dynamically
-      const faviconUrl = getAssetUrl(this.settings.PLATFORM_FAVICON_URL || this.settings.PLATFORM_LOGO_URL);
+      const faviconUrl = getAssetUrl(
+        this.settings.PLATFORM_FAVICON_URL || this.settings.PLATFORM_LOGO_URL,
+      );
       if (faviconUrl) {
         let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
         if (!link) {
@@ -116,79 +132,123 @@ export const useSystemStore = defineStore('system', {
 
       pendingSettingsFetch = (async () => {
         try {
-        const { data } = await api.get('/api/auth/settings');
+          const { data } = await api.get('/api/auth/settings');
 
-        const toBool = (val: unknown): boolean => val === true || val === 'true';
+          const toBool = (val: unknown): boolean => val === true || val === 'true';
 
-        // Helper for safe JSON parsing
-        const safeParseArray = (val: unknown, fallback: string[]) => {
-          if (Array.isArray(val)) return val;
-          if (typeof val !== 'string') return fallback;
-          try {
-            const parsed = JSON.parse(val);
-            return Array.isArray(parsed) ? parsed : fallback;
-          } catch (_e) {
-            return fallback;
-          }
-        };
-        const safeParseModels = (val: unknown): PublicAIModelOption[] => {
-          const raw = typeof val === 'string' ? (() => {
+          // Helper for safe JSON parsing
+          const safeParseArray = (val: unknown, fallback: string[]) => {
+            if (Array.isArray(val)) return val;
+            if (typeof val !== 'string') return fallback;
             try {
-              return JSON.parse(val);
-            } catch {
-              return [];
+              const parsed = JSON.parse(val);
+              return Array.isArray(parsed) ? parsed : fallback;
+            } catch (_e) {
+              return fallback;
             }
-          })() : val;
-          if (!Array.isArray(raw)) return [];
-          return raw
-            .map((item): PublicAIModelOption | null => {
-              if (!item || typeof item !== 'object') return null;
-              const model = item as Record<string, unknown>;
-              const id = String(model.id || '').trim();
-              const provider = String(model.provider || '').trim();
-              const modelName = String(model.modelName || '').trim();
-              if (!id || !provider || !modelName) return null;
-              return {
-                id,
-                name: String(model.name || `${provider} ${modelName}`).trim(),
-                provider,
-                modelName,
-                enabled: toBool(model.enabled),
-                isDefault: toBool(model.isDefault),
-                description: typeof model.description === 'string' ? model.description : '',
-                capabilities: Array.isArray(model.capabilities)
-                  ? model.capabilities.map(String)
-                  : ['chat'],
-              };
-            })
-            .filter((item): item is PublicAIModelOption => Boolean(item));
-        };
+          };
+          const safeParseModels = (val: unknown): PublicAIModelOption[] => {
+            const raw =
+              typeof val === 'string'
+                ? (() => {
+                    try {
+                      return JSON.parse(val);
+                    } catch {
+                      return [];
+                    }
+                  })()
+                : val;
+            if (!Array.isArray(raw)) return [];
+            return raw
+              .map((item): PublicAIModelOption | null => {
+                if (!item || typeof item !== 'object') return null;
+                const model = item as Record<string, unknown>;
+                const id = String(model.id || '').trim();
+                const provider = String(model.provider || '').trim();
+                const modelName = String(model.modelName || '').trim();
+                if (!id || !provider || !modelName) return null;
+                return {
+                  id,
+                  name: String(model.name || `${provider} ${modelName}`).trim(),
+                  provider,
+                  modelName,
+                  enabled: toBool(model.enabled),
+                  isDefault: toBool(model.isDefault),
+                  description: typeof model.description === 'string' ? model.description : '',
+                  capabilities: Array.isArray(model.capabilities)
+                    ? model.capabilities.map(String)
+                    : ['chat'],
+                };
+              })
+              .filter((item): item is PublicAIModelOption => Boolean(item));
+          };
 
-        this.settings = {
-          PLATFORM_NAME: data.PLATFORM_NAME || '3D Personal Learning Hub',
-          PLATFORM_SUBTITLE: data.PLATFORM_SUBTITLE || '一起学 Blender，创造无限可能',
-          BROWSER_TITLE: (data.BROWSER_TITLE && data.BROWSER_TITLE !== '3D Personal Learning Hub')
-            ? data.BROWSER_TITLE
-            : (data.PLATFORM_NAME || '3D Personal Learning Hub'),
-          PLATFORM_LOGO_URL: data.PLATFORM_LOGO_URL || '',
-          PLATFORM_FAVICON_URL: data.PLATFORM_FAVICON_URL || '',
-          PLATFORM_DESCRIPTION: data.PLATFORM_DESCRIPTION || '',
-          ALLOW_REGISTRATION: toBool(data.ALLOW_REGISTRATION),
-          MAINTENANCE_MODE: toBool(data.MAINTENANCE_MODE),
-          MATERIAL_CATEGORIES: safeParseArray(data.MATERIAL_CATEGORIES, ['全部材料', '金属', '木纹', '石材', '织物', '程序化', '玻璃', '其他']),
-          PASSWORD_MIN_LENGTH: String(data.PASSWORD_MIN_LENGTH || '6'),
-          SESSION_TIMEOUT: data.SESSION_TIMEOUT || '7d',
-          AUTO_APPROVE_MATERIALS: toBool(data.AUTO_APPROVE_MATERIALS),
-          AUTO_APPROVE_SHOWCASES: toBool(data.AUTO_APPROVE_SHOWCASES),
-          MAX_UPLOAD_SIZE_MB: String(data.MAX_UPLOAD_SIZE_MB || '100'),
-          ALLOWED_FILE_TYPES: safeParseArray(data.ALLOWED_FILE_TYPES, ['.glb', '.gltf', '.fbx', '.obj', '.stl', '.zip']),
-          DEFAULT_USER_ROLE: data.DEFAULT_USER_ROLE || 'USER',
-          FOOTER_TEXT: data.FOOTER_TEXT || '',
-          OAUTH_GOOGLE_ENABLED: toBool(data.OAUTH_GOOGLE_ENABLED),
-          OAUTH_GITHUB_ENABLED: toBool(data.OAUTH_GITHUB_ENABLED),
-          AI_IMPORT_ENABLED: toBool(data.AI_IMPORT_ENABLED),
-          AI_MODEL_OPTIONS: safeParseModels(data.AI_MODEL_OPTIONS),
-        };
+          this.settings = {
+            PLATFORM_NAME: data.PLATFORM_NAME || '3D Personal Learning Hub',
+            PLATFORM_SUBTITLE: data.PLATFORM_SUBTITLE || '一起学 Blender，创造无限可能',
+            BROWSER_TITLE:
+              data.BROWSER_TITLE && data.BROWSER_TITLE !== '3D Personal Learning Hub'
+                ? data.BROWSER_TITLE
+                : data.PLATFORM_NAME || '3D Personal Learning Hub',
+            PLATFORM_LOGO_URL: data.PLATFORM_LOGO_URL || '',
+            PLATFORM_FAVICON_URL: data.PLATFORM_FAVICON_URL || '',
+            PLATFORM_DESCRIPTION: data.PLATFORM_DESCRIPTION || '',
+            ALLOW_REGISTRATION: toBool(data.ALLOW_REGISTRATION),
+            MAINTENANCE_MODE: toBool(data.MAINTENANCE_MODE),
+            MATERIAL_CATEGORIES: safeParseArray(data.MATERIAL_CATEGORIES, [
+              '全部材料',
+              '金属',
+              '木纹',
+              '石材',
+              '织物',
+              '程序化',
+              '玻璃',
+              '其他',
+            ]),
+            TEAM_CATEGORIES: safeParseArray(data.TEAM_CATEGORIES, [
+              '建模',
+              '渲染',
+              '动画',
+              '材质',
+              '游戏引擎',
+            ]),
+            SHOWCASE_CATEGORIES: safeParseArray(data.SHOWCASE_CATEGORIES, [
+              '角色',
+              '场景',
+              '硬表面',
+              '动效',
+              '渲染',
+              '其他',
+            ]),
+            PLUGIN_CATEGORIES: safeParseArray(data.PLUGIN_CATEGORIES, [
+              '建模',
+              '材质与纹理',
+              '渲染与灯光',
+              '动画与骨骼',
+              '导入与导出',
+              '物理与特效',
+              '其他工具',
+            ]),
+            PASSWORD_MIN_LENGTH: String(data.PASSWORD_MIN_LENGTH || '6'),
+            SESSION_TIMEOUT: data.SESSION_TIMEOUT || '7d',
+            AUTO_APPROVE_MATERIALS: toBool(data.AUTO_APPROVE_MATERIALS),
+            AUTO_APPROVE_SHOWCASES: toBool(data.AUTO_APPROVE_SHOWCASES),
+            MAX_UPLOAD_SIZE_MB: String(data.MAX_UPLOAD_SIZE_MB || '100'),
+            ALLOWED_FILE_TYPES: safeParseArray(data.ALLOWED_FILE_TYPES, [
+              '.glb',
+              '.gltf',
+              '.fbx',
+              '.obj',
+              '.stl',
+              '.zip',
+            ]),
+            DEFAULT_USER_ROLE: data.DEFAULT_USER_ROLE || 'USER',
+            FOOTER_TEXT: data.FOOTER_TEXT || '',
+            OAUTH_GOOGLE_ENABLED: toBool(data.OAUTH_GOOGLE_ENABLED),
+            OAUTH_GITHUB_ENABLED: toBool(data.OAUTH_GITHUB_ENABLED),
+            AI_IMPORT_ENABLED: toBool(data.AI_IMPORT_ENABLED),
+            AI_MODEL_OPTIONS: safeParseModels(data.AI_MODEL_OPTIONS),
+          };
         } catch (error) {
           console.error('Failed to fetch system settings:', error);
         } finally {

@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus';
 import { Shield, Clock, ShieldCheck, Download, Upload, Lock, RefreshCw } from 'lucide-vue-next';
 import api from '@/utils/api';
 import type { TwoFactorAccount } from '@/types';
+import Modal from '@/components/ui/Modal.vue';
 
 const visible = defineModel<boolean>({ default: false });
 
@@ -323,14 +324,7 @@ async function submitImport() {
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    title="2FA 安全中心"
-    width="90%"
-    style="max-width: 440px"
-    destroy-on-close
-    class="custom-el-dialog"
-  >
+  <Modal :show="visible" title="2FA 安全中心" size="md" @close="visible = false">
     <!-- Tab Navigation -->
     <div class="flex border-b mb-4" style="border-color: var(--border-base)">
       <button
@@ -516,5 +510,5 @@ async function submitImport() {
         </el-button>
       </div>
     </div>
-  </el-dialog>
+  </Modal>
 </template>

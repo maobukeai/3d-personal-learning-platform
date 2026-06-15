@@ -271,7 +271,12 @@ const buildLocalPerformanceReport = (): PerformanceReport => {
   const maxTextureRes = modelStats.value?.maxTextureRes || 0;
   const risks: PerformanceReport['risks'] = [];
 
-  const riskTone = (value: number, notice: number, warning: number, danger: number): PerformanceTone => {
+  const riskTone = (
+    value: number,
+    notice: number,
+    warning: number,
+    danger: number,
+  ): PerformanceTone => {
     if (value > danger) return 'danger';
     if (value > warning) return 'warning';
     if (value > notice) return 'notice';
@@ -306,7 +311,12 @@ const buildLocalPerformanceReport = (): PerformanceReport => {
     recommendation: '启用 Draco/Meshopt 压缩，并清理未使用贴图。',
   });
 
-  const penalties: Record<PerformanceTone, number> = { pass: 0, notice: 8, warning: 18, danger: 30 };
+  const penalties: Record<PerformanceTone, number> = {
+    pass: 0,
+    notice: 8,
+    warning: 18,
+    danger: 30,
+  };
   const score = Math.max(0, 100 - risks.reduce((total, risk) => total + penalties[risk.tone], 0));
   const level = risks.some((risk) => risk.tone === 'danger')
     ? 'danger'
@@ -319,7 +329,14 @@ const buildLocalPerformanceReport = (): PerformanceReport => {
   return {
     score,
     level,
-    mobileRisk: level === 'danger' ? 'high' : level === 'warning' ? 'medium' : level === 'notice' ? 'low' : 'safe',
+    mobileRisk:
+      level === 'danger'
+        ? 'high'
+        : level === 'warning'
+          ? 'medium'
+          : level === 'notice'
+            ? 'low'
+            : 'safe',
     summary: level === 'pass' ? '适合网页和移动端预览' : '存在可优化项，建议发布前处理',
     metrics: {
       faces,
@@ -335,8 +352,8 @@ const buildLocalPerformanceReport = (): PerformanceReport => {
   };
 };
 
-const activePerformanceReport = computed(() =>
-  performanceReport.value || asset.value?.performanceReport || buildLocalPerformanceReport(),
+const activePerformanceReport = computed(
+  () => performanceReport.value || asset.value?.performanceReport || buildLocalPerformanceReport(),
 );
 
 const performanceToneLabel = computed(() => {
@@ -382,7 +399,11 @@ const modelInfoRows = computed(() => [
   { label: '尺寸（cm）', value: modelStats.value?.dimensions || '未解析', icon: Ruler },
   { label: '多边形', value: formatNumber(modelStats.value?.faces), icon: Grid2X2 },
   { label: '材质', value: formatNumber(modelStats.value?.materials), icon: Layers3 },
-  { label: '贴图分辨率', value: modelStats.value?.maxTextureRes ? `${modelStats.value.maxTextureRes}px` : '未解析', icon: ImageIcon },
+  {
+    label: '贴图分辨率',
+    value: modelStats.value?.maxTextureRes ? `${modelStats.value.maxTextureRes}px` : '未解析',
+    icon: ImageIcon,
+  },
   { label: '动画', value: `${formatNumber(modelStats.value?.animations)} 段`, icon: RefreshCw },
   { label: '绑定', value: asset.value?.hasAnimations ? '有' : '无', icon: Move3D },
 ]);
@@ -394,22 +415,38 @@ const fileInfo = computed(() => [
   { label: '审核状态', value: reviewStatus.value.label },
 ]);
 
-const panels = computed(() => [
-  { id: 'overview', label: '模型档案', desc: '资产说明与发布信息', icon: Cuboid },
-  { id: 'preview', label: '视图快照', desc: '封面 / 白模 / 线框', icon: ImageIcon },
-  { id: 'textures', label: '材质贴图', desc: 'PBR 通道与贴图规模', icon: Layers3 },
-  { id: 'usage', label: '制作说明', desc: '软件链路与使用建议', icon: Info },
-  { id: 'versions', label: '版本库', desc: `${versions.value.length || 1} 个历史版本`, icon: History },
-  { id: 'compare', label: '拓扑对比', desc: '版本指标差异', icon: GitCompare },
-  { id: 'performance', label: '实时体检', desc: performanceToneLabel.value, icon: Gauge },
-  { id: 'comments', label: `空间批注 (${annotations.value.length})`, desc: '坐标评论与反馈', icon: MessageSquare },
-] as const);
+const panels = computed(
+  () =>
+    [
+      { id: 'overview', label: '模型档案', desc: '资产说明与发布信息', icon: Cuboid },
+      { id: 'preview', label: '视图快照', desc: '封面 / 白模 / 线框', icon: ImageIcon },
+      { id: 'textures', label: '材质贴图', desc: 'PBR 通道与贴图规模', icon: Layers3 },
+      { id: 'usage', label: '制作说明', desc: '软件链路与使用建议', icon: Info },
+      {
+        id: 'versions',
+        label: '版本库',
+        desc: `${versions.value.length || 1} 个历史版本`,
+        icon: History,
+      },
+      { id: 'compare', label: '拓扑对比', desc: '版本指标差异', icon: GitCompare },
+      { id: 'performance', label: '实时体检', desc: performanceToneLabel.value, icon: Gauge },
+      {
+        id: 'comments',
+        label: `空间批注 (${annotations.value.length})`,
+        desc: '坐标评论与反馈',
+        icon: MessageSquare,
+      },
+    ] as const,
+);
 
 const viewerTelemetry = computed(() => [
   { label: '面数', value: formatNumber(modelStats.value?.faces) },
   { label: '材质', value: formatNumber(modelStats.value?.materials) },
   { label: '动画', value: `${formatNumber(modelStats.value?.animations)} 段` },
-  { label: '贴图', value: modelStats.value?.maxTextureRes ? `${modelStats.value.maxTextureRes}px` : '未解析' },
+  {
+    label: '贴图',
+    value: modelStats.value?.maxTextureRes ? `${modelStats.value.maxTextureRes}px` : '未解析',
+  },
 ]);
 
 const cameraPresets: Array<{ key: CameraPresetKey; label: string; value: string }> = [
@@ -420,7 +457,11 @@ const cameraPresets: Array<{ key: CameraPresetKey; label: string; value: string 
 ];
 
 const previewItems = computed(() => [
-  { id: 'model', label: '模型', url: asset.value?.thumbnail || getDefaultThumbnailUrl(displayFormat.value) },
+  {
+    id: 'model',
+    label: '模型',
+    url: asset.value?.thumbnail || getDefaultThumbnailUrl(displayFormat.value),
+  },
   { id: 'clay', label: '白模', url: getDefaultThumbnailUrl('STL') },
   { id: 'wire', label: '线框', url: getDefaultThumbnailUrl('OBJ') },
   { id: 'normal', label: '法线', url: getDefaultThumbnailUrl('GLTF') },
@@ -467,7 +508,8 @@ const compareSources = computed(() => [
 ]);
 
 const selectedBaseSource = computed(
-  () => compareSources.value.find((item) => item.id === compareBaseId.value) || compareSources.value[0],
+  () =>
+    compareSources.value.find((item) => item.id === compareBaseId.value) || compareSources.value[0],
 );
 const selectedTargetSource = computed(
   () =>
@@ -498,9 +540,13 @@ const compareRows = computed(() => {
       baseValue,
       targetValue,
       delta,
-      improved: row.key === 'size' || row.key === 'faces' || row.key === 'vertices' || row.key === 'maxTextureRes'
-        ? delta < 0
-        : delta <= 0,
+      improved:
+        row.key === 'size' ||
+        row.key === 'faces' ||
+        row.key === 'vertices' ||
+        row.key === 'maxTextureRes'
+          ? delta < 0
+          : delta <= 0,
     };
   });
 });
@@ -583,7 +629,9 @@ const handleFavorite = async () => {
 
 const openInBlender = () => {
   if (!asset.value?.url) return;
-  ElMessage.info('\u5df2\u4e3a Blender \u6253\u5f00\u4fdd\u7559\u5165\u53e3\uff0c\u8bf7\u5728\u672c\u5730\u63d2\u4ef6\u4e2d\u63a5\u5165\u8be5\u8d44\u6e90\u94fe\u63a5');
+  ElMessage.info(
+    '\u5df2\u4e3a Blender \u6253\u5f00\u4fdd\u7559\u5165\u53e3\uff0c\u8bf7\u5728\u672c\u5730\u63d2\u4ef6\u4e2d\u63a5\u5165\u8be5\u8d44\u6e90\u94fe\u63a5',
+  );
 };
 const handleMetadataLoaded = async (stats: ModelStats) => {
   modelStats.value = {
@@ -731,7 +779,10 @@ const deleteAnnotation = async (annotationId: string) => {
 const clickAnnotation = (annotation: AssetAnnotation) => {
   if (!modelViewerRef.value?.flyTo || !annotation.cameraPos || !annotation.cameraTarget) return;
   try {
-    modelViewerRef.value.flyTo(JSON.parse(annotation.cameraPos), JSON.parse(annotation.cameraTarget));
+    modelViewerRef.value.flyTo(
+      JSON.parse(annotation.cameraPos),
+      JSON.parse(annotation.cameraTarget),
+    );
   } catch (error) {
     console.error('Failed to parse annotation camera state:', error);
   }
@@ -793,7 +844,11 @@ onUnmounted(() => {
           <div class="meta-row">
             <span class="tag-pill">3D模型</span>
             <span><User class="h-4 w-4" />{{ asset?.user?.name || '未知用户' }}</span>
-            <span><ShieldCheck class="h-4 w-4" />{{ asset?.user?.role === 'ADMIN' ? '系统管理员' : '创作者' }}</span>
+            <span
+              ><ShieldCheck class="h-4 w-4" />{{
+                asset?.user?.role === 'ADMIN' ? '系统管理员' : '创作者'
+              }}</span
+            >
             <span><Calendar class="h-4 w-4" />{{ formatDate(asset?.createdAt) }}</span>
             <span><Eye class="h-4 w-4" />{{ viewCount }}</span>
           </div>
@@ -830,16 +885,39 @@ onUnmounted(() => {
         </div>
 
         <div class="top-viewer-tools">
-          <button type="button" title="实体模式" :class="{ active: viewerConfig.viewMode === 'solid' && !isClayMode }" @click="viewerConfig.viewMode = 'solid'; modelViewerRef?.setViewMode?.('solid')">
+          <button
+            type="button"
+            title="实体模式"
+            :class="{ active: viewerConfig.viewMode === 'solid' && !isClayMode }"
+            @click="
+              viewerConfig.viewMode = 'solid';
+              modelViewerRef?.setViewMode?.('solid');
+            "
+          >
             <Box class="h-4 w-4" />
           </button>
-          <button type="button" title="拓扑叠线" :class="{ active: viewerConfig.viewMode === 'solid+wireframe' }" @click="toggleViewMode">
+          <button
+            type="button"
+            title="拓扑叠线"
+            :class="{ active: viewerConfig.viewMode === 'solid+wireframe' }"
+            @click="toggleViewMode"
+          >
             <Grid2X2 class="h-4 w-4" />
           </button>
-          <button type="button" title="白模模式" :class="{ active: isClayMode }" @click="toggleClayMode">
+          <button
+            type="button"
+            title="白模模式"
+            :class="{ active: isClayMode }"
+            @click="toggleClayMode"
+          >
             <Settings class="h-4 w-4" />
           </button>
-          <button type="button" title="设为封面" :disabled="isSavingCover" @click="saveCurrentViewAsCover">
+          <button
+            type="button"
+            title="设为封面"
+            :disabled="isSavingCover"
+            @click="saveCurrentViewAsCover"
+          >
             <Wand2 class="h-4 w-4" />
           </button>
           <button type="button" title="全屏" @click="modelViewerRef?.toggleFullscreen?.()">
@@ -891,7 +969,12 @@ onUnmounted(() => {
           <button type="button" title="重置视角" @click="resetCamera">
             <RefreshCw class="h-4 w-4" />
           </button>
-          <button type="button" title="自动旋转" :class="{ active: viewerConfig.autoRotate }" @click="viewerConfig.autoRotate = !viewerConfig.autoRotate">
+          <button
+            type="button"
+            title="自动旋转"
+            :class="{ active: viewerConfig.autoRotate }"
+            @click="viewerConfig.autoRotate = !viewerConfig.autoRotate"
+          >
             <RefreshCw class="h-4 w-4" />
           </button>
           <select v-model="viewerConfig.environment">
@@ -955,20 +1038,36 @@ onUnmounted(() => {
           <article v-for="name in ['BaseColor', 'Normal', 'Roughness', 'Metallic']" :key="name">
             <Layers3 class="h-5 w-5" />
             <strong>{{ name }}</strong>
-            <span>{{ modelStats?.maxTextureRes ? `${modelStats.maxTextureRes}px` : '等待模型解析' }}</span>
+            <span>{{
+              modelStats?.maxTextureRes ? `${modelStats.maxTextureRes}px` : '等待模型解析'
+            }}</span>
           </article>
         </div>
 
         <div v-if="activePanel === 'usage'" class="usage-panel">
           <h2>使用说明</h2>
-          <p>下载后可在 Blender、Three.js 或支持 {{ displayFormat }} 的 3D 工具中使用。若资源包含贴图，请保持原始目录结构。</p>
-          <p>团队协作时可在“评论”页签中点击模型表面添加空间评论，系统会记录模型坐标和当前相机视角。</p>
+          <p>
+            下载后可在 Blender、Three.js 或支持 {{ displayFormat }} 的 3D
+            工具中使用。若资源包含贴图，请保持原始目录结构。
+          </p>
+          <p>
+            团队协作时可在“评论”页签中点击模型表面添加空间评论，系统会记录模型坐标和当前相机视角。
+          </p>
         </div>
 
         <div v-if="activePanel === 'versions'" class="versions-panel">
           <div class="version-upload">
-            <input id="version-file-input" type="file" accept=".glb,.gltf,.fbx,.obj,.stl" @change="handleVersionFileChange" />
-            <textarea v-model="newVersionChangeLog" rows="2" placeholder="记录本次修改内容"></textarea>
+            <input
+              id="version-file-input"
+              type="file"
+              accept=".glb,.gltf,.fbx,.obj,.stl"
+              @change="handleVersionFileChange"
+            />
+            <textarea
+              v-model="newVersionChangeLog"
+              rows="2"
+              placeholder="记录本次修改内容"
+            ></textarea>
             <button type="button" :disabled="isUploadingVersion" @click="uploadNewVersion">
               <UploadCloud class="h-4 w-4" />
               {{ isUploadingVersion ? '上传中...' : '发布新版本' }}
@@ -994,13 +1093,17 @@ onUnmounted(() => {
             <label>
               <span>版本 A</span>
               <select v-model="compareBaseId">
-                <option v-for="item in compareSources" :key="item.id" :value="item.id">{{ item.label }}</option>
+                <option v-for="item in compareSources" :key="item.id" :value="item.id">
+                  {{ item.label }}
+                </option>
               </select>
             </label>
             <label>
               <span>版本 B</span>
               <select v-model="compareTargetId">
-                <option v-for="item in compareSources" :key="item.id" :value="item.id">{{ item.label }}</option>
+                <option v-for="item in compareSources" :key="item.id" :value="item.id">
+                  {{ item.label }}
+                </option>
               </select>
             </label>
           </div>
@@ -1047,7 +1150,11 @@ onUnmounted(() => {
           </div>
 
           <div class="risk-grid">
-            <article v-for="risk in activePerformanceReport.risks" :key="risk.metric" :data-tone="risk.tone">
+            <article
+              v-for="risk in activePerformanceReport.risks"
+              :key="risk.metric"
+              :data-tone="risk.tone"
+            >
               <div>
                 <CheckCircle2 v-if="risk.tone === 'pass'" class="h-4 w-4" />
                 <AlertTriangle v-else class="h-4 w-4" />
@@ -1065,18 +1172,30 @@ onUnmounted(() => {
           <div class="comment-tip" :data-disabled="!canAnnotate">
             <MessageSquare class="h-5 w-5" />
             <span>
-              {{ canAnnotate ? '点击模型表面可添加空间评论，评论会绑定当前视角。' : '你可以查看批注；新增批注需要团队、所有者或管理员权限。' }}
+              {{
+                canAnnotate
+                  ? '点击模型表面可添加空间评论，评论会绑定当前视角。'
+                  : '你可以查看批注；新增批注需要团队、所有者或管理员权限。'
+              }}
             </span>
           </div>
           <div v-if="isAddingAnnotation && annotationCoords" class="comment-editor">
-            <span>X {{ annotationCoords.x.toFixed(2) }} · Y {{ annotationCoords.y.toFixed(2) }} · Z {{ annotationCoords.z.toFixed(2) }}</span>
+            <span
+              >X {{ annotationCoords.x.toFixed(2) }} · Y {{ annotationCoords.y.toFixed(2) }} · Z
+              {{ annotationCoords.z.toFixed(2) }}</span
+            >
             <textarea v-model="newAnnotationText" rows="3" placeholder="输入评论内容"></textarea>
             <button type="button" @click="saveAnnotation">
               <Plus class="h-4 w-4" />
               保存评论
             </button>
           </div>
-          <article v-for="annotation in annotations" :key="annotation.id" class="comment-card" @click="clickAnnotation(annotation)">
+          <article
+            v-for="annotation in annotations"
+            :key="annotation.id"
+            class="comment-card"
+            @click="clickAnnotation(annotation)"
+          >
             <div>
               <strong>{{ annotation.user?.name || '团队成员' }}</strong>
               <span>{{ formatDate(annotation.createdAt) }}</span>
@@ -1099,7 +1218,9 @@ onUnmounted(() => {
       <section class="side-card identity-card">
         <span>MODEL INSPECTOR</span>
         <h2>{{ displayFormat }} / {{ assetSize }}</h2>
-        <p>{{ asset?.description || '暂无模型说明，可在模型档案中补充拓扑、贴图、授权和使用场景。' }}</p>
+        <p>
+          {{ asset?.description || '暂无模型说明，可在模型档案中补充拓扑、贴图、授权和使用场景。' }}
+        </p>
         <div>
           <strong>{{ reviewStatus.label }}</strong>
           <strong>{{ parsedFormats.length || 1 }} 种格式</strong>
@@ -1109,10 +1230,22 @@ onUnmounted(() => {
       <section class="side-card summary-card">
         <h2>概览</h2>
         <div class="summary-grid">
-          <div><Eye class="h-4 w-4" /><strong>{{ viewCount }}</strong><span>浏览</span></div>
-          <div><Star class="h-4 w-4" /><strong>{{ favoriteCount }}</strong><span>收藏</span></div>
-          <div><Download class="h-4 w-4" /><strong>{{ downloadCount }}</strong><span>下载</span></div>
-          <div><MessageSquare class="h-4 w-4" /><strong>{{ annotations.length }}</strong><span>评论</span></div>
+          <div>
+            <Eye class="h-4 w-4" /><strong>{{ viewCount }}</strong
+            ><span>浏览</span>
+          </div>
+          <div>
+            <Star class="h-4 w-4" /><strong>{{ favoriteCount }}</strong
+            ><span>收藏</span>
+          </div>
+          <div>
+            <Download class="h-4 w-4" /><strong>{{ downloadCount }}</strong
+            ><span>下载</span>
+          </div>
+          <div>
+            <MessageSquare class="h-4 w-4" /><strong>{{ annotations.length }}</strong
+            ><span>评论</span>
+          </div>
         </div>
       </section>
 
@@ -1179,9 +1312,7 @@ onUnmounted(() => {
   min-height: 0;
   overflow: hidden;
   padding: 16px;
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.035), transparent 180px),
-    #f4f6f8;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.035), transparent 180px), #f4f6f8;
   color: #17213a;
 }
 
@@ -1247,10 +1378,22 @@ onUnmounted(() => {
   font-weight: 900;
 }
 
-.review-pill[data-tone='success'] { color: #11a36a; background: #e8fbf1; }
-.review-pill[data-tone='warning'] { color: #d17a00; background: #fff4dd; }
-.review-pill[data-tone='danger'] { color: #dc2626; background: #fee2e2; }
-.tag-pill { color: #6757ff; background: #f0efff; }
+.review-pill[data-tone='success'] {
+  color: #11a36a;
+  background: #e8fbf1;
+}
+.review-pill[data-tone='warning'] {
+  color: #d17a00;
+  background: #fff4dd;
+}
+.review-pill[data-tone='danger'] {
+  color: #dc2626;
+  background: #fee2e2;
+}
+.tag-pill {
+  color: #6757ff;
+  background: #f0efff;
+}
 
 .meta-row {
   flex-wrap: wrap;
@@ -1508,9 +1651,17 @@ onUnmounted(() => {
   font-weight: 900;
 }
 
-.axis-y { color: #20c76d; }
-.axis-z { color: #3b82f6; transform: translate(-22px, 16px); }
-.axis-x { color: #f05252; transform: translate(24px, -16px); }
+.axis-y {
+  color: #20c76d;
+}
+.axis-z {
+  color: #3b82f6;
+  transform: translate(-22px, 16px);
+}
+.axis-x {
+  color: #f05252;
+  transform: translate(24px, -16px);
+}
 
 .viewer-telemetry {
   left: 18px;
@@ -1944,9 +2095,21 @@ onUnmounted(() => {
   color: #2563eb;
 }
 
-.performance-hero[data-tone='warning'] { border-color: #ffe2a9; background: #fffaf0; color: #c27000; }
-.performance-hero[data-tone='danger'] { border-color: #fecaca; background: #fff7f7; color: #dc2626; }
-.performance-hero[data-tone='pass'] { border-color: #bbf7d0; background: #f4fff8; color: #0f9f6e; }
+.performance-hero[data-tone='warning'] {
+  border-color: #ffe2a9;
+  background: #fffaf0;
+  color: #c27000;
+}
+.performance-hero[data-tone='danger'] {
+  border-color: #fecaca;
+  background: #fff7f7;
+  color: #dc2626;
+}
+.performance-hero[data-tone='pass'] {
+  border-color: #bbf7d0;
+  background: #f4fff8;
+  color: #0f9f6e;
+}
 
 .performance-hero strong {
   display: block;
@@ -1988,10 +2151,22 @@ onUnmounted(() => {
   font-weight: 900;
 }
 
-.risk-grid article[data-tone='pass'] span { color: #0f9f6e; background: #e8fbf1; }
-.risk-grid article[data-tone='notice'] span { color: #2563eb; background: #eaf2ff; }
-.risk-grid article[data-tone='warning'] span { color: #c27000; background: #fff4dd; }
-.risk-grid article[data-tone='danger'] span { color: #dc2626; background: #fee2e2; }
+.risk-grid article[data-tone='pass'] span {
+  color: #0f9f6e;
+  background: #e8fbf1;
+}
+.risk-grid article[data-tone='notice'] span {
+  color: #2563eb;
+  background: #eaf2ff;
+}
+.risk-grid article[data-tone='warning'] span {
+  color: #c27000;
+  background: #fff4dd;
+}
+.risk-grid article[data-tone='danger'] span {
+  color: #dc2626;
+  background: #fee2e2;
+}
 
 .risk-grid b {
   color: #17213a;
@@ -2177,9 +2352,18 @@ onUnmounted(() => {
   background: #f7fbff;
 }
 
-.performance-card[data-tone='pass'] .score-ring { border-color: #bbf7d0; background: #f4fff8; }
-.performance-card[data-tone='warning'] .score-ring { border-color: #ffe2a9; background: #fffaf0; }
-.performance-card[data-tone='danger'] .score-ring { border-color: #fecaca; background: #fff7f7; }
+.performance-card[data-tone='pass'] .score-ring {
+  border-color: #bbf7d0;
+  background: #f4fff8;
+}
+.performance-card[data-tone='warning'] .score-ring {
+  border-color: #ffe2a9;
+  background: #fffaf0;
+}
+.performance-card[data-tone='danger'] .score-ring {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
 
 .score-ring strong {
   color: #17213a;
@@ -2357,6 +2541,3 @@ onUnmounted(() => {
   }
 }
 </style>
-
-
-

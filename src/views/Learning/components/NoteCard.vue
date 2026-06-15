@@ -13,7 +13,7 @@ import {
   Folder,
   Pin,
   FileText,
-  Check
+  Check,
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
@@ -45,11 +45,13 @@ const props = withDefaults(
     isMobile: boolean;
     isSelectionMode?: boolean;
     isSelected?: boolean;
+    viewMode?: 'grid' | 'list';
   }>(),
   {
     isSelectionMode: false,
     isSelected: false,
-  }
+    viewMode: 'grid',
+  },
 );
 
 const emit = defineEmits<{
@@ -67,7 +69,11 @@ const emit = defineEmits<{
 const authStore = useAuthStore();
 
 const isDraggable = computed(() => {
-  return props.activeTab === 'MY' && !props.isSelectionMode && (props.note.userId === authStore.user?.id || authStore.user?.role === 'ADMIN');
+  return (
+    props.activeTab === 'MY' &&
+    !props.isSelectionMode &&
+    (props.note.userId === authStore.user?.id || authStore.user?.role === 'ADMIN')
+  );
 });
 
 const onDragStart = (event: DragEvent) => {
@@ -110,23 +116,28 @@ const cleanSummary = computed(() => {
 
 <template>
   <div
-    class="bg-[var(--bg-card)] border rounded-xl p-3 sm:p-4 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col h-full relative overflow-hidden"
+    class="bg-[var(--bg-card)] border rounded-xl p-3 sm:p-4 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex relative overflow-hidden"
     :class="[
       isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-      props.isSelected ? 'border-accent ring-1 ring-accent' : 'border-[var(--border-base)]'
+      props.isSelected ? 'border-accent ring-1 ring-accent' : 'border-[var(--border-base)]',
+      props.viewMode === 'list'
+        ? 'flex-row items-center gap-4 w-full h-auto py-2.5 sm:py-3.5'
+        : 'flex-col h-full',
     ]"
     :draggable="isDraggable"
-    @click="props.isSelectionMode ? emit('toggle-select', props.note) : emit('click-detail', props.note)"
+    @click="
+      props.isSelectionMode ? emit('toggle-select', props.note) : emit('click-detail', props.note)
+    "
     @dragstart="onDragStart"
   >
     <!-- Batch Selection Checkbox overlay -->
-    <div 
-      v-if="props.isSelectionMode" 
+    <div
+      v-if="props.isSelectionMode"
       class="absolute top-3 left-3 z-30 w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer shadow-xs"
       :class="[
-        props.isSelected ? 
-        'bg-accent border-accent text-white' : 
-        'bg-[var(--bg-card)] border-[var(--border-base)] text-transparent hover:border-accent'
+        props.isSelected
+          ? 'bg-accent border-accent text-white'
+          : 'bg-[var(--bg-card)] border-[var(--border-base)] text-transparent hover:border-accent',
       ]"
       @click.stop="emit('toggle-select', props.note)"
     >
@@ -134,11 +145,14 @@ const cleanSummary = computed(() => {
     </div>
 
     <!-- Left Hover Glow Accent Line -->
-    <div class="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-8 bg-accent rounded-r-md opacity-0 group-hover:opacity-100 transition-all duration-300 z-10" :class="{ 'hidden': props.isSelectionMode }"></div>
+    <div
+      class="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-8 bg-accent rounded-r-md opacity-0 group-hover:opacity-100 transition-all duration-300 z-10"
+      :class="{ hidden: props.isSelectionMode }"
+    ></div>
 
     <!-- Pinned Note Corner Indicator -->
-    <div 
-      v-if="props.note.isPinned" 
+    <div
+      v-if="props.note.isPinned"
       class="absolute top-0 right-0 w-8 h-8 flex items-center justify-center bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-bl-xl transition-all"
       title="置顶笔记"
     >
@@ -146,7 +160,10 @@ const cleanSummary = computed(() => {
     </div>
 
     <!-- Beautiful Glowing Rank Index on POPULAR leaderboard -->
-    <div v-if="props.activeTab === 'POPULAR'" class="absolute -top-2 -left-2 z-10 flex items-center gap-1">
+    <div
+      v-if="props.activeTab === 'POPULAR'"
+      class="absolute -top-2 -left-2 z-10 flex items-center gap-1"
+    >
       <span
         v-if="props.index === 0"
         class="px-2.5 py-0.5 text-[9px] font-black text-white rounded-full bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 shadow-md shadow-amber-500/20 border border-yellow-300 flex items-center gap-0.5"
@@ -173,43 +190,62 @@ const cleanSummary = computed(() => {
       </span>
 
       <!-- Hotness Rating tag -->
-      <span class="px-2 py-0.5 text-[8px] font-black text-red-500 rounded-full bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 flex items-center gap-0.5 shadow-sm">
+      <span
+        class="px-2 py-0.5 text-[8px] font-black text-red-500 rounded-full bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 flex items-center gap-0.5 shadow-sm"
+      >
         <Flame class="w-2.5 h-2.5 text-red-500 fill-current animate-pulse" />
-        {{ Math.round(props.note.views * 1 + props.note._count.likes * 5 + (props.note._count.comments || 0) * 10) }} 热度
+        {{
+          Math.round(
+            props.note.views * 1 +
+              props.note._count.likes * 5 +
+              (props.note._count.comments || 0) * 10,
+          )
+        }}
+        热度
       </span>
     </div>
 
     <!-- Header Meta Row -->
-    <div class="flex items-start justify-between mb-3.5 gap-1.5 min-w-0">
+    <div
+      class="flex items-start justify-between gap-1.5 min-w-0"
+      :class="props.viewMode === 'list' ? 'mb-0 shrink-0' : 'mb-3.5'"
+    >
       <div class="flex items-center gap-2 min-w-0">
         <span class="md:hidden shrink-0">
-          <UserAvatar 
-            :user="props.note.user" 
-            size="xs" 
-            class="ring-1 ring-[var(--border-base)] cursor-pointer hover:ring-2 hover:ring-accent transition-all" 
+          <UserAvatar
+            :user="props.note.user"
+            size="xs"
+            class="ring-1 ring-[var(--border-base)] cursor-pointer hover:ring-2 hover:ring-accent transition-all"
             @click.stop="emit('click-avatar', props.note.user.id)"
           />
         </span>
         <span class="hidden md:inline-flex shrink-0">
-          <UserAvatar 
-            :user="props.note.user" 
-            size="sm" 
-            class="ring-1 ring-[var(--border-base)] cursor-pointer hover:ring-2 hover:ring-accent transition-all" 
+          <UserAvatar
+            :user="props.note.user"
+            size="sm"
+            class="ring-1 ring-[var(--border-base)] cursor-pointer hover:ring-2 hover:ring-accent transition-all"
             @click.stop="emit('click-avatar', props.note.user.id)"
           />
         </span>
         <div class="min-w-0">
-          <p 
+          <p
             class="text-xs md:text-sm font-bold text-[var(--text-primary)] leading-none truncate hover:text-accent transition-colors duration-300 cursor-pointer"
             @click.stop="emit('click-avatar', props.note.user.id)"
           >
             {{ props.note.user.name }}
           </p>
-          <div class="flex items-center gap-1 text-[9px] md:text-[10px] text-[var(--text-muted)] mt-1.5 flex-wrap">
+          <div
+            class="flex items-center gap-1 text-[9px] md:text-[10px] text-[var(--text-muted)] mt-1.5 flex-wrap"
+          >
             <Calendar class="w-2.5 h-2.5 shrink-0" />
             <span>{{ formatDate(props.note.createdAt) }}</span>
-            <span v-if="props.note.category" class="text-slate-300 dark:text-slate-700 shrink-0">|</span>
-            <span v-if="props.note.category" class="flex items-center gap-0.5 text-accent font-bold shrink-0 truncate max-w-[60px] sm:max-w-[80px]">
+            <span v-if="props.note.category" class="text-slate-300 dark:text-slate-700 shrink-0"
+              >|</span
+            >
+            <span
+              v-if="props.note.category"
+              class="flex items-center gap-0.5 text-accent font-bold shrink-0 truncate max-w-[60px] sm:max-w-[80px]"
+            >
               <Folder class="w-2.5 h-2.5 text-accent shrink-0" />
               {{ props.note.category }}
             </span>
@@ -218,20 +254,35 @@ const cleanSummary = computed(() => {
       </div>
       <div
         class="flex items-center gap-1 shrink-0 transition-all duration-300"
-        :class="{ 'group-hover:opacity-0 group-hover:scale-90 group-hover:pointer-events-none': (props.note.userId === authStore.user?.id || authStore.user?.role === 'ADMIN') }"
+        :class="{
+          'group-hover:opacity-0 group-hover:scale-90 group-hover:pointer-events-none':
+            props.note.userId === authStore.user?.id || authStore.user?.role === 'ADMIN',
+        }"
       >
-        <el-tag v-if="props.note.isPopular && props.activeTab !== 'POPULAR'" type="warning" size="small" round effect="dark" class="px-1 md:px-2">热</el-tag>
-        
+        <el-tag
+          v-if="props.note.isPopular && props.activeTab !== 'POPULAR'"
+          type="warning"
+          size="small"
+          round
+          effect="dark"
+          class="px-1 md:px-2"
+          >热</el-tag
+        >
+
         <!-- Custom Visibility Badge -->
         <span
           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] md:text-[10px] font-bold border transition-colors duration-300"
-          :class="props.note.visibility === 'PUBLIC'
-            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-            : 'bg-slate-500/10 border-slate-500/20 text-slate-500 dark:text-slate-400'"
+          :class="
+            props.note.visibility === 'PUBLIC'
+              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+              : 'bg-slate-500/10 border-slate-500/20 text-slate-500 dark:text-slate-400'
+          "
         >
           <span
             class="w-1 h-1 rounded-full shrink-0"
-            :class="props.note.visibility === 'PUBLIC' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'"
+            :class="
+              props.note.visibility === 'PUBLIC' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
+            "
           ></span>
           {{ getVisibilityLabel(props.note.visibility) }}
         </span>
@@ -240,21 +291,29 @@ const cleanSummary = computed(() => {
 
     <!-- Title -->
     <h3
-      class="text-xs sm:text-sm md:text-base font-extrabold mb-1.5 md:mb-2 line-clamp-1 group-hover:text-accent transition-colors duration-300 flex items-center gap-1.5"
+      class="text-xs sm:text-sm md:text-base font-extrabold line-clamp-1 group-hover:text-accent transition-colors duration-300 flex items-center gap-1.5"
+      :class="props.viewMode === 'list' ? 'mb-0 flex-1' : 'mb-1.5 md:mb-2'"
     >
-      <FileText class="w-3.5 h-3.5 text-[var(--text-muted)] group-hover:text-accent transition-colors shrink-0" />
+      <FileText
+        class="w-3.5 h-3.5 text-[var(--text-muted)] group-hover:text-accent transition-colors shrink-0"
+      />
       {{ props.note.title }}
     </h3>
 
     <!-- Summary Snippet -->
     <p
+      v-if="props.viewMode !== 'list'"
       class="text-[11px] sm:text-xs md:text-sm text-[var(--text-secondary)]/90 line-clamp-2 md:line-clamp-3 mb-3 md:mb-4 flex-1 leading-relaxed"
     >
       {{ cleanSummary }}
     </p>
 
     <!-- Tags Row -->
-    <div v-if="parseTags(props.note).length" class="flex flex-wrap gap-1 mb-2.5 md:mb-3.5">
+    <div
+      v-if="parseTags(props.note).length"
+      class="flex flex-wrap gap-1"
+      :class="props.viewMode === 'list' ? 'mb-0 hidden sm:flex' : 'mb-2.5 md:mb-3.5'"
+    >
       <span
         v-for="tag in parseTags(props.note).slice(0, props.isMobile ? 1 : 3)"
         :key="tag"
@@ -265,12 +324,23 @@ const cleanSummary = computed(() => {
     </div>
 
     <!-- Fading Gradient Divider Line -->
-    <div class="h-[1px] bg-gradient-to-r from-transparent via-[var(--border-base)] to-transparent my-1.5 md:my-2"></div>
+    <div
+      v-if="props.viewMode !== 'list'"
+      class="h-[1px] bg-gradient-to-r from-transparent via-[var(--border-base)] to-transparent my-1.5 md:my-2"
+    ></div>
 
     <!-- Footer Stats Row -->
-    <div class="flex items-center justify-between mt-auto gap-1">
-      <div class="flex items-center gap-2 md:gap-3.5 text-[9px] md:text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider shrink-0">
-        <span class="flex items-center gap-1 hover:text-purple-500 transition-colors duration-200" title="阅读量">
+    <div
+      class="flex items-center justify-between gap-1 shrink-0"
+      :class="props.viewMode === 'list' ? 'mt-0' : 'mt-auto'"
+    >
+      <div
+        class="flex items-center gap-2 md:gap-3.5 text-[9px] md:text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider shrink-0"
+      >
+        <span
+          class="flex items-center gap-1 hover:text-purple-500 transition-colors duration-200"
+          title="阅读量"
+        >
           <Eye class="w-3.5 h-3.5" /> {{ props.note.views }}
         </span>
         <span
@@ -279,14 +349,20 @@ const cleanSummary = computed(() => {
           title="点赞"
           @click.stop="emit('like', props.note)"
         >
-          <ThumbsUp class="w-3.5 h-3.5 transition-transform duration-200" :class="{ 'fill-current': props.note.isLiked }" />
+          <ThumbsUp
+            class="w-3.5 h-3.5 transition-transform duration-200"
+            :class="{ 'fill-current': props.note.isLiked }"
+          />
           {{ props.note._count.likes }}
         </span>
-        <span class="flex items-center gap-1 hover:text-blue-500 transition-colors duration-200" title="评论">
+        <span
+          class="flex items-center gap-1 hover:text-blue-500 transition-colors duration-200"
+          title="评论"
+        >
           <MessageSquare class="w-3.5 h-3.5" /> {{ props.note._count.comments || 0 }}
         </span>
       </div>
-      
+
       <span
         v-if="props.note.category"
         class="text-[8px] md:text-[9px] font-black text-accent bg-accent/5 border border-accent/15 px-2 py-0.5 rounded uppercase truncate max-w-[50px] sm:max-w-[80px]"

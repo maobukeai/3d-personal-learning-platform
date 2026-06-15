@@ -264,3 +264,88 @@ export interface WorkbenchData {
     tagCoverage: number;
   };
 }
+
+export interface TeamMemberRecord {
+  userId: string;
+  role: 'OWNER' | 'ADMIN' | 'MEMBER';
+}
+
+export interface ProjectRecord {
+  id: string;
+  title: string;
+  progress?: number;
+  color?: string | null;
+  status?: string;
+  dueDate?: string | null;
+  updatedAt?: string;
+  members?: unknown[];
+}
+
+export interface ProjectSummary {
+  id: string;
+  title: string;
+  progress: number;
+  color: string;
+  status: string;
+  dueDate?: string | null;
+  updatedAt?: string;
+  memberCount: number;
+}
+
+export interface LeaderboardMember {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+  score?: number;
+  points?: number;
+  rank: number;
+}
+
+export interface ActiveBanner {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  imageUrl: string;
+  route: string;
+  tag: string | null;
+  tagColor: string | null;
+  buttonText: string;
+  order: number;
+}
+
+export interface MetricTile {
+  id: string;
+  label: string;
+  value: string | number;
+  detail: string;
+  trend?: string;
+  icon: any;
+  route: string;
+  tone: string;
+}
+
+export interface QuickAction {
+  id: string;
+  label: string;
+  hint: string;
+  icon: any;
+  route?: string;
+  mode?: 'ai_assistant' | 'traditional';
+  tone: string;
+}
+
+export interface FeedItem {
+  id: string;
+  icon: any;
+  title: string;
+  description: string;
+  time: string;
+  rawTime: Date;
+  route?: string;
+  imageUrl?: string | null;
+  user?: {
+    name: string;
+    avatarUrl?: string | null;
+  };
+  badge?: string;
+}

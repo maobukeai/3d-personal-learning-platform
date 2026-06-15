@@ -50,15 +50,34 @@ export const listPlugins = async (req: Request, res: Response, next: NextFunctio
     const pageSize = Math.min(50, Math.max(1, parseInt(req.query.pageSize as string) || 20));
     const category = req.query.category as string | undefined;
     const search = req.query.search as string | undefined;
+    
+    const authReq = req as AuthRequest;
+    const mine = req.query.mine === 'true';
+    const favoritesOnly = req.query.favoritesOnly === 'true';
+    const status = req.query.status as string;
+    const userId = authReq.userId as string;
 
-    const where: any = { status: 'APPROVED' };
-    if (category) where.category = category;
+    const where: any = mine
+      ? {
+          userId,
+          ...(status && status !== 'all' ? { status } : {}),
+        }
+      : {
+          status: 'APPROVED',
+        };
+
+    if (category && category !== 'all') where.category = category;
     if (search) {
       where.OR = [
         { title: { contains: search } },
         { description: { contains: search } },
         { tags: { contains: search } },
       ];
+    }
+
+    if (favoritesOnly && userId) {
+      const favoriteIds = await getFavoritePluginIds(userId);
+      where.id = { in: favoriteIds };
     }
 
     const [plugins, total] = await Promise.all([
@@ -104,7 +123,7 @@ export const getPluginById = async (req: AuthRequest, res: Response, next: NextF
 export const getPluginInsights = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId as string;
-    const [approvedPlugins, pendingCount, favoriteIds] = await Promise.all([
+    const [approvedPlugins, pendingCount, favoriteIds, myUploadsCount] = await Promise.all([
       prisma.plugin.findMany({
         where: { status: 'APPROVED' },
         orderBy: { createdAt: 'desc' },
@@ -124,6 +143,7 @@ export const getPluginInsights = async (req: AuthRequest, res: Response, next: N
       }),
       prisma.plugin.count({ where: { status: 'PENDING' } }),
       getFavoritePluginIds(userId),
+      prisma.plugin.count({ where: { userId } }),
     ]);
 
     const categoryMap = new Map<string, { name: string; count: number; downloads: number }>();
@@ -169,6 +189,7 @@ export const getPluginInsights = async (req: AuthRequest, res: Response, next: N
         downloads: totalDownloads,
         categories: categories.length,
         favoriteCount: favoriteIds.length,
+        myUploads: myUploadsCount,
         averageSize:
           approvedPlugins.length > 0
             ? Number((totalFileSize / approvedPlugins.length).toFixed(2))

@@ -47,6 +47,7 @@ import { getAssetUrl } from '@/utils/api';
 import { fetchUnreadMessageCount } from '@/services/message.service';
 import type { AppNotification } from '@/services/notification.service';
 import { useThemeManager } from './composables/useThemeManager';
+import Tabs from '@/components/ui/Tabs.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -65,7 +66,10 @@ const topNavTabs = computed(() => [
     label: t('sidebar.dashboard'),
     icon: LayoutDashboard,
     path: '/dashboard',
-    active: route.path === '/dashboard' || route.path.startsWith('/work') || route.path.startsWith('/notes'),
+    active:
+      route.path === '/dashboard' ||
+      route.path.startsWith('/work') ||
+      route.path.startsWith('/notes'),
   },
   {
     key: 'learning',
@@ -93,15 +97,40 @@ const topNavTabs = computed(() => [
     label: t('sidebar.showcase'),
     icon: MonitorPlay,
     path: '/showcase',
-    active: route.path.startsWith('/showcase') || route.path.startsWith('/my-works') || route.path.startsWith('/assets'),
+    active:
+      route.path.startsWith('/showcase') ||
+      route.path.startsWith('/my-works') ||
+      route.path.startsWith('/assets'),
   },
 ]);
 
+const topNavTabsOptions = computed(() =>
+  topNavTabs.value.map((tab) => ({
+    label: tab.label,
+    value: tab.path,
+    icon: tab.icon,
+  })),
+);
+
+const activeTabKey = computed({
+  get() {
+    const activeTab = topNavTabs.value.find((t) => t.active);
+    return activeTab ? activeTab.path : '';
+  },
+  set(newPath) {
+    if (newPath) {
+      router.push(newPath);
+    }
+  },
+});
+
 const showTopTabs = computed(() => {
   // Show top tabs only in normal workspace (not admin/mirror/manual)
-  return !route.path.startsWith('/admin') &&
-         !route.path.startsWith('/mirror') &&
-         !route.path.startsWith('/manual');
+  return (
+    !route.path.startsWith('/admin') &&
+    !route.path.startsWith('/mirror') &&
+    !route.path.startsWith('/manual')
+  );
 });
 
 const isCreateTeamVisible = ref(false);
@@ -261,6 +290,13 @@ watch(
     } else if (path.startsWith('/manual/station/')) {
       const stationId = path.split('/')[3];
       workspaceStore.setWorkspaceById(`manual-${stationId}`);
+    } else if (workspaceStore.activeWorkspaceId === 'admin-workspace') {
+      const personalWs =
+        workspaceStore.rawWorkspaces.find((ws) => ws.type === 'personal') ||
+        workspaceStore.rawWorkspaces.find((ws) => ws.type !== 'admin');
+      if (personalWs) {
+        workspaceStore.setWorkspaceById(personalWs.id);
+      }
     }
   },
 );
@@ -318,10 +354,17 @@ onUnmounted(() => {
             <Box v-else class="w-4 h-4 text-white" />
           </div>
           <div class="hidden sm:flex flex-col justify-center leading-none">
-            <span class="text-sm font-black whitespace-nowrap leading-tight" style="color: var(--text-primary)">
+            <span
+              class="text-sm font-black whitespace-nowrap leading-tight"
+              style="color: var(--text-primary)"
+            >
               {{ systemStore.settings.PLATFORM_NAME || 'Platform' }}
             </span>
-            <span v-if="systemStore.settings.PLATFORM_SUBTITLE" class="text-[9px] font-medium whitespace-nowrap leading-none mt-0.5" style="color: var(--text-muted)">
+            <span
+              v-if="systemStore.settings.PLATFORM_SUBTITLE"
+              class="text-[9px] font-medium whitespace-nowrap leading-none mt-0.5"
+              style="color: var(--text-muted)"
+            >
               {{ systemStore.settings.PLATFORM_SUBTITLE }}
             </span>
           </div>
@@ -336,25 +379,14 @@ onUnmounted(() => {
       <!-- Center: Main Nav Tabs (Blender-club style) on desktop, Search on narrow screens -->
       <div class="flex-1 flex items-center justify-center px-2">
         <!-- Top Navigation Tabs — desktop only, normal workspace -->
-        <nav
-          v-if="showTopTabs && !isMobile"
-          class="hidden lg:flex items-center gap-4"
-        >
-          <RouterLink
-            v-for="tab in topNavTabs"
-            :key="tab.key"
-            :to="tab.path"
-            class="topbar-tab flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors"
-            :class="
-              tab.active
-                ? 'active text-accent'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/5'
-            "
-          >
-            <component :is="tab.icon" class="w-3.5 h-3.5 shrink-0" />
-            <span>{{ tab.label }}</span>
-          </RouterLink>
-        </nav>
+        <div v-if="showTopTabs && !isMobile" class="hidden lg:block">
+          <Tabs
+            v-model="activeTabKey"
+            :options="topNavTabsOptions"
+            size="sm"
+            class="!bg-transparent border-none"
+          />
+        </div>
         <!-- Search bar on medium screens (no tabs visible) -->
         <div
           v-else
@@ -363,7 +395,9 @@ onUnmounted(() => {
           @click="handleSearch"
         >
           <Search class="w-4 h-4 text-slate-400" />
-          <span class="text-xs text-slate-400 flex-1 truncate">{{ $t('layout.searchPlaceholder') }}</span>
+          <span class="text-xs text-slate-400 flex-1 truncate">{{
+            $t('layout.searchPlaceholder')
+          }}</span>
           <kbd
             class="text-[10px] px-2 py-0.5 rounded border font-mono hidden lg:inline-block"
             style="border-color: var(--border-base); color: var(--text-muted)"
@@ -373,7 +407,9 @@ onUnmounted(() => {
       </div>
 
       <!-- Right: Actions + Avatar -->
-      <div class="flex items-center justify-end gap-1.5 md:gap-2 lg:w-[380px] xl:w-[440px] shrink-0">
+      <div
+        class="flex items-center justify-end gap-1.5 md:gap-2 lg:w-[380px] xl:w-[440px] shrink-0"
+      >
         <!-- Search bar for desktop mode when tabs are visible -->
         <div
           v-if="showTopTabs && !isMobile"
@@ -382,7 +418,9 @@ onUnmounted(() => {
           @click="handleSearch"
         >
           <Search class="w-3.5 h-3.5 text-slate-400" />
-          <span class="text-xs text-slate-400 flex-1 truncate">{{ $t('layout.searchPlaceholder') }}</span>
+          <span class="text-xs text-slate-400 flex-1 truncate">{{
+            $t('layout.searchPlaceholder')
+          }}</span>
           <kbd
             class="text-[9px] px-1.5 py-0.5 rounded border font-mono hidden xl:inline-block"
             style="border-color: var(--border-base); color: var(--text-muted)"
@@ -453,9 +491,9 @@ onUnmounted(() => {
         >
           <div class="flex items-center gap-3">
             <ShieldCheck class="w-4 h-4 animate-pulse" />
-            <span class="text-xs font-bold uppercase tracking-wider"
-              >{{ $t('layout.maintenanceMode') }}</span
-            >
+            <span class="text-xs font-bold uppercase tracking-wider">{{
+              $t('layout.maintenanceMode')
+            }}</span>
           </div>
           <RouterLink
             to="/admin/settings"

@@ -156,7 +156,7 @@ model MessageReaction {
 model Team {
   id           String            @id @default(uuid())
   name         String
-  description  String?
+  description  String?           @db.Text
   avatarUrl    String?
   coverUrl     String?
   type         String            @default("TEAM") // 'PERSONAL', 'TEAM'

@@ -156,14 +156,21 @@ export const sortResourceItems = (items: ResourceItem[], sortMode: SortMode) =>
   [...items].sort((a, b) => {
     if (sortMode === 'metric') return b.metric - a.metric;
     if (sortMode === 'title') return a.title.localeCompare(b.title, 'zh-CN');
-    if (sortMode === 'created') return getResourceTimestamp(b.createdAt) - getResourceTimestamp(a.createdAt);
+    if (sortMode === 'created')
+      return getResourceTimestamp(b.createdAt) - getResourceTimestamp(a.createdAt);
     if (sortMode === 'review') {
       const priority = (status: string) => {
         if (status === 'REJECTED') return 0;
         if (status === 'PENDING') return 1;
         return 2;
       };
-      return priority(a.status) - priority(b.status) || getResourceTimestamp(a.createdAt) - getResourceTimestamp(b.createdAt);
+      return (
+        priority(a.status) - priority(b.status) ||
+        getResourceTimestamp(a.createdAt) - getResourceTimestamp(b.createdAt)
+      );
     }
-    return getResourceTimestamp(b.updatedAt || b.createdAt) - getResourceTimestamp(a.updatedAt || a.createdAt);
+    return (
+      getResourceTimestamp(b.updatedAt || b.createdAt) -
+      getResourceTimestamp(a.updatedAt || a.createdAt)
+    );
   });

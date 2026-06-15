@@ -26,6 +26,9 @@ export interface SystemSettings {
   SYSTEM_EMAIL_PROVIDER: string;
   MICROSOFT_POOL_FAILBACK: boolean;
   MATERIAL_CATEGORIES: string[];
+  TEAM_CATEGORIES: string[];
+  SHOWCASE_CATEGORIES: string[];
+  PLUGIN_CATEGORIES: string[];
   FOOTER_TEXT: string;
   OAUTH_GOOGLE_ENABLED: boolean;
   OAUTH_GOOGLE_CLIENT_ID: string;
@@ -164,6 +167,9 @@ const DEFAULT_SETTINGS: SystemSettings = {
   SYSTEM_EMAIL_PROVIDER: 'SMTP',
   MICROSOFT_POOL_FAILBACK: true,
   MATERIAL_CATEGORIES: ['金属', '木纹', '石材', '织物', '程序化', '玻璃', '其他'],
+  TEAM_CATEGORIES: ['建模', '渲染', '动画', '材质', '游戏引擎'],
+  SHOWCASE_CATEGORIES: ['角色', '场景', '硬表面', '动效', '渲染', '其他'],
+  PLUGIN_CATEGORIES: ['建模', '材质与纹理', '渲染与灯光', '动画与骨骼', '导入与导出', '物理与特效', '其他工具'],
   FOOTER_TEXT: '',
   OAUTH_GOOGLE_ENABLED: false,
   OAUTH_GOOGLE_CLIENT_ID: '',
@@ -476,6 +482,15 @@ class SettingsService {
       settings['MAX_UPLOAD_SIZE_MB'] === undefined
     ) {
       settings['MAX_UPLOAD_SIZE_MB'] = settings['MAX_FILE_SIZE'];
+    }
+
+    // Migrate old PLUGIN_CATEGORIES default list if present
+    const pluginCatsObj = settings['PLUGIN_CATEGORIES'];
+    if (Array.isArray(pluginCatsObj) && pluginCatsObj.includes('Blender 插件')) {
+      const newDefaults = DEFAULT_SETTINGS.PLUGIN_CATEGORIES;
+      await this.update('PLUGIN_CATEGORIES', newDefaults);
+      settings['PLUGIN_CATEGORIES'] = newDefaults;
+      logger.info('[Settings Migration] Migrated PLUGIN_CATEGORIES to Blender-specific categories');
     }
 
     this.cache = settings as unknown as Partial<SystemSettings>;

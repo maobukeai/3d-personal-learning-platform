@@ -3,6 +3,8 @@ import { computed, onMounted, ref, watch, type Component } from 'vue';
 import { useRoute } from 'vue-router';
 import {
   BarChart3,
+  Box,
+  Bone,
   CalendarClock,
   CheckCircle2,
   Code,
@@ -11,6 +13,7 @@ import {
   Eye,
   EyeOff,
   Heart,
+  Import,
   Layers,
   Loader2,
   Package,
@@ -21,15 +24,21 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
+  Sun,
   Tags,
   UploadCloud,
   Wrench,
   X,
+  Grid3X3,
+  LayoutList,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
-import PageHeader from '@/components/PageHeader.vue';
+import { useSystemStore } from '@/stores/system';
 import FileDropZone from '@/components/FileDropZone.vue';
+import Input from '@/components/ui/Input.vue';
+import Tabs from '@/components/ui/Tabs.vue';
+import UnifiedCard from '@/components/UnifiedCard.vue';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import { formatCompactNumber, formatRelativeTime, parseTags } from './resourceUtils';
@@ -71,6 +80,7 @@ interface PluginInsights {
     categories: number;
     favoriteCount: number;
     averageSize: number;
+    myUploads?: number;
   };
   categories: { name: string; count: number; downloads: number }[];
   hotTags: { label: string; count: number }[];
@@ -100,11 +110,12 @@ const CATEGORY_ALL = '全部插件';
 const CATEGORY_OTHER = '其他工具';
 const baseCategories = [
   CATEGORY_ALL,
-  'Blender 插件',
-  'Three.js 插件',
-  'Substance 工具',
-  '游戏引擎插件',
-  'Photoshop 脚本',
+  '建模',
+  '材质与纹理',
+  '渲染与灯光',
+  '动画与骨骼',
+  '导入与导出',
+  '物理与特效',
   CATEGORY_OTHER,
 ];
 
@@ -116,25 +127,70 @@ const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
 const categoryLabel = (category?: string | null) => {
   const normalized = category || CATEGORY_OTHER;
   const englishLabels: Record<string, string> = {
-    [CATEGORY_ALL]: 'All Plugins',
-    [CATEGORY_OTHER]: 'Other Tools',
-    'Blender 插件': 'Blender Add-ons',
-    'Three.js 插件': 'Three.js Plugins',
-    'Substance 工具': 'Substance Tools',
-    '游戏引擎插件': 'Game Engine Plugins',
-    'Photoshop 脚本': 'Photoshop Scripts',
+    [CATEGORY_ALL]: 'All Add-ons',
+    [CATEGORY_OTHER]: 'Other Utilities',
+    建模: 'Modeling',
+    材质与纹理: 'Materials & Texturing',
+    渲染与灯光: 'Rendering & Lighting',
+    动画与骨骼: 'Animation & Rigging',
+    导入与导出: 'Import & Export',
+    物理与特效: 'Physics & FX',
   };
   return locale.value === 'en-US' ? englishLabels[normalized] || normalized : normalized;
 };
 
+const systemStore = useSystemStore();
 const pluginsList = ref<PluginItem[]>([]);
 const searchQuery = ref('');
 const activeCategory = ref(CATEGORY_ALL);
 const selectedTag = ref('all');
 const sortBy = ref<SortMode>('latest');
+const viewMode = ref<'grid' | 'list'>('grid');
+const viewModeOptions = computed(() => [
+  { value: 'grid', label: '', icon: Grid3X3 },
+  { value: 'list', label: '', icon: LayoutList },
+]);
 const showFavoritesOnly = ref(false);
 const favoritedIds = ref<string[]>([]);
 const insights = ref<PluginInsights | null>(null);
+
+type LibraryTab = 'explore' | 'favorites' | 'mine';
+type StatusFilter = 'all' | 'PENDING' | 'APPROVED' | 'REJECTED';
+
+const activeTab = ref<LibraryTab>('explore');
+const myStatusFilter = ref<StatusFilter>('all');
+
+const libraryTabs = computed(() => [
+  {
+    key: 'explore' as const,
+    label: label('插件广场', 'Explore'),
+    count: insights.value?.summary.total || 0,
+  },
+  {
+    key: 'favorites' as const,
+    label: label('我的收藏', 'Favorites'),
+    count: insights.value?.summary.favoriteCount || favoritedIds.value.length,
+  },
+  {
+    key: 'mine' as const,
+    label: label('我的提交', 'My Uploads'),
+    count: insights.value?.summary.myUploads || 0,
+  },
+]);
+
+const libraryTabOptions = computed(() => {
+  return libraryTabs.value.map((tab) => ({
+    label: `${tab.label} ${tab.count}`,
+    value: tab.key,
+  }));
+});
+
+const statusTabOptions = computed(() => [
+  { label: label('全部状态', 'All Statuses'), value: 'all' },
+  { label: label('待审核', 'Pending'), value: 'PENDING' },
+  { label: label('已发布', 'Approved'), value: 'APPROVED' },
+  { label: label('未通过', 'Rejected'), value: 'REJECTED' },
+]);
 const downloadingIds = ref<Record<string, boolean>>({});
 const isLoading = ref(false);
 const isUploading = ref(false);
@@ -155,14 +211,21 @@ const uploadForm = ref({
 });
 
 const availableCategories = computed(() => {
+  const configured = (systemStore.settings.PLUGIN_CATEGORIES || []).filter(
+    (name) => name !== CATEGORY_ALL,
+  );
+
   const fromData = [
     ...pluginsList.value.map((plugin) => plugin.category).filter(Boolean),
     ...(insights.value?.categories || []).map((category) => category.name),
-  ];
-  return Array.from(new Set([...baseCategories, ...fromData]));
+  ].filter((name) => name !== CATEGORY_ALL);
+
+  return [CATEGORY_ALL, ...Array.from(new Set([...configured, ...fromData]))];
 });
 
-const uploadCategories = computed(() => availableCategories.value.filter((category) => category !== CATEGORY_ALL));
+const uploadCategories = computed(() =>
+  availableCategories.value.filter((category) => category !== CATEGORY_ALL),
+);
 
 const visiblePlugins = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
@@ -191,7 +254,8 @@ const visiblePlugins = computed(() => {
 
   return list.sort((a, b) => {
     if (sortBy.value === 'popular') return b.downloads - a.downloads;
-    if (sortBy.value === 'name') return a.title.localeCompare(b.title, locale.value === 'en-US' ? 'en-US' : 'zh-CN');
+    if (sortBy.value === 'name')
+      return a.title.localeCompare(b.title, locale.value === 'en-US' ? 'en-US' : 'zh-CN');
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 });
@@ -203,27 +267,42 @@ const stats = computed(() => ({
     pluginsList.value.reduce((sum, plugin) => sum + plugin.downloads, 0),
   favorites: favoritedIds.value.length || insights.value?.summary.favoriteCount || 0,
   categories:
-    insights.value?.summary.categories || new Set(pluginsList.value.map((plugin) => plugin.category)).size,
+    insights.value?.summary.categories ||
+    new Set(pluginsList.value.map((plugin) => plugin.category)).size,
 }));
 
 const spotlightPlugin = computed(() => {
-  return visiblePlugins.value[0] || insights.value?.topDownloads?.[0] || insights.value?.latest?.[0] || null;
+  return (
+    visiblePlugins.value[0] ||
+    insights.value?.topDownloads?.[0] ||
+    insights.value?.latest?.[0] ||
+    null
+  );
 });
 
 const marketplaceSignals = computed<MarketplaceSignal[]>(() => [
   {
     title: label('审核后公开', 'Reviewed publishing'),
-    description: label('插件包、脚本和封面图进入审核，通过后上架。', 'Plugin packages, scripts, and covers go live after review.'),
+    description: label(
+      '插件包、脚本和封面图进入审核，通过后上架。',
+      'Plugin packages, scripts, and covers go live after review.',
+    ),
     Icon: ShieldCheck,
   },
   {
     title: label('兼容版本清楚', 'Clear compatibility'),
-    description: label('卡片优先展示宿主软件、版本号和适配范围。', 'Cards emphasize host app, version, and compatibility.'),
+    description: label(
+      '卡片优先展示宿主软件、版本号和适配范围。',
+      'Cards emphasize host app, version, and compatibility.',
+    ),
     Icon: CheckCircle2,
   },
   {
     title: label('安装说明沉淀', 'Install guides included'),
-    description: label('详情里保留依赖、安装步骤和注意事项。', 'Details keep dependencies, install steps, and notes.'),
+    description: label(
+      '详情里保留依赖、安装步骤和注意事项。',
+      'Details keep dependencies, install steps, and notes.',
+    ),
     Icon: Wrench,
   },
 ]);
@@ -240,11 +319,17 @@ const normalizePlugin = (plugin: Partial<PluginItem> & Record<string, unknown>):
   fileUrl: typeof plugin.fileUrl === 'string' ? plugin.fileUrl : null,
   fileSize: typeof plugin.fileSize === 'number' ? plugin.fileSize : null,
   previewUrl: typeof plugin.previewUrl === 'string' ? plugin.previewUrl : null,
-  installGuide: String(plugin.installGuide || label('作者暂未填写安装说明。', 'No installation guide yet.')),
+  installGuide: String(
+    plugin.installGuide || label('作者暂未填写安装说明。', 'No installation guide yet.'),
+  ),
   status: (plugin.status as PluginStatus) || 'APPROVED',
   rejectReason: typeof plugin.rejectReason === 'string' ? plugin.rejectReason : null,
   createdAt: String(plugin.createdAt || new Date().toISOString()),
   user: (plugin.user as PluginUser | null | undefined) || null,
+});
+
+watch([activeTab, myStatusFilter], () => {
+  fetchPlugins();
 });
 
 const fetchPlugins = async () => {
@@ -256,6 +341,12 @@ const fetchPlugins = async () => {
         pageSize: 80,
         search: searchQuery.value.trim() || undefined,
         category: activeCategory.value === CATEGORY_ALL ? undefined : activeCategory.value,
+        mine: activeTab.value === 'mine' ? 'true' : undefined,
+        favoritesOnly: activeTab.value === 'favorites' ? 'true' : undefined,
+        status:
+          activeTab.value === 'mine' && myStatusFilter.value !== 'all'
+            ? myStatusFilter.value
+            : undefined,
       },
     });
     const source = Array.isArray(data) ? data : data.plugins || [];
@@ -335,7 +426,11 @@ const toggleFavorite = async (pluginId: string, event?: Event) => {
   try {
     const { data } = await api.post(`/api/plugins/${pluginId}/favorite`);
     favoritedIds.value = data.favoriteIds || [];
-    ElMessage.success(data.isFavorited ? label('已收藏插件', 'Plugin saved') : label('已取消收藏', 'Favorite removed'));
+    ElMessage.success(
+      data.isFavorited
+        ? label('已收藏插件', 'Plugin saved')
+        : label('已取消收藏', 'Favorite removed'),
+    );
     fetchInsights();
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, label('收藏失败', 'Favorite failed')));
@@ -421,7 +516,12 @@ const submitPlugin = async () => {
     await api.post('/api/plugins/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    ElMessage.success(label('插件已提交审核，通过后会在插件库展示', 'Plugin submitted for review and will appear after approval'));
+    ElMessage.success(
+      label(
+        '插件已提交审核，通过后会在插件库展示',
+        'Plugin submitted for review and will appear after approval',
+      ),
+    );
     isUploadDialogOpen.value = false;
     resetUploadForm();
     await Promise.all([fetchPlugins(), fetchInsights()]);
@@ -450,78 +550,97 @@ const getTagsList = (tags?: string) =>
     .filter(Boolean)
     .slice(0, 6);
 
-const getAuthorName = (plugin: PluginItem) => plugin.user?.name || plugin.user?.email || label('创作者', 'Creator');
+const getAuthorName = (plugin: PluginItem) =>
+  plugin.user?.name || plugin.user?.email || label('创作者', 'Creator');
 
 const getCategoryIcon = (category: string): Component => {
-  if (category.includes('Blender')) return Cpu;
-  if (category.includes('Three')) return Code;
-  if (category.includes('Substance')) return Layers;
-  if (category.includes('Photoshop')) return Sparkles;
+  if (category.includes('建模')) return Box;
+  if (category.includes('材质')) return Layers;
+  if (category.includes('渲染')) return Sun;
+  if (category.includes('骨骼')) return Bone;
+  if (category.includes('导入')) return Import;
   return Package;
 };
 
 const getCategoryTone = (category: string) => {
-  if (category.includes('Blender')) return 'tone-orange';
-  if (category.includes('Three')) return 'tone-blue';
-  if (category.includes('Substance')) return 'tone-rose';
-  if (category.includes('Photoshop')) return 'tone-cyan';
-  if (category.includes('引擎')) return 'tone-emerald';
-  return 'tone-violet';
+  if (category === '建模') return 'tone-orange';
+  if (category === '材质与纹理') return 'tone-rose';
+  if (category === '渲染与灯光') return 'tone-blue';
+  if (category === '动画与骨骼') return 'tone-cyan';
+  if (category === '导入与导出') return 'tone-emerald';
+  if (category === '物理与特效') return 'tone-violet';
+  return 'tone-slate';
 };
 
 const starterTemplates = computed<StarterPluginTemplate[]>(() => [
   {
-    title: label('Blender 资产命名检查器', 'Blender Asset Name Inspector'),
-    description: label('批量检查模型命名、材质槽和导出前的资源规范。', 'Batch-check model names, material slots, and export rules.'),
-    category: 'Blender 插件',
+    title: label('Blender 快速建模工具集', 'Blender Quick Modeling Kit'),
+    description: label(
+      '快捷添加基础几何、镜像对称及边缘导角工具。',
+      'Quick tools for base geometry, mirror symmetry, and beveling.',
+    ),
+    category: '建模',
     compatibility: 'Blender 4.x',
-    tags: ['Python', label('规范检查', 'QA'), 'PBR'],
+    tags: ['Python', label('建模辅助', 'Modeling Utility'), 'Utility'],
     packageType: 'ZIP / PY',
-    Icon: Cpu,
+    Icon: Box,
     tone: 'tone-orange',
   },
   {
-    title: label('Three.js 性能探针', 'Three.js Performance Probe'),
-    description: label('在运行时查看 draw call、纹理占用和场景节点结构。', 'Inspect draw calls, texture memory, and scene graph at runtime.'),
-    category: 'Three.js 插件',
-    compatibility: 'Three.js r160+',
-    tags: ['WebGL', label('性能', 'Performance'), 'Debug'],
-    packageType: 'JS / TS',
-    Icon: Code,
-    tone: 'tone-blue',
-  },
-  {
-    title: label('Substance 贴图打包器', 'Substance Texture Packer'),
-    description: label('统一输出 PBR 通道命名，并生成项目可读的贴图包。', 'Standardize PBR channel names and export project-ready packs.'),
-    category: 'Substance 工具',
-    compatibility: 'Painter 10+',
-    tags: ['PBR', label('贴图', 'Texture'), 'Export'],
-    packageType: 'SBSAR',
+    title: label('PBR 材质一键贴图', 'PBR Material Texture Mapper'),
+    description: label(
+      '为选中的模型一键导入和关联 Diffuse、Normal、Roughness 等贴图通道。',
+      'Map Diffuse, Normal, Roughness channels for selected meshes in one click.',
+    ),
+    category: '材质与纹理',
+    compatibility: 'Blender 3.x / 4.x',
+    tags: ['PBR', label('材质', 'Material'), label('纹理', 'Texture')],
+    packageType: 'ZIP / PY',
     Icon: Layers,
     tone: 'tone-rose',
   },
   {
-    title: label('引擎导入预检脚本', 'Engine Import Preflight'),
-    description: label('上传前确认贴图路径、单位比例、碰撞体和 LOD 配置。', 'Validate texture paths, units, colliders, and LOD setup before upload.'),
-    category: '游戏引擎插件',
-    compatibility: 'Unity / Unreal',
-    tags: ['LOD', label('导入', 'Import'), label('自动化', 'Automation')],
-    packageType: 'ZIP',
-    Icon: Package,
+    title: label('Blender 快速灯光预设', 'Blender Fast Light Studio'),
+    description: label(
+      '一键创建三点光源、HDRI 天空盒 and 渲染环境设置。',
+      'One-click creation of three-point lighting, HDRI skybox, and rendering environment.',
+    ),
+    category: '渲染与灯光',
+    compatibility: 'Blender 4.x',
+    tags: ['Cycles', label('渲染', 'Rendering'), label('灯光', 'Lighting')],
+    packageType: 'ZIP / PY',
+    Icon: Sun,
+    tone: 'tone-blue',
+  },
+  {
+    title: label('FBX/GLTF 自动优化导出', 'FBX/GLTF Auto-Optimized Exporter'),
+    description: label(
+      '自动清理材质槽，重置比例与旋转，打包贴图并导出为最简 GLTF/FBX 文件。',
+      'Clean material slots, reset transforms, pack textures, and export minimized GLTF/FBX.',
+    ),
+    category: '导入与导出',
+    compatibility: 'Blender 3.6+',
+    tags: ['gltf', label('导出', 'Export'), label('优化', 'Optimization')],
+    packageType: 'ZIP / PY',
+    Icon: Import,
     tone: 'tone-emerald',
   },
 ]);
 
 const categoryTiles = computed(() => {
-  const insightMap = new Map((insights.value?.categories || []).map((category) => [category.name, category]));
+  const insightMap = new Map(
+    (insights.value?.categories || []).map((category) => [category.name, category]),
+  );
 
   return availableCategories.value.map((category) => {
     const isAll = category === CATEGORY_ALL;
     const fromInsights = insightMap.get(category);
     const pluginsInCategory = pluginsList.value.filter((plugin) => plugin.category === category);
-    const count = isAll ? stats.value.total : fromInsights?.count ?? pluginsInCategory.length;
-    const downloads =
-      isAll ? stats.value.downloads : fromInsights?.downloads ?? pluginsInCategory.reduce((sum, plugin) => sum + plugin.downloads, 0);
+    const count = isAll ? stats.value.total : (fromInsights?.count ?? pluginsInCategory.length);
+    const downloads = isAll
+      ? stats.value.downloads
+      : (fromInsights?.downloads ??
+        pluginsInCategory.reduce((sum, plugin) => sum + plugin.downloads, 0));
 
     return {
       name: category,
@@ -533,6 +652,14 @@ const categoryTiles = computed(() => {
   });
 });
 
+const categoryTabOptions = computed(() => {
+  return categoryTiles.value.map((category) => ({
+    label: categoryLabel(category.name),
+    badge: category.count,
+    value: category.name,
+  }));
+});
+
 const topDownloadPlugins = computed(() => (insights.value?.topDownloads || []).slice(0, 5));
 const latestPlugins = computed(() => (insights.value?.latest || []).slice(0, 5));
 const sideCategories = computed(() => {
@@ -540,7 +667,11 @@ const sideCategories = computed(() => {
   return categoryTiles.value
     .filter((category) => category.name !== CATEGORY_ALL)
     .slice(0, 5)
-    .map((category) => ({ name: category.name, count: category.count, downloads: category.downloads }));
+    .map((category) => ({
+      name: category.name,
+      count: category.count,
+      downloads: category.downloads,
+    }));
 });
 
 const startFromTemplate = (template: StarterPluginTemplate) => {
@@ -553,16 +684,18 @@ const startFromTemplate = (template: StarterPluginTemplate) => {
     compatibility: template.compatibility,
     tags: template.tags.join(', '),
     installGuide: label(
-      '1. 将插件包解压到对应软件的插件目录。\n2. 在软件偏好设置中启用插件。\n3. 按项目规范填写依赖版本和使用注意事项。',
-      '1. Extract the package into the host app plugin directory.\n2. Enable it from the host app preferences.\n3. Document dependencies, versions, and usage notes.',
+      '1. 将插件包解压到 Blender 插件目录。\n2. 在软件偏好设置中启用插件。\n3. 按项目规范填写依赖版本和使用注意事项。',
+      '1. Extract the package into the Blender plugin directory.\n2. Enable it from the Blender preferences.\n3. Document dependencies, versions, and usage notes.',
     ),
   };
   isUploadDialogOpen.value = true;
 };
 
 const isStatsExpanded = ref(false);
+const isFilterOpen = ref(false);
 
 onMounted(() => {
+  systemStore.fetchSettings();
   fetchPlugins();
   fetchInsights();
   fetchFavorites();
@@ -578,36 +711,62 @@ watch(
 
 <template>
   <div class="plugins-page">
-    <PageHeader
-      :title="label('插件库', 'Plugin Library')"
-      :subtitle="label('集中管理 Blender、Three.js、Substance、Photoshop 等创作工具插件。', 'Manage Blender, Three.js, Substance, Photoshop, and other creator plugins.')"
-      :icon="Puzzle"
-    >
-      <button
-        type="button"
-        class="ghost-button"
-        @click="isStatsExpanded = !isStatsExpanded"
-      >
-        <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
-        {{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}
-      </button>
-      <button type="button" class="ghost-button" :disabled="isLoading" @click="fetchPlugins(); fetchInsights()">
-        <RefreshCw class="icon-sm" :class="{ spinning: isLoading }" />
-        {{ label('刷新', 'Refresh') }}
-      </button>
-      <button type="button" class="primary-button" @click="isUploadDialogOpen = true">
-        <Plus class="icon-sm" />
-        {{ label('上传插件', 'Upload Plugin') }}
-      </button>
-    </PageHeader>
+    <header class="page-header">
+      <div class="title-block">
+        <div class="title-icon">
+          <Puzzle class="icon-sm" />
+        </div>
+        <div>
+          <h1>{{ label('Blender 插件库', 'Blender Add-ons') }}</h1>
+          <p>
+            {{
+              label(
+                '集中管理 Blender 建模、材质、动画、渲染等相关插件与创作工具。',
+                'Manage Blender plugins, including modeling, materials, animation, rendering tools.',
+              )
+            }}
+          </p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button type="button" class="ghost-button" @click="isStatsExpanded = !isStatsExpanded">
+          <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
+          {{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}
+        </button>
+        <button
+          type="button"
+          class="ghost-button"
+          :disabled="isLoading"
+          @click="
+            fetchPlugins();
+            fetchInsights();
+          "
+        >
+          <RefreshCw class="icon-sm" :class="{ spinning: isLoading }" />
+          {{ label('刷新', 'Refresh') }}
+        </button>
+        <button type="button" class="primary-button" @click="isUploadDialogOpen = true">
+          <Plus class="icon-sm" />
+          {{ label('上传插件', 'Upload Plugin') }}
+        </button>
+      </div>
+    </header>
 
     <section v-show="isStatsExpanded" class="market-overview">
       <div class="overview-copy">
         <div class="eyebrow market-eyebrow">
           <Puzzle class="icon-sm" />
-          {{ label('创作工具插件中心', 'Creator Plugin Hub') }}
+          {{ label('Blender 插件中心', 'Blender Add-on Hub') }}
         </div>
-        <h2>{{ label('把脚本、扩展和工具包集中上架', 'Ship scripts, extensions, and toolkits in one catalog') }}</h2>
+        <h2>
+          {{
+            label(
+              '把 Python 脚本、插件和工具包集中上架',
+              'Ship Python scripts, add-ons, and toolkits in one catalog',
+            )
+          }}
+        </h2>
         <p>
           {{
             label(
@@ -619,34 +778,50 @@ watch(
         <div class="format-strip" :aria-label="label('支持的插件格式', 'Supported plugin formats')">
           <span>ZIP</span>
           <span>PY</span>
-          <span>JS / TS</span>
-          <span>SBSAR</span>
-          <span>ADDON</span>
         </div>
       </div>
 
       <div class="spotlight-panel">
         <div class="side-title">
           <Star class="icon-sm" />
-          {{ spotlightPlugin ? label('当前推荐', 'Spotlight') : label('插件卡片预览', 'Plugin Card Preview') }}
+          {{
+            spotlightPlugin
+              ? label('当前推荐', 'Spotlight')
+              : label('插件卡片预览', 'Plugin Card Preview')
+          }}
         </div>
-        <button v-if="spotlightPlugin" type="button" class="spotlight-row" @click="openDetail(spotlightPlugin)">
+        <button
+          v-if="spotlightPlugin"
+          type="button"
+          class="spotlight-row"
+          @click="openDetail(spotlightPlugin)"
+        >
           <span class="spotlight-icon" :class="getCategoryTone(spotlightPlugin.category)">
             <component :is="getCategoryIcon(spotlightPlugin.category)" class="icon-sm" />
           </span>
           <span>
             <strong>{{ spotlightPlugin.title }}</strong>
-            <small>{{ categoryLabel(spotlightPlugin.category) }} · v{{ spotlightPlugin.version }}</small>
+            <small
+              >{{ categoryLabel(spotlightPlugin.category) }} · v{{ spotlightPlugin.version }}</small
+            >
           </span>
           <b>{{ formatCompactNumber(spotlightPlugin.downloads) }}</b>
         </button>
-        <button v-else type="button" class="spotlight-row" @click="startFromTemplate(starterTemplates[1])">
-          <span class="spotlight-icon tone-blue">
-            <Code class="icon-sm" />
+        <button
+          v-else
+          type="button"
+          class="spotlight-row"
+          @click="startFromTemplate(starterTemplates[0])"
+        >
+          <span class="spotlight-icon tone-orange">
+            <Box class="icon-sm" />
           </span>
           <span>
-            <strong>{{ starterTemplates[1].title }}</strong>
-            <small>{{ starterTemplates[1].compatibility }} · {{ starterTemplates[1].packageType }}</small>
+            <strong>{{ starterTemplates[0].title }}</strong>
+            <small
+              >{{ starterTemplates[0].compatibility }} ·
+              {{ starterTemplates[0].packageType }}</small
+            >
           </span>
           <b>{{ label('模板', 'Template') }}</b>
         </button>
@@ -684,235 +859,275 @@ watch(
       </div>
     </section>
 
-    <section class="toolbar">
-      <label class="search-box">
-        <Search class="icon-sm" />
-        <input v-model="searchQuery" type="search" :placeholder="label('搜索插件、标签、兼容版本', 'Search plugins, tags, or versions')" @keydown.enter="fetchPlugins" />
-      </label>
-
-      <div class="toolbar-actions">
-        <select v-model="sortBy" class="select-field">
-          <option value="latest">{{ label('最新发布', 'Newest') }}</option>
-          <option value="popular">{{ label('下载最多', 'Most Downloaded') }}</option>
-          <option value="name">{{ label('名称排序', 'Name') }}</option>
-        </select>
-        <button type="button" class="ghost-button" :class="{ active: showFavoritesOnly }" @click="showFavoritesOnly = !showFavoritesOnly">
-          <Heart class="icon-sm" />
-          {{ label('收藏', 'Saved') }}
-        </button>
-      </div>
-    </section>
-
-    <nav class="category-tiles" :aria-label="label('插件分类', 'Plugin categories')">
-      <button
-        v-for="category in categoryTiles"
-        :key="category.name"
-        type="button"
-        :class="{ active: activeCategory === category.name }"
-        @click="activeCategory = category.name; fetchPlugins()"
-      >
-        <span class="category-icon" :class="category.tone">
-          <component :is="category.Icon" class="icon-sm" />
-        </span>
-        <span>
-          <strong>{{ categoryLabel(category.name) }}</strong>
-          <small>{{ category.count }} {{ label('个插件', 'plugins') }} · {{ formatCompactNumber(category.downloads) }} {{ label('下载', 'downloads') }}</small>
-        </span>
-      </button>
-    </nav>
-
-    <section v-if="insights?.hotTags?.length" class="tag-filter" :aria-label="label('插件热门标签', 'Hot plugin tags')">
-      <button type="button" :class="{ active: selectedTag === 'all' }" @click="selectedTag = 'all'">
-        {{ label('全部标签', 'All Tags') }}
-      </button>
-      <button
-        v-for="tag in insights.hotTags"
-        :key="tag.label"
-        type="button"
-        :class="{ active: selectedTag === tag.label }"
-        @click="selectedTag = tag.label"
-      >
-        #{{ tag.label }}
-      </button>
-    </section>
-
-    <section class="market-shell">
-      <main class="plugin-content">
-        <div class="library-heading">
-          <div>
-            <strong>{{ label('插件列表', 'Plugin Catalog') }}</strong>
-            <span>
-              {{
-                visiblePlugins.length
-                  ? label(`当前显示 ${visiblePlugins.length} 个插件`, `${visiblePlugins.length} plugins shown`)
-                  : label('浏览插件模板或上传你的第一个插件', 'Browse plugin templates or publish the first plugin')
-              }}
-            </span>
+    <div class="workspace-shell">
+      <aside class="filter-panel" :class="{ open: isFilterOpen }">
+        <div class="panel-section">
+          <div class="section-title">
+            <Layers class="icon-sm" />
+            {{ label('分类', 'Categories') }}
           </div>
-          <button type="button" class="text-button" @click="resetFilters">
-            {{ label('重置筛选', 'Reset Filters') }}
-          </button>
+          <Tabs
+            v-model="activeCategory"
+            :options="categoryTabOptions"
+            direction="vertical"
+            size="sm"
+            @change="fetchPlugins"
+          />
         </div>
 
-        <div v-if="isLoading" class="plugin-grid">
-          <div v-for="index in 8" :key="index" class="plugin-card skeleton-card">
-            <div class="skeleton preview"></div>
-            <div class="skeleton line wide"></div>
-            <div class="skeleton line"></div>
+        <div v-if="activeTab === 'mine'" class="panel-section">
+          <div class="section-title">
+            <SlidersHorizontal class="icon-sm" />
+            {{ label('状态', 'Status') }}
           </div>
+          <Tabs
+            v-model="myStatusFilter"
+            :options="statusTabOptions"
+            direction="vertical"
+            size="sm"
+          />
         </div>
 
-        <div v-else-if="visiblePlugins.length" class="plugin-grid">
-          <article v-for="plugin in visiblePlugins" :key="plugin.id" class="plugin-card" @click="openDetail(plugin)">
-            <div class="plugin-preview" :class="getCategoryTone(plugin.category)">
-              <img v-if="plugin.previewUrl" :src="getAssetUrl(plugin.previewUrl)" :alt="plugin.title" />
-              <component :is="getCategoryIcon(plugin.category)" v-else class="preview-icon" />
-              <button type="button" class="favorite-button" :class="{ active: isFavorited(plugin.id) }" @click="toggleFavorite(plugin.id, $event)">
-                <Heart class="icon-sm" :class="{ filled: isFavorited(plugin.id) }" />
-              </button>
-            </div>
-
-            <div class="plugin-body">
-              <div class="meta-row">
-                <span class="category-pill">{{ categoryLabel(plugin.category) }}</span>
-                <span class="version-pill">v{{ plugin.version }}</span>
-              </div>
-              <h2>{{ plugin.title }}</h2>
-              <p>{{ plugin.description || label('作者暂未填写简介。', 'No plugin description yet.') }}</p>
-              <div class="compat-row">
-                <CheckCircle2 class="icon-sm" />
-                <span>{{ plugin.compatibility }}</span>
-              </div>
-
-              <div class="tag-row">
-                <span v-for="tag in getTagsList(plugin.tags)" :key="tag">#{{ tag }}</span>
-              </div>
-
-              <div class="card-footer">
-                <div>
-                  <strong>{{ formatSize(plugin.fileSize) }}</strong>
-                  <span>{{ getAuthorName(plugin) }}</span>
-                </div>
-                <button type="button" class="download-button" :disabled="downloadingIds[plugin.id]" @click="handleDownload(plugin, $event)">
-                  <Loader2 v-if="downloadingIds[plugin.id]" class="icon-sm spinning" />
-                  <Download v-else class="icon-sm" />
-                  {{ formatCompactNumber(plugin.downloads) }}
-                </button>
-              </div>
-            </div>
-          </article>
-        </div>
-
-        <div v-else class="starter-market">
-          <div class="empty-state">
-            <Cpu class="empty-icon" />
-            <h2>{{ label('还没有匹配的插件', 'No Matching Plugins') }}</h2>
-            <p>{{ label('可以调整筛选条件，也可以从下面的插件方向开始发布。', 'Adjust filters or start publishing from one of the plugin directions below.') }}</p>
-            <div class="empty-actions">
-              <button type="button" class="primary-button" @click="isUploadDialogOpen = true">
-                <Plus class="icon-sm" />
-                {{ label('上传插件', 'Upload Plugin') }}
-              </button>
-              <button type="button" class="ghost-button" @click="resetFilters">
-                <RefreshCw class="icon-sm" />
-                {{ label('查看全部', 'Show All') }}
-              </button>
-            </div>
-          </div>
-
-          <div class="starter-grid">
-            <article v-for="template in starterTemplates" :key="template.title" class="starter-card">
-              <div class="starter-card-top">
-                <span class="starter-icon" :class="template.tone">
-                  <component :is="template.Icon" class="icon-sm" />
-                </span>
-                <span class="package-type">{{ template.packageType }}</span>
-              </div>
-              <h3>{{ template.title }}</h3>
-              <p>{{ template.description }}</p>
-              <div class="tag-row">
-                <span v-for="tag in template.tags" :key="tag">#{{ tag }}</span>
-              </div>
-              <button type="button" class="download-button starter-action" @click="startFromTemplate(template)">
-                <UploadCloud class="icon-sm" />
-                {{ label('按此方向发布', 'Use Template') }}
-              </button>
-            </article>
-          </div>
-        </div>
-      </main>
-
-      <aside class="insight-panel">
-        <section class="side-section">
-          <div class="side-title">
-            <BarChart3 class="icon-sm" />
-            {{ label('下载榜', 'Top Downloads') }}
-          </div>
-          <button
-            v-for="(plugin, index) in topDownloadPlugins"
-            :key="plugin.id"
-            type="button"
-            class="rank-item"
-            @click="openDetail(plugin)"
-          >
-            <span class="rank-badge" :class="`rank-${index + 1}`">{{ index + 1 }}</span>
-            <span class="rank-icon" :class="getCategoryTone(plugin.category)">
-              <component :is="getCategoryIcon(plugin.category)" class="icon-sm" />
-            </span>
-            <span class="rank-title">{{ plugin.title }}</span>
-            <strong class="rank-value">{{ formatCompactNumber(plugin.downloads) }}</strong>
-          </button>
-          <div v-if="!topDownloadPlugins.length" class="side-placeholder">
-            <Download class="icon-sm" />
-            <span>{{ label('下载榜会在插件产生下载后自动生成', 'Top downloads appear after plugins get downloads') }}</span>
-          </div>
-        </section>
-
-        <section class="side-section">
-          <div class="side-title">
-            <CalendarClock class="icon-sm" />
-            {{ label('最新插件', 'Latest Plugins') }}
-          </div>
-          <button
-            v-for="plugin in latestPlugins"
-            :key="plugin.id"
-            type="button"
-            class="activity-item"
-            @click="openDetail(plugin)"
-          >
-            <span>{{ plugin.title }}</span>
-            <small>{{ formatRelativeTime(plugin.createdAt) }}</small>
-          </button>
-          <button
-            v-for="template in !latestPlugins.length ? starterTemplates.slice(0, 3) : []"
-            :key="template.title"
-            type="button"
-            class="activity-item template-activity"
-            @click="startFromTemplate(template)"
-          >
-            <span>{{ template.title }}</span>
-            <small>{{ template.compatibility }}</small>
-          </button>
-        </section>
-
-        <section class="side-section">
-          <div class="side-title">
+        <div v-if="insights?.hotTags?.length" class="panel-section">
+          <div class="section-title">
             <Tags class="icon-sm" />
-            {{ label('分类热度', 'Category Heat') }}
+            {{ label('热标签', 'Hot Tags') }}
           </div>
-          <button
-            v-for="category in sideCategories"
-            :key="category.name"
-            type="button"
-            class="category-rank"
-            @click="activeCategory = category.name; fetchPlugins()"
-          >
-            <span>{{ categoryLabel(category.name) }}</span>
-            <strong>{{ category.count }}</strong>
-          </button>
-        </section>
+          <div class="tag-cloud">
+            <button
+              type="button"
+              :class="{ active: selectedTag === 'all' }"
+              @click="selectedTag = 'all'"
+            >
+              {{ label('全部', 'All') }}
+            </button>
+            <button
+              v-for="tag in insights.hotTags"
+              :key="tag.label"
+              type="button"
+              :class="{ active: selectedTag === tag.label }"
+              @click="selectedTag = tag.label"
+            >
+              {{ tag.label }}
+            </button>
+          </div>
+        </div>
       </aside>
-    </section>
+
+      <main class="content-panel">
+        <section class="toolbar">
+          <div class="toolbar-left">
+            <button
+              type="button"
+              class="icon-button mobile-filter"
+              @click="isFilterOpen = !isFilterOpen"
+            >
+              <SlidersHorizontal class="icon-sm" />
+            </button>
+            <Tabs v-model="activeTab" :options="libraryTabOptions" size="sm" />
+          </div>
+
+          <div class="toolbar-center">
+            <Input
+              v-model="searchQuery"
+              type="search"
+              :placeholder="label('搜索插件、标签、兼容版本', 'Search plugins, tags, or versions')"
+              :icon="Search"
+              clearable
+              input-class="!py-1.5 !h-8.5 !rounded-lg"
+              class="w-full max-w-[280px]"
+              @keydown.enter="fetchPlugins"
+            />
+          </div>
+
+          <div class="toolbar-right">
+            <select v-model="sortBy" class="select-field" aria-label="排序方式">
+              <option value="latest">{{ label('最新发布', 'Newest') }}</option>
+              <option value="popular">{{ label('下载最多', 'Most Downloaded') }}</option>
+              <option value="name">{{ label('名称排序', 'Name') }}</option>
+            </select>
+            <button
+              type="button"
+              class="ghost-button"
+              :class="{ active: showFavoritesOnly }"
+              @click="showFavoritesOnly = !showFavoritesOnly"
+            >
+              <Heart class="icon-sm" />
+              {{ label('收藏', 'Saved') }}
+            </button>
+            <Tabs v-model="viewMode" :options="viewModeOptions" size="sm" />
+          </div>
+        </section>
+
+        <section class="market-shell">
+          <main class="plugin-content">
+            <div class="library-heading">
+              <div>
+                <strong>{{ label('插件列表', 'Plugin Catalog') }}</strong>
+                <span>
+                  {{
+                    visiblePlugins.length
+                      ? label(
+                          `当前显示 ${visiblePlugins.length} 个插件`,
+                          `${visiblePlugins.length} plugins shown`,
+                        )
+                      : label(
+                          '浏览插件模板或上传你的第一个插件',
+                          'Browse plugin templates or publish the first plugin',
+                        )
+                  }}
+                </span>
+              </div>
+              <button type="button" class="text-button" @click="resetFilters">
+                {{ label('重置筛选', 'Reset Filters') }}
+              </button>
+            </div>
+
+            <div
+              v-if="isLoading"
+              :class="viewMode === 'list' ? 'flex flex-col gap-3' : 'plugin-grid'"
+            >
+              <div
+                v-for="index in 8"
+                :key="index"
+                class="plugin-card skeleton-card"
+                :class="{ 'list-row': viewMode === 'list' }"
+              >
+                <div
+                  class="skeleton preview"
+                  :class="{ 'list-preview': viewMode === 'list' }"
+                ></div>
+                <div class="skeleton line wide"></div>
+                <div class="skeleton line"></div>
+              </div>
+            </div>
+
+            <div
+              v-else-if="visiblePlugins.length"
+              :class="viewMode === 'list' ? 'flex flex-col gap-3' : 'plugin-grid'"
+            >
+              <UnifiedCard
+                v-for="plugin in visiblePlugins"
+                :key="plugin.id"
+                :item="plugin"
+                kind="plugin"
+                :view-mode="viewMode"
+                :is-favorited="isFavorited(plugin.id)"
+                :downloading="!!downloadingIds[plugin.id]"
+                :active-tab="activeTab"
+                @click="openDetail(plugin)"
+                @like="toggleFavorite(plugin.id, $event)"
+                @download="handleDownload(plugin, $event)"
+              />
+            </div>
+
+            <div v-else class="starter-market">
+              <div class="empty-state">
+                <Cpu class="empty-icon" />
+                <h2>{{ label('还没有匹配的插件', 'No Matching Plugins') }}</h2>
+                <p>
+                  {{
+                    label(
+                      '可以调整筛选条件，也可以从下面的插件方向开始发布。',
+                      'Adjust filters or start publishing from one of the plugin directions below.',
+                    )
+                  }}
+                </p>
+                <div class="empty-actions">
+                  <button type="button" class="primary-button" @click="isUploadDialogOpen = true">
+                    <Plus class="icon-sm" />
+                    {{ label('上传插件', 'Upload Plugin') }}
+                  </button>
+                  <button type="button" class="ghost-button" @click="resetFilters">
+                    <RefreshCw class="icon-sm" />
+                    {{ label('查看全部', 'Show All') }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </main>
+
+          <aside class="insight-panel">
+            <section class="side-section">
+              <div class="side-title">
+                <BarChart3 class="icon-sm" />
+                {{ label('下载榜', 'Top Downloads') }}
+              </div>
+              <button
+                v-for="(plugin, index) in topDownloadPlugins"
+                :key="plugin.id"
+                type="button"
+                class="rank-item"
+                @click="openDetail(plugin)"
+              >
+                <span class="rank-badge" :class="`rank-${index + 1}`">{{ index + 1 }}</span>
+                <span class="rank-icon" :class="getCategoryTone(plugin.category)">
+                  <component :is="getCategoryIcon(plugin.category)" class="icon-sm" />
+                </span>
+                <span class="rank-title">{{ plugin.title }}</span>
+                <strong class="rank-value">{{ formatCompactNumber(plugin.downloads) }}</strong>
+              </button>
+              <div v-if="!topDownloadPlugins.length" class="side-placeholder">
+                <Download class="icon-sm" />
+                <span>{{
+                  label(
+                    '下载榜会在插件产生下载后自动生成',
+                    'Top downloads appear after plugins get downloads',
+                  )
+                }}</span>
+              </div>
+            </section>
+
+            <section class="side-section">
+              <div class="side-title">
+                <CalendarClock class="icon-sm" />
+                {{ label('最新插件', 'Latest Plugins') }}
+              </div>
+              <button
+                v-for="plugin in latestPlugins"
+                :key="plugin.id"
+                type="button"
+                class="activity-item"
+                @click="openDetail(plugin)"
+              >
+                <span>{{ plugin.title }}</span>
+                <small>{{ formatRelativeTime(plugin.createdAt) }}</small>
+              </button>
+              <button
+                v-for="template in !latestPlugins.length ? starterTemplates.slice(0, 3) : []"
+                :key="template.title"
+                type="button"
+                class="activity-item template-activity"
+                @click="startFromTemplate(template)"
+              >
+                <span>{{ template.title }}</span>
+                <small>{{ template.compatibility }}</small>
+              </button>
+            </section>
+
+            <section class="side-section">
+              <div class="side-title">
+                <Tags class="icon-sm" />
+                {{ label('分类热度', 'Category Heat') }}
+              </div>
+              <button
+                v-for="category in sideCategories"
+                :key="category.name"
+                type="button"
+                class="category-rank"
+                @click="
+                  activeCategory = category.name;
+                  fetchPlugins();
+                "
+              >
+                <span>{{ categoryLabel(category.name) }}</span>
+                <strong>{{ category.count }}</strong>
+              </button>
+            </section>
+          </aside>
+        </section>
+      </main>
+    </div>
 
     <Transition name="fade">
       <div v-if="isDetailDialogOpen && selectedPlugin" class="modal-layer">
@@ -923,7 +1138,11 @@ watch(
           </button>
 
           <div class="detail-hero" :class="getCategoryTone(selectedPlugin.category)">
-            <img v-if="selectedPlugin.previewUrl" :src="getAssetUrl(selectedPlugin.previewUrl)" :alt="selectedPlugin.title" />
+            <img
+              v-if="selectedPlugin.previewUrl"
+              :src="getAssetUrl(selectedPlugin.previewUrl)"
+              :alt="selectedPlugin.title"
+            />
             <component :is="getCategoryIcon(selectedPlugin.category)" v-else class="preview-icon" />
           </div>
 
@@ -933,7 +1152,12 @@ watch(
               <span class="version-pill">v{{ selectedPlugin.version }}</span>
             </div>
             <h2>{{ selectedPlugin.title }}</h2>
-            <p>{{ selectedPlugin.description || label('作者暂未填写简介。', 'No plugin description yet.') }}</p>
+            <p>
+              {{
+                selectedPlugin.description ||
+                label('作者暂未填写简介。', 'No plugin description yet.')
+              }}
+            </p>
 
             <dl class="detail-grid">
               <div>
@@ -965,11 +1189,23 @@ watch(
           </div>
 
           <footer class="detail-footer">
-            <button type="button" class="ghost-button" :class="{ active: isFavorited(selectedPlugin.id) }" @click="toggleFavorite(selectedPlugin.id)">
+            <button
+              type="button"
+              class="ghost-button"
+              :class="{ active: isFavorited(selectedPlugin.id) }"
+              @click="toggleFavorite(selectedPlugin.id)"
+            >
               <Heart class="icon-sm" :class="{ filled: isFavorited(selectedPlugin.id) }" />
-              {{ isFavorited(selectedPlugin.id) ? label('已收藏', 'Saved') : label('收藏', 'Save') }}
+              {{
+                isFavorited(selectedPlugin.id) ? label('已收藏', 'Saved') : label('收藏', 'Save')
+              }}
             </button>
-            <button type="button" class="primary-button" :disabled="downloadingIds[selectedPlugin.id]" @click="handleDownload(selectedPlugin)">
+            <button
+              type="button"
+              class="primary-button"
+              :disabled="downloadingIds[selectedPlugin.id]"
+              @click="handleDownload(selectedPlugin)"
+            >
               <Loader2 v-if="downloadingIds[selectedPlugin.id]" class="icon-sm spinning" />
               <Download v-else class="icon-sm" />
               {{ label('下载插件', 'Download Plugin') }}
@@ -986,7 +1222,14 @@ watch(
           <header>
             <div>
               <h2>{{ label('上传插件', 'Upload Plugin') }}</h2>
-              <p>{{ label('提交后进入管理员审核，通过后公开展示。', 'Submissions enter admin review before public listing.') }}</p>
+              <p>
+                {{
+                  label(
+                    '提交后进入管理员审核，通过后公开展示。',
+                    'Submissions enter admin review before public listing.',
+                  )
+                }}
+              </p>
             </div>
             <button type="button" class="close-button" @click="isUploadDialogOpen = false">
               <X class="icon-sm" />
@@ -996,12 +1239,18 @@ watch(
           <div class="upload-grid">
             <label>
               <span>{{ label('插件名称', 'Plugin Name') }}</span>
-              <input v-model="uploadForm.title" type="text" :placeholder="label('给插件起个清晰的名字', 'Give the plugin a clear name')" />
+              <input
+                v-model="uploadForm.title"
+                type="text"
+                :placeholder="label('给插件起个清晰的名字', 'Give the plugin a clear name')"
+              />
             </label>
             <label>
               <span>{{ label('分类', 'Category') }}</span>
               <select v-model="uploadForm.category">
-                <option v-for="category in uploadCategories" :key="category" :value="category">{{ categoryLabel(category) }}</option>
+                <option v-for="category in uploadCategories" :key="category" :value="category">
+                  {{ categoryLabel(category) }}
+                </option>
               </select>
             </label>
             <label>
@@ -1010,19 +1259,52 @@ watch(
             </label>
             <label>
               <span>{{ label('兼容版本', 'Compatibility') }}</span>
-              <input v-model="uploadForm.compatibility" type="text" :placeholder="label('如 Blender 4.x / Three.js r160+', 'e.g. Blender 4.x / Three.js r160+')" />
+              <input
+                v-model="uploadForm.compatibility"
+                type="text"
+                :placeholder="
+                  label('如 Blender 4.x / Three.js r160+', 'e.g. Blender 4.x / Three.js r160+')
+                "
+              />
             </label>
             <label class="wide">
               <span>{{ label('标签', 'Tags') }}</span>
-              <input v-model="uploadForm.tags" type="text" :placeholder="label('用逗号分隔，如 glTF, 优化, 渲染', 'Comma-separated, e.g. glTF, optimize, render')" />
+              <input
+                v-model="uploadForm.tags"
+                type="text"
+                :placeholder="
+                  label(
+                    '用逗号分隔，如 glTF, 优化, 渲染',
+                    'Comma-separated, e.g. glTF, optimize, render',
+                  )
+                "
+              />
             </label>
             <label class="wide">
               <span>{{ label('简介', 'Description') }}</span>
-              <textarea v-model="uploadForm.description" rows="3" :placeholder="label('介绍插件用途、适用场景和核心能力', 'Describe use cases, scenarios, and core capabilities')"></textarea>
+              <textarea
+                v-model="uploadForm.description"
+                rows="3"
+                :placeholder="
+                  label(
+                    '介绍插件用途、适用场景和核心能力',
+                    'Describe use cases, scenarios, and core capabilities',
+                  )
+                "
+              ></textarea>
             </label>
             <label class="wide">
               <span>{{ label('安装说明', 'Installation Guide') }}</span>
-              <textarea v-model="uploadForm.installGuide" rows="4" :placeholder="label('写清楚安装步骤、依赖版本和注意事项', 'Include install steps, dependencies, and notes')"></textarea>
+              <textarea
+                v-model="uploadForm.installGuide"
+                rows="4"
+                :placeholder="
+                  label(
+                    '写清楚安装步骤、依赖版本和注意事项',
+                    'Include install steps, dependencies, and notes',
+                  )
+                "
+              ></textarea>
             </label>
           </div>
 
@@ -1032,8 +1314,15 @@ watch(
                 v-model="pluginFile"
                 accept=".zip,.py,.js,.jsx,.ts,.tsx,.blend,.addon,.tgz,.tar,.gz"
                 :label="pluginFile?.name || label('选择插件文件', 'Choose Plugin File')"
-                :sublabel="pluginFile ? formatSize(pluginFile.size / 1024 / 1024) : label('支持 ZIP、脚本、插件包等格式', 'Supports ZIP, scripts, and plugin packages')"
-                heightClass="h-28"
+                :sublabel="
+                  pluginFile
+                    ? formatSize(pluginFile.size / 1024 / 1024)
+                    : label(
+                        '支持 ZIP、脚本、插件包等格式',
+                        'Supports ZIP, scripts, and plugin packages',
+                      )
+                "
+                height-class="h-28"
                 @change="handlePluginFileChange"
               />
             </div>
@@ -1043,16 +1332,27 @@ watch(
                 v-model="previewFile"
                 accept="image/*"
                 :label="previewFile?.name || label('上传预览图', 'Upload Preview')"
-                :sublabel="previewFile ? formatSize(previewFile.size / 1024 / 1024) : label('可选，用于插件卡片封面', 'Optional cover for plugin cards')"
-                heightClass="h-28"
+                :sublabel="
+                  previewFile
+                    ? formatSize(previewFile.size / 1024 / 1024)
+                    : label('可选，用于插件卡片封面', 'Optional cover for plugin cards')
+                "
+                height-class="h-28"
                 @change="handlePreviewFileChange"
               />
             </div>
           </div>
 
           <footer>
-            <button type="button" class="ghost-button" @click="isUploadDialogOpen = false">{{ label('取消', 'Cancel') }}</button>
-            <button type="button" class="primary-button" :disabled="isUploading" @click="submitPlugin">
+            <button type="button" class="ghost-button" @click="isUploadDialogOpen = false">
+              {{ label('取消', 'Cancel') }}
+            </button>
+            <button
+              type="button"
+              class="primary-button"
+              :disabled="isUploading"
+              @click="submitPlugin"
+            >
               <Loader2 v-if="isUploading" class="icon-sm spinning" />
               {{ label('提交审核', 'Submit for Review') }}
             </button>
@@ -1068,17 +1368,127 @@ watch(
   min-height: 100%;
   padding: 16px;
   background:
-    linear-gradient(180deg, rgba(37, 99, 235, 0.05), rgba(20, 184, 166, 0.03) 200px, transparent 380px),
+    linear-gradient(
+      180deg,
+      rgba(37, 99, 235, 0.05),
+      rgba(20, 184, 166, 0.03) 200px,
+      transparent 380px
+    ),
     var(--bg-app);
   color: var(--text-primary);
 }
 
-.plugins-header {
+/* Sidebar Layout & Vertical Filters */
+.workspace-shell {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.filter-panel {
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 10px;
+  box-shadow: var(--shadow-card);
+}
+
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.section-title svg {
+  color: var(--accent);
+}
+
+.content-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (max-width: 980px) {
+  .workspace-shell {
+    grid-template-columns: 1fr;
+  }
+  .filter-panel {
+    display: none;
+  }
+  .filter-panel.open {
+    display: flex;
+    position: fixed;
+    top: 50px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    border-radius: 0;
+    border: 0;
+    background: var(--bg-card);
+    overflow: auto;
+  }
+}
+
+.page-header {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  align-items: flex-start;
-  margin-bottom: 12px;
+  align-items: center;
+  min-height: 32px;
+}
+
+.title-block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.title-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.title-block h1 {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.title-block p {
+  margin-top: 1px;
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-bottom: 0;
+  line-height: 1.2;
 }
 
 .eyebrow,
@@ -1086,8 +1496,6 @@ watch(
 .header-actions,
 .toolbar,
 .toolbar-actions,
-.category-tiles,
-.tag-filter,
 .card-footer,
 .detail-footer,
 .side-title,
@@ -1232,7 +1640,12 @@ p {
   min-height: 100px;
   padding: 10px 14px;
   background:
-    linear-gradient(135deg, rgba(37, 99, 235, 0.06), rgba(20, 184, 166, 0.05) 55%, rgba(249, 115, 22, 0.05)),
+    linear-gradient(
+      135deg,
+      rgba(37, 99, 235, 0.06),
+      rgba(20, 184, 166, 0.05) 55%,
+      rgba(249, 115, 22, 0.05)
+    ),
     var(--bg-card);
 }
 
@@ -1329,7 +1742,6 @@ p {
 
 .spotlight-row strong,
 .signal-item strong,
-.category-tiles strong,
 .library-heading strong,
 .starter-card h3 {
   display: block;
@@ -1346,7 +1758,6 @@ p {
 
 .spotlight-row small,
 .signal-item small,
-.category-tiles small,
 .library-heading span {
   display: block;
   overflow: hidden;
@@ -1431,9 +1842,40 @@ p {
 
 /* Toolbar */
 .toolbar {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 16px;
+  background: var(--bg-card);
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-base);
+  backdrop-filter: blur(12px);
+  flex-wrap: nowrap;
   margin-bottom: 8px;
+}
+
+.toolbar-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.toolbar-center {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.toolbar-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .search-box {
@@ -1475,88 +1917,46 @@ p {
   border-color: var(--accent);
 }
 
-/* Category Tiles (Optimized) */
-.category-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
-  gap: 8px;
-  margin-bottom: 8px;
+/* Category Tabs Wrapper */
+.category-tabs-wrapper {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-.category-tiles button {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 8px;
-  align-items: center;
-  min-height: 44px;
-  border-radius: 8px;
-  border: 1px solid var(--border-base);
-  background: var(--bg-card);
+.category-tabs-wrapper::-webkit-scrollbar {
+  display: none;
+}
+
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-cloud button {
+  height: 24px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--bg-app);
   color: var(--text-secondary);
-  padding: 6px 10px;
-  text-align: left;
-  box-shadow: var(--shadow-card);
+  padding: 0 10px;
+  font-size: 10px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  cursor: pointer;
 }
 
-.category-tiles button.active {
+.tag-cloud button:hover {
+  background: var(--bg-active);
   color: var(--accent);
-  border-color: rgba(37, 99, 235, 0.25);
-  background: var(--accent-subtle);
-  font-weight: 600;
-}
-
-.category-tiles button:hover:not(.active) {
-  border-color: var(--border-strong);
   transform: translateY(-0.5px);
 }
 
-.category-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-}
-
-.category-tiles strong {
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.category-tiles small {
-  font-size: 9px;
-  color: var(--text-muted);
-}
-
-.tag-filter {
-  display: flex;
-  gap: 5px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-  margin-bottom: 6px;
-}
-
-.tag-filter button {
-  flex: 0 0 auto;
-  height: 22px;
-  border: 1px solid var(--border-base);
-  border-radius: 999px;
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  padding: 0 8px;
-  font-size: 10px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.12s ease;
-}
-
-.tag-filter button:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-strong);
-}
-
-.tag-filter button.active {
-  color: #0f766e;
-  border-color: rgba(15, 118, 110, 0.25);
-  background: rgba(15, 118, 110, 0.08);
+.tag-cloud button.active {
+  background: var(--accent-subtle);
+  color: var(--accent);
   font-weight: 600;
 }
 
@@ -1594,8 +1994,63 @@ p {
 /* Grid layout */
 .plugin-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+/* List layout modifications */
+.plugin-card.list-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.plugin-preview.list-preview {
+  width: 100px;
+  height: 64px;
+  flex-shrink: 0;
+}
+
+.plugin-body.list-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px;
+}
+
+.plugin-body.list-body h2 {
+  margin-top: 0;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plugin-body.list-body .meta-row {
+  flex-shrink: 0;
+}
+
+.plugin-body.list-body .compat-row {
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+.plugin-body.list-body .card-footer {
+  margin-top: 0;
+  border-top: none;
+  padding-top: 0;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.plugin-body.list-body .card-footer > div {
+  display: none; /* Hide author name and size in simple list mode to make it compact */
 }
 
 /* Plugin Cards */
@@ -1615,12 +2070,24 @@ p {
 }
 
 /* Category hover glows mapping */
-.plugin-card:hover:has(.tone-orange) { border-color: rgba(249, 115, 22, 0.4); }
-.plugin-card:hover:has(.tone-blue) { border-color: rgba(37, 99, 235, 0.4); }
-.plugin-card:hover:has(.tone-rose) { border-color: rgba(225, 29, 72, 0.4); }
-.plugin-card:hover:has(.tone-cyan) { border-color: rgba(8, 145, 178, 0.4); }
-.plugin-card:hover:has(.tone-emerald) { border-color: rgba(5, 150, 105, 0.4); }
-.plugin-card:hover:has(.tone-violet) { border-color: rgba(124, 58, 237, 0.4); }
+.plugin-card:hover:has(.tone-orange) {
+  border-color: rgba(249, 115, 22, 0.4);
+}
+.plugin-card:hover:has(.tone-blue) {
+  border-color: rgba(37, 99, 235, 0.4);
+}
+.plugin-card:hover:has(.tone-rose) {
+  border-color: rgba(225, 29, 72, 0.4);
+}
+.plugin-card:hover:has(.tone-cyan) {
+  border-color: rgba(8, 145, 178, 0.4);
+}
+.plugin-card:hover:has(.tone-emerald) {
+  border-color: rgba(5, 150, 105, 0.4);
+}
+.plugin-card:hover:has(.tone-violet) {
+  border-color: rgba(124, 58, 237, 0.4);
+}
 
 .plugin-preview {
   position: relative;
@@ -2034,11 +2501,21 @@ p {
 }
 
 /* Starter tones hover */
-.starter-card:hover:has(.tone-orange) { border-color: rgba(249, 115, 22, 0.4); }
-.starter-card:hover:has(.tone-blue) { border-color: rgba(37, 99, 235, 0.4); }
-.starter-card:hover:has(.tone-rose) { border-color: rgba(225, 29, 72, 0.4); }
-.starter-card:hover:has(.tone-cyan) { border-color: rgba(8, 145, 178, 0.4); }
-.starter-card:hover:has(.tone-emerald) { border-color: rgba(5, 150, 105, 0.4); }
+.starter-card:hover:has(.tone-orange) {
+  border-color: rgba(249, 115, 22, 0.4);
+}
+.starter-card:hover:has(.tone-blue) {
+  border-color: rgba(37, 99, 235, 0.4);
+}
+.starter-card:hover:has(.tone-rose) {
+  border-color: rgba(225, 29, 72, 0.4);
+}
+.starter-card:hover:has(.tone-cyan) {
+  border-color: rgba(8, 145, 178, 0.4);
+}
+.starter-card:hover:has(.tone-emerald) {
+  border-color: rgba(5, 150, 105, 0.4);
+}
 
 .starter-card-top {
   display: flex;
@@ -2318,7 +2795,12 @@ p {
 
 .skeleton {
   border-radius: 6px;
-  background: linear-gradient(90deg, rgba(148, 163, 184, 0.1), rgba(148, 163, 184, 0.2), rgba(148, 163, 184, 0.1));
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.1),
+    rgba(148, 163, 184, 0.2),
+    rgba(148, 163, 184, 0.1)
+  );
   background-size: 200% 100%;
   animation: shimmer 1.2s infinite;
 }
@@ -2410,13 +2892,33 @@ p {
     align-items: stretch;
   }
 
+  .toolbar {
+    gap: 12px;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .toolbar-center {
+    width: 100%;
+  }
+
+  .toolbar-center :deep(.ui-input-wrapper) {
+    max-width: none;
+    width: 100%;
+  }
+
   .overview-copy h2 {
     font-size: 16px;
   }
 
   .signal-stack,
   .insight-panel,
-  .category-tiles,
   .plugin-grid,
   .starter-grid {
     grid-template-columns: 1fr;

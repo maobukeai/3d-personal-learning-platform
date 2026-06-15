@@ -7,6 +7,7 @@ import { preferences, type LocalePreference, type ThemePreference } from '@/util
 import { applyAccentColorToDocument, applyThemeToDocument } from '@/composables/useAppearance';
 import { fetchUserSettings, updateUserSettings } from '@/services/account.service';
 import { setLocale } from '@/i18n';
+import Button from '@/components/ui/Button.vue';
 
 const currentTheme = ref<ThemePreference>(preferences.getTheme());
 const currentAccent = ref(preferences.getAccentColor());
@@ -31,10 +32,27 @@ const languageOptions: Array<{ label: string; value: LocalePreference }> = [
   { label: 'English', value: 'en-US' },
 ];
 
-const themeOptions = computed<Array<{ id: ThemePreference; label: string; description: string; icon: Component }>>(() => [
-  { id: 'glass-light', label: label('浅色玻璃', 'Light Glass'), description: label('适合白天和明亮环境', 'Best for daytime and bright rooms'), icon: Sun },
-  { id: 'glass-dark', label: label('深色玻璃', 'Dark Glass'), description: label('适合夜间和沉浸学习', 'Best for night and focused study'), icon: Moon },
-  { id: 'glass-auto', label: label('跟随系统', 'Auto'), description: label('自动匹配系统外观', 'Matches the system appearance'), icon: SunMoon },
+const themeOptions = computed<
+  Array<{ id: ThemePreference; label: string; description: string; icon: Component }>
+>(() => [
+  {
+    id: 'glass-light',
+    label: label('浅色玻璃', 'Light Glass'),
+    description: label('适合白天和明亮环境', 'Best for daytime and bright rooms'),
+    icon: Sun,
+  },
+  {
+    id: 'glass-dark',
+    label: label('深色玻璃', 'Dark Glass'),
+    description: label('适合夜间和沉浸学习', 'Best for night and focused study'),
+    icon: Moon,
+  },
+  {
+    id: 'glass-auto',
+    label: label('跟随系统', 'Auto'),
+    description: label('自动匹配系统外观', 'Matches the system appearance'),
+    icon: SunMoon,
+  },
 ]);
 
 const snapshot = computed(() =>
@@ -48,7 +66,9 @@ const snapshot = computed(() =>
 const hasChanges = computed(() => snapshot.value !== savedSnapshot.value);
 
 const currentAccentName = computed(
-  () => accentColors.value.find((item) => item.value === currentAccent.value)?.name || currentAccent.value,
+  () =>
+    accentColors.value.find((item) => item.value === currentAccent.value)?.name ||
+    currentAccent.value,
 );
 
 const applyTheme = (theme: ThemePreference) => {
@@ -93,7 +113,12 @@ const loadCloudSettings = async () => {
     savedSnapshot.value = snapshot.value;
   } catch {
     savedSnapshot.value = snapshot.value;
-    ElMessage.warning(label('云端外观设置加载失败，已使用本地设置', 'Cloud appearance settings failed to load; local settings are used'));
+    ElMessage.warning(
+      label(
+        '云端外观设置加载失败，已使用本地设置',
+        'Cloud appearance settings failed to load; local settings are used',
+      ),
+    );
   } finally {
     isLoadingCloud.value = false;
   }
@@ -130,18 +155,32 @@ onMounted(loadCloudSettings);
     <section class="appearance-overview">
       <div>
         <p class="section-kicker">{{ label('外观语言', 'Appearance') }}</p>
-        <h3>{{ currentAccentName }} · {{ currentLanguage === 'zh-CN' ? label('简体中文', 'Chinese') : 'English' }}</h3>
-        <span>{{ isLoadingCloud ? label('正在读取云端偏好...', 'Loading cloud preferences...') : label('本地立即生效，保存后同步到你的账号。', 'Changes apply immediately and sync after saving.') }}</span>
+        <h3>
+          {{ currentAccentName }} ·
+          {{ currentLanguage === 'zh-CN' ? label('简体中文', 'Chinese') : 'English' }}
+        </h3>
+        <span>{{
+          isLoadingCloud
+            ? label('正在读取云端偏好...', 'Loading cloud preferences...')
+            : label(
+                '本地立即生效，保存后同步到你的账号。',
+                'Changes apply immediately and sync after saving.',
+              )
+        }}</span>
       </div>
       <div class="overview-actions">
-        <button type="button" class="secondary-action" @click="resetLocal">
-          <RotateCcw />
+        <Button variant="secondary" :icon="RotateCcw" @click="resetLocal">
           {{ label('重置', 'Reset') }}
-        </button>
-        <button type="button" class="primary-action" :disabled="!hasChanges || isSaving" @click="saveAppearance">
-          <Save />
-          {{ isSaving ? label('同步中...', 'Syncing...') : label('保存到云端', 'Save to Cloud') }}
-        </button>
+        </Button>
+        <Button
+          variant="primary"
+          :disabled="!hasChanges || isSaving"
+          :loading="isSaving"
+          :icon="Save"
+          @click="saveAppearance"
+        >
+          {{ label('保存到云端', 'Save to Cloud') }}
+        </Button>
       </div>
     </section>
 

@@ -23,6 +23,12 @@ export default {
     notSet: 'Not Set',
     view: 'View',
     submit: 'Submit',
+    time: {
+      justNow: 'Just now',
+      minutesAgo: '{n}m ago',
+      hoursAgo: '{n}h ago',
+      daysAgo: '{n}d ago',
+    },
   },
   settings: {
     title: 'Settings',
@@ -65,8 +71,10 @@ export default {
     errorSavePrefs: 'Failed to save notification preferences',
     settingsOption: 'Settings Menu',
     languagePreference: 'Language Preference',
-    accentColorDesc: 'Choose your preferred color, it will be used as the primary button and interaction highlight color.',
-    profileAvatarTip: 'Click avatar to change. High-resolution JPG or PNG above 500x500px is recommended',
+    accentColorDesc:
+      'Choose your preferred color, it will be used as the primary button and interaction highlight color.',
+    profileAvatarTip:
+      'Click avatar to change. High-resolution JPG or PNG above 500x500px is recommended',
     profileNickname: 'Nickname',
     profileLocation: 'Location',
     profileLocationPlaceholder: 'City, Country',
@@ -140,12 +148,14 @@ export default {
     groupCreateFailed: 'Failed to create group chat',
     groupLeftSuccess: 'Left group chat successfully',
     groupLeftFailed: 'Failed to leave group chat',
-    deleteConversationConfirm: 'Are you sure you want to delete this conversation? This will clear your local chat history.',
+    deleteConversationConfirm:
+      'Are you sure you want to delete this conversation? This will clear your local chat history.',
     deleteConversationConfirmTitle: 'Confirm Delete',
     conversationDeletedSuccess: 'Conversation deleted',
     conversationDeletedFailed: 'Failed to delete conversation',
     startNewChatTitle: 'Start New Conversation',
-    startNewChatDesc: 'Choose a contact on the left to start chatting, or click the plus button to find new friends.',
+    startNewChatDesc:
+      'Choose a contact on the left to start chatting, or click the plus button to find new friends.',
     findContacts: 'Find Contacts',
     createGroup: 'Create Group',
   },
@@ -201,6 +211,7 @@ export default {
     high: 'High',
     medium: 'Medium',
     low: 'Low',
+    unassigned: 'Unassigned',
     addTask: 'Add Task',
     searchPlaceholder: 'Search tasks...',
     all: 'All',
@@ -257,7 +268,7 @@ export default {
     groupByPriority: 'By Priority',
     groupBy: 'Group By:',
     time: 'Time:',
-    status: 'Status:',
+    statusLabel: 'Status:',
     priority: 'Priority:',
     hideCompleted: 'Hide Completed',
     onlyMy: 'Only My Tasks',
@@ -299,7 +310,7 @@ export default {
     completed: 'Completed',
     completionRate: 'Completion Rate',
     noProjects: 'No projects found',
-    noProjectsTip: 'No projects match the search criteria, or you haven\'t created any yet.',
+    noProjectsTip: "No projects match the search criteria, or you haven't created any yet.",
     createFirst: 'Create First Project',
     info: 'Project Info',
     detailSubtitle: 'Project Details & Task Collaboration',
@@ -309,6 +320,7 @@ export default {
     switchToDrawer: 'Switch to Drawer Mode',
     loadingDetails: 'Loading project details...',
     projectTasks: 'Project Tasks',
+    projectProgress: 'Project Progress',
     learningPath: 'Learning Path',
     batchAdd: 'Batch Add',
     quickTaskPlaceholder: 'Type new task title here, press Enter to quick add...',
@@ -319,7 +331,8 @@ export default {
     exploring: 'Exploring',
     explorerAnalyzer: 'Explorer Analyzer',
     stageDetailFocus: 'Stage Detail Focus',
-    customStepTip: 'This stage is your custom target. Combine it with the skills checklist below to conquer challenges.',
+    customStepTip:
+      'This stage is your custom target. Combine it with the skills checklist below to conquer challenges.',
     stepCompletedReset: 'Stage Conquered (Reset)',
     stepCompleteTarget: 'Conquer Stage Target',
     skillsChecklist: 'Skill Breakthrough Tasks',
@@ -336,7 +349,8 @@ export default {
     hours: 'Hours',
     members: 'Members',
     manage: 'Manage',
-    deleteConfirmText: 'Are you sure you want to permanently delete this project? This action is irreversible.',
+    deleteConfirmText:
+      'Are you sure you want to permanently delete this project? This action is irreversible.',
     deleteTasksCheckbox: 'Also delete all associated kanban tasks',
     deleteRoadmapCheckbox: 'Also delete the associated learning path',
     deleteTitle: 'Delete Project',
@@ -351,7 +365,8 @@ export default {
     updateProgressFailed: 'Failed to update progress',
     batchAddTask: 'Batch Add Project Tasks',
     batchTaskTitleList: 'Task Title List (one per line)',
-    batchTaskPlaceholder: 'e.g.:\nCore features coding\nAPI doc writing\nFrontend styling verification',
+    batchTaskPlaceholder:
+      'e.g.:\nCore features coding\nAPI doc writing\nFrontend styling verification',
     batchTaskPreview: 'Preview tasks to be created ({count} total)',
     toBeCreated: 'To be created',
     batchAssignee: 'Uniform Assignee',
@@ -362,7 +377,8 @@ export default {
     inviteMembersTitle: 'Invite New Members to Project',
     selectTeamMembers: 'Select team members to invite',
     selectMember: 'Select member',
-    noOtherMembersToInvite: 'No other team members to invite (all are already members of this project)',
+    noOtherMembersToInvite:
+      'No other team members to invite (all are already members of this project)',
     sendInvite: 'Send Invitation',
     configProject: 'Configure Project',
     startNewProject: 'Start New Project',
@@ -377,7 +393,7 @@ export default {
     visibilityAndEnrollment: 'Visibility & Enrollment',
     visibility: {
       private: 'Private (Invite only)',
-      public: 'Public (Members can join)'
+      public: 'Public (Members can join)',
     },
     maxMembersLimit: 'Max Members Limit',
     categoryTags: 'Category Tags (comma separated)',
@@ -393,7 +409,7 @@ export default {
     confirmApplyChanges: 'Confirm & Apply Changes',
     startProject: 'Start Project',
     validation: {
-      titleRequired: 'Please enter project title'
+      titleRequired: 'Please enter project title',
     },
     updateSuccess: 'Project updated successfully',
     createSuccess: 'Project created successfully',
@@ -407,13 +423,13 @@ export default {
       purple: 'Neon Purple',
       orange: 'Sunset Orange',
       rose: 'Rose Red',
-      accent: 'Brand Color'
+      accent: 'Brand Color',
     },
     status: {
       planned: 'Planned',
       inProgress: 'In Progress',
       paused: 'Paused',
-      completed: 'Completed'
+      completed: 'Completed',
     },
     form: {
       editTitle: 'Configure Workflow',
@@ -453,8 +469,8 @@ export default {
       updateFailed: 'Failed to update project',
       createFailed: 'Failed to create project',
       removeMemberSuccess: 'Member removed from project',
-      removeMemberFailed: 'Failed to remove member'
-    }
+      removeMemberFailed: 'Failed to remove member',
+    },
   },
   notes: {
     title: 'My Notes',
@@ -474,7 +490,8 @@ export default {
     popularCancelled: 'Popular recommendation cancelled',
     operationFailed: 'Operation failed',
     selectToDelete: 'Please select notes to delete first',
-    batchDeleteConfirm: 'Are you sure you want to permanently delete these {n} notes? This action cannot be undone.',
+    batchDeleteConfirm:
+      'Are you sure you want to permanently delete these {n} notes? This action cannot be undone.',
     batchDeleteTitle: 'Batch Delete Notes',
     batchDeleteSuccess: 'Successfully deleted {n} notes!',
     batchDeleteFailed: 'Failed to delete some notes, please try again',
@@ -487,7 +504,8 @@ export default {
     notebookExists: 'Notebook with the same name already exists',
     moveSomeNotesFailed: 'Failed to move some notes to the new notebook',
     notebookRenameSuccess: 'Notebook renamed to "{name}" successfully!',
-    deleteNotebookConfirm: 'Are you sure you want to delete notebook "{name}"? The notes inside will be moved to "Uncategorized".',
+    deleteNotebookConfirm:
+      'Are you sure you want to delete notebook "{name}"? The notes inside will be moved to "Uncategorized".',
     deleteNotebookTitle: 'Delete Notebook',
     moveToUncategorizedFailed: 'Failed to move some notes to Uncategorized',
     notebookDeleteSuccess: 'Notebook "{name}" deleted successfully!',
@@ -583,7 +601,8 @@ export default {
       configSaved: 'Configuration saved to local storage!',
       invalidRepo: 'Invalid repository URL. Format should be owner/repo',
       repoValid: 'Validation success: The GitHub repository is valid and accessible!',
-      repoNotFound: 'Validation failed: Repository not found. If it is private, please check your Personal Access Token.',
+      repoNotFound:
+        'Validation failed: Repository not found. If it is private, please check your Personal Access Token.',
       unauthorized: 'Validation failed: Unauthorized access. Please check your token.',
       connectFailed: 'Failed to connect to GitHub. Please check repository path or network.',
       repoRequired: 'Please enter GitHub repository URL',
@@ -609,11 +628,12 @@ export default {
       visibilityPrivate: 'Private',
       visibilityPublic: 'Public',
       saveConfig: 'Save Config',
-      syncNow: 'Sync Now'
-    }
+      syncNow: 'Sync Now',
+    },
   },
   roadmaps: {
-    subtitle: 'Navigate growth with a scientific 3D node map, or freely schedule your exclusive learning campaign',
+    subtitle:
+      'Navigate growth with a scientific 3D node map, or freely schedule your exclusive learning campaign',
     official: 'Official',
     custom: 'My Roadmaps',
     stageUnit: 'Stages',
@@ -621,7 +641,7 @@ export default {
     myLearningPlan: 'My Plan',
     createRoadmap: 'Plan Personalized Roadmap',
     noOfficial: 'No official recommended roadmaps yet',
-    noCustom: 'You haven\'t planned any learning paths yet',
+    noCustom: "You haven't planned any learning paths yet",
     projectRoadmap: 'Project Roadmap',
     enterRelatedProject: 'Enter Related Project',
     exportAction: 'Export',
@@ -634,10 +654,12 @@ export default {
     unlocked: 'Unlocked',
     moduleNumber: 'Module {n}',
     focusing: 'Focusing',
-    noGuidelines: 'No detailed guidelines for this stage yet. Click to view the smart checklist and recommendations.',
+    noGuidelines:
+      'No detailed guidelines for this stage yet. Click to view the smart checklist and recommendations.',
     analyzerTitle: 'Smart Explorer Analyzer',
     stageFocus: 'Stage Focus',
-    customStageDesc: 'This stage is your custom target node. Work with the checklist below to explore this field and conquer technical challenges.',
+    customStageDesc:
+      'This stage is your custom target node. Work with the checklist below to explore this field and conquer technical challenges.',
     stepCompletedReset: 'Stage Conquered (Reset)',
     conquerStage: 'Conquer Stage Goal',
     metricsTitle: 'Skill Attributes Assessment',
@@ -649,15 +671,18 @@ export default {
     recommendCoursesTitle: 'Recommended Courses',
     goMaster: 'Master it',
     noRoadmapsTitle: 'No Learning Paths',
-    noRoadmapsDesc: 'No recommended learning paths on the platform yet. You can click "Plan Personalized Roadmap" on the left to design your own growth outline.',
+    noRoadmapsDesc:
+      'No recommended learning paths on the platform yet. You can click "Plan Personalized Roadmap" on the left to design your own growth outline.',
     noSelectionTitle: 'No Roadmap Selected',
-    noSelectionDesc: 'Please select a recommended path or your own custom plan from the left to start 3D skill exploration.',
+    noSelectionDesc:
+      'Please select a recommended path or your own custom plan from the left to start 3D skill exploration.',
     editRoadmapTitle: 'Edit My Roadmap',
     createRoadmapTitle: 'Plan New Roadmap',
     formTitle: 'Roadmap Name',
     formTitlePlaceholder: 'e.g. Blender Physics Animation Campaign',
     formDesc: 'Description (Goal)',
-    formDescPlaceholder: 'Briefly describe the overall goals and expectations of this learning roadmap...',
+    formDescPlaceholder:
+      'Briefly describe the overall goals and expectations of this learning roadmap...',
     formStagesLabel: 'Learning Outline & Stages ({n})',
     formAddStage: 'Add Stage',
     formStageNum: 'Stage {n}',
@@ -666,7 +691,8 @@ export default {
     formStageChecklistLabel: 'Stage Checklist (Leave blank to hide in UI)',
     formAddTaskItem: 'Add Task Item',
     formTaskPlaceholder: 'e.g. Master polygonal routing & topology principles',
-    formNoTasksDesc: 'No custom checklist tasks. Leaving it blank hides the checklist module in the UI.',
+    formNoTasksDesc:
+      'No custom checklist tasks. Leaving it blank hides the checklist module in the UI.',
     formSaveBtn: 'Save My Roadmap',
     loadFailed: 'Failed to load roadmaps data',
     stepCompleted: 'Congratulations on completing this stage!',
@@ -678,7 +704,8 @@ export default {
     updateSuccess: 'Roadmap updated successfully',
     createSuccess: 'Custom roadmap created successfully',
     saveFailed: 'Failed to save roadmap',
-    deleteConfirm: 'Are you sure you want to permanently delete your custom roadmap "{title}"? This action cannot be undone!',
+    deleteConfirm:
+      'Are you sure you want to permanently delete your custom roadmap "{title}"? This action cannot be undone!',
     deleteWarning: 'Warning',
     deleteConfirmBtn: 'Confirm Delete',
     deleteSuccess: 'Roadmap deleted successfully',
@@ -686,7 +713,7 @@ export default {
     exportSuccess: 'Outline successfully exported to Markdown file!',
     defaultStepTitle: 'Stage {n}: Getting Started',
     stepTitlePrefix: 'Stage {n}: ',
-    'export': {
+    export: {
       title: '# Learning Roadmap Outline: {title}\n\n',
       stagesHeader: '## Learning Outline Stage Breakdown ({n} Stages)\n\n',
       stageTitle: '### Stage {n}: {title}{status}\n',
@@ -694,8 +721,8 @@ export default {
       checklistHeader: '*Skill Mastery Checklist:*\n',
       coursesHeader: '*Recommended Platform Courses:*\n',
       difficulty: 'Difficulty',
-      footer: '\n*Export Time: {time} | 3D Personal Exploratory Learning Space*'
-    }
+      footer: '\n*Export Time: {time} | 3D Personal Exploratory Learning Space*',
+    },
   },
   academy: {
     title: 'Academy Courses',
@@ -983,12 +1010,13 @@ export default {
     uploadPreviewWarning: 'Please upload a preview image or icon',
     namePlaceholder: 'Please enter plugin name',
     // Categories
-    catAll: 'All Plugins',
-    catBlender: 'Blender Add-ons',
-    catThreejs: 'Three.js Plugins',
-    catSubstance: 'Substance Tools',
-    catUnityUnreal: 'Game Engine Add-ons',
-    catPhotoshop: 'Photoshop Scripts',
+    catAll: 'All Add-ons',
+    catModeling: 'Modeling',
+    catMaterial: 'Materials & Texturing',
+    catRender: 'Rendering & Lighting',
+    catRigging: 'Animation & Rigging',
+    catExport: 'Import & Export',
+    catPhysics: 'Physics & FX',
     catOther: 'Other Tools',
   },
   myWorks: {
@@ -1012,7 +1040,8 @@ export default {
     typeImage: 'Image',
     typeVideo: 'Video',
     creativeWork: 'Creative Work',
-    deleteConfirm: 'Are you sure you want to delete the work "{title}"? This action cannot be undone.',
+    deleteConfirm:
+      'Are you sure you want to delete the work "{title}"? This action cannot be undone.',
     deleteTitle: 'Confirm Delete',
     deleteSuccess: 'Work deleted',
     deleteFailed: 'Failed to delete',
@@ -1079,14 +1108,16 @@ export default {
     tabWork: 'Creative Work Showcase',
     selectExisting: 'Select Existing Work',
     selectExistingPlaceholder: 'Please select an approved work',
-    noApprovedAssetsTip: 'No approved works available, please switch to "Asset Upload" or upload assets first',
+    noApprovedAssetsTip:
+      'No approved works available, please switch to "Asset Upload" or upload assets first',
     showcaseTitleLabel: 'Showcase Title *',
     titlePlaceholder: 'Give your work a loud name',
     tagsLabel: 'Tags',
     tagsPlaceholder: 'Comma separated, e.g. Blender,3D Render,Character Modeling',
     tagsTip: 'Max 5 tags, comma separated',
     descriptionLabel: 'Work Description',
-    descriptionPlaceholder: 'Describe your creative inspiration, techniques and tools used... Markdown supported',
+    descriptionPlaceholder:
+      'Describe your creative inspiration, techniques and tools used... Markdown supported',
     assetFileLabel: 'Asset File *',
     dragAssetFile: 'Click or drag to upload asset file',
     supportedAssetFiles: 'Supports 3D model files and zip packages',
@@ -1131,7 +1162,8 @@ export default {
       editorPlaceholder: 'Write down your thoughts, Markdown is supported...',
       postComment: 'Comment',
       replyTo: 'Reply to {name}',
-      deletePostConfirm: 'Are you sure you want to delete this discussion? This action cannot be undone.',
+      deletePostConfirm:
+        'Are you sure you want to delete this discussion? This action cannot be undone.',
       deleteCommentConfirm: 'Are you sure you want to delete this comment?',
       deleteSuccess: 'Deleted successfully',
       postSuccess: 'Published successfully',
@@ -1189,7 +1221,8 @@ export default {
       templateQuestion: 'Question Template',
       templateQuestionTitle: 'e.g. How to export glTF animations in Blender?',
       templateQuestionTags: 'Blender, Animation',
-      templateQuestionContent: '**Describe your problem:**\n\n**Software version:**\n\n**Attempted solutions:**',
+      templateQuestionContent:
+        '**Describe your problem:**\n\n**Software version:**\n\n**Attempted solutions:**',
       templateShare: 'Share Template',
       templateShareTitle: 'e.g. Share a Three.js visual scene setup',
       templateShareTags: 'ThreeJS, Render',
@@ -1197,7 +1230,8 @@ export default {
       templateReview: 'Review Template',
       templateReviewTitle: 'e.g. Request review for my latest PBR material render',
       templateReviewTags: 'Feedback, Material',
-      templateReviewContent: '**Creative concept:**\n\n**Questions/Bottlenecks:**\n\n**Render screenshot/Parameters:**',
+      templateReviewContent:
+        '**Creative concept:**\n\n**Questions/Bottlenecks:**\n\n**Render screenshot/Parameters:**',
       clearFilters: 'Clear Filters',
       commentPlaceholder: 'Write a comment/reply...',
       emptySubtitle: 'Try changing your filters or start a new topic.',
@@ -1231,12 +1265,14 @@ export default {
       applySuccess: 'Application submitted! Awaiting administrator approval',
       applyFailed: 'Application failed',
       fetchFailed: 'Failed to load teams list',
-      applyConfirmMsg: 'You are applying to join "{name}", your application will be sent to the team admin.',
+      applyConfirmMsg:
+        'You are applying to join "{name}", your application will be sent to the team admin.',
       applyConfirmTitle: 'Apply to Join Team',
       back: 'Back',
       collaborateTitle: 'Find Your Own',
       collaborateSub: 'Creative Team',
-      welcomeText: 'Here you can create your own study group or join a like-minded team. Share assets, collaborate on projects, and witness the birth of creativity together.',
+      welcomeText:
+        'Here you can create your own study group or join a like-minded team. Share assets, collaborate on projects, and witness the birth of creativity together.',
       assetLib: 'Private Asset Library',
       realtimeCollab: 'Real-time Collaboration',
       tutorSupport: 'Tutor Guidance',
@@ -1300,7 +1336,8 @@ export default {
       publishMyWork: 'Publish My Work',
       publishShort: 'Publish',
       featuredTitle: 'Showcase Your Creative Works',
-      featuredDesc: 'Publish your finished renders, 3D models, animation clips or any creative works to share experiences with global creators.',
+      featuredDesc:
+        'Publish your finished renders, 3D models, animation clips or any creative works to share experiences with global creators.',
       popular: 'Popular',
       newest: 'Newest',
       yearlyTrophy: 'Annual Outstanding Work Selection in Progress',
@@ -1355,6 +1392,7 @@ export default {
       changeCover: 'Change Cover',
       changeAvatar: 'Change Avatar',
       updateSuccess: 'Team details updated successfully',
+      updateFailed: 'Failed to update team details',
       leaveBtn: 'Leave Team',
       leaveConfirm: 'Are you sure you want to leave this team? You will lose access to team data.',
       dissolveTitle: 'Permanently Dissolve Team',
@@ -1378,7 +1416,7 @@ export default {
       invitationCancelled: 'Invitation cancelled',
       operationFailed: 'Operation failed',
       joinedSuccess: 'Approved {name} to join team',
-      rejectedSuccess: 'Rejected {name}\'s application',
+      rejectedSuccess: "Rejected {name}'s application",
       addMemberTitle: 'Add New Partner',
       addMemberSubtitle: 'Search local users or invite external members by email',
       searchUserPlaceholder: 'Enter name or email to search...',
@@ -1386,7 +1424,8 @@ export default {
       sendBtn: 'Send',
       selectMemberWarning: 'Please select at least one member',
       selectedCount: 'Selected',
-      dissolveWarning: 'This is a high-risk operation. If you are sure you want to dissolve <strong>{name}</strong>, please complete security verification.',
+      dissolveWarning:
+        'This is a high-risk operation. If you are sure you want to dissolve <strong>{name}</strong>, please complete security verification.',
       twoFactorLabel: 'Two-factor Code',
       emailCodeLabel: 'Email Verification Code',
       getCodeBtn: 'Get Code',
@@ -1395,7 +1434,8 @@ export default {
       dissolveSuccess: 'Team dissolved',
       dissolveFailed: 'Failed to dissolve team',
       enterCodeWarning: 'Please enter verification code',
-      applyConfirm: 'You are applying to join "{name}". The application will be sent to the team admin.',
+      applyConfirm:
+        'You are applying to join "{name}". The application will be sent to the team admin.',
       applyTitle: 'Apply to Join Team',
       applySubmit: 'Submit Application',
       applySuccess: 'Application submitted! Waiting for approval.',
@@ -1437,8 +1477,10 @@ export default {
       syncing: 'Syncing...',
       saveChanges: 'Save Changes',
       dangerZone: 'Archive & Danger Zone',
-      dangerZoneDesc: 'Dissolving a team is irreversible. All collaboration records will be permanently erased.',
-      dissolveDesc: 'This action will remove all members and delete all associated 3D assets, tasks, and projects.',
+      dangerZoneDesc:
+        'Dissolving a team is irreversible. All collaboration records will be permanently erased.',
+      dissolveDesc:
+        'This action will remove all members and delete all associated 3D assets, tasks, and projects.',
       internalSearchLabel: 'Internal Search',
       noUsersFound: 'No matching users found',
       orLabel: 'OR',
@@ -1465,9 +1507,8 @@ export default {
       download: 'Download',
       micAccessFailed: 'Cannot access microphone',
       playing: 'Playing',
-    }
-  }
-,
+    },
+  },
   error: {
     unknown: 'An unknown error occurred',
     pageError: 'An error occurred',
@@ -1482,19 +1523,22 @@ export default {
     submit_success_toast: 'Report submitted. Thank you for your feedback!',
     submit_failed: 'Submission failed. Please try again',
     maintenance: 'System Maintenance',
-    maintenance_desc: 'To provide you with a better experience, {platformName} is undergoing system updates and maintenance. Please check back later, thank you for your understanding.',
+    maintenance_desc:
+      'To provide you with a better experience, {platformName} is undergoing system updates and maintenance. Please check back later, thank you for your understanding.',
     optimizing_engine: 'Optimizing 3D rendering engine...',
     if_you_are_admin: 'If you are an administrator',
     enter_admin: 'Enter Admin Control Panel',
     page_not_found: 'Page Not Found',
-    page_not_found_desc: 'The page you are looking for does not exist or has been removed. Please check the URL.',
+    page_not_found_desc:
+      'The page you are looking for does not exist or has been removed. Please check the URL.',
     back_to_home: 'Back to Home',
     back_to_previous: 'Go Back',
     report_bug: 'Report Issue & Feedback',
     submit_feedback: 'Submit Feedback',
     feedback_history: 'Feedback History',
     trouble_title: 'Having Trouble?',
-    trouble_desc: 'Describe the bug you encountered or suggest improvements. Our team will handle it as soon as possible.',
+    trouble_desc:
+      'Describe the bug you encountered or suggest improvements. Our team will handle it as soon as possible.',
     feedback_type: 'Feedback Type',
     priority_level: 'Priority Level',
     priority_low: 'Low',
@@ -1503,7 +1547,8 @@ export default {
     issue_summary: 'Issue Summary',
     issue_summary_placeholder: 'Briefly summarize the issue in one sentence...',
     detailed_desc: 'Detailed Description',
-    detailed_desc_placeholder: 'Please describe the steps to reproduce the issue, expected results, and actual results. Attach system environment information if possible.',
+    detailed_desc_placeholder:
+      'Please describe the steps to reproduce the issue, expected results, and actual results. Attach system environment information if possible.',
     attachment_label: 'Attachment/Screenshot (Optional)',
     upload_tip: 'Click or drag image here to upload',
     upload_limits: 'Supports PNG, JPG, GIF (Max 5MB)',
@@ -1512,7 +1557,8 @@ export default {
     submit_report_btn: 'Submit Report',
     submitting: 'Submitting...',
     submit_success_title: 'Report Submitted Successfully!',
-    submit_success_desc: 'Thank you for contributing to our platform. You can continue browsing or track progress in Feedback History.',
+    submit_success_desc:
+      'Thank you for contributing to our platform. You can continue browsing or track progress in Feedback History.',
     submit_again: 'Submit Again',
     back_to_dashboard: 'Back to Dashboard',
     fetching_history: 'Fetching feedback history...',
@@ -1523,7 +1569,8 @@ export default {
     faq_title: 'Frequently Asked Questions',
     faq_question: 'How to export Web-supported GLB files?',
     contact_support: 'Contact Support',
-    contact_support_desc: 'For urgent account security issues, please contact our 24/7 support line or use live chat.',
+    contact_support_desc:
+      'For urgent account security issues, please contact our 24/7 support line or use live chat.',
     start_chat: 'Start Live Chat',
     type_bug: 'Program Bug (Abnormal behavior)',
     type_feature: 'Feature Suggestion (New idea)',
@@ -1554,7 +1601,8 @@ export default {
     no_notifications_title: 'No Notifications',
     no_notifications_desc: 'We will notify you here when there are new updates',
     clear_confirm_title: 'Clear Notifications',
-    clear_confirm_text: 'Are you sure you want to clear all notifications? This action is irreversible.',
+    clear_confirm_text:
+      'Are you sure you want to clear all notifications? This action is irreversible.',
     clear_confirm_btn: 'Clear',
     clear_cancel_btn: 'Cancel',
     invitation_accepted: 'Invitation accepted',
@@ -1571,12 +1619,12 @@ export default {
   },
   tools: {
     email: {
-            understand_btn: 'Understand',
-            unknown_error: 'Unknown error',
-            operation_failed_msg: 'Operation failed: {error}',
-            batch_management: 'Manage Batch',
-            email_marked_read: 'Email marked as read',
-            email_marked_unread: 'Email marked as unread',
+      understand_btn: 'Understand',
+      unknown_error: 'Unknown error',
+      operation_failed_msg: 'Operation failed: {error}',
+      batch_management: 'Manage Batch',
+      email_marked_read: 'Email marked as read',
+      email_marked_unread: 'Email marked as unread',
       title: 'Microsoft Email Integration System',
       refresh_tooltip: 'Refresh Account List',
       batch_import: 'Batch Import',
@@ -1622,15 +1670,18 @@ export default {
       recipient_label: 'Recipient',
       subject_label: 'Subject',
       body_placeholder: 'Enter detailed email content. HTML tags are supported for formatting.',
-      safety_delay_desc: 'Pushing to gateway via Microsoft Graph secure endpoint with delays to avoid spam controls...',
+      safety_delay_desc:
+        'Pushing to gateway via Microsoft Graph secure endpoint with delays to avoid spam controls...',
       import_dialog_title: 'Batch Import Microsoft Email Accounts',
       import_instructions: 'Token Import & Update Format:',
       import_format_p1: 'First Import: email----password----client_id----refresh_token',
       import_format_p2: 'Update Existing Account: email----new_refresh_token',
-      import_format_p3: 'If password is empty on first import, you can use: email----client_id----refresh_token',
+      import_format_p3:
+        'If password is empty on first import, you can use: email----client_id----refresh_token',
       import_textarea_placeholder: 'Microsoft Graph OAuth Refresh Token',
       default_proxy_label: 'Default Proxy Address (Format: http://ip:port or with credentials)',
-      proxy_placeholder: 'http://username:password{\'@\'}proxy_host:port (Leave blank for direct server connection)',
+      proxy_placeholder:
+        "http://username:password{'@'}proxy_host:port (Leave blank for direct server connection)",
       min_delay_label: 'Min Round-robin Random Delay (sec)',
       max_delay_label: 'Max Round-robin Random Delay (sec)',
       daily_limit_label: 'Max Daily Limit (mails/day)',
@@ -1651,7 +1702,8 @@ export default {
       conn_success: '{email} connected and activated successfully!',
       test_failed: 'Connection Test Failed',
       unbind_confirm_title: 'Unbind Account',
-      unbind_confirm_text: 'Are you sure you want to remove {email}? Mails on Microsoft servers will not be deleted.',
+      unbind_confirm_text:
+        'Are you sure you want to remove {email}? Mails on Microsoft servers will not be deleted.',
       unbind_confirm_btn: 'Unbind',
       unbind_success: 'Account removed successfully',
       import_warning_empty: 'Please paste token data first',
@@ -1661,7 +1713,8 @@ export default {
       add_failed: 'Failed to add account',
       mark_read_status: 'Mark as {status}',
       delete_confirm_title: 'Confirm Delete',
-      delete_confirm_text: 'Are you sure you want to delete this mail? It will be moved to the Deleted Items folder.',
+      delete_confirm_text:
+        'Are you sure you want to delete this mail? It will be moved to the Deleted Items folder.',
       delete_confirm_btn: 'Delete',
       delete_success: 'Mail deleted successfully',
       batch_test_warning: 'Please select accounts to test first',
@@ -1669,7 +1722,8 @@ export default {
       batch_test_complete: 'Batch test complete. Success: {success}, Failed: {fail}',
       batch_unbind_warning: 'Please select accounts to unbind first',
       batch_unbind_confirm_title: 'Batch Unbind Confirmation',
-      batch_unbind_confirm_text: 'Are you sure you want to unbind {count} email accounts? This cannot be undone.',
+      batch_unbind_confirm_text:
+        'Are you sure you want to unbind {count} email accounts? This cannot be undone.',
       batch_unbind_confirm_btn: 'Unbind',
       batch_unbind_complete: 'Batch unbind complete. Successfully unbinded {count} accounts!',
       compose_warning_empty: 'Please enter recipient, subject, and content',
@@ -1685,13 +1739,16 @@ export default {
     googleWarming: {
       title: 'Google Account Warming Workspace',
       fetch_accounts_failed: 'Failed to fetch Google accounts list',
-      description: 'Import Google accounts in batch and warm them up step-by-step using a professional daily checklist to minimize security flags.',
+      description:
+        'Import Google accounts in batch and warm them up step-by-step using a professional daily checklist to minimize security flags.',
       recommendedIpSites: 'Recommended IP Reputation Tools',
-      checkIpTip: 'Before logging in or performing warming activities, it is highly recommended to test your IP using these services to verify geolocation, anonymity, and fraud risks:',
+      checkIpTip:
+        'Before logging in or performing warming activities, it is highly recommended to test your IP using these services to verify geolocation, anonymity, and fraud risks:',
       accountsList: 'Warming Accounts List',
       addAccount: 'Import Accounts',
       bulkImport: 'Batch Import Google Accounts',
-      importPlaceholder: 'Format: email----password----recoveryEmail----2FASecret----country----backupCodes----note\nOne account per line. Missing fields can be left blank between separators (----).',
+      importPlaceholder:
+        'Format: email----password----recoveryEmail----2FASecret----country----backupCodes----note\nOne account per line. Missing fields can be left blank between separators (----).',
       aiParseBtn: 'AI Smart Parse',
       standardParseBtn: 'Quick Parse',
       importConfirm: 'Import Selected Accounts ({count})',
@@ -1705,59 +1762,83 @@ export default {
       warmActionBtn: 'Complete Day {day} Tasks (Advance to Next Day)',
       alreadyWarmed: 'All tasks for today are checked and completed!',
       nextWarmingIn: 'Next task unlocks in',
-      whoerDesc: 'Comprehensive IP analysis checking geolocation, DNS leaks, blacklists, and anonymity score.',
-      scamalyticsDesc: 'IP Fraud Score and reputation rating. Ideal for checking if an IP is flagged as a proxy or VPN.',
-      ping0Desc: 'A popular Chinese-friendly IP checking tool that displays IP attributes (Residential/IDC/Mobile) and multi-dimensional risk scores.',
-      browserscanDesc: 'Next-generation browser fingerprinting tool. Comprehensive checks on WebGL, WebRTC, DNS leaks, and anonymity.',
-      pixelscanDesc: 'Advanced bot and browser fingerprint leakage detector providing IP purity and geographic checks.',
-      browserleaksDesc: 'Comprehensive suite of tools to test browser leaks, privacy settings, WebRTC, and Canvas fingerprinting.',
-      ipinfoDesc: 'Industry-leading provider of IP address geolocation, ASN data, ISP details, and proxy detection.',
-      ipipDesc: 'Highly accurate IP geolocation database and traceroute tools tailored for network operators.',
+      whoerDesc:
+        'Comprehensive IP analysis checking geolocation, DNS leaks, blacklists, and anonymity score.',
+      scamalyticsDesc:
+        'IP Fraud Score and reputation rating. Ideal for checking if an IP is flagged as a proxy or VPN.',
+      ping0Desc:
+        'A popular Chinese-friendly IP checking tool that displays IP attributes (Residential/IDC/Mobile) and multi-dimensional risk scores.',
+      browserscanDesc:
+        'Next-generation browser fingerprinting tool. Comprehensive checks on WebGL, WebRTC, DNS leaks, and anonymity.',
+      pixelscanDesc:
+        'Advanced bot and browser fingerprint leakage detector providing IP purity and geographic checks.',
+      browserleaksDesc:
+        'Comprehensive suite of tools to test browser leaks, privacy settings, WebRTC, and Canvas fingerprinting.',
+      ipinfoDesc:
+        'Industry-leading provider of IP address geolocation, ASN data, ISP details, and proxy detection.',
+      ipipDesc:
+        'Highly accurate IP geolocation database and traceroute tools tailored for network operators.',
       statusWarming: 'Warming',
       statusCompleted: 'Graduated',
       statusPaused: 'Paused',
       dayText: 'Day {day}',
       editAccountTitle: 'Edit Account Details',
       deleteConfirmTitle: 'Delete Account',
-      deleteConfirmText: 'Are you sure you want to delete account {email}? This will permanently remove its warming progress and history.',
+      deleteConfirmText:
+        'Are you sure you want to delete account {email}? This will permanently remove its warming progress and history.',
       deleteConfirmBtn: 'Delete',
       deleteSuccess: 'Account deleted successfully',
       questDays: {
         day1: 'Day 1: Initial Login & Trust Building',
-        day1Desc: 'Log in for the first time in a new browser/fingerprint environment. Once logged in, browse your inbox for a few minutes. Avoid any sensitive security setting changes.',
+        day1Desc:
+          'Log in for the first time in a new browser/fingerprint environment. Once logged in, browse your inbox for a few minutes. Avoid any sensitive security setting changes.',
         day2: 'Day 2: Clear Unfamiliar Devices & Register Spotify',
-        day2Desc: 'Check Google Security Center and log out of unfamiliar devices. Browse Gmail, watch YouTube, and sign up/log into Spotify.',
+        day2Desc:
+          'Check Google Security Center and log out of unfamiliar devices. Browse Gmail, watch YouTube, and sign up/log into Spotify.',
         day3: 'Day 3: Bind Recovery Email & Register Twitter',
-        day3Desc: 'Go to security settings, add/update recovery email. Send/receive Gmail, watch YouTube, chat with Gemini AI, and register Twitter (X).',
+        day3Desc:
+          'Go to security settings, add/update recovery email. Send/receive Gmail, watch YouTube, chat with Gemini AI, and register Twitter (X).',
         day4: 'Day 4: Configure 2FA & Register TikTok',
-        day4Desc: 'Manage 2FA, generate backup codes or authenticator keys. Read Gmail, watch YouTube, use Gemini AI, and register TikTok.',
+        day4Desc:
+          'Manage 2FA, generate backup codes or authenticator keys. Read Gmail, watch YouTube, use Gemini AI, and register TikTok.',
         day5: 'Day 5: Bind Phone Number & Register Notion',
-        day5Desc: 'Set up or bind a security phone number. Send/receive Gmail, watch YouTube, ask Gemini questions, and register Notion.',
+        day5Desc:
+          'Set up or bind a security phone number. Send/receive Gmail, watch YouTube, ask Gemini questions, and register Notion.',
         day6: 'Day 6: Daily Active Warming & Register Canva',
-        day6Desc: 'Browse and send/receive emails in Gmail. Watch/comment on YouTube videos. Do a few web searches, and register Canva.',
+        day6Desc:
+          'Browse and send/receive emails in Gmail. Watch/comment on YouTube videos. Do a few web searches, and register Canva.',
         day7: 'Day 7: Change Password & Register Figma',
-        day7Desc: 'Change your main Google account password. Check and modify the account\'s registered country address. Send/receive Gmail, watch YouTube, translate text with Gemini, and register Figma.',
+        day7Desc:
+          "Change your main Google account password. Check and modify the account's registered country address. Send/receive Gmail, watch YouTube, translate text with Gemini, and register Figma.",
         day8: 'Day 8: Register Miro & Daily Warm-up',
-        day8Desc: 'Read and reply to a Gmail message, watch YouTube, chat with Gemini, and register Miro.',
+        day8Desc:
+          'Read and reply to a Gmail message, watch YouTube, chat with Gemini, and register Miro.',
         day9: 'Day 9: Register Miro (Board Creation) & Daily Warm-up',
-        day9Desc: 'Read and reply to Gmail, watch YouTube, chat with Gemini, and create a new project/board in Miro using your Google account.',
+        day9Desc:
+          'Read and reply to Gmail, watch YouTube, chat with Gemini, and create a new project/board in Miro using your Google account.',
         day10: 'Day 10: Register Slack & Daily Warm-up',
-        day10Desc: 'Read and reply to Gmail, watch YouTube for 10-15 minutes, chat with Gemini, and register Slack.',
+        day10Desc:
+          'Read and reply to Gmail, watch YouTube for 10-15 minutes, chat with Gemini, and register Slack.',
         day11: 'Day 11: Register ChatGPT & Daily Warm-up',
-        day11Desc: 'Read and reply to Gmail, watch YouTube, chat with Gemini, and register ChatGPT to start a conversation.',
+        day11Desc:
+          'Read and reply to Gmail, watch YouTube, chat with Gemini, and register ChatGPT to start a conversation.',
         day12: 'Day 12: Register GitHub & Daily Warm-up',
-        day12Desc: 'Read and reply to Gmail, watch YouTube for 10-15 minutes, chat with Gemini, and register GitHub.',
+        day12Desc:
+          'Read and reply to Gmail, watch YouTube for 10-15 minutes, chat with Gemini, and register GitHub.',
         day13: 'Day 13: Register Replit & Daily Warm-up',
         day13Desc: 'Read and reply to Gmail, watch YouTube, chat with Gemini, and register Replit.',
         day14: 'Day 14: Register Reddit & Plan Graduation',
-        day14Desc: 'Read and reply to Gmail, watch/like YouTube videos, chat with Gemini, and register Reddit to successfully graduate.'
+        day14Desc:
+          'Read and reply to Gmail, watch/like YouTube videos, chat with Gemini, and register Reddit to successfully graduate.',
       },
       searchPlaceholder: 'Search email, note or country...',
       statusAll: 'All Statuses',
       batchActions: 'Batch Actions',
-      batchWarmConfirm: 'Are you sure you want to run one-click check-in for the {count} selected accounts?',
+      batchWarmConfirm:
+        'Are you sure you want to run one-click check-in for the {count} selected accounts?',
       batchWarmSuccess: 'Successfully checked in {count} accounts in batch!',
-      batchDeleteConfirm: 'Are you sure you want to delete the {count} selected accounts? This action cannot be undone!',
+      batchDeleteConfirm:
+        'Are you sure you want to delete the {count} selected accounts? This action cannot be undone!',
       batchDeleteSuccess: 'Successfully deleted {count} accounts!',
       batchStatusSuccess: 'Successfully updated status for {count} accounts!',
       batchStatusWarming: 'Set status to Warming',
@@ -1787,8 +1868,8 @@ export default {
       importFailed: 'Import failed, please check the backup file format',
       pin: 'Pin to top',
       unpin: 'Unpin',
-      copied: 'Copied'
-    }
+      copied: 'Copied',
+    },
   },
   admin: {
     opened: 'Opened',
@@ -1851,7 +1932,8 @@ export default {
     administrator_forced_status_change: 'Administrator forced status change',
     advanced: 'Advanced',
     advanced_1: 'Advanced',
-    after_maintenance_mode_is: 'After maintenance mode is turned on, all non-admin users will be unable to access the platform. Are you sure you want to enable it?',
+    after_maintenance_mode_is:
+      'After maintenance mode is turned on, all non-admin users will be unable to access the platform. Are you sure you want to enable it?',
     ai_connection_test_failed: 'AI connection test failed',
     ai_intelligent_assistance: 'AI intelligent assistance',
     ai_intelligent_assistance_system: 'AI intelligent assistance system',
@@ -1866,9 +1948,11 @@ export default {
     ai_model_cloned: 'Model configuration copied. Update the model ID and display name below.',
     ai_model_count: '{count} models',
     ai_model_enabled_count: '{count} enabled',
-    ai_model_id_one_per_line: 'One model ID per line. Multi-line pasted IDs are split into models for the current provider when confirmed.',
+    ai_model_id_one_per_line:
+      'One model ID per line. Multi-line pasted IDs are split into models for the current provider when confirmed.',
     ai_model_id_required: 'Please enter a model ID first',
-    ai_models_added_from_list: 'Added {count} models from the model ID list. Skipped {skipped} duplicates.',
+    ai_models_added_from_list:
+      'Added {count} models from the model ID list. Skipped {skipped} duplicates.',
     ai_models_all_duplicates: 'All pasted model IDs already exist for this provider.',
     ai_no_default_model: 'No default model',
     ai_pending_configuration: 'Pending',
@@ -1905,46 +1989,63 @@ export default {
     are_you_sure_you: 'Are you sure you want to delete this AI model configuration?',
     are_you_sure_you_1: 'Are you sure you want to remove category "{category}" from the system?',
     are_you_sure_you_10: 'Are you sure you want to delete the resource "{resourcetitle}"?',
-    are_you_sure_you_11: 'Are you sure you want to delete the resource station "{stationdisplayName}"? \\n\\n⚠️ This operation will completely delete all manually uploaded categories, resources, and related user comments and likes on this site! \\n\\nThis operation is irreversible!',
+    are_you_sure_you_11:
+      'Are you sure you want to delete the resource station "{stationdisplayName}"? \\n\\n⚠️ This operation will completely delete all manually uploaded categories, resources, and related user comments and likes on this site! \\n\\nThis operation is irreversible!',
     are_you_sure_you_12: 'Are you sure you want to delete this category?',
-    are_you_sure_you_13: 'Are you sure you want to delete this official route? This operation is irreversible and will cascade clear all steps of the route and the user\'s learning records!',
+    are_you_sure_you_13:
+      "Are you sure you want to delete this official route? This operation is irreversible and will cascade clear all steps of the route and the user's learning records!",
     are_you_sure_you_14: 'Are you sure you want to delete this class?',
-    are_you_sure_you_15: 'Are you sure you want to delete this course? All associated classes will also be deleted.',
-    are_you_sure_you_16: 'Are you sure you want to delete this feedback record? It cannot be restored after deletion.',
+    are_you_sure_you_15:
+      'Are you sure you want to delete this course? All associated classes will also be deleted.',
+    are_you_sure_you_16:
+      'Are you sure you want to delete this feedback record? It cannot be restored after deletion.',
     are_you_sure_you_17: 'Are you sure you want to delete configuration scheme "{activeCfgname}"?',
-    are_you_sure_you_18: 'Are you sure you want to delete the mirror source "{sourcedisplayName}"? \\n\\n⚠️ This operation will delete all data of the mirror source, including:\\n• {param_1} synchronization resources\\n• {param_2} categories\\n• All synchronization logs\\n\\nThis operation is irreversible!',
-    are_you_sure_you_19: 'Are you sure you want to cancel this user\'s subscription?',
-    are_you_sure_you_2: 'Are you sure you want to delete the {param_0} plan? This operation is irreversible.',
+    are_you_sure_you_18:
+      'Are you sure you want to delete the mirror source "{sourcedisplayName}"? \\n\\n⚠️ This operation will delete all data of the mirror source, including:\\n• {param_1} synchronization resources\\n• {param_2} categories\\n• All synchronization logs\\n\\nThis operation is irreversible!',
+    are_you_sure_you_19: "Are you sure you want to cancel this user's subscription?",
+    are_you_sure_you_2:
+      'Are you sure you want to delete the {param_0} plan? This operation is irreversible.',
     are_you_sure_you_20: 'Are you sure you want to move member "{userName}" out of the team?',
     are_you_sure_you_21: 'Are you sure you want to bulk approve the selected {param_0} records?',
-    are_you_sure_you_22: 'Are you sure you want to permanently delete record "{itemtitle}"? This action cannot be undone.',
-    are_you_sure_you_23: 'Are you sure you want to disband this team? This operation is irreversible and will delete all related collaboration data.',
-    are_you_sure_you_3: 'Are you sure you want to delete/invalidate this activation code ({codecode})? This operation is irreversible.',
+    are_you_sure_you_22:
+      'Are you sure you want to permanently delete record "{itemtitle}"? This action cannot be undone.',
+    are_you_sure_you_23:
+      'Are you sure you want to disband this team? This operation is irreversible and will delete all related collaboration data.',
+    are_you_sure_you_3:
+      'Are you sure you want to delete/invalidate this activation code ({codecode})? This operation is irreversible.',
     are_you_sure_you_4: 'Are you sure you want to delete category "{typedCategoryname}"?',
-    are_you_sure_you_5: 'Are you sure you want to delete category "{catname}"? Resources associated with this category will be set to "Uncategorized".',
-    are_you_sure_you_6: 'Are you sure you want to delete category "{categoryname}"? \\n\\n⚠️ Deleting a category will not delete the resources under it (they will be converted to uncategorized status).',
-    are_you_sure_you_7: 'Are you sure you want to delete the subscription for user {param_0}? This operation is irreversible.',
-    are_you_sure_you_8: 'Are you sure you want to delete user {usernameuseremail}? This operation is irreversible and will delete all its associated data.',
-    are_you_sure_you_9: 'Are you sure you want to delete the resource "{restitle}"? This operation is irreversible.',
+    are_you_sure_you_5:
+      'Are you sure you want to delete category "{catname}"? Resources associated with this category will be set to "Uncategorized".',
+    are_you_sure_you_6:
+      'Are you sure you want to delete category "{categoryname}"? \\n\\n⚠️ Deleting a category will not delete the resources under it (they will be converted to uncategorized status).',
+    are_you_sure_you_7:
+      'Are you sure you want to delete the subscription for user {param_0}? This operation is irreversible.',
+    are_you_sure_you_8:
+      'Are you sure you want to delete user {usernameuseremail}? This operation is irreversible and will delete all its associated data.',
+    are_you_sure_you_9:
+      'Are you sure you want to delete the resource "{restitle}"? This operation is irreversible.',
     arrange_a_new_learning: 'Arrange a new learning route',
-    asset_copyright_is_unknown: 'Asset copyright is unknown or suspected of infringement and piracy',
+    asset_copyright_is_unknown:
+      'Asset copyright is unknown or suspected of infringement and piracy',
     asset_description_information_is: 'Asset description information is incomplete or misleading',
     asset_library: 'Asset Library',
     asset_management: 'Asset management',
     asset_ownership_sector_category: 'Asset ownership sector/category',
     assets: 'assets',
     assets_1: 'assets',
-    assign_subcategories_select_from: 'Assign subcategories (select from existing categories to belong to this category)',
+    assign_subcategories_select_from:
+      'Assign subcategories (select from existing categories to belong to this category)',
     at_least_6_people: 'At least 6 people',
     at_least_one_configuration: 'At least one configuration scheme must be retained',
     authorization_code_pass: 'Authorization code (PASS)',
     automatic_downgrade_and_disaster: 'Automatic downgrade and disaster recovery (Failback)',
     automatic_renewal: 'Automatic renewal',
     automatic_renewal_1: 'Automatic renewal',
-    automatically_generated_from_legacy: 'Automatically generated from legacy single model configuration',
+    automatically_generated_from_legacy:
+      'Automatically generated from legacy single model configuration',
     automatically_review_and_pass: 'Automatically review and pass works',
     automatically_review_approved_materials: 'Automatically review approved materials',
-    available_placeholders_code: 'Available placeholders: {\'{{code}}\'}',
+    available_placeholders_code: "Available placeholders: {'{{code}}'}",
     badge_color: 'badge color',
     baidu_skydisk: 'Baidu Skydisk',
     ban: 'ban',
@@ -1959,8 +2060,10 @@ export default {
     bind_and_import_course: 'Bind and import course categories',
     bind_email: 'Bind email',
     bind_email_restrictions_optional: 'Bind email restrictions (optional)',
-    briefly_describe_the_learning: 'Briefly describe the learning points, command tools that need to be mastered, and suggestions for meeting the standards (optional)...',
-    briefly_describe_the_learning_1: 'Briefly describe the learning outline objectives, expected output and core group positioning of this route...',
+    briefly_describe_the_learning:
+      'Briefly describe the learning points, command tools that need to be mastered, and suggestions for meeting the standards (optional)...',
+    briefly_describe_the_learning_1:
+      'Briefly describe the learning outline objectives, expected output and core group positioning of this route...',
     briefly_describe_the_mirror: 'Briefly describe the mirror source...',
     broadcast_content: 'Broadcast content',
     broadcast_sending_failed: 'Broadcast sending failed',
@@ -1974,7 +2077,7 @@ export default {
     by_month: 'by month',
     by_year: 'by year',
     c4d_material_pack_renderer: 'C4D, material pack, renderer',
-    c_bindemail_unlimited: 'c.bindEmail || \'Unlimited\'',
+    c_bindemail_unlimited: "c.bindEmail || 'Unlimited'",
     called_back: 'Called back',
     cancel: 'Cancel',
     cancel_at_the_end: 'Cancel at the end of the cycle',
@@ -1993,9 +2096,12 @@ export default {
     category_not_found: 'Category not found',
     category_removed: 'Category removed',
     center: 'Center',
-    centrally_review_and_control: 'Centrally review and control all 3D creative works, videos and graphics submitted by users to the front desk display wall',
-    centrally_review_and_control_1: 'Centrally review and control various materials and basic materials submitted by users to the material library',
-    centrally_review_and_control_2: 'Centrally review and control all 3D model assets submitted by users to the model library',
+    centrally_review_and_control:
+      'Centrally review and control all 3D creative works, videos and graphics submitted by users to the front desk display wall',
+    centrally_review_and_control_1:
+      'Centrally review and control various materials and basic materials submitted by users to the material library',
+    centrally_review_and_control_2:
+      'Centrally review and control all 3D model assets submitted by users to the model library',
     certification: 'Certification',
     charcount_characters: '{count} characters',
     choose_a_subscription_plan: 'Choose a subscription plan',
@@ -2012,7 +2118,8 @@ export default {
     cleaning_up: 'Cleaning up...',
     clear_steps: 'Clear steps',
     click_add_model_to: 'Click "Add Model" to configure your first AI service',
-    click_the_button_in: 'Click the button in the upper right corner to create your first independent manual resource download site',
+    click_the_button_in:
+      'Click the button in the upper right corner to create your first independent manual resource download site',
     click_to_edit_the: 'Click to edit the details of this hotspot',
     click_to_upload_cover: 'Click to upload cover image',
     close_feedback: 'Close feedback',
@@ -2020,7 +2127,8 @@ export default {
     closed: 'Closed',
     collapse_panel: 'Collapse panel',
     comma_separated: 'comma separated',
-    complete_the_uv_unfolding: 'Complete the UV unfolding of the model and ensure seamless stretching of the texture',
+    complete_the_uv_unfolding:
+      'Complete the UV unfolding of the model and ensure seamless stretching of the texture',
     configuration_parameter_json_format: 'Configuration parameter JSON format is incorrect',
     confirm_action: 'Confirm action',
     confirm_and_save_all: 'Confirm and save all changes',
@@ -2064,7 +2172,8 @@ export default {
     course_notes: 'Course notes',
     course_or_project_link: 'Course or project link (supports Bilibili / YouTube / GitHub)',
     course_published: 'Course published',
-    course_status_published_convert: 'course.status === \'PUBLISHED\' ? \'Convert to draft\' : \'Publish course\'',
+    course_status_published_convert:
+      "course.status === 'PUBLISHED' ? 'Convert to draft' : 'Publish course'",
     course_title: 'Course title',
     course_updated_successfully: 'Course updated successfully',
     courses: 'courses',
@@ -2103,7 +2212,8 @@ export default {
     default_2000: 'Default 2000',
     default_configuration: 'Default configuration',
     default_model: 'Default model',
-    default_values_have_been: 'Default values have been restored, please click Save to take effect.',
+    default_values_have_been:
+      'Default values have been restored, please click Save to take effect.',
     delete: 'Delete',
     delete_assets: 'Delete assets',
     delete_configuration_plan: 'Delete configuration plan',
@@ -2119,14 +2229,15 @@ export default {
     delete_successfully: 'Delete successfully',
     delete_user: 'Delete user',
     deletion_failed_please_try: 'Deletion failed, please try again',
-    describe_the_team_s: 'Describe the team\'s collaborative responsibilities...',
+    describe_the_team_s: "Describe the team's collaborative responsibilities...",
     description: 'Description',
     description_1: 'Description',
     description_content: 'Description content',
     description_information: 'Description information',
     detailed_call_back_instructions: 'Detailed call back instructions (required)',
     detailed_description_remarks: 'Detailed description/remarks',
-    detailed_introduction_and_usage: 'Detailed introduction and usage guide for writing resources, supporting Markdown typesetting, pictures, tables and code highlighting...',
+    detailed_introduction_and_usage:
+      'Detailed introduction and usage guide for writing resources, supporting Markdown typesetting, pictures, tables and code highlighting...',
     details: 'Details',
     diamond_members_and_above: 'Diamond members and above',
     difficulty_level: 'Difficulty level',
@@ -2171,9 +2282,12 @@ export default {
     enable_github_login: 'Enable GitHub login',
     enable_ssl_tls_connections: 'Enable SSL/TLS connections',
     enabled: 'Enabled',
-    english_logo_as_the: 'English logo (as the only route identifier, it is not recommended to modify it)',
-    english_logo_letters_underscores: 'English logo (letters/underscores, as the unique identifier of the route)',
-    enter_a_node_title: 'Enter a node title (Example: Mastering Hard Surface Subdivision Surface Modeling)',
+    english_logo_as_the:
+      'English logo (as the only route identifier, it is not recommended to modify it)',
+    english_logo_letters_underscores:
+      'English logo (letters/underscores, as the unique identifier of the route)',
+    enter_a_node_title:
+      'Enter a node title (Example: Mastering Hard Surface Subdivision Surface Modeling)',
     enter_an_emoji_icon: 'Enter an Emoji icon...',
     enter_broadcast_details: 'Enter broadcast details...',
     enter_broadcast_title: 'Enter broadcast title...',
@@ -2250,12 +2364,14 @@ export default {
     for_example_resource_cool: 'For example: resource cool',
     for_example_suitable_for: 'For example: suitable for daily Q&A/support long context',
     for_example_technology_cyberpunk: 'For example: technology, cyberpunk, game scenes...',
-    for_example_vip_the: 'For example \'VIP\', the format will be VIP-PLAN-XXXX...',
+    for_example_vip_the: "For example 'VIP', the format will be VIP-PLAN-XXXX...",
     for_example_wood_grain: 'For example: wood grain, metal...',
-    for_example_you_are: 'For example: You are a professional technical writing assistant, please answer questions in concise Chinese...',
+    for_example_you_are:
+      'For example: You are a professional technical writing assistant, please answer questions in concise Chinese...',
     for_example_zhang_san: 'For example: Zhang San',
     for_example_zycku: 'For example: zycku',
-    for_the_route_being: ': For the route being learned, please avoid deleting nodes with user progress. Changing the title and adding new steps is completely safe.',
+    for_the_route_being:
+      ': For the route being learned, please avoid deleting nodes with user progress. Changing the title and adding new steps is completely safe.',
     forced_rejection_rejected: 'Forced rejection (REJECTED)',
     free_for_all: 'Free for all',
     free_users_and_above: 'Free users and above (no limit)',
@@ -2268,9 +2384,11 @@ export default {
     generation_time: 'Generation time',
     getplanname_station_minplanpriority_and: '{param_0} and above',
     getting_started: 'Getting Started',
-    give_a_brief_introduction: 'Give a brief introduction to the high-quality resources of this resource site...',
+    give_a_brief_introduction:
+      'Give a brief introduction to the high-quality resources of this resource site...',
     half_a_year: 'half a year',
-    hello_your_verification_code: 'Hello, your verification code is: {\'{{code}}\'}. Please enter within 10 minutes.',
+    hello_your_verification_code:
+      "Hello, your verification code is: {'{{code}}'}. Please enter within 10 minutes.",
     hide_advanced_parameters: 'Hide advanced parameters',
     high: 'high',
     hot_topics: 'hot topics',
@@ -2292,14 +2410,19 @@ export default {
     incremental_synchronization: 'Incremental synchronization',
     indoor_workshop: 'indoor workshop',
     initial_password: 'Initial password *',
-    insufficient_relevance_to_the: 'Insufficient relevance to the platform’s 3D/creative learning themes',
-    introduce_advanced_editing_instructions: 'Introduce advanced editing instructions, complete complete physical works with a certain complexity, and learn the basic configuration of materials and lighting',
-    introduce_basic_tool_interface: 'Introduce basic tool interface layout, key operation shortcut keys, and complete simple geometry construction.',
+    insufficient_relevance_to_the:
+      'Insufficient relevance to the platform’s 3D/creative learning themes',
+    introduce_advanced_editing_instructions:
+      'Introduce advanced editing instructions, complete complete physical works with a certain complexity, and learn the basic configuration of materials and lighting',
+    introduce_basic_tool_interface:
+      'Introduce basic tool interface layout, key operation shortcut keys, and complete simple geometry construction.',
     introduce_your_platform_in: 'Introduce your platform in one sentence...',
-    isedit_edit_category_name: 'isEdit ? \'Edit category name\' : \'Add resource category\'',
-    isedit_edit_manual_resource: 'isEdit ? \'Edit manual resource station\' : \'Create manual resource station\'',
-    iseditingcategory_editing_category_name: 'isEditingCategory ? \'Editing category name\' : \'Add resource category\'',
-    issaving_saving_saving_global: 'isSaving ? \'Saving...\' : \'Saving global settings\'',
+    isedit_edit_category_name: "isEdit ? 'Edit category name' : 'Add resource category'",
+    isedit_edit_manual_resource:
+      "isEdit ? 'Edit manual resource station' : 'Create manual resource station'",
+    iseditingcategory_editing_category_name:
+      "isEditingCategory ? 'Editing category name' : 'Add resource category'",
+    issaving_saving_saving_global: "isSaving ? 'Saving...' : 'Saving global settings'",
     json_array_format_such: 'JSON array format, such as: ["3D", "Tutorial"]',
     jump_link_optional: 'Jump link (optional)',
     keep_at_least_one: 'Keep at least one AI model configuration',
@@ -2370,11 +2493,13 @@ export default {
     microsoftpoolstats_activewithproxy: '{count}',
     microsoftpoolstats_total: '{count}',
     mirror_source_created_successfully: 'Mirror source created successfully',
-    missing_necessary_channel_maps: 'Missing necessary channel maps (such as normal, roughness, etc.)',
+    missing_necessary_channel_maps:
+      'Missing necessary channel maps (such as normal, roughness, etc.)',
     model: 'model',
     model_assets: 'model assets',
     model_id: 'Model ID',
-    model_isdefault_current_default: 'model.isDefault ? \'Current default model\' : \'Set as default model\'',
+    model_isdefault_current_default:
+      "model.isDefault ? 'Current default model' : 'Set as default model'",
     model_pool_configuration: 'Model pool configuration',
     model_thinking_flow_display: '🧠 Model thinking flow display',
     monthly_card: 'monthly card',
@@ -2422,8 +2547,10 @@ export default {
     official_reply: 'Official reply',
     official_route: 'official route',
     ok: 'OK',
-    ollama_local_models_do: '>Ollama local models do not require an API Key. Please ensure that Ollama is running locally on the server and that the target model is passed <code class=',
-    ollama_local_models_do_1: 'Ollama local models do not require an API Key. Please ensure that Ollama is running locally on the server and that the target model has passed',
+    ollama_local_models_do:
+      '>Ollama local models do not require an API Key. Please ensure that Ollama is running locally on the server and that the target model is passed <code class=',
+    ollama_local_models_do_1:
+      'Ollama local models do not require an API Key. Please ensure that Ollama is running locally on the server and that the target model has passed',
     one_click_generation_of: '🎯 One-click generation of AI projects',
     only_available_for_redemption: 'Only available for redemption by designated email users',
     only_exists_on_the: '—Only exists on the server side',
@@ -2443,7 +2570,8 @@ export default {
     outdoor_natural_light: 'outdoor natural light',
     overdue: 'Overdue',
     page_pagination_page_pagination: 'Page {page} / {total}',
-    parameter_settings_are_unreasonable: 'Parameter settings are unreasonable or cannot be rendered correctly in mainstream engines',
+    parameter_settings_are_unreasonable:
+      'Parameter settings are unreasonable or cannot be rendered correctly in mainstream engines',
     parent_category: 'Parent category',
     parent_category_optional_used: 'Parent category (optional, used for sidebar grouping)',
     parsed_successfully: 'Parsed successfully',
@@ -2490,12 +2618,14 @@ export default {
     please_enter_english_id: 'Please enter English ID',
     please_enter_model_name: 'Please enter model name',
     please_enter_site_address: 'Please enter site address',
-    please_enter_specific_violations: 'Please enter specific violations or optimization suggestions...',
+    please_enter_specific_violations:
+      'Please enter specific violations or optimization suggestions...',
     please_enter_the_category: 'Please enter the category name',
     please_enter_the_class: 'Please enter the class title',
-    please_enter_the_email: 'Please enter the email address to receive the test email (it is recommended to use the sending email address or the verified recipient of this plan):',
+    please_enter_the_email:
+      'Please enter the email address to receive the test email (it is recommended to use the sending email address or the verified recipient of this plan):',
     please_enter_the_learning: 'Please enter the learning route name',
-    please_enter_the_user: 'Please enter the user\'s new password (at least 6 digits)',
+    please_enter_the_user: "Please enter the user's new password (at least 6 digits)",
     please_fill_in_the: 'Please fill in the team name and select the person in charge',
     please_fill_in_the_1: 'Please fill in the complete title and content',
     please_fill_in_the_2: 'Please fill in the plan name',
@@ -2521,7 +2651,8 @@ export default {
     processing: 'Processing',
     professional_member_and_above: 'Professional member and above',
     professional_photo_studio: 'Professional photo studio',
-    proficient_in_modeling_using: 'Proficient in modeling using extrusion, ring cutting and chamfering commands',
+    proficient_in_modeling_using:
+      'Proficient in modeling using extrusion, ring cutting and chamfering commands',
     program_logo_english: 'Program logo (English)',
     project: 'Project',
     proxy_account_proxy_split: '🔒 Proxy: {host}',
@@ -2624,7 +2755,8 @@ export default {
     set_as_processing: 'Set as processing',
     set_categories: 'Set categories',
     settings: 'settings',
-    showing_resourcepage_1_resourcepagesize: 'Showing {start} to {end}, a total of {total} resources',
+    showing_resourcepage_1_resourcepagesize:
+      'Showing {start} to {end}, a total of {total} resources',
     simulate_payment: 'Simulate payment',
     single_maximum_generation_max: 'Single maximum generation (Max Tokens)',
     site_icon_1_1: 'Site icon (1:1 ratio recommended)',
@@ -2640,7 +2772,8 @@ export default {
     sorting_weight_cat_order: 'Sorting weight: {order}',
     sorting_weight_small_number: 'Sorting weight (small number ranks first)',
     stage_2_in_depth: 'Stage 2: In-depth practice and optimization',
-    stage_breakdown_task_list: 'Stage breakdown task list (leave blank to generate smart default entries)',
+    stage_breakdown_task_list:
+      'Stage breakdown task list (leave blank to generate smart default entries)',
     standard_member_and_above: 'Standard member and above',
     standard_smtp: 'Standard SMTP',
     standby: '(standby)',
@@ -2668,7 +2801,7 @@ export default {
     success: 'success',
     successfully_matched_binding: 'Successfully matched binding',
     such_as_5: 'Such as 5',
-    such_as_activity_gift: 'Such as \'activity gift\', \'test activation code\'',
+    such_as_activity_gift: "Such as 'activity gift', 'test activation code'",
     such_as_c4d_assets: 'Such as: c4d_assets',
     such_as_cinema_4d: 'Such as: Cinema 4D manual resource station',
     such_as_premium_texture: 'Such as: premium texture pack',
@@ -2706,42 +2839,59 @@ export default {
     text_html: 'Text HTML',
     the_author_has_not: 'The author has not filled in the detailed description information.',
     the_content_of_the: 'The content of the work contains sensitive or illegal information',
-    the_copyright_ownership_is: 'The copyright ownership is unknown or suspected of unauthorized transfer.',
-    the_copyright_ownership_of: 'The copyright ownership of the material is unknown or suspected of unauthorized transfer.',
-    the_current_route_does: 'The current route does not have any valid steps. Are you sure you want to save?',
+    the_copyright_ownership_is:
+      'The copyright ownership is unknown or suspected of unauthorized transfer.',
+    the_copyright_ownership_of:
+      'The copyright ownership of the material is unknown or suspected of unauthorized transfer.',
+    the_current_route_does:
+      'The current route does not have any valid steps. Are you sure you want to save?',
     the_current_route_does_1: 'The current route does not have any learning nodes yet',
-    the_description_of_the: 'The description of the work is too crude or contains misleading marketing',
-    the_goal_of_each: ': The goal of each step node is recommended to be focused enough and measurable.',
+    the_description_of_the:
+      'The description of the work is too crude or contains misleading marketing',
+    the_goal_of_each:
+      ': The goal of each step node is recommended to be focused enough and measurable.',
     the_mirror_source_and: 'The mirror source and all associated data have been deleted',
-    the_model_has_serious: 'The model has serious quality problems such as broken surfaces or normal errors.',
-    the_number_of_model: 'The number of model faces is too high and reasonable topology optimization has not been performed.',
+    the_model_has_serious:
+      'The model has serious quality problems such as broken surfaces or normal errors.',
+    the_number_of_model:
+      'The number of model faces is too high and reasonable topology optimization has not been performed.',
     the_official_route_recommends: ': The official route recommends planning 3-7 key steps.',
     the_plan_still_has: 'The plan still has {param_0} subscribers and cannot be deleted',
     the_record_has_been: 'The record has been returned',
     the_smaller_it_is: '(The smaller it is, the closer it is to the front)',
     the_team_has_been: 'The team has been disbanded',
     the_test_failed_and: 'The test failed and the interface did not return a success signal.',
-    the_texture_map_resolution: 'The texture map resolution is too low or the clarity is insufficient',
+    the_texture_map_resolution:
+      'The texture map resolution is too low or the clarity is insufficient',
     the_user_and_their: 'The user and their data have been removed from the system',
     there_are_also_roadmap: 'There are also {count} advanced nodes',
-    there_are_currently_no: 'There are currently no matching user submission records under the current category and search conditions.',
+    there_are_currently_no:
+      'There are currently no matching user submission records under the current category and search conditions.',
     there_are_currently_no_1: 'There are currently no step nodes',
-    there_are_obvious_seams: 'There are obvious seams at the edges of the seamless texture or there is too much repetition.',
-    there_are_still_count: 'There are still {count} ${activeTab.value === \'assets\' ? \'Assets\' : \'Courses\'} under this category and cannot be deleted.',
+    there_are_obvious_seams:
+      'There are obvious seams at the edges of the seamless texture or there is too much repetition.',
+    there_are_still_count:
+      "There are still {count} ${activeTab.value === 'assets' ? 'Assets' : 'Courses'} under this category and cannot be deleted.",
     there_are_unsaved_changes: 'There are unsaved changes',
     there_is_currently_no: 'There is currently no manual resource station',
-    there_is_no_category: 'There is no category yet, click "New Category" on the upper right to start',
-    there_is_no_classification: 'There is no classification data yet, please create a classification first',
-    there_is_no_route: 'There is no route description yet, click the edit button in the upper right corner to add it.',
-    this_action_returns_all: 'This action returns all settings to their default values and unsaved changes will be lost. Are you sure to continue?',
-    this_operation_will_scan: 'This operation will scan the local upload directory of the server and permanently physically delete all orphan files that are not referenced by database records (such as illustrations for deleted posts, draft attachments that were not successfully saved, etc.). This operation is irreversible. Are you sure to continue?',
+    there_is_no_category:
+      'There is no category yet, click "New Category" on the upper right to start',
+    there_is_no_classification:
+      'There is no classification data yet, please create a classification first',
+    there_is_no_route:
+      'There is no route description yet, click the edit button in the upper right corner to add it.',
+    this_action_returns_all:
+      'This action returns all settings to their default values and unsaved changes will be lost. Are you sure to continue?',
+    this_operation_will_scan:
+      'This operation will scan the local upload directory of the server and permanently physically delete all orphan files that are not referenced by database records (such as illustrations for deleted posts, draft attachments that were not successfully saved, etc.). This operation is irreversible. Are you sure to continue?',
     this_resource_site_has: 'This resource site has not been configured with any categories...',
     through_works: 'through works',
     thumbnail_url: 'Thumbnail URL',
     time_consuming: 'Time consuming: {duration}',
     time_consuming_formatduration_log: 'Time consuming {duration}',
     time_consuming_formatduration_source: 'Time consuming: {duration}',
-    tip_after_sending_a: 'Tip: After sending a reply, the user will receive a real-time notification from the system.',
+    tip_after_sending_a:
+      'Tip: After sending a reply, the user will receive a real-time notification from the system.',
     title: 'Title',
     today_s_delivery_ratio: 'Today’s delivery ratio',
     token_expires: 'Token expires',
@@ -2756,16 +2906,19 @@ export default {
     total_sourcecategories_length_categories: 'Total {count} categories',
     trigger_sync_failed: 'Trigger sync failed',
     try_changing_keywords_or: 'Try changing keywords or filtering conditions and searching again.',
-    try_other_keywords_or: 'Try other keywords, or click on the upper right corner to create a new category',
+    try_other_keywords_or:
+      'Try other keywords, or click on the upper right corner to create a new category',
     trying_to_shake_hands: 'Trying to shake hands...',
     turn_on_google_sign: 'Turn on Google Sign-in',
     tutorial: 'Tutorial',
-    type_full_full_increment: '${type === \'FULL\' ? \'Full\' : \'Increment\'} Synchronization has been triggered',
+    type_full_full_increment:
+      "${type === 'FULL' ? 'Full' : 'Increment'} Synchronization has been triggered",
     unable_to_load_user: 'Unable to load user list',
     unblock: 'Unblock',
     uncategorized: 'Uncategorized',
     under_test: 'Under test',
-    understand_common_geometric_models: 'Understand common geometric models and complete low-poly assembly',
+    understand_common_geometric_models:
+      'Understand common geometric models and complete low-poly assembly',
     undo_failed: 'Undo failed',
     universal_link: 'universal link',
     universal_wordpress: 'Universal WordPress',
@@ -2801,7 +2954,7 @@ export default {
     user_management: 'User management',
     user_name: 'User name',
     user_role: 'user role',
-    user_status_banned_unblock: 'user.status === \'BANNED\' ? \'Unblock\' : \'Banned\'',
+    user_status_banned_unblock: "user.status === 'BANNED' ? 'Unblock' : 'Banned'",
     user_user_name_user: 'User {usernameuseremail} has {actionText}',
     username_optional: 'Username (optional)',
     valid_permanently: 'Valid permanently',
@@ -2820,9 +2973,10 @@ export default {
     work_display: 'Work display',
     writing_to_database: 'Writing to database...',
     yearly_payment_plan_yearlyprice: '/ Yearly payment ￥{planyearlyPrice}',
-    you_have_switched_the: '⚠️ You have switched the sending mode to "{mode}", this change has not yet taken effect. Please be sure to click the "Save Global Settings" button in the upper right corner of the page!',
+    you_have_switched_the:
+      '⚠️ You have switched the sending mode to "{mode}", this change has not yet taken effect. Please be sure to click the "Save Global Settings" button in the upper right corner of the page!',
     your_email_verification_code: 'Your email verification code',
     your_reply: 'your reply',
     zycku_resource_cool: 'Zycku (resource cool)',
-  }
+  },
 } satisfies I18nMessages;

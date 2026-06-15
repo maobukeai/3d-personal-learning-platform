@@ -60,9 +60,9 @@ const goToLogin = async () => {
           style="border-color: var(--border-base)"
         >
           <Loader2 class="w-4 h-4 text-accent animate-spin" />
-          <span class="text-sm font-bold" style="color: var(--text-primary)"
-            >{{ $t('support.optimizing_engine') }}</span
-          >
+          <span class="text-sm font-bold" style="color: var(--text-primary)">{{
+            $t('support.optimizing_engine')
+          }}</span>
         </div>
       </div>
 
@@ -73,7 +73,11 @@ const goToLogin = async () => {
         >
           {{ $t('support.if_you_are_admin') }}
         </p>
-        <button type="button" class="px-8 py-3 bg-slate-900 text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-all active:scale-95" @click="goToLogin">
+        <button
+          type="button"
+          class="px-8 py-3 bg-slate-900 text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-all active:scale-95"
+          @click="goToLogin"
+        >
           {{ $t('support.enter_admin') }}
         </button>
       </div>

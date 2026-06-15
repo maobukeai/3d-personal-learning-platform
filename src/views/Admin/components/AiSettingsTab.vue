@@ -23,6 +23,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
+import Modal from '@/components/ui/Modal.vue';
 import {
   PENDING_MODEL_FAMILY_KEY,
   inferModelFamilyKey,
@@ -93,7 +94,7 @@ watch(
   (val) => {
     Object.assign(localSettings, val);
   },
-  { deep: true }
+  { deep: true },
 );
 
 watch(
@@ -101,7 +102,7 @@ watch(
   (val) => {
     emit('update:settings', { ...props.settings, ...val });
   },
-  { deep: true }
+  { deep: true },
 );
 
 watch(
@@ -109,7 +110,7 @@ watch(
   (val) => {
     localAiModelConfigs.value = JSON.parse(JSON.stringify(val));
   },
-  { deep: true, immediate: true }
+  { deep: true, immediate: true },
 );
 
 watch(
@@ -117,7 +118,7 @@ watch(
   (val) => {
     emit('update:aiModelConfigs', val);
   },
-  { deep: true }
+  { deep: true },
 );
 
 watch(
@@ -125,7 +126,7 @@ watch(
   (val) => {
     localPendingModelFamilyIds.value = [...val];
   },
-  { deep: true, immediate: true }
+  { deep: true, immediate: true },
 );
 
 watch(
@@ -133,7 +134,7 @@ watch(
   (val) => {
     emit('update:pendingModelFamilyIds', val);
   },
-  { deep: true }
+  { deep: true },
 );
 
 const aiProviderDefaults: Record<string, { endpoint: string; model: string; name: string }> = {
@@ -190,7 +191,9 @@ const createAiModelConfig = (provider = 'DEEPSEEK'): AiModelConfig => {
 const isPendingAiModel = (id: string) => localPendingModelFamilyIds.value.includes(id);
 
 const getPersistableAiModels = () =>
-  localAiModelConfigs.value.filter((model) => !isPendingAiModel(model.id) && model.modelName.trim());
+  localAiModelConfigs.value.filter(
+    (model) => !isPendingAiModel(model.id) && model.modelName.trim(),
+  );
 
 const syncCustomCategoriesToSettings = () => {
   localSettings.AI_MODEL_CUSTOM_CATEGORIES = JSON.stringify(customCategories.value);
@@ -309,7 +312,9 @@ const confirmAiModelFamily = (model: AiModelConfig, options: { silent?: boolean 
   }
   const result = expandModelNameLines(model, { markNewAsPending: false, showMessage: false });
   const confirmedIds = new Set([model.id, ...result.addedIds]);
-  localPendingModelFamilyIds.value = localPendingModelFamilyIds.value.filter((id) => !confirmedIds.has(id));
+  localPendingModelFamilyIds.value = localPendingModelFamilyIds.value.filter(
+    (id) => !confirmedIds.has(id),
+  );
   syncAiModelsToSettings();
   if (!options.silent) ElMessage.success(t('admin.ai_model_classified'));
   return true;
@@ -341,7 +346,9 @@ const removeAiModel = async (id: string) => {
     });
     const removed = localAiModelConfigs.value.find((model) => model.id === id);
     localAiModelConfigs.value = localAiModelConfigs.value.filter((model) => model.id !== id);
-    localPendingModelFamilyIds.value = localPendingModelFamilyIds.value.filter((item) => item !== id);
+    localPendingModelFamilyIds.value = localPendingModelFamilyIds.value.filter(
+      (item) => item !== id,
+    );
     if (removed?.isDefault && localAiModelConfigs.value[0]) {
       localAiModelConfigs.value[0].isDefault = true;
     }
@@ -621,7 +628,7 @@ watch(
   () => {
     restoreCustomCategories();
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 const addCustomCategory = async () => {
@@ -654,17 +661,13 @@ const addCustomCategory = async () => {
 
 const renameModelFamilyGroup = async (groupKey: string, currentLabel: string) => {
   try {
-    const { value: newLabel } = await ElMessageBox.prompt(
-      '请输入新的分组名称',
-      '重命名分组',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        inputValue: currentLabel,
-        inputPattern: /\S+/,
-        inputErrorMessage: '分组名称不能为空',
-      },
-    );
+    const { value: newLabel } = await ElMessageBox.prompt('请输入新的分组名称', '重命名分组', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputValue: currentLabel,
+      inputPattern: /\S+/,
+      inputErrorMessage: '分组名称不能为空',
+    });
     if (newLabel?.trim()) {
       const trimmedLabel = newLabel.trim();
       const existing = customCategories.value.find((c) => c.key === groupKey);
@@ -963,7 +966,9 @@ const batchMoveAiModelsToFamily = () => {
     } else {
       model.customFamilyKey = batchTargetFamilyKey.value;
       model.customFamilyLabel = targetLabel;
-      localPendingModelFamilyIds.value = localPendingModelFamilyIds.value.filter((id) => id !== model.id);
+      localPendingModelFamilyIds.value = localPendingModelFamilyIds.value.filter(
+        (id) => id !== model.id,
+      );
     }
   });
 
@@ -1001,8 +1006,12 @@ const batchDeleteAiModels = async () => {
     );
 
     const selectedIds = new Set(batchSelectedModelIds.value);
-    localAiModelConfigs.value = localAiModelConfigs.value.filter((model) => !selectedIds.has(model.id));
-    localPendingModelFamilyIds.value = localPendingModelFamilyIds.value.filter((id) => !selectedIds.has(id));
+    localAiModelConfigs.value = localAiModelConfigs.value.filter(
+      (model) => !selectedIds.has(model.id),
+    );
+    localPendingModelFamilyIds.value = localPendingModelFamilyIds.value.filter(
+      (id) => !selectedIds.has(id),
+    );
     batchSelectedModelIds.value = [];
     normalizeDefaultModelAfterBatch();
     syncAiModelsToSettings();
@@ -1265,11 +1274,7 @@ onMounted(() => {
     <div
       class="relative overflow-hidden rounded-3xl border p-6"
       style="
-        background: linear-gradient(
-          135deg,
-          var(--bg-card) 0%,
-          rgba(99, 102, 241, 0.04) 100%
-        );
+        background: linear-gradient(135deg, var(--bg-card) 0%, rgba(99, 102, 241, 0.04) 100%);
         border-color: var(--border-base);
       "
     >
@@ -1288,10 +1293,7 @@ onMounted(() => {
             <h2 class="text-base font-black mb-1" style="color: var(--text-primary)">
               {{ $t('admin.ai_intelligent_assistance_system') }}
             </h2>
-            <p
-              class="text-xs leading-relaxed max-w-lg"
-              style="color: var(--text-secondary)"
-            >
+            <p class="text-xs leading-relaxed max-w-lg" style="color: var(--text-secondary)">
               启用后，用户可以使用 AI 一键生成项目、AI 写作助手等智能功能。API Key
               仅保存在服务端，不会暴露给前台用户。
             </p>
@@ -1426,7 +1428,7 @@ onMounted(() => {
         <div
           v-if="selectedAiModels.length > 0"
           class="flex items-center justify-between p-2.5 rounded-xl border text-xs gap-3"
-          style="border-color: rgba(99, 102, 241, 0.25); background: rgba(99, 102, 241, 0.04);"
+          style="border-color: rgba(99, 102, 241, 0.25); background: rgba(99, 102, 241, 0.04)"
         >
           <!-- Left Side: Selection Count & Master Select All Checkbox -->
           <div class="flex items-center gap-3">
@@ -1434,10 +1436,19 @@ onMounted(() => {
               :model-value="isAllAiModelsSelected"
               :indeterminate="selectedAiModels.length > 0 && !isAllAiModelsSelected"
               class="shrink-0"
-              @change="(val: unknown) => { if (val) { selectAllAiModels() } else { clearSelectedAiModels() } }"
+              @change="
+                (val: unknown) => {
+                  if (val) {
+                    selectAllAiModels();
+                  } else {
+                    clearSelectedAiModels();
+                  }
+                }
+              "
             />
             <span class="font-bold shrink-0" style="color: var(--text-primary)">
-              已选择 <span style="color: #6366f1">{{ selectedAiModels.length }}</span> / {{ localAiModelConfigs.length }} 个模型
+              已选择 <span style="color: #6366f1">{{ selectedAiModels.length }}</span> /
+              {{ localAiModelConfigs.length }} 个模型
             </span>
           </div>
 
@@ -1455,7 +1466,11 @@ onMounted(() => {
             <button
               type="button"
               class="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 cursor-pointer shrink-0"
-              style="border-color: rgba(16, 185, 129, 0.25); color: #059669; background: rgba(16, 185, 129, 0.05)"
+              style="
+                border-color: rgba(16, 185, 129, 0.25);
+                color: #059669;
+                background: rgba(16, 185, 129, 0.05);
+              "
               @click="batchSetAiModelsEnabled(true)"
             >
               启用
@@ -1463,7 +1478,11 @@ onMounted(() => {
             <button
               type="button"
               class="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 cursor-pointer shrink-0"
-              style="border-color: rgba(100, 116, 139, 0.25); color: var(--text-secondary); background: rgba(100, 116, 139, 0.05)"
+              style="
+                border-color: rgba(100, 116, 139, 0.25);
+                color: var(--text-secondary);
+                background: rgba(100, 116, 139, 0.05);
+              "
               @click="batchSetAiModelsEnabled(false)"
             >
               禁用
@@ -1485,7 +1504,11 @@ onMounted(() => {
             <button
               type="button"
               class="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 cursor-pointer shrink-0"
-              style="border-color: rgba(244, 63, 94, 0.25); color: #e11d48; background: rgba(244, 63, 94, 0.05)"
+              style="
+                border-color: rgba(244, 63, 94, 0.25);
+                color: #e11d48;
+                background: rgba(244, 63, 94, 0.05);
+              "
               @click="batchDeleteAiModels"
             >
               删除
@@ -1521,7 +1544,10 @@ onMounted(() => {
                 </div>
                 <div class="min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
-                    <h4 class="text-sm font-black flex items-center gap-1.5" style="color: var(--text-primary)">
+                    <h4
+                      class="text-sm font-black flex items-center gap-1.5"
+                      style="color: var(--text-primary)"
+                    >
                       <span>{{ group.label }}</span>
                       <button
                         type="button"
@@ -1535,16 +1561,12 @@ onMounted(() => {
                     <span
                       class="px-2 py-0.5 rounded-lg text-[10px] font-bold"
                       :style="`background: ${group.meta.bg}; color: ${group.meta.color};`"
-                      >{{
-                        $t('admin.ai_model_count', { count: group.models.length })
-                      }}</span
+                      >{{ $t('admin.ai_model_count', { count: group.models.length }) }}</span
                     >
                     <span
                       class="px-2 py-0.5 rounded-lg text-[10px] font-bold"
                       style="background: rgba(99, 102, 241, 0.1); color: #6366f1"
-                      >{{
-                        $t('admin.ai_model_enabled_count', { count: group.enabledCount })
-                      }}</span
+                      >{{ $t('admin.ai_model_enabled_count', { count: group.enabledCount }) }}</span
                     >
                     <span
                       class="px-2 py-0.5 rounded-lg text-[10px] font-bold"
@@ -1560,9 +1582,7 @@ onMounted(() => {
                     class="flex flex-wrap items-center gap-3 mt-1.5 text-[10px]"
                     style="color: var(--text-muted)"
                   >
-                    <span class="font-mono truncate max-w-[360px]">{{
-                      group.endpointLabel
-                    }}</span>
+                    <span class="font-mono truncate max-w-[360px]">{{ group.endpointLabel }}</span>
                     <span
                       v-if="group.defaultModel"
                       class="font-bold text-amber-600 dark:text-amber-400"
@@ -1590,8 +1610,7 @@ onMounted(() => {
                   @click.stop="toggleGroupModelSelection(group)"
                 >
                   <span>{{
-                    getGroupSelectedCount(group) === group.models.length &&
-                    group.models.length > 0
+                    getGroupSelectedCount(group) === group.models.length && group.models.length > 0
                       ? '取消本组'
                       : '选择本组'
                   }}</span>
@@ -1609,9 +1628,7 @@ onMounted(() => {
                   @click="addAiModelToFamily(group)"
                 >
                   <Plus class="w-3.5 h-3.5" />
-                  <span>{{
-                    $t('admin.ai_add_family_model', { family: group.label })
-                  }}</span>
+                  <span>{{ $t('admin.ai_add_family_model', { family: group.label }) }}</span>
                 </button>
                 <el-switch
                   :model-value="!disabledGroupKeys.includes(group.key)"
@@ -1620,7 +1637,9 @@ onMounted(() => {
                   inactive-text="禁用"
                   style="--el-switch-on-color: #10b981; --el-switch-off-color: #94a3b8"
                   class="mr-2"
-                  @change="(val: boolean | string | number) => toggleGroupEnabled(group.key, Boolean(val))"
+                  @change="
+                    (val: boolean | string | number) => toggleGroupEnabled(group.key, Boolean(val))
+                  "
                   @click.stop
                 />
                 <button
@@ -1646,11 +1665,7 @@ onMounted(() => {
                     class="w-4 h-4 transition-transform"
                     :class="isModelFamilyGroupCollapsed(group.key) ? '-rotate-90' : ''"
                   >
-                    <path
-                      d="M19 9l-7 7-7-7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
+                    <path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
                 </button>
               </div>
@@ -1716,7 +1731,11 @@ onMounted(() => {
                 <el-checkbox
                   :model-value="isAiModelSelected(model.id)"
                   class="shrink-0 transition-opacity duration-200"
-                  :class="isAiModelSelected(model.id) || selectedAiModels.length > 0 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+                  :class="
+                    isAiModelSelected(model.id) || selectedAiModels.length > 0
+                      ? 'opacity-100'
+                      : 'opacity-0 group-hover:opacity-100'
+                  "
                   @change="toggleAiModelSelection(model.id, $event)"
                   @click.stop
                 />
@@ -1765,7 +1784,13 @@ onMounted(() => {
                       type="button"
                       class="w-6 h-6 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center text-slate-400 transition-colors border-none bg-transparent cursor-pointer"
                     >
-                      <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <svg
+                        viewBox="0 0 24 24"
+                        class="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                      >
                         <circle cx="12" cy="12" r="1" />
                         <circle cx="12" cy="5" r="1" />
                         <circle cx="12" cy="19" r="1" />
@@ -1785,9 +1810,7 @@ onMounted(() => {
                         >
                           设为默认模型
                         </el-dropdown-item>
-                        <el-dropdown-item @click="cloneAiModel(model)">
-                          复制模型
-                        </el-dropdown-item>
+                        <el-dropdown-item @click="cloneAiModel(model)"> 复制模型 </el-dropdown-item>
                         <el-dropdown-item
                           v-if="isPendingAiModel(model.id)"
                           @click="confirmAiModelFamily(model)"
@@ -1965,17 +1988,23 @@ onMounted(() => {
                     </svg>
                   </button>
 
-                  <div v-if="model.showAdvanced" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 animate-in fade-in duration-200">
+                  <div
+                    v-if="model.showAdvanced"
+                    class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 animate-in fade-in duration-200"
+                  >
                     <div class="space-y-1.5">
-                      <label class="text-[10px] font-bold text-slate-400">能力支持 (Capabilities)</label>
+                      <label class="text-[10px] font-bold text-slate-400"
+                        >能力支持 (Capabilities)</label
+                      >
                       <div class="flex items-center gap-3 mt-1">
                         <el-checkbox
                           :model-value="model.capabilities.includes('chat')"
                           label="对话 (Chat)"
                           @change="
-                            (checked) => {
+                            (checked: any) => {
                               if (checked) {
-                                if (!model.capabilities.includes('chat')) model.capabilities.push('chat');
+                                if (!model.capabilities.includes('chat'))
+                                  model.capabilities.push('chat');
                               } else {
                                 model.capabilities = model.capabilities.filter((c) => c !== 'chat');
                               }
@@ -1987,11 +2016,14 @@ onMounted(() => {
                           :model-value="model.capabilities.includes('image')"
                           label="画图 (Image)"
                           @change="
-                            (checked) => {
+                            (checked: any) => {
                               if (checked) {
-                                if (!model.capabilities.includes('image')) model.capabilities.push('image');
+                                if (!model.capabilities.includes('image'))
+                                  model.capabilities.push('image');
                               } else {
-                                model.capabilities = model.capabilities.filter((c) => c !== 'image');
+                                model.capabilities = model.capabilities.filter(
+                                  (c) => c !== 'image',
+                                );
                               }
                               syncAiModelsToSettings();
                             }
@@ -2036,7 +2068,9 @@ onMounted(() => {
                     </div>
 
                     <div class="space-y-1.5 md:col-span-2">
-                      <label class="text-[10px] font-bold text-slate-400">系统引导词提示 (System Prompt)</label>
+                      <label class="text-[10px] font-bold text-slate-400"
+                        >系统引导词提示 (System Prompt)</label
+                      >
                       <textarea
                         v-model="model.systemPrompt"
                         rows="3"
@@ -2054,7 +2088,10 @@ onMounted(() => {
                 </div>
 
                 <!-- Card Actions -->
-                <div class="flex items-center justify-between border-t pt-3" style="border-color: var(--border-base)">
+                <div
+                  class="flex items-center justify-between border-t pt-3"
+                  style="border-color: var(--border-base)"
+                >
                   <button
                     type="button"
                     :disabled="isTestingAi"
@@ -2114,7 +2151,11 @@ onMounted(() => {
       </div>
 
       <!-- Disabled Model Family Groups (Folded section at the bottom) -->
-      <div v-if="disabledModelFamilyGroups.length > 0" class="pt-4 border-t" style="border-color: var(--border-base)">
+      <div
+        v-if="disabledModelFamilyGroups.length > 0"
+        class="pt-4 border-t"
+        style="border-color: var(--border-base)"
+      >
         <button
           type="button"
           class="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors bg-transparent border-none cursor-pointer"
@@ -2133,7 +2174,10 @@ onMounted(() => {
           </svg>
         </button>
 
-        <div v-if="!isUnenabledGroupCollapsed" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 animate-in fade-in duration-200">
+        <div
+          v-if="!isUnenabledGroupCollapsed"
+          class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 animate-in fade-in duration-200"
+        >
           <div
             v-for="group in disabledModelFamilyGroups"
             :key="group.key"
@@ -2177,10 +2221,7 @@ onMounted(() => {
     <div
       v-if="localSettings.AI_IMPORT_ENABLED"
       class="flex flex-col sm:flex-row items-center justify-between p-4 rounded-2xl border gap-4"
-      style="
-        border-color: rgba(99, 102, 241, 0.2);
-        background: rgba(99, 102, 241, 0.02);
-      "
+      style="border-color: rgba(99, 102, 241, 0.2); background: rgba(99, 102, 241, 0.02)"
     >
       <p class="text-[10px] hidden sm:block" style="color: var(--text-muted)">
         {{ $t('admin.please_test_connectivity_before') }}
@@ -2203,13 +2244,20 @@ onMounted(() => {
           :class="isTestingAi && testingAiModelId === '__legacy__' ? 'animate-spin' : ''"
         />
         <span>{{
-          isTestingAi && testingAiModelId === '__legacy__' ? $t('admin.testing') : $t('admin.test_default_model_connections')
+          isTestingAi && testingAiModelId === '__legacy__'
+            ? $t('admin.testing')
+            : $t('admin.test_default_model_connections')
         }}</span>
       </button>
     </div>
   </div>
 
-  <el-dialog v-model="modelFetchDialogVisible" title="选择可用模型" width="680px" destroy-on-close>
+  <Modal
+    :show="modelFetchDialogVisible"
+    title="选择可用模型"
+    size="lg"
+    @close="modelFetchDialogVisible = false"
+  >
     <div class="space-y-3">
       <div class="flex items-center justify-between gap-3">
         <div class="min-w-0">
@@ -2301,5 +2349,5 @@ onMounted(() => {
         </div>
       </div>
     </template>
-  </el-dialog>
+  </Modal>
 </template>

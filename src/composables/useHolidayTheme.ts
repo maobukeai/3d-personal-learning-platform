@@ -21,23 +21,26 @@ interface DateRange {
 }
 
 // Lunar holidays mapped to Gregorian date ranges.
-// Data source: Calculations of solar-lunar terms (based on Purple Mountain Observatory astronomical data) 
+// Data source: Calculations of solar-lunar terms (based on Purple Mountain Observatory astronomical data)
 // combined with standard Chinese government public holiday patterns for years 2026 to 2030.
-const lunarHolidays: Record<number, {
-  springFestival: DateRange;
-  lanternFestival: DateRange;
-  dragonBoat: DateRange;
-  qixi: DateRange;
-  midAutumn: DateRange;
-  doubleNinth: DateRange;
-}> = {
+const lunarHolidays: Record<
+  number,
+  {
+    springFestival: DateRange;
+    lanternFestival: DateRange;
+    dragonBoat: DateRange;
+    qixi: DateRange;
+    midAutumn: DateRange;
+    doubleNinth: DateRange;
+  }
+> = {
   2026: {
     springFestival: { start: { month: 2, date: 16 }, end: { month: 2, date: 22 } },
     lanternFestival: { start: { month: 3, date: 2 }, end: { month: 3, date: 3 } },
     dragonBoat: { start: { month: 6, date: 18 }, end: { month: 6, date: 20 } },
     qixi: { start: { month: 8, date: 18 }, end: { month: 8, date: 19 } },
     midAutumn: { start: { month: 9, date: 24 }, end: { month: 9, date: 26 } },
-    doubleNinth: { start: { month: 10, date: 25 }, end: { month: 10, date: 26 } }
+    doubleNinth: { start: { month: 10, date: 25 }, end: { month: 10, date: 26 } },
   },
   2027: {
     springFestival: { start: { month: 2, date: 5 }, end: { month: 2, date: 11 } },
@@ -45,7 +48,7 @@ const lunarHolidays: Record<number, {
     dragonBoat: { start: { month: 6, date: 8 }, end: { month: 6, date: 10 } },
     qixi: { start: { month: 8, date: 7 }, end: { month: 8, date: 8 } },
     midAutumn: { start: { month: 9, date: 14 }, end: { month: 9, date: 16 } },
-    doubleNinth: { start: { month: 10, date: 14 }, end: { month: 10, date: 15 } }
+    doubleNinth: { start: { month: 10, date: 14 }, end: { month: 10, date: 15 } },
   },
   2028: {
     springFestival: { start: { month: 1, date: 25 }, end: { month: 1, date: 31 } },
@@ -53,7 +56,7 @@ const lunarHolidays: Record<number, {
     dragonBoat: { start: { month: 5, date: 27 }, end: { month: 5, date: 29 } },
     qixi: { start: { month: 8, date: 25 }, end: { month: 8, date: 26 } },
     midAutumn: { start: { month: 10, date: 2 }, end: { month: 10, date: 4 } },
-    doubleNinth: { start: { month: 10, date: 25 }, end: { month: 10, date: 26 } }
+    doubleNinth: { start: { month: 10, date: 25 }, end: { month: 10, date: 26 } },
   },
   2029: {
     springFestival: { start: { month: 2, date: 12 }, end: { month: 2, date: 18 } },
@@ -61,7 +64,7 @@ const lunarHolidays: Record<number, {
     dragonBoat: { start: { month: 6, date: 15 }, end: { month: 6, date: 17 } },
     qixi: { start: { month: 8, date: 15 }, end: { month: 8, date: 16 } },
     midAutumn: { start: { month: 9, date: 21 }, end: { month: 9, date: 23 } },
-    doubleNinth: { start: { month: 10, date: 15 }, end: { month: 10, date: 16 } }
+    doubleNinth: { start: { month: 10, date: 15 }, end: { month: 10, date: 16 } },
   },
   2030: {
     springFestival: { start: { month: 2, date: 2 }, end: { month: 2, date: 8 } },
@@ -69,8 +72,8 @@ const lunarHolidays: Record<number, {
     dragonBoat: { start: { month: 6, date: 4 }, end: { month: 6, date: 6 } },
     qixi: { start: { month: 8, date: 4 }, end: { month: 8, date: 5 } },
     midAutumn: { start: { month: 9, date: 11 }, end: { month: 9, date: 13 } },
-    doubleNinth: { start: { month: 10, date: 4 }, end: { month: 10, date: 5 } }
-  }
+    doubleNinth: { start: { month: 10, date: 4 }, end: { month: 10, date: 5 } },
+  },
 };
 
 export function useHolidayTheme() {
@@ -88,7 +91,12 @@ export function useHolidayTheme() {
     const month = now.getMonth() + 1; // 1-12
     const date = now.getDate();
 
-    const isInRange = (startMonth: number, startDate: number, endMonth: number, endDate: number) => {
+    const isInRange = (
+      startMonth: number,
+      startDate: number,
+      endMonth: number,
+      endDate: number,
+    ) => {
       const start = new Date(year, startMonth - 1, startDate, 0, 0, 0);
       const end = new Date(year, endMonth - 1, endDate, 23, 59, 59);
       return now >= start && now <= end;
@@ -121,33 +129,75 @@ export function useHolidayTheme() {
 
     const lunarMap = lunarHolidays[year];
     if (lunarMap) {
-      if (isInRange(lunarMap.springFestival.start.month, lunarMap.springFestival.start.date, lunarMap.springFestival.end.month, lunarMap.springFestival.end.date)) {
+      if (
+        isInRange(
+          lunarMap.springFestival.start.month,
+          lunarMap.springFestival.start.date,
+          lunarMap.springFestival.end.month,
+          lunarMap.springFestival.end.date,
+        )
+      ) {
         currentHoliday.value = 'spring-festival';
         return;
       }
-      if (isInRange(lunarMap.lanternFestival.start.month, lunarMap.lanternFestival.start.date, lunarMap.lanternFestival.end.month, lunarMap.lanternFestival.end.date)) {
+      if (
+        isInRange(
+          lunarMap.lanternFestival.start.month,
+          lunarMap.lanternFestival.start.date,
+          lunarMap.lanternFestival.end.month,
+          lunarMap.lanternFestival.end.date,
+        )
+      ) {
         currentHoliday.value = 'lantern-festival';
         return;
       }
-      if (isInRange(lunarMap.dragonBoat.start.month, lunarMap.dragonBoat.start.date, lunarMap.dragonBoat.end.month, lunarMap.dragonBoat.end.date)) {
+      if (
+        isInRange(
+          lunarMap.dragonBoat.start.month,
+          lunarMap.dragonBoat.start.date,
+          lunarMap.dragonBoat.end.month,
+          lunarMap.dragonBoat.end.date,
+        )
+      ) {
         currentHoliday.value = 'dragon-boat';
         return;
       }
-      if (isInRange(lunarMap.qixi.start.month, lunarMap.qixi.start.date, lunarMap.qixi.end.month, lunarMap.qixi.end.date)) {
+      if (
+        isInRange(
+          lunarMap.qixi.start.month,
+          lunarMap.qixi.start.date,
+          lunarMap.qixi.end.month,
+          lunarMap.qixi.end.date,
+        )
+      ) {
         currentHoliday.value = 'qixi';
         return;
       }
-      if (isInRange(lunarMap.midAutumn.start.month, lunarMap.midAutumn.start.date, lunarMap.midAutumn.end.month, lunarMap.midAutumn.end.date)) {
+      if (
+        isInRange(
+          lunarMap.midAutumn.start.month,
+          lunarMap.midAutumn.start.date,
+          lunarMap.midAutumn.end.month,
+          lunarMap.midAutumn.end.date,
+        )
+      ) {
         currentHoliday.value = 'mid-autumn';
         return;
       }
-      if (isInRange(lunarMap.doubleNinth.start.month, lunarMap.doubleNinth.start.date, lunarMap.doubleNinth.end.month, lunarMap.doubleNinth.end.date)) {
+      if (
+        isInRange(
+          lunarMap.doubleNinth.start.month,
+          lunarMap.doubleNinth.start.date,
+          lunarMap.doubleNinth.end.month,
+          lunarMap.doubleNinth.end.date,
+        )
+      ) {
         currentHoliday.value = 'double-ninth';
         return;
       }
     } else if (year > 2030 && import.meta.env.DEV) {
       console.warn(
-        `[AISprite] The lunar holiday date map only covers 2026-2030. Please extend lunarHolidays.`
+        `[AISprite] The lunar holiday date map only covers 2026-2030. Please extend lunarHolidays.`,
       );
     }
 
@@ -160,6 +210,6 @@ export function useHolidayTheme() {
 
   return {
     currentHoliday,
-    checkHoliday
+    checkHoliday,
   };
 }

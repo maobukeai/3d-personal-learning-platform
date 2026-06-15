@@ -29,6 +29,9 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import TaskAddDialog from '@/components/TaskAddDialog.vue';
 import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue';
+import TaskFilterBar from '@/components/TaskFilterBar.vue';
+import Tabs from '@/components/ui/Tabs.vue';
+import Input from '@/components/ui/Input.vue';
 const TaskBoardView = defineAsyncComponent(() => import('./components/TaskBoardView.vue'));
 const TaskListView = defineAsyncComponent(() => import('./components/TaskListView.vue'));
 import api from '@/utils/api';
@@ -37,14 +40,7 @@ import { useAuthStore } from '@/stores/auth';
 import { getTaskDayIndex, getTaskTime } from '@/utils/taskSort';
 
 import { TaskStatus } from '@/types/task';
-import type {
-  UserType,
-  Team,
-  Task,
-  Project,
-  TaskUpdatePayload,
-} from '@/types/task';
-
+import type { UserType, Team, Task, Project, TaskUpdatePayload } from '@/types/task';
 
 const { t } = useI18n();
 const workspaceStore = useWorkspaceStore();
@@ -62,7 +58,7 @@ const customDate = ref('');
 const hideCompleted = ref(false);
 const onlyMyTasks = ref(false);
 const sortBy = ref<'natural' | 'createdAt_asc' | 'createdAt_desc'>(
-  (localStorage.getItem('task_sort_by') as any) || 'natural'
+  (localStorage.getItem('task_sort_by') as any) || 'natural',
 );
 
 watch(sortBy, (newVal) => {
@@ -354,7 +350,6 @@ const filteredTasks = computed(() => {
     filtered = [...filtered].sort((a, b) => getTaskTime(b) - getTaskTime(a));
   }
 
-
   return filtered;
 });
 
@@ -424,8 +419,9 @@ const completionRate = computed(() => {
 
 const overdueCount = computed(() => {
   const now = new Date();
-  return tasks.value.filter((t) => t.dueDate && new Date(t.dueDate) < now && t.status !== TaskStatus.DONE)
-    .length;
+  return tasks.value.filter(
+    (t) => t.dueDate && new Date(t.dueDate) < now && t.status !== TaskStatus.DONE,
+  ).length;
 });
 
 const fetchTasks = async () => {
@@ -497,7 +493,10 @@ const handleAddTaskWithPayload = async (payload: {
       assigneeId: payload.assigneeId || null,
       projectId: payload.projectId || null,
       teamId: payload.teamId || null,
-      participantIds: payload.participantIds && payload.participantIds.length > 0 ? payload.participantIds : undefined,
+      participantIds:
+        payload.participantIds && payload.participantIds.length > 0
+          ? payload.participantIds
+          : undefined,
     };
     await api.post('/api/tasks', formattedPayload);
     ElMessage.success(t('tasks.addSuccess'));
@@ -643,374 +642,118 @@ onMounted(() => {
   >
     <!-- Header -->
     <div
-      class="h-auto md:h-13 px-4 sm:px-6 py-3 md:py-0 flex flex-col md:flex-row md:items-center justify-between shrink-0 border-b transition-colors duration-300 gap-3"
+      class="h-auto md:h-13 px-4 sm:px-6 py-3 md:py-0 flex flex-col md:grid md:grid-cols-3 md:items-center shrink-0 border-b transition-colors duration-300 gap-3"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center justify-between w-full md:w-auto">
+      <!-- Left: Title & Stats -->
+      <div class="flex items-center justify-between w-full md:w-auto md:justify-start gap-3">
         <div class="flex items-center gap-2">
           <div class="p-1.5 bg-accent/10 rounded-lg">
             <CheckCircle2 class="w-4.5 h-4.5 text-accent" />
           </div>
-          <h1 class="text-base md:text-lg font-bold" style="color: var(--text-primary)">{{ t('tasks.board') }}</h1>
+          <h1
+            class="text-base md:text-lg font-bold whitespace-nowrap"
+            style="color: var(--text-primary)"
+          >
+            {{ t('tasks.board') }}
+          </h1>
         </div>
 
-        <button type="button" class="md:hidden p-2 bg-accent text-white rounded-lg shadow-lg shadow-accent/20 hover:shadow-none transition-all flex items-center justify-center shrink-0" @click="openAddDialog('TODO')">
+        <!-- Inline stats badges -->
+        <div class="hidden lg:flex items-center gap-1.5 shrink-0">
+          <div
+            class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap"
+          >
+            <TrendingUp class="w-2.5 h-2.5" />
+            <span>{{ completionRate }}% {{ t('tasks.done') }}</span>
+          </div>
+          <div
+            v-if="overdueCount > 0"
+            class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-500/10 text-[9px] font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap"
+          >
+            <AlertCircle class="w-2.5 h-2.5" />
+            <span>{{ overdueCount }} {{ t('tasks.overdue') }}</span>
+          </div>
+          <div
+            class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/5 text-[9px] font-bold text-slate-500 whitespace-nowrap"
+          >
+            <BarChart3 class="w-2.5 h-2.5" />
+            <span>{{ tasks.length }} {{ t('tasks.total') }}</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="md:hidden p-2 bg-accent text-white rounded-lg shadow-lg shadow-accent/20 hover:shadow-none transition-all flex items-center justify-center shrink-0"
+          @click="openAddDialog('TODO')"
+        >
           <Plus class="w-4 h-4" />
         </button>
       </div>
 
-      <div class="flex items-center gap-2 sm:gap-2.5 w-full md:w-auto">
-        <div class="relative flex-1 md:flex-none">
-          <Search class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            :placeholder="t('tasks.searchPlaceholder')"
-            class="pl-8 pr-3 py-1.5 bg-slate-100 dark:bg-white/5 border-none rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 w-full md:w-40 lg:w-48 transition-all"
-            style="color: var(--text-primary)"
-          />
-        </div>
+      <!-- Center: Search Input -->
+      <div class="flex justify-center w-full md:w-auto">
+        <Input
+          v-model="searchQuery"
+          type="text"
+          :placeholder="t('tasks.searchPlaceholder')"
+          :icon="Search"
+          clearable
+          glass
+          class="w-full md:w-64 lg:w-72"
+          input-class="!py-1.5 !h-8.5 text-xs w-full transition-all"
+        />
+      </div>
 
-        <div class="flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg shrink-0">
-          <button
-type="button" class="p-1 rounded-md transition-all" :class="
-              viewMode === 'board'
-                ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
-                : 'text-slate-400 hover:text-slate-600'
-            " @click="viewMode = 'board'">
-            <LayoutGrid class="w-3.5 h-3.5" />
-          </button>
-          <button
-type="button" class="p-1 rounded-md transition-all" :class="
-              viewMode === 'list'
-                ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
-                : 'text-slate-400 hover:text-slate-600'
-            " @click="viewMode = 'list'">
-            <List class="w-3.5 h-3.5" />
-          </button>
-        </div>
+      <!-- Right: Action Controls -->
+      <div class="flex items-center justify-end gap-2 sm:gap-2.5 w-full md:w-auto">
+        <Tabs
+          v-model="viewMode"
+          :options="[
+            { value: 'board', icon: LayoutGrid },
+            { value: 'list', icon: List },
+          ]"
+          size="sm"
+          class="!bg-transparent border-none shrink-0"
+        />
 
-        <button type="button" class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all" @click="router.push({ path: '/projects', query: { openCreate: 'true' } })">
+        <button
+          type="button"
+          class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all"
+          @click="router.push({ path: '/projects', query: { openCreate: 'true' } })"
+        >
           <FolderPlus class="w-3.5 h-3.5 text-slate-500" /> {{ t('tasks.newProject') }}
         </button>
 
-        <button type="button" class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-xs font-bold hover:shadow-lg hover:shadow-accent/20 transition-all" @click="openAddDialog('TODO')">
+        <button
+          type="button"
+          class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-xs font-bold hover:shadow-lg hover:shadow-accent/20 transition-all"
+          @click="openAddDialog('TODO')"
+        >
           <Plus class="w-3.5 h-3.5" /> {{ t('tasks.newTask') }}
         </button>
       </div>
     </div>
 
-    <!-- Stats + Filter Bar -->
-    <div
-      class="task-filter-bar px-4 sm:px-6 py-2 border-b flex flex-nowrap md:flex-wrap items-center gap-3 sm:gap-4 shrink-0 overflow-x-auto md:overflow-x-visible scrollbar-hide"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <!-- Stats Cards -->
-      <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0">
-        <div
-          class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 whitespace-nowrap"
-        >
-          <TrendingUp class="w-3 h-3 text-emerald-500" />
-          <span class="text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400"
-            >{{ completionRate }}% {{ t('tasks.done') }}</span
-          >
-        </div>
-        <div
-          v-if="overdueCount > 0"
-          class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-rose-500/10 whitespace-nowrap"
-        >
-          <AlertCircle class="w-3 h-3 text-rose-500" />
-          <span class="text-[9px] sm:text-[10px] font-bold text-rose-600 dark:text-rose-400"
-            >{{ overdueCount }} {{ t('tasks.overdue') }}</span
-          >
-        </div>
-        <div
-          class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-100 dark:bg-white/5 whitespace-nowrap"
-        >
-          <BarChart3 class="w-3 h-3 text-slate-400" />
-          <span class="text-[9px] sm:text-[10px] font-bold text-slate-500"
-            >{{ tasks.length }} {{ t('tasks.total') }}</span
-          >
-        </div>
-      </div>
-
-      <!-- Project Filter Pill -->
-      <div
-        v-if="selectedProjectId"
-        class="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/15 border border-accent/30 text-accent whitespace-nowrap shadow-sm text-[9px] sm:text-[10px] font-bold"
-      >
-        <FolderOpen class="w-3 h-3" />
-        <span>{{ t('sidebar.projects') }}: {{ projects.find((p) => p.id === selectedProjectId)?.title || t('common.loading') }}</span>
-        <button type="button" class="hover:text-rose-500 transition-colors ml-1" @click="clearProjectFilter">
-          <X class="w-2.5 h-2.5" />
-        </button>
-      </div>
-
-      <div class="hidden sm:block h-5 w-px bg-slate-200 dark:bg-slate-700 shrink-0"></div>
-
-      <!-- Date Filter -->
-      <div class="flex items-center gap-2 shrink-0">
-        <span
-          class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
-          >{{ t('tasks.time') }}</span
-        >
-        <div
-          class="flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto scrollbar-hide"
-        >
-          <button
-            v-for="f in [
-              { id: 'all', label: t('tasks.all') },
-              { id: 'overdue', label: t('tasks.overdue') },
-              { id: 'today', label: t('tasks.today') },
-              { id: 'week', label: t('tasks.week') },
-            ]" :key="f.id" type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
-              dateFilter === f.id
-                ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            " @click="dateFilter = f.id">
-            {{ f.label }}
-          </button>
-        </div>
-      </div>
-
-      <div class="hidden sm:block h-5 w-px bg-slate-200 dark:bg-slate-700 shrink-0"></div>
-
-      <!-- Status Filter -->
-      <div class="flex items-center gap-2 shrink-0">
-        <span
-          class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
-          >{{ t('tasks.status') }}</span
-        >
-        <div
-          class="flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto scrollbar-hide"
-        >
-          <button
-            v-for="s in [
-              { id: 'all', label: t('tasks.all') },
-              { id: 'TODO', label: t('tasks.todo'), textColor: 'text-slate-500 dark:text-slate-400' },
-              { id: 'IN_PROGRESS', label: t('tasks.inProgress'), textColor: 'text-blue-500' },
-              { id: 'DONE', label: t('tasks.done'), textColor: 'text-emerald-500' },
-            ]" :key="s.id" type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
-              statusFilter === s.id
-                ? 'bg-white dark:bg-slate-700 shadow-sm ' + (s.textColor || 'text-accent')
-                : 'text-slate-500 hover:text-slate-700'
-            " @click="statusFilter = s.id">
-            {{ s.label }}
-          </button>
-        </div>
-      </div>
-
-      <div class="hidden sm:block h-5 w-px bg-slate-200 dark:bg-slate-700 shrink-0"></div>
-
-      <!-- Priority Filter -->
-      <div class="flex items-center gap-2 shrink-0">
-        <span
-          class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
-          >{{ t('tasks.priority') }}</span
-        >
-        <div
-          class="flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto scrollbar-hide"
-        >
-          <button
-            type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
-              priorityFilter === 'all'
-                ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            " @click="priorityFilter = 'all'">
-            {{ t('tasks.all') }}
-          </button>
-          <button
-            v-for="p in priorityOptions" :key="p.id" type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap" :class="
-              priorityFilter === p.id
-                ? 'bg-white dark:bg-slate-700 shadow-sm ' + p.textColor
-                : 'text-slate-500 hover:text-slate-700'
-            " @click="priorityFilter = p.id">
-            <component :is="p.icon" class="w-2.5 h-2.5" />
-            {{ p.label }}
-          </button>
-        </div>
-      </div>
-
-      <div class="hidden sm:block h-5 w-px bg-slate-200 dark:bg-slate-700 shrink-0"></div>
-
-      <!-- Group By Selector -->
-      <div class="flex items-center gap-2 shrink-0">
-        <span
-          class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
-          >{{ t('tasks.groupBy') }}</span
-        >
-        <div
-          class="flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto scrollbar-hide"
-        >
-          <button
-            type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
-              groupBy === 'status'
-                ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            " @click="groupBy = 'status'">
-            {{ t('tasks.groupByStatus') }}
-          </button>
-          <button
-            type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
-              groupBy === 'priority'
-                ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            " @click="groupBy = 'priority'">
-            {{ t('tasks.groupByPriority') }}
-          </button>
-        </div>
-      </div>
-
-      <div class="hidden sm:block h-5 w-px bg-slate-200 dark:bg-slate-700 shrink-0"></div>
-
-      <!-- Sort By Selector -->
-      <div class="flex items-center gap-2 shrink-0">
-        <span
-          class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
-          >{{ t('tasks.sortBy') }}</span
-        >
-        <div
-          class="flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto scrollbar-hide"
-        >
-          <button
-            type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
-              sortBy === 'natural'
-                ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            " @click="sortBy = 'natural'">
-            {{ t('tasks.sortNatural') }}
-          </button>
-          <button
-            type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
-              sortBy === 'createdAt_asc'
-                ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            " @click="sortBy = 'createdAt_asc'">
-            {{ t('tasks.sortCreatedAsc') }}
-          </button>
-          <button
-            type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
-              sortBy === 'createdAt_desc'
-                ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            " @click="sortBy = 'createdAt_desc'">
-            {{ t('tasks.sortCreatedDesc') }}
-          </button>
-        </div>
-      </div>
-
-      <div class="hidden sm:block h-5 w-px bg-slate-200 dark:bg-slate-700 shrink-0"></div>
-
-      <!-- Advanced Filter Options -->
-      <div class="flex items-center gap-2 shrink-0">
-        <!-- Hide Completed Toggle -->
-        <button
-          type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap border" :class="
-            hideCompleted
-              ? 'bg-accent/15 border-accent/30 text-accent shadow-sm'
-              : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:hover:bg-white/10'
-          " @click="hideCompleted = !hideCompleted">
-          <EyeOff v-if="hideCompleted" class="w-3.5 h-3.5 text-accent" />
-          <Eye v-else class="w-3.5 h-3.5 text-slate-400" />
-          <span>{{ t('tasks.hideCompleted') }}</span>
-        </button>
-
-        <!-- Only My Tasks Toggle -->
-        <button
-          type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap border" :class="
-            onlyMyTasks
-              ? 'bg-accent/15 border-accent/30 text-accent shadow-sm'
-              : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:hover:bg-white/10'
-          " @click="onlyMyTasks = !onlyMyTasks">
-          <User class="w-3.5 h-3.5 text-slate-400" :class="{ 'text-accent': onlyMyTasks }" />
-          <span>{{ t('tasks.onlyMy') }}</span>
-        </button>
-
-        <!-- Column Visibility Popover -->
-        <el-popover
-          v-if="viewMode === 'list'"
-          placement="bottom-end"
-          :width="150"
-          trigger="click"
-          popper-class="glass-popover"
-        >
-          <template #reference>
-            <button type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap border bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:hover:bg-white/10">
-              <SlidersHorizontal class="w-3.5 h-3.5 text-slate-400" />
-              <span>{{ t('tasks.showColumns') }}</span>
-            </button>
-          </template>
-          <div class="p-1 space-y-2.5">
-            <div
-              class="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-1"
-            >
-              {{ t('tasks.showListColumns') }}
-            </div>
-            <label
-              class="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300 select-none hover:text-accent transition-colors"
-            >
-              <input
-                type="checkbox"
-                :checked="visibleColumns.status"
-                class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
-                @change="toggleColumnVisibility('status')"
-              />
-              <span>{{ t('tasks.status') }}</span>
-            </label>
-            <label
-              class="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300 select-none hover:text-accent transition-colors"
-            >
-              <input
-                type="checkbox"
-                :checked="visibleColumns.project"
-                class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
-                @change="toggleColumnVisibility('project')"
-              />
-              <span>{{ t('tasks.associatedProject') }}</span>
-            </label>
-            <label
-              class="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300 select-none hover:text-accent transition-colors"
-            >
-              <input
-                type="checkbox"
-                :checked="visibleColumns.assignee"
-                class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
-                @change="toggleColumnVisibility('assignee')"
-              />
-              <span>{{ t('tasks.assignee') }}</span>
-            </label>
-            <label
-              class="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300 select-none hover:text-accent transition-colors"
-            >
-              <input
-                type="checkbox"
-                :checked="visibleColumns.dueDate"
-                class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
-                @change="toggleColumnVisibility('dueDate')"
-              />
-              <span>{{ t('tasks.dueDate') }}</span>
-            </label>
-            <label
-              class="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300 select-none hover:text-accent transition-colors"
-            >
-              <input
-                type="checkbox"
-                :checked="visibleColumns.priority"
-                class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
-                @change="toggleColumnVisibility('priority')"
-              />
-              <span>{{ t('tasks.priority') }}</span>
-            </label>
-          </div>
-        </el-popover>
-
-        <!-- Reset Filters Button -->
-        <button v-if="isAnyFilterActive" type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap border border-dashed border-rose-300 dark:border-rose-700/60 text-rose-500 hover:bg-rose-500/10 hover:border-rose-400" @click="resetAllFilters">
-          <RotateCcw class="w-3.5 h-3.5 text-rose-500" />
-          <span>{{ t('tasks.resetFilters') }}</span>
-        </button>
-      </div>
-    </div>
+    <TaskFilterBar
+      v-model:date-filter="dateFilter"
+      v-model:status-filter="statusFilter"
+      v-model:priority-filter="priorityFilter"
+      v-model:group-by="groupBy"
+      :total-tasks-count="tasks.length"
+      v-model:sort-by="sortBy"
+      :completion-rate="completionRate"
+      v-model:hide-completed="hideCompleted"
+      :overdue-count="overdueCount"
+      v-model:only-my-tasks="onlyMyTasks"
+      :selected-project-id="selectedProjectId"
+      v-model:visible-columns="visibleColumns"
+      :projects="projects"
+      :view-mode="viewMode"
+      :is-any-filter-active="isAnyFilterActive"
+      @clear-project-filter="clearProjectFilter"
+      @reset-all-filters="resetAllFilters"
+    />
 
     <!-- Board View -->
     <TaskBoardView
@@ -1053,7 +796,11 @@ type="button" class="p-1 rounded-md transition-all" :class="
       </div>
       <p class="text-sm font-bold text-slate-400 mb-1">{{ t('tasks.noTasks') }}</p>
       <p class="text-xs text-slate-400 mb-4">{{ t('tasks.clickNewTaskTip') }}</p>
-      <button type="button" class="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:shadow-lg hover:shadow-accent/20 transition-all" @click="openAddDialog('TODO')">
+      <button
+        type="button"
+        class="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:shadow-lg hover:shadow-accent/20 transition-all"
+        @click="openAddDialog('TODO')"
+      >
         <Plus class="w-4 h-4" /> {{ t('tasks.newTask') }}
       </button>
     </div>
@@ -1073,7 +820,11 @@ type="button" class="p-1 rounded-md transition-all" :class="
       <p class="text-xs text-slate-400 mb-4">
         {{ t('tasks.noMatchingTasksTip') }}
       </p>
-      <button type="button" class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-200 dark:hover:bg-white/10 transition-all cursor-pointer mx-auto" @click="resetAllFilters">
+      <button
+        type="button"
+        class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-200 dark:hover:bg-white/10 transition-all cursor-pointer mx-auto"
+        @click="resetAllFilters"
+      >
         <RotateCcw class="w-3.5 h-3.5" /> {{ t('tasks.resetAllFilters') }}
       </button>
     </div>

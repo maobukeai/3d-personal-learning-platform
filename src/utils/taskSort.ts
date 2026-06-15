@@ -4,7 +4,17 @@
 export const parseChineseNumber = (cn: string | null | undefined): number => {
   if (!cn || typeof cn !== 'string') return -1;
   const cnNums: Record<string, number> = {
-    '零': 0, '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10
+    零: 0,
+    一: 1,
+    二: 2,
+    三: 3,
+    四: 4,
+    五: 5,
+    六: 6,
+    七: 7,
+    八: 8,
+    九: 9,
+    十: 10,
   };
   if (cn.length === 1) {
     return cnNums[cn] ?? -1;

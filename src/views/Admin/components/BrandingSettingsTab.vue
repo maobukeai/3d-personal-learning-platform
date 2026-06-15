@@ -27,7 +27,7 @@ watch(
   (newVal) => {
     Object.assign(localSettings, newVal);
   },
-  { deep: true }
+  { deep: true },
 );
 
 watch(
@@ -35,7 +35,7 @@ watch(
   (newVal) => {
     emit('update:settings', { ...props.settings, ...newVal });
   },
-  { deep: true }
+  { deep: true },
 );
 
 const isUploadingLogo = ref(false);
@@ -100,20 +100,27 @@ const handleFaviconUpload = async (event: Event) => {
     >
       <div class="flex items-center gap-3 mb-8">
         <Palette class="w-5 h-5 text-pink-500" />
-        <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.platform_brand_configuration') }}</h2>
+        <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+          {{ $t('admin.platform_brand_configuration') }}
+        </h2>
       </div>
 
       <div class="space-y-6">
         <div class="space-y-2">
-          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >{{ $t('admin.platform_logo') }}</label
-          >
+          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+            $t('admin.platform_logo')
+          }}</label>
           <div class="flex items-center gap-4">
             <div
               class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative"
               style="border-color: var(--border-base); background-color: var(--bg-app)"
             >
-              <img v-if="localSettings.PLATFORM_LOGO_URL" alt="" :src="getAssetUrl(localSettings.PLATFORM_LOGO_URL)" class="w-full h-full object-contain p-1" />
+              <img
+                v-if="localSettings.PLATFORM_LOGO_URL"
+                alt=""
+                :src="getAssetUrl(localSettings.PLATFORM_LOGO_URL)"
+                class="w-full h-full object-contain p-1"
+              />
               <Image v-else class="w-6 h-6 text-slate-300" />
 
               <label
@@ -121,12 +128,7 @@ const handleFaviconUpload = async (event: Event) => {
               >
                 <Upload v-if="!isUploadingLogo" class="w-5 h-5 text-white" />
                 <RefreshCw v-else class="w-5 h-5 text-white animate-spin" />
-                <input
-                  type="file"
-                  accept="image/*"
-                  class="hidden"
-                  @change="handleLogoUpload"
-                />
+                <input type="file" accept="image/*" class="hidden" @change="handleLogoUpload" />
               </label>
             </div>
             <div class="flex-1 space-y-2">
@@ -149,18 +151,22 @@ const handleFaviconUpload = async (event: Event) => {
         </div>
 
         <div class="space-y-2">
-          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >{{ $t('admin.browser_favicon') }}</label
-          >
+          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+            $t('admin.browser_favicon')
+          }}</label>
           <div class="flex items-center gap-4">
             <div
               class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative"
               style="border-color: var(--border-base); background-color: var(--bg-app)"
             >
               <img
-v-if="localSettings.PLATFORM_FAVICON_URL || localSettings.PLATFORM_LOGO_URL" alt="" :src="
+                v-if="localSettings.PLATFORM_FAVICON_URL || localSettings.PLATFORM_LOGO_URL"
+                alt=""
+                :src="
                   getAssetUrl(localSettings.PLATFORM_FAVICON_URL || localSettings.PLATFORM_LOGO_URL)
-                " class="w-8 h-8 object-contain" />
+                "
+                class="w-8 h-8 object-contain"
+              />
               <Sparkles v-else class="w-6 h-6 text-slate-300" />
 
               <label
@@ -168,12 +174,7 @@ v-if="localSettings.PLATFORM_FAVICON_URL || localSettings.PLATFORM_LOGO_URL" alt
               >
                 <Upload v-if="!isUploadingFavicon" class="w-5 h-5 text-white" />
                 <RefreshCw v-else class="w-5 h-5 text-white animate-spin" />
-                <input
-                  type="file"
-                  accept="image/*"
-                  class="hidden"
-                  @change="handleFaviconUpload"
-                />
+                <input type="file" accept="image/*" class="hidden" @change="handleFaviconUpload" />
               </label>
             </div>
             <div class="flex-1 space-y-2">
@@ -196,9 +197,9 @@ v-if="localSettings.PLATFORM_FAVICON_URL || localSettings.PLATFORM_LOGO_URL" alt
         </div>
 
         <div class="space-y-2">
-          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >{{ $t('admin.platform_description') }}</label
-          >
+          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+            $t('admin.platform_description')
+          }}</label>
           <textarea
             v-model="localSettings.PLATFORM_DESCRIPTION"
             rows="3"
@@ -216,9 +217,9 @@ v-if="localSettings.PLATFORM_FAVICON_URL || localSettings.PLATFORM_LOGO_URL" alt
         </div>
 
         <div class="space-y-2">
-          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >{{ $t('admin.browser_window_title') }}</label
-          >
+          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+            $t('admin.browser_window_title')
+          }}</label>
           <input
             v-model="localSettings.BROWSER_TITLE"
             type="text"
@@ -237,9 +238,9 @@ v-if="localSettings.PLATFORM_FAVICON_URL || localSettings.PLATFORM_LOGO_URL" alt
         </div>
 
         <div class="space-y-2">
-          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >{{ $t('admin.footer_text') }}</label
-          >
+          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+            $t('admin.footer_text')
+          }}</label>
           <input
             v-model="localSettings.FOOTER_TEXT"
             type="text"
@@ -251,9 +252,7 @@ v-if="localSettings.PLATFORM_FAVICON_URL || localSettings.PLATFORM_LOGO_URL" alt
               color: var(--text-primary);
             "
           />
-          <p class="text-[10px] px-1" style="color: var(--text-muted)">
-            显示在页面底部，支持 HTML
-          </p>
+          <p class="text-[10px] px-1" style="color: var(--text-muted)">显示在页面底部，支持 HTML</p>
         </div>
       </div>
     </section>

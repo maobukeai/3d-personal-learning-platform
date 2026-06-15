@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed, watch, ref, onMounted, nextTick, type CSSProperties } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import {
@@ -49,7 +49,7 @@ const getInitialMode = (): SidebarMode => {
 
 const {
   sidebarMode,
-  expandedGroupKeys,
+  collapsedGroupKeys,
   cloudPreferenceLoaded,
   isSavingPreference,
   setSidebarMode,
@@ -159,8 +159,7 @@ const isRouteActive = (path: string) => {
 const isGroupActive = (group: PreparedSidebarGroup) =>
   group.items.some((item) => isRouteActive(item.path));
 
-const isGroupOpen = (group: PreparedSidebarGroup) =>
-  expandedGroupKeys.value.has(group.key);
+const isGroupOpen = (group: PreparedSidebarGroup) => !collapsedGroupKeys.value.has(group.key);
 
 const resourceGroupPaths = new Set([
   '/resources',
@@ -173,18 +172,63 @@ const resourceGroupPaths = new Set([
 const isResourceGroup = (group: PreparedSidebarGroup) =>
   !isAdmin.value && group.items.some((item) => resourceGroupPaths.has(item.path));
 
+const activeIndicatorStyle = ref<CSSProperties>({
+  opacity: 0,
+});
+const isActiveResource = ref(false);
+const isMounted = ref(false);
+
+const updateActiveIndicator = () => {
+  nextTick(() => {
+    const activeEl = document.querySelector('.panel-groups .panel-link--active');
+    if (!activeEl) {
+      activeIndicatorStyle.value = { opacity: 0 };
+      isActiveResource.value = false;
+      return;
+    }
+    const containerEl = document.querySelector('.panel-groups');
+    if (!containerEl) return;
+
+    isActiveResource.value = activeEl.classList.contains('panel-link--resource');
+
+    const activeRect = activeEl.getBoundingClientRect();
+    const containerRect = containerEl.getBoundingClientRect();
+
+    activeIndicatorStyle.value = {
+      position: 'absolute',
+      top: `${activeRect.top - containerRect.top + containerEl.scrollTop}px`,
+      left: `${activeRect.left - containerRect.left}px`,
+      width: `${activeRect.width}px`,
+      height: `${activeRect.height}px`,
+      opacity: 1,
+      pointerEvents: 'none',
+    };
+  });
+};
+
+onMounted(() => {
+  updateActiveIndicator();
+  nextTick(() => {
+    setTimeout(() => {
+      isMounted.value = true;
+    }, 50);
+  });
+});
+
 const toggleSidebar = () => {
   setSidebarMode(isExpanded.value ? 'rail' : 'expanded');
 };
 
 const toggleGroup = (group: PreparedSidebarGroup) => {
   toggleGroupKey(group.key);
+  updateActiveIndicator();
 };
 
 watch(
   preparedGroups,
   (groups) => {
     syncAvailableGroupKeys(groups.map((group) => group.key));
+    updateActiveIndicator();
   },
   { immediate: true },
 );
@@ -197,9 +241,18 @@ watch(
         expandGroupKey(group.key);
       }
     });
+    updateActiveIndicator();
   },
   { immediate: true },
 );
+
+watch(isExpanded, (val) => {
+  if (val) {
+    nextTick(() => {
+      updateActiveIndicator();
+    });
+  }
+});
 </script>
 
 <template>
@@ -373,6 +426,14 @@ watch(
         </div>
 
         <div class="panel-groups scrollbar-hide">
+          <div
+            class="active-indicator-bg"
+            :class="{
+              'active-indicator-bg--resource': isActiveResource,
+              'active-indicator-bg--mounted': isMounted,
+            }"
+            :style="activeIndicatorStyle"
+          ></div>
           <section v-for="group in preparedGroups" :key="group.key" class="panel-group">
             <button
               type="button"
@@ -931,6 +992,7 @@ watch(
 }
 
 .panel-groups {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -1055,6 +1117,7 @@ watch(
 
 .panel-link {
   position: relative;
+  z-index: 2;
   min-width: 0;
   min-height: 25px;
   display: flex;
@@ -1071,24 +1134,41 @@ watch(
     box-shadow 0.16s ease;
 }
 
-.panel-link:hover {
+.panel-link:hover:not(.panel-link--active) {
   color: var(--text-primary);
   background: color-mix(in srgb, var(--sidebar-accent) 7%, transparent);
 }
 
 .panel-link--active {
-  border-color: color-mix(in srgb, var(--sidebar-accent) 26%, var(--border-base));
   color: var(--text-primary);
+  font-weight: 900;
+}
+
+.active-indicator-bg {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--sidebar-accent) 26%, var(--border-base));
   background: linear-gradient(
     90deg,
     color-mix(in srgb, var(--sidebar-accent) 14%, transparent),
     color-mix(in srgb, var(--bg-card) 60%, transparent)
   );
-  font-weight: 900;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sidebar-accent) 10%, transparent);
+  opacity: 0;
 }
 
-.panel-link--active::before {
+.active-indicator-bg--mounted {
+  transition:
+    top 0.25s cubic-bezier(0.25, 1, 0.5, 1),
+    left 0.25s cubic-bezier(0.25, 1, 0.5, 1),
+    width 0.25s cubic-bezier(0.25, 1, 0.5, 1),
+    height 0.25s cubic-bezier(0.25, 1, 0.5, 1),
+    opacity 0.18s ease;
+}
+
+.active-indicator-bg::before {
   position: absolute;
   top: 6px;
   bottom: 6px;
@@ -1097,6 +1177,16 @@ watch(
   content: '';
   border-radius: 999px;
   background: var(--sidebar-accent);
+}
+
+.active-indicator-bg--resource {
+  border-color: color-mix(in srgb, var(--sidebar-accent) 36%, var(--border-base));
+  background: color-mix(in srgb, var(--sidebar-accent) 12%, transparent);
+  box-shadow: none;
+}
+
+.active-indicator-bg--resource::before {
+  display: none;
 }
 
 .panel-link-icon-wrap {
@@ -1147,14 +1237,14 @@ watch(
   padding: 0 6px;
 }
 
-.panel-link--resource:hover,
-.panel-link--resource.panel-link--active {
+.panel-link--resource:hover:not(.panel-link--active) {
   border-color: color-mix(in srgb, var(--sidebar-accent) 36%, var(--border-base));
   background: color-mix(in srgb, var(--sidebar-accent) 12%, transparent);
 }
 
-.panel-link--resource.panel-link--active::before {
-  display: none;
+.panel-link--resource.panel-link--active {
+  border-color: transparent;
+  background: transparent;
 }
 
 .panel-link--resource .panel-link-icon {

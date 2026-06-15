@@ -18,11 +18,7 @@ export const useAIStreaming = () => {
   const isGenerating = ref(false);
   const currentAbortController = ref<AbortController | null>(null);
 
-  const streamChat = async (
-    url: string,
-    body: unknown,
-    callbacks: AIStreamingCallbacks,
-  ) => {
+  const streamChat = async (url: string, body: unknown, callbacks: AIStreamingCallbacks) => {
     if (isGenerating.value) {
       return;
     }

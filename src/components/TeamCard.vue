@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Users, Check } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 
@@ -32,14 +33,19 @@ interface Props {
   index?: number;
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   isJoined: false,
   isApplying: false,
   index: 0,
 });
 
-const emit = defineEmits<{
+const parsedDescription = computed(() => {
+  const desc = props.team.description || '';
+  const separator = '\n\n===CORE_VALUES===\n';
+  return desc.split(separator)[0];
+});
 
+const emit = defineEmits<{
   (e: 'click', team: Team): void;
   (e: 'join', team: Team): void;
   (e: 'enter', team: Team): void;
@@ -65,37 +71,45 @@ const emit = defineEmits<{
     </div>
 
     <!-- Card Header / Cover Image: Squeezed on mobile -->
-    <div class="h-14 sm:h-24 lg:h-32 relative overflow-hidden shrink-0">
+    <div
+      class="h-12 sm:h-16 lg:h-20 relative overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-950"
+    >
       <img
-        :src="
-          team.coverUrl ||
-          team.avatarUrl ||
-          `https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=500&q=80`
-        " class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Team Cover" />
+        v-if="team.avatarUrl"
+        :src="team.avatarUrl"
+        class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+        alt="Team Cover"
+      />
       <div
-        class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"
+        v-else
+        class="w-full h-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white text-[10px] sm:text-sm lg:text-base font-black"
+      >
+        {{ team.name.charAt(0).toUpperCase() }}
+      </div>
+      <div
+        class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent"
       ></div>
     </div>
 
     <!-- Card Body: Squeezed padding -->
-    <div class="p-1.5 sm:p-3 lg:p-5 flex flex-col justify-between h-auto">
+    <div class="p-1 sm:p-1.5 lg:p-2.5 flex flex-col justify-between h-auto">
       <div>
         <h3
-          class="font-black text-slate-900 dark:text-white text-[11px] sm:text-sm lg:text-base group-hover:text-accent transition-colors truncate mb-0.5 sm:mb-1"
+          class="font-black text-slate-900 dark:text-white text-[10.5px] sm:text-xs lg:text-[13.5px] group-hover:text-accent transition-colors truncate mb-0.5"
         >
           {{ team.name }}
         </h3>
         <!-- Description hidden on mobile to fit 3-column view -->
         <p
-          class="hidden sm:block text-xs lg:text-sm text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed h-8 lg:h-10"
+          class="hidden sm:block text-[10.5px] lg:text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-normal h-7 lg:h-8"
         >
-          {{ team.description || '探索 3D 的边界，开启创意之旅。' }}
+          {{ parsedDescription || '探索 3D 的边界，开启创意之旅。' }}
         </p>
       </div>
 
       <!-- Card Footer: simplified flex on mobile -->
       <div
-        class="flex flex-row items-center justify-between mt-1.5 sm:mt-3 pt-1.5 sm:pt-2.5 border-t border-slate-50 dark:border-slate-700/50 gap-1 sm:gap-2 w-full"
+        class="flex flex-row items-center justify-between mt-1 sm:mt-1.5 pt-1 border-t border-slate-50 dark:border-slate-700/50 gap-1 w-full"
       >
         <!-- Members Avatars: hidden on mobile to give space for button -->
         <div class="hidden sm:flex items-center gap-2">
@@ -128,10 +142,21 @@ const emit = defineEmits<{
 
         <!-- Action Button: full-width on mobile -->
         <div class="w-full sm:w-auto" @click.stop>
-          <button v-if="isJoined" type="button" class="w-full sm:w-auto flex items-center justify-center gap-1 px-1.5 sm:px-3.5 py-0.5 sm:py-1.5 bg-accent text-white rounded-md text-[9px] sm:text-xs font-black uppercase tracking-wider hover:bg-accent-dark transition-all shadow-sm cursor-pointer" @click="emit('enter', team)">
+          <button
+            v-if="isJoined"
+            type="button"
+            class="w-full sm:w-auto flex items-center justify-center gap-1 px-1.5 sm:px-3.5 py-0.5 sm:py-1.5 bg-accent text-white rounded-md text-[9px] sm:text-xs font-black uppercase tracking-wider hover:bg-accent-dark transition-all shadow-sm cursor-pointer"
+            @click="emit('enter', team)"
+          >
             进入
           </button>
-          <button v-else type="button" :disabled="isApplying" class="w-full sm:w-auto flex items-center justify-center gap-1 px-1.5 sm:px-3.5 py-0.5 sm:py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md text-[9px] sm:text-xs font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all disabled:opacity-50 cursor-pointer" @click="emit('join', team)">
+          <button
+            v-else
+            type="button"
+            :disabled="isApplying"
+            class="w-full sm:w-auto flex items-center justify-center gap-1 px-1.5 sm:px-3.5 py-0.5 sm:py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md text-[9px] sm:text-xs font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all disabled:opacity-50 cursor-pointer"
+            @click="emit('join', team)"
+          >
             {{ isApplying ? '申请' : '加入' }}
           </button>
         </div>

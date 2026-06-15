@@ -167,9 +167,7 @@ const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
         class="w-full md:w-[340px] flex flex-col bg-slate-100/50 dark:bg-slate-800/30 rounded-2xl md:rounded-[2rem] border-t-4 transition-all md:h-full"
         :class="[
           col.color,
-          dragOverColumn === col.id
-            ? 'bg-slate-200/50 dark:bg-slate-700/50 scale-[1.02]'
-            : '',
+          dragOverColumn === col.id ? 'bg-slate-200/50 dark:bg-slate-700/50 scale-[1.02]' : '',
         ]"
         @dragenter="onDragOver(col.id, $event)"
         @dragover="onDragOver(col.id, $event)"

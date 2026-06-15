@@ -31,9 +31,12 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import { useAuthStore } from '@/stores/auth';
+import { useSystemStore } from '@/stores/system';
 import UserAvatar from '@/components/UserAvatar.vue';
-import PageHeader from '@/components/PageHeader.vue';
 import FileDropZone from '@/components/FileDropZone.vue';
+import Input from '@/components/ui/Input.vue';
+import Tabs from '@/components/ui/Tabs.vue';
+import UnifiedCard from '@/components/UnifiedCard.vue';
 import {
   formatCompactNumber,
   formatDate,
@@ -79,11 +82,10 @@ interface MaterialItem {
   user?: MaterialUser | null;
 }
 
-interface NormalizedMaterial
-  extends Omit<
-    MaterialItem,
-    'title' | 'description' | 'category' | 'tags' | 'downloads' | 'fileSize' | 'resolution'
-  > {
+interface NormalizedMaterial extends Omit<
+  MaterialItem,
+  'title' | 'description' | 'category' | 'tags' | 'downloads' | 'fileSize' | 'resolution'
+> {
   title: string;
   description: string;
   category: string;
@@ -124,6 +126,7 @@ const defaultCategories = ['金属', '木纹', '石材', '织物', '程序化', 
 const resolutionOptions = ['2K', '4K', '8K', '矢量', '程序化'];
 
 const authStore = useAuthStore();
+const systemStore = useSystemStore();
 const route = useRoute();
 const { locale } = useI18n();
 const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
@@ -194,7 +197,10 @@ const statCards = computed(() => [
   {
     label: label('收藏热度', 'Favorites'),
     value: insights.value?.summary.favorites || 0,
-    meta: label(`我收藏 ${insights.value?.summary.myFavorites || 0}`, `Mine ${insights.value?.summary.myFavorites || 0}`),
+    meta: label(
+      `我收藏 ${insights.value?.summary.myFavorites || 0}`,
+      `Mine ${insights.value?.summary.myFavorites || 0}`,
+    ),
     icon: Heart,
     tone: 'rose',
   },
@@ -221,17 +227,63 @@ const statCards = computed(() => [
 ]);
 
 const libraryTabs = computed(() => [
-  { key: 'explore' as const, label: label('资源广场', 'Explore'), count: insights.value?.summary.total || 0 },
-  { key: 'favorites' as const, label: label('我的收藏', 'Favorites'), count: insights.value?.summary.myFavorites || 0 },
-  { key: 'mine' as const, label: label('我的提交', 'My Uploads'), count: insights.value?.summary.myUploads || myMaterials.value.length },
+  {
+    key: 'explore' as const,
+    label: label('资源广场', 'Explore'),
+    count: insights.value?.summary.total || 0,
+  },
+  {
+    key: 'favorites' as const,
+    label: label('我的收藏', 'Favorites'),
+    count: insights.value?.summary.myFavorites || 0,
+  },
+  {
+    key: 'mine' as const,
+    label: label('我的提交', 'My Uploads'),
+    count: insights.value?.summary.myUploads || myMaterials.value.length,
+  },
 ]);
 
-const categoryOptions = computed(() => [
-  { name: CATEGORY_ALL, label: label('全部', 'All'), count: insights.value?.summary.total || materials.value.length },
-  ...(insights.value?.categories || defaultCategories.map((name) => ({ name, count: 0, downloads: 0 }))).map(
-    (category) => ({ name: category.name, label: categoryLabel(category.name), count: category.count }),
-  ),
+const libraryTabOptions = computed(() => {
+  return libraryTabs.value.map((tab) => ({
+    label: `${tab.label} ${tab.count}`,
+    value: tab.key,
+  }));
+});
+
+const viewModeOptions = computed(() => [
+  { value: 'grid', icon: Grid3X3 },
+  { value: 'list', icon: LayoutList },
 ]);
+
+const categoryOptions = computed(() => {
+  const configured = (systemStore.settings.MATERIAL_CATEGORIES || []).filter(
+    (name) => name !== '全部' && name !== '全部材料' && name !== CATEGORY_ALL,
+  );
+
+  const dbCounts = new Map<string, { count: number; downloads: number }>();
+  (insights.value?.categories || []).forEach((cat) => {
+    dbCounts.set(cat.name, { count: cat.count, downloads: cat.downloads || 0 });
+  });
+
+  const combinedNames = Array.from(new Set([...configured, ...dbCounts.keys()]));
+
+  return [
+    {
+      name: CATEGORY_ALL,
+      label: label('全部', 'All'),
+      count: insights.value?.summary.total || materials.value.length,
+    },
+    ...combinedNames.map((name) => {
+      const db = dbCounts.get(name) || { count: 0, downloads: 0 };
+      return {
+        name,
+        label: categoryLabel(name),
+        count: db.count,
+      };
+    }),
+  ];
+});
 
 const resolutionFilters = computed(() => [
   { label: label('全部', 'All'), value: CATEGORY_ALL, count: insights.value?.summary.total || 0 },
@@ -240,6 +292,35 @@ const resolutionFilters = computed(() => [
     value: resolution.label,
     count: resolution.count,
   })),
+]);
+
+const categoryTabOptions = computed(() => {
+  return categoryOptions.value.map((cat) => ({
+    label: cat.label,
+    value: cat.name,
+    badge: cat.count,
+  }));
+});
+
+const resolutionTabOptions = computed(() => {
+  return resolutionFilters.value.map((res) => ({
+    label: res.label,
+    value: res.value,
+    badge: res.count,
+  }));
+});
+
+const proceduralTabOptions = computed(() => [
+  { label: label('全部', 'All'), value: 'all' },
+  { label: label('程序化', 'Procedural'), value: 'true' },
+  { label: label('贴图包', 'Texture Pack'), value: 'false' },
+]);
+
+const statusTabOptions = computed(() => [
+  { label: label('全部', 'All'), value: 'all' },
+  { label: label('待审', 'Pending'), value: 'PENDING' },
+  { label: label('通过', 'Approved'), value: 'APPROVED' },
+  { label: label('驳回', 'Rejected'), value: 'REJECTED' },
 ]);
 
 const uploadCategories = computed(() => {
@@ -257,22 +338,34 @@ const selectedMaterials = computed(() =>
   visibleMaterials.value.filter((material) => selectedIdSet.value.has(material.id)),
 );
 const allVisibleSelected = computed(
-  () => visibleMaterials.value.length > 0 && visibleMaterials.value.every((material) => selectedIdSet.value.has(material.id)),
+  () =>
+    visibleMaterials.value.length > 0 &&
+    visibleMaterials.value.every((material) => selectedIdSet.value.has(material.id)),
 );
 
 const canSubmitMaterial = computed(() => {
-  const hasBasicInfo = Boolean(materialForm.value.title.trim()) && Boolean(materialForm.value.category);
+  const hasBasicInfo =
+    Boolean(materialForm.value.title.trim()) && Boolean(materialForm.value.category);
   if (isEditingMaterial.value) return hasBasicInfo;
   return hasBasicInfo && Boolean(materialForm.value.file) && Boolean(materialForm.value.preview);
 });
 
 const activeFilterLabels = computed(() => {
   const labels: { key: string; label: string }[] = [];
-  if (activeCategory.value !== CATEGORY_ALL) labels.push({ key: 'category', label: activeCategory.value });
-  if (selectedResolution.value !== CATEGORY_ALL) labels.push({ key: 'resolution', label: selectedResolution.value });
-  if (selectedTag.value !== CATEGORY_ALL) labels.push({ key: 'tag', label: `#${selectedTag.value}` });
+  if (activeCategory.value !== CATEGORY_ALL)
+    labels.push({ key: 'category', label: activeCategory.value });
+  if (selectedResolution.value !== CATEGORY_ALL)
+    labels.push({ key: 'resolution', label: selectedResolution.value });
+  if (selectedTag.value !== CATEGORY_ALL)
+    labels.push({ key: 'tag', label: `#${selectedTag.value}` });
   if (selectedProcedural.value !== 'all') {
-    labels.push({ key: 'procedural', label: selectedProcedural.value === 'true' ? label('程序化', 'Procedural') : label('贴图包', 'Texture Pack') });
+    labels.push({
+      key: 'procedural',
+      label:
+        selectedProcedural.value === 'true'
+          ? label('程序化', 'Procedural')
+          : label('贴图包', 'Texture Pack'),
+    });
   }
   if (activeTab.value === 'mine' && myStatusFilter.value !== 'all') {
     labels.push({ key: 'status', label: getStatusMeta(myStatusFilter.value).label });
@@ -283,12 +376,24 @@ const activeFilterLabels = computed(() => {
 
 const emptyState = computed(() => {
   if (activeTab.value === 'favorites') {
-    return { title: label('暂无收藏材料', 'No Favorite Materials'), body: label('收藏后的材料会集中在这里。', 'Favorited materials will appear here.') };
+    return {
+      title: label('暂无收藏材料', 'No Favorite Materials'),
+      body: label('收藏后的材料会集中在这里。', 'Favorited materials will appear here.'),
+    };
   }
   if (activeTab.value === 'mine') {
-    return { title: label('暂无提交记录', 'No Uploads Yet'), body: label('上传一个材料包，审核状态会同步显示。', 'Upload a material pack and review status will appear here.') };
+    return {
+      title: label('暂无提交记录', 'No Uploads Yet'),
+      body: label(
+        '上传一个材料包，审核状态会同步显示。',
+        'Upload a material pack and review status will appear here.',
+      ),
+    };
   }
-  return { title: label('没有匹配的材料', 'No Matching Materials'), body: label('换一组筛选条件试试。', 'Try a different set of filters.') };
+  return {
+    title: label('没有匹配的材料', 'No Matching Materials'),
+    body: label('换一组筛选条件试试。', 'Try a different set of filters.'),
+  };
 });
 
 function normalizeMaterial(material: MaterialItem): NormalizedMaterial {
@@ -326,7 +431,10 @@ function getStatusMeta(status?: string) {
 }
 
 function isMaterialOwner(material: MaterialItem | NormalizedMaterial) {
-  return Boolean(currentUserId.value && (material.userId === currentUserId.value || material.user?.id === currentUserId.value));
+  return Boolean(
+    currentUserId.value &&
+    (material.userId === currentUserId.value || material.user?.id === currentUserId.value),
+  );
 }
 
 function canEditMaterial(material: MaterialItem | NormalizedMaterial) {
@@ -347,7 +455,10 @@ function getListParams() {
     procedural: selectedProcedural.value === 'all' ? undefined : selectedProcedural.value,
     favoritesOnly: activeTab.value === 'favorites' ? 'true' : undefined,
     mine: activeTab.value === 'mine' ? 'true' : undefined,
-    status: activeTab.value === 'mine' && myStatusFilter.value !== 'all' ? myStatusFilter.value : undefined,
+    status:
+      activeTab.value === 'mine' && myStatusFilter.value !== 'all'
+        ? myStatusFilter.value
+        : undefined,
     limit: 120,
     paginated: 'true',
   };
@@ -361,7 +472,9 @@ async function fetchMaterials() {
     const visibleIds = new Set(materials.value.map((material) => material.id));
     selectedIds.value = selectedIds.value.filter((id) => visibleIds.has(id));
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, label('材料列表加载失败', 'Failed to load materials')));
+    ElMessage.error(
+      getApiErrorMessage(error, label('材料列表加载失败', 'Failed to load materials')),
+    );
   } finally {
     isLoading.value = false;
   }
@@ -445,7 +558,14 @@ function handlePreviewChange(event: Event) {
 
 async function submitMaterial() {
   if (!canSubmitMaterial.value) {
-    ElMessage.warning(isEditingMaterial.value ? label('请补全材料名称和分类', 'Please complete material name and category') : label('请补全材料文件、预览图、名称和分类', 'Please complete material file, preview, name, and category'));
+    ElMessage.warning(
+      isEditingMaterial.value
+        ? label('请补全材料名称和分类', 'Please complete material name and category')
+        : label(
+            '请补全材料文件、预览图、名称和分类',
+            'Please complete material file, preview, name, and category',
+          ),
+    );
     return;
   }
 
@@ -483,7 +603,14 @@ async function submitMaterial() {
     resetUploadForm();
     await refreshWorkspace();
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, isEditingMaterial.value ? label('更新失败', 'Update failed') : label('上传失败', 'Upload failed')));
+    ElMessage.error(
+      getApiErrorMessage(
+        error,
+        isEditingMaterial.value
+          ? label('更新失败', 'Update failed')
+          : label('上传失败', 'Upload failed'),
+      ),
+    );
   } finally {
     isUploading.value = false;
   }
@@ -517,7 +644,9 @@ async function applyRouteEntry() {
 
   const materialId = getRouteMaterialId();
   if (!materialId || selectedMaterial.value?.id === materialId) return;
-  const existing = [...materials.value, ...myMaterials.value].find((material) => material.id === materialId);
+  const existing = [...materials.value, ...myMaterials.value].find(
+    (material) => material.id === materialId,
+  );
   await openDetail(existing || { id: materialId, title: '' });
 }
 
@@ -550,7 +679,10 @@ function applyFavoriteState(id: string, isFavorited: boolean) {
     const wasFavorited = Boolean(selectedMaterial.value.isFavorited);
     selectedMaterial.value.isFavorited = isFavorited;
     if (wasFavorited !== isFavorited) {
-      selectedMaterial.value.favorites = Math.max(0, selectedMaterial.value.favorites + (isFavorited ? 1 : -1));
+      selectedMaterial.value.favorites = Math.max(
+        0,
+        selectedMaterial.value.favorites + (isFavorited ? 1 : -1),
+      );
       selectedMaterial.value._count = { favorites: selectedMaterial.value.favorites };
     }
   }
@@ -583,7 +715,9 @@ function incrementDownloadCount(id: string) {
 async function handleDownload(material: MaterialItem | NormalizedMaterial, event?: Event) {
   event?.stopPropagation();
   if (!canDownloadMaterial(material)) {
-    ElMessage.warning(label('该材料审核通过后才能下载', 'This material can be downloaded after approval'));
+    ElMessage.warning(
+      label('该材料审核通过后才能下载', 'This material can be downloaded after approval'),
+    );
     return;
   }
 
@@ -637,8 +771,15 @@ async function bulkFavorite(favorite: boolean) {
     });
     (data.ids || selectedIds.value).forEach((id: string) => applyFavoriteState(id, favorite));
     selectedIds.value = [];
-    await Promise.all([fetchInsights(), activeTab.value === 'favorites' ? fetchMaterials() : Promise.resolve()]);
-    ElMessage.success(favorite ? label('已加入收藏', 'Added to favorites') : label('已移出收藏', 'Removed from favorites'));
+    await Promise.all([
+      fetchInsights(),
+      activeTab.value === 'favorites' ? fetchMaterials() : Promise.resolve(),
+    ]);
+    ElMessage.success(
+      favorite
+        ? label('已加入收藏', 'Added to favorites')
+        : label('已移出收藏', 'Removed from favorites'),
+    );
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, label('批量操作失败', 'Bulk operation failed')));
   } finally {
@@ -649,7 +790,9 @@ async function bulkFavorite(favorite: boolean) {
 async function downloadSelected() {
   const downloadable = selectedMaterials.value.filter(canDownloadMaterial);
   if (!downloadable.length) {
-    ElMessage.warning(label('没有可下载的已通过材料', 'No approved materials are available to download'));
+    ElMessage.warning(
+      label('没有可下载的已通过材料', 'No approved materials are available to download'),
+    );
     return;
   }
   for (const material of downloadable) {
@@ -659,11 +802,15 @@ async function downloadSelected() {
 
 async function deleteMaterial(material: NormalizedMaterial) {
   try {
-    await ElMessageBox.confirm(label(`确认删除「${material.title}」？`, `Delete "${material.title}"?`), label('删除材料', 'Delete Material'), {
-      confirmButtonText: label('删除', 'Delete'),
-      cancelButtonText: label('取消', 'Cancel'),
-      type: 'warning',
-    });
+    await ElMessageBox.confirm(
+      label(`确认删除「${material.title}」？`, `Delete "${material.title}"?`),
+      label('删除材料', 'Delete Material'),
+      {
+        confirmButtonText: label('删除', 'Delete'),
+        cancelButtonText: label('取消', 'Cancel'),
+        type: 'warning',
+      },
+    );
     await api.delete(`/api/materials/${material.id}`);
     ElMessage.success(label('材料已删除', 'Material deleted'));
     closeDetail();
@@ -679,18 +826,31 @@ async function reviewMaterial(material: NormalizedMaterial, status: MaterialStat
   try {
     let rejectReason: string | undefined;
     if (status === 'REJECTED') {
-      const { value } = await ElMessageBox.prompt(label('驳回原因', 'Rejection Reason'), label(`审核「${material.title}」`, `Review "${material.title}"`), {
-        inputValue: material.rejectReason || label('预览图、说明或授权信息需要补充。', 'Preview, description, or license details need more information.'),
-        confirmButtonText: label('驳回', 'Reject'),
-        cancelButtonText: label('取消', 'Cancel'),
-      });
+      const { value } = await ElMessageBox.prompt(
+        label('驳回原因', 'Rejection Reason'),
+        label(`审核「${material.title}」`, `Review "${material.title}"`),
+        {
+          inputValue:
+            material.rejectReason ||
+            label(
+              '预览图、说明或授权信息需要补充。',
+              'Preview, description, or license details need more information.',
+            ),
+          confirmButtonText: label('驳回', 'Reject'),
+          cancelButtonText: label('取消', 'Cancel'),
+        },
+      );
       rejectReason = value;
     } else {
-      await ElMessageBox.confirm(label(`确认通过「${material.title}」？`, `Approve "${material.title}"?`), label('审核材料', 'Review Material'), {
-        confirmButtonText: label('通过', 'Approve'),
-        cancelButtonText: label('取消', 'Cancel'),
-        type: 'success',
-      });
+      await ElMessageBox.confirm(
+        label(`确认通过「${material.title}」？`, `Approve "${material.title}"?`),
+        label('审核材料', 'Review Material'),
+        {
+          confirmButtonText: label('通过', 'Approve'),
+          cancelButtonText: label('取消', 'Cancel'),
+          type: 'success',
+        },
+      );
     }
 
     isSavingReview.value = true;
@@ -699,7 +859,11 @@ async function reviewMaterial(material: NormalizedMaterial, status: MaterialStat
       rejectReason,
     });
     selectedMaterial.value = normalizeMaterial(data);
-    ElMessage.success(status === 'APPROVED' ? label('材料已通过审核', 'Material approved') : label('材料已驳回', 'Material rejected'));
+    ElMessage.success(
+      status === 'APPROVED'
+        ? label('材料已通过审核', 'Material approved')
+        : label('材料已驳回', 'Material rejected'),
+    );
     await refreshWorkspace();
   } catch (error) {
     if (error !== 'cancel') {
@@ -728,10 +892,21 @@ function resetFilters() {
   searchQuery.value = '';
 }
 
-watch([activeTab, activeCategory, selectedResolution, selectedTag, selectedProcedural, myStatusFilter, sortBy], () => {
-  selectedIds.value = [];
-  fetchMaterials();
-});
+watch(
+  [
+    activeTab,
+    activeCategory,
+    selectedResolution,
+    selectedTag,
+    selectedProcedural,
+    myStatusFilter,
+    sortBy,
+  ],
+  () => {
+    selectedIds.value = [];
+    fetchMaterials();
+  },
+);
 
 watch(
   () => [route.query.material, route.query.create],
@@ -749,6 +924,7 @@ watch(searchQuery, () => {
 });
 
 onMounted(() => {
+  systemStore.fetchSettings();
   resetUploadForm();
   refreshWorkspace();
 });
@@ -760,31 +936,50 @@ onUnmounted(() => {
 
 <template>
   <div class="materials-page">
-    <PageHeader
-      :title="label('材质库', 'Material Library')"
-      :subtitle="label('PBR 贴图、程序化材质、纹理包', 'PBR maps, procedural materials, and texture packs')"
-      :icon="Layers"
-    >
-      <button
-        type="button"
-        class="ghost-button icon-text"
-        @click="isStatsExpanded = !isStatsExpanded"
-      >
-        <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
-        {{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}
-      </button>
-      <button type="button" class="ghost-button icon-text" @click="activeTab = 'favorites'">
-        <Heart class="icon-sm" />
-        {{ label('收藏', 'Favorites') }}
-      </button>
-      <button type="button" class="primary-button icon-text" @click="openCreateDialog">
-        <UploadCloud class="icon-sm" />
-        {{ label('上传', 'Upload') }}
-      </button>
-    </PageHeader>
+    <header class="page-header">
+      <div class="title-block">
+        <div class="title-icon">
+          <Layers class="icon-sm" />
+        </div>
+        <div>
+          <h1>{{ label('材质库', 'Material Library') }}</h1>
+          <p>
+            {{
+              label(
+                'PBR 贴图、程序化材质、纹理包',
+                'PBR maps, procedural materials, and texture packs',
+              )
+            }}
+          </p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button
+          type="button"
+          class="ghost-button icon-text"
+          @click="isStatsExpanded = !isStatsExpanded"
+        >
+          <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
+          {{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}
+        </button>
+        <button type="button" class="ghost-button icon-text" @click="activeTab = 'favorites'">
+          <Heart class="icon-sm" />
+          {{ label('收藏', 'Favorites') }}
+        </button>
+        <button type="button" class="primary-button icon-text" @click="openCreateDialog">
+          <UploadCloud class="icon-sm" />
+          {{ label('上传', 'Upload') }}
+        </button>
+      </div>
+    </header>
 
     <div v-show="isStatsExpanded" class="metric-strip">
-      <article v-for="stat in statCards" :key="stat.label" class="metric-tile" :data-tone="stat.tone">
+      <article
+        v-for="stat in statCards"
+        :key="stat.label"
+        class="metric-tile"
+        :data-tone="stat.tone"
+      >
         <component :is="stat.icon" class="icon-sm" />
         <span>{{ stat.label }}</span>
         <strong>{{ stat.value }}</strong>
@@ -792,416 +987,436 @@ onUnmounted(() => {
       </article>
     </div>
 
-    <section class="control-bar">
-      <div class="tab-switch">
-        <button
-          v-for="tab in libraryTabs"
-          :key="tab.key"
-          type="button"
-          :class="{ active: activeTab === tab.key }"
-          @click="activeTab = tab.key"
-        >
-          <span>{{ tab.label }}</span>
-          <strong>{{ tab.count }}</strong>
-        </button>
-      </div>
-
-      <label class="search-box">
-        <Search class="icon-sm" />
-        <input v-model="searchQuery" type="search" :placeholder="label('搜索名称、标签、说明', 'Search name, tags, or description')" />
-      </label>
-
-      <div class="toolbar-actions">
-        <button type="button" class="icon-button mobile-filter" @click="isFilterOpen = !isFilterOpen">
-          <SlidersHorizontal class="icon-sm" />
-        </button>
-        <select v-model="sortBy" class="select-field">
-          <option value="latest">{{ label('最新', 'Newest') }}</option>
-          <option value="popular">{{ label('下载', 'Downloads') }}</option>
-          <option value="favorited">{{ label('收藏', 'Favorites') }}</option>
-          <option value="largest">{{ label('体积大', 'Largest') }}</option>
-          <option value="smallest">{{ label('体积小', 'Smallest') }}</option>
-        </select>
-        <div class="view-switch">
-          <button type="button" :title="label('网格视图', 'Grid View')" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'">
-            <Grid3X3 class="icon-sm" />
-          </button>
-          <button type="button" :title="label('列表视图', 'List View')" :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'">
-            <LayoutList class="icon-sm" />
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <section class="filter-deck" :class="{ open: isFilterOpen }">
-      <div class="filter-group wide">
-        <span>{{ label('分类', 'Categories') }}</span>
-        <div class="chip-row">
-          <button
-            v-for="category in categoryOptions"
-            :key="category.name"
-            type="button"
-            class="filter-chip"
-            :class="{ active: activeCategory === category.name }"
-            @click="activeCategory = category.name"
-          >
-            {{ category.label }}
-            <strong>{{ category.count }}</strong>
-          </button>
-        </div>
-      </div>
-
-      <div class="filter-group">
-        <span>{{ label('分辨率', 'Resolution') }}</span>
-        <div class="chip-row compact">
-          <button
-            v-for="resolution in resolutionFilters"
-            :key="resolution.value"
-            type="button"
-            class="filter-chip"
-            :class="{ active: selectedResolution === resolution.value }"
-            @click="selectedResolution = resolution.value"
-          >
-            {{ resolution.label }}
-            <strong>{{ resolution.count }}</strong>
-          </button>
-        </div>
-      </div>
-
-      <div class="filter-group">
-        <span>{{ label('类型', 'Type') }}</span>
-        <div class="chip-row compact">
-          <button type="button" class="filter-chip" :class="{ active: selectedProcedural === 'all' }" @click="selectedProcedural = 'all'">
-            {{ label('全部', 'All') }}
-          </button>
-          <button type="button" class="filter-chip" :class="{ active: selectedProcedural === 'true' }" @click="selectedProcedural = 'true'">
-            {{ label('程序化', 'Procedural') }}
-          </button>
-          <button type="button" class="filter-chip" :class="{ active: selectedProcedural === 'false' }" @click="selectedProcedural = 'false'">
-            {{ label('贴图包', 'Texture Pack') }}
-          </button>
-        </div>
-      </div>
-
-      <div v-if="activeTab === 'mine'" class="filter-group">
-        <span>{{ label('状态', 'Status') }}</span>
-        <div class="chip-row compact">
-          <button type="button" class="filter-chip" :class="{ active: myStatusFilter === 'all' }" @click="myStatusFilter = 'all'">
-            {{ label('全部', 'All') }}
-          </button>
-          <button type="button" class="filter-chip" :class="{ active: myStatusFilter === 'PENDING' }" @click="myStatusFilter = 'PENDING'">
-            {{ label('待审', 'Pending') }}
-          </button>
-          <button type="button" class="filter-chip" :class="{ active: myStatusFilter === 'APPROVED' }" @click="myStatusFilter = 'APPROVED'">
-            {{ label('通过', 'Approved') }}
-          </button>
-          <button type="button" class="filter-chip" :class="{ active: myStatusFilter === 'REJECTED' }" @click="myStatusFilter = 'REJECTED'">
-            {{ label('驳回', 'Rejected') }}
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <section v-show="isStatsExpanded" class="signal-row">
-      <div class="signal-panel">
-        <header>
-          <Download class="icon-sm" />
-          <span>{{ label('热门下载', 'Top Downloads') }}</span>
-        </header>
-        <div class="mini-list">
-          <button
-            v-for="material in insights?.topDownloads?.slice(0, 3) || []"
-            :key="material.id"
-            type="button"
-            class="mini-material"
-            @click="openDetail(material)"
-          >
-            <img :src="resolvePreviewUrl(material.previewUrl, 'STL')" :alt="material.title || ''" />
-            <span>{{ material.title }}</span>
-            <strong>{{ formatCompactNumber(material.downloads) }}</strong>
-          </button>
-        </div>
-      </div>
-
-      <div class="signal-panel">
-        <header>
-          <Clock3 class="icon-sm" />
-          <span>{{ label('最近上传', 'Recent Uploads') }}</span>
-        </header>
-        <div class="mini-list">
-          <button
-            v-for="material in insights?.latest?.slice(0, 3) || []"
-            :key="material.id"
-            type="button"
-            class="mini-material"
-            @click="openDetail(material)"
-          >
-            <img :src="resolvePreviewUrl(material.previewUrl, 'STL')" :alt="material.title || ''" />
-            <span>{{ material.title }}</span>
-            <small>{{ formatRelativeTime(material.createdAt) }}</small>
-          </button>
-        </div>
-      </div>
-
-      <div class="signal-panel tags-panel">
-        <header>
-          <Tags class="icon-sm" />
-          <span>{{ label('热标签', 'Hot Tags') }}</span>
-        </header>
-        <div class="tag-strip">
-          <button
-            v-for="tag in insights?.hotTags?.slice(0, 12) || []"
-            :key="tag.label"
-            type="button"
-            :class="{ active: selectedTag === tag.label }"
-            @click="selectedTag = tag.label"
-          >
-            #{{ tag.label }}
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <section v-if="activeFilterLabels.length || selectedIds.length" class="state-bar">
-      <button type="button" class="select-all" :class="{ active: allVisibleSelected }" @click="toggleSelectAllVisible">
-        {{ allVisibleSelected ? label('取消全选', 'Clear Selection') : label('选择当前页', 'Select Page') }}
-      </button>
-
-      <div class="active-filters">
-        <button v-for="filter in activeFilterLabels" :key="filter.key" type="button" @click="clearFilter(filter.key)">
-          {{ filter.label }}
-          <X class="icon-xs" />
-        </button>
-        <button v-if="activeFilterLabels.length > 1" type="button" class="clear-filter" @click="resetFilters">{{ label('清空', 'Clear') }}</button>
-      </div>
-
-      <div v-if="selectedIds.length" class="bulk-actions">
-        <span>{{ selectedIds.length }} {{ label('项', 'selected') }}</span>
-        <button type="button" class="ghost-button compact-button" :disabled="isBulkBusy" @click="bulkFavorite(true)">
-          <Heart class="icon-sm" />
-          {{ label('收藏', 'Favorite') }}
-        </button>
-        <button
-          v-if="activeTab === 'favorites'"
-          type="button"
-          class="ghost-button compact-button"
-          :disabled="isBulkBusy"
-          @click="bulkFavorite(false)"
-        >
-          <X class="icon-sm" />
-          {{ label('移出', 'Remove') }}
-        </button>
-        <button type="button" class="primary-button compact-button" @click="downloadSelected">
-          <Download class="icon-sm" />
-          {{ label('下载', 'Download') }}
-        </button>
-      </div>
-    </section>
-
-    <section class="workbench" :class="{ 'with-detail': selectedMaterial }">
-      <main class="asset-area">
-        <div v-if="isLoading" class="material-grid" :class="viewMode">
-          <article v-for="index in 12" :key="index" class="material-card skeleton-card">
-            <div class="skeleton preview"></div>
-            <div class="skeleton line wide"></div>
-            <div class="skeleton line"></div>
-          </article>
+    <div class="workspace-shell">
+      <aside class="filter-panel" :class="{ open: isFilterOpen }">
+        <div class="panel-section">
+          <div class="section-title">
+            <Layers class="icon-sm" />
+            {{ label('分类', 'Categories') }}
+          </div>
+          <Tabs
+            v-model="activeCategory"
+            :options="categoryTabOptions"
+            direction="vertical"
+            size="sm"
+          />
         </div>
 
-        <div v-else-if="visibleMaterials.length" class="material-grid" :class="viewMode">
-          <article
-            v-for="material in visibleMaterials"
-            :key="material.id"
-            class="material-card"
-            :class="{ selected: selectedIdSet.has(material.id), inactive: material.status !== 'APPROVED' }"
-            @click="openDetail(material)"
-          >
-            <div class="material-preview">
-              <img :src="material.preview" :alt="material.title" />
-              <button
-                type="button"
-                class="select-dot"
-                :class="{ active: selectedIdSet.has(material.id) }"
-                @click="toggleSelect(material.id, $event)"
-              >
-                <CheckCircle2 class="icon-sm" />
-              </button>
-              <div class="badge-row">
-                <span>{{ material.resolution }}</span>
-                <span v-if="material.isProcedural">{{ label('程序化', 'Procedural') }}</span>
-              </div>
-              <button
-                type="button"
-                class="favorite-button"
-                :class="{ active: material.isFavorited }"
-                @click="toggleFavorite(material, $event)"
-              >
-                <Heart class="icon-sm" :class="{ filled: material.isFavorited }" />
-              </button>
-            </div>
-
-            <div class="material-body">
-              <div class="title-line">
-                <h2>{{ material.title }}</h2>
-                <span v-if="activeTab === 'mine'" class="status-pill" :data-tone="getStatusMeta(material.status).tone">
-                  <component :is="getStatusMeta(material.status).icon" class="icon-xs" />
-                  {{ getStatusMeta(material.status).label }}
-                </span>
-              </div>
-              <p>{{ material.description || label('作者暂未填写材料说明。', 'No material description yet.') }}</p>
-
-              <div class="meta-row">
-                <span>{{ material.category }}</span>
-                <span>{{ formatFileSize(material.fileSize) }}</span>
-                <span>{{ formatRelativeTime(material.createdAt) }}</span>
-              </div>
-
-              <div class="tag-row">
-                <span v-for="tag in material.tags.slice(0, 3)" :key="tag">#{{ tag }}</span>
-              </div>
-
-              <footer class="card-footer">
-                <div class="metric-row">
-                  <span><Heart class="icon-xs" />{{ formatCompactNumber(material.favorites) }}</span>
-                  <span><Download class="icon-xs" />{{ formatCompactNumber(material.downloads) }}</span>
-                </div>
-                <button
-                  type="button"
-                  class="download-button"
-                  :disabled="!canDownloadMaterial(material)"
-                  @click="handleDownload(material, $event)"
-                >
-                  <ArrowDownToLine class="icon-sm" />
-                </button>
-              </footer>
-            </div>
-          </article>
+        <div class="panel-section">
+          <div class="section-title">
+            <PackageCheck class="icon-sm" />
+            {{ label('分辨率', 'Resolution') }}
+          </div>
+          <Tabs
+            v-model="selectedResolution"
+            :options="resolutionTabOptions"
+            direction="vertical"
+            size="sm"
+          />
         </div>
 
-        <div v-else class="empty-state">
-          <Sparkles class="empty-icon" />
-          <h2>{{ emptyState.title }}</h2>
-          <p>{{ emptyState.body }}</p>
-          <button type="button" class="primary-button icon-text" @click="openCreateDialog">
-            <UploadCloud class="icon-sm" />
-            {{ label('上传材质', 'Upload Material') }}
-          </button>
-        </div>
-      </main>
-
-      <aside v-if="selectedMaterial" class="detail-drawer">
-        <button type="button" class="close-button" @click="closeDetail">
-          <X class="icon-sm" />
-        </button>
-
-        <div v-if="isLoadingDetail" class="drawer-loading">
-          <Loader2 class="spinning" />
+        <div class="panel-section">
+          <div class="section-title">
+            <Tags class="icon-sm" />
+            {{ label('类型', 'Type') }}
+          </div>
+          <Tabs
+            v-model="selectedProcedural"
+            :options="proceduralTabOptions"
+            direction="vertical"
+            size="sm"
+          />
         </div>
 
-        <template v-else>
-          <div class="drawer-preview">
-            <img :src="selectedMaterial.preview" :alt="selectedMaterial.title" />
-            <div class="drawer-badges">
-              <span>{{ selectedMaterial.category }}</span>
-              <span>{{ selectedMaterial.resolution }}</span>
-              <span v-if="selectedMaterial.isProcedural">{{ label('程序化', 'Procedural') }}</span>
-            </div>
+        <div v-if="insights?.hotTags?.length" class="panel-section">
+          <div class="section-title">
+            <Tags class="icon-sm" />
+            {{ label('热标签', 'Hot Tags') }}
+          </div>
+          <div class="tag-cloud">
+            <button
+              type="button"
+              :class="{ active: selectedTag === 'all' }"
+              @click="selectedTag = 'all'"
+            >
+              {{ label('全部', 'All') }}
+            </button>
+            <button
+              v-for="tag in insights.hotTags"
+              :key="tag.label"
+              type="button"
+              :class="{ active: selectedTag === tag.label }"
+              @click="selectedTag = tag.label"
+            >
+              {{ tag.label }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="activeTab === 'mine'" class="panel-section">
+          <div class="section-title">
+            <SlidersHorizontal class="icon-sm" />
+            {{ label('状态', 'Status') }}
+          </div>
+          <Tabs
+            v-model="myStatusFilter"
+            :options="statusTabOptions"
+            direction="vertical"
+            size="sm"
+          />
+        </div>
+      </aside>
+
+      <main class="content-panel">
+        <section class="control-bar">
+          <div class="toolbar-left">
+            <Tabs v-model="activeTab" :options="libraryTabOptions" size="sm" />
           </div>
 
-          <div class="drawer-body">
-            <div class="drawer-title">
-              <h2>{{ selectedMaterial.title }}</h2>
-              <span class="status-pill" :data-tone="getStatusMeta(selectedMaterial.status).tone">
-                <component :is="getStatusMeta(selectedMaterial.status).icon" class="icon-xs" />
-                {{ getStatusMeta(selectedMaterial.status).label }}
-              </span>
-            </div>
-            <p>{{ selectedMaterial.description || label('作者暂未填写材料说明。', 'No material description yet.') }}</p>
+          <div class="toolbar-center">
+            <Input
+              v-model="searchQuery"
+              type="search"
+              :placeholder="label('搜索名称、标签、说明', 'Search name, tags, or description')"
+              :icon="Search"
+              clearable
+              input-class="!py-1.5 !h-8.5 !rounded-lg"
+              class="w-full max-w-[280px]"
+            />
+          </div>
 
-            <dl class="detail-grid">
-              <div>
-                <dt>{{ label('体积', 'Size') }}</dt>
-                <dd>{{ formatFileSize(selectedMaterial.fileSize) }}</dd>
-              </div>
-              <div>
-                <dt>{{ label('下载', 'Downloads') }}</dt>
-                <dd>{{ formatCompactNumber(selectedMaterial.downloads) }}</dd>
-              </div>
-              <div>
-                <dt>{{ label('收藏', 'Favorites') }}</dt>
-                <dd>{{ formatCompactNumber(selectedMaterial.favorites) }}</dd>
-              </div>
-              <div>
-                <dt>{{ label('上传', 'Uploaded') }}</dt>
-                <dd>{{ formatDate(selectedMaterial.createdAt) }}</dd>
-              </div>
-            </dl>
+          <div class="toolbar-right">
+            <button
+              type="button"
+              class="icon-button mobile-filter"
+              @click="isFilterOpen = !isFilterOpen"
+            >
+              <SlidersHorizontal class="icon-sm" />
+            </button>
+            <select v-model="sortBy" class="select-field" aria-label="排序方式">
+              <option value="latest">{{ label('最新', 'Newest') }}</option>
+              <option value="popular">{{ label('下载', 'Downloads') }}</option>
+              <option value="favorited">{{ label('收藏', 'Favorites') }}</option>
+              <option value="largest">{{ label('体积大', 'Largest') }}</option>
+              <option value="smallest">{{ label('体积小', 'Smallest') }}</option>
+            </select>
+            <Tabs v-model="viewMode" :options="viewModeOptions" size="sm" />
+          </div>
+        </section>
 
-            <div v-if="selectedMaterial.rejectReason" class="reject-note">
-              <strong>{{ label('驳回原因', 'Rejection Reason') }}</strong>
-              <span>{{ selectedMaterial.rejectReason }}</span>
-            </div>
-
-            <div class="tag-row detail-tags">
-              <span v-for="tag in selectedMaterial.tags" :key="tag">#{{ tag }}</span>
-            </div>
-
-            <div v-if="selectedMaterial.user" class="author-row">
-              <UserAvatar :user="selectedMaterial.user" size="sm" />
-              <div>
-                <strong>{{ selectedMaterial.user.name || selectedMaterial.user.email || label('创作者', 'Creator') }}</strong>
-                <span>{{ label('材料贡献者', 'Material Contributor') }}</span>
-              </div>
-            </div>
-
-            <div v-if="normalizedMyMaterials.length" class="my-submissions">
-              <header>
-                <FileArchive class="icon-sm" />
-                <span>{{ label('我的最近提交', 'My Recent Uploads') }}</span>
-              </header>
+        <section v-show="isStatsExpanded" class="signal-row">
+          <div class="signal-panel">
+            <header>
+              <Download class="icon-sm" />
+              <span>{{ label('热门下载', 'Top Downloads') }}</span>
+            </header>
+            <div class="mini-list">
               <button
-                v-for="material in normalizedMyMaterials"
+                v-for="material in insights?.topDownloads?.slice(0, 3) || []"
                 :key="material.id"
                 type="button"
-                class="submission-item"
+                class="mini-material"
                 @click="openDetail(material)"
               >
+                <img
+                  :src="resolvePreviewUrl(material.previewUrl, 'STL')"
+                  :alt="material.title || ''"
+                />
                 <span>{{ material.title }}</span>
-                <small :data-tone="getStatusMeta(material.status).tone">{{ getStatusMeta(material.status).label }}</small>
+                <strong>{{ formatCompactNumber(material.downloads) }}</strong>
               </button>
             </div>
           </div>
 
-          <footer class="drawer-actions">
-            <button type="button" class="ghost-button icon-text" :class="{ active: selectedMaterial.isFavorited }" @click="toggleFavorite(selectedMaterial)">
-              <Heart class="icon-sm" :class="{ filled: selectedMaterial.isFavorited }" />
-              {{ selectedMaterial.isFavorited ? label('已收藏', 'Favorited') : label('收藏', 'Favorite') }}
+          <div class="signal-panel">
+            <header>
+              <Clock3 class="icon-sm" />
+              <span>{{ label('最近上传', 'Recent Uploads') }}</span>
+            </header>
+            <div class="mini-list">
+              <button
+                v-for="material in insights?.latest?.slice(0, 3) || []"
+                :key="material.id"
+                type="button"
+                class="mini-material"
+                @click="openDetail(material)"
+              >
+                <img
+                  :src="resolvePreviewUrl(material.previewUrl, 'STL')"
+                  :alt="material.title || ''"
+                />
+                <span>{{ material.title }}</span>
+                <small>{{ formatRelativeTime(material.createdAt) }}</small>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section v-if="activeFilterLabels.length || selectedIds.length" class="state-bar">
+          <button
+            type="button"
+            class="select-all"
+            :class="{ active: allVisibleSelected }"
+            @click="toggleSelectAllVisible"
+          >
+            {{
+              allVisibleSelected
+                ? label('取消全选', 'Clear Selection')
+                : label('选择当前页', 'Select Page')
+            }}
+          </button>
+
+          <div class="active-filters">
+            <button
+              v-for="filter in activeFilterLabels"
+              :key="filter.key"
+              type="button"
+              @click="clearFilter(filter.key)"
+            >
+              {{ filter.label }}
+              <X class="icon-xs" />
             </button>
-            <button type="button" class="primary-button icon-text" :disabled="!canDownloadMaterial(selectedMaterial)" @click="handleDownload(selectedMaterial)">
+            <button
+              v-if="activeFilterLabels.length > 1"
+              type="button"
+              class="clear-filter"
+              @click="resetFilters"
+            >
+              {{ label('清空', 'Clear') }}
+            </button>
+          </div>
+
+          <div v-if="selectedIds.length" class="bulk-actions">
+            <span>{{ selectedIds.length }} {{ label('项', 'selected') }}</span>
+            <button
+              type="button"
+              class="ghost-button compact-button"
+              :disabled="isBulkBusy"
+              @click="bulkFavorite(true)"
+            >
+              <Heart class="icon-sm" />
+              {{ label('收藏', 'Favorite') }}
+            </button>
+            <button
+              v-if="activeTab === 'favorites'"
+              type="button"
+              class="ghost-button compact-button"
+              :disabled="isBulkBusy"
+              @click="bulkFavorite(false)"
+            >
+              <X class="icon-sm" />
+              {{ label('移出', 'Remove') }}
+            </button>
+            <button type="button" class="primary-button compact-button" @click="downloadSelected">
               <Download class="icon-sm" />
               {{ label('下载', 'Download') }}
             </button>
-            <button v-if="canEditMaterial(selectedMaterial)" type="button" class="ghost-button square-action" @click="openEditDialog(selectedMaterial)">
-              <Edit3 class="icon-sm" />
-            </button>
-            <button v-if="canEditMaterial(selectedMaterial)" type="button" class="danger-button square-action" @click="deleteMaterial(selectedMaterial)">
-              <Trash2 class="icon-sm" />
-            </button>
-          </footer>
-
-          <div v-if="isAdmin && selectedMaterial.status === 'PENDING'" class="review-actions">
-            <button type="button" class="approve-button" :disabled="isSavingReview" @click="reviewMaterial(selectedMaterial, 'APPROVED')">
-              <CheckCircle2 class="icon-sm" />
-              {{ label('通过', 'Approve') }}
-            </button>
-            <button type="button" class="reject-button" :disabled="isSavingReview" @click="reviewMaterial(selectedMaterial, 'REJECTED')">
-              <XCircle class="icon-sm" />
-              {{ label('驳回', 'Reject') }}
-            </button>
           </div>
-        </template>
-      </aside>
-    </section>
+        </section>
+
+        <section class="workbench" :class="{ 'with-detail': selectedMaterial }">
+          <main class="asset-area">
+            <div v-if="isLoading" class="material-grid" :class="viewMode">
+              <article v-for="index in 12" :key="index" class="material-card skeleton-card">
+                <div class="skeleton preview"></div>
+                <div class="skeleton line wide"></div>
+                <div class="skeleton line"></div>
+              </article>
+            </div>
+
+            <div v-else-if="visibleMaterials.length" class="material-grid" :class="viewMode">
+              <UnifiedCard
+                v-for="material in visibleMaterials"
+                :key="material.id"
+                :item="material"
+                kind="material"
+                :view-mode="viewMode"
+                :is-selected="selectedIdSet.has(material.id)"
+                :is-favorited="material.isFavorited"
+                :active-tab="activeTab"
+                @click="openDetail(material)"
+                @select="toggleSelect(material.id, $event)"
+                @like="toggleFavorite(material, $event)"
+                @download="handleDownload(material, $event)"
+              />
+            </div>
+
+            <div v-else class="empty-state">
+              <Sparkles class="empty-icon" />
+              <h2>{{ emptyState.title }}</h2>
+              <p>{{ emptyState.body }}</p>
+              <button type="button" class="primary-button icon-text" @click="openCreateDialog">
+                <UploadCloud class="icon-sm" />
+                {{ label('上传材质', 'Upload Material') }}
+              </button>
+            </div>
+          </main>
+
+          <aside v-if="selectedMaterial" class="detail-drawer">
+            <button type="button" class="close-button" @click="closeDetail">
+              <X class="icon-sm" />
+            </button>
+
+            <div v-if="isLoadingDetail" class="drawer-loading">
+              <Loader2 class="spinning" />
+            </div>
+
+            <template v-else>
+              <div class="drawer-preview">
+                <img :src="selectedMaterial.preview" :alt="selectedMaterial.title" />
+                <div class="drawer-badges">
+                  <span>{{ selectedMaterial.category }}</span>
+                  <span>{{ selectedMaterial.resolution }}</span>
+                  <span v-if="selectedMaterial.isProcedural">{{
+                    label('程序化', 'Procedural')
+                  }}</span>
+                </div>
+              </div>
+
+              <div class="drawer-body">
+                <div class="drawer-title">
+                  <h2>{{ selectedMaterial.title }}</h2>
+                  <span
+                    class="status-pill"
+                    :data-tone="getStatusMeta(selectedMaterial.status).tone"
+                  >
+                    <component :is="getStatusMeta(selectedMaterial.status).icon" class="icon-xs" />
+                    {{ getStatusMeta(selectedMaterial.status).label }}
+                  </span>
+                </div>
+                <p>
+                  {{
+                    selectedMaterial.description ||
+                    label('作者暂未填写材料说明。', 'No material description yet.')
+                  }}
+                </p>
+
+                <dl class="detail-grid">
+                  <div>
+                    <dt>{{ label('体积', 'Size') }}</dt>
+                    <dd>{{ formatFileSize(selectedMaterial.fileSize) }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ label('下载', 'Downloads') }}</dt>
+                    <dd>{{ formatCompactNumber(selectedMaterial.downloads) }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ label('收藏', 'Favorites') }}</dt>
+                    <dd>{{ formatCompactNumber(selectedMaterial.favorites) }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ label('上传', 'Uploaded') }}</dt>
+                    <dd>{{ formatDate(selectedMaterial.createdAt) }}</dd>
+                  </div>
+                </dl>
+
+                <div v-if="selectedMaterial.rejectReason" class="reject-note">
+                  <strong>{{ label('驳回原因', 'Rejection Reason') }}</strong>
+                  <span>{{ selectedMaterial.rejectReason }}</span>
+                </div>
+
+                <div class="tag-row detail-tags">
+                  <span v-for="tag in selectedMaterial.tags" :key="tag">#{{ tag }}</span>
+                </div>
+
+                <div v-if="selectedMaterial.user" class="author-row">
+                  <UserAvatar :user="selectedMaterial.user" size="sm" />
+                  <div>
+                    <strong>{{
+                      selectedMaterial.user.name ||
+                      selectedMaterial.user.email ||
+                      label('创作者', 'Creator')
+                    }}</strong>
+                    <span>{{ label('材料贡献者', 'Material Contributor') }}</span>
+                  </div>
+                </div>
+
+                <div v-if="normalizedMyMaterials.length" class="my-submissions">
+                  <header>
+                    <FileArchive class="icon-sm" />
+                    <span>{{ label('我的最近提交', 'My Recent Uploads') }}</span>
+                  </header>
+                  <button
+                    v-for="material in normalizedMyMaterials"
+                    :key="material.id"
+                    type="button"
+                    class="submission-item"
+                    @click="openDetail(material)"
+                  >
+                    <span>{{ material.title }}</span>
+                    <small :data-tone="getStatusMeta(material.status).tone">{{
+                      getStatusMeta(material.status).label
+                    }}</small>
+                  </button>
+                </div>
+              </div>
+
+              <footer class="drawer-actions">
+                <button
+                  type="button"
+                  class="ghost-button icon-text"
+                  :class="{ active: selectedMaterial.isFavorited }"
+                  @click="toggleFavorite(selectedMaterial)"
+                >
+                  <Heart class="icon-sm" :class="{ filled: selectedMaterial.isFavorited }" />
+                  {{
+                    selectedMaterial.isFavorited
+                      ? label('已收藏', 'Favorited')
+                      : label('收藏', 'Favorite')
+                  }}
+                </button>
+                <button
+                  type="button"
+                  class="primary-button icon-text"
+                  :disabled="!canDownloadMaterial(selectedMaterial)"
+                  @click="handleDownload(selectedMaterial)"
+                >
+                  <Download class="icon-sm" />
+                  {{ label('下载', 'Download') }}
+                </button>
+                <button
+                  v-if="canEditMaterial(selectedMaterial)"
+                  type="button"
+                  class="ghost-button square-action"
+                  @click="openEditDialog(selectedMaterial)"
+                >
+                  <Edit3 class="icon-sm" />
+                </button>
+                <button
+                  v-if="canEditMaterial(selectedMaterial)"
+                  type="button"
+                  class="danger-button square-action"
+                  @click="deleteMaterial(selectedMaterial)"
+                >
+                  <Trash2 class="icon-sm" />
+                </button>
+              </footer>
+
+              <div v-if="isAdmin && selectedMaterial.status === 'PENDING'" class="review-actions">
+                <button
+                  type="button"
+                  class="approve-button"
+                  :disabled="isSavingReview"
+                  @click="reviewMaterial(selectedMaterial, 'APPROVED')"
+                >
+                  <CheckCircle2 class="icon-sm" />
+                  {{ label('通过', 'Approve') }}
+                </button>
+                <button
+                  type="button"
+                  class="reject-button"
+                  :disabled="isSavingReview"
+                  @click="reviewMaterial(selectedMaterial, 'REJECTED')"
+                >
+                  <XCircle class="icon-sm" />
+                  {{ label('驳回', 'Reject') }}
+                </button>
+              </div>
+            </template>
+          </aside>
+        </section>
+      </main>
+    </div>
 
     <Transition name="fade">
       <div v-if="isUploadDialogOpen" class="modal-layer">
@@ -1209,8 +1424,20 @@ onUnmounted(() => {
         <section class="material-dialog">
           <header>
             <div>
-              <h2>{{ isEditingMaterial ? label('编辑材料', 'Edit Material') : label('上传材质', 'Upload Material') }}</h2>
-              <p>{{ isEditingMaterial ? label('保存后将重新进入审核流程', 'Saving will send it back to review') : label('提交贴图包或 SBSAR 文件', 'Submit texture packs or SBSAR files') }}</p>
+              <h2>
+                {{
+                  isEditingMaterial
+                    ? label('编辑材料', 'Edit Material')
+                    : label('上传材质', 'Upload Material')
+                }}
+              </h2>
+              <p>
+                {{
+                  isEditingMaterial
+                    ? label('保存后将重新进入审核流程', 'Saving will send it back to review')
+                    : label('提交贴图包或 SBSAR 文件', 'Submit texture packs or SBSAR files')
+                }}
+              </p>
             </div>
             <button type="button" class="icon-button" @click="closeMaterialDialog">
               <X class="icon-sm" />
@@ -1226,7 +1453,7 @@ onUnmounted(() => {
                     accept=".zip,.sbsar"
                     :label="materialForm.file?.name || label('选择材料包', 'Choose Material Pack')"
                     sublabel="ZIP / SBSAR"
-                    heightClass="h-28"
+                    height-class="h-28"
                     @change="handleFileChange"
                   />
                 </div>
@@ -1237,7 +1464,7 @@ onUnmounted(() => {
                     accept="image/*"
                     :label="materialForm.preview?.name || label('上传预览图', 'Upload Preview')"
                     :sublabel="label('方形或 16:10 封面', 'Square or 16:10 cover')"
-                    heightClass="h-28"
+                    height-class="h-28"
                     @change="handlePreviewChange"
                   />
                 </div>
@@ -1245,7 +1472,11 @@ onUnmounted(() => {
 
               <label class="form-field">
                 <span>{{ label('材料名称', 'Material Name') }}</span>
-                <input v-model="materialForm.title" type="text" :placeholder="label('磨砂金属 PBR 套装', 'Brushed metal PBR set')" />
+                <input
+                  v-model="materialForm.title"
+                  type="text"
+                  :placeholder="label('磨砂金属 PBR 套装', 'Brushed metal PBR set')"
+                />
               </label>
 
               <div class="two-col">
@@ -1260,7 +1491,11 @@ onUnmounted(() => {
                 <label class="form-field">
                   <span>{{ label('分辨率', 'Resolution') }}</span>
                   <select v-model="materialForm.resolution">
-                    <option v-for="resolution in resolutionOptions" :key="resolution" :value="resolution">
+                    <option
+                      v-for="resolution in resolutionOptions"
+                      :key="resolution"
+                      :value="resolution"
+                    >
                       {{ resolution }}
                     </option>
                   </select>
@@ -1274,7 +1509,11 @@ onUnmounted(() => {
 
               <label class="form-field">
                 <span>{{ label('标签', 'Tags') }}</span>
-                <input v-model="materialForm.tags" type="text" :placeholder="label('PBR, 金属, 4K, 游戏资产', 'PBR, metal, 4K, game asset')" />
+                <input
+                  v-model="materialForm.tags"
+                  type="text"
+                  :placeholder="label('PBR, 金属, 4K, 游戏资产', 'PBR, metal, 4K, game asset')"
+                />
               </label>
             </div>
 
@@ -1283,7 +1522,12 @@ onUnmounted(() => {
                 <span>{{ label('材料说明', 'Material Description') }}</span>
                 <MarkdownEditor
                   v-model="materialForm.description"
-                  :placeholder="label('贴图通道、使用场景、授权或引擎导入注意事项', 'Texture channels, use cases, license, or engine import notes')"
+                  :placeholder="
+                    label(
+                      '贴图通道、使用场景、授权或引擎导入注意事项',
+                      'Texture channels, use cases, license, or engine import notes',
+                    )
+                  "
                   height="330px"
                   simple
                 />
@@ -1292,10 +1536,19 @@ onUnmounted(() => {
           </div>
 
           <footer>
-            <button type="button" class="ghost-button" @click="closeMaterialDialog">{{ label('取消', 'Cancel') }}</button>
-            <button type="button" class="primary-button icon-text" :disabled="isUploading || !canSubmitMaterial" @click="submitMaterial">
+            <button type="button" class="ghost-button" @click="closeMaterialDialog">
+              {{ label('取消', 'Cancel') }}
+            </button>
+            <button
+              type="button"
+              class="primary-button icon-text"
+              :disabled="isUploading || !canSubmitMaterial"
+              @click="submitMaterial"
+            >
               <Loader2 v-if="isUploading" class="icon-sm spinning" />
-              {{ isEditingMaterial ? label('保存', 'Save') : label('提交审核', 'Submit for Review') }}
+              {{
+                isEditingMaterial ? label('保存', 'Save') : label('提交审核', 'Submit for Review')
+              }}
             </button>
           </footer>
         </section>
@@ -1337,8 +1590,8 @@ button:disabled {
 }
 
 /* Flex alignments */
-.command-bar,
-.page-title,
+.page-header,
+.title-block,
 .command-actions,
 .control-bar,
 .toolbar-actions,
@@ -1363,35 +1616,45 @@ button:disabled {
   align-items: center;
 }
 
-.command-bar {
+.page-header {
   justify-content: space-between;
   gap: 12px;
-  min-height: 40px;
+  min-height: 32px;
 }
 
-.page-title {
+.title-block {
   min-width: 0;
-  gap: 10px;
+  gap: 8px;
 }
 
 .title-icon {
   display: grid;
   flex: 0 0 auto;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   color: #d97706;
   background: rgba(217, 119, 6, 0.12);
 }
 
-.page-title h1 {
-  font-size: 18px;
+.title-block h1 {
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
-.page-title p,
+.title-block p {
+  margin-top: 1px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
 .material-dialog header p,
 .empty-state p {
   margin-top: 1px;
@@ -1460,10 +1723,18 @@ button:disabled {
   display: none; /* Hide verbose details in compact layout */
 }
 
-.metric-tile[data-tone='amber'] { --tone-color: #d97706; }
-.metric-tile[data-tone='rose'] { --tone-color: #e11d48; }
-.metric-tile[data-tone='blue'] { --tone-color: #2563eb; }
-.metric-tile[data-tone='teal'] { --tone-color: #0f766e; }
+.metric-tile[data-tone='amber'] {
+  --tone-color: #d97706;
+}
+.metric-tile[data-tone='rose'] {
+  --tone-color: #e11d48;
+}
+.metric-tile[data-tone='blue'] {
+  --tone-color: #2563eb;
+}
+.metric-tile[data-tone='teal'] {
+  --tone-color: #0f766e;
+}
 
 .command-actions,
 .toolbar-actions,
@@ -1594,7 +1865,37 @@ button:disabled {
 .control-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--bg-card);
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-base);
+  backdrop-filter: blur(12px);
+  flex-wrap: nowrap;
+}
+
+.toolbar-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.toolbar-center {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.toolbar-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .tab-switch {
@@ -1728,80 +2029,83 @@ button:disabled {
   display: none;
 }
 
-/* Horizontal Filters (Re-layouted for Compactness) */
-.filter-deck {
+/* Sidebar Layout & Vertical Filters */
+.workspace-shell {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.filter-panel {
+  align-self: start;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  background: var(--bg-card);
+  gap: 12px;
   border: 1px solid var(--border-base);
   border-radius: 8px;
-  padding: 10px 12px;
+  background: var(--bg-card);
+  padding: 10px;
   box-shadow: var(--shadow-card);
 }
 
-.filter-group {
+.panel-section {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  border: none;
-  background: transparent;
-  padding: 0;
-  border-radius: 0;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.filter-group > span {
-  flex: 0 0 54px;
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: var(--text-primary);
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-muted);
 }
 
-.chip-row {
+.section-title svg {
+  color: var(--accent);
+}
+
+.content-panel {
+  min-width: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  overflow: visible;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.chip-row.compact {
-  flex-wrap: wrap;
+@media (max-width: 980px) {
+  .workspace-shell {
+    grid-template-columns: 1fr;
+  }
+  .filter-panel {
+    display: none;
+  }
+  .filter-panel.open {
+    display: flex;
+    position: fixed;
+    top: 50px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    border-radius: 0;
+    border: 0;
+    background: var(--bg-card);
+    overflow: auto;
+  }
 }
 
-.filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 22px;
-  background: var(--bg-app);
-  color: var(--text-secondary);
-  padding: 0 8px;
-  font-size: 10px;
-  font-weight: 500;
-  border: 0;
-  border-radius: 4px;
-  white-space: nowrap;
-}
-
-.filter-chip:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.filter-chip.active,
 .tag-strip button.active,
 .select-all.active {
   border-color: transparent;
   background: rgba(217, 119, 6, 0.1);
   color: #d97706;
   font-weight: 600;
-}
-
-.filter-chip strong {
-  color: var(--text-muted);
-  font-size: 9px;
-  font-weight: 500;
-  margin-left: 2px;
 }
 
 .filter-chip.active strong {
@@ -1897,29 +2201,35 @@ button:disabled {
   text-align: right;
 }
 
-.tag-strip {
+.tag-cloud {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
-  overflow: hidden;
+  gap: 6px;
 }
 
-.tag-strip button {
-  height: 22px;
-  background: var(--bg-app);
-  color: var(--text-secondary);
-  padding: 0 8px;
-  font-size: 10px;
-  font-weight: 500;
+.tag-cloud button {
+  height: 24px;
   border: 0;
   border-radius: 9999px;
+  background: var(--bg-app);
+  color: var(--text-secondary);
+  padding: 0 10px;
+  font-size: 10px;
+  font-weight: 500;
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
-.tag-strip button:hover {
+.tag-cloud button:hover {
   background: var(--bg-active);
-  color: #d97706;
+  color: var(--accent);
   transform: translateY(-0.5px);
+}
+
+.tag-cloud button.active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* State bar */
@@ -1998,16 +2308,17 @@ button:disabled {
 }
 
 /* Grid columns and card sizing */
-.material-grid.grid {
+.material-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  min-height: 200px;
 }
 
 .material-grid.list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 /* Material Cards */
@@ -2647,7 +2958,12 @@ button:disabled {
 
 .skeleton {
   border-radius: 6px;
-  background: linear-gradient(90deg, rgba(148, 163, 184, 0.1), rgba(148, 163, 184, 0.2), rgba(148, 163, 184, 0.1));
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.1),
+    rgba(148, 163, 184, 0.2),
+    rgba(148, 163, 184, 0.1)
+  );
   background-size: 200% 100%;
   animation: shimmer 1.2s infinite;
 }
@@ -2731,6 +3047,24 @@ button:disabled {
   .control-bar {
     align-items: stretch;
     flex-direction: column;
+    gap: 12px;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .toolbar-center {
+    width: 100%;
+  }
+
+  .toolbar-center :deep(.ui-input-wrapper) {
+    max-width: none;
+    width: 100%;
   }
 
   .tab-switch,

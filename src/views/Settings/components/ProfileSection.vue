@@ -4,6 +4,8 @@ import { ElMessage } from 'element-plus';
 import { Camera, CheckCircle2, Globe, MapPin, RotateCcw, Save, UserRound } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
+import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
 
 const authStore = useAuthStore();
 
@@ -143,7 +145,12 @@ const handleAvatarUpload = async (event: Event) => {
             <Camera />
             {{ isUploadingAvatar ? '上传中' : '更换头像' }}
           </span>
-          <input type="file" accept="image/*" :disabled="isUploadingAvatar" @change="handleAvatarUpload" />
+          <input
+            type="file"
+            accept="image/*"
+            :disabled="isUploadingAvatar"
+            @change="handleAvatarUpload"
+          />
         </label>
       </div>
 
@@ -152,10 +159,14 @@ const handleAvatarUpload = async (event: Event) => {
           <strong>昵称</strong>
           <span>用于个人主页、评论和团队成员列表。</span>
         </label>
-        <div class="input-shell">
-          <UserRound />
-          <input id="profile-name" v-model="profileForm.name" type="text" maxlength="50" placeholder="你的展示名称" />
-        </div>
+        <Input
+          id="profile-name"
+          v-model="profileForm.name"
+          type="text"
+          maxlength="50"
+          placeholder="你的展示名称"
+          :icon="UserRound"
+        />
       </div>
 
       <div class="setting-row">
@@ -163,10 +174,14 @@ const handleAvatarUpload = async (event: Event) => {
           <strong>所在地</strong>
           <span>可选，用于让协作者了解你的时区或城市。</span>
         </label>
-        <div class="input-shell">
-          <MapPin />
-          <input id="profile-location" v-model="profileForm.location" type="text" maxlength="100" placeholder="城市，国家" />
-        </div>
+        <Input
+          id="profile-location"
+          v-model="profileForm.location"
+          type="text"
+          maxlength="100"
+          placeholder="城市，国家"
+          :icon="MapPin"
+        />
       </div>
 
       <div class="setting-row text-row">
@@ -191,13 +206,15 @@ const handleAvatarUpload = async (event: Event) => {
           <strong>个人主页 / 作品集</strong>
           <span>支持自动补全 https://，保存前会校验格式。</span>
         </label>
-        <div class="field-stack">
-          <div class="input-shell" :class="{ invalid: !isWebsiteValid }">
-            <Globe />
-            <input id="profile-website" v-model="profileForm.website" type="url" maxlength="255" placeholder="https://yourportfolio.com" />
-          </div>
-          <small v-if="!isWebsiteValid" class="error-text">链接格式不正确</small>
-        </div>
+        <Input
+          id="profile-website"
+          v-model="profileForm.website"
+          type="url"
+          maxlength="255"
+          placeholder="https://yourportfolio.com"
+          :icon="Globe"
+          :error="!isWebsiteValid ? '链接格式不正确' : ''"
+        />
       </div>
     </section>
 
@@ -213,7 +230,12 @@ const handleAvatarUpload = async (event: Event) => {
       </header>
 
       <div class="check-grid">
-        <div v-for="item in completionItems" :key="item.label" class="check-item" :class="{ done: item.done }">
+        <div
+          v-for="item in completionItems"
+          :key="item.label"
+          class="check-item"
+          :class="{ done: item.done }"
+        >
           <CheckCircle2 />
           <span>{{ item.label }}</span>
         </div>
@@ -221,14 +243,23 @@ const handleAvatarUpload = async (event: Event) => {
     </section>
 
     <footer class="settings-actions">
-      <button type="button" class="secondary-action" :disabled="!hasChanges || isSaving" @click="resetForm">
-        <RotateCcw />
+      <Button
+        variant="secondary"
+        :disabled="!hasChanges || isSaving"
+        :icon="RotateCcw"
+        @click="resetForm"
+      >
         重置
-      </button>
-      <button type="button" class="primary-action" :disabled="!hasChanges || isSaving" @click="handleUpdateProfile">
-        <Save />
-        {{ isSaving ? '保存中...' : '保存资料' }}
-      </button>
+      </Button>
+      <Button
+        variant="primary"
+        :disabled="!hasChanges || isSaving"
+        :loading="isSaving"
+        :icon="Save"
+        @click="handleUpdateProfile"
+      >
+        保存资料
+      </Button>
     </footer>
   </div>
 </template>

@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import type { Component } from 'vue';
 import { useRouter } from 'vue-router';
 import { TrendingUp } from 'lucide-vue-next';
-import BaseCard from '@/components/BaseCard.vue';
+import Card from '@/components/ui/Card.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -22,7 +22,7 @@ const props = withDefaults(
     route: '',
     compact: false,
     horizontal: false,
-  }
+  },
 );
 
 const router = useRouter();
@@ -48,18 +48,14 @@ function handleClick() {
 </script>
 
 <template>
-  <BaseCard
+  <Card
     :clickable="isClickable"
     :hoverable="isClickable"
     padding="none"
     class="blender-stat-card"
     :class="[
       isClickable ? 'group' : '',
-      horizontal
-        ? 'p-3 flex items-center gap-3'
-        : compact
-          ? 'p-3 sm:p-5'
-          : 'p-3 md:p-4'
+      horizontal ? 'p-3 flex items-center gap-3' : compact ? 'p-3 sm:p-5' : 'p-3 md:p-4',
     ]"
     @click="handleClick"
   >
@@ -67,16 +63,9 @@ function handleClick() {
     <template v-if="horizontal">
       <div
         class="bg-slate-50 dark:bg-white/5 transition-transform shrink-0"
-        :class="[
-          color,
-          isClickable ? 'group-hover:scale-110' : '',
-          'p-2 rounded-lg'
-        ]"
+        :class="[color, isClickable ? 'group-hover:scale-110' : '', 'p-2 rounded-lg']"
       >
-        <component
-          :is="icon"
-          class="w-3.5 h-3.5 sm:w-5 sm:h-5"
-        />
+        <component :is="icon" class="w-3.5 h-3.5 sm:w-5 sm:h-5" />
       </div>
       <div class="min-w-0 flex-1">
         <p
@@ -87,10 +76,7 @@ function handleClick() {
           {{ label }}
         </p>
         <div class="flex items-baseline gap-1">
-          <h2
-            class="font-bold truncate text-lg leading-tight"
-            style="color: var(--text-primary)"
-          >
+          <h2 class="font-bold truncate text-lg leading-tight" style="color: var(--text-primary)">
             {{ value }}
           </h2>
           <span
@@ -112,7 +98,7 @@ function handleClick() {
           :class="[
             color,
             isClickable ? 'group-hover:scale-110' : '',
-            compact ? 'p-2.5 rounded-lg' : 'p-2 rounded-lg'
+            compact ? 'p-2.5 rounded-lg' : 'p-2 rounded-lg',
           ]"
         >
           <component
@@ -154,5 +140,5 @@ function handleClick() {
         {{ value }}
       </h2>
     </template>
-  </BaseCard>
+  </Card>
 </template>

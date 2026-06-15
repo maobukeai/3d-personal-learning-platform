@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import type { AdminUser, AdminSubscriptionPlan } from '../UsersView.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -11,12 +12,15 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
-  (e: 'submit', form: {
-    planId: string;
-    interval: string;
-    endDate: string;
-    status: string;
-  }): void;
+  (
+    e: 'submit',
+    form: {
+      planId: string;
+      interval: string;
+      endDate: string;
+      status: string;
+    },
+  ): void;
   (e: 'cancel-sub'): void;
 }>();
 
@@ -27,25 +31,28 @@ const subForm = ref({
   status: 'ACTIVE',
 });
 
-watch(() => props.modelValue, (newVal) => {
-  if (newVal) {
-    subForm.value = props.user?.subscription
-      ? {
-          planId: props.user.subscription.planId,
-          interval: props.user.subscription.interval || 'MONTHLY',
-          endDate: props.user.subscription.endDate
-            ? new Date(props.user.subscription.endDate).toISOString().split('T')[0] || ''
-            : '',
-          status: props.user.subscription.status || 'ACTIVE',
-        }
-      : {
-          planId: props.plans[0]?.id || '',
-          interval: 'MONTHLY',
-          endDate: '',
-          status: 'ACTIVE',
-        };
-  }
-});
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    if (newVal) {
+      subForm.value = props.user?.subscription
+        ? {
+            planId: props.user.subscription.planId,
+            interval: props.user.subscription.interval || 'MONTHLY',
+            endDate: props.user.subscription.endDate
+              ? new Date(props.user.subscription.endDate).toISOString().split('T')[0] || ''
+              : '',
+            status: props.user.subscription.status || 'ACTIVE',
+          }
+        : {
+            planId: props.plans[0]?.id || '',
+            interval: 'MONTHLY',
+            endDate: '',
+            status: 'ACTIVE',
+          };
+    }
+  },
+);
 
 const handleSave = () => {
   emit('submit', { ...subForm.value });
@@ -53,12 +60,7 @@ const handleSave = () => {
 </script>
 
 <template>
-  <el-dialog
-    :model-value="modelValue"
-    @update:model-value="emit('update:modelValue', $event)"
-    title="订阅管理"
-    width="520px"
-  >
+  <Modal :show="modelValue" title="订阅管理" size="md" @close="emit('update:modelValue', false)">
     <el-form label-position="top">
       <el-form-item label="用户">
         <el-input :model-value="user?.email || ''" disabled />
@@ -102,11 +104,9 @@ const handleSave = () => {
         取消订阅
       </el-button>
       <el-button @click="emit('update:modelValue', false)">关闭</el-button>
-      <el-button type="primary" :loading="isSubLoading" @click="handleSave">
-        保存订阅
-      </el-button>
+      <el-button type="primary" :loading="isSubLoading" @click="handleSave"> 保存订阅 </el-button>
     </template>
-  </el-dialog>
+  </Modal>
 </template>
 
 <style scoped>

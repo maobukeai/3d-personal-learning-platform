@@ -326,7 +326,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex h-full overflow-hidden transition-colors duration-300" style="background-color: var(--bg-app); color: var(--text-primary)">
+  <div
+    class="flex h-full overflow-hidden transition-colors duration-300"
+    style="background-color: var(--bg-app); color: var(--text-primary)"
+  >
     <!-- Main Player Area -->
     <div class="flex-1 flex flex-col relative overflow-hidden">
       <!-- Player Top Nav -->
@@ -335,29 +338,52 @@ onUnmounted(() => {
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <div class="flex items-center gap-2.5">
-          <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors cursor-pointer" style="color: var(--text-primary)" @click="router.push('/academy')">
+          <button
+            type="button"
+            class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+            style="color: var(--text-primary)"
+            @click="router.push('/academy')"
+          >
             <ChevronLeft class="w-4 h-4" />
           </button>
-          <div class="h-3 w-px transition-colors duration-300" style="background-color: var(--border-base)"></div>
+          <div
+            class="h-3 w-px transition-colors duration-300"
+            style="background-color: var(--border-base)"
+          ></div>
           <div>
-            <h1 class="text-xs font-bold truncate max-w-[150px] md:max-w-md" style="color: var(--text-primary)">
+            <h1
+              class="text-xs font-bold truncate max-w-[150px] md:max-w-md"
+              style="color: var(--text-primary)"
+            >
               {{ course?.title }}
             </h1>
-            <p class="text-[9px]" style="color: var(--text-secondary)">{{ t('academy.currentlyLearning', { title: currentLesson?.title }) }}</p>
+            <p class="text-[9px]" style="color: var(--text-secondary)">
+              {{ t('academy.currentlyLearning', { title: currentLesson?.title }) }}
+            </p>
           </div>
         </div>
 
         <div class="flex items-center gap-2.5">
           <div class="flex flex-col items-end mr-1 sm:mr-1.5">
-            <div class="w-12 sm:w-28 h-1 rounded-full overflow-hidden transition-colors duration-300" style="background-color: var(--border-base)">
+            <div
+              class="w-12 sm:w-28 h-1 rounded-full overflow-hidden transition-colors duration-300"
+              style="background-color: var(--border-base)"
+            >
               <div
                 class="h-full bg-accent transition-all duration-1000"
                 :style="{ width: progress + '%' }"
               ></div>
             </div>
-            <span class="text-[8px] sm:text-[9px] font-bold mt-0.5 text-accent">{{ t('academy.completedProgress', { n: progress }) }}</span>
+            <span class="text-[8px] sm:text-[9px] font-bold mt-0.5 text-accent">{{
+              t('academy.completedProgress', { n: progress })
+            }}</span>
           </div>
-          <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors lg:hidden cursor-pointer" style="color: var(--text-primary)" @click="isSidebarOpen = !isSidebarOpen">
+          <button
+            type="button"
+            class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors lg:hidden cursor-pointer"
+            style="color: var(--text-primary)"
+            @click="isSidebarOpen = !isSidebarOpen"
+          >
             <Menu class="w-4 h-4" />
           </button>
         </div>
@@ -383,11 +409,17 @@ onUnmounted(() => {
             />
             <div
               class="absolute bottom-6 right-6 backdrop-blur px-4 py-2 rounded-xl border pointer-events-none transition-colors duration-300"
-              style="background-color: var(--bg-card); border-color: var(--border-base); opacity: 0.9"
+              style="
+                background-color: var(--bg-card);
+                border-color: var(--border-base);
+                opacity: 0.9;
+              "
             >
               <div class="flex items-center gap-2">
                 <Box class="w-4 h-4 text-accent" />
-                <span class="text-[10px] font-bold" style="color: var(--text-primary)">{{ t('academy.teachingMode3D') }}</span>
+                <span class="text-[10px] font-bold" style="color: var(--text-primary)">{{
+                  t('academy.teachingMode3D')
+                }}</span>
               </div>
             </div>
           </div>
@@ -453,13 +485,20 @@ onUnmounted(() => {
           </div>
 
           <!-- Text/Doc Mode -->
-          <div v-else class="w-full h-full p-4 sm:p-8 md:p-12 overflow-y-auto scrollbar-hide transition-colors duration-300" style="background-color: var(--bg-app)">
+          <div
+            v-else
+            class="w-full h-full p-4 sm:p-8 md:p-12 overflow-y-auto scrollbar-hide transition-colors duration-300"
+            style="background-color: var(--bg-app)"
+          >
             <div class="max-w-3xl mx-auto space-y-4 sm:space-y-6">
               <div class="space-y-2">
-                <span class="px-2 py-0.5 bg-accent/20 text-accent text-[9px] font-bold rounded-full"
+                <span
+                  class="px-2 py-0.5 bg-accent/20 text-accent text-[9px] font-bold rounded-full"
                   >{{ t('academy.textTutorial') }}</span
                 >
-                <h2 class="text-xl sm:text-2xl font-bold" style="color: var(--text-primary)">{{ currentLesson.title }}</h2>
+                <h2 class="text-xl sm:text-2xl font-bold" style="color: var(--text-primary)">
+                  {{ currentLesson.title }}
+                </h2>
               </div>
               <div
                 class="prose dark:prose-invert prose-sm max-w-none leading-relaxed transition-colors duration-300"
@@ -468,7 +507,11 @@ onUnmounted(() => {
                 <SafeHtml :html="currentLesson.content || ''" />
               </div>
               <div class="pt-6 flex justify-center">
-                <button type="button" class="px-5 py-2 bg-accent hover:bg-accent/90 text-white text-xs font-bold rounded-lg shadow-md shadow-accent/15 flex items-center gap-1.5 transition-colors cursor-pointer" @click="handleVideoEnded">
+                <button
+                  type="button"
+                  class="px-5 py-2 bg-accent hover:bg-accent/90 text-white text-xs font-bold rounded-lg shadow-md shadow-accent/15 flex items-center gap-1.5 transition-colors cursor-pointer"
+                  @click="handleVideoEnded"
+                >
                   {{ t('academy.finishLearning') }} <ChevronRight class="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -483,11 +526,27 @@ onUnmounted(() => {
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <div class="flex items-center gap-1.5 shrink-0">
-          <button type="button" :disabled="currentLessonIndex === 0" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all disabled:opacity-30 cursor-pointer" :class="currentLessonIndex > 0 ? 'hover:bg-slate-100 dark:hover:bg-white/5 bg-slate-50 dark:bg-white/5' : 'bg-transparent'" style="color: var(--text-primary)" @click="prevLesson">
+          <button
+            type="button"
+            :disabled="currentLessonIndex === 0"
+            class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all disabled:opacity-30 cursor-pointer"
+            :class="
+              currentLessonIndex > 0
+                ? 'hover:bg-slate-100 dark:hover:bg-white/5 bg-slate-50 dark:bg-white/5'
+                : 'bg-transparent'
+            "
+            style="color: var(--text-primary)"
+            @click="prevLesson"
+          >
             <ChevronLeft class="w-3.5 h-3.5" />
             <span>{{ t('academy.prevLesson') }}</span>
           </button>
-          <button type="button" :disabled="currentLessonIndex === lessons.length - 1" class="flex items-center gap-1 px-3 py-1.5 bg-accent hover:bg-accent/90 text-white rounded-lg text-[10px] sm:text-xs font-bold transition-all disabled:opacity-30 shadow-lg shadow-accent/10 cursor-pointer" @click="nextLesson">
+          <button
+            type="button"
+            :disabled="currentLessonIndex === lessons.length - 1"
+            class="flex items-center gap-1 px-3 py-1.5 bg-accent hover:bg-accent/90 text-white rounded-lg text-[10px] sm:text-xs font-bold transition-all disabled:opacity-30 shadow-lg shadow-accent/10 cursor-pointer"
+            @click="nextLesson"
+          >
             <span>{{ t('academy.nextLesson') }}</span>
             <ChevronRight class="w-3.5 h-3.5" />
           </button>
@@ -496,21 +555,42 @@ onUnmounted(() => {
         <!-- Center: Complete toggle -->
         <div class="flex items-center gap-1.5 shrink-0">
           <button
-            type="button" :disabled="isTogglingComplete" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all cursor-pointer" :class="
+            type="button"
+            :disabled="isTogglingComplete"
+            class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all cursor-pointer"
+            :class="
               currentLesson && isLessonCompleted(currentLesson.id)
                 ? 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                 : 'bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10'
-            " :style="!(currentLesson && isLessonCompleted(currentLesson.id)) ? 'color: var(--text-secondary)' : ''" @click="toggleLessonComplete">
+            "
+            :style="
+              !(currentLesson && isLessonCompleted(currentLesson.id))
+                ? 'color: var(--text-secondary)'
+                : ''
+            "
+            @click="toggleLessonComplete"
+          >
             <CheckCircle2
               v-if="currentLesson && isLessonCompleted(currentLesson.id)"
               class="w-3.5 h-3.5"
             />
             <Circle v-else class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">{{ currentLesson && isLessonCompleted(currentLesson.id) ? t('academy.completedStatus') : t('academy.markCompleted') }}</span>
-            <span class="sm:hidden">{{ currentLesson && isLessonCompleted(currentLesson.id) ? t('academy.completedStatus') : t('academy.completeShort') }}</span>
+            <span class="hidden sm:inline">{{
+              currentLesson && isLessonCompleted(currentLesson.id)
+                ? t('academy.completedStatus')
+                : t('academy.markCompleted')
+            }}</span>
+            <span class="sm:hidden">{{
+              currentLesson && isLessonCompleted(currentLesson.id)
+                ? t('academy.completedStatus')
+                : t('academy.completeShort')
+            }}</span>
           </button>
 
-          <label class="hidden sm:flex items-center gap-1 text-[10px] cursor-pointer" style="color: var(--text-muted)">
+          <label
+            class="hidden sm:flex items-center gap-1 text-[10px] cursor-pointer"
+            style="color: var(--text-muted)"
+          >
             <input v-model="autoPlayNext" type="checkbox" class="accent-accent w-3 h-3" />
             <span>{{ t('academy.autoplay') }}</span>
           </label>
@@ -520,10 +600,36 @@ onUnmounted(() => {
         <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <button
             v-for="tab in [
-              { id: 'content' as const, icon: FileText, label: t('academy.tabOutline'), shortLabel: t('academy.tabOutlineShort') },
-              { id: 'notes' as const, icon: StickyNote, label: t('academy.tabNotes'), shortLabel: t('academy.tabNotesShort') },
-              { id: 'discussion' as const, icon: MessageSquare, label: t('academy.tabDiscussion'), shortLabel: t('academy.tabDiscussionShort') },
-            ]" :key="tab.id" type="button" class="flex items-center gap-1 text-[10px] sm:text-xs font-medium transition-all cursor-pointer" :class="activeTab === tab.id ? 'text-accent' : 'hover:text-slate-800 dark:hover:text-slate-100'" :style="activeTab !== tab.id ? 'color: var(--text-muted)' : ''" @click="selectTab(tab.id)">
+              {
+                id: 'content' as const,
+                icon: FileText,
+                label: t('academy.tabOutline'),
+                shortLabel: t('academy.tabOutlineShort'),
+              },
+              {
+                id: 'notes' as const,
+                icon: StickyNote,
+                label: t('academy.tabNotes'),
+                shortLabel: t('academy.tabNotesShort'),
+              },
+              {
+                id: 'discussion' as const,
+                icon: MessageSquare,
+                label: t('academy.tabDiscussion'),
+                shortLabel: t('academy.tabDiscussionShort'),
+              },
+            ]"
+            :key="tab.id"
+            type="button"
+            class="flex items-center gap-1 text-[10px] sm:text-xs font-medium transition-all cursor-pointer"
+            :class="
+              activeTab === tab.id
+                ? 'text-accent'
+                : 'hover:text-slate-800 dark:hover:text-slate-100'
+            "
+            :style="activeTab !== tab.id ? 'color: var(--text-muted)' : ''"
+            @click="selectTab(tab.id)"
+          >
             <component :is="tab.icon" class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">{{ tab.label }}</span>
             <span class="sm:hidden">{{ tab.shortLabel }}</span>
@@ -545,10 +651,19 @@ onUnmounted(() => {
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <!-- Sidebar Header -->
-        <div class="h-12 flex items-center justify-between px-4 border-b shrink-0 transition-colors duration-300" style="border-color: var(--border-base)">
+        <div
+          class="h-12 flex items-center justify-between px-4 border-b shrink-0 transition-colors duration-300"
+          style="border-color: var(--border-base)"
+        >
           <div class="flex items-center gap-2">
             <h2 class="text-xs font-bold" style="color: var(--text-primary)">
-              {{ activeTab === 'content' ? t('academy.tabOutline') : activeTab === 'notes' ? t('academy.tabNotes') : t('academy.tabDiscussion') }}
+              {{
+                activeTab === 'content'
+                  ? t('academy.tabOutline')
+                  : activeTab === 'notes'
+                    ? t('academy.tabNotes')
+                    : t('academy.tabDiscussion')
+              }}
             </h2>
             <span
               v-if="activeTab === 'content'"
@@ -565,19 +680,41 @@ onUnmounted(() => {
               {{ notes.length }}
             </span>
           </div>
-          <button type="button" class="lg:hidden p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg cursor-pointer" style="color: var(--text-primary)" @click="isSidebarOpen = false">
+          <button
+            type="button"
+            class="lg:hidden p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg cursor-pointer"
+            style="color: var(--text-primary)"
+            @click="isSidebarOpen = false"
+          >
             <X class="w-4 h-4" />
           </button>
         </div>
 
         <!-- Sidebar Tabs for mobile & quick switching -->
-        <div class="flex border-b shrink-0 transition-colors duration-300" style="border-color: var(--border-base); background-color: var(--bg-card)">
+        <div
+          class="flex border-b shrink-0 transition-colors duration-300"
+          style="border-color: var(--border-base); background-color: var(--bg-card)"
+        >
           <button
             v-for="tab in [
               { id: 'content' as const, icon: FileText, label: t('academy.tabOutlineShort') },
               { id: 'notes' as const, icon: StickyNote, label: t('academy.tabNotesShort') },
-              { id: 'discussion' as const, icon: MessageSquare, label: t('academy.tabDiscussionShort') },
-            ]" :key="tab.id" type="button" class="flex-1 py-2 flex items-center justify-center gap-1.5 text-xs font-bold transition-all border-b-2 cursor-pointer" :class="activeTab === tab.id ? 'border-accent text-accent' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'" @click="activeTab = tab.id">
+              {
+                id: 'discussion' as const,
+                icon: MessageSquare,
+                label: t('academy.tabDiscussionShort'),
+              },
+            ]"
+            :key="tab.id"
+            type="button"
+            class="flex-1 py-2 flex items-center justify-center gap-1.5 text-xs font-bold transition-all border-b-2 cursor-pointer"
+            :class="
+              activeTab === tab.id
+                ? 'border-accent text-accent'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            "
+            @click="activeTab = tab.id"
+          >
             <component :is="tab.icon" class="w-3.5 h-3.5" />
             <span>{{ tab.label }}</span>
             <span
@@ -589,7 +726,10 @@ onUnmounted(() => {
         </div>
 
         <!-- Tab Content -->
-        <div class="flex-1 overflow-y-auto scrollbar-hide transition-colors duration-300" style="background-color: var(--bg-card)">
+        <div
+          class="flex-1 overflow-y-auto scrollbar-hide transition-colors duration-300"
+          style="background-color: var(--bg-card)"
+        >
           <!-- Content Tab: Lesson List -->
           <template v-if="activeTab === 'content'">
             <div class="p-2 sm:p-3 space-y-1">
@@ -614,7 +754,11 @@ onUnmounted(() => {
                           ? 'bg-accent text-white'
                           : ''
                     "
-                    :style="(!isLessonCompleted(lesson.id) && currentLessonIndex !== index) ? 'background-color: var(--bg-app); color: var(--text-secondary)' : ''"
+                    :style="
+                      !isLessonCompleted(lesson.id) && currentLessonIndex !== index
+                        ? 'background-color: var(--bg-app); color: var(--text-secondary)'
+                        : ''
+                    "
                   >
                     <CheckCircle2 v-if="isLessonCompleted(lesson.id)" class="w-3.5 h-3.5" />
                     <span v-else>{{ index + 1 }}</span>
@@ -629,18 +773,29 @@ onUnmounted(() => {
                             ? 'text-emerald-500'
                             : ''
                       "
-                      :style="(!isLessonCompleted(lesson.id) && currentLessonIndex !== index) ? 'color: var(--text-primary)' : ''"
+                      :style="
+                        !isLessonCompleted(lesson.id) && currentLessonIndex !== index
+                          ? 'color: var(--text-primary)'
+                          : ''
+                      "
                     >
                       {{ lesson.title }}
                     </h3>
                     <div class="flex items-center gap-2">
-                      <span class="flex items-center gap-0.5 text-[9px]" style="color: var(--text-muted)">
+                      <span
+                        class="flex items-center gap-0.5 text-[9px]"
+                        style="color: var(--text-muted)"
+                      >
                         <component
                           :is="is3DModel(lesson.videoUrl) ? Box : lesson.videoUrl ? Play : FileText"
                           class="w-3 h-3"
                         />
                         {{
-                          is3DModel(lesson.videoUrl) ? t('academy.lessonType3D') : lesson.videoUrl ? t('academy.lessonTypeVideo') : t('academy.lessonTypeRichText')
+                          is3DModel(lesson.videoUrl)
+                            ? t('academy.lessonType3D')
+                            : lesson.videoUrl
+                              ? t('academy.lessonTypeVideo')
+                              : t('academy.lessonTypeRichText')
                         }}
                       </span>
                       <span
@@ -648,7 +803,8 @@ onUnmounted(() => {
                         class="flex items-center gap-0.5 text-[9px]"
                         style="color: var(--text-muted)"
                       >
-                        <Clock class="w-3 h-3" /> {{ t('academy.minutesUnit', { n: lesson.duration }) }}
+                        <Clock class="w-3 h-3" />
+                        {{ t('academy.minutesUnit', { n: lesson.duration }) }}
                       </span>
                     </div>
                   </div>
@@ -664,17 +820,28 @@ onUnmounted(() => {
               <div class="space-y-2">
                 <div class="flex items-center gap-1.5 text-xs" style="color: var(--text-secondary)">
                   <StickyNote class="w-3.5 h-3.5" />
-                  <span class="font-bold">{{ t('academy.lessonNoteTitle', { title: currentLesson?.title }) }}</span>
+                  <span class="font-bold">{{
+                    t('academy.lessonNoteTitle', { title: currentLesson?.title })
+                  }}</span>
                 </div>
                 <textarea
                   v-model="newNoteContent"
                   rows="3"
                   :placeholder="t('academy.notePlaceholder')"
                   class="w-full px-3 py-2 rounded-lg border text-xs outline-none resize-none transition-colors focus:border-accent/30"
-                  style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary)"
+                  style="
+                    background-color: var(--bg-app);
+                    border-color: var(--border-base);
+                    color: var(--text-primary);
+                  "
                 ></textarea>
                 <div class="flex justify-end">
-                  <button type="button" :disabled="!newNoteContent.trim() || isSavingNote" class="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent/90 text-white text-xs font-bold rounded-md disabled:opacity-40 transition-all cursor-pointer" @click="handleSaveNote">
+                  <button
+                    type="button"
+                    :disabled="!newNoteContent.trim() || isSavingNote"
+                    class="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent/90 text-white text-xs font-bold rounded-md disabled:opacity-40 transition-all cursor-pointer"
+                    @click="handleSaveNote"
+                  >
                     <Send class="w-3.5 h-3.5" />
                     {{ t('academy.saveBtn') }}
                   </button>
@@ -689,12 +856,19 @@ onUnmounted(() => {
                   class="group p-3 rounded-lg border transition-colors duration-300"
                   style="background-color: var(--bg-app); border-color: var(--border-base)"
                 >
-                  <p class="text-xs leading-relaxed mb-1.5" style="color: var(--text-secondary)">{{ note.content }}</p>
+                  <p class="text-xs leading-relaxed mb-1.5" style="color: var(--text-secondary)">
+                    {{ note.content }}
+                  </p>
                   <div class="flex items-center justify-between">
                     <span class="text-[9px]" style="color: var(--text-muted)">{{
                       new Date(note.createdAt).toLocaleString('zh-CN')
                     }}</span>
-                    <button type="button" class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:text-rose-400 transition-all cursor-pointer" style="color: var(--text-muted)" @click="handleDeleteNote(note.id)">
+                    <button
+                      type="button"
+                      class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:text-rose-400 transition-all cursor-pointer"
+                      style="color: var(--text-muted)"
+                      @click="handleDeleteNote(note.id)"
+                    >
                       <Trash2 class="w-3 h-3" />
                     </button>
                   </div>
@@ -702,7 +876,9 @@ onUnmounted(() => {
 
                 <div v-if="!notes.length" class="py-6 text-center">
                   <StickyNote class="w-6 h-6 mx-auto mb-1.5" style="color: var(--text-muted)" />
-                  <p class="text-[10px]" style="color: var(--text-muted)">{{ t('academy.noNotesYet') }}</p>
+                  <p class="text-[10px]" style="color: var(--text-muted)">
+                    {{ t('academy.noNotesYet') }}
+                  </p>
                 </div>
               </div>
             </div>
@@ -713,8 +889,15 @@ onUnmounted(() => {
             <div class="p-3">
               <div class="text-center py-6">
                 <MessageSquare class="w-6 h-6 mx-auto mb-2" style="color: var(--text-muted)" />
-                <p class="text-xs mb-2" style="color: var(--text-muted)">{{ t('academy.courseDiscussion') }}</p>
-                <button type="button" class="px-3.5 py-1.5 border hover:bg-slate-100 dark:hover:bg-white/5 text-[10px] sm:text-xs font-bold rounded-lg transition-colors cursor-pointer" style="border-color: var(--border-base); color: var(--text-primary)" @click="router.push(`/discussions`)">
+                <p class="text-xs mb-2" style="color: var(--text-muted)">
+                  {{ t('academy.courseDiscussion') }}
+                </p>
+                <button
+                  type="button"
+                  class="px-3.5 py-1.5 border hover:bg-slate-100 dark:hover:bg-white/5 text-[10px] sm:text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                  style="border-color: var(--border-base); color: var(--text-primary)"
+                  @click="router.push(`/discussions`)"
+                >
                   {{ t('academy.goToDiscussion') }}
                 </button>
               </div>
@@ -723,18 +906,30 @@ onUnmounted(() => {
         </div>
 
         <!-- Instructor Info Card -->
-        <div class="p-4 border-t transition-colors duration-300" style="background-color: var(--bg-app); border-color: var(--border-base)">
+        <div
+          class="p-4 border-t transition-colors duration-300"
+          style="background-color: var(--bg-app); border-color: var(--border-base)"
+        >
           <div class="flex items-center gap-2 mb-2.5">
             <div
               class="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shrink-0"
               style="background-color: var(--bg-card)"
             >
-              <img v-if="course?.instructor?.avatar" alt="" :src="course.instructor.avatar" class="w-full h-full object-cover" />
+              <img
+                v-if="course?.instructor?.avatar"
+                alt=""
+                :src="course.instructor.avatar"
+                class="w-full h-full object-cover"
+              />
               <Users v-else class="w-4 h-4" style="color: var(--text-muted)" />
             </div>
             <div>
-              <p class="text-xs font-bold leading-tight" style="color: var(--text-primary)">{{ course?.instructor?.name || t('academy.certifiedInstructor') }}</p>
-              <p class="text-[9px] leading-tight" style="color: var(--text-muted)">{{ t('academy.designExpert') }}</p>
+              <p class="text-xs font-bold leading-tight" style="color: var(--text-primary)">
+                {{ course?.instructor?.name || t('academy.certifiedInstructor') }}
+              </p>
+              <p class="text-[9px] leading-tight" style="color: var(--text-muted)">
+                {{ t('academy.designExpert') }}
+              </p>
             </div>
           </div>
           <p class="text-[9px] leading-relaxed line-clamp-2" style="color: var(--text-muted)">
@@ -758,16 +953,25 @@ onUnmounted(() => {
           <CheckCircle2 class="w-7 h-7 text-emerald-400" />
         </div>
         <h2 class="text-lg font-bold text-white mb-2">{{ t('academy.congratsFinishedTitle') }}</h2>
-        <p class="text-xs text-slate-400 mb-6">{{ t('academy.congratsFinishedDesc', { title: course?.title }) }}</p>
+        <p class="text-xs text-slate-400 mb-6">
+          {{ t('academy.congratsFinishedDesc', { title: course?.title }) }}
+        </p>
         <div class="flex gap-3">
           <button
-            type="button" class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-400 bg-white/5 hover:bg-white/10 transition-colors cursor-pointer" @click="
+            type="button"
+            class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-400 bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+            @click="
               showCompletionModal = false;
               router.push('/academy');
-            ">
+            "
+          >
             {{ t('academy.backToCourseList') }}
           </button>
-          <button type="button" class="flex-1 py-2 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold shadow-lg shadow-accent/15 transition-all cursor-pointer" @click="showCompletionModal = false">
+          <button
+            type="button"
+            class="flex-1 py-2 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold shadow-lg shadow-accent/15 transition-all cursor-pointer"
+            @click="showCompletionModal = false"
+          >
             {{ t('academy.continueReview') }}
           </button>
         </div>

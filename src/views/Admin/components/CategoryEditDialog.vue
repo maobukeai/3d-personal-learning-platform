@@ -80,9 +80,9 @@ defineExpose({ open });
       </h3>
       <div class="space-y-4">
         <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >{{ $t('admin.category_name') }}</label
-          >
+          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+            $t('admin.category_name')
+          }}</label>
           <input
             v-model="categoryForm.name"
             type="text"
@@ -96,9 +96,9 @@ defineExpose({ open });
           />
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >{{ $t('admin.sort') }}</label
-          >
+          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+            $t('admin.sort')
+          }}</label>
           <input
             v-model="categoryForm.order"
             type="number"
@@ -112,10 +112,18 @@ defineExpose({ open });
         </div>
       </div>
       <div class="flex items-center gap-4 mt-8">
-        <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer" @click="visible = false">
+        <button
+          type="button"
+          class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          @click="visible = false"
+        >
           取消
         </button>
-        <button type="button" class="flex-1 py-3 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 cursor-pointer" @click="handleSaveCategory">
+        <button
+          type="button"
+          class="flex-1 py-3 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 cursor-pointer"
+          @click="handleSaveCategory"
+        >
           保存分类
         </button>
       </div>

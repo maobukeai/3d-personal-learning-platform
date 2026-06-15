@@ -30,11 +30,11 @@
   color-scheme: light;
 
   /* Layout backgrounds */
-  --bg-app: #f4f6f8;
-  --bg-card: #ffffff;
+  --bg-app: #f1f5f9;
+  --bg-card: rgba(255, 255, 255, 0.7);
   --bg-card-rgb: 255, 255, 255;
-  --bg-elevated: #ffffff;
-  --bg-sidebar: #f8fafc;
+  --bg-elevated: rgba(255, 255, 255, 0.85);
+  --bg-sidebar: rgba(248, 250, 252, 0.8);
   --bg-subtle: #f9fafb;
   --bg-hover: rgba(0, 0, 0, 0.04);
   --bg-active: rgba(37, 99, 235, 0.08);
@@ -45,9 +45,9 @@
   --text-muted: #6b7280;
 
   /* Borders */
-  --border-base: #dfe3e8;
-  --border-strong: #c4ccd6;
-  --border-card: #e5e7eb;
+  --border-base: rgba(223, 227, 232, 0.6);
+  --border-strong: rgba(196, 204, 214, 0.7);
+  --border-card: rgba(229, 231, 235, 0.5);
 
   /* Accent */
   --accent: #2563eb;
@@ -89,12 +89,12 @@
 
   /* Layout backgrounds — authentic warm carbon/charcoal grays from Blender */
   --bg-app: #0F1319;
-  --bg-card: #1C2129;
+  --bg-card: rgba(28, 33, 41, 0.75);
   --bg-card-rgb: 28, 33, 41;
-  --bg-elevated: #242A35;
-  --bg-sidebar: #12161E;
+  --bg-elevated: rgba(36, 42, 53, 0.82);
+  --bg-sidebar: rgba(18, 22, 30, 0.8);
   --bg-subtle: #0F1319;
-  --bg-hover: #242A35;
+  --bg-hover: rgba(36, 42, 53, 0.7);
   --bg-active: rgba(245, 121, 42, 0.1);
 
   /* Text — neutral light grays */

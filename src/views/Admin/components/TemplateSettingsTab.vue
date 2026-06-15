@@ -23,7 +23,7 @@ watch(
   (newVal) => {
     Object.assign(localSettings, newVal);
   },
-  { deep: true }
+  { deep: true },
 );
 
 watch(
@@ -31,7 +31,7 @@ watch(
   (newVal) => {
     emit('update:settings', { ...props.settings, ...newVal });
   },
-  { deep: true }
+  { deep: true },
 );
 
 const showEmailPreview = ref(false);
@@ -55,20 +55,22 @@ const emailPreviewHtml = computed(() => {
       <div class="flex items-center justify-between mb-8">
         <div class="flex items-center gap-3">
           <Layout class="w-5 h-5 text-indigo-600" />
-          <h2 class="text-lg font-bold" style="color: var(--text-primary)">
-            邮箱验证邮件模板
-          </h2>
+          <h2 class="text-lg font-bold" style="color: var(--text-primary)">邮箱验证邮件模板</h2>
         </div>
-        <button type="button" class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors bg-transparent cursor-pointer" @click="showEmailPreview = !showEmailPreview">
+        <button
+          type="button"
+          class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors bg-transparent cursor-pointer"
+          @click="showEmailPreview = !showEmailPreview"
+        >
           {{ showEmailPreview ? t('admin.close_preview') : $t('admin.preview_message') }}
         </button>
       </div>
 
       <div class="space-y-6">
         <div class="space-y-2">
-          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >{{ $t('admin.email_subject_subject') }}</label
-          >
+          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+            $t('admin.email_subject_subject')
+          }}</label>
           <input
             v-model="localSettings.EMAIL_VERIFY_SUBJECT"
             type="text"
@@ -86,7 +88,9 @@ const emailPreviewHtml = computed(() => {
             style="color: var(--text-secondary)"
           >
             <span>{{ $t('admin.text_content_html_supported') }}</span>
-            <span v-pre class="text-[10px] opacity-60">{{ $t('admin.available_placeholders_code') }}</span>
+            <span v-pre class="text-[10px] opacity-60">{{
+              $t('admin.available_placeholders_code')
+            }}</span>
           </label>
           <textarea
             v-model="localSettings.EMAIL_VERIFY_BODY"
@@ -109,19 +113,20 @@ const emailPreviewHtml = computed(() => {
     >
       <div class="flex items-center gap-3 mb-6">
         <Eye class="w-5 h-5 text-accent" />
-        <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.email_preview') }}</h2>
+        <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+          {{ $t('admin.email_preview') }}
+        </h2>
       </div>
 
-      <div
-        class="rounded-2xl border overflow-hidden"
-        style="border-color: var(--border-base)"
-      >
+      <div class="rounded-2xl border overflow-hidden" style="border-color: var(--border-base)">
         <div
           class="px-6 py-3 border-b flex items-center gap-4"
           style="background-color: var(--bg-app); border-color: var(--border-base)"
         >
           <div class="space-y-1">
-            <p class="text-[10px] font-bold" style="color: var(--text-muted)">{{ $t('admin.topic') }}</p>
+            <p class="text-[10px] font-bold" style="color: var(--text-muted)">
+              {{ $t('admin.topic') }}
+            </p>
             <p class="text-xs font-medium" style="color: var(--text-primary)">
               {{ localSettings.EMAIL_VERIFY_SUBJECT }}
             </p>

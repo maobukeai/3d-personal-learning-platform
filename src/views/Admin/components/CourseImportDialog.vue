@@ -91,17 +91,23 @@ defineExpose({ open });
       style="background-color: var(--bg-card)"
     >
       <div class="flex items-center justify-between mb-6">
-        <h3 class="text-xl font-bold" style="color: var(--text-primary)">{{ $t('admin.import_courses_from_external') }}</h3>
-        <button type="button" class="text-slate-400 hover:text-slate-600 cursor-pointer" @click="visible = false">
+        <h3 class="text-xl font-bold" style="color: var(--text-primary)">
+          {{ $t('admin.import_courses_from_external') }}
+        </h3>
+        <button
+          type="button"
+          class="text-slate-400 hover:text-slate-600 cursor-pointer"
+          @click="visible = false"
+        >
           <Plus class="w-6 h-6 rotate-45" />
         </button>
       </div>
 
       <div class="space-y-6">
         <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >{{ $t('admin.course_or_project_link') }}</label
-          >
+          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+            $t('admin.course_or_project_link')
+          }}</label>
           <div class="flex gap-2">
             <input
               v-model="externalUrl"
@@ -115,7 +121,12 @@ defineExpose({ open });
               "
               @keyup.enter="handleParseExternal"
             />
-            <button type="button" :disabled="isParsing || !externalUrl" class="px-6 py-3 rounded-2xl bg-accent text-white font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer" @click="handleParseExternal">
+            <button
+              type="button"
+              :disabled="isParsing || !externalUrl"
+              class="px-6 py-3 rounded-2xl bg-accent text-white font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              @click="handleParseExternal"
+            >
               <Loader2 v-if="isParsing && !parsedMetadata" class="w-4 h-4 animate-spin" />
               解析
             </button>
@@ -124,9 +135,9 @@ defineExpose({ open });
 
         <!-- Binding Category dropdown -->
         <div v-if="parsedMetadata">
-          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >{{ $t('admin.bind_and_import_course') }}</label
-          >
+          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+            $t('admin.bind_and_import_course')
+          }}</label>
           <select
             v-model="selectedCategoryId"
             class="w-full px-4 py-3 rounded-2xl border transition-all outline-none appearance-none"
@@ -150,7 +161,12 @@ defineExpose({ open });
           style="background-color: var(--bg-app); border-color: var(--border-base)"
         >
           <div class="flex gap-4">
-            <img alt="" :src="parsedMetadata.thumbnail || undefined" referrerpolicy="no-referrer" class="w-32 aspect-video rounded-lg object-cover shadow-sm" />
+            <img
+              alt=""
+              :src="parsedMetadata.thumbnail || undefined"
+              referrerpolicy="no-referrer"
+              class="w-32 aspect-video rounded-lg object-cover shadow-sm"
+            />
             <div class="flex-1 min-w-0">
               <h4 class="font-bold text-sm mb-1 truncate" style="color: var(--text-primary)">
                 {{ parsedMetadata.title }}
@@ -184,10 +200,19 @@ defineExpose({ open });
       </div>
 
       <div class="flex items-center gap-4 mt-8">
-        <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer" @click="visible = false">
+        <button
+          type="button"
+          class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          @click="visible = false"
+        >
           取消
         </button>
-        <button type="button" :disabled="!parsedMetadata || isParsing" class="flex-1 py-3 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer" @click="handleImportExternal">
+        <button
+          type="button"
+          :disabled="!parsedMetadata || isParsing"
+          class="flex-1 py-3 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+          @click="handleImportExternal"
+        >
           <Loader2 v-if="isParsing && parsedMetadata" class="w-4 h-4 animate-spin" />
           确认导入
         </button>

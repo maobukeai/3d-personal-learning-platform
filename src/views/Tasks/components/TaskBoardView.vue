@@ -146,10 +146,7 @@ const openUserProfile = (userId: string) => {
         >
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-1 sm:gap-1.5 min-w-0">
-              <div
-                class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0"
-                :class="col.color"
-              ></div>
+              <div class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0" :class="col.color"></div>
               <h2
                 class="text-[9px] sm:text-xs font-black uppercase tracking-wider truncate"
                 style="color: var(--text-primary)"
@@ -162,7 +159,11 @@ const openUserProfile = (userId: string) => {
                 {{ tasksByGroup[col.id]?.length || 0 }}
               </span>
             </div>
-            <button type="button" class="hidden sm:inline-flex p-1 rounded-lg text-slate-400 hover:text-accent hover:bg-accent/10 transition-all shrink-0" @click="openAddDialogByCol(col.id)">
+            <button
+              type="button"
+              class="hidden sm:inline-flex p-1 rounded-lg text-slate-400 hover:text-accent hover:bg-accent/10 transition-all shrink-0"
+              @click="openAddDialogByCol(col.id)"
+            >
               <Plus class="w-3.5 h-3.5" />
             </button>
           </div>
@@ -207,7 +208,12 @@ const openUserProfile = (userId: string) => {
               style="color: var(--text-primary)"
               @keyup.enter="handleInlineAdd(col.id)"
             />
-            <button v-show="inlineTitles[col.id]?.trim()" type="button" class="absolute right-1 p-0.5 sm:p-1 bg-accent/10 hover:bg-accent hover:text-white text-accent rounded-md transition-all" @click="handleInlineAdd(col.id)">
+            <button
+              v-show="inlineTitles[col.id]?.trim()"
+              type="button"
+              class="absolute right-1 p-0.5 sm:p-1 bg-accent/10 hover:bg-accent hover:text-white text-accent rounded-md transition-all"
+              @click="handleInlineAdd(col.id)"
+            >
               <Plus class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             </button>
           </div>

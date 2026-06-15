@@ -31,7 +31,10 @@ import {
   RefreshCw,
   UserCog,
   Briefcase,
+  Calendar,
+  Globe,
 } from 'lucide-vue-next';
+import SegmentedControl from '@/components/ui/SegmentedControl.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SafeHtml from '@/components/SafeHtml.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
@@ -43,6 +46,18 @@ import TeamSettingsTab from './components/TeamSettingsTab.vue';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
+
+const getCategoryLabel = (cat?: string | null) => {
+  if (!cat) return '';
+  const mapping: Record<string, string> = {
+    modeling: '建模',
+    rendering: '渲染',
+    animation: '动画',
+    materials: '材质',
+    gameEngine: '游戏引擎',
+  };
+  return mapping[cat] || cat;
+};
 
 interface TeamUser {
   id: string;
@@ -283,10 +298,38 @@ const workspaceStore = useWorkspaceStore();
 const teamId = computed(() => route.params.id as string);
 
 const team = ref<DetailedTeam | null>(null);
+const parsedDescription = computed(() => {
+  const desc = team.value?.description || '';
+  const separator = '\n\n===CORE_VALUES===\n';
+  return desc.split(separator)[0];
+});
 const overview = ref<TeamOverview | null>(null);
 const insights = ref<TeamCollaborationInsights | null>(null);
 const isLoading = ref(false);
 const activeTab = ref('people'); // 'people', 'insights', 'applications', 'settings'
+
+const tabOptions = computed(() => {
+  const options = [{ id: 'people', label: t('teamDetail.peopleTab'), icon: Users }];
+  if (!isPersonalSpace.value) {
+    options.push({ id: 'insights', label: '协作洞察', icon: Activity });
+  }
+  if (isMember.value && isOwnerOrAdmin.value) {
+    options.push({
+      id: 'applications',
+      label: pendingApplications.value.length
+        ? `${t('teamDetail.applicationsTab')} (${pendingApplications.value.length})`
+        : t('teamDetail.applicationsTab'),
+      icon: ClipboardList,
+    });
+    options.push({
+      id: 'settings',
+      label: t('teamDetail.settingsTab'),
+      icon: Settings,
+    });
+  }
+  return options;
+});
+
 const isProfileDialogOpen = ref(false);
 const selectedUserId = ref<string | null>(null);
 const isRefreshing = ref(false);
@@ -1030,326 +1073,353 @@ onUnmounted(() => {
       ></div>
     </div>
 
-    <div v-else-if="team" class="animate-in fade-in duration-500">
-      <div class="relative">
-        <!-- Cover Banner Area -->
-        <div class="relative h-32 lg:h-40 w-full bg-slate-100 dark:bg-slate-950 overflow-hidden">
-          <img
-            v-if="team.coverUrl"
-            :src="team.coverUrl"
-            class="w-full h-full object-cover transition-all duration-700"
-            alt="Team Cover"
-          />
-          <div
-            v-else
-            class="w-full h-full bg-gradient-to-r from-violet-600/20 via-indigo-600/15 to-rose-600/20 backdrop-blur-3xl relative"
-          >
-            <!-- Aesthetic abstract blobs for background visual premium look -->
+    <div
+      v-else-if="team"
+      class="animate-in fade-in duration-500 w-full max-w-none px-4 sm:px-6 lg:px-8 xl:px-10 py-6 space-y-6"
+    >
+      <!-- Top Card (Hero Section - No Cover Image) -->
+      <div
+        class="glass-card rounded-2xl border border-white/20 dark:border-slate-800/50 shadow-xl bg-white/40 dark:bg-slate-900/30 backdrop-blur-md relative px-6 py-3.5"
+      >
+        <div class="flex flex-col lg:flex-row items-center gap-4 relative z-20">
+          <!-- Team Avatar -->
+          <div class="relative group shrink-0">
+            <input
+              ref="avatarInput"
+              type="file"
+              class="hidden"
+              accept="image/*"
+              @change="handleAvatarChange"
+            />
             <div
-              class="absolute top-4 left-1/4 w-24 h-24 bg-purple-500/20 rounded-full blur-2xl animate-pulse"
-            ></div>
-            <div
-              class="absolute bottom-3 right-1/4 w-36 h-36 bg-blue-500/15 rounded-full blur-2xl animate-pulse"
-              style="animation-duration: 4s"
-            ></div>
-          </div>
-          <!-- Cover Overlay Gradient -->
-          <div
-            class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"
-          ></div>
-
-          <!-- Upload Cover Button -->
-          <input
-            ref="coverInput"
-            type="file"
-            class="hidden"
-            accept="image/*"
-            @change="handleCoverChange"
-          />
-          <button
-            v-if="isOwnerOrAdmin"
-            type="button"
-            class="absolute top-3 right-3 flex items-center gap-1.5 px-3.5 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-md text-white rounded-lg text-xs font-bold transition-all shadow-md border border-white/10"
-            @click="triggerCoverUpload"
-          >
-            <Camera class="w-4 h-4" />
-            <span>{{ t('teamDetail.changeCover') }}</span>
-          </button>
-        </div>
-
-        <!-- Details Info Area -->
-        <div class="max-w-none px-4 sm:px-6 pb-3 lg:pb-4 relative">
-          <div
-            class="flex flex-col lg:flex-row items-start lg:items-end gap-3 lg:gap-4 -mt-8 lg:-mt-12 relative z-20"
-          >
-            <!-- Team Avatar -->
-            <div class="relative group shrink-0">
-              <input
-                ref="avatarInput"
-                type="file"
-                class="hidden"
-                accept="image/*"
-                @change="handleAvatarChange"
+              class="w-16 h-16 lg:w-20 lg:h-20 rounded-xl overflow-hidden shadow-md border-2 border-white dark:border-slate-900 bg-white dark:bg-slate-800 transition-transform group-hover:scale-105 duration-500"
+            >
+              <img
+                v-if="team.avatarUrl"
+                alt=""
+                :src="team.avatarUrl"
+                class="w-full h-full object-cover"
               />
               <div
-                class="w-20 h-20 lg:w-26 lg:h-26 rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl border-4 border-white dark:border-slate-900 bg-white dark:bg-slate-800 transition-transform group-hover:scale-105 duration-500"
+                v-else
+                class="w-full h-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white text-xl lg:text-3xl font-black"
               >
-                <img
-                  v-if="team.avatarUrl"
-                  alt=""
-                  :src="team.avatarUrl"
-                  class="w-full h-full object-cover"
-                />
-                <div
-                  v-else
-                  class="w-full h-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white text-2xl lg:text-4xl font-black"
-                >
-                  {{ team.name.charAt(0).toUpperCase() }}
-                </div>
+                {{ team.name.charAt(0).toUpperCase() }}
               </div>
-              <button
-                v-if="isOwnerOrAdmin"
-                type="button"
-                class="absolute -bottom-1 -right-1 p-1.5 bg-accent text-white rounded-lg shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/10"
-                :title="t('teamDetail.changeAvatar')"
-                @click="triggerAvatarUpload"
-              >
-                <Camera class="w-4 h-4" />
-              </button>
             </div>
+            <button
+              v-if="isOwnerOrAdmin"
+              type="button"
+              class="absolute -bottom-1 -right-1 p-1.5 bg-accent text-white rounded-lg shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/10"
+              :title="t('teamDetail.changeAvatar')"
+              @click="triggerAvatarUpload"
+            >
+              <Camera class="w-3.5 h-3.5" />
+            </button>
+          </div>
 
-            <!-- Team Text Info -->
-            <div class="flex-1 text-left pt-1">
-              <div class="flex flex-wrap items-center gap-2 mb-1">
-                <h1
-                  class="text-2xl lg:text-3xl font-black tracking-tight"
-                  style="color: var(--text-primary)"
-                >
-                  {{ team.name }}
-                </h1>
+          <!-- Team Text Info -->
+          <div class="flex-1 text-center lg:text-left pt-1">
+            <div
+              class="flex flex-col lg:flex-row lg:items-center gap-2 mb-1 justify-center lg:justify-start"
+            >
+              <h1
+                class="text-xl lg:text-2xl font-black tracking-tight"
+                style="color: var(--text-primary)"
+              >
+                {{ team.name }}
+              </h1>
+              <div class="flex items-center gap-1.5 justify-center">
                 <div
-                  class="px-2.5 py-1 bg-accent/10 text-accent text-[10px] sm:text-xs font-black rounded-md uppercase tracking-wider border border-accent/20"
+                  class="px-2 py-0.5 bg-accent/10 text-accent text-[9px] sm:text-xs font-black rounded-md uppercase tracking-wider border border-accent/20"
                 >
                   {{ t('teamDetail.spaceLabel') }}
                 </div>
-              </div>
-              <p
-                class="text-slate-500 dark:text-slate-400 max-w-xl text-xs sm:text-sm leading-relaxed mb-2.5"
-              >
-                {{ team.description || t('teamDetail.noDescription') }}
-              </p>
-
-              <div class="flex flex-wrap items-center gap-3">
                 <div
-                  class="flex items-center gap-1.5 bg-slate-100/80 dark:bg-white/5 px-2.5 py-1 rounded-md"
+                  v-if="team.visibility"
+                  class="px-2 py-0.5 rounded text-[9px] font-bold border"
+                  :class="
+                    team.visibility === 'PUBLIC'
+                      ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                      : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                  "
                 >
-                  <Users class="w-3.5 h-3.5 text-slate-400" />
-                  <span class="text-xs font-bold" style="color: var(--text-primary)"
-                    >{{ team.members.length }} {{ t('teams.members') }}</span
-                  >
-                </div>
-                <div
-                  class="flex items-center gap-1.5 bg-slate-100/80 dark:bg-white/5 px-2.5 py-1 rounded-md"
-                >
-                  <Clock class="w-3.5 h-3.5 text-slate-400" />
-                  <span class="text-xs font-bold" style="color: var(--text-primary)"
-                    >{{ team.invitations?.length || 0 }} {{ t('teamDetail.pendingBadge') }}</span
-                  >
+                  {{ team.visibility === 'PUBLIC' ? '公开' : '私有' }}
                 </div>
               </div>
             </div>
 
-            <!-- Action Buttons -->
             <div
-              class="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0 shrink-0 lg:mb-1"
+              class="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-xs font-bold text-slate-500 dark:text-slate-400 mt-1"
             >
-              <template v-if="canManageTeam">
-                <button
-                  type="button"
-                  class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                  @click="isAddModalOpen = true"
-                >
-                  <UserPlus class="w-4 h-4" />
-                  {{ t('teamDetail.manageMembers') }}
-                </button>
-                <button
-                  type="button"
-                  class="hidden sm:block p-2 border rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer"
-                  style="border-color: var(--border-base)"
-                  @click="activeTab = 'settings'"
-                >
-                  <Settings class="w-4 h-4 text-slate-400" />
-                </button>
-              </template>
-              <template v-else-if="isMember && isPersonalSpace">
-                <button
-                  type="button"
-                  class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 border rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold text-xs cursor-pointer"
-                  style="border-color: var(--border-base); color: var(--text-primary)"
-                  @click="activeTab = 'settings'"
-                >
-                  <Settings class="w-4 h-4 text-slate-400" />
-                  {{ t('teamDetail.spaceSettings') }}
-                </button>
-              </template>
-              <template v-if="!isMember && team?.visibility === 'PUBLIC'">
-                <button
-                  type="button"
-                  class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                  @click="handleApplyFromDetail"
-                >
-                  <UserPlus class="w-4 h-4" />
-                  {{ t('teams.applyJoin') }}
-                </button>
-              </template>
-              <button
-                v-if="canLeaveTeam"
-                type="button"
-                class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-xl font-bold text-xs hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all cursor-pointer"
-                @click="handleLeaveTeam"
-              >
-                <LogOut class="w-4 h-4" />
-                {{ t('teamDetail.leaveBtn') }}
-              </button>
+              <div class="flex items-center gap-1.5">
+                <Users class="w-4 h-4 text-slate-400" />
+                <span>{{ team.members.length }} {{ t('teams.members') }}</span>
+              </div>
+              <div v-if="team.invitations?.length" class="flex items-center gap-1.5">
+                <Clock class="w-4 h-4 text-slate-400" />
+                <span>{{ team.invitations.length }} {{ t('teamDetail.pendingBadge') }}</span>
+              </div>
+              <div v-if="team.category" class="flex items-center gap-1.5">
+                <Globe class="w-4 h-4 text-slate-400" />
+                <span>{{ getCategoryLabel(team.category) }}</span>
+              </div>
             </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div
+            class="flex flex-row flex-wrap justify-center items-center gap-2 w-full lg:w-auto shrink-0"
+          >
+            <template v-if="canManageTeam">
+              <button
+                type="button"
+                class="flex items-center justify-center gap-1.5 px-4 py-2 bg-accent hover:bg-accent/95 text-white rounded-lg font-bold text-xs shadow-md shadow-accent/20 hover:scale-[1.03] active:scale-95 transition-all cursor-pointer border-none"
+                @click="isAddModalOpen = true"
+              >
+                <UserPlus class="w-4 h-4" />
+                {{ t('teamDetail.manageMembers') }}
+              </button>
+            </template>
+            <template v-if="!isMember && team?.visibility === 'PUBLIC'">
+              <button
+                type="button"
+                class="flex items-center justify-center gap-1.5 px-5 py-2.5 bg-accent hover:bg-accent/95 text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-[1.03] active:scale-95 transition-all cursor-pointer border-none"
+                @click="handleApplyFromDetail"
+              >
+                <UserPlus class="w-4 h-4" />
+                {{ t('teams.applyJoin') }}
+              </button>
+            </template>
+            <button
+              v-if="canLeaveTeam"
+              type="button"
+              class="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/20 border border-rose-200/50 dark:border-rose-500/20 rounded-xl font-bold text-xs transition-all cursor-pointer"
+              @click="handleLeaveTeam"
+            >
+              <LogOut class="w-4 h-4" />
+              {{ t('teamDetail.leaveBtn') }}
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- Main Content Container -->
-      <div class="max-w-none px-4 sm:px-6 py-4 lg:py-6">
-        <!-- Modern Tabs -->
-        <div
-          class="flex gap-4 lg:gap-6 mb-5 border-b overflow-x-auto scrollbar-hide"
-          style="border-color: var(--border-base)"
-        >
-          <button
-            v-for="tab in [
-              { id: 'people', label: t('teamDetail.peopleTab'), icon: Users },
-              {
-                id: 'insights',
-                label: '协作洞察',
-                icon: Activity,
-                hidden: isPersonalSpace,
-              },
-              {
-                id: 'applications',
-                label: t('teamDetail.applicationsTab'),
-                icon: ClipboardList,
-                hidden: !isMember || !isOwnerOrAdmin,
-                badge: pendingApplications.length,
-              },
-              {
-                id: 'settings',
-                label: t('teamDetail.settingsTab'),
-                icon: Settings,
-                hidden: !isMember || !isOwnerOrAdmin,
-              },
-            ]"
-            v-show="!tab.hidden"
-            :key="tab.id"
-            type="button"
-            class="flex items-center gap-1.5 pb-2 text-xs font-bold transition-all relative whitespace-nowrap shrink-0 cursor-pointer"
-            :class="activeTab === tab.id ? 'text-accent' : 'text-slate-400 hover:text-slate-600'"
-            @click="activeTab = tab.id"
+      <!-- Two Column Layout Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+        <!-- Main Content (Left, 3 cols) -->
+        <div class="lg:col-span-3 space-y-3.5">
+          <!-- Segmented Tab Bar -->
+          <div
+            class="flex items-center justify-between border-b pb-2"
+            style="border-color: var(--border-base)"
           >
-            <component :is="tab.icon" class="w-3.5 h-3.5" />
-            {{ tab.label }}
-            <span
-              v-if="tab.badge"
-              class="ml-1 px-1.5 py-0.5 bg-rose-500 text-white text-[10px] font-black rounded-full"
-              >{{ tab.badge }}</span
-            >
-            <div
-              v-if="activeTab === tab.id"
-              class="absolute bottom-0 left-0 right-0 h-1 bg-accent rounded-full translate-y-1/2"
-            ></div>
-          </button>
+            <SegmentedControl v-model="activeTab" :options="tabOptions" size="sm" />
+          </div>
+
+          <!-- Tab Content Views -->
+          <div class="transition-all duration-300">
+            <TeamPeopleTab
+              v-if="activeTab === 'people'"
+              :team="team"
+              :overview="overview"
+              :ops-kpis="opsKpis"
+              :is-refreshing="isRefreshing"
+              :can-manage-team="canManageTeam"
+              :capacity-by-user-id="capacityByUserId"
+              :member-rows="memberRows"
+              @manual-refresh="handleManualRefresh"
+              @invite-member="isAddModalOpen = true"
+              @cancel-invitation="handleCancelInvitation"
+              @respond-application="handleRespondApplication"
+              @open-profile="openUserProfile"
+              @open-workbench="openMemberWorkbench"
+              @update-role="handleUpdateRole"
+              @start-chat="handleStartChat"
+              @remove-member="handleRemoveMember"
+            />
+
+            <TeamInsightsTab
+              v-if="activeTab === 'insights' && !isPersonalSpace"
+              :team="team"
+              :insights="insights"
+            />
+
+            <TeamApplicationsTab
+              v-if="activeTab === 'applications' && isOwnerOrAdmin"
+              :pending-applications="pendingApplications"
+              @respond-application="handleRespondApplication"
+            />
+
+            <TeamSettingsTab
+              v-if="activeTab === 'settings' && isOwnerOrAdmin"
+              v-model:edit-form="editForm"
+              :is-personal-space="isPersonalSpace"
+              :is-owner="isOwner"
+              :is-saving="isSaving"
+              @update-team="handleUpdateTeam"
+              @delete-team="handleDeleteTeam"
+            />
+          </div>
         </div>
 
-        <TeamPeopleTab
-          v-if="activeTab === 'people'"
-          :team="team"
-          :overview="overview"
-          :ops-kpis="opsKpis"
-          :is-refreshing="isRefreshing"
-          :can-manage-team="canManageTeam"
-          :capacity-by-user-id="capacityByUserId"
-          :member-rows="memberRows"
-          @manual-refresh="handleManualRefresh"
-          @invite-member="isAddModalOpen = true"
-          @cancel-invitation="handleCancelInvitation"
-          @respond-application="handleRespondApplication"
-          @open-profile="openUserProfile"
-          @open-workbench="openMemberWorkbench"
-          @update-role="handleUpdateRole"
-          @start-chat="handleStartChat"
-          @remove-member="handleRemoveMember"
-        />
+        <!-- Sidebar Content (Right, 1 col) -->
+        <div class="lg:col-span-1 space-y-6 text-left">
+          <!-- Space Info Card -->
+          <div
+            class="glass-card p-5 rounded-2xl border border-white/20 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/30 backdrop-blur-md shadow-lg space-y-4"
+          >
+            <h3
+              class="text-xs font-black uppercase tracking-widest text-slate-400 border-b pb-2"
+              style="border-color: var(--border-base)"
+            >
+              空间信息
+            </h3>
+            <div class="space-y-3.5">
+              <div>
+                <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider"
+                  >空间介绍</span
+                >
+                <p
+                  class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium mt-1"
+                >
+                  {{ parsedDescription || '暂无空间描述信息。' }}
+                </p>
+              </div>
+              <div
+                class="grid grid-cols-2 gap-4 pt-2 border-t"
+                style="border-color: var(--border-base)"
+              >
+                <div>
+                  <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider"
+                    >空间类别</span
+                  >
+                  <span class="text-xs font-bold text-slate-700 dark:text-slate-200 mt-1 block">
+                    {{ getCategoryLabel(team.category) || '未分类' }}
+                  </span>
+                </div>
+                <div>
+                  <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider"
+                    >空间属性</span
+                  >
+                  <span class="text-xs font-bold text-slate-700 dark:text-slate-200 mt-1 block">
+                    {{ team.type === 'PERSONAL' ? '个人空间' : '协作空间' }}
+                  </span>
+                </div>
+              </div>
+              <div class="pt-3 border-t" style="border-color: var(--border-base)">
+                <div class="flex items-center justify-between text-[11px] font-bold text-slate-500">
+                  <span>创建时间</span>
+                  <span>{{ formatDate(team.createdAt) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-        <TeamInsightsTab
-          v-if="activeTab === 'insights' && !isPersonalSpace"
-          :team="team"
-          :insights="insights"
-        />
-
-        <TeamApplicationsTab
-          v-if="activeTab === 'applications' && isOwnerOrAdmin"
-          :pending-applications="pendingApplications"
-          @respond-application="handleRespondApplication"
-        />
-
-        <TeamSettingsTab
-          v-if="activeTab === 'settings' && isOwnerOrAdmin"
-          v-model:edit-form="editForm"
-          :is-personal-space="isPersonalSpace"
-          :is-owner="isOwner"
-          :is-saving="isSaving"
-          @update-team="handleUpdateTeam"
-          @delete-team="handleDeleteTeam"
-        />
+          <!-- Space Statistics KPIs (TEAM type only) -->
+          <div
+            v-if="team.type === 'TEAM'"
+            class="glass-card p-5 rounded-2xl border border-white/20 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/30 backdrop-blur-md shadow-lg space-y-4"
+          >
+            <h3
+              class="text-xs font-black uppercase tracking-widest text-slate-400 border-b pb-2"
+              style="border-color: var(--border-base)"
+            >
+              运行指标
+            </h3>
+            <div class="grid grid-cols-1 gap-2.5">
+              <div
+                v-for="kpi in opsKpis"
+                :key="kpi.key"
+                class="flex items-center justify-between p-3 bg-white/20 dark:bg-slate-950/20 border border-white/10 dark:border-slate-800/50 rounded-xl hover:-translate-y-0.5 transition-all duration-200"
+              >
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div
+                    class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                    :class="kpi.tone"
+                  >
+                    <component :is="kpi.icon" class="w-4 h-4" />
+                  </div>
+                  <div class="min-w-0">
+                    <span class="block text-[10px] font-black text-slate-400 leading-none">{{
+                      kpi.label
+                    }}</span>
+                    <span class="block text-[9px] font-bold text-slate-500 mt-1.5 leading-none">{{
+                      kpi.helper
+                    }}</span>
+                  </div>
+                </div>
+                <strong
+                  class="text-sm font-black tracking-tight text-slate-800 dark:text-slate-100"
+                >
+                  {{ kpi.value }}
+                </strong>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Unified Add Member Modal -->
     <div
       v-if="isAddModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-md"
+      class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 dark:bg-black/70 backdrop-blur-md transition-all duration-300"
     >
+      <!-- Premium background glows -->
+      <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div
+          class="absolute top-[20%] left-[25%] w-72 h-72 bg-purple-500/15 dark:bg-purple-500/10 rounded-full blur-3xl animate-pulse"
+        ></div>
+        <div
+          class="absolute bottom-[20%] right-[25%] w-80 h-80 bg-blue-500/15 dark:bg-blue-500/10 rounded-full blur-3xl animate-pulse"
+          style="animation-duration: 6s"
+        ></div>
+      </div>
+
       <div
-        class="glass-dialog w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl transition-colors duration-300"
+        class="relative w-full max-w-xl rounded-[2rem] p-8 md:p-10 shadow-2xl bg-white/80 dark:bg-slate-900/80 border border-white/50 dark:border-slate-800/80 backdrop-blur-2xl transition-all duration-300 transform scale-100"
       >
-        <div class="flex items-center justify-between mb-8">
+        <!-- Modal Header -->
+        <div
+          class="flex items-center justify-between mb-6 border-b border-slate-100 dark:border-slate-800/60 pb-5"
+        >
           <div>
-            <h3 class="text-2xl font-black" style="color: var(--text-primary)">
+            <h3
+              class="text-xl md:text-2xl font-black tracking-tight"
+              style="color: var(--text-primary)"
+            >
               {{ t('teamDetail.addMemberTitle') }}
             </h3>
-            <p class="text-xs text-slate-400 font-medium mt-1">
+            <p class="text-xs text-[var(--text-secondary)] opacity-75 font-semibold mt-1">
               {{ t('teamDetail.addMemberSubtitle') }}
             </p>
           </div>
           <button
             type="button"
-            class="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all"
+            class="p-2 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700/80 text-[var(--text-secondary)] rounded-xl transition-all duration-300 hover:rotate-90"
             @click="isAddModalOpen = false"
           >
-            <X class="w-6 h-6 text-slate-400" />
+            <X class="w-5 h-5" />
           </button>
         </div>
 
-        <div class="space-y-8">
+        <div class="space-y-6">
           <!-- Search Users -->
-          <div class="space-y-4">
-            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{{
-              t('teamDetail.internalSearchLabel')
-            }}</label>
-            <div class="relative">
-              <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <div class="space-y-3">
+            <label
+              class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1"
+            >
+              {{ t('teamDetail.internalSearchLabel') }}
+            </label>
+            <div class="relative group">
+              <Search
+                class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-accent transition-colors"
+              />
               <input
                 v-model="userSearchQuery"
                 type="text"
                 :placeholder="t('teamDetail.searchUserPlaceholder')"
-                class="w-full pl-11 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-sm focus:ring-4 focus:ring-accent/10 outline-none transition-all"
+                class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80 rounded-xl text-sm focus:border-accent dark:focus:border-accent focus:bg-white dark:focus:bg-slate-950 outline-none transition-all duration-300 shadow-2xs focus:shadow-md focus:shadow-accent/5"
                 style="color: var(--text-primary)"
               />
             </div>
@@ -1357,12 +1427,12 @@ onUnmounted(() => {
             <!-- Search Results -->
             <div
               v-if="searchResults.length > 0"
-              class="max-h-60 overflow-y-auto space-y-2 p-2 bg-black/5 dark:bg-white/5 rounded-2xl scrollbar-hide border border-black/5 dark:border-white/5"
+              class="max-h-56 overflow-y-auto space-y-2 p-1 bg-slate-50/50 dark:bg-slate-950/30 rounded-xl scrollbar-hide border border-slate-100 dark:border-slate-800/40"
             >
               <div
                 v-for="user in searchResults"
                 :key="user.id"
-                class="flex items-center justify-between p-3 bg-white/20 dark:bg-slate-900/20 rounded-xl border border-black/10 dark:border-white/10 hover:border-accent transition-all group"
+                class="flex items-center justify-between p-3 bg-white/70 dark:bg-slate-900/40 rounded-lg border border-slate-100/80 dark:border-slate-800/40 hover:border-accent/50 dark:hover:border-accent/50 hover:bg-white dark:hover:bg-slate-900 hover:shadow-xs transition-all duration-300 group"
               >
                 <div class="flex items-center gap-3">
                   <UserAvatar :user="user" size="md" />
@@ -1370,12 +1440,14 @@ onUnmounted(() => {
                     <p class="text-sm font-bold" style="color: var(--text-primary)">
                       {{ user.name }}
                     </p>
-                    <p class="text-[10px] text-slate-400">{{ user.email }}</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                      {{ user.email }}
+                    </p>
                   </div>
                 </div>
                 <button
                   type="button"
-                  class="p-2 bg-accent/10 text-accent rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-accent hover:text-white"
+                  class="p-2 bg-accent/15 hover:bg-accent text-accent hover:text-white rounded-lg transition-all duration-300 shadow-sm active:scale-90"
                   @click="handleAddUser(user)"
                 >
                   <Plus class="w-4 h-4" />
@@ -1384,42 +1456,48 @@ onUnmounted(() => {
             </div>
             <div
               v-else-if="userSearchQuery && !isSearchingUsers"
-              class="text-center py-4 text-slate-400 text-xs italic"
+              class="text-center py-4 text-slate-400 dark:text-slate-500 text-xs italic font-medium"
             >
               {{ t('teamDetail.noUsersFound') }}
             </div>
           </div>
 
-          <div class="relative flex items-center justify-center">
+          <!-- Divider -->
+          <div class="relative flex items-center justify-center my-2">
             <div class="absolute inset-0 flex items-center">
-              <div class="w-full border-t border-black/10 dark:border-white/10"></div>
+              <div class="w-full border-t border-slate-100 dark:border-slate-800/80"></div>
             </div>
             <span
-              class="relative px-4 bg-[var(--bg-card)] dark:bg-slate-800/80 rounded-full text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]"
-              >{{ t('teamDetail.orLabel') }}</span
+              class="relative px-4 bg-white/90 dark:bg-slate-900/90 rounded-full text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] backdrop-blur-md"
             >
+              {{ t('teamDetail.orLabel') }}
+            </span>
           </div>
 
           <!-- Email Invite -->
-          <div class="space-y-4">
-            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{{
-              t('teamDetail.emailInviteLabel')
-            }}</label>
+          <div class="space-y-3">
+            <label
+              class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1"
+            >
+              {{ t('teamDetail.emailInviteLabel') }}
+            </label>
             <div class="flex gap-3">
-              <div class="relative flex-1">
-                <Mail class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <div class="relative flex-1 group">
+                <Mail
+                  class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-accent transition-colors"
+                />
                 <input
                   v-model="inviteEmailInput"
                   type="email"
                   placeholder="example@email.com"
-                  class="w-full pl-11 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-sm focus:ring-4 focus:ring-accent/10 outline-none transition-all"
+                  class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80 rounded-xl text-sm focus:border-accent dark:focus:border-accent focus:bg-white dark:focus:bg-slate-950 outline-none transition-all duration-300 shadow-2xs focus:shadow-md focus:shadow-accent/5"
                   style="color: var(--text-primary)"
                 />
               </div>
               <button
                 type="button"
                 :disabled="!inviteEmailInput"
-                class="px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold text-sm hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                class="px-6 py-3 bg-accent hover:bg-accent/90 disabled:bg-slate-100 dark:disabled:bg-slate-800/50 disabled:text-slate-400 dark:disabled:text-slate-500 text-white rounded-xl font-bold text-sm hover:scale-[1.02] active:scale-95 transition-all shadow-md shadow-accent/10 disabled:shadow-none disabled:hover:scale-100 disabled:cursor-not-allowed shrink-0"
                 @click="handleSendInvite"
               >
                 {{ t('teamDetail.sendBtn') }}

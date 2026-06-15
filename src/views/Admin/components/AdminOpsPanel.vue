@@ -160,10 +160,30 @@ const metricCards = computed<MetricCard[]>(() => {
 
   if (props.scope === 'overview') {
     return [
-      { label: '健康分', value: data.overview.healthScore, sub: getHealthLabel(data.overview.healthScore), tone: data.overview.healthScore >= 75 ? 'good' : 'warn' },
-      { label: '待处理', value: data.overview.issueCount, sub: `${data.actions.length} 个行动项`, tone: data.overview.issueCount ? 'warn' : 'good' },
-      { label: '运营对象', value: data.overview.totalOperationItems, sub: '账号、内容、商业、资源', tone: 'info' },
-      { label: '活跃权益', value: data.overview.activeEntitlements, sub: '当前有效订阅', tone: 'good' },
+      {
+        label: '健康分',
+        value: data.overview.healthScore,
+        sub: getHealthLabel(data.overview.healthScore),
+        tone: data.overview.healthScore >= 75 ? 'good' : 'warn',
+      },
+      {
+        label: '待处理',
+        value: data.overview.issueCount,
+        sub: `${data.actions.length} 个行动项`,
+        tone: data.overview.issueCount ? 'warn' : 'good',
+      },
+      {
+        label: '运营对象',
+        value: data.overview.totalOperationItems,
+        sub: '账号、内容、商业、资源',
+        tone: 'info',
+      },
+      {
+        label: '活跃权益',
+        value: data.overview.activeEntitlements,
+        sub: '当前有效订阅',
+        tone: 'good',
+      },
     ];
   }
 
@@ -171,9 +191,24 @@ const metricCards = computed<MetricCard[]>(() => {
     const u = data.accounts.users;
     return [
       { label: '全站用户', value: u.total, sub: `${u.newLast7d} 个 7 日新增`, tone: 'info' },
-      { label: '正常账号', value: percent(u.active, u.total), sub: `${u.banned} 个封禁`, tone: u.banned ? 'warn' : 'good' },
-      { label: '管理员 2FA', value: u.adminsWithoutMfa, sub: `${u.admins} 个管理员`, tone: u.adminsWithoutMfa ? 'risk' : 'good' },
-      { label: '活跃会话', value: u.activeSessions, sub: `${u.activeSessionUsers} 个用户在线`, tone: 'good' },
+      {
+        label: '正常账号',
+        value: percent(u.active, u.total),
+        sub: `${u.banned} 个封禁`,
+        tone: u.banned ? 'warn' : 'good',
+      },
+      {
+        label: '管理员 2FA',
+        value: u.adminsWithoutMfa,
+        sub: `${u.admins} 个管理员`,
+        tone: u.adminsWithoutMfa ? 'risk' : 'good',
+      },
+      {
+        label: '活跃会话',
+        value: u.activeSessions,
+        sub: `${u.activeSessionUsers} 个用户在线`,
+        tone: 'good',
+      },
     ];
   }
 
@@ -181,29 +216,84 @@ const metricCards = computed<MetricCard[]>(() => {
     const t = data.accounts.teams;
     return [
       { label: '协作团队', value: t.collaboration, sub: `${t.totalMembers} 个成员`, tone: 'info' },
-      { label: '待处理申请', value: t.pendingApplications, sub: `${t.pendingInvitations} 个邀请`, tone: t.pendingApplications ? 'warn' : 'good' },
-      { label: '空团队', value: t.withoutAssets, sub: '缺少资源沉淀', tone: t.withoutAssets ? 'warn' : 'good' },
-      { label: '项目任务', value: t.totalProjects + t.totalTasks, sub: `${t.totalProjects} 项目 / ${t.totalTasks} 任务`, tone: 'good' },
+      {
+        label: '待处理申请',
+        value: t.pendingApplications,
+        sub: `${t.pendingInvitations} 个邀请`,
+        tone: t.pendingApplications ? 'warn' : 'good',
+      },
+      {
+        label: '空团队',
+        value: t.withoutAssets,
+        sub: '缺少资源沉淀',
+        tone: t.withoutAssets ? 'warn' : 'good',
+      },
+      {
+        label: '项目任务',
+        value: t.totalProjects + t.totalTasks,
+        sub: `${t.totalProjects} 项目 / ${t.totalTasks} 任务`,
+        tone: 'good',
+      },
     ];
   }
 
   if (props.scope === 'feedback') {
     const f = data.accounts.feedback;
     return [
-      { label: '待处理', value: f.open + f.inProgress, sub: `${f.total} 条总反馈`, tone: f.open ? 'warn' : 'good' },
-      { label: '高优先级', value: f.highPriorityOpen, sub: '需要优先响应', tone: f.highPriorityOpen ? 'risk' : 'good' },
-      { label: '未回复', value: f.withoutReply, sub: `${f.stale} 条超时`, tone: f.stale ? 'risk' : 'warn' },
-      { label: '闭环率', value: percent(f.resolved + f.closed, f.total), sub: `${f.resolved} 已解决`, tone: 'good' },
+      {
+        label: '待处理',
+        value: f.open + f.inProgress,
+        sub: `${f.total} 条总反馈`,
+        tone: f.open ? 'warn' : 'good',
+      },
+      {
+        label: '高优先级',
+        value: f.highPriorityOpen,
+        sub: '需要优先响应',
+        tone: f.highPriorityOpen ? 'risk' : 'good',
+      },
+      {
+        label: '未回复',
+        value: f.withoutReply,
+        sub: `${f.stale} 条超时`,
+        tone: f.stale ? 'risk' : 'warn',
+      },
+      {
+        label: '闭环率',
+        value: percent(f.resolved + f.closed, f.total),
+        sub: `${f.resolved} 已解决`,
+        tone: 'good',
+      },
     ];
   }
 
   if (props.scope === 'audits') {
     const a = data.moderation;
     return [
-      { label: '待审核', value: a.totalPending, sub: `${a.stalePending} 条积压`, tone: a.stalePending ? 'risk' : 'warn' },
-      { label: '资产队列', value: a.assets.pending, sub: `${a.assets.approved} 已通过`, tone: a.assets.pending ? 'warn' : 'good' },
-      { label: '材质队列', value: a.materials.pending, sub: `${a.materials.approved} 已通过`, tone: a.materials.pending ? 'warn' : 'good' },
-      { label: '作品插件', value: a.showcases.pending + a.plugins.pending, sub: `${a.totalRejected} 已打回`, tone: 'info' },
+      {
+        label: '待审核',
+        value: a.totalPending,
+        sub: `${a.stalePending} 条积压`,
+        tone: a.stalePending ? 'risk' : 'warn',
+      },
+      {
+        label: '资产队列',
+        value: a.assets.pending,
+        sub: `${a.assets.approved} 已通过`,
+        tone: a.assets.pending ? 'warn' : 'good',
+      },
+      {
+        label: '材质队列',
+        value: a.materials.pending,
+        sub: `${a.materials.approved} 已通过`,
+        tone: a.materials.pending ? 'warn' : 'good',
+      },
+      {
+        label: '作品插件',
+        value: a.showcases.pending + a.plugins.pending,
+        sub: `${a.totalRejected} 已打回`,
+        tone: 'info',
+      },
     ];
   }
 
@@ -211,18 +301,43 @@ const metricCards = computed<MetricCard[]>(() => {
     const c = data.teaching.courses;
     return [
       { label: '课程总量', value: c.total, sub: `${c.published} 已发布`, tone: 'info' },
-      { label: '总课时', value: c.totalLessons, sub: `平均 ${c.avgLessonsPerCourse} 节`, tone: 'good' },
+      {
+        label: '总课时',
+        value: c.totalLessons,
+        sub: `平均 ${c.avgLessonsPerCourse} 节`,
+        tone: 'good',
+      },
       { label: '学习人次', value: c.totalEnrollments, sub: `${c.draft} 个草稿`, tone: 'good' },
-      { label: '待完善', value: c.withoutLessons + c.withoutThumbnail, sub: `${c.withoutLessons} 个无课时`, tone: c.withoutLessons ? 'warn' : 'good' },
+      {
+        label: '待完善',
+        value: c.withoutLessons + c.withoutThumbnail,
+        sub: `${c.withoutLessons} 个无课时`,
+        tone: c.withoutLessons ? 'warn' : 'good',
+      },
     ];
   }
 
   if (props.scope === 'roadmaps') {
     const r = data.teaching.roadmaps;
     return [
-      { label: '官方路线', value: r.total, sub: `${r.withoutSteps} 个待补阶段`, tone: r.withoutSteps ? 'warn' : 'good' },
-      { label: '路线节点', value: r.totalSteps, sub: `平均 ${r.avgStepsPerRoadmap} 阶段`, tone: 'info' },
-      { label: '完整路线', value: Math.max(0, r.total - r.withoutSteps), sub: '已有阶段配置', tone: 'good' },
+      {
+        label: '官方路线',
+        value: r.total,
+        sub: `${r.withoutSteps} 个待补阶段`,
+        tone: r.withoutSteps ? 'warn' : 'good',
+      },
+      {
+        label: '路线节点',
+        value: r.totalSteps,
+        sub: `平均 ${r.avgStepsPerRoadmap} 阶段`,
+        tone: 'info',
+      },
+      {
+        label: '完整路线',
+        value: Math.max(0, r.total - r.withoutSteps),
+        sub: '已有阶段配置',
+        tone: 'good',
+      },
       { label: '最近维护', value: r.recent.length, sub: '按更新时间排序', tone: 'neutral' },
     ];
   }
@@ -230,19 +345,44 @@ const metricCards = computed<MetricCard[]>(() => {
   if (props.scope === 'categories') {
     const c = data.teaching.categories;
     return [
-      { label: '资产分类', value: c.asset, sub: `${c.emptyAssetCategories} 个空分类`, tone: c.emptyAssetCategories ? 'warn' : 'good' },
-      { label: '课程分类', value: c.course, sub: `${c.emptyCourseCategories} 个空分类`, tone: c.emptyCourseCategories ? 'warn' : 'good' },
+      {
+        label: '资产分类',
+        value: c.asset,
+        sub: `${c.emptyAssetCategories} 个空分类`,
+        tone: c.emptyAssetCategories ? 'warn' : 'good',
+      },
+      {
+        label: '课程分类',
+        value: c.course,
+        sub: `${c.emptyCourseCategories} 个空分类`,
+        tone: c.emptyCourseCategories ? 'warn' : 'good',
+      },
       { label: '前台频道', value: c.material + c.showcase, sub: '材质与作品分类', tone: 'info' },
-      { label: '分类总量', value: c.asset + c.course + c.material + c.showcase, sub: '跨业务分类池', tone: 'neutral' },
+      {
+        label: '分类总量',
+        value: c.asset + c.course + c.material + c.showcase,
+        sub: '跨业务分类池',
+        tone: 'neutral',
+      },
     ];
   }
 
   if (props.scope === 'banners') {
     const b = data.operations.banners;
     return [
-      { label: '启用轮播', value: b.active, sub: `${b.total} 个总轮播`, tone: b.active ? 'good' : 'risk' },
+      {
+        label: '启用轮播',
+        value: b.active,
+        sub: `${b.total} 个总轮播`,
+        tone: b.active ? 'good' : 'risk',
+      },
       { label: '停用轮播', value: b.inactive, sub: '不在前台展示', tone: 'neutral' },
-      { label: '缺图素材', value: b.withoutImage, sub: '需要补图', tone: b.withoutImage ? 'warn' : 'good' },
+      {
+        label: '缺图素材',
+        value: b.withoutImage,
+        sub: '需要补图',
+        tone: b.withoutImage ? 'warn' : 'good',
+      },
       { label: '投放位', value: b.recent.length, sub: '按排序预览', tone: 'info' },
     ];
   }
@@ -251,8 +391,18 @@ const metricCards = computed<MetricCard[]>(() => {
     const s = data.operations.subscriptions;
     return [
       { label: '活跃订阅', value: s.activeSubscriptions, sub: `${s.plans} 个套餐`, tone: 'good' },
-      { label: '月收入估算', value: `¥${formatCompactNumber(s.estimatedMonthlyRevenue)}`, sub: '按当前订阅', tone: 'info' },
-      { label: '即将到期', value: s.expiringSoon, sub: `${s.cancelAtPeriodEnd} 个期末取消`, tone: s.expiringSoon ? 'warn' : 'good' },
+      {
+        label: '月收入估算',
+        value: `¥${formatCompactNumber(s.estimatedMonthlyRevenue)}`,
+        sub: '按当前订阅',
+        tone: 'info',
+      },
+      {
+        label: '即将到期',
+        value: s.expiringSoon,
+        sub: `${s.cancelAtPeriodEnd} 个期末取消`,
+        tone: s.expiringSoon ? 'warn' : 'good',
+      },
       { label: '激活码', value: s.activeCodes, sub: `${s.usedCodes} 已使用`, tone: 'neutral' },
     ];
   }
@@ -260,8 +410,18 @@ const metricCards = computed<MetricCard[]>(() => {
   if (props.scope === 'mirror') {
     const m = data.operations.mirror;
     return [
-      { label: '可用镜像', value: `${m.active}/${m.sources}`, sub: `${m.resources} 个资源`, tone: m.errors ? 'risk' : 'good' },
-      { label: '同步中', value: m.syncing, sub: `${m.stale} 个过期`, tone: m.stale ? 'warn' : 'info' },
+      {
+        label: '可用镜像',
+        value: `${m.active}/${m.sources}`,
+        sub: `${m.resources} 个资源`,
+        tone: m.errors ? 'risk' : 'good',
+      },
+      {
+        label: '同步中',
+        value: m.syncing,
+        sub: `${m.stale} 个过期`,
+        tone: m.stale ? 'warn' : 'info',
+      },
       { label: '异常源', value: m.errors, sub: '需要查看日志', tone: m.errors ? 'risk' : 'good' },
       { label: '镜像分类', value: m.categories, sub: '资源目录', tone: 'neutral' },
     ];
@@ -269,9 +429,24 @@ const metricCards = computed<MetricCard[]>(() => {
 
   const manual = data.operations.manual;
   return [
-    { label: '启用站点', value: `${manual.active}/${manual.stations}`, sub: `${manual.locked} 个会员站`, tone: 'good' },
-    { label: '资源总量', value: manual.resources, sub: `${manual.categories} 个分类`, tone: 'info' },
-    { label: '空站点', value: manual.empty, sub: '需要补资源', tone: manual.empty ? 'warn' : 'good' },
+    {
+      label: '启用站点',
+      value: `${manual.active}/${manual.stations}`,
+      sub: `${manual.locked} 个会员站`,
+      tone: 'good',
+    },
+    {
+      label: '资源总量',
+      value: manual.resources,
+      sub: `${manual.categories} 个分类`,
+      tone: 'info',
+    },
+    {
+      label: '空站点',
+      value: manual.empty,
+      sub: '需要补资源',
+      tone: manual.empty ? 'warn' : 'good',
+    },
     { label: '停用站点', value: manual.disabled, sub: '不对前台开放', tone: 'neutral' },
   ];
 });
@@ -464,7 +639,9 @@ onMounted(() => {
   >
     <div class="px-3 py-2.5 flex flex-col gap-3 xl:flex-row xl:items-center">
       <div class="flex items-center gap-2 min-w-0 xl:w-64 shrink-0">
-        <span class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-white/5 flex items-center justify-center shrink-0">
+        <span
+          class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-white/5 flex items-center justify-center shrink-0"
+        >
           <Activity class="w-4 h-4 text-sky-500" />
         </span>
         <div class="min-w-0">
@@ -492,7 +669,9 @@ onMounted(() => {
           :key="card.label"
           class="min-h-14 rounded-lg border border-[var(--border-base)] bg-slate-50/60 dark:bg-white/[0.03] px-3 py-2"
         >
-          <div class="text-[10px] font-black uppercase tracking-wide text-[var(--text-muted)] truncate">
+          <div
+            class="text-[10px] font-black uppercase tracking-wide text-[var(--text-muted)] truncate"
+          >
             {{ card.label }}
           </div>
           <div class="mt-0.5 flex items-baseline gap-2 min-w-0">
@@ -562,7 +741,10 @@ onMounted(() => {
             后台态势
           </div>
           <p class="mt-1 text-[10px] leading-relaxed text-[var(--text-muted)]">
-            {{ managementInsights.command?.workloadTotal || 0 }} 个待处理负载，{{ managementInsights.overview.issueCount }} 个风险信号
+            {{ managementInsights.command?.workloadTotal || 0 }} 个待处理负载，{{
+              managementInsights.overview.issueCount
+            }}
+            个风险信号
           </p>
         </div>
       </div>
@@ -576,8 +758,12 @@ onMounted(() => {
           @click="openRoute(metric.route)"
         >
           <div class="flex items-center justify-between gap-3">
-            <span class="truncate text-[11px] font-black text-[var(--text-primary)]">{{ metric.label }}</span>
-            <strong class="text-xs font-black" :class="controlToneClasses[metric.tone]">{{ metric.score }}%</strong>
+            <span class="truncate text-[11px] font-black text-[var(--text-primary)]">{{
+              metric.label
+            }}</span>
+            <strong class="text-xs font-black" :class="controlToneClasses[metric.tone]"
+              >{{ metric.score }}%</strong
+            >
           </div>
           <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200/70 dark:bg-white/10">
             <span
@@ -586,7 +772,9 @@ onMounted(() => {
               :style="{ width: clampPercent(metric.score) }"
             ></span>
           </div>
-          <div class="mt-1 flex items-center justify-between gap-2 text-[10px] font-semibold text-[var(--text-muted)]">
+          <div
+            class="mt-1 flex items-center justify-between gap-2 text-[10px] font-semibold text-[var(--text-muted)]"
+          >
             <span class="truncate">{{ metric.primary }}</span>
             <span class="truncate">{{ metric.secondary }}</span>
           </div>
@@ -602,16 +790,24 @@ onMounted(() => {
           @click="openRoute(item.route)"
         >
           <div class="flex items-center justify-between gap-3">
-            <span class="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-black text-[var(--text-primary)]">
+            <span
+              class="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-black text-[var(--text-primary)]"
+            >
               <Workflow class="h-3.5 w-3.5 shrink-0 text-slate-400" />
               <span class="truncate">{{ item.label }}</span>
             </span>
-            <span class="rounded-md border px-1.5 py-0.5 text-[10px] font-black" :class="workloadLevelClasses[item.level]">
+            <span
+              class="rounded-md border px-1.5 py-0.5 text-[10px] font-black"
+              :class="workloadLevelClasses[item.level]"
+            >
               {{ item.current }}
             </span>
           </div>
           <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200/70 dark:bg-white/10">
-            <span class="block h-full rounded-full bg-sky-500" :style="{ width: workloadWidth(item) }"></span>
+            <span
+              class="block h-full rounded-full bg-sky-500"
+              :style="{ width: workloadWidth(item) }"
+            ></span>
           </div>
           <p class="mt-1 text-[10px] font-semibold text-[var(--text-muted)]">
             {{ item.overdue ? `${item.overdue} 个超时` : '队列可控' }}
@@ -629,7 +825,9 @@ onMounted(() => {
           <span class="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
             行动项
           </span>
-          <span class="text-[10px] font-bold text-[var(--text-muted)]">{{ scopeActions.length }}</span>
+          <span class="text-[10px] font-bold text-[var(--text-muted)]">{{
+            scopeActions.length
+          }}</span>
         </div>
         <button
           v-for="action in scopeActions"
@@ -650,7 +848,9 @@ onMounted(() => {
           class="rounded-lg border border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-2"
         >
           <div class="text-xs font-black">暂无高优行动项</div>
-          <div class="mt-1 text-[10px] leading-relaxed opacity-80">当前模块没有需要立即处理的运营事项。</div>
+          <div class="mt-1 text-[10px] leading-relaxed opacity-80">
+            当前模块没有需要立即处理的运营事项。
+          </div>
         </div>
       </div>
 
@@ -659,7 +859,9 @@ onMounted(() => {
           <span class="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
             风险信号
           </span>
-          <span class="text-[10px] font-bold text-[var(--text-muted)]">{{ visibleIssues.length }}</span>
+          <span class="text-[10px] font-bold text-[var(--text-muted)]">{{
+            visibleIssues.length
+          }}</span>
         </div>
         <button
           v-for="issue in visibleIssues"
@@ -677,7 +879,9 @@ onMounted(() => {
           class="rounded-lg border border-sky-500/25 bg-sky-500/10 text-sky-600 dark:text-sky-400 px-3 py-2"
         >
           <div class="text-xs font-black">风险清爽</div>
-          <div class="mt-1 text-[10px] leading-relaxed opacity-80">这个模块没有被后端洞察标记的异常。</div>
+          <div class="mt-1 text-[10px] leading-relaxed opacity-80">
+            这个模块没有被后端洞察标记的异常。
+          </div>
         </div>
       </div>
 
@@ -686,7 +890,9 @@ onMounted(() => {
           <span class="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
             最近信号
           </span>
-          <span class="text-[10px] font-bold text-[var(--text-muted)]">{{ activityItems.length }}</span>
+          <span class="text-[10px] font-bold text-[var(--text-muted)]">{{
+            activityItems.length
+          }}</span>
         </div>
         <button
           v-for="item in activityItems.slice(0, 5)"
@@ -714,7 +920,10 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-if="!managementInsights" class="px-3 pb-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+    <div
+      v-if="!managementInsights"
+      class="px-3 pb-3 flex items-center gap-2 text-xs text-[var(--text-muted)]"
+    >
       <RefreshCw v-if="isLoadingManagementInsights" class="w-4 h-4 animate-spin text-sky-500" />
       <AlertTriangle v-else class="w-4 h-4 text-amber-500" />
       <span>{{ managementInsightsError || '正在加载后台运营数据...' }}</span>

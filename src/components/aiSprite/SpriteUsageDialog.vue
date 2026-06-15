@@ -32,14 +32,8 @@ const close = () => {
 
 <template>
   <Transition name="fade">
-    <div
-      v-if="modelValue"
-      class="fixed inset-0 z-[150] flex items-center justify-center p-4"
-    >
-      <div
-        class="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        @click="close"
-      ></div>
+    <div v-if="modelValue" class="fixed inset-0 z-[150] flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="close"></div>
 
       <div
         class="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl"

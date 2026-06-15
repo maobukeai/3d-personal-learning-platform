@@ -1872,3 +1872,16 @@ export const cancelInvitation = async (req: AuthRequest, res: Response, next: Ne
     next(error);
   }
 };
+
+export const getTeamStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const count = await prisma.team.count({
+      where: {
+        type: 'TEAM',
+      },
+    });
+    res.json({ activeTeamsCount: count });
+  } catch (error) {
+    next(error);
+  }
+};

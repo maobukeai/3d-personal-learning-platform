@@ -192,7 +192,8 @@ export interface ProjectMember {
   joinedAt: string;
 }
 
-export { TaskStatus } from './task';
+import { TaskStatus } from './task';
+export { TaskStatus };
 
 export interface Task {
   id: string;

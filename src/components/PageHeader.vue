@@ -15,7 +15,7 @@ const props = withDefaults(
     icon: undefined,
     iconClass: 'text-accent',
     iconContainerClass: 'p-2 bg-accent-subtle rounded-lg shrink-0 border border-accent/10',
-  }
+  },
 );
 
 const hasIcon = computed(() => !!props.icon);
@@ -23,7 +23,7 @@ const hasIcon = computed(() => !!props.icon);
 
 <template>
   <div
-    class="enterprise-toolbar flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:px-8 shrink-0 transition-colors duration-300"
+    class="enterprise-toolbar h-auto sm:h-13 px-4 sm:px-6 lg:px-8 py-3 sm:py-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 border-b transition-colors duration-300"
     style="background-color: var(--bg-card); border-color: var(--border-base)"
   >
     <div class="flex items-center gap-2 sm:gap-3 min-w-0 w-full sm:w-auto">
@@ -47,8 +47,18 @@ const hasIcon = computed(() => !!props.icon);
       </div>
     </div>
 
+    <!-- Center: Optional Center Content (e.g. Search Box) -->
+    <div
+      v-if="$slots.center"
+      class="flex-1 w-full sm:max-w-xs md:max-w-md mx-auto flex items-center justify-center sm:px-4"
+    >
+      <slot name="center" />
+    </div>
+
     <!-- Actions / Filters slot -->
-    <div class="flex flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto overflow-x-auto scrollbar-hide">
+    <div
+      class="flex flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto overflow-x-auto scrollbar-hide"
+    >
       <slot />
     </div>
   </div>

@@ -136,9 +136,10 @@ api.interceptors.response.use(
         authStore.logout();
 
         // Redirect to login if on a route that requires authentication
-        const requiresAuth = router.currentRoute.value.meta.requiresAuth ||
+        const requiresAuth =
+          router.currentRoute.value.meta.requiresAuth ||
           router.currentRoute.value.matched.some((record) => record.meta.requiresAuth);
-        
+
         if (requiresAuth) {
           router.push('/login');
         }

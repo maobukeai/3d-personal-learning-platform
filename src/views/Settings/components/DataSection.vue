@@ -4,8 +4,14 @@ import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Download, FileJson, KeyRound, ShieldAlert, ShieldCheck, Trash2 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
-import { deleteAccount, exportAccountData, type AccountDataExport } from '@/services/account.service';
+import {
+  deleteAccount,
+  exportAccountData,
+  type AccountDataExport,
+} from '@/services/account.service';
 import { getApiErrorMessage } from '@/utils/error';
+import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -81,7 +87,9 @@ const exportData = async () => {
 
 const handleDeleteAccount = async () => {
   if (!canDelete.value) {
-    ElMessage.warning(requires2FA.value ? '请输入 DELETE 和 6 位 2FA 验证码' : '请输入 DELETE 和当前密码');
+    ElMessage.warning(
+      requires2FA.value ? '请输入 DELETE 和 6 位 2FA 验证码' : '请输入 DELETE 和当前密码',
+    );
     return;
   }
 
@@ -123,10 +131,15 @@ const handleDeleteAccount = async () => {
         <h3>导出可追溯，注销需校验</h3>
         <span>账号级数据操作走后端接口，并保留明确的确认流程。</span>
       </div>
-      <button type="button" class="primary-action" :disabled="isExporting" @click="exportData">
-        <Download />
-        {{ isExporting ? '导出中...' : '导出账号数据' }}
-      </button>
+      <Button
+        variant="primary"
+        :disabled="isExporting"
+        :loading="isExporting"
+        :icon="Download"
+        @click="exportData"
+      >
+        导出账号数据
+      </Button>
     </section>
 
     <section class="export-panel">
@@ -169,31 +182,43 @@ const handleDeleteAccount = async () => {
         </div>
 
         <div class="delete-form">
-          <label>
-            <span>确认短语</span>
-            <input v-model="deleteAccountConfirm" type="text" placeholder="输入 DELETE" />
-          </label>
+          <Input
+            v-model="deleteAccountConfirm"
+            type="text"
+            label="确认短语"
+            placeholder="输入 DELETE"
+          />
 
-          <label v-if="requires2FA">
-            <span>2FA 验证码</span>
-            <div class="input-shell">
-              <ShieldCheck />
-              <input v-model="delete2FACode" type="text" maxlength="6" inputmode="numeric" placeholder="000000" />
-            </div>
-          </label>
+          <Input
+            v-if="requires2FA"
+            v-model="delete2FACode"
+            type="text"
+            label="2FA 验证码"
+            maxlength="6"
+            inputmode="numeric"
+            placeholder="000000"
+            :icon="ShieldCheck"
+          />
 
-          <label v-else>
-            <span>当前密码</span>
-            <div class="input-shell">
-              <KeyRound />
-              <input v-model="deletePassword" type="password" autocomplete="current-password" placeholder="输入当前登录密码" />
-            </div>
-          </label>
+          <Input
+            v-else
+            v-model="deletePassword"
+            type="password"
+            label="当前密码"
+            autocomplete="current-password"
+            placeholder="输入当前登录密码"
+            :icon="KeyRound"
+          />
 
-          <button type="button" class="danger-action" :disabled="!canDelete || isDeletingAccount" @click="handleDeleteAccount">
-            <Trash2 />
-            {{ isDeletingAccount ? '注销中...' : '永久注销账号' }}
-          </button>
+          <Button
+            variant="danger"
+            :disabled="!canDelete || isDeletingAccount"
+            :loading="isDeletingAccount"
+            :icon="Trash2"
+            @click="handleDeleteAccount"
+          >
+            永久注销账号
+          </Button>
         </div>
       </div>
     </section>

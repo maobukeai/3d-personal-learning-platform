@@ -54,7 +54,7 @@ watch(
   (newVal) => {
     Object.assign(localSettings, newVal);
   },
-  { deep: true }
+  { deep: true },
 );
 
 watch(
@@ -62,7 +62,7 @@ watch(
   (newVal) => {
     emit('update:settings', { ...props.settings, ...newVal });
   },
-  { deep: true }
+  { deep: true },
 );
 
 const showPassword = ref(false);
@@ -88,12 +88,16 @@ const selectSmtpConfig = (configId: string) => {
 
 const addNewSmtpConfig = async () => {
   try {
-    const { value: name } = await ElMessageBox.prompt(t('admin.please_enter_a_new'), t('admin.added_email_configuration_plan'), {
-      confirmButtonText: t('admin.ok'),
-      cancelButtonText: t('admin.cancel'),
-      inputPattern: /\S+/,
-      inputErrorMessage: t('admin.scheme_name_cannot_be'),
-    });
+    const { value: name } = await ElMessageBox.prompt(
+      t('admin.please_enter_a_new'),
+      t('admin.added_email_configuration_plan'),
+      {
+        confirmButtonText: t('admin.ok'),
+        cancelButtonText: t('admin.cancel'),
+        inputPattern: /\S+/,
+        inputErrorMessage: t('admin.scheme_name_cannot_be'),
+      },
+    );
 
     const newId = 'cfg_' + Date.now();
     const newCfg: SmtpConfig = {
@@ -123,13 +127,17 @@ const renameSmtpConfig = async () => {
   if (!activeCfg) return;
 
   try {
-    const { value: name } = await ElMessageBox.prompt(t('admin.please_enter_a_new'), t('admin.rename_configuration_scheme'), {
-      confirmButtonText: t('admin.ok'),
-      cancelButtonText: t('admin.cancel'),
-      inputPattern: /\S+/,
-      inputErrorMessage: t('admin.scheme_name_cannot_be'),
-      inputValue: activeCfg.name,
-    });
+    const { value: name } = await ElMessageBox.prompt(
+      t('admin.please_enter_a_new'),
+      t('admin.rename_configuration_scheme'),
+      {
+        confirmButtonText: t('admin.ok'),
+        cancelButtonText: t('admin.cancel'),
+        inputPattern: /\S+/,
+        inputErrorMessage: t('admin.scheme_name_cannot_be'),
+        inputValue: activeCfg.name,
+      },
+    );
 
     activeCfg.name = name;
     localSettings.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
@@ -148,11 +156,15 @@ const deleteSmtpConfig = async () => {
   if (!activeCfg) return;
 
   try {
-    await ElMessageBox.confirm(t('admin.are_you_sure_you_17', { activeCfgname: activeCfg.name }), t('admin.delete_configuration_plan'), {
-      confirmButtonText: t('admin.confirm_deletion'),
-      cancelButtonText: t('admin.cancel'),
-      type: 'warning',
-    });
+    await ElMessageBox.confirm(
+      t('admin.are_you_sure_you_17', { activeCfgname: activeCfg.name }),
+      t('admin.delete_configuration_plan'),
+      {
+        confirmButtonText: t('admin.confirm_deletion'),
+        cancelButtonText: t('admin.cancel'),
+        type: 'warning',
+      },
+    );
 
     const index = smtpConfigs.value.findIndex((c) => c.id === activeConfigId.value);
     if (index !== -1) {
@@ -204,7 +216,7 @@ watch(
       smtpConfigs.value = [];
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 watch(
@@ -214,7 +226,7 @@ watch(
       activeConfigId.value = newVal;
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // Microsoft accounts pool state
@@ -305,9 +317,7 @@ onMounted(async () => {
     >
       <div class="flex items-center gap-2 mb-4">
         <Settings class="w-4 h-4 text-indigo-500" />
-        <h2 class="text-sm font-bold" style="color: var(--text-primary)">
-          系统发信模式选择
-        </h2>
+        <h2 class="text-sm font-bold" style="color: var(--text-primary)">系统发信模式选择</h2>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -328,9 +338,7 @@ onMounted(async () => {
               <Mail class="w-4 h-4" />
             </div>
             <div>
-              <h3 class="text-xs font-bold" style="color: var(--text-primary)">
-                标准 SMTP 发信
-              </h3>
+              <h3 class="text-xs font-bold" style="color: var(--text-primary)">标准 SMTP 发信</h3>
               <p class="text-[10px] mt-0.5 leading-normal" style="color: var(--text-muted)">
                 通过独立 SMTP 服务器进行发信，支持 SSL/TLS 握手
               </p>
@@ -423,12 +431,12 @@ onMounted(async () => {
         <div
           class="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-slate-800 flex flex-col justify-between"
         >
-          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400"
-            >{{ $t('admin.total_account_in_the') }}</span
-          >
-          <span class="text-xl font-bold mt-2" style="color: var(--text-primary)"
-            >{{ $t('admin.microsoftpoolstats_total', { count: microsoftPoolStats.total }) }}</span
-          >
+          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{
+            $t('admin.total_account_in_the')
+          }}</span>
+          <span class="text-xl font-bold mt-2" style="color: var(--text-primary)">{{
+            $t('admin.microsoftpoolstats_total', { count: microsoftPoolStats.total })
+          }}</span>
         </div>
         <div
           class="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 flex flex-col justify-between"
@@ -437,9 +445,9 @@ onMounted(async () => {
             class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400"
             >{{ $t('admin.running_healthily') }}</span
           >
-          <span class="text-xl font-bold mt-2 text-emerald-600 dark:text-emerald-400"
-            >{{ $t('admin.microsoftpoolstats_active', { count: microsoftPoolStats.active }) }}</span
-          >
+          <span class="text-xl font-bold mt-2 text-emerald-600 dark:text-emerald-400">{{
+            $t('admin.microsoftpoolstats_active', { count: microsoftPoolStats.active })
+          }}</span>
         </div>
         <div
           class="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex flex-col justify-between"
@@ -449,8 +457,7 @@ onMounted(async () => {
             >{{ $t('admin.today_s_delivery_ratio') }}</span
           >
           <span class="text-xl font-bold mt-2 text-amber-600 dark:text-amber-400">
-            {{ microsoftPoolStats.totalSentToday }} /
-            {{ microsoftPoolStats.totalDailyLimit }} 封
+            {{ microsoftPoolStats.totalSentToday }} / {{ microsoftPoolStats.totalDailyLimit }} 封
           </span>
         </div>
         <div
@@ -460,9 +467,11 @@ onMounted(async () => {
             class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 font-bold"
             >{{ $t('admin.proxy_server_protection') }}</span
           >
-          <span class="text-xl font-bold mt-2 text-indigo-600 dark:text-indigo-400"
-            >{{ $t('admin.microsoftpoolstats_activewithproxy', { count: microsoftPoolStats.activeWithProxy }) }}</span
-          >
+          <span class="text-xl font-bold mt-2 text-indigo-600 dark:text-indigo-400">{{
+            $t('admin.microsoftpoolstats_activewithproxy', {
+              count: microsoftPoolStats.activeWithProxy,
+            })
+          }}</span>
         </div>
       </div>
 
@@ -472,12 +481,12 @@ onMounted(async () => {
           <div class="flex items-center gap-3">
             <Shield class="w-4 h-4 text-indigo-600" />
             <div>
-              <span class="text-xs font-bold" style="color: var(--text-primary)"
-                >{{ $t('admin.automatic_downgrade_and_disaster') }}</span
-              >
+              <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                $t('admin.automatic_downgrade_and_disaster')
+              }}</span>
               <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
-                当账号池为空、所有账号均达到每日限量，或发信异常时，系统自动切换为传统的
-                SMTP 通道发送以防漏信
+                当账号池为空、所有账号均达到每日限量，或发信异常时，系统自动切换为传统的 SMTP
+                通道发送以防漏信
               </p>
             </div>
           </div>
@@ -487,9 +496,7 @@ onMounted(async () => {
 
       <!-- Active Accounts List -->
       <div class="space-y-3">
-        <h3 class="text-xs font-bold" style="color: var(--text-secondary)">
-          发信账户池负载列表
-        </h3>
+        <h3 class="text-xs font-bold" style="color: var(--text-secondary)">发信账户池负载列表</h3>
         <div
           v-if="microsoftAccounts.length === 0"
           class="text-center py-6 text-xs text-slate-400 border border-dashed rounded-2xl"
@@ -516,26 +523,25 @@ onMounted(async () => {
                     account.status === 'ACTIVE',
                   'bg-amber-500/10 text-amber-600 dark:text-amber-400':
                     account.status === 'EXPIRED',
-                  'bg-rose-500/10 text-rose-600 dark:text-rose-400':
-                    account.status === 'ERROR',
+                  'bg-rose-500/10 text-rose-600 dark:text-rose-400': account.status === 'ERROR',
                 }"
               >
                 {{
                   account.status === 'ACTIVE'
-                    ? t('admin.normal') : account.status === 'EXPIRED'
-                      ? t('admin.token_expires') : $t('admin.abnormal')
+                    ? t('admin.normal')
+                    : account.status === 'EXPIRED'
+                      ? t('admin.token_expires')
+                      : $t('admin.abnormal')
                 }}
               </span>
             </div>
             <div class="flex items-center gap-4 text-slate-400 text-[10px]">
-              <span v-if="account.proxy"
-                >{{ $t('admin.proxy_account_proxy_split', { host: account.proxy.split('@').pop() }) }}</span
-              >
+              <span v-if="account.proxy">{{
+                $t('admin.proxy_account_proxy_split', { host: account.proxy.split('@').pop() })
+              }}</span>
               <span
                 >今日发信:
-                <strong style="color: var(--text-secondary)">{{
-                  account.sentCountToday
-                }}</strong>
+                <strong style="color: var(--text-secondary)">{{ account.sentCountToday }}</strong>
                 / {{ account.dailyLimit }} 封</span
               >
             </div>
@@ -574,7 +580,9 @@ onMounted(async () => {
 
           <!-- 一行展示：配置方案与管理按钮 -->
           <div class="flex items-center gap-2 text-xs">
-            <span class="font-bold text-slate-400 whitespace-nowrap">{{ $t('admin.solution') }}</span>
+            <span class="font-bold text-slate-400 whitespace-nowrap">{{
+              $t('admin.solution')
+            }}</span>
             <el-select
               v-model="activeConfigId"
               :placeholder="$t('admin.options')"
@@ -591,28 +599,46 @@ onMounted(async () => {
               />
             </el-select>
 
-            <button type="button" class="text-accent hover:underline font-medium px-1 whitespace-nowrap cursor-pointer bg-transparent border-none" @click="addNewSmtpConfig">
+            <button
+              type="button"
+              class="text-accent hover:underline font-medium px-1 whitespace-nowrap cursor-pointer bg-transparent border-none"
+              @click="addNewSmtpConfig"
+            >
               新增
             </button>
-            <button type="button" class="text-amber-500 hover:underline font-medium px-1 whitespace-nowrap cursor-pointer bg-transparent border-none" @click="renameSmtpConfig">
+            <button
+              type="button"
+              class="text-amber-500 hover:underline font-medium px-1 whitespace-nowrap cursor-pointer bg-transparent border-none"
+              @click="renameSmtpConfig"
+            >
               重命名
             </button>
-            <button type="button" :disabled="smtpConfigs.length <= 1" class="text-rose-500 hover:underline font-medium px-1 whitespace-nowrap disabled:opacity-30 disabled:no-underline cursor-pointer bg-transparent border-none" @click="deleteSmtpConfig">
+            <button
+              type="button"
+              :disabled="smtpConfigs.length <= 1"
+              class="text-rose-500 hover:underline font-medium px-1 whitespace-nowrap disabled:opacity-30 disabled:no-underline cursor-pointer bg-transparent border-none"
+              @click="deleteSmtpConfig"
+            >
               删除
             </button>
           </div>
         </div>
 
-        <button type="button" :disabled="isTestingSmtp" class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors disabled:opacity-50 shrink-0 cursor-pointer bg-transparent" @click="testSmtp">
+        <button
+          type="button"
+          :disabled="isTestingSmtp"
+          class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors disabled:opacity-50 shrink-0 cursor-pointer bg-transparent"
+          @click="testSmtp"
+        >
           {{ isTestingSmtp ? t('admin.trying_to_shake_hands') : $t('admin.test_connection') }}
         </button>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="space-y-2">
-          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >{{ $t('admin.server_address') }}</label
-          >
+          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+            $t('admin.server_address')
+          }}</label>
           <input
             v-model="localSettings.SMTP_HOST"
             type="text"
@@ -626,9 +652,9 @@ onMounted(async () => {
           />
         </div>
         <div class="space-y-2">
-          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >{{ $t('admin.port') }}</label
-          >
+          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+            $t('admin.port')
+          }}</label>
           <input
             v-model="localSettings.SMTP_PORT"
             type="text"
@@ -642,9 +668,9 @@ onMounted(async () => {
           />
         </div>
         <div class="space-y-2">
-          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >{{ $t('admin.account_user') }}</label
-          >
+          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+            $t('admin.account_user')
+          }}</label>
           <input
             v-model="localSettings.SMTP_USER"
             type="text"
@@ -657,9 +683,9 @@ onMounted(async () => {
           />
         </div>
         <div class="space-y-2">
-          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >{{ $t('admin.authorization_code_pass') }}</label
-          >
+          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+            $t('admin.authorization_code_pass')
+          }}</label>
           <div class="relative">
             <input
               v-model="localSettings.SMTP_PASS"
@@ -671,16 +697,20 @@ onMounted(async () => {
                 color: var(--text-primary);
               "
             />
-            <button type="button" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 bg-transparent border-none cursor-pointer" @click="showPassword = !showPassword">
+            <button
+              type="button"
+              class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 bg-transparent border-none cursor-pointer"
+              @click="showPassword = !showPassword"
+            >
               <Eye v-if="!showPassword" class="w-4 h-4" />
               <EyeOff v-else class="w-4 h-4" />
             </button>
           </div>
         </div>
         <div class="space-y-2">
-          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >{{ $t('admin.sender_name') }}</label
-          >
+          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+            $t('admin.sender_name')
+          }}</label>
           <input
             v-model="localSettings.SMTP_FROM_NAME"
             type="text"
@@ -692,14 +722,12 @@ onMounted(async () => {
               color: var(--text-primary);
             "
           />
-          <p class="text-[10px] px-1" style="color: var(--text-muted)">
-            收件人看到的发件人名称
-          </p>
+          <p class="text-[10px] px-1" style="color: var(--text-muted)">收件人看到的发件人名称</p>
         </div>
         <div class="space-y-2">
-          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >{{ $t('admin.sender_email_from') }}</label
-          >
+          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+            $t('admin.sender_email_from')
+          }}</label>
           <input
             v-model="localSettings.SMTP_FROM"
             type="text"
@@ -719,12 +747,12 @@ onMounted(async () => {
             inactive-value="false"
             active-color="#6366f1"
           />
-          <span class="text-xs font-bold" style="color: var(--text-primary)"
-            >{{ $t('admin.enable_ssl_tls_connections') }}</span
-          >
-          <span class="text-[10px] ml-2" style="color: var(--text-muted)"
-            >{{ $t('admin.port_465_usually_needs') }}</span
-          >
+          <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+            $t('admin.enable_ssl_tls_connections')
+          }}</span>
+          <span class="text-[10px] ml-2" style="color: var(--text-muted)">{{
+            $t('admin.port_465_usually_needs')
+          }}</span>
         </div>
       </div>
     </section>

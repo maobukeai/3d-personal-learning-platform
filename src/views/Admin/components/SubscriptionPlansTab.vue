@@ -138,7 +138,11 @@ const handleDeletePlan = async (plan: SubscriptionPlan) => {
     await ElMessageBox.confirm(
       t('admin.are_you_sure_you_2', { param_0: plan.displayName || plan.name }),
       t('admin.confirm_deletion_1'),
-      { confirmButtonText: t('admin.delete'), cancelButtonText: t('admin.cancel'), type: 'warning' },
+      {
+        confirmButtonText: t('admin.delete'),
+        cancelButtonText: t('admin.cancel'),
+        type: 'warning',
+      },
     );
     await api.delete(`/api/admin/subscription-plans/${plan.id}`);
     ElMessage.success(t('admin.plan_deleted_1'));
@@ -200,26 +204,40 @@ const getPlanIcon = (name: string) => {
               >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><DollarSign class="w-3 h-3 shrink-0" />月付 ￥{{ plan.price
-                  }}{{ plan.yearlyPrice ? $t('admin.yearly_payment_plan_yearlyprice', { planyearlyPrice: plan.yearlyPrice }) : '' }}</span
+                  }}{{
+                    plan.yearlyPrice
+                      ? $t('admin.yearly_payment_plan_yearlyprice', {
+                          planyearlyPrice: plan.yearlyPrice,
+                        })
+                      : ''
+                  }}</span
                 >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><HardDrive class="w-3 h-3 shrink-0" />{{
-                    (plan.maxStorage || 0) >= 9999 ? t('admin.unlimited') : (plan.maxStorage || 0) + 'GB'
+                    (plan.maxStorage || 0) >= 9999
+                      ? t('admin.unlimited')
+                      : (plan.maxStorage || 0) + 'GB'
                   }}</span
                 >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><Users class="w-3 h-3 shrink-0" />{{
-                    (plan.maxTeams || 0) >= 999 ? t('admin.unlimited') : (plan.maxTeams || 0) + $t('admin.team')
+                    (plan.maxTeams || 0) >= 999
+                      ? t('admin.unlimited')
+                      : (plan.maxTeams || 0) + $t('admin.team')
                   }}</span
                 >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><FolderOpen class="w-3 h-3 shrink-0" />{{
-                    (plan.maxProjects || 0) >= 9999 ? t('admin.unlimited') : (plan.maxProjects || 0) + $t('admin.project')
+                    (plan.maxProjects || 0) >= 9999
+                      ? t('admin.unlimited')
+                      : (plan.maxProjects || 0) + $t('admin.project')
                   }}</span
                 >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><Box class="w-3 h-3 shrink-0" />{{
-                    (plan.maxAssets || 0) >= 9999 ? t('admin.unlimited') : (plan.maxAssets || 0) + $t('admin.assets_1')
+                    (plan.maxAssets || 0) >= 9999
+                      ? t('admin.unlimited')
+                      : (plan.maxAssets || 0) + $t('admin.assets_1')
                   }}</span
                 >
               </div>
@@ -228,14 +246,22 @@ const getPlanIcon = (name: string) => {
           <div
             class="flex items-center justify-between md:justify-end gap-3 pt-3 md:pt-0 border-t md:border-0 border-[var(--border-base)] shrink-0"
           >
-            <span class="text-xs text-[var(--text-muted)]"
-              >{{ $t('admin.plan_subscribers_count', { count: plan.subscriberCount || 0 }) }}</span
-            >
+            <span class="text-xs text-[var(--text-muted)]">{{
+              $t('admin.plan_subscribers_count', { count: plan.subscriberCount || 0 })
+            }}</span>
             <div class="flex items-center gap-1">
-              <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-accent transition-all" @click="openEditPlan(plan)">
+              <button
+                type="button"
+                class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-accent transition-all"
+                @click="openEditPlan(plan)"
+              >
                 <Pencil class="w-4 h-4" />
               </button>
-              <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-rose-500 transition-all" @click="handleDeletePlan(plan)">
+              <button
+                type="button"
+                class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-rose-500 transition-all"
+                @click="handleDeletePlan(plan)"
+              >
                 <Trash2 class="w-4 h-4" />
               </button>
             </div>
@@ -272,16 +298,20 @@ const getPlanIcon = (name: string) => {
             <h3 class="text-xl font-bold text-[var(--text-primary)]">
               {{ editingPlan ? t('admin.edit_plan') : $t('admin.new_plan') }}
             </h3>
-            <button type="button" class="text-[var(--text-secondary)]" @click="showPlanDialog = false">
+            <button
+              type="button"
+              class="text-[var(--text-secondary)]"
+              @click="showPlanDialog = false"
+            >
               <X class="w-5 h-5" />
             </button>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.program_logo_english') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.program_logo_english')
+              }}</label>
               <input
                 v-model="planForm.name"
                 type="text"
@@ -295,9 +325,9 @@ const getPlanIcon = (name: string) => {
               />
             </div>
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.display_name') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.display_name')
+              }}</label>
               <input
                 v-model="planForm.displayName"
                 type="text"
@@ -314,9 +344,9 @@ const getPlanIcon = (name: string) => {
 
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.monthly_payment_price') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.monthly_payment_price')
+              }}</label>
               <input
                 v-model.number="planForm.price"
                 type="number"
@@ -329,9 +359,9 @@ const getPlanIcon = (name: string) => {
               />
             </div>
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.annual_payment_price') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.annual_payment_price')
+              }}</label>
               <input
                 v-model.number="planForm.yearlyPrice"
                 type="number"
@@ -348,9 +378,9 @@ const getPlanIcon = (name: string) => {
 
           <div class="grid grid-cols-4 gap-4">
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.storage_gb') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.storage_gb')
+              }}</label>
               <input
                 v-model.number="planForm.maxStorage"
                 type="number"
@@ -363,9 +393,9 @@ const getPlanIcon = (name: string) => {
               />
             </div>
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.number_of_teams') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.number_of_teams')
+              }}</label>
               <input
                 v-model.number="planForm.maxTeams"
                 type="number"
@@ -378,9 +408,9 @@ const getPlanIcon = (name: string) => {
               />
             </div>
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.number_of_items') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.number_of_items')
+              }}</label>
               <input
                 v-model.number="planForm.maxProjects"
                 type="number"
@@ -393,9 +423,9 @@ const getPlanIcon = (name: string) => {
               />
             </div>
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.number_of_assets') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.number_of_assets')
+              }}</label>
               <input
                 v-model.number="planForm.maxAssets"
                 type="number"
@@ -411,9 +441,9 @@ const getPlanIcon = (name: string) => {
 
           <div class="grid grid-cols-3 gap-4">
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.sort_priority') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.sort_priority')
+              }}</label>
               <input
                 v-model.number="planForm.priority"
                 type="number"
@@ -426,9 +456,9 @@ const getPlanIcon = (name: string) => {
               />
             </div>
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.badge_color') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.badge_color')
+              }}</label>
               <input
                 v-model="planForm.badgeColor"
                 type="color"
@@ -437,9 +467,9 @@ const getPlanIcon = (name: string) => {
               />
             </div>
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.recommended_tag') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.recommended_tag')
+              }}</label>
               <button
                 type="button"
                 class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all"
@@ -452,15 +482,17 @@ const getPlanIcon = (name: string) => {
                 @click="planForm.isPopular = !planForm.isPopular"
               >
                 <component :is="planForm.isPopular ? Check : X" class="w-4 h-4" />
-                <span class="text-xs font-bold">{{ planForm.isPopular ? $t('admin.recommended') : $t('admin.normal_plan') }}</span>
+                <span class="text-xs font-bold">{{
+                  planForm.isPopular ? $t('admin.recommended') : $t('admin.normal_plan')
+                }}</span>
               </button>
             </div>
           </div>
 
           <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >{{ $t('admin.features') }}</label
-            >
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.features')
+            }}</label>
             <div class="flex gap-2">
               <input
                 v-model="newFeature"
@@ -474,7 +506,11 @@ const getPlanIcon = (name: string) => {
                 :placeholder="$t('admin.enter_the_function_description')"
                 @keyup.enter="addFeature"
               />
-              <button type="button" class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold" @click="addFeature">
+              <button
+                type="button"
+                class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold"
+                @click="addFeature"
+              >
                 添加
               </button>
             </div>
@@ -485,7 +521,11 @@ const getPlanIcon = (name: string) => {
                 class="flex items-center gap-1 px-3 py-1 bg-[var(--bg-app)] rounded-lg text-xs text-[var(--text-secondary)]"
               >
                 {{ feature }}
-                <button type="button" class="text-slate-400 hover:text-rose-500" @click="removeFeature(idx)">
+                <button
+                  type="button"
+                  class="text-slate-400 hover:text-rose-500"
+                  @click="removeFeature(idx)"
+                >
                   <X class="w-3 h-3" />
                 </button>
               </span>
@@ -493,11 +533,20 @@ const getPlanIcon = (name: string) => {
           </div>
 
           <div class="flex gap-3 pt-4">
-            <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all" @click="showPlanDialog = false">
+            <button
+              type="button"
+              class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all"
+              @click="showPlanDialog = false"
+            >
               取消
             </button>
-            <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2" @click="handleSavePlan">
-              <Save class="w-4 h-4" /> {{ editingPlan ? t('admin.save_changes_1') : $t('admin.create_plan') }}
+            <button
+              type="button"
+              class="flex-1 py-3 rounded-2xl font-bold text-sm bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2"
+              @click="handleSavePlan"
+            >
+              <Save class="w-4 h-4" />
+              {{ editingPlan ? t('admin.save_changes_1') : $t('admin.create_plan') }}
             </button>
           </div>
         </div>

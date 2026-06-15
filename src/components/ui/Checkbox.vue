@@ -1,0 +1,75 @@
+<script setup lang="ts">
+import { computed } from 'vue';
+
+interface Props {
+  modelValue?: boolean;
+  disabled?: boolean;
+  id?: string;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  modelValue: false,
+  disabled: false,
+  id: () => `checkbox-${Math.random().toString(36).substring(2, 9)}`,
+});
+
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: boolean): void;
+  (e: 'change', value: boolean): void;
+}>();
+
+const toggleCheck = () => {
+  if (props.disabled) return;
+  const newValue = !props.modelValue;
+  emit('update:modelValue', newValue);
+  emit('change', newValue);
+};
+
+const classes = computed(() => {
+  return [
+    'w-5 h-5 rounded-md flex items-center justify-center border transition-all duration-300 select-none cursor-pointer',
+    props.disabled ? 'opacity-50 cursor-not-allowed' : '',
+    props.modelValue
+      ? 'bg-accent border-accent shadow-[0_0_12px_rgba(var(--accent-rgb),0.25)]'
+      : 'glass-input border-white/20 dark:border-white/10 hover:border-accent/40',
+  ];
+});
+</script>
+
+<template>
+  <div class="inline-flex items-center gap-2.5 select-none font-sans text-sm">
+    <div
+      :id="id"
+      role="checkbox"
+      :aria-checked="modelValue"
+      :aria-disabled="disabled"
+      tabindex="0"
+      :class="classes"
+      @click="toggleCheck"
+      @keydown.space.prevent="toggleCheck"
+      @keydown.enter.prevent="toggleCheck"
+    >
+      <svg
+        class="w-3.5 h-3.5 text-white transition-transform duration-300"
+        :class="modelValue ? 'scale-100 opacity-100' : 'scale-50 opacity-0'"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        stroke-width="3.5"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+    </div>
+
+    <!-- Label Slot -->
+    <label
+      v-if="$slots.default"
+      :for="id"
+      class="cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors duration-200"
+      :class="{ 'opacity-50 pointer-events-none': disabled }"
+      @click="toggleCheck"
+    >
+      <slot></slot>
+    </label>
+  </div>
+</template>

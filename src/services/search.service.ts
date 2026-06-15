@@ -10,10 +10,13 @@ export interface GlobalSearchItem {
   thumbnail?: string | null;
   type?: string;
   difficulty?: string;
-  category?: {
-    id?: string;
-    name?: string;
-  } | string | null;
+  category?:
+    | {
+        id?: string;
+        name?: string;
+      }
+    | string
+    | null;
   _count?: {
     lessons?: number;
     members?: number;

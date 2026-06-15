@@ -10,7 +10,7 @@ const storageKeys = {
   lastBaseTheme: 'lastBaseTheme',
   refreshToken: 'refreshToken',
   searchHistory: 'searchHistory',
-  sidebarExpandedGroups: 'layoutSidebarExpandedGroups',
+  sidebarCollapsedGroups: 'layoutSidebarCollapsedGroups',
   sidebarMode: 'layoutSidebarMode',
   theme: 'theme',
   token: 'token',
@@ -116,12 +116,12 @@ export const preferences = {
   },
   setSidebarMode: (mode: SidebarMode) => setItem(storageKeys.sidebarMode, mode),
 
-  getSidebarExpandedGroups: () =>
-    parseJson<string[]>(getItem(storageKeys.sidebarExpandedGroups), []).filter(
+  getSidebarCollapsedGroups: () =>
+    parseJson<string[]>(getItem(storageKeys.sidebarCollapsedGroups), []).filter(
       (key) => typeof key === 'string' && key.length > 0,
     ),
-  setSidebarExpandedGroups: (groups: string[]) =>
-    setItem(storageKeys.sidebarExpandedGroups, JSON.stringify([...new Set(groups)])),
+  setSidebarCollapsedGroups: (groups: string[]) =>
+    setItem(storageKeys.sidebarCollapsedGroups, JSON.stringify([...new Set(groups)])),
 
   getUser: <T>() => parseJson<T | null>(getItem(storageKeys.user), null),
   setUser: (user: unknown) => setItem(storageKeys.user, JSON.stringify(user)),
@@ -159,9 +159,11 @@ export const preferences = {
   removeAiSpriteSessionId: () => removeItem(storageKeys.aiSpriteSessionId),
 
   getAiPendingRunsIndex: () => parseJson<string[]>(getItem(storageKeys.aiPendingRunsIndex), []),
-  setAiPendingRunsIndex: (index: string[]) => setItem(storageKeys.aiPendingRunsIndex, JSON.stringify(index)),
+  setAiPendingRunsIndex: (index: string[]) =>
+    setItem(storageKeys.aiPendingRunsIndex, JSON.stringify(index)),
 
   getAiPendingRun: (sessionId: string) => getItem(`ai_pending_run_${sessionId}`),
-  setAiPendingRun: (sessionId: string, data: string) => setItem(`ai_pending_run_${sessionId}`, data),
+  setAiPendingRun: (sessionId: string, data: string) =>
+    setItem(`ai_pending_run_${sessionId}`, data),
   removeAiPendingRun: (sessionId: string) => removeItem(`ai_pending_run_${sessionId}`),
 };

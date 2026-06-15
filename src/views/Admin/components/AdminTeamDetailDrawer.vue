@@ -44,7 +44,10 @@ const emit = defineEmits<{
   (e: 'edit', team: AdminTeam): void;
   (e: 'add-member', team: AdminTeam): void;
   (e: 'delete', team: AdminTeam): void;
-  (e: 'update-member-role', payload: { teamId: string; userId: string; role: 'ADMIN' | 'MEMBER' }): void;
+  (
+    e: 'update-member-role',
+    payload: { teamId: string; userId: string; role: 'ADMIN' | 'MEMBER' },
+  ): void;
   (e: 'remove-member', payload: { teamId: string; userId: string; label: string }): void;
   (e: 'handle-application', payload: { application: TeamApplication; accept: boolean }): void;
   (e: 'cancel-invitation', invitation: TeamInvitation): void;
@@ -52,11 +55,14 @@ const emit = defineEmits<{
 
 const detailTab = ref<'overview' | 'members' | 'pending' | 'activity'>('overview');
 
-watch(() => props.modelValue, (newVal) => {
-  if (newVal) {
-    detailTab.value = 'overview';
-  }
-});
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    if (newVal) {
+      detailTab.value = 'overview';
+    }
+  },
+);
 
 // Helper/formatting functions
 const safeTime = (value?: string | null) => {
@@ -171,9 +177,9 @@ const roleClass = (role: string) => ({
 <template>
   <el-drawer
     :model-value="modelValue"
-    @update:model-value="emit('update:modelValue', $event)"
     :size="isMobile ? '100%' : '760px'"
     :with-header="false"
+    @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="drawer-shell">
       <div v-if="isDetailLoading" class="loading-state drawer-loading">
@@ -197,7 +203,10 @@ const roleClass = (role: string) => ({
                   <Lock v-else />
                   {{ visibilityLabel(team.visibility) }}
                 </span>
-                <span class="pill" :class="riskClass(detail?.team?.metrics?.riskLevel || team.metrics?.riskLevel)">
+                <span
+                  class="pill"
+                  :class="riskClass(detail?.team?.metrics?.riskLevel || team.metrics?.riskLevel)"
+                >
                   {{ riskLabel(detail?.team?.metrics?.riskLevel || team.metrics?.riskLevel) }}
                 </span>
                 <span class="pill tone-slate">{{ formatDate(team.createdAt) }} 创建</span>
@@ -211,9 +220,7 @@ const roleClass = (role: string) => ({
 
         <div class="drawer-actions">
           <button type="button" @click="emit('edit', team)"><Edit3 />编辑</button>
-          <button type="button" @click="emit('add-member', team)">
-            <UserPlus />添加成员
-          </button>
+          <button type="button" @click="emit('add-member', team)"><UserPlus />添加成员</button>
           <button type="button" class="danger-action" @click="emit('delete', team)">
             <Trash2 />解散
           </button>
@@ -225,9 +232,7 @@ const roleClass = (role: string) => ({
             :class="scoreClass(detail?.counts?.healthScore || team.metrics?.healthScore)"
           >
             <span>健康分</span>
-            <strong>{{
-              detail?.counts?.healthScore ?? team.metrics?.healthScore ?? 100
-            }}</strong>
+            <strong>{{ detail?.counts?.healthScore ?? team.metrics?.healthScore ?? 100 }}</strong>
           </div>
           <div>
             <span>成员</span>
@@ -294,17 +299,12 @@ const roleClass = (role: string) => ({
               <h3>优先处理</h3>
               <span>{{ detail?.actionItems?.length || 0 }}</span>
             </div>
-            <article
-              v-for="item in detail?.actionItems || []"
-              :key="item.id"
-              class="action-row"
-            >
+            <article v-for="item in detail?.actionItems || []" :key="item.id" class="action-row">
               <span class="severity-dot" :class="`severity-${item.severity}`" />
               <div>
                 <strong>{{ item.title }}</strong>
                 <small
-                  >{{ actionItemLabel(item.type) }} ·
-                  {{ item.project?.title || '团队事项' }}</small
+                  >{{ actionItemLabel(item.type) }} · {{ item.project?.title || '团队事项' }}</small
                 >
               </div>
               <button
@@ -384,8 +384,12 @@ const roleClass = (role: string) => ({
           </div>
         </section>
 
-        <section class="secondary-tabs-content drawer-content" v-else-if="detailTab === 'members'">
-          <article v-for="member in (detail?.members || team.members || [])" :key="member.userId" class="member-row">
+        <section v-else-if="detailTab === 'members'" class="secondary-tabs-content drawer-content">
+          <article
+            v-for="member in detail?.members || team.members || []"
+            :key="member.userId"
+            class="member-row"
+          >
             <div class="owner-cell">
               <UserAvatar :user="member.user" size="sm" />
               <span>
@@ -399,28 +403,44 @@ const roleClass = (role: string) => ({
               <span>{{ relativeTime(member.metrics?.lastActiveAt || member.joinedAt) }}</span>
             </div>
             <div class="member-actions">
-              <span class="pill" :class="roleClass(member.role)">{{
-                roleLabel(member.role)
-              }}</span>
+              <span class="pill" :class="roleClass(member.role)">{{ roleLabel(member.role) }}</span>
               <el-dropdown v-if="member.role !== 'OWNER'" trigger="click">
                 <button type="button" class="icon-btn"><MoreHorizontal /></button>
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item
                       v-if="member.role !== 'ADMIN'"
-                      @click="emit('update-member-role', { teamId: team.id, userId: member.userId, role: 'ADMIN' })"
+                      @click="
+                        emit('update-member-role', {
+                          teamId: team.id,
+                          userId: member.userId,
+                          role: 'ADMIN',
+                        })
+                      "
                     >
                       <Shield class="dropdown-icon" /> 设为管理员
                     </el-dropdown-item>
                     <el-dropdown-item
                       v-if="member.role !== 'MEMBER'"
-                      @click="emit('update-member-role', { teamId: team.id, userId: member.userId, role: 'MEMBER' })"
+                      @click="
+                        emit('update-member-role', {
+                          teamId: team.id,
+                          userId: member.userId,
+                          role: 'MEMBER',
+                        })
+                      "
                     >
                       <Users class="dropdown-icon" /> 设为成员
                     </el-dropdown-item>
                     <el-dropdown-item
                       divided
-                      @click="emit('remove-member', { teamId: team.id, userId: member.userId, label: ownerName(member.user) })"
+                      @click="
+                        emit('remove-member', {
+                          teamId: team.id,
+                          userId: member.userId,
+                          label: ownerName(member.user),
+                        })
+                      "
                     >
                       <UserMinus class="dropdown-icon danger" /> 移除成员
                     </el-dropdown-item>
@@ -431,7 +451,7 @@ const roleClass = (role: string) => ({
           </article>
         </section>
 
-        <section class="drawer-content" v-else-if="detailTab === 'pending'">
+        <section v-else-if="detailTab === 'pending'" class="drawer-content">
           <div class="detail-section">
             <div class="detail-head">
               <h3>加入申请</h3>
@@ -501,12 +521,8 @@ const roleClass = (role: string) => ({
           </div>
         </section>
 
-        <section class="drawer-content" v-else>
-          <article
-            v-for="item in detail?.activity || []"
-            :key="item.id"
-            class="activity-row"
-          >
+        <section v-else class="drawer-content">
+          <article v-for="item in detail?.activity || []" :key="item.id" class="activity-row">
             <span class="activity-icon">
               <Activity />
             </span>
@@ -904,7 +920,8 @@ const roleClass = (role: string) => ({
   background: #ffffff;
 }
 
-.primary-btn, .mini-btn {
+.primary-btn,
+.mini-btn {
   min-height: 28px;
   padding: 0 10px;
   font-size: 12px;
@@ -963,8 +980,12 @@ const roleClass = (role: string) => ({
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .quiet-state {

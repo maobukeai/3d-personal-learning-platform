@@ -23,16 +23,16 @@ const props = withDefaults(defineProps<Props>(), {
     md: 3,
     lg: 4,
     xl: 5,
-    '2xl': 6
-  })
+    '2xl': 6,
+  }),
 });
 </script>
 
 <template>
-  <div 
+  <div
     class="masonry-grid-container"
-    :style="{ 
-      '--grid-gap': props.gap
+    :style="{
+      '--grid-gap': props.gap,
     }"
   >
     <slot></slot>
@@ -43,7 +43,7 @@ const props = withDefaults(defineProps<Props>(), {
 .masonry-grid-container {
   column-gap: var(--grid-gap);
   width: 100%;
-  
+
   /* Responsive columns */
   column-count: v-bind('props.columns.default');
 }

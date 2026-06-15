@@ -2,21 +2,21 @@
 import { ref, computed, onUnmounted, defineAsyncComponent } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
-import { 
-  X, 
-  Check, 
-  Copy, 
-  Star, 
-  BookOpen, 
-  Minus, 
-  Plus, 
-  Eye, 
-  Heart, 
+import {
+  X,
+  Check,
+  Copy,
+  Star,
+  BookOpen,
+  Minus,
+  Plus,
+  Eye,
+  Heart,
   Sparkles,
   MessageSquare,
   Trash2,
   Share2,
-  Loader2
+  Loader2,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
@@ -24,6 +24,8 @@ import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import { useI18n } from 'vue-i18n';
+import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
@@ -117,7 +119,7 @@ const submitComment = async () => {
   submittingComment.value = true;
   try {
     const res = await api.post(`/api/notes/${detailNote.value.id}/comment`, {
-      content: commentContent.value.trim()
+      content: commentContent.value.trim(),
     });
     comments.value.push(res.data);
     commentContent.value = '';
@@ -135,7 +137,7 @@ const submitComment = async () => {
 const handleDeleteComment = async (commentId: string) => {
   try {
     await api.delete(`/api/notes/comment/${commentId}`);
-    comments.value = comments.value.filter(c => c.id !== commentId);
+    comments.value = comments.value.filter((c) => c.id !== commentId);
     ElMessage.success(t('notes.commentDeleteSuccess'));
     if (detailNote.value && detailNote.value._count) {
       detailNote.value._count.comments = Math.max(0, detailNote.value._count.comments - 1);
@@ -181,12 +183,12 @@ const open = async (note: Note) => {
 
     emit('views-updated', {
       id: note.id,
-      views: res.data.views
+      views: res.data.views,
     });
     emit('like-updated', {
       id: note.id,
       isLiked: res.data.isLiked,
-      likesCount: res.data._count.likes
+      likesCount: res.data._count.likes,
     });
     fetchComments(note.id);
   } catch {
@@ -207,7 +209,7 @@ const handleLike = async () => {
     emit('like-updated', {
       id: detailNote.value.id,
       isLiked: detailNote.value.isLiked,
-      likesCount: detailNote.value._count.likes
+      likesCount: detailNote.value._count.likes,
     });
   } catch {
     ElMessage.error(t('notes.operationFailed'));
@@ -219,10 +221,12 @@ const handleTogglePopular = async () => {
   try {
     const res = await api.post(`/api/notes/${detailNote.value.id}/popular`);
     detailNote.value.isPopular = res.data.isPopular;
-    ElMessage.success(detailNote.value.isPopular ? t('notes.popularRecommended') : t('notes.popularCancelled'));
+    ElMessage.success(
+      detailNote.value.isPopular ? t('notes.popularRecommended') : t('notes.popularCancelled'),
+    );
     emit('popular-updated', {
       id: detailNote.value.id,
-      isPopular: detailNote.value.isPopular
+      isPopular: detailNote.value.isPopular,
     });
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, t('notes.operationFailed')));
@@ -292,7 +296,7 @@ const generateAiSummary = async () => {
   isSummarizing.value = true;
   summaryProgress.value = 0;
   sessionSummary.value = '';
-  
+
   progressInterval = setInterval(() => {
     if (summaryProgress.value < 40) {
       summaryProgress.value += Math.floor(Math.random() * 3) + 2; // 2-4%
@@ -352,18 +356,14 @@ defineExpose({ open });
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    top="3vh"
-    class="modern-note-dialog"
-    destroy-on-close
-    :show-close="false"
-  >
-    <div v-if="detailNote" class="flex flex-col md:flex-row h-screen md:h-[88vh] overflow-hidden relative rounded-none md:rounded-3xl bg-[var(--bg-card)]">
-      
+  <Modal :show="visible" size="xxl" padding="none" @close="visible = false">
+    <div
+      v-if="detailNote"
+      class="flex flex-col md:flex-row h-screen md:h-[88vh] overflow-hidden relative rounded-none md:rounded-3xl bg-[var(--bg-card)]"
+    >
       <!-- Global Close Button (Top Right of the entire Dialog Container) -->
-      <button 
-        type="button" 
+      <button
+        type="button"
         class="dialog-close-btn absolute top-4 right-4 z-50 flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)]/80 backdrop-blur-xs hover:bg-slate-100 dark:hover:bg-zinc-800 text-[var(--text-secondary)] transition-all active:scale-90 shadow-md cursor-pointer"
         :title="t('notes.closeReading')"
         @click="visible = false"
@@ -372,21 +372,31 @@ defineExpose({ open });
       </button>
 
       <!-- Side Dashboard Panel -->
-      <aside 
-        class="hidden md:flex w-64 p-5 flex-col shrink-0 border-r relative z-10 select-none bg-slate-50/70 dark:bg-zinc-900/60 backdrop-blur-md" 
+      <aside
+        class="hidden md:flex w-64 p-5 flex-col shrink-0 border-r relative z-10 select-none bg-slate-50/70 dark:bg-zinc-900/60 backdrop-blur-md"
         style="border-color: var(--border-base)"
       >
         <!-- User Information Dashboard (Clickable) -->
-        <div 
+        <div
           class="mb-4 p-3 rounded-2xl border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center gap-3 shadow-xs cursor-pointer hover:border-accent/40 hover:shadow-sm transition-all"
           :title="t('notes.viewAuthorProfile')"
           @click="handleShowUserProfile(detailNote.user.id)"
         >
-          <UserAvatar :user="detailNote.user" size="sm" md-size="md" class="shrink-0 ring-2 ring-accent/10 hover:scale-105 transition-all" />
+          <UserAvatar
+            :user="detailNote.user"
+            size="sm"
+            md-size="md"
+            class="shrink-0 ring-2 ring-accent/10 hover:scale-105 transition-all"
+          />
           <div class="min-w-0">
-            <h4 class="font-black text-xs text-[var(--text-primary)] leading-tight flex items-center gap-1.5 hover:text-accent transition-colors">
+            <h4
+              class="font-black text-xs text-[var(--text-primary)] leading-tight flex items-center gap-1.5 hover:text-accent transition-colors"
+            >
               {{ detailNote.user.name }}
-              <span class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 dark:bg-purple-400/10 text-purple-600 dark:text-purple-400 rounded">{{ t('notes.author') }}</span>
+              <span
+                class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 dark:bg-purple-400/10 text-purple-600 dark:text-purple-400 rounded"
+                >{{ t('notes.author') }}</span
+              >
             </h4>
             <p class="text-[10px] text-[var(--text-muted)] mt-1 line-clamp-1 leading-relaxed">
               {{ detailNote.user.bio || t('notes.explorer') }}
@@ -397,42 +407,92 @@ defineExpose({ open });
         <!-- Metrics & Details Panel -->
         <div class="space-y-4 overflow-y-auto pr-1 scrollbar-hide flex-1">
           <!-- Metrics -->
-          <div class="bg-[var(--bg-card)] border border-[var(--border-base)] p-3 rounded-2xl shadow-xs">
-            <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2.5">{{ t('notes.articleDashboard') }}</p>
+          <div
+            class="bg-[var(--bg-card)] border border-[var(--border-base)] p-3 rounded-2xl shadow-xs"
+          >
+            <p
+              class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2.5"
+            >
+              {{ t('notes.articleDashboard') }}
+            </p>
             <div class="grid grid-cols-2 gap-2">
               <div class="bg-slate-50 dark:bg-zinc-800/40 p-2 rounded-xl text-center">
-                <span class="text-[9px] text-[var(--text-muted)] block">{{ t('notes.viewsUnit') }}</span>
-                <span class="text-xs font-black text-[var(--text-primary)] flex items-center justify-center gap-1 mt-0.5"><Eye class="w-3 h-3 text-[var(--text-muted)]" />{{ detailNote.views }}</span>
+                <span class="text-[9px] text-[var(--text-muted)] block">{{
+                  t('notes.viewsUnit')
+                }}</span>
+                <span
+                  class="text-xs font-black text-[var(--text-primary)] flex items-center justify-center gap-1 mt-0.5"
+                  ><Eye class="w-3 h-3 text-[var(--text-muted)]" />{{ detailNote.views }}</span
+                >
               </div>
               <div class="bg-slate-50 dark:bg-zinc-800/40 p-2 rounded-xl text-center">
-                <span class="text-[9px] text-[var(--text-muted)] block">{{ t('notes.likesUnit') }}</span>
-                <span class="text-xs font-black text-[var(--text-primary)] flex items-center justify-center gap-1 mt-0.5"><Heart class="w-3 h-3 text-rose-500" />{{ detailNote._count.likes }}</span>
+                <span class="text-[9px] text-[var(--text-muted)] block">{{
+                  t('notes.likesUnit')
+                }}</span>
+                <span
+                  class="text-xs font-black text-[var(--text-primary)] flex items-center justify-center gap-1 mt-0.5"
+                  ><Heart class="w-3 h-3 text-rose-500" />{{ detailNote._count.likes }}</span
+                >
               </div>
             </div>
           </div>
 
           <!-- Reading ToolBox -->
-          <div class="bg-[var(--bg-card)] border border-[var(--border-base)] p-3 rounded-2xl shadow-xs space-y-3">
-            <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider">{{ t('notes.typography') }}</p>
-            
+          <div
+            class="bg-[var(--bg-card)] border border-[var(--border-base)] p-3 rounded-2xl shadow-xs space-y-3"
+          >
+            <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider">
+              {{ t('notes.typography') }}
+            </p>
+
             <!-- Font Sizer -->
             <div class="flex items-center justify-between text-xs">
-              <span class="text-[10px] font-medium text-[var(--text-secondary)]">{{ t('notes.fontSize') }}</span>
-              <div class="flex items-center gap-1 bg-slate-50 dark:bg-zinc-800/40 rounded-lg p-0.5 border border-[var(--border-base)]">
-                <button type="button" class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded text-[var(--text-secondary)] transition-all cursor-pointer" @click="changeFontSize(-1)"><Minus class="w-2.5 h-2.5" /></button>
-                <span class="text-[10px] font-black px-1 text-[var(--text-primary)]">{{ fontSize }}px</span>
-                <button type="button" class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded text-[var(--text-secondary)] transition-all cursor-pointer" @click="changeFontSize(1)"><Plus class="w-2.5 h-2.5" /></button>
+              <span class="text-[10px] font-medium text-[var(--text-secondary)]">{{
+                t('notes.fontSize')
+              }}</span>
+              <div
+                class="flex items-center gap-1 bg-slate-50 dark:bg-zinc-800/40 rounded-lg p-0.5 border border-[var(--border-base)]"
+              >
+                <button
+                  type="button"
+                  class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded text-[var(--text-secondary)] transition-all cursor-pointer"
+                  @click="changeFontSize(-1)"
+                >
+                  <Minus class="w-2.5 h-2.5" />
+                </button>
+                <span class="text-[10px] font-black px-1 text-[var(--text-primary)]"
+                  >{{ fontSize }}px</span
+                >
+                <button
+                  type="button"
+                  class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded text-[var(--text-secondary)] transition-all cursor-pointer"
+                  @click="changeFontSize(1)"
+                >
+                  <Plus class="w-2.5 h-2.5" />
+                </button>
               </div>
             </div>
-
           </div>
 
           <!-- Tags & Category Panel -->
-          <div class="bg-[var(--bg-card)] border border-[var(--border-base)] p-3 rounded-2xl shadow-xs">
-            <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">{{ t('notes.notebookTags') }}</p>
+          <div
+            class="bg-[var(--bg-card)] border border-[var(--border-base)] p-3 rounded-2xl shadow-xs"
+          >
+            <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">
+              {{ t('notes.notebookTags') }}
+            </p>
             <div class="flex flex-wrap gap-1">
-              <span v-if="detailNote.category" class="px-2 py-0.5 rounded-lg bg-accent/10 border border-accent/15 text-accent text-[9px] font-black">{{ detailNote.category }}</span>
-              <span v-for="tag in parseTags(detailNote)" :key="tag" class="px-2 py-0.5 rounded-lg bg-slate-50 dark:bg-zinc-800/40 text-[var(--text-secondary)] text-[9px] font-black border border-[var(--border-base)]">#{{ tag }}</span>
+              <span
+                v-if="detailNote.category"
+                class="px-2 py-0.5 rounded-lg bg-accent/10 border border-accent/15 text-accent text-[9px] font-black"
+                >{{ detailNote.category }}</span
+              >
+              <span
+                v-for="tag in parseTags(detailNote)"
+                :key="tag"
+                class="px-2 py-0.5 rounded-lg bg-slate-50 dark:bg-zinc-800/40 text-[var(--text-secondary)] text-[9px] font-black border border-[var(--border-base)]"
+                >#{{ tag }}</span
+              >
             </div>
           </div>
         </div>
@@ -443,24 +503,36 @@ defineExpose({ open });
             v-if="authStore.user?.role === 'ADMIN' && detailNote.visibility === 'PUBLIC'"
             type="button"
             class="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-black border transition-all active:scale-95 cursor-pointer"
-            :class="detailNote.isPopular ? 'bg-amber-500/10 border-amber-500/25 text-amber-500 hover:bg-amber-500/15' : 'bg-transparent border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-zinc-800'"
+            :class="
+              detailNote.isPopular
+                ? 'bg-amber-500/10 border-amber-500/25 text-amber-500 hover:bg-amber-500/15'
+                : 'bg-transparent border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-zinc-800'
+            "
             @click="handleTogglePopular"
           >
             <Star class="w-3.5 h-3.5" :class="{ 'fill-current': detailNote.isPopular }" />
-            <span>{{ detailNote.isPopular ? t('notes.popularRecommendedShort') : t('notes.recommendPopular') }}</span>
+            <span>{{
+              detailNote.isPopular
+                ? t('notes.popularRecommendedShort')
+                : t('notes.recommendPopular')
+            }}</span>
           </button>
 
-          <button 
+          <button
             type="button"
             class="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-black border transition-all active:scale-95 cursor-pointer"
-            :class="detailNote.isLiked ? 'bg-rose-500/10 border-rose-500/25 text-rose-500 hover:bg-rose-500/15' : 'bg-transparent border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-zinc-800'"
+            :class="
+              detailNote.isLiked
+                ? 'bg-rose-500/10 border-rose-500/25 text-rose-500 hover:bg-rose-500/15'
+                : 'bg-transparent border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-zinc-800'
+            "
             @click="handleLike"
           >
             <Heart class="w-3.5 h-3.5" :class="{ 'fill-current': detailNote.isLiked }" />
             <span>{{ detailNote.isLiked ? t('notes.liked') : t('notes.likeNote') }}</span>
           </button>
-          
-          <button 
+
+          <button
             v-if="detailNote.userId === authStore.user?.id"
             type="button"
             class="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-black border border-[var(--border-base)] text-[var(--text-secondary)] bg-[var(--bg-card)] hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all active:scale-95 cursor-pointer shadow-xs"
@@ -470,7 +542,7 @@ defineExpose({ open });
             <span>{{ t('notes.shareNote') }}</span>
           </button>
 
-          <button 
+          <button
             type="button"
             class="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-black border border-[var(--border-base)] text-[var(--text-secondary)] bg-[var(--bg-card)] hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all active:scale-95 cursor-pointer shadow-xs"
             @click="handleCopy"
@@ -482,30 +554,46 @@ defineExpose({ open });
       </aside>
 
       <!-- Right Main Reading Canvas -->
-      <div 
+      <div
         ref="scrollContainer"
         class="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col bg-[var(--bg-card)] text-[var(--text-primary)]"
         @scroll="handleScroll"
       >
         <!-- Floating Reading Progress Indicator -->
         <div class="sticky top-0 left-0 right-0 z-50 h-0.5 bg-slate-100/50 dark:bg-zinc-800/50">
-          <div 
+          <div
             class="h-full bg-gradient-to-r from-purple-500 via-accent to-indigo-500 transition-all duration-100"
             :style="{ width: readProgress + '%' }"
           />
         </div>
 
-        <div class="dialog-content-wrapper max-w-[760px] w-full mx-auto px-3 sm:px-8 pt-14 pb-6 sm:py-10 flex-1 flex flex-col justify-between">
+        <div
+          class="dialog-content-wrapper max-w-[760px] w-full mx-auto px-3 sm:px-8 pt-14 pb-6 sm:py-10 flex-1 flex flex-col justify-between"
+        >
           <!-- Article Body -->
           <div>
             <!-- Mobile Author Info Header (Visible only on mobile) -->
-            <div class="md:hidden flex items-center justify-between border-b pb-3 mb-4 border-[var(--border-base)]">
-              <div class="flex items-center gap-2.5 min-w-0 cursor-pointer" @click="handleShowUserProfile(detailNote.user.id)">
-                <UserAvatar :user="detailNote.user" size="sm" class="shrink-0 ring-2 ring-accent/10" />
+            <div
+              class="md:hidden flex items-center justify-between border-b pb-3 mb-4 border-[var(--border-base)]"
+            >
+              <div
+                class="flex items-center gap-2.5 min-w-0 cursor-pointer"
+                @click="handleShowUserProfile(detailNote.user.id)"
+              >
+                <UserAvatar
+                  :user="detailNote.user"
+                  size="sm"
+                  class="shrink-0 ring-2 ring-accent/10"
+                />
                 <div class="min-w-0">
-                  <h4 class="font-black text-xs text-[var(--text-primary)] leading-none flex items-center gap-1">
+                  <h4
+                    class="font-black text-xs text-[var(--text-primary)] leading-none flex items-center gap-1"
+                  >
                     {{ detailNote.user.name }}
-                    <span class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded">{{ t('notes.author') }}</span>
+                    <span
+                      class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded"
+                      >{{ t('notes.author') }}</span
+                    >
                   </h4>
                   <p class="text-[10px] text-[var(--text-muted)] mt-1 line-clamp-1 leading-relaxed">
                     {{ detailNote.user.bio || t('notes.explorer') }}
@@ -513,49 +601,75 @@ defineExpose({ open });
                 </div>
               </div>
               <div class="flex items-center gap-2 text-[10px] text-[var(--text-muted)] font-black">
-                <span class="flex items-center gap-0.5"><Eye class="w-3 h-3" /> {{ detailNote.views }}</span>
-                <span class="flex items-center gap-0.5"><Heart class="w-3 h-3 text-rose-500" /> {{ detailNote._count.likes }}</span>
+                <span class="flex items-center gap-0.5"
+                  ><Eye class="w-3 h-3" /> {{ detailNote.views }}</span
+                >
+                <span class="flex items-center gap-0.5"
+                  ><Heart class="w-3 h-3 text-rose-500" /> {{ detailNote._count.likes }}</span
+                >
               </div>
             </div>
 
-            <header class="border-b border-dashed pb-2 mb-3 sm:pb-3 sm:mb-3 border-[var(--border-base)]">
-              <h1 class="text-xl sm:text-2xl md:text-3xl font-black leading-tight tracking-tight mb-2.5">
+            <header
+              class="border-b border-dashed pb-2 mb-3 sm:pb-3 sm:mb-3 border-[var(--border-base)]"
+            >
+              <h1
+                class="text-xl sm:text-2xl md:text-3xl font-black leading-tight tracking-tight mb-2.5"
+              >
                 {{ detailNote.title }}
               </h1>
-              
+
               <!-- Dynamic AI summary -->
-              <div 
+              <div
                 class="rounded-xl p-2.5 text-xs leading-relaxed border bg-slate-50/40 dark:bg-zinc-900/10 border-[var(--border-base)] text-[var(--text-secondary)]"
               >
                 <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-1.5 text-[10px] font-bold text-[var(--text-primary)]">
+                  <div
+                    class="flex items-center gap-1.5 text-[10px] font-bold text-[var(--text-primary)]"
+                  >
                     <Sparkles class="w-3.5 h-3.5 text-[var(--text-secondary)]" />
                     <span>{{ t('notes.coreSummary') }}</span>
                   </div>
-                  <button 
+                  <button
                     type="button"
                     :disabled="isSummarizing"
                     class="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-white hover:bg-slate-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-[var(--border-base)] active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                     @click="generateAiSummary"
                   >
-                    <Sparkles class="w-3 h-3 text-[var(--text-muted)]" :class="{ 'animate-pulse': isSummarizing }" />
-                    <span>{{ isSummarizing ? t('notes.summarizing') : (sessionSummary ? t('notes.regenerate') : t('notes.generateAiSummary')) }}</span>
+                    <Sparkles
+                      class="w-3 h-3 text-[var(--text-muted)]"
+                      :class="{ 'animate-pulse': isSummarizing }"
+                    />
+                    <span>{{
+                      isSummarizing
+                        ? t('notes.summarizing')
+                        : sessionSummary
+                          ? t('notes.regenerate')
+                          : t('notes.generateAiSummary')
+                    }}</span>
                   </button>
                 </div>
-                
-                <div v-if="sessionSummary" class="text-[var(--text-secondary)] mt-2 whitespace-pre-wrap leading-normal">
+
+                <div
+                  v-if="sessionSummary"
+                  class="text-[var(--text-secondary)] mt-2 whitespace-pre-wrap leading-normal"
+                >
                   {{ sessionSummary }}
                 </div>
                 <div v-else-if="isSummarizing" class="mt-2.5 space-y-1.5">
-                  <div class="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
+                  <div
+                    class="flex items-center justify-between text-[10px] text-[var(--text-muted)]"
+                  >
                     <span class="flex items-center gap-1.5 font-bold text-[var(--text-secondary)]">
                       <Loader2 class="w-3.5 h-3.5 animate-spin text-[var(--accent)]" />
                       {{ t('notes.aiThinking', { step: currentThinkingStep }) }}
                     </span>
                     <span class="font-bold text-[var(--accent)]">{{ summaryProgress }}%</span>
                   </div>
-                  <div class="h-1 w-full bg-slate-200/50 dark:bg-zinc-800 rounded-full overflow-hidden">
-                    <div 
+                  <div
+                    class="h-1 w-full bg-slate-200/50 dark:bg-zinc-800 rounded-full overflow-hidden"
+                  >
+                    <div
                       class="h-full bg-[var(--accent)] rounded-full transition-all duration-300 ease-out"
                       :style="{ width: `${summaryProgress}%` }"
                     ></div>
@@ -568,7 +682,7 @@ defineExpose({ open });
             </header>
 
             <!-- Markdown Text Rendering -->
-            <div 
+            <div
               class="modern-markdown-content min-h-[300px] markdown-theme-default"
               :style="{ fontSize: fontSize + 'px' }"
             >
@@ -576,14 +690,36 @@ defineExpose({ open });
             </div>
 
             <!-- Mobile Toolbox & Actions (Visible only on mobile) -->
-            <div class="md:hidden mt-3 p-2.5 rounded-xl border border-[var(--border-base)] bg-slate-50/50 dark:bg-white/[0.02] space-y-2">
+            <div
+              class="md:hidden mt-3 p-2.5 rounded-xl border border-[var(--border-base)] bg-slate-50/50 dark:bg-white/[0.02] space-y-2"
+            >
               <!-- Personalized typography font size -->
-              <div class="flex items-center justify-between text-[11px] pb-1.5 border-b border-[var(--border-base)]">
-                <span class="font-bold text-[var(--text-secondary)]">{{ t('notes.fontSizeAdjust') }}</span>
-                <div class="flex items-center gap-0.5 bg-slate-50 dark:bg-zinc-800/40 rounded-lg p-0.5 border border-[var(--border-base)]">
-                  <button type="button" class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded text-[var(--text-secondary)] transition-all cursor-pointer" @click="changeFontSize(-1)"><Minus class="w-2.5 h-2.5" /></button>
-                  <span class="text-[10px] font-black px-1.5 text-[var(--text-primary)]">{{ fontSize }}px</span>
-                  <button type="button" class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded text-[var(--text-secondary)] transition-all cursor-pointer" @click="changeFontSize(1)"><Plus class="w-2.5 h-2.5" /></button>
+              <div
+                class="flex items-center justify-between text-[11px] pb-1.5 border-b border-[var(--border-base)]"
+              >
+                <span class="font-bold text-[var(--text-secondary)]">{{
+                  t('notes.fontSizeAdjust')
+                }}</span>
+                <div
+                  class="flex items-center gap-0.5 bg-slate-50 dark:bg-zinc-800/40 rounded-lg p-0.5 border border-[var(--border-base)]"
+                >
+                  <button
+                    type="button"
+                    class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded text-[var(--text-secondary)] transition-all cursor-pointer"
+                    @click="changeFontSize(-1)"
+                  >
+                    <Minus class="w-2.5 h-2.5" />
+                  </button>
+                  <span class="text-[10px] font-black px-1.5 text-[var(--text-primary)]"
+                    >{{ fontSize }}px</span
+                  >
+                  <button
+                    type="button"
+                    class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded text-[var(--text-secondary)] transition-all cursor-pointer"
+                    @click="changeFontSize(1)"
+                  >
+                    <Plus class="w-2.5 h-2.5" />
+                  </button>
                 </div>
               </div>
 
@@ -593,24 +729,34 @@ defineExpose({ open });
                   v-if="authStore.user?.role === 'ADMIN' && detailNote.visibility === 'PUBLIC'"
                   type="button"
                   class="flex-1 min-w-[70px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[10px] font-bold border transition-all active:scale-95 cursor-pointer bg-[var(--bg-card)]"
-                  :class="detailNote.isPopular ? 'bg-amber-500/10 border-amber-500/25 text-amber-500' : 'bg-transparent border-[var(--border-base)] text-[var(--text-secondary)]'"
+                  :class="
+                    detailNote.isPopular
+                      ? 'bg-amber-500/10 border-amber-500/25 text-amber-500'
+                      : 'bg-transparent border-[var(--border-base)] text-[var(--text-secondary)]'
+                  "
                   @click="handleTogglePopular"
                 >
                   <Star class="w-3 h-3" :class="{ 'fill-current': detailNote.isPopular }" />
-                  <span>{{ detailNote.isPopular ? t('notes.popularHot') : t('notes.recommendPopular') }}</span>
+                  <span>{{
+                    detailNote.isPopular ? t('notes.popularHot') : t('notes.recommendPopular')
+                  }}</span>
                 </button>
 
-                <button 
+                <button
                   type="button"
                   class="flex-1 min-w-[70px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[10px] font-bold border transition-all active:scale-95 cursor-pointer bg-[var(--bg-card)]"
-                  :class="detailNote.isLiked ? 'bg-rose-500/10 border-rose-500/25 text-rose-500' : 'bg-transparent border-[var(--border-base)] text-[var(--text-secondary)]'"
+                  :class="
+                    detailNote.isLiked
+                      ? 'bg-rose-500/10 border-rose-500/25 text-rose-500'
+                      : 'bg-transparent border-[var(--border-base)] text-[var(--text-secondary)]'
+                  "
                   @click="handleLike"
                 >
                   <Heart class="w-3 h-3" :class="{ 'fill-current': detailNote.isLiked }" />
                   <span>{{ detailNote.isLiked ? t('notes.liked') : t('notes.like') }}</span>
                 </button>
 
-                <button 
+                <button
                   v-if="detailNote.userId === authStore.user?.id"
                   type="button"
                   class="flex-1 min-w-[70px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[10px] font-bold border border-[var(--border-base)] text-[var(--text-secondary)] bg-[var(--bg-card)] transition-all active:scale-95 cursor-pointer shadow-2xs"
@@ -619,8 +765,8 @@ defineExpose({ open });
                   <Share2 class="w-3 h-3" />
                   <span>{{ t('notes.share') }}</span>
                 </button>
-                
-                <button 
+
+                <button
                   type="button"
                   class="flex-1 min-w-[70px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[10px] font-bold border border-[var(--border-base)] text-[var(--text-secondary)] bg-[var(--bg-card)] transition-all active:scale-95 cursor-pointer shadow-2xs"
                   @click="handleCopy"
@@ -631,19 +777,36 @@ defineExpose({ open });
               </div>
 
               <!-- Tags list on mobile -->
-              <div v-if="parseTags(detailNote).length || detailNote.category" class="pt-2 border-t border-[var(--border-base)]">
+              <div
+                v-if="parseTags(detailNote).length || detailNote.category"
+                class="pt-2 border-t border-[var(--border-base)]"
+              >
                 <div class="flex flex-wrap gap-1">
-                  <span v-if="detailNote.category" class="px-1.5 py-0.2 rounded-md bg-accent/10 border border-accent/15 text-accent text-[9px] font-black">{{ detailNote.category }}</span>
-                  <span v-for="tag in parseTags(detailNote)" :key="tag" class="px-1.5 py-0.2 rounded-md bg-slate-50 dark:bg-zinc-800/40 text-[var(--text-secondary)] text-[9px] font-black border border-[var(--border-base)]">#{{ tag }}</span>
+                  <span
+                    v-if="detailNote.category"
+                    class="px-1.5 py-0.2 rounded-md bg-accent/10 border border-accent/15 text-accent text-[9px] font-black"
+                    >{{ detailNote.category }}</span
+                  >
+                  <span
+                    v-for="tag in parseTags(detailNote)"
+                    :key="tag"
+                    class="px-1.5 py-0.2 rounded-md bg-slate-50 dark:bg-zinc-800/40 text-[var(--text-secondary)] text-[9px] font-black border border-[var(--border-base)]"
+                    >#{{ tag }}</span
+                  >
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Note Comments Section -->
-          <div class="mt-8 pt-6 sm:mt-12 sm:pt-8 border-t border-[var(--border-base)] space-y-4 sm:space-y-6">
+          <div
+            class="mt-8 pt-6 sm:mt-12 sm:pt-8 border-t border-[var(--border-base)] space-y-4 sm:space-y-6"
+          >
             <div class="flex items-center justify-between">
-              <h3 class="text-sm font-bold flex items-center gap-2" style="color: var(--text-primary)">
+              <h3
+                class="text-sm font-bold flex items-center gap-2"
+                style="color: var(--text-primary)"
+              >
                 <MessageSquare class="w-4 h-4 text-accent" />
                 <span>{{ t('notes.commentsCount', { n: comments.length }) }}</span>
               </h3>
@@ -653,36 +816,53 @@ defineExpose({ open });
             <div v-if="authStore.isAuthenticated" class="flex items-start gap-2.5">
               <UserAvatar :user="authStore.user" size="sm" class="shrink-0 w-6 h-6" />
               <div class="flex-1 space-y-2">
-                <el-input
+                <textarea
                   v-model="commentContent"
-                  type="textarea"
-                  :rows="3"
+                  rows="3"
                   :placeholder="t('notes.commentPlaceholder')"
                   maxlength="500"
-                  show-word-limit
-                  class="custom-textarea"
-                />
+                  class="w-full text-sm font-medium rounded-xl transition-all duration-300 outline-none focus:outline-none bg-slate-50 dark:bg-zinc-900 border border-[var(--border-base)] text-[var(--text-primary)] focus:border-accent p-3 focus:ring-2 focus:ring-accent/20"
+                ></textarea>
+                <div class="text-[10px] text-[var(--text-muted)] text-right mt-0.5">
+                  {{ commentContent.length }} / 500
+                </div>
                 <div class="flex justify-end">
-                  <el-button
-                    type="primary"
-                    size="small"
-                    round
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    class="font-bold"
                     :loading="submittingComment"
                     @click="submitComment"
                   >
                     {{ t('notes.publishComment') }}
-                  </el-button>
+                  </Button>
                 </div>
               </div>
             </div>
-            <div v-else class="p-4 bg-slate-50 dark:bg-white/5 border border-dashed border-[var(--border-base)] rounded-2xl text-center">
+            <div
+              v-else
+              class="p-4 bg-slate-50 dark:bg-white/5 border border-dashed border-[var(--border-base)] rounded-2xl text-center"
+            >
               <p class="text-xs text-[var(--text-muted)] mb-2.5">{{ t('notes.loginToComment') }}</p>
-              <el-button type="primary" size="small" round @click="visible = false; router.push('/login')">{{ t('notes.goLogin') }}</el-button>
+              <Button
+                variant="primary"
+                size="sm"
+                class="font-bold"
+                @click="
+                  visible = false;
+                  router.push('/login');
+                "
+              >
+                {{ t('notes.goLogin') }}
+              </Button>
             </div>
 
             <!-- Comments List -->
             <div v-loading="loadingComments" class="space-y-4">
-              <div v-if="comments.length === 0" class="text-center py-6 text-xs text-[var(--text-muted)]">
+              <div
+                v-if="comments.length === 0"
+                class="text-center py-6 text-xs text-[var(--text-muted)]"
+              >
                 {{ t('notes.noCommentsYet') }}
               </div>
               <div
@@ -690,17 +870,33 @@ defineExpose({ open });
                 :key="item.id"
                 class="flex items-start gap-2.5 p-2.5 rounded-xl border border-[var(--border-base)] bg-slate-50 dark:bg-white/[0.02] hover:bg-slate-100/50 dark:hover:bg-white/[0.04] transition-all duration-200"
               >
-                <UserAvatar :user="item.user" size="sm" class="shrink-0 w-6 h-6 cursor-pointer hover:opacity-85 transition-opacity" @click="handleShowUserProfile(item.user.id)" />
+                <UserAvatar
+                  :user="item.user"
+                  size="sm"
+                  class="shrink-0 w-6 h-6 cursor-pointer hover:opacity-85 transition-opacity"
+                  @click="handleShowUserProfile(item.user.id)"
+                />
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer hover:text-accent transition-colors" @click="handleShowUserProfile(item.user.id)">
+                    <span
+                      class="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer hover:text-accent transition-colors"
+                      @click="handleShowUserProfile(item.user.id)"
+                    >
                       {{ item.user.name }}
-                      <span v-if="item.userId === detailNote.userId" class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-500 dark:text-purple-400 rounded-md">{{ t('notes.author') }}</span>
+                      <span
+                        v-if="item.userId === detailNote.userId"
+                        class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-500 dark:text-purple-400 rounded-md"
+                        >{{ t('notes.author') }}</span
+                      >
                     </span>
                     <div class="flex items-center gap-2">
-                      <span class="text-[10px] text-[var(--text-muted)]">{{ new Date(item.createdAt).toLocaleString('zh-CN') }}</span>
+                      <span class="text-[10px] text-[var(--text-muted)]">{{
+                        new Date(item.createdAt).toLocaleString('zh-CN')
+                      }}</span>
                       <button
-                        v-if="item.userId === authStore.user?.id || authStore.user?.role === 'ADMIN'"
+                        v-if="
+                          item.userId === authStore.user?.id || authStore.user?.role === 'ADMIN'
+                        "
                         type="button"
                         class="p-1 text-[var(--text-muted)] hover:text-red-500 rounded transition-all cursor-pointer bg-transparent border-0"
                         :title="t('notes.deleteComment')"
@@ -710,7 +906,11 @@ defineExpose({ open });
                       </button>
                     </div>
                   </div>
-                  <p class="text-xs text-[var(--text-secondary)] mt-1.5 whitespace-pre-wrap leading-relaxed">{{ item.content }}</p>
+                  <p
+                    class="text-xs text-[var(--text-secondary)] mt-1.5 whitespace-pre-wrap leading-relaxed"
+                  >
+                    {{ item.content }}
+                  </p>
                 </div>
               </div>
             </div>
@@ -718,14 +918,17 @@ defineExpose({ open });
 
           <!-- Compact Footer End Stamp -->
           <footer class="mt-12 pt-6 border-t border-[var(--border-base)]">
-            <div class="flex flex-col items-center justify-center gap-2 select-none text-[var(--text-muted)] opacity-60">
+            <div
+              class="flex flex-col items-center justify-center gap-2 select-none text-[var(--text-muted)] opacity-60"
+            >
               <BookOpen class="w-5 h-5 text-accent" />
-              <span class="text-[10px] font-black tracking-widest">{{ t('notes.endReading') }}</span>
+              <span class="text-[10px] font-black tracking-widest">{{
+                t('notes.endReading')
+              }}</span>
             </div>
           </footer>
         </div>
       </div>
-
     </div>
 
     <UserProfileDialog
@@ -733,43 +936,10 @@ defineExpose({ open });
       :user-id="selectedUserId"
       @chat="handleChatWithMember"
     />
-  </el-dialog>
+  </Modal>
 </template>
 
 <style scoped>
-:deep(.modern-note-dialog) {
-  border-radius: 0 !important;
-  overflow: hidden;
-  border: none !important;
-  box-shadow: none !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  height: 100vh !important;
-  margin: 0 !important;
-  top: 0 !important;
-}
-@media (min-width: 768px) {
-  :deep(.modern-note-dialog) {
-    border-radius: 1.5rem !important;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45) !important;
-    width: 85% !important;
-    max-width: 85% !important;
-    height: auto !important;
-    margin: 3vh auto !important;
-  }
-}
-@media (min-width: 1024px) {
-  :deep(.modern-note-dialog) {
-    width: 75% !important;
-    max-width: 75% !important;
-  }
-}
-@media (min-width: 1280px) {
-  :deep(.modern-note-dialog) {
-    width: 65% !important;
-    max-width: 65% !important;
-  }
-}
 .dialog-close-btn {
   transition: all 0.2s ease-in-out;
 }
@@ -781,12 +951,6 @@ defineExpose({ open });
   .dialog-content-wrapper {
     padding-top: calc(56px + env(safe-area-inset-top, 0px)) !important;
   }
-}
-:deep(.modern-note-dialog .el-dialog__header) {
-  display: none;
-}
-:deep(.modern-note-dialog .el-dialog__body) {
-  padding: 0;
 }
 
 /* Custom Scrollbar */
@@ -801,12 +965,11 @@ defineExpose({ open });
   background: transparent;
 }
 
-
 /* Markdown scaling and layout overrides */
 .modern-markdown-content :deep(.md-editor-preview),
 .modern-markdown-content :deep(.md-preview),
 .modern-markdown-content :deep(.mdw__preview-only) {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   font-size: inherit !important;
   line-height: 1.8 !important;
   background-color: transparent !important;
@@ -844,10 +1007,24 @@ defineExpose({ open });
 }
 
 /* Headings proportional scaling */
-.modern-markdown-content :deep(h1) { font-size: 1.85em !important; font-weight: 800 !important; }
-.modern-markdown-content :deep(h2) { font-size: 1.55em !important; font-weight: 800 !important; border-bottom: 1px dashed var(--border-base) !important; padding-bottom: 0.3em; }
-.modern-markdown-content :deep(h3) { font-size: 1.3em !important; font-weight: 700 !important; }
-.modern-markdown-content :deep(h4) { font-size: 1.15em !important; font-weight: 700 !important; }
+.modern-markdown-content :deep(h1) {
+  font-size: 1.85em !important;
+  font-weight: 800 !important;
+}
+.modern-markdown-content :deep(h2) {
+  font-size: 1.55em !important;
+  font-weight: 800 !important;
+  border-bottom: 1px dashed var(--border-base) !important;
+  padding-bottom: 0.3em;
+}
+.modern-markdown-content :deep(h3) {
+  font-size: 1.3em !important;
+  font-weight: 700 !important;
+}
+.modern-markdown-content :deep(h4) {
+  font-size: 1.15em !important;
+  font-weight: 700 !important;
+}
 
 /* Responsive scrollable tables with premium styling on mobile */
 .modern-markdown-content :deep(table) {

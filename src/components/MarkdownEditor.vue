@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '@/utils/error';
 import {
-  ref, reactive, computed, onMounted, onUnmounted,
-  defineAsyncComponent, nextTick,
+  ref,
+  reactive,
+  computed,
+  onMounted,
+  onUnmounted,
+  defineAsyncComponent,
+  nextTick,
 } from 'vue';
 import { NormalToolbar } from 'md-editor-v3';
 import type { ToolbarNames } from 'md-editor-v3';
@@ -13,10 +18,23 @@ import { useI18n } from 'vue-i18n';
 import api, { getAssetUrl } from '@/utils/api';
 import { ElMessage } from 'element-plus';
 import {
-  Sparkles, X, Send, Square, Copy, Check,
-  ChevronDown, ChevronUp, Brain, GripHorizontal,
-  Maximize2, Minimize2, Play, RotateCcw, SlidersHorizontal,
-  FileText, ShieldCheck,
+  Sparkles,
+  X,
+  Send,
+  Square,
+  Copy,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Brain,
+  GripHorizontal,
+  Maximize2,
+  Minimize2,
+  Play,
+  RotateCcw,
+  SlidersHorizontal,
+  FileText,
+  ShieldCheck,
 } from 'lucide-vue-next';
 import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
 
@@ -61,23 +79,26 @@ const text = computed({
 // ────────────────────────────────────────────────────────────────
 // Refs
 // ────────────────────────────────────────────────────────────────
-const editorId     = ref(`md-editor-${Math.random().toString(36).substring(2, 11)}`);
-const editorRef    = ref<any>(null);
+const editorId = ref(`md-editor-${Math.random().toString(36).substring(2, 11)}`);
+const editorRef = ref<any>(null);
 const chatInputRef = ref<HTMLTextAreaElement | null>(null);
-const messagesEnd  = ref<HTMLElement | null>(null);
+const messagesEnd = ref<HTMLElement | null>(null);
 
 // ────────────────────────────────────────────────────────────────
 // Panel draggable / resizable state
 // ────────────────────────────────────────────────────────────────
-const showPanel   = ref(false);
+const showPanel = ref(false);
 const isMaximized = ref(false);
-const isMobile    = ref(false);
+const isMobile = ref(false);
 
-const panelPos  = ref({ left: 0, top: 0 });
+const panelPos = ref({ left: 0, top: 0 });
 const panelSize = ref({ width: 460, height: 720 });
-const prevSize  = ref({ width: 460, height: 720 }); // restore after maximize
+const prevSize = ref({ width: 460, height: 720 }); // restore after maximize
 
-const MIN_W = 300, MAX_W = 680, MIN_H = 380, MAX_H = 820;
+const MIN_W = 300,
+  MAX_W = 680,
+  MIN_H = 380,
+  MAX_H = 820;
 
 /** Computed style binding for the floating panel */
 const panelStyle = computed(() => {
@@ -90,9 +111,9 @@ const panelStyle = computed(() => {
     };
   }
   return {
-    left:   panelPos.value.left  + 'px',
-    top:    panelPos.value.top   + 'px',
-    width:  panelSize.value.width  + 'px',
+    left: panelPos.value.left + 'px',
+    top: panelPos.value.top + 'px',
+    width: panelSize.value.width + 'px',
     height: panelSize.value.height + 'px',
   };
 });
@@ -107,12 +128,12 @@ const initPanelPosition = () => {
 
   panelSize.value = {
     width: Math.max(MIN_W, Math.min(defaultW, vw - 32)),
-    height: Math.max(MIN_H, Math.min(defaultH, vh - 64))
+    height: Math.max(MIN_H, Math.min(defaultH, vh - 64)),
   };
 
   panelPos.value = {
     left: Math.max(8, vw - panelSize.value.width - 24),
-    top: Math.max(24, (vh - panelSize.value.height) / 2)
+    top: Math.max(24, (vh - panelSize.value.height) / 2),
   };
 };
 
@@ -121,11 +142,11 @@ const clampPanelToBounds = () => {
   if (!showPanel.value) return;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  
+
   if (isMaximized.value) {
     panelSize.value = {
       width: vw,
-      height: vh
+      height: vh,
     };
     panelPos.value = { left: 0, top: 0 };
     return;
@@ -139,7 +160,7 @@ const clampPanelToBounds = () => {
 
   const maxLeft = Math.max(0, vw - panelSize.value.width - 8);
   const maxTop = Math.max(0, vh - panelSize.value.height - 8);
-  
+
   panelPos.value = {
     left: Math.max(8, Math.min(maxLeft, panelPos.value.left)),
     top: Math.max(8, Math.min(maxTop, panelPos.value.top)),
@@ -147,19 +168,24 @@ const clampPanelToBounds = () => {
 };
 
 // ── Drag ─────────────────────────────────────────────────────────
-const isDragging  = ref(false);
-const dragOrigin  = reactive({ mx: 0, my: 0, px: 0, py: 0 });
+const isDragging = ref(false);
+const dragOrigin = reactive({ mx: 0, my: 0, px: 0, py: 0 });
 
 const startDrag = (e: MouseEvent) => {
   if (isMobile.value || isMaximized.value) return;
-  if ((e.target as HTMLElement).closest('button, a, input, select, textarea, .aip__ctx, .aip__close, .aip__maximize')) return;
+  if (
+    (e.target as HTMLElement).closest(
+      'button, a, input, select, textarea, .aip__ctx, .aip__close, .aip__maximize',
+    )
+  )
+    return;
   isDragging.value = true;
   dragOrigin.mx = e.clientX;
   dragOrigin.my = e.clientY;
   dragOrigin.px = panelPos.value.left;
   dragOrigin.py = panelPos.value.top;
   document.addEventListener('mousemove', onDragMove, { passive: true });
-  document.addEventListener('mouseup',   stopDrag,   { once: true });
+  document.addEventListener('mouseup', stopDrag, { once: true });
 };
 
 const onDragMove = (e: MouseEvent) => {
@@ -169,19 +195,19 @@ const onDragMove = (e: MouseEvent) => {
   const dx = e.clientX - dragOrigin.mx;
   const dy = e.clientY - dragOrigin.my;
   panelPos.value = {
-    left: Math.max(0, Math.min(vw - panelSize.value.width,  dragOrigin.px + dx)),
-    top:  Math.max(0, Math.min(vh - panelSize.value.height, dragOrigin.py + dy)),
+    left: Math.max(0, Math.min(vw - panelSize.value.width, dragOrigin.px + dx)),
+    top: Math.max(0, Math.min(vh - panelSize.value.height, dragOrigin.py + dy)),
   };
 };
 
 const stopDrag = () => {
   isDragging.value = false;
   document.removeEventListener('mousemove', onDragMove);
-  document.removeEventListener('mouseup',   stopDrag);
+  document.removeEventListener('mouseup', stopDrag);
 };
 
 // ── Resize ───────────────────────────────────────────────────────
-const isResizing   = ref(false);
+const isResizing = ref(false);
 const resizeOrigin = reactive({ mx: 0, my: 0, w: 0, h: 0 });
 
 const startResize = (e: MouseEvent) => {
@@ -191,24 +217,24 @@ const startResize = (e: MouseEvent) => {
   isResizing.value = true;
   resizeOrigin.mx = e.clientX;
   resizeOrigin.my = e.clientY;
-  resizeOrigin.w  = panelSize.value.width;
-  resizeOrigin.h  = panelSize.value.height;
+  resizeOrigin.w = panelSize.value.width;
+  resizeOrigin.h = panelSize.value.height;
   document.addEventListener('mousemove', onResizeMove, { passive: true });
-  document.addEventListener('mouseup',   stopResize,   { once: true });
+  document.addEventListener('mouseup', stopResize, { once: true });
 };
 
 const onResizeMove = (e: MouseEvent) => {
   if (!isResizing.value) return;
   const dx = e.clientX - resizeOrigin.mx;
   const dy = e.clientY - resizeOrigin.my;
-  
+
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const maxW = Math.min(MAX_W, vw - panelPos.value.left);
   const maxH = Math.min(MAX_H, vh - panelPos.value.top);
-  
+
   panelSize.value = {
-    width:  Math.max(MIN_W, Math.min(maxW, resizeOrigin.w + dx)),
+    width: Math.max(MIN_W, Math.min(maxW, resizeOrigin.w + dx)),
     height: Math.max(MIN_H, Math.min(maxH, resizeOrigin.h + dy)),
   };
 };
@@ -216,7 +242,7 @@ const onResizeMove = (e: MouseEvent) => {
 const stopResize = () => {
   isResizing.value = false;
   document.removeEventListener('mousemove', onResizeMove);
-  document.removeEventListener('mouseup',   stopResize);
+  document.removeEventListener('mouseup', stopResize);
 };
 
 // ── Maximize ─────────────────────────────────────────────────────
@@ -229,9 +255,9 @@ const toggleMaximize = () => {
     isMaximized.value = false;
     nextTick(() => clampPanelToBounds());
   } else {
-    prevSize.value  = { ...panelSize.value };
+    prevSize.value = { ...panelSize.value };
     panelSize.value = { width: vw, height: vh };
-    panelPos.value  = { left: 0, top: 0 };
+    panelPos.value = { left: 0, top: 0 };
     isMaximized.value = true;
   }
 };
@@ -240,14 +266,18 @@ const toggleMaximize = () => {
 // AI state
 // ────────────────────────────────────────────────────────────────
 const isGenerating = ref(false);
-const abortCtrl    = ref<AbortController | null>(null);
+const abortCtrl = ref<AbortController | null>(null);
 
 // Context tracking
-interface SavedSel { start: number; end: number; text: string }
+interface SavedSel {
+  start: number;
+  end: number;
+  text: string;
+}
 const savedSel = ref<SavedSel>({ start: 0, end: 0, text: '' });
-const ctxMode  = ref<'full' | 'selected'>('full');
+const ctxMode = ref<'full' | 'selected'>('full');
 
-const ctxText  = computed(() =>
+const ctxText = computed(() =>
   ctxMode.value === 'selected' && savedSel.value.text ? savedSel.value.text : text.value,
 );
 const ctxLabel = computed(() =>
@@ -261,12 +291,12 @@ const hasSelection = computed(
 
 // Quick actions
 const AI_COMMANDS: { value: string; label: string; icon: string; desc: string }[] = [
-  { value: 'polish',    label: '润色', icon: '✨', desc: '修饰排版，提升表达' },
-  { value: 'extend',    label: '扩写', icon: '📖', desc: '深化内容，丰富细节' },
+  { value: 'polish', label: '润色', icon: '✨', desc: '修饰排版，提升表达' },
+  { value: 'extend', label: '扩写', icon: '📖', desc: '深化内容，丰富细节' },
   { value: 'summarize', label: '总结', icon: '📋', desc: '提炼核心，精简输出' },
-  { value: 'continue',  label: '续写', icon: '✍️', desc: '顺着原意继续写作' },
+  { value: 'continue', label: '续写', icon: '✍️', desc: '顺着原意继续写作' },
   { value: 'translate', label: '翻译', icon: '🌐', desc: '翻译为目标语言' },
-  { value: 'generate',  label: '创作', icon: '🪄', desc: '根据描述自由生成' },
+  { value: 'generate', label: '创作', icon: '🪄', desc: '根据描述自由生成' },
 ];
 
 type AIAction = 'polish' | 'extend' | 'summarize' | 'continue' | 'translate' | 'generate';
@@ -274,11 +304,11 @@ type WritingTone = 'balanced' | 'professional' | 'friendly' | 'academic' | 'conc
 type WritingLength = 'short' | 'balanced' | 'detailed';
 type WritingFormat = 'keep' | 'paragraphs' | 'outline' | 'steps';
 
-const aiAction       = ref<AIAction>('polish');
+const aiAction = ref<AIAction>('polish');
 const targetLanguage = ref('English');
-const writingTone    = ref<WritingTone>('balanced');
-const writingLength  = ref<WritingLength>('balanced');
-const writingFormat  = ref<WritingFormat>('keep');
+const writingTone = ref<WritingTone>('balanced');
+const writingLength = ref<WritingLength>('balanced');
+const writingFormat = ref<WritingFormat>('keep');
 const customInstruction = ref('');
 const showSettings = ref(true);
 
@@ -305,28 +335,28 @@ const FORMAT_OPTIONS: { value: WritingFormat; label: string }[] = [
 
 // ── Chat Messages (the core new feature) ─────────────────────────
 interface ChatMessage {
-  id:            number;
-  role:          'user' | 'assistant';
+  id: number;
+  role: 'user' | 'assistant';
   // user fields
-  actionLabel?:  string;
-  actionIcon?:   string;
-  ctxSummary?:   string;
-  promptText?:   string;
-  actionValue?:  AIAction;
+  actionLabel?: string;
+  actionIcon?: string;
+  ctxSummary?: string;
+  promptText?: string;
+  actionValue?: AIAction;
   // assistant fields
-  content:       string;
-  reasoning:     string;
+  content: string;
+  reasoning: string;
   showReasoning: boolean;
-  isStreaming:   boolean;
-  requestId?:     string;
-  error?:         string;
-  applied?:       boolean;
-  timestamp:     Date;
+  isStreaming: boolean;
+  requestId?: string;
+  error?: string;
+  applied?: boolean;
+  timestamp: Date;
 }
 
-const messages       = reactive<ChatMessage[]>([]);
-const activeId       = ref<number | null>(null); // ID of the currently streaming assistant message
-const copiedId       = ref<number | null>(null);
+const messages = reactive<ChatMessage[]>([]);
+const activeId = ref<number | null>(null); // ID of the currently streaming assistant message
+const copiedId = ref<number | null>(null);
 
 const lastAssistant = computed(() => {
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -335,12 +365,14 @@ const lastAssistant = computed(() => {
   return null;
 });
 
-const selectedCommand = computed(() => AI_COMMANDS.find(c => c.value === aiAction.value));
+const selectedCommand = computed(() => AI_COMMANDS.find((c) => c.value === aiAction.value));
 const activeActionLabel = computed(() => selectedCommand.value?.label ?? '写作');
 const contextCharCount = computed(() => ctxText.value.length);
 const contextPreview = computed(() => {
   const normalized = ctxText.value.replace(/\s+/g, ' ').trim();
-  return normalized ? normalized.slice(0, 90) + (normalized.length > 90 ? '…' : '') : '暂无文档上下文';
+  return normalized
+    ? normalized.slice(0, 90) + (normalized.length > 90 ? '…' : '')
+    : '暂无文档上下文';
 });
 const contextQuality = computed(() => {
   if (aiAction.value === 'generate' && chatText.value.trim()) return '可直接创作';
@@ -381,10 +413,10 @@ const captureSelection = () => {
   const ta = getEditorTextarea();
   if (!ta) return;
   const s = ta.selectionStart ?? 0;
-  const e = ta.selectionEnd   ?? 0;
+  const e = ta.selectionEnd ?? 0;
   const t = ta.value.substring(s, e);
   savedSel.value = { start: s, end: e, text: t };
-  ctxMode.value  = t.length > 0 ? 'selected' : 'full';
+  ctxMode.value = t.length > 0 ? 'selected' : 'full';
 };
 
 // ────────────────────────────────────────────────────────────────
@@ -393,9 +425,9 @@ const captureSelection = () => {
 const openPanel = () => {
   captureSelection();
   showPanel.value = true;
-  aiAction.value  = 'polish';
-  chatText.value  = '';
-  chatRows.value  = 1;
+  aiAction.value = 'polish';
+  chatText.value = '';
+  chatRows.value = 1;
   showSettings.value = true;
   nextTick(() => {
     initPanelPosition();
@@ -407,7 +439,7 @@ const closePanel = () => {
   cancelGeneration();
   stopDrag();
   stopResize();
-  showPanel.value   = false;
+  showPanel.value = false;
   isMaximized.value = false;
 };
 
@@ -423,10 +455,10 @@ const toggleCtxMode = () => {
     const ta = getEditorTextarea();
     if (ta) {
       const s = ta.selectionStart ?? 0;
-      const e = ta.selectionEnd   ?? 0;
+      const e = ta.selectionEnd ?? 0;
       if (s < e) {
         savedSel.value = { start: s, end: e, text: ta.value.substring(s, e) };
-        ctxMode.value  = 'selected';
+        ctxMode.value = 'selected';
         return;
       }
     }
@@ -437,7 +469,9 @@ const toggleCtxMode = () => {
 };
 
 const scrollToEnd = () => {
-  nextTick(() => { messagesEnd.value?.scrollIntoView({ behavior: 'smooth' }); });
+  nextTick(() => {
+    messagesEnd.value?.scrollIntoView({ behavior: 'smooth' });
+  });
 };
 
 // ────────────────────────────────────────────────────────────────
@@ -497,10 +531,13 @@ const runSelectedAction = () => {
 // Generation
 // ────────────────────────────────────────────────────────────────
 const cancelGeneration = () => {
-  if (abortCtrl.value) { abortCtrl.value.abort(); abortCtrl.value = null; }
+  if (abortCtrl.value) {
+    abortCtrl.value.abort();
+    abortCtrl.value = null;
+  }
   // Mark current streaming message as done
   if (activeId.value !== null) {
-    const msg = messages.find(m => m.id === activeId.value);
+    const msg = messages.find((m) => m.id === activeId.value);
     if (msg) msg.isStreaming = false;
     activeId.value = null;
   }
@@ -509,8 +546,8 @@ const cancelGeneration = () => {
 
 const runGeneration = async (promptOverride?: string) => {
   const context = ctxText.value;
-  const action  = aiAction.value;
-  const prompt  = promptOverride ?? '';
+  const action = aiAction.value;
+  const prompt = promptOverride ?? '';
 
   if (action === 'generate' && !prompt.trim()) {
     ElMessage.warning('请在底部输入框描述您的创作要求');
@@ -525,21 +562,21 @@ const runGeneration = async (promptOverride?: string) => {
   cancelGeneration();
 
   // ── Add user message ──────────────────────────────────────────
-  const cmd       = AI_COMMANDS.find(c => c.value === action);
-  const ctxSnip   = context.substring(0, 60) + (context.length > 60 ? '…' : '');
+  const cmd = AI_COMMANDS.find((c) => c.value === action);
+  const ctxSnip = context.substring(0, 60) + (context.length > 60 ? '…' : '');
   const userMsg: ChatMessage = {
-    id:          Date.now(),
-    role:        'user',
+    id: Date.now(),
+    role: 'user',
     actionLabel: cmd?.label ?? action,
-    actionIcon:  cmd?.icon  ?? '🤖',
-    ctxSummary:  ctxSnip,
-    promptText:  prompt || undefined,
+    actionIcon: cmd?.icon ?? '🤖',
+    ctxSummary: ctxSnip,
+    promptText: prompt || undefined,
     actionValue: action,
-    content:     '',
-    reasoning:   '',
+    content: '',
+    reasoning: '',
     showReasoning: false,
-    isStreaming:  false,
-    timestamp:    new Date(),
+    isStreaming: false,
+    timestamp: new Date(),
   };
   messages.push(userMsg);
   scrollToEnd();
@@ -547,34 +584,34 @@ const runGeneration = async (promptOverride?: string) => {
   // ── Add assistant placeholder ─────────────────────────────────
   const assistId = Date.now() + 1;
   const assistMsg: ChatMessage = {
-    id:           assistId,
-    role:         'assistant',
-    content:      '',
-    reasoning:    '',
+    id: assistId,
+    role: 'assistant',
+    content: '',
+    reasoning: '',
     showReasoning: false,
-    isStreaming:   true,
-    timestamp:    new Date(),
+    isStreaming: true,
+    timestamp: new Date(),
   };
   messages.push(assistMsg);
-  activeId.value     = assistId;
+  activeId.value = assistId;
   isGenerating.value = true;
-  abortCtrl.value    = new AbortController();
+  abortCtrl.value = new AbortController();
   scrollToEnd();
 
   try {
-    const response  = await fetch('/api/ai/write-assist', {
-      method:  'POST',
+    const response = await fetch('/api/ai/write-assist', {
+      method: 'POST',
       headers: createJsonHeaders(),
-      body:    JSON.stringify({
+      body: JSON.stringify({
         action,
-        text:           context,
-        prompt:         action === 'generate' ? prompt : undefined,
-        instruction:    customInstruction.value || undefined,
-        scope:          ctxMode.value,
-        tone:           writingTone.value,
-        length:         writingLength.value,
-        format:         writingFormat.value,
-        history:        buildHistoryPayload(),
+        text: context,
+        prompt: action === 'generate' ? prompt : undefined,
+        instruction: customInstruction.value || undefined,
+        scope: ctxMode.value,
+        tone: writingTone.value,
+        length: writingLength.value,
+        format: writingFormat.value,
+        history: buildHistoryPayload(),
         targetLanguage: action === 'translate' ? targetLanguage.value : undefined,
       }),
       signal: abortCtrl.value.signal,
@@ -590,7 +627,7 @@ const runGeneration = async (promptOverride?: string) => {
     await parseSSEStream(
       reader,
       (payload) => {
-        const msg = messages.find(m => m.id === assistId);
+        const msg = messages.find((m) => m.id === assistId);
         if (!msg) return;
         if (payload.event === 'meta') {
           msg.requestId = payload.requestId;
@@ -611,34 +648,42 @@ const runGeneration = async (promptOverride?: string) => {
         scrollToEnd();
       },
       () => {
-        const msg = messages.find(m => m.id === assistId);
+        const msg = messages.find((m) => m.id === assistId);
         if (msg) {
-          msg.isStreaming   = false;
+          msg.isStreaming = false;
           msg.showReasoning = false; // collapse reasoning when done
         }
-        activeId.value     = null;
+        activeId.value = null;
         isGenerating.value = false;
-        abortCtrl.value    = null;
+        abortCtrl.value = null;
         scrollToEnd();
       },
       (err) => {
         if (err.name === 'AbortError') return;
-        const msg = messages.find(m => m.id === assistId);
-        if (msg) { msg.isStreaming = false; msg.error = err.message; msg.content = msg.content || '生成出错，请重试'; }
+        const msg = messages.find((m) => m.id === assistId);
+        if (msg) {
+          msg.isStreaming = false;
+          msg.error = err.message;
+          msg.content = msg.content || '生成出错，请重试';
+        }
         ElMessage.error(`生成出错：${err.message}`);
         isGenerating.value = false;
-        abortCtrl.value    = null;
-        activeId.value     = null;
+        abortCtrl.value = null;
+        activeId.value = null;
       },
     );
   } catch (error: any) {
     if (error.name === 'AbortError') return;
-    const msg = messages.find(m => m.id === assistId);
-    if (msg) { msg.isStreaming = false; msg.error = error.message || '生成失败'; msg.content = msg.content || '生成失败，请重试'; }
+    const msg = messages.find((m) => m.id === assistId);
+    if (msg) {
+      msg.isStreaming = false;
+      msg.error = error.message || '生成失败';
+      msg.content = msg.content || '生成失败，请重试';
+    }
     ElMessage.error(error.message || 'AI 生成失败，请重试');
     isGenerating.value = false;
-    abortCtrl.value    = null;
-    activeId.value     = null;
+    abortCtrl.value = null;
+    activeId.value = null;
   }
 };
 
@@ -655,9 +700,14 @@ const submitChat = () => {
 };
 
 const onChatKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitChat(); }
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    submitChat();
+  }
 };
-const onChatInput = () => { chatRows.value = Math.min(chatText.value.split('\n').length, 4); };
+const onChatInput = () => {
+  chatRows.value = Math.min(chatText.value.split('\n').length, 4);
+};
 
 // ────────────────────────────────────────────────────────────────
 // Apply result
@@ -678,7 +728,11 @@ const applyResult = async (mode: 'replace' | 'append' | 'copy', content?: string
     ElMessage.success('已追加到文档末尾');
     nextTick(() => {
       const ta = getEditorTextarea();
-      if (ta) { ta.scrollTop = ta.scrollHeight; ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+      if (ta) {
+        ta.scrollTop = ta.scrollHeight;
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+      }
     });
     return;
   }
@@ -695,11 +749,12 @@ const applyResult = async (mode: 'replace' | 'append' | 'copy', content?: string
     }
 
     const ta = getEditorTextarea();
-    if (!ta) { ElMessage.error('无法定位编辑器，请重试'); return; }
+    if (!ta) {
+      ElMessage.error('无法定位编辑器，请重试');
+      return;
+    }
     text.value =
-      text.value.slice(0, savedSel.value.start) +
-      result +
-      text.value.slice(savedSel.value.end);
+      text.value.slice(0, savedSel.value.start) + result + text.value.slice(savedSel.value.end);
     ElMessage.success('已替换选中内容');
     const appliedMsg = lastAssistant.value;
     if (appliedMsg && appliedMsg.content === result) appliedMsg.applied = true;
@@ -715,7 +770,9 @@ const applyResult = async (mode: 'replace' | 'append' | 'copy', content?: string
 const copyMessage = async (msg: ChatMessage) => {
   await navigator.clipboard.writeText(msg.content);
   copiedId.value = msg.id;
-  setTimeout(() => { copiedId.value = null; }, 2000);
+  setTimeout(() => {
+    copiedId.value = null;
+  }, 2000);
 };
 
 // ────────────────────────────────────────────────────────────────
@@ -729,13 +786,53 @@ const clearMessages = () => {
 // ────────────────────────────────────────────────────────────────
 // Editor config
 // ────────────────────────────────────────────────────────────────
-const editorLanguage = computed(() => locale.value === 'zh-CN' ? 'zh-CN' : 'en-US');
+const editorLanguage = computed(() => (locale.value === 'zh-CN' ? 'zh-CN' : 'en-US'));
 
 const toolbars = computed<ToolbarNames[]>(() => {
   if (isMobile.value) {
-    return ['bold','italic','title','quote','unorderedList','orderedList','code','link','image','table','revoke','next'];
+    return [
+      'bold',
+      'italic',
+      'title',
+      'quote',
+      'unorderedList',
+      'orderedList',
+      'code',
+      'link',
+      'image',
+      'table',
+      'revoke',
+      'next',
+    ];
   }
-  return ['bold','underline','italic','-','strikeThrough','title','sub','sup','quote','unorderedList','orderedList','task','-','codeRow','code','link','image','table','mermaid','katex','-','revoke','next','save','-', 0];
+  return [
+    'bold',
+    'underline',
+    'italic',
+    '-',
+    'strikeThrough',
+    'title',
+    'sub',
+    'sup',
+    'quote',
+    'unorderedList',
+    'orderedList',
+    'task',
+    '-',
+    'codeRow',
+    'code',
+    'link',
+    'image',
+    'table',
+    'mermaid',
+    'katex',
+    '-',
+    'revoke',
+    'next',
+    'save',
+    '-',
+    0,
+  ];
 });
 
 const checkMobile = () => {
@@ -749,7 +846,6 @@ const checkMobile = () => {
 const isDark = ref(document.documentElement.classList.contains('dark'));
 let themeObserver: MutationObserver | null = null;
 
-
 const handleUploadImg = async (files: FileList, callback: (urls: string[]) => void) => {
   if (!props.uploadUrl) {
     ElMessage.warning('当前编辑器未配置图片上传服务');
@@ -760,7 +856,9 @@ const handleUploadImg = async (files: FileList, callback: (urls: string[]) => vo
     for (let i = 0; i < files.length; i++) {
       const formData = new FormData();
       formData.append(props.uploadField || 'image', files[i]);
-      const { data } = await api.post(props.uploadUrl, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const { data } = await api.post(props.uploadUrl, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       if (data?.url) urls.push(data.url);
       else throw new Error('服务器响应中未包含文件链接');
     }
@@ -854,330 +952,351 @@ onUnmounted(() => {
           :class="{
             'aip--dragging': isDragging,
             'aip--resizing': isResizing,
-            'aip--maximized': isMaximized
+            'aip--maximized': isMaximized,
           }"
           :style="panelStyle"
         >
-
-        <!-- ── Header (drag handle) ──────────────── -->
-        <header class="aip__hd" @mousedown.left="startDrag">
-          <div class="aip__hd-left">
-            <Sparkles class="w-3.5 h-3.5 text-purple-500 flex-shrink-0" />
-            <span class="aip__hd-title">AI 协同写作</span>
-            <!-- Context badge -->
-            <button
-              type="button"
-              class="aip__ctx"
-              :class="ctxMode === 'selected' ? 'aip__ctx--sel' : 'aip__ctx--full'"
-              title="点击切换上下文范围"
-              @click.stop="toggleCtxMode"
-            >
-              {{ ctxLabel }}
-            </button>
-          </div>
-          <div class="aip__hd-right">
-            <GripHorizontal class="w-3.5 h-3.5 text-muted opacity-40 flex-shrink-0" />
-            <button
-              type="button"
-              class="aip__ico-btn aip__maximize"
-              :title="isMaximized ? '还原' : '最大化'"
-              @click.stop="toggleMaximize"
-            >
-              <Maximize2 v-if="!isMaximized" class="w-3.5 h-3.5" />
-              <Minimize2 v-else               class="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              class="aip__ico-btn aip__close"
-              title="关闭"
-              @click.stop="closePanel"
-            >
-              <X class="w-4 h-4" />
-            </button>
-          </div>
-        </header>
-
-        <!-- ── Quick chips ───────────────────────── -->
-        <div class="aip__toolbar">
-          <div class="aip__chips">
-            <button
-              v-for="cmd in AI_COMMANDS"
-              :key="cmd.value"
-              type="button"
-              class="aip__chip"
-              :class="{
-                'aip__chip--active':   aiAction === cmd.value,
-                'aip__chip--disabled': isGenerating,
-              }"
-              :title="cmd.desc"
-              @click="selectAndRun(cmd.value)"
-            >
-              {{ cmd.icon }} {{ cmd.label }}
-            </button>
-          </div>
-          <div class="aip__toolbar-actions">
-            <Transition name="fade">
-              <el-select
-                v-if="aiAction === 'translate'"
-                v-model="targetLanguage"
-                size="small"
-                class="aip__translate-select"
+          <!-- ── Header (drag handle) ──────────────── -->
+          <header class="aip__hd" @mousedown.left="startDrag">
+            <div class="aip__hd-left">
+              <Sparkles class="w-3.5 h-3.5 text-purple-500 flex-shrink-0" />
+              <span class="aip__hd-title">AI 协同写作</span>
+              <!-- Context badge -->
+              <button
+                type="button"
+                class="aip__ctx"
+                :class="ctxMode === 'selected' ? 'aip__ctx--sel' : 'aip__ctx--full'"
+                title="点击切换上下文范围"
+                @click.stop="toggleCtxMode"
               >
-                <el-option label="🇺🇸 English"  value="English"  />
-                <el-option label="🇨🇳 简体中文"  value="Chinese"  />
-                <el-option label="🇯🇵 日本語"    value="Japanese" />
-                <el-option label="🇰🇷 한국어"    value="Korean"   />
-                <el-option label="🇫🇷 Français"  value="French"   />
-                <el-option label="🇩🇪 Deutsch"   value="German"   />
-              </el-select>
-            </Transition>
-            <button
-              type="button"
-              class="aip__run-btn"
-              :disabled="!canRunAction"
-              :title="selectedCommand ? `执行${selectedCommand.label}` : '执行'"
-              @click="runSelectedAction"
-            >
-              <Play class="w-3 h-3" />
-              <span>{{ aiAction === 'generate' ? '生成' : '执行' }}</span>
-            </button>
-            <button
-              v-if="messages.length > 0 && !isGenerating"
-              type="button"
-              class="aip__clear-btn"
-              title="清空对话"
-              @click="clearMessages"
-            >
-              清空
-            </button>
-            <button
-              type="button"
-              class="aip__ico-btn aip__settings-btn"
-              :class="{ 'aip__settings-btn--on': showSettings }"
-              title="写作参数"
-              @click="showSettings = !showSettings"
-            >
-              <SlidersHorizontal class="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
+                {{ ctxLabel }}
+              </button>
+            </div>
+            <div class="aip__hd-right">
+              <GripHorizontal class="w-3.5 h-3.5 text-muted opacity-40 flex-shrink-0" />
+              <button
+                type="button"
+                class="aip__ico-btn aip__maximize"
+                :title="isMaximized ? '还原' : '最大化'"
+                @click.stop="toggleMaximize"
+              >
+                <Maximize2 v-if="!isMaximized" class="w-3.5 h-3.5" />
+                <Minimize2 v-else class="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                class="aip__ico-btn aip__close"
+                title="关闭"
+                @click.stop="closePanel"
+              >
+                <X class="w-4 h-4" />
+              </button>
+            </div>
+          </header>
 
-        <section class="aip__brief">
-          <div class="aip__brief-main">
-            <FileText class="w-3.5 h-3.5" />
-            <span>{{ activeActionLabel }}</span>
-            <strong>{{ contextQuality }}</strong>
+          <!-- ── Quick chips ───────────────────────── -->
+          <div class="aip__toolbar">
+            <div class="aip__chips">
+              <button
+                v-for="cmd in AI_COMMANDS"
+                :key="cmd.value"
+                type="button"
+                class="aip__chip"
+                :class="{
+                  'aip__chip--active': aiAction === cmd.value,
+                  'aip__chip--disabled': isGenerating,
+                }"
+                :title="cmd.desc"
+                @click="selectAndRun(cmd.value)"
+              >
+                {{ cmd.icon }} {{ cmd.label }}
+              </button>
+            </div>
+            <div class="aip__toolbar-actions">
+              <Transition name="fade">
+                <el-select
+                  v-if="aiAction === 'translate'"
+                  v-model="targetLanguage"
+                  size="small"
+                  class="aip__translate-select"
+                >
+                  <el-option label="🇺🇸 English" value="English" />
+                  <el-option label="🇨🇳 简体中文" value="Chinese" />
+                  <el-option label="🇯🇵 日本語" value="Japanese" />
+                  <el-option label="🇰🇷 한국어" value="Korean" />
+                  <el-option label="🇫🇷 Français" value="French" />
+                  <el-option label="🇩🇪 Deutsch" value="German" />
+                </el-select>
+              </Transition>
+              <button
+                type="button"
+                class="aip__run-btn"
+                :disabled="!canRunAction"
+                :title="selectedCommand ? `执行${selectedCommand.label}` : '执行'"
+                @click="runSelectedAction"
+              >
+                <Play class="w-3 h-3" />
+                <span>{{ aiAction === 'generate' ? '生成' : '执行' }}</span>
+              </button>
+              <button
+                v-if="messages.length > 0 && !isGenerating"
+                type="button"
+                class="aip__clear-btn"
+                title="清空对话"
+                @click="clearMessages"
+              >
+                清空
+              </button>
+              <button
+                type="button"
+                class="aip__ico-btn aip__settings-btn"
+                :class="{ 'aip__settings-btn--on': showSettings }"
+                title="写作参数"
+                @click="showSettings = !showSettings"
+              >
+                <SlidersHorizontal class="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
-          <p>{{ contextPreview }}</p>
-        </section>
 
-        <Transition name="fade">
-          <section v-if="showSettings" class="aip__settings">
-            <div class="aip__seg-row">
-              <span>语气</span>
-              <div class="aip__seg">
-                <button
-                  v-for="item in TONE_OPTIONS"
-                  :key="item.value"
-                  type="button"
-                  :class="{ 'is-on': writingTone === item.value }"
-                  @click="writingTone = item.value"
-                >{{ item.label }}</button>
-              </div>
+          <section class="aip__brief">
+            <div class="aip__brief-main">
+              <FileText class="w-3.5 h-3.5" />
+              <span>{{ activeActionLabel }}</span>
+              <strong>{{ contextQuality }}</strong>
             </div>
-            <div class="aip__seg-row">
-              <span>篇幅</span>
-              <div class="aip__seg aip__seg--compact">
-                <button
-                  v-for="item in LENGTH_OPTIONS"
-                  :key="item.value"
-                  type="button"
-                  :class="{ 'is-on': writingLength === item.value }"
-                  @click="writingLength = item.value"
-                >{{ item.label }}</button>
-              </div>
-              <span>结构</span>
-              <div class="aip__seg">
-                <button
-                  v-for="item in FORMAT_OPTIONS"
-                  :key="item.value"
-                  type="button"
-                  :class="{ 'is-on': writingFormat === item.value }"
-                  @click="writingFormat = item.value"
-                >{{ item.label }}</button>
-              </div>
-            </div>
-            <textarea
-              v-model="customInstruction"
-              class="aip__instruction"
-              rows="2"
-              maxlength="1200"
-              placeholder="补充要求，例如：面向初学者、保留代码块、加入实战检查点"
-              :disabled="isGenerating"
-            />
-            <div class="aip__guard">
-              <ShieldCheck class="w-3.5 h-3.5" />
-              <span>上下文作为文档素材处理，接口会限制长度并隔离历史。</span>
-            </div>
+            <p>{{ contextPreview }}</p>
           </section>
-        </Transition>
 
-        <!-- ── Messages (chat dialog) ────────────── -->
-        <div class="aip__msgs">
-
-          <!-- Empty state -->
-          <div v-if="messages.length === 0" class="aip__empty">
-            <Sparkles class="w-8 h-8 text-purple-400 mx-auto mb-2 opacity-50" />
-            <p>选择指令后点击执行，或在下方输入任意创作要求</p>
-          </div>
-
-          <!-- Message list -->
-          <template v-for="msg in messages" :key="msg.id">
-
-            <!-- User message -->
-            <div v-if="msg.role === 'user'" class="chat-user">
-              <span class="chat-user__badge">{{ msg.actionIcon }} {{ msg.actionLabel }}</span>
-              <span v-if="msg.promptText" class="chat-user__prompt">"{{ msg.promptText }}"</span>
-              <span v-else class="chat-user__ctx">{{ msg.ctxSummary }}</span>
-            </div>
-
-            <!-- Assistant message -->
-            <div v-else class="chat-ai">
-
-              <!-- Reasoning section -->
-              <div v-if="msg.reasoning" class="chat-ai__thinking">
-                <button
-                  type="button"
-                  class="chat-ai__thinking-toggle"
-                  @click="msg.showReasoning = !msg.showReasoning"
-                >
-                  <Brain class="w-3 h-3 flex-shrink-0" :class="msg.isStreaming ? 'animate-pulse' : ''" />
-                  <span>{{ msg.isStreaming ? '正在思考...' : '模型思考过程' }}</span>
-                  <span class="chat-ai__thinking-chars">{{ msg.reasoning.length }} 字</span>
-                  <ChevronDown v-if="!msg.showReasoning" class="w-3 h-3 ml-auto" />
-                  <ChevronUp   v-else                    class="w-3 h-3 ml-auto" />
-                </button>
-                <Transition name="reasoning">
-                  <pre v-if="msg.showReasoning" class="chat-ai__thinking-body">{{ msg.reasoning }}</pre>
-                </Transition>
-              </div>
-
-              <!-- Response content -->
-              <div class="chat-ai__bubble">
-                <!-- Streaming: monospace pre with blinking cursor -->
-                <div v-if="msg.isStreaming" class="chat-ai__stream">
-                  <pre class="chat-ai__stream-text">{{ msg.content || ' ' }}<span class="aip__cursor">▋</span></pre>
-                </div>
-                <!-- Done: formatted markdown preview -->
-                <div v-else-if="msg.content" class="chat-ai__preview">
-                  <MdPreview
-                    :model-value="msg.content"
-                    :theme="isDark ? 'dark' : 'light'"
-                    class="aip__md-preview"
-                  />
-                </div>
-                <!-- Error / empty -->
-                <div v-else class="chat-ai__empty">
-                  <span>（生成被中止）</span>
-                </div>
-                <div v-if="msg.error" class="chat-ai__error">
-                  {{ msg.error }}
-                </div>
-                <div v-if="msg.requestId || msg.applied" class="chat-ai__meta">
-                  <span v-if="msg.requestId">请求 {{ msg.requestId.slice(0, 8) }}</span>
-                  <span v-if="msg.applied">已应用到文档</span>
-                </div>
-
-                <!-- Action bar (only on last assistant message and not streaming) -->
-                <div
-                  v-if="!msg.isStreaming && msg.content && msg === lastAssistant"
-                  class="chat-ai__actions"
-                >
+          <Transition name="fade">
+            <section v-if="showSettings" class="aip__settings">
+              <div class="aip__seg-row">
+                <span>语气</span>
+                <div class="aip__seg">
                   <button
+                    v-for="item in TONE_OPTIONS"
+                    :key="item.value"
                     type="button"
-                    class="ai-act-btn ai-act-btn--primary"
-                    :title="hasSelection ? '替换选中的文字' : '用结果替换整篇文档'"
-                    @click="applyResult('replace', msg.content)"
-                  >{{ primaryApplyLabel }}</button>
-                  <button
-                    type="button"
-                    class="ai-act-btn ai-act-btn--secondary"
-                    @click="applyResult('append', msg.content)"
-                  >追加末尾</button>
-                  <button
-                    type="button"
-                    class="ai-act-btn ai-act-btn--ghost"
-                    @click="copyMessage(msg)"
+                    :class="{ 'is-on': writingTone === item.value }"
+                    @click="writingTone = item.value"
                   >
-                    <Check v-if="copiedId === msg.id" class="w-3 h-3 text-green-500" />
-                    <Copy  v-else                      class="w-3 h-3" />
-                    复制
-                  </button>
-                  <button
-                    type="button"
-                    class="ai-act-btn ai-act-btn--ghost"
-                    :disabled="isGenerating"
-                    @click="rerunLast"
-                  >
-                    <RotateCcw class="w-3 h-3" />
-                    重试
+                    {{ item.label }}
                   </button>
                 </div>
               </div>
+              <div class="aip__seg-row">
+                <span>篇幅</span>
+                <div class="aip__seg aip__seg--compact">
+                  <button
+                    v-for="item in LENGTH_OPTIONS"
+                    :key="item.value"
+                    type="button"
+                    :class="{ 'is-on': writingLength === item.value }"
+                    @click="writingLength = item.value"
+                  >
+                    {{ item.label }}
+                  </button>
+                </div>
+                <span>结构</span>
+                <div class="aip__seg">
+                  <button
+                    v-for="item in FORMAT_OPTIONS"
+                    :key="item.value"
+                    type="button"
+                    :class="{ 'is-on': writingFormat === item.value }"
+                    @click="writingFormat = item.value"
+                  >
+                    {{ item.label }}
+                  </button>
+                </div>
+              </div>
+              <textarea
+                v-model="customInstruction"
+                class="aip__instruction"
+                rows="2"
+                maxlength="1200"
+                placeholder="补充要求，例如：面向初学者、保留代码块、加入实战检查点"
+                :disabled="isGenerating"
+              />
+              <div class="aip__guard">
+                <ShieldCheck class="w-3.5 h-3.5" />
+                <span>上下文作为文档素材处理，接口会限制长度并隔离历史。</span>
+              </div>
+            </section>
+          </Transition>
+
+          <!-- ── Messages (chat dialog) ────────────── -->
+          <div class="aip__msgs">
+            <!-- Empty state -->
+            <div v-if="messages.length === 0" class="aip__empty">
+              <Sparkles class="w-8 h-8 text-purple-400 mx-auto mb-2 opacity-50" />
+              <p>选择指令后点击执行，或在下方输入任意创作要求</p>
             </div>
 
-          </template><!-- /message list -->
+            <!-- Message list -->
+            <template v-for="msg in messages" :key="msg.id">
+              <!-- User message -->
+              <div v-if="msg.role === 'user'" class="chat-user">
+                <span class="chat-user__badge">{{ msg.actionIcon }} {{ msg.actionLabel }}</span>
+                <span v-if="msg.promptText" class="chat-user__prompt">"{{ msg.promptText }}"</span>
+                <span v-else class="chat-user__ctx">{{ msg.ctxSummary }}</span>
+              </div>
 
-          <!-- Generating indicator (before first chunk) -->
-          <div v-if="isGenerating && lastAssistant?.content === '' && !lastAssistant?.reasoning" class="aip__thinking-bar">
-            <span class="aip__dots"><span/><span/><span/></span>
-            <span>AI 正在处理…</span>
-            <button type="button" class="aip__stop" @click="cancelGeneration">
-              <Square class="w-2.5 h-2.5 fill-current" /> 停止
-            </button>
-          </div>
+              <!-- Assistant message -->
+              <div v-else class="chat-ai">
+                <!-- Reasoning section -->
+                <div v-if="msg.reasoning" class="chat-ai__thinking">
+                  <button
+                    type="button"
+                    class="chat-ai__thinking-toggle"
+                    @click="msg.showReasoning = !msg.showReasoning"
+                  >
+                    <Brain
+                      class="w-3 h-3 flex-shrink-0"
+                      :class="msg.isStreaming ? 'animate-pulse' : ''"
+                    />
+                    <span>{{ msg.isStreaming ? '正在思考...' : '模型思考过程' }}</span>
+                    <span class="chat-ai__thinking-chars">{{ msg.reasoning.length }} 字</span>
+                    <ChevronDown v-if="!msg.showReasoning" class="w-3 h-3 ml-auto" />
+                    <ChevronUp v-else class="w-3 h-3 ml-auto" />
+                  </button>
+                  <Transition name="reasoning">
+                    <pre v-if="msg.showReasoning" class="chat-ai__thinking-body">{{
+                      msg.reasoning
+                    }}</pre>
+                  </Transition>
+                </div>
 
-          <!-- Stop button (when streaming) -->
-          <div v-if="isGenerating && (lastAssistant?.content || lastAssistant?.reasoning)" class="aip__stop-bar">
-            <button type="button" class="aip__stop" @click="cancelGeneration">
-              <Square class="w-2.5 h-2.5 fill-current" /> 停止生成
-            </button>
-          </div>
+                <!-- Response content -->
+                <div class="chat-ai__bubble">
+                  <!-- Streaming: monospace pre with blinking cursor -->
+                  <div v-if="msg.isStreaming" class="chat-ai__stream">
+                    <pre
+                      class="chat-ai__stream-text">{{ msg.content || ' ' }}<span class="aip__cursor">▋</span></pre>
+                  </div>
+                  <!-- Done: formatted markdown preview -->
+                  <div v-else-if="msg.content" class="chat-ai__preview">
+                    <MdPreview
+                      :model-value="msg.content"
+                      :theme="isDark ? 'dark' : 'light'"
+                      class="aip__md-preview"
+                    />
+                  </div>
+                  <!-- Error / empty -->
+                  <div v-else class="chat-ai__empty">
+                    <span>（生成被中止）</span>
+                  </div>
+                  <div v-if="msg.error" class="chat-ai__error">
+                    {{ msg.error }}
+                  </div>
+                  <div v-if="msg.requestId || msg.applied" class="chat-ai__meta">
+                    <span v-if="msg.requestId">请求 {{ msg.requestId.slice(0, 8) }}</span>
+                    <span v-if="msg.applied">已应用到文档</span>
+                  </div>
 
-          <div ref="messagesEnd" />
-        </div>
+                  <!-- Action bar (only on last assistant message and not streaming) -->
+                  <div
+                    v-if="!msg.isStreaming && msg.content && msg === lastAssistant"
+                    class="chat-ai__actions"
+                  >
+                    <button
+                      type="button"
+                      class="ai-act-btn ai-act-btn--primary"
+                      :title="hasSelection ? '替换选中的文字' : '用结果替换整篇文档'"
+                      @click="applyResult('replace', msg.content)"
+                    >
+                      {{ primaryApplyLabel }}
+                    </button>
+                    <button
+                      type="button"
+                      class="ai-act-btn ai-act-btn--secondary"
+                      @click="applyResult('append', msg.content)"
+                    >
+                      追加末尾
+                    </button>
+                    <button
+                      type="button"
+                      class="ai-act-btn ai-act-btn--ghost"
+                      @click="copyMessage(msg)"
+                    >
+                      <Check v-if="copiedId === msg.id" class="w-3 h-3 text-green-500" />
+                      <Copy v-else class="w-3 h-3" />
+                      复制
+                    </button>
+                    <button
+                      type="button"
+                      class="ai-act-btn ai-act-btn--ghost"
+                      :disabled="isGenerating"
+                      @click="rerunLast"
+                    >
+                      <RotateCcw class="w-3 h-3" />
+                      重试
+                    </button>
+                  </div>
+                </div>
+              </div> </template
+            ><!-- /message list -->
 
-        <!-- ── Footer: chat input ─────────────────── -->
-        <footer class="aip__ft">
-          <div class="aip__chat">
-            <textarea
-              ref="chatInputRef"
-              v-model="chatText"
-              :rows="chatRows"
-              placeholder="向 AI 下达任意指令… Enter 发送，Shift+Enter 换行"
-              class="aip__chat-input"
-              :disabled="isGenerating"
-              @keydown="onChatKeydown"
-              @input="onChatInput"
-            />
-            <button
-              type="button"
-              class="aip__chat-send"
-              :class="{ 'aip__chat-send--on': chatText.trim() && !isGenerating }"
-              :disabled="!chatText.trim() || isGenerating"
-              @click="submitChat"
+            <!-- Generating indicator (before first chunk) -->
+            <div
+              v-if="isGenerating && lastAssistant?.content === '' && !lastAssistant?.reasoning"
+              class="aip__thinking-bar"
             >
-              <Send class="w-3.5 h-3.5" />
-            </button>
+              <span class="aip__dots"><span /><span /><span /></span>
+              <span>AI 正在处理…</span>
+              <button type="button" class="aip__stop" @click="cancelGeneration">
+                <Square class="w-2.5 h-2.5 fill-current" /> 停止
+              </button>
+            </div>
+
+            <!-- Stop button (when streaming) -->
+            <div
+              v-if="isGenerating && (lastAssistant?.content || lastAssistant?.reasoning)"
+              class="aip__stop-bar"
+            >
+              <button type="button" class="aip__stop" @click="cancelGeneration">
+                <Square class="w-2.5 h-2.5 fill-current" /> 停止生成
+              </button>
+            </div>
+
+            <div ref="messagesEnd" />
           </div>
-        </footer>
 
-        <!-- ── Resize handle (bottom-right) ──────── -->
-        <div v-if="!isMaximized" class="aip__resize-handle" title="拖拽调整大小" @mousedown.left.prevent="startResize" />
+          <!-- ── Footer: chat input ─────────────────── -->
+          <footer class="aip__ft">
+            <div class="aip__chat">
+              <textarea
+                ref="chatInputRef"
+                v-model="chatText"
+                :rows="chatRows"
+                placeholder="向 AI 下达任意指令… Enter 发送，Shift+Enter 换行"
+                class="aip__chat-input"
+                :disabled="isGenerating"
+                @keydown="onChatKeydown"
+                @input="onChatInput"
+              />
+              <button
+                type="button"
+                class="aip__chat-send"
+                :class="{ 'aip__chat-send--on': chatText.trim() && !isGenerating }"
+                :disabled="!chatText.trim() || isGenerating"
+                @click="submitChat"
+              >
+                <Send class="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </footer>
 
-      </aside>
-    </Transition>
-  </Teleport>
+          <!-- ── Resize handle (bottom-right) ──────── -->
+          <div
+            v-if="!isMaximized"
+            class="aip__resize-handle"
+            title="拖拽调整大小"
+            @mousedown.left.prevent="startResize"
+          />
+        </aside>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -1187,14 +1306,18 @@ onUnmounted(() => {
    ═══════════════════════════════════════════════════ */
 .mdw {
   --md-bk-color: var(--bg-card);
-  --md-color:    var(--text-primary);
-  position:      relative;
-  width:         100%;
+  --md-color: var(--text-primary);
+  position: relative;
+  width: 100%;
 }
-.mdw.h-full { height: 100%; }
+.mdw.h-full {
+  height: 100%;
+}
 
 /* ── Editor ─────────────────────────────────────── */
-.mdw__editor { width: 100%; }
+.mdw__editor {
+  width: 100%;
+}
 .mdw__ai-launcher {
   position: absolute;
   top: 8px;
@@ -1206,20 +1329,23 @@ onUnmounted(() => {
   gap: 4px;
   height: 28px;
   padding: 0 9px;
-  border: 1px solid rgba(var(--accent-rgb), .28);
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
   border-radius: 8px;
   background: color-mix(in srgb, var(--bg-card) 92%, transparent);
   color: var(--accent);
-  box-shadow: 0 6px 18px rgba(0,0,0,.08);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   font-size: 11px;
   font-weight: 800;
-  transition: transform .15s, background .15s, border-color .15s;
+  transition:
+    transform 0.15s,
+    background 0.15s,
+    border-color 0.15s;
 }
 .mdw__ai-launcher:hover {
   transform: translateY(-1px);
   background: var(--accent-subtle);
-  border-color: rgba(var(--accent-rgb), .45);
+  border-color: rgba(var(--accent-rgb), 0.45);
 }
 .mdw__ai-launcher--on {
   background: var(--accent);
@@ -1228,195 +1354,325 @@ onUnmounted(() => {
 }
 
 .mdw .md-editor {
-  border-radius:    0.75rem;
-  overflow:         hidden;
-  border:           1px solid var(--border-base) !important;
-  background-color: var(--bg-card)               !important;
-  transition:       border-color 0.2s ease;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--border-base) !important;
+  background-color: var(--bg-card) !important;
+  transition: border-color 0.2s ease;
 }
-.mdw .md-editor:focus-within { border-color: var(--accent) !important; }
+.mdw .md-editor:focus-within {
+  border-color: var(--accent) !important;
+}
 
 .mdw .md-editor-toolbar-wrapper {
-  background-color: var(--bg-card)              !important;
-  border-bottom:    1px solid var(--border-base) !important;
+  background-color: var(--bg-card) !important;
+  border-bottom: 1px solid var(--border-base) !important;
 }
-.mdw .md-editor-content   { background-color: var(--bg-card)    !important; }
-.mdw .md-editor-input     { background-color: var(--bg-app)     !important; color: var(--text-primary) !important; font-size: 15px !important; line-height: 1.6 !important; }
-.mdw .md-editor-preview   { background-color: var(--bg-card)    !important; color: var(--text-primary) !important; }
+.mdw .md-editor-content {
+  background-color: var(--bg-card) !important;
+}
+.mdw .md-editor-input {
+  background-color: var(--bg-app) !important;
+  color: var(--text-primary) !important;
+  font-size: 15px !important;
+  line-height: 1.6 !important;
+}
+.mdw .md-editor-preview {
+  background-color: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+}
 
 .mdw img {
-  max-width: 90% !important; max-height: 55vh !important;
-  width: auto !important; height: auto !important;
-  object-fit: contain !important; border-radius: 12px !important;
-  margin: 24px auto !important; display: block !important;
-  box-shadow: 0 10px 30px rgba(0,0,0,.06) !important;
-  border: 1px solid rgba(0,0,0,.05) !important;
-  transition: transform .3s, box-shadow .3s !important;
+  max-width: 90% !important;
+  max-height: 55vh !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+  border-radius: 12px !important;
+  margin: 24px auto !important;
+  display: block !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  transition:
+    transform 0.3s,
+    box-shadow 0.3s !important;
 }
-.mdw img:hover { transform: translateY(-2px) !important; box-shadow: 0 16px 40px rgba(0,0,0,.1) !important; }
-
-.mdw .md-editor-content-wrapper::-webkit-scrollbar       { width: 6px; }
-.mdw .md-editor-content-wrapper::-webkit-scrollbar-track { background: transparent; }
-.mdw .md-editor-content-wrapper::-webkit-scrollbar-thumb { background: var(--border-base); border-radius: 10px; }
-
-.mdw.is-dark .md-editor                      { --md-bk-color: var(--bg-card); }
-.mdw.is-dark .md-editor-toolbar-item svg     { fill: var(--text-secondary); }
-.mdw.is-dark .md-editor-toolbar-item:hover svg { fill: var(--accent); }
-
-@media (max-width:767px) {
-  .mdw .md-editor-toolbar-wrapper { padding: 4px 6px !important; overflow-x: hidden !important; }
-  .mdw .md-editor-toolbar         { display: flex !important; justify-content: space-between !important; flex-wrap: nowrap !important; overflow-x: hidden !important; width: 100% !important; }
-  .mdw .md-editor-toolbar-item    { min-width: 26px !important; height: 26px !important; padding: 0 !important; margin: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; flex-shrink: 0 !important; }
-  .mdw .md-editor-toolbar-item svg { width: 14px !important; height: 14px !important; }
+.mdw img:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1) !important;
 }
 
-.mdw__preview-only { background: transparent !important; font-size: 15px; line-height: 1.8; color: var(--text-primary) !important; border: none !important; }
-.mdw__preview-only .md-editor-preview-wrapper { padding: 0 !important; border: none !important; }
+.mdw .md-editor-content-wrapper::-webkit-scrollbar {
+  width: 6px;
+}
+.mdw .md-editor-content-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+.mdw .md-editor-content-wrapper::-webkit-scrollbar-thumb {
+  background: var(--border-base);
+  border-radius: 10px;
+}
+
+.mdw.is-dark .md-editor {
+  --md-bk-color: var(--bg-card);
+}
+.mdw.is-dark .md-editor-toolbar-item svg {
+  fill: var(--text-secondary);
+}
+.mdw.is-dark .md-editor-toolbar-item:hover svg {
+  fill: var(--accent);
+}
+
+@media (max-width: 767px) {
+  .mdw .md-editor-toolbar-wrapper {
+    padding: 4px 6px !important;
+    overflow-x: hidden !important;
+  }
+  .mdw .md-editor-toolbar {
+    display: flex !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+  }
+  .mdw .md-editor-toolbar-item {
+    min-width: 26px !important;
+    height: 26px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+  }
+  .mdw .md-editor-toolbar-item svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+}
+
+.mdw__preview-only {
+  background: transparent !important;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--text-primary) !important;
+  border: none !important;
+}
+.mdw__preview-only .md-editor-preview-wrapper {
+  padding: 0 !important;
+  border: none !important;
+}
 
 /* ═══════════════════════════════════════════════════
    AI Floating Panel
    ═══════════════════════════════════════════════════ */
 .aip {
-  position:         fixed;
-  display:          flex;
-  flex-direction:   column;
-  z-index:          9000;
-  overflow:         hidden;
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  z-index: 9000;
+  overflow: hidden;
   /* Glassmorphism card */
   background-color: color-mix(in srgb, var(--bg-card) 97%, transparent);
-  backdrop-filter:  blur(20px) saturate(1.5);
+  backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  border:           1px solid var(--border-base);
-  border-radius:    16px;
-  box-shadow:       0 12px 40px rgba(0,0,0,.15), 0 2px 8px rgba(0,0,0,.06), 0 0 0 0.5px rgba(255,255,255,.05) inset;
+  border: 1px solid var(--border-base);
+  border-radius: 16px;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    0 0 0 0.5px rgba(255, 255, 255, 0.05) inset;
   /* Prevent text selection during drag/resize */
-  user-select:      none;
+  user-select: none;
 }
-.aip--dragging  { cursor: grabbing !important; box-shadow: 0 20px 60px rgba(0,0,0,.22), 0 4px 12px rgba(0,0,0,.1); }
-.aip--resizing  { cursor: se-resize !important; }
-.aip--maximized { border-radius: 0 !important; border: none !important; }
+.aip--dragging {
+  cursor: grabbing !important;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.22),
+    0 4px 12px rgba(0, 0, 0, 0.1);
+}
+.aip--resizing {
+  cursor: se-resize !important;
+}
+.aip--maximized {
+  border-radius: 0 !important;
+  border: none !important;
+}
 
 /* Panel appear animation */
-.aip-enter-active { transition: opacity .22s ease, transform .26s cubic-bezier(.34,1.56,.64,1); }
-.aip-leave-active { transition: opacity .16s ease, transform .18s ease; }
-.aip-enter-from   { opacity: 0; transform: scale(.90) translateY(12px); transform-origin: bottom right; }
-.aip-leave-to     { opacity: 0; transform: scale(.94) translateY(6px);  transform-origin: bottom right; }
+.aip-enter-active {
+  transition:
+    opacity 0.22s ease,
+    transform 0.26s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.aip-leave-active {
+  transition:
+    opacity 0.16s ease,
+    transform 0.18s ease;
+}
+.aip-enter-from {
+  opacity: 0;
+  transform: scale(0.9) translateY(12px);
+  transform-origin: bottom right;
+}
+.aip-leave-to {
+  opacity: 0;
+  transform: scale(0.94) translateY(6px);
+  transform-origin: bottom right;
+}
 
 /* ── Header ─────────────────────────────────────── */
 .aip__hd {
-  display:         flex;
-  align-items:     center;
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  padding:         0 10px 0 12px;
-  height:          42px;
-  flex-shrink:     0;
-  cursor:          grab;
-  border-bottom:   1px solid var(--border-base);
-  background:      linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 90%, var(--accent)) 0%, var(--bg-card) 100%);
+  padding: 0 10px 0 12px;
+  height: 42px;
+  flex-shrink: 0;
+  cursor: grab;
+  border-bottom: 1px solid var(--border-base);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--bg-card) 90%, var(--accent)) 0%,
+    var(--bg-card) 100%
+  );
 }
-.aip__hd:active { cursor: grabbing; }
+.aip__hd:active {
+  cursor: grabbing;
+}
 
 .aip__hd-left {
-  display:     flex;
+  display: flex;
   align-items: center;
-  gap:         7px;
-  min-width:   0;
-  flex:        1;
-  overflow:    hidden;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
 .aip__hd-title {
-  font-size:   12.5px;
+  font-size: 12.5px;
   font-weight: 700;
-  color:       var(--text-primary);
+  color: var(--text-primary);
   white-space: nowrap;
   flex-shrink: 0;
 }
 .aip__hd-right {
-  display:     flex;
+  display: flex;
   align-items: center;
-  gap:         2px;
+  gap: 2px;
   flex-shrink: 0;
 }
 
 /* Context badge in header */
 .aip__ctx {
-  display:      inline-flex;
-  align-items:  center;
-  padding:      2px 8px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
   border-radius: 10px;
-  font-size:    10.5px;
-  font-weight:  600;
-  border:       1px solid;
-  cursor:       pointer;
-  white-space:  nowrap;
-  overflow:     hidden;
+  font-size: 10.5px;
+  font-weight: 600;
+  border: 1px solid;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
   text-overflow: ellipsis;
-  max-width:    130px;
-  transition:   all .18s;
+  max-width: 130px;
+  transition: all 0.18s;
 }
-.aip__ctx--full { background: var(--accent-subtle); border-color: rgba(var(--accent-rgb),.3); color: var(--accent); }
-.aip__ctx--sel  { background: color-mix(in srgb,#8b5cf6 10%,transparent); border-color: rgba(139,92,246,.35); color: #8b5cf6; }
-.aip__ctx:hover { filter: brightness(.93); }
+.aip__ctx--full {
+  background: var(--accent-subtle);
+  border-color: rgba(var(--accent-rgb), 0.3);
+  color: var(--accent);
+}
+.aip__ctx--sel {
+  background: color-mix(in srgb, #8b5cf6 10%, transparent);
+  border-color: rgba(139, 92, 246, 0.35);
+  color: #8b5cf6;
+}
+.aip__ctx:hover {
+  filter: brightness(0.93);
+}
 
 /* Icon buttons in header */
 .aip__ico-btn {
-  background:    none;
-  border:        none;
-  color:         var(--text-muted);
-  cursor:        pointer;
-  padding:       5px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 5px;
   border-radius: 5px;
-  display:       flex;
-  align-items:   center;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  transition:    background-color .15s, color .15s;
-  flex-shrink:   0;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+  flex-shrink: 0;
 }
-.aip__ico-btn:hover { background-color: var(--bg-subtle); color: var(--text-primary); }
+.aip__ico-btn:hover {
+  background-color: var(--bg-subtle);
+  color: var(--text-primary);
+}
 
 /* ── Toolbar ────────────────────────────────────── */
 .aip__toolbar {
-  display:         grid;
+  display: grid;
   grid-template-columns: 1fr;
-  gap:             7px;
-  padding:         7px 10px 9px;
-  border-bottom:   1px solid var(--border-base);
-  flex-shrink:     0;
-  overflow:        visible;
+  gap: 7px;
+  padding: 7px 10px 9px;
+  border-bottom: 1px solid var(--border-base);
+  flex-shrink: 0;
+  overflow: visible;
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-.aip__toolbar::-webkit-scrollbar { display: none; }
+.aip__toolbar::-webkit-scrollbar {
+  display: none;
+}
 
 .aip__chips {
-  display:  flex;
-  gap:      5px;
+  display: flex;
+  gap: 5px;
   min-width: 0;
   overflow-x: auto;
   padding-bottom: 1px;
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-.aip__chips::-webkit-scrollbar { display: none; }
-.aip__chip {
-  display:      inline-flex;
-  align-items:  center;
-  gap:          3px;
-  padding:      4px 10px;
-  border-radius: 20px;
-  font-size:    11px;
-  font-weight:  500;
-  border:       1.5px solid var(--border-base);
-  background:   var(--bg-app);
-  color:        var(--text-secondary);
-  cursor:       pointer;
-  white-space:  nowrap;
-  flex-shrink:  0;
-  transition:   all .16s ease;
+.aip__chips::-webkit-scrollbar {
+  display: none;
 }
-.aip__chip:hover:not(.aip__chip--disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-subtle); }
-.aip__chip--active   { border-color: var(--accent) !important; background: var(--accent-subtle) !important; color: var(--accent) !important; font-weight: 600; }
-.aip__chip--disabled { opacity: .4; cursor: not-allowed; }
+.aip__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1.5px solid var(--border-base);
+  background: var(--bg-app);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.16s ease;
+}
+.aip__chip:hover:not(.aip__chip--disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+.aip__chip--active {
+  border-color: var(--accent) !important;
+  background: var(--accent-subtle) !important;
+  color: var(--accent) !important;
+  font-weight: 600;
+}
+.aip__chip--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 .aip__toolbar-actions {
   display: flex;
@@ -1441,28 +1697,37 @@ onUnmounted(() => {
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: background .15s, opacity .15s;
+  transition:
+    background 0.15s,
+    opacity 0.15s;
 }
-.aip__run-btn:hover:not(:disabled) { background: var(--accent-hover); }
+.aip__run-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
 .aip__run-btn:disabled {
   background: var(--border-base);
   color: var(--text-muted);
   cursor: not-allowed;
-  opacity: .7;
+  opacity: 0.7;
 }
 
 .aip__clear-btn {
-  flex-shrink:   0;
-  font-size:     10.5px;
-  color:         var(--text-muted);
-  background:    none;
-  border:        none;
-  cursor:        pointer;
-  padding:       3px 7px;
+  flex-shrink: 0;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px 7px;
   border-radius: 4px;
-  transition:    color .15s, background .15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
-.aip__clear-btn:hover { color: #ef4444; background: rgba(239,68,68,.07); }
+.aip__clear-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.07);
+}
 .aip__settings-btn {
   margin-left: auto;
   border: 1px solid var(--border-base);
@@ -1552,7 +1817,9 @@ onUnmounted(() => {
   color: #fff;
   font-weight: 700;
 }
-.aip__seg--compact button { padding-inline: 8px; }
+.aip__seg--compact button {
+  padding-inline: 8px;
+}
 .aip__instruction {
   width: 100%;
   resize: vertical;
@@ -1568,7 +1835,9 @@ onUnmounted(() => {
   outline: none;
   user-select: text;
 }
-.aip__instruction:focus { border-color: var(--accent); }
+.aip__instruction:focus {
+  border-color: var(--accent);
+}
 .aip__guard {
   display: flex;
   align-items: center;
@@ -1580,150 +1849,201 @@ onUnmounted(() => {
 
 /* ── Messages area ──────────────────────────────── */
 .aip__msgs {
-  flex:           1;
-  overflow-y:     auto;
-  padding:        10px 10px 4px;
-  display:        flex;
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 10px 4px;
+  display: flex;
   flex-direction: column;
-  gap:            10px;
+  gap: 10px;
   overscroll-behavior: contain;
 }
-.aip__msgs::-webkit-scrollbar       { width: 4px; }
-.aip__msgs::-webkit-scrollbar-track { background: transparent; }
-.aip__msgs::-webkit-scrollbar-thumb { background: var(--border-base); border-radius: 10px; }
+.aip__msgs::-webkit-scrollbar {
+  width: 4px;
+}
+.aip__msgs::-webkit-scrollbar-track {
+  background: transparent;
+}
+.aip__msgs::-webkit-scrollbar-thumb {
+  background: var(--border-base);
+  border-radius: 10px;
+}
 
 /* Empty state */
 .aip__empty {
-  flex:        1;
-  display:     flex;
+  flex: 1;
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding:     24px 16px;
-  text-align:  center;
-  font-size:   12px;
-  color:       var(--text-muted);
-  gap:         6px;
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  gap: 6px;
 }
 
 /* ── User message ───────────────────────────────── */
 .chat-user {
-  display:         flex;
-  align-items:     center;
-  gap:             6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   justify-content: flex-end;
-  flex-wrap:       wrap;
+  flex-wrap: wrap;
 }
 .chat-user__badge {
-  font-size:    11px;
-  font-weight:  600;
-  color:        var(--accent);
-  background:   var(--accent-subtle);
-  padding:      2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-subtle);
+  padding: 2px 8px;
   border-radius: 10px;
-  flex-shrink:  0;
+  flex-shrink: 0;
 }
 .chat-user__prompt,
 .chat-user__ctx {
-  font-size:    11px;
-  color:        var(--text-muted);
-  font-style:   italic;
-  overflow:     hidden;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  overflow: hidden;
   text-overflow: ellipsis;
-  white-space:  nowrap;
-  max-width:    180px;
+  white-space: nowrap;
+  max-width: 180px;
 }
 
 /* ── Assistant message ──────────────────────────── */
-.chat-ai { display: flex; flex-direction: column; gap: 5px; }
+.chat-ai {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
 
 /* Thinking / reasoning block */
 .chat-ai__thinking {
-  border:        1px solid rgba(139,92,246,.25);
+  border: 1px solid rgba(139, 92, 246, 0.25);
   border-radius: 10px;
-  background:    color-mix(in srgb, #8b5cf6 5%, var(--bg-app));
-  overflow:      hidden;
+  background: color-mix(in srgb, #8b5cf6 5%, var(--bg-app));
+  overflow: hidden;
 }
 .chat-ai__thinking-toggle {
-  display:       flex;
-  align-items:   center;
-  gap:           6px;
-  width:         100%;
-  background:    none;
-  border:        none;
-  padding:       7px 10px;
-  cursor:        pointer;
-  font-size:     11px;
-  font-weight:   600;
-  color:         #8b5cf6;
-  text-align:    left;
-  transition:    background .15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: #8b5cf6;
+  text-align: left;
+  transition: background 0.15s;
 }
-.chat-ai__thinking-toggle:hover { background: rgba(139,92,246,.07); }
+.chat-ai__thinking-toggle:hover {
+  background: rgba(139, 92, 246, 0.07);
+}
 .chat-ai__thinking-chars {
-  font-size:   10px;
+  font-size: 10px;
   font-weight: 400;
-  color:       rgba(139,92,246,.7);
+  color: rgba(139, 92, 246, 0.7);
   margin-left: 2px;
 }
 .chat-ai__thinking-body {
-  font-family:  'Cascadia Code', 'Fira Code', monospace;
-  font-size:    11px;
-  line-height:  1.6;
-  white-space:  pre-wrap;
-  word-break:   break-word;
-  margin:       0;
-  padding:      6px 10px 10px;
-  color:        color-mix(in srgb, #8b5cf6 70%, var(--text-primary));
-  max-height:   180px;
-  overflow-y:   auto;
-  border-top:   1px solid rgba(139,92,246,.15);
-  background:   color-mix(in srgb, #8b5cf6 4%, var(--bg-app));
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  padding: 6px 10px 10px;
+  color: color-mix(in srgb, #8b5cf6 70%, var(--text-primary));
+  max-height: 180px;
+  overflow-y: auto;
+  border-top: 1px solid rgba(139, 92, 246, 0.15);
+  background: color-mix(in srgb, #8b5cf6 4%, var(--bg-app));
 }
-.reasoning-enter-active { transition: all .25s ease; }
-.reasoning-leave-active { transition: all .18s ease; }
+.reasoning-enter-active {
+  transition: all 0.25s ease;
+}
+.reasoning-leave-active {
+  transition: all 0.18s ease;
+}
 .reasoning-enter-from,
-.reasoning-leave-to     { opacity: 0; max-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; }
+.reasoning-leave-to {
+  opacity: 0;
+  max-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
 
 /* AI response bubble */
 .chat-ai__bubble {
-  background:   var(--bg-app);
-  border:       1px solid var(--border-base);
+  background: var(--bg-app);
+  border: 1px solid var(--border-base);
   border-radius: 4px 12px 12px 12px;
-  overflow:     hidden;
+  overflow: hidden;
 }
 
 /* Streaming text */
 .chat-ai__stream {
-  padding:    10px 12px;
+  padding: 10px 12px;
   max-height: 280px;
   overflow-y: auto;
 }
 .chat-ai__stream-text {
-  font-family:  'Cascadia Code', 'Fira Code', 'Consolas', monospace;
-  font-size:    12px;
-  line-height:  1.65;
-  color:        var(--text-primary);
-  white-space:  pre-wrap;
-  word-break:   break-word;
-  margin:       0;
-  user-select:  text;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  user-select: text;
 }
-.aip__cursor { color: var(--accent); font-weight: bold; animation: blink 1s step-end infinite; }
-@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+.aip__cursor {
+  color: var(--accent);
+  font-weight: bold;
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
 
 /* Formatted MD preview */
-.chat-ai__preview { padding: 2px 4px; max-height: 320px; overflow-y: auto; user-select: text; }
-.aip__md-preview  { font-size: 12.5px !important; background: transparent !important; border: none !important; padding: 0 !important; }
-.aip__md-preview .md-editor-preview-wrapper { padding: 4px 8px !important; }
+.chat-ai__preview {
+  padding: 2px 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  user-select: text;
+}
+.aip__md-preview {
+  font-size: 12.5px !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+.aip__md-preview .md-editor-preview-wrapper {
+  padding: 4px 8px !important;
+}
 
-.chat-ai__empty { padding: 10px 12px; font-size: 12px; color: var(--text-muted); font-style: italic; }
+.chat-ai__empty {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
 .chat-ai__error {
   margin: 0 10px 8px;
   padding: 7px 8px;
-  border: 1px solid rgba(239,68,68,.24);
+  border: 1px solid rgba(239, 68, 68, 0.24);
   border-radius: 7px;
-  background: rgba(239,68,68,.07);
+  background: rgba(239, 68, 68, 0.07);
   color: #ef4444;
   font-size: 11px;
   line-height: 1.45;
@@ -1740,140 +2060,218 @@ onUnmounted(() => {
 
 /* Action bar under last assistant message */
 .chat-ai__actions {
-  display:    flex;
-  gap:        5px;
-  padding:    8px 10px;
+  display: flex;
+  gap: 5px;
+  padding: 8px 10px;
   border-top: 1px solid var(--border-base);
   background: color-mix(in srgb, var(--bg-card) 60%, var(--bg-app));
 }
 .ai-act-btn {
-  flex:          1;
-  padding:       5px 6px;
+  flex: 1;
+  padding: 5px 6px;
   border-radius: 7px;
-  font-size:     11px;
-  font-weight:   500;
-  cursor:        pointer;
-  transition:    all .14s;
-  display:       inline-flex;
-  align-items:   center;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.14s;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  gap:           3px;
-  border:        1.5px solid transparent;
+  gap: 3px;
+  border: 1.5px solid transparent;
 }
-.ai-act-btn:disabled { opacity: .35; cursor: not-allowed; }
-.ai-act-btn--primary  { background: var(--accent); color: #fff; }
-.ai-act-btn--primary:not(:disabled):hover { background: var(--accent-hover); }
-.ai-act-btn--secondary { background: var(--bg-app); border-color: var(--border-base); color: var(--text-primary); }
-.ai-act-btn--secondary:hover { border-color: var(--accent); color: var(--accent); }
-.ai-act-btn--ghost { background: transparent; border-color: var(--border-base); color: var(--text-muted); }
-.ai-act-btn--ghost:hover { color: var(--text-primary); background: var(--bg-subtle); }
+.ai-act-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.ai-act-btn--primary {
+  background: var(--accent);
+  color: #fff;
+}
+.ai-act-btn--primary:not(:disabled):hover {
+  background: var(--accent-hover);
+}
+.ai-act-btn--secondary {
+  background: var(--bg-app);
+  border-color: var(--border-base);
+  color: var(--text-primary);
+}
+.ai-act-btn--secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.ai-act-btn--ghost {
+  background: transparent;
+  border-color: var(--border-base);
+  color: var(--text-muted);
+}
+.ai-act-btn--ghost:hover {
+  color: var(--text-primary);
+  background: var(--bg-subtle);
+}
 
 /* Thinking / stop bars at bottom of messages */
 .aip__thinking-bar {
-  display:      flex;
-  align-items:  center;
-  gap:          8px;
-  padding:      6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
   border-radius: 8px;
-  background:   var(--bg-subtle);
-  border:       1px solid var(--border-base);
-  font-size:    11.5px;
-  color:        var(--text-muted);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-base);
+  font-size: 11.5px;
+  color: var(--text-muted);
 }
 .aip__stop-bar {
-  display:         flex;
+  display: flex;
   justify-content: flex-end;
 }
 
 /* Typing dots */
-.aip__dots        { display: inline-flex; align-items: center; gap: 3px; }
-.aip__dots span   { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); animation: dot-pulse 1.4s ease-in-out infinite; }
-.aip__dots span:nth-child(2) { animation-delay: .2s; }
-.aip__dots span:nth-child(3) { animation-delay: .4s; }
+.aip__dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.aip__dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: dot-pulse 1.4s ease-in-out infinite;
+}
+.aip__dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.aip__dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
 @keyframes dot-pulse {
-  0%,60%,100% { opacity: .2; transform: scale(.8); }
-  30%          { opacity: 1;  transform: scale(1);  }
+  0%,
+  60%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* Stop button */
 .aip__stop {
-  display:      inline-flex;
-  align-items:  center;
-  gap:          4px;
-  font-size:    11px;
-  color:        #ef4444;
-  border:       1px solid rgba(239,68,68,.3);
-  background:   rgba(239,68,68,.07);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.07);
   border-radius: 5px;
-  padding:      3px 8px;
-  cursor:       pointer;
-  transition:   all .15s;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
 }
-.aip__stop:hover { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.6); }
+.aip__stop:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.6);
+}
 
 /* ── Footer: chat input ─────────────────────────── */
 .aip__ft {
-  border-top:       1px solid var(--border-base);
-  padding:          9px 10px;
-  flex-shrink:      0;
+  border-top: 1px solid var(--border-base);
+  padding: 9px 10px;
+  flex-shrink: 0;
   background-color: var(--bg-card);
 }
 .aip__chat {
-  display:       flex;
-  align-items:   flex-end;
-  gap:           8px;
-  background:    var(--bg-app);
-  border:        1.5px solid var(--border-base);
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: var(--bg-app);
+  border: 1.5px solid var(--border-base);
   border-radius: 10px;
-  padding:       7px 8px;
-  transition:    border-color .15s;
+  padding: 7px 8px;
+  transition: border-color 0.15s;
 }
-.aip__chat:focus-within { border-color: var(--accent); }
+.aip__chat:focus-within {
+  border-color: var(--accent);
+}
 
 .aip__chat-input {
-  flex:       1;
+  flex: 1;
   background: none;
-  border:     none;
-  outline:    none;
-  resize:     none;
-  font-size:  12.5px;
-  color:      var(--text-primary);
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 12.5px;
+  color: var(--text-primary);
   line-height: 1.45;
-  min-height:  20px;
-  max-height:  80px;
-  overflow-y:  auto;
+  min-height: 20px;
+  max-height: 80px;
+  overflow-y: auto;
   font-family: inherit;
   user-select: text;
 }
-.aip__chat-input::placeholder { color: var(--text-muted); }
-.aip__chat-input:disabled      { opacity: .5; }
+.aip__chat-input::placeholder {
+  color: var(--text-muted);
+}
+.aip__chat-input:disabled {
+  opacity: 0.5;
+}
 
 .aip__chat-send {
-  width: 28px; height: 28px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 7px; border: none;
-  background: var(--border-base); color: var(--text-muted);
-  cursor: not-allowed; transition: all .15s ease;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  border: none;
+  background: var(--border-base);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  transition: all 0.15s ease;
 }
-.aip__chat-send--on { background: var(--accent); color: #fff; cursor: pointer; }
-.aip__chat-send--on:hover { background: var(--accent-hover); }
+.aip__chat-send--on {
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+.aip__chat-send--on:hover {
+  background: var(--accent-hover);
+}
 
 /* ── Resize handle ──────────────────────────────── */
 .aip__resize-handle {
-  position:      absolute;
-  bottom:        0;
-  right:         0;
-  width:         18px;
-  height:        18px;
-  cursor:        se-resize;
-  background:    linear-gradient(135deg, transparent 40%, var(--border-strong) 40%, var(--border-strong) 50%, transparent 50%, transparent 66%, var(--border-strong) 66%, var(--border-strong) 76%, transparent 76%);
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  cursor: se-resize;
+  background: linear-gradient(
+    135deg,
+    transparent 40%,
+    var(--border-strong) 40%,
+    var(--border-strong) 50%,
+    transparent 50%,
+    transparent 66%,
+    var(--border-strong) 66%,
+    var(--border-strong) 76%,
+    transparent 76%
+  );
   border-radius: 0 0 14px 0;
-  opacity:       0.45;
-  transition:    opacity .2s;
+  opacity: 0.45;
+  transition: opacity 0.2s;
 }
-.aip__resize-handle:hover { opacity: 0.9; }
+.aip__resize-handle:hover {
+  opacity: 0.9;
+}
 
-@media (max-width:767px) {
+@media (max-width: 767px) {
   .aip {
     border-radius: 12px;
   }
@@ -1904,8 +2302,19 @@ onUnmounted(() => {
 }
 
 /* ── Shared animations ──────────────────────────── */
-.fade-enter-active { transition: opacity .2s ease, transform .2s ease; }
-.fade-leave-active { transition: opacity .15s ease; }
-.fade-enter-from   { opacity: 0; transform: translateY(-4px); }
-.fade-leave-to     { opacity: 0; }
+.fade-enter-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.fade-enter-from {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+.fade-leave-to {
+  opacity: 0;
+}
 </style>

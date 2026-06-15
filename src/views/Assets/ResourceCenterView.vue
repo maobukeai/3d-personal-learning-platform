@@ -14,6 +14,8 @@ import {
   FileStack,
   Flame,
   Heart,
+  Grid3X3,
+  LayoutList,
   Layers,
   MonitorPlay,
   PackageCheck,
@@ -30,6 +32,9 @@ import { ElMessage } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
+import Input from '@/components/ui/Input.vue';
+import Tabs from '@/components/ui/Tabs.vue';
+import UnifiedCard from '@/components/UnifiedCard.vue';
 import {
   formatResourceNumber as formatNumber,
   formatResourceStorage as formatStorage,
@@ -60,6 +65,11 @@ const searchQuery = ref('');
 const activeKind = ref<KindFilter>('all');
 const activeStatus = ref<StatusFilter>('all');
 const sortMode = ref<SortMode>('updated');
+const viewMode = ref<'grid' | 'list'>('grid');
+const viewModeOptions = computed(() => [
+  { value: 'grid', icon: Grid3X3 },
+  { value: 'list', icon: LayoutList },
+]);
 const feedItems = ref<ResourceItem[]>([]);
 const feedMeta = ref<ResourceFeedMeta | null>(null);
 const currentPage = ref(1);
@@ -168,11 +178,30 @@ const statusFilters = computed(() => {
   ];
 });
 
+const kindTabOptions = computed(() => {
+  return kindFilters.value.map((filter) => ({
+    label: `${filter.label} ${filter.count}`,
+    value: filter.key,
+    icon: filter.icon,
+  }));
+});
+
+const statusTabOptions = computed(() => {
+  return statusFilters.value.map((filter) => ({
+    label: `${filter.label} ${filter.count}`,
+    value: filter.key,
+  }));
+});
+
 const filteredRecentItems = computed(() => recentItems.value);
 const isMaterialFeed = computed(() => activeKind.value === 'material');
-const materialFeedItems = computed(() => filteredRecentItems.value.filter((item) => item.kind === 'material'));
+const materialFeedItems = computed(() =>
+  filteredRecentItems.value.filter((item) => item.kind === 'material'),
+);
 const materialLibrary = computed(() =>
-  overview.value?.libraries.find((library) => library.key === 'materials' || library.key === 'material'),
+  overview.value?.libraries.find(
+    (library) => library.key === 'materials' || library.key === 'material',
+  ),
 );
 
 async function fetchOverview() {
@@ -277,7 +306,12 @@ function getMaterialFavorites(item: ResourceItem) {
 
 function isProceduralMaterial(item: ResourceItem) {
   const text = `${item.title} ${item.subtitle} ${item.tags.join(' ')}`.toLowerCase();
-  return Boolean(item.isProcedural || text.includes('procedural') || text.includes('程序化') || text.includes('sbsar'));
+  return Boolean(
+    item.isProcedural ||
+    text.includes('procedural') ||
+    text.includes('程序化') ||
+    text.includes('sbsar'),
+  );
 }
 
 function getMaterialType(item: ResourceItem) {
@@ -338,10 +372,10 @@ onUnmounted(() => {
 
 <template>
   <div class="resource-center-page">
-    <header class="command-header">
-      <div class="title-zone">
+    <header class="page-header">
+      <div class="title-block">
         <div class="title-icon">
-          <FileStack class="icon-md" />
+          <FileStack class="icon-sm" />
         </div>
         <div>
           <h1>资源中心</h1>
@@ -349,16 +383,17 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="command-actions">
-        <button
-          type="button"
-          class="ghost-button"
-          @click="isStatsExpanded = !isStatsExpanded"
-        >
+      <div class="header-actions">
+        <button type="button" class="ghost-button" @click="isStatsExpanded = !isStatsExpanded">
           <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
           {{ isStatsExpanded ? '收起指标' : '数据指标' }}
         </button>
-        <button type="button" class="ghost-button" :disabled="isLoading || isFeedLoading" @click="refreshAll">
+        <button
+          type="button"
+          class="ghost-button"
+          :disabled="isLoading || isFeedLoading"
+          @click="refreshAll"
+        >
           <RefreshCw class="icon-sm" :class="{ spinning: isLoading || isFeedLoading }" />
           刷新
         </button>
@@ -370,7 +405,12 @@ onUnmounted(() => {
     </header>
 
     <section v-show="isStatsExpanded" class="kpi-strip">
-      <article v-for="card in summaryCards" :key="card.label" class="kpi-card" :data-tone="card.tone">
+      <article
+        v-for="card in summaryCards"
+        :key="card.label"
+        class="kpi-card"
+        :data-tone="card.tone"
+      >
         <component :is="card.icon" class="icon-sm" />
         <div>
           <span>{{ card.label }}</span>
@@ -380,7 +420,11 @@ onUnmounted(() => {
       </article>
     </section>
 
-    <section v-if="reviewPressure && isStatsExpanded" class="pressure-banner" :data-level="reviewPressure.level">
+    <section
+      v-if="reviewPressure && isStatsExpanded"
+      class="pressure-banner"
+      :data-level="reviewPressure.level"
+    >
       <div>
         <AlertTriangle class="icon-md" />
         <span>{{ isAdminOverview ? '审核压力' : '我的审核状态' }}</span>
@@ -431,51 +475,35 @@ onUnmounted(() => {
     <section class="resource-workbench">
       <main class="feed-panel">
         <div class="feed-toolbar">
-          <label class="search-box">
-            <Search class="icon-sm" />
-            <input v-model="searchQuery" type="search" placeholder="搜索最近内容、作者或标签" />
-          </label>
-          <select v-model="sortMode" class="sort-select" aria-label="资源排序">
-            <option value="updated">按最近更新</option>
-            <option value="created">按发布时间</option>
-            <option value="metric">按热度指标</option>
-            <option value="review">按审核压力</option>
-            <option value="title">按名称</option>
-          </select>
-          <div class="kind-switch">
-            <button
-              v-for="filter in kindFilters"
-              :key="filter.key"
-              type="button"
-              :class="{ active: activeKind === filter.key }"
-              @click="activeKind = filter.key"
-            >
-              <component :is="filter.icon" class="icon-sm" />
-              {{ filter.label }}
-              <strong>{{ filter.count }}</strong>
-            </button>
+          <div class="toolbar-left">
+            <Tabs v-model="activeKind" :options="kindTabOptions" size="sm" />
+            <Tabs v-model="activeStatus" :options="statusTabOptions" size="sm" />
           </div>
-        </div>
 
-        <div class="feed-subtoolbar">
-          <div class="status-switch">
-            <button
-              v-for="filter in statusFilters"
-              :key="filter.key"
-              type="button"
-              :class="{ active: activeStatus === filter.key }"
-              @click="activeStatus = filter.key"
-            >
-              {{ filter.label }}
-              <strong>{{ filter.count }}</strong>
-            </button>
+          <div class="toolbar-center">
+            <Input
+              v-model="searchQuery"
+              type="search"
+              placeholder="搜索最近内容、作者或标签"
+              :icon="Search"
+              clearable
+              input-class="!py-1.5 !h-8.5 !rounded-lg"
+              class="w-full max-w-[180px]"
+            />
           </div>
-          <div class="result-count">
-            <span>{{ resultTotal }} 条结果</span>
-            <button type="button" @click="resetFilters">
-              <RefreshCw class="icon-xs" />
-              重置
-            </button>
+
+          <div class="toolbar-right">
+            <select v-model="sortMode" class="sort-select" aria-label="资源排序">
+              <option value="updated">按最近更新</option>
+              <option value="created">按发布时间</option>
+              <option value="metric">按热度指标</option>
+              <option value="review">按审核压力</option>
+              <option value="title">按名称</option>
+            </select>
+            <Tabs v-model="viewMode" :options="viewModeOptions" size="sm" />
+            <div class="result-count">
+              <span>{{ resultTotal }} 条结果</span>
+            </div>
           </div>
         </div>
 
@@ -492,10 +520,14 @@ onUnmounted(() => {
         </div>
 
         <div v-if="isFeedLoading && isMaterialFeed" class="material-board">
-          <article v-for="index in 8" :key="index" class="material-swatch-card material-skeleton"></article>
+          <article
+            v-for="index in 8"
+            :key="index"
+            class="material-swatch-card material-skeleton"
+          ></article>
         </div>
 
-        <div v-else-if="isFeedLoading" class="feed-list">
+        <div v-else-if="isFeedLoading" class="feed-list" :class="viewMode">
           <div v-for="index in 8" :key="index" class="feed-row skeleton-row"></div>
         </div>
 
@@ -514,7 +546,9 @@ onUnmounted(() => {
                 <Layers class="icon-md" />
               </div>
               <span class="material-kind-chip">{{ getMaterialType(item) }}</span>
-              <span class="status-pill" :data-status="item.status">{{ getStatusLabel(item.status) }}</span>
+              <span class="status-pill" :data-status="item.status">{{
+                getStatusLabel(item.status)
+              }}</span>
             </div>
             <div class="material-card-body">
               <div class="material-card-head">
@@ -529,7 +563,9 @@ onUnmounted(() => {
               </div>
 
               <div class="material-channel-row">
-                <span v-for="channel in getMaterialChannels(item)" :key="channel">{{ channel }}</span>
+                <span v-for="channel in getMaterialChannels(item)" :key="channel">{{
+                  channel
+                }}</span>
               </div>
 
               <div class="material-tags">
@@ -539,8 +575,14 @@ onUnmounted(() => {
               <footer class="material-card-footer">
                 <span>{{ item.author }}</span>
                 <div>
-                  <span><ArrowDownToLine class="icon-xs" />{{ formatNumber(getMaterialDownloads(item)) }}</span>
-                  <span><Heart class="icon-xs" />{{ formatNumber(getMaterialFavorites(item)) }}</span>
+                  <span
+                    ><ArrowDownToLine class="icon-xs" />{{
+                      formatNumber(getMaterialDownloads(item))
+                    }}</span
+                  >
+                  <span
+                    ><Heart class="icon-xs" />{{ formatNumber(getMaterialFavorites(item)) }}</span
+                  >
                 </div>
               </footer>
               <em v-if="item.rejectReason">{{ item.rejectReason }}</em>
@@ -548,42 +590,15 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <div v-else-if="filteredRecentItems.length" class="feed-list">
-          <button
+        <div v-else-if="filteredRecentItems.length" class="feed-list" :class="viewMode">
+          <UnifiedCard
             v-for="item in filteredRecentItems"
             :key="`${item.kind}:${item.id}`"
-            type="button"
-            class="feed-row"
-            :data-tone="kindMeta[item.kind].tone"
+            :item="item"
+            :kind="item.kind"
+            :view-mode="viewMode"
             @click="openItem(item)"
-          >
-            <div class="item-preview">
-              <img v-if="item.previewUrl" :src="getAssetUrl(item.previewUrl)" :alt="item.title" />
-              <component :is="kindMeta[item.kind].icon" v-else class="icon-md" />
-            </div>
-            <div class="item-main">
-              <div class="item-badge-row">
-                <span class="kind-pill">{{ kindMeta[item.kind].label }}</span>
-                <span class="status-pill" :data-status="item.status">{{ getStatusLabel(item.status) }}</span>
-              </div>
-              <strong class="item-title">{{ item.title }}</strong>
-              <div class="item-meta-row">
-                <span class="item-author">{{ item.author }}</span>
-                <span class="bullet">•</span>
-                <span class="item-subtitle">{{ item.subtitle }}</span>
-                <span class="bullet">•</span>
-                <span class="item-time">{{ formatTime(item.updatedAt || item.createdAt) }}</span>
-              </div>
-              <div v-if="item.tags && item.tags.length" class="item-tags-row">
-                <span v-for="tag in item.tags.slice(0, 3)" :key="tag" class="tag-badge">#{{ tag }}</span>
-              </div>
-              <em v-if="item.rejectReason" class="item-reject">{{ item.rejectReason }}</em>
-            </div>
-            <div class="item-metric">
-              <strong class="metric-value">{{ formatNumber(item.metric) }}</strong>
-              <span class="metric-label">{{ item.metricLabel }}</span>
-            </div>
-          </button>
+          />
         </div>
 
         <div v-else class="empty-state">
@@ -599,10 +614,18 @@ onUnmounted(() => {
         <footer v-if="resultTotal > pageSize" class="feed-pagination">
           <span>第 {{ currentPage }} / {{ totalPages }} 页</span>
           <div>
-            <button type="button" :disabled="currentPage === 1 || isFeedLoading" @click="setPage(currentPage - 1)">
+            <button
+              type="button"
+              :disabled="currentPage === 1 || isFeedLoading"
+              @click="setPage(currentPage - 1)"
+            >
               上一页
             </button>
-            <button type="button" :disabled="currentPage === totalPages || isFeedLoading" @click="setPage(currentPage + 1)">
+            <button
+              type="button"
+              :disabled="currentPage === totalPages || isFeedLoading"
+              @click="setPage(currentPage + 1)"
+            >
               下一页
             </button>
           </div>
@@ -741,9 +764,9 @@ button:disabled {
 }
 
 /* Flex alignments */
-.command-header,
-.title-zone,
-.command-actions,
+.page-header,
+.title-block,
+.header-actions,
 .pressure-banner,
 .pressure-banner > div,
 .kpi-card,
@@ -761,41 +784,43 @@ button:disabled {
   align-items: center;
 }
 
-.command-header {
+.page-header {
   justify-content: space-between;
   gap: 12px;
-  min-height: 40px;
+  min-height: 32px;
 }
 
-.title-zone {
+.title-block {
   min-width: 0;
-  gap: 10px;
+  gap: 8px;
 }
 
 .title-icon {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   color: var(--accent);
   background: var(--accent-subtle);
 }
 
-.title-zone h1 {
-  font-size: 18px;
+.title-block h1 {
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
-.title-zone p {
+.title-block p {
   margin-top: 1px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 1.2;
 }
 
-.command-actions {
+.header-actions {
   gap: 8px;
 }
 
@@ -957,10 +982,18 @@ button:disabled {
   box-shadow: var(--shadow-card);
 }
 
-.library-card:nth-child(1) { --tone-color: #2563eb; }
-.library-card:nth-child(2) { --tone-color: #d97706; }
-.library-card:nth-child(3) { --tone-color: #7c3aed; }
-.library-card:nth-child(4) { --tone-color: #059669; }
+.library-card:nth-child(1) {
+  --tone-color: #2563eb;
+}
+.library-card:nth-child(2) {
+  --tone-color: #d97706;
+}
+.library-card:nth-child(3) {
+  --tone-color: #7c3aed;
+}
+.library-card:nth-child(4) {
+  --tone-color: #059669;
+}
 
 .library-card:hover {
   transform: translateY(-1.5px);
@@ -1110,13 +1143,56 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  background: var(--bg-card);
+  padding: 6px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-base);
+  backdrop-filter: blur(12px);
+  flex-wrap: nowrap;
 }
 
-.feed-subtoolbar {
+.toolbar-left,
+.toolbar-right {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.toolbar-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 200px;
+}
+
+.result-count {
+  display: flex;
+  align-items: center;
   gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.reset-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid var(--border-base);
+  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.reset-button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
 }
 
 .search-box {
@@ -1262,7 +1338,7 @@ button:disabled {
 .feed-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .feed-row {
@@ -1440,7 +1516,8 @@ button:disabled {
   margin-top: 4px;
   border: 1px solid rgba(217, 119, 6, 0.2);
   border-radius: 8px;
-  background: linear-gradient(135deg, rgba(217, 119, 6, 0.06), rgba(15, 118, 110, 0.03)), var(--bg-card);
+  background:
+    linear-gradient(135deg, rgba(217, 119, 6, 0.06), rgba(15, 118, 110, 0.03)), var(--bg-card);
   padding: 6px 12px;
 }
 
@@ -1530,7 +1607,9 @@ button:disabled {
   position: relative;
   aspect-ratio: 4 / 3;
   overflow: hidden;
-  background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.1), transparent 28%), linear-gradient(135deg, #1f2937, #111827);
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.1), transparent 28%),
+    linear-gradient(135deg, #1f2937, #111827);
 }
 
 .material-thumb img,
@@ -1693,8 +1772,11 @@ button:disabled {
 
 .material-skeleton {
   min-height: 230px;
-  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.15), transparent), var(--bg-card);
-  background-size: 220px 100%, auto;
+  background:
+    linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.15), transparent), var(--bg-card);
+  background-size:
+    220px 100%,
+    auto;
   animation: shimmer 1.2s linear infinite;
 }
 
@@ -1988,8 +2070,11 @@ button:disabled {
 
 .skeleton-row {
   min-height: 62px;
-  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.15), transparent), var(--bg-card);
-  background-size: 220px 100%, auto;
+  background:
+    linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.15), transparent), var(--bg-card);
+  background-size:
+    220px 100%,
+    auto;
   animation: shimmer 1.2s linear infinite;
 }
 
@@ -2005,10 +2090,14 @@ button:disabled {
 
 @keyframes shimmer {
   from {
-    background-position: -220px 0, 0 0;
+    background-position:
+      -220px 0,
+      0 0;
   }
   to {
-    background-position: calc(100% + 220px) 0, 0 0;
+    background-position:
+      calc(100% + 220px) 0,
+      0 0;
   }
 }
 
@@ -2029,7 +2118,7 @@ button:disabled {
 }
 
 @media (max-width: 760px) {
-  .command-header {
+  .page-header {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
@@ -2040,11 +2129,24 @@ button:disabled {
   .feed-toolbar {
     align-items: stretch;
     flex-direction: column;
+    gap: 12px;
   }
 
-  .feed-subtoolbar {
-    align-items: stretch;
+  .toolbar-left,
+  .toolbar-right {
     flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .toolbar-center {
+    width: 100%;
+  }
+
+  .toolbar-center :deep(.ui-input-wrapper) {
+    max-width: none;
+    width: 100%;
   }
 
   .sort-select {
@@ -2056,7 +2158,7 @@ button:disabled {
     white-space: normal;
   }
 
-  .command-actions {
+  .header-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
@@ -2096,7 +2198,8 @@ button:disabled {
 
   .library-grid,
   .kpi-strip,
-  .insight-rail {
+  .insight-rail,
+  .feed-list.grid {
     grid-template-columns: 1fr;
   }
 
@@ -2112,5 +2215,45 @@ button:disabled {
     margin-left: 78px;
     flex: none;
   }
+}
+
+/* Grid display for feed list */
+.feed-list.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.feed-list.grid .feed-row {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 12px;
+  gap: 8px;
+  height: 100%;
+}
+
+.feed-list.grid .item-preview {
+  width: 100%;
+  height: 120px;
+  border-radius: 6px;
+}
+
+.feed-list.grid .item-main {
+  width: 100%;
+  flex: 1;
+}
+
+.feed-list.grid .item-metric {
+  margin-top: auto;
+  border-top: 1px solid var(--border-base);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.feed-list.grid .item-metric .metric-value {
+  font-size: 13px;
 }
 </style>

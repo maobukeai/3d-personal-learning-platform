@@ -229,8 +229,10 @@ const normalizeAiModels = (value: unknown): AiModelConfig[] => {
         maxTokens: typeof model.maxTokens === 'number' ? model.maxTokens : 2000,
         systemPrompt: typeof model.systemPrompt === 'string' ? model.systemPrompt : '',
         showAdvanced: false,
-        customFamilyKey: typeof model.customFamilyKey === 'string' ? model.customFamilyKey : undefined,
-        customFamilyLabel: typeof model.customFamilyLabel === 'string' ? model.customFamilyLabel : undefined,
+        customFamilyKey:
+          typeof model.customFamilyKey === 'string' ? model.customFamilyKey : undefined,
+        customFamilyLabel:
+          typeof model.customFamilyLabel === 'string' ? model.customFamilyLabel : undefined,
       };
     })
     .filter((item): item is AiModelConfig => Boolean(item));
@@ -245,7 +247,7 @@ watch(
       smtpConfigs.value = [];
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 const tabs = [
@@ -540,7 +542,7 @@ const resetToDefaults = async () => {
         isDefault: true,
         description: '',
         capabilities: ['chat'],
-      }
+      },
     ];
     settings.value.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
     settings.value.AI_MODEL_OPTIONS = JSON.stringify(aiModelConfigs.value);
@@ -552,8 +554,7 @@ const redactSettingsForExport = () => {
   return clonePlain(settings.value) as SettingsRecord;
 };
 
-const redactAiModelConfigsForExport = () =>
-  clonePlain(aiModelConfigs.value);
+const redactAiModelConfigsForExport = () => clonePlain(aiModelConfigs.value);
 
 const findExistingAiModel = (model: AiModelConfig) =>
   aiModelConfigs.value.find((item) => item.id === model.id) ||
@@ -646,7 +647,7 @@ const importSettingsFile = (event: Event) => {
     } finally {
       target.value = '';
     }
-  }
+  };
   reader.readAsText(file);
 };
 
@@ -675,7 +676,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col min-w-0" v-loading="isLoading">
+  <div v-loading="isLoading" class="h-full flex flex-col min-w-0">
     <!-- Top Action Bar -->
     <div
       class="border-b px-4 py-3 sm:px-6 shrink-0 transition-colors duration-300"
@@ -704,9 +705,7 @@ onMounted(() => {
             class="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl text-[10px] font-bold animate-pulse"
           >
             <AlertTriangle class="w-3.5 h-3.5" />
-            <span>{{
-              $t('admin.there_are_unsaved_changes')
-            }}</span>
+            <span>{{ $t('admin.there_are_unsaved_changes') }}</span>
           </div>
           <input
             ref="importFileInputRef"
@@ -807,7 +806,8 @@ onMounted(() => {
               <span class="settings-eyebrow">SYSTEM CONTROL</span>
               <h2>{{ activeTabMeta.label }}</h2>
               <p>
-                当前配置完整度 {{ configurationCompleteness }}%，修改会先在页面暂存，保存后同步到服务端配置中心。
+                当前配置完整度
+                {{ configurationCompleteness }}%，修改会先在页面暂存，保存后同步到服务端配置中心。
               </p>
             </div>
             <div class="settings-signal-grid">
@@ -833,55 +833,40 @@ onMounted(() => {
           <div class="w-full">
             <main class="settings-main-column min-w-0 space-y-4">
               <!-- General Settings -->
-              <GeneralSettingsTab
-                v-if="activeTab === 'general'"
-                v-model:settings="settings"
-              />
+              <GeneralSettingsTab v-if="activeTab === 'general'" v-model:settings="settings" />
 
               <!-- Branding Settings -->
-              <BrandingSettingsTab
-                v-if="activeTab === 'branding'"
-                v-model:settings="settings"
-              />
+              <BrandingSettingsTab v-if="activeTab === 'branding'" v-model:settings="settings" />
 
               <!-- Security Settings -->
-              <SecuritySettingsTab
-                v-if="activeTab === 'security'"
-                v-model:settings="settings"
-              />
+              <SecuritySettingsTab v-if="activeTab === 'security'" v-model:settings="settings" />
 
               <!-- Upload Settings -->
               <UploadSettingsTab
-                v-slot="{}"
                 v-if="activeTab === 'upload'"
+                v-slot="{}"
                 v-model:settings="settings"
               />
 
               <!-- SMTP Settings -->
               <SmtpSettingsTab
-                v-slot="{}"
                 v-if="activeTab === 'smtp'"
+                v-slot="{}"
                 v-model:settings="settings"
               />
 
               <!-- Social Settings -->
-              <SocialSettingsTab
-                v-if="activeTab === 'social'"
-                v-model:settings="settings"
-              />
+              <SocialSettingsTab v-if="activeTab === 'social'" v-model:settings="settings" />
 
               <!-- Email Template Settings -->
-              <TemplateSettingsTab
-                v-if="activeTab === 'template'"
-                v-model:settings="settings"
-              />
+              <TemplateSettingsTab v-if="activeTab === 'template'" v-model:settings="settings" />
 
               <!-- AI Configuration Tab -->
               <AiSettingsTab
                 v-if="activeTab === 'ai'"
                 v-model:settings="settings"
-                v-model:aiModelConfigs="aiModelConfigs"
-                v-model:pendingModelFamilyIds="pendingModelFamilyIds"
+                v-model:ai-model-configs="aiModelConfigs"
+                v-model:pending-model-family-ids="pendingModelFamilyIds"
               />
             </main>
           </div>
@@ -890,3 +875,218 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.settings-command-center {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-base);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.settings-command-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-eyebrow {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.settings-command-copy h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.settings-command-copy p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.settings-signal-grid {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  max-width: 48rem;
+}
+
+.settings-signal-card {
+  --settings-tone: #2563eb;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--settings-tone) 22%, var(--border-base));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--settings-tone) 7%, var(--bg-card));
+  padding: 6px 10px;
+}
+
+.settings-signal-card[data-tone='emerald'] {
+  --settings-tone: #059669;
+}
+
+.settings-signal-card[data-tone='sky'] {
+  --settings-tone: #0284c7;
+}
+
+.settings-signal-card[data-tone='amber'] {
+  --settings-tone: #d97706;
+}
+
+.settings-signal-card[data-tone='rose'] {
+  --settings-tone: #e11d48;
+}
+
+.settings-signal-card[data-tone='violet'] {
+  --settings-tone: #7c3aed;
+}
+
+.settings-signal-icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  color: var(--settings-tone);
+}
+
+.settings-signal-value {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.settings-signal-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.settings-signal-detail {
+  display: block;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-main-column .rounded-3xl,
+.settings-main-column .rounded-2xl,
+.settings-main-column .rounded-xl {
+  border-radius: 8px !important;
+}
+
+.settings-main-column > div > section {
+  padding: 18px !important;
+}
+
+.settings-main-column > div {
+  gap: 12px !important;
+}
+
+.settings-main-column section .grid {
+  gap: 12px !important;
+}
+
+.settings-main-column section > div:first-child.flex {
+  margin-bottom: 12px !important;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.animate-in {
+  animation: animate-in 0.5s ease-out;
+}
+@keyframes animate-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 1120px) {
+  .settings-command-center {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .settings-signal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .settings-command-copy p {
+    display: none;
+  }
+
+  .settings-signal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-command-center {
+    padding: 6px 10px;
+  }
+
+  .settings-signal-grid {
+    gap: 4px;
+  }
+
+  .settings-signal-card {
+    padding: 4px 8px;
+    gap: 6px;
+  }
+
+  .settings-signal-icon {
+    width: 13px;
+    height: 13px;
+  }
+
+  .settings-signal-value {
+    font-size: 11px;
+  }
+
+  .settings-signal-label {
+    font-size: 8px;
+  }
+
+  .settings-signal-detail {
+    font-size: 8px;
+  }
+}
+</style>

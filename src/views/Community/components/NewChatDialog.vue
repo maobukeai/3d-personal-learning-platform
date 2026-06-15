@@ -5,6 +5,8 @@ import { Search, Plus, User as UserIcon } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import api from '@/utils/api';
 import { ElMessage } from 'element-plus';
+import Modal from '@/components/ui/Modal.vue';
+import Input from '@/components/ui/Input.vue';
 
 interface ChatUser {
   id: string;
@@ -69,24 +71,18 @@ const handleClose = () => {
 </script>
 
 <template>
-  <el-dialog
-    :model-value="modelValue"
+  <Modal
+    :show="modelValue"
     :title="t('messages.startNewChat') || '发起新聊天'"
-    width="min(400px, 95%)"
-    class="custom-dialog"
-    :show-close="true"
-    destroy-on-close
-    @update:model-value="handleClose"
+    size="sm"
+    @close="handleClose"
   >
     <div class="space-y-4">
-      <div class="relative">
-        <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
+      <div>
+        <Input
           v-model="userSearchQuery"
-          type="text"
           :placeholder="t('community.teamDetail.searchUserPlaceholder')"
-          class="w-full pl-9 pr-3.5 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
-          style="color: var(--text-primary)"
+          :icon="Search"
         />
       </div>
 
@@ -126,5 +122,5 @@ const handleClose = () => {
         </div>
       </div>
     </div>
-  </el-dialog>
+  </Modal>
 </template>

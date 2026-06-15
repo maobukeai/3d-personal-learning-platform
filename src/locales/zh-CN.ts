@@ -21,6 +21,12 @@ export default {
     notSet: '未设定',
     view: '查看',
     submit: '提交',
+    time: {
+      justNow: '刚刚',
+      minutesAgo: '{n}分钟前',
+      hoursAgo: '{n}小时前',
+      daysAgo: '{n}天前',
+    },
   },
   settings: {
     title: '设置',
@@ -198,6 +204,7 @@ export default {
     high: '高',
     medium: '中',
     low: '低',
+    unassigned: '未指派',
     addTask: '添加任务',
     searchPlaceholder: '搜索任务...',
     all: '全部',
@@ -252,9 +259,9 @@ export default {
     noPriority: '无优先级',
     groupByStatus: '按状态',
     groupByPriority: '按优先级',
-    groupBy: '分组方式:',
+    groupBy: '分组:',
     time: '时间:',
-    status: '状态:',
+    statusLabel: '状态:',
     priority: '优先级:',
     hideCompleted: '隐藏已完成',
     onlyMy: '仅看我的',
@@ -272,7 +279,7 @@ export default {
     resetAllFilters: '重置所有筛选',
     newProject: '新建项目',
     newTask: '新建任务',
-    sortBy: '排序方式:',
+    sortBy: '排序:',
     sortNatural: '按自然顺序',
     sortCreatedAsc: '最早创建',
     sortCreatedDesc: '最新创建',
@@ -306,6 +313,7 @@ export default {
     switchToDrawer: '切换为抽屉模式',
     loadingDetails: '正在加载项目详情...',
     projectTasks: '项目任务',
+    projectProgress: '项目进度',
     learningPath: '学习路线',
     batchAdd: '批量添加',
     quickTaskPlaceholder: '在此输入新任务标题，按回车快速添加...',
@@ -316,7 +324,8 @@ export default {
     exploring: '探索中',
     explorerAnalyzer: '智能探索分析仪',
     stageDetailFocus: '阶段详情聚焦',
-    customStepTip: '当前阶段为您的自定义攻坚节点。配合下方的技能突破清单，探索该领域并攻克技术难题。',
+    customStepTip:
+      '当前阶段为您的自定义攻坚节点。配合下方的技能突破清单，探索该领域并攻克技术难题。',
     stepCompletedReset: '已攻克阶段 (重置)',
     stepCompleteTarget: '攻克阶段大纲目标',
     skillsChecklist: '技能突破细分任务',
@@ -374,7 +383,7 @@ export default {
     visibilityAndEnrollment: '可见性与报名',
     visibility: {
       private: '私有 (仅邀请)',
-      public: '公开 (成员可报名)'
+      public: '公开 (成员可报名)',
     },
     maxMembersLimit: '人员满载限制',
     categoryTags: '分类标签 (逗号分隔)',
@@ -390,7 +399,7 @@ export default {
     confirmApplyChanges: '确认并应用更改',
     startProject: '正式启动项目',
     validation: {
-      titleRequired: '请输入项目标题'
+      titleRequired: '请输入项目标题',
     },
     updateSuccess: '项目已更新',
     createSuccess: '项目已创建',
@@ -404,13 +413,13 @@ export default {
       purple: '霓虹紫',
       orange: '日落橙',
       rose: '蔷薇红',
-      accent: '品牌色'
+      accent: '品牌色',
     },
     status: {
       planned: '规划中',
       inProgress: '进行中',
       paused: '已暂停',
-      completed: '已完成'
+      completed: '已完成',
     },
     form: {
       editTitle: '配置工作流',
@@ -450,8 +459,8 @@ export default {
       updateFailed: '更新项目失败',
       createFailed: '创建项目失败',
       removeMemberSuccess: '已移出项目成员',
-      removeMemberFailed: '移除成员失败'
-    }
+      removeMemberFailed: '移除成员失败',
+    },
   },
   notes: {
     title: '我的笔记',
@@ -606,8 +615,8 @@ export default {
       visibilityPrivate: '私密',
       visibilityPublic: '公开',
       saveConfig: '保存配置',
-      syncNow: '一键同步'
-    }
+      syncNow: '一键同步',
+    },
   },
   roadmaps: {
     subtitle: '以科学的 3D 节点图谱指引成长，亦可自由编排专属学习战役',
@@ -634,7 +643,8 @@ export default {
     noGuidelines: '当前阶段暂无详细指引。点击即可在右侧面板查看智能技能 Checklist 及关联推荐。',
     analyzerTitle: '智能探索分析仪',
     stageFocus: '阶段聚焦',
-    customStageDesc: '当前阶段为您的自定义攻坚节点。配合下方的技能突破清单，探索该领域并攻克技术难题。',
+    customStageDesc:
+      '当前阶段为您的自定义攻坚节点。配合下方的技能突破清单，探索该领域并攻克技术难题。',
     stepCompletedReset: '已攻克阶段（重置）',
     conquerStage: '攻克阶段大纲目标',
     metricsTitle: '技能属性评估',
@@ -646,7 +656,8 @@ export default {
     recommendCoursesTitle: '智能推荐关联课程',
     goMaster: '去掌握',
     noRoadmapsTitle: '暂无任何学习路径',
-    noRoadmapsDesc: '平台还未添加系统推荐学习路径，您可以点击左侧“规划个性化学习路径”设计属于您自己的成长路线大纲。',
+    noRoadmapsDesc:
+      '平台还未添加系统推荐学习路径，您可以点击左侧“规划个性化学习路径”设计属于您自己的成长路线大纲。',
     noSelectionTitle: '未选定攻坚路线',
     noSelectionDesc: '请从左侧选择一条推荐路径或您自己的自定义计划，开启 3D 技能探索。',
     editRoadmapTitle: '编辑我的学习路线',
@@ -683,7 +694,7 @@ export default {
     exportSuccess: '大纲已成功导出为 Markdown 文件！',
     defaultStepTitle: '阶段 {n}: 起步入门',
     stepTitlePrefix: '阶段 {n}: ',
-    'export': {
+    export: {
       title: '# 学习路线大纲: {title}\n\n',
       stagesHeader: '## 学习大纲阶段拆解 ({n} 个阶段)\n\n',
       stageTitle: '### 阶段 {n}: {title}{status}\n',
@@ -691,8 +702,8 @@ export default {
       checklistHeader: '*技能点精通清单：*\n',
       coursesHeader: '*建议搭配学习平台课程：*\n',
       difficulty: '难度',
-      footer: '\n*导出时间: {time} | 3D 个人探索式学习空间*'
-    }
+      footer: '\n*导出时间: {time} | 3D 个人探索式学习空间*',
+    },
   },
   academy: {
     title: '学院课程',
@@ -981,11 +992,12 @@ export default {
     namePlaceholder: '请输入插件名称',
     // Categories
     catAll: '全部插件',
-    catBlender: 'Blender 插件',
-    catThreejs: 'Three.js 插件',
-    catSubstance: 'Substance 工具',
-    catUnityUnreal: '游戏引擎插件',
-    catPhotoshop: 'Photoshop 脚本',
+    catModeling: '建模',
+    catMaterial: '材质与纹理',
+    catRender: '渲染与灯光',
+    catRigging: '动画与骨骼',
+    catExport: '导入与导出',
+    catPhysics: '物理与特效',
     catOther: '其他工具',
   },
   myWorks: {
@@ -1186,7 +1198,8 @@ export default {
       templateQuestion: '问答模板',
       templateQuestionTitle: '例如：如何在 Blender 中导出 glTF 骨骼动画？',
       templateQuestionTags: 'Blender, 动画',
-      templateQuestionContent: '**遇到的问题：**\n\n**使用的软件版本：**\n\n**已尝试过的解决方法：**',
+      templateQuestionContent:
+        '**遇到的问题：**\n\n**使用的软件版本：**\n\n**已尝试过的解决方法：**',
       templateShare: '分享模板',
       templateShareTitle: '例如：分享一个有趣的 Three.js 视觉场景配置',
       templateShareTags: 'ThreeJS, 渲染',
@@ -1233,7 +1246,8 @@ export default {
       back: '返回',
       collaborateTitle: '找到属于你的',
       collaborateSub: '创意团队',
-      welcomeText: '在这里，你可以创建自己的学习小组，或者加入志同道合的团队。共享资产、协作项目，共同见证创意的诞生。',
+      welcomeText:
+        '在这里，你可以创建自己的学习小组，或者加入志同道合的团队。共享资产、协作项目，共同见证创意的诞生。',
       assetLib: '专属资产库',
       realtimeCollab: '实时协作',
       tutorSupport: '导师辅导',
@@ -1352,6 +1366,7 @@ export default {
       changeCover: '更换封面',
       changeAvatar: '更换头像',
       updateSuccess: '团队资料已更新',
+      updateFailed: '更新团队资料失败',
       leaveBtn: '退出团队',
       leaveConfirm: '确定要退出该团队吗？退出后将无法访问团队数据。',
       dissolveTitle: '永久解散此团队',
@@ -1383,7 +1398,8 @@ export default {
       sendBtn: '发送',
       selectMemberWarning: '请选择至少一名成员',
       selectedCount: '已选择',
-      dissolveWarning: '这是一项高危操作。如果您确定要解散 <strong>{name}</strong>，请完成安全验证。',
+      dissolveWarning:
+        '这是一项高危操作。如果您确定要解散 <strong>{name}</strong>，请完成安全验证。',
       twoFactorLabel: '两步验证码',
       emailCodeLabel: '邮箱验证码',
       getCodeBtn: '获取',
@@ -1462,9 +1478,8 @@ export default {
       download: '下载',
       micAccessFailed: '无法访问麦克风',
       playing: '播放中',
-    }
-  }
-,
+    },
+  },
   error: {
     unknown: '发生了未知错误',
     pageError: '页面出现错误',
@@ -1479,7 +1494,8 @@ export default {
     submit_success_toast: '报告已提交，感谢你的反馈',
     submit_failed: '提交失败，请重试',
     maintenance: '系统维护中',
-    maintenance_desc: '为了给您提供更好的体验，正在进行系统升级与维护。请稍后再来，感谢您的理解与配合。',
+    maintenance_desc:
+      '为了给您提供更好的体验，正在进行系统升级与维护。请稍后再来，感谢您的理解与配合。',
     optimizing_engine: '正在优化 3D 渲染引擎...',
     if_you_are_admin: '如果您是管理员',
     enter_admin: '进入后台管理',
@@ -1500,7 +1516,8 @@ export default {
     issue_summary: '问题摘要',
     issue_summary_placeholder: '请用一句话简述你遇到的问题...',
     detailed_desc: '详细描述',
-    detailed_desc_placeholder: '请详细描述问题发生的步骤、预期结果以及实际结果。如果可以，请附带你的系统环境信息。',
+    detailed_desc_placeholder:
+      '请详细描述问题发生的步骤、预期结果以及实际结果。如果可以，请附带你的系统环境信息。',
     attachment_label: '附件/截图 (可选)',
     upload_tip: '点击或拖拽图片到此处上传',
     upload_limits: '支持 PNG, JPG, GIF (最大 5MB)',
@@ -1509,7 +1526,8 @@ export default {
     submit_report_btn: '提交反馈报告',
     submitting: '提交中...',
     submit_success_title: '报告提交成功！',
-    submit_success_desc: '感谢你为完善平台做出的贡献。你可以继续浏览其他页面，或者在反馈历史中查看处理进度。',
+    submit_success_desc:
+      '感谢你为完善平台做出的贡献。你可以继续浏览其他页面，或者在反馈历史中查看处理进度。',
     submit_again: '再次提交',
     back_to_dashboard: '返回仪表盘',
     fetching_history: '正在获取反馈历史...',
@@ -1520,7 +1538,8 @@ export default {
     faq_title: '常见问题解答',
     faq_question: '如何导出支持 Web 端的 GLB 文件？',
     contact_support: '联系技术支持',
-    contact_support_desc: '如果你遇到了紧急的账号安全问题，请直接拨打我们的 24/7 技术支持热线或通过即时聊天联系我们。',
+    contact_support_desc:
+      '如果你遇到了紧急的账号安全问题，请直接拨打我们的 24/7 技术支持热线或通过即时聊天联系我们。',
     start_chat: '开启在线聊天',
     type_bug: '程序 Bug (功能异常)',
     type_feature: '功能建议 (新想法)',
@@ -1568,12 +1587,12 @@ export default {
   },
   tools: {
     email: {
-            understand_btn: '了解',
-            unknown_error: '未知错误',
-            operation_failed_msg: '操作失败: {error}',
-            batch_management: '多选管理',
-            email_marked_read: '邮件已标记为已读',
-            email_marked_unread: '邮件已标记为未读',
+      understand_btn: '了解',
+      unknown_error: '未知错误',
+      operation_failed_msg: '操作失败: {error}',
+      batch_management: '多选管理',
+      email_marked_read: '邮件已标记为已读',
+      email_marked_unread: '邮件已标记为未读',
       title: '微软邮箱集成系统',
       refresh_tooltip: '刷新账号列表',
       batch_import: '批量导入',
@@ -1622,12 +1641,13 @@ export default {
       safety_delay_desc: '正在通过微软 Graph 安全终点向网关推送，并应用延迟机制以防触发风控封禁...',
       import_dialog_title: '批量导入微软邮箱账号',
       import_instructions: '令牌导入与更新格式：',
-      import_format_p1: '首次导入格式：邮箱----密码----client_id----令牌(即微软OAuth2 refresh_token)',
+      import_format_p1:
+        '首次导入格式：邮箱----密码----client_id----令牌(即微软OAuth2 refresh_token)',
       import_format_p2: '更新已存在账号令牌格式：邮箱----新令牌',
       import_format_p3: '密码为空时首次导入可写：邮箱----client_id----令牌（支持多条换行）',
       import_textarea_placeholder: 'Microsoft Graph OAuth 刷新令牌值',
       default_proxy_label: '默认代理地址 (格式：http://ip:port 或 带密码)',
-      proxy_placeholder: 'http://username:password{\'@\'}proxy_host:port (空则使用服务器直连)',
+      proxy_placeholder: "http://username:password{'@'}proxy_host:port (空则使用服务器直连)",
       min_delay_label: '轮播随机延迟最小值 (秒)',
       max_delay_label: '轮播随机延迟最大值 (秒)',
       daily_limit_label: '每日最高上限 (封/天)',
@@ -1684,11 +1704,13 @@ export default {
       fetch_accounts_failed: '获取账号列表失败',
       description: '批量导入谷歌账号，依照专业策略每日逐步安全养号，降低封号风控概率。',
       recommendedIpSites: '检测 IP 纯净度工具推荐',
-      checkIpTip: '在登录谷歌或进行养号任务前，建议使用以下知名网站测试 IP 的地理位置、匿名程度与欺诈风险：',
+      checkIpTip:
+        '在登录谷歌或进行养号任务前，建议使用以下知名网站测试 IP 的地理位置、匿名程度与欺诈风险：',
       accountsList: '养号账号列表',
       addAccount: '导入账号',
       bulkImport: '批量导入谷歌账号',
-      importPlaceholder: '输入数据格式：邮箱----密码----辅助邮箱----2FA密钥----国家----备用密码----备注\n支持一行一条，若字段缺失可保留分隔符 ----',
+      importPlaceholder:
+        '输入数据格式：邮箱----密码----辅助邮箱----2FA密钥----国家----备用密码----备注\n支持一行一条，若字段缺失可保留分隔符 ----',
       aiParseBtn: 'AI 智能解析',
       standardParseBtn: '快速解析',
       importConfirm: '确认导入所选账号 ({count})',
@@ -1705,7 +1727,8 @@ export default {
       whoerDesc: '全面检测 IP 的位置、DNS 泄露、黑名单以及伪装度打分。',
       scamalyticsDesc: 'IP 欺诈评级与风险打分 (Fraud Score)，常用于检查是否被识别为代理。',
       ping0Desc: '国内备受推崇的 IP 纯净度检测工具，直观展示住宅/机房属性及多维风控评估。',
-      browserscanDesc: '新一代高级浏览器指纹检测工具，全面评估指纹唯一性、WebRTC 泄露及 IP 代理属性。',
+      browserscanDesc:
+        '新一代高级浏览器指纹检测工具，全面评估指纹唯一性、WebRTC 泄露及 IP 代理属性。',
       pixelscanDesc: '先进的机器人和指纹特征泄露检测工具，提供 IP 纯净度和地理位置信息评估。',
       browserleaksDesc: '全面的浏览器泄露与隐私测试工具，包括 WebRTC、Canvas 指纹及 IP 详情。',
       ipinfoDesc: '业界领先的 IP 地理位置、ASN、ISP 及代理检测 API 提供商。',
@@ -1721,33 +1744,47 @@ export default {
       deleteSuccess: '账号删除成功',
       questDays: {
         day1: '第一天：初始登录与信誉建立',
-        day1Desc: '在新指纹浏览器环境首次登录，成功后在收件箱中浏览/点击几封邮件即可，切忌修改核心密保或进行敏感操作。',
+        day1Desc:
+          '在新指纹浏览器环境首次登录，成功后在收件箱中浏览/点击几封邮件即可，切忌修改核心密保或进行敏感操作。',
         day2: '第二天：陌生设备清理与注册 Spotify',
-        day2Desc: '登录谷歌安全中心检查陌生设备；浏览邮箱，观看 YouTube 视频；使用谷歌账号注册并登录 Spotify。',
+        day2Desc:
+          '登录谷歌安全中心检查陌生设备；浏览邮箱，观看 YouTube 视频；使用谷歌账号注册并登录 Spotify。',
         day3: '第三天：绑定恢复邮箱与注册 Twitter',
-        day3Desc: '前往个人安全设置，绑定恢复邮箱；收发邮件，观看 YouTube，体验 Gemini AI；使用谷歌账号注册并登录 Twitter (X)。',
+        day3Desc:
+          '前往个人安全设置，绑定恢复邮箱；收发邮件，观看 YouTube，体验 Gemini AI；使用谷歌账号注册并登录 Twitter (X)。',
         day4: '第四天：安全验证配置与注册 TikTok',
-        day4Desc: '管理两步验证 (2FA)，考虑生成备用码或密钥；阅读邮件，观看 YouTube，使用 Gemini AI；使用谷歌账号注册并登录 TikTok。',
+        day4Desc:
+          '管理两步验证 (2FA)，考虑生成备用码或密钥；阅读邮件，观看 YouTube，使用 Gemini AI；使用谷歌账号注册并登录 TikTok。',
         day5: '第五天：绑定手机号码与注册 Notion',
-        day5Desc: '前往密保设置绑定密保手机号；浏览并收发邮件，看 YouTube，向 Gemini 提问；使用谷歌账号注册并登录 Notion。',
+        day5Desc:
+          '前往密保设置绑定密保手机号；浏览并收发邮件，看 YouTube，向 Gemini 提问；使用谷歌账号注册并登录 Notion。',
         day6: '第六天：日常养号活跃与注册 Canva',
-        day6Desc: '正常浏览并收发邮件，点赞/评论 YouTube 视频，进行少量搜索；使用谷歌账号注册并登录 Canva。',
+        day6Desc:
+          '正常浏览并收发邮件，点赞/评论 YouTube 视频，进行少量搜索；使用谷歌账号注册并登录 Canva。',
         day7: '第七天：核心登录密码修改与注册 Figma',
-        day7Desc: '更改谷歌账号的核心登录密码；检查并修改账号的国家地址；正常浏览收发邮件，观看 YouTube 点赞，使用 Gemini；使用谷歌账号注册并登录 Figma。',
+        day7Desc:
+          '更改谷歌账号的核心登录密码；检查并修改账号的国家地址；正常浏览收发邮件，观看 YouTube 点赞，使用 Gemini；使用谷歌账号注册并登录 Figma。',
         day8: '第八天：注册 Miro 与日常活跃',
-        day8Desc: '处理 Gmail 收件并回复，观看 YouTube，访问 Gemini 互动；使用谷歌账号注册并登录 Miro。',
+        day8Desc:
+          '处理 Gmail 收件并回复，观看 YouTube，访问 Gemini 互动；使用谷歌账号注册并登录 Miro。',
         day9: '第九天：注册 Miro (画板) 与日常活跃',
-        day9Desc: '处理日常 Gmail 邮件，观看 YouTube 并点赞，访问 Gemini；使用谷歌账号在 Miro 中创建一个新的设计画板。',
+        day9Desc:
+          '处理日常 Gmail 邮件，观看 YouTube 并点赞，访问 Gemini；使用谷歌账号在 Miro 中创建一个新的设计画板。',
         day10: '第十天：注册 Slack 与日常活跃',
-        day10Desc: '阅读 Gmail 邮件并回复一封常规邮件，观看 YouTube，与 Gemini 互动；使用谷歌账号注册并登录 Slack。',
+        day10Desc:
+          '阅读 Gmail 邮件并回复一封常规邮件，观看 YouTube，与 Gemini 互动；使用谷歌账号注册并登录 Slack。',
         day11: '第十一天：注册 ChatGPT 与日常活跃',
-        day11Desc: '处理 Gmail 并回复，观看 YouTube，体验 Gemini 聊天；使用谷歌账号注册并登录 ChatGPT 开启对话。',
+        day11Desc:
+          '处理 Gmail 并回复，观看 YouTube，体验 Gemini 聊天；使用谷歌账号注册并登录 ChatGPT 开启对话。',
         day12: '第十二天：注册 GitHub 与日常活跃',
-        day12Desc: '阅读最新邮件并回复，YouTube 观看视频，与 Gemini 聊天；使用谷歌账号注册并登录 GitHub 开发者账号。',
+        day12Desc:
+          '阅读最新邮件并回复，YouTube 观看视频，与 Gemini 聊天；使用谷歌账号注册并登录 GitHub 开发者账号。',
         day13: '第十三天：注册 Replit 与日常活跃',
-        day13Desc: '处理日常邮件收发，观看 YouTube 视频，体验 Gemini 聊天；使用谷歌账号注册并登录 Replit 云开发平台。',
+        day13Desc:
+          '处理日常邮件收发，观看 YouTube 视频，体验 Gemini 聊天；使用谷歌账号注册并登录 Replit 云开发平台。',
         day14: '第十四天：注册 Reddit 与长期稳定毕业',
-        day14Desc: '阅读最新邮件并回复一封，观看 YouTube 并互动，使用 Gemini 聊天；使用谷歌账号注册并登录 Reddit 完成养号毕业。'
+        day14Desc:
+          '阅读最新邮件并回复一封，观看 YouTube 并互动，使用 Gemini 聊天；使用谷歌账号注册并登录 Reddit 完成养号毕业。',
       },
       searchPlaceholder: '搜索邮箱、备注或国家/地区...',
       statusAll: '全部状态',
@@ -1784,8 +1821,8 @@ export default {
       importFailed: '导入失败，请检查备份文件格式',
       pin: '置顶',
       unpin: '取消置顶',
-      copied: '已复制'
-    }
+      copied: '已复制',
+    },
   },
   admin: {
     opened: '已开启',
@@ -1902,14 +1939,17 @@ export default {
     are_you_sure_you: '确定删除这个 AI 模型配置吗？',
     are_you_sure_you_1: '确定要从系统中移除分类 "{category}" 吗？',
     are_you_sure_you_10: '确定要删除资源「{resourcetitle}」吗？',
-    are_you_sure_you_11: '确定要删除资源站「{stationdisplayName}」吗？\\n\\n⚠️ 此操作将彻底删除此站点下所有手动上传的分类、资源以及相关的用户评论与点赞！\\n\\n此操作不可恢复！',
+    are_you_sure_you_11:
+      '确定要删除资源站「{stationdisplayName}」吗？\\n\\n⚠️ 此操作将彻底删除此站点下所有手动上传的分类、资源以及相关的用户评论与点赞！\\n\\n此操作不可恢复！',
     are_you_sure_you_12: '确定要删除这个分类吗？',
-    are_you_sure_you_13: '确定要删除这个官方路线吗？该操作不可逆，将级联清除该路线的所有步骤及用户的学习记录！',
+    are_you_sure_you_13:
+      '确定要删除这个官方路线吗？该操作不可逆，将级联清除该路线的所有步骤及用户的学习记录！',
     are_you_sure_you_14: '确定要删除这个课时吗？',
     are_you_sure_you_15: '确定要删除这个课程吗？所有关联的课时也将被删除。',
     are_you_sure_you_16: '确定要删除这条反馈记录吗？删除后无法恢复。',
     are_you_sure_you_17: '确定要删除配置方案 "{activeCfgname}" 吗？',
-    are_you_sure_you_18: '确定要删除镜像源「{sourcedisplayName}」吗？\\n\\n⚠️ 此操作将删除该镜像源的所有数据，包括：\\n• {param_1} 个同步资源\\n• {param_2} 个分类\\n• 所有同步日志\\n\\n此操作不可恢复！',
+    are_you_sure_you_18:
+      '确定要删除镜像源「{sourcedisplayName}」吗？\\n\\n⚠️ 此操作将删除该镜像源的所有数据，包括：\\n• {param_1} 个同步资源\\n• {param_2} 个分类\\n• 所有同步日志\\n\\n此操作不可恢复！',
     are_you_sure_you_19: '确定要取消该用户的订阅吗？',
     are_you_sure_you_2: '确定要删除 {param_0} 计划吗？此操作不可恢复。',
     are_you_sure_you_20: '确定要将成员 "{userName}" 移出团队吗？',
@@ -1919,9 +1959,11 @@ export default {
     are_you_sure_you_3: '确定要删除/失效该激活码 ({codecode}) 吗？此操作不可恢复。',
     are_you_sure_you_4: '确定要删除分类 "{typedCategoryname}" 吗？',
     are_you_sure_you_5: '确定要删除分类「{catname}」吗？关联该分类的资源会被设为「未分类」。',
-    are_you_sure_you_6: '确定要删除分类「{categoryname}」吗？\\n\\n⚠️ 删除分类不会删除其项下的资源（它们会转为未分类状态）。',
+    are_you_sure_you_6:
+      '确定要删除分类「{categoryname}」吗？\\n\\n⚠️ 删除分类不会删除其项下的资源（它们会转为未分类状态）。',
     are_you_sure_you_7: '确定要删除用户 {param_0} 的订阅吗？此操作不可恢复。',
-    are_you_sure_you_8: '确定要删除用户 {usernameuseremail} 吗？此操作不可逆，将删除其所有相关数据。',
+    are_you_sure_you_8:
+      '确定要删除用户 {usernameuseremail} 吗？此操作不可逆，将删除其所有相关数据。',
     are_you_sure_you_9: '确定要删除资源「{restitle}」吗？此操作不可恢复。',
     arrange_a_new_learning: '编排全新学习路线',
     asset_copyright_is_unknown: '资产版权不明或涉嫌侵权盗版',
@@ -1941,7 +1983,7 @@ export default {
     automatically_generated_from_legacy: '从旧版单模型配置自动生成',
     automatically_review_and_pass: '自动审核通过作品',
     automatically_review_approved_materials: '自动审核通过材料',
-    available_placeholders_code: '可用占位符: {\'{{code}}\'}',
+    available_placeholders_code: "可用占位符: {'{{code}}'}",
     badge_color: '徽章颜色',
     baidu_skydisk: '百度网盘',
     ban: '封禁',
@@ -1971,7 +2013,7 @@ export default {
     by_month: '按月',
     by_year: '按年',
     c4d_material_pack_renderer: 'C4D, 材质包, 渲染器',
-    c_bindemail_unlimited: 'c.bindEmail || \'无限制\'',
+    c_bindemail_unlimited: "c.bindEmail || '无限制'",
     called_back: '已打回',
     cancel: '取消',
     cancel_at_the_end: '周期结束取消',
@@ -2061,7 +2103,7 @@ export default {
     course_notes: '课程备注',
     course_or_project_link: '课程或项目链接 (支持 B站 / YouTube / GitHub)',
     course_published: '课程已发布',
-    course_status_published_convert: 'course.status === \'PUBLISHED\' ? \'转为草稿\' : \'发布课程\'',
+    course_status_published_convert: "course.status === 'PUBLISHED' ? '转为草稿' : '发布课程'",
     course_title: '课程标题',
     course_updated_successfully: '课程更新成功',
     courses: '课程',
@@ -2123,7 +2165,8 @@ export default {
     description_information: '描述信息',
     detailed_call_back_instructions: '详细打回说明 (必填)',
     detailed_description_remarks: '详细描述 / 备注',
-    detailed_introduction_and_usage: '编写资源的详细介绍与使用指南，支持 Markdown 排版、图片、表格及代码高亮...',
+    detailed_introduction_and_usage:
+      '编写资源的详细介绍与使用指南，支持 Markdown 排版、图片、表格及代码高亮...',
     details: '详情',
     diamond_members_and_above: '钻石会员及以上',
     difficulty_level: '难度等级',
@@ -2247,12 +2290,13 @@ export default {
     for_example_resource_cool: '例如: 资源酷',
     for_example_suitable_for: '例如：适合日常问答 / 支持长上下文',
     for_example_technology_cyberpunk: '例如: 科技, cyberpunk, 游戏场景...',
-    for_example_vip_the: '如 \'VIP\'，格式将为 VIP-PLAN-XXXX...',
+    for_example_vip_the: "如 'VIP'，格式将为 VIP-PLAN-XXXX...",
     for_example_wood_grain: '例如: 木纹, 金属...',
     for_example_you_are: '例如：你是一个专业的技术写作助手，请使用简洁的中文回答问题...',
     for_example_zhang_san: '例如: 张三',
     for_example_zycku: '例如: zycku',
-    for_the_route_being: '：对正在被学习的路线，请避免删除有用户进度的节点。修改标题及添加新步骤是完全无损安全的。',
+    for_the_route_being:
+      '：对正在被学习的路线，请避免删除有用户进度的节点。修改标题及添加新步骤是完全无损安全的。',
     forced_rejection_rejected: '强制打回退稿 (REJECTED)',
     free_for_all: '全员免费',
     free_users_and_above: '免费用户及以上 (无限制)',
@@ -2267,7 +2311,7 @@ export default {
     getting_started: '入门',
     give_a_brief_introduction: '对本资源站点的精品资源做个简要的介绍...',
     half_a_year: '半年',
-    hello_your_verification_code: '您好，您的验证码是：{\'{{code}}\'}。请在 10 分钟内输入。',
+    hello_your_verification_code: "您好，您的验证码是：{'{{code}}'}。请在 10 分钟内输入。",
     hide_advanced_parameters: '隐藏高级参数',
     high: '高',
     hot_topics: '热点标题',
@@ -2290,13 +2334,14 @@ export default {
     indoor_workshop: '室内工作间',
     initial_password: '初始密码 *',
     insufficient_relevance_to_the: '与平台3D/创意学习主旨关联性不足',
-    introduce_advanced_editing_instructions: '引入进阶编辑指令，完成具有一定复杂度的完整实体作品，学会材质与灯光的基础配置',
+    introduce_advanced_editing_instructions:
+      '引入进阶编辑指令，完成具有一定复杂度的完整实体作品，学会材质与灯光的基础配置',
     introduce_basic_tool_interface: '介绍基础的工具界面布局、关键操作快捷键，完成简单的几何体搭建',
     introduce_your_platform_in: '一句话介绍你的平台...',
-    isedit_edit_category_name: 'isEdit ? \'编辑分类名称\' : \'添加资源分类\'',
-    isedit_edit_manual_resource: 'isEdit ? \'编辑手动资源站\' : \'创建手动资源站\'',
-    iseditingcategory_editing_category_name: 'isEditingCategory ? \'编辑分类名称\' : \'添加资源分类\'',
-    issaving_saving_saving_global: 'isSaving ? \'正在保存...\' : \'保存全局设置\'',
+    isedit_edit_category_name: "isEdit ? '编辑分类名称' : '添加资源分类'",
+    isedit_edit_manual_resource: "isEdit ? '编辑手动资源站' : '创建手动资源站'",
+    iseditingcategory_editing_category_name: "isEditingCategory ? '编辑分类名称' : '添加资源分类'",
+    issaving_saving_saving_global: "isSaving ? '正在保存...' : '保存全局设置'",
     json_array_format_such: 'JSON数组格式, 如: ["3D", "教程"]',
     jump_link_optional: '跳转链接 (可选)',
     keep_at_least_one: '至少保留一个 AI 模型配置',
@@ -2371,7 +2416,7 @@ export default {
     model: '模型',
     model_assets: '模型资产',
     model_id: '模型 ID',
-    model_isdefault_current_default: 'model.isDefault ? \'当前默认模型\' : \'设为默认模型\'',
+    model_isdefault_current_default: "model.isDefault ? '当前默认模型' : '设为默认模型'",
     model_pool_configuration: '模型池配置',
     model_thinking_flow_display: '🧠 模型思考流显示',
     monthly_card: '月卡',
@@ -2419,8 +2464,10 @@ export default {
     official_reply: '官方回复',
     official_route: '官方路线',
     ok: '确定',
-    ollama_local_models_do: '>Ollama 本地模型无需 API Key。请确保 Ollama 已在服务器本地运行，并且目标模型已通过 <code class=',
-    ollama_local_models_do_1: 'Ollama 本地模型无需 API Key。请确保 Ollama 已在服务器本地运行，并且目标模型已通过',
+    ollama_local_models_do:
+      '>Ollama 本地模型无需 API Key。请确保 Ollama 已在服务器本地运行，并且目标模型已通过 <code class=',
+    ollama_local_models_do_1:
+      'Ollama 本地模型无需 API Key。请确保 Ollama 已在服务器本地运行，并且目标模型已通过',
     one_click_generation_of: '🎯 AI 项目一键生成',
     only_available_for_redemption: '仅限指定邮箱用户兑换',
     only_exists_on_the: '&mdash; 仅存于服务端',
@@ -2490,7 +2537,8 @@ export default {
     please_enter_specific_violations: '请输入具体的违规或优化建议...',
     please_enter_the_category: '请输入分类名称',
     please_enter_the_class: '请输入课时标题',
-    please_enter_the_email: '请输入接收测试邮件的邮箱地址（建议使用本方案的发信邮箱或已验证收件人）：',
+    please_enter_the_email:
+      '请输入接收测试邮件的邮箱地址（建议使用本方案的发信邮箱或已验证收件人）：',
     please_enter_the_learning: '请输入学习路线名称',
     please_enter_the_user: '请输入该用户的新密码（至少6位）',
     please_fill_in_the: '请填写团队名称并选择负责人',
@@ -2665,7 +2713,7 @@ export default {
     success: '成功',
     successfully_matched_binding: '成功匹配绑定',
     such_as_5: '如 5',
-    such_as_activity_gift: '如 \'活动赠送\'、\'测试激活码\'',
+    such_as_activity_gift: "如 '活动赠送'、'测试激活码'",
     such_as_c4d_assets: '如: c4d_assets',
     such_as_cinema_4d: '如: Cinema 4D 手动资源站',
     such_as_premium_texture: '如: 精品材质包',
@@ -2731,7 +2779,8 @@ export default {
     there_is_no_classification: '暂无分类数据，请先创建分类',
     there_is_no_route: '暂无路线描述，点击右上角编辑按钮进行补充。',
     this_action_returns_all: '此操作将所有设置恢复为默认值，未保存的更改将丢失。确定继续？',
-    this_operation_will_scan: '此操作将扫描服务器的本地上传目录，并永久物理删除所有未被数据库记录引用的孤儿文件（如已删除帖子的插图、未保存成功的草稿附件等）。此操作不可逆。确定继续？',
+    this_operation_will_scan:
+      '此操作将扫描服务器的本地上传目录，并永久物理删除所有未被数据库记录引用的孤儿文件（如已删除帖子的插图、未保存成功的草稿附件等）。此操作不可逆。确定继续？',
     this_resource_site_has: '此资源站暂未配置任何分类...',
     through_works: '通过作品',
     thumbnail_url: '缩略图URL',
@@ -2798,7 +2847,7 @@ export default {
     user_management: '用户管理',
     user_name: '用户姓名',
     user_role: '用户角色',
-    user_status_banned_unblock: 'user.status === \'BANNED\' ? \'解封\' : \'封禁\'',
+    user_status_banned_unblock: "user.status === 'BANNED' ? '解封' : '封禁'",
     user_user_name_user: '用户 {usernameuseremail} 已{actionText}',
     username_optional: '用户姓名 (可选)',
     valid_permanently: '永久有效',
@@ -2817,9 +2866,10 @@ export default {
     work_display: '作品展示',
     writing_to_database: '正在写入数据库...',
     yearly_payment_plan_yearlyprice: '/ 年付 ￥{planyearlyPrice}',
-    you_have_switched_the: '⚠️ 您已切换发送模式为“{mode}”，该修改尚未生效。请务必点击页面右上角的“保存全局设置”按钮！',
+    you_have_switched_the:
+      '⚠️ 您已切换发送模式为“{mode}”，该修改尚未生效。请务必点击页面右上角的“保存全局设置”按钮！',
     your_email_verification_code: '您的邮箱验证码',
     your_reply: '你的回复',
     zycku_resource_cool: 'Zycku (资源酷)',
-  }
+  },
 };

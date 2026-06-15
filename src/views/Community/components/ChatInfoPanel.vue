@@ -72,7 +72,11 @@ const formatDateSeparator = (date: string | Date) => {
   if (d.toDateString() === today.toDateString()) return t('community.chat.today');
   if (d.toDateString() === yesterday.toDateString()) return t('community.chat.yesterday');
 
-  return d.toLocaleDateString(authStore.user?.language === 'en' ? 'en-US' : 'zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+  return d.toLocaleDateString(authStore.user?.language === 'en' ? 'en-US' : 'zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 };
 
 const openLink = (url: string) => {
@@ -90,16 +94,36 @@ const openLink = (url: string) => {
       class="p-3.5 sm:p-4 border-b flex items-center justify-between shrink-0"
       style="border-color: var(--border-base)"
     >
-      <h3 class="text-xs font-bold" style="color: var(--text-primary)">{{ t('community.chat.infoTitle') }}</h3>
-      <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-all cursor-pointer" @click="emit('update:modelValue', false)">
+      <h3 class="text-xs font-bold" style="color: var(--text-primary)">
+        {{ t('community.chat.infoTitle') }}
+      </h3>
+      <button
+        type="button"
+        class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-all cursor-pointer"
+        @click="emit('update:modelValue', false)"
+      >
         <X class="w-3.5 h-3.5" style="color: var(--text-muted)" />
       </button>
     </div>
 
     <!-- Tabs Header -->
     <div class="flex p-0.5 gap-0.5 mx-3 mt-3 rounded-lg bg-[var(--bg-app)] shrink-0">
-      <button v-for="tab in infoTabs" :key="tab" type="button" class="flex-1 py-1 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider cursor-pointer" :class="infoTab === tab ? 'bg-[var(--bg-card)] shadow-sm' : 'text-[var(--text-muted)]'" :style="infoTab === tab ? 'color: var(--text-primary)' : ''" @click="infoTab = tab">
-        {{ tab === 'info' ? t('community.chat.infoTab') : tab === 'photos' ? t('community.chat.photosTab') : t('community.chat.filesTab') }}
+      <button
+        v-for="tab in infoTabs"
+        :key="tab"
+        type="button"
+        class="flex-1 py-1 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider cursor-pointer"
+        :class="infoTab === tab ? 'bg-[var(--bg-card)] shadow-sm' : 'text-[var(--text-muted)]'"
+        :style="infoTab === tab ? 'color: var(--text-primary)' : ''"
+        @click="infoTab = tab"
+      >
+        {{
+          tab === 'info'
+            ? t('community.chat.infoTab')
+            : tab === 'photos'
+              ? t('community.chat.photosTab')
+              : t('community.chat.filesTab')
+        }}
       </button>
     </div>
 
@@ -117,14 +141,20 @@ const openLink = (url: string) => {
             :class="activeConversation.avatarUrl ? '' : 'bg-indigo-500/10'"
             style="border-color: var(--border-base)"
           >
-            <img v-if="activeConversation.avatarUrl" alt="" :src="activeConversation.avatarUrl" class="w-14 h-14 rounded-xl object-cover" />
+            <img
+              v-if="activeConversation.avatarUrl"
+              alt=""
+              :src="activeConversation.avatarUrl"
+              class="w-14 h-14 rounded-xl object-cover"
+            />
             <Users v-else class="w-6 h-6 text-indigo-500" />
           </div>
           <h3 class="text-sm sm:text-base font-bold mb-0.5" style="color: var(--text-primary)">
             {{ activeConversation.name || t('community.chat.unnamedGroup') }}
           </h3>
           <p class="text-[11px]" style="color: var(--text-muted)">
-            {{ t('community.chat.groupChat') }} · {{ activeConversation.participants?.length || 0 }} {{ t('messages.groupParticipants') }}
+            {{ t('community.chat.groupChat') }} · {{ activeConversation.participants?.length || 0 }}
+            {{ t('messages.groupParticipants') }}
           </p>
         </div>
 
@@ -172,7 +202,11 @@ const openLink = (url: string) => {
             class="text-[10px] font-bold uppercase tracking-wider mb-2"
             style="color: var(--text-muted)"
           >
-            {{ activeConversation.isGroup ? t('community.chat.groupMembers') : t('community.teamDetail.spaceLabel') }}
+            {{
+              activeConversation.isGroup
+                ? t('community.chat.groupMembers')
+                : t('community.teamDetail.spaceLabel')
+            }}
           </h4>
           <div class="space-y-1.5">
             <div
@@ -207,7 +241,11 @@ const openLink = (url: string) => {
 
           <!-- Group Actions -->
           <div v-if="activeConversation.isGroup" class="mt-4 space-y-1.5">
-            <button type="button" class="w-full py-2 px-3 flex items-center gap-2.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all text-xs font-medium cursor-pointer" @click="emit('leave-group')">
+            <button
+              type="button"
+              class="w-full py-2 px-3 flex items-center gap-2.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all text-xs font-medium cursor-pointer"
+              @click="emit('leave-group')"
+            >
               <LogOut class="w-3.5 h-3.5" />
               {{ t('community.chat.leaveGroup') }}
             </button>
@@ -228,7 +266,11 @@ const openLink = (url: string) => {
             class="aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-all border border-[var(--border-base)]"
             @click="openLink(api.defaults.baseURL + photo.url)"
           >
-            <img alt="" :src="api.defaults.baseURL + photo.url" class="w-full h-full object-cover" />
+            <img
+              alt=""
+              :src="api.defaults.baseURL + photo.url"
+              class="w-full h-full object-cover"
+            />
           </div>
         </div>
       </div>

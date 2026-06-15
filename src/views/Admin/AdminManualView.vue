@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
@@ -35,6 +35,8 @@ import MarkdownEditor from '@/components/MarkdownEditor.vue';
 import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import { fetchManagementInsights } from './adminManagementInsights';
 import ManualStationDialog from './components/ManualStationDialog.vue';
+import StationResourcesTab from './components/StationResourcesTab.vue';
+import StationCategoriesTab from './components/StationCategoriesTab.vue';
 
 const previewMode = ref<'edit' | 'live' | 'preview'>('edit');
 
@@ -213,15 +215,6 @@ const parsedNetdisk = computed(() => {
   };
 });
 
-function handleEditorKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-    e.preventDefault();
-    if (showResourceDialog.value) {
-      saveResource();
-    }
-  }
-}
-
 const statusFilter = ref<'ALL' | 'ACTIVE' | 'DISABLED'>('ALL');
 const setStatusFilter = (key: string) => {
   if (key === 'ALL' || key === 'ACTIVE' || key === 'DISABLED') {
@@ -241,6 +234,98 @@ const filteredStations = computed(() => {
   });
 });
 
+const stationResourcesTabRef = ref<any>(null);
+const stationCategoriesTabRef = ref<any>(null);
+
+async function handleExpandStation(stationId: string) {
+  if (expandedStationId.value === stationId) {
+    expandedStationId.value = null;
+    return;
+  }
+  expandedStationId.value = stationId;
+  expandedTab.value = 'resources';
+
+  await fetchStationCategories(stationId);
+}
+
+async function fetchStationCategories(stationId: string) {
+  try {
+    const res = await api.get(`/api/manual/stations/${stationId}/categories`);
+    stationCategories.value = res.data;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function handleRefreshStation(stationId: string) {
+  await fetchStationCategories(stationId);
+  await fetchStations();
+}
+
+async function deleteStation(station: ManualStation) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除资源站「${station.displayName}」吗？\n\n⚠️ 此操作将彻底删除此站点下所有手动上传的分类、资源以及相关的用户评论与点赞！\n\n此操作不可恢复！`,
+      '确认删除手动资源站',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    );
+    await api.delete(`/api/admin/manual/stations/${station.id}`);
+    ElMessage.success('资源站删除成功');
+    if (expandedStationId.value === station.id) {
+      expandedStationId.value = null;
+    }
+    await fetchStations();
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.response?.data?.error || '删除失败');
+    }
+  }
+}
+
+const formattedManualCategories = computed(() => {
+  const categories = stationCategories.value;
+  const parentMap = new Map<string, ManualCategory[]>();
+  const topLevel: ManualCategory[] = [];
+
+  categories.forEach((cat) => {
+    if (cat.parentId) {
+      if (!parentMap.has(cat.parentId)) {
+        parentMap.set(cat.parentId, []);
+      }
+      parentMap.get(cat.parentId)!.push(cat);
+    }
+  });
+
+  categories.forEach((cat) => {
+    const hasParent = cat.parentId && categories.some((p) => p.id === cat.parentId);
+    if (!hasParent) {
+      topLevel.push(cat);
+    }
+  });
+
+  topLevel.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  const result: Array<ManualCategory> = [];
+
+  topLevel.forEach((parent) => {
+    result.push(parent);
+    const children = parentMap.get(parent.id) || [];
+    children.sort((a, b) => (a.order || 0) - (b.order || 0));
+    children.forEach((child) => {
+      result.push({
+        ...child,
+        name: `  └─ ${child.name}`,
+      });
+    });
+  });
+
+  return result;
+});
+
 onMounted(async () => {
   await fetchStations();
   const stationId = route.query.stationId as string;
@@ -250,11 +335,6 @@ onMounted(async () => {
       handleExpandStation(stationId);
     }
   }
-  window.addEventListener('keydown', handleEditorKeydown);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleEditorKeydown);
 });
 </script>
 
@@ -537,24 +617,22 @@ onUnmounted(() => {
                 <div class="flex gap-2">
                   <button
                     type="button"
-                    class="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5"
-                    :class="
-                      expandedTab === 'resources'
-                        ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200/40 dark:border-slate-700/40'
-                        : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                    "
+                    class="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer border-none bg-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    :class="{
+                      'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200/40 dark:border-slate-700/40':
+                        expandedTab === 'resources',
+                    }"
                     @click="expandedTab = 'resources'"
                   >
-                    <FileText class="w-4 h-4" /> 资源库 ({{ resourceTotal }})
+                    <FileText class="w-4 h-4" /> 资源库
                   </button>
                   <button
                     type="button"
-                    class="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5"
-                    :class="
-                      expandedTab === 'categories'
-                        ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200/40 dark:border-slate-700/40'
-                        : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                    "
+                    class="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer border-none bg-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    :class="{
+                      'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200/40 dark:border-slate-700/40':
+                        expandedTab === 'categories',
+                    }"
                     @click="expandedTab = 'categories'"
                   >
                     <Layers class="w-4 h-4" /> 分类配置 ({{ stationCategories.length }})
@@ -564,222 +642,40 @@ onUnmounted(() => {
                 <button
                   v-if="expandedTab === 'resources'"
                   type="button"
-                  class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 text-xs font-semibold transition-all"
-                  @click="openCreateResource"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 text-xs font-semibold transition-all cursor-pointer border-none"
+                  @click="stationResourcesTabRef?.openCreateResource()"
                 >
                   <Plus class="w-3.5 h-3.5" /> 上传资源
                 </button>
                 <button
                   v-else
                   type="button"
-                  class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 text-xs font-semibold transition-all"
-                  @click="openCreateCategory"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 text-xs font-semibold transition-all cursor-pointer border-none"
+                  @click="stationCategoriesTabRef?.openCreateCategory()"
                 >
                   <Plus class="w-3.5 h-3.5" /> 添加分类
                 </button>
               </div>
 
               <!-- TAB 1: RESOURCES MANAGEMENT -->
-              <div v-if="expandedTab === 'resources'" class="space-y-4">
-                <!-- Search & Filters -->
-                <div class="flex flex-col sm:flex-row gap-3">
-                  <div class="relative flex-1">
-                    <Search
-                      class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
-                    />
-                    <input
-                      v-model="resourceSearch"
-                      type="text"
-                      :placeholder="$t('admin.enter_keyword_and_press')"
-                      class="w-full pl-10 pr-4 py-2 text-xs border border-slate-200 dark:border-slate-800 rounded-xl focus:border-cyan-500 outline-none bg-white dark:bg-slate-900/60"
-                      @keydown.enter="handleResourceSearch"
-                    />
-                  </div>
-                  <select
-                    v-model="resourceCategoryFilter"
-                    class="px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 rounded-xl focus:border-cyan-500 outline-none bg-white dark:bg-slate-900/60 text-slate-600 dark:text-slate-300 min-w-[150px]"
-                    @change="handleCategoryFilterChange"
-                  >
-                    <option :value="null">{{ $t('admin.all_categories_1') }}</option>
-                    <option v-for="cat in formattedManualCategories" :key="cat.id" :value="cat.id">
-                      {{ cat.name }}
-                    </option>
-                  </select>
-                </div>
-
-                <!-- Resource List Loading -->
-                <div v-if="isLoadingResources" class="flex justify-center py-10">
-                  <Loader2 class="w-8 h-8 text-cyan-500 animate-spin" />
-                </div>
-
-                <!-- Empty Resources -->
-                <div
-                  v-else-if="resourceList.length === 0"
-                  class="flex flex-col items-center justify-center py-12 bg-white dark:bg-slate-900/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl"
-                >
-                  <FileText class="w-8 h-8 text-slate-300 mb-2" />
-                  <p class="text-xs text-slate-400">
-                    {{ $t('admin.no_resources_were_retrieved') }}
-                  </p>
-                </div>
-
-                <!-- Resources List -->
-                <div v-else class="space-y-2">
-                  <div
-                    v-for="res in resourceList"
-                    :key="res.id"
-                    class="flex items-center justify-between p-3 bg-white dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-800/55 rounded-xl hover:border-slate-300 dark:hover:border-slate-700 transition-all gap-4"
-                  >
-                    <div class="flex items-center gap-3 min-w-0 flex-1">
-                      <div
-                        v-if="res.thumbnailUrl"
-                        class="w-12 h-8 rounded bg-slate-100 dark:bg-slate-800 shrink-0 bg-cover bg-center border border-slate-100 dark:border-slate-800"
-                        :style="{ backgroundImage: `url(${res.thumbnailUrl})` }"
-                      ></div>
-                      <div
-                        v-else
-                        class="w-12 h-8 rounded bg-slate-100 dark:bg-slate-800 shrink-0 border border-slate-100 dark:border-slate-800 flex items-center justify-center text-slate-400"
-                      >
-                        <FileText class="w-4 h-4" />
-                      </div>
-                      <div class="min-w-0 flex-1 space-y-0.5 text-left">
-                        <h4
-                          class="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate"
-                        >
-                          {{ res.title }}
-                        </h4>
-                        <div class="flex items-center gap-2 text-[10px] text-slate-400">
-                          <span
-                            class="font-semibold text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/20 px-1.5 py-0.2 rounded"
-                          >
-                            {{ res.category?.name || $t('admin.uncategorized') }}
-                          </span>
-                          <span class="flex items-center gap-0.5"
-                            ><Eye class="w-3 h-3" /> {{ res.viewCount }}</span
-                          >
-                          <span class="flex items-center gap-0.5"
-                            ><Calendar class="w-3 h-3" />
-                            {{ new Date(res.createdAt).toLocaleDateString() }}</span
-                          >
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded-lg transition-colors border border-slate-200/40 dark:border-slate-700/40"
-                        :title="$t('admin.edit_resources')"
-                        @click="openEditResource(res)"
-                      >
-                        <Edit3 class="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        class="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded-lg transition-colors border border-rose-200/20"
-                        :title="$t('admin.delete_resources')"
-                        @click="deleteResource(res)"
-                      >
-                        <Trash2 class="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Pagination Footer -->
-                  <div
-                    v-if="resourceTotalPages > 1"
-                    class="flex items-center justify-between border-t border-slate-200/50 dark:border-slate-800 pt-4 mt-2"
-                  >
-                    <span class="text-[10px] text-slate-400">{{
-                      $t('admin.showing_resourcepage_1_resourcepagesize', {
-                        start: (resourcePage - 1) * resourcePageSize + 1,
-                        end: Math.min(resourcePage * resourcePageSize, resourceTotal),
-                        total: resourceTotal,
-                      })
-                    }}</span>
-                    <div class="flex items-center gap-2">
-                      <button
-                        type="button"
-                        :disabled="resourcePage === 1"
-                        class="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-all disabled:opacity-40"
-                        @click="handlePageChange(resourcePage - 1)"
-                      >
-                        <ChevronLeft class="w-4 h-4" />
-                      </button>
-                      <span class="text-xs font-medium px-2"
-                        >{{ resourcePage }} / {{ resourceTotalPages }}</span
-                      >
-                      <button
-                        type="button"
-                        :disabled="resourcePage === resourceTotalPages"
-                        class="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-all disabled:opacity-40"
-                        @click="handlePageChange(resourcePage + 1)"
-                      >
-                        <ChevronRight class="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <StationResourcesTab
+                v-if="expandedTab === 'resources'"
+                ref="stationResourcesTabRef"
+                :station-id="station.id"
+                :categories="stationCategories"
+                :formatted-categories="formattedManualCategories"
+                @refresh-station="handleRefreshStation(station.id)"
+              />
 
               <!-- TAB 2: CATEGORIES CONFIGURATION -->
-              <div v-else class="space-y-3">
-                <div
-                  v-if="stationCategories.length === 0"
-                  class="flex flex-col items-center justify-center py-10 bg-white dark:bg-slate-900/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl"
-                >
-                  <Layers class="w-8 h-8 text-slate-300 mb-2" />
-                  <p class="text-xs text-slate-400">{{ $t('admin.this_resource_site_has') }}</p>
-                </div>
-
-                <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div
-                    v-for="cat in stationCategories"
-                    :key="cat.id"
-                    class="flex items-center justify-between p-3 bg-white dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-800/60 rounded-xl hover:border-slate-300 dark:hover:border-slate-700/60 transition-all"
-                  >
-                    <div class="text-left">
-                      <div
-                        class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2 flex-wrap"
-                      >
-                        {{ cat.name }}
-                        <span
-                          v-if="cat.slug"
-                          class="text-[9px] font-mono bg-slate-100 dark:bg-slate-800 px-1 text-slate-400 rounded"
-                        >
-                          {{ cat.slug }}
-                        </span>
-                        <span
-                          v-if="cat.parentId"
-                          class="text-[9px] bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 px-1.5 py-0.5 rounded"
-                        >
-                          子分类 (父: {{ getParentCategoryName(cat) }})
-                        </span>
-                      </div>
-                      <div class="text-[10px] text-slate-400 mt-0.5">
-                        {{ $t('admin.sorting_weight_cat_order', { order: cat.order || 0 }) }}
-                      </div>
-                    </div>
-
-                    <div class="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded transition-colors"
-                        @click="openEditCategory(cat)"
-                      >
-                        <Edit3 class="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded transition-colors"
-                        @click="deleteCategory(cat)"
-                      >
-                        <Trash2 class="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <StationCategoriesTab
+                v-else
+                ref="stationCategoriesTabRef"
+                :station-id="station.id"
+                :categories="stationCategories"
+                :formatted-categories="formattedManualCategories"
+                @refresh="handleRefreshStation(station.id)"
+              />
             </div>
           </div>
         </div>
@@ -790,458 +686,6 @@ onUnmounted(() => {
           :station="editingStation"
           @saved="fetchStations"
         />
-
-        <!-- DIALOG: MANAGE RESOURCE (Immersive Fullscreen Editor) -->
-        <el-dialog
-          v-model="showResourceDialog"
-          fullscreen
-          :show-close="false"
-          class="immersive-editor-dialog"
-          destroy-on-close
-        >
-          <div class="fixed inset-0 bg-[var(--bg-app)] flex flex-col h-screen">
-            <!-- ① HEADER TOOLBAR -->
-            <header
-              class="sticky top-0 z-50 h-14 flex items-center justify-between px-4 md:px-6 bg-[var(--bg-app)]/80 backdrop-blur-xl border-b border-[var(--border-base)] shrink-0"
-            >
-              <!-- Left: Back + Context -->
-              <div class="flex items-center gap-3 min-w-0">
-                <button
-                  type="button"
-                  class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 transition-all shrink-0 cursor-pointer"
-                  @click="showResourceDialog = false"
-                >
-                  <ArrowLeft class="w-4 h-4 text-[var(--text-secondary)]" />
-                </button>
-                <div class="min-w-0">
-                  <div class="text-sm font-bold text-[var(--text-primary)] truncate">
-                    {{
-                      isEditingResource
-                        ? [t('admin.edit_quality_resources')]
-                        : $t('admin.publish_high_quality_resources')
-                    }}
-                  </div>
-                  <p class="text-[10px] text-[var(--text-muted)] truncate">
-                    {{
-                      stations.find((s) => s.id === expandedStationId)?.displayName ||
-                      $t('admin.resource_station')
-                    }}
-                  </p>
-                </div>
-              </div>
-
-              <!-- Center: Preview Mode Toggle -->
-              <div class="absolute left-1/2 -translate-x-1/2 hidden sm:block">
-                <el-radio-group v-model="previewMode" size="small" class="preview-mode-toggle">
-                  <el-radio-button value="edit">
-                    <div class="flex items-center gap-1.5 px-2">
-                      <Edit3 class="w-3.5 h-3.5" /> <span>{{ $t('admin.edit') }}</span>
-                    </div>
-                  </el-radio-button>
-                  <el-radio-button value="live">
-                    <div class="flex items-center gap-1.5 px-2">
-                      <Layout class="w-3.5 h-3.5" /> <span>{{ $t('admin.real_time') }}</span>
-                    </div>
-                  </el-radio-button>
-                  <el-radio-button value="preview">
-                    <div class="flex items-center gap-1.5 px-2">
-                      <Eye class="w-3.5 h-3.5" /> <span>{{ $t('admin.preview') }}</span>
-                    </div>
-                  </el-radio-button>
-                </el-radio-group>
-              </div>
-
-              <!-- Right: Sidebar Toggle + Save -->
-              <div class="flex items-center gap-2">
-                <!-- Mobile preview toggle -->
-                <el-radio-group
-                  v-model="previewMode"
-                  size="small"
-                  class="preview-mode-toggle sm:hidden"
-                >
-                  <el-radio-button value="edit">
-                    <Edit3 class="w-3.5 h-3.5" />
-                  </el-radio-button>
-                  <el-radio-button value="live">
-                    <Layout class="w-3.5 h-3.5" />
-                  </el-radio-button>
-                  <el-radio-button value="preview">
-                    <Eye class="w-3.5 h-3.5" />
-                  </el-radio-button>
-                </el-radio-group>
-
-                <button
-                  type="button"
-                  class="p-2 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
-                  :class="
-                    showSettingsSidebar
-                      ? 'bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20 text-cyan-600 dark:text-cyan-400'
-                      : 'border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5'
-                  "
-                  @click="showSettingsSidebar = !showSettingsSidebar"
-                >
-                  <PanelRightOpen v-if="!showSettingsSidebar" class="w-4 h-4" />
-                  <PanelRightClose v-else class="w-4 h-4" />
-                  <span class="hidden md:inline">{{ $t('admin.settings') }}</span>
-                </button>
-
-                <button
-                  type="button"
-                  :disabled="isSaving"
-                  class="px-4 py-2 rounded-xl text-xs font-bold text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
-                  :class="
-                    isSaving
-                      ? 'bg-cyan-600'
-                      : 'bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 hover:-translate-y-0.5'
-                  "
-                  @click="saveResource"
-                >
-                  <Loader2 v-if="isSaving" class="w-3.5 h-3.5 animate-spin" />
-                  <Check v-else class="w-3.5 h-3.5" />
-                  {{ isSaving ? [t('admin.saving')] : $t('admin.save_and_publish') }}
-                </button>
-              </div>
-            </header>
-
-            <!-- ② + ③ MAIN AREA: Editor + Sidebar -->
-            <div class="flex-1 flex overflow-hidden">
-              <!-- Editor Content Area -->
-              <div class="flex-1 overflow-y-auto custom-scrollbar">
-                <div class="max-w-5xl mx-auto px-3 md:px-6 pb-16 pt-6 md:pt-10">
-                  <div
-                    class="bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-2xl min-h-[70vh] px-5 md:px-12 py-6 md:py-12 transition-all duration-300"
-                  >
-                    <el-input
-                      v-model="resourceForm.title"
-                      :placeholder="$t('admin.please_enter_a_resource')"
-                      class="editor-modern-title mb-6"
-                    />
-                    <div
-                      class="w-16 h-0.5 bg-gradient-to-r from-cyan-500/40 to-transparent rounded-full mb-6"
-                    ></div>
-                    <MarkdownEditor
-                      v-model="resourceForm.contentHtml"
-                      auto-height
-                      class="modern-paper-theme"
-                      :auto-focus="true"
-                      :preview="previewMode === 'live'"
-                      :preview-only="previewMode === 'preview'"
-                      :placeholder="$t('admin.detailed_introduction_and_usage')"
-                      upload-url="/api/admin/manual/upload"
-                      upload-field="manual_image"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <!-- ③ Settings Sidebar -->
-              <aside
-                v-if="showSettingsSidebar"
-                class="w-80 shrink-0 border-l border-[var(--border-base)] bg-[var(--bg-card)] overflow-y-auto custom-scrollbar hidden md:block"
-              >
-                <div class="p-5 space-y-5">
-                  <!-- Sidebar Header -->
-                  <div class="flex items-center justify-between">
-                    <h3
-                      class="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2"
-                    >
-                      <Settings class="w-4 h-4 text-cyan-500" />
-                      资源设置
-                    </h3>
-                    <button
-                      type="button"
-                      class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-[var(--text-muted)] transition-colors cursor-pointer"
-                      @click="showSettingsSidebar = false"
-                    >
-                      <X class="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <!-- Category -->
-                  <div class="settings-group">
-                    <label class="settings-label">
-                      <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 shrink-0"></span>
-                      所属分类
-                    </label>
-                    <el-select
-                      v-model="resourceForm.categoryId"
-                      :placeholder="$t('admin.select_category')"
-                      size="small"
-                      class="w-full"
-                    >
-                      <el-option :label="$t('admin.no_classification_yet')" value="" />
-                      <el-option
-                        v-for="cat in formattedManualCategories"
-                        :key="cat.id"
-                        :label="cat.name"
-                        :value="cat.id"
-                      />
-                    </el-select>
-                  </div>
-
-                  <!-- Resource Type -->
-                  <div class="settings-group">
-                    <label class="settings-label">
-                      <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
-                      资源类型
-                    </label>
-                    <el-select
-                      v-model="resourceForm.resourceType"
-                      :placeholder="$t('admin.select_type')"
-                      size="small"
-                      class="w-full"
-                    >
-                      <el-option :label="$t('admin.courses_tutorials')" value="COURSE" />
-                      <el-option :label="$t('admin.3d_model')" value="MODEL" />
-                      <el-option :label="$t('admin.material_map')" value="MATERIAL" />
-                      <el-option :label="$t('admin.software_plug_in')" value="SOFTWARE" />
-                      <el-option :label="$t('admin.other_resources')" value="OTHER" />
-                    </el-select>
-                  </div>
-
-                  <!-- Download URL + Netdisk Badge -->
-                  <div class="settings-group">
-                    <label class="settings-label">
-                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
-                      极速提取链接
-                      <span
-                        v-if="parsedNetdisk"
-                        class="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded border transition-all"
-                        :class="parsedNetdisk.color"
-                      >
-                        {{ parsedNetdisk.name }}
-                      </span>
-                    </label>
-                    <el-input
-                      v-model="resourceForm.contentUrl"
-                      placeholder="https://pan.quark.cn/s/..."
-                      size="small"
-                    />
-                  </div>
-
-                  <!-- Thumbnail Upload -->
-                  <div class="settings-group">
-                    <label class="settings-label">
-                      <span class="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
-                      资源封面
-                    </label>
-                    <div
-                      class="w-full aspect-video rounded-xl border border-dashed flex flex-col items-center justify-center relative overflow-hidden transition-all bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-cyan-500/50 group"
-                    >
-                      <img
-                        v-if="resourceForm.thumbnailUrl"
-                        alt=""
-                        :src="getAssetUrl(resourceForm.thumbnailUrl)"
-                        class="w-full h-full object-cover"
-                      />
-                      <div
-                        v-else
-                        class="flex flex-col items-center justify-center p-2 text-center space-y-1 pointer-events-none"
-                      >
-                        <Upload class="w-5 h-5 text-slate-400" />
-                        <span class="text-[10px] text-slate-400">{{
-                          $t('admin.click_to_upload_cover')
-                        }}</span>
-                        <span class="text-[8px] text-slate-400">PNG/JPG/WebP &lt; 5MB</span>
-                      </div>
-
-                      <label
-                        class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity"
-                      >
-                        <Upload v-if="!isUploadingThumbnail" class="w-5 h-5 text-white" />
-                        <Loader2 v-else class="w-5 h-5 text-white animate-spin" />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          class="hidden"
-                          @change="handleThumbnailUpload"
-                        />
-                      </label>
-                    </div>
-                    <el-input
-                      v-model="resourceForm.thumbnailUrl"
-                      :placeholder="$t('admin.or_enter_the_web_1')"
-                      size="small"
-                      class="mt-2"
-                    />
-                  </div>
-
-                  <!-- Tags -->
-                  <div class="settings-group">
-                    <label class="settings-label">
-                      <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
-                      资源标签
-                    </label>
-                    <el-input
-                      v-model="resourceForm.tags"
-                      :placeholder="$t('admin.c4d_material_pack_renderer')"
-                      size="small"
-                    />
-                    <p class="text-[10px] text-[var(--text-muted)] mt-1">
-                      {{ $t('admin.separate_multiple_tags_with') }}
-                    </p>
-                  </div>
-
-                  <!-- Description -->
-                  <div class="settings-group">
-                    <label class="settings-label">
-                      <span class="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0"></span>
-                      资源描述
-                    </label>
-                    <el-input
-                      v-model="resourceForm.description"
-                      type="textarea"
-                      :rows="3"
-                      :placeholder="$t('admin.a_brief_explanation_of')"
-                      size="small"
-                    />
-                  </div>
-                </div>
-              </aside>
-            </div>
-
-            <!-- ④ BOTTOM STATUS BAR -->
-            <footer
-              class="sticky bottom-0 z-40 h-9 flex items-center justify-between px-4 md:px-6 bg-[var(--bg-app)]/80 backdrop-blur-md border-t border-[var(--border-base)] shrink-0"
-            >
-              <div class="flex items-center gap-4 text-[10px] font-medium text-[var(--text-muted)]">
-                <span class="flex items-center gap-1.5">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  已就绪
-                </span>
-                <span class="hidden sm:flex items-center gap-1">
-                  <Keyboard class="w-3 h-3" />
-                  Ctrl+S 保存
-                </span>
-                <span class="hidden md:flex items-center gap-1">
-                  <Database class="w-3 h-3 text-cyan-500" />
-                  Markdown
-                </span>
-              </div>
-              <div class="flex items-center gap-4 text-[10px] font-medium text-[var(--text-muted)]">
-                <span>{{ $t('admin.charcount_characters', { count: charCount }) }}</span>
-                <span class="hidden sm:inline">{{
-                  $t('admin.linecount_lines', { count: lineCount })
-                }}</span>
-              </div>
-            </footer>
-          </div>
-        </el-dialog>
-
-        <!-- DIALOG: MANAGE CATEGORY -->
-        <el-dialog
-          v-model="showCategoryDialog"
-          :title="
-            isEditingCategory ? $t('admin.edit_category_name') : $t('admin.add_resource_category')
-          "
-          width="400px"
-          custom-class="premium-dialog"
-        >
-          <div class="space-y-4 py-2">
-            <div class="space-y-1">
-              <label class="text-xs font-semibold text-slate-500">{{
-                $t('admin.category_display_name')
-              }}</label>
-              <input
-                v-model="categoryForm.name"
-                type="text"
-                :placeholder="$t('admin.such_as_premium_texture')"
-                class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
-              />
-            </div>
-            <div class="space-y-1">
-              <label class="text-xs font-semibold text-slate-500">{{
-                $t('admin.parent_category_optional_used')
-              }}</label>
-              <select
-                v-model="categoryForm.parentId"
-                class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none text-slate-600 dark:text-slate-300"
-              >
-                <option :value="null">{{ $t('admin.none_as_a_first') }}</option>
-                <option v-for="cat in parentCategoryOptions" :key="cat.id" :value="cat.id">
-                  {{ cat.name }}
-                </option>
-              </select>
-            </div>
-            <div
-              v-if="!categoryForm.parentId && eligibleSubcategories.length > 0"
-              class="space-y-2 border-t border-slate-100 dark:border-slate-800/80 pt-3 mt-1"
-            >
-              <label class="text-xs font-semibold text-slate-500 block">{{
-                $t('admin.assign_subcategories_select_from')
-              }}</label>
-              <div
-                class="max-h-36 overflow-y-auto border border-slate-200/60 dark:border-slate-800/80 rounded-xl p-2.5 bg-slate-50/50 dark:bg-slate-900/30 space-y-1.5 scrollbar-hide"
-              >
-                <div
-                  v-for="cat in eligibleSubcategories"
-                  :key="cat.id"
-                  class="flex items-center gap-2 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 p-1 rounded-lg transition-colors"
-                >
-                  <input
-                    :id="'subcat-' + cat.id"
-                    v-model="categoryForm.childIds"
-                    type="checkbox"
-                    :value="cat.id"
-                    class="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 w-3.5 h-3.5"
-                  />
-                  <label
-                    :for="'subcat-' + cat.id"
-                    class="text-[11px] text-slate-600 dark:text-slate-300 cursor-pointer select-none flex-1"
-                  >
-                    {{ cat.name }}
-                    <span
-                      v-if="cat.parentId"
-                      class="text-[9px] text-slate-400 dark:text-slate-500 ml-1"
-                    >
-                      (当前父: {{ getParentCategoryName(cat) }})
-                    </span>
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div class="space-y-1">
-              <label class="text-xs font-semibold text-slate-500">{{
-                $t('admin.slug_abbreviation_optional_such')
-              }}</label>
-              <input
-                v-model="categoryForm.slug"
-                type="text"
-                :placeholder="$t('admin.used_for_routing_auxiliary')"
-                class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
-              />
-            </div>
-            <div class="space-y-1">
-              <label class="text-xs font-semibold text-slate-500">{{
-                $t('admin.sorting_weight_small_number')
-              }}</label>
-              <input
-                v-model="categoryForm.order"
-                type="number"
-                placeholder="0"
-                class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
-              />
-            </div>
-          </div>
-          <template #footer>
-            <div class="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                class="px-4 py-2 border rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                @click="showCategoryDialog = false"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                class="px-4 py-2 bg-cyan-600 text-white rounded-xl hover:bg-cyan-500 text-xs font-semibold transition-colors"
-                @click="saveCategory"
-              >
-                保存分类
-              </button>
-            </div>
-          </template>
-        </el-dialog>
       </div>
     </div>
   </div>

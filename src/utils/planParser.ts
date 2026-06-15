@@ -37,7 +37,7 @@ export const repairIncompleteJson = (jsonStr: string): string => {
   while (stack.length > 0) {
     const openChar = stack.pop();
     repaired = repaired.trim();
-    
+
     // Strip trailing colon or commas that would cause parsing issues
     if (repaired.endsWith(':')) {
       repaired = repaired.slice(0, -1).trim();
@@ -66,8 +66,8 @@ export const parseMarkdownToPlanJson = (text: string): any => {
     roadmap: {
       title: '学习路线',
       description: '',
-      steps: []
-    }
+      steps: [],
+    },
   };
 
   let currentSection: 'project' | 'tasks' | 'roadmap' | null = 'project';
@@ -112,9 +112,17 @@ export const parseMarkdownToPlanJson = (text: string): any => {
       ) {
         currentSection = 'roadmap';
         const cleanTitle = secName
-          .replace(/^(?:学习路线|学习规划|学习大纲|学习路径|学习计划|Roadmap|ROADMAP|Learning\s*Roadmap|Learning\s*Plan)\s*[:|：|\-|\s]\s*/i, '')
+          .replace(
+            /^(?:学习路线|学习规划|学习大纲|学习路径|学习计划|Roadmap|ROADMAP|Learning\s*Roadmap|Learning\s*Plan)\s*[:|：|\-|\s]\s*/i,
+            '',
+          )
           .trim();
-        if (cleanTitle && cleanTitle !== '学习路线' && cleanTitle !== '学习规划' && cleanTitle !== 'Roadmap') {
+        if (
+          cleanTitle &&
+          cleanTitle !== '学习路线' &&
+          cleanTitle !== '学习规划' &&
+          cleanTitle !== 'Roadmap'
+        ) {
           parsed.roadmap.title = cleanTitle;
         }
       } else {
@@ -140,7 +148,8 @@ export const parseMarkdownToPlanJson = (text: string): any => {
         }
       }
     } else if (currentSection === 'tasks') {
-      const isListItem = line.startsWith('- [ ]') || line.startsWith('- [x]') || line.startsWith('- ');
+      const isListItem =
+        line.startsWith('- [ ]') || line.startsWith('- [x]') || line.startsWith('- ');
       if (isListItem) {
         const indent = rawLine.length - rawLine.trimStart().length;
         const isNested = indent >= 2;
@@ -184,7 +193,8 @@ export const parseMarkdownToPlanJson = (text: string): any => {
               const pVal = part.replace(/^(?:优先级|priority)\s*[:|：]\s*/i, '').trim();
               if (pVal.includes('低') || pVal.toLowerCase() === 'low') priority = 'LOW';
               else if (pVal.includes('高') || pVal.toLowerCase() === 'high') priority = 'HIGH';
-              else if (pVal.includes('紧急') || pVal.toLowerCase() === 'urgent') priority = 'URGENT';
+              else if (pVal.includes('紧急') || pVal.toLowerCase() === 'urgent')
+                priority = 'URGENT';
               else priority = 'MEDIUM';
             } else if (
               part.startsWith('截止') ||
@@ -202,7 +212,7 @@ export const parseMarkdownToPlanJson = (text: string): any => {
             description,
             priority,
             dueDate,
-            subtasks: []
+            subtasks: [],
           });
         }
       }
@@ -211,10 +221,11 @@ export const parseMarkdownToPlanJson = (text: string): any => {
         .replace(/^[-*\s\d.[\]xX]*\s*/, '') // Remove list bullets, numbers, spaces, and checkboxes
         .replace(/^\*\*?/, '') // Remove leading bold/italic stars
         .trim();
-      const isStepHeader = line.startsWith('### ') || 
-                           line.startsWith('#### ') ||
-                           /^(?:阶段|步骤|Step|Phase|Part)\s*[一二三四五六七八九十\d]/i.test(clean) ||
-                           /^第\s*[一二三四五六七八九十\d]+\s*(?:阶段|步骤|Step|Phase|Part)/i.test(clean);
+      const isStepHeader =
+        line.startsWith('### ') ||
+        line.startsWith('#### ') ||
+        /^(?:阶段|步骤|Step|Phase|Part)\s*[一二三四五六七八九十\d]/i.test(clean) ||
+        /^第\s*[一二三四五六七八九十\d]+\s*(?:阶段|步骤|Step|Phase|Part)/i.test(clean);
 
       if (isStepHeader) {
         if (currentRoadmapStep) {
@@ -275,14 +286,16 @@ export const parseMarkdownToPlanJson = (text: string): any => {
   if (parsed.roadmap) {
     const defaultTitles = ['学习路线', '学习规划', '学习大纲', 'Roadmap', 'ROADMAP'];
     if (!parsed.roadmap.title || defaultTitles.includes(parsed.roadmap.title.trim())) {
-      parsed.roadmap.title = parsed.title && parsed.title !== '未命名导入项目'
-        ? `学习路线 - ${parsed.title}`
-        : '项目学习路线';
+      parsed.roadmap.title =
+        parsed.title && parsed.title !== '未命名导入项目'
+          ? `学习路线 - ${parsed.title}`
+          : '项目学习路线';
     }
     if (!parsed.roadmap.description) {
-      parsed.roadmap.description = parsed.title && parsed.title !== '未命名导入项目'
-        ? `针对项目「${parsed.title}」的专属学习路线`
-        : '针对本项目的专属学习路线';
+      parsed.roadmap.description =
+        parsed.title && parsed.title !== '未命名导入项目'
+          ? `针对项目「${parsed.title}」的专属学习路线`
+          : '针对本项目的专属学习路线';
     }
   }
 
@@ -326,7 +339,7 @@ export const ensureStableIds = (plan: any): any => {
 export const extractPlanJson = (fullText: string): { dialogue: string; json: any | null } => {
   const startMarker = '---PLAN_JSON_START---';
   const startIdx = fullText.indexOf(startMarker);
-  
+
   if (startIdx === -1) {
     return { dialogue: fullText, json: null };
   }
@@ -334,21 +347,25 @@ export const extractPlanJson = (fullText: string): { dialogue: string; json: any
   const dialogue = fullText.substring(0, startIdx).trim();
   const endMarker = '---PLAN_JSON_END---';
   const endIdx = fullText.indexOf(endMarker);
-  
-  let rawJson = (endIdx !== -1)
-    ? fullText.substring(startIdx + startMarker.length, endIdx)
-    : fullText.substring(startIdx + startMarker.length);
-  
+
+  let rawJson =
+    endIdx !== -1
+      ? fullText.substring(startIdx + startMarker.length, endIdx)
+      : fullText.substring(startIdx + startMarker.length);
+
   rawJson = rawJson.trim();
   // Strip code fences if present
-  rawJson = rawJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+  rawJson = rawJson
+    .replace(/^```(?:json)?\n?/, '')
+    .replace(/\n?```$/, '')
+    .trim();
   // Remove any trailing end marker if it crept in
   rawJson = rawJson.replace(/---PLAN_JSON_END---$/, '').trim();
-  
+
   // Clean up Qwen brackets/formatting
   const firstCurly = rawJson.indexOf('{');
   const lastCurly = rawJson.lastIndexOf('}');
-  
+
   if (firstCurly !== -1) {
     if (lastCurly !== -1 && lastCurly > firstCurly) {
       rawJson = rawJson.substring(firstCurly, lastCurly + 1);

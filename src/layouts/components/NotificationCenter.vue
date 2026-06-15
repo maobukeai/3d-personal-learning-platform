@@ -68,7 +68,7 @@ const handleProjectInvitation = async (notification: AppNotification, accept: bo
     await api.post(`/api/projects/invitations/${inviteId}/${endpoint}`);
     respondedInvitations.value[notification.id] = accept ? 'ACCEPTED' : 'REJECTED';
     ElMessage.success(accept ? '已成功加入项目！' : '已拒绝邀请');
-    
+
     // Auto mark notification as read
     if (!notification.isRead) {
       await markNotificationAsRead(notification.id);
@@ -144,7 +144,10 @@ defineExpose({
 
 <template>
   <el-dropdown trigger="click" placement="bottom-end" popper-class="notification-glass">
-    <button type="button" class="topbar-icon-btn w-9 h-9 rounded-lg flex items-center justify-center transition-colors relative">
+    <button
+      type="button"
+      class="topbar-icon-btn w-9 h-9 rounded-lg flex items-center justify-center transition-colors relative"
+    >
       <Bell class="w-4.5 h-4.5" style="color: var(--text-muted)" />
       <div
         v-if="unreadCount > 0"
@@ -152,21 +155,22 @@ defineExpose({
       ></div>
     </button>
     <template #dropdown>
-      <div
-        class="notification-panel w-[420px] p-0 rounded-xl overflow-hidden shadow-lg"
-      >
-        <div
-          class="notification-header px-5 py-4 flex items-center justify-between"
-        >
-          <span
-            class="text-sm font-bold text-slate-600 dark:text-slate-300"
-            >通知中心</span
-          >
+      <div class="notification-panel w-[420px] p-0 rounded-2xl overflow-hidden shadow-lg">
+        <div class="notification-header px-5 py-4 flex items-center justify-between">
+          <span class="text-sm font-bold text-slate-600 dark:text-slate-300">通知中心</span>
           <div class="flex items-center gap-4">
-            <button type="button" class="text-xs font-bold text-accent hover:bg-accent-subtle rounded-md px-2 py-1 transition-colors" @click="handleMarkAllRead">
+            <button
+              type="button"
+              class="text-xs font-bold text-accent hover:bg-accent-subtle rounded-md px-2 py-1 transition-colors"
+              @click="handleMarkAllRead"
+            >
               全部忽略
             </button>
-            <button type="button" class="text-xs font-bold text-slate-500 hover:text-accent dark:text-slate-400 rounded-md px-2 py-1 transition-colors" @click="router.push('/notifications')">
+            <button
+              type="button"
+              class="text-xs font-bold text-slate-500 hover:text-accent dark:text-slate-400 rounded-md px-2 py-1 transition-colors"
+              @click="router.push('/notifications')"
+            >
               查看全部
             </button>
           </div>
@@ -185,32 +189,34 @@ defineExpose({
             >
               {{ n.title }}
             </p>
-            <p
-              class="text-xs text-slate-500 dark:text-slate-450 leading-relaxed mb-2.5"
-            >
+            <p class="text-xs text-slate-500 dark:text-slate-450 leading-relaxed mb-2.5">
               {{ n.content }}
             </p>
-            
+
             <!-- Project Invite Actions -->
-            <div v-if="n.type === 'PROJECT_INVITE'" class="mb-2.5 flex items-center gap-2" @click.stop>
+            <div
+              v-if="n.type === 'PROJECT_INVITE'"
+              class="mb-2.5 flex items-center gap-2"
+              @click.stop
+            >
               <template v-if="respondedInvitations[n.id]">
                 <span class="text-[10px] font-bold text-slate-400">
                   {{ respondedInvitations[n.id] === 'ACCEPTED' ? '已接受邀请' : '已拒绝邀请' }}
                 </span>
               </template>
               <template v-else>
-                <button 
-                  type="button" 
-                  :disabled="processingInvitations[n.id]" 
+                <button
+                  type="button"
+                  :disabled="processingInvitations[n.id]"
                   class="px-2.5 py-1 rounded bg-accent text-white text-[10px] font-bold hover:shadow hover:shadow-accent/20 transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1 cursor-pointer"
                   @click="handleProjectInvitation(n, true)"
                 >
                   <Loader2 v-if="processingInvitations[n.id]" class="w-3 h-3 animate-spin" />
                   接受
                 </button>
-                <button 
-                  type="button" 
-                  :disabled="processingInvitations[n.id]" 
+                <button
+                  type="button"
+                  :disabled="processingInvitations[n.id]"
                   class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-350 text-[10px] font-bold transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                   @click="handleProjectInvitation(n, false)"
                 >
@@ -236,11 +242,13 @@ defineExpose({
 <style scoped>
 .notification-panel {
   background: var(--bg-card);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-base);
   box-shadow: var(--shadow-enterprise-hover);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 :deep(.dark) .notification-panel {
@@ -278,5 +286,36 @@ defineExpose({
 :deep(.dark.theme-glass) .notification-panel {
   background: var(--glass-bg) !important;
   border-color: var(--glass-border-color) !important;
+}
+</style>
+
+<style>
+/* Global override for Element Plus Dropdown Popper */
+.notification-glass.el-popper {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 16px !important; /* rounded-2xl */
+}
+
+.notification-glass .el-dropdown-menu {
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 16px !important;
+}
+
+/* Align and color the popover indicator arrow */
+.notification-glass.el-popper[data-popper-placement^='bottom'] .el-popper__arrow::before {
+  background: var(--bg-card) !important;
+  border-left-color: var(--border-base) !important;
+  border-top-color: var(--border-base) !important;
+}
+
+.notification-glass.el-popper[data-popper-placement^='top'] .el-popper__arrow::before {
+  background: var(--bg-card) !important;
+  border-right-color: var(--border-base) !important;
+  border-bottom-color: var(--border-base) !important;
 }
 </style>

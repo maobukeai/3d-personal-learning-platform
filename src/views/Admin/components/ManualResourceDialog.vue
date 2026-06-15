@@ -21,6 +21,7 @@ import {
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
+import Modal from '@/components/ui/Modal.vue';
 
 interface ManualResource {
   id: string;
@@ -143,22 +144,40 @@ const lineCount = computed(() => {
 const parsedNetdisk = computed(() => {
   const url = resourceForm.value.contentUrl || '';
   if (!url) return null;
-  
+
   if (url.includes('quark.cn')) {
-    return { name: t('admin.quark_network_disk'), color: 'text-teal-500 bg-teal-50 dark:bg-teal-500/10 border-teal-200 dark:border-teal-800/30' };
+    return {
+      name: t('admin.quark_network_disk'),
+      color: 'text-teal-500 bg-teal-50 dark:bg-teal-500/10 border-teal-200 dark:border-teal-800/30',
+    };
   } else if (url.includes('baidu.com')) {
-    return { name: t('admin.baidu_skydisk'), color: 'text-blue-500 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-800/30' };
+    return {
+      name: t('admin.baidu_skydisk'),
+      color: 'text-blue-500 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-800/30',
+    };
   } else if (url.includes('alipan.com') || url.includes('aliyundrive.com')) {
-    return { name: t('admin.alibaba_cloud_disk'), color: 'text-orange-500 bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-800/30' };
+    return {
+      name: t('admin.alibaba_cloud_disk'),
+      color:
+        'text-orange-500 bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-800/30',
+    };
   } else if (url.includes('123pan.com')) {
-    return { name: t('admin.123_cloud_disk'), color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-800/30' };
+    return {
+      name: t('admin.123_cloud_disk'),
+      color:
+        'text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-800/30',
+    };
   }
-  return { name: t('admin.universal_link'), color: 'text-slate-500 bg-slate-50 dark:bg-slate-500/10 border-slate-200 dark:border-slate-800/30' };
+  return {
+    name: t('admin.universal_link'),
+    color:
+      'text-slate-500 bg-slate-50 dark:bg-slate-500/10 border-slate-200 dark:border-slate-800/30',
+  };
 });
 
 const saveResource = async () => {
   if (!props.stationId) return;
-  
+
   if (!resourceForm.value.title.trim()) {
     ElMessage.warning(t('admin.please_enter_a_resource'));
     return;
@@ -209,13 +228,7 @@ defineExpose({
 
 <template>
   <!-- DIALOG: MANAGE RESOURCE (Immersive Fullscreen Editor) -->
-  <el-dialog
-    v-model="showDialog"
-    fullscreen
-    :show-close="false"
-    class="immersive-editor-dialog"
-    destroy-on-close
-  >
+  <Modal :show="showDialog" fullscreen padding="none" @close="showDialog = false">
     <div class="fixed inset-0 bg-[var(--bg-app)] flex flex-col h-screen">
       <!-- ① HEADER TOOLBAR -->
       <header
@@ -223,12 +236,20 @@ defineExpose({
       >
         <!-- Left: Back + Context -->
         <div class="flex items-center gap-3 min-w-0">
-          <button type="button" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 transition-all shrink-0 cursor-pointer bg-transparent border-none" @click="showDialog = false">
+          <button
+            type="button"
+            class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 transition-all shrink-0 cursor-pointer bg-transparent border-none"
+            @click="showDialog = false"
+          >
             <ArrowLeft class="w-4 h-4 text-[var(--text-secondary)]" />
           </button>
           <div class="min-w-0">
             <div class="text-sm font-bold text-[var(--text-primary)] truncate">
-              {{ isEdit ? t('admin.edit_quality_resources') : $t('admin.publish_high_quality_resources') }}
+              {{
+                isEdit
+                  ? t('admin.edit_quality_resources')
+                  : $t('admin.publish_high_quality_resources')
+              }}
             </div>
           </div>
         </div>
@@ -270,15 +291,26 @@ defineExpose({
           </el-radio-group>
 
           <button
-type="button" class="p-2 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold bg-transparent" :class="showSettingsSidebar
-              ? 'bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20 text-cyan-600 dark:text-cyan-400'
-              : 'border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5'" @click="showSettingsSidebar = !showSettingsSidebar">
+            type="button"
+            class="p-2 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold bg-transparent"
+            :class="
+              showSettingsSidebar
+                ? 'bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20 text-cyan-600 dark:text-cyan-400'
+                : 'border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5'
+            "
+            @click="showSettingsSidebar = !showSettingsSidebar"
+          >
             <PanelRightOpen v-if="!showSettingsSidebar" class="w-4 h-4" />
             <PanelRightClose v-else class="w-4 h-4" />
             <span class="hidden md:inline">{{ $t('admin.settings') }}</span>
           </button>
 
-          <button type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold text-white transition-all cursor-pointer flex items-center gap-1.5 border-none shadow-lg shadow-cyan-500/20 disabled:opacity-60 disabled:cursor-not-allowed bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400" @click="saveResource">
+          <button
+            type="button"
+            :disabled="isSaving"
+            class="px-4 py-2 rounded-xl text-xs font-bold text-white transition-all cursor-pointer flex items-center gap-1.5 border-none shadow-lg shadow-cyan-500/20 disabled:opacity-60 disabled:cursor-not-allowed bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400"
+            @click="saveResource"
+          >
             <Loader2 v-if="isSaving" class="w-3.5 h-3.5 animate-spin" />
             <Check v-else class="w-3.5 h-3.5" />
             {{ isSaving ? t('admin.saving') : $t('admin.save_and_publish') }}
@@ -291,9 +323,17 @@ type="button" class="p-2 rounded-xl border transition-all cursor-pointer flex it
         <!-- Editor Content Area -->
         <div class="flex-1 overflow-y-auto custom-scrollbar">
           <div class="max-w-5xl mx-auto px-3 md:px-6 pb-16 pt-6 md:pt-10">
-            <div class="bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-2xl min-h-[70vh] px-5 md:px-12 py-6 md:py-12 transition-all duration-300">
-              <el-input v-model="resourceForm.title" :placeholder="$t('admin.please_enter_a_resource')" class="editor-modern-title mb-6" />
-              <div class="w-16 h-0.5 bg-gradient-to-r from-cyan-500/40 to-transparent rounded-full mb-6"></div>
+            <div
+              class="bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-2xl min-h-[70vh] px-5 md:px-12 py-6 md:py-12 transition-all duration-300"
+            >
+              <el-input
+                v-model="resourceForm.title"
+                :placeholder="$t('admin.please_enter_a_resource')"
+                class="editor-modern-title mb-6"
+              />
+              <div
+                class="w-16 h-0.5 bg-gradient-to-r from-cyan-500/40 to-transparent rounded-full mb-6"
+              ></div>
               <MarkdownEditor
                 v-model="resourceForm.contentHtml"
                 auto-height
@@ -321,7 +361,11 @@ type="button" class="p-2 rounded-xl border transition-all cursor-pointer flex it
                 <Settings class="w-4 h-4 text-cyan-500" />
                 资源设置
               </h3>
-              <button type="button" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-[var(--text-muted)] transition-colors cursor-pointer bg-transparent border-none" @click="showSettingsSidebar = false">
+              <button
+                type="button"
+                class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-[var(--text-muted)] transition-colors cursor-pointer bg-transparent border-none"
+                @click="showSettingsSidebar = false"
+              >
                 <X class="w-4 h-4" />
               </button>
             </div>
@@ -332,9 +376,19 @@ type="button" class="p-2 rounded-xl border transition-all cursor-pointer flex it
                 <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 shrink-0"></span>
                 所属分类
               </label>
-              <el-select v-model="resourceForm.categoryId" :placeholder="$t('admin.select_category')" size="small" class="w-full">
+              <el-select
+                v-model="resourceForm.categoryId"
+                :placeholder="$t('admin.select_category')"
+                size="small"
+                class="w-full"
+              >
                 <el-option :label="$t('admin.no_classification_yet')" value="" />
-                <el-option v-for="cat in props.formattedCategories" :key="cat.id" :label="cat.name" :value="cat.id" />
+                <el-option
+                  v-for="cat in props.formattedCategories"
+                  :key="cat.id"
+                  :label="cat.name"
+                  :value="cat.id"
+                />
               </el-select>
             </div>
 
@@ -344,7 +398,12 @@ type="button" class="p-2 rounded-xl border transition-all cursor-pointer flex it
                 <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
                 资源类型
               </label>
-              <el-select v-model="resourceForm.resourceType" :placeholder="$t('admin.select_type')" size="small" class="w-full">
+              <el-select
+                v-model="resourceForm.resourceType"
+                :placeholder="$t('admin.select_type')"
+                size="small"
+                class="w-full"
+              >
                 <el-option :label="$t('admin.courses_tutorials')" value="COURSE" />
                 <el-option :label="$t('admin.3d_model')" value="MODEL" />
                 <el-option :label="$t('admin.material_map')" value="MATERIAL" />
@@ -366,7 +425,11 @@ type="button" class="p-2 rounded-xl border transition-all cursor-pointer flex it
                   {{ parsedNetdisk.name }}
                 </span>
               </label>
-              <el-input v-model="resourceForm.contentUrl" placeholder="https://pan.quark.cn/s/..." size="small" />
+              <el-input
+                v-model="resourceForm.contentUrl"
+                placeholder="https://pan.quark.cn/s/..."
+                size="small"
+              />
             </div>
 
             <!-- Thumbnail Upload -->
@@ -378,17 +441,34 @@ type="button" class="p-2 rounded-xl border transition-all cursor-pointer flex it
               <div
                 class="w-full aspect-video rounded-xl border border-dashed flex flex-col items-center justify-center relative overflow-hidden transition-all bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-cyan-500/50 group"
               >
-                <img v-if="resourceForm.thumbnailUrl" alt="" :src="getAssetUrl(resourceForm.thumbnailUrl)" class="w-full h-full object-cover" />
-                <div v-else class="flex flex-col items-center justify-center p-2 text-center space-y-1 pointer-events-none">
+                <img
+                  v-if="resourceForm.thumbnailUrl"
+                  alt=""
+                  :src="getAssetUrl(resourceForm.thumbnailUrl)"
+                  class="w-full h-full object-cover"
+                />
+                <div
+                  v-else
+                  class="flex flex-col items-center justify-center p-2 text-center space-y-1 pointer-events-none"
+                >
                   <Upload class="w-5 h-5 text-slate-400" />
-                  <span class="text-[10px] text-slate-400">{{ $t('admin.click_to_upload_cover') }}</span>
+                  <span class="text-[10px] text-slate-400">{{
+                    $t('admin.click_to_upload_cover')
+                  }}</span>
                   <span class="text-[8px] text-slate-400">PNG/JPG/WebP &lt; 5MB</span>
                 </div>
-                
-                <label class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+
+                <label
+                  class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity"
+                >
                   <Upload v-if="!isUploadingThumbnail" class="w-5 h-5 text-white" />
                   <Loader2 v-else class="w-5 h-5 text-white animate-spin" />
-                  <input type="file" accept="image/*" class="hidden" @change="handleThumbnailUpload" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    class="hidden"
+                    @change="handleThumbnailUpload"
+                  />
                 </label>
               </div>
               <el-input
@@ -405,8 +485,14 @@ type="button" class="p-2 rounded-xl border transition-all cursor-pointer flex it
                 <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
                 资源标签
               </label>
-              <el-input v-model="resourceForm.tags" :placeholder="$t('admin.c4d_material_pack_renderer')" size="small" />
-              <p class="text-[10px] text-[var(--text-muted)] mt-1">{{ $t('admin.separate_multiple_tags_with') }}</p>
+              <el-input
+                v-model="resourceForm.tags"
+                :placeholder="$t('admin.c4d_material_pack_renderer')"
+                size="small"
+              />
+              <p class="text-[10px] text-[var(--text-muted)] mt-1">
+                {{ $t('admin.separate_multiple_tags_with') }}
+              </p>
             </div>
 
             <!-- Description -->
@@ -447,9 +533,11 @@ type="button" class="p-2 rounded-xl border transition-all cursor-pointer flex it
         </div>
         <div class="flex items-center gap-4 text-[10px] font-medium text-[var(--text-muted)]">
           <span>{{ $t('admin.charcount_characters', { count: charCount }) }}</span>
-          <span class="hidden sm:inline">{{ $t('admin.linecount_lines', { count: lineCount }) }}</span>
+          <span class="hidden sm:inline">{{
+            $t('admin.linecount_lines', { count: lineCount })
+          }}</span>
         </div>
       </footer>
     </div>
-  </el-dialog>
+  </Modal>
 </template>

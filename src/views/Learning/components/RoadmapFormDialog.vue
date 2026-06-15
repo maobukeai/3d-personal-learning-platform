@@ -1,15 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import {
-  X,
-  Map,
-  Plus,
-  ChevronUp,
-  ChevronDown,
-  Trash2,
-  Loader2,
-  Zap,
-} from 'lucide-vue-next';
+import { X, Map, Plus, ChevronUp, ChevronDown, Trash2, Loader2, Zap } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
@@ -101,7 +92,7 @@ watch(
       }
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 const addFormStep = () => {
@@ -197,7 +188,11 @@ const submitCustomRoadmap = async () => {
               {{ roadmap ? '编辑我的学习路线' : '规划新学习路线' }}
             </h3>
           </div>
-          <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer" @click="emit('close')">
+          <button
+            type="button"
+            class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+            @click="emit('close')"
+          >
             <X class="w-5 h-5" />
           </button>
         </div>
@@ -236,7 +231,11 @@ const submitCustomRoadmap = async () => {
               <label class="block text-xs font-black text-slate-500 uppercase tracking-wider"
                 >学习大纲与阶段 ({{ customRoadmapForm.steps.length }})</label
               >
-              <button type="button" class="text-[10px] font-bold text-accent hover:text-accent-dark flex items-center gap-1 cursor-pointer" @click="addFormStep">
+              <button
+                type="button"
+                class="text-[10px] font-bold text-accent hover:text-accent-dark flex items-center gap-1 cursor-pointer"
+                @click="addFormStep"
+              >
                 <Plus class="w-3.5 h-3.5" />
                 新增学习阶段
               </button>
@@ -254,15 +253,29 @@ const submitCustomRoadmap = async () => {
 
                   <div class="flex items-center gap-1.5">
                     <!-- Move up -->
-                    <button type="button" class="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer disabled:opacity-30 disabled:pointer-events-none" :disabled="idx === 0" @click="moveFormStep(idx, 'up')">
+                    <button
+                      type="button"
+                      class="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
+                      :disabled="idx === 0"
+                      @click="moveFormStep(idx, 'up')"
+                    >
                       <ChevronUp class="w-3.5 h-3.5" />
                     </button>
                     <!-- Move down -->
-                    <button type="button" class="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer disabled:opacity-30 disabled:pointer-events-none" :disabled="idx === customRoadmapForm.steps.length - 1" @click="moveFormStep(idx, 'down')">
+                    <button
+                      type="button"
+                      class="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
+                      :disabled="idx === customRoadmapForm.steps.length - 1"
+                      @click="moveFormStep(idx, 'down')"
+                    >
                       <ChevronDown class="w-3.5 h-3.5" />
                     </button>
                     <!-- Delete -->
-                    <button type="button" class="p-1 rounded text-red-400 hover:text-red-650 hover:bg-red-50 dark:hover:bg-red-500/10 cursor-pointer" @click="removeFormStep(idx)">
+                    <button
+                      type="button"
+                      class="p-1 rounded text-red-400 hover:text-red-650 hover:bg-red-50 dark:hover:bg-red-500/10 cursor-pointer"
+                      @click="removeFormStep(idx)"
+                    >
                       <Trash2 class="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -291,7 +304,11 @@ const submitCustomRoadmap = async () => {
                       <Plus class="w-3 h-3 text-accent" />
                       <span>阶段细分任务清单</span>
                     </label>
-                    <button type="button" class="text-[10px] font-black text-accent hover:text-accent-dark flex items-center gap-0.5 cursor-pointer" @click="step.subtasks.push('')">
+                    <button
+                      type="button"
+                      class="text-[10px] font-black text-accent hover:text-accent-dark flex items-center gap-0.5 cursor-pointer"
+                      @click="step.subtasks.push('')"
+                    >
                       <Plus class="w-3 h-3" />
                       <span>添加任务项</span>
                     </button>
@@ -314,7 +331,11 @@ const submitCustomRoadmap = async () => {
                         placeholder="例如: 掌握多边形布线与拓扑原理"
                         class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-750 text-xs outline-none focus:ring-1 focus:ring-accent text-slate-900 dark:text-white"
                       />
-                      <button type="button" class="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/20 text-slate-400 hover:text-rose-500 transition-colors shrink-0 cursor-pointer" @click="step.subtasks.splice(sIdx, 1)">
+                      <button
+                        type="button"
+                        class="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/20 text-slate-400 hover:text-rose-500 transition-colors shrink-0 cursor-pointer"
+                        @click="step.subtasks.splice(sIdx, 1)"
+                      >
                         <X class="w-3 h-3" />
                       </button>
                     </div>
@@ -336,10 +357,19 @@ const submitCustomRoadmap = async () => {
         <div
           class="p-5 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-end gap-3"
         >
-          <button type="button" class="px-4 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer" @click="emit('close')">
+          <button
+            type="button"
+            class="px-4 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer"
+            @click="emit('close')"
+          >
             取消
           </button>
-          <button type="button" class="px-5 py-2 rounded-xl text-xs font-bold text-white bg-accent hover:bg-accent-dark transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-accent/20" :class="formLoading ? 'opacity-70 pointer-events-none' : ''" @click="submitCustomRoadmap">
+          <button
+            type="button"
+            class="px-5 py-2 rounded-xl text-xs font-bold text-white bg-accent hover:bg-accent-dark transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-accent/20"
+            :class="formLoading ? 'opacity-70 pointer-events-none' : ''"
+            @click="submitCustomRoadmap"
+          >
             <Zap v-if="!formLoading" class="w-3.5 h-3.5" />
             <Loader2 v-else class="w-3.5 h-3.5 animate-spin" />
             保存我的路线

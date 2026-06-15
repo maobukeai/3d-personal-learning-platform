@@ -48,14 +48,10 @@ export async function generateTOTP(secret: string): Promise<{ code: string; time
       keyBytes as any,
       { name: 'HMAC', hash: { name: 'SHA-1' } },
       false,
-      ['sign']
+      ['sign'],
     );
 
-    const signature = await window.crypto.subtle.sign(
-      'HMAC',
-      cryptoKey,
-      counterBuffer
-    );
+    const signature = await window.crypto.subtle.sign('HMAC', cryptoKey, counterBuffer);
 
     const hmacResult = new Uint8Array(signature);
     const offset = hmacResult[hmacResult.length - 1] & 0xf;

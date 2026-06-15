@@ -19,7 +19,7 @@ const props = withDefaults(
     heightClass: 'h-32',
     hoverClass: 'group-hover:border-indigo-500 group-hover:bg-indigo-500/5',
     iconType: 'upload',
-  }
+  },
 );
 
 const emit = defineEmits<{
@@ -59,7 +59,10 @@ const handleFileChange = (e: Event) => {
         class="w-6 h-6"
         :class="iconType === 'puzzle' ? 'text-violet-400/60' : 'text-indigo-500/40'"
       />
-      <p class="text-xs font-medium px-4 truncate max-w-full animate-fade" style="color: var(--text-secondary)">
+      <p
+        class="text-xs font-medium px-4 truncate max-w-full animate-fade"
+        style="color: var(--text-secondary)"
+      >
         <slot name="label">
           {{ label }}
         </slot>

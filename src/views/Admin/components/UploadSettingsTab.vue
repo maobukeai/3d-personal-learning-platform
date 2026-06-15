@@ -25,7 +25,7 @@ watch(
   (newVal) => {
     Object.assign(localSettings, newVal);
   },
-  { deep: true }
+  { deep: true },
 );
 
 watch(
@@ -33,7 +33,7 @@ watch(
   (newVal) => {
     emit('update:settings', { ...props.settings, ...newVal });
   },
-  { deep: true }
+  { deep: true },
 );
 
 const isCleaning = ref(false);
@@ -91,7 +91,9 @@ const handleCleanupStorage = async () => {
     >
       <div class="flex items-center gap-3 mb-8">
         <Upload class="w-5 h-5 text-emerald-500" />
-        <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.upload_and_storage_limits') }}</h2>
+        <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+          {{ $t('admin.upload_and_storage_limits') }}
+        </h2>
       </div>
 
       <div class="space-y-6">
@@ -151,7 +153,9 @@ const handleCleanupStorage = async () => {
     >
       <div class="flex items-center gap-3 mb-8">
         <Trash2 class="w-5 h-5 text-rose-500" />
-        <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.storage_space_cleanup') }}</h2>
+        <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+          {{ $t('admin.storage_space_cleanup') }}
+        </h2>
       </div>
 
       <div class="space-y-6">
@@ -175,12 +179,19 @@ const handleCleanupStorage = async () => {
           class="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-transparent"
         >
           <div>
-            <span class="text-xs font-bold" style="color: var(--text-primary)">{{ $t('admin.clean_up_orphan_files') }}</span>
+            <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+              $t('admin.clean_up_orphan_files')
+            }}</span>
             <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
               安全清理无用的冗余文件资源，自动保留有效的品牌、课程与讨论资源
             </p>
           </div>
-          <button type="button" :disabled="isCleaning" class="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-600/50 text-white rounded-xl font-bold text-xs transition-all shadow-sm shrink-0 cursor-pointer" @click="handleCleanupStorage">
+          <button
+            type="button"
+            :disabled="isCleaning"
+            class="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-600/50 text-white rounded-xl font-bold text-xs transition-all shadow-sm shrink-0 cursor-pointer"
+            @click="handleCleanupStorage"
+          >
             <Trash2 v-if="!isCleaning" class="w-3.5 h-3.5" />
             <RefreshCw v-else class="w-3.5 h-3.5 animate-spin" />
             <span>{{ isCleaning ? $t('admin.cleaning_up') : $t('admin.clean_up_now') }}</span>

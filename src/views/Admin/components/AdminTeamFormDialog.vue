@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import type { AdminTeam, AdminTeamUser, TeamVisibility } from '../AdminTeamsView.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -12,16 +13,19 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
-  (e: 'submit', form: {
-    id: string;
-    name: string;
-    description: string;
-    avatarUrl: string;
-    coverUrl: string;
-    visibility: TeamVisibility;
-    category: string;
-    ownerId: string;
-  }): void;
+  (
+    e: 'submit',
+    form: {
+      id: string;
+      name: string;
+      description: string;
+      avatarUrl: string;
+      coverUrl: string;
+      visibility: TeamVisibility;
+      category: string;
+      ownerId: string;
+    },
+  ): void;
 }>();
 
 const form = ref({
@@ -35,33 +39,36 @@ const form = ref({
   ownerId: '',
 });
 
-watch(() => props.modelValue, (newVal) => {
-  if (newVal) {
-    if (props.mode === 'edit' && props.team) {
-      form.value = {
-        id: props.team.id,
-        name: props.team.name,
-        description: props.team.description || '',
-        avatarUrl: props.team.avatarUrl || '',
-        coverUrl: props.team.coverUrl || '',
-        visibility: props.team.visibility || 'PRIVATE',
-        category: props.team.category || '',
-        ownerId: props.team.ownerId,
-      };
-    } else {
-      form.value = {
-        id: '',
-        name: '',
-        description: '',
-        avatarUrl: '',
-        coverUrl: '',
-        visibility: 'PRIVATE',
-        category: '',
-        ownerId: props.users[0]?.id || '',
-      };
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    if (newVal) {
+      if (props.mode === 'edit' && props.team) {
+        form.value = {
+          id: props.team.id,
+          name: props.team.name,
+          description: props.team.description || '',
+          avatarUrl: props.team.avatarUrl || '',
+          coverUrl: props.team.coverUrl || '',
+          visibility: props.team.visibility || 'PRIVATE',
+          category: props.team.category || '',
+          ownerId: props.team.ownerId,
+        };
+      } else {
+        form.value = {
+          id: '',
+          name: '',
+          description: '',
+          avatarUrl: '',
+          coverUrl: '',
+          visibility: 'PRIVATE',
+          category: '',
+          ownerId: props.users[0]?.id || '',
+        };
+      }
     }
-  }
-});
+  },
+);
 
 const ownerName = (user?: AdminTeamUser | null) => user?.name || user?.email || '未指定';
 
@@ -71,12 +78,11 @@ const handleSave = () => {
 </script>
 
 <template>
-  <el-dialog
-    :model-value="modelValue"
-    @update:model-value="emit('update:modelValue', $event)"
+  <Modal
+    :show="modelValue"
     :title="mode === 'create' ? '新建团队' : '编辑团队'"
-    width="560px"
-    destroy-on-close
+    size="md"
+    @close="emit('update:modelValue', false)"
   >
     <div class="form-stack">
       <label>团队名称<input v-model="form.name" placeholder="例如：角色资产制作组" /></label>
@@ -121,7 +127,7 @@ const handleSave = () => {
         保存
       </button>
     </template>
-  </el-dialog>
+  </Modal>
 </template>
 
 <style scoped>

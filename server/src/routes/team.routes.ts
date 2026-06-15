@@ -11,6 +11,7 @@ router.use(authenticate);
 // Static routes MUST come before param routes (/:teamId)
 router.get('/', teamController.getTeams);
 router.get('/public', teamController.getPublicTeams);
+router.get('/stats', teamController.getTeamStats);
 router.post('/', teamController.createTeam);
 
 // Invitation routes

@@ -7,7 +7,6 @@ import {
   GraduationCap,
   Filter,
   Sparkles,
-  X,
   Flame,
   Play,
   Heart,
@@ -22,6 +21,8 @@ import api from '@/utils/api';
 import PageHeader from '@/components/PageHeader.vue';
 import CourseCard from '@/components/CourseCard.vue';
 import { useAuthStore } from '@/stores/auth';
+import Tabs from '@/components/ui/Tabs.vue';
+import Input from '@/components/ui/Input.vue';
 
 type CourseSortKey = 'newest' | 'popular' | 'rating';
 
@@ -184,7 +185,9 @@ const filteredCourses = computed(() => {
   let list = courses.value;
 
   if (activeCategoryId.value === 'mine') {
-    list = myEnrollments.value.map((e) => e.course).filter((course): course is AcademyCourse => !!course);
+    list = myEnrollments.value
+      .map((e) => e.course)
+      .filter((course): course is AcademyCourse => !!course);
   } else if (activeCategoryId.value === 'bookmarked') {
     list = courses.value.filter((c) => bookmarkedCourseIds.value.has(c.id));
   } else if (activeCategoryId.value) {
@@ -216,6 +219,28 @@ const activeCategory = computed(() => {
   return cat?.name || t('academy.allCourses');
 });
 
+const categoryTabsOptions = computed(() => {
+  const options: Array<{ label: string; value: string | null; icon?: any }> = [
+    { label: t('academy.allCourses'), value: null },
+    { label: t('academy.myCourses'), value: 'mine', icon: BookOpen },
+    { label: t('academy.myBookmarks'), value: 'bookmarked', icon: Bookmark },
+  ];
+  categories.value.forEach((cat) => {
+    options.push({
+      label: `${cat.name} (${cat._count?.courses || 0})`,
+      value: cat.id,
+    });
+  });
+  return options;
+});
+
+const difficultyOptions = computed(() => [
+  { label: t('academy.difficultyAll'), value: null },
+  { label: t('academy.difficultyBeginner'), value: 'BEGINNER' },
+  { label: t('academy.difficultyIntermediate'), value: 'INTERMEDIATE' },
+  { label: t('academy.difficultyAdvanced'), value: 'ADVANCED' },
+]);
+
 onMounted(() => {
   fetchData();
 });
@@ -227,139 +252,77 @@ onMounted(() => {
     style="background-color: var(--bg-app)"
   >
     <!-- Top Header -->
-    <PageHeader
-      :title="t('academy.title')"
-      :subtitle="t('academy.subtitle')"
-      :icon="GraduationCap"
-    >
-      <div class="relative flex-1 min-w-0 sm:min-w-[240px] lg:min-w-[160px]">
-        <Search
-          class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
-          style="color: var(--text-muted)"
-        />
-        <input
+    <PageHeader :title="t('academy.title')" :subtitle="t('academy.subtitle')" :icon="GraduationCap">
+      <template #center>
+        <Input
           v-model="searchQuery"
           type="text"
           :placeholder="t('academy.searchPlaceholder')"
-          class="pl-10 pr-4 py-2 rounded-xl border text-xs sm:text-sm w-full outline-none transition-all lg:focus:w-72"
-          style="
-            background-color: var(--bg-app);
-            border-color: var(--border-base);
-            color: var(--text-primary);
-          "
+          :icon="Search"
+          clearable
+          glass
+          class="w-full flex-1"
+          input-class="!py-2 !h-9.5 text-xs sm:text-sm"
         />
-        <button v-if="searchQuery" type="button" class="absolute right-3 top-1/2 -translate-y-1/2" @click="searchQuery = ''">
-          <X class="w-3.5 h-3.5" style="color: var(--text-muted)" />
-        </button>
-      </div>
+      </template>
 
       <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
-        <button type="button" class="flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-xl border text-xs sm:text-sm font-bold transition-all shrink-0" :class="showFilters || difficultyFilter ? 'border-accent/30 text-accent' : ''" style="border-color: var(--border-base); color: var(--text-secondary)" @click="showFilters = !showFilters">
+        <button
+          type="button"
+          class="flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-xl border text-xs sm:text-sm font-bold transition-all shrink-0"
+          :class="showFilters || difficultyFilter ? 'border-accent/30 text-accent' : ''"
+          style="border-color: var(--border-base); color: var(--text-secondary)"
+          @click="showFilters = !showFilters"
+        >
           <Filter class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           {{ t('academy.filter') }}
         </button>
 
-        <div class="flex items-center gap-0.5 sm:gap-1 p-0.5 sm:p-1 rounded-xl shrink-0" style="background-color: var(--bg-app)">
-          <button
-            v-for="sort in [
-              { key: 'newest', label: t('academy.sortByNewest') },
-              { key: 'popular', label: t('academy.sortByPopular') },
-              { key: 'rating', label: t('academy.sortByRating') },
+        <div
+          class="flex items-center gap-0.5 sm:gap-1 p-0.5 sm:p-1 rounded-xl shrink-0"
+          style="background-color: var(--bg-app)"
+        >
+          <Tabs
+            v-model="sortBy"
+            :options="[
+              { label: t('academy.sortByNewest'), value: 'newest' },
+              { label: t('academy.sortByPopular'), value: 'popular' },
+              { label: t('academy.sortByRating'), value: 'rating' },
             ]"
-            :key="sort.key"
-            type="button"
-            class="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all whitespace-nowrap"
-            :class="
-              sortBy === sort.key
-                ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
-                : 'text-slate-400 hover:text-slate-600'
-            "
-            @click="setSortBy(sort.key)"
-          >
-            {{ sort.label }}
-          </button>
+            size="sm"
+            class="!bg-transparent border-none shrink-0"
+            @change="setSortBy"
+          />
         </div>
       </div>
     </PageHeader>
 
-    <!-- Filter Bar -->
+    <!-- Filters & Categories Bar -->
     <div
-      v-if="showFilters"
-      class="px-3 sm:px-4.5 lg:px-5 py-1.5 sm:py-2 border-b flex flex-wrap items-center gap-2.5 sm:gap-3 transition-colors duration-300"
+      class="px-3 sm:px-4.5 lg:px-5 py-1.5 sm:py-2 border-b flex flex-wrap items-center justify-between gap-3 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <span class="text-xs font-bold" style="color: var(--text-muted)">{{ t('academy.difficultyLabel') }}</span>
-      <div class="flex flex-wrap items-center gap-2">
-        <button
-          v-for="d in [
-            { key: '', label: t('academy.difficultyAll') },
-            { key: 'BEGINNER', label: t('academy.difficultyBeginner') },
-            { key: 'INTERMEDIATE', label: t('academy.difficultyIntermediate') },
-            { key: 'ADVANCED', label: t('academy.difficultyAdvanced') },
-          ]"
-          :key="d.key"
-          type="button"
-          class="px-3 py-1 rounded-lg text-xs font-bold transition-all"
-          :class="difficultyFilter === (d.key || null) ? 'bg-accent text-white' : 'hover:bg-slate-100 dark:hover:bg-white/5'"
-          :style="difficultyFilter !== (d.key || null) ? 'color: var(--text-secondary)' : ''"
-          @click="
-            difficultyFilter = d.key || null;
-            fetchData();
-          "
-        >
-          {{ d.label }}
-        </button>
-      </div>
-    </div>
+      <!-- Category Tabs -->
+      <Tabs
+        v-model="activeCategoryId"
+        :options="categoryTabsOptions"
+        size="sm"
+        class="!bg-transparent border-none shrink-0"
+      />
 
-    <!-- Category Tabs -->
-    <div
-      class="px-3 sm:px-4.5 lg:px-5 py-1.5 sm:py-2 border-b flex items-center gap-2 overflow-x-auto scrollbar-hide transition-colors duration-300"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <button
-        type="button"
-        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap"
-        :class="!activeCategoryId ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'"
-        :style="activeCategoryId ? 'color: var(--text-secondary)' : ''"
-        @click="activeCategoryId = null"
-      >
-        {{ t('academy.allCourses') }}
-      </button>
-      <button
-        type="button"
-        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5"
-        :class="activeCategoryId === 'mine' ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'"
-        :style="activeCategoryId !== 'mine' ? 'color: var(--text-secondary)' : ''"
-        @click="activeCategoryId = 'mine'"
-      >
-        <BookOpen class="w-3.5 h-3.5" /> {{ t('academy.myCourses') }}
-      </button>
-      <button
-        type="button"
-        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5"
-        :class="activeCategoryId === 'bookmarked' ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'"
-        :style="activeCategoryId !== 'bookmarked' ? 'color: var(--text-secondary)' : ''"
-        @click="activeCategoryId = 'bookmarked'"
-      >
-        <Bookmark class="w-3.5 h-3.5" /> {{ t('academy.myBookmarks') }}
-      </button>
-      <div
-        class="h-4 w-[1px] mx-1 transition-colors duration-300"
-        style="background-color: var(--border-base)"
-      ></div>
-      <button
-        v-for="cat in categories"
-        :key="cat.id"
-        type="button"
-        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap"
-        :class="activeCategoryId === cat.id ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'"
-        :style="activeCategoryId !== cat.id ? 'color: var(--text-secondary)' : ''"
-        @click="activeCategoryId = cat.id"
-      >
-        {{ cat.name }}
-        <span class="ml-1 text-[10px] opacity-60">{{ cat._count?.courses || 0 }}</span>
-      </button>
+      <!-- Difficulty Filter -->
+      <div v-if="showFilters" class="flex items-center gap-2 shrink-0">
+        <span class="text-xs font-bold" style="color: var(--text-muted)">{{
+          t('academy.difficultyLabel')
+        }}</span>
+        <Tabs
+          v-model="difficultyFilter"
+          :options="difficultyOptions"
+          size="sm"
+          class="!bg-transparent border-none"
+          @change="fetchData"
+        />
+      </div>
     </div>
 
     <!-- Content Area -->
@@ -371,44 +334,81 @@ onMounted(() => {
           <section>
             <div class="flex items-center gap-2 mb-2 sm:mb-2.5">
               <TrendingUp class="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
-              <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">{{ t('academy.learningStats') }}</h2>
+              <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">
+                {{ t('academy.learningStats') }}
+              </h2>
             </div>
             <!-- Stats Container: Fixed 5 columns -->
             <div class="grid grid-cols-5 gap-1 sm:gap-2.5">
               <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
-                <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
-                  <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">{{ t('academy.statsLearning') }}</span>
+                <div
+                  class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1"
+                >
+                  <span
+                    class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase"
+                    >{{ t('academy.statsLearning') }}</span
+                  >
                   <BookOpen class="hidden sm:block w-4 h-4 text-accent" />
                 </div>
-                <p class="text-xs sm:text-2xl font-black text-accent">{{ learningStats.inProgressCourses }}</p>
+                <p class="text-xs sm:text-2xl font-black text-accent">
+                  {{ learningStats.inProgressCourses }}
+                </p>
               </div>
               <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
-                <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
-                  <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">{{ t('academy.statsCompleted') }}</span>
+                <div
+                  class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1"
+                >
+                  <span
+                    class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase"
+                    >{{ t('academy.statsCompleted') }}</span
+                  >
                   <Trophy class="hidden sm:block w-4 h-4 text-amber-500" />
                 </div>
-                <p class="text-xs sm:text-2xl font-black text-amber-500">{{ learningStats.completedCourses }}</p>
+                <p class="text-xs sm:text-2xl font-black text-amber-500">
+                  {{ learningStats.completedCourses }}
+                </p>
               </div>
               <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
-                <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
-                  <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">{{ t('academy.statsLessons') }}</span>
+                <div
+                  class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1"
+                >
+                  <span
+                    class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase"
+                    >{{ t('academy.statsLessons') }}</span
+                  >
                   <Clock class="hidden sm:block w-4 h-4 text-indigo-500" />
                 </div>
-                <p class="text-xs sm:text-2xl font-black text-indigo-500">{{ learningStats.totalLessons }}</p>
+                <p class="text-xs sm:text-2xl font-black text-indigo-500">
+                  {{ learningStats.totalLessons }}
+                </p>
               </div>
               <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
-                <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
-                  <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">{{ t('academy.statsAverage') }}</span>
+                <div
+                  class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1"
+                >
+                  <span
+                    class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase"
+                    >{{ t('academy.statsAverage') }}</span
+                  >
                   <Target class="hidden sm:block w-4 h-4 text-emerald-500" />
                 </div>
-                <p class="text-xs sm:text-2xl font-black text-emerald-500">{{ learningStats.avgProgress }}<span class="text-[8px] sm:text-sm">%</span></p>
+                <p class="text-xs sm:text-2xl font-black text-emerald-500">
+                  {{ learningStats.avgProgress }}<span class="text-[8px] sm:text-sm">%</span>
+                </p>
               </div>
               <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
-                <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
-                  <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">{{ t('academy.statsEnrollments') }}</span>
+                <div
+                  class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1"
+                >
+                  <span
+                    class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase"
+                    >{{ t('academy.statsEnrollments') }}</span
+                  >
                   <Flame class="hidden sm:block w-4 h-4 text-rose-500" />
                 </div>
-                <p class="text-xs sm:text-2xl font-black text-rose-500">{{ learningStats.totalCourses }}</p>
+                <p class="text-xs sm:text-2xl font-black text-rose-500">
+                  {{ learningStats.totalCourses }}
+                </p>
               </div>
             </div>
           </section>
@@ -417,7 +417,9 @@ onMounted(() => {
           <section v-if="continueLearningCourses.length > 0">
             <div class="flex items-center gap-2 mb-4">
               <Play class="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
-              <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">{{ t('academy.continueLearning') }}</h2>
+              <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">
+                {{ t('academy.continueLearning') }}
+              </h2>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <CourseCard
@@ -434,11 +436,15 @@ onMounted(() => {
 
         <!-- Featured Section (only on "all" tab) -->
         <section
-          v-if="!activeCategoryId && !searchQuery && !difficultyFilter && featuredCourses.length > 0"
+          v-if="
+            !activeCategoryId && !searchQuery && !difficultyFilter && featuredCourses.length > 0
+          "
         >
           <div class="flex items-center gap-2 mb-2.5 sm:mb-3">
             <Sparkles class="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
-            <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">{{ t('academy.featuredRecommend') }}</h2>
+            <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">
+              {{ t('academy.featuredRecommend') }}
+            </h2>
           </div>
           <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
             <CourseCard
@@ -463,9 +469,13 @@ onMounted(() => {
         >
           <div class="flex items-center gap-2 mb-2.5 sm:mb-3">
             <Heart class="w-4 h-4 sm:w-5 sm:h-5 text-rose-400" />
-            <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">{{ t('academy.guessYouLike') }}</h2>
+            <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">
+              {{ t('academy.guessYouLike') }}
+            </h2>
           </div>
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-1.5 sm:gap-4">
+          <div
+            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-1.5 sm:gap-4"
+          >
             <CourseCard
               v-for="course in recommendedCourses"
               :key="course.id"
@@ -482,9 +492,9 @@ onMounted(() => {
             <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">
               {{ activeCategory }}
             </h2>
-            <span class="text-[10px] sm:text-xs font-bold" style="color: var(--text-muted)"
-              >{{ t('academy.coursesCount', { n: filteredCourses.length }) }}</span
-            >
+            <span class="text-[10px] sm:text-xs font-bold" style="color: var(--text-muted)">{{
+              t('academy.coursesCount', { n: filteredCourses.length })
+            }}</span>
           </div>
 
           <div

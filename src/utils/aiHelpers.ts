@@ -24,7 +24,9 @@ export const getCsrfToken = (): string => {
   return document.cookie.match(/csrfToken=([^;]+)/)?.[1] ?? '';
 };
 
-export const createJsonHeaders = (extraHeaders: Record<string, string> = {}): Record<string, string> => {
+export const createJsonHeaders = (
+  extraHeaders: Record<string, string> = {},
+): Record<string, string> => {
   const csrfToken = getCsrfToken();
   return {
     'Content-Type': 'application/json',
@@ -56,7 +58,7 @@ export async function parseSSEStream(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   onChunk: (payload: SSEPayload) => void,
   onDone: () => void,
-  onError: (err: Error) => void
+  onError: (err: Error) => void,
 ): Promise<void> {
   const decoder = new TextDecoder('utf-8');
   let sseBuffer = '';
@@ -110,7 +112,9 @@ export async function parseSSEStream(
 export function renderMarkdown(text: string): string {
   if (!text) return '';
   const html = text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>')
     .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')

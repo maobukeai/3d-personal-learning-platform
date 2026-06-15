@@ -11,14 +11,19 @@ import {
   Send,
   Square,
   Brain,
-  Zap
+  Zap,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { useSystemStore } from '@/stores/system';
 import { preferences } from '@/utils/preferences';
 import { parseMarkdownToPlanJson, getStableId } from '@/utils/planParser';
-import { createJsonHeaders, parseSSEStream, readFetchErrorMessage, renderMarkdown } from '@/utils/aiHelpers';
+import {
+  createJsonHeaders,
+  parseSSEStream,
+  readFetchErrorMessage,
+  renderMarkdown,
+} from '@/utils/aiHelpers';
 import SafeHtml from '@/components/SafeHtml.vue';
 
 // Props and Emits definition
@@ -43,17 +48,29 @@ const isStartingAiPlanner = ref(false);
 const recGoals = ref([
   '我想在 2 周内学会 Three.js 基础开发与常用材质',
   '帮我设计一个 30 天的 WebGL/Shader 进阶学习路线',
-  '我想通过实战案例学习 C4D 粒子渲染特效'
+  '我想通过实战案例学习 C4D 粒子渲染特效',
 ]);
 
 const importStep = ref(1); // 1: Input Netdisk Link, 2: AI Co-Planning & Preview, 3: Completed
 const netdiskUrl = ref('');
 const netdiskPassword = ref('');
 const isParsingNetdisk = ref(false);
-const parsedNetdisk = ref<{ title: string; directories: { name: string; files: string[] }[] } | null>(null);
+const parsedNetdisk = ref<{
+  title: string;
+  directories: { name: string; files: string[] }[];
+} | null>(null);
 
 // Chat & Planning states
-const planMessages = ref<{ role: 'user' | 'assistant'; content: string; reasoning?: string; showReasoning?: boolean; suggestions?: string[]; isFallback?: boolean }[]>([]);
+const planMessages = ref<
+  {
+    role: 'user' | 'assistant';
+    content: string;
+    reasoning?: string;
+    showReasoning?: boolean;
+    suggestions?: string[];
+    isFallback?: boolean;
+  }[]
+>([]);
 const chatInput = ref('');
 const isChatSending = ref(false);
 const currentReasoningText = ref(''); // live streaming reasoning/thinking
@@ -65,11 +82,22 @@ interface PlanJson {
   tags: string;
   dueDate: string;
   color: string;
-  tasks: { title: string; description?: string; priority: string; dueDate?: string; subtasks?: { id: string; text: string; done: boolean }[] }[];
+  tasks: {
+    title: string;
+    description?: string;
+    priority: string;
+    dueDate?: string;
+    subtasks?: { id: string; text: string; done: boolean }[];
+  }[];
   roadmap?: {
     title: string;
     description?: string;
-    steps: { title: string; description?: string; order: number; subtasks: { id: string; text: string; done: boolean }[] }[];
+    steps: {
+      title: string;
+      description?: string;
+      order: number;
+      subtasks: { id: string; text: string; done: boolean }[];
+    }[];
   };
 }
 
@@ -101,26 +129,29 @@ watch(useTraditionalImport, (val) => {
   }
 });
 
-watch(() => props.visible, (val) => {
-  if (val) {
-    importStep.value = 1;
-    importMode.value = props.initialMode || 'ai_assistant';
-    netdiskUrl.value = '';
-    netdiskPassword.value = '';
-    parsedNetdisk.value = null;
-    planMessages.value = [];
-    currentPlanJson.value = null;
-    importText.value = '';
-    aiGoalInput.value = '';
-  } else {
-    // Cancel active stream reader when dialog is closed to prevent memory leaks and background console crashes
-    if (activeChatReader.value) {
-      activeChatReader.value.cancel().catch(() => {});
-      activeChatReader.value = null;
+watch(
+  () => props.visible,
+  (val) => {
+    if (val) {
+      importStep.value = 1;
+      importMode.value = props.initialMode || 'ai_assistant';
+      netdiskUrl.value = '';
+      netdiskPassword.value = '';
+      parsedNetdisk.value = null;
+      planMessages.value = [];
+      currentPlanJson.value = null;
+      importText.value = '';
+      aiGoalInput.value = '';
+    } else {
+      // Cancel active stream reader when dialog is closed to prevent memory leaks and background console crashes
+      if (activeChatReader.value) {
+        activeChatReader.value.cancel().catch(() => {});
+        activeChatReader.value = null;
+      }
+      isChatSending.value = false;
     }
-    isChatSending.value = false;
-  }
-});
+  },
+);
 
 const handleAiGenerate = async () => {
   if (!props.canCreateProject) {
@@ -239,9 +270,11 @@ const initializeCoPlan = () => {
 
   const title = parsedNetdisk.value.title;
   const categories = parsedNetdisk.value.directories;
-  
+
   const tasks = categories.map((dir, i) => {
-    const fileSummary = dir.files.slice(0, 3).join('、') + (dir.files.length > 3 ? ` 等共 ${dir.files.length} 个视频` : '');
+    const fileSummary =
+      dir.files.slice(0, 3).join('、') +
+      (dir.files.length > 3 ? ` 等共 ${dir.files.length} 个视频` : '');
     return {
       title: `完成 ${dir.name} 模块学习`,
       description: `学习内容包含：${fileSummary}`,
@@ -250,8 +283,8 @@ const initializeCoPlan = () => {
       subtasks: dir.files.map((file, fIdx) => ({
         id: getStableId(`学习视频: ${file}`, `task-${i}-sub-${fIdx}`),
         text: `学习视频: ${file}`,
-        done: false
-      }))
+        done: false,
+      })),
     };
   });
 
@@ -262,22 +295,22 @@ const initializeCoPlan = () => {
     subtasks: dir.files.map((file, fIdx) => ({
       id: getStableId(`学习视频: ${file}`, `step-${i}-sub-${fIdx}`),
       text: `学习视频: ${file}`,
-      done: false
-    }))
+      done: false,
+    })),
   }));
 
   currentPlanJson.value = {
     title: title,
     description: `从百度网盘自动导入的 3D/全栈学习项目。\n网盘链接：${netdiskUrl.value}`,
-    tags: "3D学习, 网盘导入",
+    tags: '3D学习, 网盘导入',
     dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    color: "bg-indigo",
+    color: 'bg-indigo',
     tasks: tasks,
     roadmap: {
       title: `学习路线 - ${title}`,
       description: `针对该网盘资源的专属学习与实践路径`,
-      steps: steps
-    }
+      steps: steps,
+    },
   };
 
   const isFallback = (parsedNetdisk.value as any).isFallback ?? false;
@@ -295,8 +328,8 @@ const initializeCoPlan = () => {
         `把整体计划压缩到 ${Math.max(2, Math.round(categories.length / 2))} 周内完成`,
         '给每个任务加上更详细的学习目标描述',
         '在最后增加一个项目实战演练与答辩展示任务',
-      ]
-    }
+      ],
+    },
   ];
 
   importStep.value = 2;
@@ -316,12 +349,14 @@ const handleParseNetdisk = async () => {
   try {
     const { data } = await api.post('/api/projects/parse-netdisk', {
       url,
-      password: netdiskPassword.value.trim()
+      password: netdiskPassword.value.trim(),
     });
     if (data.success && data.data) {
       parsedNetdisk.value = data.data;
       if (data.data.isFallback) {
-        ElMessage.warning('已启动 AI 智能大纲还原！(未提取到网盘真实目录，已基于链接及主题为您智能设计大纲)');
+        ElMessage.warning(
+          '已启动 AI 智能大纲还原！(未提取到网盘真实目录，已基于链接及主题为您智能设计大纲)',
+        );
       } else {
         ElMessage.success('网盘链接智能解析成功！');
       }
@@ -346,14 +381,24 @@ const triggerCoPlanStream = async (activeMessageIndex: number) => {
       headers['X-Workspace-Id'] = activeWorkspaceId;
     }
 
-    const sanitizedMessages = planMessages.value.slice(0, -1).slice(-10).map(m => {
-      // Avoid sending full plan markdown back as history — the currentPlan JSON already carries that state.
-      // Assistant messages that contain a full plan are replaced with a short placeholder.
-      if (m.role === 'assistant' && m.content.length > 300 && (m.content.includes('## 任务看板') || m.content.includes('## 学习路线'))) {
-        return { role: m.role, content: '（已输出完整计划，已通过 currentPlan 参数传递，此处省略）' };
-      }
-      return { role: m.role, content: m.content };
-    });
+    const sanitizedMessages = planMessages.value
+      .slice(0, -1)
+      .slice(-10)
+      .map((m) => {
+        // Avoid sending full plan markdown back as history — the currentPlan JSON already carries that state.
+        // Assistant messages that contain a full plan are replaced with a short placeholder.
+        if (
+          m.role === 'assistant' &&
+          m.content.length > 300 &&
+          (m.content.includes('## 任务看板') || m.content.includes('## 学习路线'))
+        ) {
+          return {
+            role: m.role,
+            content: '（已输出完整计划，已通过 currentPlan 参数传递，此处省略）',
+          };
+        }
+        return { role: m.role, content: m.content };
+      });
 
     const response = await fetch('/api/projects/co-plan-chat', {
       method: 'POST',
@@ -361,8 +406,8 @@ const triggerCoPlanStream = async (activeMessageIndex: number) => {
       body: JSON.stringify({
         messages: sanitizedMessages,
         netdiskInfo: parsedNetdisk.value,
-        currentPlan: currentPlanJson.value
-      })
+        currentPlan: currentPlanJson.value,
+      }),
     });
 
     if (!response.ok) {
@@ -402,8 +447,11 @@ const triggerCoPlanStream = async (activeMessageIndex: number) => {
             lastMarkdownParseTime = now;
             try {
               const parsed = parseMarkdownToPlanJson(currentStreamingText.value);
-              if (parsed && parsed.title !== '未命名导入项目' &&
-                ((parsed.tasks?.length ?? 0) > 0 || (parsed.roadmap?.steps?.length ?? 0) > 0)) {
+              if (
+                parsed &&
+                parsed.title !== '未命名导入项目' &&
+                ((parsed.tasks?.length ?? 0) > 0 || (parsed.roadmap?.steps?.length ?? 0) > 0)
+              ) {
                 currentPlanJson.value = parsed as PlanJson;
               }
             } catch {}
@@ -414,14 +462,15 @@ const triggerCoPlanStream = async (activeMessageIndex: number) => {
       () => {},
       (err) => {
         throw err;
-      }
+      },
     );
 
     // Final authoritative parse once the stream is complete
     planMessages.value[activeMessageIndex].content = currentStreamingText.value;
     try {
       const finalParsed = parseMarkdownToPlanJson(currentStreamingText.value);
-      const hasData = finalParsed &&
+      const hasData =
+        finalParsed &&
         finalParsed.title !== '未命名导入项目' &&
         ((finalParsed.tasks?.length ?? 0) > 0 || (finalParsed.roadmap?.steps?.length ?? 0) > 0);
 
@@ -434,10 +483,16 @@ const triggerCoPlanStream = async (activeMessageIndex: number) => {
         if (jsonMatch) {
           try {
             const extracted = JSON.parse(jsonMatch[0] + (jsonMatch[0].endsWith('}') ? '' : '}'));
-            if (extracted && extracted.title && (extracted.tasks?.length > 0 || extracted.roadmap?.steps?.length > 0)) {
+            if (
+              extracted &&
+              extracted.title &&
+              (extracted.tasks?.length > 0 || extracted.roadmap?.steps?.length > 0)
+            ) {
               currentPlanJson.value = extracted as PlanJson;
               isPlanJsonSynced.value = true;
-              console.warn('[CoPlan] AI output raw JSON instead of Markdown — parsed via fallback extractor.');
+              console.warn(
+                '[CoPlan] AI output raw JSON instead of Markdown — parsed via fallback extractor.',
+              );
             }
           } catch (_) {}
         }
@@ -445,10 +500,10 @@ const triggerCoPlanStream = async (activeMessageIndex: number) => {
     } catch (e) {
       console.warn('Final markdown parse failed:', e);
     }
-
   } catch (err: any) {
     ElMessage.error(err.message || '规划助手对话发生错误');
-    planMessages.value[activeMessageIndex].content = '抱歉，AI 规划助手遇到了一点问题。请稍后重试，或检查后台 AI 配置是否正常。🛠️';
+    planMessages.value[activeMessageIndex].content =
+      '抱歉，AI 规划助手遇到了一点问题。请稍后重试，或检查后台 AI 配置是否正常。🛠️';
   } finally {
     isChatSending.value = false;
     currentStreamingText.value = '';
@@ -508,7 +563,7 @@ const handleStartAiPlanner = async () => {
 const handleImportCoPlan = async () => {
   if (!currentPlanJson.value) return;
   isFinalImporting.value = true;
-  
+
   let planPayload = currentPlanJson.value;
   if (planPayload && !planPayload.title) {
     if ((planPayload as any).plan && (planPayload as any).plan.title) {
@@ -520,12 +575,12 @@ const handleImportCoPlan = async () => {
 
   try {
     const { data } = await api.post('/api/projects/import-json', {
-      plan: planPayload
+      plan: planPayload,
     });
     if (data.success && data.project) {
       ElMessage.success('学习项目及路线看板成功导入！');
       emit('update:visible', false);
-      
+
       importStep.value = 1;
       netdiskUrl.value = '';
       netdiskPassword.value = '';
@@ -562,36 +617,60 @@ onUnmounted(() => {
 <template>
   <!-- Smart Import Dialog -->
   <Transition name="fade">
-    <div
-      v-if="visible"
-      class="fixed inset-0 z-[100] flex items-center justify-center p-4"
-    >
+    <div v-if="visible" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div
         class="absolute inset-0 bg-black/40 backdrop-blur-sm"
         @click="emit('update:visible', false)"
       ></div>
       <div
         class="relative w-full p-6 sm:p-8 rounded-3xl shadow-2xl border space-y-5 sm:space-y-6 transition-all duration-500 ease-out overflow-hidden flex flex-col"
-        :class="useTraditionalImport ? (isHelpOpen ? 'max-w-7xl' : 'max-w-3xl') : (importStep === 2 ? 'max-w-7xl h-[88vh]' : 'max-w-3xl')"
+        :class="
+          useTraditionalImport
+            ? isHelpOpen
+              ? 'max-w-7xl'
+              : 'max-w-3xl'
+            : importStep === 2
+              ? 'max-w-7xl h-[88vh]'
+              : 'max-w-3xl'
+        "
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <!-- Unified Header -->
-        <div class="flex items-center justify-between shrink-0 pb-4 border-b" style="border-color: var(--border-base)">
+        <div
+          class="flex items-center justify-between shrink-0 pb-4 border-b"
+          style="border-color: var(--border-base)"
+        >
           <div class="flex items-center gap-2">
             <div class="p-1.5 bg-gradient-to-br from-accent to-indigo-600 rounded-lg text-white">
               <Sparkles class="w-4 h-4" />
             </div>
-            <h3 class="text-md sm:text-lg font-black tracking-tight" style="color: var(--text-primary)">
-              {{ importMode === 'traditional' ? '传统文本解析导入' : (importMode === 'ai_assistant' ? 'AI 智能规划助手' : '百度网盘智能解析') }}
+            <h3
+              class="text-md sm:text-lg font-black tracking-tight"
+              style="color: var(--text-primary)"
+            >
+              {{
+                importMode === 'traditional'
+                  ? '传统文本解析导入'
+                  : importMode === 'ai_assistant'
+                    ? 'AI 智能规划助手'
+                    : '百度网盘智能解析'
+              }}
             </h3>
           </div>
-          
+
           <!-- Segmented Switch: only visible in step 1 and when not in traditional import mode -->
-          <div v-if="importStep === 1 && importMode !== 'traditional'" class="flex items-center bg-slate-100 dark:bg-white/5 p-1 rounded-xl">
+          <div
+            v-if="importStep === 1 && importMode !== 'traditional'"
+            class="flex items-center bg-slate-100 dark:bg-white/5 p-1 rounded-xl"
+          >
             <button
               type="button"
               class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
-              :class="importMode === 'ai_assistant' ? 'bg-white dark:bg-slate-800 text-accent shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'"
+              :class="
+                importMode === 'ai_assistant'
+                  ? 'bg-white dark:bg-slate-800 text-accent shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'
+              "
               @click="importMode = 'ai_assistant'"
             >
               智能规划助手
@@ -599,14 +678,23 @@ onUnmounted(() => {
             <button
               type="button"
               class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
-              :class="importMode === 'netdisk' ? 'bg-white dark:bg-slate-800 text-accent shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'"
+              :class="
+                importMode === 'netdisk'
+                  ? 'bg-white dark:bg-slate-800 text-accent shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'
+              "
               @click="importMode = 'netdisk'"
             >
               网盘智能解析
             </button>
           </div>
-          
-          <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors cursor-pointer" style="color: var(--text-secondary)" @click="emit('update:visible', false)">
+
+          <button
+            type="button"
+            class="p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+            style="color: var(--text-secondary)"
+            @click="emit('update:visible', false)"
+          >
             <X class="w-5 h-5" />
           </button>
         </div>
@@ -620,20 +708,30 @@ onUnmounted(() => {
               <!-- If Netdisk Mode -->
               <template v-if="importMode === 'netdisk'">
                 <div class="text-center max-w-lg mx-auto space-y-2">
-                  <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 text-accent text-[11px] font-bold">
+                  <div
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 text-accent text-[11px] font-bold"
+                  >
                     <Compass class="w-3.5 h-3.5" />
                     <span>全新升级：百度网盘智能解析</span>
                   </div>
-                  <h4 class="text-md font-bold text-slate-800 dark:text-slate-200">一键解析网盘课程/资源</h4>
+                  <h4 class="text-md font-bold text-slate-800 dark:text-slate-200">
+                    一键解析网盘课程/资源
+                  </h4>
                   <p class="text-xs text-slate-400">
-                    我们将解析您分享的网盘课程名称、目录结构与视频大纲，并自动配置出任务看板 and 学习路线图。
+                    我们将解析您分享的网盘课程名称、目录结构与视频大纲，并自动配置出任务看板 and
+                    学习路线图。
                   </p>
                 </div>
 
                 <!-- Input form -->
-                <div class="p-6 bg-slate-50 dark:bg-white/[0.02] border rounded-2xl space-y-4" style="border-color: var(--border-base)">
+                <div
+                  class="p-6 bg-slate-50 dark:bg-white/[0.02] border rounded-2xl space-y-4"
+                  style="border-color: var(--border-base)"
+                >
                   <div class="space-y-1.5">
-                    <label class="text-[11px] font-black text-slate-500 uppercase tracking-wider">百度网盘分享链接</label>
+                    <label class="text-[11px] font-black text-slate-500 uppercase tracking-wider"
+                      >百度网盘分享链接</label
+                    >
                     <input
                       v-model="netdiskUrl"
                       type="text"
@@ -645,8 +743,12 @@ onUnmounted(() => {
                   </div>
                   <div class="space-y-1.5">
                     <div class="flex justify-between items-center">
-                      <label class="text-[11px] font-black text-slate-500 uppercase tracking-wider">提取码 (选填)</label>
-                      <span class="text-[10px] text-slate-400">若链接中已包含提取码，可留空自动识别</span>
+                      <label class="text-[11px] font-black text-slate-500 uppercase tracking-wider"
+                        >提取码 (选填)</label
+                      >
+                      <span class="text-[10px] text-slate-400"
+                        >若链接中已包含提取码，可留空自动识别</span
+                      >
                     </div>
                     <input
                       v-model="netdiskPassword"
@@ -657,7 +759,7 @@ onUnmounted(() => {
                       :disabled="isParsingNetdisk"
                     />
                   </div>
-                  
+
                   <button
                     type="button"
                     class="w-full py-3 bg-gradient-to-r from-accent to-indigo-600 hover:from-accent hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-accent/20 hover:shadow-accent/35 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
@@ -671,12 +773,23 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Tip alert -->
-                <div class="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-500/[0.02] border border-indigo-100/50 dark:border-indigo-500/10 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed flex gap-2">
+                <div
+                  class="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-500/[0.02] border border-indigo-100/50 dark:border-indigo-500/10 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed flex gap-2"
+                >
                   <span class="text-xs">💡</span>
                   <div>
                     <p class="font-bold text-indigo-900 dark:text-indigo-400">这是如何工作的？</p>
-                    <p class="mt-0.5">当您提交网盘链接时，我们的系统会爬取提取网盘文件列表。接着，AI 会将目录文件解析成结构化的学习路线与看板任务，并启动<b>对话式规划窗口</b>供您二次微调。</p>
-                    <button type="button" class="mt-1.5 text-accent font-bold hover:underline cursor-pointer" @click="fillTraditionalTemplate">没有网盘？点击前往体验传统的纯文本生成</button>
+                    <p class="mt-0.5">
+                      当您提交网盘链接时，我们的系统会爬取提取网盘文件列表。接着，AI
+                      会将目录文件解析成结构化的学习路线与看板任务，并启动<b>对话式规划窗口</b>供您二次微调。
+                    </p>
+                    <button
+                      type="button"
+                      class="mt-1.5 text-accent font-bold hover:underline cursor-pointer"
+                      @click="fillTraditionalTemplate"
+                    >
+                      没有网盘？点击前往体验传统的纯文本生成
+                    </button>
                   </div>
                 </div>
               </template>
@@ -684,20 +797,30 @@ onUnmounted(() => {
               <!-- If AI Assistant Mode -->
               <template v-else-if="importMode === 'ai_assistant'">
                 <div class="text-center max-w-lg mx-auto space-y-2">
-                  <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 text-accent text-[11px] font-bold">
+                  <div
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 text-accent text-[11px] font-bold"
+                  >
                     <Brain class="w-3.5 h-3.5 text-accent" />
                     <span>对话式协同规划</span>
                   </div>
-                  <h4 class="text-md font-bold text-slate-800 dark:text-slate-200">输入您的学习目标，让 AI 帮您做规划</h4>
+                  <h4 class="text-md font-bold text-slate-800 dark:text-slate-200">
+                    输入您的学习目标，让 AI 帮您做规划
+                  </h4>
                   <p class="text-xs text-slate-400">
-                    只需一句话描述您想学的内容，AI 将为您智能定制阶段路线、梳理任务清单，并支持对话式微调。
+                    只需一句话描述您想学的内容，AI
+                    将为您智能定制阶段路线、梳理任务清单，并支持对话式微调。
                   </p>
                 </div>
 
                 <!-- Input form -->
-                <div class="p-6 bg-slate-50 dark:bg-white/[0.02] border rounded-2xl space-y-4" style="border-color: var(--border-base)">
+                <div
+                  class="p-6 bg-slate-50 dark:bg-white/[0.02] border rounded-2xl space-y-4"
+                  style="border-color: var(--border-base)"
+                >
                   <div class="space-y-1.5">
-                    <label class="text-[11px] font-black text-slate-500 uppercase tracking-wider">您的学习目标或主题</label>
+                    <label class="text-[11px] font-black text-slate-500 uppercase tracking-wider"
+                      >您的学习目标或主题</label
+                    >
                     <textarea
                       v-model="aiGoalInput"
                       rows="3"
@@ -725,7 +848,7 @@ onUnmounted(() => {
                       </button>
                     </div>
                   </div>
-                  
+
                   <button
                     type="button"
                     class="w-full py-3 bg-gradient-to-r from-accent to-indigo-600 hover:from-accent hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-accent/20 hover:shadow-accent/35 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
@@ -739,27 +862,49 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Tip alert -->
-                <div class="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-500/[0.02] border border-indigo-100/50 dark:border-indigo-500/10 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed flex gap-2">
+                <div
+                  class="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-500/[0.02] border border-indigo-100/50 dark:border-indigo-500/10 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed flex gap-2"
+                >
                   <span class="text-xs">💡</span>
                   <div>
-                    <p class="font-bold text-indigo-900 dark:text-indigo-400">如何与 AI 规划助手协同？</p>
-                    <p class="mt-0.5">AI 生成初始规划后，您可以针对看板任务和学习路线，在左侧对话框中直接提出修改要求。例如：“加一些进阶内容”、“把周期缩短至 2 周”，右侧面板将实时更新呈现。</p>
+                    <p class="font-bold text-indigo-900 dark:text-indigo-400">
+                      如何与 AI 规划助手协同？
+                    </p>
+                    <p class="mt-0.5">
+                      AI
+                      生成初始规划后，您可以针对看板任务和学习路线，在左侧对话框中直接提出修改要求。例如：“加一些进阶内容”、“把周期缩短至
+                      2 周”，右侧面板将实时更新呈现。
+                    </p>
                   </div>
                 </div>
               </template>
             </div>
 
             <!-- Step 2 Layout: Co-planning Workspace -->
-            <div v-else-if="importStep === 2" class="flex-1 flex flex-col md:flex-row gap-6 overflow-hidden min-h-0">
+            <div
+              v-else-if="importStep === 2"
+              class="flex-1 flex flex-col md:flex-row gap-6 overflow-hidden min-h-0"
+            >
               <!-- Left side: Interactive planning chat -->
-              <div class="flex-1 flex flex-col min-h-0 bg-slate-50 dark:bg-white/[0.01] border rounded-2xl p-4" style="border-color: var(--border-base)">
-                <div class="flex items-center gap-1.5 pb-2 border-b mb-3" style="border-color: var(--border-base)">
+              <div
+                class="flex-1 flex flex-col min-h-0 bg-slate-50 dark:bg-white/[0.01] border rounded-2xl p-4"
+                style="border-color: var(--border-base)"
+              >
+                <div
+                  class="flex items-center gap-1.5 pb-2 border-b mb-3"
+                  style="border-color: var(--border-base)"
+                >
                   <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span class="text-xs font-bold" style="color: var(--text-primary)">与 AI 智能助理对话调优</span>
+                  <span class="text-xs font-bold" style="color: var(--text-primary)"
+                    >与 AI 智能助理对话调优</span
+                  >
                 </div>
 
                 <!-- Chat Messages Scroll -->
-                <div ref="chatScrollContainer" class="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin custom-scrollbar">
+                <div
+                  ref="chatScrollContainer"
+                  class="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin custom-scrollbar"
+                >
                   <div
                     v-for="(msg, index) in planMessages"
                     v-show="msg.role === 'user' || msg.content || msg.reasoning"
@@ -768,16 +913,16 @@ onUnmounted(() => {
                     :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
                   >
                     <!-- AI Avatar -->
-                    <div v-if="msg.role === 'assistant'" class="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs shrink-0 shadow-md mt-0.5">
+                    <div
+                      v-if="msg.role === 'assistant'"
+                      class="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs shrink-0 shadow-md mt-0.5"
+                    >
                       ✨
                     </div>
 
                     <div class="flex flex-col gap-1 max-w-[85%]">
                       <!-- Thinking block (reasoning) -->
-                      <div
-                        v-if="msg.role === 'assistant' && msg.reasoning"
-                        class="mb-1"
-                      >
+                      <div v-if="msg.role === 'assistant' && msg.reasoning" class="mb-1">
                         <button
                           type="button"
                           class="flex items-center gap-1.5 text-[10px] font-bold text-indigo-400 hover:text-indigo-600 transition-colors cursor-pointer group"
@@ -785,7 +930,9 @@ onUnmounted(() => {
                         >
                           <Brain class="w-3 h-3" />
                           <span>{{ msg.showReasoning ? '收起' : '展开' }}思考过程</span>
-                          <span class="text-[9px] text-slate-400 font-normal">({{ Math.round((msg.reasoning?.length || 0) * 0.45) }} tokens)</span>
+                          <span class="text-[9px] text-slate-400 font-normal"
+                            >({{ Math.round((msg.reasoning?.length || 0) * 0.45) }} tokens)</span
+                          >
                         </button>
                         <div
                           v-if="msg.showReasoning"
@@ -798,10 +945,16 @@ onUnmounted(() => {
                       <!-- Main message bubble -->
                       <div
                         class="rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed"
-                        :class="msg.role === 'user' ? 'bg-accent text-white rounded-tr-none' : 'bg-slate-100 dark:bg-white/5 text-slate-800 dark:text-slate-200 rounded-tl-none border border-slate-200/30 dark:border-white/5'"
+                        :class="
+                          msg.role === 'user'
+                            ? 'bg-accent text-white rounded-tr-none'
+                            : 'bg-slate-100 dark:bg-white/5 text-slate-800 dark:text-slate-200 rounded-tl-none border border-slate-200/30 dark:border-white/5'
+                        "
                       >
                         <!-- User: plain text -->
-                        <div v-if="msg.role === 'user'" class="whitespace-pre-line leading-relaxed">{{ msg.content }}</div>
+                        <div v-if="msg.role === 'user'" class="whitespace-pre-line leading-relaxed">
+                          {{ msg.content }}
+                        </div>
                         <!-- AI: rendered markdown -->
                         <SafeHtml
                           v-else
@@ -812,7 +965,13 @@ onUnmounted(() => {
 
                       <!-- Suggestion chips for the first greeting message -->
                       <div
-                        v-if="msg.role === 'assistant' && index === 0 && msg.suggestions && msg.suggestions.length && !isChatSending"
+                        v-if="
+                          msg.role === 'assistant' &&
+                          index === 0 &&
+                          msg.suggestions &&
+                          msg.suggestions.length &&
+                          !isChatSending
+                        "
                         class="flex flex-wrap gap-1.5 mt-2 pl-0.5"
                       >
                         <button
@@ -820,16 +979,37 @@ onUnmounted(() => {
                           :key="sIdx"
                           type="button"
                           class="px-2.5 py-1 rounded-full text-[10px] font-medium border transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
-                          style="border-color: var(--accent-color, #6366f1); color: var(--accent-color, #6366f1); background: transparent;"
-                          @mouseover="($event.currentTarget as HTMLElement).style.background='rgba(99,102,241,0.08)'"
-                          @mouseleave="($event.currentTarget as HTMLElement).style.background='transparent'"
-                          @click="() => { chatInput = sug; handleSendChat(); }"
-                        >⚡ {{ sug }}</button>
+                          style="
+                            border-color: var(--accent-color, #6366f1);
+                            color: var(--accent-color, #6366f1);
+                            background: transparent;
+                          "
+                          @mouseover="
+                            ($event.currentTarget as HTMLElement).style.background =
+                              'rgba(99,102,241,0.08)'
+                          "
+                          @mouseleave="
+                            ($event.currentTarget as HTMLElement).style.background = 'transparent'
+                          "
+                          @click="
+                            () => {
+                              chatInput = sug;
+                              handleSendChat();
+                            }
+                          "
+                        >
+                          ⚡ {{ sug }}
+                        </button>
                       </div>
 
                       <!-- Live sync badge when JSON was parsed -->
                       <div
-                        v-if="msg.role === 'assistant' && index === planMessages.length - 1 && isPlanJsonSynced && !isChatSending"
+                        v-if="
+                          msg.role === 'assistant' &&
+                          index === planMessages.length - 1 &&
+                          isPlanJsonSynced &&
+                          !isChatSending
+                        "
                         class="flex items-center gap-1 text-[9px] font-bold text-emerald-500 pl-1"
                       >
                         <Zap class="w-2.5 h-2.5" />
@@ -837,36 +1017,60 @@ onUnmounted(() => {
                       </div>
                     </div>
 
-                    <div v-if="msg.role === 'user'" class="w-7 h-7 rounded-xl bg-accent/15 flex items-center justify-center text-accent text-xs font-black shrink-0 mt-0.5">
+                    <div
+                      v-if="msg.role === 'user'"
+                      class="w-7 h-7 rounded-xl bg-accent/15 flex items-center justify-center text-accent text-xs font-black shrink-0 mt-0.5"
+                    >
                       我
                     </div>
                   </div>
 
                   <!-- Thinking/Loading indicator when waiting for first token -->
-                  <div v-if="isChatSending && !currentStreamingText && !currentReasoningText" class="flex gap-2.5">
-                    <div class="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs shrink-0 animate-pulse">
+                  <div
+                    v-if="isChatSending && !currentStreamingText && !currentReasoningText"
+                    class="flex gap-2.5"
+                  >
+                    <div
+                      class="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs shrink-0 animate-pulse"
+                    >
                       🧠
                     </div>
-                    <div class="bg-slate-100 dark:bg-white/5 rounded-2xl rounded-tl-none px-3.5 py-2.5 text-xs text-slate-400 flex items-center gap-1.5">
+                    <div
+                      class="bg-slate-100 dark:bg-white/5 rounded-2xl rounded-tl-none px-3.5 py-2.5 text-xs text-slate-400 flex items-center gap-1.5"
+                    >
                       <Loader2 class="w-3.5 h-3.5 animate-spin text-accent" />
-                      <span>AI 正在思考并分析{{ parsedNetdisk ? '网盘资源' : '您的规划需求' }}...</span>
+                      <span
+                        >AI 正在思考并分析{{ parsedNetdisk ? '网盘资源' : '您的规划需求' }}...</span
+                      >
                     </div>
                   </div>
 
                   <!-- Live reasoning streaming indicator -->
-                  <div v-if="isChatSending && currentReasoningText && !currentStreamingText" class="flex gap-2.5">
-                    <div class="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs shrink-0">
+                  <div
+                    v-if="isChatSending && currentReasoningText && !currentStreamingText"
+                    class="flex gap-2.5"
+                  >
+                    <div
+                      class="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs shrink-0"
+                    >
                       🧠
                     </div>
-                    <div class="bg-indigo-50 dark:bg-indigo-500/5 border border-indigo-100 dark:border-indigo-500/10 rounded-2xl rounded-tl-none px-3.5 py-2.5 text-[10px] text-indigo-400 flex items-center gap-1.5 max-w-[80%]">
+                    <div
+                      class="bg-indigo-50 dark:bg-indigo-500/5 border border-indigo-100 dark:border-indigo-500/10 rounded-2xl rounded-tl-none px-3.5 py-2.5 text-[10px] text-indigo-400 flex items-center gap-1.5 max-w-[80%]"
+                    >
                       <Loader2 class="w-3 h-3 animate-spin text-indigo-500 shrink-0" />
-                      <span class="italic font-mono animate-pulse">分析及规划思考中：{{ currentReasoningText.slice(-30) }}...</span>
+                      <span class="italic font-mono animate-pulse"
+                        >分析及规划思考中：{{ currentReasoningText.slice(-30) }}...</span
+                      >
                     </div>
                   </div>
                 </div>
 
                 <!-- Chat Input footer -->
-                <div class="mt-3 pt-3 border-t flex items-center gap-2" style="border-color: var(--border-base)">
+                <div
+                  class="mt-3 pt-3 border-t flex items-center gap-2"
+                  style="border-color: var(--border-base)"
+                >
                   <input
                     v-model="chatInput"
                     type="text"
@@ -876,7 +1080,7 @@ onUnmounted(() => {
                     :disabled="isChatSending"
                     @keydown.enter="handleSendChat"
                   />
-                  
+
                   <button
                     v-if="isChatSending"
                     type="button"
@@ -899,77 +1103,125 @@ onUnmounted(() => {
               </div>
 
               <!-- Right side: Realtime generated project structures preview -->
-              <div class="flex-1 flex flex-col min-h-0 bg-slate-50 dark:bg-white/[0.01] border rounded-2xl p-4" style="border-color: var(--border-base)">
+              <div
+                class="flex-1 flex flex-col min-h-0 bg-slate-50 dark:bg-white/[0.01] border rounded-2xl p-4"
+                style="border-color: var(--border-base)"
+              >
                 <!-- Preview Tabs -->
-                <div class="flex items-center justify-between border-b pb-2 mb-3 shrink-0" style="border-color: var(--border-base)">
+                <div
+                  class="flex items-center justify-between border-b pb-2 mb-3 shrink-0"
+                  style="border-color: var(--border-base)"
+                >
                   <div class="flex gap-4">
                     <button
                       type="button"
                       class="text-xs font-bold pb-2 relative transition-all cursor-pointer"
-                      :class="previewTab === 'info' ? 'text-accent' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'"
+                      :class="
+                        previewTab === 'info'
+                          ? 'text-accent'
+                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'
+                      "
                       @click="previewTab = 'info'"
                     >
                       项目概览
-                      <span v-if="previewTab === 'info'" class="absolute bottom-[-9px] left-0 right-0 h-0.5 bg-accent"></span>
+                      <span
+                        v-if="previewTab === 'info'"
+                        class="absolute bottom-[-9px] left-0 right-0 h-0.5 bg-accent"
+                      ></span>
                     </button>
                     <button
                       type="button"
                       class="text-xs font-bold pb-2 relative transition-all cursor-pointer"
-                      :class="previewTab === 'tasks' ? 'text-accent' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'"
+                      :class="
+                        previewTab === 'tasks'
+                          ? 'text-accent'
+                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'
+                      "
                       @click="previewTab = 'tasks'"
                     >
                       任务看板 ({{ currentPlanJson?.tasks?.length || 0 }})
-                      <span v-if="previewTab === 'tasks'" class="absolute bottom-[-9px] left-0 right-0 h-0.5 bg-accent"></span>
+                      <span
+                        v-if="previewTab === 'tasks'"
+                        class="absolute bottom-[-9px] left-0 right-0 h-0.5 bg-accent"
+                      ></span>
                     </button>
                     <button
                       type="button"
                       class="text-xs font-bold pb-2 relative transition-all cursor-pointer"
-                      :class="previewTab === 'roadmap' ? 'text-accent' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'"
+                      :class="
+                        previewTab === 'roadmap'
+                          ? 'text-accent'
+                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'
+                      "
                       @click="previewTab = 'roadmap'"
                     >
                       学习路线 ({{ currentPlanJson?.roadmap?.steps?.length || 0 }})
-                      <span v-if="previewTab === 'roadmap'" class="absolute bottom-[-9px] left-0 right-0 h-0.5 bg-accent"></span>
+                      <span
+                        v-if="previewTab === 'roadmap'"
+                        class="absolute bottom-[-9px] left-0 right-0 h-0.5 bg-accent"
+                      ></span>
                     </button>
                   </div>
-                  
-                  <span v-if="isChatSending" class="text-[9px] font-bold text-amber-500 animate-pulse bg-amber-500/5 px-2 py-0.5 border border-amber-500/10 rounded">
+
+                  <span
+                    v-if="isChatSending"
+                    class="text-[9px] font-bold text-amber-500 animate-pulse bg-amber-500/5 px-2 py-0.5 border border-amber-500/10 rounded"
+                  >
                     正在合成最新结构规划...
                   </span>
-                  <span v-else-if="isPlanJsonSynced" class="text-[9px] font-bold text-emerald-500 bg-emerald-500/5 px-2 py-0.5 border border-emerald-500/10 rounded flex items-center gap-0.5">
+                  <span
+                    v-else-if="isPlanJsonSynced"
+                    class="text-[9px] font-bold text-emerald-500 bg-emerald-500/5 px-2 py-0.5 border border-emerald-500/10 rounded flex items-center gap-0.5"
+                  >
                     <Check class="w-3 h-3" /> 已实时同步
                   </span>
-                  <span v-else class="text-[9px] font-bold text-slate-400 bg-slate-500/5 px-2 py-0.5 border border-slate-500/10 rounded flex items-center gap-0.5">
+                  <span
+                    v-else
+                    class="text-[9px] font-bold text-slate-400 bg-slate-500/5 px-2 py-0.5 border border-slate-500/10 rounded flex items-center gap-0.5"
+                  >
                     预览规划
                   </span>
                 </div>
 
                 <!-- Preview Area -->
-                <div class="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin custom-scrollbar text-left">
+                <div
+                  class="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin custom-scrollbar text-left"
+                >
                   <!-- Info Tab -->
                   <div v-if="previewTab === 'info'" class="space-y-4">
                     <div class="space-y-1">
-                      <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">项目名称</label>
+                      <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
+                        >项目名称</label
+                      >
                       <h4 class="text-sm font-black text-slate-800 dark:text-slate-200">
                         {{ currentPlanJson?.title || '正在规划生成中...' }}
                       </h4>
                     </div>
-                    
+
                     <div class="space-y-1">
-                      <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">项目描述</label>
-                      <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed whitespace-pre-wrap bg-slate-100 dark:bg-white/5 p-3 rounded-2xl">
+                      <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
+                        >项目描述</label
+                      >
+                      <p
+                        class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed whitespace-pre-wrap bg-slate-100 dark:bg-white/5 p-3 rounded-2xl"
+                      >
                         {{ currentPlanJson?.description || '无项目描述' }}
                       </p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
                       <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">周期时间截止</label>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
+                          >周期时间截止</label
+                        >
                         <div class="text-xs font-bold text-slate-700 dark:text-slate-300">
                           📅 {{ currentPlanJson?.dueDate || '未定' }}
                         </div>
                       </div>
                       <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">分类标签</label>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
+                          >分类标签</label
+                        >
                         <div class="flex flex-wrap gap-1.5 mt-0.5">
                           <span
                             v-for="tag in (currentPlanJson?.tags || '').split(',')"
@@ -979,7 +1231,11 @@ onUnmounted(() => {
                           >
                             {{ tag.trim() }}
                           </span>
-                          <span v-if="!(currentPlanJson?.tags || '').trim()" class="text-[10px] text-slate-400">无标签</span>
+                          <span
+                            v-if="!(currentPlanJson?.tags || '').trim()"
+                            class="text-[10px] text-slate-400"
+                            >无标签</span
+                          >
                         </div>
                       </div>
                     </div>
@@ -994,32 +1250,56 @@ onUnmounted(() => {
                       style="border-color: var(--border-base)"
                     >
                       <div class="flex items-start justify-between gap-3">
-                        <span class="text-xs font-bold text-slate-800 dark:text-slate-200">{{ task.title }}</span>
+                        <span class="text-xs font-bold text-slate-800 dark:text-slate-200">{{
+                          task.title
+                        }}</span>
                         <span
                           class="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider"
                           :class="{
-                            'bg-rose-500/10 text-rose-500': task.priority === 'HIGH' || task.priority === '紧急' || task.priority === '高',
-                            'bg-amber-500/10 text-amber-500': task.priority === 'MEDIUM' || task.priority === '中',
-                            'bg-slate-500/10 text-slate-400': task.priority === 'LOW' || task.priority === '低'
+                            'bg-rose-500/10 text-rose-500':
+                              task.priority === 'HIGH' ||
+                              task.priority === '紧急' ||
+                              task.priority === '高',
+                            'bg-amber-500/10 text-amber-500':
+                              task.priority === 'MEDIUM' || task.priority === '中',
+                            'bg-slate-500/10 text-slate-400':
+                              task.priority === 'LOW' || task.priority === '低',
                           }"
                         >
                           {{ task.priority }}
                         </span>
                       </div>
-                      <p v-if="task.description" class="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">{{ task.description }}</p>
-                      
+                      <p
+                        v-if="task.description"
+                        class="text-[11px] text-slate-500 dark:text-slate-400 leading-normal"
+                      >
+                        {{ task.description }}
+                      </p>
+
                       <!-- DueDate -->
                       <div v-if="task.dueDate" class="text-[10px] text-slate-400 font-bold">
                         ⏱ 截止时间: {{ task.dueDate }}
                       </div>
 
                       <!-- Subtasks -->
-                      <div v-if="task.subtasks && task.subtasks.length > 0" class="bg-slate-50 dark:bg-white/5 p-2 rounded-lg space-y-1">
-                        <div v-for="sub in task.subtasks" :key="sub.id" class="flex items-start gap-1.5">
-                          <div class="w-3.5 h-3.5 rounded border border-slate-300 dark:border-white/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <div
+                        v-if="task.subtasks && task.subtasks.length > 0"
+                        class="bg-slate-50 dark:bg-white/5 p-2 rounded-lg space-y-1"
+                      >
+                        <div
+                          v-for="sub in task.subtasks"
+                          :key="sub.id"
+                          class="flex items-start gap-1.5"
+                        >
+                          <div
+                            class="w-3.5 h-3.5 rounded border border-slate-300 dark:border-white/10 flex items-center justify-center shrink-0 mt-0.5"
+                          >
                             <Check class="w-2.5 h-2.5 text-accent opacity-30" />
                           </div>
-                          <span class="text-[10px] text-slate-500 dark:text-slate-400 leading-normal">{{ sub.text }}</span>
+                          <span
+                            class="text-[10px] text-slate-500 dark:text-slate-400 leading-normal"
+                            >{{ sub.text }}</span
+                          >
                         </div>
                       </div>
                     </div>
@@ -1031,32 +1311,60 @@ onUnmounted(() => {
                       <h4 class="text-xs font-black text-slate-800 dark:text-slate-200">
                         🗺 {{ currentPlanJson?.roadmap?.title || '阶段学习路线' }}
                       </h4>
-                      <p class="text-[10px] text-slate-400 mt-0.5">{{ currentPlanJson?.roadmap?.description || '无大纲描述' }}</p>
+                      <p class="text-[10px] text-slate-400 mt-0.5">
+                        {{ currentPlanJson?.roadmap?.description || '无大纲描述' }}
+                      </p>
                     </div>
 
-                    <div class="relative pl-4 border-l-2 border-indigo-100 dark:border-white/5 space-y-5">
+                    <div
+                      class="relative pl-4 border-l-2 border-indigo-100 dark:border-white/5 space-y-5"
+                    >
                       <div
                         v-for="(step, idx) in currentPlanJson?.roadmap?.steps"
                         :key="idx"
                         class="relative"
                       >
                         <!-- Timeline Node Ball -->
-                        <span class="absolute left-[-21px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 bg-indigo-500 flex items-center justify-center text-white text-[7px] font-bold shadow-md"></span>
+                        <span
+                          class="absolute left-[-21px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 bg-indigo-500 flex items-center justify-center text-white text-[7px] font-bold shadow-md"
+                        ></span>
 
                         <div class="space-y-1.5">
                           <div class="flex items-center gap-2">
-                            <span class="text-xs font-bold text-slate-800 dark:text-slate-200">{{ step.title }}</span>
-                            <span class="text-[9px] font-bold text-indigo-500 uppercase tracking-widest bg-indigo-500/5 px-1.5 py-0.5 rounded">阶段 {{ step.order }}</span>
+                            <span class="text-xs font-bold text-slate-800 dark:text-slate-200">{{
+                              step.title
+                            }}</span>
+                            <span
+                              class="text-[9px] font-bold text-indigo-500 uppercase tracking-widest bg-indigo-500/5 px-1.5 py-0.5 rounded"
+                              >阶段 {{ step.order }}</span
+                            >
                           </div>
-                          
-                          <p v-if="step.description" class="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">{{ step.description }}</p>
 
-                          <div v-if="step.subtasks && step.subtasks.length > 0" class="bg-slate-50 dark:bg-white/5 p-3 rounded-xl space-y-1.5">
-                            <div v-for="sub in step.subtasks" :key="sub.id" class="flex items-start gap-2">
-                              <div class="w-3.5 h-3.5 rounded border border-slate-300 dark:border-white/10 flex items-center justify-center shrink-0 mt-0.5">
+                          <p
+                            v-if="step.description"
+                            class="text-[11px] text-slate-500 dark:text-slate-400 leading-normal"
+                          >
+                            {{ step.description }}
+                          </p>
+
+                          <div
+                            v-if="step.subtasks && step.subtasks.length > 0"
+                            class="bg-slate-50 dark:bg-white/5 p-3 rounded-xl space-y-1.5"
+                          >
+                            <div
+                              v-for="sub in step.subtasks"
+                              :key="sub.id"
+                              class="flex items-start gap-2"
+                            >
+                              <div
+                                class="w-3.5 h-3.5 rounded border border-slate-300 dark:border-white/10 flex items-center justify-center shrink-0 mt-0.5"
+                              >
                                 <Check class="w-2.5 h-2.5 text-accent opacity-30" />
                               </div>
-                              <span class="text-[10px] text-slate-500 dark:text-slate-400 leading-normal">{{ sub.text }}</span>
+                              <span
+                                class="text-[10px] text-slate-500 dark:text-slate-400 leading-normal"
+                                >{{ sub.text }}</span
+                              >
                             </div>
                           </div>
                         </div>
@@ -1066,7 +1374,10 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Dialog Actions -->
-                <div class="flex items-center gap-4 mt-4 pt-4 border-t shrink-0" style="border-color: var(--border-base)">
+                <div
+                  class="flex items-center gap-4 mt-4 pt-4 border-t shrink-0"
+                  style="border-color: var(--border-base)"
+                >
                   <button
                     v-if="importStep === 2"
                     type="button"
@@ -1077,7 +1388,7 @@ onUnmounted(() => {
                     <ArrowLeft class="w-4 h-4" />
                     <span>{{ parsedNetdisk ? '修改网盘资源' : '修改规划目标' }}</span>
                   </button>
-                  
+
                   <button
                     v-if="importStep === 2"
                     type="button"
@@ -1097,20 +1408,29 @@ onUnmounted(() => {
 
         <!-- 2. Traditional text parsing fall-back (Original layout) -->
         <div v-else class="flex-1 flex flex-col min-h-0 pt-2">
-          <div class="grid grid-cols-1 gap-6 transition-all duration-500" :class="isHelpOpen ? 'md:grid-cols-2' : 'grid-cols-1'">
+          <div
+            class="grid grid-cols-1 gap-6 transition-all duration-500"
+            :class="isHelpOpen ? 'md:grid-cols-2' : 'grid-cols-1'"
+          >
             <!-- Left Panel: Text Area input -->
             <div class="space-y-4 flex flex-col justify-between">
               <div>
                 <!-- AI Smart Copilot Generator Section -->
-                <div v-if="systemStore.settings.AI_IMPORT_ENABLED" class="mb-4 p-4 rounded-2xl border border-dashed border-indigo-500/20 bg-indigo-500/[0.02] dark:bg-indigo-500/[0.01] space-y-2.5 text-left">
+                <div
+                  v-if="systemStore.settings.AI_IMPORT_ENABLED"
+                  class="mb-4 p-4 rounded-2xl border border-dashed border-indigo-500/20 bg-indigo-500/[0.02] dark:bg-indigo-500/[0.01] space-y-2.5 text-left"
+                >
                   <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                    <span
+                      class="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5"
+                    >
                       <Sparkles class="w-3.5 h-3.5 text-indigo-500" />
                       AI 智能规划助手
                     </span>
                   </div>
                   <p class="text-[10px] text-slate-400 leading-normal">
-                    没有现成规划文本？在下方输入您的学习意图与目标，AI 将智能规划并在此自动生成大纲模板，省去手写排版！
+                    没有现成规划文本？在下方输入您的学习意图与目标，AI
+                    将智能规划并在此自动生成大纲模板，省去手写排版！
                   </p>
                   <div class="flex gap-2">
                     <input
@@ -1134,14 +1454,28 @@ onUnmounted(() => {
                 </div>
 
                 <div class="flex justify-between items-center mb-1 text-left">
-                  <label class="text-[11px] font-black text-slate-500 uppercase tracking-wider">规划结构化文本</label>
+                  <label class="text-[11px] font-black text-slate-500 uppercase tracking-wider"
+                    >规划结构化文本</label
+                  >
                   <div class="flex gap-2">
-                    <button type="button" class="text-[10px] text-accent font-bold hover:underline cursor-pointer" @click="copyTemplate">复制空白模板</button>
+                    <button
+                      type="button"
+                      class="text-[10px] text-accent font-bold hover:underline cursor-pointer"
+                      @click="copyTemplate"
+                    >
+                      复制空白模板
+                    </button>
                     <span class="text-slate-300 dark:text-white/10">|</span>
-                    <button type="button" class="text-[10px] text-emerald-500 font-bold hover:underline cursor-pointer" @click="fillDemoData">填入范例数据</button>
+                    <button
+                      type="button"
+                      class="text-[10px] text-emerald-500 font-bold hover:underline cursor-pointer"
+                      @click="fillDemoData"
+                    >
+                      填入范例数据
+                    </button>
                   </div>
                 </div>
-                
+
                 <textarea
                   v-model="importText"
                   rows="14"
@@ -1151,12 +1485,21 @@ onUnmounted(() => {
                   :disabled="isImporting"
                 ></textarea>
               </div>
-              
+
               <div class="flex gap-3 justify-end pt-2">
-                <button type="button" class="px-5 py-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 font-bold text-xs cursor-pointer" @click="emit('update:visible', false)">
+                <button
+                  type="button"
+                  class="px-5 py-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 font-bold text-xs cursor-pointer"
+                  @click="emit('update:visible', false)"
+                >
                   取消
                 </button>
-                <button type="button" class="px-4 py-2 rounded-xl border font-bold text-xs cursor-pointer text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5" style="border-color: var(--border-base)" @click="isHelpOpen = !isHelpOpen">
+                <button
+                  type="button"
+                  class="px-4 py-2 rounded-xl border font-bold text-xs cursor-pointer text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5"
+                  style="border-color: var(--border-base)"
+                  @click="isHelpOpen = !isHelpOpen"
+                >
                   {{ isHelpOpen ? '隐藏解析说明' : '查看解析说明' }}
                 </button>
                 <button
@@ -1174,49 +1517,128 @@ onUnmounted(() => {
 
             <!-- Right Panel: Format Reference Helper Documentation -->
             <Transition name="slide-fade">
-              <div v-if="isHelpOpen" class="flex flex-col border rounded-2xl p-5 bg-slate-50/50 dark:bg-white/[0.01] h-[580px] overflow-hidden min-h-0 text-left" style="border-color: var(--border-base)">
-                <div class="flex items-center justify-between shrink-0 pb-3 border-b" style="border-color: var(--border-base)">
-                  <h4 class="text-xs font-black uppercase tracking-wider" style="color: var(--text-primary)">
+              <div
+                v-if="isHelpOpen"
+                class="flex flex-col border rounded-2xl p-5 bg-slate-50/50 dark:bg-white/[0.01] h-[580px] overflow-hidden min-h-0 text-left"
+                style="border-color: var(--border-base)"
+              >
+                <div
+                  class="flex items-center justify-between shrink-0 pb-3 border-b"
+                  style="border-color: var(--border-base)"
+                >
+                  <h4
+                    class="text-xs font-black uppercase tracking-wider"
+                    style="color: var(--text-primary)"
+                  >
                     💡 解析规则与格式参考
                   </h4>
-                  <button type="button" class="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-bold cursor-pointer" @click="isHelpOpen = false">收起说明</button>
+                  <button
+                    type="button"
+                    class="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-bold cursor-pointer"
+                    @click="isHelpOpen = false"
+                  >
+                    收起说明
+                  </button>
                 </div>
 
-                <div class="flex-1 overflow-y-auto space-y-4 pr-1 mt-3 scrollbar-thin text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                  <div class="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 space-y-1">
-                    <h5 class="font-bold text-slate-700 dark:text-slate-300">1. 基本配置参数 (头部信息)</h5>
+                <div
+                  class="flex-1 overflow-y-auto space-y-4 pr-1 mt-3 scrollbar-thin text-xs leading-relaxed text-slate-500 dark:text-slate-400"
+                >
+                  <div
+                    class="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 space-y-1"
+                  >
+                    <h5 class="font-bold text-slate-700 dark:text-slate-300">
+                      1. 基本配置参数 (头部信息)
+                    </h5>
                     <p>通过冒号或等号声明项目的元属性。例如：</p>
                     <ul class="list-disc pl-4 space-y-0.5">
                       <li><strong>描述：</strong> 项目主旨，支持多行。</li>
                       <li><strong>标签：</strong> 分类标签（英文逗号隔开）。</li>
-                      <li><strong>截止日期：</strong> 例如 <code class="font-mono text-emerald-500">2026-06-30</code>.</li>
-                      <li><strong>颜色：</strong> 例如 <code class="font-mono text-indigo-500">bg-accent/bg-indigo/bg-emerald</code>.</li>
+                      <li>
+                        <strong>截止日期：</strong> 例如
+                        <code class="font-mono text-emerald-500">2026-06-30</code>.
+                      </li>
+                      <li>
+                        <strong>颜色：</strong> 例如
+                        <code class="font-mono text-indigo-500">bg-accent/bg-indigo/bg-emerald</code
+                        >.
+                      </li>
                     </ul>
                   </div>
 
-                  <div class="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 space-y-1">
-                    <h5 class="font-bold text-slate-700 dark:text-slate-300">2. 看板工作任务 (二级标题)</h5>
-                    <p>必须以 <code class="px-1 py-0.5 bg-slate-200 dark:bg-white/10 rounded font-mono font-bold text-accent">## 任务看板</code> 开头，列表项解析属性：</p>
+                  <div
+                    class="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 space-y-1"
+                  >
+                    <h5 class="font-bold text-slate-700 dark:text-slate-300">
+                      2. 看板工作任务 (二级标题)
+                    </h5>
+                    <p>
+                      必须以
+                      <code
+                        class="px-1 py-0.5 bg-slate-200 dark:bg-white/10 rounded font-mono font-bold text-accent"
+                        >## 任务看板</code
+                      >
+                      开头，列表项解析属性：
+                    </p>
                     <ul class="list-disc pl-4 space-y-0.5">
-                      <li>格式：<code class="px-1 py-0.5 bg-slate-200 dark:bg-white/10 rounded font-mono">- [ ] 任务标题 | 优先级:高 | 描述:任务描述</code></li>
-                      <li>属性间使用 <code class="font-bold text-accent">|</code> 分隔。包含：<code class="font-mono">优先级 (低/中/高/紧急)</code>，<code class="font-mono">截止 (YYYY-MM-DD)</code>，<code class="font-mono">描述</code>。</li>
+                      <li>
+                        格式：<code
+                          class="px-1 py-0.5 bg-slate-200 dark:bg-white/10 rounded font-mono"
+                          >- [ ] 任务标题 | 优先级:高 | 描述:任务描述</code
+                        >
+                      </li>
+                      <li>
+                        属性间使用 <code class="font-bold text-accent">|</code> 分隔。包含：<code
+                          class="font-mono"
+                          >优先级 (低/中/高/紧急)</code
+                        >，<code class="font-mono">截止 (YYYY-MM-DD)</code>，<code class="font-mono"
+                          >描述</code
+                        >。
+                      </li>
                     </ul>
                   </div>
 
-                  <div class="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 space-y-1">
-                    <h5 class="font-bold text-slate-700 dark:text-slate-300">3. 学习路线阶段 (二级标题)</h5>
-                    <p>必须以 <code class="px-1 py-0.5 bg-slate-200 dark:bg-white/10 rounded font-mono font-bold text-accent">## 学习路线</code> 开头：</p>
+                  <div
+                    class="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 space-y-1"
+                  >
+                    <h5 class="font-bold text-slate-700 dark:text-slate-300">
+                      3. 学习路线阶段 (二级标题)
+                    </h5>
+                    <p>
+                      必须以
+                      <code
+                        class="px-1 py-0.5 bg-slate-200 dark:bg-white/10 rounded font-mono font-bold text-accent"
+                        >## 学习路线</code
+                      >
+                      开头：
+                    </p>
                     <ul class="list-disc pl-4 space-y-0.5">
-                      <li>使用三级标题 <code class="px-1 py-0.5 bg-slate-200 dark:bg-white/10 rounded font-mono">### 阶段标题</code> 声明阶段。</li>
+                      <li>
+                        使用三级标题
+                        <code class="px-1 py-0.5 bg-slate-200 dark:bg-white/10 rounded font-mono"
+                          >### 阶段标题</code
+                        >
+                        声明阶段。
+                      </li>
                       <li>在阶段下方使用 <code class="font-mono">描述：</code> 声明该阶段要求。</li>
-                      <li>使用列表项（例如 <code class="font-mono">- [ ] 子学习项</code>）声明内容。</li>
+                      <li>
+                        使用列表项（例如 <code class="font-mono">- [ ] 子学习项</code>）声明内容。
+                      </li>
                     </ul>
                   </div>
                 </div>
 
-                <div class="shrink-0 pt-2 text-[10px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
+                <div
+                  class="shrink-0 pt-2 text-[10px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-white/5 flex items-center justify-between"
+                >
                   <span>💡 编写工整，系统即可完成解析建档。</span>
-                  <button type="button" class="text-accent font-bold hover:underline cursor-pointer" @click="fillDemoData">点击填入完整范例体验</button>
+                  <button
+                    type="button"
+                    class="text-accent font-bold hover:underline cursor-pointer"
+                    @click="fillDemoData"
+                  >
+                    点击填入完整范例体验
+                  </button>
                 </div>
               </div>
             </Transition>
@@ -1270,8 +1692,12 @@ onUnmounted(() => {
 }
 
 /* AI Markdown styles */
-.ai-markdown :deep(strong) { font-weight: 700; }
-.ai-markdown :deep(em) { font-style: italic; }
+.ai-markdown :deep(strong) {
+  font-weight: 700;
+}
+.ai-markdown :deep(em) {
+  font-style: italic;
+}
 .ai-markdown :deep(.inline-code) {
   font-family: monospace;
   font-size: 0.85em;
@@ -1280,9 +1706,21 @@ onUnmounted(() => {
   background: rgba(99, 102, 241, 0.1);
   color: #6366f1;
 }
-.ai-markdown :deep(.md-h2) { font-size: 1.15rem; font-weight: 800; margin: 0.6em 0 0.3em; }
-.ai-markdown :deep(.md-h3) { font-size: 1.0rem; font-weight: 750; margin: 0.5em 0 0.25em; }
-.ai-markdown :deep(.md-h4) { font-size: 0.9rem; font-weight: 700; margin: 0.4em 0 0.2em; }
+.ai-markdown :deep(.md-h2) {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0.6em 0 0.3em;
+}
+.ai-markdown :deep(.md-h3) {
+  font-size: 1rem;
+  font-weight: 750;
+  margin: 0.5em 0 0.25em;
+}
+.ai-markdown :deep(.md-h4) {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 0.4em 0 0.2em;
+}
 .ai-markdown :deep(.md-li) {
   display: flex;
   align-items: flex-start;

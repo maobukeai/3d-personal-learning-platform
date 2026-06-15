@@ -143,17 +143,21 @@ const visibleRange = computed(() => {
 
 const highRiskCount = computed(() => insights.value.severity.high || 0);
 const severityTotal = computed(
-  () =>
-    insights.value.severity.high + insights.value.severity.medium + insights.value.severity.low,
+  () => insights.value.severity.high + insights.value.severity.medium + insights.value.severity.low,
 );
 const maxTrendValue = computed(() =>
   Math.max(1, ...insights.value.trend.map((item) => item.total || 0)),
 );
 const moduleTotal = computed(() =>
-  Math.max(1, summary.value.modules.reduce((sum, item) => sum + item.count, 0)),
+  Math.max(
+    1,
+    summary.value.modules.reduce((sum, item) => sum + item.count, 0),
+  ),
 );
 
-const latestLogTime = computed(() => (logs.value[0] ? formatRelative(logs.value[0].createdAt) : '暂无'));
+const latestLogTime = computed(() =>
+  logs.value[0] ? formatRelative(logs.value[0].createdAt) : '暂无',
+);
 
 const severityBars = computed(() => [
   { key: 'high', label: '高风险', value: insights.value.severity.high, tone: 'risk-high' },
@@ -380,16 +384,13 @@ const prettyJson = (value?: string | null) => {
   }
 };
 
-watch(
-  [moduleFilter, actionFilter, searchFilter, userIdFilter, dateFrom, dateTo, pageSize],
-  () => {
-    if (searchTimer) clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-      currentPage.value = 1;
-      fetchLogs();
-    }, 260);
-  },
-);
+watch([moduleFilter, actionFilter, searchFilter, userIdFilter, dateFrom, dateTo, pageSize], () => {
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    currentPage.value = 1;
+    fetchLogs();
+  }, 260);
+});
 
 watch(autoRefresh, syncLiveTimer);
 
@@ -416,13 +417,21 @@ onBeforeUnmount(() => {
             <div class="title-heading-row">
               <h1>审计日志</h1>
               <div class="header-stats">
-                <span class="stat-item">匹配: <b>{{ total }}</b></span>
+                <span class="stat-item"
+                  >匹配: <b>{{ total }}</b></span
+                >
                 <span class="stat-divider">|</span>
-                <span class="stat-item">高风险: <b>{{ highRiskCount }}</b></span>
+                <span class="stat-item"
+                  >高风险: <b>{{ highRiskCount }}</b></span
+                >
                 <span class="stat-divider">|</span>
-                <span class="stat-item">最新事件: <b>{{ latestLogTime }}</b></span>
+                <span class="stat-item"
+                  >最新事件: <b>{{ latestLogTime }}</b></span
+                >
                 <span class="stat-divider">|</span>
-                <span class="stat-item">筛选: <b>{{ activeFilters }}</b></span>
+                <span class="stat-item"
+                  >筛选: <b>{{ activeFilters }}</b></span
+                >
               </div>
             </div>
             <p>追踪后台关键操作、来源、风险动作与操作者行为。</p>
@@ -430,11 +439,21 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="command-actions">
-          <button type="button" class="ghost-button" :class="{ active: showAdvancedFilters }" @click="showAdvancedFilters = !showAdvancedFilters">
+          <button
+            type="button"
+            class="ghost-button"
+            :class="{ active: showAdvancedFilters }"
+            @click="showAdvancedFilters = !showAdvancedFilters"
+          >
             <SlidersHorizontal />
             高级筛选
           </button>
-          <button type="button" class="ghost-button" :class="{ active: autoRefresh }" @click="toggleAutoRefresh">
+          <button
+            type="button"
+            class="ghost-button"
+            :class="{ active: autoRefresh }"
+            @click="toggleAutoRefresh"
+          >
             <Pause v-if="autoRefresh" />
             <Play v-else />
             {{ autoRefresh ? '实时中' : '实时' }}
@@ -457,7 +476,11 @@ onBeforeUnmount(() => {
       <div class="filter-bar-row">
         <label class="search-box">
           <Search />
-          <input v-model="searchFilter" type="text" placeholder="搜索描述、模块、动作、IP、操作者" />
+          <input
+            v-model="searchFilter"
+            type="text"
+            placeholder="搜索描述、模块、动作、IP、操作者"
+          />
         </label>
       </div>
 
@@ -465,7 +488,9 @@ onBeforeUnmount(() => {
         <label class="filter-field">
           <Filter />
           <select v-model="moduleFilter">
-            <option v-for="item in modules" :key="item.value" :value="item.value">{{ item.label }}</option>
+            <option v-for="item in modules" :key="item.value" :value="item.value">
+              {{ item.label }}
+            </option>
           </select>
         </label>
         <label class="filter-field">
@@ -474,11 +499,22 @@ onBeforeUnmount(() => {
         </label>
         <label class="date-field">
           <Clock3 />
-          <input v-model="dateFrom" type="date" />
+          <input
+            v-model="dateFrom"
+            type="date"
+            class="cursor-pointer"
+            @click="(e) => 'showPicker' in (e.target as any) && (e.target as any).showPicker()"
+          />
         </label>
+        <span class="text-slate-400">-</span>
         <label class="date-field">
           <Clock3 />
-          <input v-model="dateTo" type="date" />
+          <input
+            v-model="dateTo"
+            type="date"
+            class="cursor-pointer"
+            @click="(e) => 'showPicker' in (e.target as any) && (e.target as any).showPicker()"
+          />
         </label>
       </div>
 
@@ -505,7 +541,12 @@ onBeforeUnmount(() => {
           {{ getActionLabel(item.action || '') }}
           <b>{{ item.count }}</b>
         </button>
-        <button v-if="userIdFilter" type="button" class="summary-chip active" @click="userIdFilter = ''">
+        <button
+          v-if="userIdFilter"
+          type="button"
+          class="summary-chip active"
+          @click="userIdFilter = ''"
+        >
           <UserRound />
           已筛操作者
           <X />
@@ -592,7 +633,11 @@ onBeforeUnmount(() => {
                 </td>
                 <td>
                   <div class="action-cell-content">
-                    <button type="button" class="text-action" @click.stop="selectAction(log.action)">
+                    <button
+                      type="button"
+                      class="text-action"
+                      @click.stop="selectAction(log.action)"
+                    >
                       {{ getActionLabel(log.action) }}
                     </button>
                     <small class="action-raw-code">{{ log.action }}</small>
@@ -605,17 +650,28 @@ onBeforeUnmount(() => {
                 </td>
                 <td>
                   <div class="source-cell-content">
-                    <button type="button" class="source-button" @click.stop="selectSource(log.ipAddress)">
+                    <button
+                      type="button"
+                      class="source-button"
+                      @click.stop="selectSource(log.ipAddress)"
+                    >
                       {{ log.ipAddress || '-' }}
                     </button>
                     <small class="agent-label-text">{{ getAgentLabel(log.userAgent) }}</small>
                   </div>
                 </td>
                 <td>
-                  <p class="description-cell" :title="log.description || ''">{{ log.description || '-' }}</p>
+                  <p class="description-cell" :title="log.description || ''">
+                    {{ log.description || '-' }}
+                  </p>
                 </td>
                 <td>
-                  <button type="button" class="icon-button" title="查看详情" @click.stop="selectedLog = log">
+                  <button
+                    type="button"
+                    class="icon-button"
+                    title="查看详情"
+                    @click.stop="selectedLog = log"
+                  >
                     <Eye />
                   </button>
                 </td>
@@ -633,16 +689,36 @@ onBeforeUnmount(() => {
         <footer class="pagination-bar">
           <span>第 {{ currentPage }} / {{ totalPages }} 页</span>
           <div>
-            <button type="button" class="icon-button" :disabled="currentPage === 1" @click="setPage(1)">
+            <button
+              type="button"
+              class="icon-button"
+              :disabled="currentPage === 1"
+              @click="setPage(1)"
+            >
               <ChevronsLeft />
             </button>
-            <button type="button" class="icon-button" :disabled="currentPage === 1" @click="setPage(currentPage - 1)">
+            <button
+              type="button"
+              class="icon-button"
+              :disabled="currentPage === 1"
+              @click="setPage(currentPage - 1)"
+            >
               <ChevronLeft />
             </button>
-            <button type="button" class="icon-button" :disabled="currentPage === totalPages" @click="setPage(currentPage + 1)">
+            <button
+              type="button"
+              class="icon-button"
+              :disabled="currentPage === totalPages"
+              @click="setPage(currentPage + 1)"
+            >
               <ChevronRight />
             </button>
-            <button type="button" class="icon-button" :disabled="currentPage === totalPages" @click="setPage(totalPages)">
+            <button
+              type="button"
+              class="icon-button"
+              :disabled="currentPage === totalPages"
+              @click="setPage(totalPages)"
+            >
               <ChevronsRight />
             </button>
           </div>
@@ -673,7 +749,9 @@ onBeforeUnmount(() => {
         <section class="insight-block">
           <div class="block-title">
             <BarChart3 />
-            <strong>{{ insights.windowDays ? `${insights.windowDays} 天趋势` : '筛选趋势' }}</strong>
+            <strong>{{
+              insights.windowDays ? `${insights.windowDays} 天趋势` : '筛选趋势'
+            }}</strong>
           </div>
           <div class="trend-chart">
             <div v-for="item in insights.trend" :key="item.date" class="trend-bar">
@@ -780,7 +858,12 @@ onBeforeUnmount(() => {
             <p>{{ selectedLog.id }}</p>
           </div>
           <div class="drawer-actions">
-            <button type="button" class="icon-button" title="复制 ID" @click="copyValue(selectedLog.id, '日志 ID')">
+            <button
+              type="button"
+              class="icon-button"
+              title="复制 ID"
+              @click="copyValue(selectedLog.id, '日志 ID')"
+            >
               <Copy />
             </button>
             <button type="button" class="icon-button" title="关闭" @click="selectedLog = null">
@@ -790,10 +873,18 @@ onBeforeUnmount(() => {
         </header>
 
         <div class="detail-grid">
-          <div><span>时间</span><b>{{ formatDate(selectedLog.createdAt) }}</b></div>
-          <div><span>风险等级</span><b>{{ getSeverityLabel(selectedLog.action) }}风险</b></div>
-          <div><span>IP</span><b>{{ selectedLog.ipAddress || '-' }}</b></div>
-          <div><span>设备</span><b>{{ getAgentLabel(selectedLog.userAgent) }}</b></div>
+          <div>
+            <span>时间</span><b>{{ formatDate(selectedLog.createdAt) }}</b>
+          </div>
+          <div>
+            <span>风险等级</span><b>{{ getSeverityLabel(selectedLog.action) }}风险</b>
+          </div>
+          <div>
+            <span>IP</span><b>{{ selectedLog.ipAddress || '-' }}</b>
+          </div>
+          <div>
+            <span>设备</span><b>{{ getAgentLabel(selectedLog.userAgent) }}</b>
+          </div>
         </div>
 
         <section class="detail-section">

@@ -273,7 +273,11 @@ const toggleCourseStatus = async (course: Course) => {
   try {
     await api.put(`/api/admin/courses/${course.id}`, { ...course, status: newStatus });
     fetchCourses();
-    ElMessage.success(newStatus === 'PUBLISHED' ? t('admin.course_published') : t('admin.course_has_been_converted'));
+    ElMessage.success(
+      newStatus === 'PUBLISHED'
+        ? t('admin.course_published')
+        : t('admin.course_has_been_converted'),
+    );
   } catch (_error) {
     ElMessage.error(t('admin.update_status_failed'));
   }
@@ -343,34 +347,56 @@ onMounted(() => {
             class="flex items-center bg-slate-100 dark:bg-white/5 p-0.5 rounded-lg gap-0.5 shadow-inner shrink-0"
           >
             <button
-type="button" class="px-2 py-0.5 sm:px-3 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0" :class="
+              type="button"
+              class="px-2 py-0.5 sm:px-3 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+              :class="
                 activeTab === 'courses'
                   ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
                   : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              " @click="handleTabChange('courses')">
+              "
+              @click="handleTabChange('courses')"
+            >
               课程列表
             </button>
             <button
-type="button" class="px-2 py-0.5 sm:px-3 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0" :class="
+              type="button"
+              class="px-2 py-0.5 sm:px-3 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+              :class="
                 activeTab === 'categories'
                   ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
                   : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              " @click="handleTabChange('categories')">
+              "
+              @click="handleTabChange('categories')"
+            >
               分类管理
             </button>
           </div>
         </div>
 
         <div class="flex items-center gap-1.5 sm:gap-2.5">
-          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="courseImportDialogRef?.open()">
+          <button
+            type="button"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="courseImportDialogRef?.open()"
+          >
             <LinkIcon class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">{{ $t('admin.external_import') }}</span>
           </button>
-          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer" @click="courseEditDialogRef?.open()">
+          <button
+            type="button"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+            @click="courseEditDialogRef?.open()"
+          >
             <Plus class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">{{ $t('admin.create_new_course') }}</span>
           </button>
-          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="fetchCourses">
+          <button
+            type="button"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="fetchCourses"
+          >
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
             <span class="hidden sm:inline">{{ $t('admin.refresh') }}</span>
           </button>
@@ -385,7 +411,7 @@ type="button" class="px-2 py-0.5 sm:px-3 sm:py-1 rounded-md text-[10px] sm:text-
         <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
           <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
-v-for="filter in [
+              v-for="filter in [
                 {
                   key: 'ALL',
                   label: $t('admin.all_courses'),
@@ -407,7 +433,11 @@ v-for="filter in [
                   color: 'amber',
                   icon: EyeOff,
                 },
-              ]" :key="filter.key" type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0" :class="[
+              ]"
+              :key="filter.key"
+              type="button"
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
+              :class="[
                 statusFilter === filter.key
                   ? filter.key === 'PUBLISHED'
                     ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
@@ -415,7 +445,9 @@ v-for="filter in [
                       ? 'bg-amber-500/10 text-amber-500 border-amber-500/30 ring-1 ring-amber-500/20 font-extrabold shadow-sm'
                       : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
                   : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5',
-              ]" @click="setStatusFilter(filter.key)">
+              ]"
+              @click="setStatusFilter(filter.key)"
+            >
               <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
               <span>{{ filter.label }}</span>
               <span class="opacity-60">({{ filter.count }})</span>
@@ -558,7 +590,13 @@ v-for="filter in [
               <div
                 class="w-16 sm:w-40 aspect-video rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-white/5 overflow-hidden shrink-0 relative"
               >
-                <img v-if="course.thumbnail" alt="" :src="course.thumbnail" referrerpolicy="no-referrer" class="w-full h-full object-cover" />
+                <img
+                  v-if="course.thumbnail"
+                  alt=""
+                  :src="course.thumbnail"
+                  referrerpolicy="no-referrer"
+                  class="w-full h-full object-cover"
+                />
                 <div v-else class="w-full h-full flex items-center justify-center">
                   <BookOpen class="w-8 h-8 text-slate-300" />
                 </div>
@@ -566,7 +604,8 @@ v-for="filter in [
                   v-if="course.status === 'DRAFT'"
                   class="absolute inset-0 bg-black/50 flex items-center justify-center"
                 >
-                  <span class="px-2 py-1 rounded text-[10px] font-bold bg-slate-800 text-slate-300"
+                  <span
+                    class="px-2 py-1 rounded text-[10px] font-bold bg-slate-800 text-slate-300"
                     >{{ $t('admin.draft') }}</span
                   >
                 </div>
@@ -605,14 +644,31 @@ v-for="filter in [
                     <p class="text-xs text-slate-400 line-clamp-2">{{ course.description }}</p>
                   </div>
                   <div class="flex items-center gap-2 shrink-0" @click.stop>
-                    <button type="button" class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer" :title="course.status === 'PUBLISHED' ? $t('admin.convert_to_draft') : $t('admin.publish_course')" @click="toggleCourseStatus(course)">
+                    <button
+                      type="button"
+                      class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                      :title="
+                        course.status === 'PUBLISHED'
+                          ? $t('admin.convert_to_draft')
+                          : $t('admin.publish_course')
+                      "
+                      @click="toggleCourseStatus(course)"
+                    >
                       <Eye v-if="course.status === 'PUBLISHED'" class="w-4 h-4 text-emerald-500" />
                       <EyeOff v-else class="w-4 h-4 text-slate-400" />
                     </button>
-                    <button type="button" class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-colors cursor-pointer" @click="courseEditDialogRef?.open(course)">
+                    <button
+                      type="button"
+                      class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-colors cursor-pointer"
+                      @click="courseEditDialogRef?.open(course)"
+                    >
                       <Edit2 class="w-4 h-4" />
                     </button>
-                    <button type="button" class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer" @click="handleDeleteCourse(course.id)">
+                    <button
+                      type="button"
+                      class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                      @click="handleDeleteCourse(course.id)"
+                    >
                       <Trash2 class="w-4 h-4" />
                     </button>
                   </div>
@@ -620,16 +676,21 @@ v-for="filter in [
 
                 <div class="flex items-center gap-4 text-[10px] font-bold text-slate-400">
                   <span class="flex items-center gap-1.5"
-                    ><Video class="w-3.5 h-3.5" /> {{ $t('admin.lessons_count', { count: course.lessons?.length || 0 }) }}</span
+                    ><Video class="w-3.5 h-3.5" />
+                    {{ $t('admin.lessons_count', { count: course.lessons?.length || 0 }) }}</span
                   >
                   <span>•</span>
-                  <span>{{ $t('admin.enrollments_count', { count: course._count?.enrollments || 0 }) }}</span>
+                  <span>{{
+                    $t('admin.enrollments_count', { count: course._count?.enrollments || 0 })
+                  }}</span>
                   <span>•</span>
                   <span class="flex items-center gap-1"
                     ><Star class="w-3 h-3 text-amber-400" /> {{ course.avgRating || '-' }}</span
                   >
                   <span v-if="course._count?.reviews">•</span>
-                  <span v-if="course._count?.reviews">{{ $t('admin.reviews_count', { count: course._count?.reviews || 0 }) }}</span>
+                  <span v-if="course._count?.reviews">{{
+                    $t('admin.reviews_count', { count: course._count?.reviews || 0 })
+                  }}</span>
                 </div>
               </div>
             </div>
@@ -667,15 +728,27 @@ v-for="filter in [
                   <div
                     class="flex items-center gap-1 md:opacity-0 md:group-hover/lesson:opacity-100 transition-opacity shrink-0"
                   >
-                    <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-accent cursor-pointer" @click="lessonEditDialogRef?.open(course, lesson)">
+                    <button
+                      type="button"
+                      class="p-1.5 rounded-lg text-slate-400 hover:text-accent cursor-pointer"
+                      @click="lessonEditDialogRef?.open(course, lesson)"
+                    >
                       <Edit2 class="w-3.5 h-3.5" />
                     </button>
-                    <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 cursor-pointer" @click="handleDeleteLesson(lesson.id)">
+                    <button
+                      type="button"
+                      class="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 cursor-pointer"
+                      @click="handleDeleteLesson(lesson.id)"
+                    >
                       <Trash2 class="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
-                <button type="button" class="w-full py-2.5 rounded-xl border-2 border-dashed border-slate-200 dark:border-white/5 text-slate-400 hover:text-accent hover:border-accent/40 transition-all text-xs font-bold flex items-center justify-center gap-2 cursor-pointer" @click="lessonEditDialogRef?.open(course)">
+                <button
+                  type="button"
+                  class="w-full py-2.5 rounded-xl border-2 border-dashed border-slate-200 dark:border-white/5 text-slate-400 hover:text-accent hover:border-accent/40 transition-all text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
+                  @click="lessonEditDialogRef?.open(course)"
+                >
                   <Plus class="w-4 h-4" />
                   添加课时
                 </button>
@@ -709,10 +782,18 @@ v-for="filter in [
                 </div>
               </div>
               <div class="flex items-center gap-2">
-                <button type="button" class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-colors cursor-pointer" @click="categoryEditDialogRef?.open(cat)">
+                <button
+                  type="button"
+                  class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-colors cursor-pointer"
+                  @click="categoryEditDialogRef?.open(cat)"
+                >
                   <Edit2 class="w-4 h-4" />
                 </button>
-                <button type="button" class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer" @click="handleDeleteCategory(cat.id)">
+                <button
+                  type="button"
+                  class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                  @click="handleDeleteCategory(cat.id)"
+                >
                   <Trash2 class="w-4 h-4" />
                 </button>
               </div>
@@ -729,16 +810,17 @@ v-for="filter in [
     </div>
 
     <!-- Modals Subcomponents -->
-    <CourseEditDialog
-      ref="courseEditDialogRef"
-      :categories="categories"
-      @saved="fetchCourses"
-    />
+    <CourseEditDialog ref="courseEditDialogRef" :categories="categories" @saved="fetchCourses" />
 
     <CategoryEditDialog
       ref="categoryEditDialogRef"
       :categories-count="categories.length"
-      @saved="() => { fetchCategories(); fetchCourses() }"
+      @saved="
+        () => {
+          fetchCategories();
+          fetchCourses();
+        }
+      "
     />
 
     <CourseImportDialog
@@ -747,10 +829,7 @@ v-for="filter in [
       @saved="fetchCourses"
     />
 
-    <LessonEditDialog
-      ref="lessonEditDialogRef"
-      @saved="fetchCourses"
-    />
+    <LessonEditDialog ref="lessonEditDialogRef" @saved="fetchCourses" />
   </div>
 </template>
 

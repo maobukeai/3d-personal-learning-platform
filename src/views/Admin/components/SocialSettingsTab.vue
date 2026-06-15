@@ -25,7 +25,7 @@ watch(
   (newVal) => {
     Object.assign(localSettings, newVal);
   },
-  { deep: true }
+  { deep: true },
 );
 
 watch(
@@ -33,7 +33,7 @@ watch(
   (newVal) => {
     emit('update:settings', { ...props.settings, ...newVal });
   },
-  { deep: true }
+  { deep: true },
 );
 
 const showGooglePassword = ref(false);
@@ -48,9 +48,7 @@ const showGithubPassword = ref(false);
     >
       <div class="flex items-center gap-3 mb-8">
         <Chrome class="w-5 h-5 text-accent" />
-        <h2 class="text-lg font-bold" style="color: var(--text-primary)">
-          Google OAuth 配置
-        </h2>
+        <h2 class="text-lg font-bold" style="color: var(--text-primary)">Google OAuth 配置</h2>
       </div>
 
       <div class="space-y-6">
@@ -60,7 +58,9 @@ const showGithubPassword = ref(false);
           <div class="flex items-center gap-3">
             <Chrome class="w-4 h-4 text-accent" />
             <div>
-              <span class="text-xs font-bold" style="color: var(--text-primary)">{{ $t('admin.turn_on_google_sign') }}</span>
+              <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                $t('admin.turn_on_google_sign')
+              }}</span>
               <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                 允许用户使用 Google 账号直接登录平台
               </p>
@@ -74,7 +74,9 @@ const showGithubPassword = ref(false);
           class="grid grid-cols-1 gap-6 animate-in fade-in duration-300"
         >
           <div class="space-y-2">
-            <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">Client ID</label>
+            <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
+              >Client ID</label
+            >
             <input
               v-model="localSettings.OAUTH_GOOGLE_CLIENT_ID"
               type="text"
@@ -87,7 +89,9 @@ const showGithubPassword = ref(false);
             />
           </div>
           <div class="space-y-2">
-            <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">Client Secret</label>
+            <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
+              >Client Secret</label
+            >
             <div class="relative">
               <input
                 v-model="localSettings.OAUTH_GOOGLE_CLIENT_SECRET"
@@ -99,7 +103,11 @@ const showGithubPassword = ref(false);
                   color: var(--text-primary);
                 "
               />
-              <button type="button" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 bg-transparent border-none cursor-pointer" @click="showGooglePassword = !showGooglePassword">
+              <button
+                type="button"
+                class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 bg-transparent border-none cursor-pointer"
+                @click="showGooglePassword = !showGooglePassword"
+              >
                 <Eye v-if="!showGooglePassword" class="w-4 h-4" />
                 <EyeOff v-else class="w-4 h-4" />
               </button>
@@ -123,9 +131,7 @@ const showGithubPassword = ref(false);
     >
       <div class="flex items-center gap-3 mb-8">
         <Github class="w-5 h-5 text-slate-800 dark:text-white" />
-        <h2 class="text-lg font-bold" style="color: var(--text-primary)">
-          GitHub OAuth 配置
-        </h2>
+        <h2 class="text-lg font-bold" style="color: var(--text-primary)">GitHub OAuth 配置</h2>
       </div>
 
       <div class="space-y-6">
@@ -135,7 +141,9 @@ const showGithubPassword = ref(false);
           <div class="flex items-center gap-3">
             <Github class="w-4 h-4 text-slate-800 dark:text-white" />
             <div>
-              <span class="text-xs font-bold" style="color: var(--text-primary)">{{ $t('admin.enable_github_login') }}</span>
+              <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                $t('admin.enable_github_login')
+              }}</span>
               <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                 允许用户使用 GitHub 账号直接登录平台
               </p>
@@ -149,7 +157,9 @@ const showGithubPassword = ref(false);
           class="grid grid-cols-1 gap-6 animate-in fade-in duration-300"
         >
           <div class="space-y-2">
-            <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">Client ID</label>
+            <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
+              >Client ID</label
+            >
             <input
               v-model="localSettings.OAUTH_GITHUB_CLIENT_ID"
               type="text"
@@ -162,7 +172,9 @@ const showGithubPassword = ref(false);
             />
           </div>
           <div class="space-y-2">
-            <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">Client Secret</label>
+            <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
+              >Client Secret</label
+            >
             <div class="relative">
               <input
                 v-model="localSettings.OAUTH_GITHUB_CLIENT_SECRET"
@@ -174,7 +186,11 @@ const showGithubPassword = ref(false);
                   color: var(--text-primary);
                 "
               />
-              <button type="button" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 bg-transparent border-none cursor-pointer" @click="showGithubPassword = !showGithubPassword">
+              <button
+                type="button"
+                class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 bg-transparent border-none cursor-pointer"
+                @click="showGithubPassword = !showGithubPassword"
+              >
                 <Eye v-if="!showGithubPassword" class="w-4 h-4" />
                 <EyeOff v-else class="w-4 h-4" />
               </button>

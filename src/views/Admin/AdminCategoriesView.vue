@@ -15,6 +15,7 @@ import {
   Smile,
   Sparkles,
   Box,
+  Users,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -37,14 +38,18 @@ interface SettingItem {
   value: string | string[];
 }
 
-const activeTab = ref<'assets' | 'courses' | 'materials' | 'showcases'>('assets');
+const activeTab = ref<'assets' | 'courses' | 'materials' | 'plugins' | 'showcases' | 'teams'>(
+  'assets',
+);
 const isLoading = ref(false);
 const searchQuery = ref('');
 
 const assetCategories = ref<Category[]>([]);
 const courseCategories = ref<Category[]>([]);
 const materialCategories = ref<string[]>([]);
+const pluginCategories = ref<string[]>([]);
 const showcaseCategories = ref<string[]>([]);
+const teamCategories = ref<string[]>([]);
 
 const showModal = ref(false);
 const currentCategory = ref<Category | string | null>(null);
@@ -100,6 +105,20 @@ const fetchSettingsCategories = async () => {
     } catch {
       showcaseCategories.value = [];
     }
+
+    try {
+      const teamVal = getVal('TEAM_CATEGORIES');
+      teamCategories.value = typeof teamVal === 'string' ? JSON.parse(teamVal) : teamVal;
+    } catch {
+      teamCategories.value = [];
+    }
+
+    try {
+      const pluginVal = getVal('PLUGIN_CATEGORIES');
+      pluginCategories.value = typeof pluginVal === 'string' ? JSON.parse(pluginVal) : pluginVal;
+    } catch {
+      pluginCategories.value = [];
+    }
   } catch (error) {
     console.error('Fetch settings categories error:', error);
   }
@@ -131,12 +150,24 @@ const filteredCategories = computed(() => {
           c.toLowerCase().includes(searchQuery.value.toLowerCase()),
         )
       : materialCategories.value;
-  } else {
+  } else if (activeTab.value === 'showcases') {
     return searchQuery.value
       ? showcaseCategories.value.filter((c) =>
           c.toLowerCase().includes(searchQuery.value.toLowerCase()),
         )
       : showcaseCategories.value;
+  } else if (activeTab.value === 'plugins') {
+    return searchQuery.value
+      ? pluginCategories.value.filter((c) =>
+          c.toLowerCase().includes(searchQuery.value.toLowerCase()),
+        )
+      : pluginCategories.value;
+  } else {
+    return searchQuery.value
+      ? teamCategories.value.filter((c) =>
+          c.toLowerCase().includes(searchQuery.value.toLowerCase()),
+        )
+      : teamCategories.value;
   }
 });
 
@@ -196,11 +227,22 @@ const handleSaveCategory = async () => {
     }
   } else {
     // Update System Settings
-    const key = activeTab.value === 'materials' ? 'MATERIAL_CATEGORIES' : 'SHOWCASE_CATEGORIES';
+    const key =
+      activeTab.value === 'materials'
+        ? 'MATERIAL_CATEGORIES'
+        : activeTab.value === 'plugins'
+          ? 'PLUGIN_CATEGORIES'
+          : activeTab.value === 'showcases'
+            ? 'SHOWCASE_CATEGORIES'
+            : 'TEAM_CATEGORIES';
     const list =
       activeTab.value === 'materials'
         ? [...materialCategories.value]
-        : [...showcaseCategories.value];
+        : activeTab.value === 'plugins'
+          ? [...pluginCategories.value]
+          : activeTab.value === 'showcases'
+            ? [...showcaseCategories.value]
+            : [...teamCategories.value];
 
     if (currentCategory.value) {
       const idx = list.indexOf(currentCategory.value as string);
@@ -229,9 +271,7 @@ const handleDeleteCategory = async (category: Category | string) => {
   if (activeTab.value === 'assets' || activeTab.value === 'courses') {
     const typedCategory = category as Category;
     const count =
-      activeTab.value === 'assets'
-        ? typedCategory._count?.assets
-        : typedCategory._count?.courses;
+      activeTab.value === 'assets' ? typedCategory._count?.assets : typedCategory._count?.courses;
     if (count && count > 0) {
       return ElMessage.error(
         `该分类下仍有 ${count} 个${activeTab.value === 'assets' ? '资产' : '课程'}，无法删除`,
@@ -268,9 +308,22 @@ const handleDeleteCategory = async (category: Category | string) => {
         type: 'warning',
       });
 
-      const key = activeTab.value === 'materials' ? 'MATERIAL_CATEGORIES' : 'SHOWCASE_CATEGORIES';
+      const key =
+        activeTab.value === 'materials'
+          ? 'MATERIAL_CATEGORIES'
+          : activeTab.value === 'plugins'
+            ? 'PLUGIN_CATEGORIES'
+            : activeTab.value === 'showcases'
+              ? 'SHOWCASE_CATEGORIES'
+              : 'TEAM_CATEGORIES';
       const list =
-        activeTab.value === 'materials' ? materialCategories.value : showcaseCategories.value;
+        activeTab.value === 'materials'
+          ? materialCategories.value
+          : activeTab.value === 'plugins'
+            ? pluginCategories.value
+            : activeTab.value === 'showcases'
+              ? showcaseCategories.value
+              : teamCategories.value;
       const newList = list.filter((c) => c !== category);
 
       await api.post('/api/admin/settings', {
@@ -320,7 +373,11 @@ onMounted(() => {
           </h1>
         </div>
 
-        <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-[11px] transition-all shadow-sm cursor-pointer whitespace-nowrap" @click="openModal()">
+        <button
+          type="button"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-[11px] transition-all shadow-sm cursor-pointer whitespace-nowrap"
+          @click="openModal()"
+        >
           <Plus class="w-3.5 h-3.5" />
           <span class="hidden sm:inline">新建分类</span>
         </button>
@@ -333,38 +390,102 @@ onMounted(() => {
         <!-- 分类选项卡 & 统计 Pills -->
         <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
           <!-- 极品分段选项卡 -->
-          <div class="flex flex-nowrap items-center bg-slate-100 dark:bg-white/5 p-0.5 rounded-lg gap-0.5 shadow-inner shrink-0">
+          <div
+            class="flex flex-nowrap items-center bg-slate-100 dark:bg-white/5 p-0.5 rounded-lg gap-0.5 shadow-inner shrink-0"
+          >
             <button
-type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0" :class="activeTab === 'assets'
-                ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'" @click="activeTab = 'assets'">
+              type="button"
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
+              :class="
+                activeTab === 'assets'
+                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+              "
+              @click="activeTab = 'assets'"
+            >
               <Box class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
               <span>资产库</span>
-              <span class="opacity-60 text-[8px] xs:text-[9px]">({{ assetCategories.length }})</span>
+              <span class="opacity-60 text-[8px] xs:text-[9px]"
+                >({{ assetCategories.length }})</span
+              >
             </button>
             <button
-type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0" :class="activeTab === 'courses'
-                ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'" @click="activeTab = 'courses'">
+              type="button"
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
+              :class="
+                activeTab === 'courses'
+                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+              "
+              @click="activeTab = 'courses'"
+            >
               <GraduationCap class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
               <span>课程</span>
-              <span class="opacity-60 text-[8px] xs:text-[9px]">({{ courseCategories.length }})</span>
+              <span class="opacity-60 text-[8px] xs:text-[9px]"
+                >({{ courseCategories.length }})</span
+              >
             </button>
             <button
-type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0" :class="activeTab === 'materials'
-                ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'" @click="activeTab = 'materials'">
+              type="button"
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
+              :class="
+                activeTab === 'materials'
+                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+              "
+              @click="activeTab = 'materials'"
+            >
               <Layers class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
               <span>材质</span>
-              <span class="opacity-60 text-[8px] xs:text-[9px]">({{ materialCategories.length }})</span>
+              <span class="opacity-60 text-[8px] xs:text-[9px]"
+                >({{ materialCategories.length }})</span
+              >
             </button>
             <button
-type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0" :class="activeTab === 'showcases'
-                ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'" @click="activeTab = 'showcases'">
+              type="button"
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
+              :class="
+                activeTab === 'plugins'
+                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+              "
+              @click="activeTab = 'plugins'"
+            >
+              <Puzzle class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              <span>插件</span>
+              <span class="opacity-60 text-[8px] xs:text-[9px]"
+                >({{ pluginCategories.length }})</span
+              >
+            </button>
+            <button
+              type="button"
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
+              :class="
+                activeTab === 'showcases'
+                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+              "
+              @click="activeTab = 'showcases'"
+            >
               <Sparkles class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
               <span>作品展示</span>
-              <span class="opacity-60 text-[8px] xs:text-[9px]">({{ showcaseCategories.length }})</span>
+              <span class="opacity-60 text-[8px] xs:text-[9px]"
+                >({{ showcaseCategories.length }})</span
+              >
+            </button>
+            <button
+              type="button"
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
+              :class="
+                activeTab === 'teams'
+                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+              "
+              @click="activeTab = 'teams'"
+            >
+              <Users class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              <span>团队分类</span>
+              <span class="opacity-60 text-[8px] xs:text-[9px]">({{ teamCategories.length }})</span>
             </button>
           </div>
 
@@ -381,7 +502,9 @@ type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text
         </div>
 
         <!-- 检索工具 -->
-        <div class="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0">
+        <div
+          class="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0"
+        >
           <div class="relative flex-1 md:flex-none md:w-64">
             <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <input
@@ -395,7 +518,12 @@ type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text
                 color: var(--text-primary);
               "
             />
-            <button v-if="searchQuery" type="button" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" @click="searchQuery = ''">
+            <button
+              v-if="searchQuery"
+              type="button"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              @click="searchQuery = ''"
+            >
               <X class="w-3 h-3" />
             </button>
           </div>
@@ -425,19 +553,29 @@ type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text
                   class="border-b bg-slate-50/50 dark:bg-slate-800/50"
                   style="border-color: var(--border-base)"
                 >
-                  <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <th
+                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                  >
                     图标
                   </th>
-                  <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <th
+                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                  >
                     分类名称
                   </th>
-                  <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <th
+                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                  >
                     排序权重
                   </th>
-                  <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <th
+                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                  >
                     关联统计
                   </th>
-                  <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">
+                  <th
+                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right"
+                  >
                     操作
                   </th>
                 </tr>
@@ -459,16 +597,17 @@ type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text
                       <FolderTree v-else class="w-5 h-5" />
                     </div>
                   </td>
-                  <td class="px-4 sm:px-6 py-3.5 sm:py-4 font-bold text-sm" style="color: var(--text-primary)">
+                  <td
+                    class="px-4 sm:px-6 py-3.5 sm:py-4 font-bold text-sm"
+                    style="color: var(--text-primary)"
+                  >
                     {{ typeof cat === 'string' ? cat : cat.name }}
                   </td>
                   <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs font-medium text-slate-500">
                     <template v-if="typeof cat !== 'string'">
                       {{ cat.order }}
                     </template>
-                    <template v-else>
-                      -
-                    </template>
+                    <template v-else> - </template>
                   </td>
                   <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs font-semibold text-slate-400">
                     <template v-if="typeof cat !== 'string'">
@@ -478,18 +617,24 @@ type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text
                           : (cat._count?.courses || 0) + ' 门课程'
                       }}
                     </template>
-                    <template v-else>
-                      系统预设分类
-                    </template>
+                    <template v-else> 系统预设分类 </template>
                   </td>
                   <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-right">
                     <div
                       class="flex items-center justify-end gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                     >
-                      <button type="button" class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-accent transition-colors" @click="openModal(cat)">
+                      <button
+                        type="button"
+                        class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-accent transition-colors"
+                        @click="openModal(cat)"
+                      >
                         <Edit2 class="w-4 h-4" />
                       </button>
-                      <button type="button" class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors" @click="handleDeleteCategory(cat)">
+                      <button
+                        type="button"
+                        class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
+                        @click="handleDeleteCategory(cat)"
+                      >
                         <Trash2 class="w-4 h-4" />
                       </button>
                     </div>
@@ -508,8 +653,12 @@ type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text
               style="border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 min-w-0">
-                <div class="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
-                  <span v-if="typeof cat !== 'string' && cat.icon" class="text-lg">{{ cat.icon }}</span>
+                <div
+                  class="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0"
+                >
+                  <span v-if="typeof cat !== 'string' && cat.icon" class="text-lg">{{
+                    cat.icon
+                  }}</span>
                   <FolderTree v-else class="w-5 h-5" />
                 </div>
                 <div class="min-w-0">
@@ -524,21 +673,29 @@ type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text
                     <span class="text-[10px] text-slate-400 truncate">
                       {{
                         typeof cat !== 'string'
-                          ? (activeTab === 'assets'
+                          ? activeTab === 'assets'
                             ? (cat._count?.assets || 0) + ' 个资产'
-                            : (cat._count?.courses || 0) + ' 门课程')
+                            : (cat._count?.courses || 0) + ' 门课程'
                           : '系统预设'
                       }}
                     </span>
                   </div>
                 </div>
               </div>
-              
+
               <div class="flex items-center gap-1 shrink-0 ml-2">
-                <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-accent transition-colors" @click="openModal(cat)">
+                <button
+                  type="button"
+                  class="p-2 rounded-lg text-slate-400 hover:text-accent transition-colors"
+                  @click="openModal(cat)"
+                >
                   <Edit2 class="w-4 h-4" />
                 </button>
-                <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-rose-500 transition-colors" @click="handleDeleteCategory(cat)">
+                <button
+                  type="button"
+                  class="p-2 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
+                  @click="handleDeleteCategory(cat)"
+                >
                   <Trash2 class="w-4 h-4" />
                 </button>
               </div>
@@ -575,7 +732,11 @@ type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text
             </h3>
             <p class="text-xs text-slate-400 mt-1">管理系统全局分类映射</p>
           </div>
-          <button type="button" class="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400" @click="showModal = false">
+          <button
+            type="button"
+            class="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400"
+            @click="showModal = false"
+          >
             <X class="w-6 h-6" />
           </button>
         </div>
@@ -645,10 +806,18 @@ type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text
         </div>
 
         <div class="flex items-center gap-4 mt-10">
-          <button type="button" class="flex-1 py-4 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors" @click="showModal = false">
+          <button
+            type="button"
+            class="flex-1 py-4 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+            @click="showModal = false"
+          >
             取消
           </button>
-          <button type="button" class="flex-1 py-4 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98]" @click="handleSaveCategory">
+          <button
+            type="button"
+            class="flex-1 py-4 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98]"
+            @click="handleSaveCategory"
+          >
             {{ currentCategory ? '保存修改' : '立即创建' }}
           </button>
         </div>

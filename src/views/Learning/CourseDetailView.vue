@@ -28,6 +28,7 @@ import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
+import Tabs from '@/components/ui/Tabs.vue';
 import type { Lesson, User } from '@/types';
 
 interface CourseReview {
@@ -84,7 +85,10 @@ const isBookmarked = ref(false);
 
 const difficultyMap = computed<Record<string, { label: string; color: string }>>(() => ({
   BEGINNER: { label: t('academy.difficultyBeginner'), color: 'text-emerald-500 bg-emerald-500/10' },
-  INTERMEDIATE: { label: t('academy.difficultyIntermediate'), color: 'text-amber-500 bg-amber-500/10' },
+  INTERMEDIATE: {
+    label: t('academy.difficultyIntermediate'),
+    color: 'text-amber-500 bg-amber-500/10',
+  },
   ADVANCED: { label: t('academy.difficultyAdvanced'), color: 'text-rose-500 bg-rose-500/10' },
 }));
 
@@ -118,7 +122,9 @@ const totalDurationFormatted = computed(() => {
   if (mins < 60) return t('academy.minuteUnitDetail', { n: mins });
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return m > 0 ? `${h} ${t('academy.statsAverage')} ${t('academy.minuteUnitDetail', { n: m })}` : `${h} ${t('academy.statsAverage')}`;
+  return m > 0
+    ? `${h} ${t('academy.statsAverage')} ${t('academy.minuteUnitDetail', { n: m })}`
+    : `${h} ${t('academy.statsAverage')}`;
 });
 
 const courseTags = computed(() => {
@@ -238,7 +244,8 @@ const getLessonTypeIcon = (lesson: Lesson) => {
 const getLessonTypeLabel = (lesson: Lesson) => {
   const url = lesson.videoUrl;
   if (!url) return t('academy.lessonTypeRichText');
-  if (url.toLowerCase().endsWith('.glb') || url.toLowerCase().endsWith('.gltf')) return t('academy.lessonType3D');
+  if (url.toLowerCase().endsWith('.glb') || url.toLowerCase().endsWith('.gltf'))
+    return t('academy.lessonType3D');
   return t('academy.lessonTypeVideo');
 };
 
@@ -267,20 +274,34 @@ onMounted(fetchCourse);
       class="h-14 px-4 sm:px-6 md:px-8 flex items-center gap-4 shrink-0 border-b transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <button type="button" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors" @click="router.push('/academy')">
+      <button
+        type="button"
+        class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+        @click="router.push('/academy')"
+      >
         <ChevronLeft class="w-5 h-5" style="color: var(--text-secondary)" />
       </button>
       <div class="h-4 w-px" style="background-color: var(--border-base)"></div>
-      <span class="text-sm font-bold" style="color: var(--text-primary)">{{ t('academy.courseDetail') }}</span>
+      <span class="text-sm font-bold" style="color: var(--text-primary)">{{
+        t('academy.courseDetail')
+      }}</span>
       <div class="ml-auto flex items-center gap-2">
-        <button type="button" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors" @click="toggleBookmark">
+        <button
+          type="button"
+          class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+          @click="toggleBookmark"
+        >
           <Bookmark
             class="w-4 h-4"
             :class="isBookmarked ? 'text-amber-400 fill-amber-400' : ''"
             style="color: var(--text-muted)"
           />
         </button>
-        <button type="button" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors" @click="handleShare">
+        <button
+          type="button"
+          class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+          @click="handleShare"
+        >
           <Share2 class="w-4 h-4" style="color: var(--text-muted)" />
         </button>
       </div>
@@ -297,13 +318,20 @@ onMounted(fetchCourse);
       <template v-else-if="course">
         <!-- Hero Section -->
         <div class="max-w-none px-3 sm:px-4.5 md:px-6 pt-3 sm:pt-4">
-          <div class="relative rounded-xl md:rounded-2xl overflow-hidden shadow-md border" style="border-color: var(--border-base)">
+          <div
+            class="relative rounded-xl md:rounded-2xl overflow-hidden shadow-md border"
+            style="border-color: var(--border-base)"
+          >
             <div class="h-40 md:h-52 overflow-hidden">
               <img
-alt="" :src="
+                alt=""
+                :src="
                   course.thumbnail ||
                   'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=1200&auto=format&fit=crop&q=60'
-                " referrerpolicy="no-referrer" class="w-full h-full object-cover" />
+                "
+                referrerpolicy="no-referrer"
+                class="w-full h-full object-cover"
+              />
               <div
                 class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent"
               ></div>
@@ -324,10 +352,14 @@ alt="" :src="
                       "
                       class="px-2 py-0.5 rounded text-[10px] font-bold backdrop-blur-sm"
                     >
-                      {{ difficultyMap[course.difficulty]?.label || t('academy.difficultyBeginner') }}
+                      {{
+                        difficultyMap[course.difficulty]?.label || t('academy.difficultyBeginner')
+                      }}
                     </span>
                   </div>
-                  <h1 class="text-lg sm:text-xl md:text-2xl font-black text-white mb-2 leading-tight">
+                  <h1
+                    class="text-lg sm:text-xl md:text-2xl font-black text-white mb-2 leading-tight"
+                  >
                     {{ course.title }}
                   </h1>
                   <p class="text-white/80 text-xs line-clamp-2 max-w-2xl font-medium">
@@ -354,23 +386,36 @@ alt="" :src="
                 >({{ t('academy.reviewsCount', { n: course._count?.reviews || 0 }) }})</span
               >
             </div>
-            <div class="h-3 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
+            <div
+              class="h-3 w-px hidden sm:block shrink-0"
+              style="background-color: var(--border-base)"
+            ></div>
             <div class="flex items-center gap-1 shrink-0">
               <Users class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
               <span class="font-bold" style="color: var(--text-primary)">{{
                 course._count?.enrollments || 0
               }}</span>
-              <span class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)">{{ t('academy.joined') }}</span>
+              <span class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)">{{
+                t('academy.joined')
+              }}</span>
             </div>
-            <div class="h-3 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
+            <div
+              class="h-3 w-px hidden sm:block shrink-0"
+              style="background-color: var(--border-base)"
+            ></div>
             <div class="flex items-center gap-1 shrink-0">
               <BookOpen class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
               <span class="font-bold" style="color: var(--text-primary)">{{
                 course.lessons?.length || 0
               }}</span>
-              <span class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)">{{ t('academy.lessonHour') }}</span>
+              <span class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)">{{
+                t('academy.lessonHour')
+              }}</span>
             </div>
-            <div class="h-3 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
+            <div
+              class="h-3 w-px hidden sm:block shrink-0"
+              style="background-color: var(--border-base)"
+            ></div>
             <div class="flex items-center gap-1 shrink-0">
               <Timer class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
               <span class="font-bold" style="color: var(--text-primary)">{{
@@ -379,7 +424,10 @@ alt="" :src="
             </div>
             <!-- Tags -->
             <template v-if="courseTags.length > 0">
-              <div class="h-3 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
+              <div
+                class="h-3 w-px hidden sm:block shrink-0"
+                style="background-color: var(--border-base)"
+              ></div>
               <div class="flex items-center gap-1 flex-nowrap shrink-0 overflow-x-visible">
                 <Tag class="w-3 h-3 text-slate-400" />
                 <span
@@ -424,36 +472,36 @@ alt="" :src="
                 >
                   <span class="flex items-center gap-1"
                     ><BookOpen class="w-3 h-3" />
-                    {{ t('academy.coursesCountInstructor', { n: instructorInfo._count?.courses || 1 }) }}</span
+                    {{
+                      t('academy.coursesCountInstructor', {
+                        n: instructorInfo._count?.courses || 1,
+                      })
+                    }}</span
                   >
                   <span class="flex items-center gap-1"
-                    ><Users class="w-3 h-3" /> {{ t('academy.studentsCountInstructor', { n: instructorInfo._count?.courses || 0 }) }}</span
+                    ><Users class="w-3 h-3" />
+                    {{
+                      t('academy.studentsCountInstructor', {
+                        n: instructorInfo._count?.courses || 0,
+                      })
+                    }}</span
                   >
                 </div>
               </div>
 
               <!-- Section Tabs -->
-              <div
-                class="flex items-center gap-0.5 p-0.5 rounded-lg w-fit border transition-colors duration-300"
-                style="background-color: var(--bg-card); border-color: var(--border-base)"
-              >
-                <button
-type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer" :class="
-                    activeSection === 'outline'
-                      ? 'bg-accent text-white shadow-sm shadow-accent/15'
-                      : ''
-                  " :style="activeSection !== 'outline' ? 'color: var(--text-secondary)' : ''" @click="activeSection = 'outline'">
-                  {{ t('academy.courseOutline') }}
-                </button>
-                <button
-type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer" :class="
-                    activeSection === 'reviews'
-                      ? 'bg-accent text-white shadow-sm shadow-accent/15'
-                      : ''
-                  " :style="activeSection !== 'reviews' ? 'color: var(--text-secondary)' : ''" @click="activeSection = 'reviews'">
-                  {{ t('academy.studentReviews', { n: course._count?.reviews || 0 }) }}
-                </button>
-              </div>
+              <Tabs
+                v-model="activeSection"
+                :options="[
+                  { label: t('academy.courseOutline'), value: 'outline' },
+                  {
+                    label: t('academy.studentReviews', { n: course?._count?.reviews || 0 }),
+                    value: 'reviews',
+                  },
+                ]"
+                size="sm"
+                class="!bg-transparent border-none"
+              />
 
               <!-- Outline Section -->
               <template v-if="activeSection === 'outline'">
@@ -495,7 +543,10 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                           class="flex items-center gap-1 text-[9px] font-bold"
                           style="color: var(--text-muted)"
                         >
-                          <component :is="getLessonTypeIcon(lesson)" class="w-3 h-3 text-slate-400" />
+                          <component
+                            :is="getLessonTypeIcon(lesson)"
+                            class="w-3 h-3 text-slate-400"
+                          />
                           {{ getLessonTypeLabel(lesson) }}
                         </span>
                         <span
@@ -503,11 +554,16 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                           class="flex items-center gap-1 text-[9px] font-bold"
                           style="color: var(--text-muted)"
                         >
-                          <Clock class="w-3 h-3 text-slate-400" /> {{ t('academy.minuteUnitDetail', { n: lesson.duration }) }}
+                          <Clock class="w-3 h-3 text-slate-400" />
+                          {{ t('academy.minuteUnitDetail', { n: lesson.duration }) }}
                         </span>
                       </div>
                     </div>
-                    <button v-if="isEnrolled" type="button" class="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-accent/10 cursor-pointer shrink-0">
+                    <button
+                      v-if="isEnrolled"
+                      type="button"
+                      class="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-accent/10 cursor-pointer shrink-0"
+                    >
                       <PlayCircle class="w-3.5 h-3.5 text-accent" />
                     </button>
                   </div>
@@ -522,7 +578,9 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                     class="w-10 h-10 mx-auto mb-3 opacity-20"
                     style="color: var(--text-muted)"
                   />
-                  <p class="text-xs" style="color: var(--text-muted)">{{ t('academy.coursePreparing') }}</p>
+                  <p class="text-xs" style="color: var(--text-muted)">
+                    {{ t('academy.coursePreparing') }}
+                  </p>
                 </div>
               </template>
 
@@ -545,8 +603,8 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                           class="w-3.5 h-3.5"
                           :class="
                             i <= Math.round(course.avgRating || 0)
-                                ? 'text-amber-400 fill-amber-400'
-                                : 'text-slate-200 dark:text-slate-700'
+                              ? 'text-amber-400 fill-amber-400'
+                              : 'text-slate-200 dark:text-slate-700'
                           "
                         />
                       </div>
@@ -563,7 +621,8 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                         <span
                           class="text-[10px] font-bold w-7 text-right"
                           style="color: var(--text-secondary)"
-                          >{{ t('academy.starUnit', { n: item.stars }) }}</span>
+                          >{{ t('academy.starUnit', { n: item.stars }) }}</span
+                        >
                         <div
                           class="flex-1 h-1.5 rounded-full overflow-hidden"
                           style="background-color: var(--bg-app)"
@@ -573,8 +632,11 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                             :style="{ width: item.percent + '%' }"
                           ></div>
                         </div>
-                        <span class="text-[9px] font-bold w-7 text-left" style="color: var(--text-muted)"
-                          >{{ item.percent }}%</span>
+                        <span
+                          class="text-[9px] font-bold w-7 text-left"
+                          style="color: var(--text-muted)"
+                          >{{ item.percent }}%</span
+                        >
                       </div>
                     </div>
                   </div>
@@ -590,8 +652,16 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                     {{ t('academy.writeReview') }}
                   </h4>
                   <div class="flex items-center gap-2 mb-3">
-                    <span class="text-[11px] font-bold" style="color: var(--text-muted)">{{ t('academy.scoreLabel') }}</span>
-                    <button v-for="i in 5" :key="i" type="button" class="p-0.5 transition-transform hover:scale-125 cursor-pointer" @click="reviewRating = i">
+                    <span class="text-[11px] font-bold" style="color: var(--text-muted)">{{
+                      t('academy.scoreLabel')
+                    }}</span>
+                    <button
+                      v-for="i in 5"
+                      :key="i"
+                      type="button"
+                      class="p-0.5 transition-transform hover:scale-125 cursor-pointer"
+                      @click="reviewRating = i"
+                    >
                       <Star
                         class="w-4.5 h-4.5 transition-colors"
                         :class="
@@ -614,7 +684,12 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                     "
                   ></textarea>
                   <div class="flex justify-end mt-2">
-                    <button type="button" :disabled="isSubmittingReview" class="flex items-center gap-1.5 px-4 py-1.5 bg-accent text-white font-bold text-xs rounded-lg shadow disabled:opacity-50 transition-all cursor-pointer" @click="handleSubmitReview">
+                    <button
+                      type="button"
+                      :disabled="isSubmittingReview"
+                      class="flex items-center gap-1.5 px-4 py-1.5 bg-accent text-white font-bold text-xs rounded-lg shadow disabled:opacity-50 transition-all cursor-pointer"
+                      @click="handleSubmitReview"
+                    >
                       <Send class="w-3.5 h-3.5" />
                       {{ t('academy.submitReview') }}
                     </button>
@@ -694,8 +769,16 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                       <CheckCircle2 class="w-4 h-4 text-emerald-500" />
                     </div>
                     <div>
-                      <p class="text-[10px] font-bold leading-none mb-1" style="color: var(--text-muted)">{{ t('academy.progressLabel') }}</p>
-                      <p class="text-base font-black leading-none" style="color: var(--text-primary)">
+                      <p
+                        class="text-[10px] font-bold leading-none mb-1"
+                        style="color: var(--text-muted)"
+                      >
+                        {{ t('academy.progressLabel') }}
+                      </p>
+                      <p
+                        class="text-base font-black leading-none"
+                        style="color: var(--text-primary)"
+                      >
                         {{ courseProgress }}%
                       </p>
                     </div>
@@ -710,9 +793,18 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                     ></div>
                   </div>
                   <p class="text-[10px] mb-3" style="color: var(--text-muted)">
-                    {{ t('academy.completedProgressLessons', { completed: completedLessonCount, total: course.lessons?.length || 0 }) }}
+                    {{
+                      t('academy.completedProgressLessons', {
+                        completed: completedLessonCount,
+                        total: course.lessons?.length || 0,
+                      })
+                    }}
                   </p>
-                  <button type="button" class="w-full py-2 bg-accent text-white font-bold rounded-lg text-xs shadow shadow-accent/15 transition-all hover:shadow-md flex items-center justify-center gap-1.5 cursor-pointer" @click="handleStartLearning()">
+                  <button
+                    type="button"
+                    class="w-full py-2 bg-accent text-white font-bold rounded-lg text-xs shadow shadow-accent/15 transition-all hover:shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                    @click="handleStartLearning()"
+                  >
                     <PlayCircle class="w-4 h-4" />
                     {{ t('academy.continueLearning') }}
                   </button>
@@ -727,26 +819,39 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                   <div class="space-y-3 mb-4.5">
                     <div class="flex items-center gap-2.5">
                       <BookOpen class="w-3.5 h-3.5" style="color: var(--text-muted)" />
-                      <span class="text-xs" style="color: var(--text-secondary)"
-                        >{{ t('academy.lessonsCountDetail', { n: course.lessons?.length || 0 }) }}</span>
+                      <span class="text-xs" style="color: var(--text-secondary)">{{
+                        t('academy.lessonsCountDetail', { n: course.lessons?.length || 0 })
+                      }}</span>
                     </div>
                     <div class="flex items-center gap-2.5">
                       <Timer class="w-3.5 h-3.5" style="color: var(--text-muted)" />
-                      <span class="text-xs" style="color: var(--text-secondary)"
-                        >{{ t('academy.totalDuration', { time: totalDurationFormatted }) }}</span>
+                      <span class="text-xs" style="color: var(--text-secondary)">{{
+                        t('academy.totalDuration', { time: totalDurationFormatted })
+                      }}</span>
                     </div>
                     <div class="flex items-center gap-2.5">
                       <Signal class="w-3.5 h-3.5" style="color: var(--text-muted)" />
-                      <span class="text-xs" style="color: var(--text-secondary)"
-                        >{{ t('academy.difficultyLevel', { level: difficultyMap[course.difficulty]?.label || t('academy.difficultyBeginner') }) }}</span>
+                      <span class="text-xs" style="color: var(--text-secondary)">{{
+                        t('academy.difficultyLevel', {
+                          level:
+                            difficultyMap[course.difficulty]?.label ||
+                            t('academy.difficultyBeginner'),
+                        })
+                      }}</span>
                     </div>
                     <div class="flex items-center gap-2.5">
                       <Users class="w-3.5 h-3.5" style="color: var(--text-muted)" />
-                      <span class="text-xs" style="color: var(--text-secondary)"
-                        >{{ t('academy.enrolledCount', { n: course._count?.enrollments || 0 }) }}</span>
+                      <span class="text-xs" style="color: var(--text-secondary)">{{
+                        t('academy.enrolledCount', { n: course._count?.enrollments || 0 })
+                      }}</span>
                     </div>
                   </div>
-                  <button type="button" :disabled="isEnrolling" class="w-full py-2.5 bg-accent text-white font-bold rounded-lg text-xs shadow shadow-accent/15 transition-all hover:shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer" @click="handleEnroll">
+                  <button
+                    type="button"
+                    :disabled="isEnrolling"
+                    class="w-full py-2.5 bg-accent text-white font-bold rounded-lg text-xs shadow shadow-accent/15 transition-all hover:shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
+                    @click="handleEnroll"
+                  >
                     <GraduationCap class="w-4 h-4" />
                     {{ isEnrolling ? t('academy.enrolling') : t('academy.enrollNow') }}
                   </button>
@@ -813,7 +918,11 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                       color: var(--text-primary);
                     "
                   ></textarea>
-                  <button type="button" class="w-full mt-2 py-1.5 border border-slate-200 dark:border-white/10 text-[10px] font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-1.5 cursor-pointer" style="color: var(--text-secondary)">
+                  <button
+                    type="button"
+                    class="w-full mt-2 py-1.5 border border-slate-200 dark:border-white/10 text-[10px] font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    style="color: var(--text-secondary)"
+                  >
                     <StickyNote class="w-3.5 h-3.5" /> {{ t('academy.saveNote') }}
                   </button>
                 </div>
@@ -827,7 +936,12 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
             class="lg:hidden sticky bottom-0 p-4 border-t"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
-            <button type="button" :disabled="isEnrolling" class="w-full py-3.5 bg-accent text-white font-bold rounded-xl shadow-lg shadow-accent/20 disabled:opacity-50 flex items-center justify-center gap-2" @click="handleEnroll">
+            <button
+              type="button"
+              :disabled="isEnrolling"
+              class="w-full py-3.5 bg-accent text-white font-bold rounded-xl shadow-lg shadow-accent/20 disabled:opacity-50 flex items-center justify-center gap-2"
+              @click="handleEnroll"
+            >
               <GraduationCap class="w-5 h-5" />
               {{ isEnrolling ? t('academy.enrolling') : t('academy.enrollCourseNow') }}
             </button>
@@ -837,7 +951,11 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
             class="lg:hidden sticky bottom-0 p-4 border-t"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
-            <button type="button" class="w-full py-3.5 bg-accent text-white font-bold rounded-xl shadow-lg shadow-accent/20 flex items-center justify-center gap-2" @click="handleStartLearning()">
+            <button
+              type="button"
+              class="w-full py-3.5 bg-accent text-white font-bold rounded-xl shadow-lg shadow-accent/20 flex items-center justify-center gap-2"
+              @click="handleStartLearning()"
+            >
               <PlayCircle class="w-5 h-5" />
               {{ t('academy.continueLearning') }} ({{ courseProgress }}%)
             </button>

@@ -57,36 +57,62 @@ const calculateRoadmapProgress = (roadmap: RoadmapSummary) => {
     <!-- Custom/System Tabs Switcher & Inline Add Button (Merged Row on Mobile) -->
     <div class="flex items-center gap-1.5">
       <div
-        class="flex-1 flex p-0.5 sm:p-1 bg-slate-100 dark:bg-slate-900/80 rounded-lg sm:rounded-xl"
+        class="flex-1 flex relative p-0.5 sm:p-1 bg-slate-100 dark:bg-slate-900/80 rounded-lg sm:rounded-xl"
       >
+        <!-- Sliding Indicator Wrapper -->
+        <div class="absolute inset-0.5 sm:inset-1 pointer-events-none">
+          <div
+            class="h-full w-1/2 bg-white dark:bg-slate-800 rounded-md sm:rounded-lg shadow-sm transition-transform duration-300 ease-out"
+            :class="activeTab === 'system' ? 'translate-x-0' : 'translate-x-full'"
+          ></div>
+        </div>
+
         <button
-type="button" class="flex-1 flex items-center justify-center gap-1 py-1 sm:py-2 text-[10px] sm:text-xs font-bold rounded-md sm:rounded-lg transition-all cursor-pointer" :class="
+          type="button"
+          class="flex-1 flex relative z-10 items-center justify-center gap-1 py-1 sm:py-2 text-[10px] sm:text-xs font-bold rounded-md sm:rounded-lg transition-all cursor-pointer"
+          :class="
             activeTab === 'system'
-              ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm'
+              ? 'text-emerald-600 dark:text-emerald-400'
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          " @click="emit('tab-change', 'system')">
+          "
+          @click="emit('tab-change', 'system')"
+        >
           <Compass class="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
           <span class="truncate">官方推荐</span>
         </button>
         <button
-type="button" class="flex-1 flex items-center justify-center gap-1 py-1 sm:py-2 text-[10px] sm:text-xs font-bold rounded-md sm:rounded-lg transition-all cursor-pointer" :class="
+          type="button"
+          class="flex-1 flex relative z-10 items-center justify-center gap-1 py-1 sm:py-2 text-[10px] sm:text-xs font-bold rounded-md sm:rounded-lg transition-all cursor-pointer"
+          :class="
             activeTab === 'custom'
-              ? 'bg-white dark:bg-slate-800 text-accent shadow-sm'
+              ? 'text-accent'
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          " @click="emit('tab-change', 'custom')">
+          "
+          @click="emit('tab-change', 'custom')"
+        >
           <User class="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-          <span class="truncate">我的学习计划</span>
+          <span class="truncate">我的计划</span>
         </button>
       </div>
 
       <!-- Add Button Inline (Saves a full row on mobile!) -->
-      <button v-if="activeTab === 'custom'" type="button" class="md:hidden p-1.5 bg-accent text-white rounded-lg hover:bg-accent-dark transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-md" @click="emit('open-create')">
+      <button
+        v-if="activeTab === 'custom'"
+        type="button"
+        class="md:hidden p-1.5 bg-accent text-white rounded-lg hover:bg-accent-dark transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-md"
+        @click="emit('open-create')"
+      >
         <Plus class="w-4 h-4 shrink-0" />
       </button>
     </div>
 
     <!-- Add Custom Roadmap Button (Desktop Only) -->
-    <button v-if="activeTab === 'custom'" type="button" class="hidden md:flex w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-accent hover:bg-accent-dark transition-all items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-accent/20" @click="emit('open-create')">
+    <button
+      v-if="activeTab === 'custom'"
+      type="button"
+      class="hidden md:flex w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-accent hover:bg-accent-dark transition-all items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-accent/20"
+      @click="emit('open-create')"
+    >
       <Plus class="w-4 h-4" />
       规划个性化学习路径
     </button>

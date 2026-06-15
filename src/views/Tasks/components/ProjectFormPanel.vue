@@ -7,6 +7,8 @@ import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
 import UserAvatar from '@/components/UserAvatar.vue';
+import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
 import type { Project, ProjectMember } from '@/types/task';
 
 interface TeamMember {
@@ -205,13 +207,26 @@ defineExpose({
           </h3>
           <div class="flex items-center gap-2">
             <!-- View Mode Toggle -->
-            <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer bg-transparent border-none" :title="projectFormViewMode === 'drawer' ? t('projects.switchToModal') : t('projects.switchToDrawer')" @click="toggleProjectFormViewMode">
+            <button
+              type="button"
+              class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer bg-transparent border-none"
+              :title="
+                projectFormViewMode === 'drawer'
+                  ? t('projects.switchToModal')
+                  : t('projects.switchToDrawer')
+              "
+              @click="toggleProjectFormViewMode"
+            >
               <component
                 :is="projectFormViewMode === 'drawer' ? Maximize2 : Minimize2"
                 class="w-4.5 h-4.5"
               />
             </button>
-            <button type="button" class="p-2 bg-slate-100 dark:bg-slate-800 hover:scale-110 rounded-full transition-all cursor-pointer border-none" @click="isDrawerOpen = false">
+            <button
+              type="button"
+              class="p-2 bg-slate-100 dark:bg-slate-800 hover:scale-110 rounded-full transition-all cursor-pointer border-none"
+              @click="isDrawerOpen = false"
+            >
               <X class="w-4 h-4 text-slate-500" />
             </button>
           </div>
@@ -224,11 +239,11 @@ defineExpose({
               class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
               >{{ t('projects.projectIdentifier') }}</label
             >
-            <input
+            <Input
               v-model="projectForm.title"
               type="text"
-              class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border rounded-xl text-xs focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-bold"
-              style="border-color: var(--border-base); color: var(--text-primary)"
+              input-class="!py-2 !h-9 text-xs"
+              glass
               :placeholder="t('projects.titlePlaceholder')"
             />
           </div>
@@ -240,7 +255,7 @@ defineExpose({
             <textarea
               v-model="projectForm.description"
               rows="2"
-              class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border rounded-xl text-xs focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all resize-none"
+              class="w-full px-3 py-2 border rounded-xl text-xs focus:outline-none transition-all resize-none glass-input"
               style="border-color: var(--border-base); color: var(--text-primary)"
               :placeholder="t('projects.visionPlaceholder')"
             ></textarea>
@@ -298,7 +313,8 @@ defineExpose({
             </div>
             <div>
               <div class="flex items-center justify-between mb-1">
-                <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
+                <label
+                  class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
                   >{{ t('projects.autoProgressTip') }}</label
                 >
                 <span class="text-xs font-black text-accent">{{ projectForm.progress }}%</span>
@@ -343,11 +359,11 @@ defineExpose({
               class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
               >{{ t('projects.categoryTags') }}</label
             >
-            <input
+            <Input
               v-model="projectForm.tags"
               type="text"
-              class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border rounded-xl text-xs focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-bold"
-              style="border-color: var(--border-base); color: var(--text-primary)"
+              input-class="!py-2 !h-9 text-xs"
+              glass
               :placeholder="t('projects.tagsPlaceholder')"
             />
           </div>
@@ -381,7 +397,13 @@ defineExpose({
                     >
                   </div>
                   <!-- Prevent removing oneself or project owner if we can identify role -->
-                  <button v-if="m.role !== 'OWNER' && m.userId !== authStore.user?.id" type="button" class="p-1 hover:text-rose-500 text-slate-400 rounded transition-all hover:bg-rose-55 dark:hover:bg-rose-500/10 bg-transparent border-none cursor-pointer" :title="t('projects.removeMember')" @click="handleRemoveMember(m.userId)">
+                  <button
+                    v-if="m.role !== 'OWNER' && m.userId !== authStore.user?.id"
+                    type="button"
+                    class="p-1 hover:text-rose-500 text-slate-400 rounded transition-all hover:bg-rose-55 dark:hover:bg-rose-500/10 bg-transparent border-none cursor-pointer"
+                    :title="t('projects.removeMember')"
+                    @click="handleRemoveMember(m.userId)"
+                  >
                     <Trash2 class="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -473,15 +495,75 @@ defineExpose({
         </div>
 
         <!-- Footer -->
-        <div class="flex gap-3.5 p-3.5 border-t shrink-0 bg-slate-50/30 dark:bg-slate-900/10" style="border-color: var(--border-base)">
-          <button type="button" class="flex-1 py-2 sm:py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl font-black transition-all text-xs border-none cursor-pointer" style="color: var(--text-primary)" @click="isDrawerOpen = false">
+        <div
+          class="flex gap-3.5 p-3.5 border-t shrink-0 bg-slate-50/30 dark:bg-slate-900/10"
+          style="border-color: var(--border-base)"
+        >
+          <Button variant="secondary" class="flex-1 text-xs" @click="isDrawerOpen = false">
             {{ t('common.cancel') }}
-          </button>
-          <button type="button" class="flex-[2] py-2 sm:py-2.5 bg-accent text-white rounded-xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs border-none cursor-pointer" @click="handleSaveProject">
+          </Button>
+          <Button variant="primary" class="flex-[2] text-xs" @click="handleSaveProject">
             {{ isEditMode ? t('projects.confirmApplyChanges') : t('projects.startProject') }}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
   </Transition>
 </template>
+
+<style scoped>
+.custom-select-compact :deep(.el-select__wrapper) {
+  border-radius: 0.75rem !important;
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+}
+.dark .custom-select-compact :deep(.el-select__wrapper) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.custom-select-compact :deep(.el-select__wrapper.is-focused) {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
+}
+
+.custom-date-picker-compact :deep(.el-input__wrapper) {
+  border-radius: 0.75rem !important;
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+  height: 38px !important;
+}
+.dark .custom-date-picker-compact :deep(.el-input__wrapper) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.custom-date-picker-compact :deep(.el-input__wrapper.is-focus) {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
+}
+
+.custom-number-compact :deep(.el-input__wrapper) {
+  border-radius: 0.75rem !important;
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+}
+.dark .custom-number-compact :deep(.el-input__wrapper) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.custom-number-compact :deep(.el-input__wrapper.is-focus) {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
+}
+</style>

@@ -73,7 +73,9 @@ const isOwner = computed(() => props.currentUserId === props.discussion?.user?.i
 const parsedTags = computed(() => {
   try {
     const parsed = props.discussion.tags ? JSON.parse(props.discussion.tags) : [];
-    return Array.isArray(parsed) ? parsed.filter((tag): tag is string => typeof tag === 'string') : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((tag): tag is string => typeof tag === 'string')
+      : [];
   } catch (_e) {
     return [];
   }
@@ -82,7 +84,9 @@ const parsedTags = computed(() => {
 const parsedImages = computed(() => {
   try {
     const parsed = props.discussion.images ? JSON.parse(props.discussion.images) : [];
-    return Array.isArray(parsed) ? parsed.filter((img): img is string => typeof img === 'string') : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((img): img is string => typeof img === 'string')
+      : [];
   } catch (_e) {
     return [];
   }

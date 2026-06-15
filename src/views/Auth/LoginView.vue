@@ -2,19 +2,23 @@
 import { getApiErrorMessage } from '@/utils/error';
 import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { Mail, Lock, Eye, EyeOff, Chrome, Github, ArrowRight } from 'lucide-vue-next';
+import { Mail, Lock, Chrome, Github, ArrowRight } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import api, { getAssetUrl } from '@/utils/api';
 
+import Card from '@/components/ui/Card.vue';
+import Button from '@/components/ui/Button.vue';
+import Input from '@/components/ui/Input.vue';
+import Checkbox from '@/components/ui/Checkbox.vue';
+
 const router = useRouter();
 const authStore = useAuthStore();
 const systemStore = useSystemStore();
 const { locale } = useI18n();
 const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
-const showPassword = ref(false);
 const isLoading = ref(false);
 const is2FARequired = ref(false);
 const tempUserId = ref('');
@@ -35,7 +39,11 @@ onMounted(async () => {
   const oauth = query.oauth as string;
 
   if (error) {
-    ElMessage.error(error === 'oauth_failed' ? label('社交登录失败，请重试', 'Social login failed, please try again') : label('认证过程中出现错误', 'An authentication error occurred'));
+    ElMessage.error(
+      error === 'oauth_failed'
+        ? label('社交登录失败，请重试', 'Social login failed, please try again')
+        : label('认证过程中出现错误', 'An authentication error occurred'),
+    );
     // Clear URL
     router.replace({ query: {} });
   } else if (oauth === 'success') {
@@ -104,7 +112,12 @@ const handleLogin = async () => {
       }
     }
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, label('登录失败，请检查账号密码', 'Login failed, please check your credentials')));
+    ElMessage.error(
+      getApiErrorMessage(
+        error,
+        label('登录失败，请检查账号密码', 'Login failed, please check your credentials'),
+      ),
+    );
   } finally {
     isLoading.value = false;
   }
@@ -132,22 +145,33 @@ const handle2FAVerify = async () => {
 
 <template>
   <div
-    class="auth-shell min-h-screen flex items-center justify-center font-sans overflow-hidden relative p-6"
-    style="background-color: var(--bg-app)"
+    class="auth-shell min-h-screen flex items-center justify-center font-sans overflow-hidden relative p-6 bg-[var(--bg-app)]"
   >
+    <!-- Abstract blurred background elements for premium organic depth -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
+      <div
+        class="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] rounded-full bg-accent/10 blur-[120px] dark:bg-accent/5"
+      ></div>
+      <div
+        class="absolute -bottom-[10%] -right-[10%] w-[50%] h-[50%] rounded-full bg-[var(--blender-orange)]/10 blur-[120px] dark:bg-[var(--blender-orange)]/5"
+      ></div>
+    </div>
+
     <!-- Center Section: Login Form -->
-    <div
-      class="auth-panel w-full max-w-[440px] relative z-10 p-6 md:p-8"
+    <Card
+      glass
+      padding="lg"
+      class="auth-panel w-full max-w-[440px] relative z-10 !bg-card/75 dark:!bg-card/40 border border-white/20 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] backdrop-blur-xl rounded-2xl"
     >
       <div class="w-full">
         <!-- Logo -->
-        <div class="mb-8 flex items-center justify-center gap-3">
+        <div class="mb-6 flex items-center justify-center gap-3">
           <div
-            class="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden"
+            class="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden transition-all duration-300"
             :class="
               systemStore.settings.PLATFORM_LOGO_URL && !logoLoadFailed
                 ? 'bg-transparent'
-                : 'bg-accent shadow-sm'
+                : 'bg-accent shadow-[0_4px_12px_rgba(var(--accent-rgb),0.3)]'
             "
           >
             <img
@@ -157,29 +181,37 @@ const handle2FAVerify = async () => {
               class="w-full h-full object-contain"
               @error="handleLogoError"
             />
-            <span v-else class="text-white font-bold text-xl">{{
+            <span v-else class="text-white font-bold text-lg">{{
               systemStore.settings.PLATFORM_NAME.substring(0, 2).toUpperCase()
             }}</span>
           </div>
-          <span class="font-bold text-xl tracking-tight" style="color: var(--text-primary)">{{
+          <span class="font-bold text-xl tracking-tight text-[var(--text-primary)]">{{
             systemStore.settings.PLATFORM_NAME
           }}</span>
         </div>
 
-        <div class="mb-8 text-center">
-          <h1 class="text-2xl font-bold mb-2" style="color: var(--text-primary)">
-            {{ is2FARequired ? label('两步验证', 'Two-Factor Verification') : label('欢迎回来', 'Welcome Back') }}
-          </h1>
-          <p style="color: var(--text-secondary)" class="text-sm">
+        <div class="mb-6 text-center">
+          <h1 class="text-xl sm:text-2xl font-bold mb-1.5 text-[var(--text-primary)]">
             {{
               is2FARequired
-                ? label('请输入 Google Authenticator 中的 6 位验证码', 'Enter the 6-digit code from Google Authenticator')
-                : systemStore.settings.PLATFORM_DESCRIPTION || label('请输入你的账号信息以登录平台', 'Enter your account details to sign in')
+                ? label('两步验证', 'Two-Factor Verification')
+                : label('欢迎回来', 'Welcome Back')
+            }}
+          </h1>
+          <p class="text-[var(--text-secondary)] text-xs sm:text-sm">
+            {{
+              is2FARequired
+                ? label(
+                    '请输入 Google Authenticator 中的 6 位验证码',
+                    'Enter the 6-digit code from Google Authenticator',
+                  )
+                : systemStore.settings.PLATFORM_DESCRIPTION ||
+                  label('请输入你的账号信息以登录平台', 'Enter your account details to sign in')
             }}
           </p>
         </div>
 
-        <div v-if="!is2FARequired" class="space-y-6">
+        <div v-if="!is2FARequired" class="space-y-5">
           <!-- Social Logins -->
           <div
             v-if="
@@ -187,32 +219,26 @@ const handle2FAVerify = async () => {
             "
             class="grid grid-cols-2 gap-4"
           >
-            <button
+            <Button
               v-if="systemStore.settings.OAUTH_GOOGLE_ENABLED"
-              type="button"
-              class="flex items-center justify-center gap-2 py-2.5 border rounded-lg text-sm font-bold transition-colors hover:bg-[var(--bg-subtle)]"
-              style="
-                border-color: var(--border-base);
-                background-color: var(--bg-app);
-                color: var(--text-primary);
-              "
+              variant="outline"
+              :icon="Chrome"
+              full-width
+              class="!bg-card/30 hover:!bg-card/70 border-white/20 dark:border-white/10 text-[var(--text-primary)] font-bold text-sm h-11"
               @click="handleSocialLogin('google')"
             >
-              <Chrome class="w-4 h-4" /> Google
-            </button>
-            <button
+              Google
+            </Button>
+            <Button
               v-if="systemStore.settings.OAUTH_GITHUB_ENABLED"
-              type="button"
-              class="flex items-center justify-center gap-2 py-2.5 border rounded-lg text-sm font-bold transition-colors hover:bg-[var(--bg-subtle)]"
-              style="
-                border-color: var(--border-base);
-                background-color: var(--bg-app);
-                color: var(--text-primary);
-              "
+              variant="outline"
+              :icon="Github"
+              full-width
+              class="!bg-card/30 hover:!bg-card/70 border-white/20 dark:border-white/10 text-[var(--text-primary)] font-bold text-sm h-11"
               @click="handleSocialLogin('github')"
             >
-              <Github class="w-4 h-4" /> GitHub
-            </button>
+              GitHub
+            </Button>
           </div>
 
           <div
@@ -221,111 +247,76 @@ const handle2FAVerify = async () => {
             "
             class="relative py-2 flex items-center"
           >
-            <div class="flex-grow border-t" style="border-color: var(--border-base)"></div>
+            <div class="flex-grow border-t border-white/10 dark:border-white/5"></div>
             <span
-              class="flex-shrink mx-4 text-xs font-bold uppercase tracking-widest"
-              style="color: var(--text-muted)"
+              class="flex-shrink mx-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]"
               >{{ label('或者使用邮箱', 'Or use email') }}</span
             >
-            <div class="flex-grow border-t" style="border-color: var(--border-base)"></div>
+            <div class="flex-grow border-t border-white/10 dark:border-white/5"></div>
           </div>
 
           <!-- Input Fields -->
           <div class="space-y-4">
-            <div>
-              <label
-                class="block text-xs font-bold uppercase mb-2 ml-1"
-                style="color: var(--text-secondary)"
-                >{{ label('电子邮箱', 'Email') }}</label
-              >
-              <div class="relative">
-                <Mail
-                  class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2"
-                  style="color: var(--text-secondary)"
-                />
-                <input
-                  v-model="loginForm.email"
-                  type="email"
-                  placeholder="name@company.com"
-                  class="w-full pl-11 pr-4 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                  style="
-                    background-color: var(--bg-app);
-                    border-color: var(--border-base);
-                    color: var(--text-primary);
-                  "
-                />
-              </div>
-            </div>
+            <Input
+              v-model="loginForm.email"
+              type="email"
+              :label="label('电子邮箱', 'Email')"
+              placeholder="name@company.com"
+              :icon="Mail"
+              glass
+              required
+            />
 
             <div>
               <div class="flex items-center justify-between mb-2 ml-1">
                 <label
-                  class="block text-xs font-bold uppercase"
-                  style="color: var(--text-secondary)"
-                  >{{ label('密码', 'Password') }}</label
+                  class="block text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]"
                 >
+                  {{ label('密码', 'Password') }}
+                </label>
                 <RouterLink
                   to="/forgot-password"
-                  class="text-xs font-bold text-accent hover:text-accent transition-colors"
-                  >{{ label('忘记密码？', 'Forgot password?') }}</RouterLink
+                  class="text-xs font-bold text-accent hover:text-accent-hover transition-colors"
                 >
+                  {{ label('忘记密码？', 'Forgot password?') }}
+                </RouterLink>
               </div>
-              <div class="relative">
-                <Lock
-                  class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2"
-                  style="color: var(--text-secondary)"
-                />
-                <input
-                  v-model="loginForm.password"
-                  :type="showPassword ? 'text' : 'password'"
-                  :placeholder="label('请输入你的密码', 'Enter your password')"
-                  class="w-full pl-11 pr-12 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                  style="
-                    background-color: var(--bg-app);
-                    border-color: var(--border-base);
-                    color: var(--text-primary);
-                  "
-                  @keydown.enter="handleLogin"
-                />
-                <button
-                  type="button"
-                  class="absolute right-4 top-1/2 -translate-y-1/2 hover:text-accent transition-colors"
-                  style="color: var(--text-secondary)"
-                  @click="showPassword = !showPassword"
-                >
-                  <Eye v-if="!showPassword" class="w-4 h-4" />
-                  <EyeOff v-else class="w-4 h-4" />
-                </button>
-              </div>
+              <Input
+                v-model="loginForm.password"
+                type="password"
+                :placeholder="label('请输入你的密码', 'Enter your password')"
+                :icon="Lock"
+                glass
+                required
+                @keydown.enter="handleLogin"
+              />
             </div>
           </div>
 
-          <div class="flex items-center">
-            <el-checkbox v-model="loginForm.remember" :label="label('记住我的登录状态', 'Remember my sign-in')" />
+          <div class="flex items-center ml-1">
+            <Checkbox v-model="loginForm.remember">
+              {{ label('记住我的登录状态', 'Remember my sign-in') }}
+            </Checkbox>
           </div>
 
-          <button
-            type="button"
-            :disabled="isLoading"
-            class="w-full btn-premium py-3.5 rounded-lg transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+          <Button
+            variant="primary"
+            :loading="isLoading"
+            full-width
+            class="h-11 font-bold text-sm group"
             @click="handleLogin"
           >
-            <span v-if="!isLoading">{{ label('进入平台', 'Sign In') }}</span>
-            <span
-              v-else
-              class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
-            ></span>
-            <ArrowRight
-              v-if="!isLoading"
-              class="w-4 h-4 group-hover:translate-x-1 transition-transform"
-            />
-          </button>
+            <span class="flex items-center justify-center gap-2">
+              {{ label('进入平台', 'Sign In') }}
+              <ArrowRight class="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            </span>
+          </Button>
 
-          <p class="text-center text-sm mt-6" style="color: var(--text-secondary)">
+          <p class="text-center text-sm mt-4 text-[var(--text-secondary)]">
             {{ label('还没有账号？', 'No account yet?') }}
             <RouterLink
               to="/register"
-              class="font-bold text-accent hover:text-accent transition-colors"
+              class="font-bold text-accent hover:text-accent-hover transition-colors ml-1"
               >{{ label('立即免费注册', 'Create one') }}</RouterLink
             >
           </p>
@@ -333,68 +324,73 @@ const handle2FAVerify = async () => {
 
         <!-- 2FA Input State -->
         <div v-else class="space-y-6">
-          <div class="flex justify-center mb-8">
-            <div class="w-16 h-16 bg-accent/10 rounded-lg flex items-center justify-center">
-              <Lock class="w-10 h-10 text-accent" />
+          <div class="flex justify-center mb-6">
+            <div
+              class="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center border border-accent/20"
+            >
+              <Lock class="w-8 h-8 text-accent animate-pulse" />
             </div>
           </div>
 
           <div>
             <label
-              class="block text-xs font-bold uppercase mb-2 ml-1 text-center"
-              style="color: var(--text-secondary)"
-              >{{ label('动态验证码', 'Authenticator Code') }}</label
+              class="block text-xs font-bold uppercase mb-2 ml-1 text-center tracking-wider text-[var(--text-secondary)]"
             >
+              {{ label('动态验证码', 'Authenticator Code') }}
+            </label>
             <input
               v-model="twoFactorCode"
               type="text"
               maxlength="8"
               placeholder="000000"
               autocomplete="one-time-code"
-              class="w-full text-center text-2xl tracking-[0.5em] font-bold py-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
+              class="w-full text-center text-2xl tracking-[0.5em] font-bold py-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all glass-input"
               @keydown.enter="handle2FAVerify"
             />
-            <p class="text-[11px] text-center mt-2" style="color: var(--text-muted)">
-              {{ label('提示：若手机丢失，在此处直接输入 8 位恢复码即可登录', 'Tip: If phone lost, enter your 8-character recovery code here to login') }}
+            <p class="text-[11px] text-center mt-3 text-[var(--text-muted)] leading-relaxed">
+              {{
+                label(
+                  '提示：若手机丢失，在此处直接输入 8 位恢复码即可登录',
+                  'Tip: If phone lost, enter your 8-character recovery code here to login',
+                )
+              }}
             </p>
           </div>
 
           <div class="flex items-center justify-center">
-            <el-checkbox v-model="rememberDevice" :label="label('记住此浏览器 (下次登录免验证)', 'Trust this browser next time')" />
+            <Checkbox v-model="rememberDevice">
+              {{ label('记住此浏览器 (下次登录免验证)', 'Trust this browser next time') }}
+            </Checkbox>
           </div>
 
-          <button
-            type="button"
-            :disabled="isLoading || twoFactorCode.length < 6"
-            class="w-full bg-accent text-white py-3.5 rounded-lg font-bold shadow-sm hover:bg-accent-hover transition-colors flex items-center justify-center gap-2"
+          <Button
+            variant="primary"
+            :disabled="twoFactorCode.length < 6"
+            :loading="isLoading"
+            full-width
+            class="h-11 font-bold text-sm"
             @click="handle2FAVerify"
           >
-            <span v-if="!isLoading">{{ label('确认验证', 'Verify') }}</span>
-            <span
-              v-else
-              class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
-            ></span>
-          </button>
+            {{ label('确认验证', 'Verify') }}
+          </Button>
 
-          <button
-            type="button"
-            class="w-full text-sm font-bold hover:text-accent transition-colors mt-4"
-            style="color: var(--text-secondary)"
+          <Button
+            variant="link"
+            full-width
+            class="text-sm font-bold text-[var(--text-secondary)] hover:text-accent-hover h-auto py-0"
             @click="is2FARequired = false"
           >
             {{ label('返回登录', 'Back to Login') }}
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </Card>
   </div>
 </template>
 
 <style scoped>
-/* Optional: background animation could go here */
+/* Animated transitions for elements inside card */
+.auth-panel {
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+}
 </style>

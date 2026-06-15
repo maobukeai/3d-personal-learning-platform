@@ -26,7 +26,7 @@ watch(
   (newVal) => {
     Object.assign(localSettings, newVal);
   },
-  { deep: true }
+  { deep: true },
 );
 
 watch(
@@ -34,7 +34,7 @@ watch(
   (newVal) => {
     emit('update:settings', { ...props.settings, ...newVal });
   },
-  { deep: true }
+  { deep: true },
 );
 
 const defaultRoleOptions = [
@@ -70,14 +70,16 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
     >
       <div class="flex items-center gap-3 mb-8">
         <Globe class="w-5 h-5 text-indigo-600" />
-        <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.basic_operational_configuration') }}</h2>
+        <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+          {{ $t('admin.basic_operational_configuration') }}
+        </h2>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="space-y-2">
-          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >{{ $t('admin.platform_display_name') }}</label
-          >
+          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+            $t('admin.platform_display_name')
+          }}</label>
           <input
             v-model="localSettings.PLATFORM_NAME"
             type="text"
@@ -107,9 +109,9 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
         </div>
 
         <div class="space-y-2">
-          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >{{ $t('admin.new_user_default_role') }}</label
-          >
+          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+            $t('admin.new_user_default_role')
+          }}</label>
           <select
             v-model="localSettings.DEFAULT_USER_ROLE"
             class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all appearance-none cursor-pointer"
@@ -132,9 +134,9 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
             <div class="flex items-center gap-3">
               <UserPlus class="w-4 h-4 text-emerald-500" />
               <div>
-                <span class="text-xs font-bold" style="color: var(--text-primary)"
-                  >{{ $t('admin.allow_new_users_to') }}</span
-                >
+                <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                  $t('admin.allow_new_users_to')
+                }}</span>
                 <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                   关闭后仅管理员可创建新账号
                 </p>
@@ -149,9 +151,9 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
             <div class="flex items-center gap-3">
               <Lock class="w-4 h-4 text-rose-500" />
               <div>
-                <span class="text-xs font-bold" style="color: var(--text-primary)"
-                  >{{ $t('admin.maintenance_mode') }}</span
-                >
+                <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                  $t('admin.maintenance_mode')
+                }}</span>
                 <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                   开启后仅管理员可登入平台
                 </p>

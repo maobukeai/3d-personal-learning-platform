@@ -4,8 +4,6 @@ import { useI18n } from 'vue-i18n';
 import {
   BarChart3,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   Clock,
   Edit3,
   Eye,
@@ -14,7 +12,6 @@ import {
   Image as ImageIcon,
   Inbox,
   Layers,
-  LoaderCircle,
   MessageCircle,
   MessageSquare,
   Pin,
@@ -24,41 +21,45 @@ import {
   Send,
   Sparkles,
   Tag,
-  Trash2,
   UserRound,
   Users,
   X,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import api, { getAssetUrl } from '@/utils/api';
+import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import MarkdownEditor from '@/components/MarkdownEditor.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import DiscussionCard from '@/components/DiscussionCard.vue';
+import DiscussionDetail from './components/DiscussionDetail.vue';
+import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 const authStore = useAuthStore();
 const { t, locale } = useI18n();
+const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
 
 const currentUserId = computed(() => authStore.user?.id);
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN');
 
 type DiscussionFilter = 'all' | 'mine' | 'unanswered' | 'pinned';
 
-interface DiscussionUser {
+export interface DiscussionUser {
   id: string;
   name?: string | null;
   email?: string | null;
   avatarUrl?: string | null;
 }
 
-interface DiscussionCounts {
+export interface DiscussionCounts {
   likes: number;
   comments: number;
   replies?: number;
 }
 
-interface DiscussionComment {
+export interface DiscussionComment {
   id: string;
   content: string;
   createdAt: string;
@@ -69,7 +70,7 @@ interface DiscussionComment {
   _count: DiscussionCounts;
 }
 
-interface Discussion {
+export interface Discussion {
   id: string;
   title: string;
   content: string;
@@ -159,11 +160,6 @@ const selectedImages = ref<File[]>([]);
 const imagePreviews = ref<string[]>([]);
 const selectedDiscussion = ref<Discussion | null>(null);
 const isDetailOpen = ref(false);
-const newComment = ref('');
-const isSubmittingComment = ref(false);
-const replyingTo = ref<DiscussionComment | null>(null);
-const replyContent = ref('');
-const expandedReplies = ref<Set<string>>(new Set());
 
 let searchTimer: number | ReturnType<typeof setTimeout> | undefined;
 
@@ -220,8 +216,10 @@ const hotDiscussions = computed(() => {
   if (insights.value?.trending?.length) return insights.value.trending.slice(0, 6);
   return [...discussions.value]
     .sort((a, b) => {
-      const scoreA = (a.viewCount || 0) + (a._count?.comments || 0) * 8 + (a._count?.likes || 0) * 5;
-      const scoreB = (b.viewCount || 0) + (b._count?.comments || 0) * 8 + (b._count?.likes || 0) * 5;
+      const scoreA =
+        (a.viewCount || 0) + (a._count?.comments || 0) * 8 + (a._count?.likes || 0) * 5;
+      const scoreB =
+        (b.viewCount || 0) + (b._count?.comments || 0) * 8 + (b._count?.likes || 0) * 5;
       return scoreB - scoreA;
     })
     .slice(0, 6);
@@ -255,7 +253,10 @@ const metricCards = computed(() => {
   const totals = insights.value?.totals;
   const pageLikes = discussions.value.reduce((sum, item) => sum + (item._count?.likes || 0), 0);
   const pageViews = discussions.value.reduce((sum, item) => sum + (item.viewCount || 0), 0);
-  const pageComments = discussions.value.reduce((sum, item) => sum + (item._count?.comments || 0), 0);
+  const pageComments = discussions.value.reduce(
+    (sum, item) => sum + (item._count?.comments || 0),
+    0,
+  );
 
   return [
     {
@@ -300,7 +301,12 @@ const listSummary = computed(() => {
 });
 
 const hasActiveFilters = computed(() => {
-  return Boolean(searchQuery.value || selectedTag.value || activeFilter.value !== 'all' || sortBy.value !== 'active');
+  return Boolean(
+    searchQuery.value ||
+    selectedTag.value ||
+    activeFilter.value !== 'all' ||
+    sortBy.value !== 'active',
+  );
 });
 
 const starterPrompts = computed(() => [
@@ -335,19 +341,12 @@ watch([sortBy, selectedTag, activeFilter], () => {
   resetAndFetch();
 });
 
-const parseImages = (imagesStr: string | null | undefined): string[] => {
-  try {
-    const parsed = imagesStr ? JSON.parse(imagesStr) : [];
-    return Array.isArray(parsed) ? parsed.filter((img): img is string => typeof img === 'string') : [];
-  } catch (_e) {
-    return [];
-  }
-};
-
 const parseTags = (tagsStr: string | null | undefined): string[] => {
   try {
     const parsed = tagsStr ? JSON.parse(tagsStr) : [];
-    return Array.isArray(parsed) ? parsed.filter((tagName): tagName is string => typeof tagName === 'string') : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((tagName): tagName is string => typeof tagName === 'string')
+      : [];
   } catch (_e) {
     return tagsStr
       ? tagsStr
@@ -531,14 +530,6 @@ const openDiscussion = async (id: string) => {
     const response = await api.get(`/api/discussions/${id}`);
     selectedDiscussion.value = response.data;
     isDetailOpen.value = true;
-    replyingTo.value = null;
-    replyContent.value = '';
-    newComment.value = '';
-    expandedReplies.value = new Set(
-      (response.data.comments || [])
-        .filter((comment: DiscussionComment) => comment.replies?.length > 0)
-        .map((comment: DiscussionComment) => comment.id),
-    );
 
     const index = discussions.value.findIndex((discussion) => discussion.id === id);
     if (index >= 0) {
@@ -550,59 +541,6 @@ const openDiscussion = async (id: string) => {
     }
   } catch (_error) {
     ElMessage.error(t('common.error'));
-  }
-};
-
-const handleAddComment = async () => {
-  if (!selectedDiscussion.value || !newComment.value.trim()) return;
-  isSubmittingComment.value = true;
-  try {
-    const response = await api.post('/api/discussions/comments', {
-      discussionId: selectedDiscussion.value.id,
-      content: newComment.value.trim(),
-    });
-    if (!selectedDiscussion.value.comments) selectedDiscussion.value.comments = [];
-    selectedDiscussion.value.comments.push(response.data);
-    selectedDiscussion.value._count.comments = (selectedDiscussion.value._count.comments || 0) + 1;
-    selectedDiscussion.value.latestComment = response.data;
-    selectedDiscussion.value.lastActivityAt = response.data.createdAt;
-    newComment.value = '';
-    ElMessage.success(t('community.discussions.postSuccess'));
-    await refreshAll();
-  } catch (_error) {
-    ElMessage.error(t('community.discussions.postFailed'));
-  } finally {
-    isSubmittingComment.value = false;
-  }
-};
-
-const handleReplyComment = async (parentId: string) => {
-  if (!selectedDiscussion.value || !replyContent.value.trim()) return;
-  try {
-    const response = await api.post('/api/discussions/comments', {
-      discussionId: selectedDiscussion.value.id,
-      content: replyContent.value.trim(),
-      parentId,
-    });
-    const parentComment = selectedDiscussion.value.comments?.find((comment) => comment.id === parentId);
-    if (parentComment) {
-      if (!parentComment.replies) parentComment.replies = [];
-      parentComment.replies.push(response.data);
-      parentComment._count = {
-        ...parentComment._count,
-        replies: (parentComment._count?.replies || 0) + 1,
-      };
-      expandedReplies.value = new Set([...expandedReplies.value, parentId]);
-    }
-    selectedDiscussion.value._count.comments = (selectedDiscussion.value._count.comments || 0) + 1;
-    selectedDiscussion.value.latestComment = response.data;
-    selectedDiscussion.value.lastActivityAt = response.data.createdAt;
-    replyContent.value = '';
-    replyingTo.value = null;
-    ElMessage.success(t('community.discussions.postSuccess'));
-    await refreshAll();
-  } catch (_error) {
-    ElMessage.error(t('community.discussions.postFailed'));
   }
 };
 
@@ -627,20 +565,6 @@ const toggleLikeDiscussion = async (discussion: DiscussionCardActionTarget, even
   }
 };
 
-const toggleLikeComment = async (comment: DiscussionComment) => {
-  try {
-    const response = await api.post(`/api/discussions/comments/${comment.id}/like`);
-    const wasLiked = Boolean(comment.isLiked);
-    comment.isLiked = response.data.isLiked;
-    comment._count.likes = Math.max(
-      0,
-      (comment._count?.likes || 0) + (response.data.isLiked ? 1 : wasLiked ? -1 : 0),
-    );
-  } catch (_error) {
-    ElMessage.error(t('community.discussions.likeFailed'));
-  }
-};
-
 const togglePinDiscussion = async (discussion: DiscussionCardActionTarget, event?: Event) => {
   event?.stopPropagation();
   try {
@@ -660,11 +584,15 @@ const togglePinDiscussion = async (discussion: DiscussionCardActionTarget, event
 const deleteDiscussion = async (discussion: DiscussionCardActionTarget, event?: Event) => {
   event?.stopPropagation();
   try {
-    await ElMessageBox.confirm(t('community.discussions.deletePostConfirm'), t('common.confirmDelete'), {
-      confirmButtonText: t('common.delete'),
-      cancelButtonText: t('common.cancel'),
-      type: 'warning',
-    });
+    await ElMessageBox.confirm(
+      t('community.discussions.deletePostConfirm'),
+      t('common.confirmDelete'),
+      {
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
+        type: 'warning',
+      },
+    );
     await api.delete(`/api/discussions/${discussion.id}`);
     ElMessage.success(t('community.discussions.deleteSuccess'));
     if (selectedDiscussion.value?.id === discussion.id) {
@@ -677,48 +605,6 @@ const deleteDiscussion = async (discussion: DiscussionCardActionTarget, event?: 
       ElMessage.error(t('community.discussions.deleteFailed'));
     }
   }
-};
-
-const deleteComment = async (comment: DiscussionComment, parentComment?: DiscussionComment) => {
-  try {
-    await ElMessageBox.confirm(t('community.discussions.deleteCommentConfirm'), t('common.confirmDelete'), {
-      confirmButtonText: t('common.delete'),
-      cancelButtonText: t('common.cancel'),
-      type: 'warning',
-    });
-    await api.delete(`/api/discussions/comments/${comment.id}`);
-    if (parentComment) {
-      parentComment.replies = (parentComment.replies || []).filter((reply) => reply.id !== comment.id);
-      parentComment._count = {
-        ...parentComment._count,
-        replies: Math.max(0, (parentComment._count?.replies || 1) - 1),
-      };
-    } else if (selectedDiscussion.value?.comments) {
-      selectedDiscussion.value.comments = selectedDiscussion.value.comments.filter((item) => item.id !== comment.id);
-    }
-    if (selectedDiscussion.value) {
-      selectedDiscussion.value._count.comments = Math.max(
-        0,
-        (selectedDiscussion.value._count.comments || 1) - 1,
-      );
-    }
-    ElMessage.success(t('community.discussions.deleteSuccess'));
-    await refreshAll();
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(t('community.discussions.deleteFailed'));
-    }
-  }
-};
-
-const toggleReplies = (commentId: string) => {
-  const next = new Set(expandedReplies.value);
-  if (next.has(commentId)) {
-    next.delete(commentId);
-  } else {
-    next.add(commentId);
-  }
-  expandedReplies.value = next;
 };
 
 onMounted(() => {
@@ -738,47 +624,70 @@ onBeforeUnmount(() => {
       :icon="MessageSquare"
     >
       <div class="discussion-header-actions">
-        <div class="discussion-search">
-          <Search class="h-3.5 w-3.5" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            :placeholder="t('community.discussions.searchPlaceholder')"
-          />
-        </div>
-        <button type="button" class="icon-action" :title="t('community.discussions.refresh')" @click="refreshAll">
+        <Input
+          v-model="searchQuery"
+          type="text"
+          :placeholder="t('community.discussions.searchPlaceholder')"
+          :icon="Search"
+          class="!w-48 sm:!w-64"
+          input-class="!py-1 !h-8 !text-xs !rounded-lg"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          class="!w-8 !h-8 !p-0 !rounded-lg shrink-0"
+          :title="t('community.discussions.refresh')"
+          @click="refreshAll"
+        >
           <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': isLoading || isInsightsLoading }" />
-        </button>
-        <button type="button" class="primary-action" @click="showCreateModal = true">
-          <Edit3 class="h-4 w-4" />
-          <span>{{ t('community.discussions.newPost') }}</span>
-        </button>
+        </Button>
+        <Button
+          variant="primary"
+          size="sm"
+          :icon="Edit3"
+          class="!h-8 !rounded-lg shrink-0 font-bold"
+          @click="showCreateModal = true"
+        >
+          {{ t('community.discussions.newPost') }}
+        </Button>
       </div>
     </PageHeader>
 
     <main class="discussion-board">
       <section class="discussion-feed">
-        <div class="discussion-composer-card">
-          <div class="composer-entry">
-            <UserAvatar :user="authStore.user" size="sm" />
-            <button type="button" class="composer-trigger" @click="showCreateModal = true">
-              <span>{{ t('community.discussions.draftMeta') }}</span>
-              <Edit3 class="h-4 w-4" />
-            </button>
-          </div>
-
-          <div class="composer-stats">
-            <div
-              v-for="metric in metricCards"
-              :key="metric.label"
-              class="composer-stat"
-              :class="`composer-stat--${metric.tone}`"
-            >
-              <component :is="metric.icon" class="h-3.5 w-3.5" />
-              <span>{{ metric.label }}</span>
-              <strong>{{ metric.value }}</strong>
+        <!-- Stats Premium Grid -->
+        <div class="stats-row">
+          <div
+            v-for="metric in metricCards"
+            :key="metric.label"
+            class="stat-card-premium"
+            :class="`stat-card-premium--${metric.tone}`"
+          >
+            <div class="stat-icon-wrapper">
+              <component :is="metric.icon" class="h-4 w-4" />
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">{{ metric.label }}</span>
+              <strong class="stat-value">{{ metric.value }}</strong>
             </div>
           </div>
+        </div>
+
+        <!-- Composer Card Premium -->
+        <div class="composer-card-premium">
+          <UserAvatar :user="authStore.user" size="md" />
+          <button type="button" class="composer-trigger-premium" @click="showCreateModal = true">
+            <span>{{
+              label(
+                '分享你的 3D 学习心得，在此发布新讨论...',
+                'Share your 3D learning insights, start a new discussion...',
+              )
+            }}</span>
+            <div class="composer-btn-inner">
+              <Edit3 class="h-3.5 w-3.5" />
+              <span>{{ t('community.discussions.newPost') }}</span>
+            </div>
+          </button>
         </div>
 
         <div class="control-panel">
@@ -814,10 +723,14 @@ onBeforeUnmount(() => {
         <div v-if="hasActiveFilters" class="active-filter-line">
           <div>
             <CheckCircle2 class="h-3.5 w-3.5" />
-            <span v-if="selectedTag">{{ t('community.discussions.selectedTag', { tag: selectedTag }) }}</span>
+            <span v-if="selectedTag">{{
+              t('community.discussions.selectedTag', { tag: selectedTag })
+            }}</span>
             <span v-else>{{ t('community.discussions.filteredView') }}</span>
           </div>
-          <button type="button" @click="clearFilters">{{ t('community.discussions.clearFilters') }}</button>
+          <button type="button" @click="clearFilters">
+            {{ t('community.discussions.clearFilters') }}
+          </button>
         </div>
 
         <div v-if="isLoading" class="loading-list">
@@ -850,10 +763,15 @@ onBeforeUnmount(() => {
           <MessageSquare class="h-12 w-12" />
           <strong>{{ t('community.discussions.emptyTitle') }}</strong>
           <p>{{ t('community.discussions.emptySubtitle') }}</p>
-          <button type="button" class="primary-action" @click="showCreateModal = true">
-            <Edit3 class="h-4 w-4" />
-            <span>{{ t('community.discussions.newPost') }}</span>
-          </button>
+          <Button
+            variant="primary"
+            size="md"
+            :icon="Edit3"
+            class="hover:scale-105 transition-transform"
+            @click="showCreateModal = true"
+          >
+            {{ t('community.discussions.newPost') }}
+          </Button>
         </div>
 
         <div v-if="pagination.totalPages > 1" class="pagination-row">
@@ -869,16 +787,23 @@ onBeforeUnmount(() => {
       </section>
 
       <aside class="discussion-side">
-        <section class="side-panel side-panel--compose">
-          <div>
-            <p>{{ t('community.discussions.communityHealth') }}</p>
-            <strong>{{ formatNumber(insights?.totals.activeAuthors || topContributors.length) }}</strong>
-            <span>{{ t('community.discussions.activeAuthors') }}</span>
+        <section class="side-panel side-panel--health">
+          <div class="health-header">
+            <BarChart3 class="h-3.5 w-3.5 text-accent" />
+            <span>{{ t('community.discussions.communityHealth') }}</span>
           </div>
-          <button type="button" class="primary-action" @click="showCreateModal = true">
-            <Plus class="h-4 w-4" />
-            <span>{{ t('community.discussions.newPost') }}</span>
-          </button>
+          <div class="health-stats">
+            <div class="health-stat-item">
+              <strong>{{
+                formatNumber(insights?.totals.activeAuthors || topContributors.length)
+              }}</strong>
+              <span>{{ t('community.discussions.activeAuthors') }}</span>
+            </div>
+            <div v-if="insights?.totals.unanswered !== undefined" class="health-stat-item">
+              <strong>{{ formatNumber(insights?.totals.unanswered) }}</strong>
+              <span>{{ label('等回复', 'Unanswered') }}</span>
+            </div>
+          </div>
         </section>
 
         <section class="side-panel">
@@ -913,7 +838,9 @@ onBeforeUnmount(() => {
             >
               <b :class="`rank-index--${index + 1}`">{{ index + 1 }}</b>
               <span>{{ item.title }}</span>
-              <small>{{ formatNumber(item.viewCount) }} {{ t('community.discussions.views') }}</small>
+              <small
+                >{{ formatNumber(item.viewCount) }} {{ t('community.discussions.views') }}</small
+              >
             </button>
           </div>
           <p v-else class="muted-line">{{ t('community.discussions.noHotPosts') }}</p>
@@ -927,12 +854,16 @@ onBeforeUnmount(() => {
             <div v-for="creator in topContributors" :key="creator.user.id">
               <UserAvatar :user="creator.user" size="xs" />
               <div>
-                <strong>{{ creator.user.name || t('community.discussions.anonymousCreator') }}</strong>
+                <strong>{{
+                  creator.user.name || t('community.discussions.anonymousCreator')
+                }}</strong>
                 <span>
-                  {{ t('community.discussions.creatorStats', {
-                    posts: creator.discussions,
-                    comments: creator.comments,
-                  }) }}
+                  {{
+                    t('community.discussions.creatorStats', {
+                      posts: creator.discussions,
+                      comments: creator.comments,
+                    })
+                  }}
                 </span>
               </div>
               <b>{{ formatNumber(creator.likesReceived) }}</b>
@@ -943,7 +874,9 @@ onBeforeUnmount(() => {
 
         <section class="side-panel">
           <header>
-            <h2><MessageCircle class="h-4 w-4" /> {{ t('community.discussions.recentActivity') }}</h2>
+            <h2>
+              <MessageCircle class="h-4 w-4" /> {{ t('community.discussions.recentActivity') }}
+            </h2>
           </header>
           <div v-if="recentComments.length > 0" class="activity-list">
             <button
@@ -963,345 +896,143 @@ onBeforeUnmount(() => {
     </main>
 
     <Transition name="fade">
-      <div v-if="isDetailOpen && selectedDiscussion" class="modal-shell">
-        <div class="modal-backdrop" @click="isDetailOpen = false"></div>
-        <section class="detail-modal">
-          <header class="detail-header">
-            <div class="detail-author">
-              <UserAvatar :user="selectedDiscussion.user" size="sm" />
-              <div>
-                <strong>{{ selectedDiscussion.user?.name || t('community.discussions.anonymous') }}</strong>
-                <span>{{ formatTime(selectedDiscussion.createdAt) }}</span>
-              </div>
-              <i v-if="selectedDiscussion.isPinned">
-                <Pin class="h-3 w-3" />
-                {{ t('community.discussions.pinned') }}
-              </i>
-            </div>
-            <div class="modal-actions">
-              <button
-                v-if="isAdmin"
-                type="button"
-                :class="{ 'is-active': selectedDiscussion.isPinned }"
-                @click="togglePinDiscussion(selectedDiscussion)"
-              >
-                <Pin class="h-4 w-4" />
-              </button>
-              <button
-                v-if="currentUserId === selectedDiscussion.user?.id || isAdmin"
-                type="button"
-                class="danger"
-                @click="deleteDiscussion(selectedDiscussion)"
-              >
-                <Trash2 class="h-4 w-4" />
-              </button>
-              <button type="button" @click="isDetailOpen = false">
-                <X class="h-4 w-4" />
-              </button>
-            </div>
-          </header>
-
-          <div class="detail-grid">
-            <article class="detail-content">
-              <h2>{{ selectedDiscussion.title }}</h2>
-              <div v-if="parseTags(selectedDiscussion.tags).length > 0" class="detail-tags">
-                <button
-                  v-for="tagName in parseTags(selectedDiscussion.tags)"
-                  :key="tagName"
-                  type="button"
-                  @click="setTag(tagName)"
-                >
-                  #{{ tagName }}
-                </button>
-              </div>
-
-              <div class="detail-stats">
-                <button
-                  type="button"
-                  :class="{ 'is-liked': selectedDiscussion.isLiked }"
-                  @click="toggleLikeDiscussion(selectedDiscussion)"
-                >
-                  <Heart class="h-4 w-4" :class="{ 'fill-current': selectedDiscussion.isLiked }" />
-                  {{ selectedDiscussion._count?.likes || 0 }}
-                </button>
-                <span><MessageSquare class="h-4 w-4" /> {{ selectedDiscussion._count?.comments || 0 }}</span>
-                <span><Eye class="h-4 w-4" /> {{ selectedDiscussion.viewCount || 0 }}</span>
-              </div>
-
-              <MarkdownEditor
-                class="discussion-preview"
-                :model-value="selectedDiscussion.content"
-                preview-only
-              />
-
-              <div v-if="parseImages(selectedDiscussion.images).length > 0" class="detail-images">
-                <img
-                  v-for="(image, index) in parseImages(selectedDiscussion.images)"
-                  :key="`${image}-${index}`"
-                  :src="getAssetUrl(image)"
-                  alt=""
-                />
-              </div>
-            </article>
-
-            <aside class="detail-comments">
-              <div class="comments-title">
-                <h3>{{ t('community.discussions.allComments', { count: selectedDiscussion.comments?.length || 0 }) }}</h3>
-              </div>
-
-              <div class="comments-scroll">
-                <div v-if="selectedDiscussion.comments?.length" class="comment-list">
-                  <div v-for="comment in selectedDiscussion.comments" :key="comment.id" class="comment-item">
-                    <UserAvatar :user="comment.user" size="xs" />
-                    <div class="comment-body">
-                      <div class="comment-bubble">
-                        <div>
-                          <strong>{{ comment.user?.name || t('community.discussions.anonymous') }}</strong>
-                          <span>{{ formatTime(comment.createdAt) }}</span>
-                        </div>
-                        <p>{{ comment.content }}</p>
-                      </div>
-
-                      <div class="comment-actions">
-                        <button
-                          type="button"
-                          :class="{ 'is-liked': comment.isLiked }"
-                          @click="toggleLikeComment(comment)"
-                        >
-                          <Heart class="h-3 w-3" :class="{ 'fill-current': comment.isLiked }" />
-                          {{ comment._count?.likes || 0 }}
-                        </button>
-                        <button
-                          type="button"
-                          @click="
-                            replyingTo = replyingTo?.id === comment.id ? null : comment;
-                            replyContent = '';
-                          "
-                        >
-                          <MessageSquare class="h-3 w-3" />
-                          {{ t('common.reply') }}
-                        </button>
-                        <button
-                          v-if="currentUserId === comment.user?.id || isAdmin"
-                          type="button"
-                          class="danger"
-                          @click="deleteComment(comment)"
-                        >
-                          <Trash2 class="h-3 w-3" />
-                          {{ t('common.delete') }}
-                        </button>
-                      </div>
-
-                      <div v-if="replyingTo?.id === comment.id" class="reply-box">
-                        <textarea
-                          v-model="replyContent"
-                          rows="2"
-                          :placeholder="t('community.discussions.replyTo', {
-                            name: comment.user?.name || t('community.discussions.anonymous'),
-                          })"
-                        ></textarea>
-                        <div>
-                          <button type="button" @click="replyingTo = null">{{ t('common.cancel') }}</button>
-                          <button
-                            type="button"
-                            :disabled="!replyContent.trim()"
-                            @click="handleReplyComment(comment.id)"
-                          >
-                            <Send class="h-3 w-3" />
-                            {{ t('common.reply') }}
-                          </button>
-                        </div>
-                      </div>
-
-                      <button
-                        v-if="comment._count?.replies"
-                        type="button"
-                        class="reply-toggle"
-                        @click="toggleReplies(comment.id)"
-                      >
-                        <ChevronUp v-if="expandedReplies.has(comment.id)" class="h-3 w-3" />
-                        <ChevronDown v-else class="h-3 w-3" />
-                        {{
-                          expandedReplies.has(comment.id)
-                            ? t('community.discussions.collapseReplies')
-                            : t('community.discussions.showRepliesCount', { count: comment._count.replies })
-                        }}
-                      </button>
-
-                      <div
-                        v-if="expandedReplies.has(comment.id) && comment.replies?.length"
-                        class="reply-list"
-                      >
-                        <div v-for="reply in comment.replies" :key="reply.id" class="reply-item">
-                          <UserAvatar :user="reply.user" size="xs" />
-                          <div>
-                            <div class="comment-bubble">
-                              <div>
-                                <strong>{{ reply.user?.name || t('community.discussions.anonymous') }}</strong>
-                                <span>{{ formatTime(reply.createdAt) }}</span>
-                              </div>
-                              <p>{{ reply.content }}</p>
-                            </div>
-                            <div class="comment-actions">
-                              <button
-                                type="button"
-                                :class="{ 'is-liked': reply.isLiked }"
-                                @click="toggleLikeComment(reply)"
-                              >
-                                <Heart class="h-3 w-3" :class="{ 'fill-current': reply.isLiked }" />
-                                {{ reply._count?.likes || 0 }}
-                              </button>
-                              <button
-                                v-if="currentUserId === reply.user?.id || isAdmin"
-                                type="button"
-                                class="danger"
-                                @click="deleteComment(reply, comment)"
-                              >
-                                <Trash2 class="h-3 w-3" />
-                                {{ t('common.delete') }}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div v-else class="comments-empty">
-                  <MessageCircle class="h-8 w-8" />
-                  <span>{{ t('community.discussions.noRepliesYet') }}</span>
-                </div>
-              </div>
-
-              <div class="comment-composer">
-                <UserAvatar :user="authStore.user" size="sm" />
-                <div>
-                  <textarea
-                    v-model="newComment"
-                    rows="3"
-                    :placeholder="t('community.discussions.commentPlaceholder')"
-                  ></textarea>
-                  <button
-                    type="button"
-                    :disabled="!newComment.trim() || isSubmittingComment"
-                    @click="handleAddComment"
-                  >
-                    <LoaderCircle v-if="isSubmittingComment" class="h-3.5 w-3.5 animate-spin" />
-                    <Send v-else class="h-3.5 w-3.5" />
-                    {{ t('community.discussions.postComment') }}
-                  </button>
-                </div>
-              </div>
-            </aside>
-          </div>
-        </section>
-      </div>
+      <DiscussionDetail
+        v-if="isDetailOpen && selectedDiscussion"
+        :discussion="selectedDiscussion"
+        :current-user-id="currentUserId"
+        :is-admin="isAdmin"
+        @close="isDetailOpen = false"
+        @set-tag="setTag"
+        @refresh-parent="refreshAll"
+      />
     </Transition>
 
-    <Transition name="fade">
-      <div v-if="showCreateModal" class="modal-shell">
-        <div class="modal-backdrop" @click="showCreateModal = false"></div>
-        <section class="create-modal">
-          <header class="create-header">
-            <div>
-              <h2>{{ t('community.discussions.newPost') }}</h2>
-              <p>{{ t('community.discussions.draftMeta') }}</p>
-            </div>
-            <button type="button" @click="showCreateModal = false">
-              <X class="h-4 w-4" />
-            </button>
-          </header>
+    <Modal
+      :show="showCreateModal"
+      :title="t('community.discussions.newPost')"
+      size="xl"
+      @close="showCreateModal = false"
+    >
+      <div class="create-grid text-left">
+        <section class="create-main">
+          <Input
+            v-model="postForm.title"
+            type="text"
+            :label="t('community.discussions.postTitleLabel')"
+            :placeholder="t('community.discussions.titlePlaceholder')"
+            input-class="!py-2.5 !rounded-lg"
+          />
 
-          <div class="create-grid">
-            <section class="create-main">
-              <label>
-                <span>{{ t('community.discussions.postTitleLabel') }}</span>
-                <input
-                  v-model="postForm.title"
-                  type="text"
-                  :placeholder="t('community.discussions.titlePlaceholder')"
-                />
-              </label>
-
-              <label class="editor-label">
-                <span>{{ t('community.discussions.postContentLabel') }}</span>
-                <MarkdownEditor
-                  v-model="postForm.content"
-                  height="420px"
-                  :placeholder="t('community.discussions.editorPlaceholder')"
-                />
-              </label>
-            </section>
-
-            <aside class="create-side">
-              <section>
-                <h3><Sparkles class="h-4 w-4" /> {{ t('community.discussions.quickDraft') }}</h3>
-                <div class="template-list">
-                  <button
-                    v-for="template in starterPrompts"
-                    :key="template.label"
-                    type="button"
-                    @click="applyTemplate(template)"
-                  >
-                    {{ template.label }}
-                  </button>
-                </div>
-              </section>
-
-              <section>
-                <h3><Tag class="h-4 w-4" /> {{ t('community.discussions.postTagsLabel') }}</h3>
-                <input
-                  v-model="postForm.tags"
-                  type="text"
-                  :placeholder="t('community.discussions.tagsPlaceholder')"
-                />
-                <div v-if="tagInsights.length > 0" class="draft-tags">
-                  <button
-                    v-for="tagItem in tagInsights.slice(0, 10)"
-                    :key="tagItem.name"
-                    type="button"
-                    @click="addTagToDraft(tagItem.name)"
-                  >
-                    #{{ tagItem.name }}
-                  </button>
-                </div>
-              </section>
-
-              <section>
-                <h3><ImageIcon class="h-4 w-4" /> {{ t('community.discussions.postImagesLabel') }}</h3>
-                <div class="image-uploader">
-                  <div v-for="(image, index) in imagePreviews" :key="`${image}-${index}`">
-                    <img :src="image" alt="" />
-                    <button type="button" @click="removeImage(index)">
-                      <X class="h-3 w-3" />
-                    </button>
-                  </div>
-                  <label v-if="imagePreviews.length < 5">
-                    <Plus class="h-4 w-4" />
-                    <span>{{ t('community.discussions.uploadImage') }}</span>
-                    <input type="file" accept="image/*" multiple @change="handleImageSelect" />
-                  </label>
-                </div>
-              </section>
-
-              <section class="draft-preview">
-                <h3><Eye class="h-4 w-4" /> {{ t('community.discussions.preview') }}</h3>
-                <strong>{{ postForm.title || t('community.discussions.titlePlaceholder') }}</strong>
-                <p>{{ postForm.content || t('community.discussions.emptyContent') }}</p>
-              </section>
-            </aside>
+          <div class="space-y-2 mt-4 text-left">
+            <label class="text-[11px] font-black text-slate-400 uppercase tracking-wider ml-1">
+              {{ t('community.discussions.postContentLabel') }}
+            </label>
+            <MarkdownEditor
+              v-model="postForm.content"
+              height="380px"
+              :placeholder="t('community.discussions.editorPlaceholder')"
+            />
           </div>
-
-          <footer class="create-footer">
-            <button type="button" class="ghost-action" @click="resetDraft">{{ t('community.discussions.resetDraft') }}</button>
-            <button type="button" class="primary-action" @click="handleCreateDiscussion">
-              <Send class="h-4 w-4" />
-              <span>{{ t('community.discussions.postSubmit') }}</span>
-            </button>
-          </footer>
         </section>
+
+        <aside class="create-side">
+          <section>
+            <h3
+              class="flex items-center gap-1 text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2"
+            >
+              <Sparkles class="h-4 w-4 text-accent" /> {{ t('community.discussions.quickDraft') }}
+            </h3>
+            <div class="template-list flex flex-wrap gap-1.5">
+              <Button
+                v-for="template in starterPrompts"
+                :key="template.label"
+                variant="outline"
+                size="sm"
+                class="!py-1 !px-2.5 !text-[10px] !h-auto !rounded-lg font-bold"
+                @click="applyTemplate(template)"
+              >
+                {{ template.label }}
+              </Button>
+            </div>
+          </section>
+
+          <section class="mt-4">
+            <h3
+              class="flex items-center gap-1 text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2"
+            >
+              <Tag class="h-4 w-4 text-accent" /> {{ t('community.discussions.postTagsLabel') }}
+            </h3>
+            <Input
+              v-model="postForm.tags"
+              type="text"
+              :placeholder="t('community.discussions.tagsPlaceholder')"
+              input-class="!py-2 !rounded-lg !text-xs"
+            />
+            <div v-if="tagInsights.length > 0" class="draft-tags flex flex-wrap gap-1.5 mt-2">
+              <Button
+                v-for="tagItem in tagInsights.slice(0, 10)"
+                :key="tagItem.name"
+                variant="secondary"
+                size="sm"
+                class="!py-0.5 !px-2 !text-[9px] !h-auto !rounded-md !bg-slate-100 dark:!bg-white/5 font-bold"
+                @click="addTagToDraft(tagItem.name)"
+              >
+                #{{ tagItem.name }}
+              </Button>
+            </div>
+          </section>
+
+          <section class="mt-4">
+            <h3
+              class="flex items-center gap-1 text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2"
+            >
+              <ImageIcon class="h-4 w-4 text-accent" />
+              {{ t('community.discussions.postImagesLabel') }}
+            </h3>
+            <div class="image-uploader">
+              <div v-for="(image, index) in imagePreviews" :key="`${image}-${index}`">
+                <img :src="image" alt="" />
+                <button type="button" @click="removeImage(index)">
+                  <X class="h-3 w-3" />
+                </button>
+              </div>
+              <label v-if="imagePreviews.length < 5" class="cursor-pointer">
+                <Plus class="h-4 w-4" />
+                <span>{{ t('community.discussions.uploadImage') }}</span>
+                <input type="file" accept="image/*" multiple @change="handleImageSelect" />
+              </label>
+            </div>
+          </section>
+
+          <section
+            class="draft-preview mt-4 p-3 rounded-xl border border-dashed border-base bg-white/20 dark:bg-white/5"
+          >
+            <h3
+              class="flex items-center gap-1 text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2"
+            >
+              <Eye class="h-4 w-4 text-accent" /> {{ t('community.discussions.preview') }}
+            </h3>
+            <strong class="block text-xs font-bold mb-1 truncate text-primary">{{
+              postForm.title || t('community.discussions.titlePlaceholder')
+            }}</strong>
+            <p class="text-[10px] text-secondary line-clamp-3 leading-relaxed">
+              {{ postForm.content || t('community.discussions.emptyContent') }}
+            </p>
+          </section>
+        </aside>
       </div>
-    </Transition>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3 w-full">
+          <Button variant="outline" size="sm" @click="resetDraft">
+            {{ t('community.discussions.resetDraft') }}
+          </Button>
+          <Button variant="primary" size="sm" :icon="Send" @click="handleCreateDiscussion">
+            {{ t('community.discussions.postSubmit') }}
+          </Button>
+        </div>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -1428,106 +1159,163 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 
-.discussion-composer-card {
+/* Stats row & premium cards */
+.stats-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(320px, 0.9fr);
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.composer-entry {
+@media (max-width: 640px) {
+  .stats-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.stat-card-premium {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-base);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s ease;
+}
+
+.stat-card-premium:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.stat-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+}
+
+.stat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
 }
 
-.composer-trigger {
+.stat-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-value {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.stat-card-premium--blue .stat-icon-wrapper {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+.stat-card-premium--blue:hover {
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+.stat-card-premium--teal .stat-icon-wrapper {
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
+}
+.stat-card-premium--teal:hover {
+  border-color: rgba(15, 118, 110, 0.3);
+}
+
+.stat-card-premium--rose .stat-icon-wrapper {
+  background: rgba(225, 29, 72, 0.1);
+  color: #e11d48;
+}
+.stat-card-premium--rose:hover {
+  border-color: rgba(225, 29, 72, 0.3);
+}
+
+.stat-card-premium--amber .stat-icon-wrapper {
+  background: rgba(180, 83, 9, 0.1);
+  color: #b45309;
+}
+.stat-card-premium--amber:hover {
+  border-color: rgba(180, 83, 9, 0.3);
+}
+
+/* Composer premium styling */
+.composer-card-premium {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-base);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+}
+
+.composer-trigger-premium {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  width: 100%;
+  gap: 12px;
+  flex: 1;
   min-width: 0;
-  height: 32px;
-  padding: 0 10px;
+  height: 38px;
+  padding: 0 14px;
   border: 1px solid var(--border-base);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--bg-app);
   color: var(--text-muted);
-  cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   text-align: left;
+  cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.composer-trigger:hover {
+.composer-trigger-premium:hover {
   border-color: rgba(37, 99, 235, 0.3);
   background: rgba(37, 99, 235, 0.05);
   color: var(--text-secondary);
 }
 
-.composer-trigger span {
+.composer-trigger-premium span {
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.composer-trigger svg {
-  flex: 0 0 auto;
-  color: var(--accent);
-}
-
-.composer-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.composer-stat {
-  display: grid;
-  grid-template-columns: 14px minmax(0, 1fr);
-  gap: 1px 4px;
+.composer-btn-inner {
+  display: flex;
   align-items: center;
-  min-width: 0;
-  min-height: 32px;
-  padding: 4px 6px;
-  border: 1px solid var(--border-base);
+  gap: 6px;
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 10px;
   border-radius: 6px;
-  background: var(--bg-app);
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.15s ease;
 }
 
-.composer-stat svg {
-  grid-row: 1 / span 2;
-  width: 12px;
-  height: 12px;
+.composer-trigger-premium:hover .composer-btn-inner {
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
 }
-
-.composer-stat span {
-  overflow: hidden;
-  color: var(--text-muted);
-  font-size: 9px;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  line-height: 1;
-}
-
-.composer-stat strong {
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.composer-stat--blue svg { color: #2563eb; }
-.composer-stat--teal svg { color: #0f766e; }
-.composer-stat--rose svg { color: #e11d48; }
-.composer-stat--amber svg { color: #b45309; }
 
 .control-panel,
 .active-filter-line {
@@ -1705,12 +1493,20 @@ onBeforeUnmount(() => {
   height: 14px;
 }
 
-.skeleton-card i:nth-child(1) { width: 36%; }
-.skeleton-card i:nth-child(2) { width: 82%; }
-.skeleton-card i:nth-child(3) { width: 56%; }
+.skeleton-card i:nth-child(1) {
+  width: 36%;
+}
+.skeleton-card i:nth-child(2) {
+  width: 82%;
+}
+.skeleton-card i:nth-child(3) {
+  width: 56%;
+}
 
 @keyframes shimmer {
-  to { background-position: -200% 0; }
+  to {
+    background-position: -200% 0;
+  }
 }
 
 .empty-state {
@@ -1771,30 +1567,45 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-.side-panel--compose {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
+.side-panel--health {
   background:
-    linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(20, 184, 166, 0.05)),
-    var(--bg-card);
+    linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(20, 184, 166, 0.03)), var(--bg-card);
+  padding: 12px;
 }
 
-.side-panel--compose p,
-.side-panel--compose span {
-  margin: 0;
+.health-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.health-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.health-stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.health-stat-item strong {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.health-stat-item span {
   color: var(--text-muted);
   font-size: 10px;
   font-weight: 500;
-}
-
-.side-panel--compose strong {
-  display: block;
-  margin: 1px 0;
-  color: var(--text-primary);
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1;
 }
 
 .tag-cloud {
@@ -1883,9 +1694,18 @@ onBeforeUnmount(() => {
   line-height: 1;
 }
 
-.rank-list b.rank-index--1 { background: #f59e0b; color: #fff; }
-.rank-list b.rank-index--2 { background: #94a3b8; color: #fff; }
-.rank-list b.rank-index--3 { background: #a16207; color: #fff; }
+.rank-list b.rank-index--1 {
+  background: #f59e0b;
+  color: #fff;
+}
+.rank-list b.rank-index--2 {
+  background: #94a3b8;
+  color: #fff;
+}
+.rank-list b.rank-index--3 {
+  background: #a16207;
+  color: #fff;
+}
 .rank-list b:not(.rank-index--1):not(.rank-index--2):not(.rank-index--3) {
   background: var(--bg-app);
   color: var(--text-muted);
@@ -1969,7 +1789,6 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(10px);
 }
 
-.detail-modal,
 .create-modal {
   position: relative;
   display: flex;
@@ -1983,7 +1802,6 @@ onBeforeUnmount(() => {
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
 }
 
-.detail-header,
 .create-header,
 .create-footer {
   display: flex;
@@ -1994,14 +1812,6 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid var(--border-base);
 }
 
-.detail-author {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.detail-author strong,
 .create-header h2 {
   display: block;
   color: var(--text-primary);
@@ -2009,7 +1819,6 @@ onBeforeUnmount(() => {
   font-weight: 950;
 }
 
-.detail-author span,
 .create-header p {
   margin: 0;
   color: var(--text-muted);
@@ -2017,44 +1826,11 @@ onBeforeUnmount(() => {
   font-weight: 750;
 }
 
-.detail-author i {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 7px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 850;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.modal-actions button,
 .create-header > button {
   border: 1px solid var(--border-base);
   background: var(--bg-app);
   color: var(--text-secondary);
   cursor: pointer;
-}
-
-.modal-actions button.is-active {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.modal-actions button.danger,
-.comment-actions button.danger {
-  color: #ef4444;
-}
-
-.create-header > button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2063,203 +1839,6 @@ onBeforeUnmount(() => {
   border-radius: 8px;
 }
 
-.detail-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
-  min-height: 0;
-}
-
-.detail-content,
-.detail-comments {
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.detail-content {
-  padding: 18px;
-}
-
-.detail-content h2 {
-  margin: 0 0 10px;
-  color: var(--text-primary);
-  font-size: 22px;
-  font-weight: 950;
-  line-height: 1.35;
-}
-
-.detail-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-bottom: 12px;
-}
-
-.detail-tags button {
-  height: 24px;
-  padding: 0 9px;
-  border-radius: 7px;
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 850;
-}
-
-.detail-stats {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-base);
-}
-
-.detail-stats button,
-.detail-stats span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 10px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 850;
-}
-
-.detail-stats button.is-liked {
-  color: #ef4444;
-}
-
-.discussion-preview {
-  color: var(--text-primary);
-}
-
-.detail-images {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.detail-images img {
-  width: 100%;
-  aspect-ratio: 16 / 10;
-  object-fit: cover;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-}
-
-.detail-comments {
-  display: flex;
-  flex-direction: column;
-  border-left: 1px solid var(--border-base);
-  background: color-mix(in srgb, var(--bg-app) 72%, var(--bg-card));
-}
-
-.comments-title {
-  padding: 13px;
-  border-bottom: 1px solid var(--border-base);
-}
-
-.comments-title h3 {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 950;
-}
-
-.comments-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 13px;
-}
-
-.comment-list {
-  display: flex;
-  flex-direction: column;
-  gap: 13px;
-}
-
-.comment-item,
-.reply-item,
-.comment-composer {
-  display: flex;
-  gap: 9px;
-}
-
-.comment-body {
-  min-width: 0;
-  flex: 1;
-}
-
-.comment-bubble {
-  padding: 9px 10px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-}
-
-.comment-bubble > div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 5px;
-}
-
-.comment-bubble strong {
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.comment-bubble span {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.comment-bubble p {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 1.55;
-  white-space: pre-wrap;
-}
-
-.comment-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 6px 0 0 4px;
-}
-
-.comment-actions button,
-.reply-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 0;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 10.5px;
-  font-weight: 800;
-}
-
-.comment-actions button.is-liked {
-  color: #ef4444;
-}
-
-.reply-box {
-  margin-top: 8px;
-}
-
-.reply-box textarea,
-.comment-composer textarea,
 .create-main input,
 .create-side input {
   width: 100%;
@@ -2269,43 +1848,5 @@ onBeforeUnmount(() => {
   background: var(--bg-card);
   color: var(--text-primary);
   font-size: 12px;
-}
-
-.reply-box textarea,
-.comment-composer textarea {
-  resize: vertical;
-  min-height: 58px;
-  padding: 9px;
-  line-height: 1.55;
-}
-
-.reply-box > div {
-  display: flex;
-  justify-content: flex-end;
-  gap: 7px;
-  margin-top: 7px;
-}
-
-.reply-box button,
-.comment-composer button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--border-base);
-  border-radius: 7px;
-  background: var(--bg-app);
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 850;
-}
-
-.reply-box button:last-child,
-.comment-composer button {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: #fff;
 }
 </style>

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
+import Modal from '@/components/ui/Modal.vue';
+import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
 
 const props = defineProps<{
   localNotebooks: string[];
@@ -34,23 +37,25 @@ defineExpose({ open });
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    title="新建笔记本"
-    width="360px"
-    destroy-on-close
-  >
+  <Modal :show="visible" title="新建笔记本" size="sm" @close="visible = false">
     <div class="space-y-4">
       <div>
-        <label class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2 block">笔记本名称</label>
-        <el-input v-model="newNotebookName" placeholder="例如：Three.js 进阶" @keyup.enter="handleCreate" />
+        <label
+          class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2 block"
+          >笔记本名称</label
+        >
+        <Input
+          v-model="newNotebookName"
+          placeholder="例如：Three.js 进阶"
+          @keyup.enter="handleCreate"
+        />
       </div>
     </div>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <el-button size="small" round @click="visible = false">取消</el-button>
-        <el-button type="primary" size="small" round class="font-bold" @click="handleCreate">创建</el-button>
+        <Button variant="secondary" size="sm" @click="visible = false">取消</Button>
+        <Button variant="primary" size="sm" class="font-bold" @click="handleCreate">创建</Button>
       </div>
     </template>
-  </el-dialog>
+  </Modal>
 </template>

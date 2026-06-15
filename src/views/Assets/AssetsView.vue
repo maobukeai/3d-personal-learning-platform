@@ -32,6 +32,11 @@ import { ElMessage } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import type { Category } from '@/types';
+import Input from '@/components/ui/Input.vue';
+import Tabs from '@/components/ui/Tabs.vue';
+import Checkbox from '@/components/ui/Checkbox.vue';
+import Modal from '@/components/ui/Modal.vue';
+import UnifiedCard from '@/components/UnifiedCard.vue';
 import {
   ASSET_UPLOAD_FORMAT_OPTIONS,
   buildActiveAssetFilterChips,
@@ -66,6 +71,14 @@ const selectedFormat = ref('all');
 const selectedTag = ref('all');
 const sortKey = ref<SortKey>('latest');
 const viewMode = ref<ViewMode>('grid');
+const viewModeOptions = computed(() => [
+  { value: 'grid', label: '', icon: Grid3X3 },
+  { value: 'list', label: '', icon: LayoutList },
+]);
+const uploadTypeOptions = computed(() => [
+  { value: 'file', label: label('本地文件', 'Local File'), icon: UploadCloud },
+  { value: 'link', label: label('外部链接', 'External Link'), icon: CheckCircle2 },
+]);
 const isFilterOpen = ref(false);
 const isLoading = ref(false);
 const isUploading = ref(false);
@@ -74,6 +87,44 @@ const assets = ref<AssetListItem[]>([]);
 const categories = ref<AssetInsightCategory[]>([]);
 const insights = ref<AssetInsights | null>(null);
 const searchTimer = ref<number | undefined>();
+
+type LibraryTab = 'explore' | 'favorites' | 'mine';
+type StatusFilter = 'all' | 'PENDING' | 'APPROVED' | 'REJECTED';
+
+const activeTab = ref<LibraryTab>('explore');
+const myStatusFilter = ref<StatusFilter>('all');
+
+const libraryTabs = computed(() => [
+  {
+    key: 'explore' as const,
+    label: label('资源广场', 'Explore'),
+    count: insights.value?.summary.total || 0,
+  },
+  {
+    key: 'favorites' as const,
+    label: label('我的收藏', 'Favorites'),
+    count: insights.value?.summary.myLikes || 0,
+  },
+  {
+    key: 'mine' as const,
+    label: label('我的提交', 'My Uploads'),
+    count: insights.value?.summary.myUploads || 0,
+  },
+]);
+
+const libraryTabOptions = computed(() => {
+  return libraryTabs.value.map((tab) => ({
+    label: `${tab.label} ${tab.count}`,
+    value: tab.key,
+  }));
+});
+
+const statusTabOptions = computed(() => [
+  { label: label('全部状态', 'All Statuses'), value: 'all' },
+  { label: label('待审核', 'Pending'), value: 'PENDING' },
+  { label: label('已发布', 'Approved'), value: 'APPROVED' },
+  { label: label('未通过', 'Rejected'), value: 'REJECTED' },
+]);
 
 const pagination = ref({
   total: 0,
@@ -94,7 +145,23 @@ const categoryOptions = computed(() =>
   ),
 );
 
+const categoryTabOptions = computed(() => {
+  return categoryOptions.value.map((cat) => ({
+    label: cat.name,
+    value: cat.id,
+    badge: cat.count,
+  }));
+});
+
 const formatOptions = computed(() => buildAssetFormatOptions(insights.value));
+
+const formatTabOptions = computed(() => {
+  return formatOptions.value.map((fmt) => ({
+    label: fmt.label === 'all' ? label('全部格式', 'All Formats') : fmt.label.toUpperCase(),
+    value: fmt.label,
+    badge: fmt.count,
+  }));
+});
 
 const statCards = computed(() => [
   {
@@ -110,14 +177,20 @@ const statCards = computed(() => [
   {
     label: label('团队贡献', 'Team Contributions'),
     value: insights.value?.summary.myUploads || 0,
-    meta: label(`${insights.value?.summary.pending || 0} 个待审核`, `${insights.value?.summary.pending || 0} pending`),
+    meta: label(
+      `${insights.value?.summary.pending || 0} 个待审核`,
+      `${insights.value?.summary.pending || 0} pending`,
+    ),
     icon: UsersRound,
     tone: 'green',
   },
   {
     label: label('可动画模型', 'Animated Models'),
     value: insights.value?.summary.animated || 0,
-    meta: label(`${insights.value?.summary.optimized || 0} 个轻量网格`, `${insights.value?.summary.optimized || 0} optimized`),
+    meta: label(
+      `${insights.value?.summary.optimized || 0} 个轻量网格`,
+      `${insights.value?.summary.optimized || 0} optimized`,
+    ),
     icon: Activity,
     tone: 'orange',
   },
@@ -160,7 +233,7 @@ const activeFilterChips = computed(() => {
 
 const uploadCanSubmit = computed(() => isAssetUploadReady(uploadForm.value));
 
-watch([activeCategoryId, sortKey], () => {
+watch([activeCategoryId, sortKey, activeTab, myStatusFilter], () => {
   pagination.value.page = 1;
   fetchAssets();
 });
@@ -183,6 +256,12 @@ const fetchAssets = async () => {
         search: searchQuery.value.trim() || undefined,
         categoryId: activeCategoryId.value,
         sort: sortKey.value,
+        mine: activeTab.value === 'mine' ? 'true' : undefined,
+        favoritesOnly: activeTab.value === 'favorites' ? 'true' : undefined,
+        status:
+          activeTab.value === 'mine' && myStatusFilter.value !== 'all'
+            ? myStatusFilter.value
+            : undefined,
       },
     });
     assets.value = data.assets || [];
@@ -259,7 +338,11 @@ const handleLike = async (asset: AssetListItem, event?: Event) => {
   try {
     const { data } = await api.post(`/api/assets/${asset.id}/like`);
     asset.likes = data.likes;
-    ElMessage.success(data.liked ? label('已收藏到喜欢列表', 'Added to favorites') : label('已取消喜欢', 'Removed from favorites'));
+    ElMessage.success(
+      data.liked
+        ? label('已收藏到喜欢列表', 'Added to favorites')
+        : label('已取消喜欢', 'Removed from favorites'),
+    );
     fetchInsights();
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, label('操作失败', 'Operation failed')));
@@ -286,7 +369,9 @@ const resetUploadForm = () => {
 
 const submitUpload = async () => {
   if (!uploadCanSubmit.value) {
-    ElMessage.warning(label('请补全资源名称、分类和文件来源', 'Please complete asset name, category, and source'));
+    ElMessage.warning(
+      label('请补全资源名称、分类和文件来源', 'Please complete asset name, category, and source'),
+    );
     return;
   }
 
@@ -324,20 +409,23 @@ onUnmounted(() => {
     <header class="page-header">
       <div class="title-block">
         <div class="title-icon">
-          <Box class="icon-md" />
+          <Box class="icon-sm" />
         </div>
         <div>
           <h1>{{ label('资源库', 'Asset Library') }}</h1>
-          <p>{{ label('模型、工程文件、贴图包与外链资产统一分发。', 'Distribute models, project files, texture packs, and external assets in one place.') }}</p>
+          <p>
+            {{
+              label(
+                '模型、工程文件、贴图包与外链资产统一分发。',
+                'Distribute models, project files, texture packs, and external assets in one place.',
+              )
+            }}
+          </p>
         </div>
       </div>
 
       <div class="header-actions">
-        <button
-          type="button"
-          class="ghost-button"
-          @click="isStatsExpanded = !isStatsExpanded"
-        >
+        <button type="button" class="ghost-button" @click="isStatsExpanded = !isStatsExpanded">
           <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
           {{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}
         </button>
@@ -372,17 +460,12 @@ onUnmounted(() => {
             <Layers class="icon-sm" />
             {{ label('分类', 'Categories') }}
           </div>
-          <button
-            v-for="category in categoryOptions"
-            :key="category.id"
-            type="button"
-            class="filter-button"
-            :class="{ active: activeCategoryId === category.id }"
-            @click="activeCategoryId = category.id"
-          >
-            <span>{{ category.name }}</span>
-            <strong>{{ category.count }}</strong>
-          </button>
+          <Tabs
+            v-model="activeCategoryId"
+            :options="categoryTabOptions"
+            direction="vertical"
+            size="sm"
+          />
         </div>
 
         <div class="panel-section">
@@ -390,17 +473,25 @@ onUnmounted(() => {
             <PackageCheck class="icon-sm" />
             {{ label('格式', 'Formats') }}
           </div>
-          <button
-            v-for="format in formatOptions"
-            :key="format.label"
-            type="button"
-            class="filter-button"
-            :class="{ active: selectedFormat === format.label }"
-            @click="selectedFormat = format.label"
-          >
-            <span>{{ format.label === 'all' ? label('全部格式', 'All Formats') : format.label }}</span>
-            <strong>{{ format.count }}</strong>
-          </button>
+          <Tabs
+            v-model="selectedFormat"
+            :options="formatTabOptions"
+            direction="vertical"
+            size="sm"
+          />
+        </div>
+
+        <div v-if="activeTab === 'mine'" class="panel-section">
+          <div class="section-title">
+            <SlidersHorizontal class="icon-sm" />
+            {{ label('状态', 'Status') }}
+          </div>
+          <Tabs
+            v-model="myStatusFilter"
+            :options="statusTabOptions"
+            direction="vertical"
+            size="sm"
+          />
         </div>
 
         <div class="panel-section">
@@ -431,37 +522,53 @@ onUnmounted(() => {
 
       <main class="content-panel">
         <section class="toolbar">
-          <label class="search-box">
-            <Search class="icon-sm" />
-            <input v-model="searchQuery" type="search" :placeholder="label('搜索资源名称、标签、作者或描述', 'Search names, tags, authors, or descriptions')" />
-          </label>
-
-          <div class="toolbar-actions">
-            <button type="button" class="icon-button mobile-filter" @click="isFilterOpen = !isFilterOpen">
+          <div class="toolbar-left">
+            <button
+              type="button"
+              class="icon-button mobile-filter"
+              @click="isFilterOpen = !isFilterOpen"
+            >
               <SlidersHorizontal class="icon-sm" />
             </button>
-            <select v-model="sortKey" class="select-field">
+            <Tabs v-model="activeTab" :options="libraryTabOptions" size="sm" />
+          </div>
+
+          <div class="toolbar-center">
+            <Input
+              v-model="searchQuery"
+              type="search"
+              :placeholder="
+                label(
+                  '搜索资源名称、标签、作者或描述',
+                  'Search names, tags, authors, or descriptions',
+                )
+              "
+              :icon="Search"
+              clearable
+              input-class="!py-1.5 !h-8.5 !rounded-lg"
+              class="w-full max-w-[280px]"
+            />
+          </div>
+
+          <div class="toolbar-right">
+            <select v-model="sortKey" class="select-field" aria-label="排序方式">
               <option value="latest">{{ label('最新发布', 'Newest') }}</option>
               <option value="popular">{{ label('下载最多', 'Most Downloaded') }}</option>
               <option value="views">{{ label('浏览最多', 'Most Viewed') }}</option>
               <option value="size">{{ label('体积最大', 'Largest') }}</option>
               <option value="oldest">{{ label('最早发布', 'Oldest') }}</option>
             </select>
-            <div class="view-switch">
-              <button type="button" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'">
-                <Grid3X3 class="icon-sm" />
-              </button>
-              <button type="button" :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'">
-                <LayoutList class="icon-sm" />
-              </button>
-            </div>
+            <Tabs v-model="viewMode" :options="viewModeOptions" size="sm" />
           </div>
         </section>
 
         <section class="asset-filter-strip">
           <div>
             <strong>{{ visibleAssets.length }}</strong>
-            <span>/ {{ pagination.total || visibleAssets.length }} {{ label('个资源', 'assets') }}</span>
+            <span
+              >/ {{ pagination.total || visibleAssets.length }}
+              {{ label('个资源', 'assets') }}</span
+            >
           </div>
           <div class="asset-chip-row">
             <button
@@ -473,7 +580,12 @@ onUnmounted(() => {
               {{ chip.label }}
               <X class="icon-xs" />
             </button>
-            <button v-if="activeFilterChips.length" type="button" class="reset-chip" @click="resetFilters">
+            <button
+              v-if="activeFilterChips.length"
+              type="button"
+              class="reset-chip"
+              @click="resetFilters"
+            >
               {{ label('清空筛选', 'Clear Filters') }}
             </button>
             <span v-else>{{ label('当前显示全部公开资源', 'Showing all public assets') }}</span>
@@ -489,60 +601,31 @@ onUnmounted(() => {
         </div>
 
         <div v-else-if="visibleAssets.length" class="asset-grid" :class="viewMode">
-          <article
+          <UnifiedCard
             v-for="asset in visibleAssets"
             :key="asset.id"
-            class="asset-card"
+            :item="asset"
+            kind="asset"
+            :view-mode="viewMode"
+            :is-favorited="asset.likes > 0"
+            :active-tab="activeTab"
             @click="goToDetail(asset)"
-          >
-            <div class="asset-preview">
-              <img :src="asset.preview" :alt="asset.title" />
-              <div class="badge-row">
-                <span>{{ asset.format }}</span>
-                <span v-if="asset.hasAnimations">{{ label('动画', 'Animated') }}</span>
-              </div>
-            </div>
-
-            <div class="asset-body">
-              <div class="card-title">
-                <div>
-                  <h2>{{ asset.title }}</h2>
-                  <p>{{ asset.description || label('作者暂未填写资源说明。', 'No asset description yet.') }}</p>
-                </div>
-                <button type="button" class="icon-button" @click="handleLike(asset, $event)">
-                  <Heart class="icon-sm" />
-                </button>
-              </div>
-
-              <div class="asset-meta">
-                <span>{{ asset.categoryName }}</span>
-                <span>{{ formatFileSize(asset.sizeMb) }}</span>
-                <span>{{ formatRelativeTime(asset.createdAt) }}</span>
-              </div>
-
-              <div class="tag-row">
-                <span v-for="tag in asset.tags.slice(0, 4)" :key="tag">#{{ tag }}</span>
-              </div>
-
-              <footer class="card-footer">
-                <div class="metric-row">
-                  <span><ArrowDownToLine class="icon-xs" />{{ formatCompactNumber(asset.downloads) }}</span>
-                  <span><Eye class="icon-xs" />{{ formatCompactNumber(asset.views) }}</span>
-                  <span><Heart class="icon-xs" />{{ formatCompactNumber(asset.likes) }}</span>
-                </div>
-                <button type="button" class="download-button" @click="handleDownload(asset, $event)">
-                  <ArrowDownToLine class="icon-sm" />
-                  {{ label('下载', 'Download') }}
-                </button>
-              </footer>
-            </div>
-          </article>
+            @like="handleLike(asset, $event)"
+            @download="handleDownload(asset, $event)"
+          />
         </div>
 
         <div v-else class="empty-state">
           <Sparkles class="empty-icon" />
           <h2>{{ label('没有匹配的资源', 'No Matching Assets') }}</h2>
-          <p>{{ label('调整筛选条件，或上传一个新的资源包。', 'Adjust filters or upload a new asset package.') }}</p>
+          <p>
+            {{
+              label(
+                '调整筛选条件，或上传一个新的资源包。',
+                'Adjust filters or upload a new asset package.',
+              )
+            }}
+          </p>
           <button type="button" class="primary-button" @click="isUploadDialogOpen = true">
             <UploadCloud class="icon-sm" />
             {{ label('上传资源', 'Upload Asset') }}
@@ -550,10 +633,17 @@ onUnmounted(() => {
         </div>
 
         <footer v-if="pagination.totalPages > 1" class="pagination">
-          <button type="button" :disabled="pagination.page <= 1" @click="handlePageChange(pagination.page - 1)">
+          <button
+            type="button"
+            :disabled="pagination.page <= 1"
+            @click="handlePageChange(pagination.page - 1)"
+          >
             <ChevronLeft class="icon-sm" />
           </button>
-          <span>{{ label('第', 'Page') }} {{ pagination.page }} / {{ pagination.totalPages }} {{ label('页', '') }}</span>
+          <span
+            >{{ label('第', 'Page') }} {{ pagination.page }} / {{ pagination.totalPages }}
+            {{ label('页', '') }}</span
+          >
           <button
             type="button"
             :disabled="pagination.page >= pagination.totalPages"
@@ -603,113 +693,184 @@ onUnmounted(() => {
       </aside>
     </section>
 
-    <Transition name="fade">
-      <div v-if="isUploadDialogOpen" class="modal-layer">
-        <button type="button" class="modal-backdrop" @click="isUploadDialogOpen = false"></button>
-        <section class="upload-dialog">
-          <header>
-            <div>
-              <h2>{{ label('上传资源', 'Upload Asset') }}</h2>
-              <p>{{ label('提交后进入审核，通过后展示在资源库。', 'Submissions go through review before appearing in the library.') }}</p>
-            </div>
-            <button type="button" class="icon-button" @click="isUploadDialogOpen = false">
-              <X class="icon-sm" />
-            </button>
-          </header>
+    <Modal :show="isUploadDialogOpen" size="xxl" @close="isUploadDialogOpen = false">
+      <template #header>
+        <div>
+          <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">
+            {{ label('上传资源', 'Upload Asset') }}
+          </h3>
+          <p class="text-xs text-[var(--text-muted)] mt-1">
+            {{
+              label(
+                '提交后进入审核，通过后展示在资源库。',
+                'Submissions go through review before appearing in the library.',
+              )
+            }}
+          </p>
+        </div>
+      </template>
 
-          <div class="upload-type-switch">
-            <button
-              type="button"
-              :class="{ active: uploadForm.uploadType === 'file' }"
-              @click="uploadForm.uploadType = 'file'"
-            >
-              <UploadCloud class="icon-sm" />
-              {{ label('本地文件', 'Local File') }}
-            </button>
-            <button
-              type="button"
-              :class="{ active: uploadForm.uploadType === 'link' }"
-              @click="uploadForm.uploadType = 'link'"
-            >
-              <CheckCircle2 class="icon-sm" />
-              {{ label('外部链接', 'External Link') }}
-            </button>
-          </div>
-
-          <div class="upload-grid">
-            <div class="upload-column">
-              <label v-if="uploadForm.uploadType === 'file'" class="drop-zone">
-                <input type="file" accept=".glb,.gltf,.fbx,.obj,.stl,.dae,.3ds,.blend,.usdz,.abc,.zip" @change="handleFileChange" />
-                <UploadCloud class="drop-icon" />
-                <strong>{{ uploadForm.file?.name || label('选择模型或资源包', 'Choose a model or asset package') }}</strong>
-                <span>{{ label('支持 GLB、FBX、OBJ、STL、BLEND、ZIP 等格式', 'Supports GLB, FBX, OBJ, STL, BLEND, ZIP, and more') }}</span>
-              </label>
-
-              <label v-else class="form-field">
-                <span>{{ label('外部资源地址', 'External Asset URL') }}</span>
-                <input v-model="uploadForm.externalUrl" type="url" placeholder="https://..." />
-              </label>
-
-              <label class="form-field">
-                <span>{{ label('资源名称', 'Asset Name') }}</span>
-                <input v-model="uploadForm.title" type="text" :placeholder="label('例如：工业机器人机械臂', 'Example: Industrial robot arm')" />
-              </label>
-
-              <div class="two-col">
-                <label class="form-field">
-                  <span>{{ label('分类', 'Category') }}</span>
-                  <select v-model="uploadForm.categoryId">
-                    <option value="">{{ label('选择分类', 'Select category') }}</option>
-                    <option v-for="category in categories" :key="category.id" :value="category.id">
-                      {{ category.name }}
-                    </option>
-                  </select>
-                </label>
-
-                <label class="file-picker">
-                  <span>{{ label('封面图', 'Cover Image') }}</span>
-                  <input type="file" accept="image/*" @change="handleThumbnailChange" />
-                  <strong>{{ uploadForm.thumbnail?.name || label('可选', 'Optional') }}</strong>
-                </label>
-              </div>
-
-              <label class="form-field">
-                <span>{{ label('标签', 'Tags') }}</span>
-                <input v-model="uploadForm.tags" type="text" :placeholder="label('PBR, 低面数, 游戏资产', 'PBR, low-poly, game asset')" />
-              </label>
-
-              <div v-if="uploadForm.file?.name.toLowerCase().endsWith('.zip')" class="format-checks">
-                <span>{{ label('压缩包内格式', 'Formats inside ZIP') }}</span>
-                <label v-for="format in uploadFormatOptions" :key="format">
-                  <input v-model="uploadForm.formats" type="checkbox" :value="format" />
-                  {{ format }}
-                </label>
-              </div>
-            </div>
-
-            <div class="upload-column">
-              <label class="form-field editor-field">
-                <span>{{ label('资源说明', 'Asset Description') }}</span>
-                <MarkdownEditor
-                  v-model="uploadForm.description"
-                  :placeholder="label('写清楚用途、格式、面数、贴图、授权或使用注意事项', 'Describe usage, formats, poly count, textures, license, or notes')"
-                  height="360px"
-                  simple
-                />
-              </label>
-            </div>
-          </div>
-
-          <footer>
-            <button type="button" class="ghost-button" @click="isUploadDialogOpen = false">{{ label('取消', 'Cancel') }}</button>
-            <button type="button" class="primary-button" :disabled="isUploading || !uploadCanSubmit" @click="submitUpload">
-              <Loader2 v-if="isUploading" class="icon-sm spinning" />
-              {{ label('提交审核', 'Submit for Review') }}
-            </button>
-          </footer>
-        </section>
+      <div class="upload-type-switch mb-5">
+        <Tabs v-model="uploadForm.uploadType" :options="uploadTypeOptions" size="sm" />
       </div>
-    </Transition>
+
+      <div class="upload-grid">
+        <div class="upload-column">
+          <label v-if="uploadForm.uploadType === 'file'" class="drop-zone mb-4 block">
+            <input
+              type="file"
+              accept=".glb,.gltf,.fbx,.obj,.stl,.dae,.3ds,.blend,.usdz,.abc,.zip"
+              @change="handleFileChange"
+            />
+            <UploadCloud class="drop-icon" />
+            <strong>{{
+              uploadForm.file?.name || label('选择模型或资源包', 'Choose a model or asset package')
+            }}</strong>
+            <span>{{
+              label(
+                '支持 GLB、FBX、OBJ、STL、BLEND、ZIP 等格式',
+                'Supports GLB, FBX, OBJ, STL, BLEND, ZIP, and more',
+              )
+            }}</span>
+          </label>
+
+          <div v-else class="mb-4">
+            <Input
+              v-model="uploadForm.externalUrl"
+              type="url"
+              :label="label('外部资源地址', 'External Asset URL')"
+              placeholder="https://..."
+            />
+          </div>
+
+          <div class="mb-4">
+            <Input
+              v-model="uploadForm.title"
+              type="text"
+              :label="label('资源名称', 'Asset Name')"
+              :placeholder="label('例如：工业机器人机械臂', 'Example: Industrial robot arm')"
+              required
+            />
+          </div>
+
+          <div class="two-col grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <label class="form-field flex flex-col">
+              <span
+                class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+              >
+                {{ label('分类', 'Category') }}
+              </span>
+              <select
+                v-model="uploadForm.categoryId"
+                class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+              >
+                <option value="">{{ label('选择分类', 'Select category') }}</option>
+                <option v-for="category in categories" :key="category.id" :value="category.id">
+                  {{ category.name }}
+                </option>
+              </select>
+            </label>
+
+            <label class="file-picker flex flex-col">
+              <span
+                class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+              >
+                {{ label('封面图', 'Cover Image') }}
+              </span>
+              <div class="relative w-full">
+                <input
+                  type="file"
+                  accept="image/*"
+                  class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                  @change="handleThumbnailChange"
+                />
+                <div
+                  class="glass-input text-sm p-3.5 rounded-xl text-center font-bold tracking-tight text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  {{
+                    uploadForm.thumbnail?.name || label('可选封面图文件', 'Optional cover image')
+                  }}
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <div class="mb-4">
+            <Input
+              v-model="uploadForm.tags"
+              type="text"
+              :label="label('标签', 'Tags')"
+              :placeholder="label('PBR, 低面数, 游戏资产', 'PBR, low-poly, game asset')"
+            />
+          </div>
+
+          <div
+            v-if="uploadForm.file?.name.toLowerCase().endsWith('.zip')"
+            class="format-checks flex flex-col gap-2.5 p-4 rounded-xl glass-panel border border-white/10 mb-4"
+          >
+            <span
+              class="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-1"
+            >
+              {{ label('压缩包内格式', 'Formats inside ZIP') }}
+            </span>
+            <div class="flex flex-wrap gap-4">
+              <Checkbox
+                v-for="format in uploadFormatOptions"
+                :key="format"
+                :model-value="uploadForm.formats.includes(format)"
+                @update:model-value="
+                  (val) => {
+                    if (val) {
+                      uploadForm.formats.push(format);
+                    } else {
+                      uploadForm.formats = uploadForm.formats.filter((f) => f !== format);
+                    }
+                  }
+                "
+              >
+                {{ format }}
+              </Checkbox>
+            </div>
+          </div>
+        </div>
+
+        <div class="upload-column">
+          <label class="form-field editor-field flex flex-col h-full">
+            <span
+              class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+            >
+              {{ label('资源说明', 'Asset Description') }}
+            </span>
+            <MarkdownEditor
+              v-model="uploadForm.description"
+              :placeholder="
+                label(
+                  '写清楚用途、格式、面数、贴图、授权或使用注意事项',
+                  'Describe usage, formats, poly count, textures, license, or notes',
+                )
+              "
+              height="360px"
+              simple
+            />
+          </label>
+        </div>
+      </div>
+
+      <template #footer>
+        <button type="button" class="ghost-button" @click="isUploadDialogOpen = false">
+          {{ label('取消', 'Cancel') }}
+        </button>
+        <button
+          type="button"
+          class="primary-button"
+          :disabled="isUploading || !uploadCanSubmit"
+          @click="submitUpload"
+        >
+          <Loader2 v-if="isUploading" class="icon-sm spinning" />
+          {{ label('提交审核', 'Submit for Review') }}
+        </button>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -745,15 +906,25 @@ onUnmounted(() => {
 .page-header {
   justify-content: space-between;
   gap: 12px;
-  min-height: 40px;
+  min-height: 32px;
 }
 
 .title-block {
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
-.title-icon,
+.title-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--accent);
+  background: var(--accent-subtle);
+  flex: 0 0 auto;
+}
+
 .stat-icon {
   display: grid;
   place-items: center;
@@ -777,7 +948,20 @@ h1 {
   letter-spacing: -0.02em;
 }
 
-.title-block p,
+.title-block h1 {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.title-block p {
+  margin-top: 1px;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
 .upload-dialog header p,
 .empty-state p {
   margin-top: 1px;
@@ -920,10 +1104,22 @@ h1 {
   --tone-color: #0f766e;
 }
 
-.stat-card[data-tone='blue'] .stat-icon { color: #2563eb; background: rgba(37, 99, 235, 0.1); }
-.stat-card[data-tone='green'] .stat-icon { color: #059669; background: rgba(5, 150, 105, 0.1); }
-.stat-card[data-tone='orange'] .stat-icon { color: #d97706; background: rgba(217, 119, 6, 0.1); }
-.stat-card[data-tone='teal'] .stat-icon { color: #0f766e; background: rgba(15, 118, 110, 0.1); }
+.stat-card[data-tone='blue'] .stat-icon {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+}
+.stat-card[data-tone='green'] .stat-icon {
+  color: #059669;
+  background: rgba(5, 150, 105, 0.1);
+}
+.stat-card[data-tone='orange'] .stat-icon {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.1);
+}
+.stat-card[data-tone='teal'] .stat-icon {
+  color: #0f766e;
+  background: rgba(15, 118, 110, 0.1);
+}
 
 .stat-card span {
   display: block;
@@ -985,6 +1181,8 @@ h1 {
 }
 
 .section-title {
+  display: flex;
+  align-items: center;
   gap: 6px;
   margin-bottom: 4px;
   color: var(--text-primary);
@@ -1080,8 +1278,39 @@ h1 {
 
 /* Toolbar */
 .toolbar {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 16px;
+  background: var(--bg-card);
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-base);
+  backdrop-filter: blur(12px);
+  flex-wrap: nowrap;
+}
+
+.toolbar-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.toolbar-center {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.toolbar-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .search-box {
@@ -1233,14 +1462,14 @@ h1 {
 /* Card grids and spacing */
 .asset-grid.grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
 }
 
 .asset-grid.list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 /* Asset Cards */
@@ -1803,7 +2032,12 @@ h1 {
 
 .skeleton {
   border-radius: 6px;
-  background: linear-gradient(90deg, rgba(148, 163, 184, 0.1), rgba(148, 163, 184, 0.2), rgba(148, 163, 184, 0.1));
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.1),
+    rgba(148, 163, 184, 0.2),
+    rgba(148, 163, 184, 0.1)
+  );
   background-size: 200% 100%;
   animation: shimmer 1.2s infinite;
 }
@@ -1876,6 +2110,27 @@ h1 {
   .asset-filter-strip {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .toolbar {
+    gap: 12px;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .toolbar-center {
+    width: 100%;
+  }
+
+  .toolbar-center :deep(.ui-input-wrapper) {
+    max-width: none;
+    width: 100%;
   }
 
   .asset-chip-row {

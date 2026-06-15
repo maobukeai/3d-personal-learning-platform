@@ -190,7 +190,7 @@ export const updateSettings = async (req: AuthRequest, res: Response, next: Next
     }
 
     // Ensure array fields are actually arrays before saving
-    const arrayFields = ['ALLOWED_EXTENSIONS', 'ALLOWED_FILE_TYPES', 'MATERIAL_CATEGORIES'];
+    const arrayFields = ['ALLOWED_EXTENSIONS', 'ALLOWED_FILE_TYPES', 'MATERIAL_CATEGORIES', 'TEAM_CATEGORIES', 'SHOWCASE_CATEGORIES', 'PLUGIN_CATEGORIES'];
     arrayFields.forEach((field) => {
       if (settingsObj[field] !== undefined) {
         if (typeof settingsObj[field] === 'string') {

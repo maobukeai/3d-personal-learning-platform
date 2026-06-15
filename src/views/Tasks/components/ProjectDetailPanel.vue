@@ -34,7 +34,10 @@ import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import UserAvatar from '@/components/UserAvatar.vue';
+import Button from '@/components/ui/Button.vue';
 import { getTaskDayIndex, getTaskTime } from '@/utils/taskSort';
+import Dropdown from '@/components/ui/Dropdown.vue';
+import { User } from 'lucide-vue-next';
 
 const { t } = useI18n();
 const workspaceStore = useWorkspaceStore();
@@ -118,10 +121,34 @@ const detailInviteUserIds = ref<string[]>([]);
 const teamMembers = ref<ProjectUser[]>([]);
 
 const priorityOptions = computed(() => [
-  { id: 'URGENT', label: t('tasks.urgent'), color: 'bg-red-500', textColor: 'text-red-500', icon: Flame },
-  { id: 'HIGH', label: t('tasks.high'), color: 'bg-orange-500', textColor: 'text-orange-500', icon: ArrowUp },
-  { id: 'MEDIUM', label: t('tasks.medium'), color: 'bg-amber-500', textColor: 'text-amber-500', icon: Minus },
-  { id: 'LOW', label: t('tasks.low'), color: 'bg-slate-400', textColor: 'text-slate-400', icon: ArrowDown },
+  {
+    id: 'URGENT',
+    label: t('tasks.urgent'),
+    color: 'bg-red-500',
+    textColor: 'text-red-500',
+    icon: Flame,
+  },
+  {
+    id: 'HIGH',
+    label: t('tasks.high'),
+    color: 'bg-orange-500',
+    textColor: 'text-orange-500',
+    icon: ArrowUp,
+  },
+  {
+    id: 'MEDIUM',
+    label: t('tasks.medium'),
+    color: 'bg-amber-500',
+    textColor: 'text-amber-500',
+    icon: Minus,
+  },
+  {
+    id: 'LOW',
+    label: t('tasks.low'),
+    color: 'bg-slate-400',
+    textColor: 'text-slate-400',
+    icon: ArrowDown,
+  },
 ]);
 
 const fetchTeamMembers = async (teamId?: string) => {
@@ -163,7 +190,7 @@ const parsedBatchTasks = computed(() => {
 
 const sortedTasks = computed(() => {
   if (!projectDetail.value?.tasks) return [];
-  
+
   return [...projectDetail.value.tasks].sort((a, b) => {
     const dayA = a && a.title ? getTaskDayIndex(a.title) : Infinity;
     const dayB = b && b.title ? getTaskDayIndex(b.title) : Infinity;
@@ -205,6 +232,19 @@ const handleUpdateTaskStatus = async (task: ProjectTask, newStatus: string) => {
     emit('refresh-list');
   } catch {
     ElMessage.error(t('tasks.updateStatusFailed'));
+  }
+};
+
+const handleAssigneeChange = async (task: ProjectTask, assigneeId: string | null) => {
+  try {
+    await api.put(`/api/tasks/${task.id}`, { assigneeId });
+    ElMessage.success(assigneeId ? t('tasks.assigneeAssigned') : t('tasks.assigneeCleared'));
+    if (activeProjectId.value) {
+      await fetchProjectDetail(activeProjectId.value);
+    }
+    emit('refresh-list');
+  } catch {
+    ElMessage.error(t('tasks.updateAssigneeFailed'));
   }
 };
 
@@ -347,7 +387,8 @@ watch(
 );
 
 const activeStep = computed(() => {
-  if (!projectDetail.value?.roadmap?.steps || projectDetail.value.roadmap.steps.length === 0) return null;
+  if (!projectDetail.value?.roadmap?.steps || projectDetail.value.roadmap.steps.length === 0)
+    return null;
   return (
     projectDetail.value.roadmap.steps.find((s) => s.id === activeStepId.value) ||
     projectDetail.value.roadmap.steps[0] ||
@@ -396,7 +437,8 @@ const getStepStatus = (step: RoadmapStep, index: number) => {
   if (isStepLocked(step, index)) return 'locked';
   if (
     index === 0 ||
-    (projectDetail.value?.roadmap && isStepCompleted(projectDetail.value.roadmap.steps[index - 1]?.id))
+    (projectDetail.value?.roadmap &&
+      isStepCompleted(projectDetail.value.roadmap.steps[index - 1]?.id))
   )
     return 'current';
   return 'upcoming';
@@ -520,8 +562,7 @@ const getMetricsForStep = (step: RoadmapStep, index: number) => {
     difficulty += 25;
     practical += 15;
     duration += 12;
-  }
-  else if (
+  } else if (
     title.includes('blender') ||
     title.includes('建模') ||
     title.includes('雕刻') ||
@@ -534,8 +575,7 @@ const getMetricsForStep = (step: RoadmapStep, index: number) => {
     difficulty += 10;
     practical += 28;
     duration += 8;
-  }
-  else if (
+  } else if (
     title.includes('three.js') ||
     title.includes('threejs') ||
     title.includes('交互') ||
@@ -603,7 +643,7 @@ watch(
       fetchAllCourses();
       loadCheckedSubTasks();
     }
-  }
+  },
 );
 
 defineExpose({
@@ -665,25 +705,48 @@ defineExpose({
           </div>
           <div class="flex items-center gap-2">
             <!-- Join Project Button for non-members on PUBLIC projects -->
-            <button v-if="!isDetailMember && projectDetail.visibility === 'PUBLIC'" type="button" class="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-500/10 border-none" @click="handleJoinProjectDetail">
+            <button
+              v-if="!isDetailMember && projectDetail.visibility === 'PUBLIC'"
+              type="button"
+              class="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-500/10 border-none"
+              @click="handleJoinProjectDetail"
+            >
               <Plus class="w-3.5 h-3.5" />
               <span>{{ t('projects.joinProject') }}</span>
             </button>
 
-            <button type="button" class="px-3 py-1.5 bg-accent/10 hover:bg-accent/20 text-accent rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border-none" @click="navigateToTaskBoard(projectDetail.id)">
+            <button
+              type="button"
+              class="px-3 py-1.5 bg-accent/10 hover:bg-accent/20 text-accent rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border-none"
+              @click="navigateToTaskBoard(projectDetail.id)"
+            >
               <FolderOpen class="w-3.5 h-3.5" />
               <span>{{ t('projects.viewInBoard') }}</span>
             </button>
 
             <!-- View Mode Toggle (Drawer vs Modal) -->
-            <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer bg-transparent border-none" :title="projectDetailViewMode === 'drawer' ? t('projects.switchToModal') : t('projects.switchToDrawer')" @click="toggleDetailViewMode">
+            <button
+              type="button"
+              class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer bg-transparent border-none"
+              :title="
+                projectDetailViewMode === 'drawer'
+                  ? t('projects.switchToModal')
+                  : t('projects.switchToDrawer')
+              "
+              @click="toggleDetailViewMode"
+            >
               <component
                 :is="projectDetailViewMode === 'drawer' ? Maximize2 : Minimize2"
                 class="w-4.5 h-4.5"
               />
             </button>
 
-            <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all cursor-pointer bg-transparent border-none" style="color: var(--text-secondary)" @click="isDetailDrawerOpen = false">
+            <button
+              type="button"
+              class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all cursor-pointer bg-transparent border-none"
+              style="color: var(--text-secondary)"
+              @click="isDetailDrawerOpen = false"
+            >
               <X class="w-5 h-5" />
             </button>
           </div>
@@ -708,19 +771,40 @@ defineExpose({
             <!-- Left Column: Tasks / Roadmap (col-span-2) -->
             <div class="md:col-span-2 space-y-4">
               <!-- Tab Header Switcher if project has roadmap -->
-              <div v-if="projectDetail.roadmap" class="flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl max-w-xs text-left">
+              <div
+                v-if="projectDetail.roadmap"
+                class="relative flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl max-w-xs text-left select-none overflow-hidden"
+              >
+                <!-- Sliding Pill Background -->
+                <div
+                  class="absolute top-0.5 bottom-0.5 bg-white dark:bg-slate-700 rounded-lg shadow-sm border border-slate-200/40 dark:border-slate-650/30 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] z-0 pointer-events-none"
+                  :style="{
+                    width: 'calc(50% - 2px)',
+                    left: activeLeftTab === 'tasks' ? '2px' : 'calc(50%)',
+                  }"
+                ></div>
+
+                <!-- Tab Buttons -->
                 <button
                   type="button"
-                  class="flex-1 py-1.5 px-3 rounded-lg text-xs font-black transition-all cursor-pointer border-none"
-                  :class="activeLeftTab === 'tasks' ? 'bg-white dark:bg-slate-700 text-accent shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-transparent'"
+                  class="relative z-10 flex-1 py-1.5 px-3 rounded-lg text-xs font-black transition-colors duration-200 cursor-pointer border-none bg-transparent"
+                  :class="
+                    activeLeftTab === 'tasks'
+                      ? 'text-accent'
+                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                  "
                   @click="activeLeftTab = 'tasks'"
                 >
                   {{ t('projects.projectTasks') }}
                 </button>
                 <button
                   type="button"
-                  class="flex-1 py-1.5 px-3 rounded-lg text-xs font-black transition-all cursor-pointer border-none"
-                  :class="activeLeftTab === 'roadmap' ? 'bg-white dark:bg-slate-700 text-accent shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-transparent'"
+                  class="relative z-10 flex-1 py-1.5 px-3 rounded-lg text-xs font-black transition-colors duration-200 cursor-pointer border-none bg-transparent"
+                  :class="
+                    activeLeftTab === 'roadmap'
+                      ? 'text-accent'
+                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                  "
                   @click="activeLeftTab = 'roadmap'"
                 >
                   {{ t('projects.learningPath') }}
@@ -733,10 +817,16 @@ defineExpose({
                   <h4
                     class="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"
                   >
-                    <Layers class="w-4 h-4" /> {{ t('projects.projectTasks') }} ({{ sortedTasks.length }})
+                    <Layers class="w-4 h-4" /> {{ t('projects.projectTasks') }} ({{
+                      sortedTasks.length
+                    }})
                   </h4>
                   <div class="flex gap-2">
-                    <button type="button" class="px-2.5 py-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg text-[10px] font-bold flex items-center gap-1 hover:opacity-95 transition-all cursor-pointer border-none" @click="isBatchDialogOpen = true">
+                    <button
+                      type="button"
+                      class="px-2.5 py-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold flex items-center gap-1 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all cursor-pointer shadow-sm"
+                      @click="isBatchDialogOpen = true"
+                    >
                       <Plus class="w-3 h-3" />
                       <span>{{ t('projects.batchAdd') }}</span>
                     </button>
@@ -753,7 +843,11 @@ defineExpose({
                     style="border-color: var(--border-base); color: var(--text-primary)"
                     @keydown.enter="handleQuickAddTask"
                   />
-                  <button type="button" class="absolute right-1.5 p-1.5 bg-accent text-white rounded-lg hover:scale-105 transition-all border-none cursor-pointer" @click="handleQuickAddTask">
+                  <button
+                    type="button"
+                    class="absolute right-1.5 p-1.5 bg-accent text-white rounded-lg hover:scale-105 transition-all border-none cursor-pointer"
+                    @click="handleQuickAddTask"
+                  >
                     <Plus class="w-3 h-3 text-white" />
                   </button>
                 </div>
@@ -796,7 +890,7 @@ defineExpose({
                         <th
                           class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px] w-32"
                         >
-                          {{ t('tasks.status') }}
+                          {{ t('tasks.statusLabel') }}
                         </th>
                         <th
                           class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px] text-right w-16"
@@ -820,13 +914,49 @@ defineExpose({
                           {{ task.title }}
                         </td>
                         <td class="px-3.5 py-2">
-                          <div v-if="task.assignee" class="flex items-center gap-1.5">
-                            <UserAvatar :user="task.assignee" size="xs" />
-                            <span class="font-bold text-slate-500 truncate max-w-[80px] text-[10px]">{{
-                              task.assignee.name || task.assignee.email
-                            }}</span>
-                          </div>
-                          <span v-else class="text-slate-400">{{ t('tasks.unassigned') }}</span>
+                          <Dropdown align="left" width-class="w-48">
+                            <template #trigger>
+                              <span
+                                class="inline-flex items-center gap-1 cursor-pointer hover:text-accent rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors py-0.5 px-1.5"
+                              >
+                                <template v-if="task.assignee">
+                                  <UserAvatar :user="task.assignee" size="xs" />
+                                  <span
+                                    class="font-bold text-slate-500 truncate max-w-[80px] text-[10px]"
+                                    >{{ task.assignee.name || task.assignee.email }}</span
+                                  >
+                                </template>
+                                <span v-else class="text-slate-400 text-[10px] font-bold">{{
+                                  t('tasks.unassigned')
+                                }}</span>
+                              </span>
+                            </template>
+                            <template #content>
+                              <button
+                                type="button"
+                                class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs text-rose-500 hover:bg-rose-500/10 border-none bg-transparent cursor-pointer transition-colors"
+                                @click="handleAssigneeChange(task, null)"
+                              >
+                                {{ t('tasks.clearAssignee') }}
+                              </button>
+                              <div class="h-[1px] my-1 bg-slate-100 dark:bg-white/10"></div>
+                              <button
+                                v-for="m in teamMembers"
+                                :key="m.id"
+                                type="button"
+                                class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-slate-100 dark:hover:bg-white/5 text-[var(--text-primary)] border-none bg-transparent cursor-pointer transition-colors flex items-center gap-2"
+                                @click="handleAssigneeChange(task, m.id)"
+                              >
+                                <img
+                                  v-if="m.avatarUrl"
+                                  alt=""
+                                  :src="m.avatarUrl"
+                                  class="w-5 h-5 rounded-lg object-cover"
+                                />
+                                <span>{{ m.name }}</span>
+                              </button>
+                            </template>
+                          </Dropdown>
                         </td>
                         <td class="px-3.5 py-2">
                           <span
@@ -859,13 +989,17 @@ defineExpose({
                             class="!w-24 custom-select-small"
                             @change="(val: string) => handleUpdateTaskStatus(task, val)"
                           >
-                            <el-option :label="t('tasks.status.todo')" value="TODO" />
-                            <el-option :label="t('tasks.status.inProgress')" value="IN_PROGRESS" />
-                            <el-option :label="t('tasks.status.done')" value="DONE" />
+                            <el-option :label="t('tasks.todo')" value="TODO" />
+                            <el-option :label="t('tasks.inProgress')" value="IN_PROGRESS" />
+                            <el-option :label="t('tasks.done')" value="DONE" />
                           </el-select>
                         </td>
                         <td class="px-3.5 py-2 text-right">
-                          <button type="button" class="p-1 hover:text-rose-500 text-slate-400 rounded-lg hover:bg-rose-500/10 transition-all cursor-pointer bg-transparent border-none" @click="handleDeleteTask(task.id)">
+                          <button
+                            type="button"
+                            class="p-1 hover:text-rose-500 text-slate-400 rounded-lg hover:bg-rose-500/10 transition-all cursor-pointer bg-transparent border-none"
+                            @click="handleDeleteTask(task.id)"
+                          >
                             <Trash2 class="w-3.5 h-3.5" />
                           </button>
                         </td>
@@ -876,18 +1010,29 @@ defineExpose({
               </div>
 
               <!-- Roadmap View -->
-              <div v-else-if="activeLeftTab === 'roadmap' && projectDetail.roadmap" class="space-y-6">
+              <div
+                v-else-if="activeLeftTab === 'roadmap' && projectDetail.roadmap"
+                class="space-y-6"
+              >
                 <!-- Roadmap Header card -->
                 <div
                   class="p-4 rounded-2xl border border-slate-200/50 dark:border-white/5 bg-white/50 dark:bg-slate-900/40 backdrop-blur-md relative overflow-hidden"
                 >
-                  <div class="absolute -right-10 -top-10 w-36 h-36 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-3xl"></div>
-                  <div class="absolute -left-10 -bottom-10 w-36 h-36 bg-accent/5 dark:bg-accent/10 rounded-full blur-3xl"></div>
-                  
-                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+                  <div
+                    class="absolute -right-10 -top-10 w-36 h-36 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-3xl"
+                  ></div>
+                  <div
+                    class="absolute -left-10 -bottom-10 w-36 h-36 bg-accent/5 dark:bg-accent/10 rounded-full blur-3xl"
+                  ></div>
+
+                  <div
+                    class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10"
+                  >
                     <div class="space-y-1 min-w-0 text-left">
                       <div class="flex items-center gap-2">
-                        <h2 class="text-sm sm:text-base font-black text-slate-800 dark:text-slate-100 truncate">
+                        <h2
+                          class="text-sm sm:text-base font-black text-slate-800 dark:text-slate-100 truncate"
+                        >
                           {{ projectDetail.roadmap.title }}
                         </h2>
                       </div>
@@ -895,14 +1040,23 @@ defineExpose({
                         {{ projectDetail.roadmap.description || t('projects.roadmapTip') }}
                       </p>
                     </div>
-                    
+
                     <!-- Progress -->
-                    <div class="flex items-center gap-2.5 shrink-0 self-start sm:self-center bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 p-1.5 px-2.5 rounded-xl">
+                    <div
+                      class="flex items-center gap-2.5 shrink-0 self-start sm:self-center bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 p-1.5 px-2.5 rounded-xl"
+                    >
                       <div class="flex flex-col items-end">
-                        <span class="text-[8px] font-black uppercase text-slate-400 tracking-wider">{{ t('projects.roadmapProgress') }}</span>
-                        <span class="text-xs font-black text-emerald-500">{{ calculateRoadmapProgress(projectDetail.roadmap) }}%</span>
+                        <span
+                          class="text-[8px] font-black uppercase text-slate-400 tracking-wider"
+                          >{{ t('projects.roadmapProgress') }}</span
+                        >
+                        <span class="text-xs font-black text-emerald-500"
+                          >{{ calculateRoadmapProgress(projectDetail.roadmap) }}%</span
+                        >
                       </div>
-                      <div class="w-16 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        class="w-16 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden"
+                      >
                         <div
                           class="h-full bg-gradient-to-r from-accent to-emerald-500 rounded-full transition-all duration-700"
                           :style="{ width: calculateRoadmapProgress(projectDetail.roadmap) + '%' }"
@@ -916,7 +1070,9 @@ defineExpose({
                 <div class="space-y-5">
                   <!-- Timeline -->
                   <div class="relative pl-[25px] sm:pl-10 space-y-3.5 py-1 text-left">
-                    <div class="absolute left-[11px] sm:left-[19px] top-5 bottom-5 w-0.5 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+                    <div
+                      class="absolute left-[11px] sm:left-[19px] top-5 bottom-5 w-0.5 rounded-full bg-slate-200 dark:bg-slate-800"
+                    ></div>
 
                     <div
                       v-for="(step, index) in projectDetail.roadmap.steps"
@@ -926,7 +1082,9 @@ defineExpose({
                     >
                       <!-- Progress glowing line -->
                       <div
-                        v-if="index < projectDetail.roadmap.steps.length - 1 && isStepCompleted(step.id)"
+                        v-if="
+                          index < projectDetail.roadmap.steps.length - 1 && isStepCompleted(step.id)
+                        "
                         class="absolute left-[-13px] sm:left-[-21px] top-5 bottom-[-18px] w-0.5 bg-emerald-500 z-0 opacity-80"
                       ></div>
 
@@ -944,9 +1102,18 @@ defineExpose({
                             getStepStatus(step, index) === 'upcoming',
                         }"
                       >
-                        <CheckCircle2 v-if="getStepStatus(step, index) === 'completed'" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5" />
-                        <Lock v-else-if="getStepStatus(step, index) === 'locked'" class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                        <Zap v-else-if="getStepStatus(step, index) === 'current'" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5" />
+                        <CheckCircle2
+                          v-if="getStepStatus(step, index) === 'completed'"
+                          class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5"
+                        />
+                        <Lock
+                          v-else-if="getStepStatus(step, index) === 'locked'"
+                          class="w-3 h-3 sm:w-3.5 sm:h-3.5"
+                        />
+                        <Zap
+                          v-else-if="getStepStatus(step, index) === 'current'"
+                          class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5"
+                        />
                         <span v-else class="text-xs font-black">{{ index + 1 }}</span>
                       </div>
 
@@ -974,7 +1141,8 @@ defineExpose({
                                 :class="{
                                   'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400':
                                     getStepStatus(step, index) === 'completed',
-                                  'bg-accent/10 text-accent': getStepStatus(step, index) === 'current',
+                                  'bg-accent/10 text-accent':
+                                    getStepStatus(step, index) === 'current',
                                   'bg-slate-100 dark:bg-white/5 text-slate-400':
                                     getStepStatus(step, index) === 'locked',
                                   'bg-slate-100 dark:bg-white/5 text-slate-500':
@@ -983,27 +1151,38 @@ defineExpose({
                               >
                                 {{ t('projects.stage', { num: index + 1 }) }}
                               </span>
-                              <span v-if="activeStepId === step.id" class="text-[8px] font-black text-accent bg-accent/10 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                              <span
+                                v-if="activeStepId === step.id"
+                                class="text-[8px] font-black text-accent bg-accent/10 px-1.5 py-0.2 rounded flex items-center gap-0.5"
+                              >
                                 <Sparkle class="w-2.5 h-2.5" /> {{ t('projects.exploring') }}
                               </span>
                             </div>
                             <h3
                               class="text-xs sm:text-sm font-bold truncate transition-colors"
                               :class="{
-                                'text-emerald-600 dark:text-emerald-400': getStepStatus(step, index) === 'completed',
+                                'text-emerald-600 dark:text-emerald-400':
+                                  getStepStatus(step, index) === 'completed',
                                 'text-accent': getStepStatus(step, index) === 'current',
-                                'text-slate-400 dark:text-slate-550': getStepStatus(step, index) === 'locked',
-                                'text-slate-800 dark:text-slate-100': getStepStatus(step, index) === 'upcoming',
+                                'text-slate-400 dark:text-slate-550':
+                                  getStepStatus(step, index) === 'locked',
+                                'text-slate-800 dark:text-slate-100':
+                                  getStepStatus(step, index) === 'upcoming',
                               }"
                             >
                               {{ step.title }}
                             </h3>
                           </div>
                           <div class="flex items-center gap-1 shrink-0 self-center">
-                            <div v-if="isStepCompleted(step.id)" class="w-4 h-4 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                            <div
+                              v-if="isStepCompleted(step.id)"
+                              class="w-4 h-4 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center"
+                            >
                               <CheckCircle2 class="w-3 h-3" />
                             </div>
-                            <ArrowRight class="w-3.5 h-3.5 text-slate-350 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform" />
+                            <ArrowRight
+                              class="w-3.5 h-3.5 text-slate-350 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform"
+                            />
                           </div>
                         </div>
                       </div>
@@ -1015,29 +1194,51 @@ defineExpose({
                     v-if="activeStep"
                     class="p-4 sm:p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-900/50 backdrop-blur-md space-y-4 shadow-xl relative overflow-hidden text-left"
                   >
-                    <div class="absolute -right-12 -top-12 w-24 h-24 bg-accent/5 rounded-full blur-2xl"></div>
+                    <div
+                      class="absolute -right-12 -top-12 w-24 h-24 bg-accent/5 rounded-full blur-2xl"
+                    ></div>
 
-                    <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5 relative z-10">
+                    <div
+                      class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5 relative z-10"
+                    >
                       <div class="flex items-center gap-1.5">
-                        <div class="w-7 h-7 rounded-lg bg-accent text-white flex items-center justify-center shrink-0">
-                           <Gauge class="w-4 h-4" />
+                        <div
+                          class="w-7 h-7 rounded-lg bg-accent text-white flex items-center justify-center shrink-0"
+                        >
+                          <Gauge class="w-4 h-4" />
                         </div>
                         <div class="space-y-0.5">
-                          <h4 class="text-[8px] font-black text-slate-400 uppercase tracking-widest">{{ t('projects.explorerAnalyzer') }}</h4>
-                          <p class="text-[11px] font-bold text-slate-700 dark:text-slate-200">{{ t('projects.stageDetailFocus') }}</p>
+                          <h4
+                            class="text-[8px] font-black text-slate-400 uppercase tracking-widest"
+                          >
+                            {{ t('projects.explorerAnalyzer') }}
+                          </h4>
+                          <p class="text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                            {{ t('projects.stageDetailFocus') }}
+                          </p>
                         </div>
                       </div>
-                      <span class="text-[10px] font-bold text-accent bg-accent/10 px-1.5 py-0.2 rounded-full shrink-0">
-                        {{ t('projects.stage', { num: projectDetail.roadmap.steps.indexOf(activeStep) + 1 }) }}
+                      <span
+                        class="text-[10px] font-bold text-accent bg-accent/10 px-1.5 py-0.2 rounded-full shrink-0"
+                      >
+                        {{
+                          t('projects.stage', {
+                            num: projectDetail.roadmap.steps.indexOf(activeStep) + 1,
+                          })
+                        }}
                       </span>
                     </div>
 
                     <!-- Title & Desc -->
                     <div class="space-y-1.5 relative z-10">
-                      <h3 class="text-sm font-black text-slate-800 dark:text-slate-100 leading-tight">
+                      <h3
+                        class="text-sm font-black text-slate-800 dark:text-slate-100 leading-tight"
+                      >
                         {{ activeStep.title }}
                       </h3>
-                      <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-white/[0.01] p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <p
+                        class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-white/[0.01] p-2.5 rounded-xl border border-slate-100 dark:border-slate-800"
+                      >
                         {{ activeStep.description || t('projects.customStepTip') }}
                       </p>
                     </div>
@@ -1047,48 +1248,90 @@ defineExpose({
                       <button
                         type="button"
                         class="w-full py-2 px-3 rounded-lg text-xs font-black text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md border-none"
-                        :class="isStepCompleted(activeStep.id) ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10' : 'bg-accent hover:bg-accent-dark shadow-accent/10'"
+                        :class="
+                          isStepCompleted(activeStep.id)
+                            ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10'
+                            : 'bg-accent hover:bg-accent-dark shadow-accent/10'
+                        "
                         @click="toggleStep(activeStep.id)"
                       >
                         <CheckCircle2 class="w-3.5 h-3.5" />
-                        <span>{{ isStepCompleted(activeStep.id) ? t('projects.stepCompletedReset') : t('projects.stepCompleteTarget') }}</span>
+                        <span>{{
+                          isStepCompleted(activeStep.id)
+                            ? t('projects.stepCompletedReset')
+                            : t('projects.stepCompleteTarget')
+                        }}</span>
                       </button>
                     </div>
 
                     <!-- Attributes -->
-                    <div class="space-y-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 relative z-10">
-                      <div class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">
+                    <div
+                      class="space-y-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 relative z-10"
+                    >
+                      <div
+                        class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5"
+                      >
                         <TrendingUp class="w-3 h-3 text-accent" />
                         <span>{{ t('projects.skillsAssessment') }}</span>
                       </div>
 
                       <div class="space-y-1.5">
                         <div>
-                          <div class="flex items-center justify-between text-[9px] text-slate-500 mb-0.5">
+                          <div
+                            class="flex items-center justify-between text-[9px] text-slate-500 mb-0.5"
+                          >
                             <span>{{ t('projects.skillDifficulty') }}</span>
                             <span class="font-bold text-slate-700 dark:text-slate-355">
-                              {{ getMetricsForStep(activeStep, projectDetail.roadmap.steps.indexOf(activeStep)).difficulty }}%
+                              {{
+                                getMetricsForStep(
+                                  activeStep,
+                                  projectDetail.roadmap.steps.indexOf(activeStep),
+                                ).difficulty
+                              }}%
                             </span>
                           </div>
-                          <div class="h-1 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
+                          <div
+                            class="h-1 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden"
+                          >
                             <div
                               class="h-full bg-rose-500 transition-all duration-500"
-                              :style="{ width: getMetricsForStep(activeStep, projectDetail.roadmap.steps.indexOf(activeStep)).difficulty + '%' }"
+                              :style="{
+                                width:
+                                  getMetricsForStep(
+                                    activeStep,
+                                    projectDetail.roadmap.steps.indexOf(activeStep),
+                                  ).difficulty + '%',
+                              }"
                             ></div>
                           </div>
                         </div>
 
                         <div>
-                          <div class="flex items-center justify-between text-[9px] text-slate-500 mb-0.5">
+                          <div
+                            class="flex items-center justify-between text-[9px] text-slate-500 mb-0.5"
+                          >
                             <span>{{ t('projects.practicalWeight') }}</span>
                             <span class="font-bold text-slate-700 dark:text-slate-355">
-                              {{ getMetricsForStep(activeStep, projectDetail.roadmap.steps.indexOf(activeStep)).practical }}%
+                              {{
+                                getMetricsForStep(
+                                  activeStep,
+                                  projectDetail.roadmap.steps.indexOf(activeStep),
+                                ).practical
+                              }}%
                             </span>
                           </div>
-                          <div class="h-1 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
+                          <div
+                            class="h-1 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden"
+                          >
                             <div
                               class="h-full bg-purple-500 transition-all duration-500"
-                              :style="{ width: getMetricsForStep(activeStep, projectDetail.roadmap.steps.indexOf(activeStep)).practical + '%' }"
+                              :style="{
+                                width:
+                                  getMetricsForStep(
+                                    activeStep,
+                                    projectDetail.roadmap.steps.indexOf(activeStep),
+                                  ).practical + '%',
+                              }"
                             ></div>
                           </div>
                         </div>
@@ -1099,8 +1342,15 @@ defineExpose({
                             {{ t('projects.estimatedStudyTime') }}
                           </span>
                           <span class="font-black text-slate-700 dark:text-slate-200">
-                            {{ getMetricsForStep(activeStep, projectDetail.roadmap.steps.indexOf(activeStep)).duration }}
-                            <span class="text-[9px] font-normal text-slate-400">{{ t('projects.hours') }}</span>
+                            {{
+                              getMetricsForStep(
+                                activeStep,
+                                projectDetail.roadmap.steps.indexOf(activeStep),
+                              ).duration
+                            }}
+                            <span class="text-[9px] font-normal text-slate-400">{{
+                              t('projects.hours')
+                            }}</span>
                           </span>
                         </div>
                       </div>
@@ -1111,12 +1361,16 @@ defineExpose({
                       v-if="getSubTasksForStep(activeStep).length > 0"
                       class="space-y-1.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 relative z-10"
                     >
-                      <div class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      <div
+                        class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                      >
                         <ListTodo class="w-3 h-3 text-accent" />
                         <span>{{ t('projects.skillsChecklist') }}</span>
                       </div>
 
-                      <div class="space-y-1.5 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <div
+                        class="space-y-1.5 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800"
+                      >
                         <div
                           v-for="subtask in getSubTasksForStep(activeStep)"
                           :key="subtask.id"
@@ -1125,13 +1379,24 @@ defineExpose({
                         >
                           <div
                             class="w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors mt-0.5"
-                            :class="checkedSubTasks[subtask.id] ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/10' : 'border-slate-300 dark:border-slate-650 group-hover/item:border-accent bg-white dark:bg-slate-850'"
+                            :class="
+                              checkedSubTasks[subtask.id]
+                                ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/10'
+                                : 'border-slate-300 dark:border-slate-650 group-hover/item:border-accent bg-white dark:bg-slate-850'
+                            "
                           >
-                            <CheckCircle2 v-if="checkedSubTasks[subtask.id]" class="w-2.5 h-2.5 text-white" />
+                            <CheckCircle2
+                              v-if="checkedSubTasks[subtask.id]"
+                              class="w-2.5 h-2.5 text-white"
+                            />
                           </div>
                           <span
                             class="text-xs transition-all duration-300"
-                            :class="checkedSubTasks[subtask.id] ? 'text-slate-400 dark:text-slate-550 line-through' : 'text-slate-600 dark:text-slate-300 group-hover/item:text-slate-800 dark:group-hover/item:text-slate-100'"
+                            :class="
+                              checkedSubTasks[subtask.id]
+                                ? 'text-slate-400 dark:text-slate-550 line-through'
+                                : 'text-slate-600 dark:text-slate-300 group-hover/item:text-slate-800 dark:group-hover/item:text-slate-100'
+                            "
                           >
                             {{ subtask.text }}
                           </span>
@@ -1144,7 +1409,9 @@ defineExpose({
                       v-if="getRelatedCourses(activeStep).length > 0"
                       class="space-y-2 pt-2.5 border-t border-slate-100 dark:border-slate-800 relative z-10"
                     >
-                      <div class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      <div
+                        class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                      >
                         <GraduationCap class="w-3 h-3 text-accent" />
                         <span>{{ t('projects.recommendedCourses') }}</span>
                       </div>
@@ -1156,7 +1423,9 @@ defineExpose({
                           class="flex gap-2 p-2 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-500/[0.01] hover:border-accent/40 dark:hover:border-accent/40 hover:bg-white dark:hover:bg-slate-900/50 transition-all cursor-pointer group/card"
                           @click="router.push({ name: 'CourseDetail', params: { id: course.id } })"
                         >
-                          <div class="w-14 h-9 rounded bg-slate-100 dark:bg-slate-850 shrink-0 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden">
+                          <div
+                            class="w-14 h-9 rounded bg-slate-100 dark:bg-slate-850 shrink-0 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden"
+                          >
                             <img
                               v-if="course.thumbnail"
                               alt=""
@@ -1166,14 +1435,28 @@ defineExpose({
                             <BookOpen v-else class="w-3 h-3 text-slate-400 mx-auto my-3" />
                           </div>
                           <div class="min-w-0 flex-1 flex flex-col justify-between">
-                            <h4 class="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate group-hover/card:text-accent transition-colors leading-snug">
+                            <h4
+                              class="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate group-hover/card:text-accent transition-colors leading-snug"
+                            >
                               {{ course.title }}
                             </h4>
-                            <div class="flex items-center justify-between text-[8px] text-slate-400">
-                              <span class="px-1 py-0.2 bg-slate-100 dark:bg-slate-800 rounded text-[8px]">
-                                {{ course.difficulty === 'BEGINNER' ? t('common.difficulty.beginner') : course.difficulty === 'INTERMEDIATE' ? t('common.difficulty.intermediate') : t('common.difficulty.advanced') }}
+                            <div
+                              class="flex items-center justify-between text-[8px] text-slate-400"
+                            >
+                              <span
+                                class="px-1 py-0.2 bg-slate-100 dark:bg-slate-800 rounded text-[8px]"
+                              >
+                                {{
+                                  course.difficulty === 'BEGINNER'
+                                    ? t('common.difficulty.beginner')
+                                    : course.difficulty === 'INTERMEDIATE'
+                                      ? t('common.difficulty.intermediate')
+                                      : t('common.difficulty.advanced')
+                                }}
                               </span>
-                              <span class="text-accent flex items-center gap-0.5 font-bold group-hover/card:translate-x-0.5 transition-transform text-[8px]">
+                              <span
+                                class="text-accent flex items-center gap-0.5 font-bold group-hover/card:translate-x-0.5 transition-transform text-[8px]"
+                              >
                                 {{ t('projects.goMaster') }} <ArrowRight class="w-2 h-2" />
                               </span>
                             </div>
@@ -1209,9 +1492,7 @@ defineExpose({
                   class="p-3 bg-slate-50 dark:bg-slate-800/30 rounded-xl border text-left"
                   style="border-color: var(--border-base)"
                 >
-                  <div
-                    class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1"
-                  >
+                  <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
                     {{ t('tasks.dueDate') }}
                   </div>
                   <span class="text-xs font-bold" style="color: var(--text-primary)">
@@ -1226,9 +1507,7 @@ defineExpose({
                   class="p-3 bg-slate-50 dark:bg-slate-800/30 rounded-xl border text-left"
                   style="border-color: var(--border-base)"
                 >
-                  <div
-                    class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1"
-                  >
+                  <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
                     {{ t('projects.projectProgress') }}
                   </div>
                   <div class="flex items-center gap-2">
@@ -1253,9 +1532,16 @@ defineExpose({
                   <h4
                     class="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5"
                   >
-                    <Users class="w-3.5 h-3.5" /> {{ t('projects.members') }} ({{ projectDetail.members.length }})
+                    <Users class="w-3.5 h-3.5" /> {{ t('projects.members') }} ({{
+                      projectDetail.members.length
+                    }})
                   </h4>
-                  <button v-if="isDetailOwner" type="button" class="px-2 py-0.5 bg-accent/10 hover:bg-accent/20 text-accent rounded-lg text-[10px] font-bold transition-all flex items-center gap-0.5 cursor-pointer border-none" @click="openInviteDetailDialog">
+                  <button
+                    v-if="isDetailOwner"
+                    type="button"
+                    class="px-2 py-0.5 bg-accent/10 hover:bg-accent/20 text-accent rounded-lg text-[10px] font-bold transition-all flex items-center gap-0.5 cursor-pointer border-none"
+                    @click="openInviteDetailDialog"
+                  >
                     <Plus class="w-2.5 h-2.5" />
                     <span>{{ t('projects.invite') }}</span>
                   </button>
@@ -1329,7 +1615,12 @@ defineExpose({
           <h3 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary)">
             {{ t('projects.batchAddTask') }}
           </h3>
-          <button type="button" class="bg-transparent border-none cursor-pointer" style="color: var(--text-secondary)" @click="isBatchDialogOpen = false">
+          <button
+            type="button"
+            class="bg-transparent border-none cursor-pointer"
+            style="color: var(--text-secondary)"
+            @click="isBatchDialogOpen = false"
+          >
             <X class="w-5 h-5" />
           </button>
         </div>
@@ -1343,16 +1634,16 @@ defineExpose({
               v-model="batchTaskText"
               rows="6"
               class="w-full px-4 py-2.5 sm:py-3 bg-slate-100 dark:bg-white/5 border-none rounded-xl sm:rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed"
-              style="color: var(--text-primary);"
+              style="color: var(--text-primary)"
               :placeholder="t('projects.batchTaskPlaceholder')"
             ></textarea>
           </div>
 
           <!-- Tasks Preview -->
           <div v-if="parsedBatchTasks.length > 0" class="space-y-1.5 sm:space-y-2">
-            <label class="block text-[10px] sm:text-xs font-bold uppercase text-slate-400 ml-1"
-              >{{ t('projects.batchTaskPreview', { count: parsedBatchTasks.length }) }}</label
-            >
+            <label class="block text-[10px] sm:text-xs font-bold uppercase text-slate-400 ml-1">{{
+              t('projects.batchTaskPreview', { count: parsedBatchTasks.length })
+            }}</label>
             <div
               class="max-h-24 overflow-y-auto border rounded-xl p-2.5 space-y-1 bg-slate-50 dark:bg-slate-800/10 scrollbar-hide"
               style="border-color: var(--border-base)"
@@ -1405,12 +1696,7 @@ defineExpose({
                 >{{ t('projects.batchPriority') }}</label
               >
               <el-select v-model="batchPriority" class="!w-full custom-select">
-                <el-option
-                  v-for="p in priorityOptions"
-                  :key="p.id"
-                  :label="p.label"
-                  :value="p.id"
-                >
+                <el-option v-for="p in priorityOptions" :key="p.id" :label="p.label" :value="p.id">
                   <div class="flex items-center gap-2">
                     <div class="w-2 h-2 rounded-full" :class="p.color"></div>
                     <span class="text-xs sm:text-sm font-bold">{{ p.label }}</span>
@@ -1434,7 +1720,11 @@ defineExpose({
             />
           </div>
         </div>
-        <button type="button" class="w-full py-3.5 bg-accent text-white rounded-xl sm:rounded-2xl font-bold shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-sm border-none cursor-pointer" @click="handleBatchCreateTasks">
+        <button
+          type="button"
+          class="w-full py-3.5 bg-accent text-white rounded-xl sm:rounded-2xl font-bold shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-sm border-none cursor-pointer"
+          @click="handleBatchCreateTasks"
+        >
           {{ t('projects.batchCreateButton') }}
         </button>
       </div>
@@ -1459,7 +1749,12 @@ defineExpose({
           <h3 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary)">
             {{ t('projects.inviteMembersTitle') }}
           </h3>
-          <button type="button" class="bg-transparent border-none cursor-pointer" style="color: var(--text-secondary)" @click="isDetailInviteDialogOpen = false">
+          <button
+            type="button"
+            class="bg-transparent border-none cursor-pointer"
+            style="color: var(--text-secondary)"
+            @click="isDetailInviteDialogOpen = false"
+          >
             <X class="w-5 h-5" />
           </button>
         </div>
@@ -1495,14 +1790,87 @@ defineExpose({
         </div>
 
         <div class="flex justify-end gap-2.5 sm:gap-3 pt-2">
-          <button type="button" class="px-4 py-2 sm:px-5 sm:py-2.5 bg-slate-100 dark:bg-white/5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold hover:scale-105 transition-all cursor-pointer border-none" style="color: var(--text-primary)" @click="isDetailInviteDialogOpen = false">
+          <Button
+            variant="secondary"
+            class="text-xs sm:text-sm"
+            @click="isDetailInviteDialogOpen = false"
+          >
             {{ t('common.cancel') }}
-          </button>
-          <button type="button" class="px-4 py-2 sm:px-5 sm:py-2.5 bg-accent text-white rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold hover:scale-105 transition-all shadow-md shadow-accent/20 cursor-pointer disabled:opacity-50 disabled:hover:scale-100 border-none" :disabled="detailInviteUserIds.length === 0" @click="handleSendDetailInvite">
+          </Button>
+          <Button
+            variant="primary"
+            class="text-xs sm:text-sm"
+            :disabled="detailInviteUserIds.length === 0"
+            @click="handleSendDetailInvite"
+          >
             {{ t('projects.sendInvite') }}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
   </Transition>
 </template>
+
+<style scoped>
+.custom-select :deep(.el-select__wrapper),
+.custom-select :deep(.el-input__wrapper) {
+  border-radius: 0.75rem !important;
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+}
+.dark .custom-select :deep(.el-select__wrapper),
+.dark .custom-select :deep(.el-input__wrapper) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.custom-select :deep(.el-select__wrapper.is-focused),
+.custom-select :deep(.el-input__wrapper.is-focus) {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
+}
+
+.custom-select-small :deep(.el-select__wrapper),
+.custom-select-small :deep(.el-input__wrapper) {
+  border-radius: 0.5rem !important;
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+  height: 28px !important;
+}
+.dark .custom-select-small :deep(.el-select__wrapper),
+.dark .custom-select-small :deep(.el-input__wrapper) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.custom-select-small :deep(.el-select__wrapper.is-focused),
+.custom-select-small :deep(.el-input__wrapper.is-focus) {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.15) !important;
+}
+
+.custom-date-picker :deep(.el-input__wrapper) {
+  border-radius: 0.75rem !important;
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+  height: 38px !important;
+}
+.dark .custom-date-picker :deep(.el-input__wrapper) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.custom-date-picker :deep(.el-input__wrapper.is-focus) {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
+}
+</style>

@@ -208,18 +208,23 @@ onMounted(() => {
         class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-orange-500/10 via-purple-500/5 to-transparent pointer-events-none"
       ></div>
 
-      <div
-        class="px-4 sm:px-8 py-3 flex flex-row items-center justify-between gap-3 relative z-10"
-      >
+      <div class="px-4 sm:px-8 py-3 flex flex-row items-center justify-between gap-3 relative z-10">
         <div class="flex items-center gap-3">
-          <span class="p-1.5 rounded-xl bg-orange-500/10 text-orange-500 shadow-sm border border-orange-500/20">
+          <span
+            class="p-1.5 rounded-xl bg-orange-500/10 text-orange-500 shadow-sm border border-orange-500/20"
+          >
             <ImageIcon class="w-4.5 h-4.5" />
           </span>
           <div>
-            <h1 class="text-sm sm:text-base font-black tracking-tight" style="color: var(--text-primary)">
+            <h1
+              class="text-sm sm:text-base font-black tracking-tight"
+              style="color: var(--text-primary)"
+            >
               工作台轮播管理
             </h1>
-            <p class="text-[10px] text-slate-400 hidden sm:block">配置主页首屏的精美广告宣传以及社区挑战活动位</p>
+            <p class="text-[10px] text-slate-400 hidden sm:block">
+              配置主页首屏的精美广告宣传以及社区挑战活动位
+            </p>
           </div>
         </div>
 
@@ -250,19 +255,28 @@ onMounted(() => {
       <AdminOpsPanel scope="banners" />
 
       <div v-if="isLoading" class="flex flex-col items-center justify-center py-24">
-        <div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+        <div
+          class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"
+        ></div>
       </div>
 
       <div v-else class="max-w-none">
         <div class="blender-card p-4">
           <el-table
             :data="banners"
-            style="width: 100%; --el-table-bg-color: transparent; --el-table-tr-bg-color: transparent; --el-table-header-bg-color: transparent;"
+            style="
+              width: 100%;
+              --el-table-bg-color: transparent;
+              --el-table-tr-bg-color: transparent;
+              --el-table-header-bg-color: transparent;
+            "
             class="custom-el-table"
           >
             <el-table-column label="预览" width="160">
               <template #default="{ row }">
-                <div class="w-28 aspect-video rounded-lg overflow-hidden border border-white/10 bg-slate-800 flex items-center justify-center relative">
+                <div
+                  class="w-28 aspect-video rounded-lg overflow-hidden border border-white/10 bg-slate-800 flex items-center justify-center relative"
+                >
                   <img
                     v-if="row.imageUrl"
                     :src="getAssetUrl(row.imageUrl)"
@@ -270,7 +284,7 @@ onMounted(() => {
                     alt="Banner preview"
                   />
                   <ImageIcon v-else class="w-5 h-5 text-slate-500" />
-                  
+
                   <span
                     v-if="row.tag"
                     class="absolute top-1 left-1 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full scale-90 origin-top-left"
@@ -286,7 +300,9 @@ onMounted(() => {
               <template #default="{ row }">
                 <div class="space-y-1">
                   <h4 class="font-bold text-xs sm:text-sm text-slate-100">{{ row.title }}</h4>
-                  <p v-if="row.subtitle" class="text-[10px] text-slate-400 line-clamp-1">{{ row.subtitle }}</p>
+                  <p v-if="row.subtitle" class="text-[10px] text-slate-400 line-clamp-1">
+                    {{ row.subtitle }}
+                  </p>
                 </div>
               </template>
             </el-table-column>
@@ -295,7 +311,10 @@ onMounted(() => {
               <template #default="{ row }">
                 <div class="flex items-center gap-1.5 text-xs text-slate-300">
                   <LinkIcon class="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                  <span class="truncate font-mono text-[10px] bg-slate-900/40 px-1.5 py-0.5 rounded">{{ row.route }}</span>
+                  <span
+                    class="truncate font-mono text-[10px] bg-slate-900/40 px-1.5 py-0.5 rounded"
+                    >{{ row.route }}</span
+                  >
                 </div>
               </template>
             </el-table-column>
@@ -308,7 +327,10 @@ onMounted(() => {
 
             <el-table-column label="排序值" width="90" align="center">
               <template #default="{ row }">
-                <span class="text-xs font-mono font-bold bg-slate-100 dark:bg-white/5 border dark:border-white/5 px-2 py-0.5 rounded-md">{{ row.order }}</span>
+                <span
+                  class="text-xs font-mono font-bold bg-slate-100 dark:bg-white/5 border dark:border-white/5 px-2 py-0.5 rounded-md"
+                  >{{ row.order }}</span
+                >
               </template>
             </el-table-column>
 
@@ -347,7 +369,9 @@ onMounted(() => {
 
           <div v-if="banners.length === 0" class="py-16 text-center">
             <ImageIcon class="w-12 h-12 text-slate-600 mx-auto mb-3 opacity-30" />
-            <p class="text-xs text-slate-500 font-bold">暂无轮播图配置，前台将自动加载系统预设的静态广告位</p>
+            <p class="text-xs text-slate-500 font-bold">
+              暂无轮播图配置，前台将自动加载系统预设的静态广告位
+            </p>
           </div>
         </div>
       </div>
@@ -386,10 +410,14 @@ onMounted(() => {
 
         <!-- Image Upload -->
         <div class="space-y-1.5">
-          <label class="text-xs font-black text-slate-300">轮播背景图 * (推荐 21:9，最大 5MB)</label>
+          <label class="text-xs font-black text-slate-300"
+            >轮播背景图 * (推荐 21:9，最大 5MB)</label
+          >
           <div class="flex items-start gap-4">
             <!-- Thumbnail preview -->
-            <div class="w-36 aspect-video rounded-xl overflow-hidden border dark:border-white/10 bg-slate-800 flex items-center justify-center relative group shrink-0">
+            <div
+              class="w-36 aspect-video rounded-xl overflow-hidden border dark:border-white/10 bg-slate-800 flex items-center justify-center relative group shrink-0"
+            >
               <img
                 v-if="form.imageUrl"
                 :src="getAssetUrl(form.imageUrl)"
@@ -397,11 +425,14 @@ onMounted(() => {
                 alt="Banner uploading preview"
               />
               <ImageIcon v-else class="w-6 h-6 text-slate-600" />
-              <div v-if="isUploading" class="absolute inset-0 bg-black/60 flex items-center justify-center">
+              <div
+                v-if="isUploading"
+                class="absolute inset-0 bg-black/60 flex items-center justify-center"
+              >
                 <RefreshCw class="w-5 h-5 text-white animate-spin" />
               </div>
             </div>
-            
+
             <div class="space-y-2">
               <button
                 type="button"

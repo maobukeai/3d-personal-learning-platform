@@ -139,8 +139,7 @@ const openEditModal = (roadmap: Roadmap | null = null) => {
         },
         {
           title: t('admin.stage_2_in_depth'),
-          description:
-            t('admin.introduce_advanced_editing_instructions'),
+          description: t('admin.introduce_advanced_editing_instructions'),
           subtasks: [
             t('admin.use_the_subdivision_modifier'),
             t('admin.complete_the_uv_unfolding'),
@@ -249,15 +248,11 @@ const handleSaveRoadmap = async () => {
 
 const handleDeleteRoadmap = async (id: string) => {
   try {
-    await ElMessageBox.confirm(
-      t('admin.are_you_sure_you_13'),
-      t('admin.delete_confirmation'),
-      {
-        confirmButtonText: t('admin.confirm_deletion_1'),
-        cancelButtonText: t('admin.cancel'),
-        type: 'warning',
-      },
-    );
+    await ElMessageBox.confirm(t('admin.are_you_sure_you_13'), t('admin.delete_confirmation'), {
+      confirmButtonText: t('admin.confirm_deletion_1'),
+      cancelButtonText: t('admin.cancel'),
+      type: 'warning',
+    });
   } catch {
     return;
   }
@@ -322,7 +317,11 @@ onMounted(() => {
           </div>
         </div>
 
-        <button type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] transition-all shadow-md shadow-indigo-500/15 cursor-pointer whitespace-nowrap hover:scale-102" @click="openEditModal()">
+        <button
+          type="button"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] transition-all shadow-md shadow-indigo-500/15 cursor-pointer whitespace-nowrap hover:scale-102"
+          @click="openEditModal()"
+        >
           <Plus class="w-3.5 h-3.5" />
           <span>{{ $t('admin.create_a_new_learning') }}</span>
         </button>
@@ -367,7 +366,12 @@ onMounted(() => {
                 color: var(--text-primary);
               "
             />
-            <button v-if="searchQuery" type="button" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" @click="searchQuery = ''">
+            <button
+              v-if="searchQuery"
+              type="button"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              @click="searchQuery = ''"
+            >
               <X class="w-3 h-3" />
             </button>
           </div>
@@ -403,18 +407,27 @@ onMounted(() => {
         >
           <FolderOpen class="w-8 h-8" />
         </div>
-        <h3 class="text-md font-bold mb-2" style="color: var(--text-primary)">{{ $t('admin.no_learning_route_found') }}</h3>
+        <h3 class="text-md font-bold mb-2" style="color: var(--text-primary)">
+          {{ $t('admin.no_learning_route_found') }}
+        </h3>
         <p class="text-xs text-slate-400 leading-relaxed mb-6">
           目前没有已发布的官方路线，或者搜索关键字未匹配到任何结果。点击右上角即可新建官方教学路径。
         </p>
-        <button type="button" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-md shadow-indigo-500/10 cursor-pointer whitespace-nowrap" @click="openEditModal()">
+        <button
+          type="button"
+          class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-md shadow-indigo-500/10 cursor-pointer whitespace-nowrap"
+          @click="openEditModal()"
+        >
           <Plus class="w-4 h-4" />
           <span>{{ $t('admin.create_the_first_official') }}</span>
         </button>
       </div>
 
       <!-- Roadmaps Grid List -->
-      <div v-else class="max-w-none grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+      <div
+        v-else
+        class="max-w-none grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6"
+      >
         <div
           v-for="roadmap in filteredRoadmaps"
           :key="roadmap.id"
@@ -464,10 +477,20 @@ onMounted(() => {
 
                 <!-- Quick Metadata Actions -->
                 <div class="flex items-center gap-1 shrink-0">
-                  <button type="button" class="p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 transition-colors" :title="$t('admin.edit_entire_route')" @click="openEditModal(roadmap)">
+                  <button
+                    type="button"
+                    class="p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 transition-colors"
+                    :title="$t('admin.edit_entire_route')"
+                    @click="openEditModal(roadmap)"
+                  >
                     <Edit2 class="w-3.5 h-3.5" />
                   </button>
-                  <button type="button" class="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors" :title="$t('admin.cascading_delete_routes')" @click="handleDeleteRoadmap(roadmap.id)">
+                  <button
+                    type="button"
+                    class="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
+                    :title="$t('admin.cascading_delete_routes')"
+                    @click="handleDeleteRoadmap(roadmap.id)"
+                  >
                     <Trash2 class="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -518,7 +541,9 @@ onMounted(() => {
                     v-if="roadmap.steps.length > 3"
                     class="pt-1 text-[10px] text-indigo-500/90 font-black flex items-center gap-1 pl-1"
                   >
-                    <span>{{ $t('admin.there_are_also_roadmap', { count: roadmap.steps.length - 3 }) }}</span>
+                    <span>{{
+                      $t('admin.there_are_also_roadmap', { count: roadmap.steps.length - 3 })
+                    }}</span>
                     <ArrowRight class="w-3 h-3" />
                   </div>
                 </div>
@@ -541,9 +566,19 @@ onMounted(() => {
             >
               <div class="flex items-center gap-1">
                 <Calendar class="w-3 h-3 opacity-60" />
-                <span>{{ $t('admin.update_time_value', { time: roadmap.createdAt ? new Date(roadmap.createdAt).toLocaleDateString() : '-' }) }}</span>
+                <span>{{
+                  $t('admin.update_time_value', {
+                    time: roadmap.createdAt
+                      ? new Date(roadmap.createdAt).toLocaleDateString()
+                      : '-',
+                  })
+                }}</span>
               </div>
-              <button type="button" class="text-[10px] font-black text-indigo-500 hover:text-indigo-600 transition-colors flex items-center gap-0.5" @click="openEditModal(roadmap)">
+              <button
+                type="button"
+                class="text-[10px] font-black text-indigo-500 hover:text-indigo-600 transition-colors flex items-center gap-0.5"
+                @click="openEditModal(roadmap)"
+              >
                 <span>{{ $t('admin.enter_the_editor') }}</span>
                 <ArrowRight class="w-3 h-3" />
               </button>
@@ -583,14 +618,22 @@ onMounted(() => {
                 class="text-lg font-bold flex items-center gap-2"
                 style="color: var(--text-primary)"
               >
-                {{ currentRoadmap ? t('admin.edit_official_learning_route') : $t('admin.arrange_a_new_learning') }}
+                {{
+                  currentRoadmap
+                    ? t('admin.edit_official_learning_route')
+                    : $t('admin.arrange_a_new_learning')
+                }}
               </h3>
               <p class="text-[10px] text-slate-400">
                 在这里统一进行路线元数据配置以及高精度节点流的增删、行内编辑和顺序调整
               </p>
             </div>
           </div>
-          <button type="button" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors" @click="showEditModal = false">
+          <button
+            type="button"
+            class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            @click="showEditModal = false"
+          >
             <X class="w-4 h-4" />
           </button>
         </div>
@@ -659,11 +702,17 @@ onMounted(() => {
               <ul class="text-[10px] leading-relaxed space-y-2 text-slate-400">
                 <li class="flex items-start gap-1.5">
                   <span class="text-indigo-500 mt-0.5">•</span>
-                  <span><strong>{{ $t('admin.clear_steps') }}</strong>{{ $t('admin.the_goal_of_each') }}</span>
+                  <span
+                    ><strong>{{ $t('admin.clear_steps') }}</strong
+                    >{{ $t('admin.the_goal_of_each') }}</span
+                  >
                 </li>
                 <li class="flex items-start gap-1.5">
                   <span class="text-indigo-500 mt-0.5">•</span>
-                  <span><strong>{{ $t('admin.reasonable_step_size') }}</strong>{{ $t('admin.the_official_route_recommends') }}</span>
+                  <span
+                    ><strong>{{ $t('admin.reasonable_step_size') }}</strong
+                    >{{ $t('admin.the_official_route_recommends') }}</span
+                  >
                 </li>
                 <li class="flex items-start gap-1.5">
                   <span class="text-indigo-500 mt-0.5">•</span>
@@ -691,7 +740,11 @@ onMounted(() => {
                 </span>
               </div>
 
-              <button type="button" class="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-indigo-500/30 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all text-[10px] font-black cursor-pointer" @click="addStep">
+              <button
+                type="button"
+                class="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-indigo-500/30 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all text-[10px] font-black cursor-pointer"
+                @click="addStep"
+              >
                 <Plus class="w-3 h-3" />
                 <span>{{ $t('admin.add_new_steps') }}</span>
               </button>
@@ -708,7 +761,11 @@ onMounted(() => {
               >
                 <Layers class="w-8 h-8 opacity-30" />
                 <p class="text-xs font-medium">{{ $t('admin.there_are_currently_no_1') }}</p>
-                <button type="button" class="mt-2 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500 text-indigo-500 hover:text-white text-[10px] font-bold border border-indigo-500/20 transition-all cursor-pointer" @click="addStep">
+                <button
+                  type="button"
+                  class="mt-2 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500 text-indigo-500 hover:text-white text-[10px] font-bold border border-indigo-500/20 transition-all cursor-pointer"
+                  @click="addStep"
+                >
                   <Plus class="w-3.5 h-3.5" />
                   <span>{{ $t('admin.add_first_step') }}</span>
                 </button>
@@ -734,10 +791,22 @@ onMounted(() => {
 
                       <!-- Arrow Controls -->
                       <div class="flex flex-col gap-0.5">
-                        <button type="button" class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 disabled:opacity-30 disabled:pointer-events-none transition-colors" :disabled="index === 0" :title="$t('admin.move_up')" @click="moveStepUp(index)">
+                        <button
+                          type="button"
+                          class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                          :disabled="index === 0"
+                          :title="$t('admin.move_up')"
+                          @click="moveStepUp(index)"
+                        >
                           <ChevronUp class="w-3.5 h-3.5" />
                         </button>
-                        <button type="button" class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 disabled:opacity-30 disabled:pointer-events-none transition-colors" :disabled="index === editForm.steps.length - 1" :title="$t('admin.move_down')" @click="moveStepDown(index)">
+                        <button
+                          type="button"
+                          class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                          :disabled="index === editForm.steps.length - 1"
+                          :title="$t('admin.move_down')"
+                          @click="moveStepDown(index)"
+                        >
                           <ChevronDown class="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -779,7 +848,11 @@ onMounted(() => {
                             <CheckCircle2 class="w-3.5 h-3.5 text-indigo-500" />
                             <span>{{ $t('admin.stage_breakdown_task_list') }}</span>
                           </label>
-                          <button type="button" class="text-[10px] font-black text-indigo-500 hover:text-indigo-600 flex items-center gap-0.5 cursor-pointer" @click="step.subtasks.push('')">
+                          <button
+                            type="button"
+                            class="text-[10px] font-black text-indigo-500 hover:text-indigo-600 flex items-center gap-0.5 cursor-pointer"
+                            @click="step.subtasks.push('')"
+                          >
                             <Plus class="w-3 h-3" />
                             <span>{{ $t('admin.add_task_item') }}</span>
                           </button>
@@ -807,7 +880,11 @@ onMounted(() => {
                                 color: var(--text-primary);
                               "
                             />
-                            <button type="button" class="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors shrink-0 cursor-pointer" @click="step.subtasks.splice(sIdx, 1)">
+                            <button
+                              type="button"
+                              class="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors shrink-0 cursor-pointer"
+                              @click="step.subtasks.splice(sIdx, 1)"
+                            >
                               <X class="w-3 h-3" />
                             </button>
                           </div>
@@ -823,7 +900,12 @@ onMounted(() => {
                     </div>
 
                     <!-- Delete Step Action -->
-                    <button type="button" class="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors shrink-0 align-self-start mt-1" :title="$t('admin.removal_steps')" @click="removeStep(index)">
+                    <button
+                      type="button"
+                      class="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors shrink-0 align-self-start mt-1"
+                      :title="$t('admin.removal_steps')"
+                      @click="removeStep(index)"
+                    >
                       <Trash2 class="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -838,10 +920,18 @@ onMounted(() => {
           class="flex items-center gap-4 mt-6 pt-4 border-t"
           style="border-color: var(--border-base)"
         >
-          <button type="button" class="flex-1 py-2.5 rounded-xl font-bold text-xs text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border border-slate-200/50 dark:border-white/5" @click="showEditModal = false">
+          <button
+            type="button"
+            class="flex-1 py-2.5 rounded-xl font-bold text-xs text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border border-slate-200/50 dark:border-white/5"
+            @click="showEditModal = false"
+          >
             取消返回
           </button>
-          <button type="button" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-md shadow-indigo-500/10 flex items-center justify-center gap-1.5" @click="handleSaveRoadmap">
+          <button
+            type="button"
+            class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-md shadow-indigo-500/10 flex items-center justify-center gap-1.5"
+            @click="handleSaveRoadmap"
+          >
             <CheckCircle2 class="w-4 h-4" />
             <span>{{ $t('admin.save_route_arrangement') }}</span>
           </button>

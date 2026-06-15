@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Shield } from 'lucide-vue-next';
 import type { TwoFactorAccount } from '@/types';
+import Modal from '@/components/ui/Modal.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -16,26 +17,29 @@ const emit = defineEmits<{
 
 const visible = computed({
   get: () => props.modelValue,
-  set: (val) => emit('update:modelValue', val)
+  set: (val) => emit('update:modelValue', val),
 });
 
 const exportForm = ref({
   encrypt: false,
   password: '',
-  confirmPassword: ''
+  confirmPassword: '',
 });
 
 const isLoading = ref(false);
 
-watch(() => props.modelValue, (newVal) => {
-  if (newVal) {
-    exportForm.value = {
-      encrypt: false,
-      password: '',
-      confirmPassword: ''
-    };
-  }
-});
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    if (newVal) {
+      exportForm.value = {
+        encrypt: false,
+        password: '',
+        confirmPassword: '',
+      };
+    }
+  },
+);
 
 // WebCrypto Helper Functions (AES-GCM Encryption)
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -55,19 +59,19 @@ async function getEncryptionKey(password: string, salt: Uint8Array): Promise<Cry
     enc.encode(password),
     { name: 'PBKDF2' },
     false,
-    ['deriveBits', 'deriveKey']
+    ['deriveBits', 'deriveKey'],
   );
   return window.crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
       salt: salt.buffer as ArrayBuffer,
       iterations: 100000,
-      hash: 'SHA-256'
+      hash: 'SHA-256',
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     false,
-    ['encrypt', 'decrypt']
+    ['encrypt', 'decrypt'],
   );
 }
 
@@ -79,17 +83,17 @@ async function encryptData(data: string, password: string): Promise<string> {
   const ciphertextBuffer = await window.crypto.subtle.encrypt(
     {
       name: 'AES-GCM',
-      iv: iv.buffer as ArrayBuffer
+      iv: iv.buffer as ArrayBuffer,
     },
     key,
-    enc.encode(data)
+    enc.encode(data),
   );
 
   const payload = {
     encrypted: true,
     salt: arrayBufferToBase64(salt.buffer as ArrayBuffer),
     iv: arrayBufferToBase64(iv.buffer as ArrayBuffer),
-    ciphertext: arrayBufferToBase64(ciphertextBuffer)
+    ciphertext: arrayBufferToBase64(ciphertextBuffer),
   };
   return JSON.stringify(payload, null, 2);
 }
@@ -111,12 +115,12 @@ async function submitExportBackup() {
     }
   }
 
-  const backupData = props.accounts.map(acc => ({
+  const backupData = props.accounts.map((acc) => ({
     label: acc.label,
     email: acc.email,
     secret: acc.secret,
     note: acc.note,
-    category: acc.category
+    category: acc.category,
   }));
 
   const jsonString = JSON.stringify(backupData, null, 2);
@@ -159,23 +163,21 @@ async function submitExportBackup() {
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    title="导出安全备份"
-    width="90%"
-    style="max-width: 400px"
-    destroy-on-close
-    class="custom-el-dialog"
-  >
+  <Modal :show="visible" title="导出安全备份" size="sm" @close="visible = false">
     <div class="space-y-4">
-      <div class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3.5 flex items-start gap-2">
+      <div
+        class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3.5 flex items-start gap-2"
+      >
         <Shield class="h-5 w-5 text-indigo-400 shrink-0 mt-0.5" />
         <p class="text-xs leading-normal text-slate-300">
           导出您的 2FA 账户数据。为了数据安全，强烈建议启用密码加密，防止密钥在本地或传输中泄漏。
         </p>
       </div>
 
-      <div class="flex items-center justify-between border-b pb-3" style="border-color: var(--border-base)">
+      <div
+        class="flex items-center justify-between border-b pb-3"
+        style="border-color: var(--border-base)"
+      >
         <span class="text-xs font-bold text-slate-300">启用密码加密</span>
         <el-switch v-model="exportForm.encrypt" active-color="#6366f1" />
       </div>
@@ -206,23 +208,25 @@ async function submitExportBackup() {
     </div>
 
     <template #footer>
-      <div class="flex justify-end gap-3 pt-2">
-        <el-button
-          style="background-color: var(--bg-app); border: 1px solid var(--border-base); color: var(--text-secondary)"
-          class="px-4 py-2 rounded-xl"
-          @click="visible = false"
-        >
-          取消
-        </el-button>
-        <el-button
-          type="primary"
-          class="bg-indigo-600 hover:bg-indigo-500 border-none font-semibold px-5 py-2.5 rounded-xl transition-all"
-          :loading="isLoading"
-          @click="submitExportBackup"
-        >
-          开始导出
-        </el-button>
-      </div>
+      <el-button
+        style="
+          background-color: var(--bg-app);
+          border: 1px solid var(--border-base);
+          color: var(--text-secondary);
+        "
+        class="px-4 py-2 rounded-xl text-xs font-semibold"
+        @click="visible = false"
+      >
+        取消
+      </el-button>
+      <el-button
+        type="primary"
+        class="bg-indigo-600 hover:bg-indigo-500 border-none font-semibold px-5 py-2.5 rounded-xl transition-all"
+        :loading="isLoading"
+        @click="submitExportBackup"
+      >
+        开始导出
+      </el-button>
     </template>
-  </el-dialog>
+  </Modal>
 </template>

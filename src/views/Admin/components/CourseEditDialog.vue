@@ -87,9 +87,9 @@ defineExpose({ open });
       </h3>
       <div class="space-y-4">
         <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >{{ $t('admin.course_title') }}</label
-          >
+          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+            $t('admin.course_title')
+          }}</label>
           <input
             v-model="courseForm.title"
             type="text"
@@ -104,9 +104,9 @@ defineExpose({ open });
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >{{ $t('admin.course_classification') }}</label
-            >
+            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+              $t('admin.course_classification')
+            }}</label>
             <select
               v-model="courseForm.categoryId"
               class="w-full px-4 py-3 rounded-2xl border transition-all outline-none appearance-none"
@@ -123,9 +123,9 @@ defineExpose({ open });
             </select>
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >{{ $t('admin.difficulty_level') }}</label
-            >
+            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+              $t('admin.difficulty_level')
+            }}</label>
             <select
               v-model="courseForm.difficulty"
               class="w-full px-4 py-3 rounded-2xl border transition-all outline-none appearance-none"
@@ -142,9 +142,9 @@ defineExpose({ open });
           </div>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >{{ $t('admin.release_status') }}</label
-          >
+          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+            $t('admin.release_status')
+          }}</label>
           <div class="flex items-center gap-4">
             <label class="flex items-center gap-2 cursor-pointer">
               <input
@@ -153,23 +153,22 @@ defineExpose({ open });
                 value="PUBLISHED"
                 class="accent-accent"
               />
-              <span class="text-sm font-medium" style="color: var(--text-primary)">{{ $t('admin.publish') }}</span>
+              <span class="text-sm font-medium" style="color: var(--text-primary)">{{
+                $t('admin.publish')
+              }}</span>
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
-              <input
-                v-model="courseForm.status"
-                type="radio"
-                value="DRAFT"
-                class="accent-accent"
-              />
-              <span class="text-sm font-medium" style="color: var(--text-primary)">{{ $t('admin.draft') }}</span>
+              <input v-model="courseForm.status" type="radio" value="DRAFT" class="accent-accent" />
+              <span class="text-sm font-medium" style="color: var(--text-primary)">{{
+                $t('admin.draft')
+              }}</span>
             </label>
           </div>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >{{ $t('admin.course_description') }}</label
-          >
+          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+            $t('admin.course_description')
+          }}</label>
           <textarea
             v-model="courseForm.description"
             rows="3"
@@ -183,9 +182,9 @@ defineExpose({ open });
           ></textarea>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >{{ $t('admin.cover_image_link') }}</label
-          >
+          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+            $t('admin.cover_image_link')
+          }}</label>
           <input
             v-model="courseForm.thumbnail"
             type="text"
@@ -200,10 +199,18 @@ defineExpose({ open });
         </div>
       </div>
       <div class="flex items-center gap-4 mt-8">
-        <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer" @click="visible = false">
+        <button
+          type="button"
+          class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          @click="visible = false"
+        >
           取消
         </button>
-        <button type="button" class="flex-1 py-3 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 cursor-pointer" @click="handleSaveCourse">
+        <button
+          type="button"
+          class="flex-1 py-3 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 cursor-pointer"
+          @click="handleSaveCourse"
+        >
           保存课程
         </button>
       </div>

@@ -2,13 +2,7 @@
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, watch, computed } from 'vue';
-import {
-  Ticket,
-  Trash2,
-  Copy,
-  Search,
-  X,
-} from 'lucide-vue-next';
+import { Ticket, Trash2, Copy, Search, X } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getApiErrorMessage } from '@/utils/error';
 import api from '@/utils/api';
@@ -138,7 +132,11 @@ const handleDeleteCode = async (code: ActivationCode) => {
     await ElMessageBox.confirm(
       t('admin.are_you_sure_you_3', { codecode: code.code }),
       t('admin.confirm_deletion_1'),
-      { confirmButtonText: t('admin.delete'), cancelButtonText: t('admin.cancel'), type: 'warning' },
+      {
+        confirmButtonText: t('admin.delete'),
+        cancelButtonText: t('admin.cancel'),
+        type: 'warning',
+      },
     );
     await api.delete(`/api/admin/activation-codes/${code.id}`);
     ElMessage.success(t('admin.activation_code_has_been'));
@@ -167,8 +165,12 @@ const copyToClipboard = (text: string) => {
       <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
         <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
           <button
-v-for="filter in [
-              { key: 'ALL', label: $t('admin.all_activation_codes'), count: activationCodes.length },
+            v-for="filter in [
+              {
+                key: 'ALL',
+                label: $t('admin.all_activation_codes'),
+                count: activationCodes.length,
+              },
               {
                 key: 'ACTIVE',
                 label: $t('admin.not_used'),
@@ -182,11 +184,14 @@ v-for="filter in [
               {
                 key: 'DISABLED',
                 label: $t('admin.expired'),
-                count: activationCodes.filter(
-                  (c) => c.status !== 'ACTIVE' && c.status !== 'USED',
-                ).length,
+                count: activationCodes.filter((c) => c.status !== 'ACTIVE' && c.status !== 'USED')
+                  .length,
               },
-            ]" :key="filter.key" type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0" :class="[
+            ]"
+            :key="filter.key"
+            type="button"
+            class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
+            :class="[
               codeStatusFilter === filter.key
                 ? filter.key === 'ACTIVE'
                   ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
@@ -196,7 +201,9 @@ v-for="filter in [
                       ? 'bg-slate-500/10 text-slate-500 border-slate-500/30 ring-1 ring-slate-500/20 font-extrabold shadow-sm'
                       : 'bg-violet-500/10 text-violet-500 border-violet-500/30 ring-1 ring-violet-500/20 font-extrabold shadow-sm'
                 : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5',
-            ]" @click="codeStatusFilter = filter.key as CodeStatus">
+            ]"
+            @click="codeStatusFilter = filter.key as CodeStatus"
+          >
             <span>{{ filter.label }}</span>
             <span class="opacity-60">({{ filter.count }})</span>
           </button>
@@ -293,11 +300,15 @@ v-for="filter in [
           >
             <td class="px-4 sm:px-6 py-3.5 sm:py-4">
               <div class="flex items-center gap-2">
-                <code
-                  class="text-xs font-mono font-bold text-[var(--text-primary)] select-all"
-                  >{{ c.code }}</code
+                <code class="text-xs font-mono font-bold text-[var(--text-primary)] select-all">{{
+                  c.code
+                }}</code>
+                <button
+                  type="button"
+                  class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 hover:text-accent transition-all"
+                  :title="$t('admin.copy_activation_code')"
+                  @click="copyToClipboard(c.code)"
                 >
-                <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 hover:text-accent transition-all" :title="$t('admin.copy_activation_code')" @click="copyToClipboard(c.code)">
                   <Copy class="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -313,16 +324,18 @@ v-for="filter in [
                 {{ c.plan?.displayName || c.plan?.name }}
               </span>
             </td>
-            <td
-              class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs font-bold text-[var(--text-secondary)]"
-            >
+            <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs font-bold text-[var(--text-secondary)]">
               {{ c.durationDays }} 天
             </td>
             <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)]">
               {{ c.bindEmail || $t('admin.unlimited_1') }}
             </td>
             <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)]">
-              {{ c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : $t('admin.valid_permanently') }}
+              {{
+                c.expiresAt
+                  ? new Date(c.expiresAt).toLocaleDateString()
+                  : $t('admin.valid_permanently')
+              }}
             </td>
             <td
               class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)] max-w-[150px] truncate"
@@ -342,7 +355,11 @@ v-for="filter in [
                 "
               >
                 {{
-                  c.status === 'ACTIVE' ? t('admin.not_used') : c.status === 'USED' ? t('admin.already_used') : $t('admin.expired')
+                  c.status === 'ACTIVE'
+                    ? t('admin.not_used')
+                    : c.status === 'USED'
+                      ? t('admin.already_used')
+                      : $t('admin.expired')
                 }}
               </span>
             </td>
@@ -359,7 +376,12 @@ v-for="filter in [
               {{ new Date(c.createdAt).toLocaleString() }}
             </td>
             <td class="px-4 sm:px-6 py-3.5 sm:py-4">
-              <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-rose-500 transition-all" :title="$t('admin.delete')" @click="handleDeleteCode(c)">
+              <button
+                type="button"
+                class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-rose-500 transition-all"
+                :title="$t('admin.delete')"
+                @click="handleDeleteCode(c)"
+              >
                 <Trash2 class="w-4 h-4" />
               </button>
             </td>
@@ -389,7 +411,12 @@ v-for="filter in [
               class="text-xs font-mono font-bold text-[var(--text-primary)] select-all truncate"
               >{{ c.code }}</code
             >
-            <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 hover:text-accent transition-all shrink-0" :title="$t('admin.copy_activation_code')" @click="copyToClipboard(c.code)">
+            <button
+              type="button"
+              class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 hover:text-accent transition-all shrink-0"
+              :title="$t('admin.copy_activation_code')"
+              @click="copyToClipboard(c.code)"
+            >
               <Copy class="w-3.5 h-3.5" />
             </button>
           </div>
@@ -414,7 +441,11 @@ v-for="filter in [
               "
             >
               {{
-                c.status === 'ACTIVE' ? t('admin.not_used') : c.status === 'USED' ? t('admin.already_used') : $t('admin.expired')
+                c.status === 'ACTIVE'
+                  ? t('admin.not_used')
+                  : c.status === 'USED'
+                    ? t('admin.already_used')
+                    : $t('admin.expired')
               }}
             </span>
           </div>
@@ -424,13 +455,17 @@ v-for="filter in [
           class="grid grid-cols-4 gap-1.5 text-[9px] xs:text-[10px] border-t border-[var(--border-base)] pt-3 min-w-0"
         >
           <div class="min-w-0">
-            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.days') }}</span>
-            <span class="font-bold text-[var(--text-secondary)] truncate block"
-              >{{ $t('admin.duration_days_count', { days: c.durationDays }) }}</span
-            >
+            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{
+              $t('admin.days')
+            }}</span>
+            <span class="font-bold text-[var(--text-secondary)] truncate block">{{
+              $t('admin.duration_days_count', { days: c.durationDays })
+            }}</span>
           </div>
           <div class="min-w-0">
-            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.bind_email') }}</span>
+            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{
+              $t('admin.bind_email')
+            }}</span>
             <span
               class="font-bold text-[var(--text-secondary)] truncate block"
               :title="c.bindEmail || $t('admin.unlimited_1')"
@@ -439,13 +474,21 @@ v-for="filter in [
             </span>
           </div>
           <div class="min-w-0">
-            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.expiration_time') }}</span>
+            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{
+              $t('admin.expiration_time')
+            }}</span>
             <span class="font-bold text-[var(--text-secondary)] truncate block">
-              {{ c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : $t('admin.valid_permanently') }}
+              {{
+                c.expiresAt
+                  ? new Date(c.expiresAt).toLocaleDateString()
+                  : $t('admin.valid_permanently')
+              }}
             </span>
           </div>
           <div class="min-w-0">
-            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.generation_time') }}</span>
+            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{
+              $t('admin.generation_time')
+            }}</span>
             <span class="font-bold text-[var(--text-secondary)] truncate block">
               {{ new Date(c.createdAt).toLocaleDateString() }}
             </span>
@@ -473,7 +516,11 @@ v-for="filter in [
         </div>
 
         <div class="flex items-center justify-end pt-3 border-t border-[var(--border-base)]">
-          <button type="button" class="flex items-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-900/20 rounded-xl text-xs text-rose-600 dark:text-rose-400 font-bold transition-all" @click="handleDeleteCode(c)">
+          <button
+            type="button"
+            class="flex items-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-900/20 rounded-xl text-xs text-rose-600 dark:text-rose-400 font-bold transition-all"
+            @click="handleDeleteCode(c)"
+          >
             <Trash2 class="w-3.5 h-3.5" />
             删除激活码
           </button>
@@ -500,17 +547,23 @@ v-for="filter in [
           class="relative w-full max-w-md p-5 sm:p-8 rounded-3xl shadow-2xl space-y-6 bg-[var(--bg-card)] max-h-[85vh] overflow-y-auto scrollbar-hide"
         >
           <div class="flex items-center justify-between">
-            <h3 class="text-xl font-bold text-[var(--text-primary)]">{{ $t('admin.generate_activation_code') }}</h3>
-            <button type="button" class="text-[var(--text-secondary)]" @click="showCodeDialog = false">
+            <h3 class="text-xl font-bold text-[var(--text-primary)]">
+              {{ $t('admin.generate_activation_code') }}
+            </h3>
+            <button
+              type="button"
+              class="text-[var(--text-secondary)]"
+              @click="showCodeDialog = false"
+            >
               <X class="w-5 h-5" />
             </button>
           </div>
 
           <!-- Plan Selection -->
           <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >{{ $t('admin.subscription_plan') }}</label
-            >
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.subscription_plan')
+            }}</label>
             <select
               v-model="codeForm.planId"
               class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
@@ -528,18 +581,22 @@ v-for="filter in [
 
           <!-- Duration Preset & Custom Days -->
           <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >{{ $t('admin.card_type_duration') }}</label
-            >
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.card_type_duration')
+            }}</label>
             <div class="grid grid-cols-5 gap-2">
               <button
-v-for="preset in [
+                v-for="preset in [
                   { label: $t('admin.monthly_card'), value: '30' },
                   { label: $t('admin.season_card'), value: '90' },
                   { label: $t('admin.half_a_year'), value: '180' },
                   { label: $t('admin.annual_pass'), value: '365' },
                   { label: $t('admin.customize'), value: 'custom' },
-                ]" :key="preset.value" type="button" class="py-2 text-[10px] font-bold rounded-xl border transition-all" :style="{
+                ]"
+                :key="preset.value"
+                type="button"
+                class="py-2 text-[10px] font-bold rounded-xl border transition-all"
+                :style="{
                   backgroundColor:
                     codeForm.durationPreset === preset.value
                       ? 'rgba(var(--color-primary-rgb, 14, 165, 233), 0.15)'
@@ -552,7 +609,9 @@ v-for="preset in [
                     codeForm.durationPreset === preset.value
                       ? 'var(--accent)'
                       : 'var(--text-secondary)',
-                }" @click="codeForm.durationPreset = preset.value">
+                }"
+                @click="codeForm.durationPreset = preset.value"
+              >
                 {{ preset.label }}
               </button>
             </div>
@@ -578,9 +637,9 @@ v-for="preset in [
 
           <!-- Code Prefix -->
           <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >{{ $t('admin.activation_code_prefix_optional') }}</label
-            >
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.activation_code_prefix_optional')
+            }}</label>
             <input
               v-model="codeForm.prefix"
               type="text"
@@ -596,9 +655,9 @@ v-for="preset in [
 
           <!-- Bind Email -->
           <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >{{ $t('admin.bind_email_restrictions_optional') }}</label
-            >
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.bind_email_restrictions_optional')
+            }}</label>
             <input
               v-model="codeForm.bindEmail"
               type="email"
@@ -614,9 +673,9 @@ v-for="preset in [
 
           <!-- Expiration Date -->
           <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >{{ $t('admin.expiration_expiration_date_optional') }}</label
-            >
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.expiration_expiration_date_optional')
+            }}</label>
             <input
               v-model="codeForm.expiresAt"
               type="date"
@@ -631,9 +690,9 @@ v-for="preset in [
 
           <!-- Description -->
           <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >{{ $t('admin.usage_notes_optional') }}</label
-            >
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.usage_notes_optional')
+            }}</label>
             <input
               v-model="codeForm.description"
               type="text"
@@ -649,9 +708,9 @@ v-for="preset in [
 
           <!-- Quantity -->
           <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >{{ $t('admin.generate_quantity') }}</label
-            >
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.generate_quantity')
+            }}</label>
             <input
               v-model.number="codeForm.quantity"
               type="number"
@@ -668,10 +727,19 @@ v-for="preset in [
           </div>
 
           <div class="flex gap-3 pt-4">
-            <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all" @click="showCodeDialog = false">
+            <button
+              type="button"
+              class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all"
+              @click="showCodeDialog = false"
+            >
               取消
             </button>
-            <button type="button" :disabled="isGeneratingCodes" class="flex-1 py-3 rounded-2xl font-bold text-sm bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50" @click="handleGenerateCodes">
+            <button
+              type="button"
+              :disabled="isGeneratingCodes"
+              class="flex-1 py-3 rounded-2xl font-bold text-sm bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              @click="handleGenerateCodes"
+            >
               <template v-if="isGeneratingCodes">
                 <div
                   class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"

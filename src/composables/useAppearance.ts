@@ -16,8 +16,8 @@ export const languageOptions: Array<{ label: string; value: LocalePreference }> 
 ];
 
 export const getBeijingHour = (): number => {
-  const utc = new Date().getTime() + (new Date().getTimezoneOffset() * 60000);
-  const beijingTime = new Date(utc + (3600000 * 8));
+  const utc = new Date().getTime() + new Date().getTimezoneOffset() * 60000;
+  const beijingTime = new Date(utc + 3600000 * 8);
   return beijingTime.getHours();
 };
 
@@ -50,7 +50,15 @@ export const applyThemeToDocument = (theme: ThemePreference) => {
 export const applyAccentColorToDocument = (color: string) => {
   const root = document.documentElement;
   const hex = color.replace('#', '');
-  const bigint = Number.parseInt(hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex, 16);
+  const bigint = Number.parseInt(
+    hex.length === 3
+      ? hex
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : hex,
+    16,
+  );
   const rgb = Number.isFinite(bigint)
     ? `${(bigint >> 16) & 255}, ${(bigint >> 8) & 255}, ${bigint & 255}`
     : '37, 99, 235';

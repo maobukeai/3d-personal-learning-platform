@@ -12,6 +12,7 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
+import Dropdown from '@/components/ui/Dropdown.vue';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 
@@ -25,7 +26,6 @@ import type {
   Project,
   Subtask,
 } from '@/types/task';
-
 
 interface Props {
   tasksByProject: TaskProjectGroup[];
@@ -192,7 +192,14 @@ const quickStatusChange = async (task: Task, newStatus: string) => {
   try {
     await api.put(`/api/tasks/${task.id}`, { status: newStatus });
     ElMessage.success(
-      t('tasks.movedTo', { status: newStatus === 'DONE' ? t('tasks.done') : newStatus === 'IN_PROGRESS' ? t('tasks.inProgress') : t('tasks.todo') }),
+      t('tasks.movedTo', {
+        status:
+          newStatus === 'DONE'
+            ? t('tasks.done')
+            : newStatus === 'IN_PROGRESS'
+              ? t('tasks.inProgress')
+              : t('tasks.todo'),
+      }),
     );
     emit('refresh');
   } catch {
@@ -477,7 +484,11 @@ const openDetailDrawer = (task: Task) => {
               </div>
 
               <!-- Header Quick Add -->
-              <button type="button" class="p-1 hover:bg-accent/10 rounded-lg text-slate-400 hover:text-accent transition-all shrink-0" @click.stop="openAddDialogByCol(col.id, proj.id)">
+              <button
+                type="button"
+                class="p-1 hover:bg-accent/10 rounded-lg text-slate-400 hover:text-accent transition-all shrink-0"
+                @click.stop="openAddDialogByCol(col.id, proj.id)"
+              >
                 <Plus class="w-3.5 h-3.5" />
               </button>
             </div>
@@ -490,12 +501,24 @@ const openDetailDrawer = (task: Task) => {
                 class="grid grid-cols-12 px-1.5 sm:px-4 py-1.5 sm:py-2 border-b text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 select-none bg-slate-100/30 dark:bg-white/1"
                 style="border-color: var(--border-base)"
               >
-                <div :class="nameColSpanClass" class="flex items-center gap-1">{{ t('tasks.taskName') }}</div>
-                <div v-if="visibleColumns.status" class="col-span-1 text-center">{{ t('tasks.status') }}</div>
-                <div v-if="visibleColumns.project" class="col-span-2 text-center">{{ t('tasks.associatedProject') }}</div>
-                <div v-if="visibleColumns.assignee" class="col-span-2 text-center">{{ t('tasks.assignee') }}</div>
-                <div v-if="visibleColumns.dueDate" class="col-span-1 text-center">{{ t('tasks.dueDate') }}</div>
-                <div v-if="visibleColumns.priority" class="col-span-1 text-center">{{ t('tasks.priority') }}</div>
+                <div :class="nameColSpanClass" class="flex items-center gap-1">
+                  {{ t('tasks.taskName') }}
+                </div>
+                <div v-if="visibleColumns.status" class="col-span-1 text-center">
+                  {{ t('tasks.statusLabel') }}
+                </div>
+                <div v-if="visibleColumns.project" class="col-span-2 text-center">
+                  {{ t('tasks.associatedProject') }}
+                </div>
+                <div v-if="visibleColumns.assignee" class="col-span-2 text-center">
+                  {{ t('tasks.assignee') }}
+                </div>
+                <div v-if="visibleColumns.dueDate" class="col-span-1 text-center">
+                  {{ t('tasks.dueDate') }}
+                </div>
+                <div v-if="visibleColumns.priority" class="col-span-1 text-center">
+                  {{ t('tasks.priority') }}
+                </div>
               </div>
 
               <!-- Task Rows -->
@@ -514,17 +537,26 @@ const openDetailDrawer = (task: Task) => {
                     <!-- Task Name & Subtasks Indicator -->
                     <div :class="nameColSpanClass" class="flex items-center gap-2 min-w-0">
                       <!-- Expand Chevron -->
-                      <button type="button" class="p-0.5 hover:bg-slate-200 dark:hover:bg-white/10 rounded transition-transform duration-200 shrink-0" :class="expandedTasks[task.id] ? 'rotate-90' : ''" @click.stop="toggleTaskExpand(task.id)">
+                      <button
+                        type="button"
+                        class="p-0.5 hover:bg-slate-200 dark:hover:bg-white/10 rounded transition-transform duration-200 shrink-0"
+                        :class="expandedTasks[task.id] ? 'rotate-90' : ''"
+                        @click.stop="toggleTaskExpand(task.id)"
+                      >
                         <ChevronRight class="w-3.5 h-3.5 text-slate-400" />
                       </button>
 
                       <!-- Checkbox Circle to complete -->
                       <button
-type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex items-center justify-center transition-colors shrink-0" :class="
+                        type="button"
+                        class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex items-center justify-center transition-colors shrink-0"
+                        :class="
                           task.status === 'DONE'
                             ? 'border-emerald-500 bg-emerald-500/10'
                             : 'border-slate-300 dark:border-slate-650 hover:border-emerald-500 hover:bg-emerald-500/10'
-                        " @click.stop="toggleTaskCompletion(task)">
+                        "
+                        @click.stop="toggleTaskCompletion(task)"
+                      >
                         <CheckCircle2
                           class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 transition-colors"
                           :class="
@@ -554,7 +586,9 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                         :title="t('tasks.subtasksProgress')"
                       >
                         <CheckSquare class="w-2.5 h-2.5" />
-                        {{ getSubtaskProgress(task).completed }}/{{ getSubtaskProgress(task).total }}
+                        {{ getSubtaskProgress(task).completed }}/{{
+                          getSubtaskProgress(task).total
+                        }}
                       </span>
 
                       <!-- Tags (small) -->
@@ -579,40 +613,55 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                       class="col-span-1 text-center text-slate-450 dark:text-slate-400 font-medium truncate px-0.5"
                       @click.stop
                     >
-                      <el-dropdown
-                        trigger="click"
-                        @command="(cmd: string | number | object) => handleStatusCommand(task, cmd)"
-                      >
-                        <span
-                          class="inline-flex items-center gap-1 max-w-full cursor-pointer hover:text-accent py-0.5 px-0.5 sm:px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-                        >
+                      <Dropdown align="left" width-class="w-28">
+                        <template #trigger>
                           <span
-                            class="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.5 rounded font-bold"
-                            :class="
-                              task.status === TaskStatus.TODO
-                                ? 'bg-slate-500/10 text-slate-500'
-                                : task.status === TaskStatus.IN_PROGRESS
-                                  ? 'bg-blue-500/10 text-blue-500'
-                                  : 'bg-emerald-500/10 text-emerald-500'
-                            "
+                            class="inline-flex items-center gap-1 max-w-full cursor-pointer hover:text-accent py-0.5 px-0.5 sm:px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
                           >
-                            {{
-                              task.status === TaskStatus.TODO
-                                ? t('tasks.todo')
-                                : task.status === TaskStatus.IN_PROGRESS
-                                  ? t('tasks.inProgress')
-                                  : t('tasks.done')
-                            }}
+                            <span
+                              class="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.5 rounded font-bold"
+                              :class="
+                                task.status === TaskStatus.TODO
+                                  ? 'bg-slate-500/10 text-slate-500'
+                                  : task.status === TaskStatus.IN_PROGRESS
+                                    ? 'bg-blue-500/10 text-blue-500'
+                                    : 'bg-emerald-500/10 text-emerald-500'
+                              "
+                            >
+                              {{
+                                task.status === TaskStatus.TODO
+                                  ? t('tasks.todo')
+                                  : task.status === TaskStatus.IN_PROGRESS
+                                    ? t('tasks.inProgress')
+                                    : t('tasks.done')
+                              }}
+                            </span>
                           </span>
-                        </span>
-                        <template #dropdown>
-                          <el-dropdown-menu>
-                            <el-dropdown-item :command="TaskStatus.TODO">{{ t('tasks.todo') }}</el-dropdown-item>
-                            <el-dropdown-item :command="TaskStatus.IN_PROGRESS">{{ t('tasks.inProgress') }}</el-dropdown-item>
-                            <el-dropdown-item :command="TaskStatus.DONE">{{ t('tasks.done') }}</el-dropdown-item>
-                          </el-dropdown-menu>
                         </template>
-                      </el-dropdown>
+                        <template #content>
+                          <button
+                            type="button"
+                            class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-slate-100 dark:hover:bg-white/5 text-[var(--text-primary)] border-none bg-transparent cursor-pointer transition-colors"
+                            @click="handleStatusCommand(task, TaskStatus.TODO)"
+                          >
+                            {{ t('tasks.todo') }}
+                          </button>
+                          <button
+                            type="button"
+                            class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-slate-100 dark:hover:bg-white/5 text-[var(--text-primary)] border-none bg-transparent cursor-pointer transition-colors"
+                            @click="handleStatusCommand(task, TaskStatus.IN_PROGRESS)"
+                          >
+                            {{ t('tasks.inProgress') }}
+                          </button>
+                          <button
+                            type="button"
+                            class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-slate-100 dark:hover:bg-white/5 text-[var(--text-primary)] border-none bg-transparent cursor-pointer transition-colors"
+                            @click="handleStatusCommand(task, TaskStatus.DONE)"
+                          >
+                            {{ t('tasks.done') }}
+                          </button>
+                        </template>
+                      </Dropdown>
                     </div>
 
                     <!-- Project -->
@@ -621,32 +670,44 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                       class="col-span-2 text-center text-slate-450 dark:text-slate-400 font-medium truncate px-0.5"
                       @click.stop
                     >
-                      <el-dropdown
-                        trigger="click"
-                        @command="(cmd: string | number | object) => handleProjectCommand(task, cmd)"
-                      >
-                        <span
-                          class="inline-flex items-center gap-0.5 sm:gap-1 max-w-full cursor-pointer hover:text-accent py-0.5 px-0.5 sm:px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-                        >
-                          <FolderOpen class="w-3 h-3 text-accent shrink-0" />
-                          <span v-if="task.project" class="truncate max-w-[40px] sm:max-w-[85px] text-[8px] sm:text-xs">{{
-                            task.project.title
-                          }}</span>
+                      <Dropdown align="left" width-class="w-48">
+                        <template #trigger>
                           <span
-                            v-else
-                            class="text-slate-450 dark:text-slate-400 text-[8px] sm:text-[10px] font-bold"
-                            >+ {{ t('tasks.associatedProject') }}</span
+                            class="inline-flex items-center gap-0.5 sm:gap-1 max-w-full cursor-pointer hover:text-accent py-0.5 px-0.5 sm:px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
                           >
-                        </span>
-                        <template #dropdown>
-                          <el-dropdown-menu>
-                            <el-dropdown-item command="">{{ t('projects.clearProject') }}</el-dropdown-item>
-                            <el-dropdown-item v-for="p in projects" :key="p.id" :command="p.id">
-                              {{ p.title }}
-                            </el-dropdown-item>
-                          </el-dropdown-menu>
+                            <FolderOpen class="w-3 h-3 text-accent shrink-0" />
+                            <span
+                              v-if="task.project"
+                              class="truncate max-w-[40px] sm:max-w-[85px] text-[8px] sm:text-xs"
+                              >{{ task.project.title }}</span
+                            >
+                            <span
+                              v-else
+                              class="text-slate-450 dark:text-slate-400 text-[8px] sm:text-[10px] font-bold"
+                              >+ {{ t('tasks.associatedProject') }}</span
+                            >
+                          </span>
                         </template>
-                      </el-dropdown>
+                        <template #content>
+                          <button
+                            type="button"
+                            class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs text-rose-500 hover:bg-rose-500/10 border-none bg-transparent cursor-pointer transition-colors"
+                            @click="handleProjectCommand(task, '')"
+                          >
+                            {{ t('projects.clearProject') }}
+                          </button>
+                          <div class="h-[1px] my-1 bg-slate-100 dark:bg-white/10"></div>
+                          <button
+                            v-for="p in projects"
+                            :key="p.id"
+                            type="button"
+                            class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-slate-100 dark:hover:bg-white/5 text-[var(--text-primary)] border-none bg-transparent cursor-pointer transition-colors"
+                            @click="handleProjectCommand(task, p.id)"
+                          >
+                            {{ p.title }}
+                          </button>
+                        </template>
+                      </Dropdown>
                     </div>
 
                     <!-- Assignee -->
@@ -655,47 +716,62 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                       class="col-span-2 flex items-center justify-center gap-0.5 sm:gap-1.5 px-0.5 min-w-0"
                       @click.stop
                     >
-                      <el-dropdown
-                        trigger="click"
-                        @command="(cmd: string | number | object) => handleAssigneeCommand(task, cmd)"
-                      >
-                        <span
-                          class="inline-flex items-center gap-0.5 sm:gap-1 max-w-full cursor-pointer hover:text-accent py-0.5 px-0.5 sm:px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-                        >
-                          <template v-if="task.assignee">
-                            <img v-if="task.assignee.avatarUrl" alt="" :src="task.assignee.avatarUrl" class="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full object-cover shrink-0" />
-                            <div
-                              v-else
-                              class="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-accent/10 flex items-center justify-center shrink-0"
-                            >
-                              <User class="w-2 h-2 text-accent" />
-                            </div>
-                            <span class="hidden sm:inline text-[10px] text-slate-400 truncate max-w-[60px]">{{
-                              task.assignee.name
-                            }}</span>
-                          </template>
+                      <Dropdown align="left" width-class="w-48">
+                        <template #trigger>
                           <span
-                            v-else
-                            class="text-slate-450 dark:text-slate-400 text-[8px] sm:text-[10px] font-bold"
-                            >+ {{ t('tasks.assignee') }}</span
+                            class="inline-flex items-center gap-0.5 sm:gap-1 max-w-full cursor-pointer hover:text-accent py-0.5 px-0.5 sm:px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
                           >
-                        </span>
-                        <template #dropdown>
-                          <el-dropdown-menu>
-                            <el-dropdown-item command="">{{ t('tasks.clearAssignee') }}</el-dropdown-item>
-                            <el-dropdown-item
-                              v-for="m in teamMembers"
-                              :key="m.id"
-                              :command="m.id"
-                            >
-                              <div class="flex items-center gap-2">
-                                <img v-if="m.avatarUrl" alt="" :src="m.avatarUrl" class="w-5 h-5 rounded-lg object-cover" />
-                                <span>{{ m.name }}</span>
+                            <template v-if="task.assignee">
+                              <img
+                                v-if="task.assignee.avatarUrl"
+                                alt=""
+                                :src="task.assignee.avatarUrl"
+                                class="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full object-cover shrink-0"
+                              />
+                              <div
+                                v-else
+                                class="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-accent/10 flex items-center justify-center shrink-0"
+                              >
+                                <User class="w-2 h-2 text-accent" />
                               </div>
-                            </el-dropdown-item>
-                          </el-dropdown-menu>
+                              <span
+                                class="hidden sm:inline text-[10px] text-slate-400 truncate max-w-[60px]"
+                                >{{ task.assignee.name }}</span
+                              >
+                            </template>
+                            <span
+                              v-else
+                              class="text-slate-455 dark:text-slate-400 text-[8px] sm:text-[10px] font-bold"
+                              >+ {{ t('tasks.assignee') }}</span
+                            >
+                          </span>
                         </template>
-                      </el-dropdown>
+                        <template #content>
+                          <button
+                            type="button"
+                            class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs text-rose-500 hover:bg-rose-500/10 border-none bg-transparent cursor-pointer transition-colors"
+                            @click="handleAssigneeCommand(task, '')"
+                          >
+                            {{ t('tasks.clearAssignee') }}
+                          </button>
+                          <div class="h-[1px] my-1 bg-slate-100 dark:bg-white/10"></div>
+                          <button
+                            v-for="m in teamMembers"
+                            :key="m.id"
+                            type="button"
+                            class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-slate-100 dark:hover:bg-white/5 text-[var(--text-primary)] border-none bg-transparent cursor-pointer transition-colors flex items-center gap-2"
+                            @click="handleAssigneeCommand(task, m.id)"
+                          >
+                            <img
+                              v-if="m.avatarUrl"
+                              alt=""
+                              :src="m.avatarUrl"
+                              class="w-5 h-5 rounded-lg object-cover"
+                            />
+                            <span>{{ m.name }}</span>
+                          </button>
+                        </template>
+                      </Dropdown>
                     </div>
 
                     <!-- Due Date -->
@@ -711,8 +787,14 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                             : 'text-slate-400'
                         "
                       >
-                        <span class="hidden sm:inline">{{ new Date(task.dueDate).toLocaleDateString() }}</span>
-                        <span class="sm:hidden">{{ new Date(task.dueDate).getMonth() + 1 }}/{{ new Date(task.dueDate).getDate() }}</span>
+                        <span class="hidden sm:inline">{{
+                          new Date(task.dueDate).toLocaleDateString()
+                        }}</span>
+                        <span class="sm:hidden"
+                          >{{ new Date(task.dueDate).getMonth() + 1 }}/{{
+                            new Date(task.dueDate).getDate()
+                          }}</span
+                        >
                       </span>
                       <span v-else class="text-slate-350 dark:text-slate-650">-</span>
                     </div>
@@ -759,9 +841,7 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                     class="col-span-12 pl-12 pr-4 py-3 bg-slate-50/30 dark:bg-white/1 space-y-2 border-t border-b border-slate-100/50 dark:border-white/5"
                     @click.stop
                   >
-                    <div
-                      class="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2"
-                    >
+                    <div class="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2">
                       {{ t('tasks.subtaskList') }}
                     </div>
 
@@ -775,11 +855,15 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                         <div class="flex items-center gap-2.5 min-w-0 flex-1">
                           <!-- Subtask Checklist checkbox -->
                           <button
-type="button" class="w-4 h-4 rounded-full border flex items-center justify-center transition-colors shrink-0" :class="
+                            type="button"
+                            class="w-4 h-4 rounded-full border flex items-center justify-center transition-colors shrink-0"
+                            :class="
                               sub.done
                                 ? 'border-emerald-500 bg-emerald-500/10'
                                 : 'border-slate-350 dark:border-slate-600 hover:border-emerald-500 hover:bg-emerald-500/10'
-                            " @click.stop="toggleSubtaskInline(task, index)">
+                            "
+                            @click.stop="toggleSubtaskInline(task, index)"
+                          >
                             <CheckCircle2
                               class="w-3 h-3 transition-colors"
                               :class="
@@ -804,47 +888,63 @@ type="button" class="w-4 h-4 rounded-full border flex items-center justify-cente
                         <!-- Subtask Actions -->
                         <div class="flex items-center gap-3 shrink-0 ml-4">
                           <!-- Subtask Assignee -->
-                          <el-dropdown
-                            trigger="click"
-                            @command="
-                              (cmd: string | number | object) =>
-                                handleSubtaskAssigneeCommand(task, Number(index), cmd)
-                            "
-                          >
-                            <span
-                              class="inline-flex items-center gap-1 cursor-pointer hover:text-accent text-[10px] text-slate-400"
-                            >
-                              <template v-if="sub.assigneeId">
-                                <img v-if="getUserById(sub.assigneeId, task)?.avatarUrl" alt="" :src="getUserById(sub.assigneeId, task)?.avatarUrl || undefined" class="w-3.5 h-3.5 rounded-full object-cover shrink-0" />
-                                <span class="max-w-[70px] truncate">{{
-                                  getUserById(sub.assigneeId, task)?.name || t('common.unknownMember')
-                                }}</span>
-                              </template>
+                          <Dropdown align="right" width-class="w-48">
+                            <template #trigger>
                               <span
-                                v-else
-                                class="text-slate-400 text-[10px] hover:text-accent font-semibold"
-                                >+ {{ t('tasks.assignMember') }}</span
+                                class="inline-flex items-center gap-1 cursor-pointer hover:text-accent text-[10px] text-slate-400"
                               >
-                            </span>
-                            <template #dropdown>
-                              <el-dropdown-menu>
-                                <el-dropdown-item command="">{{ t('tasks.clearMember') }}</el-dropdown-item>
-                                <el-dropdown-item
-                                  v-for="m in getMembersForSubtask(task)"
-                                  :key="m.id"
-                                  :command="m.id"
+                                <template v-if="sub.assigneeId">
+                                  <img
+                                    v-if="getUserById(sub.assigneeId, task)?.avatarUrl"
+                                    alt=""
+                                    :src="getUserById(sub.assigneeId, task)?.avatarUrl || undefined"
+                                    class="w-3.5 h-3.5 rounded-full object-cover shrink-0"
+                                  />
+                                  <span class="max-w-[70px] truncate">{{
+                                    getUserById(sub.assigneeId, task)?.name ||
+                                    t('common.unknownMember')
+                                  }}</span>
+                                </template>
+                                <span
+                                  v-else
+                                  class="text-slate-400 text-[10px] hover:text-accent font-semibold"
+                                  >+ {{ t('tasks.assignMember') }}</span
                                 >
-                                  <div class="flex items-center gap-2">
-                                    <img v-if="m.avatarUrl" alt="" :src="m.avatarUrl" class="w-5 h-5 rounded-lg object-cover" />
-                                    <span>{{ m.name }}</span>
-                                  </div>
-                                </el-dropdown-item>
-                              </el-dropdown-menu>
+                              </span>
                             </template>
-                          </el-dropdown>
+                            <template #content>
+                              <button
+                                type="button"
+                                class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs text-rose-500 hover:bg-rose-500/10 border-none bg-transparent cursor-pointer transition-colors"
+                                @click="handleSubtaskAssigneeCommand(task, Number(index), '')"
+                              >
+                                {{ t('tasks.clearMember') }}
+                              </button>
+                              <div class="h-[1px] my-1 bg-slate-100 dark:bg-white/10"></div>
+                              <button
+                                v-for="m in getMembersForSubtask(task)"
+                                :key="m.id"
+                                type="button"
+                                class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-slate-100 dark:hover:bg-white/5 text-[var(--text-primary)] border-none bg-transparent cursor-pointer transition-colors flex items-center gap-2"
+                                @click="handleSubtaskAssigneeCommand(task, Number(index), m.id)"
+                              >
+                                <img
+                                  v-if="m.avatarUrl"
+                                  alt=""
+                                  :src="m.avatarUrl"
+                                  class="w-5 h-5 rounded-lg object-cover"
+                                />
+                                <span>{{ m.name }}</span>
+                              </button>
+                            </template>
+                          </Dropdown>
 
                           <!-- Delete button -->
-                          <button type="button" class="p-1 hover:bg-rose-500/10 hover:text-rose-500 text-slate-400 rounded-md transition-all shrink-0" @click.stop="removeSubtaskInline(task, index)">
+                          <button
+                            type="button"
+                            class="p-1 hover:bg-rose-500/10 hover:text-rose-500 text-slate-400 rounded-md transition-all shrink-0"
+                            @click.stop="removeSubtaskInline(task, index)"
+                          >
                             <X class="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -861,7 +961,12 @@ type="button" class="w-4 h-4 rounded-full border flex items-center justify-cente
                         style="color: var(--text-primary)"
                         @keyup.enter="addSubtaskInline(task)"
                       />
-                      <button v-show="newSubtaskTexts[task.id]?.trim()" type="button" class="absolute right-1.5 p-1 bg-accent/10 hover:bg-accent hover:text-white text-accent rounded-md transition-all" @click="addSubtaskInline(task)">
+                      <button
+                        v-show="newSubtaskTexts[task.id]?.trim()"
+                        type="button"
+                        class="absolute right-1.5 p-1 bg-accent/10 hover:bg-accent hover:text-white text-accent rounded-md transition-all"
+                        @click="addSubtaskInline(task)"
+                      >
                         <Plus class="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -879,7 +984,12 @@ type="button" class="w-4 h-4 rounded-full border flex items-center justify-cente
                       style="color: var(--text-primary)"
                       @keyup.enter="handleInlineAddInProject(col.id, proj.id)"
                     />
-                    <button v-show="inlineTitles[col.id + '_' + (proj.id || 'unassigned')]?.trim()" type="button" class="absolute right-1 p-0.5 sm:p-1 bg-accent/10 hover:bg-accent hover:text-white text-accent rounded-md transition-all" @click="handleInlineAddInProject(col.id, proj.id)">
+                    <button
+                      v-show="inlineTitles[col.id + '_' + (proj.id || 'unassigned')]?.trim()"
+                      type="button"
+                      class="absolute right-1 p-0.5 sm:p-1 bg-accent/10 hover:bg-accent hover:text-white text-accent rounded-md transition-all"
+                      @click="handleInlineAddInProject(col.id, proj.id)"
+                    >
                       <Plus class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
                     </button>
                   </div>

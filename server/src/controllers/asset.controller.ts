@@ -569,7 +569,25 @@ export const getPublicAssets = async (req: AuthRequest, res: Response, next: Nex
     const sort = req.query.sort as string;
     const skip = (page - 1) * limit;
 
-    const where: Prisma.AssetWhereInput = { status: 'APPROVED' };
+    const mine = req.query.mine === 'true';
+    const favoritesOnly = req.query.favoritesOnly === 'true';
+    const status = req.query.status as string;
+    const userId = req.userId as string;
+
+    const where: Prisma.AssetWhereInput = mine
+      ? {
+          userId,
+          teamId: req.workspaceId,
+          ...(status && status !== 'all' ? { status } : {}),
+        }
+      : {
+          status: 'APPROVED',
+        };
+
+    if (favoritesOnly && userId) {
+      where.likesRelation = { some: { userId } };
+    }
+
     if (categoryId && categoryId !== 'all') {
       where.categoryId = categoryId;
     }

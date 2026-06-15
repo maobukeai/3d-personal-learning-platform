@@ -1036,35 +1036,15 @@ onUnmounted(() => {
         class="flex items-center gap-1 bg-slate-800/20 border border-slate-700/60 p-0.5 rounded-lg shrink-0"
         style="border-color: var(--border-base)"
       >
-        <button
-          type="button"
-          class="p-1 px-1.5 rounded-md transition-all flex items-center gap-1 text-xs font-semibold cursor-pointer border-none bg-transparent"
-          :class="
-            layoutMode === 'grid'
-              ? '!bg-indigo-600 text-white shadow-sm'
-              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-          "
-          title="网格视图"
-          @click="changeLayoutMode('grid')"
-        >
-          <LayoutGrid class="h-3.5 w-3.5" />
-          <span class="hidden md:inline">网格</span>
-        </button>
-
-        <button
-          type="button"
-          class="p-1 px-1.5 rounded-md transition-all flex items-center gap-1 text-xs font-semibold cursor-pointer border-none bg-transparent"
-          :class="
-            layoutMode === 'list'
-              ? '!bg-indigo-600 text-white shadow-sm'
-              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-          "
-          title="列表排布"
-          @click="changeLayoutMode('list')"
-        >
-          <List class="h-3.5 w-3.5" />
-          <span class="hidden md:inline">列表</span>
-        </button>
+        <Tabs
+          v-model="layoutMode"
+          :options="[
+            { value: 'grid', label: '', icon: LayoutGrid },
+            { value: 'list', label: '', icon: List },
+          ]"
+          size="sm"
+          class="!bg-transparent border-none shrink-0"
+        />
 
         <div class="w-px h-3 bg-slate-700/60 mx-0.5"></div>
 

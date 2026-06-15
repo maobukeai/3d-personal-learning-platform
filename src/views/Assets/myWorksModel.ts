@@ -126,11 +126,12 @@ export interface WorkStats {
 export const MATERIAL_CATEGORIES = ['金属', '木纹', '石材', '织物', '程序化', '玻璃', '其他'];
 
 export const PLUGIN_CATEGORIES = [
-  'Blender 插件',
-  'Three.js 插件',
-  'Substance 工具',
-  '游戏引擎插件',
-  'Photoshop 脚本',
+  '建模',
+  '材质与纹理',
+  '渲染与灯光',
+  '动画与骨骼',
+  '导入与导出',
+  '物理与特效',
   '其他工具',
 ];
 
@@ -285,9 +286,11 @@ export function filterAndSortWorks(
   });
 
   return [...list].sort((a, b) => {
-    if (filters.sortBy === 'oldest') return getWorkTimestamp(a.createdAt) - getWorkTimestamp(b.createdAt);
+    if (filters.sortBy === 'oldest')
+      return getWorkTimestamp(a.createdAt) - getWorkTimestamp(b.createdAt);
     if (filters.sortBy === 'name') return a.title.localeCompare(b.title, 'zh-CN');
-    if (filters.sortBy === 'status') return getWorkStatusWeight(a.status) - getWorkStatusWeight(b.status);
+    if (filters.sortBy === 'status')
+      return getWorkStatusWeight(a.status) - getWorkStatusWeight(b.status);
     return getWorkTimestamp(b.createdAt) - getWorkTimestamp(a.createdAt);
   });
 }

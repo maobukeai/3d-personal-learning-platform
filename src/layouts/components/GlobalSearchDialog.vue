@@ -2,14 +2,7 @@
 import { ref, computed, watch, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import {
-  Search,
-  Box,
-  Image as ImageIcon,
-  ArrowRight,
-  GraduationCap,
-  Users,
-} from 'lucide-vue-next';
+import { Search, Box, Image as ImageIcon, ArrowRight, GraduationCap, Users } from 'lucide-vue-next';
 import { preferences } from '@/utils/preferences';
 import {
   emptyGlobalSearchResults,
@@ -151,7 +144,7 @@ watch(
     } else {
       window.removeEventListener('keydown', handleKeyDown);
     }
-  }
+  },
 );
 
 onUnmounted(() => {
@@ -179,8 +172,7 @@ onUnmounted(() => {
         clearable
         @keyup.enter="
           () => {
-            if (selectedResultIndex === -1 && flattenedResults.length > 0)
-              selectedResultIndex = 0;
+            if (selectedResultIndex === -1 && flattenedResults.length > 0) selectedResultIndex = 0;
           }
         "
       >
@@ -209,7 +201,8 @@ onUnmounted(() => {
           <h3
             class="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"
           >
-            <Box :class="isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'" /> {{ t('search.assetsCount', { n: searchResults.assets.length }) }}
+            <Box :class="isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'" />
+            {{ t('search.assetsCount', { n: searchResults.assets.length }) }}
           </h3>
           <div class="space-y-1">
             <div
@@ -230,7 +223,12 @@ onUnmounted(() => {
                 :class="isMobile ? 'w-8 h-8 rounded-md' : 'w-10 h-10 rounded-lg'"
                 class="bg-slate-100 dark:bg-slate-700 overflow-hidden shrink-0"
               >
-                <img v-if="asset.thumbnail" alt="" :src="asset.thumbnail" class="w-full h-full object-cover" />
+                <img
+                  v-if="asset.thumbnail"
+                  alt=""
+                  :src="asset.thumbnail"
+                  class="w-full h-full object-cover"
+                />
                 <ImageIcon
                   v-else
                   :class="[isMobile ? 'p-1.5' : 'p-2', 'w-full h-full text-slate-400']"
@@ -244,10 +242,7 @@ onUnmounted(() => {
                 >
                   {{ asset.title }}
                 </p>
-                <p
-                  :class="isMobile ? 'text-[9px]' : 'text-[10px]'"
-                  class="text-slate-400 truncate"
-                >
+                <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400 truncate">
                   {{ getCategoryLabel(asset.category) }} · {{ asset.type }}
                 </p>
               </div>
@@ -264,7 +259,8 @@ onUnmounted(() => {
           <h3
             class="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"
           >
-            <GraduationCap :class="isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'" /> {{ t('search.coursesCount', { n: searchResults.courses.length }) }}
+            <GraduationCap :class="isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'" />
+            {{ t('search.coursesCount', { n: searchResults.courses.length }) }}
           </h3>
           <div class="space-y-1">
             <div
@@ -312,7 +308,8 @@ onUnmounted(() => {
           <h3
             class="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"
           >
-            <Users :class="isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'" /> {{ t('search.teamsCount', { n: searchResults.teams.length }) }}
+            <Users :class="isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'" />
+            {{ t('search.teamsCount', { n: searchResults.teams.length }) }}
           </h3>
           <div class="space-y-1">
             <div
@@ -379,12 +376,12 @@ onUnmounted(() => {
       <template v-else>
         <div v-if="searchHistory.length > 0" :class="isMobile ? 'mb-5' : 'mb-8'">
           <div class="flex items-center justify-between px-2 mb-2">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
-              >{{ t('search.history') }}</span
-            >
-            <el-button link size="small" class="text-[10px]" @click="clearHistory"
-              >{{ t('search.clearHistory') }}</el-button
-            >
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{
+              t('search.history')
+            }}</span>
+            <el-button link size="small" class="text-[10px]" @click="clearHistory">{{
+              t('search.clearHistory')
+            }}</el-button>
           </div>
           <div class="flex flex-wrap gap-2 px-1">
             <button
@@ -403,9 +400,9 @@ onUnmounted(() => {
         </div>
 
         <div class="flex items-center justify-between px-2 mb-4">
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
-            >{{ t('search.commonFeatures') }}</span
-          >
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{
+            t('search.commonFeatures')
+          }}</span>
         </div>
         <div :class="[isMobile ? 'gap-1.5' : 'gap-2', 'grid grid-cols-1 md:grid-cols-2 px-1']">
           <div
@@ -423,7 +420,9 @@ onUnmounted(() => {
               <ImageIcon :class="isMobile ? 'w-4 h-4' : 'w-5 h-5'" />
             </div>
             <div>
-              <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold">{{ t('search.browseAssets') }}</p>
+              <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold">
+                {{ t('search.browseAssets') }}
+              </p>
               <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">
                 {{ t('search.browseAssetsDesc') }}
               </p>
@@ -444,7 +443,9 @@ onUnmounted(() => {
               <GraduationCap :class="isMobile ? 'w-4 h-4' : 'w-5 h-5'" />
             </div>
             <div>
-              <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold">{{ t('search.startLearning') }}</p>
+              <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold">
+                {{ t('search.startLearning') }}
+              </p>
               <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">
                 {{ t('search.startLearningDesc') }}
               </p>
@@ -480,10 +481,7 @@ onUnmounted(() => {
           >
         </div>
         <div class="flex items-center gap-1">
-          <span class="opacity-50">Powered by</span>
-          <span class="font-bold text-accent"
-            >{{ systemStore.settings.PLATFORM_NAME }} Search</span
-          >
+          <span class="font-bold text-accent">{{ systemStore.settings.PLATFORM_NAME }} Search</span>
         </div>
       </div>
     </template>

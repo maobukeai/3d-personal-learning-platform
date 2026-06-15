@@ -24,7 +24,7 @@ watch(
   (newVal) => {
     Object.assign(localSettings, newVal);
   },
-  { deep: true }
+  { deep: true },
 );
 
 watch(
@@ -32,7 +32,7 @@ watch(
   (newVal) => {
     emit('update:settings', { ...props.settings, ...newVal });
   },
-  { deep: true }
+  { deep: true },
 );
 
 const sessionTimeoutOptions = [
@@ -51,7 +51,9 @@ const sessionTimeoutOptions = [
     >
       <div class="flex items-center gap-3 mb-8">
         <Shield class="w-5 h-5 text-blue-500" />
-        <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.security_policy_configuration') }}</h2>
+        <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+          {{ $t('admin.security_policy_configuration') }}
+        </h2>
       </div>
 
       <div class="space-y-6">
@@ -95,11 +97,7 @@ const sessionTimeoutOptions = [
                 color: var(--text-primary);
               "
             >
-              <option
-                v-for="opt in sessionTimeoutOptions"
-                :key="opt.value"
-                :value="opt.value"
-              >
+              <option v-for="opt in sessionTimeoutOptions" :key="opt.value" :value="opt.value">
                 {{ opt.label }}
               </option>
             </select>
@@ -116,9 +114,9 @@ const sessionTimeoutOptions = [
             <div class="flex items-center gap-3">
               <Sparkles class="w-4 h-4 text-violet-500" />
               <div>
-                <span class="text-xs font-bold" style="color: var(--text-primary)"
-                  >{{ $t('admin.automatically_review_approved_materials') }}</span
-                >
+                <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                  $t('admin.automatically_review_approved_materials')
+                }}</span>
                 <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                   开启后用户上传的材料无需人工审核即可发布
                 </p>
@@ -133,9 +131,9 @@ const sessionTimeoutOptions = [
             <div class="flex items-center gap-3">
               <MonitorSmartphone class="w-4 h-4 text-cyan-500" />
               <div>
-                <span class="text-xs font-bold" style="color: var(--text-primary)"
-                  >{{ $t('admin.automatically_review_and_pass') }}</span
-                >
+                <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                  $t('admin.automatically_review_and_pass')
+                }}</span>
                 <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                   开启后用户发布的作品无需人工审核即可展示
                 </p>

@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
 import type { AppNotification } from '@/services/notification.service';
 
-type SocketService = typeof import('@/utils/socket')['socketService'];
+type SocketService = (typeof import('@/utils/socket'))['socketService'];
 
 interface ChatMessageEvent {
   conversationId: string;

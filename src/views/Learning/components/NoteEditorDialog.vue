@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, defineAsyncComponent } from 'vue';
 import { ElMessage } from 'element-plus';
-import { Plus, Edit3, Layout, Eye, Settings, Check, BookOpen } from 'lucide-vue-next';
+import { Plus, Edit3, Layout, Eye, Settings, Check, BookOpen, X } from 'lucide-vue-next';
 import api from '@/utils/api';
+import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
+import Input from '@/components/ui/Input.vue';
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
 interface Note {
@@ -31,6 +34,17 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'saved', category: string): void;
 }>();
+
+const modeOptions = [
+  { id: 'edit', label: '编辑', icon: Edit3 },
+  { id: 'live', label: '实时', icon: Layout },
+  { id: 'preview', label: '预览', icon: Eye },
+];
+
+const visibilityOptions = [
+  { id: 'PRIVATE', label: '私有' },
+  { id: 'PUBLIC', label: '公开' },
+];
 
 const visible = ref(false);
 const previewMode = ref<'edit' | 'live' | 'preview'>('edit');
@@ -119,105 +133,119 @@ defineExpose({ open });
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    fullscreen
-    :show-close="false"
-    class="immersive-editor-dialog"
-    destroy-on-close
-  >
-    <div class="fixed inset-0 bg-[var(--bg-app)] overflow-y-auto custom-scrollbar h-screen">
+  <Modal :show="visible" fullscreen padding="none" @close="visible = false">
+    <div class="h-screen flex flex-col bg-[var(--bg-app)] overflow-y-auto custom-scrollbar">
       <header
         class="sticky top-0 z-50 h-14 md:h-16 flex items-center justify-between px-3 md:px-8 bg-[var(--bg-app)]/80 backdrop-blur-md border-b border-[var(--border-base)]"
       >
         <div class="flex items-center gap-2 md:gap-4">
-          <el-button
-            circle
-            size="small"
-            class="hover:bg-slate-100 dark:hover:bg-white/10 shrink-0"
+          <Button
+            variant="secondary"
+            size="sm"
+            :icon="X"
+            class="!rounded-full hover:bg-slate-100 dark:hover:bg-white/10 shrink-0 !p-0 flex items-center justify-center h-8 w-8"
             @click="visible = false"
-          >
-            <Plus class="w-4 h-4 md:w-5 md:h-5 rotate-45 text-[var(--text-secondary)]" />
-          </el-button>
+          />
         </div>
 
         <div class="flex items-center gap-2 md:gap-3 min-w-0">
-          <el-radio-group v-model="previewMode" size="small" class="preview-mode-toggle">
-            <el-radio-button value="edit">
-              <div class="flex items-center gap-1 px-1">
-                <Edit3 class="w-3.5 h-3.5" /> <span class="hidden sm:inline">编辑</span>
-              </div>
-            </el-radio-button>
-            <el-radio-button value="live">
-              <div class="flex items-center gap-1 px-1">
-                <Layout class="w-3.5 h-3.5" /> <span class="hidden sm:inline">实时</span>
-              </div>
-            </el-radio-button>
-            <el-radio-button value="preview">
-              <div class="flex items-center gap-1 px-1">
-                <Eye class="w-3.5 h-3.5" /> <span class="hidden sm:inline">预览</span>
-              </div>
-            </el-radio-button>
-          </el-radio-group>
+          <SegmentedControl v-model="previewMode" :options="modeOptions" size="sm" />
 
           <el-dropdown trigger="click" class="lg:hidden">
-            <el-button circle class="!bg-[var(--bg-card)]">
-              <Settings class="w-4 h-4" />
-            </el-button>
+            <Button
+              variant="secondary"
+              size="sm"
+              :icon="Settings"
+              class="!rounded-full !p-0 flex items-center justify-center h-8 w-8 !bg-[var(--bg-card)]"
+            />
             <template #dropdown>
               <div class="p-4 w-72 md:w-80 space-y-4">
                 <div>
-                  <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">笔记摘要</p>
-                  <el-input v-model="formSummary" type="textarea" :rows="2" placeholder="简短摘要..." size="small" />
+                  <p
+                    class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
+                  >
+                    笔记摘要
+                  </p>
+                  <textarea
+                    v-model="formSummary"
+                    rows="2"
+                    placeholder="简短摘要..."
+                    class="w-full text-xs font-medium rounded-xl transition-all duration-300 outline-none focus:outline-none bg-slate-50 dark:bg-zinc-900 border border-[var(--border-base)] text-[var(--text-primary)] focus:border-accent p-2 focus:ring-2 focus:ring-accent/20"
+                  ></textarea>
                 </div>
                 <div>
-                  <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">可见性</p>
-                  <el-radio-group v-model="formVisibility" size="small" class="w-full">
-                    <el-radio-button value="PRIVATE">私有</el-radio-button>
-                    <el-radio-button value="PUBLIC">公开</el-radio-button>
-                  </el-radio-group>
+                  <p
+                    class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
+                  >
+                    可见性
+                  </p>
+                  <SegmentedControl
+                    v-model="formVisibility"
+                    :options="visibilityOptions"
+                    size="sm"
+                    full-width
+                  />
                 </div>
                 <div>
-                  <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">分类/笔记本</p>
+                  <p
+                    class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
+                  >
+                    分类/笔记本
+                  </p>
                   <el-select
                     v-model="formCategory"
                     placeholder="选择或输入笔记本"
                     size="small"
-                    class="w-full"
+                    class="w-full note-filter-select"
                     filterable
                     allow-create
                     default-first-option
                     clearable
                   >
                     <el-option label="默认笔记本" value="默认笔记本" />
-                    <el-option v-for="cat in props.myNotebooksList" :key="cat" :label="cat" :value="cat" />
+                    <el-option
+                      v-for="cat in props.myNotebooksList"
+                      :key="cat"
+                      :label="cat"
+                      :value="cat"
+                    />
                   </el-select>
                 </div>
                 <div>
-                  <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">标签</p>
-                  <el-input v-model="formTags" placeholder="多个标签用逗号分隔" size="small" />
+                  <p
+                    class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
+                  >
+                    标签
+                  </p>
+                  <Input v-model="formTags" placeholder="多个标签用逗号分隔" />
                 </div>
               </div>
             </template>
           </el-dropdown>
-          <el-button
-            type="primary"
-            size="default"
-            round
+          <Button
+            variant="primary"
+            size="md"
             class="font-bold shadow-lg shrink-0"
             :loading="saving"
             @click="handleSave"
           >
             发布
-          </el-button>
+          </Button>
         </div>
       </header>
 
-      <main class="max-w-[1550px] mx-auto px-3 md:px-6 pb-20 md:pb-32 pt-4 lg:pt-8">
+      <main class="max-w-[1550px] mx-auto px-3 md:px-6 pb-20 md:pb-32 pt-4 lg:pt-8 w-full">
         <div class="flex flex-col lg:flex-row gap-6 items-start">
           <!-- Left Column: Writing area -->
-          <div class="flex-1 min-w-0 w-full bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-2xl min-h-[85vh] px-4 md:px-8 lg:px-10 py-6 md:py-12">
-            <el-input v-model="formTitle" placeholder="无标题" class="editor-modern-title mb-4" />
+          <div
+            class="flex-1 min-w-0 w-full bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-2xl min-h-[85vh] px-4 md:px-8 lg:px-10 py-6 md:py-12"
+          >
+            <input
+              v-model="formTitle"
+              type="text"
+              placeholder="无标题"
+              class="w-full bg-transparent text-xl md:text-3xl font-extrabold text-[var(--text-primary)] outline-none border-none mb-4 placeholder-slate-300 dark:placeholder-zinc-700"
+            />
             <MarkdownEditor
               v-model="formContent"
               auto-height
@@ -226,74 +254,100 @@ defineExpose({ open });
               :preview="previewMode === 'live'"
               :preview-only="previewMode === 'preview'"
             />
-            <div class="mt-6 md:mt-12 flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest pt-4 md:pt-8 border-t border-[var(--border-base)]">
+            <div
+              class="mt-6 md:mt-12 flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest pt-4 md:pt-8 border-t border-[var(--border-base)]"
+            >
               <div class="flex items-center gap-4">
                 <span class="flex items-center gap-1"><Check class="w-3 h-3" /> 自动保存</span>
-                <span class="hidden sm:flex items-center gap-1"><BookOpen class="w-3 h-3" /> Markdown 支持</span>
+                <span class="hidden sm:flex items-center gap-1"
+                  ><BookOpen class="w-3 h-3" /> Markdown 支持</span
+                >
               </div>
               <span>共 {{ formContent.length }} 字符</span>
             </div>
           </div>
 
           <!-- Right Column: Permanent sidebar settings on desktop (lg and up) -->
-          <aside class="hidden lg:flex flex-col w-80 shrink-0 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl p-5 space-y-5 shadow-sm sticky top-20">
+          <aside
+            class="hidden lg:flex flex-col w-80 shrink-0 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl p-5 space-y-5 shadow-sm sticky top-20"
+          >
             <div class="border-b border-[var(--border-base)] pb-3">
-              <h3 class="text-xs font-black text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5">
+              <h3
+                class="text-xs font-black text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5"
+              >
                 <Settings class="w-4 h-4 text-accent" /> 笔记属性设置
               </h3>
             </div>
-            
+
             <div class="space-y-4">
               <div>
-                <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">笔记摘要</p>
-                <el-input v-model="formSummary" type="textarea" :rows="3" placeholder="简短摘要有助于读者在动态中快速了解..." size="small" />
+                <p
+                  class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
+                >
+                  笔记摘要
+                </p>
+                <textarea
+                  v-model="formSummary"
+                  rows="3"
+                  placeholder="简短摘要有助于读者在动态中快速了解..."
+                  class="w-full text-xs font-medium rounded-xl transition-all duration-300 outline-none focus:outline-none bg-slate-50 dark:bg-zinc-900 border border-[var(--border-base)] text-[var(--text-primary)] focus:border-accent p-3 focus:ring-2 focus:ring-accent/20"
+                ></textarea>
               </div>
               <div>
-                <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">可见性</p>
-                <el-radio-group v-model="formVisibility" size="small" class="w-full">
-                  <el-radio-button value="PRIVATE" class="w-1/2 text-center">私有</el-radio-button>
-                  <el-radio-button value="PUBLIC" class="w-1/2 text-center">公开</el-radio-button>
-                </el-radio-group>
+                <p
+                  class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
+                >
+                  可见性
+                </p>
+                <SegmentedControl
+                  v-model="formVisibility"
+                  :options="visibilityOptions"
+                  size="sm"
+                  full-width
+                />
               </div>
               <div>
-                <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">分类/笔记本</p>
+                <p
+                  class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
+                >
+                  分类/笔记本
+                </p>
                 <el-select
                   v-model="formCategory"
                   placeholder="选择或输入笔记本"
                   size="small"
-                  class="w-full"
+                  class="w-full note-filter-select"
                   filterable
                   allow-create
                   default-first-option
                   clearable
                 >
                   <el-option label="默认笔记本" value="默认笔记本" />
-                  <el-option v-for="cat in props.myNotebooksList" :key="cat" :label="cat" :value="cat" />
+                  <el-option
+                    v-for="cat in props.myNotebooksList"
+                    :key="cat"
+                    :label="cat"
+                    :value="cat"
+                  />
                 </el-select>
               </div>
               <div>
-                <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">标签</p>
-                <el-input v-model="formTags" placeholder="多个标签用逗号分隔" size="small" />
+                <p
+                  class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
+                >
+                  标签
+                </p>
+                <Input v-model="formTags" placeholder="多个标签用逗号分隔" />
               </div>
             </div>
           </aside>
         </div>
       </main>
     </div>
-  </el-dialog>
+  </Modal>
 </template>
 
 <style scoped>
-:deep(.immersive-editor-dialog) {
-  padding: 0 !important;
-}
-:deep(.immersive-editor-dialog .el-dialog__header) {
-  display: none;
-}
-:deep(.immersive-editor-dialog .el-dialog__body) {
-  padding: 0;
-  height: 100%;
-}
 .preview-mode-toggle :deep(.el-radio-button__inner) {
   background-color: transparent !important;
   border: none !important;

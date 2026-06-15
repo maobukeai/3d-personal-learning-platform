@@ -151,10 +151,10 @@ const riskClass = (user: AdminUser) => ({
 <template>
   <el-drawer
     :model-value="modelValue"
-    @update:model-value="emit('update:modelValue', $event)"
     :size="560"
     :with-header="false"
     class="user-drawer"
+    @update:model-value="emit('update:modelValue', $event)"
   >
     <div v-if="user" class="drawer-body">
       <div class="drawer-hero">

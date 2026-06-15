@@ -15,8 +15,13 @@ import {
   RefreshCw,
   Search,
   MoreHorizontal,
+  LayoutGrid,
+  List,
 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
+import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
+import Dropdown from '@/components/ui/Dropdown.vue';
 
 interface TeamUser {
   id: string;
@@ -179,6 +184,7 @@ const t = (key: string, ...args: any[]) => {
 
 const activeFilter = ref<MemberFilter>('all');
 const memberSearchQuery = ref('');
+const viewMode = ref<'grid' | 'list'>('grid');
 
 const pendingInvitationsList = computed(
   () => props.overview?.invitations || props.team?.invitations || [],
@@ -312,40 +318,14 @@ const formatDate = (dateStr?: string | null) => {
 </script>
 
 <template>
-  <div class="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-    <!-- KPIs Stats Dashboard Bar for TEAM type -->
-    <div v-if="team.type === 'TEAM'" class="grid grid-cols-2 lg:grid-cols-6 gap-3">
-      <div
-        v-for="kpi in opsKpis"
-        :key="kpi.key"
-        class="flex items-center gap-3 backdrop-blur-md bg-white/40 dark:bg-slate-900/30 border border-white/15 dark:border-slate-800/50 rounded-xl p-3 shadow-sm hover:-translate-y-0.5 transition-all duration-200 text-left"
-      >
-        <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" :class="kpi.tone">
-          <component :is="kpi.icon" class="w-4 h-4" />
-        </div>
-        <div class="min-w-0">
-          <span
-            class="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none"
-            >{{ kpi.label }}</span
-          >
-          <strong
-            class="block text-base lg:text-lg font-black tracking-tight mt-1 leading-none"
-            style="color: var(--text-primary)"
-            >{{ kpi.value }}</strong
-          >
-          <span class="block text-[9px] font-bold text-slate-400 mt-1 leading-none">{{
-            kpi.helper
-          }}</span>
-        </div>
-      </div>
-    </div>
-
+  <div class="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
     <!-- Header & Actions -->
     <div
-      class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3.5"
+      class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2"
       style="border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-3">
+      <!-- Left: Title & Refresh -->
+      <div class="flex items-center gap-3 shrink-0">
         <h2 class="text-base sm:text-lg font-black" style="color: var(--text-primary)">
           {{ t('teamDetail.boardTitle') }}
         </h2>
@@ -360,58 +340,66 @@ const formatDate = (dateStr?: string | null) => {
           <RefreshCw class="w-3.5 h-3.5" />
         </button>
       </div>
-      <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
-        <div class="relative w-full sm:w-56 md:w-64">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <input
-            v-model="memberSearchQuery"
-            type="text"
-            :placeholder="t('teamDetail.searchPlaceholder')"
-            class="w-full pl-9 pr-4 py-2 bg-white/40 dark:bg-slate-900/20 border border-white/20 dark:border-slate-800/50 rounded-lg text-xs focus:ring-4 focus:ring-accent/10 outline-none transition-all placeholder-slate-400"
-            style="color: var(--text-primary)"
-          />
+
+      <!-- Center: Centered Search Input -->
+      <div class="flex-1 w-full sm:max-w-xs md:max-w-md sm:px-4 shrink-0">
+        <Input
+          v-model="memberSearchQuery"
+          type="text"
+          :placeholder="t('teamDetail.searchPlaceholder')"
+          :icon="Search"
+          class="w-full"
+          input-class="!py-2 !text-xs"
+        />
+      </div>
+
+      <!-- Right: View Mode Switcher & Invite Button -->
+      <div
+        class="flex items-center gap-2.5 shrink-0 w-full sm:w-auto justify-between sm:justify-end"
+      >
+        <!-- View Mode Switcher -->
+        <div
+          v-if="activeFilter !== 'pending'"
+          class="flex items-center gap-1 border border-slate-200/50 dark:border-white/10 rounded-lg p-0.5 bg-slate-100/50 dark:bg-white/5 shrink-0"
+        >
+          <button
+            type="button"
+            class="p-1.5 rounded-md transition-colors cursor-pointer border-none bg-transparent"
+            :class="
+              viewMode === 'grid'
+                ? 'text-accent bg-white dark:bg-slate-700 shadow-sm'
+                : 'text-slate-400 hover:text-slate-600'
+            "
+            title="卡片网格"
+            @click="viewMode = 'grid'"
+          >
+            <LayoutGrid class="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            class="p-1.5 rounded-md transition-colors cursor-pointer border-none bg-transparent"
+            :class="
+              viewMode === 'list'
+                ? 'text-accent bg-white dark:bg-slate-700 shadow-sm'
+                : 'text-slate-400 hover:text-slate-600'
+            "
+            title="表格列表"
+            @click="viewMode = 'list'"
+          >
+            <List class="w-4 h-4" />
+          </button>
         </div>
-        <button
+
+        <Button
           v-if="canManageTeam"
-          type="button"
-          class="w-full sm:w-auto flex items-center justify-center gap-1 px-3.5 py-2 bg-accent text-white rounded-lg font-bold text-xs hover:scale-105 active:scale-95 hover:shadow-md hover:shadow-accent/20 transition-all cursor-pointer whitespace-nowrap border-none"
+          variant="primary"
+          size="sm"
+          :icon="Plus"
+          class="hover:scale-105 transition-transform font-bold text-xs shrink-0"
           @click="emit('invite-member')"
         >
-          <Plus class="w-3.5 h-3.5" />
           {{ t('teamDetail.inviteNewMember') }}
-        </button>
-      </div>
-    </div>
-
-    <!-- Filter Chips for TEAM type -->
-    <div
-      class="flex items-center justify-between border-b py-2 px-1"
-      :class="team.type === 'TEAM' ? '' : 'hidden'"
-      style="border-color: var(--border-base)"
-    >
-      <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide min-w-0">
-        <button
-          v-for="filter in filters"
-          :key="filter.value"
-          type="button"
-          class="filter-chip border-none cursor-pointer"
-          :class="activeFilter === filter.value ? 'is-active' : ''"
-          @click="activeFilter = filter.value"
-        >
-          <component :is="filter.icon" class="w-3.5 h-3.5" />
-          <span>{{ filter.label }}</span>
-          <b>{{ filterCount(filter.value) }}</b>
-        </button>
-      </div>
-      <div class="hidden lg:flex items-center gap-2 text-[10px] font-black text-slate-400 shrink-0">
-        <span
-          >{{
-            activeFilter === 'pending' ? visiblePendingItems.length : filteredRows.length
-          }}
-          条结果</span
-        >
-        <span>·</span>
-        <span>容量按风险优先排序</span>
+        </Button>
       </div>
     </div>
 
@@ -443,200 +431,385 @@ const formatDate = (dateStr?: string | null) => {
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <template v-if="item.kind === 'invite'">
-            <button
+            <Button
               v-if="canManageTeam"
-              type="button"
-              class="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 rounded-lg text-[10px] font-black transition-all cursor-pointer border-none"
+              variant="danger"
+              size="sm"
+              class="!py-1 !px-2.5 !text-[10px] font-black"
               @click="emit('cancel-invitation', item.id)"
             >
               撤销邀请
-            </button>
+            </Button>
           </template>
           <template v-else>
             <div class="flex gap-2">
-              <button
-                type="button"
-                class="px-3 py-1.5 bg-slate-100 dark:bg-white/5 hover:bg-rose-500 hover:text-white rounded-lg text-[10px] font-black transition-all cursor-pointer border-none"
+              <Button
+                variant="secondary"
+                size="sm"
+                class="!py-1 !px-2.5 !text-[10px] hover:!bg-rose-500 hover:!text-white hover:!border-rose-500 font-black"
                 @click="emit('respond-application', item.id, false, item.title)"
               >
                 拒绝
-              </button>
-              <button
-                type="button"
-                class="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-[10px] font-black transition-all cursor-pointer border-none"
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                class="!py-1 !px-2.5 !text-[10px] !bg-emerald-500 hover:!bg-emerald-600 border-none font-black"
                 @click="emit('respond-application', item.id, true, item.title)"
               >
                 同意
-              </button>
+              </Button>
             </div>
           </template>
         </div>
       </div>
     </div>
 
-    <!-- Active Members Table View -->
-    <div v-else class="overflow-x-auto scrollbar-hide">
-      <table class="member-table">
-        <thead>
-          <tr>
-            <th>成员</th>
-            <th>角色</th>
-            <th>状态</th>
-            <th v-if="team.type === 'TEAM'">负载</th>
-            <th v-if="team.type === 'TEAM'">项目</th>
-            <th>最近协作</th>
-            <th class="text-right">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="member in filteredRows" :key="member.id">
-            <td>
-              <div class="flex items-center gap-2.5 min-w-0">
+    <!-- Active Members View -->
+    <div v-else>
+      <!-- Grid View of Members -->
+      <div v-if="viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div
+          v-for="member in filteredRows"
+          :key="member.id"
+          class="glass-card p-5 rounded-2xl border border-white/20 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/30 backdrop-blur-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 relative flex flex-col justify-between"
+        >
+          <!-- Top Info -->
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="relative shrink-0">
                 <UserAvatar
                   :user="member.user"
-                  size="sm"
-                  class="cursor-pointer hover:ring-2 hover:ring-accent transition-all"
+                  size="md"
+                  class="cursor-pointer hover:ring-2 hover:ring-accent transition-all shrink-0"
                   @click="emit('open-profile', member.userId)"
                 />
-                <div class="min-w-0 text-left">
-                  <button
-                    type="button"
-                    class="block text-xs font-black truncate bg-transparent border-none p-0 cursor-pointer hover:text-accent max-w-[190px] text-left outline-none"
-                    style="color: var(--text-primary)"
-                    @click="
-                      team.type === 'TEAM'
-                        ? emit('open-workbench', member.userId)
-                        : emit('open-profile', member.userId)
-                    "
-                  >
-                    {{ memberNameStr(member) }}
-                  </button>
-                  <p class="text-[10px] text-slate-400 truncate max-w-[210px]">
-                    {{ member.user.email }}
-                  </p>
-                </div>
+                <div
+                  class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center"
+                  :class="authStore.isUserOnline(member.userId) ? 'bg-emerald-500' : 'bg-slate-400'"
+                ></div>
               </div>
-            </td>
-            <td>
-              <el-select
-                v-if="
-                  canManageTeam && member.userId !== authStore.user?.id && member.role !== 'OWNER'
-                "
-                :model-value="member.role"
-                class="role-select"
-                @change="(role: unknown) => emit('update-role', member.userId, String(role))"
-              >
-                <el-option label="管理员" value="ADMIN" />
-                <el-option label="成员" value="MEMBER" />
-              </el-select>
-              <span
-                v-else
-                class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black"
-                :class="roleBadgeClass(member.role)"
-              >
-                <Crown v-if="member.role === 'OWNER'" class="w-3 h-3" />
-                <ShieldCheck v-else-if="member.role === 'ADMIN'" class="w-3 h-3" />
-                {{ roleLabel(member.role) }}
-              </span>
-            </td>
-            <td>
-              <div class="space-y-1 text-left">
-                <div class="flex items-center gap-1.5">
-                  <Circle
-                    class="w-2 h-2 fill-current"
-                    :class="
-                      authStore.isUserOnline(member.userId) ? 'text-emerald-500' : 'text-slate-300'
-                    "
-                  />
-                  <span class="text-[10px] font-black text-slate-500">
-                    {{ authStore.isUserOnline(member.userId) ? '在线' : '离线' }}
-                  </span>
-                </div>
-                <span
-                  v-if="team.type === 'TEAM'"
-                  class="inline-flex px-2 py-0.5 rounded-md text-[9px] font-black"
-                  :class="capacityClass(capacityByUserId.get(member.userId)?.capacityScore)"
+              <div class="min-w-0 text-left">
+                <button
+                  type="button"
+                  class="block text-xs font-black truncate bg-transparent border-none p-0 cursor-pointer hover:text-accent outline-none text-left"
+                  style="color: var(--text-primary)"
+                  @click="
+                    team.type === 'TEAM'
+                      ? emit('open-workbench', member.userId)
+                      : emit('open-profile', member.userId)
+                  "
                 >
-                  {{ capacityLabel(member.userId) }}
+                  {{ memberNameStr(member) }}
+                </button>
+                <span class="block text-[10px] text-slate-400 truncate mt-0.5">
+                  {{ member.user.email }}
                 </span>
               </div>
-            </td>
-            <td v-if="team.type === 'TEAM'">
-              <div class="w-36 text-left">
-                <div class="flex justify-between text-[10px] font-black mb-1">
-                  <span class="text-slate-400">进行 {{ member.metrics.activeTasks }}</span>
-                  <span :class="member.metrics.overdueTasks > 0 ? 'text-rose-500' : 'text-accent'">
-                    {{ member.metrics.completionRate }}%
-                  </span>
-                </div>
-                <div class="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    class="h-full rounded-full"
-                    :class="
-                      member.metrics.overdueTasks > 0
-                        ? 'bg-rose-500'
-                        : member.metrics.activeTasks >= 5
-                          ? 'bg-amber-500'
-                          : 'bg-accent'
-                    "
-                    :style="{ width: progressWidthStr(member.metrics.activeTasks) }"
-                  ></div>
-                </div>
-                <p class="mt-1 text-[9px] font-bold text-slate-400">
-                  已完 {{ member.metrics.doneTasks }} · 本周
-                  {{
-                    capacityByUserId.get(member.userId)?.completedThisWeek ??
-                    member.metrics.recentlyCompleted
-                  }}
-                  · 逾期 {{ member.metrics.overdueTasks }}
-                </p>
+            </div>
+
+            <!-- Role Badge -->
+            <span
+              class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px] font-black shrink-0"
+              :class="roleBadgeClass(member.role)"
+            >
+              <Crown v-if="member.role === 'OWNER'" class="w-3 h-3" />
+              <ShieldCheck v-else-if="member.role === 'ADMIN'" class="w-3 h-3" />
+              {{ roleLabel(member.role) }}
+            </span>
+          </div>
+
+          <!-- Middle Details (TEAM type metrics) -->
+          <div
+            v-if="team.type === 'TEAM'"
+            class="mt-4 pt-4 border-t border-slate-200/50 dark:border-white/5 space-y-3"
+          >
+            <!-- Load progress -->
+            <div>
+              <div class="flex justify-between text-[10px] font-black mb-1">
+                <span class="text-slate-400">进行中任务 ({{ member.metrics.activeTasks }})</span>
+                <span :class="member.metrics.overdueTasks > 0 ? 'text-rose-500' : 'text-accent'">
+                  完成率 {{ member.metrics.completionRate }}%
+                </span>
               </div>
-            </td>
-            <td v-if="team.type === 'TEAM'" class="text-xs font-black text-slate-500 text-left">
-              {{ member.metrics.projects }}
-            </td>
-            <td class="text-xs font-bold text-slate-500 text-left">
-              {{ formatDate(member.metrics.lastTaskAt || member.joinedAt) }}
-            </td>
-            <td class="text-right">
-              <div class="inline-flex items-center gap-1.5">
-                <button
-                  v-if="team.type === 'TEAM'"
-                  type="button"
-                  class="h-7 px-2 rounded-lg bg-accent/10 text-accent text-[10px] font-black border-none cursor-pointer hover:bg-accent hover:text-white transition-colors"
-                  @click="emit('open-workbench', member.userId)"
-                >
-                  画像
-                </button>
-                <el-dropdown trigger="click" placement="bottom-end">
+              <div class="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  class="h-full rounded-full"
+                  :class="
+                    member.metrics.overdueTasks > 0
+                      ? 'bg-rose-500'
+                      : member.metrics.activeTasks >= 5
+                        ? 'bg-amber-500'
+                        : 'bg-accent'
+                  "
+                  :style="{ width: progressWidthStr(member.metrics.activeTasks) }"
+                ></div>
+              </div>
+            </div>
+
+            <!-- Stat tags -->
+            <div class="flex flex-wrap gap-2 text-[9px] font-bold text-slate-400">
+              <span class="px-2 py-0.5 bg-slate-100 dark:bg-white/5 rounded-md">
+                已完 {{ member.metrics.doneTasks }}
+              </span>
+              <span class="px-2 py-0.5 bg-slate-100 dark:bg-white/5 rounded-md">
+                项目 {{ member.metrics.projects }}
+              </span>
+              <span
+                v-if="member.metrics.overdueTasks > 0"
+                class="px-2 py-0.5 bg-rose-500/10 text-rose-500 rounded-md"
+              >
+                逾期 {{ member.metrics.overdueTasks }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Footer Actions -->
+          <div
+            class="mt-5 pt-3 border-t border-slate-200/50 dark:border-white/5 flex items-center justify-between"
+          >
+            <span class="text-[10px] font-bold text-slate-400">
+              最近协作: {{ formatDate(member.metrics.lastTaskAt || member.joinedAt) }}
+            </span>
+
+            <div class="flex items-center gap-1.5">
+              <Button
+                v-if="team.type === 'TEAM'"
+                variant="secondary"
+                size="sm"
+                class="!h-7.5 !px-3 !text-[10px] !bg-accent/10 !text-accent hover:!bg-accent hover:!text-white !border-transparent transition-colors font-black"
+                @click="emit('open-workbench', member.userId)"
+              >
+                画像
+              </Button>
+              <Dropdown align="right" width-class="w-36">
+                <template #trigger>
                   <button
                     type="button"
-                    class="p-1.5 rounded-lg bg-slate-100 dark:bg-white/5 border-none cursor-pointer text-slate-400 hover:text-accent transition-colors"
+                    class="p-1.5 rounded-lg bg-slate-100 dark:bg-white/5 border-none cursor-pointer text-slate-400 hover:text-accent transition-colors flex items-center justify-center"
                     style="color: var(--text-secondary)"
                   >
                     <MoreHorizontal class="w-4 h-4" />
                   </button>
-                  <template #dropdown>
-                    <el-dropdown-menu class="!rounded-xl !p-2">
-                      <el-dropdown-item
-                        class="!rounded-lg !font-bold"
+                </template>
+                <template #content>
+                  <button
+                    type="button"
+                    class="w-full text-left px-3 py-2 text-xs font-bold hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-700 dark:text-slate-300 transition-colors border-none bg-transparent cursor-pointer"
+                    @click="emit('open-workbench', member.userId)"
+                  >
+                    打开画像
+                  </button>
+                  <button
+                    type="button"
+                    class="w-full text-left px-3 py-2 text-xs font-bold hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-700 dark:text-slate-300 transition-colors border-none bg-transparent cursor-pointer"
+                    @click="emit('open-profile', member.userId)"
+                  >
+                    查看资料
+                  </button>
+                  <button
+                    v-if="member.userId !== authStore.user?.id"
+                    type="button"
+                    class="w-full text-left px-3 py-2 text-xs font-bold hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-700 dark:text-slate-300 transition-colors border-none bg-transparent cursor-pointer"
+                    @click="emit('start-chat', member.user)"
+                  >
+                    发起私聊
+                  </button>
+                  <template
+                    v-if="
+                      canManageTeam &&
+                      member.userId !== authStore.user?.id &&
+                      member.role !== 'OWNER'
+                    "
+                  >
+                    <div class="h-[1px] bg-slate-200 dark:bg-white/10 my-1"></div>
+                    <button
+                      type="button"
+                      class="w-full text-left px-3 py-2 text-xs font-bold hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg text-rose-500 transition-colors border-none bg-transparent cursor-pointer"
+                      @click="emit('remove-member', member.userId, member.user.name)"
+                    >
+                      移出空间
+                    </button>
+                  </template>
+                </template>
+              </Dropdown>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- List (Table) View of Members -->
+      <div v-else class="overflow-x-auto scrollbar-hide">
+        <table class="member-table">
+          <thead>
+            <tr>
+              <th>成员</th>
+              <th>角色</th>
+              <th>状态</th>
+              <th v-if="team.type === 'TEAM'">负载</th>
+              <th v-if="team.type === 'TEAM'">项目</th>
+              <th>最近协作</th>
+              <th class="text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="member in filteredRows" :key="member.id">
+              <td>
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <UserAvatar
+                    :user="member.user"
+                    size="sm"
+                    class="cursor-pointer hover:ring-2 hover:ring-accent transition-all"
+                    @click="emit('open-profile', member.userId)"
+                  />
+                  <div class="min-w-0 text-left">
+                    <button
+                      type="button"
+                      class="block text-xs font-black truncate bg-transparent border-none p-0 cursor-pointer hover:text-accent max-w-[190px] text-left outline-none"
+                      style="color: var(--text-primary)"
+                      @click="
+                        team.type === 'TEAM'
+                          ? emit('open-workbench', member.userId)
+                          : emit('open-profile', member.userId)
+                      "
+                    >
+                      {{ memberNameStr(member) }}
+                    </button>
+                    <p class="text-[10px] text-slate-400 truncate max-w-[210px]">
+                      {{ member.user.email }}
+                    </p>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <el-select
+                  v-if="
+                    canManageTeam && member.userId !== authStore.user?.id && member.role !== 'OWNER'
+                  "
+                  :model-value="member.role"
+                  class="role-select"
+                  @change="(role: unknown) => emit('update-role', member.userId, String(role))"
+                >
+                  <el-option label="管理员" value="ADMIN" />
+                  <el-option label="成员" value="MEMBER" />
+                </el-select>
+                <span
+                  v-else
+                  class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black"
+                  :class="roleBadgeClass(member.role)"
+                >
+                  <Crown v-if="member.role === 'OWNER'" class="w-3 h-3" />
+                  <ShieldCheck v-else-if="member.role === 'ADMIN'" class="w-3 h-3" />
+                  {{ roleLabel(member.role) }}
+                </span>
+              </td>
+              <td>
+                <div class="space-y-1 text-left">
+                  <div class="flex items-center gap-1.5">
+                    <Circle
+                      class="w-2 h-2 fill-current"
+                      :class="
+                        authStore.isUserOnline(member.userId)
+                          ? 'text-emerald-500'
+                          : 'text-slate-300'
+                      "
+                    />
+                    <span class="text-[10px] font-black text-slate-500">
+                      {{ authStore.isUserOnline(member.userId) ? '在线' : '离线' }}
+                    </span>
+                  </div>
+                  <span
+                    v-if="team.type === 'TEAM'"
+                    class="inline-flex px-2 py-0.5 rounded-md text-[9px] font-black"
+                    :class="capacityClass(capacityByUserId.get(member.userId)?.capacityScore)"
+                  >
+                    {{ capacityLabel(member.userId) }}
+                  </span>
+                </div>
+              </td>
+              <td v-if="team.type === 'TEAM'">
+                <div class="w-36 text-left">
+                  <div class="flex justify-between text-[10px] font-black mb-1">
+                    <span class="text-slate-400">进行 {{ member.metrics.activeTasks }}</span>
+                    <span
+                      :class="member.metrics.overdueTasks > 0 ? 'text-rose-500' : 'text-accent'"
+                    >
+                      {{ member.metrics.completionRate }}%
+                    </span>
+                  </div>
+                  <div class="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      class="h-full rounded-full"
+                      :class="
+                        member.metrics.overdueTasks > 0
+                          ? 'bg-rose-500'
+                          : member.metrics.activeTasks >= 5
+                            ? 'bg-amber-500'
+                            : 'bg-accent'
+                      "
+                      :style="{ width: progressWidthStr(member.metrics.activeTasks) }"
+                    ></div>
+                  </div>
+                  <p class="mt-1 text-[9px] font-bold text-slate-400">
+                    已完 {{ member.metrics.doneTasks }} · 本周
+                    {{
+                      capacityByUserId.get(member.userId)?.completedThisWeek ??
+                      member.metrics.recentlyCompleted
+                    }}
+                    · 逾期 {{ member.metrics.overdueTasks }}
+                  </p>
+                </div>
+              </td>
+              <td v-if="team.type === 'TEAM'" class="text-xs font-black text-slate-500 text-left">
+                {{ member.metrics.projects }}
+              </td>
+              <td class="text-xs font-bold text-slate-500 text-left">
+                {{ formatDate(member.metrics.lastTaskAt || member.joinedAt) }}
+              </td>
+              <td class="text-right">
+                <div class="inline-flex items-center gap-1.5">
+                  <Button
+                    v-if="team.type === 'TEAM'"
+                    variant="secondary"
+                    size="sm"
+                    class="!h-7 !px-2.5 !text-[10px] !bg-accent/10 !text-accent hover:!bg-accent hover:!text-white !border-transparent transition-colors font-black"
+                    @click="emit('open-workbench', member.userId)"
+                  >
+                    画像
+                  </Button>
+                  <Dropdown align="right" width-class="w-36">
+                    <template #trigger>
+                      <button
+                        type="button"
+                        class="p-1.5 rounded-lg bg-slate-100 dark:bg-white/5 border-none cursor-pointer text-slate-400 hover:text-accent transition-colors flex items-center justify-center"
+                        style="color: var(--text-secondary)"
+                      >
+                        <MoreHorizontal class="w-4 h-4" />
+                      </button>
+                    </template>
+                    <template #content>
+                      <button
+                        type="button"
+                        class="w-full text-left px-3 py-2 text-xs font-bold hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-700 dark:text-slate-300 transition-colors border-none bg-transparent cursor-pointer"
                         @click="emit('open-workbench', member.userId)"
                       >
                         打开画像
-                      </el-dropdown-item>
-                      <el-dropdown-item
-                        class="!rounded-lg !font-bold"
+                      </button>
+                      <button
+                        type="button"
+                        class="w-full text-left px-3 py-2 text-xs font-bold hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-700 dark:text-slate-300 transition-colors border-none bg-transparent cursor-pointer"
                         @click="emit('open-profile', member.userId)"
                       >
                         查看资料
-                      </el-dropdown-item>
-                      <el-dropdown-item
+                      </button>
+                      <button
                         v-if="member.userId !== authStore.user?.id"
-                        class="!rounded-lg !font-bold"
+                        type="button"
+                        class="w-full text-left px-3 py-2 text-xs font-bold hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-700 dark:text-slate-300 transition-colors border-none bg-transparent cursor-pointer"
                         @click="emit('start-chat', member.user)"
                       >
                         发起私聊
-                      </el-dropdown-item>
+                      </button>
                       <template
                         v-if="
                           canManageTeam &&
@@ -644,22 +817,83 @@ const formatDate = (dateStr?: string | null) => {
                           member.role !== 'OWNER'
                         "
                       >
-                        <el-divider class="!my-1" />
-                        <el-dropdown-item
-                          class="!rounded-lg !font-bold !text-rose-500"
+                        <div class="h-[1px] bg-slate-200 dark:bg-white/10 my-1"></div>
+                        <button
+                          type="button"
+                          class="w-full text-left px-3 py-2 text-xs font-bold hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg text-rose-500 transition-colors border-none bg-transparent cursor-pointer"
                           @click="emit('remove-member', member.userId, member.user.name)"
                         >
                           移出空间
-                        </el-dropdown-item>
+                        </button>
                       </template>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+                    </template>
+                  </Dropdown>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.member-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.member-table th {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-base);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.member-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-base);
+  vertical-align: middle;
+}
+
+.member-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.member-table tbody tr:hover {
+  background: rgb(148 163 184 / 0.07);
+}
+
+@media (max-width: 1024px) {
+  .member-table {
+    min-width: 720px;
+  }
+}
+
+.role-select :deep(.el-select__wrapper) {
+  min-height: 28px !important;
+  height: 28px !important;
+  width: 90px !important;
+  border-radius: 8px !important;
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+}
+.dark .role-select :deep(.el-select__wrapper) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.role-select :deep(.el-select__wrapper.is-focused) {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.15) !important;
+}
+</style>

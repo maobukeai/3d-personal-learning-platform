@@ -104,8 +104,6 @@ interface AdminStatsResponse {
   latestBroadcasts: BroadcastHistoryItem[];
 }
 
-
-
 interface PipelineCard {
   label: string;
   total: number;
@@ -149,19 +147,30 @@ const ratio = (value: number, total: number) => {
   return Math.min(100, Math.max(0, Math.round((value / total) * 100)));
 };
 
-
 const platformStatus = computed(() => {
   const pressure =
     (counts.value.reviewQueueTotal || 0) +
     (counts.value.openFeedbacks || 0) +
     (counts.value.failedTransactions || 0) * 4;
   if (pressure >= 24) {
-    return { label: '高压', class: 'border-rose-500/25 bg-rose-500/10 text-rose-600', icon: AlertTriangle };
+    return {
+      label: '高压',
+      class: 'border-rose-500/25 bg-rose-500/10 text-rose-600',
+      icon: AlertTriangle,
+    };
   }
   if (pressure > 0) {
-    return { label: '关注', class: 'border-amber-500/25 bg-amber-500/10 text-amber-600', icon: Zap };
+    return {
+      label: '关注',
+      class: 'border-amber-500/25 bg-amber-500/10 text-amber-600',
+      icon: Zap,
+    };
   }
-  return { label: '稳定', class: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600', icon: CheckCircle2 };
+  return {
+    label: '稳定',
+    class: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600',
+    icon: CheckCircle2,
+  };
 });
 
 const totalContentCount = computed(
@@ -221,7 +230,6 @@ const consolidatedCards = computed(() => {
     },
   ];
 });
-
 
 const reviewQueues = computed(() => [
   {
@@ -461,7 +469,8 @@ const formatDate = (date?: string) => {
 };
 
 const getHealthMeta = (level: HealthLevel) => {
-  if (level === 'HIGH') return { label: '高压', class: 'text-red-600 bg-red-500/10 border-red-500/20' };
+  if (level === 'HIGH')
+    return { label: '高压', class: 'text-red-600 bg-red-500/10 border-red-500/20' };
   if (level === 'MEDIUM' || level === 'WATCH') {
     return { label: '关注', class: 'text-amber-600 bg-amber-500/10 border-amber-500/20' };
   }
@@ -469,7 +478,12 @@ const getHealthMeta = (level: HealthLevel) => {
 };
 
 const getStatusClass = (status?: string) => {
-  if (status === 'APPROVED' || status === 'RESOLVED' || status === 'ACTIVE' || status === 'PUBLISHED') {
+  if (
+    status === 'APPROVED' ||
+    status === 'RESOLVED' ||
+    status === 'ACTIVE' ||
+    status === 'PUBLISHED'
+  ) {
     return 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20';
   }
   if (status === 'REJECTED' || status === 'BANNED' || status === 'FAILED') {
@@ -508,13 +522,18 @@ const openQuickAction = (action: QuickAction) => {
   router.push(action.route);
 };
 
-
 onMounted(fetchAdminStats);
 </script>
 
 <template>
-  <div class="admin-dashboard flex h-full flex-col overflow-hidden" style="background-color: var(--bg-app)">
-    <header class="shrink-0 border-b px-4 py-3 sm:px-6" style="background-color: var(--bg-card); border-color: var(--border-base)">
+  <div
+    class="admin-dashboard flex h-full flex-col overflow-hidden"
+    style="background-color: var(--bg-app)"
+  >
+    <header
+      class="shrink-0 border-b px-4 py-3 sm:px-6"
+      style="background-color: var(--bg-card); border-color: var(--border-base)"
+    >
       <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div class="flex items-center gap-3">
           <span class="panel-icon bg-rose-500/10 text-rose-600">
@@ -528,7 +547,9 @@ onMounted(fetchAdminStats);
                 {{ platformStatus.label }}
               </span>
             </div>
-            <p class="mt-0.5 text-xs" style="color: var(--text-secondary)">把用户、内容、审核、教学和运营状态放在同一个驾驶舱里。</p>
+            <p class="mt-0.5 text-xs" style="color: var(--text-secondary)">
+              把用户、内容、审核、教学和运营状态放在同一个驾驶舱里。
+            </p>
           </div>
         </div>
 
@@ -562,20 +583,39 @@ onMounted(fetchAdminStats);
             @click="router.push(card.route)"
           >
             <div class="flex items-start justify-between w-full">
-              <span class="panel-icon border rounded-lg p-2.5 transition-transform group-hover:scale-110" :class="card.color">
+              <span
+                class="panel-icon border rounded-lg p-2.5 transition-transform group-hover:scale-110"
+                :class="card.color"
+              >
                 <component :is="card.icon" class="h-4 w-4" />
               </span>
-              <span class="status-pill px-2 py-0.5 text-[10px] font-bold rounded-full scale-95 border-0" :class="card.health.class">
+              <span
+                class="status-pill px-2 py-0.5 text-[10px] font-bold rounded-full scale-95 border-0"
+                :class="card.health.class"
+              >
                 {{ card.health.label }}
               </span>
             </div>
             <div class="mt-4">
               <p class="text-xs font-bold text-[var(--text-secondary)]">{{ card.label }}</p>
-              <p class="text-2xl font-black mt-1 text-[var(--text-primary)]">{{ card.value.toLocaleString() }}</p>
-              <p class="text-[11px] text-[var(--text-secondary)] mt-1.5 opacity-80 truncate" :title="card.hint">{{ card.hint }}</p>
+              <p class="text-2xl font-black mt-1 text-[var(--text-primary)]">
+                {{ card.value.toLocaleString() }}
+              </p>
+              <p
+                class="text-[11px] text-[var(--text-secondary)] mt-1.5 opacity-80 truncate"
+                :title="card.hint"
+              >
+                {{ card.hint }}
+              </p>
             </div>
-            <div v-if="card.progress !== null" class="w-full h-1.5 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden mt-3">
-              <div class="h-full rounded-full bg-sky-500" :style="{ width: `${card.progress}%` }"></div>
+            <div
+              v-if="card.progress !== null"
+              class="w-full h-1.5 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden mt-3"
+            >
+              <div
+                class="h-full rounded-full bg-sky-500"
+                :style="{ width: `${card.progress}%` }"
+              ></div>
             </div>
           </button>
         </section>
@@ -597,39 +637,73 @@ onMounted(fetchAdminStats);
                   进入审核中心
                 </button>
               </div>
-              
+
               <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div 
-                  v-for="(queue, index) in reviewQueues" 
-                  :key="queue.key" 
+                <div
+                  v-for="(queue, index) in reviewQueues"
+                  :key="queue.key"
                   class="flex flex-col border border-[var(--border-base)] rounded-lg p-3 bg-[var(--bg-app)]/20"
                 >
                   <!-- Top Part: Pipeline Card equivalent -->
-                  <div 
+                  <div
                     v-if="pipelineCards[index]"
                     class="pb-2 border-b border-[var(--border-base)] mb-2.5"
                   >
                     <div class="flex items-center justify-between mb-1.5">
-                      <span class="inline-flex items-center gap-1.5 text-xs font-black text-[var(--text-primary)]">
+                      <span
+                        class="inline-flex items-center gap-1.5 text-xs font-black text-[var(--text-primary)]"
+                      >
                         <component :is="queue.icon" class="h-4 w-4 text-[var(--accent)]" />
                         {{ queue.label }}
                       </span>
                       <div class="flex items-center gap-1">
-                        <span class="text-xs font-black text-[var(--text-primary)]">{{ pipelineCards[index].total }}</span>
+                        <span class="text-xs font-black text-[var(--text-primary)]">{{
+                          pipelineCards[index].total
+                        }}</span>
                         <span class="text-[9px] text-slate-400">总数</span>
                       </div>
                     </div>
-                    
+
                     <!-- Pipeline Visual Bar -->
-                    <div class="flex h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/5 my-1.5">
-                      <span class="bg-emerald-500 rounded-l" :style="{ width: getPipelineWidth(pipelineCards[index].approved, pipelineCards[index].total) }"></span>
-                      <span class="bg-amber-500" :style="{ width: getPipelineWidth(pipelineCards[index].pending, pipelineCards[index].total) }"></span>
-                      <span class="bg-rose-500 rounded-r" :style="{ width: getPipelineWidth(pipelineCards[index].rejected, pipelineCards[index].total) }"></span>
+                    <div
+                      class="flex h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/5 my-1.5"
+                    >
+                      <span
+                        class="bg-emerald-500 rounded-l"
+                        :style="{
+                          width: getPipelineWidth(
+                            pipelineCards[index].approved,
+                            pipelineCards[index].total,
+                          ),
+                        }"
+                      ></span>
+                      <span
+                        class="bg-amber-500"
+                        :style="{
+                          width: getPipelineWidth(
+                            pipelineCards[index].pending,
+                            pipelineCards[index].total,
+                          ),
+                        }"
+                      ></span>
+                      <span
+                        class="bg-rose-500 rounded-r"
+                        :style="{
+                          width: getPipelineWidth(
+                            pipelineCards[index].rejected,
+                            pipelineCards[index].total,
+                          ),
+                        }"
+                      ></span>
                     </div>
-                    
+
                     <!-- Stats details -->
-                    <div class="flex justify-between items-center text-[9px] text-[var(--text-secondary)] font-bold px-0.5">
-                      <span class="text-emerald-500">已通过 {{ pipelineCards[index].approved }}</span>
+                    <div
+                      class="flex justify-between items-center text-[9px] text-[var(--text-secondary)] font-bold px-0.5"
+                    >
+                      <span class="text-emerald-500"
+                        >已通过 {{ pipelineCards[index].approved }}</span
+                      >
                       <span class="text-amber-500">待审核 {{ pipelineCards[index].pending }}</span>
                       <span class="text-rose-500">已打回 {{ pipelineCards[index].rejected }}</span>
                     </div>
@@ -638,9 +712,18 @@ onMounted(fetchAdminStats);
                   <!-- Bottom Part: Queue Item list -->
                   <div class="flex-1 flex flex-col justify-between">
                     <div>
-                      <div class="flex items-center justify-between text-[10px] font-bold text-[var(--text-secondary)] mb-2">
+                      <div
+                        class="flex items-center justify-between text-[10px] font-bold text-[var(--text-secondary)] mb-2"
+                      >
                         <span>待审队列</span>
-                        <span class="px-1.5 py-0.2 rounded-full text-[9px] font-black" :class="queue.total > 0 ? 'bg-amber-500/10 text-amber-600' : 'bg-slate-100 dark:bg-white/5 text-slate-500'">
+                        <span
+                          class="px-1.5 py-0.2 rounded-full text-[9px] font-black"
+                          :class="
+                            queue.total > 0
+                              ? 'bg-amber-500/10 text-amber-600'
+                              : 'bg-slate-100 dark:bg-white/5 text-slate-500'
+                          "
+                        >
                           {{ queue.total }} 个待处理
                         </span>
                       </div>
@@ -652,18 +735,25 @@ onMounted(fetchAdminStats);
                           class="w-full flex items-center justify-between gap-3 p-2 border border-[var(--border-base)] rounded-lg bg-[var(--bg-card)] text-left transition-all hover:border-[var(--accent)] hover:bg-[var(--bg-app)]/30 text-xs"
                           @click="router.push(queue.route)"
                         >
-                          <span class="truncate font-medium text-[var(--text-primary)]">{{ item.title || item.name || '未命名内容' }}</span>
-                          <small class="text-slate-400 shrink-0">{{ formatDate(item.createdAt) }}</small>
+                          <span class="truncate font-medium text-[var(--text-primary)]">{{
+                            item.title || item.name || '未命名内容'
+                          }}</span>
+                          <small class="text-slate-400 shrink-0">{{
+                            formatDate(item.createdAt)
+                          }}</small>
                         </button>
-                        <div v-if="queue.items.length === 0" class="empty-line py-4 text-center text-xs text-slate-400 border border-dashed border-[var(--border-base)] rounded-lg">
+                        <div
+                          v-if="queue.items.length === 0"
+                          class="empty-line py-4 text-center text-xs text-slate-400 border border-dashed border-[var(--border-base)] rounded-lg"
+                        >
                           暂无待审内容
                         </div>
                       </div>
                     </div>
-                    
-                    <button 
+
+                    <button
                       v-if="queue.total > 3"
-                      type="button" 
+                      type="button"
                       class="mt-3 text-center text-[10px] font-black text-[var(--accent)] hover:underline"
                       @click="router.push(queue.route)"
                     >
@@ -685,26 +775,38 @@ onMounted(fetchAdminStats);
                 </div>
                 <!-- Tabs -->
                 <div class="flex items-center gap-1 bg-slate-100 dark:bg-white/5 p-1 rounded-lg">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     class="px-3 py-1 rounded text-xs font-bold transition-all"
-                    :class="activeActivityTab === 'assets' ? 'bg-white dark:bg-slate-800 shadow-sm text-[var(--accent)]' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'"
+                    :class="
+                      activeActivityTab === 'assets'
+                        ? 'bg-white dark:bg-slate-800 shadow-sm text-[var(--accent)]'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    "
                     @click="activeActivityTab = 'assets'"
                   >
                     最新资产
                   </button>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     class="px-3 py-1 rounded text-xs font-bold transition-all"
-                    :class="activeActivityTab === 'courses' ? 'bg-white dark:bg-slate-800 shadow-sm text-[var(--accent)]' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'"
+                    :class="
+                      activeActivityTab === 'courses'
+                        ? 'bg-white dark:bg-slate-800 shadow-sm text-[var(--accent)]'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    "
                     @click="activeActivityTab = 'courses'"
                   >
                     热门课程
                   </button>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     class="px-3 py-1 rounded text-xs font-bold transition-all"
-                    :class="activeActivityTab === 'feedback' ? 'bg-white dark:bg-slate-800 shadow-sm text-[var(--accent)]' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'"
+                    :class="
+                      activeActivityTab === 'feedback'
+                        ? 'bg-white dark:bg-slate-800 shadow-sm text-[var(--accent)]'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    "
                     @click="activeActivityTab = 'feedback'"
                   >
                     用户反馈
@@ -715,9 +817,17 @@ onMounted(fetchAdminStats);
               <div class="tab-content mt-3 min-h-[190px]">
                 <!-- Tab: Latest Assets -->
                 <div v-show="activeActivityTab === 'assets'" class="space-y-3">
-                  <div class="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                  <div
+                    class="flex items-center justify-between text-xs text-[var(--text-secondary)]"
+                  >
                     <span>最新提交且已处理或待审的资产。</span>
-                    <button type="button" class="text-link scale-90" @click="router.push('/admin/audits?tab=assets')">查看资产审核</button>
+                    <button
+                      type="button"
+                      class="text-link scale-90"
+                      @click="router.push('/admin/audits?tab=assets')"
+                    >
+                      查看资产审核
+                    </button>
                   </div>
                   <div class="asset-grid">
                     <button
@@ -735,17 +845,32 @@ onMounted(fetchAdminStats);
                         <b>{{ asset.title }}</b>
                         <small>{{ asset.user?.name || asset.user?.email || '未知作者' }}</small>
                       </span>
-                      <span class="status-pill" :class="getStatusClass(asset.status)">{{ asset.status }}</span>
+                      <span class="status-pill" :class="getStatusClass(asset.status)">{{
+                        asset.status
+                      }}</span>
                     </button>
-                    <div v-if="!dashboard?.recentAssets?.length" class="empty-line w-full col-span-full">暂无资产提交</div>
+                    <div
+                      v-if="!dashboard?.recentAssets?.length"
+                      class="empty-line w-full col-span-full"
+                    >
+                      暂无资产提交
+                    </div>
                   </div>
                 </div>
 
                 <!-- Tab: Popular Courses -->
                 <div v-show="activeActivityTab === 'courses'" class="space-y-3">
-                  <div class="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                  <div
+                    class="flex items-center justify-between text-xs text-[var(--text-secondary)]"
+                  >
                     <span>按学员报名人数排序的热门课程排行。</span>
-                    <button type="button" class="text-link scale-90" @click="router.push('/admin/courses')">课程管理</button>
+                    <button
+                      type="button"
+                      class="text-link scale-90"
+                      @click="router.push('/admin/courses')"
+                    >
+                      课程管理
+                    </button>
                   </div>
                   <div class="list-stack">
                     <button
@@ -756,12 +881,18 @@ onMounted(fetchAdminStats);
                       @click="router.push('/admin/courses')"
                     >
                       <div class="min-w-0 flex-1 text-left">
-                        <p class="truncate text-xs font-black text-[var(--text-primary)]">{{ course.title }}</p>
+                        <p class="truncate text-xs font-black text-[var(--text-primary)]">
+                          {{ course.title }}
+                        </p>
                         <p class="mt-1 text-[11px]" style="color: var(--text-secondary)">
-                          {{ course.category?.name || '未分类' }} · {{ course._count?.lessons || 0 }} 节课
+                          {{ course.category?.name || '未分类' }} ·
+                          {{ course._count?.lessons || 0 }} 节课
                         </p>
                       </div>
-                      <span class="status-pill border-indigo-500/20 bg-indigo-500/10 text-indigo-600 font-bold">{{ course._count?.enrollments || 0 }} 人报名</span>
+                      <span
+                        class="status-pill border-indigo-500/20 bg-indigo-500/10 text-indigo-600 font-bold"
+                        >{{ course._count?.enrollments || 0 }} 人报名</span
+                      >
                     </button>
                     <div v-if="!dashboard?.topCourses?.length" class="empty-line">暂无课程数据</div>
                   </div>
@@ -769,9 +900,17 @@ onMounted(fetchAdminStats);
 
                 <!-- Tab: Recent Feedback -->
                 <div v-show="activeActivityTab === 'feedback'" class="space-y-3">
-                  <div class="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                  <div
+                    class="flex items-center justify-between text-xs text-[var(--text-secondary)]"
+                  >
                     <span>最新的用户工单与产品反馈信息。</span>
-                    <button type="button" class="text-link scale-90" @click="router.push('/admin/feedback')">处理反馈</button>
+                    <button
+                      type="button"
+                      class="text-link scale-90"
+                      @click="router.push('/admin/feedback')"
+                    >
+                      处理反馈
+                    </button>
                   </div>
                   <div class="list-stack">
                     <button
@@ -782,12 +921,21 @@ onMounted(fetchAdminStats);
                       @click="router.push('/admin/feedback')"
                     >
                       <div class="min-w-0 flex-1 text-left">
-                        <p class="truncate text-xs font-black text-[var(--text-primary)]">{{ feedback.title }}</p>
-                        <p class="mt-1 text-[11px]" style="color: var(--text-secondary)">{{ feedback.user?.name || feedback.user?.email || '匿名用户' }} · {{ formatDate(feedback.updatedAt) }}</p>
+                        <p class="truncate text-xs font-black text-[var(--text-primary)]">
+                          {{ feedback.title }}
+                        </p>
+                        <p class="mt-1 text-[11px]" style="color: var(--text-secondary)">
+                          {{ feedback.user?.name || feedback.user?.email || '匿名用户' }} ·
+                          {{ formatDate(feedback.updatedAt) }}
+                        </p>
                       </div>
-                      <span class="status-pill" :class="getStatusClass(feedback.status)">{{ feedback.status }}</span>
+                      <span class="status-pill" :class="getStatusClass(feedback.status)">{{
+                        feedback.status
+                      }}</span>
                     </button>
-                    <div v-if="!dashboard?.recentFeedbacks?.length" class="empty-line">暂无用户反馈</div>
+                    <div v-if="!dashboard?.recentFeedbacks?.length" class="empty-line">
+                      暂无用户反馈
+                    </div>
                   </div>
                 </div>
               </div>
@@ -816,8 +964,13 @@ onMounted(fetchAdminStats);
                     <component :is="action.icon" class="h-4 w-4" />
                   </span>
                   <div class="min-w-0 flex-1">
-                    <b class="group-hover:text-[var(--accent)] transition-colors text-xs font-black block truncate">{{ action.label }}</b>
-                    <small class="text-[10px] text-slate-400 block truncate">{{ action.meta }}</small>
+                    <b
+                      class="group-hover:text-[var(--accent)] transition-colors text-xs font-black block truncate"
+                      >{{ action.label }}</b
+                    >
+                    <small class="text-[10px] text-slate-400 block truncate">{{
+                      action.meta
+                    }}</small>
                   </div>
                 </button>
               </div>
@@ -832,17 +985,21 @@ onMounted(fetchAdminStats);
                 </h2>
               </div>
               <div class="growth-grid">
-                <div 
-                  v-for="item in growthBars" 
+                <div
+                  v-for="item in growthBars"
                   :key="item.label"
                   class="border border-[var(--border-base)] rounded-lg p-2.5 bg-[var(--bg-app)]/30"
                 >
                   <span class="text-[10px] text-slate-500 font-bold block">{{ item.label }}</span>
-                  <b class="text-lg font-black block mt-0.5 text-[var(--text-primary)]">{{ item.value }}</b>
-                  <div class="w-full h-1 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden mt-2">
-                    <em 
-                      class="block h-full rounded-full" 
-                      :class="item.tone" 
+                  <b class="text-lg font-black block mt-0.5 text-[var(--text-primary)]">{{
+                    item.value
+                  }}</b>
+                  <div
+                    class="w-full h-1 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden mt-2"
+                  >
+                    <em
+                      class="block h-full rounded-full"
+                      :class="item.tone"
                       :style="{ width: getGrowthWidth(item.value, item.base) }"
                     ></em>
                   </div>
@@ -858,18 +1015,26 @@ onMounted(fetchAdminStats);
                   系统活动流
                 </h2>
                 <div class="flex items-center gap-1 bg-slate-100 dark:bg-white/5 p-0.5 rounded-lg">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     class="px-2.5 py-0.5 rounded text-[10px] font-bold transition-all"
-                    :class="activeFeedTab === 'users' ? 'bg-white dark:bg-slate-800 shadow-sm text-[var(--accent)]' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'"
+                    :class="
+                      activeFeedTab === 'users'
+                        ? 'bg-white dark:bg-slate-800 shadow-sm text-[var(--accent)]'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    "
                     @click="activeFeedTab = 'users'"
                   >
                     新用户
                   </button>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     class="px-2.5 py-0.5 rounded text-[10px] font-bold transition-all"
-                    :class="activeFeedTab === 'logs' ? 'bg-white dark:bg-slate-800 shadow-sm text-[var(--accent)]' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'"
+                    :class="
+                      activeFeedTab === 'logs'
+                        ? 'bg-white dark:bg-slate-800 shadow-sm text-[var(--accent)]'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    "
                     @click="activeFeedTab = 'logs'"
                   >
                     审计日志
@@ -893,11 +1058,13 @@ onMounted(fetchAdminStats);
                         <b>{{ user.name || '未命名用户' }}</b>
                         <small class="truncate block">{{ user.email }}</small>
                       </span>
-                      <span class="status-pill scale-90" :class="getStatusClass(user.status)">{{ user.status }}</span>
+                      <span class="status-pill scale-90" :class="getStatusClass(user.status)">{{
+                        user.status
+                      }}</span>
                     </button>
                     <div v-if="!dashboard?.recentUsers?.length" class="empty-line">暂无新用户</div>
                   </div>
-                  <button 
+                  <button
                     v-if="dashboard?.recentUsers?.length"
                     type="button"
                     class="w-full text-center text-[11px] font-bold text-[var(--accent)] hover:underline mt-1"
@@ -920,12 +1087,17 @@ onMounted(fetchAdminStats);
                       <span></span>
                       <div class="text-left">
                         <p class="font-bold text-xs">{{ getActionLabel(log.action) }}</p>
-                        <small class="block text-slate-500">{{ log.user?.name || log.user?.email || 'System' }} · {{ formatDate(log.createdAt) }}</small>
+                        <small class="block text-slate-500"
+                          >{{ log.user?.name || log.user?.email || 'System' }} ·
+                          {{ formatDate(log.createdAt) }}</small
+                        >
                       </div>
                     </button>
-                    <div v-if="!dashboard?.recentAuditLogs?.length" class="empty-line">暂无审计记录</div>
+                    <div v-if="!dashboard?.recentAuditLogs?.length" class="empty-line">
+                      暂无审计记录
+                    </div>
                   </div>
-                  <button 
+                  <button
                     v-if="dashboard?.recentAuditLogs?.length"
                     type="button"
                     class="w-full text-center text-[11px] font-bold text-[var(--accent)] hover:underline mt-1"
@@ -946,21 +1118,33 @@ onMounted(fetchAdminStats);
       <div class="modal-panel">
         <div class="panel-header">
           <div class="flex items-center gap-3">
-            <span class="panel-icon bg-rose-500/10 text-rose-600"><Megaphone class="h-4 w-4" /></span>
+            <span class="panel-icon bg-rose-500/10 text-rose-600"
+              ><Megaphone class="h-4 w-4"
+            /></span>
             <div>
               <h2 class="panel-title">全站广播</h2>
               <p class="panel-subtitle">向所有用户发送系统通知，重要活动和维护公告都从这里发布。</p>
             </div>
           </div>
-          <button type="button" class="secondary-button" @click="showBroadcastModal = false">关闭</button>
+          <button type="button" class="secondary-button" @click="showBroadcastModal = false">
+            关闭
+          </button>
         </div>
 
         <div class="segmented">
-          <button type="button" :class="{ active: broadcastTab === 'send' }" @click="switchBroadcastTab('send')">
+          <button
+            type="button"
+            :class="{ active: broadcastTab === 'send' }"
+            @click="switchBroadcastTab('send')"
+          >
             <Send class="h-4 w-4" />
             发布广播
           </button>
-          <button type="button" :class="{ active: broadcastTab === 'history' }" @click="switchBroadcastTab('history')">
+          <button
+            type="button"
+            :class="{ active: broadcastTab === 'history' }"
+            @click="switchBroadcastTab('history')"
+          >
             <Clock class="h-4 w-4" />
             历史记录
           </button>
@@ -968,12 +1152,32 @@ onMounted(fetchAdminStats);
 
         <div v-if="broadcastTab === 'send'" class="space-y-3">
           <label class="field-label">标题</label>
-          <input v-model="broadcastForm.title" class="field-input" type="text" placeholder="例如：端午活动上线通知" />
+          <input
+            v-model="broadcastForm.title"
+            class="field-input"
+            type="text"
+            placeholder="例如：端午活动上线通知"
+          />
           <label class="field-label">内容</label>
-          <textarea v-model="broadcastForm.content" class="field-input resize-none" rows="5" placeholder="写清楚影响范围、操作指引和跳转入口"></textarea>
+          <textarea
+            v-model="broadcastForm.content"
+            class="field-input resize-none"
+            rows="5"
+            placeholder="写清楚影响范围、操作指引和跳转入口"
+          ></textarea>
           <label class="field-label">跳转链接</label>
-          <input v-model="broadcastForm.link" class="field-input" type="text" placeholder="/academy 或 https://..." />
-          <button type="button" class="primary-button w-full justify-center" :disabled="isBroadcasting" @click="handleSendBroadcast">
+          <input
+            v-model="broadcastForm.link"
+            class="field-input"
+            type="text"
+            placeholder="/academy 或 https://..."
+          />
+          <button
+            type="button"
+            class="primary-button w-full justify-center"
+            :disabled="isBroadcasting"
+            @click="handleSendBroadcast"
+          >
             <RefreshCw v-if="isBroadcasting" class="h-4 w-4 animate-spin" />
             <Send v-else class="h-4 w-4" />
             {{ isBroadcasting ? '发送中' : '立即发布' }}
@@ -982,17 +1186,34 @@ onMounted(fetchAdminStats);
 
         <div v-else class="max-h-[460px] space-y-2 overflow-y-auto">
           <div v-if="isHistoryLoading" class="empty-line">正在加载广播历史...</div>
-          <article v-for="broadcast in broadcastHistory" v-else :key="broadcast.id" class="broadcast-row">
+          <article
+            v-for="broadcast in broadcastHistory"
+            v-else
+            :key="broadcast.id"
+            class="broadcast-row"
+          >
             <div class="min-w-0">
               <p class="truncate text-xs font-black">{{ broadcast.title }}</p>
-              <p class="mt-1 line-clamp-2 text-xs" style="color: var(--text-secondary)">{{ broadcast.content }}</p>
-              <small>{{ formatDate(broadcast.createdAt) }} <span v-if="broadcast.link">· {{ broadcast.link }}</span></small>
+              <p class="mt-1 line-clamp-2 text-xs" style="color: var(--text-secondary)">
+                {{ broadcast.content }}
+              </p>
+              <small
+                >{{ formatDate(broadcast.createdAt) }}
+                <span v-if="broadcast.link">· {{ broadcast.link }}</span></small
+              >
             </div>
-            <button type="button" class="danger-icon" title="撤回广播" @click="handleDeleteBroadcast(broadcast.id)">
+            <button
+              type="button"
+              class="danger-icon"
+              title="撤回广播"
+              @click="handleDeleteBroadcast(broadcast.id)"
+            >
               <Trash2 class="h-4 w-4" />
             </button>
           </article>
-          <div v-if="!isHistoryLoading && broadcastHistory.length === 0" class="empty-line">暂无广播记录</div>
+          <div v-if="!isHistoryLoading && broadcastHistory.length === 0" class="empty-line">
+            暂无广播记录
+          </div>
         </div>
       </div>
     </div>
@@ -1353,7 +1574,9 @@ onMounted(fetchAdminStats);
 .timeline-item {
   width: 100%;
   text-align: left;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .queue-item:hover,

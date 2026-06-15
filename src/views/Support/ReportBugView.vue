@@ -26,6 +26,7 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
+import Modal from '@/components/ui/Modal.vue';
 import { getApiErrorMessage } from '@/utils/error';
 import type { Feedback } from '@/types';
 
@@ -118,7 +119,9 @@ const statusOptions: Array<{ value: AnyFilter<FeedbackStatus>; label: string }> 
 
 const activeTickets = computed(() => stats.value.open + stats.value.inProgress);
 const resolutionRate = computed(() =>
-  stats.value.total ? Math.round(((stats.value.resolved + stats.value.closed) / stats.value.total) * 100) : 0,
+  stats.value.total
+    ? Math.round(((stats.value.resolved + stats.value.closed) / stats.value.total) * 100)
+    : 0,
 );
 
 const filteredFeedbacks = computed(() => {
@@ -126,7 +129,8 @@ const filteredFeedbacks = computed(() => {
   return feedbacks.value.filter((item) => {
     const matchesStatus = statusFilter.value === 'ALL' || item.status === statusFilter.value;
     const matchesType = typeFilter.value === 'ALL' || item.type === typeFilter.value;
-    const matchesPriority = priorityFilter.value === 'ALL' || item.priority === priorityFilter.value;
+    const matchesPriority =
+      priorityFilter.value === 'ALL' || item.priority === priorityFilter.value;
     const matchesSearch =
       !keyword ||
       item.title.toLowerCase().includes(keyword) ||
@@ -232,7 +236,9 @@ const fetchMyFeedbacks = async () => {
       activeFeedback.value = response.data[0] || null;
     } else if (activeFeedback.value) {
       activeFeedback.value =
-        response.data.find((item) => item.id === activeFeedback.value?.id) || response.data[0] || null;
+        response.data.find((item) => item.id === activeFeedback.value?.id) ||
+        response.data[0] ||
+        null;
     }
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, '无法加载反馈历史'));
@@ -489,7 +495,11 @@ onMounted(refreshAll);
 
         <label>
           工单标题
-          <input v-model="bugForm.title" maxlength="120" placeholder="例如：学习路线页面保存后步骤顺序错乱" />
+          <input
+            v-model="bugForm.title"
+            maxlength="120"
+            placeholder="例如：学习路线页面保存后步骤顺序错乱"
+          />
         </label>
 
         <label>
@@ -505,16 +515,28 @@ onMounted(refreshAll);
         <div class="compact-grid">
           <label>
             复现步骤
-            <textarea v-model="bugForm.steps" rows="5" placeholder="1. 进入...\A2. 点击...\A3. 观察结果..."></textarea>
+            <textarea
+              v-model="bugForm.steps"
+              rows="5"
+              placeholder="1. 进入...\A2. 点击...\A3. 观察结果..."
+            ></textarea>
           </label>
           <div class="field-stack">
             <label>
               期望结果
-              <textarea v-model="bugForm.expected" rows="2" placeholder="正常情况下应该怎样"></textarea>
+              <textarea
+                v-model="bugForm.expected"
+                rows="2"
+                placeholder="正常情况下应该怎样"
+              ></textarea>
             </label>
             <label>
               实际结果
-              <textarea v-model="bugForm.actual" rows="2" placeholder="现在出现了什么异常"></textarea>
+              <textarea
+                v-model="bugForm.actual"
+                rows="2"
+                placeholder="现在出现了什么异常"
+              ></textarea>
             </label>
           </div>
         </div>
@@ -531,7 +553,13 @@ onMounted(refreshAll);
         </div>
 
         <div class="upload-row">
-          <input ref="fileInput" type="file" class="hidden-input" accept="image/*" @change="handleFileUpload" />
+          <input
+            ref="fileInput"
+            type="file"
+            class="hidden-input"
+            accept="image/*"
+            @change="handleFileUpload"
+          />
           <button v-if="!previewUrl" type="button" class="upload-box" @click="triggerFileInput">
             <Loader2 v-if="isUploading" class="spinning" />
             <FileImage v-else />
@@ -628,15 +656,21 @@ onMounted(refreshAll);
             <input v-model="searchQuery" type="search" placeholder="搜索标题或描述" />
           </label>
           <select v-model="statusFilter">
-            <option v-for="item in statusOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            <option v-for="item in statusOptions" :key="item.value" :value="item.value">
+              {{ item.label }}
+            </option>
           </select>
           <select v-model="typeFilter">
             <option value="ALL">全部类型</option>
-            <option v-for="item in typeOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            <option v-for="item in typeOptions" :key="item.value" :value="item.value">
+              {{ item.label }}
+            </option>
           </select>
           <select v-model="priorityFilter">
             <option value="ALL">全部优先级</option>
-            <option v-for="item in priorityOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            <option v-for="item in priorityOptions" :key="item.value" :value="item.value">
+              {{ item.label }}
+            </option>
           </select>
         </div>
 
@@ -670,8 +704,12 @@ onMounted(refreshAll);
               <small>{{ typeLabel(item.type) }} · {{ formatDate(item.updatedAt) }}</small>
             </div>
             <div class="row-meta">
-              <span class="status-pill" :class="statusTone(item.status)">{{ statusLabel(item.status) }}</span>
-              <span class="status-pill" :class="priorityTone(item.priority)">P{{ priorityLabel(item.priority) }}</span>
+              <span class="status-pill" :class="statusTone(item.status)">{{
+                statusLabel(item.status)
+              }}</span>
+              <span class="status-pill" :class="priorityTone(item.priority)"
+                >P{{ priorityLabel(item.priority) }}</span
+              >
             </div>
             <ChevronRight />
           </button>
@@ -758,7 +796,12 @@ onMounted(refreshAll);
               <CheckCircle2 />
               我已确认，关闭
             </button>
-            <button v-else type="button" class="ghost-btn" @click="updateMyStatus(activeFeedback, 'OPEN')">
+            <button
+              v-else
+              type="button"
+              class="ghost-btn"
+              @click="updateMyStatus(activeFeedback, 'OPEN')"
+            >
               <RotateCcw />
               重新打开
             </button>
@@ -771,9 +814,14 @@ onMounted(refreshAll);
       </aside>
     </main>
 
-    <el-dialog v-model="previewDialogVisible" title="附件预览" width="68%" destroy-on-close>
+    <Modal
+      :show="previewDialogVisible"
+      title="附件预览"
+      size="xl"
+      @close="previewDialogVisible = false"
+    >
       <img :src="previewImageUrl" alt="" class="preview-image" />
-    </el-dialog>
+    </Modal>
   </div>
 </template>
 

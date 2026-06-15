@@ -134,14 +134,8 @@ const handleSubmit = () => {
 
 <template>
   <Transition name="fade">
-    <div
-      v-if="modelValue"
-      class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4"
-    >
-      <div
-        class="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        @click="handleClose"
-      ></div>
+    <div v-if="modelValue" class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="handleClose"></div>
       <div
         class="relative w-full max-w-5xl p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] shadow-2xl border space-y-4 sm:space-y-6 max-h-[95vh] overflow-y-auto"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
@@ -153,7 +147,12 @@ const handleSubmit = () => {
           >
             新建学习任务
           </h3>
-          <button type="button" style="color: var(--text-secondary)" class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all" @click="handleClose">
+          <button
+            type="button"
+            style="color: var(--text-secondary)"
+            class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"
+            @click="handleClose"
+          >
             <X class="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
@@ -192,12 +191,7 @@ const handleSubmit = () => {
                 >优先级</label
               >
               <el-select v-model="localNewTask.priority" class="!w-full custom-select">
-                <el-option
-                  v-for="p in priorityOptions"
-                  :key="p.id"
-                  :label="p.label"
-                  :value="p.id"
-                >
+                <el-option v-for="p in priorityOptions" :key="p.id" :label="p.label" :value="p.id">
                   <div class="flex items-center gap-2">
                     <div class="w-2 h-2 rounded-full" :class="p.color"></div>
                     <span class="text-xs sm:text-sm">{{ p.label }}</span>
@@ -231,7 +225,12 @@ const handleSubmit = () => {
               >
                 <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
                   <div class="flex items-center gap-2">
-                    <img v-if="m.avatarUrl" alt="" :src="m.avatarUrl" class="w-5 h-5 rounded-lg object-cover" />
+                    <img
+                      v-if="m.avatarUrl"
+                      alt=""
+                      :src="m.avatarUrl"
+                      class="w-5 h-5 rounded-lg object-cover"
+                    />
                     <span class="text-xs sm:text-sm">{{ m.name }}</span>
                   </div>
                 </el-option>
@@ -267,7 +266,12 @@ const handleSubmit = () => {
               >
                 <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
                   <div class="flex items-center gap-2">
-                    <img v-if="m.avatarUrl" alt="" :src="m.avatarUrl" class="w-5 h-5 rounded-lg object-cover" />
+                    <img
+                      v-if="m.avatarUrl"
+                      alt=""
+                      :src="m.avatarUrl"
+                      class="w-5 h-5 rounded-lg object-cover"
+                    />
                     <span>{{ m.name }}</span>
                   </div>
                 </el-option>
@@ -288,7 +292,11 @@ const handleSubmit = () => {
                   :class="getTagClass(tag)"
                 >
                   {{ tag }}
-                  <button type="button" class="hover:opacity-70 transition-opacity" @click="removeTag(tag)">
+                  <button
+                    type="button"
+                    class="hover:opacity-70 transition-opacity"
+                    @click="removeTag(tag)"
+                  >
                     <X class="w-2.5 h-2.5" />
                   </button>
                 </span>
@@ -301,7 +309,11 @@ const handleSubmit = () => {
                   placeholder="输入标签名"
                   @keyup.enter="addTag"
                 />
-                <button type="button" class="px-3 py-2 bg-slate-100 dark:bg-white/5 rounded-xl text-xs font-bold text-slate-500 hover:text-accent transition-colors" @click="addTag">
+                <button
+                  type="button"
+                  class="px-3 py-2 bg-slate-100 dark:bg-white/5 rounded-xl text-xs font-bold text-slate-500 hover:text-accent transition-colors"
+                  @click="addTag"
+                >
                   <Plus class="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -309,7 +321,11 @@ const handleSubmit = () => {
           </div>
         </div>
 
-        <button type="button" class="w-full py-3 sm:py-3.5 bg-accent text-white rounded-xl font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all text-sm sm:text-base" @click="handleSubmit">
+        <button
+          type="button"
+          class="w-full py-3 sm:py-3.5 bg-accent text-white rounded-xl font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all text-sm sm:text-base"
+          @click="handleSubmit"
+        >
           创建任务
         </button>
       </div>

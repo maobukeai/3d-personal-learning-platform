@@ -15,6 +15,7 @@ import ChatWindow from './components/ChatWindow.vue';
 import ChatInfoPanel from './components/ChatInfoPanel.vue';
 import NewChatDialog from './components/NewChatDialog.vue';
 import GroupChatDialog from './components/GroupChatDialog.vue';
+import Button from '@/components/ui/Button.vue';
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -63,7 +64,11 @@ const selectedUserId = ref<string | null>(null);
 
 const isInfoPanelOpen = ref(false);
 
-const chatWindowRef = ref<{ closeContextMenu: () => void; messagesContainer?: HTMLElement; scrollToBottom: () => void } | null>(null);
+const chatWindowRef = ref<{
+  closeContextMenu: () => void;
+  messagesContainer?: HTMLElement;
+  scrollToBottom: () => void;
+} | null>(null);
 
 const sharedPhotos = computed(() => {
   return messages.value
@@ -126,7 +131,12 @@ const handleTouchEnd = (convId: string) => {
   }
 };
 
-const conversationContextMenu = ref<{ visible: boolean; x: number; y: number; conversation: Conversation | null }>({
+const conversationContextMenu = ref<{
+  visible: boolean;
+  x: number;
+  y: number;
+  conversation: Conversation | null;
+}>({
   visible: false,
   x: 0,
   y: 0,
@@ -220,7 +230,12 @@ const fetchMessages = async (id: string, cursor?: string) => {
 };
 
 const loadOlderMessages = () => {
-  if (activeConversation.value && hasMoreMessages.value && nextCursor.value && !isLoadingOlderMessages.value) {
+  if (
+    activeConversation.value &&
+    hasMoreMessages.value &&
+    nextCursor.value &&
+    !isLoadingOlderMessages.value
+  ) {
     fetchMessages(activeConversation.value.id, nextCursor.value!);
   }
 };
@@ -230,7 +245,7 @@ const handleSendMessage = async (type = 'TEXT', content?: string) => {
 
   let msgContent = content || '';
   let replyToId: string | undefined = undefined;
-  
+
   if (msgContent.includes('::REPLY::')) {
     const parts = msgContent.split('::REPLY::');
     replyToId = parts.pop();
@@ -314,11 +329,15 @@ const leaveGroupChat = async () => {
 
 const deleteConversation = async (conv: Conversation) => {
   try {
-    await ElMessageBox.confirm(t('messages.deleteConversationConfirm'), t('messages.deleteConversationConfirmTitle'), {
-      confirmButtonText: t('common.delete'),
-      cancelButtonText: t('common.cancel'),
-      type: 'warning',
-    });
+    await ElMessageBox.confirm(
+      t('messages.deleteConversationConfirm'),
+      t('messages.deleteConversationConfirmTitle'),
+      {
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
+        type: 'warning',
+      },
+    );
     await api.delete(`/api/messages/conversations/${conv.id}`);
     conversations.value = conversations.value.filter((c) => c.id !== conv.id);
     if (activeConversation.value?.id === conv.id) {
@@ -390,51 +409,80 @@ onMounted(() => {
     updateSidebarWithNewMessage(message);
   });
 
-  socketService.on('message_received', ({ conversationId, message }: { conversationId: string; message: Message }) => {
-    if (activeConversation.value?.id !== conversationId) {
-      updateSidebarWithNewMessage(message);
-    }
-  });
+  socketService.on(
+    'message_received',
+    ({ conversationId, message }: { conversationId: string; message: Message }) => {
+      if (activeConversation.value?.id !== conversationId) {
+        updateSidebarWithNewMessage(message);
+      }
+    },
+  );
 
-  socketService.on('message_deleted', ({ messageId, conversationId }: { messageId: string; conversationId: string }) => {
-    if (activeConversation.value?.id === conversationId) {
-      messages.value = messages.value.filter((m) => m.id !== messageId);
-    }
-    const conv = conversations.value.find((c) => c.id === conversationId);
-    if (conv && conv.messages[0]?.id === messageId) {
-      fetchConversations();
-    }
-  });
+  socketService.on(
+    'message_deleted',
+    ({ messageId, conversationId }: { messageId: string; conversationId: string }) => {
+      if (activeConversation.value?.id === conversationId) {
+        messages.value = messages.value.filter((m) => m.id !== messageId);
+      }
+      const conv = conversations.value.find((c) => c.id === conversationId);
+      if (conv && conv.messages[0]?.id === messageId) {
+        fetchConversations();
+      }
+    },
+  );
 
-  socketService.on('messages_read', ({ conversationId, messageIds, userId }: { conversationId: string; messageIds: string[]; userId: string }) => {
-    if (activeConversation.value?.id === conversationId && userId !== authStore.user?.id) {
-      messages.value = messages.value.map((m) => {
-        if (messageIds.includes(m.id)) {
-          return {
-            ...m,
-            readBy: [...(m.readBy || []), { userId }],
-          };
-        }
-        return m;
-      });
-    }
-  });
+  socketService.on(
+    'messages_read',
+    ({
+      conversationId,
+      messageIds,
+      userId,
+    }: {
+      conversationId: string;
+      messageIds: string[];
+      userId: string;
+    }) => {
+      if (activeConversation.value?.id === conversationId && userId !== authStore.user?.id) {
+        messages.value = messages.value.map((m) => {
+          if (messageIds.includes(m.id)) {
+            return {
+              ...m,
+              readBy: [...(m.readBy || []), { userId }],
+            };
+          }
+          return m;
+        });
+      }
+    },
+  );
 
-  socketService.on('message_reaction', ({ messageId, reaction }: { messageId: string; reaction: { id: string; emoji: string; userId: string } }) => {
-    const msg = messages.value.find((m) => m.id === messageId);
-    if (msg) {
-      if (!msg.reactions) msg.reactions = [];
-      const exists = msg.reactions.find((r) => r.id === reaction.id);
-      if (!exists) msg.reactions.push(reaction);
-    }
-  });
+  socketService.on(
+    'message_reaction',
+    ({
+      messageId,
+      reaction,
+    }: {
+      messageId: string;
+      reaction: { id: string; emoji: string; userId: string };
+    }) => {
+      const msg = messages.value.find((m) => m.id === messageId);
+      if (msg) {
+        if (!msg.reactions) msg.reactions = [];
+        const exists = msg.reactions.find((r) => r.id === reaction.id);
+        if (!exists) msg.reactions.push(reaction);
+      }
+    },
+  );
 
-  socketService.on('message_reaction_removed', ({ messageId, userId, emoji }: { messageId: string; userId: string; emoji: string }) => {
-    const msg = messages.value.find((m) => m.id === messageId);
-    if (msg && msg.reactions) {
-      msg.reactions = msg.reactions.filter((r) => !(r.emoji === emoji && r.userId === userId));
-    }
-  });
+  socketService.on(
+    'message_reaction_removed',
+    ({ messageId, userId, emoji }: { messageId: string; userId: string; emoji: string }) => {
+      const msg = messages.value.find((m) => m.id === messageId);
+      if (msg && msg.reactions) {
+        msg.reactions = msg.reactions.filter((r) => !(r.emoji === emoji && r.userId === userId));
+      }
+    },
+  );
 
   socketService.on('conversation_updated', (updatedConv: Conversation) => {
     if (activeConversation.value?.id === updatedConv.id) {
@@ -534,20 +582,34 @@ onUnmounted(() => {
       class="flex-1 flex flex-col items-center justify-center p-6 text-center"
       style="background-color: var(--bg-app)"
     >
-      <div class="w-16 h-16 bg-accent/5 rounded-full flex items-center justify-center mb-4 shrink-0">
+      <div
+        class="w-16 h-16 bg-accent/5 rounded-full flex items-center justify-center mb-4 shrink-0"
+      >
         <Users class="w-8 h-8 text-accent opacity-20" />
       </div>
-      <h2 class="text-lg font-bold mb-1.5" style="color: var(--text-primary)">{{ t('messages.startNewChatTitle') }}</h2>
+      <h2 class="text-lg font-bold mb-1.5" style="color: var(--text-primary)">
+        {{ t('messages.startNewChatTitle') }}
+      </h2>
       <p class="text-xs max-w-xs mx-auto mb-6" style="color: var(--text-secondary)">
         {{ t('messages.startNewChatDesc') }}
       </p>
-      <div class="flex gap-2">
-        <button type="button" class="px-5 py-2 bg-accent text-white rounded-xl font-bold shadow-md shadow-accent/20 hover:scale-102 transition-all text-xs cursor-pointer" @click="isNewChatDialogOpen = true">
+      <div class="flex gap-3 justify-center">
+        <Button
+          variant="primary"
+          size="sm"
+          class="shadow-md hover:scale-102"
+          @click="isNewChatDialogOpen = true"
+        >
           {{ t('messages.findContacts') }}
-        </button>
-        <button type="button" class="px-5 py-2 bg-indigo-500 text-white rounded-xl font-bold shadow-md shadow-indigo-500/20 hover:scale-102 transition-all text-xs cursor-pointer" @click="isGroupChatDialogOpen = true">
+        </Button>
+        <Button
+          variant="glass"
+          size="sm"
+          class="shadow-md hover:scale-102"
+          @click="isGroupChatDialogOpen = true"
+        >
           {{ t('messages.createGroup') }}
-        </button>
+        </Button>
       </div>
     </div>
 
@@ -565,31 +627,30 @@ onUnmounted(() => {
     <!-- Conversation Context Menu -->
     <div
       v-if="conversationContextMenu.visible"
-      class="fixed z-[100] py-2 rounded-2xl shadow-2xl border min-w-[160px]"
+      class="fixed z-[100] py-2 rounded-2xl shadow-2xl border border-strong/10 min-w-[160px] glass-panel backdrop-blur-xl overflow-hidden"
       :style="{
         left: conversationContextMenu.x + 'px',
         top: conversationContextMenu.y + 'px',
-        backgroundColor: 'var(--bg-card)',
-        borderColor: 'var(--border-base)',
       }"
       @click.stop
     >
-      <button type="button" class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-rose-500/10 text-rose-500 transition-all cursor-pointer font-bold" @click="conversationContextMenu.conversation && deleteConversation(conversationContextMenu.conversation)">
+      <button
+        type="button"
+        class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-rose-500/10 text-rose-500 transition-all cursor-pointer font-bold"
+        @click="
+          conversationContextMenu.conversation &&
+          deleteConversation(conversationContextMenu.conversation)
+        "
+      >
         <Trash2 class="w-4 h-4" /> {{ t('common.delete') }} {{ t('sidebar.messages') }}
       </button>
     </div>
 
     <!-- New Chat Dialog -->
-    <NewChatDialog
-      v-model="isNewChatDialogOpen"
-      @start-chat="startNewChat"
-    />
+    <NewChatDialog v-model="isNewChatDialogOpen" @start-chat="startNewChat" />
 
     <!-- Group Chat Dialog -->
-    <GroupChatDialog
-      v-model="isGroupChatDialogOpen"
-      @create-group="createGroupChat"
-    />
+    <GroupChatDialog v-model="isGroupChatDialogOpen" @create-group="createGroupChat" />
 
     <!-- User Profile Dialog -->
     <UserProfileDialog
@@ -603,44 +664,5 @@ onUnmounted(() => {
 <style scoped>
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
-}
-</style>
-
-<style>
-.custom-dialog {
-  border-radius: 1.25rem !important;
-  overflow: hidden;
-  background-color: var(--bg-card) !important;
-  border: 1px solid var(--border-base) !important;
-}
-.custom-dialog .el-dialog__header {
-  margin-right: 0;
-  padding: 1.25rem 1.5rem 0;
-}
-.custom-dialog .el-dialog__title {
-  font-weight: 800;
-  color: var(--text-primary);
-  font-size: 1.1rem;
-}
-.custom-dialog .el-dialog__body {
-  padding: 1rem 1.5rem 1.5rem;
-}
-.custom-dialog .el-dialog__headerbtn {
-  top: 1.25rem;
-  right: 1.5rem;
-  width: 2rem;
-  height: 2rem;
-  background-color: var(--bg-app);
-  border-radius: 0.5rem;
-  transition: all 0.3s;
-}
-.custom-dialog .el-dialog__headerbtn:hover {
-  background-color: var(--accent);
-}
-.custom-dialog .el-dialog__headerbtn .el-dialog__close {
-  color: var(--text-secondary);
-}
-.custom-dialog .el-dialog__headerbtn:hover .el-dialog__close {
-  color: white;
 }
 </style>

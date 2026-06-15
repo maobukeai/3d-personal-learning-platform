@@ -2,7 +2,18 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { Bell, CheckCircle2, ChevronRight, Mail, MessageCircle, RotateCcw, Save, Send } from 'lucide-vue-next';
+import {
+  Bell,
+  CheckCircle2,
+  ChevronRight,
+  Mail,
+  MessageCircle,
+  RotateCcw,
+  Save,
+  Send,
+} from 'lucide-vue-next';
+import Switch from '@/components/ui/Switch.vue';
+import Button from '@/components/ui/Button.vue';
 import {
   type AppNotification,
   type NotificationPreferences,
@@ -22,7 +33,9 @@ const recentNotifications = ref<AppNotification[]>([]);
 const isLoading = ref(false);
 const isSavingPrefs = ref(false);
 const browserPermission = ref(
-  typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported',
+  typeof window !== 'undefined' && 'Notification' in window
+    ? Notification.permission
+    : 'unsupported',
 );
 
 const preferenceItems: Array<{
@@ -158,14 +171,23 @@ onMounted(fetchNotificationPrefs);
         <span>把重要协作信息留在前台，把低优先级消息降噪。</span>
       </div>
       <div class="overview-actions">
-        <button type="button" class="secondary-action" @click="router.push('/notifications')">
+        <Button
+          variant="secondary"
+          :icon="ChevronRight"
+          icon-position="right"
+          @click="router.push('/notifications')"
+        >
           通知中心
-          <ChevronRight />
-        </button>
-        <button type="button" class="primary-action" :disabled="!hasChanges || isSavingPrefs" @click="saveNotificationPrefs">
-          <Save />
-          {{ isSavingPrefs ? '保存中...' : '保存偏好' }}
-        </button>
+        </Button>
+        <Button
+          variant="primary"
+          :disabled="!hasChanges || isSavingPrefs"
+          :loading="isSavingPrefs"
+          :icon="Save"
+          @click="saveNotificationPrefs"
+        >
+          保存偏好
+        </Button>
       </div>
     </section>
 
@@ -173,10 +195,9 @@ onMounted(fetchNotificationPrefs);
       <div class="preference-panel">
         <div class="panel-title">
           <span>接收渠道</span>
-          <button type="button" @click="resetDefaults">
-            <RotateCcw />
+          <Button size="sm" variant="secondary" :icon="RotateCcw" @click="resetDefaults">
             恢复默认
-          </button>
+          </Button>
         </div>
 
         <div v-if="isLoading" class="loading-list">
@@ -195,15 +216,10 @@ onMounted(fetchNotificationPrefs);
               </div>
               <span>{{ item.description }}</span>
             </div>
-            <button
-              type="button"
-              class="toggle-button"
-              :class="{ on: notificationPrefs[item.key] }"
-              :aria-pressed="notificationPrefs[item.key]"
-              @click="setPreference(item.key, !notificationPrefs[item.key])"
-            >
-              <i></i>
-            </button>
+            <Switch
+              :model-value="notificationPrefs[item.key]"
+              @update:model-value="(val) => setPreference(item.key, val)"
+            />
           </article>
         </div>
       </div>
@@ -215,10 +231,15 @@ onMounted(fetchNotificationPrefs);
             <strong>{{ browserPermissionLabel }}</strong>
           </div>
           <p>浏览器授权后，重要私信和提及可以在后台弹出提醒。</p>
-          <button type="button" :disabled="browserPermission === 'granted' || browserPermission === 'unsupported'" @click="requestBrowserPermission">
-            <Bell />
+          <Button
+            variant="secondary"
+            full-width
+            :disabled="browserPermission === 'granted' || browserPermission === 'unsupported'"
+            :icon="Bell"
+            @click="requestBrowserPermission"
+          >
             {{ browserPermission === 'granted' ? '已授权' : '请求授权' }}
-          </button>
+          </Button>
         </section>
 
         <section class="recent-panel">

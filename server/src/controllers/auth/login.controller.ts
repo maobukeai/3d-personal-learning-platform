@@ -52,6 +52,7 @@ export const getPublicSettings = async (req: Request, res: Response, next: NextF
       ALLOW_REGISTRATION: settings.ALLOW_REGISTRATION,
       MAINTENANCE_MODE: settings.MAINTENANCE_MODE,
       MATERIAL_CATEGORIES: settings.MATERIAL_CATEGORIES,
+      TEAM_CATEGORIES: settings.TEAM_CATEGORIES,
       FOOTER_TEXT: settings.FOOTER_TEXT,
       OAUTH_GOOGLE_ENABLED: settings.OAUTH_GOOGLE_ENABLED,
       OAUTH_GITHUB_ENABLED: settings.OAUTH_GITHUB_ENABLED,

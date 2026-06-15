@@ -34,6 +34,7 @@ import {
   Users,
   Video,
   KeyRound,
+  FolderCog,
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
@@ -122,6 +123,11 @@ export function useSidebarMenus() {
             workspaceStore.adminStats.pendingMaterials +
             workspaceStore.adminStats.pendingShowcases +
             workspaceStore.adminStats.pendingPlugins,
+        },
+        {
+          name: label('内容管理', 'Content Management'),
+          icon: FolderCog,
+          path: '/admin/contents',
         },
       ],
     },
@@ -309,12 +315,15 @@ export function useSidebarMenus() {
       {
         title: t('sidebar.groups.collaboration'),
         items: [
-          ...((workspaceStore.currentWorkspace?.type === 'team' || workspaceStore.currentWorkspace?.type === 'personal') && workspaceStore.currentWorkspace?.id
+          ...((workspaceStore.currentWorkspace?.type === 'team' ||
+            workspaceStore.currentWorkspace?.type === 'personal') &&
+          workspaceStore.currentWorkspace?.id
             ? [
                 {
-                  name: workspaceStore.currentWorkspace.type === 'personal'
-                    ? t('sidebar.personalSpace')
-                    : t('sidebar.teamSpace'),
+                  name:
+                    workspaceStore.currentWorkspace.type === 'personal'
+                      ? t('sidebar.personalSpace')
+                      : t('sidebar.teamSpace'),
                   icon: Users,
                   path: `/team/${workspaceStore.currentWorkspace.id}`,
                 },

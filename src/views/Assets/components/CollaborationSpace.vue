@@ -110,13 +110,9 @@ const uploadDiscussionAttachment = async (
       ? '/api/projects/discussion-image-uploads'
       : '/api/projects/discussion-file-uploads';
 
-  const uploadRes = await api.post<DiscussionUploadResponse>(
-    endpoint,
-    formData,
-    {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    },
-  );
+  const uploadRes = await api.post<DiscussionUploadResponse>(endpoint, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
 
   return uploadRes.data;
 };
@@ -132,9 +128,12 @@ const scrollToBottom = () => {
   });
 };
 
-watch(() => props.project?.discussions?.length, () => {
-  scrollToBottom();
-});
+watch(
+  () => props.project?.discussions?.length,
+  () => {
+    scrollToBottom();
+  },
+);
 
 onMounted(() => {
   scrollToBottom();
@@ -268,10 +267,7 @@ const getReactionCount = (reactions: DiscussionReaction[] | undefined, emoji: st
             @click="emit('open-profile', msg.user.id)"
           />
 
-          <div
-            :class="msg.userId === authStore.user?.id ? 'items-end' : ''"
-            class="flex flex-col"
-          >
+          <div :class="msg.userId === authStore.user?.id ? 'items-end' : ''" class="flex flex-col">
             <div
               class="flex items-center gap-3 mb-2"
               :class="msg.userId === authStore.user?.id ? 'flex-row-reverse' : ''"
@@ -303,7 +299,14 @@ const getReactionCount = (reactions: DiscussionReaction[] | undefined, emoji: st
               v-if="parseImages(msg.images).length > 0"
               class="mt-2 flex flex-wrap gap-2 max-w-xl"
             >
-              <img v-for="(img, idx) in parseImages(msg.images)" :key="idx" alt="" :src="img" class="max-w-[200px] max-h-[200px] rounded-2xl object-cover cursor-pointer hover:opacity-80 transition-opacity" @click="openImage(img)" />
+              <img
+                v-for="(img, idx) in parseImages(msg.images)"
+                :key="idx"
+                alt=""
+                :src="img"
+                class="max-w-[200px] max-h-[200px] rounded-2xl object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                @click="openImage(img)"
+              />
             </div>
 
             <div v-if="msg.fileUrl" class="mt-2 max-w-xl">
@@ -328,11 +331,15 @@ const getReactionCount = (reactions: DiscussionReaction[] | undefined, emoji: st
 
             <div class="flex items-center gap-1 mt-2 flex-wrap">
               <button
-v-for="emoji in quickEmojis.slice(0, 6)" :key="emoji" type="button" class="px-2 py-0.5 rounded-full text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer" :class="
-                  hasReaction(msg.reactions, emoji)
-                    ? 'bg-accent/10 ring-1 ring-accent/30'
-                    : ''
-                " @click="handleReaction(msg.id, emoji)">
+                v-for="emoji in quickEmojis.slice(0, 6)"
+                :key="emoji"
+                type="button"
+                class="px-2 py-0.5 rounded-full text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                :class="
+                  hasReaction(msg.reactions, emoji) ? 'bg-accent/10 ring-1 ring-accent/30' : ''
+                "
+                @click="handleReaction(msg.id, emoji)"
+              >
                 {{ emoji }}
                 <span
                   v-if="getReactionCount(msg.reactions, emoji)"
@@ -362,7 +369,11 @@ v-for="emoji in quickEmojis.slice(0, 6)" :key="emoji" type="button" class="px-2 
         <div v-if="imagePreviewUrls.length > 0" class="flex gap-2 mb-3 flex-wrap animate-fade-in">
           <div v-for="(url, idx) in imagePreviewUrls" :key="idx" class="relative group">
             <img alt="" :src="url" class="w-20 h-20 rounded-xl object-cover" />
-            <button type="button" class="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer animate-fade-in" @click="removeImage(idx)">
+            <button
+              type="button"
+              class="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer animate-fade-in"
+              @click="removeImage(idx)"
+            >
               <X class="w-3 h-3" />
             </button>
           </div>
@@ -373,15 +384,17 @@ v-for="emoji in quickEmojis.slice(0, 6)" :key="emoji" type="button" class="px-2 
           class="flex items-center gap-3 mb-3 px-4 py-2 bg-slate-50 dark:bg-slate-900 rounded-xl animate-fade-in"
         >
           <Paperclip class="w-4 h-4 text-accent" />
-          <span
-            class="text-sm font-bold flex-1 truncate"
-            style="color: var(--text-primary)"
-            >{{ selectedFile.name }}</span
-          >
+          <span class="text-sm font-bold flex-1 truncate" style="color: var(--text-primary)">{{
+            selectedFile.name
+          }}</span>
           <span class="text-[10px] text-slate-400">{{
             formatFileSize(selectedFile.size / (1024 * 1024))
           }}</span>
-          <button type="button" class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-all cursor-pointer" @click="removeFile">
+          <button
+            type="button"
+            class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-all cursor-pointer"
+            @click="removeFile"
+          >
             <X class="w-3 h-3 text-slate-400" />
           </button>
         </div>
@@ -407,7 +420,11 @@ v-for="emoji in quickEmojis.slice(0, 6)" :key="emoji" type="button" class="px-2 
               <input type="file" class="hidden" @change="handleFileSelect" />
             </label>
             <div class="relative">
-              <button type="button" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-400 hover:text-accent cursor-pointer" @click="showEmojiPicker = !showEmojiPicker">
+              <button
+                type="button"
+                class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-400 hover:text-accent cursor-pointer"
+                @click="showEmojiPicker = !showEmojiPicker"
+              >
                 <Smile class="w-4 h-4" />
               </button>
               <div
@@ -415,7 +432,13 @@ v-for="emoji in quickEmojis.slice(0, 6)" :key="emoji" type="button" class="px-2 
                 class="absolute bottom-full left-0 mb-2 p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border flex flex-wrap gap-1 w-64 z-20 animate-fade-in"
                 style="border-color: var(--border-base)"
               >
-                <button v-for="emoji in quickEmojis" :key="emoji" type="button" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-lg transition-all cursor-pointer" @click="insertEmoji(emoji)">
+                <button
+                  v-for="emoji in quickEmojis"
+                  :key="emoji"
+                  type="button"
+                  class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-lg transition-all cursor-pointer"
+                  @click="insertEmoji(emoji)"
+                >
                   {{ emoji }}
                 </button>
               </div>
@@ -437,10 +460,14 @@ v-for="emoji in quickEmojis.slice(0, 6)" :key="emoji" type="button" class="px-2 
             "
           ></textarea>
           <button
-type="button" :disabled="
+            type="button"
+            :disabled="
               (!newComment.trim() && selectedImages.length === 0 && !selectedFile) ||
               isSendingComment
-            " class="absolute right-2 bottom-2 p-2 bg-accent text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 cursor-pointer" @click="handleSendComment">
+            "
+            class="absolute right-2 bottom-2 p-2 bg-accent text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
+            @click="handleSendComment"
+          >
             <Send class="w-5 h-5" />
           </button>
         </div>
@@ -456,13 +483,16 @@ type="button" :disabled="
       >
         <AlignLeft class="w-10 h-10 text-slate-400" />
       </div>
-      <h3 class="text-2xl font-black mb-3" style="color: var(--text-primary)">
-        受保护的工作流
-      </h3>
+      <h3 class="text-2xl font-black mb-3" style="color: var(--text-primary)">受保护的工作流</h3>
       <p class="text-sm text-slate-500 max-w-md mb-8 leading-relaxed">
         协作空间仅对项目正式成员开放。这里存放着最核心的讨论和进度档案。如果你想参与其中，请立即报名。
       </p>
-      <button v-if="(props.project.members?.length || 0) < props.project.maxMembers" type="button" class="px-10 py-4 bg-accent text-white rounded-2xl font-black shadow-2xl shadow-accent/20 hover:scale-105 transition-all cursor-pointer" @click="emit('join')">
+      <button
+        v-if="(props.project.members?.length || 0) < props.project.maxMembers"
+        type="button"
+        class="px-10 py-4 bg-accent text-white rounded-2xl font-black shadow-2xl shadow-accent/20 hover:scale-105 transition-all cursor-pointer"
+        @click="emit('join')"
+      >
         立即报名加入
       </button>
     </div>

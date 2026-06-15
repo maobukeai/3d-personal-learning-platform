@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import { X } from 'lucide-vue-next';
+import Modal from '@/components/ui/Modal.vue';
+import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
 import api from '@/utils/api';
 import UserAvatar from '@/components/UserAvatar.vue';
 import type { ProjectMember } from '@/types';
@@ -59,37 +61,19 @@ defineExpose({ open });
 </script>
 
 <template>
-  <el-drawer
-    v-model="visible"
-    title="分配新任务"
-    size="400px"
-    :show-close="false"
-    class="custom-drawer"
-    destroy-on-close
-  >
-    <template #header="{ close }">
-      <div class="flex items-center justify-between">
-        <h3 class="text-xl font-black tracking-tight" style="color: var(--text-primary)">
-          下达任务
-        </h3>
-        <button type="button" class="p-2 bg-slate-100 dark:bg-slate-800 hover:scale-110 rounded-full transition-all cursor-pointer" @click="close">
-          <X class="w-4 h-4 text-slate-500" />
-        </button>
-      </div>
-    </template>
-
-    <div class="space-y-6 p-2">
+  <Modal :show="visible" title="分配新任务" size="md" @close="visible = false">
+    <div class="space-y-6 p-1 text-left">
       <div>
         <label
           class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
           >任务名称</label
         >
-        <input
+        <Input
           v-model="taskForm.title"
           type="text"
-          class="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-bold"
-          style="border-color: var(--border-base); color: var(--text-primary)"
           placeholder="简明扼要..."
+          glass
+          input-class="!py-3.5 !h-12"
         />
       </div>
 
@@ -101,7 +85,7 @@ defineExpose({ open });
         <textarea
           v-model="taskForm.description"
           rows="4"
-          class="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all resize-none"
+          class="w-full px-5 py-4 border rounded-2xl text-sm focus:outline-none transition-all resize-none glass-input"
           style="border-color: var(--border-base); color: var(--text-primary)"
           placeholder="交付物包含哪些内容？"
         ></textarea>
@@ -126,7 +110,7 @@ defineExpose({ open });
           >
             <div class="flex items-center gap-3">
               <UserAvatar :user="m.user" size="xs" />
-              <span class="font-bold">{{ m.user?.name || m.user?.email }}</span>
+              <span class="font-bold text-xs sm:text-sm">{{ m.user?.name || m.user?.email }}</span>
             </div>
           </el-option>
         </el-select>
@@ -151,7 +135,7 @@ defineExpose({ open });
           >
             <div class="flex items-center gap-3">
               <UserAvatar :user="m.user" size="xs" />
-              <span class="font-bold">{{ m.user?.name || m.user?.email }}</span>
+              <span class="font-bold text-xs sm:text-sm">{{ m.user?.name || m.user?.email }}</span>
             </div>
           </el-option>
         </el-select>
@@ -172,82 +156,57 @@ defineExpose({ open });
     </div>
 
     <template #footer>
-      <div class="flex gap-4 p-4 border-t" style="border-color: var(--border-base)">
-        <button type="button" class="flex-1 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl font-black transition-all cursor-pointer" style="color: var(--text-primary)" @click="visible = false">
-          取消
-        </button>
-        <button type="button" class="flex-[2] py-4 bg-accent text-white rounded-2xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer" @click="handleCreateTask">
-          确认下发
-        </button>
+      <div class="flex gap-4">
+        <Button variant="secondary" class="flex-1" @click="visible = false"> 取消 </Button>
+        <Button variant="primary" class="flex-[2]" @click="handleCreateTask"> 确认下发 </Button>
       </div>
     </template>
-  </el-drawer>
+  </Modal>
 </template>
 
 <style scoped>
-:deep(.custom-drawer) {
-  background-color: var(--bg-card) !important;
-  border-top-left-radius: 2rem !important;
-  border-bottom-left-radius: 2rem !important;
-  box-shadow: -20px 0 50px rgba(0, 0, 0, 0.1) !important;
+.custom-select :deep(.el-select__wrapper) {
+  border-radius: 1rem !important;
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: none !important;
+  height: 52px;
+  transition: all 0.2s ease !important;
 }
-:deep(.el-drawer__header) {
-  margin-bottom: 0 !important;
-  padding: 2rem !important;
-  border-bottom: 1px solid var(--border-base);
+.dark .custom-select :deep(.el-select__wrapper) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
-:deep(.el-drawer__body) {
-  padding: 2rem !important;
+.custom-select :deep(.el-select__wrapper.is-focused) {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
 }
-:deep(.el-drawer__footer) {
-  padding: 0 !important;
-}
+
 .custom-date-picker :deep(.el-input__wrapper) {
   border-radius: 1rem !important;
-  padding: 1rem !important;
-  background-color: var(--bg-app) !important;
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
   box-shadow: none !important;
-  border: 1px solid var(--border-base);
-}
-.custom-select :deep(.el-input__wrapper) {
-  border-radius: 1rem !important;
-  background-color: var(--bg-app) !important;
-  box-shadow: none !important;
-  border: 1px solid var(--border-base);
   height: 52px;
+  transition: all 0.2s ease !important;
+}
+.dark .custom-date-picker :deep(.el-input__wrapper) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.custom-date-picker :deep(.el-input__wrapper.is-focus) {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
 }
 
 @media (max-width: 768px) {
-  :deep(.custom-drawer) {
-    border-top-left-radius: 0 !important;
-    border-bottom-left-radius: 0 !important;
-  }
-
-  :deep(.el-drawer__header) {
-    padding: 0.875rem !important;
-  }
-
-  :deep(.el-drawer__body) {
-    padding: 0.875rem !important;
-  }
-
-  :deep(.el-drawer__footer > div) {
-    gap: 0.5rem !important;
-    padding: 0.625rem !important;
-  }
-
-  :deep(.el-drawer__footer button) {
-    min-height: 2.25rem !important;
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
-    border-radius: 0.75rem !important;
-    font-size: 0.75rem !important;
-  }
-
   .custom-date-picker :deep(.el-input__wrapper),
-  .custom-select :deep(.el-input__wrapper) {
+  .custom-select :deep(.el-select__wrapper) {
     height: 38px !important;
-    padding: 0.45rem 0.7rem !important;
     border-radius: 0.75rem !important;
   }
 }

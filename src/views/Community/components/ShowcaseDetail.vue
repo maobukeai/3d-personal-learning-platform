@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n';
-const { t } = useI18n();
 import { ref, computed, watch, defineAsyncComponent } from 'vue';
 import type { Component } from 'vue';
 import {
@@ -24,7 +22,6 @@ import {
   Image,
   Video,
   Box,
-  Filter,
   Layers3,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';

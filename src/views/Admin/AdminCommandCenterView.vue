@@ -199,7 +199,11 @@ void healthDialStyle.value;
         <div class="min-w-0">
           <div class="title-row">
             <h1>管理指挥中心</h1>
-            <span v-if="overview" class="health-badge" :class="getHealthClasses(overview.healthScore)">
+            <span
+              v-if="overview"
+              class="health-badge"
+              :class="getHealthClasses(overview.healthScore)"
+            >
               {{ overview.healthScore }} / {{ getHealthLabel(overview.healthScore) }}
             </span>
           </div>
@@ -250,7 +254,9 @@ void healthDialStyle.value;
                 stroke-width="8"
                 stroke-linecap="round"
                 :stroke-dasharray="263.89"
-                :stroke-dashoffset="263.89 - (263.89 * Math.min(100, Math.max(0, overview?.healthScore || 0))) / 100"
+                :stroke-dashoffset="
+                  263.89 - (263.89 * Math.min(100, Math.max(0, overview?.healthScore || 0))) / 100
+                "
               />
             </svg>
             <div class="dial-content">
@@ -265,9 +271,7 @@ void healthDialStyle.value;
             </div>
             <h2>{{ statusSentence }}</h2>
             <p>
-              {{ overview?.issueCount || 0 }} 个风险信号，{{
-                command?.workloadTotal || 0
-              }}
+              {{ overview?.issueCount || 0 }} 个风险信号，{{ command?.workloadTotal || 0 }}
               个待处理负载
             </p>
             <div class="risk-strip" aria-label="风险分布">
@@ -525,8 +529,7 @@ void healthDialStyle.value;
   flex-direction: column;
   overflow: hidden;
   background:
-    linear-gradient(180deg, rgba(var(--accent-rgb), 0.03), transparent 260px),
-    var(--bg-app);
+    linear-gradient(180deg, rgba(var(--accent-rgb), 0.03), transparent 260px), var(--bg-app);
 }
 
 .command-header {
@@ -1225,7 +1228,16 @@ void healthDialStyle.value;
   border: 1px solid var(--border-base);
   border-radius: 8px;
   background:
-    linear-gradient(180deg, transparent 0 23%, rgba(148, 163, 184, 0.08) 23% 24%, transparent 24% 49%, rgba(148, 163, 184, 0.08) 49% 50%, transparent 50% 74%, rgba(148, 163, 184, 0.08) 74% 75%, transparent 75%),
+    linear-gradient(
+      180deg,
+      transparent 0 23%,
+      rgba(148, 163, 184, 0.08) 23% 24%,
+      transparent 24% 49%,
+      rgba(148, 163, 184, 0.08) 49% 50%,
+      transparent 50% 74%,
+      rgba(148, 163, 184, 0.08) 74% 75%,
+      transparent 75%
+    ),
     color-mix(in srgb, var(--bg-card) 92%, var(--bg-app));
   padding: 0.75rem 0.55rem 0.45rem;
 }
@@ -1257,10 +1269,18 @@ void healthDialStyle.value;
   transition: height 0.3s ease;
 }
 
-.bar-users { background: #0ea5e9; }
-.bar-content { background: #10b981; }
-.bar-feedback { background: #f59e0b; }
-.bar-audit { background: #8b5cf6; }
+.bar-users {
+  background: #0ea5e9;
+}
+.bar-content {
+  background: #10b981;
+}
+.bar-feedback {
+  background: #f59e0b;
+}
+.bar-audit {
+  background: #8b5cf6;
+}
 
 .trend-column small {
   overflow: hidden;
@@ -1380,7 +1400,7 @@ void healthDialStyle.value;
   .overview-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .metrics-card {
     border-top: 1px solid var(--border-base);
   }

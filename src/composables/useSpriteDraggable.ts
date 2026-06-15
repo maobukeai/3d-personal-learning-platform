@@ -3,7 +3,7 @@ import { preferences } from '@/utils/preferences';
 
 export function useSpriteDraggable(
   isMobile: Ref<boolean> | ComputedRef<boolean>,
-  isFullscreen: Ref<boolean> | ComputedRef<boolean>
+  isFullscreen: Ref<boolean> | ComputedRef<boolean>,
 ) {
   const offsetX = ref(0);
   const offsetY = ref(0);
@@ -173,6 +173,9 @@ export function useSpriteDraggable(
 
   onUnmounted(() => {
     window.removeEventListener('resize', updateWindowSize);
+    stopDrag();
+    stopDragSprite();
+    stopDragSpriteTouch();
   });
 
   return {

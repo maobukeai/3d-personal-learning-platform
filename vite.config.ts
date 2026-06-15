@@ -15,15 +15,7 @@ export default defineConfig(({ mode }) => {
     ['icons', ['lucide-vue-next', '@element-plus/icons-vue']],
     [
       'markdown-parser',
-      [
-        'markdown-it',
-        'linkify-it',
-        'mdurl',
-        'uc.micro',
-        'entities',
-        'punycode.js',
-        'xss',
-      ],
+      ['markdown-it', 'linkify-it', 'mdurl', 'uc.micro', 'entities', 'punycode.js', 'xss'],
     ],
 
     ['realtime', ['socket.io-client', 'engine.io-client', '@socket.io']],

@@ -1,17 +1,13 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
 import { ElMessage } from 'element-plus';
-import { 
-  Github, 
-  KeyRound, 
-  GitBranch, 
-  FolderOpen, 
-  Eye, 
-  Loader2 
-} from 'lucide-vue-next';
+import { Github, KeyRound, GitBranch, FolderOpen, Eye, Loader2 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
+import Modal from '@/components/ui/Modal.vue';
+import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
 
 defineProps<{
   myNotebooksList: string[];
@@ -31,18 +27,21 @@ const form = reactive({
   branch: 'main',
   folderPath: '',
   category: '',
-  visibility: 'PRIVATE'
+  visibility: 'PRIVATE',
 });
 
 const handleSaveConfig = () => {
-  localStorage.setItem('github_import_config', JSON.stringify({
-    repoUrl: form.repoUrl,
-    token: form.token,
-    branch: form.branch,
-    folderPath: form.folderPath,
-    category: form.category,
-    visibility: form.visibility
-  }));
+  localStorage.setItem(
+    'github_import_config',
+    JSON.stringify({
+      repoUrl: form.repoUrl,
+      token: form.token,
+      branch: form.branch,
+      folderPath: form.folderPath,
+      category: form.category,
+      visibility: form.visibility,
+    }),
+  );
   ElMessage.success(t('notes.githubImport.configSaved'));
 };
 
@@ -103,7 +102,7 @@ const checkGithubRepo = async () => {
     if (form.token.trim()) {
       headers['Authorization'] = `Bearer ${form.token.trim()}`;
     }
-    
+
     await axios.get(`https://api.github.com/repos/${owner}/${repo}`, { headers });
     ElMessage.success(t('notes.githubImport.repoValid'));
   } catch (err: any) {
@@ -135,13 +134,13 @@ const handleImport = async () => {
       branch: form.branch.trim() || 'main',
       folderPath: form.folderPath.trim() || null,
       category: form.category || null,
-      visibility: form.visibility
+      visibility: form.visibility,
     });
 
     ElMessage({
       message: res.data.message || t('notes.githubImport.importSuccess'),
       type: 'success',
-      duration: 5000
+      duration: 5000,
     });
     emit('imported');
     visible.value = false;
@@ -149,7 +148,7 @@ const handleImport = async () => {
     const errorMsg = error.response?.data?.error || t('notes.githubImport.importFailed');
     ElMessage.error({
       message: errorMsg,
-      duration: 5000
+      duration: 5000,
     });
   } finally {
     isImporting.value = false;
@@ -160,38 +159,40 @@ defineExpose({ open });
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    width="480px"
-    destroy-on-close
-    :close-on-click-modal="!isImporting"
-    :close-on-press-escape="!isImporting"
-    :show-close="!isImporting"
-    class="github-import-dialog"
-  >
+  <Modal :show="visible" title="GitHub 笔记同步" size="md" @close="visible = false">
     <!-- Custom Header Slot for Premium Branding -->
     <template #header>
       <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-blue-500/10 dark:bg-blue-400/10 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+        <div
+          class="w-9 h-9 rounded-xl bg-blue-500/10 dark:bg-blue-400/10 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0"
+        >
           <Github class="w-4.5 h-4.5" />
         </div>
         <div class="min-w-0">
-          <h3 class="text-sm font-black text-[var(--text-primary)] leading-none">{{ t('notes.githubImport.dialogTitle') }}</h3>
-          <p class="text-[10px] text-[var(--text-muted)] mt-1.5 leading-none">{{ t('notes.githubImport.dialogSubtitle') }}</p>
+          <h3 class="text-sm font-black text-[var(--text-primary)] leading-none">
+            {{ t('notes.githubImport.dialogTitle') }}
+          </h3>
+          <p class="text-[10px] text-[var(--text-muted)] mt-1.5 leading-none">
+            {{ t('notes.githubImport.dialogSubtitle') }}
+          </p>
         </div>
       </div>
     </template>
 
     <div class="relative space-y-4">
       <!-- Loading Overlay -->
-      <div 
-        v-if="isImporting" 
+      <div
+        v-if="isImporting"
         class="absolute -inset-4 bg-[var(--bg-card)]/90 backdrop-blur-xs z-50 flex flex-col items-center justify-center space-y-3 rounded-2xl"
       >
         <Loader2 class="animate-spin text-accent w-9 h-9" />
         <div class="text-center">
-          <p class="text-xs font-black text-[var(--text-primary)]">{{ t('notes.githubImport.syncing') }}</p>
-          <p class="text-[10px] text-[var(--text-secondary)] mt-1">{{ t('notes.githubImport.syncingDesc') }}</p>
+          <p class="text-xs font-black text-[var(--text-primary)]">
+            {{ t('notes.githubImport.syncing') }}
+          </p>
+          <p class="text-[10px] text-[var(--text-secondary)] mt-1">
+            {{ t('notes.githubImport.syncingDesc') }}
+          </p>
         </div>
       </div>
 
@@ -202,7 +203,7 @@ defineExpose({ open });
             <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5">
               {{ t('notes.githubImport.repoUrlLabel') }} <span class="text-rose-500">*</span>
             </label>
-            <button 
+            <button
               type="button"
               class="text-[10px] font-black text-blue-600 dark:text-blue-400 hover:opacity-85 active:scale-95 transition-all cursor-pointer flex items-center gap-0.5 disabled:opacity-40 disabled:pointer-events-none"
               :disabled="isCheckingRepo || !form.repoUrl.trim()"
@@ -212,32 +213,23 @@ defineExpose({ open });
               <span>{{ t('notes.githubImport.testValidity') }}</span>
             </button>
           </div>
-          <el-input 
-            v-model="form.repoUrl" 
-            :placeholder="t('notes.githubImport.repoPlaceholder')" 
-            autocomplete="off"
-          >
-            <template #prefix>
-              <Github class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" />
-            </template>
-          </el-input>
+          <Input
+            v-model="form.repoUrl"
+            :placeholder="t('notes.githubImport.repoPlaceholder')"
+            :icon="Github"
+          />
         </div>
 
         <div class="space-y-1.5">
           <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5">
             {{ t('notes.githubImport.tokenLabel') }}
           </label>
-          <el-input 
-            v-model="form.token" 
-            type="password" 
-            show-password
-            :placeholder="t('notes.githubImport.tokenPlaceholder')" 
-            autocomplete="new-password"
-          >
-            <template #prefix>
-              <KeyRound class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" />
-            </template>
-          </el-input>
+          <Input
+            v-model="form.token"
+            type="password"
+            :placeholder="t('notes.githubImport.tokenPlaceholder')"
+            :icon="KeyRound"
+          />
         </div>
 
         <div class="grid grid-cols-2 gap-4">
@@ -245,29 +237,21 @@ defineExpose({ open });
             <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5">
               {{ t('notes.githubImport.branchLabel') }}
             </label>
-            <el-input 
-              v-model="form.branch" 
-              :placeholder="t('notes.githubImport.branchPlaceholder')" 
-              autocomplete="off"
-            >
-              <template #prefix>
-                <GitBranch class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" />
-              </template>
-            </el-input>
+            <Input
+              v-model="form.branch"
+              :placeholder="t('notes.githubImport.branchPlaceholder')"
+              :icon="GitBranch"
+            />
           </div>
           <div class="space-y-1.5">
             <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5">
               {{ t('notes.githubImport.folderLabel') }}
             </label>
-            <el-input 
-              v-model="form.folderPath" 
-              :placeholder="t('notes.githubImport.folderPlaceholder')" 
-              autocomplete="off"
-            >
-              <template #prefix>
-                <FolderOpen class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" />
-              </template>
-            </el-input>
+            <Input
+              v-model="form.folderPath"
+              :placeholder="t('notes.githubImport.folderPlaceholder')"
+              :icon="FolderOpen"
+            />
           </div>
         </div>
 
@@ -276,20 +260,50 @@ defineExpose({ open });
             <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5">
               {{ t('notes.githubImport.defaultNotebookLabel') }}
             </label>
-            <el-select v-model="form.category" :placeholder="t('notes.githubImport.selectNotebookPlaceholder')" class="w-full custom-select">
+            <el-select
+              v-model="form.category"
+              :placeholder="t('notes.githubImport.selectNotebookPlaceholder')"
+              class="w-full custom-select"
+            >
               <el-option :label="t('notes.githubImport.uncategorizedOption')" value="" />
               <el-option v-for="item in myNotebooksList" :key="item" :label="item" :value="item" />
             </el-select>
           </div>
           <div class="space-y-1.5">
-            <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5 flex items-center gap-1">
+            <label
+              class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5 flex items-center gap-1"
+            >
               <Eye class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" />
               {{ t('notes.githubImport.visibilityLabel') }}
             </label>
-            <el-radio-group v-model="form.visibility" class="w-full flex custom-radio-group">
-              <el-radio-button label="PRIVATE" class="flex-1">{{ t('notes.githubImport.visibilityPrivate') }}</el-radio-button>
-              <el-radio-button label="PUBLIC" class="flex-1">{{ t('notes.githubImport.visibilityPublic') }}</el-radio-button>
-            </el-radio-group>
+            <div
+              class="flex p-0.5 bg-slate-100 dark:bg-zinc-800 rounded-lg border border-[var(--border-base)] w-full"
+            >
+              <button
+                type="button"
+                class="flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer text-center"
+                :class="
+                  form.visibility === 'PRIVATE'
+                    ? 'bg-white dark:bg-zinc-700 text-[var(--text-primary)] shadow-xs border border-black/5 dark:border-white/5'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                "
+                @click="form.visibility = 'PRIVATE'"
+              >
+                {{ t('notes.githubImport.visibilityPrivate') }}
+              </button>
+              <button
+                type="button"
+                class="flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer text-center"
+                :class="
+                  form.visibility === 'PUBLIC'
+                    ? 'bg-white dark:bg-zinc-700 text-[var(--text-primary)] shadow-xs border border-black/5 dark:border-white/5'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                "
+                @click="form.visibility = 'PUBLIC'"
+              >
+                {{ t('notes.githubImport.visibilityPublic') }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -298,141 +312,28 @@ defineExpose({ open });
     <template #footer>
       <div class="flex justify-between items-center w-full">
         <!-- Left: Save Config Button -->
-        <button 
-          type="button" 
-          class="px-4 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-xl active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
-          :disabled="isImporting" 
-          @click="handleSaveConfig"
-        >
-          <span>{{ t('notes.githubImport.saveConfig') }}</span>
-        </button>
+        <Button variant="secondary" size="sm" :disabled="isImporting" @click="handleSaveConfig">
+          {{ t('notes.githubImport.saveConfig') }}
+        </Button>
 
         <!-- Right: Cancel & Start Sync Buttons -->
         <div class="flex gap-2.5">
-          <button 
-            type="button" 
-            class="px-4 py-2 text-xs font-bold text-[var(--text-secondary)] bg-[var(--bg-app)] border border-[var(--border-base)] rounded-xl hover:bg-[var(--bg-subtle)] active:scale-95 transition-all cursor-pointer"
-            :disabled="isImporting" 
-            @click="visible = false"
-          >
+          <Button variant="outline" size="sm" :disabled="isImporting" @click="visible = false">
             {{ t('common.cancel') }}
-          </button>
-          <button 
-            type="button" 
-            class="px-5 py-2 text-xs font-black text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-md shadow-blue-500/10 rounded-xl active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-            :disabled="isImporting" 
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            :disabled="isImporting"
+            :loading="isImporting"
             @click="handleImport"
           >
-            <Loader2 v-if="isImporting" class="animate-spin w-3.5 h-3.5" />
-            <span>{{ t('notes.githubImport.syncNow') }}</span>
-          </button>
+            {{ t('notes.githubImport.syncNow') }}
+          </Button>
         </div>
       </div>
     </template>
-  </el-dialog>
+  </Modal>
 </template>
 
-<style>
-.github-import-dialog {
-  border-radius: 1.25rem !important;
-  border: 1px solid var(--border-base) !important;
-  background-color: var(--bg-card) !important;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-}
-.github-import-dialog .el-dialog__header {
-  border-bottom: 1px solid var(--border-base) !important;
-  padding: 1.25rem 1.5rem 1rem 1.5rem !important;
-  margin: 0 !important;
-}
-.github-import-dialog .el-dialog__body {
-  padding: 1.5rem 1.5rem 1rem 1.5rem !important;
-}
-.github-import-dialog .el-dialog__footer {
-  padding: 1rem 1.5rem 1.25rem 1.5rem !important;
-  border-top: 1px solid var(--border-base) !important;
-  background-color: var(--bg-app)/30;
-}
-
-/* Customizing inputs to look modern & minimalist */
-.github-import-dialog .el-input__wrapper {
-  background-color: var(--bg-app) !important;
-  box-shadow: none !important;
-  border: 1px solid var(--border-base) !important;
-  border-radius: 0.75rem !important;
-  padding: 6px 10px !important;
-  transition: all 0.2s ease-in-out !important;
-}
-.github-import-dialog .el-input__wrapper.is-focus,
-.github-import-dialog .el-input__wrapper:hover {
-  border-color: var(--accent) !important;
-  background-color: var(--bg-card) !important;
-  box-shadow: 0 0 0 1px var(--accent) !important;
-}
-.github-import-dialog .el-input__inner {
-  font-size: 13px !important;
-  color: var(--text-primary) !important;
-  font-weight: 500 !important;
-}
-.github-import-dialog .el-input__inner::placeholder {
-  color: var(--text-muted) !important;
-  font-size: 11px !important;
-}
-.github-import-dialog .el-input__prefix {
-  margin-right: 4px !important;
-}
-
-/* Customizing Select wrapper */
-.github-import-dialog .el-select .el-select__wrapper {
-  background-color: var(--bg-app) !important;
-  box-shadow: none !important;
-  border: 1px solid var(--border-base) !important;
-  border-radius: 0.75rem !important;
-  min-height: 38px !important;
-  padding: 4px 10px !important;
-  transition: all 0.2s ease-in-out !important;
-}
-.github-import-dialog .el-select .el-select__wrapper:hover,
-.github-import-dialog .el-select .el-select__wrapper.is-focus {
-  border-color: var(--accent) !important;
-  background-color: var(--bg-card) !important;
-  box-shadow: 0 0 0 1px var(--accent) !important;
-}
-.github-import-dialog .el-select__placeholder {
-  font-size: 12px !important;
-  color: var(--text-muted) !important;
-}
-.github-import-dialog .el-select__text {
-  font-size: 13px !important;
-  color: var(--text-primary) !important;
-  font-weight: 500 !important;
-}
-
-/* Customizing Radio group */
-.github-import-dialog .el-radio-button__inner {
-  background-color: var(--bg-app) !important;
-  border: 1px solid var(--border-base) !important;
-  color: var(--text-secondary) !important;
-  font-size: 12px !important;
-  height: 38px !important;
-  line-height: 36px !important;
-  padding: 0 16px !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  transition: all 0.2s ease-in-out !important;
-  font-weight: bold !important;
-  width: 100% !important;
-}
-.github-import-dialog .el-radio-button:first-child .el-radio-button__inner {
-  border-radius: 0.75rem 0 0 0.75rem !important;
-  border-right: none !important;
-}
-.github-import-dialog .el-radio-button:last-child .el-radio-button__inner {
-  border-radius: 0 0.75rem 0.75rem 0 !important;
-  border-left: none !important;
-}
-.github-import-dialog .el-radio-button.is-active .el-radio-button__inner {
-  background-color: var(--accent) !important;
-  border-color: var(--accent) !important;
-  color: #ffffff !important;
-}
-</style>
+<style></style>

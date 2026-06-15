@@ -109,7 +109,13 @@ export const useMirrorStore = defineStore('mirror', () => {
 
   async function fetchResources(
     sourceId: string,
-    options?: { page?: number; categoryId?: string; search?: string; sort?: string; pageSize?: number },
+    options?: {
+      page?: number;
+      categoryId?: string;
+      search?: string;
+      sort?: string;
+      pageSize?: number;
+    },
   ) {
     isLoadingResources.value = true;
     try {

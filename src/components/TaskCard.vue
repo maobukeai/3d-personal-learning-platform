@@ -101,7 +101,10 @@ const parseTags = (tagsStr: string | null | undefined) => {
   try {
     return JSON.parse(tagsStr);
   } catch (_e) {
-    return tagsStr.split(',').map((t) => t.trim()).filter((t) => t);
+    return tagsStr
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t);
   }
 };
 
@@ -187,7 +190,9 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
 
     <!-- Footer: Date + Subtasks + Priority + Assignee -->
     <div
-      v-if="task.dueDate || hasSubtasks || (task.priority && task.priority !== 'NONE') || task.assignee"
+      v-if="
+        task.dueDate || hasSubtasks || (task.priority && task.priority !== 'NONE') || task.assignee
+      "
       class="flex items-center justify-between pt-1 mt-1 border-t"
       style="border-color: var(--border-base)"
     >
@@ -200,7 +205,11 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
         >
           <Calendar class="w-2 h-2 sm:w-2.5 sm:h-2.5" />
           <span class="hidden sm:inline">{{ formatDueDate(task.dueDate) }}</span>
-          <span class="sm:hidden">{{ new Date(task.dueDate).getMonth() + 1 }}/{{ new Date(task.dueDate).getDate() }}</span>
+          <span class="sm:hidden"
+            >{{ new Date(task.dueDate).getMonth() + 1 }}/{{
+              new Date(task.dueDate).getDate()
+            }}</span
+          >
         </div>
 
         <!-- Subtasks Progress -->
@@ -223,7 +232,10 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
             getPriorityConfig(task.priority).textColor
           "
         >
-          <component :is="getPriorityConfig(task.priority).icon" class="w-1.5 h-1.5 sm:w-2 sm:h-2" />
+          <component
+            :is="getPriorityConfig(task.priority).icon"
+            class="w-1.5 h-1.5 sm:w-2 sm:h-2"
+          />
           <span>{{ getPriorityConfig(task.priority).label }}</span>
         </span>
       </div>
@@ -234,7 +246,13 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
           class="relative cursor-pointer hover:ring-1 hover:ring-accent rounded-md transition-all"
           @click.stop="emit('user-click', task.assignee.id)"
         >
-          <img v-if="task.assignee.avatarUrl" :src="task.assignee.avatarUrl" loading="lazy" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-md object-cover" :alt="task.assignee.name" />
+          <img
+            v-if="task.assignee.avatarUrl"
+            :src="task.assignee.avatarUrl"
+            loading="lazy"
+            class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-md object-cover"
+            :alt="task.assignee.name"
+          />
           <div
             v-else
             class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-md bg-accent/10 flex items-center justify-center"
@@ -272,7 +290,13 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
               : 'bg-emerald-500/10 text-emerald-500'
         "
       >
-        {{ task.status === TaskStatus.TODO ? '待办' : task.status === TaskStatus.IN_PROGRESS ? '进行中' : '已完成' }}
+        {{
+          task.status === TaskStatus.TODO
+            ? '待办'
+            : task.status === TaskStatus.IN_PROGRESS
+              ? '进行中'
+              : '已完成'
+        }}
       </span>
 
       <span
@@ -322,7 +346,13 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
         class="flex items-center gap-1.5 cursor-pointer group/as"
         @click.stop="emit('user-click', task.assignee.id)"
       >
-        <img v-if="task.assignee.avatarUrl" alt="" :src="task.assignee.avatarUrl" loading="lazy" class="w-4 h-4 sm:w-5 sm:h-5 rounded-lg object-cover group-hover/as:ring-2 group-hover/as:ring-accent transition-all" />
+        <img
+          v-if="task.assignee.avatarUrl"
+          alt=""
+          :src="task.assignee.avatarUrl"
+          loading="lazy"
+          class="w-4 h-4 sm:w-5 sm:h-5 rounded-lg object-cover group-hover/as:ring-2 group-hover/as:ring-accent transition-all"
+        />
         <div
           v-else
           class="w-4 h-4 sm:w-5 sm:h-5 rounded-lg bg-accent/10 flex items-center justify-center group-hover/as:bg-accent group-hover/as:text-white transition-all"
@@ -351,13 +381,29 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
     <div
       class="flex items-center gap-1 sm:opacity-0 group-hover:opacity-100 transition-opacity justify-end sm:justify-start"
     >
-      <button type="button" class="p-1.5 rounded-md text-slate-400 hover:text-accent hover:bg-accent/10 transition-all" title="查看详情" @click.stop="emit('click', task)">
+      <button
+        type="button"
+        class="p-1.5 rounded-md text-slate-400 hover:text-accent hover:bg-accent/10 transition-all"
+        title="查看详情"
+        @click.stop="emit('click', task)"
+      >
         <Eye class="w-3.5 h-3.5" />
       </button>
-      <button v-if="task.status !== 'DONE'" type="button" class="p-1.5 rounded-md text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all" title="标记完成" @click.stop="emit('status-change', task, 'DONE')">
+      <button
+        v-if="task.status !== 'DONE'"
+        type="button"
+        class="p-1.5 rounded-md text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all"
+        title="标记完成"
+        @click.stop="emit('status-change', task, 'DONE')"
+      >
         <CheckCircle2 class="w-3.5 h-3.5" />
       </button>
-      <button type="button" class="p-1.5 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all" title="删除" @click.stop="emit('delete', task)">
+      <button
+        type="button"
+        class="p-1.5 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
+        title="删除"
+        @click.stop="emit('delete', task)"
+      >
         <Trash2 class="w-3.5 h-3.5" />
       </button>
     </div>

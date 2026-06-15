@@ -121,10 +121,20 @@ const filteredConversations = computed(() => {
           {{ t('messages.title') }}
         </h1>
         <div class="flex gap-1">
-          <button type="button" class="p-1.5 bg-indigo-500/10 text-indigo-500 rounded-lg hover:bg-indigo-500 hover:text-white transition-all cursor-pointer" :title="t('community.chat.groupChat')" @click="emit('create-group-chat')">
+          <button
+            type="button"
+            class="p-1.5 bg-indigo-500/10 text-indigo-500 rounded-lg hover:bg-indigo-500 hover:text-white transition-all cursor-pointer"
+            :title="t('community.chat.groupChat')"
+            @click="emit('create-group-chat')"
+          >
             <Users class="w-3.5 h-3.5" />
           </button>
-          <button type="button" class="p-1.5 bg-accent/10 text-accent rounded-lg hover:bg-accent hover:text-white transition-all cursor-pointer" :title="t('messages.startNewChat')" @click="emit('start-new-chat')">
+          <button
+            type="button"
+            class="p-1.5 bg-accent/10 text-accent rounded-lg hover:bg-accent hover:text-white transition-all cursor-pointer"
+            :title="t('messages.startNewChat')"
+            @click="emit('start-new-chat')"
+          >
             <Plus class="w-3.5 h-3.5" />
           </button>
         </div>
@@ -176,7 +186,11 @@ const filteredConversations = computed(() => {
             class="absolute inset-y-0 right-0 bg-rose-500 flex items-center justify-center transition-all duration-200 z-0"
             :style="{ width: (swipeOffset[conv.id] || 0) + 'px' }"
           >
-            <button type="button" class="w-full h-full flex items-center justify-center text-white" @click.stop="emit('delete-conversation', conv)">
+            <button
+              type="button"
+              class="w-full h-full flex items-center justify-center text-white"
+              @click.stop="emit('delete-conversation', conv)"
+            >
               <Trash2 class="w-4 h-4" />
             </button>
           </div>
@@ -193,7 +207,12 @@ const filteredConversations = computed(() => {
                   :class="conv.avatarUrl ? '' : 'bg-indigo-500/10'"
                   style="border-color: var(--border-base)"
                 >
-                  <img v-if="conv.avatarUrl" alt="" :src="conv.avatarUrl" class="w-6 h-6 rounded-full object-cover" />
+                  <img
+                    v-if="conv.avatarUrl"
+                    alt=""
+                    :src="conv.avatarUrl"
+                    class="w-6 h-6 rounded-full object-cover"
+                  />
                   <Users v-else class="w-3 h-3 text-indigo-500" />
                 </div>
               </template>
@@ -202,7 +221,10 @@ const filteredConversations = computed(() => {
                   :user="getOtherParticipant(conv)"
                   size="sm"
                   class="cursor-pointer hover:ring-2 hover:ring-accent transition-all animate-none"
-                  @click.stop="getOtherParticipant(conv)?.id && emit('open-profile', getOtherParticipant(conv)!.id)"
+                  @click.stop="
+                    getOtherParticipant(conv)?.id &&
+                    emit('open-profile', getOtherParticipant(conv)!.id)
+                  "
                 />
                 <div
                   v-if="authStore.isUserOnline(getOtherParticipant(conv)?.id || '')"
@@ -231,7 +253,10 @@ const filteredConversations = computed(() => {
                 </span>
               </div>
               <div class="flex items-center justify-between">
-                <p class="text-[10px] sm:text-[11px] truncate pr-4" style="color: var(--text-secondary)">
+                <p
+                  class="text-[10px] sm:text-[11px] truncate pr-4"
+                  style="color: var(--text-secondary)"
+                >
                   {{ getLastMessagePreview(conv) }}
                 </p>
                 <div
@@ -245,7 +270,12 @@ const filteredConversations = computed(() => {
           </div>
 
           <!-- Hover Delete Button (for Desktop) -->
-          <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-rose-500 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-600 z-20 shadow-lg md:flex hidden" :title="t('common.delete')" @click.stop="emit('delete-conversation', conv)">
+          <button
+            type="button"
+            class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-rose-500 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-600 z-20 shadow-lg md:flex hidden"
+            :title="t('common.delete')"
+            @click.stop="emit('delete-conversation', conv)"
+          >
             <Trash2 class="w-3.5 h-3.5" />
           </button>
         </div>

@@ -104,7 +104,13 @@ export const useManualStore = defineStore('manual', () => {
 
   async function fetchResources(
     stationId: string,
-    options?: { page?: number; categoryId?: string; search?: string; sort?: string; pageSize?: number },
+    options?: {
+      page?: number;
+      categoryId?: string;
+      search?: string;
+      sort?: string;
+      pageSize?: number;
+    },
   ) {
     isLoadingResources.value = true;
     try {

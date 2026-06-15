@@ -5,6 +5,9 @@ import { ElMessage } from 'element-plus';
 import { ExternalLink, RefreshCw, Search, ShieldCheck, Users } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { fetchTeams, type TeamWorkspaceResponse } from '@/services/workspace.service';
+import Input from '@/components/ui/Input.vue';
+import Tabs from '@/components/ui/Tabs.vue';
+import Button from '@/components/ui/Button.vue';
 
 type TeamFilter = 'all' | 'owned' | 'joined';
 
@@ -27,8 +30,12 @@ const fetchMyTeams = async () => {
   }
 };
 
-const ownedTeams = computed(() => myTeams.value.filter((team) => team.ownerId === authStore.user?.id));
-const joinedTeams = computed(() => myTeams.value.filter((team) => team.ownerId !== authStore.user?.id));
+const ownedTeams = computed(() =>
+  myTeams.value.filter((team) => team.ownerId === authStore.user?.id),
+);
+const joinedTeams = computed(() =>
+  myTeams.value.filter((team) => team.ownerId !== authStore.user?.id),
+);
 const totalMembers = computed(() =>
   myTeams.value.reduce((sum, team) => sum + (team._count?.members || 0), 0),
 );
@@ -63,14 +70,23 @@ onMounted(fetchMyTeams);
         <span>快速查看你创建或加入的协作空间，进入任务、项目和成员管理。</span>
       </div>
       <div class="overview-actions">
-        <button type="button" class="secondary-action" @click="router.push('/explore-teams')">
+        <Button
+          variant="secondary"
+          :icon="ExternalLink"
+          icon-position="right"
+          @click="router.push('/explore-teams')"
+        >
           探索团队
-          <ExternalLink />
-        </button>
-        <button type="button" class="primary-action" :disabled="isLoadingTeams" @click="fetchMyTeams">
-          <RefreshCw :class="{ spinning: isLoadingTeams }" />
+        </Button>
+        <Button
+          variant="primary"
+          :disabled="isLoadingTeams"
+          :loading="isLoadingTeams"
+          :icon="RefreshCw"
+          @click="fetchMyTeams"
+        >
           刷新
-        </button>
+        </Button>
       </div>
     </section>
 
@@ -91,21 +107,14 @@ onMounted(fetchMyTeams);
 
     <section class="team-workbench">
       <div class="team-toolbar">
-        <label class="team-search">
-          <Search />
-          <input v-model="searchTerm" type="search" placeholder="搜索团队空间" />
-        </label>
-        <div class="filter-tabs">
-          <button
-            v-for="option in filterOptions"
-            :key="option.value"
-            type="button"
-            :class="{ active: activeFilter === option.value }"
-            @click="activeFilter = option.value"
-          >
-            {{ option.label }}
-          </button>
-        </div>
+        <Input
+          v-model="searchTerm"
+          type="search"
+          placeholder="搜索团队空间"
+          :icon="Search"
+          class="!w-64 shrink-0"
+        />
+        <Tabs v-model="activeFilter" :options="filterOptions" />
       </div>
 
       <div v-if="isLoadingTeams" class="team-skeletons">
@@ -124,7 +133,10 @@ onMounted(fetchMyTeams);
               <em v-if="team.ownerId === authStore.user?.id">创建者</em>
               <em v-else>成员</em>
             </div>
-            <span>{{ team._count?.members || 0 }} 名成员 · {{ team.type === 'PERSONAL' ? '个人空间' : '团队空间' }}</span>
+            <span
+              >{{ team._count?.members || 0 }} 名成员 ·
+              {{ team.type === 'PERSONAL' ? '个人空间' : '团队空间' }}</span
+            >
           </div>
           <div class="team-actions">
             <RouterLink :to="`/team/${team.id}`" title="打开团队">

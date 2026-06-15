@@ -118,7 +118,9 @@ const filteredSubscriptions = computed(() => {
   return result;
 });
 
-const subscribedUserIds = computed(() => new Set(props.subscriptions.map((s: SubscriptionType) => s.userId)));
+const subscribedUserIds = computed(
+  () => new Set(props.subscriptions.map((s: SubscriptionType) => s.userId)),
+);
 
 const availableUsers = computed(() => {
   if (editingSubscription.value) return props.users;
@@ -184,7 +186,11 @@ const handleDeleteSubscription = async (sub: SubscriptionType) => {
     await ElMessageBox.confirm(
       t('admin.are_you_sure_you_7', { param_0: sub.user?.name || sub.user?.email }),
       t('admin.confirm_deletion_1'),
-      { confirmButtonText: t('admin.delete'), cancelButtonText: t('admin.cancel'), type: 'warning' },
+      {
+        confirmButtonText: t('admin.delete'),
+        cancelButtonText: t('admin.cancel'),
+        type: 'warning',
+      },
     );
     await api.delete(`/api/admin/subscriptions/${sub.id}`);
     ElMessage.success(t('admin.subscription_deleted'));
@@ -242,7 +248,7 @@ const getStatusLabel = (status: string) => {
       <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
         <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
           <button
-v-for="filter in [
+            v-for="filter in [
               { key: 'ALL', label: $t('admin.subscribe_all'), count: subscriptions.length },
               {
                 key: 'ACTIVE',
@@ -252,7 +258,8 @@ v-for="filter in [
               {
                 key: 'CANCELED',
                 label: $t('admin.canceled'),
-                count: subscriptions.filter((s: SubscriptionType) => s.status === 'CANCELED').length,
+                count: subscriptions.filter((s: SubscriptionType) => s.status === 'CANCELED')
+                  .length,
               },
               {
                 key: 'EXPIRED',
@@ -262,9 +269,14 @@ v-for="filter in [
               {
                 key: 'PAST_DUE',
                 label: $t('admin.overdue'),
-                count: subscriptions.filter((s: SubscriptionType) => s.status === 'PAST_DUE').length,
+                count: subscriptions.filter((s: SubscriptionType) => s.status === 'PAST_DUE')
+                  .length,
               },
-            ]" :key="filter.key" type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0" :class="[
+            ]"
+            :key="filter.key"
+            type="button"
+            class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
+            :class="[
               subStatusFilter === filter.key
                 ? filter.key === 'ACTIVE'
                   ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
@@ -276,7 +288,9 @@ v-for="filter in [
                         ? 'bg-slate-500/10 text-slate-500 border-slate-500/30 ring-1 ring-slate-500/20 font-extrabold shadow-sm'
                         : 'bg-violet-500/10 text-violet-500 border-violet-500/30 ring-1 ring-violet-500/20 font-extrabold shadow-sm'
                 : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5',
-            ]" @click="setSubStatusFilter(filter.key)">
+            ]"
+            @click="setSubStatusFilter(filter.key)"
+          >
             <span>{{ filter.label }}</span>
             <span class="opacity-60">({{ filter.count }})</span>
           </button>
@@ -396,7 +410,11 @@ v-for="filter in [
               </span>
             </td>
             <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-sm text-[var(--text-secondary)]">
-              {{ sub.interval === 'YEARLY' ? [t('admin.annual_payment')]: $t('admin.monthly_payment') }}
+              {{
+                sub.interval === 'YEARLY'
+                  ? [t('admin.annual_payment')]
+                  : $t('admin.monthly_payment')
+              }}
             </td>
             <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)]">
               {{ new Date(sub.startDate).toLocaleDateString() }}
@@ -413,10 +431,20 @@ v-for="filter in [
             </td>
             <td class="px-4 sm:px-6 py-3.5 sm:py-4">
               <div class="flex items-center gap-1">
-                <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-accent transition-all" :title="$t('admin.edit')" @click="openEditSubscription(sub)">
+                <button
+                  type="button"
+                  class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-accent transition-all"
+                  :title="$t('admin.edit')"
+                  @click="openEditSubscription(sub)"
+                >
                   <Pencil class="w-4 h-4" />
                 </button>
-                <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-rose-500 transition-all" :title="$t('admin.delete')" @click="handleDeleteSubscription(sub)">
+                <button
+                  type="button"
+                  class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-rose-500 transition-all"
+                  :title="$t('admin.delete')"
+                  @click="handleDeleteSubscription(sub)"
+                >
                   <Trash2 class="w-4 h-4" />
                 </button>
               </div>
@@ -480,25 +508,33 @@ v-for="filter in [
           class="grid grid-cols-3 gap-2 text-[10px] xs:text-xs border-t border-b border-[var(--border-base)] py-3"
         >
           <div>
-            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.cycle_renewal') }}</span>
+            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{
+              $t('admin.cycle_renewal')
+            }}</span>
             <span
               class="font-bold text-[var(--text-secondary)] flex flex-wrap items-center gap-0.5"
             >
-              <span>{{ sub.interval === 'YEARLY' ? $t('admin.annual_payment') : $t('admin.monthly_payment') }}</span>
+              <span>{{
+                sub.interval === 'YEARLY' ? $t('admin.annual_payment') : $t('admin.monthly_payment')
+              }}</span>
               <span class="text-[var(--text-muted)] hidden xs:inline">|</span>
               <span :class="sub.autoRenew ? 'text-emerald-500' : 'text-slate-400'">
-                {{ sub.autoRenew ? [t('admin.automatic_renewal')]: $t('admin.manual') }}
+                {{ sub.autoRenew ? [t('admin.automatic_renewal')] : $t('admin.manual') }}
               </span>
             </span>
           </div>
           <div>
-            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.start_date') }}</span>
+            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{
+              $t('admin.start_date')
+            }}</span>
             <span class="font-bold text-[var(--text-secondary)]">
               {{ new Date(sub.startDate).toLocaleDateString() }}
             </span>
           </div>
           <div>
-            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.expiration_date') }}</span>
+            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{
+              $t('admin.expiration_date')
+            }}</span>
             <span class="font-bold text-[var(--text-secondary)]">
               {{ sub.endDate ? new Date(sub.endDate).toLocaleDateString() : $t('admin.permanent') }}
             </span>
@@ -506,11 +542,19 @@ v-for="filter in [
         </div>
 
         <div class="flex items-center justify-end gap-2">
-          <button type="button" class="flex items-center gap-1 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl border border-[var(--border-base)] text-xs text-[var(--text-secondary)] font-bold transition-all" @click="openEditSubscription(sub)">
+          <button
+            type="button"
+            class="flex items-center gap-1 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl border border-[var(--border-base)] text-xs text-[var(--text-secondary)] font-bold transition-all"
+            @click="openEditSubscription(sub)"
+          >
             <Pencil class="w-3.5 h-3.5" />
             编辑
           </button>
-          <button type="button" class="flex items-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-900/20 rounded-xl text-xs text-rose-600 dark:text-rose-400 font-bold transition-all" @click="handleDeleteSubscription(sub)">
+          <button
+            type="button"
+            class="flex items-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-900/20 rounded-xl text-xs text-rose-600 dark:text-rose-400 font-bold transition-all"
+            @click="handleDeleteSubscription(sub)"
+          >
             <Trash2 class="w-3.5 h-3.5" />
             删除
           </button>
@@ -538,18 +582,26 @@ v-for="filter in [
         >
           <div class="flex items-center justify-between">
             <h3 class="text-xl font-bold text-[var(--text-primary)]">
-              {{ editingSubscription ? [t('admin.edit_subscription')]: $t('admin.add_new_subscription') }}
+              {{
+                editingSubscription
+                  ? [t('admin.edit_subscription')]
+                  : $t('admin.add_new_subscription')
+              }}
             </h3>
-            <button type="button" class="text-[var(--text-secondary)]" @click="showSubDialog = false">
+            <button
+              type="button"
+              class="text-[var(--text-secondary)]"
+              @click="showSubDialog = false"
+            >
               <X class="w-5 h-5" />
             </button>
           </div>
 
           <!-- User Selection -->
           <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >{{ $t('admin.user_1') }}</label
-            >
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.user_1')
+            }}</label>
             <div
               v-if="editingSubscription"
               class="px-4 py-3 rounded-2xl border bg-[var(--bg-app)] border-[var(--border-base)]"
@@ -592,7 +644,14 @@ v-for="filter in [
               <div
                 class="max-h-48 overflow-y-auto rounded-2xl border border-[var(--border-base)] bg-[var(--bg-app)] scrollbar-hide"
               >
-                <button v-for="user in availableUsers" :key="user.id" type="button" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-[var(--bg-card)] transition-all text-left" :class="subForm.userId === user.id ? 'bg-accent/5 ring-1 ring-accent/20' : ''" @click="subForm.userId = user.id">
+                <button
+                  v-for="user in availableUsers"
+                  :key="user.id"
+                  type="button"
+                  class="w-full px-4 py-3 flex items-center gap-3 hover:bg-[var(--bg-card)] transition-all text-left"
+                  :class="subForm.userId === user.id ? 'bg-accent/5 ring-1 ring-accent/20' : ''"
+                  @click="subForm.userId = user.id"
+                >
                   <div
                     class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0"
                   >
@@ -613,7 +672,11 @@ v-for="filter in [
                   v-if="availableUsers.length === 0"
                   class="px-4 py-8 text-center text-xs text-[var(--text-muted)]"
                 >
-                  {{ userSearchQuery ? [t('admin.no_matching_user_found')]: $t('admin.all_users_already_subscribed') }}
+                  {{
+                    userSearchQuery
+                      ? [t('admin.no_matching_user_found')]
+                      : $t('admin.all_users_already_subscribed')
+                  }}
                 </div>
               </div>
             </div>
@@ -621,16 +684,22 @@ v-for="filter in [
 
           <!-- Plan Selection -->
           <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >{{ $t('admin.subscription_plan') }}</label
-            >
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.subscription_plan')
+            }}</label>
             <div class="grid grid-cols-3 gap-3">
               <button
-v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border-2 transition-all text-left" :class="
+                v-for="plan in plans"
+                :key="plan.id"
+                type="button"
+                class="p-4 rounded-2xl border-2 transition-all text-left"
+                :class="
                   subForm.planId === plan.id
                     ? 'border-accent bg-accent/5'
                     : 'border-[var(--border-base)] hover:border-accent/30'
-                " @click="subForm.planId = plan.id">
+                "
+                @click="subForm.planId = plan.id"
+              >
                 <div class="flex items-center gap-2 mb-1">
                   <component
                     :is="getPlanIcon(plan.name)"
@@ -641,7 +710,9 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
                     plan.displayName || plan.name
                   }}</span>
                 </div>
-                <p class="text-[10px] text-[var(--text-muted)]">{{ $t('admin.plan_price_month_1', { price: plan.price }) }}</p>
+                <p class="text-[10px] text-[var(--text-muted)]">
+                  {{ $t('admin.plan_price_month_1', { price: plan.price }) }}
+                </p>
               </button>
             </div>
           </div>
@@ -649,9 +720,9 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
           <!-- Status & Interval -->
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.subscription_status') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.subscription_status')
+              }}</label>
               <select
                 v-model="subForm.status"
                 class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
@@ -668,9 +739,9 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
               </select>
             </div>
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.billing_cycle') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.billing_cycle')
+              }}</label>
               <select
                 v-model="subForm.interval"
                 class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
@@ -689,9 +760,9 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
           <!-- Dates -->
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.start_date') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.start_date')
+              }}</label>
               <input
                 v-model="subForm.startDate"
                 type="datetime-local"
@@ -704,9 +775,9 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
               />
             </div>
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.expiration_date') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.expiration_date')
+              }}</label>
               <input
                 v-model="subForm.endDate"
                 type="datetime-local"
@@ -722,9 +793,9 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
 
           <!-- Payment Method -->
           <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >{{ $t('admin.payment_method') }}</label
-            >
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.payment_method')
+            }}</label>
             <select
               v-model="subForm.paymentMethod"
               class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
@@ -745,43 +816,67 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
           <!-- Toggles -->
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.automatic_renewal_1') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.automatic_renewal_1')
+              }}</label>
               <button
-                type="button" class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all" :class="
+                type="button"
+                class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all"
+                :class="
                   subForm.autoRenew
                     ? 'border-emerald-500 bg-emerald-500/5 text-emerald-500'
                     : 'border-[var(--border-base)] text-[var(--text-muted)]'
-                " @click="subForm.autoRenew = !subForm.autoRenew">
+                "
+                @click="subForm.autoRenew = !subForm.autoRenew"
+              >
                 <component :is="subForm.autoRenew ? Check : X" class="w-4 h-4" />
-                <span class="text-xs font-bold">{{ subForm.autoRenew ? $t('admin.opened') : $t('admin.closed') }}</span>
+                <span class="text-xs font-bold">{{
+                  subForm.autoRenew ? $t('admin.opened') : $t('admin.closed')
+                }}</span>
               </button>
             </div>
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >{{ $t('admin.cancel_at_the_end') }}</label
-              >
+              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+                $t('admin.cancel_at_the_end')
+              }}</label>
               <button
-type="button" class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all" :class="
+                type="button"
+                class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all"
+                :class="
                   subForm.cancelAtPeriodEnd
                     ? 'border-amber-500 bg-amber-500/5 text-amber-500'
                     : 'border-[var(--border-base)] text-[var(--text-muted)]'
-                " style="border-color: subForm.cancelAtPeriodEnd ? undefined : 'var(--border-base)'" @click="subForm.cancelAtPeriodEnd = !subForm.cancelAtPeriodEnd">
+                "
+                style="border-color: subForm.cancelAtPeriodEnd ? undefined : 'var(--border-base)'"
+                @click="subForm.cancelAtPeriodEnd = !subForm.cancelAtPeriodEnd"
+              >
                 <component :is="subForm.cancelAtPeriodEnd ? Check : X" class="w-4 h-4" />
                 <span class="text-xs font-bold">{{
-                  subForm.cancelAtPeriodEnd ? [t('admin.will_be_canceled')]: $t('admin.do_not_cancel')
+                  subForm.cancelAtPeriodEnd
+                    ? [t('admin.will_be_canceled')]
+                    : $t('admin.do_not_cancel')
                 }}</span>
               </button>
             </div>
           </div>
 
           <div class="flex gap-3 pt-4">
-            <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all" @click="showSubDialog = false">
+            <button
+              type="button"
+              class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all"
+              @click="showSubDialog = false"
+            >
               取消
             </button>
-            <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2" @click="handleSaveSubscription">
-              <Save class="w-4 h-4" /> {{ editingSubscription ? [t('admin.save_changes_1')]: $t('admin.create_subscription') }}
+            <button
+              type="button"
+              class="flex-1 py-3 rounded-2xl font-bold text-sm bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2"
+              @click="handleSaveSubscription"
+            >
+              <Save class="w-4 h-4" />
+              {{
+                editingSubscription ? [t('admin.save_changes_1')] : $t('admin.create_subscription')
+              }}
             </button>
           </div>
         </div>

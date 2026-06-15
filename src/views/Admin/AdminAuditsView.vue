@@ -33,6 +33,8 @@ import UserAvatar from '@/components/UserAvatar.vue';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { fetchManagementInsights } from './adminManagementInsights';
 import AdminOpsPanel from './components/AdminOpsPanel.vue';
+import Modal from '@/components/ui/Modal.vue';
+import Tabs from '@/components/ui/Tabs.vue';
 
 type AuditTab = 'assets' | 'materials' | 'showcases' | 'plugins';
 type AuditStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -215,9 +217,37 @@ const pageConfig = computed(() => pageConfigs[activeTab.value]);
 
 const moderationTabs = computed(() => [
   { id: 'assets' as const, badge: workspaceStore.adminStats.pendingAssets, ...pageConfigs.assets },
-  { id: 'materials' as const, badge: workspaceStore.adminStats.pendingMaterials, ...pageConfigs.materials },
-  { id: 'showcases' as const, badge: workspaceStore.adminStats.pendingShowcases, ...pageConfigs.showcases },
-  { id: 'plugins' as const, badge: workspaceStore.adminStats.pendingPlugins, ...pageConfigs.plugins },
+  {
+    id: 'materials' as const,
+    badge: workspaceStore.adminStats.pendingMaterials,
+    ...pageConfigs.materials,
+  },
+  {
+    id: 'showcases' as const,
+    badge: workspaceStore.adminStats.pendingShowcases,
+    ...pageConfigs.showcases,
+  },
+  {
+    id: 'plugins' as const,
+    badge: workspaceStore.adminStats.pendingPlugins,
+    ...pageConfigs.plugins,
+  },
+]);
+
+const moderationTabOptions = computed(() => {
+  return moderationTabs.value.map((tab) => ({
+    label: tab.label,
+    value: tab.id,
+    icon: tab.icon,
+    badge: tab.badge,
+  }));
+});
+
+const statusFilterOptions = computed(() => [
+  { label: '待审核', value: 'PENDING' as const },
+  { label: '已通过', value: 'APPROVED' as const },
+  { label: '已打回', value: 'REJECTED' as const },
+  { label: '全部', value: 'ALL' as const },
 ]);
 
 const fetchItems = async () => {
@@ -231,7 +261,9 @@ const fetchItems = async () => {
       search: searchQuery.value.trim() || undefined,
       status: statusFilter.value !== 'ALL' ? statusFilter.value : undefined,
     };
-    const response = await api.get<AuditItem[] | AuditListResponse>(pageConfig.value.apiPath, { params });
+    const response = await api.get<AuditItem[] | AuditListResponse>(pageConfig.value.apiPath, {
+      params,
+    });
     if (Array.isArray(response.data)) {
       items.value = response.data;
       totalItems.value = response.data.length;
@@ -315,7 +347,9 @@ const backlogLabel = computed(() => {
 });
 
 const isAllSelected = computed(
-  () => filteredItems.value.length > 0 && filteredItems.value.every((item) => selectedIds.value.includes(item.id)),
+  () =>
+    filteredItems.value.length > 0 &&
+    filteredItems.value.every((item) => selectedIds.value.includes(item.id)),
 );
 
 const toggleSelectAll = () => {
@@ -324,7 +358,9 @@ const toggleSelectAll = () => {
       (id) => !filteredItems.value.some((item) => item.id === id),
     );
   } else {
-    selectedIds.value = Array.from(new Set([...selectedIds.value, ...filteredItems.value.map((item) => item.id)]));
+    selectedIds.value = Array.from(
+      new Set([...selectedIds.value, ...filteredItems.value.map((item) => item.id)]),
+    );
   }
 };
 
@@ -363,7 +399,13 @@ const statusClass = (status: string) => ({
 });
 
 const mediaUrl = (item: AuditItem) =>
-  item.thumbnailUrl || item.previewUrl || item.thumbnail || item.videoUrl || item.url || item.fileUrl || '';
+  item.thumbnailUrl ||
+  item.previewUrl ||
+  item.thumbnail ||
+  item.videoUrl ||
+  item.url ||
+  item.fileUrl ||
+  '';
 
 const itemKind = (item: AuditItem) => {
   if (activeTab.value === 'assets') return item.type || 'MODEL';
@@ -386,7 +428,8 @@ const metricLine = (item: AuditItem) => {
   if (activeTab.value === 'assets') return `${item.size || item.fileSize || 0} MB`;
   if (activeTab.value === 'materials') return item.resolution || `${item.fileSize || 0} MB`;
   if (activeTab.value === 'showcases') return `${item.views || 0} 浏览 · ${item.likes || 0} 喜欢`;
-  if (activeTab.value === 'plugins') return `${item.version || 'v1.0.0'} · ${item.compatibility || '未填兼容性'}`;
+  if (activeTab.value === 'plugins')
+    return `${item.version || 'v1.0.0'} · ${item.compatibility || '未填兼容性'}`;
   return '待审核';
 };
 
@@ -611,53 +654,47 @@ onBeforeUnmount(() => {
     <section class="metric-grid">
       <article class="metric-card">
         <PackageCheck />
-        <div><span>总量</span><strong>{{ stats.total }}</strong></div>
+        <div>
+          <span>总量</span><strong>{{ stats.total }}</strong>
+        </div>
       </article>
       <article class="metric-card">
         <AlertTriangle />
-        <div><span>待审核</span><strong>{{ stats.pending }}</strong></div>
+        <div>
+          <span>待审核</span><strong>{{ stats.pending }}</strong>
+        </div>
       </article>
       <article class="metric-card">
         <CheckCircle2 />
-        <div><span>已通过</span><strong>{{ stats.approved }}</strong></div>
+        <div>
+          <span>已通过</span><strong>{{ stats.approved }}</strong>
+        </div>
       </article>
       <article class="metric-card">
         <XCircle />
-        <div><span>已打回</span><strong>{{ stats.rejected }}</strong></div>
+        <div>
+          <span>已打回</span><strong>{{ stats.rejected }}</strong>
+        </div>
       </article>
       <article class="metric-card">
         <ListChecks />
-        <div><span>通过率</span><strong>{{ approvalRate }}%</strong></div>
+        <div>
+          <span>通过率</span><strong>{{ approvalRate }}%</strong>
+        </div>
       </article>
     </section>
 
     <section class="toolbar-panel">
-      <div class="tab-strip">
-        <button
-          v-for="tab in moderationTabs"
-          :key="tab.id"
-          type="button"
-          :class="{ active: activeTab === tab.id }"
-          @click="activeTab = tab.id"
-        >
-          <component :is="tab.icon" />
-          {{ tab.label }}
-          <span v-if="tab.badge">{{ tab.badge }}</span>
-        </button>
+      <div class="shrink-0 overflow-x-auto" style="scrollbar-width: none; -ms-overflow-style: none">
+        <Tabs v-model="activeTab" :options="moderationTabOptions" size="sm" />
       </div>
-      <div class="segmented">
-        <button type="button" :class="{ active: statusFilter === 'PENDING' }" @click="setStatusFilter('PENDING')">
-          待审核
-        </button>
-        <button type="button" :class="{ active: statusFilter === 'APPROVED' }" @click="setStatusFilter('APPROVED')">
-          已通过
-        </button>
-        <button type="button" :class="{ active: statusFilter === 'REJECTED' }" @click="setStatusFilter('REJECTED')">
-          已打回
-        </button>
-        <button type="button" :class="{ active: statusFilter === 'ALL' }" @click="setStatusFilter('ALL')">
-          全部
-        </button>
+      <div class="shrink-0 overflow-x-auto" style="scrollbar-width: none; -ms-overflow-style: none">
+        <Tabs
+          v-model="statusFilter"
+          :options="statusFilterOptions"
+          size="sm"
+          @change="setStatusFilter"
+        />
       </div>
       <label class="search-box">
         <Search />
@@ -727,7 +764,9 @@ onBeforeUnmount(() => {
             <div class="row-main">
               <div class="row-title">
                 <strong>{{ item.title }}</strong>
-                <span class="pill" :class="statusClass(item.status)">{{ statusLabel(item.status) }}</span>
+                <span class="pill" :class="statusClass(item.status)">{{
+                  statusLabel(item.status)
+                }}</span>
               </div>
               <p>{{ item.description || '暂无描述' }}</p>
               <div class="row-meta">
@@ -739,10 +778,20 @@ onBeforeUnmount(() => {
               </div>
             </div>
             <div class="row-actions" @click.stop>
-              <button v-if="item.status !== 'APPROVED'" type="button" class="approve-btn" @click="handleStatusUpdate(item, 'APPROVED')">
+              <button
+                v-if="item.status !== 'APPROVED'"
+                type="button"
+                class="approve-btn"
+                @click="handleStatusUpdate(item, 'APPROVED')"
+              >
                 <CheckCircle2 /> 通过
               </button>
-              <button v-if="item.status !== 'REJECTED'" type="button" class="reject-btn" @click="handleStatusUpdate(item, 'REJECTED')">
+              <button
+                v-if="item.status !== 'REJECTED'"
+                type="button"
+                class="reject-btn"
+                @click="handleStatusUpdate(item, 'REJECTED')"
+              >
                 <XCircle /> 打回
               </button>
               <button type="button" class="ghost-mini" @click="openEdit(item)">
@@ -755,16 +804,36 @@ onBeforeUnmount(() => {
         <footer class="queue-pagination">
           <span>第 {{ currentPage }} / {{ totalPages }} 页</span>
           <div>
-            <button type="button" class="icon-btn" :disabled="currentPage === 1" @click="setPage(1)">
+            <button
+              type="button"
+              class="icon-btn"
+              :disabled="currentPage === 1"
+              @click="setPage(1)"
+            >
               <ChevronsLeft />
             </button>
-            <button type="button" class="icon-btn" :disabled="currentPage === 1" @click="setPage(currentPage - 1)">
+            <button
+              type="button"
+              class="icon-btn"
+              :disabled="currentPage === 1"
+              @click="setPage(currentPage - 1)"
+            >
               <ChevronLeft />
             </button>
-            <button type="button" class="icon-btn" :disabled="currentPage === totalPages" @click="setPage(currentPage + 1)">
+            <button
+              type="button"
+              class="icon-btn"
+              :disabled="currentPage === totalPages"
+              @click="setPage(currentPage + 1)"
+            >
               <ChevronRight />
             </button>
-            <button type="button" class="icon-btn" :disabled="currentPage === totalPages" @click="setPage(totalPages)">
+            <button
+              type="button"
+              class="icon-btn"
+              :disabled="currentPage === totalPages"
+              @click="setPage(totalPages)"
+            >
               <ChevronsRight />
             </button>
           </div>
@@ -788,10 +857,13 @@ onBeforeUnmount(() => {
           <div class="inspector-section">
             <h3>提交信息</h3>
             <div class="detail-grid">
-              <span>作者</span><strong>{{ activeItem.user?.name || activeItem.user?.email || '匿名创作者' }}</strong>
-              <span>类型</span><strong>{{ itemKind(activeItem) }}</strong>
-              <span>指标</span><strong>{{ metricLine(activeItem) }}</strong>
-              <span>时间</span><strong>{{ formatDate(activeItem.createdAt) }}</strong>
+              <span>作者</span
+              ><strong>{{
+                activeItem.user?.name || activeItem.user?.email || '匿名创作者'
+              }}</strong>
+              <span>类型</span><strong>{{ itemKind(activeItem) }}</strong> <span>指标</span
+              ><strong>{{ metricLine(activeItem) }}</strong> <span>时间</span
+              ><strong>{{ formatDate(activeItem.createdAt) }}</strong>
             </div>
           </div>
 
@@ -806,16 +878,27 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="inspector-actions">
-            <a v-if="mediaUrl(activeItem)" :href="mediaUrl(activeItem)" target="_blank" rel="noopener noreferrer">
+            <a
+              v-if="mediaUrl(activeItem)"
+              :href="mediaUrl(activeItem)"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <Eye /> 查看原件
             </a>
-            <button type="button" @click="openEdit(activeItem)">
-              <Edit3 /> 编辑
-            </button>
-            <button v-if="activeItem.status !== 'APPROVED'" type="button" @click="handleStatusUpdate(activeItem, 'APPROVED')">
+            <button type="button" @click="openEdit(activeItem)"><Edit3 /> 编辑</button>
+            <button
+              v-if="activeItem.status !== 'APPROVED'"
+              type="button"
+              @click="handleStatusUpdate(activeItem, 'APPROVED')"
+            >
               <CheckCircle2 /> 通过
             </button>
-            <button v-if="activeItem.status !== 'REJECTED'" type="button" @click="handleStatusUpdate(activeItem, 'REJECTED')">
+            <button
+              v-if="activeItem.status !== 'REJECTED'"
+              type="button"
+              @click="handleStatusUpdate(activeItem, 'REJECTED')"
+            >
               <XCircle /> 打回
             </button>
             <button type="button" class="danger-action" @click="handleDelete(activeItem)">
@@ -831,7 +914,12 @@ onBeforeUnmount(() => {
       </aside>
     </main>
 
-    <el-dialog v-model="isEditOpen" :title="`编辑${pageConfig.label}`" width="560px" destroy-on-close>
+    <Modal
+      :show="isEditOpen"
+      :title="`编辑${pageConfig.label}`"
+      size="md"
+      @close="isEditOpen = false"
+    >
       <div class="form-stack">
         <label>标题<input v-model="editForm.title" /></label>
         <label>描述<textarea v-model="editForm.description" rows="4" /></label>
@@ -848,7 +936,9 @@ onBeforeUnmount(() => {
             资产分类
             <select v-model="editForm.categoryId">
               <option value="">未分类</option>
-              <option v-for="cat in assetCategories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+              <option v-for="cat in assetCategories" :key="cat.id" :value="cat.id">
+                {{ cat.name }}
+              </option>
             </select>
           </label>
           <label v-if="activeTab === 'materials' || activeTab === 'plugins'">
@@ -873,11 +963,23 @@ onBeforeUnmount(() => {
       </div>
       <template #footer>
         <button type="button" class="ghost-btn dialog-btn" @click="isEditOpen = false">取消</button>
-        <button type="button" class="primary-btn dialog-btn" :disabled="isSaving" @click="handleUpdate">保存</button>
+        <button
+          type="button"
+          class="primary-btn dialog-btn"
+          :disabled="isSaving"
+          @click="handleUpdate"
+        >
+          保存
+        </button>
       </template>
-    </el-dialog>
+    </Modal>
 
-    <el-dialog v-model="rejectDialogVisible" title="填写打回原因" width="500px" destroy-on-close>
+    <Modal
+      :show="rejectDialogVisible"
+      title="填写打回原因"
+      size="md"
+      @close="rejectDialogVisible = false"
+    >
       <div class="form-stack">
         <div class="reason-templates">
           <button
@@ -892,14 +994,22 @@ onBeforeUnmount(() => {
         </div>
         <label>
           详细说明
-          <textarea v-model="rejectionForm.reason" rows="5" placeholder="写清楚需要作者修改的地方" />
+          <textarea
+            v-model="rejectionForm.reason"
+            rows="5"
+            placeholder="写清楚需要作者修改的地方"
+          />
         </label>
       </div>
       <template #footer>
-        <button type="button" class="ghost-btn dialog-btn" @click="rejectDialogVisible = false">取消</button>
-        <button type="button" class="reject-btn dialog-btn" @click="submitRejection">确认打回</button>
+        <button type="button" class="ghost-btn dialog-btn" @click="rejectDialogVisible = false">
+          取消
+        </button>
+        <button type="button" class="reject-btn dialog-btn" @click="submitRejection">
+          确认打回
+        </button>
       </template>
-    </el-dialog>
+    </Modal>
   </div>
 </template>
 

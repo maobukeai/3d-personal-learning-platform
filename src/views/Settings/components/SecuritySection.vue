@@ -17,6 +17,8 @@ import {
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { getApiErrorMessage } from '@/utils/error';
+import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
 import {
   type TrustedDevice,
   changeEmail,
@@ -358,7 +360,11 @@ onUnmounted(() => {
       <div>
         <p class="section-kicker">账号安全</p>
         <h3>{{ securityScore }}% 安全评分</h3>
-        <span>{{ authStore.user?.twoFactorEnabled ? '双重验证已保护你的登录流程。' : '建议开启双重验证并定期更新密码。' }}</span>
+        <span>{{
+          authStore.user?.twoFactorEnabled
+            ? '双重验证已保护你的登录流程。'
+            : '建议开启双重验证并定期更新密码。'
+        }}</span>
       </div>
       <div class="check-strip">
         <span v-for="item in securityChecks" :key="item.label" :class="{ done: item.done }">
@@ -377,29 +383,44 @@ onUnmounted(() => {
         <p class="current-email">当前邮箱：{{ authStore.user?.email }}</p>
 
         <div v-if="emailChangeForm.step === 1" class="form-stack">
-          <label>
-            <span>新邮箱地址</span>
-            <div class="input-shell">
-              <AtSign />
-              <input v-model="emailChangeForm.newEmail" type="email" placeholder="new@example.com" />
-            </div>
-          </label>
-          <button type="button" class="secondary-action" :disabled="isSendingEmailCode || emailCodeCountdown > 0" @click="sendEmailChangeCode">
-            {{ isSendingEmailCode ? '发送中...' : emailCodeCountdown > 0 ? `重新发送 ${emailCodeCountdown}s` : '发送验证码' }}
-          </button>
+          <Input
+            v-model="emailChangeForm.newEmail"
+            type="email"
+            label="新邮箱地址"
+            placeholder="new@example.com"
+            :icon="AtSign"
+          />
+          <Button
+            variant="secondary"
+            :disabled="isSendingEmailCode || emailCodeCountdown > 0"
+            :loading="isSendingEmailCode"
+            @click="sendEmailChangeCode"
+          >
+            {{ emailCodeCountdown > 0 ? `重新发送 ${emailCodeCountdown}s` : '发送验证码' }}
+          </Button>
         </div>
 
         <div v-else class="form-stack">
           <div class="notice-box">验证码已发送至 {{ emailChangeForm.newEmail }}</div>
-          <label>
-            <span>邮箱验证码</span>
-            <input v-model="emailChangeForm.code" class="code-input" type="text" maxlength="6" inputmode="numeric" placeholder="000000" />
-          </label>
+          <Input
+            v-model="emailChangeForm.code"
+            type="text"
+            label="邮箱验证码"
+            maxlength="6"
+            inputmode="numeric"
+            placeholder="000000"
+            input-class="text-center font-bold tracking-widest text-lg"
+          />
           <div class="inline-actions">
-            <button type="button" class="secondary-action" @click="emailChangeForm.step = 1">返回</button>
-            <button type="button" class="primary-action" :disabled="isConfirmingEmail" @click="confirmEmailChange">
-              {{ isConfirmingEmail ? '更换中...' : '确认更换' }}
-            </button>
+            <Button variant="secondary" @click="emailChangeForm.step = 1"> 返回 </Button>
+            <Button
+              variant="primary"
+              :disabled="isConfirmingEmail"
+              :loading="isConfirmingEmail"
+              @click="confirmEmailChange"
+            >
+              确认更换
+            </Button>
           </div>
         </div>
       </div>
@@ -410,30 +431,39 @@ onUnmounted(() => {
           <Lock />
         </div>
         <div class="form-stack">
-          <label>
-            <span>当前密码</span>
-            <div class="input-shell">
-              <KeyRound />
-              <input v-model="passwordForm.currentPassword" type="password" autocomplete="current-password" />
-            </div>
-          </label>
+          <Input
+            v-model="passwordForm.currentPassword"
+            type="password"
+            label="当前密码"
+            autocomplete="current-password"
+            :icon="KeyRound"
+          />
           <div class="field-grid">
-            <label>
-              <span>新密码</span>
-              <input v-model="passwordForm.newPassword" type="password" autocomplete="new-password" />
-            </label>
-            <label>
-              <span>确认新密码</span>
-              <input v-model="passwordForm.confirmPassword" type="password" autocomplete="new-password" />
-            </label>
+            <Input
+              v-model="passwordForm.newPassword"
+              type="password"
+              label="新密码"
+              autocomplete="new-password"
+            />
+            <Input
+              v-model="passwordForm.confirmPassword"
+              type="password"
+              label="确认新密码"
+              autocomplete="new-password"
+            />
           </div>
           <div class="strength-row">
             <span>强度：{{ passwordStrength.label }}</span>
             <i :class="passwordStrength.tone" :style="{ width: `${passwordStrength.value}%` }"></i>
           </div>
-          <button type="button" class="primary-action" :disabled="isChangingPassword" @click="handleChangePassword">
-            {{ isChangingPassword ? '更新中...' : '更新密码' }}
-          </button>
+          <Button
+            variant="primary"
+            :disabled="isChangingPassword"
+            :loading="isChangingPassword"
+            @click="handleChangePassword"
+          >
+            更新密码
+          </Button>
         </div>
       </div>
     </section>
@@ -445,7 +475,13 @@ onUnmounted(() => {
             <span>双重验证</span>
             <Fingerprint />
           </div>
-          <p>{{ authStore.user?.twoFactorEnabled ? '登录时需要动态验证码或恢复码。' : '使用 Authenticator 应用保护登录。' }}</p>
+          <p>
+            {{
+              authStore.user?.twoFactorEnabled
+                ? '登录时需要动态验证码或恢复码。'
+                : '使用 Authenticator 应用保护登录。'
+            }}
+          </p>
         </div>
         <em :class="{ enabled: authStore.user?.twoFactorEnabled }">
           {{ authStore.user?.twoFactorEnabled ? '已启用' : '未启用' }}
@@ -453,7 +489,13 @@ onUnmounted(() => {
       </div>
 
       <div v-if="!authStore.user?.twoFactorEnabled" class="two-factor-setup">
-        <button v-if="!show2FASetup" type="button" class="setup-button" :disabled="is2FALoading" @click="start2FASetup">
+        <button
+          v-if="!show2FASetup"
+          type="button"
+          class="setup-button"
+          :disabled="is2FALoading"
+          @click="start2FASetup"
+        >
           <Plus />
           {{ is2FALoading ? '准备中...' : '开始启用双重验证' }}
         </button>
@@ -485,18 +527,31 @@ onUnmounted(() => {
               </div>
             </div>
             <div class="field-grid">
-              <label>
-                <span>当前密码</span>
-                <input v-model="tfaPassword" type="password" autocomplete="current-password" />
-              </label>
-              <label>
-                <span>动态验证码</span>
-                <input v-model="tfaCode" type="text" maxlength="6" inputmode="numeric" placeholder="000000" />
-              </label>
+              <Input
+                v-model="tfaPassword"
+                type="password"
+                label="当前密码"
+                autocomplete="current-password"
+              />
+              <Input
+                v-model="tfaCode"
+                type="text"
+                label="动态验证码"
+                maxlength="6"
+                inputmode="numeric"
+                placeholder="000000"
+              />
             </div>
             <div class="inline-actions">
-              <button type="button" class="secondary-action" @click="show2FASetup = false">取消</button>
-              <button type="button" class="primary-action" :disabled="is2FALoading" @click="confirm2FA">验证并启用</button>
+              <Button variant="secondary" @click="show2FASetup = false"> 取消 </Button>
+              <Button
+                variant="primary"
+                :disabled="is2FALoading"
+                :loading="is2FALoading"
+                @click="confirm2FA"
+              >
+                验证并启用
+              </Button>
             </div>
           </div>
         </div>
@@ -510,23 +565,39 @@ onUnmounted(() => {
           </div>
           <p>恢复码只会在生成时完整显示，请保存到安全的位置。</p>
           <div class="field-grid">
-            <label>
-              <span>当前密码</span>
-              <input v-model="regeneratePassword" type="password" autocomplete="current-password" />
-            </label>
-            <label>
-              <span>或 2FA 验证码</span>
-              <input v-model="regenerateCode" type="text" maxlength="6" inputmode="numeric" placeholder="000000" />
-            </label>
+            <Input
+              v-model="regeneratePassword"
+              type="password"
+              label="当前密码"
+              autocomplete="current-password"
+            />
+            <Input
+              v-model="regenerateCode"
+              type="text"
+              label="或 2FA 验证码"
+              maxlength="6"
+              inputmode="numeric"
+              placeholder="000000"
+            />
           </div>
-          <button type="button" class="secondary-action" :disabled="isRegeneratingCodes" @click="regenerateRecoveryCodes">
-            <RefreshCw :class="{ spinning: isRegeneratingCodes }" />
+          <Button
+            variant="secondary"
+            :disabled="isRegeneratingCodes"
+            :loading="isRegeneratingCodes"
+            :icon="RefreshCw"
+            @click="regenerateRecoveryCodes"
+          >
             重新生成恢复码
-          </button>
+          </Button>
           <div v-if="regeneratedRecoveryCodes.length > 0" class="code-grid">
             <code v-for="code in regeneratedRecoveryCodes" :key="code">{{ code }}</code>
           </div>
-          <button v-if="regeneratedRecoveryCodes.length > 0" type="button" class="link-action" @click="copyRecoveryCodes(regeneratedRecoveryCodes)">
+          <button
+            v-if="regeneratedRecoveryCodes.length > 0"
+            type="button"
+            class="link-action"
+            @click="copyRecoveryCodes(regeneratedRecoveryCodes)"
+          >
             <Copy />
             复制新恢复码
           </button>
@@ -538,17 +609,28 @@ onUnmounted(() => {
             <ShieldAlert />
           </div>
           <p>需要当前密码或 2FA 验证码。关闭后，账号登录安全等级会下降。</p>
-          <label>
-            <span>2FA 验证码</span>
-            <input v-model="disable2FACode" type="text" maxlength="6" inputmode="numeric" placeholder="000000" />
-          </label>
-          <label>
-            <span>或当前密码</span>
-            <input v-model="disablePassword" type="password" autocomplete="current-password" />
-          </label>
-          <button type="button" class="danger-action" :disabled="isDisabling2FA" @click="disable2FA">
-            {{ isDisabling2FA ? '关闭中...' : '关闭双重验证' }}
-          </button>
+          <Input
+            v-model="disable2FACode"
+            type="text"
+            label="2FA 验证码"
+            maxlength="6"
+            inputmode="numeric"
+            placeholder="000000"
+          />
+          <Input
+            v-model="disablePassword"
+            type="password"
+            label="或当前密码"
+            autocomplete="current-password"
+          />
+          <Button
+            variant="danger"
+            :disabled="isDisabling2FA"
+            :loading="isDisabling2FA"
+            @click="disable2FA"
+          >
+            关闭双重验证
+          </Button>
         </div>
       </div>
     </section>
@@ -556,10 +638,15 @@ onUnmounted(() => {
     <section class="security-panel">
       <div class="panel-title">
         <span>受信设备</span>
-        <button type="button" @click="fetchTrustedDevices">
-          <RefreshCw :class="{ spinning: isLoadingDevices }" />
+        <Button
+          size="sm"
+          variant="secondary"
+          :icon="RefreshCw"
+          :loading="isLoadingDevices"
+          @click="fetchTrustedDevices"
+        >
           刷新
-        </button>
+        </Button>
       </div>
 
       <div v-if="isLoadingDevices" class="device-skeletons">

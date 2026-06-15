@@ -1,11 +1,5 @@
 <script setup lang="ts">
-import {
-  CheckCircle2,
-  Lock,
-  Zap,
-  Sparkle,
-  ArrowRight,
-} from 'lucide-vue-next';
+import { CheckCircle2, Lock, Zap, Sparkle, ArrowRight } from 'lucide-vue-next';
 
 interface RoadmapStep {
   id: string;
@@ -75,9 +69,7 @@ const getStepStatus = (step: RoadmapStep, index: number | string) => {
       >
         <!-- Connecting glowing track representing current progress -->
         <div
-          v-if="
-            Number(index) < selectedRoadmap.steps.length - 1 && isStepCompleted(step.id)
-          "
+          v-if="Number(index) < selectedRoadmap.steps.length - 1 && isStepCompleted(step.id)"
           class="absolute left-[-13px] sm:left-[-28px] top-5 sm:top-6 bottom-[-18px] sm:bottom-[-24px] w-0.5 bg-emerald-500 z-0 opacity-80"
         ></div>
 
@@ -103,13 +95,8 @@ const getStepStatus = (step: RoadmapStep, index: number | string) => {
             v-else-if="getStepStatus(step, index) === 'locked'"
             class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5"
           />
-          <Zap
-            v-else-if="getStepStatus(step, index) === 'current'"
-            class="w-3 h-3 sm:w-4 sm:h-4"
-          />
-          <span v-else class="text-[9px] sm:text-xs font-black">{{
-            Number(index) + 1
-          }}</span>
+          <Zap v-else-if="getStepStatus(step, index) === 'current'" class="w-3 h-3 sm:w-4 sm:h-4" />
+          <span v-else class="text-[9px] sm:text-xs font-black">{{ Number(index) + 1 }}</span>
         </div>
 
         <!-- Flow card block -->
@@ -161,10 +148,8 @@ const getStepStatus = (step: RoadmapStep, index: number | string) => {
                   'text-emerald-600 dark:text-emerald-400':
                     getStepStatus(step, index) === 'completed',
                   'text-accent': getStepStatus(step, index) === 'current',
-                  'text-slate-400 dark:text-slate-500':
-                    getStepStatus(step, index) === 'locked',
-                  'text-slate-800 dark:text-slate-100':
-                    getStepStatus(step, index) === 'upcoming',
+                  'text-slate-400 dark:text-slate-500': getStepStatus(step, index) === 'locked',
+                  'text-slate-800 dark:text-slate-100': getStepStatus(step, index) === 'upcoming',
                 }"
               >
                 {{ step.title }}

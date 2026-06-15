@@ -37,6 +37,7 @@ import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import { fetchManagementInsights, formatCompactNumber } from './adminManagementInsights';
 import UserDetailDrawer from './components/UserDetailDrawer.vue';
 import UserQuotaDialog from './components/UserQuotaDialog.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 export type UserRole = 'USER' | 'ADMIN' | 'INSTRUCTOR';
 export type UserStatus = 'ACTIVE' | 'BANNED';
@@ -960,10 +961,16 @@ const handleManageSub = async () => {
   isSubLoading.value = true;
   try {
     if (selectedUser.value.subscription) {
-      await api.put(`/api/admin/subscriptions/${selectedUser.value.subscription.id}`, subForm.value);
+      await api.put(
+        `/api/admin/subscriptions/${selectedUser.value.subscription.id}`,
+        subForm.value,
+      );
       ElMessage.success('订阅已更新');
     } else {
-      await api.post('/api/admin/subscriptions', { ...subForm.value, userId: selectedUser.value.id });
+      await api.post('/api/admin/subscriptions', {
+        ...subForm.value,
+        userId: selectedUser.value.id,
+      });
       ElMessage.success('订阅已开通');
     }
     subDialogVisible.value = false;
@@ -1048,7 +1055,11 @@ void overviewMetrics.value;
         </div>
         <h1>用户管理</h1>
         <p class="page-subtitle">
-          {{ userOverview ? `覆盖 ${compact(userOverview.totals.total)} 个账号，${compact(userOverview.security.activeSessions)} 个活跃会话` : '正在同步账号、会话与订阅数据' }}
+          {{
+            userOverview
+              ? `覆盖 ${compact(userOverview.totals.total)} 个账号，${compact(userOverview.security.activeSessions)} 个活跃会话`
+              : '正在同步账号、会话与订阅数据'
+          }}
         </p>
       </div>
       <div class="header-actions">
@@ -1091,9 +1102,7 @@ void overviewMetrics.value;
             </span>
             <ChevronRight :size="15" />
           </button>
-          <div v-if="riskQueue.length === 0" class="quiet-empty">
-            当前没有高优先级账号风险。
-          </div>
+          <div v-if="riskQueue.length === 0" class="quiet-empty">当前没有高优先级账号风险。</div>
         </section>
 
         <section class="signal-card">
@@ -1105,7 +1114,11 @@ void overviewMetrics.value;
             <BarChart3 :size="17" />
           </div>
           <div class="distribution-list">
-            <div v-for="item in roleDistribution" :key="`role-${item.key}`" class="distribution-row">
+            <div
+              v-for="item in roleDistribution"
+              :key="`role-${item.key}`"
+              class="distribution-row"
+            >
               <span>{{ item.label }}</span>
               <div><i :style="{ width: `${(item.count / maxRoleCount) * 100}%` }" /></div>
               <strong>{{ item.count }}</strong>
@@ -1146,7 +1159,11 @@ void overviewMetrics.value;
         </label>
 
         <div class="toolbar-actions">
-          <el-button :type="showAdvancedFilters ? 'primary' : ''" plain @click="showAdvancedFilters = !showAdvancedFilters">
+          <el-button
+            :type="showAdvancedFilters ? 'primary' : ''"
+            plain
+            @click="showAdvancedFilters = !showAdvancedFilters"
+          >
             <SlidersHorizontal :size="15" />
             高级筛选
           </el-button>
@@ -1216,7 +1233,12 @@ void overviewMetrics.value;
             <Ban :size="14" />
             封禁
           </el-button>
-          <el-dropdown trigger="click" @command="(command: unknown) => handleBatchUpdate({ role: String(command) as UserRole })">
+          <el-dropdown
+            trigger="click"
+            @command="
+              (command: unknown) => handleBatchUpdate({ role: String(command) as UserRole })
+            "
+          >
             <el-button size="small">
               <UserCog :size="14" />
               改角色
@@ -1359,7 +1381,9 @@ void overviewMetrics.value;
                 {{ riskLabel(row) }}
               </span>
               <span class="muted-line">
-                邮箱{{ row.emailVerified ? '已验' : '未验' }} / 2FA{{ row.twoFactorEnabled ? '开' : '关' }}
+                邮箱{{ row.emailVerified ? '已验' : '未验' }} / 2FA{{
+                  row.twoFactorEnabled ? '开' : '关'
+                }}
               </span>
             </div>
           </template>
@@ -1373,7 +1397,10 @@ void overviewMetrics.value;
 
         <el-table-column fixed="right" label="操作" width="94">
           <template #default="{ row }">
-            <el-dropdown trigger="click" @command="(command: unknown) => handleRowCommand(String(command), row)">
+            <el-dropdown
+              trigger="click"
+              @command="(command: unknown) => handleRowCommand(String(command), row)"
+            >
               <el-button class="icon-button" text>
                 <MoreHorizontal :size="18" />
               </el-button>
@@ -1455,7 +1482,12 @@ void overviewMetrics.value;
       @delete="handleDeleteUser"
     />
 
-    <el-dialog v-model="createDialogVisible" title="新建用户" width="520px">
+    <Modal
+      :show="createDialogVisible"
+      title="新建用户"
+      size="md"
+      @close="createDialogVisible = false"
+    >
       <el-form label-position="top">
         <el-form-item label="姓名">
           <el-input v-model="createForm.name" placeholder="用户昵称或真实姓名" />
@@ -1480,9 +1512,9 @@ void overviewMetrics.value;
           创建
         </el-button>
       </template>
-    </el-dialog>
+    </Modal>
 
-    <el-dialog v-model="editDialogVisible" title="编辑用户" width="520px">
+    <Modal :show="editDialogVisible" title="编辑用户" size="md" @close="editDialogVisible = false">
       <el-form v-if="editingUser" label-position="top">
         <el-form-item label="姓名">
           <el-input v-model="editingUser.name" />
@@ -1510,17 +1542,19 @@ void overviewMetrics.value;
           保存
         </el-button>
       </template>
-    </el-dialog>
+    </Modal>
 
     <UserQuotaDialog
       v-model="subDialogVisible"
       :user="selectedUser"
       :plans="plans"
       :is-sub-loading="isSubLoading"
-      @submit="async (formData) => {
-        subForm = formData;
-        await handleManageSub();
-      }"
+      @submit="
+        async (formData) => {
+          subForm = formData;
+          await handleManageSub();
+        }
+      "
       @cancel-sub="handleCancelSub"
     />
   </div>

@@ -6,6 +6,7 @@ import { Database, Upload, Loader2 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import type { ManualStation } from '../AdminManualView.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 const { t } = useI18n();
 
@@ -113,12 +114,16 @@ async function submit() {
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
+  <Modal
+    :show="visible"
     :title="station ? $t('admin.edit_manual_resource_site') : $t('admin.create_a_manual_resource')"
-    width="500px"
-    custom-class="premium-dialog"
-    @closed="resetForm"
+    size="md"
+    @close="
+      () => {
+        visible = false;
+        resetForm();
+      }
+    "
   >
     <div class="space-y-4 py-2">
       <div class="space-y-1">
@@ -216,19 +221,23 @@ async function submit() {
       <div class="flex justify-end gap-2 pt-2">
         <button
           type="button"
-          class="px-4 py-2 border rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-          @click="visible = false"
+          class="px-4 py-2 border rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors bg-transparent border-slate-200 dark:border-slate-800"
+          style="color: var(--text-secondary)"
+          @click="
+            visible = false;
+            resetForm();
+          "
         >
           {{ $t('admin.cancel') }}
         </button>
         <button
           type="button"
-          class="px-4 py-2 bg-cyan-600 text-white rounded-xl hover:bg-cyan-500 text-xs font-semibold transition-colors"
+          class="px-4 py-2 bg-cyan-600 text-white rounded-xl hover:bg-cyan-500 text-xs font-semibold transition-colors border-none cursor-pointer"
           @click="submit"
         >
           {{ station ? $t('admin.save_changes') : $t('admin.create_resource_site') }}
         </button>
       </div>
     </template>
-  </el-dialog>
+  </Modal>
 </template>

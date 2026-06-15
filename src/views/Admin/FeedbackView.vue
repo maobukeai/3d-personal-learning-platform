@@ -21,6 +21,7 @@ import UserAvatar from '@/components/UserAvatar.vue';
 import type { Feedback } from '@/types';
 import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import { fetchManagementInsights } from './adminManagementInsights';
+import Modal from '@/components/ui/Modal.vue';
 
 type FeedbackStatus = Feedback['status'];
 type FeedbackPriority = Feedback['priority'];
@@ -84,7 +85,9 @@ const fetchFeedbacks = async () => {
       const fresh = response.data.find((item) => item.id === activeFeedback.value?.id);
       activeFeedback.value = fresh || activeFeedback.value;
     }
-    selectedIds.value = selectedIds.value.filter((id) => response.data.some((item) => item.id === id));
+    selectedIds.value = selectedIds.value.filter((id) =>
+      response.data.some((item) => item.id === id),
+    );
     fetchManagementInsights(true);
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, '无法加载反馈数据'));
@@ -97,7 +100,8 @@ const filteredFeedbacks = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
   return feedbacks.value.filter((item) => {
     const matchesStatus = statusFilter.value === 'ALL' || item.status === statusFilter.value;
-    const matchesPriority = priorityFilter.value === 'ALL' || item.priority === priorityFilter.value;
+    const matchesPriority =
+      priorityFilter.value === 'ALL' || item.priority === priorityFilter.value;
     const matchesType = typeFilter.value === 'ALL' || item.type === typeFilter.value;
     const matchesSearch =
       !query ||
@@ -114,7 +118,8 @@ const stats = computed(() => ({
   open: feedbacks.value.filter((item) => item.status === 'OPEN').length,
   processing: feedbacks.value.filter((item) => item.status === 'IN_PROGRESS').length,
   resolved: feedbacks.value.filter((item) => item.status === 'RESOLVED').length,
-  high: feedbacks.value.filter((item) => item.priority === 'HIGH' && item.status !== 'CLOSED').length,
+  high: feedbacks.value.filter((item) => item.priority === 'HIGH' && item.status !== 'CLOSED')
+    .length,
 }));
 
 const allPageSelected = computed(
@@ -325,19 +330,27 @@ onMounted(fetchFeedbacks);
     <section class="metric-grid">
       <article class="metric-card">
         <Inbox />
-        <div><span>反馈总量</span><strong>{{ stats.total }}</strong></div>
+        <div>
+          <span>反馈总量</span><strong>{{ stats.total }}</strong>
+        </div>
       </article>
       <article class="metric-card">
         <AlertTriangle />
-        <div><span>待处理</span><strong>{{ stats.open }}</strong></div>
+        <div>
+          <span>待处理</span><strong>{{ stats.open }}</strong>
+        </div>
       </article>
       <article class="metric-card">
         <Clock />
-        <div><span>处理中</span><strong>{{ stats.processing }}</strong></div>
+        <div>
+          <span>处理中</span><strong>{{ stats.processing }}</strong>
+        </div>
       </article>
       <article class="metric-card">
         <CheckCircle2 />
-        <div><span>已解决</span><strong>{{ stats.resolved }}</strong></div>
+        <div>
+          <span>已解决</span><strong>{{ stats.resolved }}</strong>
+        </div>
       </article>
     </section>
 
@@ -354,10 +367,14 @@ onMounted(fetchFeedbacks);
         </button>
       </div>
       <select v-model="priorityFilter" class="filter-select">
-        <option v-for="item in priorityOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+        <option v-for="item in priorityOptions" :key="item.value" :value="item.value">
+          {{ item.label }}
+        </option>
       </select>
       <select v-model="typeFilter" class="filter-select">
-        <option v-for="item in typeOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+        <option v-for="item in typeOptions" :key="item.value" :value="item.value">
+          {{ item.label }}
+        </option>
       </select>
       <label class="search-box">
         <Search />
@@ -386,7 +403,9 @@ onMounted(fetchFeedbacks);
         <table>
           <thead>
             <tr>
-              <th class="check-cell"><input type="checkbox" :checked="allPageSelected" @change="toggleSelectAll" /></th>
+              <th class="check-cell">
+                <input type="checkbox" :checked="allPageSelected" @change="toggleSelectAll" />
+              </th>
               <th>反馈</th>
               <th>用户</th>
               <th>优先级</th>
@@ -417,8 +436,16 @@ onMounted(fetchFeedbacks);
                   <span>{{ item.user.name || item.user.email }}</span>
                 </div>
               </td>
-              <td><span class="pill" :class="priorityClass(item.priority)">{{ priorityLabel(item.priority) }}</span></td>
-              <td><span class="pill" :class="statusClass(item.status)">{{ statusLabel(item.status) }}</span></td>
+              <td>
+                <span class="pill" :class="priorityClass(item.priority)">{{
+                  priorityLabel(item.priority)
+                }}</span>
+              </td>
+              <td>
+                <span class="pill" :class="statusClass(item.status)">{{
+                  statusLabel(item.status)
+                }}</span>
+              </td>
               <td>
                 <button
                   v-if="item.attachmentUrl"
@@ -440,11 +467,18 @@ onMounted(fetchFeedbacks);
                         <ChevronRight class="dropdown-icon" /> 查看详情
                       </el-dropdown-item>
                       <el-dropdown-item @click="openReplyDialog(item)">
-                        <MessageSquare class="dropdown-icon" /> {{ item.adminReply ? '编辑回复' : '回复用户' }}
+                        <MessageSquare class="dropdown-icon" />
+                        {{ item.adminReply ? '编辑回复' : '回复用户' }}
                       </el-dropdown-item>
-                      <el-dropdown-item @click="updateStatus(item.id, 'IN_PROGRESS')">标记处理中</el-dropdown-item>
-                      <el-dropdown-item @click="updateStatus(item.id, 'RESOLVED')">标记已解决</el-dropdown-item>
-                      <el-dropdown-item @click="updateStatus(item.id, 'CLOSED')">关闭反馈</el-dropdown-item>
+                      <el-dropdown-item @click="updateStatus(item.id, 'IN_PROGRESS')"
+                        >标记处理中</el-dropdown-item
+                      >
+                      <el-dropdown-item @click="updateStatus(item.id, 'RESOLVED')"
+                        >标记已解决</el-dropdown-item
+                      >
+                      <el-dropdown-item @click="updateStatus(item.id, 'CLOSED')"
+                        >关闭反馈</el-dropdown-item
+                      >
                       <el-dropdown-item divided @click="deleteFeedback(item)">
                         <Trash2 class="dropdown-icon danger" /> 删除
                       </el-dropdown-item>
@@ -514,14 +548,17 @@ onMounted(fetchFeedbacks);
           <button type="button" @click="updateStatus(activeFeedback.id, 'RESOLVED')">
             <CheckCircle2 /> 解决
           </button>
-          <button type="button" @click="deleteFeedback(activeFeedback)">
-            <Trash2 /> 删除
-          </button>
+          <button type="button" @click="deleteFeedback(activeFeedback)"><Trash2 /> 删除</button>
         </div>
       </aside>
     </el-drawer>
 
-    <el-dialog v-model="replyDialogVisible" title="回复用户反馈" width="540px" destroy-on-close>
+    <Modal
+      :show="replyDialogVisible"
+      title="回复用户反馈"
+      size="md"
+      @close="replyDialogVisible = false"
+    >
       <div v-if="activeFeedback" class="form-stack">
         <div class="feedback-preview">
           <strong>{{ activeFeedback.title }}</strong>
@@ -529,7 +566,12 @@ onMounted(fetchFeedbacks);
         </div>
         <label>
           回复内容
-          <textarea v-model="replyText" rows="6" maxlength="1000" placeholder="输入给用户的正式回复" />
+          <textarea
+            v-model="replyText"
+            rows="6"
+            maxlength="1000"
+            placeholder="输入给用户的正式回复"
+          />
         </label>
         <label>
           同步状态
@@ -542,7 +584,9 @@ onMounted(fetchFeedbacks);
         </label>
       </div>
       <template #footer>
-        <button type="button" class="ghost-btn dialog-btn" @click="replyDialogVisible = false">取消</button>
+        <button type="button" class="ghost-btn dialog-btn" @click="replyDialogVisible = false">
+          取消
+        </button>
         <button
           type="button"
           class="primary-btn dialog-btn"
@@ -552,11 +596,11 @@ onMounted(fetchFeedbacks);
           <Send /> 发送回复
         </button>
       </template>
-    </el-dialog>
+    </Modal>
 
-    <el-dialog v-model="previewVisible" title="附件预览" width="68%" destroy-on-close>
+    <Modal :show="previewVisible" title="附件预览" size="xl" @close="previewVisible = false">
       <img :src="previewImageUrl" alt="" class="preview-image" />
-    </el-dialog>
+    </Modal>
   </div>
 </template>
 

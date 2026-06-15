@@ -2,7 +2,17 @@
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, onMounted, watch } from 'vue';
-import { Search, Loader2, FileText, Eye, Calendar, Edit3, Trash2, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import {
+  Search,
+  Loader2,
+  FileText,
+  Eye,
+  Calendar,
+  Edit3,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import ManualResourceDialog from './ManualResourceDialog.vue';
@@ -113,7 +123,7 @@ const deleteResource = async (resource: ManualResource) => {
         confirmButtonText: t('admin.confirm_deletion_1'),
         cancelButtonText: t('admin.cancel'),
         type: 'warning',
-      }
+      },
     );
     await api.delete(`/api/admin/manual/resources/${resource.id}`);
     ElMessage.success(t('admin.resource_deleted_successfully'));
@@ -137,7 +147,7 @@ watch(
     resourceSearch.value = '';
     resourceCategoryFilter.value = null;
     fetchStationResources();
-  }
+  },
 );
 
 defineExpose({
@@ -157,7 +167,7 @@ defineExpose({
           type="text"
           :placeholder="$t('admin.enter_keyword_and_press')"
           class="w-full pl-10 pr-4 py-2 text-xs border border-slate-200 dark:border-slate-800 rounded-xl focus:border-cyan-500 outline-none bg-white dark:bg-slate-900/60"
-          style="color: var(--text-primary);"
+          style="color: var(--text-primary)"
           @keydown.enter="handleResourceSearch"
         />
       </div>
@@ -211,34 +221,68 @@ defineExpose({
               {{ res.title }}
             </h4>
             <div class="flex items-center gap-2 text-[10px] text-slate-400">
-              <span class="font-semibold text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/20 px-1.5 py-0.2 rounded">
+              <span
+                class="font-semibold text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/20 px-1.5 py-0.2 rounded"
+              >
                 {{ res.category?.name || $t('admin.uncategorized') }}
               </span>
-              <span class="flex items-center gap-0.5"><Eye class="w-3 h-3" /> {{ res.viewCount }}</span>
-              <span class="flex items-center gap-0.5"><Calendar class="w-3 h-3" /> {{ new Date(res.createdAt).toLocaleDateString() }}</span>
+              <span class="flex items-center gap-0.5"
+                ><Eye class="w-3 h-3" /> {{ res.viewCount }}</span
+              >
+              <span class="flex items-center gap-0.5"
+                ><Calendar class="w-3 h-3" />
+                {{ new Date(res.createdAt).toLocaleDateString() }}</span
+              >
             </div>
           </div>
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
-          <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded-lg transition-colors border border-slate-200/40 dark:border-slate-700/40 bg-transparent cursor-pointer" :title="$t('admin.edit_resources')" @click="manualResourceDialogRef?.openEdit(res)">
+          <button
+            type="button"
+            class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded-lg transition-colors border border-slate-200/40 dark:border-slate-700/40 bg-transparent cursor-pointer"
+            :title="$t('admin.edit_resources')"
+            @click="manualResourceDialogRef?.openEdit(res)"
+          >
             <Edit3 class="w-3.5 h-3.5" />
           </button>
-          <button type="button" class="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded-lg transition-colors border border-rose-200/20 bg-transparent cursor-pointer" :title="$t('admin.delete_resources')" @click="deleteResource(res)">
+          <button
+            type="button"
+            class="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded-lg transition-colors border border-rose-200/20 bg-transparent cursor-pointer"
+            :title="$t('admin.delete_resources')"
+            @click="deleteResource(res)"
+          >
             <Trash2 class="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
       <!-- Pagination Footer -->
-      <div v-if="resourceTotalPages > 1" class="flex items-center justify-between border-t border-slate-200/50 dark:border-slate-800 pt-4 mt-2">
-        <span class="text-[10px] text-slate-400">{{ $t('admin.showing_resourcepage_1_resourcepagesize') }}</span>
+      <div
+        v-if="resourceTotalPages > 1"
+        class="flex items-center justify-between border-t border-slate-200/50 dark:border-slate-800 pt-4 mt-2"
+      >
+        <span class="text-[10px] text-slate-400">{{
+          $t('admin.showing_resourcepage_1_resourcepagesize')
+        }}</span>
         <div class="flex items-center gap-2">
-          <button type="button" :disabled="resourcePage === 1" class="p-1.5 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-all disabled:opacity-40 bg-transparent cursor-pointer text-slate-500" @click="handlePageChange(resourcePage - 1)">
+          <button
+            type="button"
+            :disabled="resourcePage === 1"
+            class="p-1.5 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-all disabled:opacity-40 bg-transparent cursor-pointer text-slate-500"
+            @click="handlePageChange(resourcePage - 1)"
+          >
             <ChevronLeft class="w-4 h-4" />
           </button>
-          <span class="text-xs font-medium px-2" style="color: var(--text-primary);">{{ resourcePage }} / {{ resourceTotalPages }}</span>
-          <button type="button" :disabled="resourcePage === resourceTotalPages" class="p-1.5 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-all disabled:opacity-40 bg-transparent cursor-pointer text-slate-500" @click="handlePageChange(resourcePage + 1)">
+          <span class="text-xs font-medium px-2" style="color: var(--text-primary)"
+            >{{ resourcePage }} / {{ resourceTotalPages }}</span
+          >
+          <button
+            type="button"
+            :disabled="resourcePage === resourceTotalPages"
+            class="p-1.5 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-all disabled:opacity-40 bg-transparent cursor-pointer text-slate-500"
+            @click="handlePageChange(resourcePage + 1)"
+          >
             <ChevronRight class="w-4 h-4" />
           </button>
         </div>
@@ -251,7 +295,10 @@ defineExpose({
       :station-id="props.stationId"
       :categories="props.categories"
       :formatted-categories="props.formattedCategories"
-      @refresh="fetchStationResources(); emit('refresh-station');"
+      @refresh="
+        fetchStationResources();
+        emit('refresh-station');
+      "
     />
   </div>
 </template>

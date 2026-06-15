@@ -25,6 +25,7 @@ import {
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
+import Modal from '@/components/ui/Modal.vue';
 import type {
   AiBotAnalytics,
   AiBotDiagnostics,
@@ -55,7 +56,6 @@ import BotEvolutionTab from './components/aiRobot/BotEvolutionTab.vue';
 import BotPlaygroundTab from './components/aiRobot/BotPlaygroundTab.vue';
 import BotTemplatesTab from './components/aiRobot/BotTemplatesTab.vue';
 import BotDiagnosticsTab from './components/aiRobot/BotDiagnosticsTab.vue';
-
 
 interface PromptOptimizationForm {
   mission: string;
@@ -90,8 +90,6 @@ const AI_BOT_MESSAGE_STATUS = {
   WEBHOOK_FAILED: 'WEBHOOK_FAILED',
   IGNORED: 'IGNORED',
 } as const;
-
-
 
 const rangeOptions = [
   { label: '7 天', value: 7 },
@@ -348,8 +346,6 @@ const dailyUsagePercent = computed(() => {
   );
 });
 
-
-
 const failedMessageCount = computed(
   () =>
     (messageSummary.value[AI_BOT_MESSAGE_STATUS.ERROR] || 0) +
@@ -385,8 +381,6 @@ const resetForm = () => {
     clearSecret: false,
   };
 };
-
-
 
 const fetchAnalytics = async () => {
   const requestId = ++analyticsRequestId;
@@ -1475,7 +1469,7 @@ onUnmounted(stopAutoRefresh);
         @fetch-operations="fetchOperations"
         @focus-action="focusOperationAction"
         @open-diagnostics="openOperationDiagnostics"
-        @change-tab="activeTab = $event"
+        @change-tab="activeTab = $event as TabKey"
       />
 
       <BotIntegrationsTab
@@ -1523,19 +1517,19 @@ onUnmounted(stopAutoRefresh);
         @toggle-knowledge-status="toggleKnowledgeStatus"
         @edit-knowledge="openEditKnowledgeDialog"
         @delete-knowledge="deleteKnowledgeSource"
-        @change-tab="activeTab = $event"
+        @change-tab="activeTab = $event as TabKey"
         @fetch-runbook="fetchRunbook"
       />
 
       <BotEvolutionTab
         v-else-if="activeTab === 'evolution'"
+        v-model:optimization-form="optimizationForm"
         :selected-integration="selectedIntegration"
         :is-evolution-loading="isEvolutionLoading"
         :evolution-insights="evolutionInsights"
         :evaluation-cases="evaluationCases"
         :evaluation-report="evaluationReport"
         :is-evaluation-running="isEvaluationRunning"
-        v-model:optimization-form="optimizationForm"
         :is-prompt-optimizing="isPromptOptimizing"
         :prompt-optimization="promptOptimization"
         @fetch-insights="fetchEvolutionInsights"
@@ -1545,7 +1539,7 @@ onUnmounted(stopAutoRefresh);
         @run-evaluation="runBatchEvaluation"
         @optimize-prompt="optimizeSelectedPrompt"
         @apply-optimized-prompt="applyOptimizedPrompt"
-        @change-tab="activeTab = $event"
+        @change-tab="activeTab = $event as TabKey"
       />
 
       <BotPlaygroundTab
@@ -1583,11 +1577,11 @@ onUnmounted(stopAutoRefresh);
       />
     </main>
 
-    <el-dialog
-      v-model="isKnowledgeDialogVisible"
+    <Modal
+      :show="isKnowledgeDialogVisible"
       :title="isKnowledgeEditing ? '编辑知识源' : '添加知识源'"
-      width="720px"
-      append-to-body
+      size="lg"
+      @close="isKnowledgeDialogVisible = false"
     >
       <div class="space-y-4 text-left">
         <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem_9rem]">
@@ -1680,13 +1674,13 @@ onUnmounted(stopAutoRefresh);
           </el-button>
         </div>
       </template>
-    </el-dialog>
+    </Modal>
 
-    <el-dialog
-      v-model="isDialogVisible"
+    <Modal
+      :show="isDialogVisible"
       :title="isEditing ? '配置机器人接入' : '新增机器人接入'"
-      width="680px"
-      append-to-body
+      size="lg"
+      @close="isDialogVisible = false"
     >
       <div class="space-y-4 text-left">
         <div class="grid gap-3 md:grid-cols-2">
@@ -1839,7 +1833,7 @@ onUnmounted(stopAutoRefresh);
           </el-button>
         </div>
       </template>
-    </el-dialog>
+    </Modal>
   </div>
 </template>
 

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, defineAsyncComponent, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { 
-  Eye, 
-  Clock, 
-  Home, 
-  BookOpen, 
-  AlertTriangle, 
-  Sparkles, 
+import {
+  Eye,
+  Clock,
+  Home,
+  BookOpen,
+  AlertTriangle,
+  Sparkles,
   Calendar,
   Check,
   Copy,
@@ -17,7 +17,7 @@ import {
   MessageSquare,
   Trash2,
   Quote,
-  Loader2
+  Loader2,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
@@ -26,6 +26,7 @@ import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import { watch } from 'vue';
+import Button from '@/components/ui/Button.vue';
 
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
@@ -103,7 +104,7 @@ const submitComment = async () => {
   submittingComment.value = true;
   try {
     const res = await api.post(`/api/notes/${note.value.id}/comment`, {
-      content: commentContent.value.trim()
+      content: commentContent.value.trim(),
     });
     comments.value.push(res.data);
     commentContent.value = '';
@@ -118,7 +119,7 @@ const submitComment = async () => {
 const handleDeleteComment = async (commentId: string) => {
   try {
     await api.delete(`/api/notes/comment/${commentId}`);
-    comments.value = comments.value.filter(c => c.id !== commentId);
+    comments.value = comments.value.filter((c) => c.id !== commentId);
     ElMessage.success('删除评论成功');
   } catch (err: any) {
     ElMessage.error(getApiErrorMessage(err, '删除评论失败'));
@@ -144,7 +145,7 @@ const formatDate = (date: string) => {
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   });
 };
 
@@ -168,10 +169,10 @@ const loadSharedNote = async () => {
     } else {
       sessionSummary.value = '';
     }
-    
+
     // Set dynamic browser tab title
     document.title = `${res.data.note.title} | ${systemStore.settings.PLATFORM_NAME}`;
-    
+
     fetchComments(res.data.note.id);
   } catch (error) {
     const err = error as { response?: { status?: number; data?: { error?: string } } };
@@ -220,13 +221,13 @@ const handleSaveToMyNotes = async () => {
       summary: note.value.summary || null,
       tags: note.value.tags || null,
       category: note.value.category || '导入收藏',
-      visibility: 'PRIVATE'
+      visibility: 'PRIVATE',
     };
     await api.post('/api/notes', payload);
     ElMessage({
       message: '笔记成功保存到你的笔记本中！',
       type: 'success',
-      duration: 3000
+      duration: 3000,
     });
   } catch {
     ElMessage.error('保存失败，请稍后重试');
@@ -252,14 +253,14 @@ let fillInterval: ReturnType<typeof setInterval> | null = null;
 
 const currentThinkingStep = computed(() => {
   const percent = summaryProgress.value;
-  if (percent < 12) return "分析段落结构";
-  if (percent < 25) return "梳理核心要点";
-  if (percent < 38) return "提取关键概念";
-  if (percent < 50) return "生成摘要大纲";
-  if (percent < 65) return "提炼要点内容";
-  if (percent < 80) return "过滤冗余词句";
-  if (percent < 92) return "润色语言表达";
-  return "完成核心排版";
+  if (percent < 12) return '分析段落结构';
+  if (percent < 25) return '梳理核心要点';
+  if (percent < 38) return '提取关键概念';
+  if (percent < 50) return '生成摘要大纲';
+  if (percent < 65) return '提炼要点内容';
+  if (percent < 80) return '过滤冗余词句';
+  if (percent < 92) return '润色语言表达';
+  return '完成核心排版';
 });
 
 const generateAiSummary = async () => {
@@ -367,19 +368,19 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div 
+  <div
     class="min-h-screen flex flex-col font-sans antialiased bg-[var(--bg-app)] text-[var(--text-primary)]"
   >
     <!-- Sticky Top Reading Progress -->
     <div class="fixed top-0 left-0 right-0 z-[100] h-0.5 bg-transparent">
-      <div 
+      <div
         class="h-full bg-gradient-to-r from-purple-500 via-accent to-indigo-500 transition-all duration-75"
         :style="{ width: readProgress + '%' }"
       />
     </div>
 
     <!-- Clean Minimalist Header -->
-    <header 
+    <header
       class="sticky top-0 z-50 backdrop-blur-md px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between border-b shadow-xs transition-colors bg-[var(--bg-card)]/80 border-[var(--border-base)]"
     >
       <div class="flex items-center gap-2 cursor-pointer select-none" @click="goHome">
@@ -400,33 +401,57 @@ onUnmounted(() => {
           />
           <Sparkles v-else class="w-4 h-4 text-white" />
         </div>
-        <span class="text-xs font-black bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400">
+        <span
+          class="text-xs font-black bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400"
+        >
           {{ systemStore.settings.PLATFORM_NAME }}
         </span>
       </div>
 
       <div class="flex items-center gap-2">
-        <el-button v-if="authStore.isAuthenticated" size="small" round class="font-bold flex items-center gap-1" @click="goHome">
+        <Button
+          v-if="authStore.isAuthenticated"
+          variant="secondary"
+          size="sm"
+          class="font-bold flex items-center gap-1"
+          @click="goHome"
+        >
           <Home class="w-3.5 h-3.5" />
-          <span>控制台</span>
-        </el-button>
-        <el-button v-else size="small" type="primary" round class="font-bold" @click="router.push('/login')">
+        </Button>
+        <Button v-else variant="primary" size="sm" class="font-bold" @click="router.push('/login')">
           登录 / 注册
-        </el-button>
+        </Button>
       </div>
     </header>
 
     <!-- Main Content Grid -->
-    <main class="flex-1 max-w-[1040px] w-full mx-auto px-4 sm:px-6 py-6 lg:py-10 flex flex-col md:flex-row gap-6 relative items-start">
-      
+    <main
+      class="flex-1 max-w-[1040px] w-full mx-auto px-4 sm:px-6 py-6 lg:py-10 flex flex-col md:flex-row gap-6 relative items-start"
+    >
       <!-- Skeleton States -->
-      <div v-if="loading" class="flex-1 w-full bg-[var(--bg-card)] border border-[var(--border-base)] rounded-3xl p-6 md:p-10 shadow-sm">
-        <el-skeleton animated :rows="8" />
+      <div
+        v-if="loading"
+        class="flex-1 w-full bg-[var(--bg-card)] border border-[var(--border-base)] rounded-3xl p-6 md:p-10 shadow-sm"
+      >
+        <div class="space-y-4 animate-pulse">
+          <div class="h-6 bg-slate-200 dark:bg-slate-800 rounded-md w-3/4"></div>
+          <div class="h-4 bg-slate-200 dark:bg-slate-800 rounded-md w-1/2"></div>
+          <div class="space-y-2 pt-4">
+            <div class="h-3.5 bg-slate-200 dark:bg-slate-800 rounded-md"></div>
+            <div class="h-3.5 bg-slate-200 dark:bg-slate-800 rounded-md"></div>
+            <div class="h-3.5 bg-slate-200 dark:bg-slate-800 rounded-md w-5/6"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Error / Expired States -->
-      <div v-else-if="errorMsg || isExpired" class="flex-1 w-full flex flex-col items-center justify-center text-center py-16 sm:py-24 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-3xl shadow-sm">
-        <div class="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-500/20 flex items-center justify-center mb-5">
+      <div
+        v-else-if="errorMsg || isExpired"
+        class="flex-1 w-full flex flex-col items-center justify-center text-center py-16 sm:py-24 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-3xl shadow-sm"
+      >
+        <div
+          class="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-500/20 flex items-center justify-center mb-5"
+        >
           <AlertTriangle class="w-8 h-8 text-rose-500" />
         </div>
         <h2 class="text-lg sm:text-xl font-black mb-2">
@@ -435,19 +460,19 @@ onUnmounted(() => {
         <p class="text-xs text-[var(--text-secondary)] max-w-sm mb-6 leading-relaxed">
           {{ errorMsg || '作者已停止对此笔记的公共访问，或者此笔记的临时共享期限已到期。' }}
         </p>
-        <el-button type="primary" round class="font-bold shadow-xs" @click="goHome">
+        <Button variant="primary" size="md" class="font-bold shadow-xs" @click="goHome">
           返回主页
-        </el-button>
+        </Button>
       </div>
 
       <!-- Left Column: Compact Reader Body -->
-      <article 
-        v-else-if="note" 
+      <article
+        v-else-if="note"
         class="flex-1 min-w-0 w-full rounded-3xl p-4 sm:p-8 lg:p-10 border shadow-md bg-[var(--bg-card)] border-[var(--border-base)]"
       >
         <!-- Floating status info for expiresAt -->
-        <div 
-          v-if="expiresAt" 
+        <div
+          v-if="expiresAt"
           class="mb-6 rounded-2xl px-4 py-2.5 flex items-center gap-1.5 text-[10px] sm:text-xs font-bold border bg-amber-50 dark:bg-amber-950/20 border-amber-200/50 dark:border-amber-500/20 text-amber-600"
         >
           <Clock class="w-3.5 h-3.5" />
@@ -455,31 +480,39 @@ onUnmounted(() => {
         </div>
 
         <!-- Exquisite Custom Message/Note Share customText block -->
-        <div 
-          v-if="shareMessage" 
+        <div
+          v-if="shareMessage"
           class="mb-8 rounded-3xl p-6 border bg-gradient-to-br from-purple-500/[0.04] to-indigo-500/[0.04] dark:from-purple-500/[0.08] dark:to-indigo-500/[0.08] border-purple-500/15 dark:border-purple-500/25 text-[var(--text-secondary)] relative overflow-hidden backdrop-blur-md group shadow-sm hover:shadow-md transition-all duration-300"
         >
           <!-- Absolute positioned giant quote icon in the background -->
-          <Quote class="absolute -right-3 -bottom-5 w-24 h-24 text-purple-500/[0.06] dark:text-purple-500/[0.08] pointer-events-none transform -rotate-12 transition-transform duration-500 group-hover:scale-110" />
-          
+          <Quote
+            class="absolute -right-3 -bottom-5 w-24 h-24 text-purple-500/[0.06] dark:text-purple-500/[0.08] pointer-events-none transform -rotate-12 transition-transform duration-500 group-hover:scale-110"
+          />
+
           <div class="flex items-center gap-2 mb-3 text-purple-600 dark:text-purple-400">
             <div class="p-1.5 rounded-lg bg-purple-500/10 flex items-center justify-center">
               <MessageSquare class="w-4 h-4" />
             </div>
             <span class="text-xs font-black tracking-widest uppercase">分享寄语</span>
           </div>
-          
+
           <div class="relative z-10 pl-2">
-            <p class="text-xs sm:text-sm font-medium leading-relaxed text-[var(--text-primary)] italic relative">
+            <p
+              class="text-xs sm:text-sm font-medium leading-relaxed text-[var(--text-primary)] italic relative"
+            >
               “ {{ shareMessage }} ”
             </p>
-            
+
             <!-- Author attribution at the bottom of the card -->
-            <div class="mt-4 flex items-center justify-end gap-2 border-t border-purple-500/10 pt-3">
+            <div
+              class="mt-4 flex items-center justify-end gap-2 border-t border-purple-500/10 pt-3"
+            >
               <span class="text-[10px] text-[var(--text-muted)]">分享自</span>
               <div class="flex items-center gap-1.5">
                 <UserAvatar :user="note.user" size="xs" class="border border-purple-500/20" />
-                <span class="text-[10px] font-bold text-[var(--text-secondary)]">{{ note.user.name }}</span>
+                <span class="text-[10px] font-bold text-[var(--text-secondary)]">{{
+                  note.user.name
+                }}</span>
               </div>
             </div>
           </div>
@@ -487,8 +520,8 @@ onUnmounted(() => {
 
         <!-- Category & Date Header -->
         <div class="flex items-center gap-2 mb-3">
-          <span 
-            v-if="note.category" 
+          <span
+            v-if="note.category"
             class="px-2 py-0.5 rounded bg-accent/10 border border-accent/15 text-accent text-[9px] font-black uppercase tracking-wider"
           >
             {{ note.category }}
@@ -505,7 +538,7 @@ onUnmounted(() => {
         </h1>
 
         <!-- Author Information Info card -->
-        <div 
+        <div
           class="flex items-center justify-between border-b pb-2.5 mb-3.5 border-[var(--border-base)]"
         >
           <div class="flex items-center gap-2.5 min-w-0">
@@ -513,20 +546,27 @@ onUnmounted(() => {
             <div class="min-w-0">
               <h4 class="font-black text-xs leading-none flex items-center gap-1.5">
                 {{ note.user.name }}
-                <span class="text-[8px] px-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded">作者</span>
+                <span
+                  class="text-[8px] px-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded"
+                  >作者</span
+                >
               </h4>
-              <p class="text-[10px] text-[var(--text-muted)] mt-1 line-clamp-1">{{ note.user.bio || '探索者' }}</p>
+              <p class="text-[10px] text-[var(--text-muted)] mt-1 line-clamp-1">
+                {{ note.user.bio || '探索者' }}
+              </p>
             </div>
           </div>
 
           <!-- Stats -->
           <div class="flex items-center gap-3 text-[10px] font-black text-[var(--text-muted)]">
-            <span class="flex items-center gap-1"><Eye class="w-3.5 h-3.5" /> {{ note.views }} 阅读</span>
+            <span class="flex items-center gap-1"
+              ><Eye class="w-3.5 h-3.5" /> {{ note.views }} 阅读</span
+            >
           </div>
         </div>
 
         <!-- Abstract/Summary Card -->
-        <div 
+        <div
           class="mb-3 rounded-xl p-2.5 text-xs leading-relaxed border bg-slate-50/40 dark:bg-zinc-900/10 border-[var(--border-base)] text-[var(--text-secondary)]"
         >
           <div class="flex items-center justify-between">
@@ -534,18 +574,26 @@ onUnmounted(() => {
               <Sparkles class="w-3.5 h-3.5 text-[var(--text-secondary)]" />
               <span>核心摘要</span>
             </div>
-            <button 
+            <button
               type="button"
               :disabled="isSummarizing"
               class="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-white hover:bg-slate-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-[var(--border-base)] active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
               @click="generateAiSummary"
             >
-              <Sparkles class="w-3 h-3 text-[var(--text-muted)]" :class="{ 'animate-pulse': isSummarizing }" />
-              <span>{{ isSummarizing ? '提炼中...' : (sessionSummary ? '重新生成' : '生成 AI 摘要') }}</span>
+              <Sparkles
+                class="w-3 h-3 text-[var(--text-muted)]"
+                :class="{ 'animate-pulse': isSummarizing }"
+              />
+              <span>{{
+                isSummarizing ? '提炼中...' : sessionSummary ? '重新生成' : '生成 AI 摘要'
+              }}</span>
             </button>
           </div>
-          
-          <div v-if="sessionSummary" class="text-[var(--text-secondary)] mt-2 whitespace-pre-wrap leading-normal animate-fade-in">
+
+          <div
+            v-if="sessionSummary"
+            class="text-[var(--text-secondary)] mt-2 whitespace-pre-wrap leading-normal animate-fade-in"
+          >
             {{ sessionSummary }}
           </div>
           <div v-else-if="isSummarizing" class="mt-2.5 space-y-1.5">
@@ -557,19 +605,17 @@ onUnmounted(() => {
               <span class="font-bold text-[var(--accent)]">{{ summaryProgress }}%</span>
             </div>
             <div class="h-1 w-full bg-slate-200/50 dark:bg-zinc-800 rounded-full overflow-hidden">
-              <div 
+              <div
                 class="h-full bg-[var(--accent)] rounded-full transition-all duration-300 ease-out"
                 :style="{ width: `${summaryProgress}%` }"
               ></div>
             </div>
           </div>
-          <div v-else class="text-[var(--text-muted)] text-[10.5px] mt-1.5 py-0.5">
-            待摘要
-          </div>
+          <div v-else class="text-[var(--text-muted)] text-[10.5px] mt-1.5 py-0.5">待摘要</div>
         </div>
 
         <!-- Core Markdown Canvas -->
-        <div 
+        <div
           class="modern-markdown-content min-h-[350px] markdown-theme-default"
           :style="{ fontSize: fontSize + 'px' }"
         >
@@ -577,12 +623,12 @@ onUnmounted(() => {
         </div>
 
         <!-- Tag badge footer -->
-        <footer 
-          v-if="parseTags(note.tags).length" 
+        <footer
+          v-if="parseTags(note.tags).length"
           class="border-t pt-5 mt-8 flex flex-wrap gap-1.5 border-[var(--border-base)]"
         >
-          <span 
-            v-for="tag in parseTags(note.tags)" 
+          <span
+            v-for="tag in parseTags(note.tags)"
             :key="tag"
             class="px-2 py-0.5 rounded-lg text-[9px] font-black border bg-slate-50 dark:bg-zinc-900/50 border-[var(--border-base)] text-[var(--text-secondary)]"
           >
@@ -593,7 +639,10 @@ onUnmounted(() => {
         <!-- Note Comments Section -->
         <div class="mt-12 pt-8 border-t border-[var(--border-base)] space-y-6">
           <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold flex items-center gap-2" style="color: var(--text-primary)">
+            <h3
+              class="text-sm font-bold flex items-center gap-2"
+              style="color: var(--text-primary)"
+            >
               <MessageSquare class="w-4 h-4 text-accent" />
               <span>全部评论 ({{ comments.length }})</span>
             </h3>
@@ -603,36 +652,45 @@ onUnmounted(() => {
           <div v-if="authStore.isAuthenticated" class="flex items-start gap-3">
             <UserAvatar :user="authStore.user" size="sm" class="shrink-0 w-6 h-6" />
             <div class="flex-1 space-y-2">
-              <el-input
+              <textarea
                 v-model="commentContent"
-                type="textarea"
-                :rows="3"
+                rows="3"
                 placeholder="写下你的想法，交流看法..."
                 maxlength="500"
-                show-word-limit
-                class="custom-textarea"
-              />
+                class="w-full text-xs font-medium rounded-xl transition-all duration-300 outline-none focus:outline-none bg-slate-50 dark:bg-zinc-900 border border-[var(--border-base)] text-[var(--text-primary)] focus:border-accent p-3 focus:ring-2 focus:ring-accent/20"
+              ></textarea>
+              <div class="text-[10px] text-[var(--text-muted)] text-right mt-0.5">
+                {{ commentContent.length }} / 500
+              </div>
               <div class="flex justify-end">
-                <el-button
-                  type="primary"
-                  size="small"
-                  round
+                <Button
+                  variant="primary"
+                  size="sm"
+                  class="font-bold"
                   :loading="submittingComment"
                   @click="submitComment"
                 >
                   发表评论
-                </el-button>
+                </Button>
               </div>
             </div>
           </div>
-          <div v-else class="p-4 bg-slate-50 dark:bg-white/5 border border-dashed border-[var(--border-base)] rounded-2xl text-center">
+          <div
+            v-else
+            class="p-4 bg-slate-50 dark:bg-white/5 border border-dashed border-[var(--border-base)] rounded-2xl text-center"
+          >
             <p class="text-xs text-[var(--text-muted)] mb-2.5">您需要登录后才能发表评论</p>
-            <el-button type="primary" size="small" round @click="router.push('/login')">去登录</el-button>
+            <Button variant="primary" size="sm" class="font-bold" @click="router.push('/login')"
+              >去登录</Button
+            >
           </div>
 
           <!-- Comments List -->
           <div v-loading="loadingComments" class="space-y-4">
-            <div v-if="comments.length === 0" class="text-center py-6 text-xs text-[var(--text-muted)]">
+            <div
+              v-if="comments.length === 0"
+              class="text-center py-6 text-xs text-[var(--text-muted)]"
+            >
               暂无评论，快来发表第一条评论吧~
             </div>
             <div
@@ -643,12 +701,20 @@ onUnmounted(() => {
               <UserAvatar :user="item.user" size="sm" class="shrink-0 w-6 h-6" />
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                  <span
+                    class="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5"
+                  >
                     {{ item.user.name }}
-                    <span v-if="item.userId === note.userId" class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-500 dark:text-purple-400 rounded-md">作者</span>
+                    <span
+                      v-if="item.userId === note.userId"
+                      class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-500 dark:text-purple-400 rounded-md"
+                      >作者</span
+                    >
                   </span>
                   <div class="flex items-center gap-2">
-                    <span class="text-[10px] text-[var(--text-muted)]">{{ new Date(item.createdAt).toLocaleString('zh-CN') }}</span>
+                    <span class="text-[10px] text-[var(--text-muted)]">{{
+                      new Date(item.createdAt).toLocaleString('zh-CN')
+                    }}</span>
                     <button
                       v-if="item.userId === authStore.user?.id || authStore.user?.role === 'ADMIN'"
                       type="button"
@@ -660,14 +726,18 @@ onUnmounted(() => {
                     </button>
                   </div>
                 </div>
-                <p class="text-xs text-[var(--text-secondary)] mt-1.5 whitespace-pre-wrap leading-relaxed">{{ item.content }}</p>
+                <p
+                  class="text-xs text-[var(--text-secondary)] mt-1.5 whitespace-pre-wrap leading-relaxed"
+                >
+                  {{ item.content }}
+                </p>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Finish stamp -->
-        <div 
+        <div
           class="pt-8 text-center text-[var(--text-muted)] text-[10px] font-black tracking-widest flex items-center justify-center gap-2 select-none"
         >
           <BookOpen class="w-4 h-4 text-accent" />
@@ -676,13 +746,18 @@ onUnmounted(() => {
       </article>
 
       <!-- Right Column: Sidebar Reading Console (Responsive Sticky) -->
-      <aside v-if="note" class="w-full md:w-56 flex flex-col gap-4 md:sticky md:top-20 z-10 shrink-0">
+      <aside
+        v-if="note"
+        class="w-full md:w-56 flex flex-col gap-4 md:sticky md:top-20 z-10 shrink-0"
+      >
         <!-- Floating Reading adjustments -->
-        <div 
+        <div
           class="w-full border rounded-3xl p-4 shadow-sm flex flex-col gap-4 bg-[var(--bg-card)] border-[var(--border-base)]"
         >
           <!-- Title -->
-          <p class="text-[9px] font-black uppercase tracking-wider text-[var(--text-muted)]">阅读辅助控制</p>
+          <p class="text-[9px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+            阅读辅助控制
+          </p>
 
           <!-- Divider -->
           <div class="h-[1px] bg-[var(--border-base)]" />
@@ -690,29 +765,45 @@ onUnmounted(() => {
           <!-- Typo controls -->
           <div class="flex items-center justify-between text-xs">
             <span class="text-[10px] font-bold">正文字号</span>
-            <div class="flex items-center gap-1 bg-slate-50 dark:bg-zinc-800/40 rounded-lg p-0.5 border border-[var(--border-base)]">
-              <button type="button" class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded transition-all cursor-pointer" @click="fontSize = Math.max(12, fontSize - 1)"><Minus class="w-2.5 h-2.5" /></button>
+            <div
+              class="flex items-center gap-1 bg-slate-50 dark:bg-zinc-800/40 rounded-lg p-0.5 border border-[var(--border-base)]"
+            >
+              <button
+                type="button"
+                class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded transition-all cursor-pointer"
+                @click="fontSize = Math.max(12, fontSize - 1)"
+              >
+                <Minus class="w-2.5 h-2.5" />
+              </button>
               <span class="text-[9px] font-black px-1">{{ fontSize }}px</span>
-              <button type="button" class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded transition-all cursor-pointer" @click="fontSize = Math.min(24, fontSize + 1)"><Plus class="w-2.5 h-2.5" /></button>
+              <button
+                type="button"
+                class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded transition-all cursor-pointer"
+                @click="fontSize = Math.min(24, fontSize + 1)"
+              >
+                <Plus class="w-2.5 h-2.5" />
+              </button>
             </div>
           </div>
         </div>
 
         <!-- Import / Save actions -->
-        <div 
+        <div
           class="w-full border rounded-3xl p-4 shadow-sm flex flex-col gap-2.5 bg-[var(--bg-card)] border-[var(--border-base)]"
         >
-          <p class="text-[9px] font-black uppercase tracking-wider text-[var(--text-muted)]">文章工具</p>
+          <p class="text-[9px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+            文章工具
+          </p>
           <div class="h-[1px] bg-[var(--border-base)]" />
 
           <!-- Logged-in Clone Feature -->
-          <button 
+          <button
             type="button"
             class="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-black border transition-all active:scale-95 cursor-pointer"
             :class="[
-              authStore.isAuthenticated ? 
-              'bg-accent border-accent text-white hover:bg-accent/90 shadow-sm' : 
-              'bg-transparent border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-zinc-800'
+              authStore.isAuthenticated
+                ? 'bg-accent border-accent text-white hover:bg-accent/90 shadow-sm'
+                : 'bg-transparent border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-zinc-800',
             ]"
             :loading="isCloning"
             @click="handleSaveToMyNotes"
@@ -722,7 +813,7 @@ onUnmounted(() => {
           </button>
 
           <!-- Copy whole body -->
-          <button 
+          <button
             type="button"
             class="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-black border border-[var(--border-base)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all active:scale-95 cursor-pointer shadow-xs"
             @click="handleCopy"
@@ -732,14 +823,16 @@ onUnmounted(() => {
           </button>
         </div>
       </aside>
-
     </main>
 
     <!-- Clean Footer -->
-    <footer 
+    <footer
       class="mt-auto py-6 text-center text-[10px] text-[var(--text-muted)] border-t bg-[var(--bg-card)]/50 select-none border-[var(--border-base)]"
     >
-      <p class="mb-1">© {{ new Date().getFullYear() }} {{ systemStore.settings.PLATFORM_NAME }}. All rights reserved.</p>
+      <p class="mb-1">
+        © {{ new Date().getFullYear() }} {{ systemStore.settings.PLATFORM_NAME }}. All rights
+        reserved.
+      </p>
       <p>由公共分享密钥浏览 • 支持免登直接访问</p>
     </footer>
   </div>
@@ -759,7 +852,7 @@ onUnmounted(() => {
 .modern-markdown-content :deep(.md-editor-preview),
 .modern-markdown-content :deep(.md-preview),
 .modern-markdown-content :deep(.mdw__preview-only) {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   font-size: inherit !important;
   line-height: 1.85 !important;
   background-color: transparent !important;
@@ -797,10 +890,24 @@ onUnmounted(() => {
 }
 
 /* Headings proportional scaling */
-.modern-markdown-content :deep(h1) { font-size: 1.85em !important; font-weight: 800 !important; }
-.modern-markdown-content :deep(h2) { font-size: 1.55em !important; font-weight: 800 !important; border-bottom: 1px dashed var(--border-base) !important; padding-bottom: 0.3em; }
-.modern-markdown-content :deep(h3) { font-size: 1.3em !important; font-weight: 700 !important; }
-.modern-markdown-content :deep(h4) { font-size: 1.15em !important; font-weight: 700 !important; }
+.modern-markdown-content :deep(h1) {
+  font-size: 1.85em !important;
+  font-weight: 800 !important;
+}
+.modern-markdown-content :deep(h2) {
+  font-size: 1.55em !important;
+  font-weight: 800 !important;
+  border-bottom: 1px dashed var(--border-base) !important;
+  padding-bottom: 0.3em;
+}
+.modern-markdown-content :deep(h3) {
+  font-size: 1.3em !important;
+  font-weight: 700 !important;
+}
+.modern-markdown-content :deep(h4) {
+  font-size: 1.15em !important;
+  font-weight: 700 !important;
+}
 
 /* Responsive scrollable tables with premium styling on mobile */
 .modern-markdown-content :deep(table) {

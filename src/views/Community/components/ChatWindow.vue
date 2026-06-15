@@ -107,8 +107,22 @@ let audioChunks: Blob[] = [];
 let recordingTimer: ReturnType<typeof setInterval> | null = null;
 
 const commonEmojis = [
-  '😊', '😂', '🤣', '😍', '😒', '👌', '😘', '👍',
-  '🙌', '🎉', '🔥', '✨', '💻', '🎨', '🚀', '⭐',
+  '😊',
+  '😂',
+  '🤣',
+  '😍',
+  '😒',
+  '👌',
+  '😘',
+  '👍',
+  '🙌',
+  '🎉',
+  '🔥',
+  '✨',
+  '💻',
+  '🎨',
+  '🚀',
+  '⭐',
 ];
 const reactionEmojis = ['👍', '❤️', '😂', '😮', '😢', '🎉', '🔥', '👀'];
 
@@ -128,7 +142,9 @@ const contextMenu = ref<{
 
 const getOtherParticipant = (conv: Conversation | null) => {
   if (!conv) return null;
-  return conv.participants?.find((p) => p.id !== authStore.user?.id) || conv.participants?.[0] || null;
+  return (
+    conv.participants?.find((p) => p.id !== authStore.user?.id) || conv.participants?.[0] || null
+  );
 };
 
 const getConversationName = (conv: Conversation | null) => {
@@ -254,10 +270,8 @@ const startRecording = async () => {
       extension = 'wav';
     }
 
-    mediaRecorder = mimeType
-      ? new MediaRecorder(stream, { mimeType })
-      : new MediaRecorder(stream);
-      
+    mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+
     audioChunks = [];
     mediaRecorder.ondataavailable = (event) => {
       audioChunks.push(event.data);
@@ -329,7 +343,7 @@ const handleTranslate = async (message: Message) => {
 const playVoiceMessage = (msgId: string, _url: string) => {
   const audioId = `audio-${msgId}`;
   const audioElement = document.getElementById(audioId) as HTMLAudioElement;
-  
+
   if (!audioElement) return;
 
   if (currentlyPlaying.value === msgId) {
@@ -337,14 +351,16 @@ const playVoiceMessage = (msgId: string, _url: string) => {
     currentlyPlaying.value = null;
   } else {
     if (currentlyPlaying.value) {
-      const prevAudio = document.getElementById(`audio-${currentlyPlaying.value}`) as HTMLAudioElement;
+      const prevAudio = document.getElementById(
+        `audio-${currentlyPlaying.value}`,
+      ) as HTMLAudioElement;
       if (prevAudio) prevAudio.pause();
     }
-    
+
     audioElement.currentTime = 0;
     audioElement.play();
     currentlyPlaying.value = msgId;
-    
+
     audioElement.onended = () => {
       currentlyPlaying.value = null;
     };
@@ -360,7 +376,11 @@ const formatDateSeparator = (date: string | Date) => {
   if (d.toDateString() === today.toDateString()) return t('community.chat.today');
   if (d.toDateString() === yesterday.toDateString()) return t('community.chat.yesterday');
 
-  return d.toLocaleDateString(authStore.user?.language === 'en' ? 'en-US' : 'zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+  return d.toLocaleDateString(authStore.user?.language === 'en' ? 'en-US' : 'zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 };
 
 const shouldShowDateSeparator = (currentMsg: Message, previousMsg: Message | null) => {
@@ -513,12 +533,16 @@ const scrollToBottom = () => {
   });
 };
 
-watch(() => props.messages, () => {
-  // If we loaded newer messages, scroll down
-  if (!props.isLoadingOlderMessages) {
-    scrollToBottom();
-  }
-}, { deep: true });
+watch(
+  () => props.messages,
+  () => {
+    // If we loaded newer messages, scroll down
+    if (!props.isLoadingOlderMessages) {
+      scrollToBottom();
+    }
+  },
+  { deep: true },
+);
 
 onUnmounted(() => {
   if (isRecording.value) {
@@ -564,7 +588,11 @@ defineExpose({
     >
       <div class="flex items-center gap-2 md:gap-2.5">
         <!-- Mobile Back Button -->
-        <button type="button" class="lg:hidden p-1.5 -ml-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full transition-all text-slate-500 cursor-pointer" @click="emit('back')">
+        <button
+          type="button"
+          class="lg:hidden p-1.5 -ml-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full transition-all text-slate-500 cursor-pointer"
+          @click="emit('back')"
+        >
           <ChevronLeft class="w-5 h-5" />
         </button>
 
@@ -572,7 +600,12 @@ defineExpose({
           <div
             class="w-6 h-6 rounded-full flex items-center justify-center bg-indigo-500/10 shrink-0"
           >
-            <img v-if="activeConversation.avatarUrl" alt="" :src="activeConversation.avatarUrl" class="w-6 h-6 rounded-full object-cover" />
+            <img
+              v-if="activeConversation.avatarUrl"
+              alt=""
+              :src="activeConversation.avatarUrl"
+              class="w-6 h-6 rounded-full object-cover"
+            />
             <Users v-else class="w-3.5 h-3.5 text-indigo-500" />
           </div>
         </template>
@@ -581,14 +614,14 @@ defineExpose({
             :user="getOtherParticipant(activeConversation)"
             size="sm"
             class="cursor-pointer hover:ring-2 hover:ring-accent transition-all"
-            @click="getOtherParticipant(activeConversation)?.id && emit('open-profile', getOtherParticipant(activeConversation)!.id)"
+            @click="
+              getOtherParticipant(activeConversation)?.id &&
+              emit('open-profile', getOtherParticipant(activeConversation)!.id)
+            "
           />
         </template>
         <div>
-          <p
-            class="text-xs font-bold flex items-center gap-1"
-            style="color: var(--text-primary)"
-          >
+          <p class="text-xs font-bold flex items-center gap-1" style="color: var(--text-primary)">
             <Hash v-if="activeConversation.isGroup" class="w-3 h-3 text-indigo-400" />
             {{ getConversationName(activeConversation) }}
             <span
@@ -629,17 +662,18 @@ defineExpose({
           placement="bottom-end"
           :width="280"
           trigger="click"
-          popper-style="padding: 12px; border-radius: 16px; border: 1px solid var(--border-base); background-color: var(--bg-card); box-shadow: var(--el-box-shadow-dark);"
+          popper-class="!glass-panel !backdrop-blur-xl !rounded-2xl !p-3 !border-strong/10 shadow-[0_12px_30px_rgba(0,0,0,0.15)]"
         >
           <template #reference>
-            <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all text-slate-400 sm:mr-2 cursor-pointer">
+            <button
+              type="button"
+              class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all text-slate-400 sm:mr-2 cursor-pointer"
+            >
               <Search class="w-4 h-4" />
             </button>
           </template>
           <div class="relative">
-            <Search
-              class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            />
+            <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               v-model="messageSearchQuery"
               type="text"
@@ -649,15 +683,41 @@ defineExpose({
             />
           </div>
         </el-popover>
-        <button type="button" class="hidden sm:block p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all cursor-pointer" :class="isRecording ? 'text-rose-500 animate-pulse bg-rose-50 dark:bg-rose-900/20' : 'text-slate-400'" :title="t('messages.voiceMessage')" @click="isRecording ? stopRecording() : startRecording()">
+        <button
+          type="button"
+          class="hidden sm:block p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all cursor-pointer"
+          :class="
+            isRecording
+              ? 'text-rose-500 animate-pulse bg-rose-50 dark:bg-rose-900/20'
+              : 'text-slate-400'
+          "
+          :title="t('messages.voiceMessage')"
+          @click="isRecording ? stopRecording() : startRecording()"
+        >
           <Mic class="w-4 h-4" />
         </button>
-        <span v-if="isRecording" class="hidden sm:inline text-[10px] font-black text-rose-500 animate-pulse">{{ formatDuration(recordingDuration) }}</span>
-        <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all cursor-pointer" style="color: var(--text-muted)" :title="t('messages.translate')" @click="messages.length > 0 && handleTranslate(messages[messages.length - 1])">
+        <span
+          v-if="isRecording"
+          class="hidden sm:inline text-[10px] font-black text-rose-500 animate-pulse"
+          >{{ formatDuration(recordingDuration) }}</span
+        >
+        <button
+          type="button"
+          class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all cursor-pointer"
+          style="color: var(--text-muted)"
+          :title="t('messages.translate')"
+          @click="messages.length > 0 && handleTranslate(messages[messages.length - 1])"
+        >
           <Languages class="w-4 h-4" />
         </button>
         <div class="w-px h-4 mx-1 sm:mx-2" style="background-color: var(--border-base)"></div>
-        <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all cursor-pointer" :class="isInfoPanelOpen ? 'text-accent' : ''" :style="!isInfoPanelOpen ? 'color: var(--text-muted)' : ''" @click="emit('toggle-info-panel')">
+        <button
+          type="button"
+          class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all cursor-pointer"
+          :class="isInfoPanelOpen ? 'text-accent' : ''"
+          :style="!isInfoPanelOpen ? 'color: var(--text-muted)' : ''"
+          @click="emit('toggle-info-panel')"
+        >
           <Info class="w-4 h-4" />
         </button>
       </div>
@@ -671,7 +731,12 @@ defineExpose({
     >
       <!-- Load older messages button -->
       <div v-if="hasMoreMessages" class="text-center py-3 mb-4">
-        <button type="button" :disabled="isLoadingOlderMessages" class="px-4 py-2 text-xs font-bold text-accent hover:bg-accent/10 rounded-xl transition-all cursor-pointer" @click="emit('load-older')">
+        <button
+          type="button"
+          :disabled="isLoadingOlderMessages"
+          class="px-4 py-2 text-xs font-bold text-accent hover:bg-accent/10 rounded-xl transition-all cursor-pointer"
+          @click="emit('load-older')"
+        >
           <div
             v-if="isLoadingOlderMessages"
             class="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto"
@@ -785,31 +850,54 @@ defineExpose({
                 @contextmenu="handleContextMenu($event, msg)"
               >
                 <template v-if="msg.type === 'IMAGE'">
-                  <img alt="" :src="api.defaults.baseURL + msg.content" class="max-w-xs rounded-lg cursor-pointer hover:opacity-90 transition-opacity" @click="openLink(api.defaults.baseURL + msg.content)" />
+                  <img
+                    alt=""
+                    :src="api.defaults.baseURL + msg.content"
+                    class="max-w-xs rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                    @click="openLink(api.defaults.baseURL + msg.content)"
+                  />
                 </template>
                 <template v-else-if="msg.type === 'VOICE'">
                   <div class="flex items-center gap-2 py-0.5 min-w-[120px]">
                     <button
-type="button" class="w-7 h-7 rounded-full flex items-center justify-center transition-all shrink-0 shadow-sm cursor-pointer" :class="[
-                        msg.senderId === authStore.user?.id 
-                          ? 'bg-white/20 hover:bg-white/30 text-white' 
-                          : 'bg-accent/10 hover:bg-accent/20 text-accent'
-                      ]" @click.stop="playVoiceMessage(msg.id, msg.content)">
-                      <component :is="currentlyPlaying === msg.id ? Pause : Play" class="w-3.5 h-3.5" :class="currentlyPlaying === msg.id ? '' : 'ml-0.5'" />
-                      <audio :id="`audio-${msg.id}`" :src="api.defaults.baseURL + msg.content" class="hidden"></audio>
+                      type="button"
+                      class="w-7 h-7 rounded-full flex items-center justify-center transition-all shrink-0 shadow-sm cursor-pointer"
+                      :class="[
+                        msg.senderId === authStore.user?.id
+                          ? 'bg-white/20 hover:bg-white/30 text-white'
+                          : 'bg-accent/10 hover:bg-accent/20 text-accent',
+                      ]"
+                      @click.stop="playVoiceMessage(msg.id, msg.content)"
+                    >
+                      <component
+                        :is="currentlyPlaying === msg.id ? Pause : Play"
+                        class="w-3.5 h-3.5"
+                        :class="currentlyPlaying === msg.id ? '' : 'ml-0.5'"
+                      />
+                      <audio
+                        :id="`audio-${msg.id}`"
+                        :src="api.defaults.baseURL + msg.content"
+                        class="hidden"
+                      ></audio>
                     </button>
-                    <div class="flex-1 h-1 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
-                      <div 
+                    <div
+                      class="flex-1 h-1 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden"
+                    >
+                      <div
                         class="h-full transition-all duration-300"
                         :class="msg.senderId === authStore.user?.id ? 'bg-white/60' : 'bg-accent'"
                         :style="{ width: currentlyPlaying === msg.id ? '100%' : '20%' }"
                       ></div>
                     </div>
-                    <span 
+                    <span
                       class="text-[9px] font-black uppercase tracking-widest opacity-70"
                       :class="msg.senderId === authStore.user?.id ? 'text-white' : 'text-accent'"
                     >
-                      {{ currentlyPlaying === msg.id ? t('community.chat.playing') : t('messages.voiceMessage') }}
+                      {{
+                        currentlyPlaying === msg.id
+                          ? t('community.chat.playing')
+                          : t('messages.voiceMessage')
+                      }}
                     </span>
                   </div>
                 </template>
@@ -857,13 +945,28 @@ type="button" class="w-7 h-7 rounded-full flex items-center justify-center trans
               <div
                 class="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
               >
-                <button v-if="msg.type === 'TEXT'" type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-all cursor-pointer" :class="translations[msg.id] ? 'text-accent' : 'text-slate-400'" :title="t('messages.translate')" @click="handleTranslate(msg)">
+                <button
+                  v-if="msg.type === 'TEXT'"
+                  type="button"
+                  class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-all cursor-pointer"
+                  :class="translations[msg.id] ? 'text-accent' : 'text-slate-400'"
+                  :title="t('messages.translate')"
+                  @click="handleTranslate(msg)"
+                >
                   <Languages class="w-3 h-3" />
                 </button>
-                <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 transition-all cursor-pointer" @click="setReplyTo(msg)">
+                <button
+                  type="button"
+                  class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 transition-all cursor-pointer"
+                  @click="setReplyTo(msg)"
+                >
                   <Reply class="w-3 h-3" />
                 </button>
-                <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 transition-all cursor-pointer" @click="showReactionPicker = msg.id">
+                <button
+                  type="button"
+                  class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 transition-all cursor-pointer"
+                  @click="showReactionPicker = msg.id"
+                >
                   <SmilePlus class="w-3 h-3" />
                 </button>
               </div>
@@ -874,12 +977,21 @@ type="button" class="w-7 h-7 rounded-full flex items-center justify-center trans
                 :class="msg.senderId === authStore.user?.id ? '-left-1' : '-right-1'"
               >
                 <button
-type="button" class="p-1 rounded-full hover:scale-110 shadow-sm border border-[var(--border-base)] cursor-pointer" style="background-color: var(--bg-card)" @click.stop="
-                    showReactionPicker = showReactionPicker === msg.id ? null : msg.id
-                  ">
+                  type="button"
+                  class="p-1 rounded-full hover:scale-110 shadow-sm border border-[var(--border-base)] cursor-pointer"
+                  style="background-color: var(--bg-card)"
+                  @click.stop="showReactionPicker = showReactionPicker === msg.id ? null : msg.id"
+                >
                   <SmilePlus class="w-3 h-3 text-[var(--text-muted)]" />
                 </button>
-                <button v-if="msg.senderId === authStore.user?.id" type="button" class="p-1 rounded-full hover:scale-110 shadow-sm border border-[var(--border-base)] hover:bg-rose-50 dark:hover:bg-rose-900/20 cursor-pointer" style="background-color: var(--bg-card)" :title="t('common.delete')" @click.stop="handleDeleteMessage(msg.id)">
+                <button
+                  v-if="msg.senderId === authStore.user?.id"
+                  type="button"
+                  class="p-1 rounded-full hover:scale-110 shadow-sm border border-[var(--border-base)] hover:bg-rose-50 dark:hover:bg-rose-900/20 cursor-pointer"
+                  style="background-color: var(--bg-card)"
+                  :title="t('common.delete')"
+                  @click.stop="handleDeleteMessage(msg.id)"
+                >
                   <Trash2 class="w-3 h-3 text-rose-500" />
                 </button>
               </div>
@@ -891,7 +1003,13 @@ type="button" class="p-1 rounded-full hover:scale-110 shadow-sm border border-[v
                 style="background-color: var(--bg-card); border-color: var(--border-base)"
                 @click.stop
               >
-                <button v-for="emoji in reactionEmojis" :key="emoji" type="button" class="w-8 h-8 flex items-center justify-center text-base hover:scale-125 hover:bg-accent/10 rounded-lg transition-all cursor-pointer" @click="toggleReaction(msg.id, emoji)">
+                <button
+                  v-for="emoji in reactionEmojis"
+                  :key="emoji"
+                  type="button"
+                  class="w-8 h-8 flex items-center justify-center text-base hover:scale-125 hover:bg-accent/10 rounded-lg transition-all cursor-pointer"
+                  @click="toggleReaction(msg.id, emoji)"
+                >
                   {{ emoji }}
                 </button>
               </div>
@@ -902,11 +1020,19 @@ type="button" class="p-1 rounded-full hover:scale-110 shadow-sm border border-[v
                 class="flex flex-wrap gap-1 mt-1"
               >
                 <button
-v-for="group in getGroupedReactions(msg.reactions)" :key="group.emoji" type="button" class="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-all hover:scale-105 cursor-pointer" :class="group.hasMine ? 'bg-accent/10 text-accent ring-1 ring-accent/30' : ''" :style="
+                  v-for="group in getGroupedReactions(msg.reactions)"
+                  :key="group.emoji"
+                  type="button"
+                  class="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-all hover:scale-105 cursor-pointer"
+                  :class="group.hasMine ? 'bg-accent/10 text-accent ring-1 ring-accent/30' : ''"
+                  :style="
                     !group.hasMine
                       ? 'background-color: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-base)'
                       : ''
-                  " :title="group.users.join(', ')" @click="toggleReaction(msg.id, group.emoji)">
+                  "
+                  :title="group.users.join(', ')"
+                  @click="toggleReaction(msg.id, group.emoji)"
+                >
                   <span>{{ group.emoji }}</span>
                   <span>{{ group.count }}</span>
                 </button>
@@ -967,7 +1093,11 @@ v-for="group in getGroupedReactions(msg.reactions)" :key="group.emoji" type="but
           }}
         </p>
       </div>
-      <button type="button" class="p-0.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-all cursor-pointer" @click="cancelReply">
+      <button
+        type="button"
+        class="p-0.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-all cursor-pointer"
+        @click="cancelReply"
+      >
         <X class="w-3 h-3" style="color: var(--text-muted)" />
       </button>
     </div>
@@ -983,7 +1113,13 @@ v-for="group in getGroupedReactions(msg.reactions)" :key="group.emoji" type="but
         class="absolute bottom-full mb-2 left-2 right-2 md:left-3 md:right-auto p-2 rounded-xl shadow-xl border z-50 grid grid-cols-8 md:grid-cols-4 gap-1 sm:gap-1.5 max-w-[calc(100%-1rem)] md:w-72"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
-        <button v-for="emoji in commonEmojis" :key="emoji" type="button" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-base sm:text-lg hover:bg-accent-subtle rounded-md sm:rounded-lg transition-all cursor-pointer" @click="addEmoji(emoji)">
+        <button
+          v-for="emoji in commonEmojis"
+          :key="emoji"
+          type="button"
+          class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-base sm:text-lg hover:bg-accent-subtle rounded-md sm:rounded-lg transition-all cursor-pointer"
+          @click="addEmoji(emoji)"
+        >
           {{ emoji }}
         </button>
       </div>
@@ -994,16 +1130,36 @@ v-for="group in getGroupedReactions(msg.reactions)" :key="group.emoji" type="but
         style="background-color: var(--bg-app); border-color: var(--border-base)"
       >
         <div class="flex items-center gap-0.5 sm:gap-1 shrink-0">
-          <button type="button" class="p-1 hover:text-accent transition-colors cursor-pointer" :class="showEmojiPicker ? 'text-accent' : ''" style="color: var(--text-muted)" @click="showEmojiPicker = !showEmojiPicker">
+          <button
+            type="button"
+            class="p-1 hover:text-accent transition-colors cursor-pointer"
+            :class="showEmojiPicker ? 'text-accent' : ''"
+            style="color: var(--text-muted)"
+            @click="showEmojiPicker = !showEmojiPicker"
+          >
             <Smile class="w-4 h-4" />
           </button>
-          <button type="button" class="p-1 hover:text-accent transition-colors cursor-pointer" style="color: var(--text-muted)" @click="triggerFileUpload">
+          <button
+            type="button"
+            class="p-1 hover:text-accent transition-colors cursor-pointer"
+            style="color: var(--text-muted)"
+            @click="triggerFileUpload"
+          >
             <Paperclip class="w-4 h-4" />
           </button>
-          <button type="button" class="p-1 hover:text-accent transition-colors cursor-pointer" :class="isRecording ? 'text-rose-500 animate-pulse' : 'text-slate-400'" @click="isRecording ? stopRecording() : startRecording()">
+          <button
+            type="button"
+            class="p-1 hover:text-accent transition-colors cursor-pointer"
+            :class="isRecording ? 'text-rose-500 animate-pulse' : 'text-slate-400'"
+            @click="isRecording ? stopRecording() : startRecording()"
+          >
             <Mic class="w-4 h-4" />
           </button>
-          <span v-if="isRecording" class="text-[9px] font-black text-rose-500 animate-pulse ml-0.5">{{ formatDuration(recordingDuration) }}</span>
+          <span
+            v-if="isRecording"
+            class="text-[9px] font-black text-rose-500 animate-pulse ml-0.5"
+            >{{ formatDuration(recordingDuration) }}</span
+          >
         </div>
 
         <input ref="fileInput" type="file" class="hidden" @change="handleFileUpload" />
@@ -1017,7 +1173,12 @@ v-for="group in getGroupedReactions(msg.reactions)" :key="group.emoji" type="but
           @keydown.enter.prevent="handleSendMessage('TEXT')"
         ></textarea>
 
-        <button type="button" :disabled="!newMessage.trim() || isUploading" class="p-2 bg-accent text-white rounded-lg hover:bg-accent transition-all shadow-md shadow-accent/20 disabled:opacity-50 flex items-center justify-center min-w-[32px] h-8 w-8 shrink-0 cursor-pointer" @click="handleSendMessage('TEXT')">
+        <button
+          type="button"
+          :disabled="!newMessage.trim() || isUploading"
+          class="p-2 bg-accent text-white rounded-lg hover:bg-accent transition-all shadow-md shadow-accent/20 disabled:opacity-50 flex items-center justify-center min-w-[32px] h-8 w-8 shrink-0 cursor-pointer"
+          @click="handleSendMessage('TEXT')"
+        >
           <div
             v-if="isUploading"
             class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
@@ -1039,29 +1200,55 @@ v-for="group in getGroupedReactions(msg.reactions)" :key="group.emoji" type="but
       }"
       @click.stop
     >
-      <button type="button" class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-accent/10 transition-all cursor-pointer" style="color: var(--text-primary)" @click="setReplyTo(contextMenu.message)">
+      <button
+        type="button"
+        class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-accent/10 transition-all cursor-pointer"
+        style="color: var(--text-primary)"
+        @click="setReplyTo(contextMenu.message)"
+      >
         <Reply class="w-4 h-4 text-accent" /> {{ t('common.reply') }}
       </button>
-      <button v-if="contextMenu.message.type === 'TEXT'" type="button" class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-accent/10 transition-all cursor-pointer" style="color: var(--text-primary)" @click="handleTranslate(contextMenu.message)">
+      <button
+        v-if="contextMenu.message.type === 'TEXT'"
+        type="button"
+        class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-accent/10 transition-all cursor-pointer"
+        style="color: var(--text-primary)"
+        @click="handleTranslate(contextMenu.message)"
+      >
         <Languages class="w-4 h-4 text-indigo-500" /> {{ t('messages.translate') }}
       </button>
-      <button v-if="contextMenu.message.type === 'TEXT'" type="button" class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-accent/10 transition-all cursor-pointer" style="color: var(--text-primary)" @click="copyMessage(contextMenu.message.content)">
+      <button
+        v-if="contextMenu.message.type === 'TEXT'"
+        type="button"
+        class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-accent/10 transition-all cursor-pointer"
+        style="color: var(--text-primary)"
+        @click="copyMessage(contextMenu.message.content)"
+      >
         <AtSign class="w-4 h-4" style="color: var(--text-muted)" /> {{ t('common.copy') }}
       </button>
       <button
-v-if="contextMenu.message.senderId === authStore.user?.id" type="button" class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-rose-500/10 text-rose-500 transition-all cursor-pointer" @click="
+        v-if="contextMenu.message.senderId === authStore.user?.id"
+        type="button"
+        class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-rose-500/10 text-rose-500 transition-all cursor-pointer"
+        @click="
           emit('delete-message', contextMenu.messageId);
           closeContextMenu();
-        ">
+        "
+      >
         <X class="w-4 h-4" /> {{ t('common.delete') }}
       </button>
       <div class="border-t my-1" style="border-color: var(--border-base)"></div>
       <div class="px-3 py-2 flex gap-1">
         <button
-v-for="emoji in reactionEmojis.slice(0, 6)" :key="emoji" type="button" class="w-8 h-8 flex items-center justify-center text-base hover:scale-125 hover:bg-accent/10 rounded-lg transition-all cursor-pointer" @click="
+          v-for="emoji in reactionEmojis.slice(0, 6)"
+          :key="emoji"
+          type="button"
+          class="w-8 h-8 flex items-center justify-center text-base hover:scale-125 hover:bg-accent/10 rounded-lg transition-all cursor-pointer"
+          @click="
             toggleReaction(contextMenu.messageId, emoji);
             closeContextMenu();
-          ">
+          "
+        >
           {{ emoji }}
         </button>
       </div>

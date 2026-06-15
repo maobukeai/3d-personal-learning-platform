@@ -3,18 +3,9 @@ import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, defineAsyncComponent } from 'vue';
 import { ElMessage } from 'element-plus';
-import {
-  Plus,
-  Trash2,
-  Edit2,
-  Box,
-  Info,
-  Layers,
-  Camera,
-  Sun,
-  Palette
-} from 'lucide-vue-next';
+import { Plus, Trash2, Edit2, Box, Info, Layers, Camera, Sun, Palette } from 'lucide-vue-next';
 import api from '@/utils/api';
+import Modal from '@/components/ui/Modal.vue';
 
 const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.vue'));
 
@@ -193,7 +184,9 @@ const handleSaveLesson = async () => {
 const handleAddHotspot = (point: { x: number; y: number; z: number }) => {
   lessonForm.value.hotspots.push({
     ...point,
-    title: t('admin.new_hotspots_lessonform_value', { param_0: lessonForm.value.hotspots.length + 1 }),
+    title: t('admin.new_hotspots_lessonform_value', {
+      param_0: lessonForm.value.hotspots.length + 1,
+    }),
     content: t('admin.click_to_edit_the'),
   });
 };
@@ -237,7 +230,9 @@ const captureCameraForHotspot = () => {
     lessonForm.value.hotspots[currentHotspotIndex.value].cameraPos = state.position;
     lessonForm.value.hotspots[currentHotspotIndex.value].cameraTarget = state.target;
     ElMessage.success(
-      t('admin.saved_current_view_to', { param_0: lessonForm.value.hotspots[currentHotspotIndex.value].title }),
+      t('admin.saved_current_view_to', {
+        param_0: lessonForm.value.hotspots[currentHotspotIndex.value].title,
+      }),
     );
   }
 };
@@ -271,9 +266,9 @@ defineExpose({ open });
       <div class="space-y-4">
         <div class="grid grid-cols-4 gap-4">
           <div class="col-span-2">
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >{{ $t('admin.lesson_title') }}</label
-            >
+            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+              $t('admin.lesson_title')
+            }}</label>
             <input
               v-model="lessonForm.title"
               type="text"
@@ -287,9 +282,9 @@ defineExpose({ open });
             />
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >{{ $t('admin.sort') }}</label
-            >
+            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+              $t('admin.sort')
+            }}</label>
             <input
               v-model="lessonForm.order"
               type="number"
@@ -302,9 +297,9 @@ defineExpose({ open });
             />
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >{{ $t('admin.duration_minutes') }}</label
-            >
+            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+              $t('admin.duration_minutes')
+            }}</label>
             <input
               v-model="lessonForm.duration"
               type="number"
@@ -318,9 +313,9 @@ defineExpose({ open });
           </div>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >{{ $t('admin.video_link') }}</label
-          >
+          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+            $t('admin.video_link')
+          }}</label>
           <div class="flex gap-2">
             <input
               v-model="lessonForm.videoUrl"
@@ -333,11 +328,21 @@ defineExpose({ open });
                 color: var(--text-primary);
               "
             />
-            <button v-if="is3DModel(lessonForm.videoUrl)" type="button" class="px-4 py-3 rounded-2xl bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 hover:bg-indigo-600 transition-colors cursor-pointer" @click="openHotspotEditor">
+            <button
+              v-if="is3DModel(lessonForm.videoUrl)"
+              type="button"
+              class="px-4 py-3 rounded-2xl bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 hover:bg-indigo-600 transition-colors cursor-pointer"
+              @click="openHotspotEditor"
+            >
               <Box class="w-4 h-4" />
               设计热点
             </button>
-            <button v-if="is3DModel(lessonForm.videoUrl)" type="button" class="px-4 py-3 rounded-2xl bg-amber-500 text-white font-bold text-xs flex items-center gap-2 hover:bg-amber-600 transition-colors cursor-pointer" @click="openSceneSettings">
+            <button
+              v-if="is3DModel(lessonForm.videoUrl)"
+              type="button"
+              class="px-4 py-3 rounded-2xl bg-amber-500 text-white font-bold text-xs flex items-center gap-2 hover:bg-amber-600 transition-colors cursor-pointer"
+              @click="openSceneSettings"
+            >
               <Sun class="w-4 h-4" />
               场景设置
             </button>
@@ -350,9 +355,9 @@ defineExpose({ open });
           </p>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >{{ $t('admin.lesson_content_markdown') }}</label
-          >
+          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+            $t('admin.lesson_content_markdown')
+          }}</label>
           <textarea
             v-model="lessonForm.content"
             rows="6"
@@ -367,24 +372,34 @@ defineExpose({ open });
         </div>
       </div>
       <div class="flex items-center gap-4 mt-8">
-        <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer" @click="visible = false">
+        <button
+          type="button"
+          class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          @click="visible = false"
+        >
           取消
         </button>
-        <button type="button" class="flex-1 py-3 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 cursor-pointer" @click="handleSaveLesson">
+        <button
+          type="button"
+          class="flex-1 py-3 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 cursor-pointer"
+          @click="handleSaveLesson"
+        >
           保存课时
         </button>
       </div>
     </div>
 
     <!-- Hotspot Editor Dialog -->
-    <el-dialog
-      v-model="isHotspotEditorOpen"
-      :title="$t('admin.3d_interactive_hotspot_editor')"
+    <Modal
+      :show="isHotspotEditorOpen"
       fullscreen
-      append-to-body
-      class="hotspot-editor-dialog"
+      padding="none"
+      @close="
+        isHotspotEditorOpen = false;
+        currentHotspotIndex = -1;
+      "
     >
-      <div class="h-full flex flex-col">
+      <div class="h-full flex flex-col p-6 overflow-hidden">
         <div class="flex-1 flex gap-6 overflow-hidden">
           <!-- Left: 3D Viewer -->
           <div class="flex-1 bg-slate-900 rounded-3xl overflow-hidden relative">
@@ -407,7 +422,12 @@ defineExpose({ open });
 
             <!-- Camera Preset Controls -->
             <div class="absolute bottom-6 left-6 flex items-center gap-3">
-              <button v-if="currentHotspotIndex !== -1" type="button" class="px-4 py-2 bg-accent text-white rounded-xl font-bold text-[10px] flex items-center gap-2 shadow-xl hover:scale-105 transition-all cursor-pointer" @click="captureCameraForHotspot">
+              <button
+                v-if="currentHotspotIndex !== -1"
+                type="button"
+                class="px-4 py-2 bg-accent text-white rounded-xl font-bold text-[10px] flex items-center gap-2 shadow-xl hover:scale-105 transition-all cursor-pointer"
+                @click="captureCameraForHotspot"
+              >
                 <Camera class="w-3.5 h-3.5" />
                 保存当前视角到此热点
               </button>
@@ -456,10 +476,18 @@ defineExpose({ open });
                     <div
                       class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-accent cursor-pointer" @click.stop="startEditHotspot(index)">
+                      <button
+                        type="button"
+                        class="p-1.5 rounded-lg text-slate-400 hover:text-accent cursor-pointer"
+                        @click.stop="startEditHotspot(index)"
+                      >
                         <Edit2 class="w-3.5 h-3.5" />
                       </button>
-                      <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 cursor-pointer" @click.stop="removeHotspot(index)">
+                      <button
+                        type="button"
+                        class="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 cursor-pointer"
+                        @click.stop="removeHotspot(index)"
+                      >
                         <Trash2 class="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -491,21 +519,31 @@ defineExpose({ open });
       <template #footer>
         <div class="flex justify-end gap-3">
           <button
-type="button" class="px-8 py-2.5 rounded-xl border font-bold text-sm hover:bg-slate-50 transition-colors cursor-pointer" @click="
+            type="button"
+            class="px-8 py-2.5 rounded-xl border font-bold text-sm hover:bg-slate-50 transition-colors cursor-pointer"
+            @click="
               isHotspotEditorOpen = false;
               currentHotspotIndex = -1;
-            ">
+            "
+          >
             关闭并应用
           </button>
         </div>
       </template>
-    </el-dialog>
+    </Modal>
 
     <!-- Hotspot Quick Edit Modal -->
-    <el-dialog v-model="isQuickEditOpen" :title="$t('admin.edit_hotspot_details')" width="400px" append-to-body>
+    <Modal
+      :show="isQuickEditOpen"
+      :title="$t('admin.edit_hotspot_details')"
+      size="sm"
+      @close="isQuickEditOpen = false"
+    >
       <div class="space-y-4">
         <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2">{{ $t('admin.hot_topics') }}</label>
+          <label class="block text-xs font-bold text-slate-400 mb-2">{{
+            $t('admin.hot_topics')
+          }}</label>
           <input
             v-model="hotspotEditForm.title"
             type="text"
@@ -513,7 +551,9 @@ type="button" class="px-8 py-2.5 rounded-xl border font-bold text-sm hover:bg-sl
           />
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2">{{ $t('admin.description_content') }}</label>
+          <label class="block text-xs font-bold text-slate-400 mb-2">{{
+            $t('admin.description_content')
+          }}</label>
           <textarea
             v-model="hotspotEditForm.content"
             rows="4"
@@ -521,23 +561,30 @@ type="button" class="px-8 py-2.5 rounded-xl border font-bold text-sm hover:bg-sl
           ></textarea>
         </div>
         <div class="flex gap-2">
-          <button type="button" class="flex-1 py-2 rounded-xl border font-bold text-xs cursor-pointer" @click="isQuickEditOpen = false">
+          <button
+            type="button"
+            class="flex-1 py-2 rounded-xl border font-bold text-xs cursor-pointer"
+            @click="isQuickEditOpen = false"
+          >
             取消
           </button>
-          <button type="button" class="flex-1 py-2 bg-accent text-white rounded-xl font-bold text-xs cursor-pointer" @click="saveHotspotEdit">
+          <button
+            type="button"
+            class="flex-1 py-2 bg-accent text-white rounded-xl font-bold text-xs cursor-pointer"
+            @click="saveHotspotEdit"
+          >
             保存
           </button>
         </div>
       </div>
-    </el-dialog>
+    </Modal>
 
     <!-- Scene Settings Dialog -->
-    <el-dialog
-      v-model="isSceneSettingsOpen"
+    <Modal
+      :show="isSceneSettingsOpen"
       :title="$t('admin.3d_scene_and_lighting')"
-      width="460px"
-      append-to-body
-      class="custom-rounded-dialog"
+      size="md"
+      @close="isSceneSettingsOpen = false"
     >
       <div class="space-y-6">
         <div class="flex items-center gap-3 p-4 bg-accent/10 rounded-2xl border border-accent/20">
@@ -563,9 +610,9 @@ type="button" class="px-8 py-2.5 rounded-xl border font-bold text-sm hover:bg-sl
 
           <div>
             <div class="flex items-center justify-between mb-2 ml-1">
-              <label class="text-xs font-black uppercase tracking-widest text-slate-400"
-                >{{ $t('admin.exposure') }}</label
-              >
+              <label class="text-xs font-black uppercase tracking-widest text-slate-400">{{
+                $t('admin.exposure')
+              }}</label>
               <span class="text-xs font-bold text-accent">{{
                 sceneConfigForm.exposure.toFixed(1)
               }}</span>
@@ -577,9 +624,9 @@ type="button" class="px-8 py-2.5 rounded-xl border font-bold text-sm hover:bg-sl
 
           <div>
             <div class="flex items-center justify-between mb-2 ml-1">
-              <label class="text-xs font-black uppercase tracking-widest text-slate-400"
-                >{{ $t('admin.main_light_intensity') }}</label
-              >
+              <label class="text-xs font-black uppercase tracking-widest text-slate-400">{{
+                $t('admin.main_light_intensity')
+              }}</label>
               <span class="text-xs font-bold text-accent">{{
                 sceneConfigForm.lights.intensity.toFixed(1)
               }}</span>
@@ -606,15 +653,23 @@ type="button" class="px-8 py-2.5 rounded-xl border font-bold text-sm hover:bg-sl
       </div>
       <template #footer>
         <div class="flex gap-3 pt-4">
-          <button type="button" class="flex-1 py-3 border border-slate-200 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-colors cursor-pointer" @click="isSceneSettingsOpen = false">
+          <button
+            type="button"
+            class="flex-1 py-3 border border-slate-200 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-colors cursor-pointer"
+            @click="isSceneSettingsOpen = false"
+          >
             取消
           </button>
-          <button type="button" class="flex-1 py-3 bg-accent text-white rounded-2xl font-bold text-sm shadow-lg shadow-accent/20 hover:scale-105 transition-all cursor-pointer" @click="saveSceneSettings">
+          <button
+            type="button"
+            class="flex-1 py-3 bg-accent text-white rounded-2xl font-bold text-sm shadow-lg shadow-accent/20 hover:scale-105 transition-all cursor-pointer"
+            @click="saveSceneSettings"
+          >
             应用配置
           </button>
         </div>
       </template>
-    </el-dialog>
+    </Modal>
   </div>
 </template>
 
@@ -638,14 +693,5 @@ type="button" class="px-8 py-2.5 rounded-xl border font-bold text-sm hover:bg-sl
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: var(--border-base);
   border-radius: 10px;
-}
-:deep(.hotspot-editor-dialog) {
-  display: flex;
-  flex-direction: column;
-}
-:deep(.hotspot-editor-dialog .el-dialog__body) {
-  flex: 1;
-  overflow: hidden;
-  padding: 24px;
 }
 </style>

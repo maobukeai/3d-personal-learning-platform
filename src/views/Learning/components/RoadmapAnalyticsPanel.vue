@@ -244,9 +244,7 @@ const getMetricsForStep = (step: RoadmapStep | null, index: number) => {
     <div
       class="p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-900/50 backdrop-blur-md space-y-3 sm:space-y-5 shadow-xl relative overflow-hidden text-left"
     >
-      <div
-        class="absolute -right-12 -top-12 w-24 h-24 bg-accent/5 rounded-full blur-2xl"
-      ></div>
+      <div class="absolute -right-12 -top-12 w-24 h-24 bg-accent/5 rounded-full blur-2xl"></div>
 
       <div
         class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 sm:pb-3 relative z-10"
@@ -258,14 +256,10 @@ const getMetricsForStep = (step: RoadmapStep | null, index: number) => {
             <Gauge class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5" />
           </div>
           <div class="space-y-0.5">
-            <h4
-              class="text-[8px] sm:text-xs font-black text-slate-400 uppercase tracking-widest"
-            >
+            <h4 class="text-[8px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">
               智能探索分析仪
             </h4>
-            <p
-              class="text-[10px] sm:text-xs font-bold text-slate-700 dark:text-slate-200"
-            >
+            <p class="text-[10px] sm:text-xs font-bold text-slate-700 dark:text-slate-200">
               阶段聚焦
             </p>
           </div>
@@ -298,11 +292,15 @@ const getMetricsForStep = (step: RoadmapStep | null, index: number) => {
       <!-- Toggle Completion Action -->
       <div class="pt-1 sm:pt-2 relative z-10">
         <button
-type="button" class="w-full py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl text-[9px] sm:text-xs font-black text-white transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md" :class="
+          type="button"
+          class="w-full py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl text-[9px] sm:text-xs font-black text-white transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
+          :class="
             isStepCompleted(activeStep.id)
               ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10'
               : 'bg-accent hover:bg-accent-dark shadow-accent/10'
-          " @click="emit('toggle-step', activeStep.id)">
+          "
+          @click="emit('toggle-step', activeStep.id)"
+        >
           <CheckCircle2 class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           {{ isStepCompleted(activeStep.id) ? '已攻克阶段（重置）' : '攻克阶段大纲目标' }}
         </button>
@@ -332,17 +330,13 @@ type="button" class="w-full py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl
                 }}%
               </span>
             </div>
-            <div
-              class="h-1 sm:h-1.5 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden"
-            >
+            <div class="h-1 sm:h-1.5 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
               <div
                 class="h-full bg-rose-500 rounded-full transition-all duration-500"
                 :style="{
                   width:
-                    getMetricsForStep(
-                      activeStep,
-                      selectedRoadmap.steps.indexOf(activeStep),
-                    ).difficulty + '%',
+                    getMetricsForStep(activeStep, selectedRoadmap.steps.indexOf(activeStep))
+                      .difficulty + '%',
                 }"
               ></div>
             </div>
@@ -360,37 +354,28 @@ type="button" class="w-full py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl
                 }}%
               </span>
             </div>
-            <div
-              class="h-1 sm:h-1.5 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden"
-            >
+            <div class="h-1 sm:h-1.5 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
               <div
                 class="h-full bg-purple-500 rounded-full transition-all duration-500"
                 :style="{
                   width:
-                    getMetricsForStep(
-                      activeStep,
-                      selectedRoadmap.steps.indexOf(activeStep),
-                    ).practical + '%',
+                    getMetricsForStep(activeStep, selectedRoadmap.steps.indexOf(activeStep))
+                      .practical + '%',
                 }"
               ></div>
             </div>
           </div>
 
-          <div
-            class="flex items-center justify-between text-[10px] sm:text-xs pt-0.5 sm:pt-1"
-          >
+          <div class="flex items-center justify-between text-[10px] sm:text-xs pt-0.5 sm:pt-1">
             <span class="text-slate-500 flex items-center gap-1">
               <Clock class="w-3 sm:w-3.5 h-3 sm:h-3.5 text-slate-400" />
               预估研读周期
             </span>
             <span class="font-black text-slate-700 dark:text-slate-200">
               {{
-                getMetricsForStep(activeStep, selectedRoadmap.steps.indexOf(activeStep))
-                  .duration
+                getMetricsForStep(activeStep, selectedRoadmap.steps.indexOf(activeStep)).duration
               }}
-              <span class="text-[8px] sm:text-[10px] font-normal text-slate-400"
-                >小时</span
-              >
+              <span class="text-[8px] sm:text-[10px] font-normal text-slate-400">小时</span>
             </span>
           </div>
         </div>
@@ -425,10 +410,7 @@ type="button" class="w-full py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl
                   : 'border-slate-300 dark:border-slate-600 group-hover/item:border-accent bg-white dark:bg-slate-800'
               "
             >
-              <CheckCircle2
-                v-if="checkedSubTasks[task.id]"
-                class="w-2.5 h-2.5 sm:w-3 sm:h-3"
-              />
+              <CheckCircle2 v-if="checkedSubTasks[task.id]" class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             </div>
 
             <span
@@ -467,7 +449,12 @@ type="button" class="w-full py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl
             <div
               class="w-14 sm:w-20 h-9 sm:h-12 rounded bg-slate-100 dark:bg-slate-800 shrink-0 border border-slate-200/50 dark:border-slate-700/55 overflow-hidden"
             >
-              <img v-if="course.thumbnail" alt="" :src="getAssetUrl(course.thumbnail)" class="w-full h-full object-cover group-hover/card:scale-105 transition-transform" />
+              <img
+                v-if="course.thumbnail"
+                alt=""
+                :src="getAssetUrl(course.thumbnail)"
+                class="w-full h-full object-cover group-hover/card:scale-105 transition-transform"
+              />
               <BookOpen v-else class="w-3 h-3 text-slate-450 mx-auto my-3" />
             </div>
             <div class="min-w-0 flex-1 flex flex-col justify-between">

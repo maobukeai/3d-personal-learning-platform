@@ -108,13 +108,15 @@ async function uploadAndMatch() {
       <div
         class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700"
       >
-        <h2
-          class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2"
-        >
+        <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
           <Link2 class="w-5 h-5 text-indigo-500 animate-none" />
           匹配提取链接 - {{ source?.displayName }}
         </h2>
-        <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer" @click="handleClose">
+        <button
+          type="button"
+          class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+          @click="handleClose"
+        >
           <X class="w-5 h-5" />
         </button>
       </div>
@@ -123,23 +125,30 @@ async function uploadAndMatch() {
         <div
           class="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 rounded-lg text-xs text-slate-500 dark:text-slate-400 space-y-1.5"
         >
-          <p class="font-bold text-slate-700 dark:text-slate-300">{{ $t('admin.upload_instructions') }}</p>
+          <p class="font-bold text-slate-700 dark:text-slate-300">
+            {{ $t('admin.upload_instructions') }}
+          </p>
           <p>
-            1. 支持 <strong class="text-slate-700 dark:text-slate-300">.xlsx</strong> 格式的
-            Excel 数据。
+            1. 支持 <strong class="text-slate-700 dark:text-slate-300">.xlsx</strong> 格式的 Excel
+            数据。
           </p>
           <p>{{ $t('admin.2_the_data_table') }}</p>
           <ul class="list-disc pl-4 space-y-0.5 mt-1 text-slate-600 dark:text-slate-400">
             <li>
-              <strong class="text-indigo-500">{{ $t('admin.course_name') }}</strong>（用于匹配系统内已有课程）
+              <strong class="text-indigo-500">{{ $t('admin.course_name') }}</strong
+              >（用于匹配系统内已有课程）
             </li>
             <li>
-              <strong class="text-indigo-500">{{ $t('admin.link') }}</strong>（如百度网盘、夸克网盘链接）
+              <strong class="text-indigo-500">{{ $t('admin.link') }}</strong
+              >（如百度网盘、夸克网盘链接）
             </li>
-            <li><strong class="text-indigo-500">{{ $t('admin.link_password') }}</strong> {{ $t('admin.extraction_code_optional') }}</li>
             <li>
-              <strong class="text-indigo-500">{{ $t('admin.course_notes') }}</strong> / 备注（包含原站链接如
-              zycku.com/xxxx.html 可实现100%精准匹配）
+              <strong class="text-indigo-500">{{ $t('admin.link_password') }}</strong>
+              {{ $t('admin.extraction_code_optional') }}
+            </li>
+            <li>
+              <strong class="text-indigo-500">{{ $t('admin.course_notes') }}</strong> /
+              备注（包含原站链接如 zycku.com/xxxx.html 可实现100%精准匹配）
             </li>
           </ul>
         </div>
@@ -163,20 +172,25 @@ async function uploadAndMatch() {
             <div class="text-sm font-medium text-slate-700 dark:text-slate-200">
               点击或拖拽上传 Excel 文件
             </div>
-            <div class="text-xs text-slate-400">{{ $t('admin.supports_multiple_selection_only') }}</div>
+            <div class="text-xs text-slate-400">
+              {{ $t('admin.supports_multiple_selection_only') }}
+            </div>
           </div>
         </div>
 
         <!-- Selected Files List -->
-        <div
-          v-if="excelFiles.length > 0"
-          class="space-y-1.5 max-h-48 overflow-y-auto p-0.5"
-        >
+        <div v-if="excelFiles.length > 0" class="space-y-1.5 max-h-48 overflow-y-auto p-0.5">
           <div
             class="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center justify-between px-1"
           >
-            <span>{{ $t('admin.selected_files_excelfiles_length', { count: excelFiles.length }) }}</span>
-            <button type="button" class="text-indigo-500 hover:text-indigo-600 transition-colors cursor-pointer" @click="excelFiles = []">
+            <span>{{
+              $t('admin.selected_files_excelfiles_length', { count: excelFiles.length })
+            }}</span>
+            <button
+              type="button"
+              class="text-indigo-500 hover:text-indigo-600 transition-colors cursor-pointer"
+              @click="excelFiles = []"
+            >
               清空全部
             </button>
           </div>
@@ -196,7 +210,11 @@ async function uploadAndMatch() {
                 >({{ (file.size / 1024).toFixed(1) }} KB)</span
               >
             </div>
-            <button type="button" class="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex-shrink-0 cursor-pointer" @click="removeFile(index)">
+            <button
+              type="button"
+              class="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex-shrink-0 cursor-pointer"
+              @click="removeFile(index)"
+            >
               <Trash2 class="w-3.5 h-3.5" />
             </button>
           </div>
@@ -223,7 +241,9 @@ async function uploadAndMatch() {
             <div
               class="bg-white dark:bg-slate-800/40 p-2.5 rounded-lg border border-emerald-100/50 dark:border-emerald-500/5 text-center"
             >
-              <div class="text-xs text-slate-400">{{ $t('admin.successfully_matched_binding') }}</div>
+              <div class="text-xs text-slate-400">
+                {{ $t('admin.successfully_matched_binding') }}
+              </div>
               <div class="text-lg font-bold text-emerald-500">
                 {{ matchResult.matchedCount }}
               </div>
@@ -235,10 +255,20 @@ async function uploadAndMatch() {
       <div
         class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40"
       >
-        <button type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer" :disabled="isUploading" @click="handleClose">
+        <button
+          type="button"
+          class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+          :disabled="isUploading"
+          @click="handleClose"
+        >
           关闭
         </button>
-        <button type="button" class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors flex items-center gap-1.5 cursor-pointer" :disabled="excelFiles.length === 0 || isUploading" @click="uploadAndMatch">
+        <button
+          type="button"
+          class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+          :disabled="excelFiles.length === 0 || isUploading"
+          @click="uploadAndMatch"
+        >
           <Loader2 v-if="isUploading" class="w-4 h-4 animate-spin" />
           {{ isUploading ? t('admin.matching') : $t('admin.start_matching') }}
         </button>

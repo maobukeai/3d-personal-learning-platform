@@ -14,6 +14,8 @@ import {
   Trash2,
   CheckSquare,
   Square,
+  Grid3X3,
+  LayoutList,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
@@ -32,6 +34,11 @@ import NoteShareDialog from './components/NoteShareDialog.vue';
 import NoteImportGithubDialog from './components/NoteImportGithubDialog.vue';
 import NoteCard from './components/NoteCard.vue';
 import ActivityTimeline from './components/ActivityTimeline.vue';
+import Tabs from '@/components/ui/Tabs.vue';
+import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
+import Checkbox from '@/components/ui/Checkbox.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -64,6 +71,11 @@ const sortBy = ref('latest');
 const filterTag = ref('');
 const filterCategory = ref('');
 const pageSize = 12;
+const viewMode = ref<'grid' | 'list'>('grid');
+const viewModeOptions = computed(() => [
+  { value: 'grid', label: '', icon: Grid3X3 },
+  { value: 'list', label: '', icon: LayoutList },
+]);
 
 const getNotesEndpoint = () => {
   return activeTab.value === 'POPULAR' ? '/api/notes/popular' : '/api/notes';
@@ -96,11 +108,11 @@ const {
     return activeTab.value === 'POPULAR' ? res : res.notes || [];
   },
   totalExtractor: (res) => {
-    return activeTab.value === 'POPULAR' ? res.length : res.pagination?.total ?? 0;
+    return activeTab.value === 'POPULAR' ? res.length : (res.pagination?.total ?? 0);
   },
   onError: () => {
     ElMessage.error(t('notes.loadFailed'));
-  }
+  },
 });
 
 // Sidebar & Notebook state
@@ -180,6 +192,30 @@ const myNotebooksList = computed(() => {
   return Array.from(set).filter(Boolean);
 });
 
+// Active notebook model for vertical Tabs
+const activeNotebook = computed({
+  get() {
+    if (!filterCategory.value) return 'ALL';
+    if (filterCategory.value === '__uncategorized__') return 'UNCATEGORIZED';
+    return filterCategory.value;
+  },
+  set(val) {
+    selectNotebook(val);
+  },
+});
+
+const notebookTabOptions = computed(() => {
+  return [
+    { value: 'ALL', label: t('notes.allNotes'), icon: Folder },
+    { value: 'UNCATEGORIZED', label: t('notes.uncategorized'), icon: Folder },
+    ...myNotebooksList.value.map((cat) => ({
+      value: cat,
+      label: cat,
+      icon: Folder,
+    })),
+  ];
+});
+
 // Select notebook filter
 const selectNotebook = (notebookName: string) => {
   if (notebookName === 'ALL') {
@@ -248,17 +284,6 @@ const handleDrop = async (event: DragEvent, targetNotebookName: string) => {
 };
 
 const totalPages = computed(() => Math.ceil(totalNotes.value / pageSize));
-
-type NoteQueryParams = {
-  page: number;
-  limit: number;
-  sort: string;
-  author?: string;
-  visibility?: string;
-  search?: string;
-  tag?: string;
-  category?: string;
-};
 
 const loadNotes = () => runLoadNotes(false);
 
@@ -673,19 +698,129 @@ onUnmounted(() => {
       class="flex-1 overflow-y-auto custom-scrollbar pt-0 pb-2.5 px-2.5 sm:pt-0 sm:pb-4 sm:px-4 lg:pt-0 lg:pb-4.5 lg:px-4.5"
     >
       <div class="max-w-none">
-        <div class="mb-1 md:mb-1.5">
-          <el-tabs v-model="activeTab" class="custom-note-tabs" @tab-change="handleTabChange">
-            <el-tab-pane :label="t('notes.tabMy')" name="MY" />
-            <el-tab-pane :label="t('notes.tabActivity')" name="ACTIVITY" />
-            <el-tab-pane :label="t('notes.tabPopular')" name="POPULAR" />
-          </el-tabs>
+        <div
+          class="flex flex-wrap items-center gap-3 mb-3 md:mb-4 bg-white/40 dark:bg-slate-900/20 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200/40 dark:border-slate-800/40"
+        >
+          <Tabs
+            v-model="activeTab"
+            :options="[
+              { label: t('notes.tabMy'), value: 'MY' },
+              { label: t('notes.tabActivity'), value: 'ACTIVITY' },
+              { label: t('notes.tabPopular'), value: 'POPULAR' },
+            ]"
+            size="md"
+            class="!bg-transparent border-none shrink-0"
+            @change="handleTabChange"
+          />
+
+          <!-- Right side: Search & Filters -->
+          <div
+            class="flex flex-wrap flex-1 items-center gap-2 min-w-[280px] justify-start sm:justify-end"
+          >
+            <!-- Search Input -->
+            <Input
+              v-model="searchQuery"
+              type="text"
+              :placeholder="t('notes.searchPlaceholder')"
+              :icon="Search"
+              clearable
+              glass
+              class="w-full sm:w-auto sm:flex-1 sm:max-w-xs shrink-0"
+              input-class="!py-1.5 !h-8.5 text-xs sm:text-sm"
+              @keyup.enter="loadNotes"
+              @clear="loadNotes"
+            />
+
+            <!-- Sort Select -->
+            <el-select
+              v-model="sortBy"
+              :placeholder="t('notes.sortLabel')"
+              class="shrink-0 !w-24 sm:!w-24 note-filter-select"
+              @change="loadNotes"
+            >
+              <el-option :label="t('notes.sortLatest')" value="latest" />
+              <el-option :label="t('notes.sortMostViewed')" value="most_viewed" />
+              <el-option :label="t('notes.sortMostLiked')" value="most_liked" />
+            </el-select>
+
+            <!-- Tags and Categories Selects -->
+            <template
+              v-if="
+                tags.length || categories.length || (activeTab === 'MY' && myNotebooksList.length)
+              "
+            >
+              <!-- Mobile Notebook Dropdown Selector -->
+              <el-select
+                v-if="activeTab === 'MY'"
+                :model-value="
+                  filterCategory === '__uncategorized__' ? 'UNCATEGORIZED' : filterCategory || 'ALL'
+                "
+                :placeholder="t('notes.notebookLabel')"
+                class="md:hidden shrink-0 !w-24 sm:!w-24 note-filter-select"
+                @change="selectNotebook"
+              >
+                <el-option :label="t('notes.allNotes')" value="ALL" />
+                <el-option :label="t('notes.uncategorized')" value="UNCATEGORIZED" />
+                <el-option v-for="cat in myNotebooksList" :key="cat" :label="cat" :value="cat" />
+              </el-select>
+
+              <!-- Tag Select -->
+              <el-select
+                v-if="tags.length"
+                v-model="filterTag"
+                :placeholder="t('notes.tagLabel')"
+                class="shrink-0 !w-24 sm:!w-24 note-filter-select"
+                clearable
+                @change="loadNotes"
+              >
+                <el-option
+                  v-for="tagName in tags"
+                  :key="tagName"
+                  :label="tagName"
+                  :value="tagName"
+                />
+              </el-select>
+
+              <!-- Category Select (Only if not MY tab) -->
+              <el-select
+                v-if="activeTab !== 'MY' && categories.length"
+                v-model="filterCategory"
+                :placeholder="t('notes.categoryLabel')"
+                class="shrink-0 !w-24 sm:!w-24 note-filter-select"
+                clearable
+                @change="loadNotes"
+              >
+                <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+              </el-select>
+            </template>
+
+            <!-- Batch Management Toggle Button -->
+            <button
+              v-if="activeTab === 'MY' && notes.length > 0"
+              type="button"
+              class="flex items-center justify-center w-8 h-8 rounded-lg border transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0"
+              :class="[
+                isSelectionMode
+                  ? 'bg-purple-500/10 border-purple-500/25 text-purple-500 dark:text-purple-400'
+                  : 'bg-[var(--bg-card)] border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-zinc-800',
+              ]"
+              :title="isSelectionMode ? t('notes.cancelBatch') : t('notes.batchManage')"
+              @click="toggleSelectionMode"
+            >
+              <CheckSquare v-if="isSelectionMode" class="w-4 h-4 shrink-0" />
+              <Square v-else class="w-4 h-4 shrink-0" />
+            </button>
+
+            <!-- Layout Switcher (Grid / List) -->
+            <Tabs v-model="viewMode" :options="viewModeOptions" size="sm" class="shrink-0" />
+          </div>
         </div>
 
         <div class="flex flex-col md:flex-row gap-4.5 items-start">
           <!-- Left side Notebook List for MY Tab (Desktop) -->
           <aside
             v-if="activeTab === 'MY'"
-            class="hidden md:flex flex-col w-60 shrink-0 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl p-3.5 space-y-3.5 shadow-sm"
+            class="hidden md:flex flex-col w-[180px] shrink-0 bg-white/70 dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200/50 dark:border-slate-800/80 rounded-2xl p-3.5 space-y-3.5 shadow-lg shadow-slate-100/50 dark:shadow-none transition-colors duration-300"
           >
             <div class="flex items-center justify-between">
               <span
@@ -703,218 +838,21 @@ onUnmounted(() => {
               </button>
             </div>
 
-            <div class="flex flex-col gap-1 max-h-[500px] overflow-y-auto custom-scrollbar">
-              <!-- All Notes -->
-              <button
-                type="button"
-                class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 text-left w-full cursor-pointer border border-transparent"
-                :class="[
-                  !filterCategory
-                    ? 'bg-accent/10 text-accent font-black border-accent/10'
-                    : 'text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5',
-                  draggedNotebook === 'ALL'
-                    ? 'bg-accent/20 text-accent border-accent/30 shadow-sm'
-                    : '',
-                ]"
-                @click="selectNotebook('ALL')"
-                @dragover.prevent
-                @dragenter.prevent="draggedNotebook = 'ALL'"
-                @dragleave="draggedNotebook = null"
-                @drop="handleDrop($event, 'ALL')"
-              >
-                <span class="flex items-center gap-2 truncate">
-                  <Folder
-                    class="w-3.5 h-3.5"
-                    :class="[!filterCategory ? 'text-accent' : 'text-[var(--text-muted)]']"
-                  />
-                  {{ t('notes.allNotes') }}
-                </span>
-              </button>
-
-              <!-- Uncategorized -->
-              <button
-                type="button"
-                class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 text-left w-full cursor-pointer border border-transparent"
-                :class="[
-                  filterCategory === '__uncategorized__'
-                    ? 'bg-accent/10 text-accent font-black border-accent/10'
-                    : 'text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5',
-                  draggedNotebook === 'UNCATEGORIZED'
-                    ? 'bg-accent/20 text-accent border-accent/30 shadow-sm'
-                    : '',
-                ]"
-                @click="selectNotebook('UNCATEGORIZED')"
-                @dragover.prevent
-                @dragenter.prevent="draggedNotebook = 'UNCATEGORIZED'"
-                @dragleave="draggedNotebook = null"
-                @drop="handleDrop($event, 'UNCATEGORIZED')"
-              >
-                <span class="flex items-center gap-2 truncate">
-                  <Folder
-                    class="w-3.5 h-3.5"
-                    :class="[
-                      filterCategory === '__uncategorized__'
-                        ? 'text-accent'
-                        : 'text-[var(--text-muted)]',
-                    ]"
-                  />
-                  {{ t('notes.uncategorized') }}
-                </span>
-              </button>
-
-              <!-- Dynamic Categories / Notebooks -->
-              <div
-                v-for="cat in myNotebooksList"
-                :key="cat"
-                class="group/notebook flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 w-full border border-transparent"
-                :class="[
-                  filterCategory === cat
-                    ? 'bg-accent/10 text-accent font-black border-accent/10'
-                    : 'text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5',
-                  draggedNotebook === cat
-                    ? 'bg-accent/20 text-accent border-accent/30 shadow-sm'
-                    : '',
-                ]"
-              >
-                <button
-                  type="button"
-                  class="flex items-center gap-2 truncate text-left flex-1 cursor-pointer bg-transparent border-0 font-bold text-inherit p-0"
-                  @click="selectNotebook(cat)"
-                  @dragover.prevent
-                  @dragenter.prevent="draggedNotebook = cat"
-                  @dragleave="draggedNotebook = null"
-                  @drop="handleDrop($event, cat)"
-                >
-                  <Folder
-                    class="w-3.5 h-3.5 shrink-0"
-                    :class="[filterCategory === cat ? 'text-accent' : 'text-[var(--text-muted)]']"
-                  />
-                  <span class="truncate">{{ cat }}</span>
-                </button>
-
-                <!-- Rename & Delete actions visible on hover -->
-                <div class="hidden group-hover/notebook:flex items-center gap-1 shrink-0 pl-1">
-                  <button
-                    type="button"
-                    class="p-0.5 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded transition-all cursor-pointer text-[var(--text-muted)] hover:text-accent border-0 bg-transparent"
-                    :title="t('notes.renameNotebook')"
-                    @click.stop="handleRenameNotebook(cat)"
-                  >
-                    <Edit3 class="w-3 h-3" />
-                  </button>
-                  <button
-                    type="button"
-                    class="p-0.5 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded transition-all cursor-pointer text-[var(--text-muted)] hover:text-red-500 border-0 bg-transparent"
-                    :title="t('notes.deleteNotebook')"
-                    @click.stop="handleDeleteNotebook(cat)"
-                  >
-                    <Trash2 class="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
+            <div
+              class="relative flex flex-col gap-1 max-h-[500px] overflow-y-auto custom-scrollbar"
+            >
+              <Tabs
+                v-model="activeNotebook"
+                :options="notebookTabOptions"
+                direction="vertical"
+                size="sm"
+              />
             </div>
           </aside>
 
           <!-- Right side: Note content list -->
           <div class="flex-1 min-w-0 w-full flex flex-col gap-2 md:gap-3">
-            <!-- Search & Filters -->
-            <div
-              class="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-1.5 md:gap-2"
-            >
-              <!-- Search Input & Sort Select Side-by-Side on Mobile -->
-              <div class="flex items-center gap-1.5 flex-1 min-w-0">
-                <el-input
-                  v-model="searchQuery"
-                  :placeholder="t('notes.searchPlaceholder')"
-                  :prefix-icon="Search"
-                  clearable
-                  class="flex-1 !w-full min-w-[120px] sm:min-w-[200px] note-search-input"
-                  @keyup.enter="loadNotes"
-                  @clear="loadNotes"
-                />
-
-                <el-select
-                  v-model="sortBy"
-                  :placeholder="t('notes.sortLabel')"
-                  class="shrink-0 !w-24 sm:!w-32 note-filter-select"
-                  @change="loadNotes"
-                >
-                  <el-option :label="t('notes.sortLatest')" value="latest" />
-                  <el-option :label="t('notes.sortMostViewed')" value="most_viewed" />
-                  <el-option :label="t('notes.sortMostLiked')" value="most_liked" />
-                </el-select>
-              </div>
-
-              <!-- Tags and Categories Selects -->
-              <div
-                v-if="
-                  tags.length || categories.length || (activeTab === 'MY' && myNotebooksList.length)
-                "
-                class="flex items-center gap-1.5 w-full sm:w-auto"
-              >
-                <!-- Mobile Notebook Dropdown Selector -->
-                <el-select
-                  v-if="activeTab === 'MY'"
-                  :model-value="
-                    filterCategory === '__uncategorized__'
-                      ? 'UNCATEGORIZED'
-                      : filterCategory || 'ALL'
-                  "
-                  :placeholder="t('notes.notebookLabel')"
-                  class="md:hidden flex-1 !w-full note-filter-select"
-                  @change="selectNotebook"
-                >
-                  <el-option :label="t('notes.allNotes')" value="ALL" />
-                  <el-option :label="t('notes.uncategorized')" value="UNCATEGORIZED" />
-                  <el-option v-for="cat in myNotebooksList" :key="cat" :label="cat" :value="cat" />
-                </el-select>
-
-                <el-select
-                  v-if="tags.length"
-                  v-model="filterTag"
-                  :placeholder="t('notes.tagLabel')"
-                  class="flex-1 sm:flex-none !w-full sm:!w-32 note-filter-select"
-                  clearable
-                  @change="loadNotes"
-                >
-                  <el-option
-                    v-for="tagName in tags"
-                    :key="tagName"
-                    :label="tagName"
-                    :value="tagName"
-                  />
-                </el-select>
-
-                <!-- Only show Category dropdown if not in MY tab -->
-                <el-select
-                  v-if="activeTab !== 'MY' && categories.length"
-                  v-model="filterCategory"
-                  :placeholder="t('notes.categoryLabel')"
-                  class="flex-1 sm:flex-none !w-full sm:!w-32 note-filter-select"
-                  clearable
-                  @change="loadNotes"
-                >
-                  <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
-                </el-select>
-              </div>
-
-              <!-- Batch Management Toggle Button -->
-              <button
-                v-if="activeTab === 'MY' && notes.length > 0"
-                type="button"
-                class="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 h-8 rounded-lg text-xs font-black border transition-all active:scale-95 cursor-pointer shadow-2xs"
-                :class="[
-                  isSelectionMode
-                    ? 'bg-purple-500/10 border-purple-500/25 text-purple-500 dark:text-purple-400'
-                    : 'bg-[var(--bg-card)] border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-zinc-800',
-                ]"
-                @click="toggleSelectionMode"
-              >
-                <CheckSquare v-if="isSelectionMode" class="w-3.5 h-3.5" />
-                <Square v-else class="w-3.5 h-3.5" />
-                <span>{{ isSelectionMode ? t('notes.cancelBatch') : t('notes.batchManage') }}</span>
-              </button>
-            </div>
+            <!-- Search & Filters moved to top level inline with Tabs -->
 
             <!-- Batch Management Action Bar -->
             <div
@@ -922,7 +860,7 @@ onUnmounted(() => {
               class="flex items-center justify-between p-3 rounded-2xl border border-accent/20 bg-accent/5 backdrop-blur-xs text-xs font-bold mb-3"
             >
               <div class="flex items-center gap-3">
-                <el-checkbox
+                <Checkbox
                   :model-value="
                     notes.length > 0 &&
                     selectedNoteIds.length ===
@@ -935,30 +873,30 @@ onUnmounted(() => {
                   <span class="text-xs font-bold text-[var(--text-primary)]">{{
                     t('notes.selectAll')
                   }}</span>
-                </el-checkbox>
+                </Checkbox>
                 <span class="text-[var(--text-secondary)]">{{
                   t('notes.selectedCount', { n: selectedNoteIds.length })
                 }}</span>
               </div>
               <div class="flex items-center gap-2">
-                <el-button
-                  type="primary"
-                  size="small"
-                  round
+                <Button
+                  variant="primary"
+                  size="sm"
+                  class="font-bold"
                   :disabled="selectedNoteIds.length === 0"
                   @click="handleBatchMove"
                 >
                   {{ t('notes.batchMove') }}
-                </el-button>
-                <el-button
-                  type="danger"
-                  size="small"
-                  round
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  class="font-bold"
                   :disabled="selectedNoteIds.length === 0"
                   @click="handleBatchDelete"
                 >
                   {{ t('notes.batchDelete') }}
-                </el-button>
+                </Button>
               </div>
             </div>
 
@@ -1020,7 +958,11 @@ onUnmounted(() => {
               <!-- CARDS GRID for MY & POPULAR Tabs -->
               <div
                 v-else
-                class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
+                :class="
+                  viewMode === 'list'
+                    ? 'flex flex-col gap-2 sm:gap-3 w-full'
+                    : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6'
+                "
               >
                 <NoteCard
                   v-for="(note, index) in notes"
@@ -1031,6 +973,7 @@ onUnmounted(() => {
                   :is-mobile="isMobile"
                   :is-selection-mode="isSelectionMode && activeTab === 'MY'"
                   :is-selected="selectedNoteIds.includes(note.id)"
+                  :view-mode="viewMode"
                   @click-detail="viewDetail"
                   @dragstart="handleDragStart"
                   @edit="openEditDialog"
@@ -1106,11 +1049,11 @@ onUnmounted(() => {
     />
 
     <!-- Batch Move Dialog -->
-    <el-dialog
-      v-model="isMoveDialogOpen"
+    <Modal
+      :show="isMoveDialogOpen"
       :title="t('notes.batchMoveTitle')"
-      width="min(400px, 95%)"
-      destroy-on-close
+      size="sm"
+      @close="isMoveDialogOpen = false"
     >
       <div class="py-2">
         <p class="text-xs text-[var(--text-secondary)] mb-3">
@@ -1119,49 +1062,27 @@ onUnmounted(() => {
         <el-select
           v-model="targetMoveCategory"
           :placeholder="t('notes.selectNotebookPlaceholder')"
-          class="w-full"
+          class="w-full note-filter-select"
         >
           <el-option :label="t('notes.uncategorized')" value="" />
           <el-option v-for="cat in myNotebooksList" :key="cat" :label="cat" :value="cat" />
         </el-select>
       </div>
       <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="isMoveDialogOpen = false">{{ t('common.cancel') }}</el-button>
-          <el-button type="primary" @click="confirmBatchMove">{{ t('common.confirm') }}</el-button>
-        </span>
+        <div class="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" @click="isMoveDialogOpen = false">{{
+            t('common.cancel')
+          }}</Button>
+          <Button variant="primary" size="sm" @click="confirmBatchMove">{{
+            t('common.confirm')
+          }}</Button>
+        </div>
       </template>
-    </el-dialog>
+    </Modal>
   </div>
 </template>
 
 <style scoped>
-:deep(.custom-note-tabs .el-tabs__nav-wrap::after) {
-  display: none;
-}
-:deep(.custom-note-tabs .el-tabs__header) {
-  margin: 0 !important;
-}
-:deep(.custom-note-tabs .el-tabs__content) {
-  display: none !important;
-}
-:deep(.custom-note-tabs .el-tabs__item) {
-  font-size: 0.85rem !important;
-  height: 32px !important;
-  line-height: 32px !important;
-  padding: 0 12px !important;
-  color: var(--text-secondary) !important;
-  font-weight: 500 !important;
-  transition: all 0.2s ease !important;
-}
-:deep(.custom-note-tabs .el-tabs__item.is-active) {
-  color: var(--accent) !important;
-  font-weight: 700 !important;
-}
-:deep(.custom-note-tabs .el-tabs__active-bar) {
-  height: 2px !important;
-  background-color: var(--accent) !important;
-}
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }

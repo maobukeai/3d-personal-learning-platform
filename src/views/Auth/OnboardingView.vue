@@ -28,10 +28,14 @@ const handleJoinTeam = () => {
         >
           <Sparkles class="w-5 h-5 sm:w-8 h-8 text-white" />
         </div>
-        <h1 class="text-xl sm:text-3xl md:text-4xl font-black text-slate-800 dark:text-white mb-2 sm:mb-4 tracking-tight px-1">
+        <h1
+          class="text-xl sm:text-3xl md:text-4xl font-black text-slate-800 dark:text-white mb-2 sm:mb-4 tracking-tight px-1"
+        >
           欢迎来到 <span class="text-accent">3D 创意学习中心</span>
         </h1>
-        <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-base md:text-lg max-w-xl mx-auto leading-relaxed px-2">
+        <p
+          class="text-slate-500 dark:text-slate-400 text-xs sm:text-base md:text-lg max-w-xl mx-auto leading-relaxed px-2"
+        >
           你好，<span class="font-bold text-slate-700 dark:text-slate-200">{{
             authStore.user?.name
           }}</span
@@ -58,8 +62,14 @@ const handleJoinTeam = () => {
                 <User class="w-5 h-5 sm:w-7 h-7 text-accent" />
               </div>
 
-              <h3 class="text-xs sm:text-lg md:text-xl font-bold text-slate-800 dark:text-white mb-1.5 sm:mb-3">开启个人空间</h3>
-              <p class="text-[10px] sm:text-sm text-slate-500 dark:text-slate-400 mb-3 sm:mb-6 leading-relaxed line-clamp-2 sm:line-clamp-none">
+              <h3
+                class="text-xs sm:text-lg md:text-xl font-bold text-slate-800 dark:text-white mb-1.5 sm:mb-3"
+              >
+                开启个人空间
+              </h3>
+              <p
+                class="text-[10px] sm:text-sm text-slate-500 dark:text-slate-400 mb-3 sm:mb-6 leading-relaxed line-clamp-2 sm:line-clamp-none"
+              >
                 专属个人私密创作空间，管理个人资产，不受他人打扰。
               </p>
 
@@ -108,10 +118,14 @@ const handleJoinTeam = () => {
                 <Users class="w-5 h-5 sm:w-7 h-7 text-orange-500" />
               </div>
 
-              <h3 class="text-xs sm:text-lg md:text-xl font-bold text-slate-800 dark:text-white mb-1.5 sm:mb-3">
+              <h3
+                class="text-xs sm:text-lg md:text-xl font-bold text-slate-800 dark:text-white mb-1.5 sm:mb-3"
+              >
                 加入学习小组
               </h3>
-              <p class="text-[10px] sm:text-sm text-slate-500 dark:text-slate-400 mb-3 sm:mb-6 leading-relaxed line-clamp-2 sm:line-clamp-none">
+              <p
+                class="text-[10px] sm:text-sm text-slate-500 dark:text-slate-400 mb-3 sm:mb-6 leading-relaxed line-clamp-2 sm:line-clamp-none"
+              >
                 与志同道合的设计师一起进步，共享资源分配任务。
               </p>
 
@@ -150,7 +164,8 @@ const handleJoinTeam = () => {
       >
         <div class="flex items-center gap-4 text-left">
           <div class="flex flex-col">
-            <span class="text-[9px] sm:text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5"
+            <span
+              class="text-[9px] sm:text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5"
               >当前状态</span
             >
             <div class="flex items-center gap-1.5">
@@ -162,7 +177,11 @@ const handleJoinTeam = () => {
           </div>
         </div>
 
-        <button type="button" class="text-[10px] sm:text-sm font-bold text-slate-400 hover:text-accent transition-colors text-right" @click="router.push('/dashboard')">
+        <button
+          type="button"
+          class="text-[10px] sm:text-sm font-bold text-slate-400 hover:text-accent transition-colors text-right"
+          @click="router.push('/dashboard')"
+        >
           稍后设置，直接进入控制台
         </button>
       </div>

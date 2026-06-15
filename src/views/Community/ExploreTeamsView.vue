@@ -21,6 +21,8 @@ import GroupDetailDialog from '@/components/GroupDetailDialog.vue';
 import TeamCard from '@/components/TeamCard.vue';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
+import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
 
 const router = useRouter();
 const workspaceStore = useWorkspaceStore();
@@ -53,16 +55,19 @@ const isLoading = ref(false);
 const publicTeams = ref<ExploreTeam[]>([]);
 const myTeamIds = ref<Set<string>>(new Set());
 const applyingIds = ref<Set<string>>(new Set());
+const activeTeamsCount = ref(0);
 
 const fetchData = async () => {
   isLoading.value = true;
   try {
-    const [publicRes, myRes] = await Promise.all([
+    const [publicRes, myRes, statsRes] = await Promise.all([
       api.get('/api/teams/public', { params: { search: searchQuery.value } }),
       api.get('/api/teams'),
+      api.get('/api/teams/stats'),
     ]);
     publicTeams.value = publicRes.data;
     myTeamIds.value = new Set((myRes.data as ExploreTeam[]).map((t) => t.id));
+    activeTeamsCount.value = statsRes.data.activeTeamsCount || 0;
   } catch (error) {
     console.error('Fetch teams error:', error);
     ElMessage.error(t('teams.fetchFailed'));
@@ -106,7 +111,10 @@ const handleApplyToJoin = async (group: ExploreTeam | null) => {
     );
     applyingIds.value.add(group.id);
     await api.post('/api/teams/apply', { teamId: group.id });
-    ElMessage.success(t('teams.applySuccess', { name: group.name }) || `申请已提交！等待 "${group.name}" 管理员审批`);
+    ElMessage.success(
+      t('teams.applySuccess', { name: group.name }) ||
+        `申请已提交！等待 "${group.name}" 管理员审批`,
+    );
     fetchData();
   } catch (error) {
     if (error !== 'cancel') {
@@ -134,11 +142,13 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="flex-1 flex flex-col h-full overflow-hidden relative"
+    class="flex-1 flex flex-col md:flex-row h-full overflow-hidden relative"
     style="background-color: var(--bg-app)"
   >
     <!-- Animated Background Elements -->
-    <div class="absolute inset-0 overflow-hidden pointer-events-none opacity-50 dark:opacity-20 hidden md:block">
+    <div
+      class="absolute inset-0 overflow-hidden pointer-events-none opacity-50 dark:opacity-20 hidden md:block"
+    >
       <div
         class="absolute -left-[5%] top-[5%] w-[40%] h-[40%] bg-accent/10 rounded-full glass-glow-xl animate-pulse"
       ></div>
@@ -147,162 +157,204 @@ onUnmounted(() => {
         style="animation-delay: 2s"
       ></div>
     </div>
-    <!-- Consolidated Hero Section -->
-    <div class="relative px-4 sm:px-6 lg:px-8 pt-3 lg:pt-4 pb-2 lg:pb-3 overflow-hidden shrink-0">
-      <div class="w-full relative z-10">
+
+    <!-- Left Sidebar Panel: Info, Benefits, and Create Team -->
+    <aside
+      class="w-full md:w-80 lg:w-[360px] shrink-0 border-b md:border-b-0 md:border-r border-slate-200/60 dark:border-slate-800/60 bg-white/40 dark:bg-slate-900/20 backdrop-blur-xl p-4 sm:p-6 lg:p-7 flex flex-col justify-between overflow-y-auto custom-scrollbar gap-6 relative z-10"
+    >
+      <div class="flex flex-col gap-6">
         <!-- Back Button -->
-        <button type="button" class="inline-flex items-center gap-1.5 text-slate-400 hover:text-accent transition-all mb-1.5 lg:mb-2 group px-2 py-0.5 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-full border border-white/20 dark:border-slate-700/50 shadow-sm text-[10px] sm:text-xs" @click="router.back()">
-          <ChevronLeft class="w-3 h-3 transition-transform group-hover:-translate-x-1" />
-          <span class="font-black uppercase tracking-[0.2em]">{{ t('teams.back') }}</span>
-        </button>
+        <Button
+          variant="glass"
+          size="sm"
+          :icon="ChevronLeft"
+          class="!rounded-full !py-0.5 !px-3 !h-7 hover:!text-accent transition-all text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] self-start shadow-sm"
+          @click="router.back()"
+        >
+          {{ t('teams.back') }}
+        </Button>
 
-        <div class="flex flex-col lg:flex-row items-center gap-4 lg:gap-8">
-          <!-- Info Content -->
-          <div class="flex-1 animate-in fade-in slide-in-from-left-6 duration-700 w-full">
-            <div
-              class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-accent/10 backdrop-blur-md border border-accent/20 text-accent rounded-full mb-1 lg:mb-2 shadow-sm"
+        <!-- Title & Intro -->
+        <div>
+          <div
+            class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-accent/10 backdrop-blur-md border border-accent/20 text-accent rounded-full mb-3"
+          >
+            <Sparkles class="w-2.5 h-2.5" />
+            <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">{{
+              t('teams.title')
+            }}</span>
+          </div>
+          <h1
+            class="text-xl sm:text-2xl font-black tracking-tight leading-tight"
+            style="color: var(--text-primary)"
+          >
+            {{ t('teams.collaborateTitle') }}
+            <span
+              class="text-transparent bg-clip-text bg-gradient-to-r from-accent via-blue-400 to-indigo-500 block mt-1"
+              >{{ t('teams.collaborateSub') }}</span
             >
-              <Sparkles class="w-2.5 h-2.5" />
-              <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">{{ t('teams.title') }}</span>
+          </h1>
+          <p class="mt-3 text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+            {{ t('teams.welcomeText') }}
+          </p>
+        </div>
+
+        <!-- Vertical Benefit Items -->
+        <div class="flex flex-col gap-2.5">
+          <div
+            class="flex items-center gap-3 px-3 py-2.5 bg-white/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800/40 text-xs font-bold text-slate-600 dark:text-slate-350 shadow-2xs hover:border-accent/20 transition-all duration-300"
+          >
+            <div class="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+              <Layers class="w-4 h-4 text-accent" />
             </div>
-            <h1
-              class="text-lg sm:text-2xl lg:text-3xl font-black tracking-tight leading-tight"
-              style="color: var(--text-primary)"
-            >
-              {{ t('teams.collaborateTitle') }}
-              <span
-                class="text-transparent bg-clip-text bg-gradient-to-r from-accent via-blue-400 to-indigo-500"
-                >{{ t('teams.collaborateSub') }}</span
-              >
-            </h1>
-            <p
-              class="mt-1 lg:mt-2 text-xs lg:text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium max-w-2xl hidden sm:block"
-            >
-              {{ t('teams.welcomeText') }}
-            </p>
-
-            <!-- Small Benefits Tags - Hidden on very small screens to save space -->
-            <div class="hidden sm:flex flex-wrap gap-2.5 mt-3.5">
-              <div
-                class="flex items-center gap-1.5 px-2 py-1 bg-white/40 dark:bg-slate-800/40 rounded-lg border border-white/40 dark:border-slate-700/40 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400"
-              >
-                <Layers class="w-3 h-3 text-accent" /> {{ t('teams.assetLib') }}
+            <div>
+              <div class="font-black" style="color: var(--text-primary)">
+                {{ t('teams.assetLib') }}
               </div>
-              <div
-                class="flex items-center gap-1.5 px-2 py-1 bg-white/40 dark:bg-slate-800/40 rounded-lg border border-white/40 dark:border-slate-700/40 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400"
-              >
-                <Users class="w-3 h-3 text-purple-400" /> {{ t('teams.realtimeCollab') }}
-              </div>
-              <div
-                class="flex items-center gap-1.5 px-2 py-1 bg-white/40 dark:bg-slate-800/40 rounded-lg border border-white/40 dark:border-slate-700/40 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400"
-              >
-                <Trophy class="w-3 h-3 text-amber-400" /> {{ t('teams.tutorSupport') }}
+              <div class="text-[10px] text-slate-400 font-medium mt-0.5">
+                共享模型、资源与学习成果
               </div>
             </div>
           </div>
 
-          <!-- Create Team Card -->
           <div
-            class="w-full lg:w-64 shrink-0 animate-in fade-in slide-in-from-right-6 duration-700"
+            class="flex items-center gap-3 px-3 py-2.5 bg-white/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800/40 text-xs font-bold text-slate-600 dark:text-slate-350 shadow-2xs hover:border-accent/20 transition-all duration-300"
           >
             <div
-              class="group relative bg-white/80 dark:bg-slate-800/80 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 border-white/40 dark:border-slate-700/40 backdrop-blur-2xl hover:shadow-lg hover:border-accent transition-all duration-300 cursor-pointer overflow-hidden"
-              @click="isCreateTeamVisible = true"
+              class="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0"
             >
-              <div
-                class="absolute -right-6 -top-6 w-20 h-20 sm:w-24 sm:h-24 bg-accent/10 rounded-full blur-2xl group-hover:bg-accent/20 transition-colors duration-700"
-              ></div>
-
-              <div class="relative z-10 flex items-center gap-3 lg:gap-4 mb-1.5 lg:mb-2">
-                <div
-                  class="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 bg-gradient-to-br from-accent to-blue-600 rounded-xl flex items-center justify-center shadow-md shadow-accent/40 group-hover:rotate-6 transition-all"
-                >
-                  <Plus class="w-4 h-4 sm:w-4.5 sm:h-4.5 lg:w-5 lg:h-5 text-white" />
-                </div>
-                <div>
-                  <h3 class="text-sm sm:text-base lg:text-lg font-black tracking-tight" style="color: var(--text-primary)">
-                    {{ t('teams.createTitle') }}
-                  </h3>
-                  <div
-                    class="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5"
-                  >
-                    Start Now
-                  </div>
-                </div>
+              <Users class="w-4 h-4 text-purple-400" />
+            </div>
+            <div>
+              <div class="font-black" style="color: var(--text-primary)">
+                {{ t('teams.realtimeCollab') }}
               </div>
+              <div class="text-[10px] text-slate-400 font-medium mt-0.5">
+                多人实时编辑、协作与评论
+              </div>
+            </div>
+          </div>
 
-              <p
-                class="text-xs text-slate-500 dark:text-slate-400 mb-3 lg:mb-4 leading-relaxed font-medium hidden sm:block"
-              >
-                {{ t('teams.createSub') }}
-              </p>
-
-              <div class="flex items-center justify-between">
-                <div
-                  class="inline-flex items-center gap-1.5 px-2 py-1 text-[10px] sm:text-xs bg-accent text-white rounded-lg font-black uppercase tracking-wider shadow-md shadow-accent/20"
-                >
-                  {{ t('teams.startCreate') }} <ArrowRight class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                </div>
-                <div class="text-right hidden sm:block">
-                  <div class="text-base lg:text-lg font-black leading-none" style="color: var(--text-primary)">
-                    100+
-                  </div>
-                  <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                    {{ t('teams.activeTeams') }}
-                  </div>
-                </div>
+          <div
+            class="flex items-center gap-3 px-3 py-2.5 bg-white/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800/40 text-xs font-bold text-slate-600 dark:text-slate-350 shadow-2xs hover:border-accent/20 transition-all duration-300"
+          >
+            <div
+              class="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0"
+            >
+              <Trophy class="w-4 h-4 text-amber-400" />
+            </div>
+            <div>
+              <div class="font-black" style="color: var(--text-primary)">
+                {{ t('teams.tutorSupport') }}
+              </div>
+              <div class="text-[10px] text-slate-400 font-medium mt-0.5">
+                行业大咖、导师在线答疑解惑
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Main Content Section - Fills Width & Height -->
-    <div class="flex-1 flex flex-col min-h-0 px-4 sm:px-6 lg:px-8 pb-3 overflow-hidden">
+      <!-- Create Team Card at bottom -->
       <div
-        class="w-full flex-1 flex flex-col min-h-0 space-y-2 sm:space-y-3 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200"
+        class="group relative bg-white/80 dark:bg-slate-800/80 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 backdrop-blur-2xl hover:shadow-lg hover:border-accent transition-all duration-300 cursor-pointer overflow-hidden mt-6 shadow-2xs"
+        @click="isCreateTeamVisible = true"
+      >
+        <div
+          class="absolute -right-6 -top-6 w-20 h-20 bg-accent/10 rounded-full blur-2xl group-hover:bg-accent/20 transition-colors duration-700"
+        ></div>
+
+        <div class="relative z-10 flex items-center gap-3.5 mb-2">
+          <div
+            class="w-9 h-9 bg-gradient-to-br from-accent to-blue-600 rounded-xl flex items-center justify-center shadow-md shadow-accent/20 group-hover:rotate-6 transition-all"
+          >
+            <Plus class="w-4.5 h-4.5 text-white" />
+          </div>
+          <div>
+            <h3
+              class="text-sm sm:text-base font-black tracking-tight"
+              style="color: var(--text-primary)"
+            >
+              {{ t('teams.createTitle') }}
+            </h3>
+            <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+              Start Now
+            </div>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-3.5 leading-relaxed font-medium">
+          {{ t('teams.createSub') }}
+        </p>
+
+        <div class="flex items-center justify-between">
+          <div
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] sm:text-xs bg-accent text-white rounded-lg font-black uppercase tracking-wider shadow-md shadow-accent/20"
+          >
+            {{ t('teams.startCreate') }} <ArrowRight class="w-3 h-3" />
+          </div>
+          <div class="text-right">
+            <div class="text-base font-black leading-none" style="color: var(--text-primary)">
+              {{ activeTeamsCount }}
+            </div>
+            <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+              {{ t('teams.activeTeams') }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Panel: Discovery List area -->
+    <main class="flex-1 flex flex-col min-w-0 p-3 sm:p-5 lg:p-6 overflow-hidden relative z-10">
+      <div
+        class="w-full flex-1 flex flex-col min-h-0 space-y-3 lg:space-y-4 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200"
       >
         <!-- Exploration Header -->
         <div
-          class="flex flex-row items-center justify-between gap-2 sm:gap-4 pb-1 lg:pb-2 border-b border-slate-200 dark:border-slate-800 shrink-0 w-full"
+          class="grid grid-cols-1 sm:grid-cols-3 items-center gap-3 pb-2 border-b border-slate-200/60 dark:border-slate-800/60 shrink-0 w-full"
         >
+          <!-- Left Section -->
           <h2
-            class="text-sm sm:text-lg lg:text-xl font-black flex items-center gap-2 sm:gap-3"
+            class="text-base sm:text-lg lg:text-xl font-black flex items-center gap-2 sm:gap-3"
             style="color: var(--text-primary)"
           >
             <div
-              class="w-6 h-6 sm:w-7 h-7 bg-accent rounded-lg flex items-center justify-center shadow-md shadow-accent/20"
+              class="w-7 h-7 bg-accent/10 rounded-lg flex items-center justify-center border border-accent/20 shadow-2xs"
             >
-              <Globe class="w-3.5 h-3.5 text-white" />
+              <Globe class="w-3.5 h-3.5 text-accent" />
             </div>
-            {{ t('teams.discoverTeams') }}
+            <span>{{ t('teams.discoverTeams') }}</span>
             <span
-              class="text-[10px] sm:text-xs font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full"
+              class="text-xs font-black text-accent bg-accent/8 dark:bg-accent/15 px-2.5 py-0.5 rounded-full border border-accent/10"
               >{{ publicTeams.length }}</span
             >
           </h2>
 
-          <div class="relative w-48 sm:w-64 md:w-80 group">
-            <Search
-              class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-accent transition-all"
-            />
-            <input
+          <!-- Center Section (Search) -->
+          <div class="flex justify-center w-full">
+            <Input
               v-model="searchQuery"
               type="text"
               :placeholder="t('teams.searchPlaceholder')"
-              class="w-full pl-9 pr-4 py-1.5 sm:py-2 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border-2 rounded-[20px] focus:border-accent outline-none transition-all text-[11px] sm:text-xs font-medium shadow-sm"
-              style="border-color: var(--border-base); color: var(--text-primary)"
+              :icon="Search"
+              class="w-full sm:w-64 md:w-80 animate-in fade-in"
+              input-class="!py-1.5 !rounded-xl !text-xs"
             />
           </div>
+
+          <!-- Right Offset Section for balancing -->
+          <div class="hidden sm:block"></div>
         </div>
 
-        <!-- Content Grid Container - Scrollable & Full Width -->
-        <div class="flex-1 overflow-y-auto pr-1 scrollbar-custom min-h-0">
+        <!-- Content Grid Container - Scrollable -->
+        <div class="flex-1 overflow-y-auto pr-1 custom-scrollbar min-h-0">
           <!-- Loading -->
           <div v-if="isLoading" class="flex flex-col items-center justify-center h-full py-20">
             <Loader2 class="w-10 h-10 text-accent animate-spin" />
-            <p class="mt-5 text-xs font-black text-slate-400 uppercase tracking-widest">
+            <p
+              class="mt-5 text-xs font-black text-slate-400 uppercase tracking-widest animate-pulse"
+            >
               {{ t('teams.loading') }}
             </p>
           </div>
@@ -310,7 +362,7 @@ onUnmounted(() => {
           <!-- Team Grid - Responsive Columns -->
           <div
             v-else-if="publicTeams.length > 0"
-            class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-5 pb-6"
+            class="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5 pb-6"
           >
             <TeamCard
               v-for="(group, index) in publicTeams"
@@ -328,22 +380,26 @@ onUnmounted(() => {
           <!-- Empty State -->
           <div
             v-else
-            class="flex flex-col items-center justify-center h-full rounded-[40px] border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/10"
+            class="flex flex-col items-center justify-center h-full min-h-[300px] rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/10 p-6"
           >
-            <Users class="w-14 h-14 opacity-10 mb-6" style="color: var(--text-muted)" />
-            <h4 class="text-2xl font-black mb-2" style="color: var(--text-primary)">
+            <Users class="w-14 h-14 opacity-10 mb-5" style="color: var(--text-muted)" />
+            <h4 class="text-xl font-black mb-2" style="color: var(--text-primary)">
               {{ t('teams.noMatchingTeams') }}
             </h4>
-            <p class="text-sm font-medium text-slate-400 text-center">
+            <p class="text-xs font-medium text-slate-400 text-center max-w-sm">
               {{ t('teams.noMatchingTeamsSub') }}
             </p>
-            <button type="button" class="mt-10 px-10 py-4 bg-accent text-white rounded-xl font-black text-sm shadow-lg shadow-accent/20 hover:scale-105 transition-all" @click="isCreateTeamVisible = true">
+            <Button
+              variant="primary"
+              class="!mt-8 !px-8 !py-3.5 !rounded-xl font-black text-xs hover:scale-105 transition-all shadow-lg shadow-accent/20"
+              @click="isCreateTeamVisible = true"
+            >
               {{ t('teams.createFirstTeam') }}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
-    </div>
+    </main>
 
     <!-- Create Team Dialog -->
     <CreateTeamDialog v-model:visible="isCreateTeamVisible" @success="handleTeamCreated" />
@@ -358,17 +414,17 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.scrollbar-custom::-webkit-scrollbar {
+.custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
-.scrollbar-custom::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
-.scrollbar-custom::-webkit-scrollbar-thumb {
+.custom-scrollbar::-webkit-scrollbar-thumb {
   background: var(--border-base);
   border-radius: 10px;
 }
-.scrollbar-custom::-webkit-scrollbar-thumb:hover {
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
 
@@ -387,5 +443,10 @@ onUnmounted(() => {
 /* Custom easing for entrance animations */
 .animate-in {
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.group:hover :deep(svg) {
+  transform: translateX(-3px);
+  transition: transform 0.2s ease;
 }
 </style>

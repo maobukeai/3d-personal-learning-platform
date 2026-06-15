@@ -14,7 +14,7 @@ export interface UsePagedListOptions<T, R> {
 export function usePagedList<T = any, R = any>(
   endpoint: string | Ref<string> | (() => string),
   paramsRef?: Ref<Record<string, any>> | (() => Record<string, any>) | Record<string, any>,
-  options: UsePagedListOptions<T, R> = {}
+  options: UsePagedListOptions<T, R> = {},
 ) {
   const {
     initialPageSize = 10,

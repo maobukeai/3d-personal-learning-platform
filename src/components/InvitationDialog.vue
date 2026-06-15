@@ -4,6 +4,7 @@ import { ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Users, Check, Loader2 } from 'lucide-vue-next';
 import api from '@/utils/api';
+import Modal from '@/components/ui/Modal.vue';
 import type { Team } from '@/types';
 
 interface TeamInvitation {
@@ -72,15 +73,27 @@ const handleRespond = async (accept: boolean) => {
 </script>
 
 <template>
-  <el-dialog
-    :model-value="visible"
-    title="团队加入邀请"
-    width="440px"
-    class="custom-rounded-dialog"
-    :show-close="!processing"
-    :close-on-click-modal="!processing"
-    @update:model-value="(val: boolean) => emit('update:visible', val)"
+  <Modal
+    :show="visible"
+    size="sm"
+    :close-on-outside-click="!processing"
+    @close="emit('update:visible', false)"
   >
+    <template #header>
+      <div class="flex items-center gap-3">
+        <div
+          class="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0"
+        >
+          <Users class="w-5 h-5" />
+        </div>
+        <div class="min-w-0">
+          <h3 class="text-sm font-black text-[var(--text-primary)] leading-none">团队加入邀请</h3>
+          <p class="text-[10px] text-[var(--text-muted)] mt-1.5 leading-none">
+            您收到来自以下团队的协作邀请
+          </p>
+        </div>
+      </div>
+    </template>
     <div v-if="loading" class="flex flex-col items-center justify-center py-12">
       <Loader2 class="w-10 h-10 text-accent animate-spin mb-4" />
       <p class="text-sm font-bold text-slate-400">正在加载邀请信息...</p>
@@ -91,7 +104,12 @@ const handleRespond = async (accept: boolean) => {
         <div
           class="w-24 h-24 rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800"
         >
-          <img v-if="invitation.team.avatarUrl" alt="" :src="invitation.team.avatarUrl" class="w-full h-full object-cover" />
+          <img
+            v-if="invitation.team.avatarUrl"
+            alt=""
+            :src="invitation.team.avatarUrl"
+            class="w-full h-full object-cover"
+          />
           <div
             v-else
             class="w-full h-full bg-gradient-to-br from-accent to-accent-subtle flex items-center justify-center text-white text-3xl font-black"
@@ -127,17 +145,27 @@ const handleRespond = async (accept: boolean) => {
       </div>
 
       <div class="flex items-center gap-4 pt-2">
-        <button type="button" :disabled="processing" class="flex-1 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all active:scale-95 disabled:opacity-50" @click="handleRespond(false)">
+        <button
+          type="button"
+          :disabled="processing"
+          class="flex-1 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all active:scale-95 disabled:opacity-50"
+          @click="handleRespond(false)"
+        >
           暂时拒绝
         </button>
-        <button type="button" :disabled="processing" class="flex-1 px-6 py-4 rounded-2xl font-bold text-white bg-accent hover:shadow-xl hover:shadow-accent/20 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2" @click="handleRespond(true)">
+        <button
+          type="button"
+          :disabled="processing"
+          class="flex-1 px-6 py-4 rounded-2xl font-bold text-white bg-accent hover:shadow-xl hover:shadow-accent/20 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+          @click="handleRespond(true)"
+        >
           <Loader2 v-if="processing" class="w-4 h-4 animate-spin" />
           <Check v-else class="w-5 h-5" />
           接受加入
         </button>
       </div>
     </div>
-  </el-dialog>
+  </Modal>
 </template>
 
 <style scoped></style>

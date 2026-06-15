@@ -6,7 +6,12 @@ import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { useI18n } from 'vue-i18n';
 import { useMobile } from '@/composables/useMobile';
+import { useSystemStore } from '@/stores/system';
 import FileDropZone from '@/components/FileDropZone.vue';
+import Modal from '@/components/ui/Modal.vue';
+import Tabs from '@/components/ui/Tabs.vue';
+import Input from '@/components/ui/Input.vue';
+import Checkbox from '@/components/ui/Checkbox.vue';
 
 const { t } = useI18n();
 
@@ -42,6 +47,7 @@ const myApprovedAssets = ref<ApprovedAsset[]>([]);
 const selectedAssetId = ref('');
 const assetCategories = ref<AssetCategory[]>([]);
 const { isMobile } = useMobile();
+const systemStore = useSystemStore();
 
 const activeCategoryLabel = computed(() => {
   switch (publishCategory.value) {
@@ -81,6 +87,13 @@ const publishReadiness = computed(() => {
     percent: Math.round((doneCount / checks.length) * 100),
   };
 });
+
+const categoryTabs = computed(() => [
+  { value: 'model', label: t('publishDialog.tabModel'), icon: Box },
+  { value: 'asset', label: t('publishDialog.tabAsset'), icon: UploadCloud },
+  { value: 'work', label: t('publishDialog.tabWork'), icon: Image },
+  { value: 'plugin', label: '上传插件', icon: Puzzle },
+]);
 
 const publishForm = ref({
   title: '',
@@ -159,7 +172,7 @@ watch(
   async (val) => {
     if (val) {
       publishCategory.value = props.defaultCategory || 'work';
-      await Promise.all([fetchMyApprovedAssets(), fetchCategories()]);
+      await Promise.all([fetchMyApprovedAssets(), fetchCategories(), systemStore.fetchSettings()]);
     }
   },
 );
@@ -359,531 +372,542 @@ onMounted(() => {
     publishCategory.value = props.defaultCategory || 'work';
     fetchMyApprovedAssets();
     fetchCategories();
+    systemStore.fetchSettings();
   }
 });
 </script>
 
 <template>
-  <Transition name="fade">
-    <div v-if="modelValue" class="fixed inset-0 z-[70] flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="closeDialog"></div>
-      <div
-        class="relative w-full max-w-[95vw] md:max-w-[1180px] max-h-[90vh] overflow-y-auto p-4 md:p-5 rounded-xl shadow-2xl scrollbar-hide publish-dialog-shell"
-        style="background-color: var(--bg-card)"
-      >
-        <div class="flex items-start justify-between gap-4 mb-4">
-          <div>
-            <h3 class="text-lg font-black leading-tight" style="color: var(--text-primary)">
-              {{ t('publishDialog.title') }}
-            </h3>
-            <p class="text-xs mt-1" style="color: var(--text-muted)">
-              {{ activeCategoryLabel }} · 完成度 {{ publishReadiness.percent }}%
-            </p>
-          </div>
-          <button type="button" style="color: var(--text-secondary)" @click="closeDialog">
-            <X class="w-5 h-5" />
-          </button>
-        </div>
+  <Modal :show="modelValue" size="xxl" @close="closeDialog">
+    <template #header>
+      <div>
+        <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">
+          {{ t('publishDialog.title') }}
+        </h3>
+        <p class="text-xs text-[var(--text-muted)] mt-1">
+          {{ activeCategoryLabel }} · 完成度 {{ publishReadiness.percent }}%
+        </p>
+      </div>
+    </template>
 
-        <div class="publish-progress-panel">
-          <div class="publish-progress-track">
-            <span :style="{ width: `${publishReadiness.percent}%` }"></span>
-          </div>
-          <div class="publish-checks">
-            <span
-              v-for="check in publishReadiness.checks"
-              :key="check.label"
-              :class="{ done: check.done }"
-            >
-              <Check class="w-3 h-3" />
-              {{ check.label }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Category Tabs -->
-        <div
-          class="flex items-center gap-2 p-1 rounded-lg mb-4 overflow-x-auto whitespace-nowrap scrollbar-hide"
-          style="background-color: var(--bg-app)"
+    <div class="publish-progress-panel">
+      <div class="publish-progress-track">
+        <span :style="{ width: `${publishReadiness.percent}%` }"></span>
+      </div>
+      <div class="publish-checks">
+        <span
+          v-for="check in publishReadiness.checks"
+          :key="check.label"
+          :class="{ done: check.done }"
         >
-          <button
-            type="button"
-            class="flex-none md:flex-1 px-3 py-2 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-            :class="publishCategory === 'model' ? 'bg-indigo-600 text-white shadow-md' : ''"
-            :style="publishCategory !== 'model' ? 'color: var(--text-secondary)' : ''"
-            @click="publishCategory = 'model'"
-          >
-            <Box class="w-3.5 h-3.5" />
-            {{ t('publishDialog.tabModel') }}
-          </button>
-          <button
-            type="button"
-            class="flex-none md:flex-1 px-3 py-2 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-            :class="publishCategory === 'asset' ? 'bg-indigo-600 text-white shadow-md' : ''"
-            :style="publishCategory !== 'asset' ? 'color: var(--text-secondary)' : ''"
-            @click="publishCategory = 'asset'"
-          >
-            <UploadCloud class="w-3.5 h-3.5" />
-            {{ t('publishDialog.tabAsset') }}
-          </button>
-          <button
-            type="button"
-            class="flex-none md:flex-1 px-3 py-2 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-            :class="publishCategory === 'work' ? 'bg-indigo-600 text-white shadow-md' : ''"
-            :style="publishCategory !== 'work' ? 'color: var(--text-secondary)' : ''"
-            @click="publishCategory = 'work'"
-          >
-            <Image class="w-3.5 h-3.5" />
-            {{ t('publishDialog.tabWork') }}
-          </button>
-          <button
-            type="button"
-            class="flex-none md:flex-1 px-3 py-2 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-            :class="publishCategory === 'plugin' ? 'bg-violet-600 text-white shadow-md' : ''"
-            :style="publishCategory !== 'plugin' ? 'color: var(--text-secondary)' : ''"
-            @click="publishCategory = 'plugin'"
-          >
-            <Puzzle class="w-3.5 h-3.5" />
-            上传插件
-          </button>
+          <Check class="w-3 h-3" />
+          {{ check.label }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Category Tabs -->
+    <div class="mb-5 flex justify-center">
+      <Tabs v-model="publishCategory" :options="categoryTabs" size="sm" />
+    </div>
+
+    <!-- Model Category: Select existing approved asset -->
+    <template v-if="publishCategory === 'model'">
+      <div class="space-y-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-5">
+            <div>
+              <label
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+                >{{ t('publishDialog.selectExisting') }}</label
+              >
+              <el-select
+                v-model="selectedAssetId"
+                :placeholder="t('publishDialog.selectExistingPlaceholder')"
+                class="w-full custom-select-v2"
+                @change="onAssetSelected"
+              >
+                <el-option
+                  v-for="asset in myApprovedAssets"
+                  :key="asset.id"
+                  :label="asset.title"
+                  :value="asset.id"
+                />
+              </el-select>
+              <p v-if="myApprovedAssets.length === 0" class="text-[10px] text-slate-400 mt-1 ml-1">
+                {{ t('publishDialog.noApprovedAssetsTip') }}
+              </p>
+            </div>
+
+            <div class="space-y-4">
+              <Input
+                v-model="publishForm.title"
+                type="text"
+                :label="t('publishDialog.showcaseTitleLabel')"
+                :placeholder="t('publishDialog.titlePlaceholder')"
+                required
+              />
+            </div>
+
+            <div class="space-y-4">
+              <Input
+                v-model="publishForm.tags"
+                type="text"
+                :label="t('publishDialog.tagsLabel')"
+                :placeholder="t('publishDialog.tagsPlaceholder')"
+              />
+              <p class="text-[10px] text-slate-400 mt-1 ml-1">
+                {{ t('publishDialog.tagsTip') }}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >{{ t('publishDialog.descriptionLabel') }}</label
+            >
+            <MarkdownEditor
+              v-model="publishForm.description"
+              :placeholder="t('publishDialog.descriptionPlaceholder')"
+              :height="isMobile ? '280px' : '300px'"
+              simple
+            />
+          </div>
         </div>
+      </div>
+    </template>
 
-        <!-- Model Category: Select existing approved asset -->
-        <template v-if="publishCategory === 'model'">
+    <!-- Asset Category: Upload a new 3D model file -->
+    <template v-if="publishCategory === 'asset'">
+      <div class="space-y-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="space-y-5">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div class="space-y-5">
-                <div>
-                  <label
-                    class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                    >{{ t('publishDialog.selectExisting') }}</label
-                  >
-                  <el-select
-                    v-model="selectedAssetId"
-                    :placeholder="t('publishDialog.selectExistingPlaceholder')"
-                    class="w-full custom-select-v2"
-                    @change="onAssetSelected"
-                  >
-                    <el-option
-                      v-for="asset in myApprovedAssets"
-                      :key="asset.id"
-                      :label="asset.title"
-                      :value="asset.id"
-                    />
-                  </el-select>
-                  <p
-                    v-if="myApprovedAssets.length === 0"
-                    class="text-[10px] text-slate-400 mt-1 ml-1"
-                  >
-                    {{ t('publishDialog.noApprovedAssetsTip') }}
-                  </p>
-                </div>
-
-                <div>
-                  <label
-                    class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                    >{{ t('publishDialog.showcaseTitleLabel') }}</label
-                  >
-                  <input
-                    v-model="publishForm.title"
-                    type="text"
-                    class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                    :placeholder="t('publishDialog.titlePlaceholder')"
-                    style="color: var(--text-primary)"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                    >{{ t('publishDialog.tagsLabel') }}</label
-                  >
-                  <input
-                    v-model="publishForm.tags"
-                    type="text"
-                    class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                    :placeholder="t('publishDialog.tagsPlaceholder')"
-                    style="color: var(--text-primary)"
-                  />
-                  <p class="text-[10px] text-slate-400 mt-1 ml-1">
-                    {{ t('publishDialog.tagsTip') }}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >{{ t('publishDialog.descriptionLabel') }}</label
-                >
-                <MarkdownEditor
-                  v-model="publishForm.description"
-                  :placeholder="t('publishDialog.descriptionPlaceholder')"
-                  :height="isMobile ? '280px' : '300px'"
-                  simple
-                />
-              </div>
+            <div>
+              <label
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+                >{{ t('publishDialog.assetFileLabel') }}</label
+              >
+              <FileDropZone
+                v-model="publishForm.assetFile"
+                accept=".glb,.gltf,.fbx,.obj,.stl,.dae,.3ds,.blend,.usdz,.abc,.zip"
+                :label="
+                  publishForm.assetFile
+                    ? publishForm.assetFile.name
+                    : t('publishDialog.dragAssetFile')
+                "
+                :sublabel="t('publishDialog.supportedAssetFiles')"
+                @change="handleAssetFileChange"
+              />
             </div>
-          </div>
-        </template>
 
-        <!-- Asset Category: Upload a new 3D model file -->
-        <template v-if="publishCategory === 'asset'">
-          <div class="space-y-5">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div class="space-y-5">
-                <div>
-                  <label
-                    class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                    >{{ t('publishDialog.assetFileLabel') }}</label
-                  >
-                  <FileDropZone
-                    v-model="publishForm.assetFile"
-                    accept=".glb,.gltf,.fbx,.obj,.stl,.dae,.3ds,.blend,.usdz,.abc,.zip"
-                    :label="publishForm.assetFile ? publishForm.assetFile.name : t('publishDialog.dragAssetFile')"
-                    :sublabel="t('publishDialog.supportedAssetFiles')"
-                    @change="handleAssetFileChange"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                    >{{ t('publishDialog.titleLabel') }}</label
-                  >
-                  <input
-                    v-model="publishForm.title"
-                    type="text"
-                    class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                    :placeholder="t('publishDialog.titlePlaceholder')"
-                    style="color: var(--text-primary)"
-                  />
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label
-                      class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                      >{{ t('publishDialog.categoryLabel') }}</label
-                    >
-                    <el-select
-                      v-model="publishForm.assetCategory"
-                      :placeholder="t('publishDialog.selectCategoryPlaceholder')"
-                      class="w-full custom-select-v2"
-                    >
-                      <el-option
-                        v-for="cat in assetCategories"
-                        :key="cat.id"
-                        :label="cat.name"
-                        :value="cat.id"
-                      />
-                    </el-select>
-                  </div>
-                  <div>
-                    <label
-                      class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                      >{{ t('publishDialog.thumbnailOptionalLabel') }}</label
-                    >
-                    <div class="relative group h-11">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                        @change="handleThumbnailChange"
-                      />
-                      <div
-                        class="w-full h-full border rounded-xl flex items-center justify-center gap-1 transition-all group-hover:border-indigo-500 bg-slate-100 dark:bg-white/5"
-                        style="border-color: var(--border-base)"
-                      >
-                        <p class="text-xs truncate px-2" style="color: var(--text-secondary)">
-                          {{
-                            publishForm.thumbnail
-                              ? publishForm.thumbnail.name
-                              : t('publishDialog.uploadPreview')
-                          }}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                    >{{ t('publishDialog.tagsLabel') }}</label
-                  >
-                  <input
-                    v-model="publishForm.tags"
-                    type="text"
-                    class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                    :placeholder="t('publishDialog.tagsCommaPlaceholder')"
-                    style="color: var(--text-primary)"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >{{ t('publishDialog.descriptionLabel') }}</label
-                >
-                <MarkdownEditor
-                  v-model="publishForm.description"
-                  :placeholder="t('publishDialog.descriptionPlaceholder')"
-                  :height="isMobile ? '280px' : '300px'"
-                  simple
-                />
-              </div>
+            <div>
+              <Input
+                v-model="publishForm.title"
+                type="text"
+                :label="t('publishDialog.titleLabel')"
+                :placeholder="t('publishDialog.titlePlaceholder')"
+                required
+              />
             </div>
-          </div>
-        </template>
 
-        <!-- Work Category: Create a work showcase (two-column layout) -->
-        <template v-if="publishCategory === 'work'">
-          <div class="flex flex-col md:flex-row gap-6">
-            <!-- Left side: Form fields -->
-            <div class="w-full md:w-[40%] space-y-5 shrink-0">
+            <div class="grid grid-cols-2 gap-4">
               <div>
                 <label
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >{{ t('publishDialog.workTypeLabel') }}</label
+                  >{{ t('publishDialog.categoryLabel') }}</label
                 >
-                <div
-                  class="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide p-1"
+                <el-select
+                  v-model="publishForm.assetCategory"
+                  :placeholder="t('publishDialog.selectCategoryPlaceholder')"
+                  class="w-full custom-select-v2"
                 >
-                  <button
-                    v-for="workType in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']"
-                    :key="workType"
-                    type="button"
-                    class="flex-none md:flex-1 px-4 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1"
-                    :class="
-                      publishForm.type === workType ? 'bg-indigo-600 text-white shadow-md' : ''
-                    "
-                    :style="
-                      publishForm.type !== workType
-                        ? 'color: var(--text-secondary); background-color: var(--bg-app)'
-                        : ''
-                    "
-                    @click="publishForm.type = workType"
-                  >
-                    <component :is="getTypeIcon(workType)" class="w-3 h-3" />
-                    {{ getTypeLabel(workType) }}
-                  </button>
-                </div>
+                  <el-option
+                    v-for="cat in assetCategories"
+                    :key="cat.id"
+                    :label="cat.name"
+                    :value="cat.id"
+                  />
+                </el-select>
               </div>
-
               <div>
-                <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >{{ t('publishDialog.titleLabel') }}</label
-                >
-                <input
-                  v-model="publishForm.title"
-                  type="text"
-                  class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                  :placeholder="t('publishDialog.titlePlaceholder')"
-                  style="color: var(--text-primary)"
-                />
-              </div>
-
-              <div v-if="publishForm.type !== 'TEXT'">
-                <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >{{ t('publishDialog.thumbnailRequiredLabel') }}</label
-                >
-                <FileDropZone
-                  v-model="publishForm.thumbnail"
-                  accept="image/*"
-                  :label="publishForm.thumbnail ? publishForm.thumbnail.name : t('publishDialog.clickUploadThumbnail')"
-                  @change="handleThumbnailChange"
-                />
-              </div>
-
-              <div v-else>
                 <label
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
                   >{{ t('publishDialog.thumbnailOptionalLabel') }}</label
                 >
-                <FileDropZone
-                  v-model="publishForm.thumbnail"
-                  accept="image/*"
-                  height-class="h-24"
-                  :label="publishForm.thumbnail ? publishForm.thumbnail.name : t('publishDialog.clickUploadThumbnailOptional')"
-                  @change="handleThumbnailChange"
-                />
-              </div>
-
-              <div v-if="publishForm.type !== 'TEXT'">
-                <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >{{ t('publishDialog.moreImagesLabel') }}</label
-                >
-                <FileDropZone
-                  v-model="publishForm.images"
-                  accept="image/*"
-                  multiple
-                  height-class="h-20"
-                  :label="publishForm.images.length > 0 ? t('publishDialog.selectedImagesCount', { n: publishForm.images.length }) : t('publishDialog.clickUploadMoreImages')"
-                  @change="handleImagesChange"
-                />
-              </div>
-
-              <div
-                v-if="publishForm.type === 'VIDEO' || publishForm.isVideo"
-                class="flex items-center gap-3 py-2"
-              >
-                <el-switch v-model="publishForm.isVideo" active-color="var(--accent)" />
-                <span class="text-xs font-bold" style="color: var(--text-secondary)">{{
-                  t('publishDialog.isVideoWorkLabel')
-                }}</span>
-              </div>
-
-              <div v-if="publishForm.isVideo">
-                <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >{{ t('publishDialog.videoUrlLabel') }}</label
-                >
-                <input
-                  v-model="publishForm.videoUrl"
-                  type="text"
-                  class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                  :placeholder="t('publishDialog.videoUrlPlaceholder')"
-                  style="color: var(--text-primary)"
-                />
-              </div>
-
-              <div>
-                <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >{{ t('publishDialog.tagsLabel') }}</label
-                >
-                <input
-                  v-model="publishForm.tags"
-                  type="text"
-                  class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                  :placeholder="t('publishDialog.tagsPlaceholder')"
-                  style="color: var(--text-primary)"
-                />
-                <p class="text-[10px] text-slate-400 mt-1 ml-1">{{ t('publishDialog.tagsTip') }}</p>
+                <div class="relative group h-11">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    @change="handleThumbnailChange"
+                  />
+                  <div
+                    class="w-full h-full border rounded-xl flex items-center justify-center gap-1 transition-all group-hover:border-indigo-500 bg-slate-100 dark:bg-white/5"
+                    style="border-color: var(--border-base)"
+                  >
+                    <p class="text-xs truncate px-2" style="color: var(--text-secondary)">
+                      {{
+                        publishForm.thumbnail
+                          ? publishForm.thumbnail.name
+                          : t('publishDialog.uploadPreview')
+                      }}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <!-- Right side: Markdown editor -->
-            <div class="w-full md:w-[60%] min-w-0">
-              <label
-                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                >{{ t('publishDialog.descriptionLabel') }}</label
-              >
-              <MarkdownEditor
-                v-model="publishForm.description"
-                :placeholder="t('publishDialog.descriptionPlaceholder')"
-                :height="isMobile ? '320px' : '360px'"
-                simple
+            <div>
+              <Input
+                v-model="publishForm.tags"
+                type="text"
+                :label="t('publishDialog.tagsLabel')"
+                :placeholder="t('publishDialog.tagsCommaPlaceholder')"
               />
             </div>
           </div>
-        </template>
 
-        <!-- Plugin Category: Upload plugin file -->
-        <template v-if="publishCategory === 'plugin'">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="space-y-4">
-              <!-- Plugin file upload -->
-              <div>
-                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">插件文件 *</label>
-                <FileDropZone
-                  v-model="publishForm.pluginFile"
-                  accept=".zip,.rar,.7z,.blend,.js,.ts,.py,.lua,.mjs"
-                  height-class="h-28"
-                  hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
-                  icon-type="puzzle"
-                  :label="publishForm.pluginFile ? publishForm.pluginFile.name : '点击上传插件文件'"
-                  sublabel=".zip .blend .js .ts .py 等格式"
-                  @change="handlePluginFileChange"
-                />
-              </div>
+          <div>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >{{ t('publishDialog.descriptionLabel') }}</label
+            >
+            <MarkdownEditor
+              v-model="publishForm.description"
+              :placeholder="t('publishDialog.descriptionPlaceholder')"
+              :height="isMobile ? '280px' : '300px'"
+              simple
+            />
+          </div>
+        </div>
+      </div>
+    </template>
 
-              <!-- Plugin name -->
-              <div>
-                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">插件名称 *</label>
-                <input v-model="publishForm.title" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all" placeholder="如：材质批量导出工具" style="color: var(--text-primary)" />
-              </div>
-
-              <!-- Category & Version -->
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">插件分类</label>
-                  <select v-model="publishForm.pluginCategory" class="w-full px-3 py-2.5 bg-slate-100 dark:bg-white/5 border border-transparent rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20" style="color: var(--text-primary); background-color: var(--bg-app); border-color: var(--border-base)">
-                    <option value="Blender 插件">Blender 插件</option>
-                    <option value="Three.js 插件">Three.js 插件</option>
-                    <option value="Substance 工具">Substance 工具</option>
-                    <option value="游戏引擎插件">游戏引擎插件</option>
-                    <option value="Photoshop 脚本">Photoshop 脚本</option>
-                    <option value="其他工具">其他工具</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">版本号</label>
-                  <input v-model="publishForm.pluginVersion" type="text" class="w-full px-3 py-2.5 bg-slate-100 dark:bg-white/5 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20" placeholder="1.0.0" style="color: var(--text-primary); background-color: var(--bg-app)" />
-                </div>
-              </div>
-
-              <!-- Compatibility -->
-              <div>
-                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">兼容性</label>
-                <input v-model="publishForm.pluginCompatibility" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all" placeholder="如 Blender 3.x / 4.x" style="color: var(--text-primary)" />
-              </div>
-
-              <!-- Preview image -->
-              <div>
-                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">封面图（可选）</label>
-                <FileDropZone
-                  v-model="publishForm.pluginPreview"
-                  accept="image/*"
-                  height-class="h-20"
-                  hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
-                  :label="publishForm.pluginPreview ? publishForm.pluginPreview.name : '点击上传封面图'"
-                  @change="handlePluginPreviewChange"
-                />
-              </div>
-
-              <!-- Tags -->
-              <div>
-                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">标签</label>
-                <input v-model="publishForm.tags" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all" placeholder="用逗号分隔，如：Blender, 材质, 批量" style="color: var(--text-primary)" />
-              </div>
-            </div>
-
-            <!-- Right: description + install guide -->
-            <div class="space-y-4">
-              <div>
-                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">插件简介</label>
-                <MarkdownEditor v-model="publishForm.description" placeholder="简单描述插件的功能和用途" :height="isMobile ? '180px' : '210px'" simple />
-              </div>
-              <div>
-                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">安装说明（Markdown）</label>
-                <MarkdownEditor v-model="publishForm.pluginInstallGuide" placeholder="步骤 1: 解压 zip 文件&#10;步骤 2: 在 Blender 首选项中安装..." :height="isMobile ? '180px' : '210px'" simple />
-              </div>
+    <!-- Work Category: Create a work showcase (two-column layout) -->
+    <template v-if="publishCategory === 'work'">
+      <div class="flex flex-col md:flex-row gap-6">
+        <!-- Left side: Form fields -->
+        <div class="w-full md:w-[40%] space-y-5 shrink-0">
+          <div>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >{{ t('publishDialog.workTypeLabel') }}</label
+            >
+            <div
+              class="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide p-1"
+            >
+              <button
+                v-for="workType in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']"
+                :key="workType"
+                type="button"
+                class="flex-none md:flex-1 px-4 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1"
+                :class="publishForm.type === workType ? 'bg-indigo-600 text-white shadow-md' : ''"
+                :style="
+                  publishForm.type !== workType
+                    ? 'color: var(--text-secondary); background-color: var(--bg-app)'
+                    : ''
+                "
+                @click="publishForm.type = workType"
+              >
+                <component :is="getTypeIcon(workType)" class="w-3 h-3" />
+                {{ getTypeLabel(workType) }}
+              </button>
             </div>
           </div>
-        </template>
 
-        <!-- Publish Button -->
-        <button
-          type="button"
-          :disabled="isPublishing"
-          class="sticky bottom-0 z-10 w-full py-3 mt-4 bg-indigo-600 text-white rounded-lg font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 publish-submit"
-          @click="handlePublish"
-        >
+          <div>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >{{ t('publishDialog.titleLabel') }}</label
+            >
+            <input
+              v-model="publishForm.title"
+              type="text"
+              class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+              :placeholder="t('publishDialog.titlePlaceholder')"
+              style="color: var(--text-primary)"
+            />
+          </div>
+
+          <div v-if="publishForm.type !== 'TEXT'">
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >{{ t('publishDialog.thumbnailRequiredLabel') }}</label
+            >
+            <FileDropZone
+              v-model="publishForm.thumbnail"
+              accept="image/*"
+              :label="
+                publishForm.thumbnail
+                  ? publishForm.thumbnail.name
+                  : t('publishDialog.clickUploadThumbnail')
+              "
+              @change="handleThumbnailChange"
+            />
+          </div>
+
+          <div v-else>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >{{ t('publishDialog.thumbnailOptionalLabel') }}</label
+            >
+            <FileDropZone
+              v-model="publishForm.thumbnail"
+              accept="image/*"
+              height-class="h-24"
+              :label="
+                publishForm.thumbnail
+                  ? publishForm.thumbnail.name
+                  : t('publishDialog.clickUploadThumbnailOptional')
+              "
+              @change="handleThumbnailChange"
+            />
+          </div>
+
+          <div v-if="publishForm.type !== 'TEXT'">
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >{{ t('publishDialog.moreImagesLabel') }}</label
+            >
+            <FileDropZone
+              v-model="publishForm.images"
+              accept="image/*"
+              multiple
+              height-class="h-20"
+              :label="
+                publishForm.images.length > 0
+                  ? t('publishDialog.selectedImagesCount', { n: publishForm.images.length })
+                  : t('publishDialog.clickUploadMoreImages')
+              "
+              @change="handleImagesChange"
+            />
+          </div>
+
           <div
-            v-if="isPublishing"
-            class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
-          ></div>
-          {{ isPublishing ? t('publishDialog.publishing') : t('publishDialog.publishNow') }}
-        </button>
+            v-if="publishForm.type === 'VIDEO' || publishForm.isVideo"
+            class="flex items-center gap-3 py-2"
+          >
+            <el-switch v-model="publishForm.isVideo" active-color="var(--accent)" />
+            <span class="text-xs font-bold" style="color: var(--text-secondary)">{{
+              t('publishDialog.isVideoWorkLabel')
+            }}</span>
+          </div>
+
+          <div v-if="publishForm.isVideo">
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >{{ t('publishDialog.videoUrlLabel') }}</label
+            >
+            <input
+              v-model="publishForm.videoUrl"
+              type="text"
+              class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+              :placeholder="t('publishDialog.videoUrlPlaceholder')"
+              style="color: var(--text-primary)"
+            />
+          </div>
+
+          <div>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >{{ t('publishDialog.tagsLabel') }}</label
+            >
+            <input
+              v-model="publishForm.tags"
+              type="text"
+              class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+              :placeholder="t('publishDialog.tagsPlaceholder')"
+              style="color: var(--text-primary)"
+            />
+            <p class="text-[10px] text-slate-400 mt-1 ml-1">{{ t('publishDialog.tagsTip') }}</p>
+          </div>
+        </div>
+
+        <!-- Right side: Markdown editor -->
+        <div class="w-full md:w-[60%] min-w-0">
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+            >{{ t('publishDialog.descriptionLabel') }}</label
+          >
+          <MarkdownEditor
+            v-model="publishForm.description"
+            :placeholder="t('publishDialog.descriptionPlaceholder')"
+            :height="isMobile ? '320px' : '360px'"
+            simple
+          />
+        </div>
       </div>
-    </div>
-  </Transition>
+    </template>
+
+    <!-- Plugin Category: Upload plugin file -->
+    <template v-if="publishCategory === 'plugin'">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="space-y-4">
+          <!-- Plugin file upload -->
+          <div>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >插件文件 *</label
+            >
+            <FileDropZone
+              v-model="publishForm.pluginFile"
+              accept=".zip,.rar,.7z,.blend,.js,.ts,.py,.lua,.mjs"
+              height-class="h-28"
+              hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
+              icon-type="puzzle"
+              :label="publishForm.pluginFile ? publishForm.pluginFile.name : '点击上传插件文件'"
+              sublabel=".zip .blend .js .ts .py 等格式"
+              @change="handlePluginFileChange"
+            />
+          </div>
+
+          <!-- Plugin name -->
+          <div>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >插件名称 *</label
+            >
+            <input
+              v-model="publishForm.title"
+              type="text"
+              class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all"
+              placeholder="如：材质批量导出工具"
+              style="color: var(--text-primary)"
+            />
+          </div>
+
+          <!-- Category & Version -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+                >插件分类</label
+              >
+              <select
+                v-model="publishForm.pluginCategory"
+                class="w-full px-3 py-2.5 bg-slate-100 dark:bg-white/5 border border-transparent rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                style="
+                  color: var(--text-primary);
+                  background-color: var(--bg-app);
+                  border-color: var(--border-base);
+                "
+              >
+                <option
+                  v-for="cat in systemStore.settings.PLUGIN_CATEGORIES"
+                  :key="cat"
+                  :value="cat"
+                >
+                  {{ cat }}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+                >版本号</label
+              >
+              <input
+                v-model="publishForm.pluginVersion"
+                type="text"
+                class="w-full px-3 py-2.5 bg-slate-100 dark:bg-white/5 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                placeholder="1.0.0"
+                style="color: var(--text-primary); background-color: var(--bg-app)"
+              />
+            </div>
+          </div>
+
+          <!-- Compatibility -->
+          <div>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >兼容性</label
+            >
+            <input
+              v-model="publishForm.pluginCompatibility"
+              type="text"
+              class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all"
+              placeholder="如 Blender 3.x / 4.x"
+              style="color: var(--text-primary)"
+            />
+          </div>
+
+          <!-- Preview image -->
+          <div>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >封面图（可选）</label
+            >
+            <FileDropZone
+              v-model="publishForm.pluginPreview"
+              accept="image/*"
+              height-class="h-20"
+              hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
+              :label="publishForm.pluginPreview ? publishForm.pluginPreview.name : '点击上传封面图'"
+              @change="handlePluginPreviewChange"
+            />
+          </div>
+
+          <!-- Tags -->
+          <div>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >标签</label
+            >
+            <input
+              v-model="publishForm.tags"
+              type="text"
+              class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all"
+              placeholder="用逗号分隔，如：Blender, 材质, 批量"
+              style="color: var(--text-primary)"
+            />
+          </div>
+        </div>
+
+        <!-- Right: description + install guide -->
+        <div class="space-y-4">
+          <div>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >插件简介</label
+            >
+            <MarkdownEditor
+              v-model="publishForm.description"
+              placeholder="简单描述插件的功能和用途"
+              :height="isMobile ? '180px' : '210px'"
+              simple
+            />
+          </div>
+          <div>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >安装说明（Markdown）</label
+            >
+            <MarkdownEditor
+              v-model="publishForm.pluginInstallGuide"
+              placeholder="步骤 1: 解压 zip 文件&#10;步骤 2: 在 Blender 首选项中安装..."
+              :height="isMobile ? '180px' : '210px'"
+              simple
+            />
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Publish Button -->
+    <button
+      type="button"
+      :disabled="isPublishing"
+      class="sticky bottom-0 z-10 w-full py-3 mt-4 bg-indigo-600 text-white rounded-lg font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 publish-submit"
+      @click="handlePublish"
+    >
+      <div
+        v-if="isPublishing"
+        class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+      ></div>
+      {{ isPublishing ? t('publishDialog.publishing') : t('publishDialog.publishNow') }}
+    </button>
+  </Modal>
 </template>
 
 <style scoped>

@@ -8,9 +8,6 @@ import {
   History,
   ArrowUpRight,
   Download,
-  X,
-  ToggleLeft,
-  ToggleRight,
   FolderOpen,
   Box,
   Shield,
@@ -24,6 +21,10 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import { getApiErrorMessage } from '@/utils/error';
+import Input from '@/components/ui/Input.vue';
+import Switch from '@/components/ui/Switch.vue';
+import Button from '@/components/ui/Button.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -171,48 +172,60 @@ const handleSubscribe = async (plan: BillingPlan) => {
     return;
   }
 
-  ElMessageBox.prompt(`请输入用于激活 ${plan.displayName || plan.name} 的激活码：`, '激活订阅计划', {
-    confirmButtonText: '确认激活',
-    cancelButtonText: '取消',
-    inputPlaceholder: '请输入激活码...',
-    inputPattern: /\S+/,
-    inputErrorMessage: '激活码不能为空',
-  }).then(async ({ value }) => {
-    if (!value || !value.trim()) return;
-    try {
-      const res = await api.post('/api/subscriptions/redeem', { code: value.trim() });
-      ElMessage.success(res.data.message || '激活成功！');
-      fetchBillingData();
-      const authStore = useAuthStore();
-      await authStore.fetchMe();
-    } catch (error: unknown) {
-      ElMessage.error(getApiErrorMessage(error, '激活失败，请检查激活码是否有效'));
-    }
-  }).catch(() => {});
+  ElMessageBox.prompt(
+    `请输入用于激活 ${plan.displayName || plan.name} 的激活码：`,
+    '激活订阅计划',
+    {
+      confirmButtonText: '确认激活',
+      cancelButtonText: '取消',
+      inputPlaceholder: '请输入激活码...',
+      inputPattern: /\S+/,
+      inputErrorMessage: '激活码不能为空',
+    },
+  )
+    .then(async ({ value }) => {
+      if (!value || !value.trim()) return;
+      try {
+        const res = await api.post('/api/subscriptions/redeem', { code: value.trim() });
+        ElMessage.success(res.data.message || '激活成功！');
+        fetchBillingData();
+        const authStore = useAuthStore();
+        await authStore.fetchMe();
+      } catch (error: unknown) {
+        ElMessage.error(getApiErrorMessage(error, '激活失败，请检查激活码是否有效'));
+      }
+    })
+    .catch(() => {});
 };
 
 const handleConfirmUpgrade = async () => {
   if (!upgradePlan.value) return;
   showUpgradeDialog.value = false;
 
-  ElMessageBox.prompt(`请输入用于激活 ${upgradePlan.value.displayName || upgradePlan.value.name} 的激活码：`, '升级/续费订阅', {
-    confirmButtonText: '确认激活',
-    cancelButtonText: '取消',
-    inputPlaceholder: '请输入激活码...',
-    inputPattern: /\S+/,
-    inputErrorMessage: '激活码不能为空',
-  }).then(async ({ value }) => {
-    if (!value || !value.trim()) return;
-    try {
-      const res = await api.post('/api/subscriptions/redeem', { code: value.trim() });
-      ElMessage.success(res.data.message || '激活成功！');
-      fetchBillingData();
-      const authStore = useAuthStore();
-      await authStore.fetchMe();
-    } catch (error: unknown) {
-      ElMessage.error(getApiErrorMessage(error, '激活失败，请检查激活码是否有效'));
-    }
-  }).catch(() => {});
+  ElMessageBox.prompt(
+    `请输入用于激活 ${upgradePlan.value.displayName || upgradePlan.value.name} 的激活码：`,
+    '升级/续费订阅',
+    {
+      confirmButtonText: '确认激活',
+      cancelButtonText: '取消',
+      inputPlaceholder: '请输入激活码...',
+      inputPattern: /\S+/,
+      inputErrorMessage: '激活码不能为空',
+    },
+  )
+    .then(async ({ value }) => {
+      if (!value || !value.trim()) return;
+      try {
+        const res = await api.post('/api/subscriptions/redeem', { code: value.trim() });
+        ElMessage.success(res.data.message || '激活成功！');
+        fetchBillingData();
+        const authStore = useAuthStore();
+        await authStore.fetchMe();
+      } catch (error: unknown) {
+        ElMessage.error(getApiErrorMessage(error, '激活失败，请检查激活码是否有效'));
+      }
+    })
+    .catch(() => {});
 };
 
 const openCancelDialog = async () => {
@@ -398,7 +411,9 @@ onMounted(() => {
             class="p-4 md:p-8 rounded-2xl md:rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm relative overflow-hidden group"
           >
             <div class="relative z-10">
-              <div class="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-8 gap-2 md:gap-4">
+              <div
+                class="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-8 gap-2 md:gap-4"
+              >
                 <div>
                   <h3
                     class="text-[8px] md:text-sm font-bold text-[var(--text-secondary)] uppercase tracking-widest"
@@ -406,9 +421,12 @@ onMounted(() => {
                     当前方案
                   </h3>
                   <div class="flex items-baseline gap-1 mt-1">
-                    <span class="text-sm md:text-4xl font-black text-[var(--text-primary)] truncate max-w-[80px] md:max-w-none">{{
-                      mySubscription?.plan?.displayName || mySubscription?.plan?.name || '免费版'
-                    }}</span>
+                    <span
+                      class="text-sm md:text-4xl font-black text-[var(--text-primary)] truncate max-w-[80px] md:max-w-none"
+                      >{{
+                        mySubscription?.plan?.displayName || mySubscription?.plan?.name || '免费版'
+                      }}</span
+                    >
                     <div class="flex flex-wrap gap-1">
                       <span
                         v-if="isPaidPlan"
@@ -426,7 +444,10 @@ onMounted(() => {
                     color: mySubscription?.plan?.badgeColor || '#3b82f6',
                   }"
                 >
-                  <component :is="getPlanIcon(mySubscription?.plan?.name)" class="w-4 h-4 md:w-8 md:h-8" />
+                  <component
+                    :is="getPlanIcon(mySubscription?.plan?.name)"
+                    class="w-4 h-4 md:w-8 md:h-8"
+                  />
                 </div>
               </div>
 
@@ -440,19 +461,41 @@ onMounted(() => {
                 >
                   <div
                     class="h-full rounded-full transition-all duration-1000 ease-out"
-                    :class="storageProgress > 90 ? 'bg-rose-500' : storageProgress > 70 ? 'bg-amber-500' : 'bg-accent'"
+                    :class="
+                      storageProgress > 90
+                        ? 'bg-rose-500'
+                        : storageProgress > 70
+                          ? 'bg-amber-500'
+                          : 'bg-accent'
+                    "
                     :style="{ width: `${storageProgress}%` }"
                   ></div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-1 md:gap-4 pt-1">
-                  <div class="flex items-center gap-1 text-[7px] md:text-xs text-[var(--text-secondary)]">
+                  <div
+                    class="flex items-center gap-1 text-[7px] md:text-xs text-[var(--text-secondary)]"
+                  >
                     <FolderOpen class="w-2 h-2 md:w-3.5 md:h-3.5" />
-                    <span>项: {{ subscriptionLimits?.currentProjects || 0 }}/{{ subscriptionLimits?.maxProjects === 9999 ? '∞' : subscriptionLimits?.maxProjects || 5 }}</span>
+                    <span
+                      >项: {{ subscriptionLimits?.currentProjects || 0 }}/{{
+                        subscriptionLimits?.maxProjects === 9999
+                          ? '∞'
+                          : subscriptionLimits?.maxProjects || 5
+                      }}</span
+                    >
                   </div>
-                  <div class="flex items-center gap-1 text-[7px] md:text-xs text-[var(--text-secondary)]">
+                  <div
+                    class="flex items-center gap-1 text-[7px] md:text-xs text-[var(--text-secondary)]"
+                  >
                     <Box class="w-2 h-2 md:w-3.5 md:h-3.5" />
-                    <span>资: {{ subscriptionLimits?.currentAssets || 0 }}/{{ subscriptionLimits?.maxAssets === 9999 ? '∞' : subscriptionLimits?.maxAssets || 50 }}</span>
+                    <span
+                      >资: {{ subscriptionLimits?.currentAssets || 0 }}/{{
+                        subscriptionLimits?.maxAssets === 9999
+                          ? '∞'
+                          : subscriptionLimits?.maxAssets || 50
+                      }}</span
+                    >
                   </div>
                 </div>
               </div>
@@ -470,37 +513,51 @@ onMounted(() => {
               <p class="hidden md:block text-xs text-[var(--text-secondary)] leading-relaxed">
                 输入您的激活码，立即激活或延长您的订阅计划。
               </p>
-              <div class="flex gap-2 mt-2">
-                <input
+              <div class="flex gap-2 mt-2 items-center">
+                <Input
                   v-model="activationCode"
                   type="text"
-                  class="flex-1 px-3 py-2 rounded-xl border text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 bg-[var(--bg-app)] border-[var(--border-base)] text-[var(--text-primary)]"
+                  class="flex-1 shrink-0"
+                  input-class="!py-2 !h-9 text-xs"
                   placeholder="请输入激活码..."
                   @keyup.enter="handleRedeemCode"
                 />
-                <button type="button" :disabled="isRedeeming" class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:scale-105 active:scale-95 disabled:opacity-50 transition-all shadow-lg shadow-accent/20 shrink-0" @click="handleRedeemCode">
-                  <template v-if="isRedeeming">兑换中...</template>
-                  <template v-else>兑换</template>
-                </button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  :disabled="isRedeeming"
+                  :loading="isRedeeming"
+                  class="shrink-0 rounded-xl"
+                  @click="handleRedeemCode"
+                >
+                  兑换
+                </Button>
               </div>
             </div>
 
             <div v-if="isPaidPlan" class="space-y-2 md:space-y-3 mt-4 md:mt-6">
               <div class="flex items-center justify-between">
-                <span class="text-[8px] md:text-xs font-bold text-[var(--text-secondary)]">自动续费</span>
-                <button type="button" class="transition-colors" @click="handleToggleAutoRenew">
-                  <component
-                    :is="mySubscription?.autoRenew ? ToggleRight : ToggleLeft"
-                    class="w-5 h-5 md:w-8 md:h-8"
-                    :class="mySubscription?.autoRenew ? 'text-accent' : 'text-slate-400'"
-                  />
-                </button>
+                <span class="text-[8px] md:text-xs font-bold text-[var(--text-secondary)]"
+                  >自动续费</span
+                >
+                <Switch
+                  :model-value="!!mySubscription?.autoRenew"
+                  @update:model-value="handleToggleAutoRenew"
+                />
               </div>
-              <button type="button" class="w-full py-1.5 md:py-3 border border-dashed border-rose-200 dark:border-rose-900/30 rounded-lg md:rounded-2xl text-[8px] md:text-xs font-bold text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center gap-1" @click="openCancelDialog">
+              <button
+                type="button"
+                class="w-full py-1.5 md:py-3 border border-dashed border-rose-200 dark:border-rose-900/30 rounded-lg md:rounded-2xl text-[8px] md:text-xs font-bold text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center gap-1"
+                @click="openCancelDialog"
+              >
                 取消订阅
               </button>
             </div>
-            <button v-else type="button" class="w-full py-2 md:py-4 mt-4 md:mt-6 border border-dashed border-[var(--border-base)] rounded-lg md:rounded-2xl text-[8px] md:text-xs font-bold text-[var(--text-secondary)] hover:border-accent hover:text-accent transition-all flex items-center justify-center gap-1">
+            <button
+              v-else
+              type="button"
+              class="w-full py-2 md:py-4 mt-4 md:mt-6 border border-dashed border-[var(--border-base)] rounded-lg md:rounded-2xl text-[8px] md:text-xs font-bold text-[var(--text-secondary)] hover:border-accent hover:text-accent transition-all flex items-center justify-center gap-1"
+            >
               <History class="w-3 h-3 md:w-4 md:h-4" /> 账单
             </button>
           </div>
@@ -509,8 +566,12 @@ onMounted(() => {
         <!-- Pricing Plans -->
         <div class="space-y-6">
           <div class="text-center space-y-4 px-4">
-            <h2 class="text-2xl md:text-3xl font-black text-[var(--text-primary)]">选择适合您的方案</h2>
-            <p class="text-sm text-[var(--text-secondary)]">解锁更多 3D 资产、高级材质和无限协作空间</p>
+            <h2 class="text-2xl md:text-3xl font-black text-[var(--text-primary)]">
+              选择适合您的方案
+            </h2>
+            <p class="text-sm text-[var(--text-secondary)]">
+              解锁更多 3D 资产、高级材质和无限协作空间
+            </p>
 
             <div class="flex items-center justify-center gap-3 pt-2">
               <span
@@ -522,15 +583,10 @@ onMounted(() => {
                 "
                 >月付</span
               >
-              <button
-type="button" class="relative w-14 h-7 rounded-full transition-colors duration-300" :class="
-                  billingInterval === 'YEARLY' ? 'bg-accent' : 'bg-slate-200 dark:bg-slate-700'
-                " @click="billingInterval = billingInterval === 'MONTHLY' ? 'YEARLY' : 'MONTHLY'">
-                <div
-                  class="absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300"
-                  :class="billingInterval === 'YEARLY' ? 'translate-x-7' : 'translate-x-0.5'"
-                ></div>
-              </button>
+              <Switch
+                :model-value="billingInterval === 'YEARLY'"
+                @update:model-value="(val) => (billingInterval = val ? 'YEARLY' : 'MONTHLY')"
+              />
               <span
                 class="text-sm font-bold"
                 :class="
@@ -568,7 +624,9 @@ type="button" class="relative w-14 h-7 rounded-full transition-colors duration-3
               </div>
 
               <div class="mb-4 md:mb-8">
-                <div class="p-1.5 md:p-3 bg-[var(--bg-app)] w-fit rounded-lg md:rounded-2xl mb-2 md:mb-4">
+                <div
+                  class="p-1.5 md:p-3 bg-[var(--bg-app)] w-fit rounded-lg md:rounded-2xl mb-2 md:mb-4"
+                >
                   <component
                     :is="getPlanIcon(plan.name)"
                     class="w-4 h-4 md:w-6 md:h-6"
@@ -589,16 +647,26 @@ type="button" class="relative w-14 h-7 rounded-full transition-colors duration-3
               </div>
 
               <ul class="space-y-2 md:space-y-4 mb-4 md:mb-10 flex-1">
-                <li v-for="feature in (plan.features || []).slice(0, 4)" :key="feature" class="flex items-start gap-1 md:gap-3">
-                  <div class="p-0.5 bg-emerald-500/10 rounded-full text-emerald-500 shrink-0 mt-0.5">
+                <li
+                  v-for="feature in (plan.features || []).slice(0, 4)"
+                  :key="feature"
+                  class="flex items-start gap-1 md:gap-3"
+                >
+                  <div
+                    class="p-0.5 bg-emerald-500/10 rounded-full text-emerald-500 shrink-0 mt-0.5"
+                  >
                     <Check class="w-2 h-2 md:w-3 md:h-3" />
                   </div>
-                  <span class="text-[8px] md:text-sm text-[var(--text-secondary)] line-clamp-2">{{ feature }}</span>
+                  <span class="text-[8px] md:text-sm text-[var(--text-secondary)] line-clamp-2">{{
+                    feature
+                  }}</span>
                 </li>
               </ul>
 
               <button
-type="button" class="w-full py-2 md:py-4 rounded-xl md:rounded-2xl font-bold text-[9px] md:text-sm transition-all flex items-center justify-center gap-1 md:gap-2" :class="[
+                type="button"
+                class="w-full py-2 md:py-4 rounded-xl md:rounded-2xl font-bold text-[9px] md:text-sm transition-all flex items-center justify-center gap-1 md:gap-2"
+                :class="[
                   plan.id === mySubscription?.plan?.id && mySubscription?.status === 'ACTIVE'
                     ? isRenewalAvailable(plan)
                       ? 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20'
@@ -606,8 +674,14 @@ type="button" class="w-full py-2 md:py-4 rounded-xl md:rounded-2xl font-bold tex
                     : plan.isPopular
                       ? 'bg-accent text-white shadow-lg shadow-accent/20'
                       : 'bg-[var(--bg-app)] text-[var(--text-primary)] border border-[var(--border-base)] hover:border-accent hover:text-accent',
-                ]" @click="handleSubscribe(plan)">
-                {{ plan.id === mySubscription?.plan?.id && mySubscription?.status === 'ACTIVE' ? '当前' : '升级' }}
+                ]"
+                @click="handleSubscribe(plan)"
+              >
+                {{
+                  plan.id === mySubscription?.plan?.id && mySubscription?.status === 'ACTIVE'
+                    ? '当前'
+                    : '升级'
+                }}
               </button>
             </div>
           </div>
@@ -654,8 +728,9 @@ type="button" class="w-full py-2 md:py-4 rounded-xl md:rounded-2xl font-bold tex
                     },
                     {
                       label: '项目/资产',
-                      values: plans.map((p: BillingPlan) =>
-                        `${p.maxProjects >= 9999 ? '∞' : p.maxProjects}/${p.maxAssets >= 9999 ? '∞' : p.maxAssets}`,
+                      values: plans.map(
+                        (p: BillingPlan) =>
+                          `${p.maxProjects >= 9999 ? '∞' : p.maxProjects}/${p.maxAssets >= 9999 ? '∞' : p.maxAssets}`,
                       ),
                     },
                     { label: '支持/渲染', values: ['社区/标', '1对1/优', '专属/独'] },
@@ -663,7 +738,9 @@ type="button" class="w-full py-2 md:py-4 rounded-xl md:rounded-2xl font-bold tex
                   :key="row.label"
                   class="hover:bg-[var(--bg-app)]/30 transition-colors"
                 >
-                  <td class="px-2 md:px-8 py-3 md:py-4 text-[10px] md:text-sm font-bold text-[var(--text-primary)] truncate">
+                  <td
+                    class="px-2 md:px-8 py-3 md:py-4 text-[10px] md:text-sm font-bold text-[var(--text-primary)] truncate"
+                  >
                     {{ row.label }}
                   </td>
                   <td
@@ -683,7 +760,11 @@ type="button" class="w-full py-2 md:py-4 rounded-xl md:rounded-2xl font-bold tex
         <div class="space-y-4 overflow-hidden">
           <div class="flex items-center justify-between">
             <h2 class="text-lg md:text-xl font-bold text-[var(--text-primary)]">账单历史</h2>
-            <button type="button" class="text-[10px] md:text-xs font-bold text-accent hover:underline flex items-center gap-1" @click="handleExportBilling">
+            <button
+              type="button"
+              class="text-[10px] md:text-xs font-bold text-accent hover:underline flex items-center gap-1"
+              @click="handleExportBilling"
+            >
               <Download class="w-3 h-3 md:w-3.5 md:h-3.5" /> 导出
             </button>
           </div>
@@ -695,46 +776,110 @@ type="button" class="w-full py-2 md:py-4 rounded-xl md:rounded-2xl font-bold tex
             <table class="hidden md:table w-full text-left border-collapse">
               <thead>
                 <tr class="bg-[var(--bg-app)]/50 border-b border-[var(--border-base)]">
-                  <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">日期</th>
-                  <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">项目描述</th>
-                  <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">金额</th>
-                  <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">状态</th>
-                  <th class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">发票号</th>
+                  <th
+                    class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+                  >
+                    日期
+                  </th>
+                  <th
+                    class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+                  >
+                    项目描述
+                  </th>
+                  <th
+                    class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+                  >
+                    金额
+                  </th>
+                  <th
+                    class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+                  >
+                    状态
+                  </th>
+                  <th
+                    class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+                  >
+                    发票号
+                  </th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-[var(--border-base)]">
-                <tr v-for="tx in transactions" :key="tx.id" class="hover:bg-[var(--bg-app)]/30 transition-colors">
-                  <td class="px-8 py-5 text-sm font-medium text-[var(--text-primary)]">{{ new Date(tx.createdAt).toLocaleDateString() }}</td>
+                <tr
+                  v-for="tx in transactions"
+                  :key="tx.id"
+                  class="hover:bg-[var(--bg-app)]/30 transition-colors"
+                >
+                  <td class="px-8 py-5 text-sm font-medium text-[var(--text-primary)]">
+                    {{ new Date(tx.createdAt).toLocaleDateString() }}
+                  </td>
                   <td class="px-8 py-5">
                     <p class="text-sm font-bold text-[var(--text-primary)]">{{ tx.description }}</p>
-                    <p class="text-[10px] text-[var(--text-muted)] mt-0.5">{{ tx.paymentMethod || '-' }}</p>
+                    <p class="text-[10px] text-[var(--text-muted)] mt-0.5">
+                      {{ tx.paymentMethod || '-' }}
+                    </p>
                   </td>
-                  <td class="px-8 py-5 text-sm font-black text-[var(--text-primary)]">￥{{ tx.amount }}</td>
+                  <td class="px-8 py-5 text-sm font-black text-[var(--text-primary)]">
+                    ￥{{ tx.amount }}
+                  </td>
                   <td class="px-8 py-5">
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold" :class="tx.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-500' : tx.status === 'PENDING' ? 'bg-amber-500/10 text-amber-500' : 'bg-rose-500/10 text-rose-500'">
-                      {{ tx.status === 'COMPLETED' ? '已支付' : tx.status === 'PENDING' ? '处理中' : '失败' }}
+                    <span
+                      class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                      :class="
+                        tx.status === 'COMPLETED'
+                          ? 'bg-emerald-500/10 text-emerald-500'
+                          : tx.status === 'PENDING'
+                            ? 'bg-amber-500/10 text-amber-500'
+                            : 'bg-rose-500/10 text-rose-500'
+                      "
+                    >
+                      {{
+                        tx.status === 'COMPLETED'
+                          ? '已支付'
+                          : tx.status === 'PENDING'
+                            ? '处理中'
+                            : '失败'
+                      }}
                     </span>
                   </td>
-                  <td class="px-8 py-5 text-xs text-[var(--text-muted)] font-mono">{{ tx.invoiceNo || '-' }}</td>
+                  <td class="px-8 py-5 text-xs text-[var(--text-muted)] font-mono">
+                    {{ tx.invoiceNo || '-' }}
+                  </td>
                 </tr>
               </tbody>
             </table>
 
             <!-- Mobile List (visible below md) -->
             <div class="md:hidden divide-y divide-[var(--border-base)]">
-              <div v-for="tx in transactions" :key="tx.id" class="p-4 flex items-center justify-between gap-4 bg-[var(--bg-card)]">
+              <div
+                v-for="tx in transactions"
+                :key="tx.id"
+                class="p-4 flex items-center justify-between gap-4 bg-[var(--bg-card)]"
+              >
                 <div class="min-w-0 space-y-1">
                   <div class="flex items-center gap-2">
-                    <p class="text-[10px] font-black text-[var(--text-primary)] truncate">{{ tx.description }}</p>
-                    <span class="px-1.5 py-0.5 rounded-full text-[8px] font-bold shrink-0" :class="tx.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'">
+                    <p class="text-[10px] font-black text-[var(--text-primary)] truncate">
+                      {{ tx.description }}
+                    </p>
+                    <span
+                      class="px-1.5 py-0.5 rounded-full text-[8px] font-bold shrink-0"
+                      :class="
+                        tx.status === 'COMPLETED'
+                          ? 'bg-emerald-500/10 text-emerald-500'
+                          : 'bg-amber-500/10 text-amber-500'
+                      "
+                    >
                       {{ tx.status === 'COMPLETED' ? '已付' : '待付' }}
                     </span>
                   </div>
-                  <p class="text-[8px] text-[var(--text-muted)]">{{ new Date(tx.createdAt).toLocaleDateString() }}</p>
+                  <p class="text-[8px] text-[var(--text-muted)]">
+                    {{ new Date(tx.createdAt).toLocaleDateString() }}
+                  </p>
                 </div>
                 <div class="text-right shrink-0">
                   <p class="text-xs font-black text-[var(--text-primary)]">￥{{ tx.amount }}</p>
-                  <p class="text-[8px] text-[var(--text-muted)] font-mono">{{ tx.invoiceNo?.slice(-6) || '-' }}</p>
+                  <p class="text-[8px] text-[var(--text-muted)] font-mono">
+                    {{ tx.invoiceNo?.slice(-6) || '-' }}
+                  </p>
                 </div>
               </div>
               <div v-if="transactions.length === 0" class="p-10 text-center opacity-20">
@@ -755,7 +900,11 @@ type="button" class="w-full py-2 md:py-4 rounded-xl md:rounded-2xl font-bold tex
               如果您对计划选择或账单有任何疑问，我们的支持团队随时为您提供帮助。
             </p>
           </div>
-          <button type="button" class="w-full md:w-auto px-8 py-4 bg-white text-blue-600 font-bold rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg" @click="$router.push('/report-bug')">
+          <button
+            type="button"
+            class="w-full md:w-auto px-8 py-4 bg-white text-blue-600 font-bold rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg"
+            @click="$router.push('/report-bug')"
+          >
             联系客户支持
           </button>
         </div>
@@ -763,275 +912,224 @@ type="button" class="w-full py-2 md:py-4 rounded-xl md:rounded-2xl font-bold tex
     </div>
 
     <!-- Cancel Subscription Dialog -->
-    <Transition name="fade">
-      <div
-        v-if="showCancelDialog"
-        class="fixed inset-0 z-[100] flex items-center justify-center p-4"
-      >
-        <div
-          class="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          @click="showCancelDialog = false"
-        ></div>
-        <div
-          class="relative w-full max-w-md p-8 rounded-3xl shadow-2xl space-y-6 bg-[var(--bg-card)]"
-        >
-          <!-- Step 1: Confirm cancel type -->
-          <template v-if="cancelStep === 'confirm'">
-            <div class="flex items-center justify-between">
-              <h3 class="text-xl font-bold text-[var(--text-primary)]">取消订阅</h3>
-              <button type="button" class="text-[var(--text-secondary)]" @click="showCancelDialog = false">
-                <X class="w-5 h-5" />
-              </button>
-            </div>
-
-            <div
-              class="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-200 dark:border-amber-900/20"
-            >
-              <div class="flex items-start gap-3">
-                <AlertTriangle class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                <div>
-                  <p class="text-xs font-bold text-amber-800 dark:text-amber-400">
-                    取消后您将失去以下权益
-                  </p>
-                  <ul class="mt-2 space-y-1">
-                    <li
-                      v-for="(feature, idx) in (mySubscription?.plan?.features || []).slice(0, 3)"
-                      :key="idx"
-                      class="text-[10px] text-amber-700 dark:text-amber-500"
-                    >
-                      • {{ feature }}
-                    </li>
-                  </ul>
-                </div>
+    <Modal :show="showCancelDialog" title="取消订阅" @close="showCancelDialog = false">
+      <!-- Step 1: Confirm cancel type -->
+      <template v-if="cancelStep === 'confirm'">
+        <div class="space-y-6">
+          <div
+            class="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-200 dark:border-amber-900/20"
+          >
+            <div class="flex items-start gap-3">
+              <AlertTriangle class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p class="text-xs font-bold text-amber-800 dark:text-amber-400">
+                  取消后您将失去以下权益
+                </p>
+                <ul class="mt-2 space-y-1">
+                  <li
+                    v-for="(feature, idx) in (mySubscription?.plan?.features || []).slice(0, 3)"
+                    :key="idx"
+                    class="text-[10px] text-amber-700 dark:text-amber-500"
+                  >
+                    • {{ feature }}
+                  </li>
+                </ul>
               </div>
             </div>
-
-            <div class="space-y-3">
-              <label
-                class="flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all"
-                :class="
-                  cancelType === 'end_of_period'
-                    ? 'border-accent bg-accent/5'
-                    : 'border-[var(--border-base)] hover:border-accent/50'
-                "
-              >
-                <input
-                  v-model="cancelType"
-                  type="radio"
-                  value="end_of_period"
-                  class="accent-[var(--accent)]"
-                />
-                <div>
-                  <p class="text-sm font-bold text-[var(--text-primary)]">周期结束后取消</p>
-                  <p class="text-[10px] text-[var(--text-secondary)]">
-                    继续享受权益至
-                    {{
-                      mySubscription?.endDate
-                        ? new Date(mySubscription.endDate).toLocaleDateString()
-                        : '当前周期结束'
-                    }}
-                  </p>
-                </div>
-              </label>
-              <label
-                class="flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all"
-                :class="
-                  cancelType === 'immediate'
-                    ? 'border-rose-500 bg-rose-500/5'
-                    : 'border-[var(--border-base)] hover:border-rose-300'
-                "
-              >
-                <input
-                  v-model="cancelType"
-                  type="radio"
-                  value="immediate"
-                  class="accent-rose-500"
-                />
-                <div>
-                  <p class="text-sm font-bold text-[var(--text-primary)]">立即取消</p>
-                  <p class="text-[10px] text-[var(--text-secondary)]">
-                    立即降级为免费版，剩余时间不退款
-                  </p>
-                </div>
-              </label>
-            </div>
-
-            <div
-              v-if="cancelRequires2FA"
-              class="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-200 dark:border-blue-900/20 flex items-center gap-2"
-            >
-              <Shield class="w-4 h-4 text-blue-500 shrink-0" />
-              <p class="text-[10px] text-blue-700 dark:text-blue-400 font-bold">
-                您的账户已启用两步验证，取消订阅时需要验证身份
-              </p>
-            </div>
-
-            <div class="flex gap-3">
-              <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all" @click="showCancelDialog = false">
-                继续使用
-              </button>
-              <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm bg-rose-500 text-white hover:bg-rose-600 transition-all" @click="handleCancelSubscription">
-                {{ cancelRequires2FA ? '下一步' : '确认取消' }}
-              </button>
-            </div>
-          </template>
-
-          <!-- Step 2: 2FA Verification -->
-          <template v-if="cancelStep === '2fa'">
-            <div class="flex items-center justify-between">
-              <h3 class="text-xl font-bold text-[var(--text-primary)]">两步验证</h3>
-              <button type="button" class="text-[var(--text-secondary)]" @click="cancelStep = 'confirm'">
-                <X class="w-5 h-5" />
-              </button>
-            </div>
-
-            <div class="text-center space-y-4 py-4">
-              <div
-                class="w-16 h-16 mx-auto bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center"
-              >
-                <KeyRound class="w-8 h-8 text-blue-500" />
-              </div>
-              <p class="text-sm text-[var(--text-secondary)]">请输入您的两步验证码以确认取消订阅</p>
-              <p class="text-[10px] text-[var(--text-muted)]">
-                打开您的身份验证器应用获取6位验证码
-              </p>
-            </div>
-
-            <div class="space-y-4">
-              <input
-                v-model="twoFactorCode"
-                type="text"
-                maxlength="6"
-                placeholder="输入6位验证码"
-                class="w-full px-6 py-4 text-center text-2xl font-mono font-bold tracking-[0.5em] rounded-2xl border border-[var(--border-base)] bg-[var(--bg-app)] text-[var(--text-primary)] focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
-                @keyup.enter="handleCancelWith2FA"
-              />
-            </div>
-
-            <div class="flex gap-3">
-              <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all" @click="cancelStep = 'confirm'">
-                返回
-              </button>
-              <button type="button" :disabled="isVerifying2FA || twoFactorCode.length < 6" class="flex-1 py-3 rounded-2xl font-bold text-sm bg-rose-500 text-white hover:bg-rose-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" @click="handleCancelWith2FA">
-                <template v-if="isVerifying2FA">
-                  <div
-                    class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
-                  ></div>
-                  验证中...
-                </template>
-                <template v-else> 确认取消 </template>
-              </button>
-            </div>
-          </template>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Upgrade/Renewal Dialog -->
-    <Transition name="fade">
-      <div
-        v-if="showUpgradeDialog"
-        class="fixed inset-0 z-[100] flex items-center justify-center p-4"
-      >
-        <div
-          class="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          @click="showUpgradeDialog = false"
-        ></div>
-        <div
-          class="relative w-full max-w-md p-8 rounded-3xl shadow-2xl space-y-6 bg-[var(--bg-card)]"
-        >
-          <div class="flex items-center justify-between">
-            <h3 class="text-xl font-bold text-[var(--text-primary)]">
-              {{ isUpgradeAvailable(upgradePlan) ? '升级订阅' : '续费订阅' }}
-            </h3>
-            <button type="button" class="text-[var(--text-secondary)]" @click="showUpgradeDialog = false">
-              <X class="w-5 h-5" />
-            </button>
           </div>
 
-          <div v-if="upgradePlan" class="space-y-4">
-            <div class="flex items-center gap-4 p-4 rounded-2xl bg-[var(--bg-app)]">
-              <div class="p-3 rounded-xl" :class="getPlanBgColor(upgradePlan.name)">
-                <component :is="getPlanIcon(upgradePlan.name)" class="w-5 h-5 text-white" />
-              </div>
+          <div class="space-y-3">
+            <label
+              class="flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all"
+              :class="
+                cancelType === 'end_of_period'
+                  ? 'border-accent bg-accent/5'
+                  : 'border-[var(--border-base)] hover:border-accent/50'
+              "
+            >
+              <input
+                v-model="cancelType"
+                type="radio"
+                value="end_of_period"
+                class="accent-[var(--accent)]"
+              />
               <div>
-                <p class="font-bold text-[var(--text-primary)]">
-                  {{ upgradePlan.displayName || upgradePlan.name }}
-                </p>
-                <p class="text-xs text-[var(--text-secondary)]">
-                  ￥{{ getDisplayPrice(upgradePlan) }}/{{
-                    billingInterval === 'YEARLY' ? '年' : '月'
+                <p class="text-sm font-bold text-[var(--text-primary)]">周期结束后取消</p>
+                <p class="text-[10px] text-[var(--text-secondary)]">
+                  继续享受权益至
+                  {{
+                    mySubscription?.endDate
+                      ? new Date(mySubscription.endDate).toLocaleDateString()
+                      : '当前周期结束'
                   }}
                 </p>
               </div>
-            </div>
-
-            <div
-              v-if="isUpgradeAvailable(upgradePlan)"
-              class="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-200 dark:border-emerald-900/20"
+            </label>
+            <label
+              class="flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all"
+              :class="
+                cancelType === 'immediate'
+                  ? 'border-rose-500 bg-rose-500/5'
+                  : 'border-[var(--border-base)] hover:border-rose-300'
+              "
             >
-              <div class="flex items-start gap-3">
-                <TrendingUp class="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-                <div>
-                  <p class="text-xs font-bold text-emerald-800 dark:text-emerald-400">升级优惠</p>
-                  <p class="text-[10px] text-emerald-700 dark:text-emerald-500 mt-1">
-                    从 {{ mySubscription?.plan?.displayName || mySubscription?.plan?.name }} 升级至
-                    {{ upgradePlan.displayName || upgradePlan.name }}
-                  </p>
-                  <p class="text-[10px] text-emerald-700 dark:text-emerald-500">
-                    原计划剩余价值将自动抵扣，仅需支付差价
-                  </p>
-                </div>
+              <input v-model="cancelType" type="radio" value="immediate" class="accent-rose-500" />
+              <div>
+                <p class="text-sm font-bold text-[var(--text-primary)]">立即取消</p>
+                <p class="text-[10px] text-[var(--text-secondary)]">
+                  立即降级为免费版，剩余时间不退款
+                </p>
               </div>
-            </div>
+            </label>
+          </div>
 
-            <div
-              v-else
-              class="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-200 dark:border-blue-900/20"
-            >
-              <div class="flex items-start gap-3">
-                <RefreshCw class="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-                <div>
-                  <p class="text-xs font-bold text-blue-800 dark:text-blue-400">续费说明</p>
-                  <p class="text-[10px] text-blue-700 dark:text-blue-500 mt-1">
-                    续费将从当前日期开始新的订阅周期
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <ul class="space-y-2">
-              <li
-                v-for="feature in (upgradePlan.features || []).slice(0, 4)"
-                :key="feature"
-                class="flex items-start gap-2"
-              >
-                <div class="p-0.5 bg-emerald-500/10 rounded-full text-emerald-500 shrink-0 mt-0.5">
-                  <Check class="w-2.5 h-2.5" />
-                </div>
-                <span class="text-xs text-[var(--text-secondary)]">{{ feature }}</span>
-              </li>
-              <li
-                v-if="(upgradePlan.features || []).length > 4"
-                class="text-[10px] text-[var(--text-muted)] pl-5"
-              >
-                还有 {{ (upgradePlan.features || []).length - 4 }} 项权益...
-              </li>
-            </ul>
+          <div
+            v-if="cancelRequires2FA"
+            class="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-200 dark:border-blue-900/20 flex items-center gap-2"
+          >
+            <Shield class="w-4 h-4 text-blue-500 shrink-0" />
+            <p class="text-[10px] text-blue-700 dark:text-blue-400 font-bold">
+              您的账户已启用两步验证，取消订阅时需要验证身份
+            </p>
           </div>
 
           <div class="flex gap-3">
-            <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all" @click="showUpgradeDialog = false">
-              取消
-            </button>
-            <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm bg-accent text-white hover:bg-accent-hover transition-all flex items-center justify-center gap-2" @click="handleConfirmUpgrade">
-              {{ isUpgradeAvailable(upgradePlan) ? '确认升级' : '确认续费' }}
-              <ArrowUpRight class="w-4 h-4" />
-            </button>
+            <Button variant="secondary" full-width @click="showCancelDialog = false">
+              继续使用
+            </Button>
+            <Button variant="danger" full-width @click="handleCancelSubscription">
+              {{ cancelRequires2FA ? '下一步' : '确认取消' }}
+            </Button>
           </div>
         </div>
+      </template>
+
+      <!-- Step 2: 2FA Verification -->
+      <template v-if="cancelStep === '2fa'">
+        <div class="space-y-6">
+          <div class="text-center space-y-4 py-4">
+            <div
+              class="w-16 h-16 mx-auto bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center"
+            >
+              <KeyRound class="w-8 h-8 text-blue-500" />
+            </div>
+            <p class="text-sm text-[var(--text-secondary)]">请输入您的两步验证码以确认取消订阅</p>
+            <p class="text-[10px] text-[var(--text-muted)]">打开您的身份验证器应用获取6位验证码</p>
+          </div>
+
+          <Input
+            v-model="twoFactorCode"
+            type="text"
+            maxlength="6"
+            placeholder="输入6位验证码"
+            input-class="text-center text-2xl font-mono font-bold tracking-[0.5em]"
+            @keyup.enter="handleCancelWith2FA"
+          />
+
+          <div class="flex gap-3">
+            <Button variant="secondary" full-width @click="cancelStep = 'confirm'"> 返回 </Button>
+            <Button
+              variant="danger"
+              full-width
+              :disabled="isVerifying2FA || twoFactorCode.length < 6"
+              :loading="isVerifying2FA"
+              @click="handleCancelWith2FA"
+            >
+              确认取消
+            </Button>
+          </div>
+        </div>
+      </template>
+    </Modal>
+
+    <!-- Upgrade/Renewal Dialog -->
+    <Modal
+      :show="showUpgradeDialog"
+      :title="isUpgradeAvailable(upgradePlan) ? '升级订阅' : '续费订阅'"
+      @close="showUpgradeDialog = false"
+    >
+      <div v-if="upgradePlan" class="space-y-6">
+        <div class="flex items-center gap-4 p-4 rounded-2xl bg-[var(--bg-app)]">
+          <div class="p-3 rounded-xl" :class="getPlanBgColor(upgradePlan.name)">
+            <component :is="getPlanIcon(upgradePlan.name)" class="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <p class="font-bold text-[var(--text-primary)]">
+              {{ upgradePlan.displayName || upgradePlan.name }}
+            </p>
+            <p class="text-xs text-[var(--text-secondary)]">
+              ￥{{ getDisplayPrice(upgradePlan) }}/{{ billingInterval === 'YEARLY' ? '年' : '月' }}
+            </p>
+          </div>
+        </div>
+
+        <div
+          v-if="isUpgradeAvailable(upgradePlan)"
+          class="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-200 dark:border-emerald-900/20"
+        >
+          <div class="flex items-start gap-3">
+            <TrendingUp class="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+            <div>
+              <p class="text-xs font-bold text-emerald-800 dark:text-emerald-400">升级优惠</p>
+              <p class="text-[10px] text-emerald-700 dark:text-emerald-500 mt-1">
+                从 {{ mySubscription?.plan?.displayName || mySubscription?.plan?.name }} 升级至
+                {{ upgradePlan.displayName || upgradePlan.name }}
+              </p>
+              <p class="text-[10px] text-emerald-700 dark:text-emerald-500">
+                原计划剩余价值将自动抵扣，仅需支付差价
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div
+          v-else
+          class="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-200 dark:border-blue-900/20"
+        >
+          <div class="flex items-start gap-3">
+            <RefreshCw class="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+            <div>
+              <p class="text-xs font-bold text-blue-800 dark:text-blue-400">续费说明</p>
+              <p class="text-[10px] text-blue-700 dark:text-blue-500 mt-1">
+                续费将从当前日期开始新的订阅周期
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <ul class="space-y-2">
+          <li
+            v-for="feature in (upgradePlan.features || []).slice(0, 4)"
+            :key="feature"
+            class="flex items-start gap-2"
+          >
+            <div class="p-0.5 bg-emerald-500/10 rounded-full text-emerald-500 shrink-0 mt-0.5">
+              <Check class="w-2.5 h-2.5" />
+            </div>
+            <span class="text-xs text-[var(--text-secondary)]">{{ feature }}</span>
+          </li>
+          <li
+            v-if="(upgradePlan.features || []).length > 4"
+            class="text-[10px] text-[var(--text-muted)] pl-5"
+          >
+            还有 {{ (upgradePlan.features || []).length - 4 }} 项权益...
+          </li>
+        </ul>
+
+        <div class="flex gap-3">
+          <Button variant="secondary" full-width @click="showUpgradeDialog = false"> 取消 </Button>
+          <Button
+            variant="primary"
+            full-width
+            :icon="ArrowUpRight"
+            icon-position="right"
+            @click="handleConfirmUpgrade"
+          >
+            {{ isUpgradeAvailable(upgradePlan) ? '确认升级' : '确认续费' }}
+          </Button>
+        </div>
       </div>
-    </Transition>
+    </Modal>
   </div>
 </template>
 

@@ -5,11 +5,9 @@ import { upload, validateFileContent } from '../middlewares/upload.middleware';
 
 const router = Router();
 
-// Public routes
-router.get('/', pluginController.listPlugins);
-
 // Authenticated routes
 router.use(authenticate);
+router.get('/', pluginController.listPlugins);
 router.get('/insights', pluginController.getPluginInsights);
 router.get('/favorites', pluginController.getMyFavoritePlugins);
 router.get('/my', pluginController.getMyPlugins);

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
-import { ref, onMounted, watch, computed, type Component } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import {
   Settings,
   Mail,
@@ -9,24 +9,14 @@ import {
   Save,
   RefreshCw,
   Layout,
-  UserPlus,
-  Lock,
   Globe,
   Upload,
   Download,
-  Clock,
-  KeyRound,
   AlertTriangle,
   RotateCcw,
-  MonitorSmartphone,
   Sparkles,
   Palette,
-  Chrome,
-  Github,
-  Trash2,
   Cpu,
-  Plus,
-  Star,
   CheckCircle,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, watch, onBeforeUpdate } from 'vue';
+import { ref, onMounted, watch, onBeforeUpdate } from 'vue';
 
 interface TabOption {
   label?: string;

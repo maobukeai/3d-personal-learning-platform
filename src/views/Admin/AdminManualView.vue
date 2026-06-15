@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
@@ -12,26 +12,14 @@ import {
   Loader2,
   Layers,
   Search,
-  ChevronLeft,
-  ChevronRight,
   FileText,
-  Eye,
-  Calendar,
   Lock,
-  Upload,
-  Settings,
-  Layout,
   Check,
-  ArrowLeft,
   X,
-  PanelRightOpen,
-  PanelRightClose,
-  Keyboard,
   RefreshCw,
 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
-import MarkdownEditor from '@/components/MarkdownEditor.vue';
 import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import { fetchManagementInsights } from './adminManagementInsights';
 import ManualStationDialog from './components/ManualStationDialog.vue';

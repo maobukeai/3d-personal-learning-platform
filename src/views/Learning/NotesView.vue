@@ -10,8 +10,6 @@ import {
   FolderPlus,
   Folder,
   Github,
-  Edit3,
-  Trash2,
   CheckSquare,
   Square,
   Grid3X3,

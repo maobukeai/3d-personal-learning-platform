@@ -1,16 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import {
-  Star,
-  BookOpen,
-  ArrowRight,
-  X,
-  Users,
-  Award,
-  Zap,
-  Compass,
-  ShieldCheck,
-} from 'lucide-vue-next';
+import { Star, ArrowRight, X, Users, Award, Zap, Compass } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import type { TeamMember } from '@/types';
 import Modal from '@/components/ui/Modal.vue';

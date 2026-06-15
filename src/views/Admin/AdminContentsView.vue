@@ -1,18 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   Box,
-  CheckCircle2,
   Edit3,
-  Eye,
   Layers,
   Sparkles,
   Puzzle,
   Search,
   Trash2,
   Plus,
-  ChevronRight,
   ChevronsLeft,
   ChevronLeft,
   ChevronRight as ChevronRightIcon,
@@ -22,7 +19,6 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
-import UserAvatar from '@/components/UserAvatar.vue';
 import { useWorkspaceStore } from '@/stores/workspace';
 import Modal from '@/components/ui/Modal.vue';
 import Tabs from '@/components/ui/Tabs.vue';

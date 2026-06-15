@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import {
-  Activity,
   Ban,
   BarChart3,
   CheckCircle2,
@@ -13,7 +12,6 @@ import {
   Eye,
   Fingerprint,
   KeyRound,
-  Mail,
   MonitorSmartphone,
   MoreHorizontal,
   Plus,

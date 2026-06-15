@@ -12,7 +12,6 @@ import {
   TimerReset,
   Trash2,
   UserCog,
-  X,
 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import type { AdminUser } from '../UsersView.vue';

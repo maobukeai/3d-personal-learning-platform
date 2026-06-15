@@ -15,7 +15,6 @@ import {
   EyeOff,
   FileArchive,
   Grid3X3,
-  Heart,
   Layers,
   LayoutList,
   Loader2,

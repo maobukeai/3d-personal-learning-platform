@@ -10,14 +10,11 @@ import {
   Cloud,
   Settings,
   Plus,
-  Trash2,
   Download,
   Upload,
   Edit3,
   Sliders,
   GripVertical,
-  AlertTriangle,
-  Copy,
   RefreshCw,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';

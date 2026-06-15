@@ -849,6 +849,7 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <!-- eslint-disable vue/no-v-html -->
   <div
     class="two-fa-container min-h-screen p-4 sm:p-6"
     style="background-color: var(--bg-app); color: var(--text-primary)"

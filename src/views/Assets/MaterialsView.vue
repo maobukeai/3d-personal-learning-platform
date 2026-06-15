@@ -3,7 +3,6 @@ import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } fr
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import {
-  ArrowDownToLine,
   CheckCircle2,
   Clock3,
   Download,

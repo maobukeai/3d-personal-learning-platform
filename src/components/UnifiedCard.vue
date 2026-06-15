@@ -11,15 +11,12 @@ import {
   CheckCircle2,
   Clock3,
   XCircle,
-  HardDrive,
   Edit3,
   Download,
   Loader2,
-  Share2,
   Play,
   Image as ImageIcon,
   Sparkles,
-  Type,
 } from 'lucide-vue-next';
 import { getAssetUrl } from '@/utils/api';
 

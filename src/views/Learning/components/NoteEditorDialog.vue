@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, defineAsyncComponent } from 'vue';
 import { ElMessage } from 'element-plus';
-import { Plus, Edit3, Layout, Eye, Settings, Check, BookOpen, X } from 'lucide-vue-next';
+import { Edit3, Layout, Eye, Settings, Check, BookOpen, X } from 'lucide-vue-next';
 import api from '@/utils/api';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';

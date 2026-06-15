@@ -2,10 +2,8 @@
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  ArrowDownToLine,
   Box,
   Clock3,
-  Edit3,
   Eye,
   EyeOff,
   FileImage,
@@ -21,7 +19,6 @@ import {
   SendHorizonal,
   ShieldAlert,
   Sparkles,
-  Trash2,
   X,
   XCircle,
 } from 'lucide-vue-next';
@@ -33,14 +30,11 @@ import Input from '@/components/ui/Input.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import UnifiedCard from '@/components/UnifiedCard.vue';
 import { useSystemStore } from '@/stores/system';
-import { formatCompactNumber, formatDate, formatFileSize } from './resourceUtils';
+import { formatCompactNumber, formatFileSize } from './resourceUtils';
 import {
-  MATERIAL_CATEGORIES,
-  PLUGIN_CATEGORIES,
   calculateWorkStats,
   filterAndSortWorks,
   getReviewCompletion,
-  getWorkStatusLabel as getStatusLabel,
   normalizeWorkbenchWorks,
   type AssetWork,
   type CategoryType,

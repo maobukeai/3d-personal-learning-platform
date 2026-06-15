@@ -11,7 +11,6 @@ import {
   CheckSquare,
   Circle,
   Clock,
-  Flame,
   FolderOpen,
   Gauge,
   Image as ImageIcon,
@@ -22,8 +21,6 @@ import {
   Sparkles,
   Star,
   Upload,
-  Users,
-  Zap,
 } from 'lucide-vue-next';
 import { getAssetUrl } from '@/utils/api';
 import Card from '@/components/ui/Card.vue';

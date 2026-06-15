@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '@/utils/error';
 import { computed, ref, onMounted, watch, defineAsyncComponent } from 'vue';
-import { X, Box, UploadCloud, Image, Film, FileText, File, Puzzle, Check } from 'lucide-vue-next';
+import { Box, UploadCloud, Image, Film, FileText, File, Puzzle, Check } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { useI18n } from 'vue-i18n';
@@ -11,7 +11,6 @@ import FileDropZone from '@/components/FileDropZone.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import Input from '@/components/ui/Input.vue';
-import Checkbox from '@/components/ui/Checkbox.vue';
 
 const { t } = useI18n();
 

@@ -6,6 +6,7 @@ import vueParser from "vue-eslint-parser";
 import prettierConfig from "eslint-config-prettier";
 import prettierPlugin from "eslint-plugin-prettier";
 import globals from "globals";
+import unusedImports from "eslint-plugin-unused-imports";
 
 export default [
   {
@@ -40,6 +41,7 @@ export default [
     plugins: {
       "@typescript-eslint": tsPlugin,
       prettier: prettierPlugin,
+      "unused-imports": unusedImports,
     },
     rules: {
       ...tsPlugin.configs.recommended.rules,
@@ -47,7 +49,18 @@ export default [
       "prettier/prettier": "warn",
       "vue/multi-word-component-names": "off",
       "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_" }],
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "unused-imports/no-unused-imports": "warn",
+      "unused-imports/no-unused-vars": [
+        "warn",
+        {
+          "vars": "all",
+          "varsIgnorePattern": "^_",
+          "args": "after-used",
+          "argsIgnorePattern": "^_",
+        },
+      ],
       "no-console": ["warn", { "allow": ["warn", "error", "debug"] }],
       "no-useless-catch": "off",
       "no-empty": "off",

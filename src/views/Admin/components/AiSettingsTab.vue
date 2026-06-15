@@ -89,7 +89,9 @@ const localPendingModelFamilyIds = ref<string[]>([]);
 watch(
   () => props.settings,
   (val) => {
-    Object.assign(localSettings, val);
+    if (JSON.stringify(localSettings) !== JSON.stringify(val)) {
+      Object.assign(localSettings, val);
+    }
   },
   { deep: true },
 );
@@ -105,7 +107,9 @@ watch(
 watch(
   () => props.aiModelConfigs,
   (val) => {
-    localAiModelConfigs.value = JSON.parse(JSON.stringify(val));
+    if (JSON.stringify(localAiModelConfigs.value) !== JSON.stringify(val)) {
+      localAiModelConfigs.value = JSON.parse(JSON.stringify(val));
+    }
   },
   { deep: true, immediate: true },
 );
@@ -121,7 +125,9 @@ watch(
 watch(
   () => props.pendingModelFamilyIds,
   (val) => {
-    localPendingModelFamilyIds.value = [...val];
+    if (JSON.stringify(localPendingModelFamilyIds.value) !== JSON.stringify(val)) {
+      localPendingModelFamilyIds.value = [...val];
+    }
   },
   { deep: true, immediate: true },
 );

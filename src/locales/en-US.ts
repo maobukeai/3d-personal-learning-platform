@@ -1872,6 +1872,8 @@ export default {
     },
   },
   admin: {
+    system_control_center: 'System Control Center',
+    manage_global_variables_mail: 'Manage global variables, mail system, and system configurations',
     opened: 'Opened',
     update_time_value: 'Update time: {time}',
     plan_subscribers_count: '{count} Subscribers',

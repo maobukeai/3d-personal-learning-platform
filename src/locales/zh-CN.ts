@@ -1825,6 +1825,8 @@ export default {
     },
   },
   admin: {
+    system_control_center: '系统控制中心',
+    manage_global_variables_mail: '管理全局变量、邮件系统及各项系统配置',
     opened: '已开启',
     update_time_value: '更新时间: {time}',
     plan_subscribers_count: '{count} 订阅者',

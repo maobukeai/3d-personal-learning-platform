@@ -419,3 +419,130 @@ export const syncActualSize = async (req: AuthRequest, res: Response, next: Next
     next(error);
   }
 };
+
+export const exportConfigs = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const configs = await prisma.storageConfig.findMany({
+      orderBy: [
+        { priority: 'desc' },
+        { createdAt: 'desc' },
+      ],
+    });
+
+    const exported = configs.map((config) => {
+      return {
+        name: config.name,
+        provider: config.provider,
+        endpoint: config.endpoint,
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: getDecryptedSecret(config.secretAccessKey),
+        bucketName: config.bucketName,
+        publicUrl: config.publicUrl,
+        limitGb: config.limitGb,
+        usedBytes: config.usedBytes,
+        assetType: config.assetType,
+        priority: config.priority,
+        status: config.status,
+      };
+    });
+
+    res.setHeader('Content-Disposition', 'attachment; filename=storage_configs_export.json');
+    res.setHeader('Content-Type', 'application/json');
+    res.json(exported);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const importConfigs = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { configs } = req.body;
+    if (!configs || !Array.isArray(configs)) {
+      return next(new AppError('无效的配置数据格式', 400));
+    }
+
+    let importedCount = 0;
+    let updatedCount = 0;
+
+    for (const raw of configs) {
+      const {
+        name,
+        provider = 'CLOUDFLARE_R2',
+        endpoint,
+        accessKeyId,
+        secretAccessKey,
+        bucketName,
+        publicUrl,
+        limitGb = 9.8,
+        usedBytes = 0,
+        assetType,
+        priority = 0,
+        status = 'ACTIVE',
+      } = raw;
+
+      if (!name || !endpoint || !accessKeyId || !secretAccessKey || !bucketName || !publicUrl || !assetType) {
+        continue;
+      }
+
+      const existing = await prisma.storageConfig.findFirst({
+        where: {
+          OR: [
+            { name },
+            {
+              endpoint,
+              bucketName,
+              assetType,
+            },
+          ],
+        },
+      });
+
+      const encryptedSecret = encrypt(secretAccessKey);
+
+      if (existing) {
+        await prisma.storageConfig.update({
+          where: { id: existing.id },
+          data: {
+            provider,
+            endpoint,
+            accessKeyId,
+            secretAccessKey: encryptedSecret,
+            bucketName,
+            publicUrl,
+            limitGb,
+            usedBytes,
+            assetType,
+            priority,
+            status,
+          },
+        });
+        updatedCount++;
+      } else {
+        await prisma.storageConfig.create({
+          data: {
+            name,
+            provider,
+            endpoint,
+            accessKeyId,
+            secretAccessKey: encryptedSecret,
+            bucketName,
+            publicUrl,
+            limitGb,
+            usedBytes,
+            assetType,
+            priority,
+            status,
+          },
+        });
+        importedCount++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `导入配置完成：新增 ${importedCount} 个，更新 ${updatedCount} 个。`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

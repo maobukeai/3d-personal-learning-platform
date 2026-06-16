@@ -184,6 +184,8 @@ router.post(
 // Storage Config management
 import * as storageController from '../controllers/admin/storage.controller';
 router.get('/storage-configs', storageController.getConfigs);
+router.get('/storage-configs/export', storageController.exportConfigs);
+router.post('/storage-configs/import', storageController.importConfigs);
 router.post('/storage-configs', storageController.createConfig);
 router.put('/storage-configs/:id', storageController.updateConfig);
 router.delete('/storage-configs/:id', storageController.deleteConfig);

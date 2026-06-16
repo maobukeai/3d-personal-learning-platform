@@ -532,6 +532,73 @@ const handleForceR2Change = async (val: string | number | boolean) => {
     loadingForceR2.value = false;
   }
 };
+
+const importFileInput = ref<HTMLInputElement | null>(null);
+
+const triggerImport = () => {
+  importFileInput.value?.click();
+};
+
+const handleExport = async () => {
+  try {
+    const response = await api.get('/api/admin/storage-configs/export', {
+      responseType: 'blob',
+    });
+    
+    const blob = new Blob([response.data], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'storage_configs_export.json');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    
+    ElMessage.success('配置导出成功');
+  } catch (error) {
+    console.error('Failed to export configs:', error);
+    ElMessage.error(getApiErrorMessage(error, '导出配置失败'));
+  }
+};
+
+const handleImportFile = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (!target.files || target.files.length === 0) return;
+  
+  const file = target.files[0]!;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const content = e.target?.result as string;
+      const parsed = JSON.parse(content);
+      
+      if (!Array.isArray(parsed)) {
+        throw new Error('导入的配置文件格式不正确，应为 JSON 数组');
+      }
+      
+      const { data } = await api.post('/api/admin/storage-configs/import', {
+        configs: parsed,
+      });
+      
+      ElMessage.success(data.message || '导入配置成功');
+      fetchConfigs();
+    } catch (err: any) {
+      console.error('Failed to import configs:', err);
+      ElMessage.error(err.message || '导入配置失败，文件格式不合法');
+    } finally {
+      target.value = '';
+    }
+  };
+  
+  reader.onerror = () => {
+    ElMessage.error('读取文件失败');
+    target.value = '';
+  };
+  
+  reader.readAsText(file);
+};
+
 onMounted(() => {
   fetchConfigs();
   fetchForceR2Setting();
@@ -570,12 +637,38 @@ onMounted(() => {
 
           <button
             type="button"
+            class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 rounded-lg font-bold text-[11px] transition-all cursor-pointer"
+            @click="triggerImport"
+          >
+            <UploadIcon class="w-3 h-3" />
+            <span>导入配置</span>
+          </button>
+
+          <button
+            type="button"
+            class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 rounded-lg font-bold text-[11px] transition-all cursor-pointer"
+            @click="handleExport"
+          >
+            <Download class="w-3 h-3" />
+            <span>导出配置</span>
+          </button>
+
+          <button
+            type="button"
             class="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[11px] transition-all shadow-sm shadow-indigo-600/10 cursor-pointer w-fit"
             @click="openAddDialog"
           >
             <Plus class="w-3 h-3" />
             <span>添加 R2 账号</span>
           </button>
+
+          <input
+            ref="importFileInput"
+            type="file"
+            accept=".json"
+            class="hidden"
+            @change="handleImportFile"
+          />
         </div>
       </div>
       <!-- Storage Strategy Control -->

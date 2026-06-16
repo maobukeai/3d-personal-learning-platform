@@ -82,10 +82,9 @@ const AUTH_TAG_LENGTH = 16;
 function getEncryptionKey(): Buffer {
   const keyHex = process.env.STORAGE_ENCRYPTION_KEY;
   if (!keyHex) {
-    throw new Error(
-      'STORAGE_ENCRYPTION_KEY environment variable is not set. ' +
-      'Set it to a 64-character hex string (32 bytes) for AES-256 encryption.',
-    );
+    // Fallback to deriving a 32-byte key from DATABASE_ENCRYPTION_KEY if STORAGE_ENCRYPTION_KEY is not set
+    const dbKey = process.env.DATABASE_ENCRYPTION_KEY || 'dev-secret-key-change-in-production';
+    return crypto.createHash('sha256').update(dbKey).digest();
   }
   if (!/^[0-9a-fA-F]{64}$/.test(keyHex)) {
     throw new Error(

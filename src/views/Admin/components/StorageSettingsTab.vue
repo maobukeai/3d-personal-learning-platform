@@ -19,6 +19,8 @@ import {
   Download,
   Upload as UploadIcon,
   FileText,
+  Eye,
+  EyeOff,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
@@ -42,6 +44,7 @@ interface StorageConfig {
   status: string;
   createdAt: string;
   updatedAt: string;
+  isMasked?: boolean;
 }
 
 const configs = ref<StorageConfig[]>([]);
@@ -96,7 +99,7 @@ const fetchConfigs = async () => {
   loading.value = true;
   try {
     const { data } = await api.get('/api/admin/storage-configs');
-    configs.value = data;
+    configs.value = data.map((item: any) => ({ ...item, isMasked: true }));
   } catch (error) {
     console.error('Failed to fetch storage configs:', error);
     ElMessage.error(getApiErrorMessage(error, '获取云存储配置失败'));
@@ -792,14 +795,28 @@ onMounted(() => {
             </div>
 
             <!-- Endpoint Detail -->
-            <div class="space-y-0.5 text-[9px] mb-1.5 font-mono p-1.5 rounded-md" style="background-color: var(--bg-card); color: var(--text-secondary)">
-              <div class="truncate" :title="config.endpoint">终端: {{ config.endpoint }}</div>
-              <div class="truncate flex items-center gap-1" :title="config.publicUrl">
-                <span>域名: {{ config.publicUrl }}</span>
+            <div class="space-y-0.5 text-[9px] mb-1.5 font-mono p-1.5 rounded-md relative group/endpoint pr-6" style="background-color: var(--bg-card); color: var(--text-secondary)">
+              <div class="truncate">
+                终端: <span :class="{ 'blur-[3.5px] select-none pointer-events-none transition-all duration-300': config.isMasked !== false }">{{ config.endpoint }}</span>
+              </div>
+              <div class="truncate flex items-center gap-1">
+                <span>域名: </span>
+                <span :class="{ 'blur-[3.5px] select-none pointer-events-none transition-all duration-300': config.isMasked !== false }">{{ config.publicUrl }}</span>
                 <a :href="config.publicUrl" target="_blank" class="hover:text-indigo-500 shrink-0">
                   <ExternalLink class="w-2 h-2 inline" />
                 </a>
               </div>
+
+              <!-- Mask Toggle Button -->
+              <button
+                type="button"
+                class="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                :title="config.isMasked !== false ? '显示明文' : '马赛克隐藏'"
+                @click="config.isMasked = !config.isMasked"
+              >
+                <EyeOff v-if="config.isMasked !== false" class="w-3 h-3" />
+                <Eye v-else class="w-3 h-3" />
+              </button>
             </div>
 
             <!-- Capacity Info -->

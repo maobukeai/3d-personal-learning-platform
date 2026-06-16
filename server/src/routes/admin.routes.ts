@@ -181,4 +181,17 @@ router.post(
   bannerController.uploadBannerImage,
 );
 
+// Storage Config management
+import * as storageController from '../controllers/admin/storage.controller';
+router.get('/storage-configs', storageController.getConfigs);
+router.post('/storage-configs', storageController.createConfig);
+router.put('/storage-configs/:id', storageController.updateConfig);
+router.delete('/storage-configs/:id', storageController.deleteConfig);
+router.post('/storage-configs/test', storageController.testConfig);
+router.get('/storage-configs/:id/files', storageController.listBucketFiles);
+router.delete('/storage-configs/:id/files', storageController.deleteBucketFile);
+router.post('/storage-configs/:id/files', upload.single('file'), storageController.uploadDirectFile);
+router.get('/storage-configs/:id/actual-size', storageController.getActualSize);
+router.post('/storage-configs/:id/sync-size', storageController.syncActualSize);
+
 export default router;

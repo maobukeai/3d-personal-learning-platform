@@ -57,13 +57,13 @@ const handleCleanupStorage = async () => {
 
     await ElMessageBox.alert(
       `<div class="space-y-2">
-        <p class="text-sm font-bold text-emerald-600">{{ $t('admin.storage_space_cleared_successfully') }}</p>
+        <p class="text-sm font-bold text-emerald-600">${t('admin.storage_space_cleared_successfully')}</p>
         <div class="text-xs space-y-1 bg-slate-50 dark:bg-white/5 p-3 rounded-lg border border-slate-100 dark:border-white/10 font-mono">
-          <p>{{ $t('admin.number_of_scanned_files') }} <span class="font-bold text-slate-800 dark:text-slate-200">${stats.scanned}</span></p>
-          <p>{{ $t('admin.number_of_files_to') }} <span class="font-bold text-emerald-600">${stats.deleted}</span></p>
-          <p>{{ $t('admin.failed_or_skipped') }} <span class="font-bold text-rose-500">${stats.errors}</span></p>
+          <p>${t('admin.number_of_scanned_files')} <span class="font-bold text-slate-800 dark:text-slate-200">${stats.scanned}</span></p>
+          <p>${t('admin.number_of_files_to')} <span class="font-bold text-emerald-600">${stats.deleted}</span></p>
+          <p>${t('admin.failed_or_skipped')} <span class="font-bold text-rose-500">${stats.errors}</span></p>
         </div>
-        <p class="text-[10px] text-slate-400">{{ $t('admin.local_disk_space_has') }}</p>
+        <p class="text-[10px] text-slate-400">${t('admin.local_disk_space_has')}</p>
       </div>`,
       t('admin.clean_results'),
       {

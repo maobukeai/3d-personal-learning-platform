@@ -1087,7 +1087,7 @@ export const uploadAiChatImage = async (req: AuthRequest, res: Response, next: N
     return next(new AppError('请选择要上传的图片', 400));
   }
   try {
-    const fileUrl = `/uploads/ai/${req.file.filename}`;
+    const fileUrl = (req.file as any).url || `/uploads/ai/${req.file.filename}`;
     res.json({
       success: true,
       url: fileUrl,

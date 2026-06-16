@@ -3,8 +3,9 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../middlewares/error.middleware';
 import prisma from '../services/prisma';
 import { logger } from '../utils/logger';
-import path from 'path';
+
 import fs from 'fs';
+import { deleteCloudOrLocalFileByUrl } from '../utils/file';
 
 const PLUGIN_FAVORITES_SETTING_KEY = 'favorite_plugins';
 
@@ -293,9 +294,9 @@ export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFu
       return next(new AppError('插件名称为必填项', 400));
     }
 
-    const fileUrl = `/uploads/plugins/${pluginFile.filename}`;
+    const fileUrl = (pluginFile as any).url || `/uploads/plugins/${pluginFile.filename}`;
     const fileSizeMb = pluginFile.size / (1024 * 1024);
-    const previewUrl = previewFile ? `/uploads/plugins/${previewFile.filename}` : null;
+    const previewUrl = previewFile ? ((previewFile as any).url || `/uploads/plugins/${previewFile.filename}`) : null;
 
     const plugin = await prisma.plugin.create({
       data: {
@@ -380,16 +381,12 @@ export const deletePlugin = async (req: AuthRequest, res: Response, next: NextFu
     if (!existing) return next(new AppError('插件不存在', 404));
     if (existing.userId !== req.userId) return next(new AppError('无权删除此插件', 403));
 
-    // Remove files
+    // Remove files (run in background)
     for (const urlField of [existing.fileUrl, existing.previewUrl]) {
-      if (!urlField) continue;
-      const filePath = path.join(process.cwd(), urlField.replace(/^\//, ''));
-      if (fs.existsSync(filePath)) {
-        try {
-          fs.unlinkSync(filePath);
-        } catch (error) {
-          logger.warn(`[Plugin] Failed to remove plugin file ${filePath}`, error);
-        }
+      if (urlField) {
+        deleteCloudOrLocalFileByUrl(urlField).catch((err) => {
+          logger.error(`[PluginController] Failed to delete plugin file ${urlField} in background:`, err);
+        });
       }
     }
 

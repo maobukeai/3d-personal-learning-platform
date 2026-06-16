@@ -16,6 +16,9 @@ router.post(
   adminMirrorController.uploadImage,
 );
 
+router.get('/cloud-discover', adminMirrorController.scanCloudSources);
+router.post('/cloud-connect', adminMirrorController.connectCloudSource);
+
 router.get('/sources', adminMirrorController.getAllSources);
 router.get('/sources/:id/export', adminMirrorController.exportSource);
 router.post('/sources/import', upload.single('file'), adminMirrorController.importSource);

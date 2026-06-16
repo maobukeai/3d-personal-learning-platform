@@ -52,10 +52,99 @@ export function deleteFile(filePath: string | null): boolean {
   return false;
 }
 
+import prisma from '../services/prisma';
+import { storageService } from '../services/storage.service';
+
 /**
  * Safely deletes a file from its URL.
+ * @deprecated Use `deleteCloudOrLocalFileByUrl` instead. This function only supports local files.
  */
 export function deleteFileByUrl(url: string | null | undefined): boolean {
   const filePath = urlToPath(url);
   return deleteFile(filePath);
+}
+
+/**
+ * Safely deletes a file from its URL, supporting both local files and R2 cloud files.
+ * If R2 is used, it also retrieves the file metadata to decrement usedBytes atomically.
+ */
+export async function deleteCloudOrLocalFileByUrl(url: string | null | undefined): Promise<boolean> {
+  if (!url) return false;
+
+  try {
+    const urlLower = url.toLowerCase().trim();
+
+    // Check if it is a cloud URL
+    if (urlLower.startsWith('http://') || urlLower.startsWith('https://')) {
+      const parsedUrl = new URL(url);
+      const urlHost = parsedUrl.host.toLowerCase();
+
+      // Query only configs whose publicUrl host matches the URL host, avoiding a full table scan
+      const configs = await prisma.storageConfig.findMany({
+        where: {
+          status: 'ACTIVE',
+          publicUrl: {
+            contains: urlHost,
+          },
+        },
+      });
+
+      for (const config of configs) {
+        let baseUrl = config.publicUrl.endsWith('/')
+          ? config.publicUrl.slice(0, -1)
+          : config.publicUrl;
+        if (!/^https?:\/\//i.test(baseUrl) && !baseUrl.startsWith('/')) {
+          baseUrl = `https://${baseUrl}`;
+        }
+        
+        const baseUrlLower = baseUrl.toLowerCase();
+
+        // If the URL matches this cloud storage public URL prefix
+        if (urlLower.startsWith(baseUrlLower)) {
+          const pathname = parsedUrl.pathname;
+          const key = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+
+          if (key) {
+            try {
+              // 1. Get object metadata to find size
+              let size = 0;
+              try {
+                const meta = await storageService.getObjectMetadata(config, key);
+                size = meta.ContentLength || 0;
+              } catch (metaErr) {
+                logger.warn(`[FileUtil] Failed to fetch object metadata for key ${key} before deletion:`, metaErr);
+              }
+
+              // 2. Delete file from S3 bucket
+              await storageService.deleteFile(config, key);
+              logger.info(`[FileUtil] Deleted file from R2 bucket ${config.bucketName}: key=${key}`);
+
+              // 3. Decrement usedBytes
+              if (size > 0) {
+                await prisma.storageConfig.update({
+                  where: { id: config.id },
+                  data: { usedBytes: { decrement: size } },
+                });
+              }
+              return true;
+            } catch (r2Err) {
+              logger.error(`[FileUtil] Failed to delete file from R2 key=${key}:`, r2Err);
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback: Delete from local disk
+    const filePath = urlToPath(url);
+    if (filePath && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      logger.info(`[FileUtil] Deleted local file: ${filePath}`);
+      return true;
+    }
+  } catch (err) {
+    logger.error(`[FileUtil] Error in deleteCloudOrLocalFileByUrl for url ${url}:`, err);
+  }
+
+  return false;
 }

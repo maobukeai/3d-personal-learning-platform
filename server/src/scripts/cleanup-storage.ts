@@ -3,6 +3,7 @@ import prisma from '../services/prisma';
 import fs from 'fs';
 import path from 'path';
 import { urlToPath } from '../utils/file';
+import { storageService } from '../services/storage.service';
 
 /**
  * Storage Cleanup Engine
@@ -46,7 +47,7 @@ export async function cleanupOrphanedFiles() {
       prisma.manualResource.findMany({ select: { thumbnailUrl: true, contentHtml: true } }),
       prisma.mirrorResource.findMany({ select: { thumbnailUrl: true, contentHtml: true } }),
       prisma.manualStation.findMany({ select: { iconUrl: true } }),
-      prisma.mirrorSource.findMany({ select: { iconUrl: true } }),
+      prisma.mirrorSource.findMany({ select: { id: true, iconUrl: true } }),
       prisma.team.findMany({ select: { avatarUrl: true, coverUrl: true } }),
       prisma.course.findMany({ select: { thumbnail: true } }),
       prisma.lesson.findMany({ select: { videoUrl: true } }),
@@ -62,17 +63,53 @@ export async function cleanupOrphanedFiles() {
     ]);
 
     const validPaths = new Set<string>();
+    const validDbStrings = new Set<string>();
+    const activeMirrorSourceIds = new Set<string>(mirrorSources.map((s) => s.id));
 
     const addPath = (url: string | null | undefined) => {
+      if (!url) return;
+      const urlLower = url.toLowerCase().trim();
+      validDbStrings.add(urlLower);
+
+      // Extract path portion if it contains folder pattern (e.g. assets/xxx)
+      // to match relative paths or key names in R2
+      const parts = urlLower.split('/uploads/');
+      if (parts.length >= 2 && parts[1]) {
+        validDbStrings.add(parts[1]);
+      }
+
+      // Prepend protocol if missing to ensure reliable URL parsing
+      let cleanUrl = urlLower;
+      if (!/^https?:\/\//i.test(cleanUrl) && !cleanUrl.startsWith('/')) {
+        cleanUrl = `https://${cleanUrl}`;
+      }
+
+      try {
+        if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+          const parsedUrl = new URL(cleanUrl);
+          const pathname = parsedUrl.pathname;
+          const cleanKey = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+          if (cleanKey) {
+            validDbStrings.add(cleanKey);
+          }
+          const hostAndPath = parsedUrl.host + parsedUrl.pathname;
+          validDbStrings.add(hostAndPath);
+          validDbStrings.add(`https://${hostAndPath}`);
+          validDbStrings.add(`http://${hostAndPath}`);
+        }
+      } catch (_e) {
+        // ignore invalid URLs
+      }
+
       const p = urlToPath(url);
       if (p) validPaths.add(path.resolve(p).toLowerCase());
     };
 
-    // Helper to extract relative upload URLs from Markdown/HTML text
+    // Helper to extract relative upload URLs from Markdown/HTML text (supporting http absolute URLs as well)
     const extractUploadUrls = (text: string | null | undefined): string[] => {
       if (!text) return [];
       const urls: string[] = [];
-      const regex = /\/uploads\/[^\s)""']+/g;
+      const regex = /(\/uploads\/|https?:\/\/)[^\s)""']+/g;
       let match;
       while ((match = regex.exec(text)) !== null) {
         let url = match[0];
@@ -185,6 +222,86 @@ export async function cleanupOrphanedFiles() {
       addPath(s.value);
     });
 
+    // 1.5. Clean up S3 / Cloudflare R2 Storage Buckets
+    logger.info('[CleanupEngine] Scanning active Cloudflare R2 configurations for cleanup...');
+    const activeConfigs = await prisma.storageConfig.findMany({
+      where: { status: 'ACTIVE' },
+    });
+
+    for (const config of activeConfigs) {
+      try {
+        logger.info(`[CleanupEngine] Scanning R2 bucket: ${config.bucketName} (${config.name})...`);
+        const objects = await storageService.listAllObjects(config);
+        
+        let baseUrl = config.publicUrl.endsWith('/')
+          ? config.publicUrl.slice(0, -1)
+          : config.publicUrl;
+        if (!/^https?:\/\//i.test(baseUrl) && !baseUrl.startsWith('/')) {
+          baseUrl = `https://${baseUrl}`;
+        }
+
+        let bucketDeletedCount = 0;
+        let bucketDeletedBytes = 0;
+        const orphanedKeys: string[] = [];
+
+        for (const obj of objects) {
+          if (!obj.Key) continue;
+          
+          // Protect mirror assets only for sources that currently exist in the database
+          if (obj.Key.startsWith('mirror/')) {
+            const parts = obj.Key.split('/');
+            const sourceId = parts[1];
+            if (sourceId && activeMirrorSourceIds.has(sourceId)) {
+              continue;
+            }
+          }
+
+          const cleanKey = obj.Key.startsWith('/') ? obj.Key.slice(1) : obj.Key;
+          const fileUrl = `${baseUrl}/${cleanKey}`.toLowerCase();
+          const keyLower = obj.Key.toLowerCase();
+
+          // Check if key or URL is referenced in the DB whitelist
+          const isReferenced = validDbStrings.has(fileUrl) || validDbStrings.has(keyLower);
+
+          if (!isReferenced) {
+            orphanedKeys.push(obj.Key);
+            bucketDeletedBytes += obj.Size;
+            logger.info(`[CleanupEngine] Found orphaned R2 object: ${obj.Key} (Size: ${obj.Size})`);
+          }
+        }
+
+        if (orphanedKeys.length > 0) {
+          try {
+            logger.info(`[CleanupEngine] Bulk deleting ${orphanedKeys.length} orphaned objects from bucket ${config.bucketName}...`);
+            await storageService.deleteFilesBulk(config, orphanedKeys);
+            
+            // Decrement the DB configuration usedBytes count in a single update
+            await prisma.storageConfig.update({
+              where: { id: config.id },
+              data: {
+                usedBytes: { decrement: bucketDeletedBytes },
+              },
+            });
+            
+            stats.deleted += orphanedKeys.length;
+            bucketDeletedCount = orphanedKeys.length;
+          } catch (err) {
+            stats.errors += orphanedKeys.length;
+            logger.error(`[CleanupEngine] Error bulk deleting objects from ${config.bucketName}:`, err);
+          }
+        }
+
+        if (bucketDeletedCount > 0) {
+          logger.info(`[CleanupEngine] Cleaned bucket ${config.bucketName}: Deleted ${bucketDeletedCount} files, freed ${bucketDeletedBytes} bytes.`);
+        } else {
+          logger.info(`[CleanupEngine] Bucket ${config.bucketName} is clean. No orphaned files deleted.`);
+        }
+      } catch (bucketErr) {
+        stats.errors++;
+        logger.error(`[CleanupEngine] Failed to run cleanup for bucket ${config.bucketName}:`, bucketErr);
+      }
+    }
+
     // 2. Scan upload directories (now including manual, mirror, branding, discussions, feedback, and messages)
     const uploadDirs = [
       'assets',
@@ -225,6 +342,15 @@ export async function cleanupOrphanedFiles() {
           }
         }
       }
+    }
+
+    // 3. Scan and cleanup mirror temporary & orphaned UUID directories
+    logger.info('[CleanupEngine] Scanning and cleaning mirror directories...');
+    try {
+      const { cleanupMirrorTempDirectories } = await import('../services/cleanup.service');
+      await cleanupMirrorTempDirectories(true);
+    } catch (mirrorCleanupErr) {
+      logger.error('[CleanupEngine] Failed to cleanup mirror directories:', mirrorCleanupErr);
     }
 
     logger.info(

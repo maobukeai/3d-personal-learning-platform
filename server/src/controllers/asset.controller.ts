@@ -9,11 +9,12 @@ import fs from 'fs';
 import path from 'path';
 import { process3DAsset } from '../utils/asset-processor';
 import { checkAssetQuota, checkStorageQuota } from '../utils/quota';
-import { deleteFileByUrl } from '../utils/file';
+import { deleteCloudOrLocalFileByUrl } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../middlewares/error.middleware';
 import { clampLimit, clampPage } from '../utils/pagination';
 import { redisService } from '../services/redis.service';
+import { storageService } from '../services/storage.service';
 
 const TAG_SEARCH_REDIS_TTL = 7 * 24 * 3600; // 7 days
 const tagSearchKey = (tag: string) => `asset_tag_search:${tag}`;
@@ -320,13 +321,13 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
       if (!fs.existsSync(assetsDir)) {
         fs.mkdirSync(assetsDir, { recursive: true });
       }
-      url = `${req.protocol}://${req.get('host')}/uploads/assets/${assetFile.filename}`;
+      url = (assetFile as any).url || `${req.protocol}://${req.get('host')}/uploads/assets/${assetFile.filename}`;
       type = path.extname(assetFile.originalname).slice(1).toUpperCase();
     }
 
     let thumbnailUrl = null;
     if (files?.thumbnail?.[0]) {
-      thumbnailUrl = `${req.protocol}://${req.get('host')}/uploads/assets/${files.thumbnail[0].filename}`;
+      thumbnailUrl = (files.thumbnail[0] as any).url || `${req.protocol}://${req.get('host')}/uploads/assets/${files.thumbnail[0].filename}`;
     }
 
     let parsedFormats = formats;
@@ -380,10 +381,16 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
           }
         })
         .catch((err) => {
-          logger.error(
-            `[AssetProcessor] Background processing failed for asset: ${asset.id}. Keeping asset without metadata.`,
-            err,
-          );
+          logger.error(`[AssetProcessor] Background processing error for asset: ${asset.id}:`, err);
+        })
+        .finally(() => {
+          if ((assetFile as any).url && fs.existsSync(fullPath)) {
+            try {
+              fs.unlinkSync(fullPath);
+            } catch (cleanupErr) {
+              logger.error('[AssetProcessor] Failed to clean up temp file:', cleanupErr);
+            }
+          }
         });
     }
 
@@ -541,11 +548,89 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response, next
 
     fs.writeFileSync(filePath, base64Data, 'base64');
 
-    const thumbnailUrl = `${req.protocol}://${req.get('host')}/uploads/assets/${fileName}`;
+    let thumbnailUrl = `${req.protocol}://${req.get('host')}/uploads/assets/${fileName}`;
 
-    // Delete old thumbnail if it was a local file
+    // Upload generated thumbnail to R2 if active storage is set up: prioritize ASSET over ALL fallback
+    let activeConfigs = await prisma.storageConfig.findMany({
+      where: {
+        status: 'ACTIVE',
+        assetType: 'ASSET',
+      },
+      orderBy: [
+        { priority: 'desc' },
+        { createdAt: 'desc' },
+      ],
+    });
+
+    if (activeConfigs.length === 0) {
+      activeConfigs = await prisma.storageConfig.findMany({
+        where: {
+          status: 'ACTIVE',
+          assetType: 'ALL',
+        },
+        orderBy: [
+          { priority: 'desc' },
+          { createdAt: 'desc' },
+        ],
+      });
+    }
+
+    if (activeConfigs.length > 0) {
+      try {
+        const stats = fs.statSync(filePath);
+        const fileBytes = stats.size;
+
+        for (const config of activeConfigs) {
+          const limitBytes = config.limitGb * 1024 * 1024 * 1024;
+          const updateResult = await prisma.storageConfig.updateMany({
+            where: {
+              id: config.id,
+              status: 'ACTIVE',
+              usedBytes: { lte: limitBytes - fileBytes },
+            },
+            data: {
+              usedBytes: { increment: fileBytes },
+            },
+          });
+
+          if (updateResult.count > 0) {
+            try {
+              const key = `thumbnail/thumb-${id}-${Date.now()}.png`;
+              const r2Url = await storageService.uploadFile(
+                {
+                  endpoint: config.endpoint,
+                  accessKeyId: config.accessKeyId,
+                  secretAccessKey: config.secretAccessKey,
+                  bucketName: config.bucketName,
+                  publicUrl: config.publicUrl,
+                },
+                filePath,
+                key,
+                'image/png',
+              );
+              thumbnailUrl = r2Url;
+              fs.unlinkSync(filePath);
+              break;
+            } catch (uploadError) {
+              logger.error('[AssetController] Failed to upload screenshot thumbnail to R2:', uploadError);
+              // Revert space
+              await prisma.storageConfig.update({
+                where: { id: config.id },
+                data: { usedBytes: { decrement: fileBytes } },
+              });
+            }
+          }
+        }
+      } catch (err) {
+        logger.error('[AssetController] screenshot upload stats error:', err);
+      }
+    }
+
+    // Delete old thumbnail if it was a local or cloud file (run in background)
     if (existingAsset.thumbnail) {
-      deleteFileByUrl(existingAsset.thumbnail);
+      deleteCloudOrLocalFileByUrl(existingAsset.thumbnail).catch((err) => {
+        logger.error('[AssetController] Failed to delete old thumbnail in background:', err);
+      });
     }
 
     const asset = await prisma.asset.update({
@@ -964,10 +1049,14 @@ export const deleteAsset = async (req: AuthRequest, res: Response, next: NextFun
       }
     }
 
-    // Delete files from disk
-    deleteFileByUrl(asset.url);
+    // Delete files from disk or cloud (run in background)
+    deleteCloudOrLocalFileByUrl(asset.url).catch((err) => {
+      logger.error(`[AssetController] Failed to delete asset file ${asset.url} in background:`, err);
+    });
     if (asset.thumbnail) {
-      deleteFileByUrl(asset.thumbnail);
+      deleteCloudOrLocalFileByUrl(asset.thumbnail).catch((err) => {
+        logger.error(`[AssetController] Failed to delete asset thumbnail ${asset.thumbnail} in background:`, err);
+      });
     }
 
     await prisma.asset.delete({
@@ -1227,10 +1316,14 @@ export const adminDeleteAsset = async (req: AuthRequest, res: Response, next: Ne
       return next(new AppError('Asset not found', 404));
     }
 
-    // Delete files from disk if they exist
-    deleteFileByUrl(asset.url);
+    // Delete files from disk or cloud if they exist (run in background)
+    deleteCloudOrLocalFileByUrl(asset.url).catch((err) => {
+      logger.error(`[AssetController] Failed to delete asset file ${asset.url} in background:`, err);
+    });
     if (asset.thumbnail) {
-      deleteFileByUrl(asset.thumbnail);
+      deleteCloudOrLocalFileByUrl(asset.thumbnail).catch((err) => {
+        logger.error(`[AssetController] Failed to delete asset thumbnail ${asset.thumbnail} in background:`, err);
+      });
     }
 
     await prisma.asset.delete({ where: { id } });
@@ -1279,7 +1372,7 @@ export const uploadAssetVersion = async (req: AuthRequest, res: Response, next: 
       return next(new AppError(storageQuota.message || 'Storage quota exceeded', 403));
     }
 
-    const url = `${req.protocol}://${req.get('host')}/uploads/assets/${assetFile.filename}`;
+    const url = (assetFile as any).url || `${req.protocol}://${req.get('host')}/uploads/assets/${assetFile.filename}`;
     const type = path.extname(assetFile.originalname).slice(1).toUpperCase();
 
     // Check if same type
@@ -1337,6 +1430,15 @@ export const uploadAssetVersion = async (req: AuthRequest, res: Response, next: 
             `[AssetProcessor] Background processing failed for asset version: ${newVersion.id}`,
             err,
           );
+        })
+        .finally(() => {
+          if ((assetFile as any).url && fs.existsSync(fullPath)) {
+            try {
+              fs.unlinkSync(fullPath);
+            } catch (cleanupErr) {
+              logger.error('[AssetProcessor] Failed to clean up version temp file:', cleanupErr);
+            }
+          }
         });
     } else {
       // Non-3D asset, just update active url and size

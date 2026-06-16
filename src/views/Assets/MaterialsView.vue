@@ -462,20 +462,21 @@ function getListParams() {
     paginated: 'true',
   };
 }
-
-async function fetchMaterials() {
-  isLoading.value = true;
+async function fetchMaterials(silent = false) {
+  if (!silent) isLoading.value = true;
   try {
     const { data } = await api.get('/api/materials', { params: getListParams() });
     materials.value = parseMaterialListResponse(data);
     const visibleIds = new Set(materials.value.map((material) => material.id));
     selectedIds.value = selectedIds.value.filter((id) => visibleIds.has(id));
   } catch (error) {
-    ElMessage.error(
-      getApiErrorMessage(error, label('材料列表加载失败', 'Failed to load materials')),
-    );
+    if (!silent) {
+      ElMessage.error(
+        getApiErrorMessage(error, label('材料列表加载失败', 'Failed to load materials')),
+      );
+    }
   } finally {
-    isLoading.value = false;
+    if (!silent) isLoading.value = false;
   }
 }
 
@@ -497,11 +498,10 @@ async function fetchInsights() {
   }
 }
 
-async function refreshWorkspace() {
-  await Promise.all([fetchMaterials(), fetchInsights(), fetchMyMaterials()]);
+async function refreshWorkspace(silent = false) {
+  await Promise.all([fetchMaterials(silent), fetchInsights(), fetchMyMaterials()]);
   await applyRouteEntry();
 }
-
 function resetUploadForm() {
   materialForm.value = {
     title: '',
@@ -798,7 +798,6 @@ async function downloadSelected() {
     await handleDownload(material);
   }
 }
-
 async function deleteMaterial(material: NormalizedMaterial) {
   try {
     await ElMessageBox.confirm(
@@ -810,17 +809,36 @@ async function deleteMaterial(material: NormalizedMaterial) {
         type: 'warning',
       },
     );
-    await api.delete(`/api/materials/${material.id}`);
+
+    // 备份当前状态以备失败恢复
+    const oldMaterials = [...materials.value];
+    const oldMyMaterials = [...myMaterials.value];
+
+    // 乐观更新：立刻在前端移除被删除材质
+    materials.value = materials.value.filter((x) => x.id !== material.id);
+    myMaterials.value = myMaterials.value.filter((x) => x.id !== material.id);
+
+    // 立刻提示已删除，关闭详情面板
     ElMessage.success(label('材料已删除', 'Material deleted'));
     closeDetail();
-    await refreshWorkspace();
+
+    // 后台异步执行请求并在成功后静默拉取更新，失败后恢复界面
+    api.delete(`/api/materials/${material.id}`)
+      .then(() => {
+        refreshWorkspace(true);
+      })
+      .catch((error) => {
+        // 恢复数据
+        materials.value = oldMaterials;
+        myMaterials.value = oldMyMaterials;
+        ElMessage.error(getApiErrorMessage(error, label('删除失败', 'Delete failed')));
+      });
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error(getApiErrorMessage(error, label('删除失败', 'Delete failed')));
     }
   }
 }
-
 async function reviewMaterial(material: NormalizedMaterial, status: MaterialStatus) {
   try {
     let rejectReason: string | undefined;

@@ -179,9 +179,8 @@ const statusFilterOptions = computed(() => [
   { label: '已通过', value: 'APPROVED' as const },
   { label: '已打回', value: 'REJECTED' as const },
 ]);
-
-const fetchItems = async () => {
-  isLoading.value = true;
+const fetchItems = async (silent = false) => {
+  if (!silent) isLoading.value = true;
   try {
     const params = {
       response: 'paginated',
@@ -212,9 +211,11 @@ const fetchItems = async () => {
       activeItem.value = null;
     }
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, `无法加载${pageConfig.value.label}数据`));
+    if (!silent) {
+      ElMessage.error(getApiErrorMessage(error, `无法加载${pageConfig.value.label}数据`));
+    }
   } finally {
-    isLoading.value = false;
+    if (!silent) isLoading.value = false;
   }
 };
 
@@ -473,14 +474,31 @@ const handleDelete = (item: ContentItem) => {
     cancelButtonText: '取消',
     type: 'warning',
   })
-    .then(async () => {
-      try {
-        await api.delete(`${pageConfig.value.apiPath}/${item.id}`);
-        ElMessage.success('资源已删除');
-        fetchItems();
-      } catch (error) {
-        ElMessage.error(getApiErrorMessage(error, '删除失败'));
+    .then(() => {
+      // 备份当前状态以备失败恢复
+      const oldItems = [...items.value];
+      const oldActiveItem = activeItem.value;
+
+      // 乐观更新：前端立即移除该元素
+      items.value = items.value.filter((i) => i.id !== item.id);
+      if (activeItem.value?.id === item.id) {
+        activeItem.value = items.value[0] || null;
       }
+
+      // 立即提示已删除
+      ElMessage.success('资源已删除');
+
+      // 后台执行请求并在成功后静默拉取
+      api.delete(`${pageConfig.value.apiPath}/${item.id}`)
+        .then(() => {
+          fetchItems(true);
+        })
+        .catch((error) => {
+          // 失败恢复
+          items.value = oldItems;
+          activeItem.value = oldActiveItem;
+          ElMessage.error(getApiErrorMessage(error, '删除失败'));
+        });
     })
     .catch(() => {});
 };

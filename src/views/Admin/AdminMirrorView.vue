@@ -127,6 +127,19 @@ const isLoading = ref(false);
 const showSourceDialog = ref(false);
 const showSyncLogsDialog = ref(false);
 const showMatchDialog = ref(false);
+const showCloudScanDialog = ref(false);
+const isScanningCloud = ref(false);
+const isConnectingCloud = ref(false);
+const cloudSources = ref<Array<{
+  id: string;
+  name: string;
+  displayName: string;
+  description: string | null;
+  iconUrl: string | null;
+  totalResources: number;
+  isConnected: boolean;
+  metadataKey: string;
+}>>([]);
 const editingSource = ref<MirrorSource | null>(null);
 const selectedSource = ref<MirrorSource | null>(null);
 const excelFiles = ref<File[]>([]);
@@ -296,6 +309,37 @@ async function uploadAndMatch() {
     ElMessage.error(getApiErrorMessage(e, '匹配失败'));
   } finally {
     isUploading.value = false;
+  }
+}
+
+async function openScanCloudDialog() {
+  showCloudScanDialog.value = true;
+  await fetchCloudSources();
+}
+
+async function fetchCloudSources() {
+  isScanningCloud.value = true;
+  try {
+    const res = await api.get('/api/admin/mirror/cloud-discover');
+    cloudSources.value = res.data;
+  } catch (e: any) {
+    ElMessage.error(getApiErrorMessage(e, '扫描云端镜像站失败'));
+  } finally {
+    isScanningCloud.value = false;
+  }
+}
+
+async function connectCloudMirror(metadataKey: string) {
+  isConnectingCloud.value = true;
+  try {
+    const res = await api.post('/api/admin/mirror/cloud-connect', { metadataKey });
+    ElMessage.success(res.data.message || '连接云端镜像成功！');
+    await fetchCloudSources();
+    await fetchSources();
+  } catch (e: any) {
+    ElMessage.error(getApiErrorMessage(e, '连接云端镜像站失败'));
+  } finally {
+    isConnectingCloud.value = false;
   }
 }
 
@@ -740,17 +784,36 @@ const handleImportFile = async (e: Event) => {
 
   showImportProgressDialog.value = true;
   importProgress.value = 0;
-  importStatusText.value = '正在上传压缩包...';
+  importStatusText.value = '正在上传压缩包... 0%';
   importError.value = null;
   importTaskStatus.value = 'uploading';
 
   const formData = new FormData();
   formData.append('file', file);
 
+  const startTime = Date.now();
+
   try {
     const response = await api.post('/api/admin/mirror/sources/import', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent: any) => {
+        if (progressEvent.total) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          importProgress.value = Math.min(percentCompleted, 99);
+          
+          const elapsedTime = (Date.now() - startTime) / 1000;
+          const speedBytes = elapsedTime > 0 ? progressEvent.loaded / elapsedTime : 0;
+          const speedText = speedBytes > 1024 * 1024
+            ? (speedBytes / (1024 * 1024)).toFixed(1) + ' MB/s'
+            : (speedBytes / 1024).toFixed(1) + ' KB/s';
+          
+          const loadedText = (progressEvent.loaded / (1024 * 1024)).toFixed(1) + ' MB';
+          const totalText = (progressEvent.total / (1024 * 1024)).toFixed(1) + ' MB';
+          
+          importStatusText.value = `正在上传压缩包... ${importProgress.value}% (${loadedText} / ${totalText}) | 速度: ${speedText}`;
+        }
       },
     });
 
@@ -941,6 +1004,15 @@ onUnmounted(() => {
           >
             <Upload class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">导入镜像源</span>
+          </button>
+          <button
+            type="button"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="openScanCloudDialog"
+          >
+            <Search class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">扫描云端镜像源</span>
           </button>
           <button
             type="button"
@@ -2159,6 +2231,235 @@ onUnmounted(() => {
                 >
                   {{ isEditingCategory ? '保存' : '创建' }}
                 </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cloud Mirror Discovery Dialog -->
+          <div
+            v-if="showCloudScanDialog"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          >
+            <div
+              class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-4xl mx-4 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200"
+            >
+              <div
+                class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700 shrink-0"
+              >
+                <h2
+                  class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2"
+                >
+                  <Search class="w-5 h-5 text-blue-500" />
+                  扫描云端镜像源 (Cloudflare R2)
+                </h2>
+                <button
+                  type="button"
+                  class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  @click="showCloudScanDialog = false"
+                >
+                  <X class="w-5 h-5" />
+                </button>
+              </div>
+
+              <!-- Content Area -->
+              <div class="flex-1 overflow-y-auto p-6 scrollbar-hide">
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                  系统将自动检索 Cloudflare R2 存储桶中已同步的镜像站数据（`metadata.json`），您可以一键将其接入当前系统，无需重复下载或上传媒体文件，共享云端存储。
+                </p>
+
+                <!-- Loading State -->
+                <div v-if="isScanningCloud" class="flex flex-col items-center justify-center py-12">
+                  <RefreshCw class="w-8 h-8 text-blue-500 animate-spin mb-3" />
+                  <span class="text-sm text-slate-500 dark:text-slate-400">正在扫描云端存储中，这可能需要几秒钟...</span>
+                </div>
+
+                <!-- Empty State -->
+                <div v-else-if="cloudSources.length === 0" class="flex flex-col items-center justify-center py-12 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                  <Database class="w-10 h-10 text-slate-300 dark:text-slate-600 mb-3" />
+                  <span class="text-sm text-slate-500 dark:text-slate-400">未在 Cloudflare R2 存储桶中扫描到任何镜像源</span>
+                </div>
+
+                <!-- Discovered List Table -->
+                <div v-else class="border border-slate-100 dark:border-slate-700/80 rounded-xl overflow-hidden">
+                  <table class="w-full text-left border-collapse">
+                    <thead>
+                      <tr class="bg-slate-50 dark:bg-slate-800/40 text-[11px] font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700/80">
+                        <th class="px-5 py-3">图标</th>
+                        <th class="px-5 py-3">镜像源显示名称 / 名称</th>
+                        <th class="px-5 py-3">资源数量</th>
+                        <th class="px-5 py-3">唯一识别 ID</th>
+                        <th class="px-5 py-3 text-right">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700/80 text-xs">
+                      <tr v-for="item in cloudSources" :key="item.id" class="hover:bg-slate-50/40 dark:hover:bg-white/[0.02] transition-colors">
+                        <td class="px-5 py-3">
+                          <img v-if="item.iconUrl" :src="getAssetUrl(item.iconUrl)" class="w-7 h-7 rounded-lg object-cover bg-slate-100 dark:bg-slate-700" />
+                          <div v-else class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-500 flex items-center justify-center font-bold text-[10px]">
+                            {{ item.displayName.charAt(0) }}
+                          </div>
+                        </td>
+                        <td class="px-5 py-3">
+                          <div class="font-bold text-slate-800 dark:text-slate-200">{{ item.displayName }}</div>
+                          <div class="text-[10px] text-slate-400 dark:text-slate-500">{{ item.name }}</div>
+                        </td>
+                        <td class="px-5 py-3 text-slate-600 dark:text-slate-400 font-medium">
+                          {{ item.totalResources }} 个资源
+                        </td>
+                        <td class="px-5 py-3 font-mono text-[10px] text-slate-400 dark:text-slate-500">
+                          {{ item.id }}
+                        </td>
+                        <td class="px-5 py-3 text-right">
+                          <button
+                            v-if="item.isConnected"
+                            type="button"
+                            class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-300 transition-colors font-semibold cursor-pointer shrink-0"
+                            :disabled="isConnectingCloud"
+                            @click="connectCloudMirror(item.metadataKey)"
+                          >
+                            <span v-if="isConnectingCloud" class="flex items-center gap-1"><RefreshCw class="w-3 h-3 animate-spin" /> 接入中...</span>
+                            <span v-else>重新接入 (更新)</span>
+                          </button>
+                          <button
+                            v-else
+                            type="button"
+                            class="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm transition-colors cursor-pointer shrink-0"
+                            :disabled="isConnectingCloud"
+                            @click="connectCloudMirror(item.metadataKey)"
+                          >
+                            <span v-if="isConnectingCloud" class="flex items-center gap-1"><RefreshCw class="w-3 h-3 animate-spin" /> 接入中...</span>
+                            <span v-else>一键接入</span>
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Footer -->
+              <div
+                class="flex justify-between items-center p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 shrink-0"
+              >
+                <button
+                  type="button"
+                  class="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  @click="fetchCloudSources"
+                  :disabled="isScanningCloud"
+                >
+                  <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanningCloud }" />
+                  重新扫描
+                </button>
+                <button
+                  type="button"
+                  class="px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-650 text-slate-800 dark:text-slate-200 text-xs font-semibold transition-colors cursor-pointer"
+                  @click="showCloudScanDialog = false"
+                >
+                  关闭
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Import Progress Dialog -->
+          <div
+            v-if="showImportProgressDialog"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          >
+            <div
+              class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md mx-4 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            >
+              <div
+                class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700"
+              >
+                <h2
+                  class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2"
+                >
+                  <Upload class="w-5 h-5 text-cyan-500" />
+                  导入镜像源
+                </h2>
+                <button
+                  v-if="importTaskStatus === 'completed' || importTaskStatus === 'failed'"
+                  type="button"
+                  class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  @click="closeImportDialog"
+                >
+                  <X class="w-5 h-5" />
+                </button>
+              </div>
+
+              <div class="p-6 text-center">
+                <!-- Status Icons -->
+                <div class="flex justify-center mb-4">
+                  <div
+                    v-if="importTaskStatus === 'uploading' || importTaskStatus === 'processing' || importTaskStatus === 'extracting' || importTaskStatus === 'importing_metadata' || importTaskStatus === 'copying_files'"
+                    class="p-3 bg-cyan-50 dark:bg-cyan-500/15 rounded-full text-cyan-500"
+                  >
+                    <RefreshCw class="w-8 h-8 animate-spin" />
+                  </div>
+                  <div
+                    v-else-if="importTaskStatus === 'completed'"
+                    class="p-3 bg-emerald-50 dark:bg-emerald-500/15 rounded-full text-emerald-500"
+                  >
+                    <Check class="w-8 h-8" />
+                  </div>
+                  <div
+                    v-else-if="importTaskStatus === 'failed'"
+                    class="p-3 bg-rose-50 dark:bg-rose-500/15 rounded-full text-rose-500"
+                  >
+                    <X class="w-8 h-8" />
+                  </div>
+                </div>
+
+                <!-- Status Title -->
+                <h3 class="text-base font-semibold text-slate-800 dark:text-slate-200 mb-2">
+                  <span v-if="importTaskStatus === 'uploading'">正在上传镜像包...</span>
+                  <span v-else-if="importTaskStatus === 'completed'">导入成功</span>
+                  <span v-else-if="importTaskStatus === 'failed'">导入失败</span>
+                  <span v-else>正在同步数据中...</span>
+                </h3>
+
+                <!-- Status Text & Details -->
+                <p class="text-sm text-slate-500 dark:text-slate-400 mb-4 min-h-[40px] flex items-center justify-center text-center break-words">
+                  {{ importStatusText }}
+                </p>
+
+                <!-- Progress Bar -->
+                <div
+                  v-if="importTaskStatus !== 'failed'"
+                  class="w-full bg-slate-100 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden mb-2"
+                >
+                  <div
+                    class="bg-cyan-500 h-2.5 rounded-full transition-all duration-300"
+                    :style="{ width: importProgress + '%' }"
+                  ></div>
+                </div>
+                <div
+                  v-if="importTaskStatus !== 'failed'"
+                  class="text-xs text-slate-400 dark:text-slate-500 text-right mb-6"
+                >
+                  {{ importProgress }}%
+                </div>
+
+                <!-- Error Message Alert -->
+                <div
+                  v-if="importTaskStatus === 'failed' && importError"
+                  class="p-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-lg text-rose-600 dark:text-rose-400 text-sm text-left mb-6 break-all"
+                >
+                  {{ importError }}
+                </div>
+
+                <!-- Action Button -->
+                <div class="flex justify-end gap-3 mt-4">
+                  <button
+                    v-if="importTaskStatus === 'completed' || importTaskStatus === 'failed'"
+                    type="button"
+                    class="w-full py-2.5 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors"
+                    @click="closeImportDialog"
+                  >
+                    确定
+                  </button>
+                </div>
               </div>
             </div>
           </div>

@@ -4,6 +4,32 @@ import path from 'path';
 import fs from 'fs';
 import { Request, Response, NextFunction } from 'express';
 import { settingsService } from '../services/settings.service';
+import prisma from '../services/prisma';
+import { storageService } from '../services/storage.service';
+
+const getStorageTypeForField = (file: Express.Multer.File, req: Request): string => {
+  const fieldname = file.fieldname;
+  if (req.originalUrl.includes('/showcase') || req.baseUrl.includes('showcase')) {
+    return 'SHOWCASE';
+  }
+  if (fieldname === 'asset' || (fieldname === 'thumbnail' && req.baseUrl.includes('asset'))) {
+    return 'ASSET';
+  }
+  if (fieldname === 'material' || (fieldname === 'preview' && req.baseUrl.includes('material'))) {
+    return 'MATERIAL';
+  }
+  if (fieldname === 'plugin_file' || fieldname === 'plugin_preview') {
+    return 'PLUGIN';
+  }
+  if (
+    fieldname === 'mirror_image' ||
+    req.originalUrl.includes('/mirror') ||
+    req.baseUrl.includes('mirror')
+  ) {
+    return 'MIRROR';
+  }
+  return 'ALL';
+};
 
 /** All image-purpose upload field names — used for size limits and extension checks. */
 const IMAGE_FIELD_NAMES = [
@@ -18,8 +44,9 @@ const IMAGE_FIELD_NAMES = [
   'thumbnail',
   'banner',
   'banner_image',
+  'preview',
+  'plugin_preview',
 ] as const;
-
 type ImageFieldName = (typeof IMAGE_FIELD_NAMES)[number];
 
 const isImageField = (fieldname: string): fieldname is ImageFieldName =>
@@ -100,13 +127,26 @@ const createUploadMiddleware = (config: {
         }
       }
 
-      // Check if it's logo, favicon, or avatar to set lower default limit (5MB) before upload
-      const isSystemImage =
-        isImageField(config.fieldname || '') ||
-        (config.fields && config.fields.some((f) => isImageField(f.name)));
+      // Check if the upload config consists exclusively of system image fields.
+      // If there are any non-image fields (like 'asset', 'material', 'plugin_file'),
+      // we must use the larger file size limit from the settings.
+      const hasNonImageField =
+        (config.fieldname && !isImageField(config.fieldname)) ||
+        (config.fields && config.fields.some((f) => !isImageField(f.name)));
+
+      const isSystemImage = !hasNonImageField;
 
       if (isSystemImage) {
         maxFileSize = 5 * 1024 * 1024;
+      }
+
+      // Special override: if importing a mirror source ZIP, the file size limit is 5GB.
+      const isMirrorImport =
+        config.fieldname === 'file' &&
+        (req.originalUrl.includes('/mirror/sources/import') || req.baseUrl.includes('mirror'));
+
+      if (isMirrorImport) {
+        maxFileSize = 5 * 1024 * 1024 * 1024; // 5GB
       }
 
       const dynamicMulter = multer({
@@ -194,12 +234,19 @@ const createUploadMiddleware = (config: {
         multerAction = dynamicMulter.fields(config.fields!);
       }
 
-      multerAction(req, res, (err: any) => {
+      multerAction(req, res, async (err: any) => {
         if (err instanceof multer.MulterError) {
           if (err.code === 'LIMIT_FILE_SIZE') {
-            const displayLimit = isSystemImage ? '5' : settings.MAX_FILE_SIZE || '100';
-            logger.error(`[UploadError] LIMIT_FILE_SIZE: file size exceeded (${displayLimit}MB)`);
-            return res.status(400).json({ error: `文件大小超过限制 (${displayLimit}MB)` });
+            const isMirrorImport =
+              config.fieldname === 'file' &&
+              (req.originalUrl.includes('/mirror/sources/import') || req.baseUrl.includes('mirror'));
+            const displayLimit = isMirrorImport
+              ? '5GB'
+              : isSystemImage
+              ? '5MB'
+              : `${settings.MAX_FILE_SIZE || 100}MB`;
+            logger.error(`[UploadError] LIMIT_FILE_SIZE: file size exceeded (${displayLimit})`);
+            return res.status(400).json({ error: `文件大小超过限制 (${displayLimit})` });
           }
           logger.error(`[UploadError] MulterError: ${err instanceof Error ? err.message : err}`);
           return res
@@ -210,6 +257,32 @@ const createUploadMiddleware = (config: {
           return res
             .status(400)
             .json({ error: err instanceof Error ? err.message : 'An error occurred' });
+        }
+
+        // Decode filename from ISO-8859-1 (latin1) to UTF-8 to fix Multer's filename Mojibake bug
+        if (req.file) {
+          req.file.originalname = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+        }
+        if (req.files) {
+          const filesMap = req.files as { [fieldname: string]: Express.Multer.File[] } | Express.Multer.File[];
+          if (Array.isArray(filesMap)) {
+            for (const file of filesMap) {
+              if (file) {
+                file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8');
+              }
+            }
+          } else {
+            for (const fieldname in filesMap) {
+              const fileList = filesMap[fieldname];
+              if (Array.isArray(fileList)) {
+                for (const file of fileList) {
+                  if (file) {
+                    file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8');
+                  }
+                }
+              }
+            }
+          }
         }
 
         // Manual size check for dynamic settings
@@ -232,14 +305,223 @@ const createUploadMiddleware = (config: {
 
               if (file.size > finalMaxFileSize) {
                 if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-                const displayLimit = isImageField(file.fieldname) ? '5' : settings.MAX_FILE_SIZE;
+                const isMirrorImport =
+                  file.fieldname === 'file' &&
+                  (req.originalUrl.includes('/mirror/sources/import') || req.baseUrl.includes('mirror'));
+                const displayLimit = isMirrorImport
+                  ? '5GB'
+                  : isImageField(file.fieldname)
+                  ? '5MB'
+                  : `${settings.MAX_FILE_SIZE || 100}MB`;
                 logger.error(
-                  `[UploadError] File ${file.originalname} size ${file.size} exceeded limit ${displayLimit}MB`,
+                  `[UploadError] File ${file.originalname} size ${file.size} exceeded limit ${displayLimit}`,
                 );
                 return res.status(400).json({
-                  error: `文件 ${file.originalname} 超过大小限制 (${displayLimit}MB)`,
+                  error: `文件 ${file.originalname} 超过大小限制 (${displayLimit})`,
                 });
               }
+            }
+          }
+
+          // R2 Cloud Storage Interception
+          const allFiles: Express.Multer.File[] = [];
+          for (const fieldname in files) {
+            const fileList = Array.isArray(files[fieldname])
+              ? files[fieldname]
+              : [files[fieldname]];
+            for (const file of fileList) {
+              if (file) allFiles.push(file);
+            }
+          }
+
+          // Skip automatic R2 upload interception for direct storage config file uploads
+          // and mirror source import zips, which are processed locally.
+          if (
+            allFiles.length > 0 &&
+            !req.originalUrl.includes('/storage-configs/') &&
+            !req.originalUrl.includes('/mirror/sources/import')
+          ) {
+            try {
+              // Validate all files content first before uploading to R2
+              for (const file of allFiles) {
+                await validateSingleFileContent(file);
+              }
+              const settings = await settingsService.getAll();
+              const forceCloud = settings.FORCE_R2_STORAGE === true;
+
+              const activeCount = await prisma.storageConfig.count({
+                where: { status: 'ACTIVE' },
+              });
+
+              if (forceCloud && activeCount === 0) {
+                for (const f of allFiles) {
+                  if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
+                }
+                return res.status(400).json({
+                  error: '暂时维护中',
+                });
+              }
+              if (activeCount > 0) {
+                // Find the main file in this request to determine the shared folder name and prefix
+                const mainFile =
+                  allFiles.find((f) => f.fieldname === 'asset') ||
+                  allFiles.find((f) => f.fieldname === 'material') ||
+                  allFiles.find((f) => f.fieldname === 'plugin_file') ||
+                  allFiles.find((f) => f.fieldname === 'file' || f.fieldname === 'files') ||
+                  allFiles[0];
+
+                if (!mainFile) {
+                  return next();
+                }
+
+                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+                const mainSanitizedOriginalName = mainFile.originalname
+                  .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
+                  .replace(/\s+/g, '_');
+                const mainExtName = path.extname(mainSanitizedOriginalName);
+                const mainBaseName = path.basename(mainSanitizedOriginalName, mainExtName) || 'file';
+                const sharedFolderName = `${mainBaseName}-${uniqueSuffix}`;
+
+                const getFolderPrefix = (fieldname: string): string => {
+                  if (req.originalUrl.includes('/showcase') || req.baseUrl.includes('showcase')) return 'showcase';
+                  if (fieldname === 'asset' || fieldname === 'thumbnail') return 'asset';
+                  if (fieldname === 'material' || fieldname === 'preview') return 'material';
+                  if (fieldname === 'plugin_file' || fieldname === 'plugin_preview') return 'plugin';
+                  if (
+                    fieldname === 'mirror_image' ||
+                    req.originalUrl.includes('/mirror') ||
+                    req.baseUrl.includes('mirror')
+                  ) {
+                    return 'mirror';
+                  }
+                  return fieldname;
+                };
+                const folderPrefix = getFolderPrefix(mainFile.fieldname);
+
+                for (const file of allFiles) {
+                  const storageType = getStorageTypeForField(file, req);
+
+                  // Query active configurations: prioritize specific type over ALL fallback
+                  let configs = await prisma.storageConfig.findMany({
+                    where: {
+                      status: 'ACTIVE',
+                      assetType: storageType,
+                    },
+                    orderBy: [
+                      { priority: 'desc' },
+                      { createdAt: 'desc' },
+                    ],
+                  });
+
+                  if (configs.length === 0 && storageType !== 'ALL') {
+                    configs = await prisma.storageConfig.findMany({
+                      where: {
+                        status: 'ACTIVE',
+                        assetType: 'ALL',
+                      },
+                      orderBy: [
+                        { priority: 'desc' },
+                        { createdAt: 'desc' },
+                      ],
+                    });
+                  }
+
+                  if (configs.length === 0) {
+                    for (const f of allFiles) {
+                      if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
+                    }
+                    return res.status(400).json({
+                      error: `未配置适用于 [${storageType}] 的可用云存储账号`,
+                    });
+                  }
+
+                  let uploaded = false;
+                  let uploadErrorMsg: string | null = null;
+                  for (const config of configs) {
+                    const limitBytes = config.limitGb * 1024 * 1024 * 1024;
+
+                    // Thread-safe atomic space reservation
+                    const updateResult = await prisma.storageConfig.updateMany({
+                      where: {
+                        id: config.id,
+                        status: 'ACTIVE',
+                        usedBytes: { lte: limitBytes - file.size },
+                      },
+                      data: {
+                        usedBytes: { increment: file.size },
+                      },
+                    });
+
+                    if (updateResult.count > 0) {
+                      try {
+                        const sanitizedOriginalName = file.originalname
+                          .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
+                          .replace(/\s+/g, '_');
+                        const key = `${folderPrefix}/${sharedFolderName}/${sanitizedOriginalName}`;
+
+                        const r2Url = await storageService.uploadFile(
+                          {
+                            endpoint: config.endpoint,
+                            accessKeyId: config.accessKeyId,
+                            secretAccessKey: config.secretAccessKey,
+                            bucketName: config.bucketName,
+                            publicUrl: config.publicUrl,
+                          },
+                          file.path,
+                          key,
+                          file.mimetype,
+                        );
+
+                        (file as any).url = r2Url;
+                        (file as any).r2Key = key;
+                        (file as any).r2ConfigId = config.id;
+
+                        // Delete local file immediately unless it's a 3D asset file (.glb or .gltf)
+                        // that needs background processing in asset controller.
+                        const ext = path.extname(file.originalname).toLowerCase();
+                        const is3DAsset = file.fieldname === 'asset' && (ext === '.glb' || ext === '.gltf');
+
+                        if (!is3DAsset && fs.existsSync(file.path)) {
+                          fs.unlinkSync(file.path);
+                        }
+
+                        uploaded = true;
+                        break;
+                      } catch (uploadError: any) {
+                        uploadErrorMsg = uploadError.message || String(uploadError);
+                        logger.error(
+                          `[UploadMiddleware] Upload to R2 config [${config.name}] failed:`,
+                          uploadError,
+                        );
+                        // Revert reserved space
+                        await prisma.storageConfig.update({
+                          where: { id: config.id },
+                          data: { usedBytes: { decrement: file.size } },
+                        });
+                      }
+                    }
+                  }
+
+                  if (!uploaded) {
+                    for (const f of allFiles) {
+                      if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
+                    }
+                    const errMsg = uploadErrorMsg
+                      ? `上传到云存储失败: ${uploadErrorMsg}`
+                      : `云存储空间已满 (限额 9.8GB/账号) 且无法保存文件 [${file.originalname}]，请联系管理员。`;
+                    return res.status(400).json({
+                      error: errMsg,
+                    });
+                  }
+                }
+              }
+            } catch (storageDbError: any) {
+              logger.error('[UploadMiddleware] Storage interception DB/validation error:', storageDbError);
+              for (const f of allFiles) {
+                if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
+              }
+              const errorMessage = storageDbError instanceof Error ? storageDbError.message : '存储系统初始化失败';
+              return res.status(400).json({ error: errorMessage });
             }
           }
         }
@@ -328,6 +610,48 @@ const looksLikeExecutableContent = (buffer: Buffer): boolean => {
   );
 };
 
+export const validateSingleFileContent = async (file: Express.Multer.File) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+
+  if (model3dExtensions.includes(ext) || documentExtensions.includes(ext)) {
+    return;
+  }
+
+  if (ext === '.svg') {
+    const content = await fs.promises.readFile(file.path, 'utf8');
+    const hasScript = /<script\b[^>]*>/i.test(content);
+    const hasEventHandlers = /\bon[a-z]+\s*=/i.test(content);
+    const hasJavascriptUrl = /href\s*=\s*["']\s*javascript:/i.test(content);
+    if (hasScript || hasEventHandlers || hasJavascriptUrl) {
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      throw new Error('安全验证失败：SVG文件包含潜在的安全隐患');
+    }
+
+    if (!content.includes('<svg') && !content.includes('http://www.w3.org/2000/svg')) {
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      throw new Error('无效的SVG图片内容');
+    }
+    return;
+  }
+
+  const buffer = await fs.promises.readFile(file.path);
+  if (buffer.length > 0) {
+    const imageMime = detectImageMime(buffer);
+
+    if (imageUploadFields.has(file.fieldname)) {
+      if (!imageMime) {
+        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        throw new Error('无效的图片文件内容');
+      }
+    }
+
+    if (looksLikeExecutableContent(buffer)) {
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      throw new Error('不允许上传可执行或脚本文件');
+    }
+  }
+};
+
 export const validateFileContent = async (req: Request, res: Response, next: NextFunction) => {
   const files = req.file
     ? [req.file]
@@ -338,54 +662,14 @@ export const validateFileContent = async (req: Request, res: Response, next: Nex
 
   try {
     for (const file of files) {
-      const ext = path.extname(file.originalname).toLowerCase();
-
-      if (model3dExtensions.includes(ext) || documentExtensions.includes(ext)) {
+      // If the file was already uploaded to R2 and deleted locally, skip local content check
+      if ((file as any).url) {
         continue;
       }
-
-      if (ext === '.svg') {
-        try {
-          const content = await fs.promises.readFile(file.path, 'utf8');
-          const hasScript = /<script\b[^>]*>/i.test(content);
-          const hasEventHandlers = /\bon[a-z]+\s*=/i.test(content);
-          const hasJavascriptUrl = /href\s*=\s*["']\s*javascript:/i.test(content);
-          if (hasScript || hasEventHandlers || hasJavascriptUrl) {
-            if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-            return res.status(400).json({ error: '安全验证失败：SVG文件包含潜在的安全隐患' });
-          }
-
-          if (!content.includes('<svg') && !content.includes('http://www.w3.org/2000/svg')) {
-            if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-            return res.status(400).json({ error: '无效的SVG图片内容' });
-          }
-          continue;
-        } catch (_readErr) {
-          if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-          return res.status(400).json({ error: '文件读取失败' });
-        }
-      }
-
-      const buffer = await fs.promises.readFile(file.path);
-      if (buffer.length > 0) {
-        const imageMime = detectImageMime(buffer);
-
-        if (imageUploadFields.has(file.fieldname)) {
-          if (!imageMime) {
-            fs.unlinkSync(file.path);
-            return res.status(400).json({ error: '无效的图片文件内容' });
-          }
-        }
-
-        if (looksLikeExecutableContent(buffer)) {
-          fs.unlinkSync(file.path);
-          return res.status(400).json({ error: '不允许上传可执行或脚本文件' });
-        }
-      }
+      await validateSingleFileContent(file);
     }
-
     next();
-  } catch (error) {
+  } catch (error: any) {
     logger.error('File validation error:', error);
     for (const file of files) {
       try {
@@ -396,6 +680,6 @@ export const validateFileContent = async (req: Request, res: Response, next: Nex
         logger.error('Cleanup error:', cleanupError);
       }
     }
-    return res.status(500).json({ error: '文件验证失败' });
+    return res.status(400).json({ error: error.message || '文件验证失败' });
   }
 };

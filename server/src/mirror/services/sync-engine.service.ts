@@ -5,6 +5,7 @@ import { thumbnailLocalizer } from './thumbnail-localizer.service';
 import { emitToAll } from '../../services/socket.service';
 import crypto from 'crypto';
 import { redisService } from '../../services/redis.service';
+import { uploadSourceMetadataToR2 } from './metadata.helper';
 
 async function runWithLimit<T>(
   limit: number,
@@ -527,6 +528,11 @@ export class SyncEngine {
         },
       });
 
+      // Upload/refresh metadata.json on R2 so other deployments can discover the synchronized state
+      await uploadSourceMetadataToR2(sourceId).catch((err) => {
+        logger.error(`[SyncEngine] Failed to upload metadata to R2 after successful full sync:`, err);
+      });
+
       progress.estimatedProgress = 100;
     } catch (error) {
       const isAborted =
@@ -972,6 +978,11 @@ export class SyncEngine {
           resourcesCreated: result.resourcesCreated,
           resourcesUpdated: result.resourcesUpdated,
         },
+      });
+
+      // Upload/refresh metadata.json on R2 so other deployments can discover the synchronized state
+      await uploadSourceMetadataToR2(sourceId).catch((err) => {
+        logger.error(`[SyncEngine] Failed to upload metadata to R2 after successful incremental sync:`, err);
       });
 
       progress.estimatedProgress = 100;

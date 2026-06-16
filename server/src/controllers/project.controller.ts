@@ -54,6 +54,7 @@ export const checkTeamProjectPermission = async (
 type DiscussionUploadFiles = Partial<Record<'images' | 'message_file', Express.Multer.File[]>>;
 
 const getDiscussionUploadUrl = (file: Express.Multer.File) => {
+  if ((file as any).url) return (file as any).url;
   if (file.fieldname === 'images') {
     return `/uploads/discussions/${file.filename}`;
   }

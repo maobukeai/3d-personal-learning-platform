@@ -1,0 +1,423 @@
+import { Response, NextFunction } from 'express';
+import fs from 'fs';
+import path from 'path';
+import { AuthRequest } from '../../middlewares/auth.middleware';
+import prisma from '../../services/prisma';
+import { storageService } from '../../services/storage.service';
+import { logger } from '../../utils/logger';
+import { auditService, AuditModule } from '../../services/audit.service';
+import { AppError } from '../../middlewares/error.middleware';
+import { encrypt, decrypt } from '../../utils/crypto';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Matches the encrypted format produced by `encrypt()`: iv(24hex):tag(32hex):ciphertext */
+const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
+
+/**
+ * Returns the decrypted secretAccessKey for internal use (storageService calls).
+ * Safely handles both legacy plaintext and new encrypted values.
+ */
+function getDecryptedSecret(raw: string | null | undefined): string {
+  if (!raw) return '';
+  if (!ENCRYPTED_VALUE_RE.test(raw)) return raw; // legacy plaintext, return as-is
+  try {
+    return decrypt(raw);
+  } catch (err) {
+    logger.error('[StorageController] Failed to decrypt secretAccessKey (may already be plaintext):', err);
+    return raw;
+  }
+}
+
+/**
+ * Builds a full StorageConfigData object with decrypted credentials,
+ * ready to be passed to storageService.
+ */
+function toDecryptedConfig(raw: Record<string, any>) {
+  return {
+    endpoint: raw.endpoint,
+    accessKeyId: raw.accessKeyId ?? '',
+    secretAccessKey: getDecryptedSecret(raw.secretAccessKey),
+    bucketName: raw.bucketName,
+    publicUrl: raw.publicUrl,
+  };
+}
+
+/**
+ * Returns a safe API response payload — never exposes secretAccessKey in plaintext.
+ */
+function maskConfig(config: Record<string, any>) {
+  return {
+    ...config,
+    secretAccessKey: config.secretAccessKey && ENCRYPTED_VALUE_RE.test(config.secretAccessKey)
+      ? '[已加密]'
+      : (config.secretAccessKey ? '[已存储]' : ''),
+  };
+}
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
+
+export const getConfigs = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const configs = await prisma.storageConfig.findMany({
+      orderBy: [
+        { priority: 'desc' },
+        { createdAt: 'desc' },
+      ],
+    });
+    res.json(configs.map(maskConfig));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const {
+      name,
+      provider,
+      endpoint,
+      accessKeyId,
+      secretAccessKey,
+      bucketName,
+      publicUrl,
+      limitGb,
+      usedBytes,
+      assetType,
+      priority,
+      status,
+    } = req.body;
+
+    if (!name || !endpoint || !accessKeyId || !secretAccessKey || !bucketName || !publicUrl || !assetType) {
+      return next(new AppError('缺少必要参数', 400));
+    }
+
+    const config = await prisma.storageConfig.create({
+      data: {
+        name,
+        provider: provider || 'CLOUDFLARE_R2',
+        endpoint,
+        accessKeyId,
+        secretAccessKey: encrypt(secretAccessKey), // 加密存储
+        bucketName,
+        publicUrl,
+        limitGb: parseFloat(limitGb) || 9.8,
+        usedBytes: parseFloat(usedBytes) || 0,
+        assetType,
+        priority: parseInt(priority) || 0,
+        status: status || 'ACTIVE',
+      },
+    });
+
+    await auditService.log({
+      req,
+      userId: req.userId!,
+      module: AuditModule.SETTINGS,
+      action: 'CREATE_STORAGE_CONFIG',
+      description: `Created storage config: ${config.name} (${config.assetType})`,
+      newValue: { id: config.id, name: config.name, assetType: config.assetType },
+    });
+
+    res.status(201).json(maskConfig(config));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const {
+      name,
+      provider,
+      endpoint,
+      accessKeyId,
+      secretAccessKey,
+      bucketName,
+      publicUrl,
+      limitGb,
+      usedBytes,
+      assetType,
+      priority,
+      status,
+    } = req.body;
+
+    const existing = await prisma.storageConfig.findUnique({ where: { id } });
+    if (!existing) {
+      return next(new AppError('配置未找到', 404));
+    }
+
+    const updateData: Record<string, any> = {
+      name: name !== undefined ? name : existing.name,
+      provider: provider !== undefined ? provider : existing.provider,
+      endpoint: endpoint !== undefined ? endpoint : existing.endpoint,
+      accessKeyId: accessKeyId !== undefined ? accessKeyId : existing.accessKeyId,
+      bucketName: bucketName !== undefined ? bucketName : existing.bucketName,
+      publicUrl: publicUrl !== undefined ? publicUrl : existing.publicUrl,
+      limitGb: limitGb !== undefined ? parseFloat(limitGb) : existing.limitGb,
+      usedBytes: usedBytes !== undefined ? parseFloat(usedBytes) : existing.usedBytes,
+      assetType: assetType !== undefined ? assetType : existing.assetType,
+      priority: priority !== undefined ? parseInt(priority) : existing.priority,
+      status: status !== undefined ? status : existing.status,
+    };
+
+    // Only re-encrypt if the user explicitly provided a new secretAccessKey
+    if (secretAccessKey !== undefined) {
+      updateData.secretAccessKey = encrypt(secretAccessKey);
+    }
+
+    const config = await prisma.storageConfig.update({
+      where: { id },
+      data: updateData,
+    });
+
+    await auditService.log({
+      req,
+      userId: req.userId!,
+      module: AuditModule.SETTINGS,
+      action: 'UPDATE_STORAGE_CONFIG',
+      description: `Updated storage config: ${config.name} (${config.assetType})`,
+      newValue: { id: config.id, name: config.name, assetType: config.assetType },
+    });
+
+    res.json(maskConfig(config));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+
+    const existing = await prisma.storageConfig.findUnique({ where: { id } });
+    if (!existing) {
+      return next(new AppError('配置未找到', 404));
+    }
+
+    await prisma.storageConfig.delete({ where: { id } });
+
+    await auditService.log({
+      req,
+      userId: req.userId!,
+      module: AuditModule.SETTINGS,
+      action: 'DELETE_STORAGE_CONFIG',
+      description: `Deleted storage config: ${existing.name}`,
+      oldValue: { id, name: existing.name },
+    });
+
+    res.json({ message: '配置已成功删除' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const testConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { endpoint, accessKeyId, secretAccessKey, bucketName, publicUrl } = req.body;
+
+    if (!endpoint || !accessKeyId || !secretAccessKey || !bucketName || !publicUrl) {
+      return next(new AppError('缺少必要参数', 400));
+    }
+
+    // secretAccessKey from request body is always plaintext — no decryption needed
+    const success = await storageService.testConnection({
+      endpoint,
+      accessKeyId,
+      secretAccessKey,
+      bucketName,
+      publicUrl,
+    });
+
+    res.json({ success });
+  } catch (error: any) {
+    logger.error('[StorageController] Test connection failed:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message || '连接测试失败，请检查配置参数',
+    });
+  }
+};
+
+export const listBucketFiles = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const raw = await prisma.storageConfig.findUnique({ where: { id } });
+    if (!raw) return next(new AppError('配置未找到', 404));
+
+    const config = toDecryptedConfig(raw);
+    const files = await storageService.listFiles(config);
+
+    let baseUrl = raw.publicUrl.endsWith('/') ? raw.publicUrl.slice(0, -1) : raw.publicUrl;
+    if (!/^https?:\/\//i.test(baseUrl) && !baseUrl.startsWith('/')) {
+      baseUrl = `https://${baseUrl}`;
+    }
+    const cleanKey = (key: string) => (key.startsWith('/') ? key.slice(1) : key);
+
+    res.json(
+      files.map((file) => ({
+        key: file.Key,
+        size: file.Size,
+        lastModified: file.LastModified,
+        url: `${baseUrl}/${cleanKey(file.Key!)}`,
+      })),
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteBucketFile = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const { key } = req.body;
+
+    if (!key) return next(new AppError('缺少 Key 参数', 400));
+
+    const raw = await prisma.storageConfig.findUnique({ where: { id } });
+    if (!raw) return next(new AppError('配置未找到', 404));
+
+    const config = toDecryptedConfig(raw);
+
+    // Get object size first to decrement usedBytes atomically
+    let objectSize = 0;
+    try {
+      const meta = await storageService.getObjectMetadata(config, key);
+      objectSize = meta.ContentLength || 0;
+    } catch (err) {
+      logger.error(`[StorageController] Failed to fetch object metadata before delete for key ${key}:`, err);
+    }
+
+    // Delete from S3/R2
+    await storageService.deleteFile(config, key);
+
+    // Decrement usedBytes atomically
+    if (objectSize > 0) {
+      await prisma.storageConfig.update({
+        where: { id },
+        data: {
+          usedBytes: {
+            decrement: objectSize,
+          },
+        },
+      });
+    }
+
+    await auditService.log({
+      req,
+      userId: req.userId!,
+      module: AuditModule.SETTINGS,
+      action: 'DELETE_STORAGE_FILE',
+      description: `Deleted file ${key} from storage ${raw.name}`,
+      oldValue: { id, key, size: objectSize },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadDirectFile = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const file = req.file;
+
+    if (!file) return next(new AppError('请选择要上传的文件', 400));
+
+    const raw = await prisma.storageConfig.findUnique({ where: { id } });
+    if (!raw) {
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      return next(new AppError('配置未找到', 404));
+    }
+
+    const config = toDecryptedConfig(raw);
+
+    // Check capacity limit
+    const limitBytes = raw.limitGb * 1024 * 1024 * 1024;
+    const updateResult = await prisma.storageConfig.updateMany({
+      where: {
+        id: raw.id,
+        status: 'ACTIVE',
+        usedBytes: { lte: limitBytes - file.size },
+      },
+      data: {
+        usedBytes: { increment: file.size },
+      },
+    });
+
+    if (updateResult.count === 0) {
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      return next(new AppError('云端存储容量已满，无法上传', 400));
+    }
+
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const sanitizedOriginalName = file.originalname
+      .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
+      .replace(/\s+/g, '_');
+    const extName = path.extname(sanitizedOriginalName);
+    const baseName = path.basename(sanitizedOriginalName, extName) || 'file';
+    const key = `manual/${baseName}-${uniqueSuffix}/${sanitizedOriginalName}`;
+
+    const r2Url = await storageService.uploadFile(config, file.path, key, file.mimetype);
+
+    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+
+    await auditService.log({
+      req,
+      userId: req.userId!,
+      module: AuditModule.SETTINGS,
+      action: 'UPLOAD_STORAGE_FILE',
+      description: `Uploaded file ${key} to storage ${raw.name}`,
+      newValue: { id, key, size: file.size, url: r2Url },
+    });
+
+    res.json({ success: true, url: r2Url, key });
+  } catch (error) {
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    next(error);
+  }
+};
+
+export const getActualSize = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const raw = await prisma.storageConfig.findUnique({ where: { id } });
+    if (!raw) return next(new AppError('配置未找到', 404));
+
+    const config = toDecryptedConfig(raw);
+    const actualSize = await storageService.getActualBucketSize(config);
+    res.json({ actualSize });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const syncActualSize = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const raw = await prisma.storageConfig.findUnique({ where: { id } });
+    if (!raw) return next(new AppError('配置未找到', 404));
+
+    const config = toDecryptedConfig(raw);
+    const actualSize = await storageService.getActualBucketSize(config);
+
+    const updated = await prisma.storageConfig.update({
+      where: { id },
+      data: { usedBytes: actualSize },
+    });
+
+    await auditService.log({
+      req,
+      userId: req.userId!,
+      module: AuditModule.SETTINGS,
+      action: 'SYNC_STORAGE_SIZE',
+      description: `Synchronized storage config ${raw.name} capacity to actual R2 size: ${actualSize} bytes`,
+      newValue: { id, usedBytes: actualSize },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+};

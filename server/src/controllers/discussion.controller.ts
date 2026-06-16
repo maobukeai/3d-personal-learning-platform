@@ -384,7 +384,7 @@ export const createDiscussion = async (req: AuthRequest, res: Response, next: Ne
     let imageUrls: string[] = [];
     if (files && files.length > 0) {
       imageUrls = files.map(
-        (file) => `${req.protocol}://${req.get('host')}/uploads/discussions/${file.filename}`,
+        (file) => (file as any).url || `${req.protocol}://${req.get('host')}/uploads/discussions/${file.filename}`,
       );
     }
 

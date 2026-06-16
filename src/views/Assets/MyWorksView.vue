@@ -271,9 +271,8 @@ const statusTabOptions = computed(() => {
     badge: tab.count,
   }));
 });
-
-const fetchWorks = async () => {
-  isLoading.value = true;
+const fetchWorks = async (silent = false) => {
+  if (!silent) isLoading.value = true;
   try {
     if (activeTab.value === 'mine') {
       const { data } = await api.get('/api/resources/my-workbench', {
@@ -312,17 +311,18 @@ const fetchWorks = async () => {
       myFavoritesCount.value = assetsCount + materialsCount + pluginsCount;
     }
   } catch (error) {
-    ElMessage.error(
-      getApiErrorMessage(
-        error,
-        activeTab.value === 'mine' ? '我的作品加载失败' : '收藏列表加载失败',
-      ),
-    );
+    if (!silent) {
+      ElMessage.error(
+        getApiErrorMessage(
+          error,
+          activeTab.value === 'mine' ? '我的作品加载失败' : '收藏列表加载失败',
+        ),
+      );
+    }
   } finally {
-    isLoading.value = false;
+    if (!silent) isLoading.value = false;
   }
 };
-
 watch(activeTab, () => {
   fetchWorks();
 });
@@ -481,7 +481,6 @@ const handleSaveEdit = async () => {
     isSaving.value = false;
   }
 };
-
 const handleDeleteWork = async (work: UnifiedWork) => {
   try {
     await ElMessageBox.confirm(`确定删除「${work.title}」吗？`, '删除作品', {
@@ -489,17 +488,52 @@ const handleDeleteWork = async (work: UnifiedWork) => {
       confirmButtonText: '删除',
       cancelButtonText: '取消',
     });
-    if (work.kind === 'asset') await api.delete(`/api/assets/${work.id}`);
-    if (work.kind === 'material') await api.delete(`/api/materials/${work.id}`);
-    if (work.kind === 'plugin') await api.delete(`/api/plugins/${work.id}`);
-    if (work.kind === 'showcase') await api.delete(`/api/showcase/${work.id}`);
+
+    // 备份当前状态以备失败恢复
+    const oldAssets = [...assets.value];
+    const oldMaterials = [...materials.value];
+    const oldPlugins = [...plugins.value];
+    const oldShowcases = [...showcases.value];
+
+    // 乐观更新：立刻在前端移除该作品
+    if (work.kind === 'asset') {
+      assets.value = assets.value.filter((x) => x.id !== work.id);
+    } else if (work.kind === 'material') {
+      materials.value = materials.value.filter((x) => x.id !== work.id);
+    } else if (work.kind === 'plugin') {
+      plugins.value = plugins.value.filter((x) => x.id !== work.id);
+    } else if (work.kind === 'showcase') {
+      showcases.value = showcases.value.filter((x) => x.id !== work.id);
+    }
+
+    // 立刻提示已删除
     ElMessage.success('已删除');
-    await fetchWorks();
+
+    // 异步在后台删除，成功后静默拉取更新，失败后恢复界面
+    const deletePromise = (() => {
+      if (work.kind === 'asset') return api.delete(`/api/assets/${work.id}`);
+      if (work.kind === 'material') return api.delete(`/api/materials/${work.id}`);
+      if (work.kind === 'plugin') return api.delete(`/api/plugins/${work.id}`);
+      if (work.kind === 'showcase') return api.delete(`/api/showcase/${work.id}`);
+      return Promise.resolve();
+    })();
+
+    deletePromise
+      .then(() => {
+        fetchWorks(true);
+      })
+      .catch((err) => {
+        // 恢复数据
+        assets.value = oldAssets;
+        materials.value = oldMaterials;
+        plugins.value = oldPlugins;
+        showcases.value = oldShowcases;
+        ElMessage.error(getApiErrorMessage(err, '删除失败'));
+      });
   } catch (error) {
     if (error !== 'cancel') ElMessage.error(getApiErrorMessage(error, '删除失败'));
   }
 };
-
 const openShowcaseDialog = (work: UnifiedWork) => {
   if (work.kind !== 'asset') return;
   showcaseForm.value = {
@@ -573,7 +607,7 @@ onMounted(async () => {
           <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
           {{ isStatsExpanded ? '收起指标' : '数据指标' }}
         </button>
-        <button type="button" class="ghost-button" :disabled="isLoading" @click="fetchWorks">
+        <button type="button" class="ghost-button" :disabled="isLoading" @click="() => fetchWorks()">
           <Loader2 v-if="isLoading" class="icon-sm spinning" />
           <Sparkles v-else class="icon-sm" />
           刷新

@@ -90,9 +90,8 @@ const validateSettings = (
     'OAUTH_GITHUB_ENABLED',
     'MICROSOFT_POOL_FAILBACK',
     'AI_IMPORT_ENABLED',
-  ];
-
-  for (const field of booleanFields) {
+    'FORCE_R2_STORAGE',
+  ];  for (const field of booleanFields) {
     if (settingsObj[field] !== undefined) {
       const val = settingsObj[field];
       if (val !== true && val !== false && val !== 'true' && val !== 'false') {
@@ -482,7 +481,7 @@ export const uploadBrandingLogo = async (req: AuthRequest, res: Response, next: 
       return next(new AppError('No file uploaded', 400));
     }
 
-    const fileUrl = `/uploads/branding/${req.file.filename}`;
+    const fileUrl = (req.file as any).url || `/uploads/branding/${req.file.filename}`;
     res.json({ url: fileUrl });
   } catch (error) {
     next(error);
@@ -499,7 +498,7 @@ export const uploadBrandingFavicon = async (
       return next(new AppError('No file uploaded', 400));
     }
 
-    const fileUrl = `/uploads/branding/${req.file.filename}`;
+    const fileUrl = (req.file as any).url || `/uploads/branding/${req.file.filename}`;
     res.json({ url: fileUrl });
   } catch (error) {
     next(error);

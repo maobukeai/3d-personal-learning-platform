@@ -1,8 +1,13 @@
 /**
  * Crypto helper functions for string encryption/decryption
- * Uses AES-256-GCM (v2) with backward compatibility for legacy RC4 (hex) data.
+ *
+ * Two separate encryption schemes:
+ * 1. encryptText / decryptText  — two-argument (text + key), used for mirror source credentials
+ * 2. encrypt / decrypt           — zero-key (key from STORAGE_ENCRYPTION_KEY env), used for SecretAccessKey
  */
 import crypto from 'crypto';
+
+// ─── Scheme 1: encryptText / decryptText (two-argument, used by mirror sources) ─
 
 const V2_PREFIX = 'enc:v2:';
 
@@ -10,9 +15,6 @@ function deriveKey(key: string): Buffer {
   return crypto.createHash('sha256').update(key).digest();
 }
 
-/**
- * Legacy RC4 decryption for backward compatibility with existing data.
- */
 function rc4(key: string, str: string): string {
   const s: number[] = Array.from({ length: 256 }, (_, index) => index);
   let j = 0;
@@ -50,7 +52,6 @@ export function encryptText(text: string, key: string): string {
 }
 
 export function decryptText(hex: string, key: string): string {
-  // Try AES-256-GCM v2 format first
   if (hex.startsWith(V2_PREFIX)) {
     const parts = hex.slice(V2_PREFIX.length).split(':');
     const [ivRaw, tagRaw, encryptedRaw] = parts;
@@ -65,10 +66,82 @@ export function decryptText(hex: string, key: string): string {
     }
   }
 
-  // Fallback to legacy RC4 hex format for backward compatibility
   let str = '';
   for (let i = 0; i < hex.length; i += 2) {
     str += String.fromCharCode(parseInt(hex.substring(i, i + 2), 16));
   }
   return rc4(key, str);
+}
+
+// ─── Scheme 2: encrypt / decrypt (env-key, used for SecretAccessKey) ────────────
+
+const ALGORITHM = 'aes-256-gcm';
+const IV_LENGTH = 12;
+const AUTH_TAG_LENGTH = 16;
+
+function getEncryptionKey(): Buffer {
+  const keyHex = process.env.STORAGE_ENCRYPTION_KEY;
+  if (!keyHex) {
+    throw new Error(
+      'STORAGE_ENCRYPTION_KEY environment variable is not set. ' +
+      'Set it to a 64-character hex string (32 bytes) for AES-256 encryption.',
+    );
+  }
+  if (!/^[0-9a-fA-F]{64}$/.test(keyHex)) {
+    throw new Error(
+      'STORAGE_ENCRYPTION_KEY must be a 64-character hex string (32 bytes).',
+    );
+  }
+  return Buffer.from(keyHex, 'hex');
+}
+
+/**
+ * Encrypts plaintext using AES-256-GCM with the key from STORAGE_ENCRYPTION_KEY env var.
+ * Returns format: iv:authTag:ciphertext (all hex-encoded).
+ */
+export function encrypt(plaintext: string): string {
+  const key = getEncryptionKey();
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
+
+  let ciphertext = cipher.update(plaintext, 'utf8', 'hex');
+  ciphertext += cipher.final('hex');
+  const authTag = cipher.getAuthTag();
+
+  return `${iv.toString('hex')}:${authTag.toString('hex')}:${ciphertext}`;
+}
+
+/**
+ * Decrypts a string produced by `encrypt()`.
+ * Throws if the ciphertext is tampered with or the key is wrong.
+ */
+export function decrypt(encryptedData: string): string {
+  const key = getEncryptionKey();
+  const parts = encryptedData.split(':');
+  if (parts.length !== 3) {
+    throw new Error('Invalid encrypted data format. Expected iv:authTag:ciphertext');
+  }
+
+  const iv = Buffer.from(parts[0]!, 'hex');
+  const authTag = Buffer.from(parts[1]!, 'hex');
+  const ciphertext = parts[2]!;
+
+  if (iv.length !== IV_LENGTH) {
+    throw new Error(`Invalid IV length: expected ${IV_LENGTH} bytes, got ${iv.length}`);
+  }
+  if (authTag.length !== AUTH_TAG_LENGTH) {
+    throw new Error(`Invalid auth tag length: expected ${AUTH_TAG_LENGTH} bytes, got ${authTag.length}`);
+  }
+
+  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
+  decipher.setAuthTag(authTag);
+
+  let decrypted;
+  try {
+    decrypted = decipher.update(ciphertext, 'hex', 'utf8') + decipher.final('utf8');
+  } catch {
+    throw new Error('Decryption failed: ciphertext has been tampered with or key is incorrect');
+  }
+
+  return decrypted;
 }

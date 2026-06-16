@@ -1,10 +1,98 @@
 import { logger } from '../utils/logger';
 import prisma from './prisma';
+import fs from 'fs';
+import path from 'path';
 
-export const cleanupExpiredData = async () => {
+export const cleanupMirrorTempDirectories = async (forceAll = false) => {
+  const mirrorDir = path.join(process.cwd(), 'uploads', 'mirror');
+  if (!fs.existsSync(mirrorDir)) return;
+
+  try {
+    const entries = fs.readdirSync(mirrorDir);
+    let deletedCount = 0;
+
+    // Fetch active mirror source IDs to identify orphaned source directories
+    const activeSources = await prisma.mirrorSource.findMany({
+      select: { id: true },
+    });
+    const activeSourceIds = new Set(activeSources.map((s) => s.id));
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    for (const entry of entries) {
+      const fullPath = path.join(mirrorDir, entry);
+      const stat = fs.statSync(fullPath);
+
+      if (stat.isDirectory()) {
+        const isTempFolder = entry.startsWith('temp-import-') || entry.startsWith('temp-');
+        const isOrphanedSourceFolder = uuidRegex.test(entry) && !activeSourceIds.has(entry);
+
+        if (isTempFolder || isOrphanedSourceFolder) {
+          const ageMs = Date.now() - stat.mtimeMs;
+          // Delete immediately if forceAll is true, or if folder is older than 2 hours
+          if (forceAll || ageMs > 2 * 60 * 60 * 1000) {
+            try {
+              fs.rmSync(fullPath, { recursive: true, force: true });
+              deletedCount++;
+              if (isOrphanedSourceFolder) {
+                logger.info(`[Cleanup] Deleted orphaned mirror source directory: ${entry}`);
+              }
+            } catch (rmErr) {
+              logger.error(`[Cleanup Error] Failed to delete directory ${fullPath}:`, rmErr);
+            }
+          }
+        }
+      }
+    }
+
+    if (deletedCount > 0) {
+      logger.info(`[Cleanup] Deleted ${deletedCount} expired/orphaned mirror directories.`);
+    }
+  } catch (err) {
+    logger.error('[Cleanup Error] Failed to cleanup mirror directories:', err);
+  }
+};
+
+export const cleanupLeftoverUploads = async (forceAll = false) => {
+  const feedbackDir = path.join(process.cwd(), 'uploads', 'feedback');
+  if (!fs.existsSync(feedbackDir)) return;
+
+  try {
+    const entries = fs.readdirSync(feedbackDir);
+    let deletedCount = 0;
+
+    for (const entry of entries) {
+      const fullPath = path.join(feedbackDir, entry);
+      const stat = fs.statSync(fullPath);
+
+      if (stat.isFile() && entry.startsWith('file-') && entry.endsWith('.zip')) {
+        const ageMs = Date.now() - stat.mtimeMs;
+        if (forceAll || ageMs > 2 * 60 * 60 * 1000) {
+          try {
+            fs.unlinkSync(fullPath);
+            deletedCount++;
+          } catch (unlinkErr) {
+            logger.error(`[Cleanup Error] Failed to delete file ${fullPath}:`, unlinkErr);
+          }
+        }
+      }
+    }
+
+    if (deletedCount > 0) {
+      logger.info(`[Cleanup] Deleted ${deletedCount} leftover mirror import ZIP files from uploads/feedback.`);
+    }
+  } catch (err) {
+    logger.error('[Cleanup Error] Failed to cleanup leftover upload files:', err);
+  }
+};
+
+export const cleanupExpiredData = async (forceAll = false) => {
   const now = new Date();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   try {
+    // Clean up temporary mirror directories and orphaned source directories
+    await cleanupMirrorTempDirectories(forceAll);
+    // Clean up leftover uploaded zip files
+    await cleanupLeftoverUploads(forceAll);
     const [
       deletedCodes,
       deletedTokens,
@@ -53,15 +141,15 @@ export const cleanupExpiredData = async () => {
 let cleanupInterval: NodeJS.Timeout | null = null;
 
 export const startCleanupJob = (intervalMs = 60 * 60 * 1000) => {
-  // Run immediately on start
-  cleanupExpiredData();
+  // Run immediately on start (forcing all orphaned temp and source directories to clean up)
+  cleanupExpiredData(true);
 
   if (cleanupInterval) {
     clearInterval(cleanupInterval);
   }
 
   cleanupInterval = setInterval(() => {
-    cleanupExpiredData();
+    cleanupExpiredData(false);
   }, intervalMs);
 
   if (cleanupInterval && typeof cleanupInterval.unref === 'function') {

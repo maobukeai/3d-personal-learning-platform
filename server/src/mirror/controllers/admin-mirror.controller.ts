@@ -2,6 +2,7 @@ import { Prisma, MirrorResource } from '@prisma/client';
 import { logger } from '../../utils/logger';
 import { Response } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
+import { getActiveStorageConfig, uploadSourceMetadataToR2 } from '../services/metadata.helper';
 import { syncEngine } from '../services/sync-engine.service';
 import { mirrorService } from '../services/mirror.service';
 import { thumbnailLocalizer } from '../services/thumbnail-localizer.service';
@@ -13,8 +14,44 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { clampLimit, clampPage } from '../../utils/pagination';
+import unzipper from 'unzipper';
+import { storageService } from '../../services/storage.service';
 
 type SpreadsheetRow = Record<string, string>;
+
+// ─── Internal helpers ─────────────────────────────────────────────────────────
+
+/** Matches the encrypted format produced by `encrypt()` */
+const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
+
+/**
+ * Returns a decrypted secretAccessKey, safely handling legacy plaintext values.
+ * Lazy-imports decrypt() to avoid circular dependency issues.
+ */
+function decryptSecret(raw: string | null | undefined): string {
+  if (!raw) return '';
+  if (!ENCRYPTED_VALUE_RE.test(raw)) return raw;
+  try {
+    const { decrypt } = require('../../utils/crypto');
+    return decrypt(raw);
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * Converts a raw Prisma StorageConfig (with potentially encrypted secretAccessKey)
+ * to a StorageConfigData object with decrypted credentials for storageService calls.
+ */
+function toDecryptedConfig(raw: Record<string, any>) {
+  return {
+    endpoint: raw.endpoint,
+    accessKeyId: raw.accessKeyId ?? '',
+    secretAccessKey: decryptSecret(raw.secretAccessKey),
+    bucketName: raw.bucketName,
+    publicUrl: raw.publicUrl,
+  };
+}
 
 const emptyInlineStringCellPattern =
   /<c\b(?=[^>]*\bt="inlineStr")(?=[^>]*\br="[^"]+")[^>]*>\s*<\/c>|<c\b(?=[^>]*\bt="inlineStr")(?=[^>]*\br="[^"]+")[^>]*\/>/g;
@@ -169,15 +206,157 @@ export const updateSource = async (req: AuthRequest, res: Response) => {
   }
 };
 
+const getCloudKey = (url: string, activeConfig: any): string | null => {
+  if (!url || !activeConfig) return null;
+  const rawPublicUrl = activeConfig.publicUrl;
+  
+  // Normalize both by removing trailing slash and protocols
+  const cleanPublicUrl = rawPublicUrl.replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase();
+  const cleanUrl = url.replace(/^https?:\/\//i, '').toLowerCase();
+
+  if (cleanUrl.startsWith(cleanPublicUrl)) {
+    // Return original case key (since S3/R2 keys are case sensitive)
+    const originalKey = url.slice(url.toLowerCase().indexOf(cleanPublicUrl) + cleanPublicUrl.length);
+    return originalKey.startsWith('/') ? originalKey.substring(1) : originalKey;
+  }
+  return null;
+};
+
+const runDeleteSourceFilesInBackground = async (
+  sourceId: string,
+  sourceIconUrl: string | null,
+  resources: { thumbnailUrl: string | null; contentHtml: string | null }[],
+  activeConfig: any,
+) => {
+  try {
+    const localFilesToDelete = new Set<string>();
+
+    const r2Config = activeConfig ? toDecryptedConfig(activeConfig) : null;
+
+    let totalSizeFreed = 0;
+    const keysToDelete = new Set<string>();
+
+    // 1. Process custom icon
+    if (sourceIconUrl && r2Config) {
+      const cloudKey = getCloudKey(sourceIconUrl, activeConfig);
+      if (cloudKey) {
+        keysToDelete.add(cloudKey);
+        try {
+          const metadata = await storageService.getObjectMetadata(r2Config, cloudKey);
+          totalSizeFreed += metadata.ContentLength ?? 0;
+        } catch (err) {
+          logger.warn(`Failed to get size for cloud icon key ${cloudKey}:`, err);
+        }
+      }
+    }
+
+    if (sourceIconUrl && sourceIconUrl.startsWith('/uploads/mirror/')) {
+      const filename = path.basename(sourceIconUrl);
+      localFilesToDelete.add(path.join(process.cwd(), 'uploads', 'mirror', filename));
+    }
+
+    // 2. Fetch all R2 files under this source's prefix
+    if (r2Config) {
+      try {
+        const prefix = `mirror/${sourceId}/`;
+        const cloudFiles = await storageService.listAllObjectsWithPrefix(r2Config, prefix);
+        for (const file of cloudFiles) {
+          keysToDelete.add(file.Key);
+          totalSizeFreed += file.Size;
+        }
+      } catch (err) {
+        logger.error(`[DeleteSourceBackground] Failed to list R2 files under prefix mirror/${sourceId}/:`, err);
+      }
+    }
+
+    // 3. Match local files to delete (from resources list)
+    for (const r of resources) {
+      if (r.thumbnailUrl && r.thumbnailUrl.startsWith(`/uploads/mirror/${sourceId}/`)) {
+        const filename = path.basename(r.thumbnailUrl);
+        localFilesToDelete.add(path.join(process.cwd(), 'uploads', 'mirror', sourceId, filename));
+      }
+
+      if (r.contentHtml && r.contentHtml.includes(`/uploads/mirror/${sourceId}/`)) {
+        const regex = new RegExp(`/uploads/mirror/${sourceId}/([^"'\\s>)]+)`, 'g');
+        let match;
+        while ((match = regex.exec(r.contentHtml)) !== null) {
+          if (match[1]) {
+            const part = match[1].split(/[?#]/)[0];
+            if (part) {
+              localFilesToDelete.add(path.join(process.cwd(), 'uploads', 'mirror', sourceId, path.basename(part)));
+            }
+          }
+        }
+      }
+    }
+
+    // 4. Perform bulk cloud deletion
+    if (r2Config && keysToDelete.size > 0) {
+      try {
+        await storageService.deleteFilesBulk(r2Config, Array.from(keysToDelete));
+        logger.info(`[DeleteSourceBackground] Bulk deleted ${keysToDelete.size} files from R2`);
+
+        if (totalSizeFreed > 0) {
+          await prisma.storageConfig.update({
+            where: { id: activeConfig.id },
+            data: { usedBytes: { decrement: totalSizeFreed } },
+          });
+          logger.info(`[DeleteSourceBackground] Freed ${totalSizeFreed} bytes in storage config [${activeConfig.name}]`);
+        }
+      } catch (err) {
+        logger.error('[DeleteSourceBackground] Bulk R2 deletion or usedBytes update failed:', err);
+      }
+    }
+
+    // 5. Delete local files from disk
+    for (const filePath of localFilesToDelete) {
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (err) {
+        logger.error(`[DeleteSourceBackground] Failed to delete local file ${filePath}:`, err);
+      }
+    }
+
+    // 6. Delete source local folder
+    const sourceDir = path.join(process.cwd(), 'uploads', 'mirror', sourceId);
+    if (fs.existsSync(sourceDir)) {
+      fs.rmSync(sourceDir, { recursive: true, force: true });
+      logger.info(`[DeleteSourceBackground] Deleted local source directory: ${sourceDir}`);
+    }
+  } catch (error) {
+    logger.error('[DeleteSourceBackground] Failed to run delete in background:', error);
+  }
+};
+
 export const deleteSource = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
+
+    // Fetch the source and resources first to get URL references
+    const source = await prisma.mirrorSource.findUnique({
+      where: { id },
+      select: { iconUrl: true },
+    });
+
+    if (!source) {
+      return res.status(404).json({ error: '镜像源不存在' });
+    }
+
+    const resources = await prisma.mirrorResource.findMany({
+      where: { sourceId: id },
+      select: { thumbnailUrl: true, contentHtml: true },
+    });
 
     // Cancel any active sync task first
     syncEngine.cancelSync(id);
 
     // Unschedule the deleted source before database removal
     syncEngine.removeSourceScheduler(id);
+
+    // Get active config
+    const activeConfig = await getActiveStorageConfig('MIRROR');
 
     await prisma.$transaction([
       prisma.mirrorResourceComment.deleteMany({
@@ -192,7 +371,10 @@ export const deleteSource = async (req: AuthRequest, res: Response) => {
       prisma.mirrorSource.delete({ where: { id } }),
     ]);
 
-    thumbnailLocalizer.deleteSourceFiles(id);
+    // Run file deletion in the background to prevent API timeout
+    runDeleteSourceFilesInBackground(id, source.iconUrl, resources, activeConfig).catch((err) => {
+      logger.error('[DeleteSource] Background file deletion failed:', err);
+    });
 
     res.json({ message: '镜像源已删除' });
   } catch (error) {
@@ -863,6 +1045,11 @@ interface ImportTask {
   currentStep: number;
   message: string;
   error?: string;
+  totalFiles?: number;
+  uploadedFiles?: number;
+  totalSize?: number;
+  uploadedSize?: number;
+  uploadSpeed?: number;
 }
 
 const importTasks = new Map<string, ImportTask>();
@@ -1109,14 +1296,50 @@ export const cleanupSourceImages = async (req: AuthRequest, res: Response) => {
   }
 };
 
+const getMimetype = (filename: string): string => {
+  const ext = path.extname(filename).toLowerCase();
+  if (ext === '.png') return 'image/png';
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.gif') return 'image/gif';
+  if (ext === '.webp') return 'image/webp';
+  if (ext === '.svg') return 'image/svg+xml';
+  return 'application/octet-stream';
+};
+
+
 const runImportInBackground = async (taskId: string, zipFilePath: string) => {
   const task = importTasks.get(taskId);
   if (!task) return;
 
+  const tempImportDir = path.join(process.cwd(), 'uploads', 'mirror', `temp-import-${taskId}`);
+  const cleanupTempDir = () => {
+    try {
+      if (fs.existsSync(tempImportDir)) {
+        fs.rmSync(tempImportDir, { recursive: true, force: true });
+      }
+    } catch (err) {
+      logger.error('Failed to cleanup temp import dir:', err);
+    }
+  };
+
   try {
-    const archive = unzipSync(new Uint8Array(fs.readFileSync(zipFilePath)));
-    const metadataU8 = archive['metadata.json'];
-    if (!metadataU8) {
+    // Ensure temp directory exists
+    if (!fs.existsSync(tempImportDir)) {
+      fs.mkdirSync(tempImportDir, { recursive: true });
+    }
+
+    // Open zip archive
+    const directory = await unzipper.Open.file(zipFilePath);
+
+    // Extract all files into the temp directory
+    task.status = 'extracting';
+    task.message = '正在解压导入包...';
+    task.progress = 2;
+    await directory.extract({ path: tempImportDir });
+
+    // Read metadata.json from temp directory
+    const metadataPath = path.join(tempImportDir, 'metadata.json');
+    if (!fs.existsSync(metadataPath)) {
       throw new Error('ZIP 归档中找不到 metadata.json，文件格式无效');
     }
 
@@ -1124,7 +1347,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     task.message = '正在解析元数据...';
     task.progress = 5;
 
-    const metadata = JSON.parse(strFromU8(metadataU8!));
+    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
     const { source, categories = [], resources = [] } = metadata;
 
     if (!source || !source.name || !source.displayName || !source.baseUrl) {
@@ -1141,9 +1364,13 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     });
 
     let targetSourceId = '';
-    const filesToExtract = Object.keys(archive).filter(
-      (k) => k.startsWith('files/') && k !== 'files/',
-    );
+
+    // Scan extracted files directory
+    const filesDir = path.join(tempImportDir, 'files');
+    const filesToExtract = fs.existsSync(filesDir)
+      ? fs.readdirSync(filesDir).filter((f) => fs.statSync(path.join(filesDir, f)).isFile())
+      : [];
+
     const totalCategories = categories.length;
     const totalResources = resources.length;
 
@@ -1210,17 +1437,85 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     task.currentStep++;
     task.progress = Math.round((task.currentStep / task.totalSteps) * 95);
 
+    // Query active storage configs: prioritize MIRROR, then ALL fallback
+    const activeConfig = await getActiveStorageConfig('MIRROR');
+
     // Re-extract local custom icon if bundled
     let importedIconUrl = source.iconUrl;
-    const iconEntry = Object.keys(archive).find((k) => k.startsWith('icon/') && k !== 'icon/');
-    if (iconEntry) {
-      const iconFilename = path.basename(iconEntry);
-      const iconDestDir = path.join(process.cwd(), 'uploads', 'mirror');
-      if (!fs.existsSync(iconDestDir)) {
-        fs.mkdirSync(iconDestDir, { recursive: true });
+    const iconDir = path.join(tempImportDir, 'icon');
+    let iconFilename = '';
+    let tempIconPath = '';
+
+    if (fs.existsSync(iconDir)) {
+      const iconFiles = fs.readdirSync(iconDir).filter((f) => fs.statSync(path.join(iconDir, f)).isFile());
+      if (iconFiles.length > 0) {
+        iconFilename = iconFiles[0]!;
+        tempIconPath = path.join(iconDir, iconFilename);
       }
-      fs.writeFileSync(path.join(iconDestDir, iconFilename), Buffer.from(archive[iconEntry]!));
-      importedIconUrl = `/uploads/mirror/${iconFilename}`;
+    }
+
+    if (tempIconPath) {
+      if (activeConfig) {
+        // Upload to Cloudflare R2
+        const key = `mirror/icon/${iconFilename}`;
+        const fileBytes = fs.statSync(tempIconPath).size;
+        const limitBytes = activeConfig.limitGb * 1024 * 1024 * 1024;
+
+        // Try to reserve space
+        const updateResult = await prisma.storageConfig.updateMany({
+          where: {
+            id: activeConfig.id,
+            status: 'ACTIVE',
+            usedBytes: { lte: limitBytes - fileBytes },
+          },
+          data: {
+            usedBytes: { increment: fileBytes },
+          },
+        });
+
+        if (updateResult.count > 0) {
+          try {
+            const r2Url = await storageService.uploadFile(
+              toDecryptedConfig(activeConfig),
+              tempIconPath,
+              key,
+              getMimetype(iconFilename),
+            );
+            importedIconUrl = r2Url;
+          } catch (uploadErr) {
+            logger.error('[ImportMirror] Failed to upload icon to R2, falling back to local storage:', uploadErr);
+            // Revert reserved space
+            await prisma.storageConfig.update({
+              where: { id: activeConfig.id },
+              data: { usedBytes: { decrement: fileBytes } },
+            });
+            // Fall back to local storage
+            const localIconDestDir = path.join(process.cwd(), 'uploads', 'mirror');
+            if (!fs.existsSync(localIconDestDir)) {
+              fs.mkdirSync(localIconDestDir, { recursive: true });
+            }
+            fs.copyFileSync(tempIconPath, path.join(localIconDestDir, iconFilename));
+            importedIconUrl = `/uploads/mirror/${iconFilename}`;
+          }
+        } else {
+          // Space full, fall back to local storage
+          logger.warn('[ImportMirror] Cloud storage space full, falling back to local storage for icon');
+          const localIconDestDir = path.join(process.cwd(), 'uploads', 'mirror');
+          if (!fs.existsSync(localIconDestDir)) {
+            fs.mkdirSync(localIconDestDir, { recursive: true });
+          }
+          fs.copyFileSync(tempIconPath, path.join(localIconDestDir, iconFilename));
+          importedIconUrl = `/uploads/mirror/${iconFilename}`;
+        }
+      } else {
+        // Fall back to local storage
+        const localIconDestDir = path.join(process.cwd(), 'uploads', 'mirror');
+        if (!fs.existsSync(localIconDestDir)) {
+          fs.mkdirSync(localIconDestDir, { recursive: true });
+        }
+        fs.copyFileSync(tempIconPath, path.join(localIconDestDir, iconFilename));
+        importedIconUrl = `/uploads/mirror/${iconFilename}`;
+      }
 
       await prisma.mirrorSource.update({
         where: { id: targetSourceId },
@@ -1231,16 +1526,148 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     // Extract localized files
     task.status = 'copying_files';
     task.message = '正在复制本地附件图片...';
-    const filesDestDir = path.join(process.cwd(), 'uploads', 'mirror', targetSourceId);
-    if (!fs.existsSync(filesDestDir)) {
-      fs.mkdirSync(filesDestDir, { recursive: true });
+    const localDestDir = path.join(process.cwd(), 'uploads', 'mirror', targetSourceId);
+    const ensureLocalDestDir = () => {
+      if (!fs.existsSync(localDestDir)) {
+        fs.mkdirSync(localDestDir, { recursive: true });
+      }
+    };
+    ensureLocalDestDir();
+
+    const fileUrlMap = new Map<string, string>();
+
+    // Pre-calculate file sizes and total size
+    let totalSize = 0;
+    const fileSizes = new Map<string, number>();
+    for (const filename of filesToExtract) {
+      const tempFilePath = path.join(filesDir, filename);
+      const size = fs.existsSync(tempFilePath) ? fs.statSync(tempFilePath).size : 0;
+      fileSizes.set(filename, size);
+      totalSize += size;
     }
 
-    for (const fileEntry of filesToExtract) {
-      const filename = path.basename(fileEntry);
-      fs.writeFileSync(path.join(filesDestDir, filename), Buffer.from(archive[fileEntry]!));
-      task.currentStep++;
+    // Pre-check cloud storage configuration space capacity
+    let useCloudStorage = !!activeConfig;
+    if (activeConfig) {
+      let actualBytes = activeConfig.usedBytes;
+      try {
+        // Retrieve actual R2 occupancy in real-time
+        actualBytes = await storageService.getActualBucketSize(toDecryptedConfig(activeConfig));
+
+        // Sync to the DB to keep things accurate
+        await prisma.storageConfig.update({
+          where: { id: activeConfig.id },
+          data: { usedBytes: actualBytes },
+        });
+        activeConfig.usedBytes = actualBytes;
+      } catch (err) {
+        logger.error('[ImportMirror] Failed to fetch actual bucket size from R2, falling back to db usedBytes:', err);
+      }
+
+      const limitBytes = activeConfig.limitGb * 1024 * 1024 * 1024;
+      if (actualBytes + totalSize > limitBytes) {
+        logger.warn(
+          `[ImportMirror] Cloud storage space insufficient based on actual R2 occupancy (actual: ${actualBytes} bytes, need ${totalSize} bytes, limit: ${limitBytes} bytes). Falling back to local storage.`,
+        );
+        useCloudStorage = false;
+      }
+    }
+
+    task.totalFiles = filesToExtract.length;
+    task.uploadedFiles = 0;
+    task.totalSize = totalSize;
+    task.uploadedSize = 0;
+    task.uploadSpeed = 0;
+
+    let uploadedFiles = 0;
+    let uploadedSize = 0;
+    let successfullyUploadedBytes = 0;
+    const startTime = Date.now();
+
+    const updateProgressMessage = () => {
+      const elapsedSeconds = (Date.now() - startTime) / 1000;
+      const speed = elapsedSeconds > 0 ? uploadedSize / elapsedSeconds : 0;
+      task.uploadedFiles = uploadedFiles;
+      task.uploadedSize = uploadedSize;
+      task.uploadSpeed = speed;
+
+      const uploadedMb = (uploadedSize / (1024 * 1024)).toFixed(1);
+      const totalMb = (totalSize / (1024 * 1024)).toFixed(1);
+      const speedMb = (speed / (1024 * 1024)).toFixed(2);
+
+      task.message = `正在复制附件图片 (${uploadedFiles}/${filesToExtract.length}) | ${uploadedMb}MB / ${totalMb}MB (${speedMb}MB/s)...`;
       task.progress = Math.round((task.currentStep / task.totalSteps) * 95);
+    };
+
+    updateProgressMessage();
+
+    // Use a parallel worker pool with concurrency limit
+    const concurrency = 50;
+    const queue = [...filesToExtract];
+
+    const processFile = async (filename: string) => {
+      const tempFilePath = path.join(filesDir, filename);
+      const fileBytes = fileSizes.get(filename) || 0;
+      let finalUrl = '';
+
+      if (useCloudStorage && activeConfig) {
+        // Upload to Cloudflare R2
+        const key = `mirror/${targetSourceId}/${filename}`;
+        try {
+          const r2Url = await storageService.uploadFile(
+            toDecryptedConfig(activeConfig),
+            tempFilePath,
+            key,
+            getMimetype(filename),
+          );
+          finalUrl = r2Url;
+          successfullyUploadedBytes += fileBytes;
+        } catch (uploadErr) {
+          logger.error(`[ImportMirror] Failed to upload ${filename} to R2, falling back to local storage:`, uploadErr);
+          ensureLocalDestDir();
+          fs.copyFileSync(tempFilePath, path.join(localDestDir, filename));
+          finalUrl = `/uploads/mirror/${targetSourceId}/${filename}`;
+        }
+      } else {
+        // Fall back to local storage
+        ensureLocalDestDir();
+        fs.copyFileSync(tempFilePath, path.join(localDestDir, filename));
+        finalUrl = `/uploads/mirror/${targetSourceId}/${filename}`;
+      }
+
+      fileUrlMap.set(filename, finalUrl);
+
+      uploadedFiles++;
+      uploadedSize += fileBytes;
+      task.currentStep++;
+      updateProgressMessage();
+    };
+
+    const workers = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
+      while (queue.length > 0) {
+        const filename = queue.shift();
+        if (!filename) break;
+        await processFile(filename);
+      }
+    });
+
+    await Promise.all(workers);
+
+    // Apply storage config usedBytes increment in a single batch database write at the end
+    if (useCloudStorage && activeConfig && successfullyUploadedBytes > 0) {
+      try {
+        await prisma.storageConfig.update({
+          where: { id: activeConfig.id },
+          data: {
+            usedBytes: { increment: successfullyUploadedBytes },
+          },
+        });
+        logger.info(
+          `[ImportMirror] Successfully updated R2 storage configuration usage by ${successfullyUploadedBytes} bytes.`,
+        );
+      } catch (dbErr) {
+        logger.error('[ImportMirror] Failed to increment storageConfig usedBytes after parallel uploads:', dbErr);
+      }
     }
 
     // Import MirrorCategory structure
@@ -1324,16 +1751,26 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
           oldSourceId &&
           thumbnailUrl.includes(`/uploads/mirror/${oldSourceId}/`)
         ) {
-          thumbnailUrl = thumbnailUrl.replace(
-            `/uploads/mirror/${oldSourceId}/`,
-            `/uploads/mirror/${targetSourceId}/`,
-          );
+          const filename = path.basename(thumbnailUrl);
+          if (fileUrlMap.has(filename)) {
+            thumbnailUrl = fileUrlMap.get(filename)!;
+          } else {
+            thumbnailUrl = thumbnailUrl.replace(
+              `/uploads/mirror/${oldSourceId}/`,
+              `/uploads/mirror/${targetSourceId}/`,
+            );
+          }
         }
 
         let contentHtml = r.contentHtml;
         if (contentHtml && oldSourceId && contentHtml.includes(`/uploads/mirror/${oldSourceId}/`)) {
-          const regex = new RegExp(`/uploads/mirror/${oldSourceId}/`, 'g');
-          contentHtml = contentHtml.replace(regex, `/uploads/mirror/${targetSourceId}/`);
+          const regex = new RegExp(`/uploads/mirror/${oldSourceId}/([^"'#>?\\s]+)`, 'g');
+          contentHtml = contentHtml.replace(regex, (match: string, matchedFilename: string) => {
+            if (fileUrlMap.has(matchedFilename)) {
+              return fileUrlMap.get(matchedFilename)!;
+            }
+            return `/uploads/mirror/${targetSourceId}/${matchedFilename}`;
+          });
         }
 
         return {
@@ -1372,20 +1809,16 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
       );
     }
 
+    // Upload the final consolidated metadata to R2 so other deployments can discover it
+    await uploadSourceMetadataToR2(targetSourceId).catch((err) => {
+      logger.error('[ImportMirror] Failed to upload metadata to R2 after successful import:', err);
+    });
+
     task.progress = 100;
     task.status = 'completed';
     task.message = '导入成功！';
 
-    // Delete temp ZIP
-    if (fs.existsSync(zipFilePath)) {
-      fs.unlinkSync(zipFilePath);
-    }
-  } catch (err) {
-    logger.error('[ImportMirrorBackground] Error importing mirror archive:', err);
-    task.status = 'failed';
-    task.error = err instanceof Error ? err.message : '未知导入错误';
-    task.message = '导入失败，请检查压缩包内容是否完整。';
-
+    // Delete temp ZIP if failed
     if (fs.existsSync(zipFilePath)) {
       try {
         fs.unlinkSync(zipFilePath);
@@ -1393,5 +1826,264 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
         logger.error('Failed to unlink uploaded ZIP:', unlinkErr);
       }
     }
+  } catch (err) {
+    logger.error('[ImportMirrorBackground] Error importing mirror archive:', err);
+    task.status = 'failed';
+    task.error = err instanceof Error ? err.message : '未知导入错误';
+    task.message = '导入失败，请检查压缩包内容是否完整。';
+  } finally {
+    cleanupTempDir();
   }
 };
+
+export const scanCloudSources = async (req: AuthRequest, res: Response) => {
+  try {
+    const activeConfig = await getActiveStorageConfig('MIRROR');
+    if (!activeConfig) {
+      return res.status(400).json({ error: '未启用 Cloudflare R2 云端存储配置。' });
+    }
+
+    // List all directories under mirror/
+    const prefixes = await storageService.listCommonPrefixes(toDecryptedConfig(activeConfig),
+      'mirror/',
+    );
+
+    const discoveredSources: any[] = [];
+
+    // For each prefix directory, try to read metadata.json
+    for (const prefix of prefixes) {
+      // e.g. mirror/some-uuid-or-id/
+      // Extract folder name
+      const parts = prefix.split('/').filter(Boolean);
+      const folderName = parts[parts.length - 1];
+      if (!folderName || folderName === 'icon') {
+        continue;
+      }
+
+      const metadataKey = `${prefix}metadata.json`;
+      try {
+        const jsonStr = await storageService.getObjectString(
+          toDecryptedConfig(activeConfig),
+          metadataKey,
+        );
+
+        if (jsonStr) {
+          let metadata: any;
+          try {
+            metadata = JSON.parse(jsonStr);
+          } catch (parseErr) {
+            logger.error('[ConnectCloudSource] Failed to parse metadata.json:', parseErr);
+            return res.status(400).json({ error: 'metadata.json 解析失败，内容可能被篡改或损坏' });
+          }
+          const { source, resources = [] } = metadata;
+          if (source && source.id && source.name) {
+            // Check if already connected (exists in DB)
+            const localSource = await prisma.mirrorSource.findFirst({
+              where: {
+                OR: [
+                  { id: source.id },
+                  { name: source.name }
+                ]
+              }
+            });
+
+            discoveredSources.push({
+              id: source.id,
+              name: source.name,
+              displayName: source.displayName,
+              description: source.description || null,
+              iconUrl: source.iconUrl || null,
+              totalResources: resources.length,
+              isConnected: !!localSource,
+              metadataKey,
+            });
+          }
+        }
+      } catch (err: any) {
+        // NoSuchKey or parsing error is common if prefix has no metadata.json
+        logger.warn(`[ScanCloudSources] Skip key ${metadataKey} due to error: ${err.message}`);
+      }
+    }
+
+    res.json(discoveredSources);
+  } catch (error) {
+    logger.error('[ScanCloudSources] Failed to scan Cloudflare R2:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+  }
+};
+
+export const connectCloudSource = async (req: AuthRequest, res: Response) => {
+  try {
+    const { metadataKey } = req.body;
+    if (!metadataKey) {
+      return res.status(400).json({ error: '缺少 metadataKey 参数' });
+    }
+
+    const activeConfig = await getActiveStorageConfig('MIRROR');
+    if (!activeConfig) {
+      return res.status(400).json({ error: '未启用 Cloudflare R2 云端存储配置。' });
+    }
+
+    const jsonStr = await storageService.getObjectString(
+      toDecryptedConfig(activeConfig),
+      metadataKey,
+    );
+
+    if (!jsonStr) {
+      return res.status(404).json({ error: '未能在 R2 找到对应的 metadata.json 文件' });
+    }
+
+    let metadata: any;
+    try {
+      metadata = JSON.parse(jsonStr);
+    } catch (parseErr) {
+      logger.error('[ConnectCloudSource] Failed to parse metadata.json:', parseErr);
+      return res.status(400).json({ error: 'metadata.json 解析失败，内容可能被篡改或损坏' });
+    }
+    const { source, categories = [], resources = [] } = metadata;
+
+    if (!source || !source.id || !source.name || !source.displayName) {
+      return res.status(400).json({ error: 'metadata.json 格式无效，缺少必要镜像源属性' });
+    }
+
+    const targetSourceId = source.id;
+
+    // Check if source with the same name exists but with different ID
+    const nameCollision = await prisma.mirrorSource.findFirst({
+      where: {
+        name: source.name,
+        id: { not: targetSourceId }
+      }
+    });
+
+    if (nameCollision) {
+      return res.status(400).json({
+        error: `连接失败：镜像源名称「${source.name}」已被另一个 ID 为「${nameCollision.id}」的镜像源占用。`
+      });
+    }
+
+    // Cancel active syncs
+    syncEngine.cancelSync(targetSourceId);
+    syncEngine.removeSourceScheduler(targetSourceId);
+
+    // Delete existing records to allow clean override
+    await prisma.$transaction([
+      prisma.mirrorResourceComment.deleteMany({
+        where: { resource: { sourceId: targetSourceId } },
+      }),
+      prisma.mirrorResourceLike.deleteMany({
+        where: { resource: { sourceId: targetSourceId } },
+      }),
+      prisma.syncLog.deleteMany({ where: { sourceId: targetSourceId } }),
+      prisma.mirrorResource.deleteMany({ where: { sourceId: targetSourceId } }),
+      prisma.mirrorCategory.deleteMany({ where: { sourceId: targetSourceId } }),
+      prisma.mirrorSource.deleteMany({ where: { id: targetSourceId } }),
+    ]);
+
+    // Re-create the source
+    await prisma.mirrorSource.create({
+      data: {
+        id: targetSourceId,
+        name: source.name,
+        displayName: source.displayName,
+        baseUrl: source.baseUrl,
+        adapterType: source.adapterType,
+        status: source.status || 'ACTIVE',
+        syncStatus: 'IDLE',
+        syncInterval: source.syncInterval ?? 3600,
+        syncConfig: source.syncConfig,
+        minPlanPriority: source.minPlanPriority ?? 1,
+        iconUrl: source.iconUrl,
+        description: source.description,
+      },
+    });
+
+    // Import categories
+    const categoryMap = new Map<string, string>();
+    const pendingCats = [...categories];
+    let insertedInLoop = true;
+
+    while (pendingCats.length > 0 && insertedInLoop) {
+      insertedInLoop = false;
+      for (let i = 0; i < pendingCats.length; i++) {
+        const cat = pendingCats[i];
+        if (!cat.parentExternalId || categoryMap.has(cat.parentExternalId)) {
+          const createdCat = await prisma.mirrorCategory.create({
+            data: {
+              sourceId: targetSourceId,
+              externalId: cat.externalId,
+              name: cat.name,
+              slug: cat.slug,
+              parentExternalId: cat.parentExternalId,
+              order: cat.order ?? 0,
+              resourceCount: cat.resourceCount ?? 0,
+            },
+          });
+          categoryMap.set(cat.externalId, createdCat.id);
+          pendingCats.splice(i, 1);
+          i--;
+          insertedInLoop = true;
+        }
+      }
+    }
+
+    // Fallback for unresolved categories
+    for (const cat of pendingCats) {
+      const createdCat = await prisma.mirrorCategory.create({
+        data: {
+          sourceId: targetSourceId,
+          externalId: cat.externalId,
+          name: cat.name,
+          slug: cat.slug,
+          parentExternalId: null,
+          order: cat.order ?? 0,
+          resourceCount: cat.resourceCount ?? 0,
+        },
+      });
+      categoryMap.set(cat.externalId, createdCat.id);
+    }
+
+    // Batch insert resources (100 at a time)
+    const batchSize = 100;
+    for (let i = 0; i < resources.length; i += batchSize) {
+      const batch = resources.slice(i, i + batchSize);
+      const insertData = batch.map((r: any) => ({
+        sourceId: targetSourceId,
+        externalId: r.externalId,
+        categoryId: r.categoryExternalId ? categoryMap.get(r.categoryExternalId) || null : null,
+        title: r.title,
+        description: r.description,
+        thumbnailUrl: r.thumbnailUrl,
+        contentUrl: r.contentUrl,
+        tags: r.tags,
+        externalData: r.externalData,
+        contentHtml: r.contentHtml,
+        resourceType: r.resourceType ?? 'COURSE',
+        viewCount: r.viewCount ?? 0,
+        publishedAt: r.publishedAt ? new Date(r.publishedAt) : null,
+        contentHash: r.contentHash,
+      }));
+
+      await prisma.mirrorResource.createMany({
+        data: insertData,
+      });
+    }
+
+    // Reload scheduler
+    const finalSource = await prisma.mirrorSource.findUnique({ where: { id: targetSourceId } });
+    if (finalSource) {
+      syncEngine.reloadSourceScheduler(
+        finalSource.id,
+        finalSource.status,
+        finalSource.syncInterval,
+      );
+    }
+
+    res.json({ message: '成功接入云端镜像源！', sourceId: targetSourceId });
+  } catch (error) {
+    logger.error('[ConnectCloudSource] Failed to connect Cloudflare R2 mirror source:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+  }
+};
+
+

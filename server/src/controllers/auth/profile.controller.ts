@@ -398,7 +398,7 @@ export const uploadAvatar = async (req: AuthRequest, res: Response, next: NextFu
       return next(new AppError('No file uploaded', 400));
     }
 
-    const avatarUrl = `${req.protocol}://${req.get('host')}/uploads/avatars/${req.file.filename}`;
+    const avatarUrl = (req.file as any).url || `${req.protocol}://${req.get('host')}/uploads/avatars/${req.file.filename}`;
 
     const updatedUser = await prisma.user.update({
       where: { id: req.userId as string },

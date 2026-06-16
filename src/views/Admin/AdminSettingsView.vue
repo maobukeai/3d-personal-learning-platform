@@ -18,6 +18,7 @@ import {
   Palette,
   Cpu,
   CheckCircle,
+  Cloud,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
@@ -33,6 +34,7 @@ import SmtpSettingsTab from './components/SmtpSettingsTab.vue';
 import SocialSettingsTab from './components/SocialSettingsTab.vue';
 import TemplateSettingsTab from './components/TemplateSettingsTab.vue';
 import AiSettingsTab from './components/AiSettingsTab.vue';
+import StorageSettingsTab from './components/StorageSettingsTab.vue';
 
 const systemStore = useSystemStore();
 const isLoading = ref(false);
@@ -63,6 +65,7 @@ const defaultSettings = {
   PLATFORM_DESCRIPTION: '',
   ALLOW_REGISTRATION: true,
   MAINTENANCE_MODE: false,
+  FORCE_R2_STORAGE: true,
   DEFAULT_USER_ROLE: 'USER',
   PASSWORD_MIN_LENGTH: '6',
   SESSION_TIMEOUT: '7d',
@@ -245,6 +248,7 @@ const tabs = [
   { id: 'branding', label: t('admin.platform_brand'), icon: Palette },
   { id: 'security', label: t('admin.security_policy'), icon: Shield },
   { id: 'upload', label: t('admin.upload_limit'), icon: Upload },
+  { id: 'storage', label: '云端存储配置', icon: Cloud },
   { id: 'smtp', label: t('admin.mail_service'), icon: Mail },
   { id: 'social', label: t('admin.social_login'), icon: Sparkles },
   { id: 'template', label: t('admin.email_template'), icon: Layout },
@@ -346,9 +350,10 @@ const fetchSettings = async () => {
           s.key === 'AUTO_APPROVE_MATERIALS' ||
           s.key === 'AUTO_APPROVE_SHOWCASES' ||
           s.key === 'MICROSOFT_POOL_FAILBACK' ||
+          s.key === 'FORCE_R2_STORAGE' ||
           s.key.endsWith('_ENABLED')
         ) {
-          setSettingValue(s.key, s.value === 'true');
+          setSettingValue(s.key, s.value === 'true' || s.value === true);
         } else if (
           s.key === 'MATERIAL_CATEGORIES' ||
           s.key === 'ALLOWED_FILE_TYPES' ||
@@ -837,6 +842,9 @@ onMounted(() => {
                 v-slot="{}"
                 v-model:settings="settings"
               />
+
+              <!-- Cloud Storage Settings -->
+              <StorageSettingsTab v-slot="{}" v-if="activeTab === 'storage'" />
 
               <!-- SMTP Settings -->
               <SmtpSettingsTab

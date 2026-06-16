@@ -1,11 +1,12 @@
 import { Response, NextFunction } from 'express';
+import { logger } from '../utils/logger';
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import path from 'path';
 import fs from 'fs';
 import { checkStorageQuota } from '../utils/quota';
-import { deleteFileByUrl } from '../utils/file';
+import { deleteCloudOrLocalFileByUrl } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../middlewares/error.middleware';
 import { createPaginationMeta, getPaginationParams } from '../utils/pagination';
@@ -370,10 +371,10 @@ export const uploadMaterial = async (req: AuthRequest, res: Response, next: Next
 
     const { title, description, category, resolution, tags, isProcedural } = req.body;
 
-    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/materials/${materialFile.filename}`;
+    const fileUrl = (materialFile as any).url || `${req.protocol}://${req.get('host')}/uploads/materials/${materialFile.filename}`;
     let previewUrl = null;
     if (previewFile) {
-      previewUrl = `${req.protocol}://${req.get('host')}/uploads/materials/${previewFile.filename}`;
+      previewUrl = (previewFile as any).url || `${req.protocol}://${req.get('host')}/uploads/materials/${previewFile.filename}`;
     }
 
     const material = await prisma.material.create({
@@ -476,9 +477,13 @@ export const deleteMaterial = async (req: AuthRequest, res: Response, next: Next
       }
     }
 
-    deleteFileByUrl(material.fileUrl);
+    deleteCloudOrLocalFileByUrl(material.fileUrl).catch((err) => {
+      logger.error(`[MaterialController] Failed to delete material file ${material.fileUrl} in background:`, err);
+    });
     if (material.previewUrl) {
-      deleteFileByUrl(material.previewUrl);
+      deleteCloudOrLocalFileByUrl(material.previewUrl).catch((err) => {
+        logger.error(`[MaterialController] Failed to delete material preview ${material.previewUrl} in background:`, err);
+      });
     }
 
     await prisma.material.delete({ where: { id } });
@@ -502,6 +507,14 @@ export const downloadMaterial = async (req: AuthRequest, res: Response, next: Ne
   const id = req.params.id as string;
   try {
     const material = await getWorkspaceMaterial(id, req, { requireApproved: true });
+
+    if (material.fileUrl.startsWith('http://') || material.fileUrl.startsWith('https://')) {
+      await prisma.material.update({
+        where: { id },
+        data: { downloads: { increment: 1 } },
+      });
+      return res.redirect(material.fileUrl);
+    }
 
     const fileName = material.fileUrl.split('/').pop();
     if (!fileName) return next(new AppError('Invalid file URL', 400));

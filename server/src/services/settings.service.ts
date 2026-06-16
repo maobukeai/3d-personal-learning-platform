@@ -50,6 +50,7 @@ export interface SystemSettings {
   AI_MODEL_NAME: string;
   AI_MODEL_OPTIONS: string;
   AI_MODEL_CUSTOM_CATEGORIES: string;
+  FORCE_R2_STORAGE: boolean;
 }
 
 export interface AIModelOption {
@@ -90,6 +91,8 @@ const DEFAULT_SETTINGS: SystemSettings = {
   PLATFORM_DESCRIPTION: '',
   ALLOW_REGISTRATION: true,
   MAINTENANCE_MODE: false,
+  FORCE_R2_STORAGE: true,
+
   MAX_FILE_SIZE: 100,
   MAX_UPLOAD_SIZE_MB: 100,
   ALLOWED_EXTENSIONS: [

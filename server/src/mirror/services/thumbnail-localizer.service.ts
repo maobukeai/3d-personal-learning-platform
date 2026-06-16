@@ -8,6 +8,7 @@ import net from 'net';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import * as cheerio from 'cheerio';
+import { storageService } from '../../services/storage.service';
 
 const MAX_REDIRECTS = 3;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -149,6 +150,86 @@ class ThumbnailLocalizer {
       const localUrl = `${this.baseUrl}/${sourceId}/${fileName}`;
 
       if (fs.existsSync(filePath)) {
+        // Check active configurations: prioritize MIRROR, then ALL fallback
+        let configs = await prisma.storageConfig.findMany({
+          where: {
+            status: 'ACTIVE',
+            assetType: 'MIRROR',
+          },
+          orderBy: [
+            { priority: 'desc' },
+            { createdAt: 'desc' },
+          ],
+        });
+
+        if (configs.length === 0) {
+          configs = await prisma.storageConfig.findMany({
+            where: {
+              status: 'ACTIVE',
+              assetType: 'ALL',
+            },
+            orderBy: [
+              { priority: 'desc' },
+              { createdAt: 'desc' },
+            ],
+          });
+        }
+
+        if (configs.length > 0) {
+          const stats = fs.statSync(filePath);
+          const fileBytes = stats.size;
+
+          for (const config of configs) {
+            const limitBytes = config.limitGb * 1024 * 1024 * 1024;
+            const updateResult = await prisma.storageConfig.updateMany({
+              where: {
+                id: config.id,
+                status: 'ACTIVE',
+                usedBytes: { lte: limitBytes - fileBytes },
+              },
+              data: {
+                usedBytes: { increment: fileBytes },
+              },
+            });
+
+            if (updateResult.count > 0) {
+              try {
+                const key = `mirror/${sourceId}/${fileName}`;
+                let mimetype = 'image/jpeg';
+                if (ext === '.png') mimetype = 'image/png';
+                else if (ext === '.gif') mimetype = 'image/gif';
+                else if (ext === '.webp') mimetype = 'image/webp';
+                else if (ext === '.svg') mimetype = 'image/svg+xml';
+
+                const r2Url = await storageService.uploadFile(
+                  {
+                    endpoint: config.endpoint,
+                    accessKeyId: config.accessKeyId,
+                    secretAccessKey: config.secretAccessKey,
+                    bucketName: config.bucketName,
+                    publicUrl: config.publicUrl,
+                  },
+                  filePath,
+                  key,
+                  mimetype,
+                );
+
+                fs.unlinkSync(filePath);
+                return r2Url;
+              } catch (err) {
+                logger.error(
+                  `[ThumbnailLocalizer] Upload existing file to R2 config [${config.name}] failed:`,
+                  err,
+                );
+                await prisma.storageConfig.update({
+                  where: { id: config.id },
+                  data: { usedBytes: { decrement: fileBytes } },
+                });
+              }
+            }
+          }
+        }
+
         return localUrl;
       }
 
@@ -220,6 +301,88 @@ class ThumbnailLocalizer {
           return originalUrl;
         }
         fs.writeFileSync(filePath, buffer);
+      }
+
+      // Check active configurations: prioritize MIRROR, then ALL fallback
+      let configs = await prisma.storageConfig.findMany({
+        where: {
+          status: 'ACTIVE',
+          assetType: 'MIRROR',
+        },
+        orderBy: [
+          { priority: 'desc' },
+          { createdAt: 'desc' },
+        ],
+      });
+
+      if (configs.length === 0) {
+        configs = await prisma.storageConfig.findMany({
+          where: {
+            status: 'ACTIVE',
+            assetType: 'ALL',
+          },
+          orderBy: [
+            { priority: 'desc' },
+            { createdAt: 'desc' },
+          ],
+        });
+      }
+
+      if (configs.length > 0) {
+        const stats = fs.statSync(filePath);
+        const fileBytes = stats.size;
+
+        for (const config of configs) {
+          const limitBytes = config.limitGb * 1024 * 1024 * 1024;
+          const updateResult = await prisma.storageConfig.updateMany({
+            where: {
+              id: config.id,
+              status: 'ACTIVE',
+              usedBytes: { lte: limitBytes - fileBytes },
+            },
+            data: {
+              usedBytes: { increment: fileBytes },
+            },
+          });
+
+          if (updateResult.count > 0) {
+            try {
+              const key = `mirror/${sourceId}/${fileName}`;
+              let mimetype = 'image/jpeg';
+              if (ext === '.png') mimetype = 'image/png';
+              else if (ext === '.gif') mimetype = 'image/gif';
+              else if (ext === '.webp') mimetype = 'image/webp';
+              else if (ext === '.svg') mimetype = 'image/svg+xml';
+
+              const r2Url = await storageService.uploadFile(
+                {
+                  endpoint: config.endpoint,
+                  accessKeyId: config.accessKeyId,
+                  secretAccessKey: config.secretAccessKey,
+                  bucketName: config.bucketName,
+                  publicUrl: config.publicUrl,
+                },
+                filePath,
+                key,
+                mimetype,
+              );
+
+              if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+              }
+              return r2Url;
+            } catch (err) {
+              logger.error(
+                `[ThumbnailLocalizer] Upload downloaded to R2 config [${config.name}] failed:`,
+                err,
+              );
+              await prisma.storageConfig.update({
+                where: { id: config.id },
+                data: { usedBytes: { decrement: fileBytes } },
+              });
+            }
+          }
+        }
       }
 
       return localUrl;

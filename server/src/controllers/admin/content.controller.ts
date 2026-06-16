@@ -1,8 +1,7 @@
 import { logger } from '../../utils/logger';
 import { Prisma } from '@prisma/client';
 import { Response, NextFunction } from 'express';
-import fs from 'fs';
-import path from 'path';
+import { deleteCloudOrLocalFileByUrl } from '../../utils/file';
 import prisma from '../../services/prisma';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { createNotification, createNotificationBatch } from '../../utils/notification';
@@ -448,17 +447,15 @@ export const adminDeleteMaterial = async (req: AuthRequest, res: Response, next:
     const material = await prisma.material.findUnique({ where: { id } });
     if (!material) return next(new AppError('Material not found', 404));
 
-    // Delete files
-    const deleteFile = (url: string) => {
-      const fileName = url.split('/').pop();
-      if (fileName) {
-        const filePath = path.join(__dirname, '../../../uploads/materials', fileName);
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      }
-    };
-
-    deleteFile(material.fileUrl);
-    if (material.previewUrl) deleteFile(material.previewUrl);
+    // Delete files from disk or cloud in background
+    deleteCloudOrLocalFileByUrl(material.fileUrl).catch((err) => {
+      logger.error(`[AdminContentController] Failed to delete material file ${material.fileUrl} in background:`, err);
+    });
+    if (material.previewUrl) {
+      deleteCloudOrLocalFileByUrl(material.previewUrl).catch((err) => {
+        logger.error(`[AdminContentController] Failed to delete material preview ${material.previewUrl} in background:`, err);
+      });
+    }
 
     await prisma.material.delete({ where: { id } });
 
@@ -695,6 +692,30 @@ export const adminDeleteShowcase = async (req: AuthRequest, res: Response, next:
     const showcase = await prisma.showcase.findUnique({ where: { id } });
     if (!showcase) {
       return next(new AppError('Showcase not found', 404));
+    }
+
+    // Delete files in background
+    if (showcase.thumbnailUrl) {
+      deleteCloudOrLocalFileByUrl(showcase.thumbnailUrl).catch((err) => {
+        logger.error('[AdminContentController] Failed to delete showcase thumbnail in background:', err);
+      });
+    }
+    if (showcase.images) {
+      try {
+        const parsed = JSON.parse(showcase.images);
+        const images = Array.isArray(parsed) ? parsed : [showcase.images];
+        for (const url of images) {
+          if (url) {
+            deleteCloudOrLocalFileByUrl(url).catch((err) => {
+              logger.error(`[AdminContentController] Failed to delete showcase image ${url} in background:`, err);
+            });
+          }
+        }
+      } catch {
+        deleteCloudOrLocalFileByUrl(showcase.images).catch((err) => {
+          logger.error(`[AdminContentController] Failed to delete showcase image ${showcase.images} in background:`, err);
+        });
+      }
     }
 
     await prisma.showcase.delete({ where: { id } });

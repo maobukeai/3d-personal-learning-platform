@@ -766,16 +766,16 @@ onMounted(() => {
               <div class="space-y-0.5 max-w-[70%]">
                 <div class="flex items-center gap-1.5">
                   <span class="font-bold text-xs truncate" style="color: var(--text-primary)" :title="config.name">{{ config.name }}</span>
-                  <span
-                    class="text-[8px] px-1 py-0.5 font-bold rounded-md shrink-0"
-                    :class="[
-                      config.status === 'ACTIVE'
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-slate-500/10 text-slate-600 dark:text-slate-400',
-                    ]"
-                  >
-                    {{ config.status === 'ACTIVE' ? '启用' : '禁用' }}
-                  </span>
+                  <el-switch
+                    :model-value="config.status === 'ACTIVE'"
+                    size="small"
+                    active-text="启用"
+                    inactive-text="禁用"
+                    inline-prompt
+                    class="shrink-0"
+                    style="--el-switch-on-color: #10b981; --el-switch-off-color: #94a3b8; transform: scale(0.85); transform-origin: left center;"
+                    @change="toggleStatus(config)"
+                  />
                 </div>
                 <div class="flex items-center gap-1 text-[9px] truncate" style="color: var(--text-muted)">
                   <Database class="w-2.5 h-2.5 shrink-0" />
@@ -846,14 +846,6 @@ onMounted(() => {
                 @click="openFileDrawer(config)"
               >
                 <FolderOpen class="w-3 h-3" />
-              </button>
-              <button
-                type="button"
-                class="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors cursor-pointer"
-                title="修改状态"
-                @click="toggleStatus(config)"
-              >
-                <Play class="w-3 h-3" :class="{ 'text-emerald-500 rotate-90': config.status !== 'ACTIVE' }" />
               </button>
               <button
                 type="button"

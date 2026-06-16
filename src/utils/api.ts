@@ -40,7 +40,42 @@ export const getAssetUrl = (url: string | null | undefined): string => {
   }
   // Return absolute urls as is
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
-    return normalizeLocalUploadUrl(url);
+    let normalized = normalizeLocalUploadUrl(url);
+    if (normalized.startsWith('http://')) {
+      try {
+        const parsed = new URL(normalized);
+        const host = parsed.hostname.toLowerCase();
+        // Do not upgrade local/dev addresses
+        const isLocal =
+          ['localhost', '127.0.0.1', '::1'].includes(host) ||
+          host.startsWith('192.168.') ||
+          host.startsWith('10.') ||
+          host.startsWith('172.16.') ||
+          host.startsWith('172.17.') ||
+          host.startsWith('172.18.') ||
+          host.startsWith('172.19.') ||
+          host.startsWith('172.20.') ||
+          host.startsWith('172.21.') ||
+          host.startsWith('172.22.') ||
+          host.startsWith('172.23.') ||
+          host.startsWith('172.24.') ||
+          host.startsWith('172.25.') ||
+          host.startsWith('172.26.') ||
+          host.startsWith('172.27.') ||
+          host.startsWith('172.28.') ||
+          host.startsWith('172.29.') ||
+          host.startsWith('172.30.') ||
+          host.startsWith('172.31.') ||
+          host.endsWith('.local');
+        
+        if (!isLocal) {
+          normalized = `https://${parsed.host}${parsed.pathname}${parsed.search}${parsed.hash}`;
+        }
+      } catch {
+        normalized = normalized.replace(/^http:\/\//i, 'https://');
+      }
+    }
+    return normalized;
   }
   // Prepend base url for relative paths
   const cleanPath = url.startsWith('/') ? url : `/${url}`;

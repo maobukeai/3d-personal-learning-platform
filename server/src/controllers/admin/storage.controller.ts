@@ -49,9 +49,7 @@ function toDecryptedConfig(raw: Record<string, any>) {
 function maskConfig(config: Record<string, any>) {
   return {
     ...config,
-    secretAccessKey: config.secretAccessKey && ENCRYPTED_VALUE_RE.test(config.secretAccessKey)
-      ? '[已加密]'
-      : (config.secretAccessKey ? '[已存储]' : ''),
+    secretAccessKey: getDecryptedSecret(config.secretAccessKey),
   };
 }
 

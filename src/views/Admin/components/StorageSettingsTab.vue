@@ -734,11 +734,11 @@ onMounted(() => {
       </div>
 
       <!-- Config Cards List -->
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         <div
           v-for="config in configs"
           :key="config.id"
-          class="group p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden flex flex-col justify-between"
+          class="group p-3 rounded-lg border transition-all duration-300 relative overflow-hidden flex flex-col justify-between"
           :class="[
             config.status === 'ACTIVE'
               ? 'hover:shadow-md hover:-translate-y-0.5'
@@ -751,7 +751,7 @@ onMounted(() => {
         >
           <!-- Progress highlight bar on top -->
           <div
-            class="absolute top-0 left-0 h-1 transition-all duration-300"
+            class="absolute top-0 left-0 h-0.5 transition-all duration-300"
             :class="[
               getUsagePercentage(config.usedBytes, config.limitGb) >= 95
                 ? 'bg-rose-500 shadow-sm shadow-rose-500/20'
@@ -762,12 +762,12 @@ onMounted(() => {
 
           <div>
             <!-- Header: Title and Type -->
-            <div class="flex items-start justify-between mb-4">
-              <div class="space-y-0.5">
-                <div class="flex items-center gap-2">
-                  <span class="font-bold text-sm" style="color: var(--text-primary)">{{ config.name }}</span>
+            <div class="flex items-start justify-between mb-1.5">
+              <div class="space-y-0.5 max-w-[70%]">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold text-xs truncate" style="color: var(--text-primary)" :title="config.name">{{ config.name }}</span>
                   <span
-                    class="text-[9px] px-1.5 py-0.5 font-bold rounded-md"
+                    class="text-[8px] px-1 py-0.5 font-bold rounded-md shrink-0"
                     :class="[
                       config.status === 'ACTIVE'
                         ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
@@ -777,14 +777,14 @@ onMounted(() => {
                     {{ config.status === 'ACTIVE' ? '启用' : '禁用' }}
                   </span>
                 </div>
-                <div class="flex items-center gap-1.5 text-[10px]" style="color: var(--text-muted)">
-                  <Database class="w-3 h-3" />
-                  <span>桶名: {{ config.bucketName }}</span>
+                <div class="flex items-center gap-1 text-[9px] truncate" style="color: var(--text-muted)">
+                  <Database class="w-2.5 h-2.5 shrink-0" />
+                  <span class="truncate" :title="config.bucketName">桶: {{ config.bucketName }}</span>
                 </div>
               </div>
 
               <span
-                class="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider"
+                class="text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0"
                 style="background-color: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-base)"
               >
                 {{ getAssetTypeLabel(config.assetType) }}
@@ -792,19 +792,19 @@ onMounted(() => {
             </div>
 
             <!-- Endpoint Detail -->
-            <div class="space-y-1 text-[10px] mb-4 font-mono p-2.5 rounded-lg" style="background-color: var(--bg-card); color: var(--text-secondary)">
-              <div class="truncate">终端: {{ config.endpoint }}</div>
-              <div class="truncate flex items-center gap-1">
+            <div class="space-y-0.5 text-[9px] mb-1.5 font-mono p-1.5 rounded-md" style="background-color: var(--bg-card); color: var(--text-secondary)">
+              <div class="truncate" :title="config.endpoint">终端: {{ config.endpoint }}</div>
+              <div class="truncate flex items-center gap-1" :title="config.publicUrl">
                 <span>域名: {{ config.publicUrl }}</span>
-                <a :href="config.publicUrl" target="_blank" class="hover:text-indigo-500">
-                  <ExternalLink class="w-2.5 h-2.5 inline" />
+                <a :href="config.publicUrl" target="_blank" class="hover:text-indigo-500 shrink-0">
+                  <ExternalLink class="w-2 h-2 inline" />
                 </a>
               </div>
             </div>
 
             <!-- Capacity Info -->
-            <div class="space-y-1.5 mb-5">
-              <div class="flex items-center justify-between text-[10px]">
+            <div class="space-y-0.5 mb-2">
+              <div class="flex items-center justify-between text-[9px]">
                 <span style="color: var(--text-muted)">容量配额使用率</span>
                 <span class="font-bold font-mono" style="color: var(--text-primary)">
                   {{ getUsagePercentage(config.usedBytes, config.limitGb) }}%
@@ -812,7 +812,7 @@ onMounted(() => {
               </div>
               
               <!-- Custom designed CSS progress bar -->
-              <div class="w-full h-2 rounded-full overflow-hidden" style="background-color: var(--bg-card)">
+              <div class="w-full h-1 rounded-full overflow-hidden" style="background-color: var(--bg-card)">
                 <div
                   class="h-full rounded-full transition-all duration-500"
                   :class="[
@@ -825,7 +825,7 @@ onMounted(() => {
               </div>
 
               <!-- Numerical detail precise to decimals -->
-              <div class="flex items-center justify-between text-[9px]" style="color: var(--text-muted)">
+              <div class="flex items-center justify-between text-[8px]" style="color: var(--text-muted)">
                 <span>已用: {{ formatBytes(config.usedBytes) }}</span>
                 <span>限制: {{ config.limitGb.toFixed(3) }} GB</span>
               </div>
@@ -833,43 +833,43 @@ onMounted(() => {
           </div>
 
           <!-- Bottom: Action Buttons -->
-          <div class="flex items-center justify-between pt-3 border-t" style="border-color: var(--border-base)">
-            <div class="text-[9px]" style="color: var(--text-muted)">
+          <div class="flex items-center justify-between pt-1.5 border-t" style="border-color: var(--border-base)">
+            <div class="text-[8px]" style="color: var(--text-muted)">
               优先级: <span class="font-bold text-slate-800 dark:text-slate-200">#{{ config.priority }}</span>
             </div>
 
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5">
               <button
                 type="button"
-                class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
+                class="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
                 title="浏览/管理文件"
                 @click="openFileDrawer(config)"
               >
-                <FolderOpen class="w-3.5 h-3.5" />
+                <FolderOpen class="w-3 h-3" />
               </button>
               <button
                 type="button"
-                class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors cursor-pointer"
+                class="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors cursor-pointer"
                 title="修改状态"
                 @click="toggleStatus(config)"
               >
-                <Play class="w-3.5 h-3.5" :class="{ 'text-emerald-500 rotate-90': config.status !== 'ACTIVE' }" />
+                <Play class="w-3 h-3" :class="{ 'text-emerald-500 rotate-90': config.status !== 'ACTIVE' }" />
               </button>
               <button
                 type="button"
-                class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors cursor-pointer"
+                class="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors cursor-pointer"
                 title="编辑配置"
                 @click="openEditDialog(config)"
               >
-                <Edit2 class="w-3.5 h-3.5" />
+                <Edit2 class="w-3 h-3" />
               </button>
               <button
                 type="button"
-                class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                class="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
                 title="删除配置"
                 @click="deleteConfig(config.id, config.name)"
               >
-                <Trash2 class="w-3.5 h-3.5" />
+                <Trash2 class="w-3 h-3" />
               </button>
             </div>
           </div>

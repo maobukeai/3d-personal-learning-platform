@@ -1,6 +1,20 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, HeadObjectCommand, ListObjectsV2CommandOutput, DeleteObjectsCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import fs from 'fs';
 import { logger } from '../utils/logger';
+import { decrypt } from '../utils/crypto';
+
+const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
+
+function decryptSecretIfNeeded(raw: string | null | undefined): string {
+  if (!raw) return '';
+  if (!ENCRYPTED_VALUE_RE.test(raw)) return raw;
+  try {
+    return decrypt(raw);
+  } catch (err) {
+    logger.error('[StorageService] Failed to decrypt secretAccessKey:', err);
+    return raw;
+  }
+}
 
 export interface StorageConfigData {
   endpoint: string;
@@ -17,7 +31,8 @@ export class StorageService {
    * Instantiates a new S3Client dynamically based on the configuration and caches it.
    */
   private getS3Client(config: StorageConfigData): S3Client {
-    const cacheKey = `${config.endpoint}-${config.accessKeyId}`;
+    const decryptedSecret = decryptSecretIfNeeded(config.secretAccessKey);
+    const cacheKey = `${config.endpoint}-${config.accessKeyId}-${decryptedSecret}`;
     let client = this.clients.get(cacheKey);
     if (!client) {
       client = new S3Client({
@@ -25,7 +40,7 @@ export class StorageService {
         endpoint: config.endpoint,
         credentials: {
           accessKeyId: config.accessKeyId,
-          secretAccessKey: config.secretAccessKey,
+          secretAccessKey: decryptedSecret,
         },
       });
       this.clients.set(cacheKey, client);

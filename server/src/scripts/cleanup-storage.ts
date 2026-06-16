@@ -4,6 +4,31 @@ import fs from 'fs';
 import path from 'path';
 import { urlToPath } from '../utils/file';
 import { storageService } from '../services/storage.service';
+import { decrypt } from '../utils/crypto';
+
+/** Matches the encrypted format produced by `encrypt()`: iv(24hex):tag(32hex):ciphertext */
+const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
+
+function getDecryptedSecret(raw: string | null | undefined): string {
+  if (!raw) return '';
+  if (!ENCRYPTED_VALUE_RE.test(raw)) return raw;
+  try {
+    return decrypt(raw);
+  } catch (err) {
+    logger.error('[CleanupEngine] Failed to decrypt secretAccessKey:', err);
+    return raw;
+  }
+}
+
+function toDecryptedConfig(raw: any) {
+  return {
+    endpoint: raw.endpoint,
+    accessKeyId: raw.accessKeyId ?? '',
+    secretAccessKey: getDecryptedSecret(raw.secretAccessKey),
+    bucketName: raw.bucketName,
+    publicUrl: raw.publicUrl,
+  };
+}
 
 /**
  * Storage Cleanup Engine
@@ -231,7 +256,8 @@ export async function cleanupOrphanedFiles() {
     for (const config of activeConfigs) {
       try {
         logger.info(`[CleanupEngine] Scanning R2 bucket: ${config.bucketName} (${config.name})...`);
-        const objects = await storageService.listAllObjects(config);
+        const decryptedConfig = toDecryptedConfig(config);
+        const objects = await storageService.listAllObjects(decryptedConfig);
         
         let baseUrl = config.publicUrl.endsWith('/')
           ? config.publicUrl.slice(0, -1)
@@ -273,7 +299,7 @@ export async function cleanupOrphanedFiles() {
         if (orphanedKeys.length > 0) {
           try {
             logger.info(`[CleanupEngine] Bulk deleting ${orphanedKeys.length} orphaned objects from bucket ${config.bucketName}...`);
-            await storageService.deleteFilesBulk(config, orphanedKeys);
+            await storageService.deleteFilesBulk(decryptedConfig, orphanedKeys);
             
             // Decrement the DB configuration usedBytes count in a single update
             await prisma.storageConfig.update({

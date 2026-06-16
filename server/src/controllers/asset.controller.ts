@@ -1,4 +1,18 @@
 import { logger } from '../utils/logger';
+import { decrypt } from '../utils/crypto';
+
+const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
+
+function getDecryptedSecret(raw: string | null | undefined): string {
+  if (!raw) return '';
+  if (!ENCRYPTED_VALUE_RE.test(raw)) return raw;
+  try {
+    return decrypt(raw);
+  } catch (err) {
+    logger.error('[AssetController] Failed to decrypt secretAccessKey:', err);
+    return raw;
+  }
+}
 import { Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
@@ -600,7 +614,7 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response, next
                 {
                   endpoint: config.endpoint,
                   accessKeyId: config.accessKeyId,
-                  secretAccessKey: config.secretAccessKey,
+                  secretAccessKey: getDecryptedSecret(config.secretAccessKey),
                   bucketName: config.bucketName,
                   publicUrl: config.publicUrl,
                 },

@@ -1,6 +1,33 @@
 import { logger } from './logger';
 import fs from 'fs';
 import path from 'path';
+import prisma from '../services/prisma';
+import { storageService } from '../services/storage.service';
+import { decrypt } from './crypto';
+
+/** Matches the encrypted format produced by `encrypt()`: iv(24hex):tag(32hex):ciphertext */
+const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
+
+function getDecryptedSecret(raw: string | null | undefined): string {
+  if (!raw) return '';
+  if (!ENCRYPTED_VALUE_RE.test(raw)) return raw;
+  try {
+    return decrypt(raw);
+  } catch (err) {
+    logger.error('[FileUtil] Failed to decrypt secretAccessKey:', err);
+    return raw;
+  }
+}
+
+function toDecryptedConfig(raw: any) {
+  return {
+    endpoint: raw.endpoint,
+    accessKeyId: raw.accessKeyId ?? '',
+    secretAccessKey: getDecryptedSecret(raw.secretAccessKey),
+    bucketName: raw.bucketName,
+    publicUrl: raw.publicUrl,
+  };
+}
 
 const uploadsRoot = path.resolve(process.cwd(), 'uploads');
 
@@ -52,8 +79,7 @@ export function deleteFile(filePath: string | null): boolean {
   return false;
 }
 
-import prisma from '../services/prisma';
-import { storageService } from '../services/storage.service';
+
 
 /**
  * Safely deletes a file from its URL.
@@ -108,15 +134,16 @@ export async function deleteCloudOrLocalFileByUrl(url: string | null | undefined
             try {
               // 1. Get object metadata to find size
               let size = 0;
+              const decryptedConfig = toDecryptedConfig(config);
               try {
-                const meta = await storageService.getObjectMetadata(config, key);
+                const meta = await storageService.getObjectMetadata(decryptedConfig, key);
                 size = meta.ContentLength || 0;
               } catch (metaErr) {
                 logger.warn(`[FileUtil] Failed to fetch object metadata for key ${key} before deletion:`, metaErr);
               }
 
               // 2. Delete file from S3 bucket
-              await storageService.deleteFile(config, key);
+              await storageService.deleteFile(decryptedConfig, key);
               logger.info(`[FileUtil] Deleted file from R2 bucket ${config.bucketName}: key=${key}`);
 
               // 3. Decrement usedBytes

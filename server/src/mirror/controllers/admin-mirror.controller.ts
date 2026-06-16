@@ -1,6 +1,6 @@
 import { Prisma, MirrorResource } from '@prisma/client';
 import { logger } from '../../utils/logger';
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { getActiveStorageConfig, uploadSourceMetadataToR2 } from '../services/metadata.helper';
 import { syncEngine } from '../services/sync-engine.service';
@@ -514,7 +514,7 @@ export const getSyncLogs = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const matchLinks = async (req: AuthRequest, res: Response) => {
+export const matchLinks = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const filesArray: Express.Multer.File[] = [];
 
   if (req.file) {
@@ -708,8 +708,7 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     cleanUpFiles(filesArray);
-    logger.error('[MirrorLinkMatch] Error matching links:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 

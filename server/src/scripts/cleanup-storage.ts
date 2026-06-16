@@ -253,80 +253,94 @@ export async function cleanupOrphanedFiles() {
       where: { status: 'ACTIVE' },
     });
 
-    for (const config of activeConfigs) {
-      try {
-        logger.info(`[CleanupEngine] Scanning R2 bucket: ${config.bucketName} (${config.name})...`);
-        const decryptedConfig = toDecryptedConfig(config);
-        const objects = await storageService.listAllObjects(decryptedConfig);
-        
-        let baseUrl = config.publicUrl.endsWith('/')
-          ? config.publicUrl.slice(0, -1)
-          : config.publicUrl;
-        if (!/^https?:\/\//i.test(baseUrl) && !baseUrl.startsWith('/')) {
-          baseUrl = `https://${baseUrl}`;
-        }
+    const concurrencyLimit = 5;
+    let configIndex = 0;
 
-        let bucketDeletedCount = 0;
-        let bucketDeletedBytes = 0;
-        const orphanedKeys: string[] = [];
+    const runWorker = async () => {
+      while (configIndex < activeConfigs.length) {
+        const config = activeConfigs[configIndex++];
+        if (!config) break;
 
-        for (const obj of objects) {
-          if (!obj.Key) continue;
+        try {
+          logger.info(`[CleanupEngine] Scanning R2 bucket: ${config.bucketName} (${config.name})...`);
+          const decryptedConfig = toDecryptedConfig(config);
+          const objects = await storageService.listAllObjects(decryptedConfig);
           
-          // Protect mirror assets only for sources that currently exist in the database
-          if (obj.Key.startsWith('mirror/')) {
-            const parts = obj.Key.split('/');
-            const sourceId = parts[1];
-            if (sourceId && activeMirrorSourceIds.has(sourceId)) {
-              continue;
+          let baseUrl = config.publicUrl.endsWith('/')
+            ? config.publicUrl.slice(0, -1)
+            : config.publicUrl;
+          if (!/^https?:\/\//i.test(baseUrl) && !baseUrl.startsWith('/')) {
+            baseUrl = `https://${baseUrl}`;
+          }
+
+          let bucketDeletedCount = 0;
+          let bucketDeletedBytes = 0;
+          const orphanedKeys: string[] = [];
+
+          for (const obj of objects) {
+            if (!obj.Key) continue;
+            
+            // Protect mirror assets only for sources that currently exist in the database
+            if (obj.Key.startsWith('mirror/')) {
+              const parts = obj.Key.split('/');
+              const sourceId = parts[1];
+              if (sourceId && activeMirrorSourceIds.has(sourceId)) {
+                continue;
+              }
+            }
+
+            const cleanKey = obj.Key.startsWith('/') ? obj.Key.slice(1) : obj.Key;
+            const fileUrl = `${baseUrl}/${cleanKey}`.toLowerCase();
+            const keyLower = obj.Key.toLowerCase();
+
+            // Check if key or URL is referenced in the DB whitelist
+            const isReferenced = validDbStrings.has(fileUrl) || validDbStrings.has(keyLower);
+
+            if (!isReferenced) {
+              orphanedKeys.push(obj.Key);
+              bucketDeletedBytes += obj.Size;
+              logger.info(`[CleanupEngine] Found orphaned R2 object: ${obj.Key} (Size: ${obj.Size})`);
             }
           }
 
-          const cleanKey = obj.Key.startsWith('/') ? obj.Key.slice(1) : obj.Key;
-          const fileUrl = `${baseUrl}/${cleanKey}`.toLowerCase();
-          const keyLower = obj.Key.toLowerCase();
-
-          // Check if key or URL is referenced in the DB whitelist
-          const isReferenced = validDbStrings.has(fileUrl) || validDbStrings.has(keyLower);
-
-          if (!isReferenced) {
-            orphanedKeys.push(obj.Key);
-            bucketDeletedBytes += obj.Size;
-            logger.info(`[CleanupEngine] Found orphaned R2 object: ${obj.Key} (Size: ${obj.Size})`);
+          if (orphanedKeys.length > 0) {
+            try {
+              logger.info(`[CleanupEngine] Bulk deleting ${orphanedKeys.length} orphaned objects from bucket ${config.bucketName}...`);
+              await storageService.deleteFilesBulk(decryptedConfig, orphanedKeys);
+              
+              // Decrement the DB configuration usedBytes count in a single update
+              await prisma.storageConfig.update({
+                where: { id: config.id },
+                data: {
+                  usedBytes: { decrement: bucketDeletedBytes },
+                },
+              });
+              
+              stats.deleted += orphanedKeys.length;
+              bucketDeletedCount = orphanedKeys.length;
+            } catch (err) {
+              stats.errors += orphanedKeys.length;
+              logger.error(`[CleanupEngine] Error bulk deleting objects from ${config.bucketName}:`, err);
+            }
           }
-        }
 
-        if (orphanedKeys.length > 0) {
-          try {
-            logger.info(`[CleanupEngine] Bulk deleting ${orphanedKeys.length} orphaned objects from bucket ${config.bucketName}...`);
-            await storageService.deleteFilesBulk(decryptedConfig, orphanedKeys);
-            
-            // Decrement the DB configuration usedBytes count in a single update
-            await prisma.storageConfig.update({
-              where: { id: config.id },
-              data: {
-                usedBytes: { decrement: bucketDeletedBytes },
-              },
-            });
-            
-            stats.deleted += orphanedKeys.length;
-            bucketDeletedCount = orphanedKeys.length;
-          } catch (err) {
-            stats.errors += orphanedKeys.length;
-            logger.error(`[CleanupEngine] Error bulk deleting objects from ${config.bucketName}:`, err);
+          if (bucketDeletedCount > 0) {
+            logger.info(`[CleanupEngine] Cleaned bucket ${config.bucketName}: Deleted ${bucketDeletedCount} files, freed ${bucketDeletedBytes} bytes.`);
+          } else {
+            logger.info(`[CleanupEngine] Bucket ${config.bucketName} is clean. No orphaned files deleted.`);
           }
+        } catch (bucketErr) {
+          stats.errors++;
+          logger.error(`[CleanupEngine] Failed to run cleanup for bucket ${config.bucketName}:`, bucketErr);
         }
-
-        if (bucketDeletedCount > 0) {
-          logger.info(`[CleanupEngine] Cleaned bucket ${config.bucketName}: Deleted ${bucketDeletedCount} files, freed ${bucketDeletedBytes} bytes.`);
-        } else {
-          logger.info(`[CleanupEngine] Bucket ${config.bucketName} is clean. No orphaned files deleted.`);
-        }
-      } catch (bucketErr) {
-        stats.errors++;
-        logger.error(`[CleanupEngine] Failed to run cleanup for bucket ${config.bucketName}:`, bucketErr);
       }
-    }
+    };
+
+    const workers = Array.from(
+      { length: Math.min(concurrencyLimit, activeConfigs.length) },
+      () => runWorker(),
+    );
+    await Promise.all(workers);
 
     // 2. Scan upload directories (now including manual, mirror, branding, discussions, feedback, and messages)
     const uploadDirs = [

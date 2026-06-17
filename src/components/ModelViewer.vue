@@ -549,7 +549,9 @@ const loadModel = async (url: string) => {
     }
     case '.fbx': {
       const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js');
+      const fflate = await import('fflate');
       const loader = new FBXLoader(manager);
+      (loader as any).setFflate(fflate);
       loader.load(
         url,
         (fbx) => {
@@ -925,9 +927,39 @@ defineExpose({
 
 <template>
   <div ref="container" class="w-full h-full cursor-move relative overflow-hidden group">
+    <!-- Error State -->
+    <div
+      v-if="error"
+      class="absolute inset-0 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm z-30 p-4"
+    >
+      <div
+        class="flex flex-col items-center gap-4 p-6 glass-card border border-red-500/30 max-w-sm text-center bg-slate-900/90 text-white rounded-xl shadow-2xl"
+      >
+        <div class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
+          <Info class="w-6 h-6 animate-pulse" />
+        </div>
+        <div>
+          <p class="text-sm font-bold text-red-400">无法加载该 3D 资产</p>
+          <p class="text-[10px] text-slate-300 mt-2 break-all bg-slate-950/50 p-2.5 rounded border border-white/5 font-mono select-text">
+            {{ error }}
+          </p>
+          <p class="text-[9px] text-slate-400 mt-2">
+            请确认您的模型文件格式正确、没有损坏，并且相关的贴图/依赖文件在同级目录存在。
+          </p>
+        </div>
+        <button
+          type="button"
+          class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+          @click="props.modelUrl ? loadModel(getAssetUrl(props.modelUrl)) : null"
+        >
+          重试加载
+        </button>
+      </div>
+    </div>
+
     <!-- Loading State -->
     <div
-      v-if="isLoading"
+      v-if="isLoading && !error"
       class="absolute inset-0 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm z-10"
     >
       <div

@@ -30,6 +30,7 @@ import {
 import gsap from 'gsap';
 import { Info, RefreshCw, Layers } from 'lucide-vue-next';
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { getAssetUrl } from '@/utils/api';
 
 type ViewMode = 'solid' | 'wireframe' | 'solid+wireframe';
 type ModelHotspot = {
@@ -295,7 +296,7 @@ const initScene = async () => {
     controls.autoRotate = !!props.autoRotate;
 
     if (props.modelUrl) {
-      void loadModel(props.modelUrl);
+      void loadModel(getAssetUrl(props.modelUrl));
     } else {
       addPlaceholder();
     }
@@ -891,7 +892,7 @@ onUnmounted(() => {
 watch(
   () => props.modelUrl,
   (newUrl) => {
-    if (newUrl && hasInitialized.value) void loadModel(newUrl);
+    if (newUrl && hasInitialized.value) void loadModel(getAssetUrl(newUrl));
   },
 );
 watch(

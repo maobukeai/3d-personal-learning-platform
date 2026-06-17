@@ -12,6 +12,7 @@ import {
 } from './services/direct-message-email.service';
 import './services/redis.service';
 import prisma from './services/prisma';
+import { storageService } from './services/storage.service';
 
 const port = config.PORT;
 
@@ -22,6 +23,36 @@ initSocket(server);
 syncEngine.startScheduler();
 startCleanupJob(); // Clean up expired data hourly
 startDirectMessageEmailScheduler();
+
+// Configure CORS for all active buckets on startup to prevent cross-origin issues
+const initActiveBucketsCors = async () => {
+  try {
+    const activeConfigs = await prisma.storageConfig.findMany({
+      where: { status: 'ACTIVE' },
+    });
+    if (activeConfigs.length > 0) {
+      logger.info(`[Startup] Found ${activeConfigs.length} active storage config(s). Configuring CORS...`);
+      for (const raw of activeConfigs) {
+        const configData = {
+          endpoint: raw.endpoint,
+          accessKeyId: raw.accessKeyId ?? '',
+          secretAccessKey: raw.secretAccessKey,
+          bucketName: raw.bucketName,
+          publicUrl: raw.publicUrl,
+        };
+        await storageService.configureCors(configData).catch((err) => {
+          logger.warn(`[Startup] CORS configuration failed for bucket ${raw.bucketName}:`, err);
+        });
+      }
+    }
+  } catch (err) {
+    logger.error('[Startup] Failed to initialize active buckets CORS:', err);
+  }
+};
+
+initActiveBucketsCors().catch((err) => {
+  logger.error('[Startup] CORS initialization error:', err);
+});
 
 // Run legacy manual station migration asynchronously on startup
 runManualStationMigration().catch((err) => {

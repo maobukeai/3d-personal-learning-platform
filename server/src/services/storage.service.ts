@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, HeadObjectCommand, ListObjectsV2CommandOutput, DeleteObjectsCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, HeadObjectCommand, ListObjectsV2CommandOutput, DeleteObjectsCommand, GetObjectCommand, PutBucketCorsCommand } from '@aws-sdk/client-s3';
 import fs from 'fs';
 import { logger } from '../utils/logger';
 import { decrypt } from '../utils/crypto';
@@ -129,6 +129,38 @@ export class StorageService {
   /**
    * Tests the connection to an S3/R2 bucket by attempting to write and delete a small test file.
    */
+  /**
+   * Dynamically configures CORS rules on the R2 bucket to prevent browser CORS blocks.
+   */
+  public async configureCors(config: StorageConfigData): Promise<void> {
+    const client = this.getS3Client(config);
+    try {
+      const command = new PutBucketCorsCommand({
+        Bucket: config.bucketName,
+        CORSConfiguration: {
+          CORSRules: [
+            {
+              AllowedHeaders: ['*'],
+              AllowedMethods: ['GET', 'HEAD', 'PUT', 'POST'],
+              AllowedOrigins: ['*'],
+              ExposeHeaders: ['ETag', 'Content-Length', 'Accept-Ranges'],
+              MaxAgeSeconds: 3000,
+            },
+          ],
+        },
+      });
+      await client.send(command);
+      logger.info(`[StorageService] CORS rules configured successfully for bucket: ${config.bucketName}`);
+    } catch (error) {
+      logger.error(`[StorageService] Failed to configure CORS rules for bucket ${config.bucketName}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Tests the connection to an S3/R2 bucket by attempting to write and delete a small test file,
+   * and configures CORS.
+   */
   public async testConnection(config: StorageConfigData): Promise<boolean> {
     const testKey = `test-connection-${Date.now()}.txt`;
     const client = this.getS3Client(config);
@@ -149,6 +181,17 @@ export class StorageService {
         Key: testKey,
       });
       await client.send(deleteCommand);
+
+      // 3. Automatically configure CORS rules
+      try {
+        await this.configureCors(config);
+      } catch (corsError) {
+        logger.warn(
+          `[StorageService] Unable to automatically configure CORS during connection test. ` +
+            `This is common if the API token permissions are read/write only. ` +
+            `Error: ${corsError instanceof Error ? corsError.message : String(corsError)}`
+        );
+      }
 
       return true;
     } catch (error) {

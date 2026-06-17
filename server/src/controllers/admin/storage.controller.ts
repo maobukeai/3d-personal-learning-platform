@@ -107,6 +107,17 @@ export const createConfig = async (req: AuthRequest, res: Response, next: NextFu
       },
     });
 
+    if (config.status === 'ACTIVE') {
+      try {
+        await storageService.configureCors(toDecryptedConfig(config));
+      } catch (corsErr) {
+        logger.warn(
+          `[StorageController] Auto CORS configuration failed on creation for bucket ${config.bucketName}:`,
+          corsErr
+        );
+      }
+    }
+
     await auditService.log({
       req,
       userId: req.userId!,
@@ -168,6 +179,17 @@ export const updateConfig = async (req: AuthRequest, res: Response, next: NextFu
       where: { id },
       data: updateData,
     });
+
+    if (config.status === 'ACTIVE') {
+      try {
+        await storageService.configureCors(toDecryptedConfig(config));
+      } catch (corsErr) {
+        logger.warn(
+          `[StorageController] Auto CORS configuration failed on update for bucket ${config.bucketName}:`,
+          corsErr
+        );
+      }
+    }
 
     await auditService.log({
       req,

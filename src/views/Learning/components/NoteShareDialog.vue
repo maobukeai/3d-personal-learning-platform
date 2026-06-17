@@ -374,10 +374,10 @@ defineExpose({ open });
           <Share2 class="w-4.5 h-4.5" />
         </div>
         <div>
-          <h3 class="text-sm font-bold tracking-wide" style="color: var(--text-primary)">
+          <h3 class="text-base font-bold tracking-wide" style="color: var(--text-primary)">
             分享笔记
           </h3>
-          <p class="text-[10px] text-[var(--text-muted)] mt-0.5">
+          <p class="text-xs text-[var(--text-muted)] mt-0.5">
             生成免登录分享链接，可设置有效时长、说明文案与分享二维码
           </p>
         </div>
@@ -401,12 +401,12 @@ defineExpose({ open });
             <div class="flex items-center gap-1.5 mb-0.5">
               <span class="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse"></span>
               <span
-                class="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block"
+                class="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider block"
                 >公开分享</span
               >
             </div>
-            <h4 class="text-xs font-bold text-[var(--text-primary)] truncate">{{ note.title }}</h4>
-            <p class="text-[9px] text-[var(--text-muted)] mt-0.5">
+            <h4 class="text-sm font-bold text-[var(--text-primary)] truncate">{{ note.title }}</h4>
+            <p class="text-xs text-[var(--text-muted)] mt-0.5">
               创建于: {{ new Date(note.createdAt).toLocaleString('zh-CN') }}
             </p>
           </div>
@@ -417,7 +417,7 @@ defineExpose({ open });
           <!-- Set Duration -->
           <div class="space-y-1.5">
             <label
-              class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1"
+              class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1"
             >
               <Clock class="w-3.5 h-3.5 text-[var(--text-secondary)]" /> 设置链接有效时长
             </label>
@@ -450,7 +450,7 @@ defineExpose({ open });
           <Transition name="fade">
             <div v-if="durationType === 'custom'" class="pt-1 space-y-1.5">
               <label
-                class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1"
+                class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1"
               >
                 <Calendar class="w-3.5 h-3.5 text-[var(--text-secondary)]" /> 选择过期时间
               </label>
@@ -469,7 +469,7 @@ defineExpose({ open });
           <div class="space-y-2 pt-2.5 border-t border-[var(--border-base)]">
             <div class="flex items-center justify-between">
               <label
-                class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1"
+                class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1"
               >
                 <MessageSquare class="w-3.5 h-3.5 text-[var(--text-secondary)]" /> 附带分享留言 /
                 寄语
@@ -484,9 +484,9 @@ defineExpose({ open });
                   rows="2"
                   placeholder="写下几句分享留言，将渲染在分享页面的顶部..."
                   maxlength="200"
-                  class="w-full text-xs font-medium rounded-xl transition-all duration-300 outline-none focus:outline-none bg-slate-50 dark:bg-zinc-900 border border-[var(--border-base)] text-[var(--text-primary)] focus:border-accent p-3 focus:ring-2 focus:ring-accent/20"
+                  class="w-full text-sm font-medium rounded-xl transition-all duration-300 outline-none focus:outline-none bg-slate-50 dark:bg-zinc-900 border border-[var(--border-base)] text-[var(--text-primary)] focus:border-accent p-3 focus:ring-2 focus:ring-accent/20"
                 ></textarea>
-                <div class="text-[9px] text-[var(--text-muted)] text-right mt-0.5">
+                <div class="text-xs text-[var(--text-muted)] text-right mt-0.5">
                   {{ customText.length }} / 200
                 </div>
 
@@ -494,7 +494,7 @@ defineExpose({ open });
                 <div
                   class="flex items-center gap-1 pt-0.5 overflow-x-auto whitespace-nowrap shortcut-list"
                 >
-                  <span class="text-[8.5px] text-[var(--text-muted)] select-none flex-shrink-0"
+                  <span class="text-xs text-[var(--text-muted)] select-none flex-shrink-0"
                     >快捷留言:</span
                   >
                   <button
@@ -505,7 +505,7 @@ defineExpose({ open });
                     ]"
                     :key="opt.tpl"
                     type="button"
-                    class="px-1.5 py-0.5 text-[8.5px] bg-slate-50 dark:bg-white/5 border border-[var(--border-base)] hover:border-accent hover:text-accent rounded-md transition-all cursor-pointer text-[var(--text-secondary)] flex-shrink-0"
+                    class="px-1.5 py-0.5 text-[11px] bg-slate-50 dark:bg-white/5 border border-[var(--border-base)] hover:border-accent hover:text-accent rounded-md transition-all cursor-pointer text-[var(--text-secondary)] flex-shrink-0"
                     @click="customText = opt.tpl"
                   >
                     {{ opt.label }}
@@ -518,7 +518,7 @@ defineExpose({ open });
           <!-- Current Share Link Box -->
           <div v-if="shareConfig" class="pt-3 border-t border-[var(--border-base)] space-y-2">
             <label
-              class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-1"
+              class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest block ml-1"
               >分享链接</label
             >
             <div class="relative flex items-center">
@@ -526,7 +526,7 @@ defineExpose({ open });
                 :value="shareUrl"
                 readonly
                 type="text"
-                class="w-full pl-9 pr-24 py-2 rounded-lg border text-xs font-mono focus:outline-none focus:ring-1 focus:ring-accent/25 transition-all select-all"
+                class="w-full pl-9 pr-24 py-2 rounded-lg border text-sm font-mono focus:outline-none focus:ring-1 focus:ring-accent/25 transition-all select-all"
                 style="
                   background-color: var(--bg-subtle);
                   border-color: var(--border-base);
@@ -537,7 +537,7 @@ defineExpose({ open });
 
               <button
                 type="button"
-                class="absolute right-1 top-1 bottom-1 px-3 rounded-md text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                class="absolute right-1 top-1 bottom-1 px-3 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
                 :class="[
                   isCopied
                     ? 'bg-emerald-500 text-white'
@@ -561,13 +561,13 @@ defineExpose({ open });
         <div class="space-y-2 text-left">
           <div class="flex items-center justify-between">
             <span
-              class="text-[9px] font-black uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1"
+              class="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1"
             >
               <QrCode class="w-3 h-3 text-[var(--accent)]" /> 分享卡片
             </span>
             <span
               v-if="shareConfig"
-              class="px-1.5 py-0.5 rounded text-[8px] font-bold"
+              class="px-1.5 py-0.5 rounded text-[10px] font-bold"
               :class="
                 isExpired ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'
               "
@@ -579,16 +579,16 @@ defineExpose({ open });
           <div
             class="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-[var(--border-base)] shadow-xs"
           >
-            <h4 class="text-xs font-black text-[var(--text-primary)] line-clamp-1 leading-snug">
+            <h4 class="text-sm font-bold text-[var(--text-primary)] line-clamp-1 leading-snug">
               {{ note?.title || '未命名笔记' }}
             </h4>
             <p
               v-if="enableCustomText && customText.trim()"
-              class="text-[9.5px] italic text-[var(--text-secondary)] mt-1.5 pl-2 border-l-2 border-accent/40 line-clamp-2"
+              class="text-xs italic text-[var(--text-secondary)] mt-1.5 pl-2 border-l-2 border-accent/40 line-clamp-2"
             >
               “{{ customText.trim() }}”
             </p>
-            <p v-else class="text-[9px] text-[var(--text-muted)] mt-1.5 line-clamp-1">
+            <p v-else class="text-xs text-[var(--text-muted)] mt-1.5 line-clamp-1">
               扫码阅读完整笔记内容
             </p>
           </div>
@@ -616,13 +616,13 @@ defineExpose({ open });
                 >
                   <QrCode class="w-5 h-5 text-slate-400" />
                 </div>
-                <span class="text-[9.5px] font-bold">{{
+                <span class="text-xs font-bold">{{
                   isExpired ? '分享链接已过期' : '等待生成链接'
                 }}</span>
               </div>
             </template>
           </div>
-          <span class="text-[9px] text-[var(--text-muted)] font-medium mt-3 block select-none">
+          <span class="text-xs text-[var(--text-muted)] font-medium mt-3 block select-none">
             {{ shareConfig && !isExpired ? '微信/手机浏览器扫码阅读' : '设置左侧选项后生成二维码' }}
           </span>
         </div>
@@ -702,7 +702,7 @@ defineExpose({ open });
   font-family: inherit !important;
   color: var(--text-primary) !important;
   transition: all 0.25s ease !important;
-  font-size: 11px !important;
+  font-size: 13px !important;
 }
 
 :deep(.custom-textarea .el-textarea__inner:focus) {
@@ -715,7 +715,7 @@ defineExpose({ open });
   background: transparent !important;
   bottom: 6px !important;
   right: 10px !important;
-  font-size: 9px !important;
+  font-size: 11px !important;
   color: var(--text-muted) !important;
 }
 

@@ -72,7 +72,7 @@ const errorMsg = ref('');
 const isExpired = ref(false);
 
 // Reading Toolbox States
-const fontSize = ref(12);
+const fontSize = ref(16);
 const readProgress = ref(0);
 const isCopying = ref(false);
 const isCloning = ref(false);
@@ -473,7 +473,7 @@ onUnmounted(() => {
         <!-- Floating status info for expiresAt -->
         <div
           v-if="expiresAt"
-          class="mb-6 rounded-2xl px-4 py-2.5 flex items-center gap-1.5 text-[10px] sm:text-xs font-bold border bg-amber-50 dark:bg-amber-950/20 border-amber-200/50 dark:border-amber-500/20 text-amber-600"
+          class="mb-6 rounded-2xl px-4 py-2.5 flex items-center gap-1.5 text-xs sm:text-sm font-bold border bg-amber-50 dark:bg-amber-950/20 border-amber-200/50 dark:border-amber-500/20 text-amber-600"
         >
           <Clock class="w-3.5 h-3.5" />
           <span>临时共享文章，失效时间：{{ formatDate(expiresAt) }}</span>
@@ -493,7 +493,7 @@ onUnmounted(() => {
             <div class="p-1.5 rounded-lg bg-purple-500/10 flex items-center justify-center">
               <MessageSquare class="w-4 h-4" />
             </div>
-            <span class="text-xs font-black tracking-widest uppercase">分享寄语</span>
+            <span class="text-sm font-bold tracking-widest uppercase">分享寄语</span>
           </div>
 
           <div class="relative z-10 pl-2">
@@ -507,10 +507,10 @@ onUnmounted(() => {
             <div
               class="mt-4 flex items-center justify-end gap-2 border-t border-purple-500/10 pt-3"
             >
-              <span class="text-[10px] text-[var(--text-muted)]">分享自</span>
+              <span class="text-xs text-[var(--text-muted)]">分享自</span>
               <div class="flex items-center gap-1.5">
                 <UserAvatar :user="note.user" size="xs" class="border border-purple-500/20" />
-                <span class="text-[10px] font-bold text-[var(--text-secondary)]">{{
+                <span class="text-xs font-bold text-[var(--text-secondary)]">{{
                   note.user.name
                 }}</span>
               </div>
@@ -522,18 +522,18 @@ onUnmounted(() => {
         <div class="flex items-center gap-2 mb-3">
           <span
             v-if="note.category"
-            class="px-2 py-0.5 rounded bg-accent/10 border border-accent/15 text-accent text-[9px] font-black uppercase tracking-wider"
+            class="px-2 py-0.5 rounded bg-accent/10 border border-accent/15 text-accent text-xs font-bold uppercase tracking-wider"
           >
             {{ note.category }}
           </span>
-          <span class="text-[10px] text-[var(--text-muted)] flex items-center gap-1">
-            <Calendar class="w-3 h-3" />
+          <span class="text-xs text-[var(--text-muted)] flex items-center gap-1">
+            <Calendar class="w-3.5 h-3.5" />
             {{ formatDate(note.createdAt) }}
           </span>
         </div>
 
         <!-- Title -->
-        <h1 class="text-xl sm:text-2xl lg:text-3xl font-black leading-tight tracking-tight mb-3">
+        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-black leading-tight tracking-tight mb-4">
           {{ note.title }}
         </h1>
 
@@ -544,23 +544,23 @@ onUnmounted(() => {
           <div class="flex items-center gap-2.5 min-w-0">
             <UserAvatar :user="note.user" size="md" class="shrink-0 border-2 border-accent/10" />
             <div class="min-w-0">
-              <h4 class="font-black text-xs leading-none flex items-center gap-1.5">
+              <div class="font-bold text-sm leading-none flex items-center gap-1.5">
                 {{ note.user.name }}
                 <span
-                  class="text-[8px] px-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded"
+                  class="text-[10px] px-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded"
                   >作者</span
                 >
-              </h4>
-              <p class="text-[10px] text-[var(--text-muted)] mt-1 line-clamp-1">
+              </div>
+              <p class="text-xs text-[var(--text-muted)] mt-1 line-clamp-1">
                 {{ note.user.bio || '探索者' }}
               </p>
             </div>
           </div>
 
           <!-- Stats -->
-          <div class="flex items-center gap-3 text-[10px] font-black text-[var(--text-muted)]">
+          <div class="flex items-center gap-3 text-xs font-bold text-[var(--text-muted)]">
             <span class="flex items-center gap-1"
-              ><Eye class="w-3.5 h-3.5" /> {{ note.views }} 阅读</span
+              ><Eye class="w-4 h-4" /> {{ note.views }} 阅读</span
             >
           </div>
         </div>
@@ -570,18 +570,18 @@ onUnmounted(() => {
           class="mb-3 rounded-xl p-2.5 text-xs leading-relaxed border bg-slate-50/40 dark:bg-zinc-900/10 border-[var(--border-base)] text-[var(--text-secondary)]"
         >
           <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5 text-[10px] font-bold text-[var(--text-primary)]">
+            <div class="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
               <Sparkles class="w-3.5 h-3.5 text-[var(--text-secondary)]" />
               <span>核心摘要</span>
             </div>
             <button
               type="button"
               :disabled="isSummarizing"
-              class="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-white hover:bg-slate-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-[var(--border-base)] active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+              class="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-white hover:bg-slate-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-[var(--border-base)] active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
               @click="generateAiSummary"
             >
               <Sparkles
-                class="w-3 h-3 text-[var(--text-muted)]"
+                class="w-3.5 h-3.5 text-[var(--text-muted)]"
                 :class="{ 'animate-pulse': isSummarizing }"
               />
               <span>{{
@@ -592,12 +592,12 @@ onUnmounted(() => {
 
           <div
             v-if="sessionSummary"
-            class="text-[var(--text-secondary)] mt-2 whitespace-pre-wrap leading-normal animate-fade-in"
+            class="text-sm text-[var(--text-secondary)] mt-2 whitespace-pre-wrap leading-normal animate-fade-in"
           >
             {{ sessionSummary }}
           </div>
           <div v-else-if="isSummarizing" class="mt-2.5 space-y-1.5">
-            <div class="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
+            <div class="flex items-center justify-between text-xs text-[var(--text-muted)]">
               <span class="flex items-center gap-1.5 font-bold text-[var(--text-secondary)]">
                 <Loader2 class="w-3.5 h-3.5 animate-spin text-[var(--accent)]" />
                 AI 正在思考: {{ currentThinkingStep }}...
@@ -611,7 +611,7 @@ onUnmounted(() => {
               ></div>
             </div>
           </div>
-          <div v-else class="text-[var(--text-muted)] text-[10.5px] mt-1.5 py-0.5">待摘要</div>
+          <div v-else class="text-[var(--text-muted)] text-xs mt-1.5 py-0.5">待摘要</div>
         </div>
 
         <!-- Core Markdown Canvas -->
@@ -630,7 +630,7 @@ onUnmounted(() => {
           <span
             v-for="tag in parseTags(note.tags)"
             :key="tag"
-            class="px-2 py-0.5 rounded-lg text-[9px] font-black border bg-slate-50 dark:bg-zinc-900/50 border-[var(--border-base)] text-[var(--text-secondary)]"
+            class="px-2 py-0.5 rounded-lg text-xs font-bold border bg-slate-50 dark:bg-zinc-900/50 border-[var(--border-base)] text-[var(--text-secondary)]"
           >
             #{{ tag }}
           </span>
@@ -689,7 +689,7 @@ onUnmounted(() => {
           <div v-loading="loadingComments" class="space-y-4">
             <div
               v-if="comments.length === 0"
-              class="text-center py-6 text-xs text-[var(--text-muted)]"
+              class="text-center py-6 text-sm text-[var(--text-muted)]"
             >
               暂无评论，快来发表第一条评论吧~
             </div>
@@ -702,17 +702,17 @@ onUnmounted(() => {
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between">
                   <span
-                    class="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5"
+                    class="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-1.5"
                   >
                     {{ item.user.name }}
                     <span
                       v-if="item.userId === note.userId"
-                      class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-500 dark:text-purple-400 rounded-md"
+                      class="text-[10px] font-bold px-1.5 py-0.2 bg-purple-500/10 text-purple-500 dark:text-purple-400 rounded-md"
                       >作者</span
                     >
                   </span>
                   <div class="flex items-center gap-2">
-                    <span class="text-[10px] text-[var(--text-muted)]">{{
+                    <span class="text-xs text-[var(--text-muted)]">{{
                       new Date(item.createdAt).toLocaleString('zh-CN')
                     }}</span>
                     <button
@@ -727,7 +727,7 @@ onUnmounted(() => {
                   </div>
                 </div>
                 <p
-                  class="text-xs text-[var(--text-secondary)] mt-1.5 whitespace-pre-wrap leading-relaxed"
+                  class="text-sm text-[var(--text-secondary)] mt-1.5 whitespace-pre-wrap leading-relaxed"
                 >
                   {{ item.content }}
                 </p>
@@ -738,7 +738,7 @@ onUnmounted(() => {
 
         <!-- Finish stamp -->
         <div
-          class="pt-8 text-center text-[var(--text-muted)] text-[10px] font-black tracking-widest flex items-center justify-center gap-2 select-none"
+          class="pt-8 text-center text-[var(--text-muted)] text-xs font-bold tracking-widest flex items-center justify-center gap-2 select-none"
         >
           <BookOpen class="w-4 h-4 text-accent" />
           <span>阅读结束</span>
@@ -755,7 +755,7 @@ onUnmounted(() => {
           class="w-full border rounded-3xl p-4 shadow-sm flex flex-col gap-4 bg-[var(--bg-card)] border-[var(--border-base)]"
         >
           <!-- Title -->
-          <p class="text-[9px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+          <p class="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
             阅读辅助控制
           </p>
 
@@ -764,7 +764,7 @@ onUnmounted(() => {
 
           <!-- Typo controls -->
           <div class="flex items-center justify-between text-xs">
-            <span class="text-[10px] font-bold">正文字号</span>
+            <span class="text-xs font-semibold">正文字号</span>
             <div
               class="flex items-center gap-1 bg-slate-50 dark:bg-zinc-800/40 rounded-lg p-0.5 border border-[var(--border-base)]"
             >
@@ -775,7 +775,7 @@ onUnmounted(() => {
               >
                 <Minus class="w-2.5 h-2.5" />
               </button>
-              <span class="text-[9px] font-black px-1">{{ fontSize }}px</span>
+              <span class="text-xs font-bold px-1">{{ fontSize }}px</span>
               <button
                 type="button"
                 class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded transition-all cursor-pointer"
@@ -791,7 +791,7 @@ onUnmounted(() => {
         <div
           class="w-full border rounded-3xl p-4 shadow-sm flex flex-col gap-2.5 bg-[var(--bg-card)] border-[var(--border-base)]"
         >
-          <p class="text-[9px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+          <p class="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
             文章工具
           </p>
           <div class="h-[1px] bg-[var(--border-base)]" />
@@ -799,7 +799,7 @@ onUnmounted(() => {
           <!-- Logged-in Clone Feature -->
           <button
             type="button"
-            class="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-black border transition-all active:scale-95 cursor-pointer"
+            class="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-sm font-bold border transition-all active:scale-95 cursor-pointer"
             :class="[
               authStore.isAuthenticated
                 ? 'bg-accent border-accent text-white hover:bg-accent/90 shadow-sm'
@@ -815,7 +815,7 @@ onUnmounted(() => {
           <!-- Copy whole body -->
           <button
             type="button"
-            class="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-black border border-[var(--border-base)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all active:scale-95 cursor-pointer shadow-xs"
+            class="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-sm font-bold border border-[var(--border-base)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all active:scale-95 cursor-pointer shadow-xs"
             @click="handleCopy"
           >
             <component :is="isCopying ? Check : Copy" class="w-3.5 h-3.5" />
@@ -827,7 +827,7 @@ onUnmounted(() => {
 
     <!-- Clean Footer -->
     <footer
-      class="mt-auto py-6 text-center text-[10px] text-[var(--text-muted)] border-t bg-[var(--bg-card)]/50 select-none border-[var(--border-base)]"
+      class="mt-auto py-6 text-center text-xs text-[var(--text-muted)] border-t bg-[var(--bg-card)]/50 select-none border-[var(--border-base)]"
     >
       <p class="mb-1">
         © {{ new Date().getFullYear() }} {{ systemStore.settings.PLATFORM_NAME }}. All rights
@@ -891,21 +891,21 @@ onUnmounted(() => {
 
 /* Headings proportional scaling */
 .modern-markdown-content :deep(h1) {
-  font-size: 1.85em !important;
+  font-size: 1.5em !important;
   font-weight: 800 !important;
 }
 .modern-markdown-content :deep(h2) {
-  font-size: 1.55em !important;
+  font-size: 1.35em !important;
   font-weight: 800 !important;
   border-bottom: 1px dashed var(--border-base) !important;
   padding-bottom: 0.3em;
 }
 .modern-markdown-content :deep(h3) {
-  font-size: 1.3em !important;
+  font-size: 1.2em !important;
   font-weight: 700 !important;
 }
 .modern-markdown-content :deep(h4) {
-  font-size: 1.15em !important;
+  font-size: 1.1em !important;
   font-weight: 700 !important;
 }
 

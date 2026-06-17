@@ -1,11 +1,29 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, HeadObjectCommand, ListObjectsV2CommandOutput, DeleteObjectsCommand, GetObjectCommand, PutBucketCorsCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  ListObjectsV2Command,
+  HeadObjectCommand,
+  ListObjectsV2CommandOutput,
+  DeleteObjectsCommand,
+  GetObjectCommand,
+  PutBucketCorsCommand,
+  CopyObjectCommand,
+} from '@aws-sdk/client-s3';
 import fs from 'fs';
 import { logger } from '../utils/logger';
 import { decrypt } from '../utils/crypto';
+import {
+  calculateTotalUsageBytes,
+  fetchOfficialBucketUsage,
+  getDashboardPayloadBytes,
+  resolveCloudflareAccountId,
+  resolveCloudflareApiToken,
+} from '../utils/cloudflare-r2';
 
-const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
+export const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
 
-function decryptSecretIfNeeded(raw: string | null | undefined): string {
+export function decryptSecretIfNeeded(raw: string | null | undefined): string {
   if (!raw) return '';
   if (!ENCRYPTED_VALUE_RE.test(raw)) return raw;
   try {
@@ -22,6 +40,20 @@ export interface StorageConfigData {
   secretAccessKey: string;
   bucketName: string;
   publicUrl: string;
+  cloudflareAccountId?: string | null;
+  cloudflareApiToken?: string | null;
+}
+
+export interface BucketUsageResult {
+  totalBytes: number;
+  dashboardBytes: number;
+  payloadBytes: number;
+  metadataBytes: number;
+  objectCount: number;
+  uploadCount: number;
+  source: 'cloudflare-graphql' | 'cloudflare-usage-api' | 'list-objects';
+  warning?: string;
+  resolvedBucketName?: string;
 }
 
 export class StorageService {
@@ -91,7 +123,10 @@ export class StorageService {
       } catch (error) {
         attempt++;
         if (attempt >= retries) {
-          logger.error(`[StorageService] Upload failed for key ${key} after ${retries} attempts:`, error);
+          logger.error(
+            `[StorageService] Upload failed for key ${key} after ${retries} attempts:`,
+            error,
+          );
           throw error;
         }
         const backoff = delay * Math.pow(2, attempt) + Math.random() * 500;
@@ -105,7 +140,9 @@ export class StorageService {
     }
     // All paths above either return (success) or throw (max retries reached).
     // This line is unreachable but keeps TypeScript happy.
-    throw new Error('[StorageService] Unexpected: uploadFile reached end without returning or throwing');
+    throw new Error(
+      '[StorageService] Unexpected: uploadFile reached end without returning or throwing',
+    );
   }
 
   /**
@@ -150,9 +187,14 @@ export class StorageService {
         },
       });
       await client.send(command);
-      logger.info(`[StorageService] CORS rules configured successfully for bucket: ${config.bucketName}`);
+      logger.info(
+        `[StorageService] CORS rules configured successfully for bucket: ${config.bucketName}`,
+      );
     } catch (error) {
-      logger.error(`[StorageService] Failed to configure CORS rules for bucket ${config.bucketName}:`, error);
+      logger.error(
+        `[StorageService] Failed to configure CORS rules for bucket ${config.bucketName}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -189,7 +231,7 @@ export class StorageService {
         logger.warn(
           `[StorageService] Unable to automatically configure CORS during connection test. ` +
             `This is common if the API token permissions are read/write only. ` +
-            `Error: ${corsError instanceof Error ? corsError.message : String(corsError)}`
+            `Error: ${corsError instanceof Error ? corsError.message : String(corsError)}`,
         );
       }
 
@@ -201,7 +243,134 @@ export class StorageService {
   }
 
   /**
-   * Lists up to 1000 objects in the R2 bucket.
+   * Lists one page of folders and files for a directory level (fast; use continuation for more).
+   */
+  public async listFolderContents(
+    config: StorageConfigData,
+    prefix = '',
+    options?: { continuationToken?: string; maxKeys?: number },
+  ): Promise<{
+    folders: Array<{ key: string; name: string }>;
+    files: Array<{ key: string; name: string; size: number; lastModified?: Date }>;
+    truncated: boolean;
+    nextContinuationToken?: string;
+  }> {
+    const client = this.getS3Client(config);
+    const normalizedPrefix = prefix && !prefix.endsWith('/') ? `${prefix}/` : prefix;
+    const folders: Array<{ key: string; name: string }> = [];
+    const files: Array<{ key: string; name: string; size: number; lastModified?: Date }> = [];
+
+    const response = (await client.send(
+      new ListObjectsV2Command({
+        Bucket: config.bucketName,
+        Prefix: normalizedPrefix,
+        Delimiter: '/',
+        ContinuationToken: options?.continuationToken,
+        MaxKeys: options?.maxKeys ?? 1000,
+      }),
+    )) as ListObjectsV2CommandOutput;
+
+    for (const commonPrefix of response.CommonPrefixes || []) {
+      if (!commonPrefix.Prefix) continue;
+      const name = commonPrefix.Prefix.slice(normalizedPrefix.length).replace(/\/$/, '');
+      if (name) folders.push({ key: commonPrefix.Prefix, name });
+    }
+
+    for (const obj of response.Contents || []) {
+      if (!obj.Key || obj.Key === normalizedPrefix) continue;
+      const name = obj.Key.slice(normalizedPrefix.length);
+      if (!name || name.includes('/')) continue;
+      files.push({
+        key: obj.Key,
+        name,
+        size: obj.Size || 0,
+        lastModified: obj.LastModified,
+      });
+    }
+
+    folders.sort((a, b) => a.name.localeCompare(b.name));
+    files.sort((a, b) => a.name.localeCompare(b.name));
+
+    return {
+      folders,
+      files,
+      truncated: response.IsTruncated || false,
+      nextContinuationToken: response.NextContinuationToken,
+    };
+  }
+
+  /**
+   * Renames an object by copy + delete (S3/R2 has no native rename).
+   */
+  public async renameFile(
+    config: StorageConfigData,
+    oldKey: string,
+    newKey: string,
+  ): Promise<void> {
+    if (oldKey === newKey) return;
+    const client = this.getS3Client(config);
+    const encodedSource = `${config.bucketName}/${oldKey.split('/').map(encodeURIComponent).join('/')}`;
+
+    await client.send(
+      new CopyObjectCommand({
+        Bucket: config.bucketName,
+        CopySource: encodedSource,
+        Key: newKey,
+      }),
+    );
+
+    await this.deleteFile(config, oldKey);
+  }
+
+  /**
+   * Searches object keys in a bucket (capped for responsiveness).
+   */
+  public async searchBucketObjects(
+    config: StorageConfigData,
+    query: string,
+    prefix = '',
+    maxResults = 300,
+  ): Promise<Array<{ key: string; size: number; lastModified?: Date }>> {
+    const client = this.getS3Client(config);
+    const normalizedPrefix = prefix && !prefix.endsWith('/') ? `${prefix}/` : prefix;
+    const needle = query.trim().toLowerCase();
+    const results: Array<{ key: string; size: number; lastModified?: Date }> = [];
+    let isTruncated = true;
+    let continuationToken: string | undefined;
+
+    const maxScanPages = 5;
+    let scannedPages = 0;
+
+    while (isTruncated && results.length < maxResults && scannedPages < maxScanPages) {
+      const response = (await client.send(
+        new ListObjectsV2Command({
+          Bucket: config.bucketName,
+          Prefix: normalizedPrefix || undefined,
+          ContinuationToken: continuationToken,
+          MaxKeys: 1000,
+        }),
+      )) as ListObjectsV2CommandOutput;
+
+      for (const obj of response.Contents || []) {
+        if (!obj.Key || !obj.Key.toLowerCase().includes(needle)) continue;
+        results.push({
+          key: obj.Key,
+          size: obj.Size || 0,
+          lastModified: obj.LastModified,
+        });
+        if (results.length >= maxResults) break;
+      }
+
+      isTruncated = response.IsTruncated || false;
+      continuationToken = response.NextContinuationToken;
+      scannedPages += 1;
+    }
+
+    return results;
+  }
+
+  /**
+   * Lists up to 1000 objects in the R2 bucket (legacy flat list).
    */
   public async listFiles(config: StorageConfigData, prefix?: string) {
     try {
@@ -237,32 +406,189 @@ export class StorageService {
   }
 
   /**
+   * Returns bucket usage aligned with the Cloudflare dashboard when an API token is available.
+   * Falls back to parallel S3 list scanning when the native Usage API is not configured.
+   */
+  public async getOfficialBucketUsageOnly(
+    config: StorageConfigData,
+    options?: { sharedApiTokens?: Array<string | null | undefined> },
+  ): Promise<BucketUsageResult | null> {
+    const apiToken = resolveCloudflareApiToken(config.cloudflareApiToken, options?.sharedApiTokens);
+    const accountId = resolveCloudflareAccountId(config.endpoint, config.cloudflareAccountId);
+
+    if (!apiToken || !accountId) {
+      return null;
+    }
+
+    try {
+      const official = await fetchOfficialBucketUsage(accountId, config.bucketName, apiToken);
+      const usage = official.usage;
+      const payloadBytes = getDashboardPayloadBytes(usage);
+      const metadataBytes = usage.metadataBytes + usage.infrequentAccessMetadataBytes;
+      return {
+        totalBytes: calculateTotalUsageBytes(usage),
+        dashboardBytes: payloadBytes,
+        payloadBytes,
+        metadataBytes,
+        objectCount: usage.objectCount,
+        uploadCount: usage.uploadCount,
+        source: official.source,
+        resolvedBucketName: official.resolvedBucketName,
+      };
+    } catch (error) {
+      logger.warn(
+        `[StorageService] Official Cloudflare usage lookup failed for bucket ${config.bucketName} (account ${accountId}):`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  public async getBucketUsage(
+    config: StorageConfigData,
+    options?: { sharedApiTokens?: Array<string | null | undefined> },
+  ): Promise<BucketUsageResult> {
+    const apiToken = resolveCloudflareApiToken(config.cloudflareApiToken, options?.sharedApiTokens);
+    const accountId = resolveCloudflareAccountId(config.endpoint, config.cloudflareAccountId);
+
+    if (apiToken && accountId) {
+      try {
+        const official = await fetchOfficialBucketUsage(accountId, config.bucketName, apiToken);
+        const usage = official.usage;
+        const payloadBytes = getDashboardPayloadBytes(usage);
+        const metadataBytes = usage.metadataBytes + usage.infrequentAccessMetadataBytes;
+        return {
+          totalBytes: calculateTotalUsageBytes(usage),
+          dashboardBytes: payloadBytes,
+          payloadBytes,
+          metadataBytes,
+          objectCount: usage.objectCount,
+          uploadCount: usage.uploadCount,
+          source: official.source,
+          resolvedBucketName: official.resolvedBucketName,
+        };
+      } catch (error) {
+        logger.warn(
+          `[StorageService] Cloudflare official usage lookup failed for bucket ${config.bucketName} (account ${accountId}):`,
+          error,
+        );
+      }
+    }
+
+    const listed = await this.sumObjectsByParallelPrefixes(config);
+    const warning = !apiToken
+      ? '未配置可用的 Cloudflare API Token，当前结果为对象扫描值，通常低于官网 Metrics 中的 Bucket size。请为该账号配置 API Token。'
+      : !accountId
+        ? '无法从 Endpoint 解析 Cloudflare Account ID，当前结果为对象扫描值。请填写 Account ID 或检查 Endpoint。'
+        : 'Cloudflare 官方 API 查询失败，当前结果为对象扫描值，可能与官网不一致。请检查 API Token 权限是否覆盖该账号。';
+
+    return {
+      totalBytes: listed.bytes,
+      dashboardBytes: listed.bytes,
+      payloadBytes: listed.bytes,
+      metadataBytes: 0,
+      objectCount: listed.count,
+      uploadCount: 0,
+      source: 'list-objects',
+      warning,
+    };
+  }
+
+  /**
    * Calculates the total actual size of all objects in the R2 bucket.
    */
-  public async getActualBucketSize(config: StorageConfigData): Promise<number> {
+  public async getActualBucketSize(
+    config: StorageConfigData,
+    options?: { sharedApiTokens?: Array<string | null | undefined> },
+  ): Promise<number> {
+    const usage = await this.getBucketUsage(config, options);
+    return usage.dashboardBytes;
+  }
+
+  private async sumObjectsForPrefix(
+    config: StorageConfigData,
+    prefix: string,
+  ): Promise<{ bytes: number; count: number }> {
     const client = this.getS3Client(config);
-    let totalSize = 0;
+    let totalBytes = 0;
+    let objectCount = 0;
     let isTruncated = true;
-    let continuationToken: string | undefined = undefined;
+    let continuationToken: string | undefined;
+
+    while (isTruncated) {
+      const command = new ListObjectsV2Command({
+        Bucket: config.bucketName,
+        Prefix: prefix || undefined,
+        ContinuationToken: continuationToken,
+        MaxKeys: 1000,
+      });
+      const response = (await client.send(command)) as ListObjectsV2CommandOutput;
+
+      for (const obj of response.Contents || []) {
+        totalBytes += obj.Size || 0;
+        objectCount += 1;
+      }
+
+      isTruncated = response.IsTruncated || false;
+      continuationToken = response.NextContinuationToken;
+    }
+
+    return { bytes: totalBytes, count: objectCount };
+  }
+
+  private async sumObjectsByParallelPrefixes(
+    config: StorageConfigData,
+  ): Promise<{ bytes: number; count: number }> {
+    const client = this.getS3Client(config);
+    const folderPrefixes: string[] = [];
+    let rootBytes = 0;
+    let rootCount = 0;
+    let isTruncated = true;
+    let continuationToken: string | undefined;
 
     try {
       while (isTruncated) {
         const command = new ListObjectsV2Command({
           Bucket: config.bucketName,
+          Delimiter: '/',
           ContinuationToken: continuationToken,
+          MaxKeys: 1000,
         });
         const response = (await client.send(command)) as ListObjectsV2CommandOutput;
-        if (response.Contents) {
-          for (const obj of response.Contents) {
-            totalSize += obj.Size || 0;
-          }
+
+        for (const commonPrefix of response.CommonPrefixes || []) {
+          if (commonPrefix.Prefix) folderPrefixes.push(commonPrefix.Prefix);
         }
+
+        for (const obj of response.Contents || []) {
+          rootBytes += obj.Size || 0;
+          rootCount += 1;
+        }
+
         isTruncated = response.IsTruncated || false;
         continuationToken = response.NextContinuationToken;
       }
-      return totalSize;
+
+      if (folderPrefixes.length === 0) {
+        return this.sumObjectsForPrefix(config, '');
+      }
+
+      const folderTotals = await Promise.all(
+        folderPrefixes.map((prefix) => this.sumObjectsForPrefix(config, prefix)),
+      );
+
+      const folderBytes = folderTotals.reduce((sum, item) => sum + item.bytes, 0);
+      const folderCount = folderTotals.reduce((sum, item) => sum + item.count, 0);
+
+      return {
+        bytes: rootBytes + folderBytes,
+        count: rootCount + folderCount,
+      };
     } catch (error) {
-      logger.error(`[StorageService] Failed to calculate actual bucket size for ${config.bucketName}:`, error);
+      logger.error(
+        `[StorageService] Failed to calculate actual bucket size for ${config.bucketName}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -338,7 +664,10 @@ export class StorageService {
       }
       return allObjects;
     } catch (error) {
-      logger.error(`[StorageService] Failed to list all objects with prefix ${prefix} for ${config.bucketName}:`, error);
+      logger.error(
+        `[StorageService] Failed to list all objects with prefix ${prefix} for ${config.bucketName}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -391,7 +720,11 @@ export class StorageService {
   /**
    * Uploads a string directly to the bucket.
    */
-  public async uploadJsonString(config: StorageConfigData, key: string, jsonContent: string): Promise<string> {
+  public async uploadJsonString(
+    config: StorageConfigData,
+    key: string,
+    jsonContent: string,
+  ): Promise<string> {
     try {
       const client = this.getS3Client(config);
       const command = new PutObjectCommand({
@@ -401,7 +734,9 @@ export class StorageService {
         ContentType: 'application/json',
       });
       await client.send(command);
-      let baseUrl = config.publicUrl.endsWith('/') ? config.publicUrl.slice(0, -1) : config.publicUrl;
+      let baseUrl = config.publicUrl.endsWith('/')
+        ? config.publicUrl.slice(0, -1)
+        : config.publicUrl;
       if (!/^https?:\/\//i.test(baseUrl) && !baseUrl.startsWith('/')) {
         baseUrl = `https://${baseUrl}`;
       }

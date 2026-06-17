@@ -191,9 +191,26 @@ router.put('/storage-configs/:id', storageController.updateConfig);
 router.delete('/storage-configs/:id', storageController.deleteConfig);
 router.post('/storage-configs/test', storageController.testConfig);
 router.get('/storage-configs/:id/files', storageController.listBucketFiles);
+router.patch('/storage-configs/:id/files/rename', storageController.renameBucketFile);
+router.post('/storage-configs/:id/files/bulk-delete', storageController.deleteBucketFilesBulk);
 router.delete('/storage-configs/:id/files', storageController.deleteBucketFile);
 router.post('/storage-configs/:id/files', upload.single('file'), storageController.uploadDirectFile);
 router.get('/storage-configs/:id/actual-size', storageController.getActualSize);
+router.post('/storage-configs/sync-all-sizes', storageController.syncAllActualSizes);
 router.post('/storage-configs/:id/sync-size', storageController.syncActualSize);
+
+import * as cloudflareController from '../controllers/admin/cloudflare.controller';
+router.get('/cloudflare/config', cloudflareController.getConfig);
+router.put('/cloudflare/config', cloudflareController.saveConfig);
+router.delete('/cloudflare/config', cloudflareController.clearConfig);
+router.post('/cloudflare/verify', cloudflareController.verifyToken);
+router.get('/cloudflare/zones', cloudflareController.listZones);
+router.get('/cloudflare/zones/:zoneId', cloudflareController.getZone);
+router.get('/cloudflare/zones/:zoneId/settings', cloudflareController.getZoneSettings);
+router.patch('/cloudflare/zones/:zoneId/pause', cloudflareController.updateZonePause);
+router.get('/cloudflare/zones/:zoneId/dns', cloudflareController.listDnsRecords);
+router.post('/cloudflare/zones/:zoneId/dns', cloudflareController.createDnsRecord);
+router.patch('/cloudflare/zones/:zoneId/dns/:recordId', cloudflareController.updateDnsRecord);
+router.delete('/cloudflare/zones/:zoneId/dns/:recordId', cloudflareController.deleteDnsRecord);
 
 export default router;

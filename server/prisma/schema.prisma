@@ -1452,6 +1452,9 @@ model StorageConfig {
   secretAccessKey String
   bucketName      String
   publicUrl       String
+  cloudflareAccountId String?
+  cloudflareApiToken  String?  @db.Text
+  remark          String?
   limitGb         Float    @default(9.8) // Configurable limit in GB, default 9.8
   usedBytes       Float    @default(0)   // Space used in bytes, precise and editable
   assetType       String   // 'ALL' | 'ASSET' | 'MATERIAL' | 'PLUGIN' | 'SHOWCASE' | 'MIRROR'

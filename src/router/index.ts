@@ -309,6 +309,12 @@ const router = createRouter({
               meta: { requiresAdmin: true },
             },
             {
+              path: 'admin/cloudflare-domains',
+              name: 'AdminCloudflareDomains',
+              component: () => import('@/views/Admin/AdminCloudflareDomainsView.vue'),
+              meta: { requiresAdmin: true },
+            },
+            {
               path: 'admin/settings',
               name: 'AdminSettings',
               component: () => import('@/views/Admin/AdminSettingsView.vue'),

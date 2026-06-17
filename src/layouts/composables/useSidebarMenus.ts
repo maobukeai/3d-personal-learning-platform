@@ -35,6 +35,7 @@ import {
   Video,
   KeyRound,
   FolderCog,
+  Globe2,
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
@@ -151,6 +152,16 @@ export function useSidebarMenus() {
         { name: label('镜像源管理', 'Mirror Sources'), icon: Globe, path: '/admin/mirror' },
         { name: label('资源站管理', 'Resource Stations'), icon: Database, path: '/admin/manual' },
         { name: label('系统设置', 'Settings'), icon: Settings, path: '/admin/settings' },
+      ],
+    },
+    {
+      title: label('管理员工具', 'Admin Tools'),
+      items: [
+        {
+          name: label('Cloudflare域名管理', 'Cloudflare Domains'),
+          icon: Globe2,
+          path: '/admin/cloudflare-domains',
+        },
       ],
     },
   ]);

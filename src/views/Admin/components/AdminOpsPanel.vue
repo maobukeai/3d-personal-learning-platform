@@ -38,7 +38,8 @@ type AdminScope =
   | 'banners'
   | 'subscriptions'
   | 'mirror'
-  | 'manual';
+  | 'manual'
+  | 'cloudflare';
 
 type Tone = 'neutral' | 'good' | 'warn' | 'risk' | 'info';
 
@@ -77,6 +78,7 @@ const scopeTitles: Record<AdminScope, string> = {
   subscriptions: '订阅商业',
   mirror: '镜像同步',
   manual: '资源站运营',
+  cloudflare: 'Cloudflare 域名',
 };
 
 const issueRouteMap: Record<Exclude<AdminScope, 'overview'>, string[]> = {
@@ -91,6 +93,7 @@ const issueRouteMap: Record<Exclude<AdminScope, 'overview'>, string[]> = {
   subscriptions: ['/admin/subscriptions'],
   mirror: ['/admin/mirror'],
   manual: ['/admin/manual'],
+  cloudflare: ['/admin/cloudflare-domains'],
 };
 
 const toneClasses: Record<Tone, string> = {
@@ -427,6 +430,15 @@ const metricCards = computed<MetricCard[]>(() => {
     ];
   }
 
+  if (props.scope === 'cloudflare') {
+    return [
+      { label: '域名管理', value: 'DNS', sub: 'Zone / SSL / 解析', tone: 'info' },
+      { label: 'Token', value: 'API', sub: '独立于 R2 存储', tone: 'neutral' },
+      { label: '控制台', value: '跳转', sub: '高级 SSL / 缓存', tone: 'good' },
+      { label: '建议', value: '只读', sub: '日常 DNS 维护', tone: 'neutral' },
+    ];
+  }
+
   const manual = data.operations.manual;
   return [
     {
@@ -491,7 +503,9 @@ const scopedControlMetrics = computed(() => {
                     ? ['/admin/mirror']
                     : props.scope === 'manual'
                       ? ['/admin/manual']
-                      : [];
+                      : props.scope === 'cloudflare'
+                        ? ['/admin/cloudflare-domains']
+                        : [];
   const localMetrics = controlMetrics.value.filter((metric) => routes.includes(metric.route));
   return localMetrics.length ? localMetrics : controlMetrics.value.slice(0, 3);
 });
@@ -509,6 +523,7 @@ const scopedWorkloadItems = computed(() => {
     subscriptions: ['/admin/subscriptions'],
     mirror: ['/admin/mirror'],
     manual: ['/admin/manual'],
+    cloudflare: ['/admin/cloudflare-domains'],
   };
   const routes = routeMap[props.scope] || [];
   const localWorkload = workloadItems.value.filter((item) => routes.includes(item.route));

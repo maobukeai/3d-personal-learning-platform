@@ -356,13 +356,24 @@ const generateAppealText = async () => {
   generatedAppealText.value = '';
   appealAbortCtrl = new AbortController();
 
-  const promptText = `请帮我撰写一个 Google 改区/修改账号关联国家地址的申诉陈述（字数在 150-250 字之间，必须严格控制在 350 字以内，不能带任何 Markdown 标签或代码框，只输出最终的陈述文本，且使用第一人称“我”）。
+  const isEn = appealLanguage.value === 'en';
+  
+  const lengthConstraint = isEn
+    ? 'The length of the response must be between 60 and 80 words, and strictly under 90 words. The total character count (including letters, spaces, and punctuation) must be strictly under 450 characters. Write a brief, concise, and complete explanation.'
+    : '中文陈述字数在 150-250 字之间，必须严格控制在 350 字以内，绝对不能超过 450 个字。请写出精简、完整的说明。';
+
+  const promptText = `请帮我撰写一个 Google 改区/修改账号关联国家地址的申诉陈述。
 目标国家/地区：${country}
-生成语言：${appealLanguage.value === 'en' ? '英文 (English)' : '中文 (Chinese)'}
+生成语言：${isEn ? '英文 (English)' : '中文 (Chinese)'}
 基于的申诉理由要点：
 ${selectedReasonsList.map((r) => `- ${r}`).join('\n')}
 
-请写出一段极其自然、符合真实人类生活和迁移场景的文字，可以直接用于填写 Google 'country-association-form' (国家关联表单) 中的“其他原因”输入框。字数在 150-250 字之间，绝对不能超过 350 个字，且必须严格限制在 500 个字符以内。不要输出任何除了申诉理由正文之外的闲聊或提示词。`;
+写作要求：
+1. 请写出一段极其自然、符合真实人类生活和迁移场景的文字，可以直接用于填写 Google 'country-association-form' (国家关联表单) 中的“其他原因”输入框。
+2. 必须以第一人称“我”撰写。
+3. 不能带任何 Markdown 标签或代码框，只输出最终的陈述文本。
+4. 严格遵守长度限制：${lengthConstraint} 请确保文本在限制范围内是完整的，并且句子能够自然结束，不要出现话只说了一半的情况。
+5. 不要输出任何除了申诉理由正文之外的闲聊或提示词。`;
 
   try {
     const response = await fetch('/api/ai/write-assist', {

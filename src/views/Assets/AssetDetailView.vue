@@ -6,6 +6,7 @@ import {
   Box,
   Calendar,
   Camera,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   Cuboid,

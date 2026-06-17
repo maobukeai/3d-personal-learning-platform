@@ -549,9 +549,7 @@ const loadModel = async (url: string) => {
     }
     case '.fbx': {
       const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js');
-      const fflate = await import('fflate');
       const loader = new FBXLoader(manager);
-      (loader as any).setFflate(fflate);
       loader.load(
         url,
         (fbx) => {

@@ -4,7 +4,7 @@ import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { emitToAll } from '../services/socket.service';
 import { createNotification } from '../utils/notification';
-import { AppError } from '../middlewares/error.middleware';
+import { AppError } from '../utils/error';
 import { clampLimit, clampPage } from '../utils/pagination';
 import { sanitizeHtml } from '../utils/sanitize';
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';

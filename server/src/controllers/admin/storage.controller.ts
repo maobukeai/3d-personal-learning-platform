@@ -6,44 +6,38 @@ import prisma from '../../services/prisma';
 import { storageService, decryptSecretIfNeeded } from '../../services/storage.service';
 import { logger } from '../../utils/logger';
 import { auditService, AuditModule } from '../../services/audit.service';
-import { AppError } from '../../middlewares/error.middleware';
-import { encrypt } from '../../utils/crypto';
+import { AppError } from '../../utils/error';
+import { encrypt, buildDecryptedStorageConfig } from '../../utils/crypto';
 import { resolveCloudflareApiToken } from '../../utils/cloudflare-r2';
+import { Prisma, type StorageConfig } from '@prisma/client';
+
+interface ImportedStorageConfig {
+  name: string;
+  provider?: string;
+  endpoint: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucketName: string;
+  publicUrl: string;
+  cloudflareApiToken?: string;
+  remark?: string;
+  limitGb?: number;
+  usedBytes?: number;
+  assetType: string;
+  priority?: number;
+  status?: string;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Returns the decrypted secretAccessKey for internal use (storageService calls).
- * Safely handles both legacy plaintext and new encrypted values.
- */
-function getDecryptedSecret(raw: string | null | undefined): string {
-  return decryptSecretIfNeeded(raw);
-}
-
-/**
- * Builds a full StorageConfigData object with decrypted credentials,
- * ready to be passed to storageService.
- */
-function toDecryptedConfig(raw: Record<string, any>) {
-  return {
-    endpoint: raw.endpoint,
-    accessKeyId: raw.accessKeyId ?? '',
-    secretAccessKey: getDecryptedSecret(raw.secretAccessKey),
-    bucketName: raw.bucketName,
-    publicUrl: raw.publicUrl,
-    cloudflareAccountId: raw.cloudflareAccountId ?? null,
-    cloudflareApiToken: getDecryptedSecret(raw.cloudflareApiToken),
-  };
-}
-
-/**
  * Returns a safe API response payload — decrypts secrets for admin display.
  */
-function prepareConfigResponse(config: Record<string, any>) {
+function prepareConfigResponse(config: StorageConfig) {
   return {
     ...config,
-    secretAccessKey: getDecryptedSecret(config.secretAccessKey),
-    cloudflareApiToken: getDecryptedSecret(config.cloudflareApiToken),
+    secretAccessKey: decryptSecretIfNeeded(config.secretAccessKey),
+    cloudflareApiToken: decryptSecretIfNeeded(config.cloudflareApiToken),
   };
 }
 
@@ -53,7 +47,7 @@ async function getSharedCloudflareApiTokens(): Promise<string[]> {
   });
 
   return configs
-    .map((config) => getDecryptedSecret(config.cloudflareApiToken))
+    .map((config) => decryptSecretIfNeeded(config.cloudflareApiToken))
     .filter((token) => !!token);
 }
 
@@ -138,7 +132,7 @@ export const createConfig = async (req: AuthRequest, res: Response, next: NextFu
 
     if (config.status === 'ACTIVE') {
       try {
-        await storageService.configureCors(toDecryptedConfig(config));
+        await storageService.configureCors(buildDecryptedStorageConfig(config));
       } catch (corsErr) {
         logger.warn(
           `[StorageController] Auto CORS configuration failed on creation for bucket ${config.bucketName}:`,
@@ -187,7 +181,7 @@ export const updateConfig = async (req: AuthRequest, res: Response, next: NextFu
       return next(new AppError('配置未找到', 404));
     }
 
-    const updateData: Record<string, any> = {
+    const updateData: Record<string, unknown> = {
       name: name !== undefined ? name : existing.name,
       provider: provider !== undefined ? provider : existing.provider,
       endpoint: endpoint !== undefined ? endpoint : existing.endpoint,
@@ -212,12 +206,12 @@ export const updateConfig = async (req: AuthRequest, res: Response, next: NextFu
 
     const config = await prisma.storageConfig.update({
       where: { id },
-      data: updateData,
+      data: updateData as Prisma.StorageConfigUpdateInput,
     });
 
     if (config.status === 'ACTIVE') {
       try {
-        await storageService.configureCors(toDecryptedConfig(config));
+        await storageService.configureCors(buildDecryptedStorageConfig(config));
       } catch (corsErr) {
         logger.warn(
           `[StorageController] Auto CORS configuration failed on update for bucket ${config.bucketName}:`,
@@ -285,11 +279,11 @@ export const testConfig = async (req: AuthRequest, res: Response, next: NextFunc
     });
 
     res.json({ success });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[StorageController] Test connection failed:', error);
     res.status(400).json({
       success: false,
-      error: error.message || '连接测试失败，请检查配置参数',
+      error: (error instanceof Error ? error.message : '') || '连接测试失败，请检查配置参数',
     });
   }
 };
@@ -300,7 +294,7 @@ export const listBucketFiles = async (req: AuthRequest, res: Response, next: Nex
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
     if (!raw) return next(new AppError('配置未找到', 404));
 
-    const config = toDecryptedConfig(raw);
+    const config = buildDecryptedStorageConfig(raw);
     const prefix = typeof req.query.prefix === 'string' ? req.query.prefix : '';
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
     const continuationToken =
@@ -377,7 +371,7 @@ export const renameBucketFile = async (req: AuthRequest, res: Response, next: Ne
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
     if (!raw) return next(new AppError('配置未找到', 404));
 
-    const config = toDecryptedConfig(raw);
+    const config = buildDecryptedStorageConfig(raw);
     await storageService.renameFile(config, oldKey.trim(), newKey.trim());
 
     await auditService.log({
@@ -412,26 +406,28 @@ export const deleteBucketFilesBulk = async (
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
     if (!raw) return next(new AppError('配置未找到', 404));
 
-    const config = toDecryptedConfig(raw);
+    const config = buildDecryptedStorageConfig(raw);
     const validKeys = keys.filter((key: unknown) => typeof key === 'string' && key.trim());
 
     if (validKeys.length === 0) {
       return next(new AppError('没有有效的文件 Key', 400));
     }
 
-    // Estimate deleted bytes from metadata (best-effort, non-blocking)
+    // Fetch metadata in parallel to avoid sequential N+1 API calls
+    const metaResults = await Promise.allSettled(
+      validKeys.map((key: string) => storageService.getObjectMetadata(config, key)),
+    );
     let totalDeletedBytes = 0;
-    for (const key of validKeys) {
-      try {
-        const meta = await storageService.getObjectMetadata(config, key);
-        totalDeletedBytes += meta.ContentLength || 0;
-      } catch (err) {
+    metaResults.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        totalDeletedBytes += result.value.ContentLength || 0;
+      } else {
         logger.error(
-          `[StorageController] Failed to fetch object metadata before delete for key ${key}:`,
-          err,
+          `[StorageController] Failed to fetch metadata for key ${validKeys[index]}:`,
+          result.reason,
         );
       }
-    }
+    });
 
     // Use batch delete for efficiency
     await storageService.deleteFilesBulk(config, validKeys);
@@ -472,7 +468,7 @@ export const deleteBucketFile = async (req: AuthRequest, res: Response, next: Ne
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
     if (!raw) return next(new AppError('配置未找到', 404));
 
-    const config = toDecryptedConfig(raw);
+    const config = buildDecryptedStorageConfig(raw);
 
     // Get object size first to decrement usedBytes atomically
     let objectSize = 0;
@@ -529,7 +525,7 @@ export const uploadDirectFile = async (req: AuthRequest, res: Response, next: Ne
       return next(new AppError('配置未找到', 404));
     }
 
-    const config = toDecryptedConfig(raw);
+    const config = buildDecryptedStorageConfig(raw);
 
     // Check capacity limit
     const limitBytes = raw.limitGb * 1024 * 1024 * 1024;
@@ -588,7 +584,7 @@ export const getActualSize = async (req: AuthRequest, res: Response, next: NextF
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
     if (!raw) return next(new AppError('配置未找到', 404));
 
-    const config = toDecryptedConfig(raw);
+    const config = buildDecryptedStorageConfig(raw);
     const sharedApiTokens = await getSharedCloudflareApiTokens();
     const usage = await storageService.getBucketUsage(config, { sharedApiTokens });
     res.json(buildUsageResponse(usage));
@@ -603,7 +599,7 @@ export const syncActualSize = async (req: AuthRequest, res: Response, next: Next
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
     if (!raw) return next(new AppError('配置未找到', 404));
 
-    const config = toDecryptedConfig(raw);
+    const config = buildDecryptedStorageConfig(raw);
     const sharedApiTokens = await getSharedCloudflareApiTokens();
     const usage = await storageService.getBucketUsage(config, { sharedApiTokens });
 
@@ -648,7 +644,7 @@ export const syncAllActualSizes = async (req: AuthRequest, res: Response, next: 
     }> = [];
 
     for (const raw of configs) {
-      const config = toDecryptedConfig(raw);
+      const config = buildDecryptedStorageConfig(raw);
       const apiToken = resolveCloudflareApiToken(config.cloudflareApiToken, sharedApiTokens);
 
       if (!apiToken) {
@@ -737,10 +733,10 @@ export const exportConfigs = async (req: AuthRequest, res: Response, next: NextF
         provider: config.provider,
         endpoint: config.endpoint,
         accessKeyId: config.accessKeyId,
-        secretAccessKey: getDecryptedSecret(config.secretAccessKey),
+        secretAccessKey: decryptSecretIfNeeded(config.secretAccessKey),
         bucketName: config.bucketName,
         publicUrl: config.publicUrl,
-        cloudflareApiToken: getDecryptedSecret(config.cloudflareApiToken),
+        cloudflareApiToken: decryptSecretIfNeeded(config.cloudflareApiToken),
         remark: config.remark,
         limitGb: config.limitGb,
         usedBytes: config.usedBytes,
@@ -765,96 +761,103 @@ export const importConfigs = async (req: AuthRequest, res: Response, next: NextF
       return next(new AppError('无效的配置数据格式', 400));
     }
 
+    // Validate and filter configs first
+    const validConfigs = configs.filter(
+      (raw: ImportedStorageConfig) =>
+        raw.name &&
+        raw.endpoint &&
+        raw.accessKeyId &&
+        raw.secretAccessKey &&
+        raw.bucketName &&
+        raw.publicUrl &&
+        raw.assetType,
+    );
+
+    if (validConfigs.length === 0) {
+      return res.json({ success: true, message: '导入配置完成：新增 0 个，更新 0 个。' });
+    }
+
+    // Batch query all existing configs to avoid N+1
+    const allNames = validConfigs.map((c: ImportedStorageConfig) => c.name);
+    const existingConfigs = await prisma.storageConfig.findMany({
+      where: {
+        OR: [
+          { name: { in: allNames } },
+          ...validConfigs.map((c: ImportedStorageConfig) => ({
+            endpoint: c.endpoint,
+            bucketName: c.bucketName,
+            assetType: c.assetType,
+          })),
+        ],
+      },
+    });
+
+    // Build lookup map
+    const existingMap = new Map<string, string>();
+    for (const existing of existingConfigs) {
+      existingMap.set(existing.name, existing.id);
+      existingMap.set(
+        `${existing.endpoint}|${existing.bucketName}|${existing.assetType}`,
+        existing.id,
+      );
+    }
+
     let importedCount = 0;
     let updatedCount = 0;
 
-    for (const raw of configs) {
-      const {
-        name,
-        provider = 'CLOUDFLARE_R2',
-        endpoint,
-        accessKeyId,
-        secretAccessKey,
-        bucketName,
-        publicUrl,
-        cloudflareApiToken,
-        remark,
-        limitGb = 9.8,
-        usedBytes = 0,
-        assetType,
-        priority = 0,
-        status = 'ACTIVE',
-      } = raw;
+    // Use transaction for batch operations
+    await prisma.$transaction(
+      validConfigs.map((raw: ImportedStorageConfig) => {
+        const {
+          name,
+          provider = 'CLOUDFLARE_R2',
+          endpoint,
+          accessKeyId,
+          secretAccessKey,
+          bucketName,
+          publicUrl,
+          cloudflareApiToken,
+          remark,
+          limitGb = 9.8,
+          usedBytes = 0,
+          assetType,
+          priority = 0,
+          status = 'ACTIVE',
+        } = raw;
 
-      if (
-        !name ||
-        !endpoint ||
-        !accessKeyId ||
-        !secretAccessKey ||
-        !bucketName ||
-        !publicUrl ||
-        !assetType
-      ) {
-        continue;
-      }
+        const encryptedSecret = encrypt(secretAccessKey);
+        const data = {
+          provider,
+          endpoint,
+          accessKeyId,
+          secretAccessKey: encryptedSecret,
+          bucketName,
+          publicUrl,
+          cloudflareApiToken: cloudflareApiToken ? encrypt(cloudflareApiToken) : null,
+          remark: remark || null,
+          limitGb,
+          usedBytes,
+          assetType,
+          priority,
+          status,
+        };
 
-      const existing = await prisma.storageConfig.findFirst({
-        where: {
-          OR: [
-            { name },
-            {
-              endpoint,
-              bucketName,
-              assetType,
-            },
-          ],
-        },
-      });
+        const existingId =
+          existingMap.get(name) || existingMap.get(`${endpoint}|${bucketName}|${assetType}`);
 
-      const encryptedSecret = encrypt(secretAccessKey);
-
-      if (existing) {
-        await prisma.storageConfig.update({
-          where: { id: existing.id },
-          data: {
-            provider,
-            endpoint,
-            accessKeyId,
-            secretAccessKey: encryptedSecret,
-            bucketName,
-            publicUrl,
-            cloudflareApiToken: cloudflareApiToken ? encrypt(cloudflareApiToken) : null,
-            remark: remark || null,
-            limitGb,
-            usedBytes,
-            assetType,
-            priority,
-            status,
-          },
-        });
-        updatedCount++;
-      } else {
-        await prisma.storageConfig.create({
-          data: {
-            name,
-            provider,
-            endpoint,
-            accessKeyId,
-            secretAccessKey: encryptedSecret,
-            bucketName,
-            publicUrl,
-            cloudflareApiToken: cloudflareApiToken ? encrypt(cloudflareApiToken) : null,
-            remark: remark || null,
-            limitGb,
-            usedBytes,
-            assetType,
-            priority,
-            status,
-          },
-        });
+        if (existingId) {
+          updatedCount++;
+          return prisma.storageConfig.update({
+            where: { id: existingId },
+            data: { ...data, name },
+          });
+        }
         importedCount++;
-      }
-    }
+        return prisma.storageConfig.create({
+          data: { ...data, name },
+        });
+      }),
+    );
 
     res.json({
       success: true,

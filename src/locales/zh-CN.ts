@@ -167,13 +167,6 @@ export default {
     createFailed: '创建团队失败',
     nameRequired: '请输入团队名称',
   },
-  categories: {
-    modeling: '建模',
-    rendering: '渲染',
-    animation: '动画',
-    materials: '材质',
-    gameEngine: '游戏引擎',
-  },
   dashboard: {
     title: '工作台概览',
     welcome: '欢迎回来，今天准备学习什么新技能？',

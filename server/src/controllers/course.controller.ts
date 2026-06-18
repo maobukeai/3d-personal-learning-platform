@@ -4,7 +4,7 @@ import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { parseBilibiliUrl } from '../utils/bilibili';
-import { AppError } from '../middlewares/error.middleware';
+import { AppError } from '../utils/error';
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
 
 export const getAllCourses = async (req: AuthRequest, res: Response, next: NextFunction) => {

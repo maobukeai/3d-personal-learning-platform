@@ -23,8 +23,44 @@ import { getAssetUrl } from '@/utils/api';
 const { locale } = useI18n();
 const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
 
+interface CardItem {
+  id?: string | number;
+  title?: string | null;
+  name?: string | null;
+  description?: string | null;
+  subtitle?: string | null;
+  preview?: string | null;
+  previewUrl?: string | null;
+  thumbnail?: string | null;
+  thumbnailUrl?: string | null;
+  size?: number | string | null;
+  fileSize?: number | string | null;
+  sizeMb?: number | string | null;
+  tags?: string | unknown[] | null;
+  categoryName?: string | null;
+  category?: string | Record<string, any> | null;
+  format?: string | null;
+  resolution?: string | null;
+  version?: string | null;
+  downloads?: number | null;
+  likes?: number | null;
+  likesCount?: number | null;
+  views?: number | null;
+  viewCount?: number | null;
+  isProcedural?: boolean | string | null;
+  compatibility?: string | null;
+  status?: string | null;
+  rejectReason?: string | null;
+  hasAnimations?: boolean | null;
+  kind?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+  user?: { name?: string | null; email?: string | null } | null;
+  author?: string | null;
+}
+
 interface Props {
-  item: any;
+  item: CardItem;
   kind: 'asset' | 'material' | 'plugin' | 'work' | 'showcase' | 'feed';
   viewMode?: 'grid' | 'list';
   isSelected?: boolean;
@@ -42,17 +78,17 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  (e: 'click', item: any): void;
-  (e: 'like', item: any, event?: Event): void;
-  (e: 'download', item: any, event?: Event): void;
-  (e: 'edit', item: any, event?: Event): void;
-  (e: 'select', item: any, event?: Event): void;
-  (e: 'share', item: any, event?: Event): void;
+  (e: 'click', item: CardItem): void;
+  (e: 'like', item: CardItem, event?: Event): void;
+  (e: 'download', item: CardItem, event?: Event): void;
+  (e: 'edit', item: CardItem, event?: Event): void;
+  (e: 'select', item: CardItem, event?: Event): void;
+  (e: 'share', item: CardItem, event?: Event): void;
   (e: 'user-click', userId: string): void;
 }>();
 
 // Helper to format file size
-const formatFileSize = (size: any) => {
+const formatFileSize = (size: unknown) => {
   if (size === undefined || size === null || size === '') return '';
   const num = Number(size);
   if (isNaN(num)) return String(size);
@@ -82,13 +118,14 @@ const getStatusMeta = (status?: string) => {
 
 // Extracted tags
 const tagsList = computed(() => {
-  if (!props.item?.tags) return [];
-  if (Array.isArray(props.item.tags)) return props.item.tags.slice(0, 3);
+  const tags = props.item?.tags;
+  if (!tags) return [];
+  if (Array.isArray(tags)) return tags.slice(0, 3) as string[];
   try {
-    const parsed = JSON.parse(props.item.tags);
-    if (Array.isArray(parsed)) return parsed.slice(0, 3);
+    const parsed = JSON.parse(tags);
+    if (Array.isArray(parsed)) return parsed.slice(0, 3) as string[];
   } catch {}
-  return String(props.item.tags)
+  return String(tags)
     .split(/[，,]/)
     .map((t) => t.trim())
     .filter(Boolean)
@@ -127,17 +164,16 @@ const formatRelativeTime = (dateStr?: string | Date) => {
 
 const dateLabel = computed(() => {
   const date = props.item?.updatedAt || props.item?.createdAt;
-  return formatRelativeTime(date);
+  return formatRelativeTime(date || undefined);
 });
 
 // Category name
 const categoryLabel = computed(() => {
-  return (
-    props.item?.categoryName ||
-    props.item?.category ||
-    kindMeta[props.kind as 'asset']?.label ||
-    '---'
-  );
+  const cat = props.item?.categoryName || props.item?.category;
+  if (cat && typeof cat === 'object') {
+    return cat.name || cat.label || '---';
+  }
+  return cat || kindMeta[props.kind as 'asset']?.label || '---';
 });
 
 // Format/version label

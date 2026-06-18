@@ -1,11 +1,13 @@
 import { logger } from '../../utils/logger';
 import prisma from '../../services/prisma';
 import { getAdapter } from '../adapters';
+import type { RawResource } from '../adapters/base.adapter';
 import { thumbnailLocalizer } from './thumbnail-localizer.service';
 import { emitToAll } from '../../services/socket.service';
 import crypto from 'crypto';
 import { redisService } from '../../services/redis.service';
 import { uploadSourceMetadataToR2 } from './metadata.helper';
+import { Prisma, type MirrorSource, type SyncLog, type MirrorResource } from '@prisma/client';
 
 async function runWithLimit<T>(
   limit: number,
@@ -83,7 +85,7 @@ export class SyncEngine {
       lockAcquired = true;
     }
 
-    let source: any;
+    let source: MirrorSource | null;
     try {
       source = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
     } catch (e) {
@@ -126,7 +128,7 @@ export class SyncEngine {
 
     emitToAll('mirror_sync_started', { sourceId, sourceName: source.displayName, type: 'FULL' });
 
-    let syncLog: any;
+    let syncLog: SyncLog | undefined;
     try {
       syncLog = await prisma.syncLog.create({
         data: { sourceId, type: 'FULL', status: 'RUNNING' },
@@ -217,11 +219,11 @@ export class SyncEngine {
         ]),
       );
 
-      const pendingCreates: any[] = [];
-      const pendingUpdates: any[] = [];
+      const pendingCreates: Prisma.MirrorResourceCreateManyInput[] = [];
+      const pendingUpdates: Prisma.MirrorResourceUpdateArgs[] = [];
 
       const processPage = (
-        resources: any[],
+        resources: RawResource[],
         categoryId: string | null,
         rawCatExternalId: string,
       ) => {
@@ -392,7 +394,7 @@ export class SyncEngine {
       progress.estimatedProgress = 50;
 
       const detailBatchSize = 15;
-      const detailUpdates: { id: string; data: any }[] = [];
+      const detailUpdates: { id: string; data: Prisma.MirrorResourceUncheckedUpdateInput }[] = [];
 
       await runWithLimit(detailBatchSize, newResourceIds, async (resource) => {
         if (signal.aborted) return;
@@ -400,7 +402,7 @@ export class SyncEngine {
         try {
           const detail = await adapter.fetchResourceDetail(resource.externalId, signal);
           if (detail) {
-            const updateData: any = {};
+            const updateData: Prisma.MirrorResourceUncheckedUpdateInput = {};
             if (
               detail.description &&
               detail.description.length > (resource.description?.length || 0)
@@ -611,7 +613,7 @@ export class SyncEngine {
       lockAcquired = true;
     }
 
-    let source: any;
+    let source: MirrorSource | null;
     try {
       source = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
     } catch (e) {
@@ -662,7 +664,7 @@ export class SyncEngine {
       type: 'INCREMENTAL',
     });
 
-    let syncLog: any;
+    let syncLog: SyncLog | undefined;
     try {
       syncLog = await prisma.syncLog.create({
         data: { sourceId, type: 'INCREMENTAL', status: 'RUNNING' },
@@ -719,7 +721,7 @@ export class SyncEngine {
       const categoryMap = new Map(categories.map((c) => [c.externalId, c.id]));
 
       const newResourceIds: ResourceMinimal[] = [];
-      const batch: any[] = [];
+      const batch: Prisma.PrismaPromise<MirrorResource>[] = [];
 
       // Fetch all existing resources to do in-memory lookups instead of database findUnique calls
       const existingResources = await prisma.mirrorResource.findMany({
@@ -847,7 +849,7 @@ export class SyncEngine {
       progress.detailsFetched = 0;
 
       const incDetailBatch = 15;
-      const detailUpdates: { id: string; data: any }[] = [];
+      const detailUpdates: { id: string; data: Prisma.MirrorResourceUncheckedUpdateInput }[] = [];
 
       await runWithLimit(incDetailBatch, newResourceIds, async (resource) => {
         if (signal.aborted) return;
@@ -855,7 +857,7 @@ export class SyncEngine {
         try {
           const detail = await adapter.fetchResourceDetail(resource.externalId, signal);
           if (detail) {
-            const updateData: any = {};
+            const updateData: Prisma.MirrorResourceUncheckedUpdateInput = {};
             if (
               detail.description &&
               detail.description.length > (resource.description?.length || 0)

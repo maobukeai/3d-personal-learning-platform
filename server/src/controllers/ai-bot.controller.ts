@@ -3,7 +3,7 @@ import { NextFunction, Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { AppError } from '../middlewares/error.middleware';
+import { AppError } from '../utils/error';
 import { config } from '../config/env';
 import { encryptSecret } from '../utils/secret-field';
 import { normalizeWebhookUrl } from '../utils/webhook-url';

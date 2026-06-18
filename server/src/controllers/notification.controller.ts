@@ -1,13 +1,14 @@
 import { logger } from '../utils/logger';
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { clampLimit } from '../utils/pagination';
-export const getMyNotifications = async (req: AuthRequest, res: Response) => {
+export const getMyNotifications = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { type, cursor } = req.query;
   const limit = clampLimit(req.query.limit, 20, 50);
   try {
-    const where: any = { userId: req.userId as string };
+    const where: Prisma.NotificationWhereInput = { userId: req.userId as string };
 
     if (type && type !== 'all') {
       if (type === 'TEAM') {
@@ -19,7 +20,7 @@ export const getMyNotifications = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const queryOptions: any = {
+    const queryOptions: Prisma.NotificationFindManyArgs = {
       where,
       orderBy: { createdAt: 'desc' },
       take: limit,
@@ -41,11 +42,11 @@ export const getMyNotifications = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     logger.error('[Notification] Get notifications error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const markAsRead = async (req: AuthRequest, res: Response) => {
+export const markAsRead = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     await prisma.notification.update({
@@ -53,36 +54,36 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
       data: { isRead: true },
     });
     res.json({ message: 'Notification marked as read' });
-  } catch (_error) {
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const markAllAsRead = async (req: AuthRequest, res: Response) => {
+export const markAllAsRead = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     await prisma.notification.updateMany({
       where: { userId: req.userId as string, isRead: false },
       data: { isRead: true },
     });
     res.json({ message: 'All notifications marked as read' });
-  } catch (_error) {
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const deleteNotification = async (req: AuthRequest, res: Response) => {
+export const deleteNotification = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     await prisma.notification.delete({
       where: { id, userId: req.userId as string },
     });
     res.json({ message: 'Notification deleted' });
-  } catch (_error) {
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const getNotificationPreferences = async (req: AuthRequest, res: Response) => {
+export const getNotificationPreferences = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     let prefs = await prisma.notificationPreference.findUnique({
       where: { userId: req.userId as string },
@@ -93,12 +94,12 @@ export const getNotificationPreferences = async (req: AuthRequest, res: Response
       });
     }
     res.json(prefs);
-  } catch (_error) {
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const updateNotificationPreferences = async (req: AuthRequest, res: Response) => {
+export const updateNotificationPreferences = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const {
     emailSystemUpdates,
     emailTeamActivity,
@@ -129,12 +130,12 @@ export const updateNotificationPreferences = async (req: AuthRequest, res: Respo
       },
     });
     res.json(prefs);
-  } catch (_error) {
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const deleteAllNotifications = async (req: AuthRequest, res: Response) => {
+export const deleteAllNotifications = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     await prisma.notification.deleteMany({
       where: { userId: req.userId as string },
@@ -142,6 +143,6 @@ export const deleteAllNotifications = async (req: AuthRequest, res: Response) =>
     res.json({ message: 'All notifications deleted' });
   } catch (error) {
     logger.error('[Notification] Delete all notifications error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };

@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { mirrorService } from '../services/mirror.service';
 import prisma from '../../services/prisma';
@@ -7,7 +7,7 @@ import { encryptText } from '../../utils/crypto';
 import { clampLimit, clampPage } from '../../utils/pagination';
 import { config } from '../../config/env';
 
-export const getSources = async (req: AuthRequest, res: Response) => {
+export const getSources = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId || 'guest';
     const sources = await mirrorService.getAccessibleSources(userId);
@@ -33,11 +33,11 @@ export const getSources = async (req: AuthRequest, res: Response) => {
 
     res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const getSource = async (req: AuthRequest, res: Response) => {
+export const getSource = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
     const source = await mirrorService.getSource(id, req.userId);
@@ -48,7 +48,7 @@ export const getSource = async (req: AuthRequest, res: Response) => {
 
     res.json(source);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
@@ -123,7 +123,7 @@ const normalizeUploadUrlsInHtml = (html: string, baseUrl: string) =>
       (_match, attr, uploadPath) => `${attr}="${baseUrl}${uploadPath}"`,
     );
 
-export const getCategories = async (req: AuthRequest, res: Response) => {
+export const getCategories = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const sourceId = req.params.sourceId as string;
     const sourceExists = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
@@ -134,11 +134,11 @@ export const getCategories = async (req: AuthRequest, res: Response) => {
     const categories = await mirrorService.getCategories(sourceId);
     res.json(categories);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const getResources = async (req: AuthRequest, res: Response) => {
+export const getResources = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const sourceId = req.params.sourceId as string;
     const sourceExists = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
@@ -162,11 +162,11 @@ export const getResources = async (req: AuthRequest, res: Response) => {
 
     res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const getResource = async (req: AuthRequest, res: Response) => {
+export const getResource = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
 
@@ -248,11 +248,11 @@ export const getResource = async (req: AuthRequest, res: Response) => {
       currentPlan: access.currentPlan,
     });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const searchResources = async (req: AuthRequest, res: Response) => {
+export const searchResources = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const sourceId = req.params.sourceId as string;
     const sourceExists = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
@@ -272,11 +272,11 @@ export const searchResources = async (req: AuthRequest, res: Response) => {
 
     res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const getSourceStats = async (req: AuthRequest, res: Response) => {
+export const getSourceStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const sourceId = req.params.sourceId as string;
     const sourceExists = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
@@ -287,11 +287,11 @@ export const getSourceStats = async (req: AuthRequest, res: Response) => {
     const stats = await mirrorService.getSourceStats(sourceId);
     res.json(stats);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const getPlanRequiredForSource = async (req: Request, res: Response) => {
+export const getPlanRequiredForSource = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sourceId = req.params.sourceId as string;
     const source = await prisma.mirrorSource.findUnique({
@@ -310,11 +310,11 @@ export const getPlanRequiredForSource = async (req: Request, res: Response) => {
       minPlanName: getPlanName(source.minPlanPriority),
     });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const getResourceComments = async (req: AuthRequest, res: Response) => {
+export const getResourceComments = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const resourceId = req.params.id as string;
     const resource = await prisma.mirrorResource.findUnique({
@@ -341,11 +341,11 @@ export const getResourceComments = async (req: AuthRequest, res: Response) => {
     });
     res.json(comments);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const createResourceComment = async (req: AuthRequest, res: Response) => {
+export const createResourceComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const resourceId = req.params.id as string;
     const { content } = req.body;
@@ -392,11 +392,11 @@ export const createResourceComment = async (req: AuthRequest, res: Response) => 
 
     res.status(201).json(comment);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const deleteResourceComment = async (req: AuthRequest, res: Response) => {
+export const deleteResourceComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const commentId = req.params.commentId as string;
     const userId = req.userId;
@@ -429,11 +429,11 @@ export const deleteResourceComment = async (req: AuthRequest, res: Response) => 
 
     res.json({ message: '评论删除成功' });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const toggleResourceLike = async (req: AuthRequest, res: Response) => {
+export const toggleResourceLike = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const resourceId = req.params.id as string;
     const userId = req.userId;
@@ -487,11 +487,11 @@ export const toggleResourceLike = async (req: AuthRequest, res: Response) => {
 
     res.json({ liked, count });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const getResourceLikeStatus = async (req: AuthRequest, res: Response) => {
+export const getResourceLikeStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const resourceId = req.params.id as string;
     const userId = req.userId;
@@ -524,11 +524,11 @@ export const getResourceLikeStatus = async (req: AuthRequest, res: Response) => 
 
     res.json({ liked, count });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const extractResourceLink = async (req: AuthRequest, res: Response) => {
+export const extractResourceLink = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
     const resource = await mirrorService.getResource(id);
@@ -595,6 +595,6 @@ export const extractResourceLink = async (req: AuthRequest, res: Response) => {
               : '资源网盘',
     });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };

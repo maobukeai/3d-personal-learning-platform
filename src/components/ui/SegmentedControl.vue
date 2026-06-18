@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, type Component } from 'vue';
+
+type SegmentValue = string | number | null;
 
 interface SegmentOption {
-  id?: any;
-  value?: any;
+  id?: SegmentValue;
+  value?: SegmentValue;
   label: string;
-  icon?: any;
+  icon?: Component;
   textColor?: string;
 }
 
 interface Props {
   options: readonly SegmentOption[];
-  modelValue: any;
+  modelValue: SegmentValue;
   size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
 }
@@ -22,8 +24,8 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: any): void;
-  (e: 'change', value: any): void;
+  (e: 'update:modelValue', value: SegmentValue): void;
+  (e: 'change', value: SegmentValue): void;
 }>();
 
 const containerRef = ref<HTMLElement | null>(null);
@@ -36,19 +38,23 @@ const sliderStyle = ref({
 
 let resizeObserver: ResizeObserver | null = null;
 
-const getOptionValue = (option: SegmentOption) => {
+const getOptionValue = (option: SegmentOption): SegmentValue | undefined => {
   return option.id !== undefined ? option.id : option.value;
 };
 
-const selectTab = (value: any, index: number) => {
+const selectTab = (value: SegmentValue | undefined, index: number) => {
+  if (value === undefined) return;
   emit('update:modelValue', value);
   emit('change', value);
   updateSlider(index);
 };
 
-const setTabRef = (el: any, index: number) => {
+const setTabRef = (el: unknown, index: number) => {
   if (el) {
-    activeTabRef.value[index] = el;
+    const node = (el as Element & { $el?: Element })?.$el ?? (el as Element);
+    if (node) {
+      activeTabRef.value[index] = node as HTMLElement;
+    }
   }
 };
 
@@ -135,7 +141,7 @@ onBeforeUnmount(() => {
     <!-- Segment buttons -->
     <button
       v-for="(option, index) in options"
-      :key="getOptionValue(option)"
+      :key="getOptionValue(option) === null ? 'null' : (getOptionValue(option) ?? index)"
       :ref="(el) => setTabRef(el, index)"
       type="button"
       class="relative z-10 flex items-center justify-center gap-1 font-semibold rounded-md transition-colors duration-200 outline-none focus:outline-none cursor-pointer"

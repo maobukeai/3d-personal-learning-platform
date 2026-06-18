@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, type Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import {
@@ -96,6 +96,12 @@ interface InsightMemberCapacity {
   completedThisWeek: number;
 }
 
+interface OverviewMember {
+  userId: string;
+  role: 'OWNER' | 'ADMIN' | 'MEMBER';
+  metrics: MemberMetrics;
+}
+
 interface TeamOverview {
   currentUserRole: 'OWNER' | 'ADMIN' | 'MEMBER' | null;
   capabilities: {
@@ -117,7 +123,7 @@ interface TeamOverview {
     dueSoonTasks: number;
     completedThisWeek: number;
   };
-  members: any[];
+  members: OverviewMember[];
   invitations: DetailedInvitation[];
   applications: DetailedApplication[];
 }
@@ -150,7 +156,7 @@ const props = defineProps<{
     label: string;
     value: string | number;
     helper: string;
-    icon: any;
+    icon: Component;
     tone: string;
   }>;
   isRefreshing: boolean;
@@ -174,12 +180,12 @@ const emit = defineEmits<{
 const { t: i18nT } = useI18n();
 const authStore = useAuthStore();
 
-const t = (key: string, ...args: any[]) => {
+const t = (key: string, ...args: unknown[]) => {
   const prefixes = ['showcase.', 'teams.', 'members.', 'teamDetail.', 'discussions.', 'chat.'];
   if (prefixes.some((p) => key.startsWith(p))) {
-    return (i18nT as any)(`community.${key}`, ...args);
+    return (i18nT as (key: string, ...args: unknown[]) => string)(`community.${key}`, ...args);
   }
-  return (i18nT as any)(key, ...args);
+  return (i18nT as (key: string, ...args: unknown[]) => string)(key, ...args);
 };
 
 const activeFilter = ref<MemberFilter>('all');

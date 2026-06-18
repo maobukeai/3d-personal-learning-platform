@@ -1,5 +1,6 @@
 import { callLLM, type AIServiceConfig } from './ai.service';
 import { DEEP_RESEARCH_REPORTING_RULES } from '../config/prompts';
+import { logger } from '../utils/logger';
 import {
   assessSearchResultQuality,
   fetchAshareMarketSnapshot,
@@ -621,7 +622,7 @@ async function planResearchOutline(
       };
     }
   } catch (error) {
-    console.error(
+    logger.error(
       '[Deep Research] Failed to generate outline, falling back to default outline.',
       error,
     );
@@ -887,7 +888,7 @@ async function researchSection(
         proposedQueries = parsed.queries.map((q) => String(q).trim()).filter(Boolean);
       }
     } catch (error) {
-      console.warn(
+      logger.warn(
         `[Deep Research] Failed to propose queries for section ${section.title} at depth ${depth}`,
         error,
       );
@@ -963,7 +964,7 @@ async function researchSection(
         gaps = ''; // Stop loop if gaps is missing
       }
     } catch (error) {
-      console.error(
+      logger.error(
         `[Deep Research] Extraction failed for section ${section.title} at depth ${depth}`,
         error,
       );
@@ -1083,7 +1084,7 @@ export async function buildDeepResearchContext(
       180_000,
     );
   } catch (error) {
-    console.error(
+    logger.error(
       '[Deep Research] Final compilation failed. Falling back to concatenated drafts.',
       error,
     );

@@ -1013,8 +1013,8 @@ watch(
                 :downloading="!!downloadingIds[plugin.id]"
                 :active-tab="activeTab"
                 @click="openDetail(plugin)"
-                @like="toggleFavorite(plugin.id, $event)"
-                @download="handleDownload(plugin, $event)"
+                @like="(item, event) => toggleFavorite(plugin.id, event)"
+                @download="(item, event) => handleDownload(plugin, event)"
               />
             </div>
 

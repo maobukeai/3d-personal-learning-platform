@@ -1,11 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { AppError } from '../middlewares/error.middleware';
+import { AppError } from '../utils/error';
 import prisma from '../services/prisma';
 import { logger } from '../utils/logger';
 
 import fs from 'fs';
 import { deleteCloudOrLocalFileByUrl } from '../utils/file';
+import { parseTags } from '../utils/tags';
+
+type UploadedFile = Express.Multer.File & {
+  url?: string;
+  r2Key?: string;
+  r2ConfigId?: string;
+};
 
 const PLUGIN_FAVORITES_SETTING_KEY = 'favorite_plugins';
 
@@ -58,7 +66,7 @@ export const listPlugins = async (req: Request, res: Response, next: NextFunctio
     const status = req.query.status as string;
     const userId = authReq.userId as string;
 
-    const where: any = mine
+    const where: Prisma.PluginWhereInput = mine
       ? {
           userId,
           ...(status && status !== 'all' ? { status } : {}),
@@ -294,9 +302,9 @@ export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFu
       return next(new AppError('插件名称为必填项', 400));
     }
 
-    const fileUrl = (pluginFile as any).url || `/uploads/plugins/${pluginFile.filename}`;
+    const fileUrl = (pluginFile as UploadedFile).url || `/uploads/plugins/${pluginFile.filename}`;
     const fileSizeMb = pluginFile.size / (1024 * 1024);
-    const previewUrl = previewFile ? ((previewFile as any).url || `/uploads/plugins/${previewFile.filename}`) : null;
+    const previewUrl = previewFile ? ((previewFile as UploadedFile).url || `/uploads/plugins/${previewFile.filename}`) : null;
 
     const plugin = await prisma.plugin.create({
       data: {
@@ -325,20 +333,6 @@ export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
-function parseTags(tags?: string | null) {
-  if (!tags) return [];
-  try {
-    const parsed = JSON.parse(tags);
-    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
-  } catch (_error) {
-    // Fall through to delimiter parsing.
-  }
-  return tags
-    .split(/[,，\s]+/)
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-}
-
 // ── Update plugin (owner only) ─────────────────────────────────────────────────
 export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -357,7 +351,7 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
       'tags',
       'installGuide',
     ];
-    const updateData: Record<string, any> = {};
+    const updateData: Record<string, unknown> = {};
     for (const field of allowed) {
       if (req.body[field] !== undefined) updateData[field] = req.body[field];
     }
@@ -365,7 +359,7 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
     updateData.status = 'PENDING';
     updateData.rejectReason = null;
 
-    const plugin = await prisma.plugin.update({ where: { id }, data: updateData });
+    const plugin = await prisma.plugin.update({ where: { id }, data: updateData as Prisma.PluginUpdateInput });
     res.json(plugin);
   } catch (err) {
     next(err);

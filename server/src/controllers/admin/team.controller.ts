@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../../services/prisma';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { AppError } from '../../middlewares/error.middleware';
+import { AppError } from '../../utils/error';
 import { createNotification } from '../../utils/notification';
 import { createPaginationMeta, getPaginationParams } from '../../utils/pagination';
 import { auditService, AuditAction, AuditModule } from '../../services/audit.service';

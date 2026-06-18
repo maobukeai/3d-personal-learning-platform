@@ -267,8 +267,10 @@ function handleImportFile(event: Event) {
       } else {
         isFileEncrypted.value = false;
       }
-    } catch (err: any) {
-      ElMessage.error(`读取备份失败: ${err.message || '文件格式不正确'}`);
+    } catch (err: unknown) {
+      ElMessage.error(
+        `读取备份失败: ${err instanceof Error ? err.message : '文件格式不正确'}`,
+      );
     } finally {
       target.value = '';
     }
@@ -282,7 +284,7 @@ async function submitImport() {
     return;
   }
 
-  let accountsList: any[];
+  let accountsList: unknown[];
   try {
     isImporting.value = true;
     if (isFileEncrypted.value) {
@@ -312,7 +314,7 @@ async function submitImport() {
       isFileEncrypted.value = false;
       decryptPassword.value = '';
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     ElMessage.error(
       isFileEncrypted.value ? '解密失败：密码错误或文件损坏' : '导入失败，文件格式有误',
     );

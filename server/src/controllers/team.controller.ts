@@ -7,7 +7,7 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { createNotification } from '../utils/notification';
 import { checkTeamQuota } from '../utils/quota';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
-import { AppError } from '../middlewares/error.middleware';
+import { AppError } from '../utils/error';
 import { TaskStatus } from '../types/task';
 
 const TEAM_VISIBILITIES = new Set(['PUBLIC', 'PRIVATE']);

@@ -1252,9 +1252,9 @@ onUnmounted(() => {
                 :is-favorited="material.isFavorited"
                 :active-tab="activeTab"
                 @click="openDetail(material)"
-                @select="toggleSelect(material.id, $event)"
-                @like="toggleFavorite(material, $event)"
-                @download="handleDownload(material, $event)"
+                @select="(item, event) => toggleSelect(material.id, event)"
+                @like="(item, event) => toggleFavorite(material, event)"
+                @download="(item, event) => handleDownload(material, event)"
               />
             </div>
 

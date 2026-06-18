@@ -1,7 +1,7 @@
 import { logger } from '../utils/logger';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import type { MicrosoftEmailAccount } from '@prisma/client';
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import prisma from '../services/prisma';
 import { MicrosoftGraphService } from '../services/microsoftGraph.service';
 import { encryptSecret, decryptSecret, maskProxyUrl } from '../utils/secret-field';
@@ -33,7 +33,7 @@ export class EmailController {
    * Bulk imports Microsoft accounts from a raw text payload
    * Format: email----password----client_id----refreshToken (dual-token generic)
    */
-  public static async importAccounts(req: AuthRequest, res: Response): Promise<void> {
+  public static async importAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const { importData, proxy, minDelay, maxDelay, dailyLimit } = req.body;
     const userId = req.userId as string;
 
@@ -178,16 +178,14 @@ export class EmailController {
       });
     } catch (e) {
       logger.error('EmailController: Import error', e);
-      res
-        .status(500)
-        .json({ error: '数据库导入失败', details: e instanceof Error ? e.message : String(e) });
+      next(e);
     }
   }
 
   /**
    * Fetches all Microsoft email accounts linked to the user
    */
-  public static async getAccounts(req: AuthRequest, res: Response): Promise<void> {
+  public static async getAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     try {
       const accounts = await prisma.microsoftEmailAccount.findMany({
@@ -196,16 +194,14 @@ export class EmailController {
       });
       res.status(200).json(accounts.map(toPublicEmailAccount));
     } catch (e) {
-      res
-        .status(500)
-        .json({ error: '获取账号列表失败', details: e instanceof Error ? e.message : String(e) });
+      next(e);
     }
   }
 
   /**
    * Deletes a Microsoft email account
    */
-  public static async deleteAccount(req: AuthRequest, res: Response): Promise<void> {
+  public static async deleteAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
 
@@ -225,16 +221,14 @@ export class EmailController {
 
       res.status(200).json({ success: true, message: '账号已成功从系统中移除' });
     } catch (e) {
-      res
-        .status(500)
-        .json({ error: '删除账号失败', details: e instanceof Error ? e.message : String(e) });
+      next(e);
     }
   }
 
   /**
    * Triggers a manual connection test to Microsoft Graph API
    */
-  public static async testAccount(req: AuthRequest, res: Response): Promise<void> {
+  public static async testAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
 
@@ -255,16 +249,14 @@ export class EmailController {
         profile,
       });
     } catch (e) {
-      res
-        .status(500)
-        .json({ error: '连接微软服务失败', details: e instanceof Error ? e.message : String(e) });
+      next(e);
     }
   }
 
   /**
    * Fetches the email folders for a specific account
    */
-  public static async getFolders(req: AuthRequest, res: Response): Promise<void> {
+  public static async getFolders(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
 
@@ -281,16 +273,14 @@ export class EmailController {
       const folders = await MicrosoftGraphService.fetchFolders(id);
       res.status(200).json(folders);
     } catch (e) {
-      res
-        .status(500)
-        .json({ error: '获取文件夹列表失败', details: e instanceof Error ? e.message : String(e) });
+      next(e);
     }
   }
 
   /**
    * Fetches messages within a specific folder of a Microsoft account
    */
-  public static async getMessages(req: AuthRequest, res: Response): Promise<void> {
+  public static async getMessages(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
     const { folderId, limit } = req.query;
@@ -313,16 +303,14 @@ export class EmailController {
       );
       res.status(200).json(messages);
     } catch (e) {
-      res
-        .status(500)
-        .json({ error: '获取邮件列表失败', details: e instanceof Error ? e.message : String(e) });
+      next(e);
     }
   }
 
   /**
    * Marks a message as read or unread
    */
-  public static async markMessageRead(req: AuthRequest, res: Response): Promise<void> {
+  public static async markMessageRead(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
     const messageId = req.params.messageId as string;
@@ -341,17 +329,14 @@ export class EmailController {
       await MicrosoftGraphService.markMessageRead(id, messageId, isRead);
       res.status(200).json({ success: true });
     } catch (e) {
-      res.status(500).json({
-        error: '更新邮件阅读状态失败',
-        details: e instanceof Error ? e.message : String(e),
-      });
+      next(e);
     }
   }
 
   /**
    * Deletes a message from Microsoft Mail server
    */
-  public static async deleteMessage(req: AuthRequest, res: Response): Promise<void> {
+  public static async deleteMessage(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
     const messageId = req.params.messageId as string;
@@ -369,16 +354,14 @@ export class EmailController {
       await MicrosoftGraphService.deleteMessage(id, messageId);
       res.status(200).json({ success: true, message: '邮件已成功删除' });
     } catch (e) {
-      res
-        .status(500)
-        .json({ error: '删除邮件失败', details: e instanceof Error ? e.message : String(e) });
+      next(e);
     }
   }
 
   /**
    * Sends an email from a single account, or using a round-robin strategy
    */
-  public static async sendEmail(req: AuthRequest, res: Response): Promise<void> {
+  public static async sendEmail(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const { accountId, to, subject, content } = req.body;
 
@@ -470,16 +453,14 @@ export class EmailController {
       });
     } catch (e) {
       logger.error('EmailController: Send error', e);
-      res
-        .status(500)
-        .json({ error: '邮件发送失败', details: e instanceof Error ? e.message : String(e) });
+      next(e);
     }
   }
 
   /**
    * Updates credentials or configurations of a Microsoft Email Account
    */
-  public static async updateAccount(req: AuthRequest, res: Response): Promise<void> {
+  public static async updateAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
     const { password, clientId, refreshToken, proxy, dailyLimit, minDelay, maxDelay } = req.body;
@@ -536,10 +517,7 @@ export class EmailController {
       });
     } catch (e) {
       logger.error('EmailController: Update error', e);
-      res.status(500).json({
-        error: '更新账号失败',
-        details: e instanceof Error ? e.message : String(e),
-      });
+      next(e);
     }
   }
 }

@@ -217,7 +217,7 @@ export const updateRoadmap = async (req: AuthRequest, res: Response) => {
           );
         }
       } catch (notifErr) {
-        console.error('Failed to send roadmap update notifications:', notifErr);
+        logger.error('Failed to send roadmap update notifications:', notifErr);
       }
     }
 

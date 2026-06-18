@@ -3,31 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import prisma from '../services/prisma';
 import { storageService } from '../services/storage.service';
-import { decrypt } from './crypto';
-
-/** Matches the encrypted format produced by `encrypt()`: iv(24hex):tag(32hex):ciphertext */
-const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
-
-function getDecryptedSecret(raw: string | null | undefined): string {
-  if (!raw) return '';
-  if (!ENCRYPTED_VALUE_RE.test(raw)) return raw;
-  try {
-    return decrypt(raw);
-  } catch (err) {
-    logger.error('[FileUtil] Failed to decrypt secretAccessKey:', err);
-    return raw;
-  }
-}
-
-function toDecryptedConfig(raw: any) {
-  return {
-    endpoint: raw.endpoint,
-    accessKeyId: raw.accessKeyId ?? '',
-    secretAccessKey: getDecryptedSecret(raw.secretAccessKey),
-    bucketName: raw.bucketName,
-    publicUrl: raw.publicUrl,
-  };
-}
+import { buildDecryptedStorageConfig } from './crypto';
 
 const uploadsRoot = path.resolve(process.cwd(), 'uploads');
 
@@ -79,8 +55,6 @@ export function deleteFile(filePath: string | null): boolean {
   return false;
 }
 
-
-
 /**
  * Safely deletes a file from its URL.
  * @deprecated Use `deleteCloudOrLocalFileByUrl` instead. This function only supports local files.
@@ -94,7 +68,9 @@ export function deleteFileByUrl(url: string | null | undefined): boolean {
  * Safely deletes a file from its URL, supporting both local files and R2 cloud files.
  * If R2 is used, it also retrieves the file metadata to decrement usedBytes atomically.
  */
-export async function deleteCloudOrLocalFileByUrl(url: string | null | undefined): Promise<boolean> {
+export async function deleteCloudOrLocalFileByUrl(
+  url: string | null | undefined,
+): Promise<boolean> {
   if (!url) return false;
 
   try {
@@ -122,7 +98,7 @@ export async function deleteCloudOrLocalFileByUrl(url: string | null | undefined
         if (!/^https?:\/\//i.test(baseUrl) && !baseUrl.startsWith('/')) {
           baseUrl = `https://${baseUrl}`;
         }
-        
+
         const baseUrlLower = baseUrl.toLowerCase();
 
         // If the URL matches this cloud storage public URL prefix
@@ -134,17 +110,22 @@ export async function deleteCloudOrLocalFileByUrl(url: string | null | undefined
             try {
               // 1. Get object metadata to find size
               let size = 0;
-              const decryptedConfig = toDecryptedConfig(config);
+              const decryptedConfig = buildDecryptedStorageConfig(config);
               try {
                 const meta = await storageService.getObjectMetadata(decryptedConfig, key);
                 size = meta.ContentLength || 0;
               } catch (metaErr) {
-                logger.warn(`[FileUtil] Failed to fetch object metadata for key ${key} before deletion:`, metaErr);
+                logger.warn(
+                  `[FileUtil] Failed to fetch object metadata for key ${key} before deletion:`,
+                  metaErr,
+                );
               }
 
               // 2. Delete file from S3 bucket
               await storageService.deleteFile(decryptedConfig, key);
-              logger.info(`[FileUtil] Deleted file from R2 bucket ${config.bucketName}: key=${key}`);
+              logger.info(
+                `[FileUtil] Deleted file from R2 bucket ${config.bucketName}: key=${key}`,
+              );
 
               // 3. Decrement usedBytes
               if (size > 0) {

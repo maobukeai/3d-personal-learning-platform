@@ -65,7 +65,7 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'select-recommended'): void;
   (e: 'create-task'): void;
-  (e: 'create-seed-tasks', template: any): void;
+  (e: 'create-seed-tasks', template: SeedTemplate): void;
   (e: 'click-project', id: string): void;
   (e: 'navigate-board', projectId: string | null | undefined): void;
   (e: 'navigate-insight', route: string): void;
@@ -96,7 +96,20 @@ const priorityOptions = [
   { value: 'URGENT', label: '紧急', class: 'bg-rose-500' },
 ] as const;
 
-const quickSeedTemplates = [
+interface SeedTaskTemplate {
+  title: string;
+  priority: string;
+  days: number;
+}
+
+interface SeedTemplate {
+  key: string;
+  label: string;
+  hint: string;
+  tasks: SeedTaskTemplate[];
+}
+
+const quickSeedTemplates: SeedTemplate[] = [
   {
     key: 'launch',
     label: '项目启动包',
@@ -243,7 +256,12 @@ const activityDotClass = (type: string) => {
                 type="date"
                 class="min-w-0 px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-accent/15 transition-all cursor-pointer"
                 style="border-color: var(--border-base); color: var(--text-primary)"
-                @click="(e) => 'showPicker' in (e.target as any) && (e.target as any).showPicker()"
+                @click="
+                  (e) => {
+                    const target = e.target as HTMLInputElement & { showPicker?: () => void };
+                    target.showPicker?.();
+                  }
+                "
               />
               <button
                 type="button"

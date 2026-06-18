@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { AppError } from '../middlewares/error.middleware';
+import { AppError } from '../utils/error';
 import { createNotificationBatch } from '../utils/notification';
 
 const FEEDBACK_TYPES = ['Bug', 'Feature', 'UI', 'Other'] as const;

@@ -1,4 +1,5 @@
 import { callLLM, type AIServiceConfig } from './ai.service';
+import { logger } from '../utils/logger';
 import {
   assessSearchResultQuality,
   formatSearchResultsAsPrompt,
@@ -420,7 +421,7 @@ async function buildSearchPlan(
       answerFocus,
     };
   } catch (error) {
-    console.warn('[AI Chat] Search plan generation failed, using fallback plan:', error);
+    logger.warn('[AI Chat] Search plan generation failed, using fallback plan:', error);
     return fallback;
   }
 }

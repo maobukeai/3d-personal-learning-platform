@@ -56,10 +56,47 @@ export const repairIncompleteJson = (jsonStr: string): string => {
   return repaired;
 };
 
+export interface PlanSubtask {
+  id?: string;
+  text: string;
+  done: boolean;
+}
+
+export interface PlanTask {
+  title: string;
+  description?: string;
+  priority?: string;
+  dueDate?: string;
+  subtasks: PlanSubtask[];
+}
+
+export interface PlanRoadmapStep {
+  title: string;
+  description: string;
+  subtasks: PlanSubtask[];
+  order: number;
+}
+
+export interface PlanRoadmap {
+  title: string;
+  description: string;
+  steps: PlanRoadmapStep[];
+}
+
+export interface PlanJson {
+  title: string;
+  description: string;
+  tags?: string;
+  dueDate?: string;
+  color?: string;
+  tasks: PlanTask[];
+  roadmap: PlanRoadmap;
+}
+
 // Parse markdown text directly to the JSON plan structure
-export const parseMarkdownToPlanJson = (text: string): any => {
+export const parseMarkdownToPlanJson = (text: string): PlanJson => {
   const lines = text.split(/\r?\n/);
-  const parsed: any = {
+  const parsed: PlanJson = {
     title: '未命名导入项目',
     description: '',
     tasks: [],
@@ -71,8 +108,8 @@ export const parseMarkdownToPlanJson = (text: string): any => {
   };
 
   let currentSection: 'project' | 'tasks' | 'roadmap' | null = 'project';
-  let currentRoadmapStep: any = null;
-  const roadmapSteps: any[] = [];
+  let currentRoadmapStep: PlanRoadmapStep | null = null;
+  const roadmapSteps: PlanRoadmapStep[] = [];
   let stepOrder = 1;
 
   for (const rawLine of lines) {
@@ -312,21 +349,21 @@ export const getStableId = (text: string, seed: string): string => {
   return `${seed}-${Math.abs(hash).toString(36)}`;
 };
 
-export const ensureStableIds = (plan: any): any => {
+export const ensureStableIds = <T extends PlanJson>(plan: T): T => {
   if (!plan) return plan;
   if (plan.tasks && Array.isArray(plan.tasks)) {
-    plan.tasks.forEach((task: any, tIdx: number) => {
+    plan.tasks.forEach((task: PlanTask, tIdx: number) => {
       if (task.subtasks && Array.isArray(task.subtasks)) {
-        task.subtasks.forEach((sub: any, sIdx: number) => {
+        task.subtasks.forEach((sub: PlanSubtask, sIdx: number) => {
           sub.id = getStableId(sub.text || '', `task-${tIdx}-sub-${sIdx}`);
         });
       }
     });
   }
   if (plan.roadmap && plan.roadmap.steps && Array.isArray(plan.roadmap.steps)) {
-    plan.roadmap.steps.forEach((step: any, sIdx: number) => {
+    plan.roadmap.steps.forEach((step: PlanRoadmapStep, sIdx: number) => {
       if (step.subtasks && Array.isArray(step.subtasks)) {
-        step.subtasks.forEach((sub: any, subIdx: number) => {
+        step.subtasks.forEach((sub: PlanSubtask, subIdx: number) => {
           sub.id = getStableId(sub.text || '', `step-${sIdx}-sub-${subIdx}`);
         });
       }
@@ -336,7 +373,7 @@ export const ensureStableIds = (plan: any): any => {
 };
 
 // Extract JSON from stream text - robust parser handling code fences and raw JSON
-export const extractPlanJson = (fullText: string): { dialogue: string; json: any | null } => {
+export const extractPlanJson = (fullText: string): { dialogue: string; json: PlanJson | null } => {
   const startMarker = '---PLAN_JSON_START---';
   const startIdx = fullText.indexOf(startMarker);
 

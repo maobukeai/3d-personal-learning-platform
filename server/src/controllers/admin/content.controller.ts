@@ -6,7 +6,7 @@ import prisma from '../../services/prisma';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { createNotification, createNotificationBatch } from '../../utils/notification';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
-import { AppError } from '../../middlewares/error.middleware';
+import { AppError } from '../../utils/error';
 import { clampLimit, clampPage } from '../../utils/pagination';
 
 // --- Feedback Audit ---

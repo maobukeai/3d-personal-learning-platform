@@ -105,7 +105,7 @@ const fetchCategories = async () => {
     if (res.data && res.data.categories) {
       categoriesListBackend.value = res.data.categories;
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error('获取分类列表失败:', e);
   }
 };
@@ -120,7 +120,7 @@ const handleAddCategory = async (cat: string) => {
       ElMessage.success(`添加分类「${cat}」成功！`);
       await fetchCategories();
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     ElMessage.error(getApiErrorMessage(e, '添加分类失败'));
   } finally {
     isLoading.value = false;
@@ -223,7 +223,7 @@ const handleBatchWarm = async (customIds?: string[]) => {
       selectedAccountIds.value = [];
       await fetchAccounts();
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e !== 'cancel') {
       ElMessage.error(getApiErrorMessage(e, '批量打卡失败'));
     }
@@ -262,7 +262,7 @@ const handleBatchDelete = async (customIds?: string[]) => {
         selectedAccountId.value = '';
       }
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e !== 'cancel') {
       ElMessage.error(getApiErrorMessage(e, '批量删除失败'));
     }
@@ -289,7 +289,7 @@ const handleBatchStatus = async (payload: {
       selectedAccountIds.value = [];
       await fetchAccounts();
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     ElMessage.error(getApiErrorMessage(e, '批量更新状态失败'));
   } finally {
     isLoading.value = false;
@@ -405,7 +405,7 @@ const handleAiParse = async () => {
       translateCountry: autoTranslateCountry.value,
     });
     if (res.data && res.data.success && Array.isArray(res.data.accounts)) {
-      parsedAccounts.value = res.data.accounts.map((acc: any) => ({
+      parsedAccounts.value = res.data.accounts.map((acc: Partial<GoogleAccount>) => ({
         ...acc,
         category:
           importDefaultCategory.value && importDefaultCategory.value !== '未分类'
@@ -525,7 +525,7 @@ const updateAccountCategory = async (row: GoogleAccount, category: string) => {
       }
       ElMessage.success(`已将该账号分类修改为「${category}」`);
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     ElMessage.error(getApiErrorMessage(e, '修改分类失败'));
   } finally {
     isLoading.value = false;
@@ -545,7 +545,7 @@ const handleRenameCategory = async (payload: { oldCategory: string; newCategory:
       ElMessage.success(`重命名分类成功！已更新 ${res.data.count} 个账号。`);
       await fetchAccounts();
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     ElMessage.error(getApiErrorMessage(e, '重命名分类失败'));
   } finally {
     isLoading.value = false;
@@ -562,7 +562,7 @@ const handleDeleteCategory = async (cat: string) => {
       ElMessage.success(`删除分类成功！已重置 ${res.data.count} 个账号至「未分类」。`);
       await fetchAccounts();
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     ElMessage.error(getApiErrorMessage(e, '删除分类失败'));
   } finally {
     isLoading.value = false;
@@ -581,7 +581,7 @@ const handleBatchCategory = async (payload: { ids: string[]; category: string })
       ElMessage.success(`成功移动 ${ids.length} 个账号至分类「${category}」`);
       await fetchAccounts();
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     ElMessage.error(getApiErrorMessage(e, '移动账号分类失败'));
   } finally {
     isLoading.value = false;
@@ -732,7 +732,7 @@ async function generateTOTP(secret: string): Promise<{ code: string; timeLeft: n
 
 const currentTotpCode = ref<string>('------');
 const totpTimeLeft = ref<number>(30);
-let totpTimer: any = null;
+let totpTimer: ReturnType<typeof setInterval> | null = null;
 
 const listTotpCodes = ref<Record<string, { code: string; timeLeft: number }>>({});
 
@@ -805,7 +805,7 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
 };
 
 // ── Password Generator ────────────────────────────────────────────────────────
-const generateRandomPassword = (targetRef: any) => {
+const generateRandomPassword = (targetRef: Partial<GoogleAccount>) => {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+';
   let password = '';
   const poolLower = 'abcdefghijklmnopqrstuvwxyz';
@@ -946,7 +946,7 @@ async function handleImportFile(event: Event) {
   if (!file) return;
   input.value = '';
 
-  let parsed: any;
+  let parsed: unknown;
   try {
     const text = await file.text();
     parsed = JSON.parse(text);
@@ -955,7 +955,9 @@ async function handleImportFile(event: Event) {
     return;
   }
 
-  const list: any[] = Array.isArray(parsed) ? parsed : (parsed.accounts ?? []);
+  const list: Partial<GoogleAccount>[] = Array.isArray(parsed)
+    ? (parsed as Partial<GoogleAccount>[])
+    : ((parsed as { accounts?: Partial<GoogleAccount>[] })?.accounts ?? []);
   if (!list.length) {
     ElMessage.warning('备份文件中没有账号数据');
     return;
@@ -1165,7 +1167,7 @@ async function handleImportFile(event: Event) {
                   ? 'bg-violet-600 text-white shadow-sm'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200',
               ]"
-              @click="statusFilter = status as any"
+              @click="statusFilter = status as 'all' | 'warming' | 'completed' | 'paused'"
             >
               {{ status === 'all' ? t('tools.googleWarming.statusAll') : getStatusLabel(status) }}
             </button>

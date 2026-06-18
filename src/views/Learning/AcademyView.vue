@@ -174,7 +174,7 @@ const isBookmarked = (courseId: string) => {
   return bookmarkedCourseIds.value.has(courseId);
 };
 
-const setSortBy = (key: string) => {
+const setSortBy = (key: string | number | null) => {
   if (key === 'newest' || key === 'popular' || key === 'rating') {
     sortBy.value = key;
     fetchData();

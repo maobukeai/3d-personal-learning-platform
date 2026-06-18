@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config/env';
 import prisma from '../services/prisma';
 import type { Subscription, SubscriptionPlan } from '@prisma/client';
-import { AppError } from './error.middleware';
+import { AppError } from '../utils/error';
 import { redisService } from '../services/redis.service';
 import { logger } from '../utils/logger';
 

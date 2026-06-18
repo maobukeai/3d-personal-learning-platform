@@ -6,7 +6,7 @@ import { AuthRequest } from '../../middlewares/auth.middleware';
 import { parseBilibiliUrl } from '../../utils/bilibili';
 import { parseYoutubeUrl } from '../../utils/youtube';
 import { parseGithubUrl } from '../../utils/github';
-import { AppError } from '../../middlewares/error.middleware';
+import { AppError } from '../../utils/error';
 import { createPaginationMeta, getPaginationParams } from '../../utils/pagination';
 
 export const parseExternalLink = async (req: AuthRequest, res: Response, next: NextFunction) => {

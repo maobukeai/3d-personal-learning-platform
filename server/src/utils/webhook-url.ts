@@ -1,6 +1,6 @@
 import dns from 'dns/promises';
 import net from 'net';
-import { AppError } from '../middlewares/error.middleware';
+import { AppError } from './error';
 
 type LookupAddress = {
   address: string;

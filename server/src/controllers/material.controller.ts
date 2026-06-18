@@ -8,8 +8,9 @@ import fs from 'fs';
 import { checkStorageQuota } from '../utils/quota';
 import { deleteCloudOrLocalFileByUrl } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
-import { AppError } from '../middlewares/error.middleware';
+import { AppError } from '../utils/error';
 import { createPaginationMeta, getPaginationParams } from '../utils/pagination';
+import { parseTags } from '../utils/tags';
 
 const ALL_FILTER_VALUES = new Set(['all', '全部', '全部材料', 'All Materials', 'All']);
 const MATERIAL_STATUSES = new Set(['PENDING', 'APPROVED', 'REJECTED']);
@@ -62,20 +63,6 @@ const canManageCurrentWorkspaceMaterials = async (req: AuthRequest) => {
     select: { role: true },
   });
   return !!membership && ['OWNER', 'ADMIN'].includes(membership.role);
-};
-
-const parseTags = (tags?: string | null) => {
-  if (!tags) return [];
-  try {
-    const parsed = JSON.parse(tags);
-    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
-  } catch (_error) {
-    // Fall through to delimiter parsing.
-  }
-  return tags
-    .split(/[,，\s]+/)
-    .map((tag) => tag.trim())
-    .filter(Boolean);
 };
 
 const getWorkspaceMaterial = async (

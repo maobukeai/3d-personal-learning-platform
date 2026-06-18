@@ -8,24 +8,35 @@ export interface UsePagedListOptions<T, R> {
   hasMoreExtractor?: (res: R) => boolean;
   onBeforeFetch?: () => void;
   onAfterFetch?: (res: R) => void;
-  onError?: (err: any) => void;
+  onError?: (err: unknown) => void;
 }
 
-export function usePagedList<T = any, R = any>(
+export function usePagedList<T = unknown, R = any>(
   endpoint: string | Ref<string> | (() => string),
-  paramsRef?: Ref<Record<string, any>> | (() => Record<string, any>) | Record<string, any>,
+  paramsRef?:
+    | Ref<Record<string, unknown>>
+    | (() => Record<string, unknown>)
+    | Record<string, unknown>,
   options: UsePagedListOptions<T, R> = {},
 ) {
   const {
     initialPageSize = 10,
-    listExtractor = (res: any) => (Array.isArray(res) ? res : res.items || []),
-    totalExtractor = (res: any) => {
-      if (Array.isArray(res)) return res.length;
-      return res.total ?? res.pagination?.total ?? 0;
+    listExtractor = (res: R) => {
+      const r = res as unknown as { items?: T[] } | T[];
+      return Array.isArray(r) ? r : r.items || [];
     },
-    hasMoreExtractor = (res: any) => {
-      if (res && typeof res === 'object') {
-        return res.hasMore ?? res.pagination?.hasMore ?? false;
+    totalExtractor = (res: R) => {
+      const r = res as unknown as { total?: number; pagination?: { total?: number } } | unknown[];
+      if (Array.isArray(r)) return r.length;
+      return r.total ?? r.pagination?.total ?? 0;
+    },
+    hasMoreExtractor = (res: R) => {
+      const r = res as unknown as {
+        hasMore?: boolean;
+        pagination?: { hasMore?: boolean };
+      } | null;
+      if (r && typeof r === 'object') {
+        return r.hasMore ?? r.pagination?.hasMore ?? false;
       }
       return false;
     },
@@ -37,7 +48,7 @@ export function usePagedList<T = any, R = any>(
   const data = ref<T[]>([]) as Ref<T[]>;
   const loading = ref(false);
   const loadingMore = ref(false);
-  const error = ref<any>(null);
+  const error = ref<unknown>(null);
 
   const page = ref(1);
   const pageSize = ref(initialPageSize);

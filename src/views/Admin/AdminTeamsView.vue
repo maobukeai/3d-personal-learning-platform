@@ -31,6 +31,8 @@ import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import AdminTeamDetailDrawer from './components/AdminTeamDetailDrawer.vue';
 import AdminTeamFormDialog from './components/AdminTeamFormDialog.vue';
 import Modal from '@/components/ui/Modal.vue';
+import UiButton from '@/components/ui/Button.vue';
+import UiInput from '@/components/ui/Input.vue';
 
 export type TeamVisibility = 'PUBLIC' | 'PRIVATE';
 type VisibilityFilter = 'ALL' | TeamVisibility;
@@ -968,28 +970,22 @@ void quickStats.value;
         </div>
       </div>
       <div class="header-actions">
-        <button type="button" class="ghost-btn" @click="refreshAll">
-          <RefreshCw :class="{ spinning: isLoading }" />
-          刷新
-        </button>
-        <button type="button" class="ghost-btn" @click="exportCsv">
-          <Download />
-          导出
-        </button>
-        <button type="button" class="primary-btn" @click="openCreateModal">
-          <Plus />
-          新建团队
-        </button>
+        <UiButton variant="secondary" :icon="RefreshCw" :loading="isLoading" @click="refreshAll">刷新</UiButton>
+        <UiButton variant="secondary" :icon="Download" @click="exportCsv">导出</UiButton>
+        <UiButton variant="primary" :icon="Plus" @click="openCreateModal">新建团队</UiButton>
       </div>
     </header>
 
     <AdminOpsPanel scope="teams" />
 
     <section class="control-panel">
-      <label class="search-box">
-        <Search />
-        <input v-model="searchQuery" type="search" placeholder="搜索团队、负责人、分类" />
-      </label>
+      <UiInput
+        v-model="searchQuery"
+        :icon="Search"
+        placeholder="搜索团队、负责人、分类"
+        :glass="false"
+        class="max-w-[360px]"
+      />
 
       <div class="filter-row">
         <div class="segmented">
@@ -1052,12 +1048,10 @@ void quickStats.value;
     <section v-if="selectedIds.length" class="batch-bar">
       <span>已选择 {{ selectedIds.length }} 个团队</span>
       <div class="batch-actions">
-        <button type="button" @click="handleBatchVisibility('PUBLIC')"><Globe />设为公开</button>
-        <button type="button" @click="handleBatchVisibility('PRIVATE')"><Lock />设为私有</button>
-        <button type="button" @click="handleBatchCategory"><Layers />分类</button>
-        <button type="button" class="danger-action" @click="handleBatchDelete">
-          <Trash2 />解散
-        </button>
+        <UiButton variant="secondary" :icon="Globe" @click="handleBatchVisibility('PUBLIC')">设为公开</UiButton>
+        <UiButton variant="secondary" :icon="Lock" @click="handleBatchVisibility('PRIVATE')">设为私有</UiButton>
+        <UiButton variant="secondary" :icon="Layers" @click="handleBatchCategory">分类</UiButton>
+        <UiButton variant="danger" :icon="Trash2" @click="handleBatchDelete">解散</UiButton>
       </div>
     </section>
 
@@ -1223,20 +1217,20 @@ void quickStats.value;
               <option :value="50">50 条</option>
               <option :value="100">100 条</option>
             </select>
-            <button
-              type="button"
+            <UiButton
+              variant="secondary"
               :disabled="pagination.page <= 1"
               @click="setPage(pagination.page - 1)"
             >
               上一页
-            </button>
-            <button
-              type="button"
+            </UiButton>
+            <UiButton
+              variant="secondary"
               :disabled="pagination.page >= pagination.totalPages"
               @click="setPage(pagination.page + 1)"
             >
               下一页
-            </button>
+            </UiButton>
           </div>
         </footer>
       </section>
@@ -1383,17 +1377,17 @@ void quickStats.value;
         </label>
       </div>
       <template #footer>
-        <button type="button" class="ghost-btn dialog-btn" @click="addMemberDialogVisible = false">
+        <UiButton variant="secondary" class="ml-2" @click="addMemberDialogVisible = false">
           取消
-        </button>
-        <button
-          type="button"
-          class="primary-btn dialog-btn"
+        </UiButton>
+        <UiButton
+          variant="primary"
+          class="ml-2"
           :disabled="!selectedUserId"
           @click="handleAddMember"
         >
           添加
-        </button>
+        </UiButton>
       </template>
     </Modal>
   </div>

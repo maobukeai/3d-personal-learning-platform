@@ -362,8 +362,8 @@ router.beforeEach(async (to) => {
   if (!authStore.user && to.meta.requiresAuth) {
     try {
       await authStore.fetchMe();
-    } catch (e) {
-      console.debug('Router: fetchMe failed, user may not be logged in', e);
+    } catch {
+      // User may not be logged in
     }
   } else if (
     !authStore.user &&
@@ -374,8 +374,8 @@ router.beforeEach(async (to) => {
     // If in maintenance mode and no user in state, try fetching to see if it's an admin
     try {
       await authStore.fetchMe();
-    } catch (e) {
-      console.debug('Router: fetchMe failed during maintenance check', e);
+    } catch {
+      // User may not be logged in
     }
   }
 

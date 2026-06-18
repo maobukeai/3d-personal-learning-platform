@@ -5,7 +5,8 @@ import { getShanghaiStartOfDay } from '../utils/date';
 import { TaskStatus } from '../types/task';
 import { checkProjectQuota } from '../utils/quota';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
-import { AppError } from '../middlewares/error.middleware';
+import { AppError } from '../utils/error';
+import { logger } from '../utils/logger';
 import {
   AIChatMessage as ServiceAIChatMessage,
   callLLM,
@@ -18,7 +19,7 @@ import {
   AIServiceConfig,
 } from '../services/ai.service';
 import { getAIModelById, settingsService } from '../services/settings.service';
-import { parseBaiduNetdiskLink } from '../utils/baiduNetdisk';
+import { parseBaiduNetdiskLink, type BaiduNetdiskParsedData, type BaiduNetdiskDirectory } from '../utils/baiduNetdisk';
 import { hasPromptInjection } from '../utils/security';
 import {
   PROJECT_GENERATION_PROMPT,
@@ -50,6 +51,12 @@ type AiChatMessage = {
 };
 
 type AiChatMode = 'default' | 'search' | 'research';
+
+type UploadedFile = Express.Multer.File & {
+  url?: string;
+  r2Key?: string;
+  r2ConfigId?: string;
+};
 
 const MAX_AI_CHAT_MESSAGES = 12;
 const MAX_AI_CHAT_MESSAGE_CHARS = 12000;
@@ -378,7 +385,7 @@ const buildAiChatSessionMemoryPrompt = async (
       body,
     ].join('\n');
   } catch (error) {
-    console.warn('[AI Chat] Failed to build session memory context', error);
+    logger.warn('[AI Chat] Failed to build session memory context', error);
     return '';
   }
 };
@@ -477,7 +484,7 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
         );
       }
     } catch (err) {
-      console.error('[AI Chat] Quota verification failed:', err);
+      logger.error('[AI Chat] Quota verification failed:', err);
       return next(err instanceof AppError ? err : new AppError('配额验证失败，请稍后重试', 500));
     }
   }
@@ -610,7 +617,7 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
           });
         }
       } catch (searchErr) {
-        console.error('[AI Chat] Web search failed:', searchErr);
+        logger.error('[AI Chat] Web search failed:', searchErr);
         if (res.headersSent) {
           sendSSE(res, {
             reasoning: '⚠️ 联网搜索暂时不可用，将基于现有模型能力继续回答。\n',
@@ -673,7 +680,7 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
           });
         }
       } catch (researchErr) {
-        console.error('[AI Chat] Deep research failed:', researchErr);
+        logger.error('[AI Chat] Deep research failed:', researchErr);
         sendSSE(res, {
           reasoning: '⚠️ 深度研究引擎遇到异常，将以现有 AI 知识作为基础继续回答。\n',
         });
@@ -699,7 +706,7 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
         mode: safeSessionMode,
       });
     } catch (dbErr) {
-      console.error('[AI Chat] Failed to save user message to DB:', dbErr);
+      logger.error('[AI Chat] Failed to save user message to DB:', dbErr);
     }
   }
 
@@ -708,6 +715,7 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
       normalizedMessages,
       systemPrompt,
       res,
+      next,
       {
         AI_IMPORT_ENABLED: true,
         AI_PROVIDER: selectedModel.provider,
@@ -750,7 +758,7 @@ export const getAiChatHistory = async (req: AuthRequest, res: Response, next: Ne
         },
       })
       .catch((err) => {
-        console.error('Failed to clean up old AI messages:', err);
+        logger.error('Failed to clean up old AI messages:', err);
       });
 
     const [history, sessions] = await Promise.all([
@@ -1087,7 +1095,7 @@ export const uploadAiChatImage = async (req: AuthRequest, res: Response, next: N
     return next(new AppError('请选择要上传的图片', 400));
   }
   try {
-    const fileUrl = (req.file as any).url || `/uploads/ai/${req.file.filename}`;
+    const fileUrl = (req.file as UploadedFile).url || `/uploads/ai/${req.file.filename}`;
     res.json({
       success: true,
       url: fileUrl,
@@ -1135,7 +1143,7 @@ export const parseNetdiskLink = async (req: AuthRequest, res: Response, next: Ne
     try {
       parsedData = await parseBaiduNetdiskLink(url, password);
     } catch (err: unknown) {
-      console.warn(
+      logger.warn(
         'Baidu Netdisk scraping failed. Falling back to LLM simulation. Reason:',
         err instanceof Error ? err.message : String(err),
       );
@@ -1153,7 +1161,7 @@ export const parseNetdiskLink = async (req: AuthRequest, res: Response, next: Ne
       try {
         parsedData = JSON.parse(cleanedResponse);
       } catch (_parseErr) {
-        console.error('Failed to parse AI fallback response as JSON. Raw response:', aiResponse);
+        logger.error('Failed to parse AI fallback response as JSON. Raw response:', aiResponse);
         parsedData = {
           title: '百度网盘导入项目',
           directories: [
@@ -1182,11 +1190,12 @@ export const parseNetdiskLink = async (req: AuthRequest, res: Response, next: Ne
   }
 };
 
-const formatNetdiskInfoForPrompt = (netdiskInfo: any): string => {
+const formatNetdiskInfoForPrompt = (netdiskInfo: BaiduNetdiskParsedData | unknown): string => {
   if (!netdiskInfo) return '无网盘资源数据';
-  let result = `项目/课程名称: ${netdiskInfo.title || '未命名'}\n`;
-  if (netdiskInfo.directories && Array.isArray(netdiskInfo.directories)) {
-    netdiskInfo.directories.slice(0, 30).forEach((dir: any) => {
+  const info = netdiskInfo as BaiduNetdiskParsedData;
+  let result = `项目/课程名称: ${info.title || '未命名'}\n`;
+  if (info.directories && Array.isArray(info.directories)) {
+    info.directories.slice(0, 30).forEach((dir: BaiduNetdiskDirectory) => {
       result += `- 目录: ${dir.name || '未命名'}\n`;
       if (dir.files && Array.isArray(dir.files)) {
         dir.files.slice(0, 80).forEach((file: string) => {
@@ -1259,7 +1268,7 @@ export const coPlanChatStream = async (req: AuthRequest, res: Response, next: Ne
       maxTokens: 16384,
     };
 
-    await streamLLMChat(extendedMessages, systemPrompt, res, overrides, req.userId);
+    await streamLLMChat(extendedMessages, systemPrompt, res, next, overrides, req.userId);
   } catch (error) {
     if (res.headersSent) {
       if (!res.writableEnded) {

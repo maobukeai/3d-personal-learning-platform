@@ -14,7 +14,7 @@ import {
 } from '../../utils/auth';
 import { getPublicAIModels, settingsService } from '../../services/settings.service';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
-import { AppError } from '../../middlewares/error.middleware';
+import { AppError } from '../../utils/error';
 import { redisService } from '../../services/redis.service';
 
 const setAuthCookies = (res: Response, accessToken: string, refreshToken: string) => {

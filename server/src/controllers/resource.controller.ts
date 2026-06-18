@@ -2,6 +2,7 @@ import type { NextFunction, Response } from 'express';
 import type { Prisma } from '@prisma/client';
 import type { AuthRequest } from '../middlewares/auth.middleware';
 import prisma from '../services/prisma';
+import { parseTags } from '../utils/tags';
 
 type ResourceKind = 'asset' | 'material' | 'plugin' | 'showcase';
 type ResourceStatus = 'APPROVED' | 'PENDING' | 'REJECTED';
@@ -51,28 +52,6 @@ const getTeamFilter = (workspaceId?: string) => {
   }
 
   return { teamId: workspaceId };
-};
-
-const parseTags = (tags?: string | null): string[] => {
-  if (!tags) return [];
-
-  try {
-    const parsed = JSON.parse(tags);
-    if (Array.isArray(parsed)) {
-      return parsed
-        .map((tag) => String(tag).trim())
-        .filter(Boolean)
-        .slice(0, 8);
-    }
-  } catch (_error) {
-    // Legacy records may store tags as comma or space separated text.
-  }
-
-  return tags
-    .split(/[,，\s]+/)
-    .map((tag) => tag.trim())
-    .filter(Boolean)
-    .slice(0, 8);
 };
 
 const getAuthorName = (user?: { name?: string | null; email?: string | null } | null) =>

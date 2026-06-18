@@ -6,13 +6,42 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { createNotification } from '../utils/notification';
 import { deleteCloudOrLocalFileByUrl } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
-import { AppError } from '../middlewares/error.middleware';
+import { AppError } from '../utils/error';
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
+import { parseTags } from '../utils/tags';
 
 type ShowcaseSortKey = 'popular' | 'newest' | 'trending' | 'viewed' | 'discussed' | 'featured';
 type ShowcaseScope = 'all' | 'my' | 'liked';
 type ShowcaseStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 type ShowcaseBucket = 'all' | 'fresh' | 'downloadable' | 'discussed' | 'pending' | 'rejected';
+
+type UploadedFile = Express.Multer.File & {
+  url?: string;
+  r2Key?: string;
+  r2ConfigId?: string;
+};
+
+type ShowcaseListItem = Prisma.ShowcaseGetPayload<{
+  select: {
+    id: true;
+    title: true;
+    description: true;
+    tags: true;
+    type: true;
+    thumbnailUrl: true;
+    images: true;
+    videoUrl: true;
+    isVideo: true;
+    views: true;
+    status: true;
+    assetId: true;
+    createdAt: true;
+    user: { select: { id: true; name: true; email: true; avatarUrl: true; bio: true } };
+    asset: { select: { id: true; title: true; url: true; type: true; thumbnail: true } };
+    _count: { select: { likes: true; comments: true } };
+    likes: { select: { userId: true } };
+  };
+}>;
 
 const APPROVED_STATUS = 'APPROVED';
 const PENDING_STATUS = 'PENDING';
@@ -61,22 +90,6 @@ const normalizeBucket = (value: unknown): ShowcaseBucket => {
   return 'all';
 };
 
-const parseTags = (tags?: string | null): string[] => {
-  if (!tags) return [];
-  try {
-    const parsed = JSON.parse(tags);
-    if (Array.isArray(parsed)) {
-      return parsed.map((tag) => String(tag).trim()).filter(Boolean);
-    }
-  } catch {
-    // Fall through to comma parsing for legacy showcase tags.
-  }
-  return tags
-    .split(/[，,;；\s]+/)
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-};
-
 const parseImages = (images?: string | null): string[] => {
   if (!images) return [];
   try {
@@ -105,7 +118,7 @@ const getShowcaseScore = (
   return baseScore + recencyBoost;
 };
 
-const formatShowcaseListItem = (showcase: any, userId: string) => ({
+const formatShowcaseListItem = (showcase: ShowcaseListItem, userId: string) => ({
   id: showcase.id,
   title: showcase.title,
   description: showcase.description,
@@ -586,7 +599,7 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
 
     let thumbnailUrl = '';
     if (thumbnailFile) {
-      thumbnailUrl = (thumbnailFile as any).url || `${req.protocol}://${req.get('host')}/uploads/showcase/${thumbnailFile.filename}`;
+      thumbnailUrl = (thumbnailFile as UploadedFile).url || `${req.protocol}://${req.get('host')}/uploads/showcase/${thumbnailFile.filename}`;
     } else if (assetId) {
       const asset = await prisma.asset.findUnique({
         where: { id: assetId as string },
@@ -601,7 +614,7 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
     }
 
     const imageUrls = imageFiles.map(
-      (f) => (f as any).url || `${req.protocol}://${req.get('host')}/uploads/showcase/${f.filename}`,
+      (f) => (f as UploadedFile).url || `${req.protocol}://${req.get('host')}/uploads/showcase/${f.filename}`,
     );
 
     const showcase = await prisma.showcase.create({
@@ -766,11 +779,11 @@ export const updateShowcase = async (req: AuthRequest, res: Response, next: Next
           logger.error('[ShowcaseController] Failed to delete old thumbnail in background:', err);
         });
       }
-      updateData.thumbnailUrl = (thumbnailFile as any).url || `${req.protocol}://${req.get('host')}/uploads/showcase/${thumbnailFile.filename}`;
+      updateData.thumbnailUrl = (thumbnailFile as UploadedFile).url || `${req.protocol}://${req.get('host')}/uploads/showcase/${thumbnailFile.filename}`;
     }
     if (imageFiles.length > 0) {
       const imageUrls = imageFiles.map(
-        (f) => (f as any).url || `${req.protocol}://${req.get('host')}/uploads/showcase/${f.filename}`,
+        (f) => (f as UploadedFile).url || `${req.protocol}://${req.get('host')}/uploads/showcase/${f.filename}`,
       );
       const existingImages = parseImages(showcase.images);
       updateData.images = JSON.stringify([...existingImages, ...imageUrls]);

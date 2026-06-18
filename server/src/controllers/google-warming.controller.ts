@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import prisma from '../services/prisma';
 import { callLLM } from '../services/ai.service';
@@ -21,7 +21,7 @@ export class GoogleWarmingController {
   /**
    * Get all Google warming accounts for the logged-in user
    */
-  public static async getAccounts(req: AuthRequest, res: Response): Promise<void> {
+  public static async getAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     try {
       const accounts = await prisma.googleWarmingAccount.findMany({
@@ -31,14 +31,14 @@ export class GoogleWarmingController {
       res.json(accounts.map(toPublicAccount));
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.getAccounts] error:', e);
-      res.status(500).json({ error: '获取账号列表失败' });
+      next(e);
     }
   }
 
   /**
    * Bulk imports Google accounts
    */
-  public static async importAccounts(req: AuthRequest, res: Response): Promise<void> {
+  public static async importAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const { accounts } = req.body;
 
@@ -71,14 +71,14 @@ export class GoogleWarmingController {
       res.json({ success: true, count: imported.length, accounts: imported });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.importAccounts] error:', e);
-      res.status(500).json({ error: '批量导入账号失败' });
+      next(e);
     }
   }
 
   /**
    * Parses raw account text using AI LLM
    */
-  public static async aiParse(req: AuthRequest, res: Response): Promise<void> {
+  public static async aiParse(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const { text, translateCountry } = req.body;
 
     if (!text || typeof text !== 'string' || !text.trim()) {
@@ -135,14 +135,14 @@ If any field is missing or not found, set it to null.`;
       res.json({ success: true, accounts: parsed });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.aiParse] error:', e);
-      res.status(500).json({ error: 'AI 解析失败，请检查文本格式或重试', details: String(e) });
+      next(e);
     }
   }
 
   /**
    * Updates a single account details
    */
-  public static async updateAccount(req: AuthRequest, res: Response): Promise<void> {
+  public static async updateAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
     const { email, password, recoveryEmail, twoFASecret, country, note, backupCodes, category, status, currentDay } = req.body;
@@ -182,14 +182,14 @@ If any field is missing or not found, set it to null.`;
       res.json(toPublicAccount(updated));
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.updateAccount] error:', e);
-      res.status(500).json({ error: '更新账号失败' });
+      next(e);
     }
   }
 
   /**
    * Completes the current day's warming task
    */
-  public static async warmAccount(req: AuthRequest, res: Response): Promise<void> {
+  public static async warmAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
 
@@ -218,14 +218,14 @@ If any field is missing or not found, set it to null.`;
       res.json(updated);
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.warmAccount] error:', e);
-      res.status(500).json({ error: '更新养号状态失败' });
+      next(e);
     }
   }
 
   /**
    * Deletes a warming account
    */
-  public static async deleteAccount(req: AuthRequest, res: Response): Promise<void> {
+  public static async deleteAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
 
@@ -246,14 +246,14 @@ If any field is missing or not found, set it to null.`;
       res.json({ success: true });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.deleteAccount] error:', e);
-      res.status(500).json({ error: '删除账号失败' });
+      next(e);
     }
   }
 
   /**
    * Batch check-in (warm) multiple accounts
    */
-  public static async batchWarmAccounts(req: AuthRequest, res: Response): Promise<void> {
+  public static async batchWarmAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const { ids } = req.body;
 
@@ -289,14 +289,14 @@ If any field is missing or not found, set it to null.`;
       res.json({ success: true, count: results.length, accounts: results });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.batchWarmAccounts] error:', e);
-      res.status(500).json({ error: '批量打卡失败' });
+      next(e);
     }
   }
 
   /**
    * Batch delete multiple accounts
    */
-  public static async batchDeleteAccounts(req: AuthRequest, res: Response): Promise<void> {
+  public static async batchDeleteAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const { ids } = req.body;
 
@@ -313,14 +313,14 @@ If any field is missing or not found, set it to null.`;
       res.json({ success: true, count: result.count });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.batchDeleteAccounts] error:', e);
-      res.status(500).json({ error: '批量删除账号失败' });
+      next(e);
     }
   }
 
   /**
    * Batch update status for multiple accounts
    */
-  public static async batchStatusAccounts(req: AuthRequest, res: Response): Promise<void> {
+  public static async batchStatusAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const { ids, status } = req.body;
 
@@ -343,14 +343,14 @@ If any field is missing or not found, set it to null.`;
       res.json({ success: true, count: result.count });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.batchStatusAccounts] error:', e);
-      res.status(500).json({ error: '批量修改状态失败' });
+      next(e);
     }
   }
 
   /**
    * Batch updates category for multiple accounts
    */
-  public static async batchCategoryAccounts(req: AuthRequest, res: Response): Promise<void> {
+  public static async batchCategoryAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const { ids, category } = req.body;
 
@@ -368,14 +368,14 @@ If any field is missing or not found, set it to null.`;
       res.json({ success: true, count: result.count });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.batchCategoryAccounts] error:', e);
-      res.status(500).json({ error: '批量修改分类失败' });
+      next(e);
     }
   }
 
   /**
    * Rename a category for all user's accounts
    */
-  public static async renameCategory(req: AuthRequest, res: Response): Promise<void> {
+  public static async renameCategory(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const { oldCategory, newCategory } = req.body;
 
@@ -401,14 +401,14 @@ If any field is missing or not found, set it to null.`;
       res.json({ success: true, count: result.count });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.renameCategory] error:', e);
-      res.status(500).json({ error: '重命名分类失败' });
+      next(e);
     }
   }
 
   /**
    * Delete a category (resets accounts to '未分类')
    */
-  public static async deleteCategory(req: AuthRequest, res: Response): Promise<void> {
+  public static async deleteCategory(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const { category } = req.body;
 
@@ -432,14 +432,14 @@ If any field is missing or not found, set it to null.`;
       res.json({ success: true, count: result.count });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.deleteCategory] error:', e);
-      res.status(500).json({ error: '删除分类失败' });
+      next(e);
     }
   }
 
   /**
    * Get all categories saved in settings + actual database categories
    */
-  public static async getCategories(req: AuthRequest, res: Response): Promise<void> {
+  public static async getCategories(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     try {
       const settingsCats = await GoogleWarmingController.getUserCategories(userId);
@@ -462,14 +462,14 @@ If any field is missing or not found, set it to null.`;
       res.json({ success: true, categories: merged });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.getCategories] error:', e);
-      res.status(500).json({ error: '获取分类列表失败' });
+      next(e);
     }
   }
 
   /**
    * Add a new category to settings
    */
-  public static async addCategory(req: AuthRequest, res: Response): Promise<void> {
+  public static async addCategory(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const { category } = req.body;
 
@@ -497,7 +497,7 @@ If any field is missing or not found, set it to null.`;
       res.json({ success: true, categories: current });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.addCategory] error:', e);
-      res.status(500).json({ error: '添加分类失败' });
+      next(e);
     }
   }
 

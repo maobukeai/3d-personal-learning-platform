@@ -6,6 +6,7 @@
  * 2. encrypt / decrypt           — zero-key (key from STORAGE_ENCRYPTION_KEY env), used for SecretAccessKey
  */
 import crypto from 'crypto';
+import { logger } from './logger';
 
 // ─── Scheme 1: encryptText / decryptText (two-argument, used by mirror sources) ─
 
@@ -87,9 +88,7 @@ function getEncryptionKey(): Buffer {
     return crypto.createHash('sha256').update(dbKey).digest();
   }
   if (!/^[0-9a-fA-F]{64}$/.test(keyHex)) {
-    throw new Error(
-      'STORAGE_ENCRYPTION_KEY must be a 64-character hex string (32 bytes).',
-    );
+    throw new Error('STORAGE_ENCRYPTION_KEY must be a 64-character hex string (32 bytes).');
   }
   return Buffer.from(keyHex, 'hex');
 }
@@ -129,7 +128,9 @@ export function decrypt(encryptedData: string): string {
     throw new Error(`Invalid IV length: expected ${IV_LENGTH} bytes, got ${iv.length}`);
   }
   if (authTag.length !== AUTH_TAG_LENGTH) {
-    throw new Error(`Invalid auth tag length: expected ${AUTH_TAG_LENGTH} bytes, got ${authTag.length}`);
+    throw new Error(
+      `Invalid auth tag length: expected ${AUTH_TAG_LENGTH} bytes, got ${authTag.length}`,
+    );
   }
 
   const decipher = crypto.createDecipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
@@ -143,4 +144,41 @@ export function decrypt(encryptedData: string): string {
   }
 
   return decrypted;
+}
+
+// ─── Storage secret helpers (unified) ─────────────────────────────────────────
+
+/** Matches the encrypted format produced by `encrypt()`: iv(24hex):tag(32hex):ciphertext */
+export const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
+
+/**
+ * Safely decrypts a secret value, handling legacy plaintext values.
+ * Returns the original value if it doesn't match the encrypted format or decryption fails.
+ */
+export function decryptSecretIfNeeded(raw: string | null | undefined): string {
+  if (!raw) return '';
+  if (!ENCRYPTED_VALUE_RE.test(raw)) return raw;
+  try {
+    return decrypt(raw);
+  } catch (err) {
+    logger.error('[Crypto] Failed to decrypt secret:', err);
+    return raw;
+  }
+}
+
+/**
+ * Converts a raw Prisma StorageConfig record (with potentially encrypted credentials)
+ * into a plain config object with decrypted secretAccessKey / cloudflareApiToken.
+ * Cloudflare fields are included when present on the source record.
+ */
+export function buildDecryptedStorageConfig(raw: Record<string, any>) {
+  return {
+    endpoint: raw.endpoint,
+    accessKeyId: raw.accessKeyId ?? '',
+    secretAccessKey: decryptSecretIfNeeded(raw.secretAccessKey),
+    bucketName: raw.bucketName,
+    publicUrl: raw.publicUrl,
+    cloudflareAccountId: raw.cloudflareAccountId ?? null,
+    cloudflareApiToken: decryptSecretIfNeeded(raw.cloudflareApiToken),
+  };
 }

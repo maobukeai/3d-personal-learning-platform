@@ -71,18 +71,18 @@ interface ModelFamilyGroup {
 }
 
 const props = defineProps<{
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
   aiModelConfigs: AiModelConfig[];
   pendingModelFamilyIds: string[];
 }>();
 
 const emit = defineEmits<{
-  (e: 'update:settings', val: any): void;
+  (e: 'update:settings', val: Record<string, unknown>): void;
   (e: 'update:aiModelConfigs', val: AiModelConfig[]): void;
   (e: 'update:pendingModelFamilyIds', val: string[]): void;
 }>();
 
-const localSettings = reactive({ ...props.settings });
+const localSettings = reactive({ ...props.settings }) as Record<string, any>;
 const localAiModelConfigs = ref<AiModelConfig[]>([]);
 const localPendingModelFamilyIds = ref<string[]>([]);
 
@@ -695,7 +695,7 @@ const renameModelFamilyGroup = async (groupKey: string, currentLabel: string) =>
   }
 };
 
-const deleteCustomCategory = async (group: any) => {
+const deleteCustomCategory = async (group: AiModelCategory) => {
   try {
     await ElMessageBox.confirm(
       `确定要删除自定义分类 "${group.label}" 吗？该分类下的模型将自动恢复为系统分类。`,
@@ -1135,7 +1135,7 @@ const testAi = async (model?: AiModelConfig) => {
     } else {
       ElMessage.error(t('admin.the_test_failed_and'));
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Test AI error:', error);
     ElMessage.error(getApiErrorMessage(error, t('admin.ai_connection_test_failed')));
   } finally {
@@ -1181,7 +1181,7 @@ const fetchAiModels = async (model: AiModelConfig) => {
       availableIds.has(id),
     );
     modelFetchDialogVisible.value = true;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Fetch AI models error:', error);
     ElMessage.error(getApiErrorMessage(error, '获取模型列表失败'));
   } finally {
@@ -2004,7 +2004,7 @@ onMounted(() => {
                           :model-value="model.capabilities.includes('chat')"
                           label="对话 (Chat)"
                           @change="
-                            (checked: any) => {
+                            (checked: unknown) => {
                               if (checked) {
                                 if (!model.capabilities.includes('chat'))
                                   model.capabilities.push('chat');
@@ -2019,7 +2019,7 @@ onMounted(() => {
                           :model-value="model.capabilities.includes('image')"
                           label="画图 (Image)"
                           @change="
-                            (checked: any) => {
+                            (checked: unknown) => {
                               if (checked) {
                                 if (!model.capabilities.includes('image'))
                                   model.capabilities.push('image');

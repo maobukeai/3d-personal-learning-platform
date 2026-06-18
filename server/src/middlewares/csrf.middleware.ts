@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AppError } from './error.middleware';
+import { AppError } from '../utils/error';
 import crypto from 'crypto';
 
 export const csrfProtection = (req: Request, res: Response, next: NextFunction) => {

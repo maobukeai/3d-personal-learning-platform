@@ -35,6 +35,8 @@ import { fetchManagementInsights } from './adminManagementInsights';
 import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Tabs from '@/components/ui/Tabs.vue';
+import UiButton from '@/components/ui/Button.vue';
+import UiInput from '@/components/ui/Input.vue';
 
 type AuditTab = 'assets' | 'materials' | 'showcases' | 'plugins';
 type AuditStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -638,14 +640,12 @@ onBeforeUnmount(() => {
         <h1>{{ pageConfig.title }}</h1>
       </div>
       <div class="header-actions">
-        <button type="button" class="ghost-btn" @click="openCategoryManager">
-          <FolderCog />
+        <UiButton variant="secondary" :icon="FolderCog" @click="openCategoryManager">
           分类管理
-        </button>
-        <button type="button" class="ghost-btn" @click="refreshQueue">
-          <RefreshCw :class="{ spinning: isLoading }" />
+        </UiButton>
+        <UiButton variant="secondary" :icon="RefreshCw" :loading="isLoading" @click="refreshQueue">
           刷新
-        </button>
+        </UiButton>
       </div>
     </header>
 
@@ -693,13 +693,16 @@ onBeforeUnmount(() => {
           v-model="statusFilter"
           :options="statusFilterOptions"
           size="sm"
-          @change="setStatusFilter"
+          @change="(val: any) => setStatusFilter(val)"
         />
       </div>
-      <label class="search-box">
-        <Search />
-        <input v-model="searchQuery" type="search" placeholder="搜索标题、作者、标签、分类" />
-      </label>
+      <UiInput
+        v-model="searchQuery"
+        :icon="Search"
+        placeholder="搜索标题、作者、标签、分类"
+        :glass="false"
+        class="ml-auto min-w-[280px]"
+      />
       <div class="toolbar-meta">
         <span><ArrowUpDown /> 最新提交优先</span>
         <label>
@@ -717,20 +720,23 @@ onBeforeUnmount(() => {
     <section v-if="selectedIds.length" class="batch-bar">
       <span>已选择 {{ selectedIds.length }} 条记录</span>
       <div>
-        <button type="button" @click="handleBatchApprove">批量通过</button>
-        <button type="button" @click="handleBatchReject">批量打回</button>
-        <button type="button" @click="selectedIds = []">清空</button>
+        <UiButton variant="primary" size="sm" @click="handleBatchApprove">批量通过</UiButton>
+        <UiButton variant="danger" size="sm" @click="handleBatchReject">批量打回</UiButton>
+        <UiButton variant="secondary" size="sm" @click="selectedIds = []">清空</UiButton>
       </div>
     </section>
 
     <main class="review-shell">
       <section class="queue-panel">
         <div class="queue-head">
-          <button type="button" class="select-all-btn" @click="toggleSelectAll">
-            <CheckSquare v-if="isAllSelected" />
-            <Square v-else />
+          <UiButton
+            variant="secondary"
+            size="sm"
+            :icon="isAllSelected ? CheckSquare : Square"
+            @click="toggleSelectAll"
+          >
             全选当前队列
-          </button>
+          </UiButton>
           <span>{{ visibleRange }} / {{ totalItems }} 条</span>
         </div>
 
@@ -778,25 +784,27 @@ onBeforeUnmount(() => {
               </div>
             </div>
             <div class="row-actions" @click.stop>
-              <button
+              <UiButton
                 v-if="item.status !== 'APPROVED'"
-                type="button"
-                class="approve-btn"
+                variant="primary"
+                size="sm"
+                :icon="CheckCircle2"
                 @click="handleStatusUpdate(item, 'APPROVED')"
               >
-                <CheckCircle2 /> 通过
-              </button>
-              <button
+                通过
+              </UiButton>
+              <UiButton
                 v-if="item.status !== 'REJECTED'"
-                type="button"
-                class="reject-btn"
+                variant="danger"
+                size="sm"
+                :icon="XCircle"
                 @click="handleStatusUpdate(item, 'REJECTED')"
               >
-                <XCircle /> 打回
-              </button>
-              <button type="button" class="ghost-mini" @click="openEdit(item)">
-                <Edit3 /> 编辑
-              </button>
+                打回
+              </UiButton>
+              <UiButton variant="secondary" size="sm" :icon="Edit3" @click="openEdit(item)">
+                编辑
+              </UiButton>
             </div>
           </article>
         </div>
@@ -886,24 +894,26 @@ onBeforeUnmount(() => {
             >
               <Eye /> 查看原件
             </a>
-            <button type="button" @click="openEdit(activeItem)"><Edit3 /> 编辑</button>
-            <button
+            <UiButton variant="secondary" :icon="Edit3" @click="openEdit(activeItem)">编辑</UiButton>
+            <UiButton
               v-if="activeItem.status !== 'APPROVED'"
-              type="button"
+              variant="primary"
+              :icon="CheckCircle2"
               @click="handleStatusUpdate(activeItem, 'APPROVED')"
             >
-              <CheckCircle2 /> 通过
-            </button>
-            <button
+              通过
+            </UiButton>
+            <UiButton
               v-if="activeItem.status !== 'REJECTED'"
-              type="button"
+              variant="danger"
+              :icon="XCircle"
               @click="handleStatusUpdate(activeItem, 'REJECTED')"
             >
-              <XCircle /> 打回
-            </button>
-            <button type="button" class="danger-action" @click="handleDelete(activeItem)">
-              <Trash2 /> 删除
-            </button>
+              打回
+            </UiButton>
+            <UiButton variant="danger" :icon="Trash2" @click="handleDelete(activeItem)">
+              删除
+            </UiButton>
           </div>
         </template>
         <div v-else class="empty-state">
@@ -921,7 +931,7 @@ onBeforeUnmount(() => {
       @close="isEditOpen = false"
     >
       <div class="form-stack">
-        <label>标题<input v-model="editForm.title" /></label>
+        <label>标题<UiInput v-model="editForm.title" :glass="false" /></label>
         <label>描述<textarea v-model="editForm.description" rows="4" /></label>
         <div class="form-grid">
           <label>
@@ -943,7 +953,7 @@ onBeforeUnmount(() => {
           </label>
           <label v-if="activeTab === 'materials' || activeTab === 'plugins'">
             分类
-            <input v-model="editForm.category" />
+            <UiInput v-model="editForm.category" :glass="false" />
           </label>
           <label v-if="activeTab === 'showcases'">
             类型
@@ -956,21 +966,14 @@ onBeforeUnmount(() => {
           </label>
         </div>
         <div v-if="activeTab === 'plugins'" class="form-grid">
-          <label>版本<input v-model="editForm.version" /></label>
-          <label>兼容性<input v-model="editForm.compatibility" /></label>
+          <label>版本<UiInput v-model="editForm.version" :glass="false" /></label>
+          <label>兼容性<UiInput v-model="editForm.compatibility" :glass="false" /></label>
         </div>
-        <label>标签<input v-model="editForm.tags" placeholder="用逗号分隔" /></label>
+        <label>标签<UiInput v-model="editForm.tags" placeholder="用逗号分隔" :glass="false" /></label>
       </div>
       <template #footer>
-        <button type="button" class="ghost-btn dialog-btn" @click="isEditOpen = false">取消</button>
-        <button
-          type="button"
-          class="primary-btn dialog-btn"
-          :disabled="isSaving"
-          @click="handleUpdate"
-        >
-          保存
-        </button>
+        <UiButton variant="secondary" @click="isEditOpen = false">取消</UiButton>
+        <UiButton variant="primary" :loading="isSaving" @click="handleUpdate">保存</UiButton>
       </template>
     </Modal>
 
@@ -1002,12 +1005,8 @@ onBeforeUnmount(() => {
         </label>
       </div>
       <template #footer>
-        <button type="button" class="ghost-btn dialog-btn" @click="rejectDialogVisible = false">
-          取消
-        </button>
-        <button type="button" class="reject-btn dialog-btn" @click="submitRejection">
-          确认打回
-        </button>
+        <UiButton variant="secondary" @click="rejectDialogVisible = false">取消</UiButton>
+        <UiButton variant="danger" @click="submitRejection">确认打回</UiButton>
       </template>
     </Modal>
   </div>

@@ -5,7 +5,7 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { createNotification, createNotificationBatch } from '../utils/notification';
 import { checkProjectQuota } from '../utils/quota';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
-import { AppError } from '../middlewares/error.middleware';
+import { AppError } from '../utils/error';
 import { logger } from '../utils/logger';
 import { TaskStatus } from '../types/task';
 

@@ -30,12 +30,12 @@ const emit = defineEmits<{
 
 const { t: i18nT, locale } = useI18n();
 
-const t = (key: string, ...args: any[]) => {
+const t = (key: string, ...args: unknown[]) => {
   const prefixes = ['showcase.', 'teams.', 'members.', 'teamDetail.', 'discussions.', 'chat.'];
   if (prefixes.some((p) => key.startsWith(p))) {
-    return (i18nT as any)(`community.${key}`, ...args);
+    return (i18nT as (key: string, ...args: unknown[]) => string)(`community.${key}`, ...args);
   }
-  return (i18nT as any)(key, ...args);
+  return (i18nT as (key: string, ...args: unknown[]) => string)(key, ...args);
 };
 </script>
 

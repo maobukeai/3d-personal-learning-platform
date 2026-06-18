@@ -28,6 +28,7 @@ import {
   Eraser,
 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
+import type { AxiosProgressEvent } from 'axios';
 import { getPlanName } from '@/utils/plans';
 import { getApiErrorMessage } from '@/utils/error';
 import AdminOpsPanel from './components/AdminOpsPanel.vue';
@@ -322,7 +323,7 @@ async function fetchCloudSources() {
   try {
     const res = await api.get('/api/admin/mirror/cloud-discover');
     cloudSources.value = res.data;
-  } catch (e: any) {
+  } catch (e: unknown) {
     ElMessage.error(getApiErrorMessage(e, '扫描云端镜像站失败'));
   } finally {
     isScanningCloud.value = false;
@@ -336,7 +337,7 @@ async function connectCloudMirror(metadataKey: string) {
     ElMessage.success(res.data.message || '连接云端镜像成功！');
     await fetchCloudSources();
     await fetchSources();
-  } catch (e: any) {
+  } catch (e: unknown) {
     ElMessage.error(getApiErrorMessage(e, '连接云端镜像站失败'));
   } finally {
     isConnectingCloud.value = false;
@@ -768,7 +769,7 @@ const importProgress = ref(0);
 const importStatusText = ref('正在准备上传...');
 const importError = ref<string | null>(null);
 const importTaskStatus = ref<string>('idle');
-let importPollInterval: any = null;
+let importPollInterval: ReturnType<typeof setInterval> | null = null;
 
 const triggerImportFile = () => {
   importFileInput.value?.click();
@@ -798,7 +799,7 @@ const handleImportFile = async (e: Event) => {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
-      onUploadProgress: (progressEvent: any) => {
+      onUploadProgress: (progressEvent: AxiosProgressEvent) => {
         if (progressEvent.total) {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           importProgress.value = Math.min(percentCompleted, 99);
@@ -824,7 +825,7 @@ const handleImportFile = async (e: Event) => {
 
     importTaskStatus.value = 'processing';
     startImportPolling(taskId);
-  } catch (error: any) {
+  } catch (error: unknown) {
     importTaskStatus.value = 'failed';
     importError.value = getApiErrorMessage(error, '上传文件失败');
     importStatusText.value = '导入失败';
@@ -844,15 +845,15 @@ const startImportPolling = (taskId: string) => {
       importTaskStatus.value = task.status;
 
       if (task.status === 'completed') {
-        clearInterval(importPollInterval);
+        clearInterval(importPollInterval as any);
         ElMessage.success('镜像源导入成功！');
         fetchSources(); // Refresh sources list
       } else if (task.status === 'failed') {
-        clearInterval(importPollInterval);
+        clearInterval(importPollInterval as any);
         importError.value = task.error || '导入失败';
       }
-    } catch (error: any) {
-      clearInterval(importPollInterval);
+    } catch (error: unknown) {
+      clearInterval(importPollInterval as any);
       importTaskStatus.value = 'failed';
       importError.value = getApiErrorMessage(error, '获取导入状态失败');
     }
@@ -862,12 +863,12 @@ const startImportPolling = (taskId: string) => {
 const closeImportDialog = () => {
   showImportProgressDialog.value = false;
   if (importPollInterval) {
-    clearInterval(importPollInterval);
+    clearInterval(importPollInterval as any);
     importPollInterval = null;
   }
 };
 
-const triggerExportDownload = (source: any, full: boolean) => {
+const triggerExportDownload = (source: MirrorSource, full: boolean) => {
   ElMessage.info(
     full
       ? '正在生成完整备份 (2.4GB)，文件将通过流式传输下载，请耐心等待浏览器弹出下载进度...'
@@ -889,7 +890,7 @@ const triggerExportDownload = (source: any, full: boolean) => {
   link.remove();
 };
 
-const exportSource = (source: any) => {
+const exportSource = (source: MirrorSource) => {
   ElMessageBox.confirm(
     `<div class="text-slate-600 dark:text-slate-300">
       <p class="mb-3">请选择镜像源 <b>${source.displayName}</b> 的导出模式：</p>
@@ -918,7 +919,7 @@ const exportSource = (source: any) => {
     });
 };
 
-const cleanupSource = (source: any) => {
+const cleanupSource = (source: MirrorSource) => {
   ElMessageBox.confirm(
     `确定要清理镜像源「${source.displayName}」的本地缓存目录吗？这会分析数据库并删除所有未使用的缓存文件，释放磁盘空间。`,
     '系统提示',
@@ -941,7 +942,7 @@ const cleanupSource = (source: any) => {
             type: 'success',
           },
         );
-      } catch (error: any) {
+      } catch (error: unknown) {
         ElMessage.error(getApiErrorMessage(error, '清理存储空间失败'));
       }
     })
@@ -951,7 +952,7 @@ const cleanupSource = (source: any) => {
 onUnmounted(() => {
   stopPolling();
   if (importPollInterval) {
-    clearInterval(importPollInterval);
+    clearInterval(importPollInterval as any);
   }
 });
 </script>

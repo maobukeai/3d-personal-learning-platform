@@ -76,7 +76,6 @@ const handleProjectInvitation = async (notification: AppNotification, accept: bo
       if (n) n.isRead = true;
     }
   } catch (error) {
-    console.error('Handle project invitation error:', error);
     ElMessage.error(accept ? '接受邀请失败' : '拒绝邀请失败');
   } finally {
     processingInvitations.value[notification.id] = false;

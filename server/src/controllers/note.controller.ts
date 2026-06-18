@@ -1,6 +1,6 @@
 import { logger } from '../utils/logger';
 import { Prisma } from '@prisma/client';
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
@@ -8,7 +8,7 @@ import { clampLimit, clampPage } from '../utils/pagination';
 import { sanitizeHtml } from '../utils/sanitize';
 import { callLLM } from '../services/ai.service';
 
-export const getNotes = async (req: AuthRequest, res: Response) => {
+export const getNotes = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { visibility, search, sort, tag, category, author } = req.query;
   const page = clampPage(req.query.page);
   const limit = clampLimit(req.query.limit, 12, 100);
@@ -112,11 +112,11 @@ export const getNotes = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     logger.error('Get notes error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getPopularNotes = async (req: AuthRequest, res: Response) => {
+export const getPopularNotes = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const notes = await prisma.note.findMany({
       where: { visibility: 'PUBLIC', isPopular: true },
@@ -145,11 +145,11 @@ export const getPopularNotes = async (req: AuthRequest, res: Response) => {
     res.json(notesWithLiked);
   } catch (error) {
     logger.error('Get popular notes error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const togglePopularNote = async (req: AuthRequest, res: Response) => {
+export const togglePopularNote = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   if (req.user?.role !== 'ADMIN') {
     return res.status(403).json({ error: '只有管理员可以推流笔记' });
@@ -174,11 +174,11 @@ export const togglePopularNote = async (req: AuthRequest, res: Response) => {
     res.json({ isPopular: updated.isPopular });
   } catch (error) {
     logger.error('Toggle popular note error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getNoteById = async (req: AuthRequest, res: Response) => {
+export const getNoteById = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const existing = await prisma.note.findUnique({
@@ -219,11 +219,11 @@ export const getNoteById = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     logger.error('Get note by id error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const createNote = async (req: AuthRequest, res: Response) => {
+export const createNote = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { title, content, summary, visibility, tags, category } = req.body;
 
   if (!title || !title.trim()) {
@@ -257,11 +257,11 @@ export const createNote = async (req: AuthRequest, res: Response) => {
     res.status(201).json({ ...note, isLiked: false });
   } catch (error) {
     logger.error('Create note error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const updateNote = async (req: AuthRequest, res: Response) => {
+export const updateNote = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   const { title, content, summary, visibility, tags, category } = req.body;
 
@@ -306,11 +306,11 @@ export const updateNote = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     logger.error('Update note error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const deleteNote = async (req: AuthRequest, res: Response) => {
+export const deleteNote = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const note = await prisma.note.findUnique({
@@ -326,11 +326,11 @@ export const deleteNote = async (req: AuthRequest, res: Response) => {
     res.json({ message: '笔记已删除' });
   } catch (error) {
     logger.error('Delete note error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const toggleLikeNote = async (req: AuthRequest, res: Response) => {
+export const toggleLikeNote = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const noteId = req.params.id as string;
   try {
     const note = await prisma.note.findUnique({
@@ -359,11 +359,11 @@ export const toggleLikeNote = async (req: AuthRequest, res: Response) => {
     }
   } catch (error) {
     logger.error('Toggle like note error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getNoteTags = async (req: AuthRequest, res: Response) => {
+export const getNoteTags = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const notes = await prisma.note.findMany({
       where: {
@@ -394,11 +394,11 @@ export const getNoteTags = async (req: AuthRequest, res: Response) => {
     res.json({ tags: Array.from(tagSet) });
   } catch (error) {
     logger.error('Get note tags error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getNoteCategories = async (req: AuthRequest, res: Response) => {
+export const getNoteCategories = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const categories = await prisma.note.findMany({
       where: {
@@ -412,13 +412,14 @@ export const getNoteCategories = async (req: AuthRequest, res: Response) => {
     res.json({ categories: categories.map((c) => c.category).filter(Boolean) });
   } catch (error) {
     logger.error('Get note categories error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getNoteShare = async (req: AuthRequest, res: Response) => {
+export const getNoteShare = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const noteId = req.params.id as string;
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const note = await prisma.note.findUnique({
       where: { id: noteId },
       select: { userId: true },
@@ -435,11 +436,11 @@ export const getNoteShare = async (req: AuthRequest, res: Response) => {
     res.json(share);
   } catch (error) {
     logger.error('Get note share error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const createOrUpdateNoteShare = async (req: AuthRequest, res: Response) => {
+export const createOrUpdateNoteShare = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const noteId = req.params.id as string;
   const { expireHours, customText } = req.body;
 
@@ -488,11 +489,11 @@ export const createOrUpdateNoteShare = async (req: AuthRequest, res: Response) =
     res.json(share);
   } catch (error) {
     logger.error('Create/update note share error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const cancelNoteShare = async (req: AuthRequest, res: Response) => {
+export const cancelNoteShare = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const noteId = req.params.id as string;
   try {
     const note = await prisma.note.findUnique({
@@ -511,13 +512,14 @@ export const cancelNoteShare = async (req: AuthRequest, res: Response) => {
     res.json({ message: '分享已取消' });
   } catch (error) {
     logger.error('Cancel note share error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getPublicSharedNote = async (req: AuthRequest, res: Response) => {
+export const getPublicSharedNote = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const shareId = req.params.shareId as string;
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const share = await prisma.noteShare.findUnique({
       where: { id: shareId },
       include: {
@@ -553,11 +555,9 @@ export const getPublicSharedNote = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     logger.error('Get public shared note error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
-
-import { NextFunction } from 'express';
 
 export const summarizeNote = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
@@ -615,7 +615,7 @@ export const summarizeSharedNote = async (req: AuthRequest, res: Response, next:
       return res.status(410).json({ error: '分享链接已过期且失效' });
     }
 
-    const systemPrompt = `你是优秀的知识提炼专家。请对所给 Markdown 文本进行精简 and 结构化整理，提取核心内容与要点，生成一份精炼的核心摘要。
+    const systemPrompt = `你是优秀的知识提炼专家。请对所给 Markdown 文本进行精简和结构化整理，提取核心内容与要点，生成一份精炼的核心摘要。
 【输出规则】
 1. 只输出最终摘要内容，字数在 80-150 字以内，严格不超过 180 字。不要包含自我介绍、解释、前后缀提示或 Markdown 代码块围栏。
 2. 保持语言自然流畅，使用简体中文输出。

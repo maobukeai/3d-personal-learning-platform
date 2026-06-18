@@ -188,7 +188,6 @@ const batchUpdateCourseStatus = async (status: 'PUBLISHED' | 'DRAFT') => {
     clearCourseSelection();
     await fetchCourses();
   } catch (error) {
-    console.error('Batch update course status error:', error);
     ElMessage.error('批量更新课程状态失败');
   }
 };
@@ -221,7 +220,6 @@ const batchDeleteCourses = async () => {
     clearCourseSelection();
     await fetchCourses();
   } catch (error) {
-    console.error('Batch delete courses error:', error);
     ElMessage.error('批量删除课程失败');
   }
 };
@@ -263,7 +261,6 @@ const handleDeleteCourse = async (id: string) => {
     ElMessage.success(t('admin.course_deleted'));
     fetchCourses();
   } catch (error) {
-    console.error('Delete course error:', error);
     ElMessage.error(t('admin.failed_to_delete_course'));
   }
 };
@@ -299,7 +296,6 @@ const handleDeleteLesson = async (id: string) => {
     ElMessage.success(t('admin.class_has_been_deleted'));
     fetchCourses();
   } catch (error) {
-    console.error('Delete lesson error:', error);
     ElMessage.error(t('admin.failed_to_delete_class'));
   }
 };

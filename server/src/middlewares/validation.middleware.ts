@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AppError } from './error.middleware';
+import { AppError } from '../utils/error';
 
 type ValidationRule = {
   type: 'string' | 'number' | 'email' | 'boolean' | 'array';

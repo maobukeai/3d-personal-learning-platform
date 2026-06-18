@@ -503,7 +503,12 @@ onBeforeUnmount(() => {
             v-model="dateFrom"
             type="date"
             class="cursor-pointer"
-            @click="(e) => 'showPicker' in (e.target as any) && (e.target as any).showPicker()"
+            @click="
+              (e) => {
+                const target = e.target as HTMLInputElement & { showPicker?: () => void };
+                target.showPicker?.();
+              }
+            "
           />
         </label>
         <span class="text-slate-400">-</span>
@@ -513,7 +518,12 @@ onBeforeUnmount(() => {
             v-model="dateTo"
             type="date"
             class="cursor-pointer"
-            @click="(e) => 'showPicker' in (e.target as any) && (e.target as any).showPicker()"
+            @click="
+              (e) => {
+                const target = e.target as HTMLInputElement & { showPicker?: () => void };
+                target.showPicker?.();
+              }
+            "
           />
         </label>
       </div>

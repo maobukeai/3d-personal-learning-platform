@@ -1,36 +1,7 @@
 import prisma from '../../services/prisma';
 import { storageService } from '../../services/storage.service';
 import { logger } from '../../utils/logger';
-
-/** Matches the encrypted format produced by `encrypt()` */
-const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
-
-/** Safely decrypts secretAccessKey, handling legacy plaintext values. */
-function decryptSecret(raw: string | null | undefined): string {
-  if (!raw) return '';
-  if (!ENCRYPTED_VALUE_RE.test(raw)) return raw;
-  try {
-    // Lazy-import to avoid circular dependency — crypto.ts doesn't import anything from mirror/
-    const { decrypt } = require('../../utils/crypto');
-    return decrypt(raw);
-  } catch {
-    return raw;
-  }
-}
-
-/**
- * Converts a raw Prisma StorageConfig (with potentially encrypted secretAccessKey)
- * to a StorageConfigData object with decrypted credentials.
- */
-function toDecryptedConfig(raw: Record<string, any>) {
-  return {
-    endpoint: raw.endpoint,
-    accessKeyId: raw.accessKeyId ?? '',
-    secretAccessKey: decryptSecret(raw.secretAccessKey),
-    bucketName: raw.bucketName,
-    publicUrl: raw.publicUrl,
-  };
-}
+import { buildDecryptedStorageConfig } from '../../utils/crypto';
 
 /**
  * Retrieves the active storage configuration for the given storage type.
@@ -42,10 +13,7 @@ export const getActiveStorageConfig = async (storageType: string) => {
       status: 'ACTIVE',
       assetType: storageType,
     },
-    orderBy: [
-      { priority: 'desc' },
-      { createdAt: 'desc' },
-    ],
+    orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
   });
 
   if (configs.length === 0 && storageType !== 'ALL') {
@@ -54,10 +22,7 @@ export const getActiveStorageConfig = async (storageType: string) => {
         status: 'ACTIVE',
         assetType: 'ALL',
       },
-      orderBy: [
-        { priority: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
     });
   }
 
@@ -72,7 +37,9 @@ export const uploadSourceMetadataToR2 = async (sourceId: string): Promise<void> 
   try {
     const activeConfig = await getActiveStorageConfig('MIRROR');
     if (!activeConfig) {
-      logger.info(`[MetadataHelper] No active cloud storage configuration for MIRROR, skipping metadata upload.`);
+      logger.info(
+        `[MetadataHelper] No active cloud storage configuration for MIRROR, skipping metadata upload.`,
+      );
       return;
     }
 
@@ -137,12 +104,17 @@ export const uploadSourceMetadataToR2 = async (sourceId: string): Promise<void> 
 
     const key = `mirror/${sourceId}/metadata.json`;
     await storageService.uploadJsonString(
-      toDecryptedConfig(activeConfig),
+      buildDecryptedStorageConfig(activeConfig),
       key,
       JSON.stringify(metadata, null, 2),
     );
-    logger.info(`[MetadataHelper] Uploaded metadata.json for source ${sourceId} to R2 successfully.`);
+    logger.info(
+      `[MetadataHelper] Uploaded metadata.json for source ${sourceId} to R2 successfully.`,
+    );
   } catch (error) {
-    logger.error(`[MetadataHelper] Failed to upload metadata.json for source ${sourceId} to R2:`, error);
+    logger.error(
+      `[MetadataHelper] Failed to upload metadata.json for source ${sourceId} to R2:`,
+      error,
+    );
   }
 };

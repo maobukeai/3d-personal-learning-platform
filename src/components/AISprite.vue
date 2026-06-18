@@ -196,6 +196,17 @@ interface Message {
   isSourcesExpanded?: boolean;
 }
 
+interface StoredMessage {
+  id?: string;
+  role?: 'user' | 'assistant';
+  content?: string;
+  createdAt?: string;
+  reasoning?: string;
+  sessionId?: string;
+  sessionTitle?: string;
+  sources?: Message['sources'];
+}
+
 const makeMessageId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
 const generateSessionId = () => {
@@ -535,11 +546,11 @@ const loadGuestHistory = () => {
     const parsed = JSON.parse(saved);
     if (Array.isArray(parsed) && parsed.length > 0) {
       messages.value = parsed
-        .filter((msg: any) => msg?.role === 'user' || msg?.role === 'assistant')
+        .filter((msg: StoredMessage) => msg?.role === 'user' || msg?.role === 'assistant')
         .slice(-200)
-        .map((msg: any) => {
+        .map((msg: StoredMessage) => {
           const sourcesResult = parseSourcesFromReasoning(msg.reasoning || '');
-          return createMessage(msg.role, msg.content, {
+          return createMessage(msg.role!, msg.content!, {
             id: msg.id,
             createdAt: msg.createdAt,
             reasoning: sourcesResult.text,
@@ -576,11 +587,11 @@ const loadHistory = async () => {
     const history = response.data?.data || [];
     if (response.data?.success && history.length > 0) {
       const dbMessages = history
-        .filter((msg: any) => msg?.role === 'user' || msg?.role === 'assistant')
+        .filter((msg: StoredMessage) => msg?.role === 'user' || msg?.role === 'assistant')
         .slice(-400)
-        .map((msg: any) => {
+        .map((msg: StoredMessage) => {
           const sourcesResult = parseSourcesFromReasoning(msg.reasoning || '');
-          return createMessage(msg.role, msg.content, {
+          return createMessage(msg.role!, msg.content!, {
             id: msg.id,
             createdAt: msg.createdAt,
             reasoning: sourcesResult.text,
@@ -603,7 +614,9 @@ const loadHistory = async () => {
         );
         // Merge: DB messages for non-active sessions + local messages for active sessions
         messages.value = [
-          ...dbMessages.filter((m: any) => !activePollerSessions.has(m.sessionId || 'default')),
+          ...dbMessages.filter(
+            (m: Message) => !activePollerSessions.has(m.sessionId || 'default'),
+          ),
           ...localActiveMessages,
         ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       } else {
@@ -804,9 +817,9 @@ const pollPendingRun = (sessionId: string, runId: string, assistantMsgId: string
         }
       } else {
         // Schedule next poll if not completed
-        pendingRunPollers[sessionId] = setTimeout(poll, 500) as any;
+        pendingRunPollers[sessionId] = setTimeout(poll, 500) as ReturnType<typeof setInterval>;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       consecutiveErrors++;
       if (consecutiveErrors >= 5) {
         const msgObj = messages.value.find((m) => m.id === assistantMsgId);
@@ -817,7 +830,7 @@ const pollPendingRun = (sessionId: string, runId: string, assistantMsgId: string
         await finishPoll(msgObj);
       } else {
         // Retry on error
-        pendingRunPollers[sessionId] = setTimeout(poll, 1000) as any;
+        pendingRunPollers[sessionId] = setTimeout(poll, 1000) as ReturnType<typeof setInterval>;
       }
     }
   };

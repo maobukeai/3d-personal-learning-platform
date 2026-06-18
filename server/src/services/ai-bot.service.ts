@@ -12,7 +12,7 @@ import {
 import { decryptSecret } from '../utils/secret-field';
 import { assertSafeWebhookUrl } from '../utils/webhook-url';
 import { getPlanName } from '../utils/plan-utils';
-import { AppError } from '../middlewares/error.middleware';
+import { AppError } from '../utils/error';
 import { logger } from '../utils/logger';
 import { config } from '../config/env';
 

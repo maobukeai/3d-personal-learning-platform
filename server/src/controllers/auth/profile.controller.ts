@@ -8,7 +8,7 @@ import { AuthRequest } from '../../middlewares/auth.middleware';
 import { sendEmail } from '../../utils/email';
 import { sanitizeUser } from '../../utils/auth';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
-import { AppError } from '../../middlewares/error.middleware';
+import { AppError } from '../../utils/error';
 import { redisService } from '../../services/redis.service';
 import { getShanghaiStartOfDay, getShanghaiEndOfDay } from '../../utils/date';
 import { TaskStatus } from '../../types/task';

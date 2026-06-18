@@ -174,13 +174,6 @@ export default {
     createFailed: 'Failed to create team',
     nameRequired: 'Please enter team name',
   },
-  categories: {
-    modeling: 'Modeling',
-    rendering: 'Rendering',
-    animation: 'Animation',
-    materials: 'Materials',
-    gameEngine: 'Game Engine',
-  },
   dashboard: {
     title: 'Workbench Overview',
     welcome: 'Welcome back, what new skills are you ready to learn today?',

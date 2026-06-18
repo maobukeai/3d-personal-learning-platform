@@ -265,23 +265,6 @@ const getStepStatus = (step: RoadmapStep, index: number | string) => {
   return 'upcoming';
 };
 
-// Next Up core task targeting (commented out as unused)
-/*
-const nextUpTask = computed(() => {
-  if (!selectedRoadmap.value || !selectedRoadmap.value.steps || selectedRoadmap.value.steps.length === 0) return null;
-  const steps = selectedRoadmap.value.steps;
-  for (let i = 0; i < steps.length; i++) {
-    if (!isStepCompleted(steps[i].id)) {
-      return {
-        step: steps[i],
-        index: i
-      };
-    }
-  }
-  return null;
-});
-*/
-
 // Intelligent keyword matching course recommendations
 const getRelatedCourses = (step: RoadmapStep) => {
   if (!step || !allCourses.value || allCourses.value.length === 0) return [];

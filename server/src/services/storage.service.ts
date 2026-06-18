@@ -12,7 +12,7 @@ import {
 } from '@aws-sdk/client-s3';
 import fs from 'fs';
 import { logger } from '../utils/logger';
-import { decrypt } from '../utils/crypto';
+import { decryptSecretIfNeeded, ENCRYPTED_VALUE_RE } from '../utils/crypto';
 import {
   calculateTotalUsageBytes,
   fetchOfficialBucketUsage,
@@ -21,18 +21,8 @@ import {
   resolveCloudflareApiToken,
 } from '../utils/cloudflare-r2';
 
-export const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
-
-export function decryptSecretIfNeeded(raw: string | null | undefined): string {
-  if (!raw) return '';
-  if (!ENCRYPTED_VALUE_RE.test(raw)) return raw;
-  try {
-    return decrypt(raw);
-  } catch (err) {
-    logger.error('[StorageService] Failed to decrypt secretAccessKey:', err);
-    return raw;
-  }
-}
+// Re-export for backward compatibility — consumers should import from utils/crypto directly.
+export { decryptSecretIfNeeded, ENCRYPTED_VALUE_RE };
 
 export interface StorageConfigData {
   endpoint: string;

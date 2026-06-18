@@ -27,6 +27,8 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import Modal from '@/components/ui/Modal.vue';
+import UiButton from '@/components/ui/Button.vue';
+import UiInput from '@/components/ui/Input.vue';
 import { getApiErrorMessage } from '@/utils/error';
 import type { Feedback } from '@/types';
 
@@ -403,14 +405,10 @@ onMounted(refreshAll);
         </div>
       </div>
       <div class="header-actions">
-        <button type="button" class="ghost-btn" @click="refreshAll">
-          <RefreshCw :class="{ spinning: isLoadingHistory }" />
+        <UiButton variant="secondary" :icon="RefreshCw" :loading="isLoadingHistory" @click="refreshAll">
           刷新
-        </button>
-        <button type="button" class="primary-btn" @click="setTab('submit')">
-          <Plus />
-          新建工单
-        </button>
+        </UiButton>
+        <UiButton variant="primary" :icon="Plus" @click="setTab('submit')">新建工单</UiButton>
       </div>
     </header>
 
@@ -495,10 +493,10 @@ onMounted(refreshAll);
 
         <label>
           工单标题
-          <input
+          <UiInput
             v-model="bugForm.title"
-            maxlength="120"
             placeholder="例如：学习路线页面保存后步骤顺序错乱"
+            :glass="false"
           />
         </label>
 
@@ -544,11 +542,11 @@ onMounted(refreshAll);
         <div class="compact-grid">
           <label>
             影响范围
-            <input v-model="bugForm.impact" placeholder="例如：影响团队任务提交 / 仅自己可见" />
+            <UiInput v-model="bugForm.impact" placeholder="例如：影响团队任务提交 / 仅自己可见" :glass="false" />
           </label>
           <label>
             页面链接
-            <input v-model="bugForm.pageUrl" placeholder="https://..." />
+            <UiInput v-model="bugForm.pageUrl" placeholder="https://..." :glass="false" />
           </label>
         </div>
 
@@ -577,15 +575,16 @@ onMounted(refreshAll);
         </div>
 
         <div class="form-actions">
-          <button type="button" class="ghost-btn" @click="resetForm">
-            <RotateCcw />
-            重置
-          </button>
-          <button type="button" class="primary-btn" :disabled="isSubmitting" @click="handleSubmit">
-            <Loader2 v-if="isSubmitting" class="spinning" />
-            <Send v-else />
+          <UiButton variant="secondary" :icon="RotateCcw" @click="resetForm">重置</UiButton>
+          <UiButton
+            variant="primary"
+            :icon="Send"
+            :disabled="isSubmitting"
+            :loading="isSubmitting"
+            @click="handleSubmit"
+          >
             {{ isSubmitting ? '提交中' : '提交工单' }}
-          </button>
+          </UiButton>
         </div>
       </section>
 
@@ -651,10 +650,13 @@ onMounted(refreshAll);
     <main v-else class="history-layout">
       <section class="ticket-list-panel">
         <div class="toolbar">
-          <label class="search-box">
-            <Search />
-            <input v-model="searchQuery" type="search" placeholder="搜索标题或描述" />
-          </label>
+          <UiInput
+            v-model="searchQuery"
+            :icon="Search"
+            placeholder="搜索标题或描述"
+            :glass="false"
+            class="min-w-[200px]"
+          />
           <select v-model="statusFilter">
             <option v-for="item in statusOptions" :key="item.value" :value="item.value">
               {{ item.label }}
@@ -683,10 +685,7 @@ onMounted(refreshAll);
           <Inbox />
           <strong>没有匹配的工单</strong>
           <span>调整筛选条件，或新建一个反馈工单。</span>
-          <button type="button" class="primary-btn" @click="setTab('submit')">
-            <Plus />
-            新建工单
-          </button>
+          <UiButton variant="primary" :icon="Plus" @click="setTab('submit')">新建工单</UiButton>
         </div>
 
         <div v-else class="ticket-list">
@@ -775,40 +774,34 @@ onMounted(refreshAll);
             <p>{{ activeFeedback.adminReply }}</p>
           </section>
 
-          <button
+          <UiButton
             v-if="activeFeedback.attachmentUrl"
-            type="button"
-            class="attachment-link"
+            variant="secondary"
+            :icon="ImageIcon"
             @click="openPreview(activeFeedback.attachmentUrl)"
           >
-            <ImageIcon />
             查看附件截图
             <ArrowUpRight />
-          </button>
+          </UiButton>
 
           <div class="detail-actions">
-            <button
+            <UiButton
               v-if="activeFeedback.status !== 'CLOSED'"
-              type="button"
-              class="ghost-btn"
+              variant="secondary"
+              :icon="CheckCircle2"
               @click="updateMyStatus(activeFeedback, 'CLOSED')"
             >
-              <CheckCircle2 />
               我已确认，关闭
-            </button>
-            <button
+            </UiButton>
+            <UiButton
               v-else
-              type="button"
-              class="ghost-btn"
+              variant="secondary"
+              :icon="RotateCcw"
               @click="updateMyStatus(activeFeedback, 'OPEN')"
             >
-              <RotateCcw />
               重新打开
-            </button>
-            <button type="button" class="primary-btn" @click="setTab('submit')">
-              <Plus />
-              继续反馈
-            </button>
+            </UiButton>
+            <UiButton variant="primary" :icon="Plus" @click="setTab('submit')">继续反馈</UiButton>
           </div>
         </template>
       </aside>

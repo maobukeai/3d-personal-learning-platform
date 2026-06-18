@@ -172,7 +172,15 @@ const DEFAULT_SETTINGS: SystemSettings = {
   MATERIAL_CATEGORIES: ['金属', '木纹', '石材', '织物', '程序化', '玻璃', '其他'],
   TEAM_CATEGORIES: ['建模', '渲染', '动画', '材质', '游戏引擎'],
   SHOWCASE_CATEGORIES: ['角色', '场景', '硬表面', '动效', '渲染', '其他'],
-  PLUGIN_CATEGORIES: ['建模', '材质与纹理', '渲染与灯光', '动画与骨骼', '导入与导出', '物理与特效', '其他工具'],
+  PLUGIN_CATEGORIES: [
+    '建模',
+    '材质与纹理',
+    '渲染与灯光',
+    '动画与骨骼',
+    '导入与导出',
+    '物理与特效',
+    '其他工具',
+  ],
   FOOTER_TEXT: '',
   OAUTH_GOOGLE_ENABLED: false,
   OAUTH_GOOGLE_CLIENT_ID: '',
@@ -594,9 +602,19 @@ class SettingsService {
       delete settings.MAX_FILE_SIZE;
     }
 
-    for (const [key, value] of Object.entries(settings)) {
-      await this.update(key, value);
-    }
+    // Batch upsert all settings in a single transaction to avoid N+1 queries
+    const entries = Object.entries(settings);
+    if (entries.length === 0) return;
+
+    await prisma.$transaction(
+      entries.map(([key, value]) =>
+        prisma.systemSetting.upsert({
+          where: { key },
+          update: { value: String(value) },
+          create: { key, value: String(value) },
+        }),
+      ),
+    );
   }
 }
 

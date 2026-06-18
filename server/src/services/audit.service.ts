@@ -1,6 +1,7 @@
 import { logger } from '../utils/logger';
 import { Request } from 'express';
 import prisma from './prisma';
+import { Prisma } from '@prisma/client';
 
 export enum AuditModule {
   SETTINGS = 'SETTINGS',
@@ -61,16 +62,16 @@ interface AuditParams {
   action: AuditAction | string;
   module: AuditModule | string;
   description?: string;
-  oldValue?: any;
-  newValue?: any;
+  oldValue?: unknown;
+  newValue?: unknown;
   req?: Request;
-  tx?: any; // Add optional transaction client
+  tx?: Prisma.TransactionClient; // Add optional transaction client
 }
 
 const SENSITIVE_KEY_PATTERN =
   /(password|pass|secret|token|api[_-]?key|private[_-]?key|authorization|cookie|smtp_configs)/i;
 
-const redactAuditValue = (value: any): any => {
+const redactAuditValue = (value: unknown): unknown => {
   if (value === null || value === undefined) return value;
 
   if (Array.isArray(value)) {
@@ -79,7 +80,7 @@ const redactAuditValue = (value: any): any => {
 
   if (typeof value === 'object') {
     return Object.fromEntries(
-      Object.entries(value).map(([key, entryValue]) => [
+      Object.entries(value as Record<string, unknown>).map(([key, entryValue]) => [
         key,
         SENSITIVE_KEY_PATTERN.test(key) ? '[REDACTED]' : redactAuditValue(entryValue),
       ]),

@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { AppError } from '../middlewares/error.middleware';
+import { AppError } from '../utils/error';
 
 export const getLessonsByCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const courseId = req.params.courseId as string;

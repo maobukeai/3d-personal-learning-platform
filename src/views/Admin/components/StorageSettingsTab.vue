@@ -168,7 +168,6 @@ const fetchConfigs = async () => {
     const { data } = await api.get('/api/admin/storage-configs');
     configs.value = data.map((item: any) => ({ ...item, isMasked: true }));
   } catch (error) {
-    console.error('Failed to fetch storage configs:', error);
     ElMessage.error(getApiErrorMessage(error, '获取云存储配置失败'));
   } finally {
     loading.value = false;
@@ -219,7 +218,6 @@ const testConnection = async () => {
       ElMessage.error(data.error || '连接测试失败');
     }
   } catch (error) {
-    console.error('Test connection error:', error);
     ElMessage.error(getApiErrorMessage(error, '连接测试失败，请检查参数'));
   } finally {
     testingConnection.value = false;
@@ -251,7 +249,6 @@ const submitForm = async () => {
     dialogVisible.value = false;
     fetchConfigs();
   } catch (error) {
-    console.error('Submit form error:', error);
     ElMessage.error(getApiErrorMessage(error, '保存存储配置失败'));
   } finally {
     submitting.value = false;
@@ -276,7 +273,6 @@ const deleteConfig = async (id: string, name: string) => {
     fetchConfigs();
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Delete config error:', error);
       ElMessage.error(getApiErrorMessage(error, '删除配置失败'));
     }
   }
@@ -291,7 +287,6 @@ const toggleStatus = async (config: StorageConfig) => {
     ElMessage.success(`配置状态已变更为: ${nextStatus === 'ACTIVE' ? '启用' : '禁用'}`);
     fetchConfigs();
   } catch (error) {
-    console.error('Toggle status error:', error);
     ElMessage.error(getApiErrorMessage(error, '修改状态失败'));
   }
 };
@@ -337,7 +332,6 @@ const syncAllSizes = async () => {
     ElMessage.success(`同步完成：成功 ${synced} 个，跳过 ${skipped} 个，失败 ${failed} 个`);
     fetchConfigs();
   } catch (error) {
-    console.error('Sync all sizes error:', error);
     ElMessage.error(getApiErrorMessage(error, '同步全部容量失败'));
   } finally {
     syncingAll.value = false;
@@ -377,7 +371,6 @@ const handleForceR2Change = async (val: boolean) => {
     });
     ElMessage.success(val ? '已开启强制云端存储策略' : '已关闭强制云端存储策略');
   } catch (error) {
-    console.error('Failed to update force R2 setting:', error);
     ElMessage.error(getApiErrorMessage(error, '更新存储策略失败'));
     forceR2Storage.value = !val;
   } finally {
@@ -425,7 +418,6 @@ const handleCleanupStorage = async () => {
     fetchConfigs();
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Cleanup storage error:', error);
       ElMessage.error(getApiErrorMessage(error, '清理存储空间失败'));
     }
   } finally {
@@ -457,7 +449,6 @@ const handleExport = async () => {
 
     ElMessage.success('配置导出成功');
   } catch (error) {
-    console.error('Failed to export configs:', error);
     ElMessage.error(getApiErrorMessage(error, '导出配置失败'));
   }
 };
@@ -484,7 +475,6 @@ const handleImportFile = async (event: Event) => {
       ElMessage.success(data.message || '导入配置成功');
       fetchConfigs();
     } catch (err: any) {
-      console.error('Failed to import configs:', err);
       ElMessage.error(err.message || '导入配置失败，文件格式不合法');
     } finally {
       target.value = '';
@@ -552,7 +542,6 @@ const syncSize = async () => {
     ElMessage.success('系统已用容量已与 Cloudflare R2 实际占用同步！');
     fetchConfigs();
   } catch (error) {
-    console.error('Failed to sync size:', error);
     ElMessage.error(getApiErrorMessage(error, '同步容量失败'));
   } finally {
     syncingSize.value = false;
@@ -614,7 +603,6 @@ const fetchBucketFiles = async (
       folderContinuationToken.value = data.nextContinuationToken || undefined;
     }
   } catch (error) {
-    console.error('Failed to fetch bucket files:', error);
     ElMessage.error(getApiErrorMessage(error, '获取存储桶文件列表失败'));
   } finally {
     loadingFiles.value = false;
@@ -684,7 +672,6 @@ const deleteFile = async (key: string) => {
     fetchConfigs();
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Delete file error:', error);
       ElMessage.error(getApiErrorMessage(error, '删除文件失败'));
     }
   }
@@ -718,7 +705,6 @@ const handleFileUpload = async (event: Event) => {
     fetchBucketFiles();
     fetchConfigs();
   } catch (error) {
-    console.error('Upload file error:', error);
     ElMessage.error(getApiErrorMessage(error, '文件上传失败'));
   } finally {
     uploadingFile.value = false;
@@ -771,7 +757,6 @@ const deleteSelectedFiles = async () => {
     fetchConfigs();
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Bulk delete error:', error);
       ElMessage.error(getApiErrorMessage(error, '批量删除失败'));
     }
   } finally {
@@ -815,7 +800,6 @@ const submitRename = async () => {
     renameDialogVisible.value = false;
     fetchBucketFiles();
   } catch (error) {
-    console.error('Rename file error:', error);
     ElMessage.error(getApiErrorMessage(error, '重命名失败'));
   } finally {
     renamingFile.value = false;

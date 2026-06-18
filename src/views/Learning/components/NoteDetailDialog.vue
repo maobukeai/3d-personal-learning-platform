@@ -2,6 +2,7 @@
 import { ref, computed, onUnmounted, defineAsyncComponent } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
+import type { User } from '@/types';
 import {
   X,
   Check,
@@ -74,7 +75,7 @@ const handleShowUserProfile = (userId: string) => {
   isProfileDialogOpen.value = true;
 };
 
-const handleChatWithMember = async (member: any) => {
+const handleChatWithMember = async (member: User) => {
   try {
     await api.post('/api/messages/conversations', {
       participantIds: [member.id],
@@ -88,12 +89,19 @@ const handleChatWithMember = async (member: any) => {
 };
 
 // Reading Panel States
-const fontSize = ref(12);
+const fontSize = ref(16);
 const readProgress = ref(0);
 const scrollContainer = ref<HTMLElement | null>(null);
 
 // Comments States & Functions
-const comments = ref<any[]>([]);
+interface NoteComment {
+  id: string;
+  userId: string;
+  user: { id: string; name: string; avatarUrl?: string | null };
+  content: string;
+  createdAt: string;
+}
+const comments = ref<NoteComment[]>([]);
 const commentContent = ref('');
 const submittingComment = ref(false);
 const loadingComments = ref(false);
@@ -127,7 +135,7 @@ const submitComment = async () => {
     if (detailNote.value._count) {
       detailNote.value._count.comments++;
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     ElMessage.error(getApiErrorMessage(err, t('notes.commentFailed')));
   } finally {
     submittingComment.value = false;
@@ -142,7 +150,7 @@ const handleDeleteComment = async (commentId: string) => {
     if (detailNote.value && detailNote.value._count) {
       detailNote.value._count.comments = Math.max(0, detailNote.value._count.comments - 1);
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     ElMessage.error(getApiErrorMessage(err, t('notes.commentDeleteFailed')));
   }
 };
@@ -337,7 +345,7 @@ const generateAiSummary = async () => {
       clearInterval(progressInterval);
       ElMessage.error(t('notes.aiSummaryEmpty'));
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     clearInterval(progressInterval);
     ElMessage.error(getApiErrorMessage(err, t('notes.aiSummaryFailed')));
   } finally {
@@ -1066,5 +1074,16 @@ defineExpose({ open });
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Prevent code block elements from overlaying any headers */
+.modern-markdown-content :deep(.md-editor-code),
+.modern-markdown-content :deep(.md-editor-code-head),
+.modern-markdown-content :deep(.md-editor-code-copy),
+.modern-markdown-content :deep(.md-code),
+.modern-markdown-content :deep(.md-code-head),
+.modern-markdown-content :deep(.md-code-copy),
+.modern-markdown-content :deep(pre) {
+  z-index: 2 !important;
 }
 </style>

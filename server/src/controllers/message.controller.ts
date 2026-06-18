@@ -1,5 +1,5 @@
 import { logger } from '../utils/logger';
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { emitToConversation, emitToUser } from '../services/socket.service';
@@ -7,7 +7,20 @@ import { queueDirectMessageEmail } from '../services/direct-message-email.servic
 import { createNotification } from '../utils/notification';
 import { clampLimit } from '../utils/pagination';
 
-export const getConversations = async (req: AuthRequest, res: Response) => {
+type ConversationParticipant = {
+  id: string;
+  name?: string | null;
+  email?: string;
+  avatarUrl?: string | null;
+};
+
+type UploadedFile = Express.Multer.File & {
+  url?: string;
+  r2Key?: string;
+  r2ConfigId?: string;
+};
+
+export const getConversations = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const userId = req.userId as string;
   try {
     const conversations = await prisma.conversation.findMany({
@@ -51,11 +64,11 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
     res.json(formatted);
   } catch (error) {
     logger.error('Get conversations error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getMessages = async (req: AuthRequest, res: Response) => {
+export const getMessages = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const conversationId = req.params.conversationId as string;
   const userId = req.userId as string;
   const cursor = req.query.cursor as string | undefined;
@@ -110,11 +123,11 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     logger.error('Get messages error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const createConversation = async (req: AuthRequest, res: Response) => {
+export const createConversation = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { participantIds, name, avatarUrl, isGroup } = req.body;
   const currentUserId = req.userId as string;
 
@@ -153,18 +166,18 @@ export const createConversation = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    conversation.participants.forEach((p: any) => {
+    conversation.participants.forEach((p: ConversationParticipant) => {
       emitToUser(p.id, 'conversation_created', conversation);
     });
 
     res.status(201).json(conversation);
   } catch (error) {
     logger.error('Create conversation error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const updateConversation = async (req: AuthRequest, res: Response) => {
+export const updateConversation = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const conversationId = req.params.conversationId as string;
   const userId = req.userId as string;
   const { name, avatarUrl } = req.body;
@@ -199,11 +212,11 @@ export const updateConversation = async (req: AuthRequest, res: Response) => {
     res.json(updated);
   } catch (error) {
     logger.error('Update conversation error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const addParticipant = async (req: AuthRequest, res: Response) => {
+export const addParticipant = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const conversationId = req.params.conversationId as string;
   const userId = req.userId as string;
   const { userId: addUserId } = req.body;
@@ -239,11 +252,11 @@ export const addParticipant = async (req: AuthRequest, res: Response) => {
     res.json(updated);
   } catch (error) {
     logger.error('Add participant error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const removeParticipant = async (req: AuthRequest, res: Response) => {
+export const removeParticipant = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const conversationId = req.params.conversationId as string;
   const userId = req.userId as string;
   const { userId: removeUserId } = req.body;
@@ -279,11 +292,11 @@ export const removeParticipant = async (req: AuthRequest, res: Response) => {
     res.json(updated);
   } catch (error) {
     logger.error('Remove participant error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const leaveConversation = async (req: AuthRequest, res: Response) => {
+export const leaveConversation = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const conversationId = req.params.conversationId as string;
   const userId = req.userId as string;
 
@@ -332,11 +345,11 @@ export const leaveConversation = async (req: AuthRequest, res: Response) => {
     res.json({ message: 'Left conversation' });
   } catch (error) {
     logger.error('Leave conversation error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const sendMessage = async (req: AuthRequest, res: Response) => {
+export const sendMessage = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { conversationId, content, type, replyToId } = req.body;
   const senderId = req.userId as string;
 
@@ -414,7 +427,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
       : `${senderName} 给你发送了一条消息`;
     const messageLink = `/messages?conversationId=${encodeURIComponent(conversationId)}`;
 
-    conversation.participants.forEach((p: any) => {
+    conversation.participants.forEach((p: ConversationParticipant) => {
       if (p.id !== senderId) {
         emitToUser(p.id, 'message_received', {
           conversationId,
@@ -455,11 +468,11 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
     res.status(201).json(message);
   } catch (error) {
     logger.error('Send message error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const deleteMessage = async (req: AuthRequest, res: Response) => {
+export const deleteMessage = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const messageId = req.params.messageId as string;
   const userId = req.userId as string;
 
@@ -488,11 +501,11 @@ export const deleteMessage = async (req: AuthRequest, res: Response) => {
     res.json({ message: 'Message deleted' });
   } catch (error) {
     logger.error('Delete message error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const deleteConversation = async (req: AuthRequest, res: Response) => {
+export const deleteConversation = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const conversationId = req.params.conversationId as string;
   const userId = req.userId as string;
 
@@ -520,24 +533,24 @@ export const deleteConversation = async (req: AuthRequest, res: Response) => {
     res.json({ message: 'Conversation deleted' });
   } catch (error) {
     logger.error('Delete conversation error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const uploadFile = async (req: AuthRequest, res: Response) => {
+export const uploadFile = async (req: AuthRequest, res: Response, next: NextFunction) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
 
   try {
-    const fileUrl = (req.file as any).url || `/uploads/messages/${req.file.filename}`;
+    const fileUrl = (req.file as UploadedFile).url || `/uploads/messages/${req.file.filename}`;
     res.json({ url: fileUrl, type: req.file.mimetype.startsWith('image/') ? 'IMAGE' : 'FILE' });
-  } catch (_error) {
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const markAsRead = async (req: AuthRequest, res: Response) => {
+export const markAsRead = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const conversationId = req.params.conversationId as string;
   const userId = req.userId as string;
 
@@ -584,11 +597,11 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
     res.json({ message: 'Marked as read' });
   } catch (error) {
     logger.error('Mark as read error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const addReaction = async (req: AuthRequest, res: Response) => {
+export const addReaction = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const messageId = req.params.messageId as string;
   const { emoji } = req.body;
   const userId = req.userId as string;
@@ -633,11 +646,11 @@ export const addReaction = async (req: AuthRequest, res: Response) => {
     res.status(201).json(reaction);
   } catch (error) {
     logger.error('Add reaction error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const removeReaction = async (req: AuthRequest, res: Response) => {
+export const removeReaction = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const messageId = req.params.messageId as string;
   const emoji = req.params.emoji as string;
   const userId = req.userId as string;
@@ -676,11 +689,11 @@ export const removeReaction = async (req: AuthRequest, res: Response) => {
     res.json({ message: 'Reaction removed' });
   } catch (error) {
     logger.error('Remove reaction error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const translateMessage = async (req: AuthRequest, res: Response) => {
+export const translateMessage = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { content, targetLang } = req.body;
 
   if (!content) {
@@ -709,6 +722,6 @@ export const translateMessage = async (req: AuthRequest, res: Response) => {
     res.json({ translation });
   } catch (error) {
     logger.error('Translate message error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };

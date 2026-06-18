@@ -1,4 +1,4 @@
-import { Prisma, MirrorResource } from '@prisma/client';
+import { Prisma, MirrorResource, type StorageConfig } from '@prisma/client';
 import { logger } from '../../utils/logger';
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
@@ -16,41 +16,65 @@ import crypto from 'crypto';
 import { clampLimit, clampPage } from '../../utils/pagination';
 import unzipper from 'unzipper';
 import { storageService } from '../../services/storage.service';
+import { buildDecryptedStorageConfig } from '../../utils/crypto';
 
 type SpreadsheetRow = Record<string, string>;
 
-// ─── Internal helpers ─────────────────────────────────────────────────────────
-
-/** Matches the encrypted format produced by `encrypt()` */
-const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
-
-/**
- * Returns a decrypted secretAccessKey, safely handling legacy plaintext values.
- * Lazy-imports decrypt() to avoid circular dependency issues.
- */
-function decryptSecret(raw: string | null | undefined): string {
-  if (!raw) return '';
-  if (!ENCRYPTED_VALUE_RE.test(raw)) return raw;
-  try {
-    const { decrypt } = require('../../utils/crypto');
-    return decrypt(raw);
-  } catch {
-    return raw;
-  }
+interface MirrorMetadataSource {
+  id?: string;
+  name: string;
+  displayName: string;
+  baseUrl: string;
+  adapterType?: string;
+  status?: string;
+  syncInterval?: number;
+  syncConfig?: string | null;
+  minPlanPriority?: number;
+  iconUrl?: string | null;
+  description?: string | null;
 }
 
-/**
- * Converts a raw Prisma StorageConfig (with potentially encrypted secretAccessKey)
- * to a StorageConfigData object with decrypted credentials for storageService calls.
- */
-function toDecryptedConfig(raw: Record<string, any>) {
-  return {
-    endpoint: raw.endpoint,
-    accessKeyId: raw.accessKeyId ?? '',
-    secretAccessKey: decryptSecret(raw.secretAccessKey),
-    bucketName: raw.bucketName,
-    publicUrl: raw.publicUrl,
-  };
+interface MirrorMetadataCategory {
+  externalId: string;
+  name: string;
+  slug?: string | null;
+  parentExternalId?: string | null;
+  order?: number;
+  resourceCount?: number;
+}
+
+interface MirrorMetadataResource {
+  externalId: string;
+  categoryExternalId?: string | null;
+  title: string;
+  description?: string | null;
+  thumbnailUrl?: string | null;
+  contentUrl?: string | null;
+  tags?: string | null;
+  externalData?: string | null;
+  contentHtml?: string | null;
+  resourceType?: string;
+  viewCount?: number;
+  publishedAt?: string | null;
+  contentHash?: string | null;
+}
+
+interface MirrorMetadata {
+  version?: string;
+  source: MirrorMetadataSource;
+  categories?: MirrorMetadataCategory[];
+  resources?: MirrorMetadataResource[];
+}
+
+interface DiscoveredCloudSource {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string | null;
+  iconUrl: string | null;
+  totalResources: number;
+  isConnected: boolean;
+  metadataKey: string;
 }
 
 const emptyInlineStringCellPattern =
@@ -118,7 +142,7 @@ const readSpreadsheetRows = async (filePath: string): Promise<SpreadsheetRow[]> 
   return rows;
 };
 
-export const createSource = async (req: AuthRequest, res: Response) => {
+export const createSource = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const {
       name,
@@ -160,14 +184,14 @@ export const createSource = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(source);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const updateSource = async (req: AuthRequest, res: Response) => {
+export const updateSource = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const updateData: Record<string, any> = {};
+    const updateData: Record<string, unknown> = {};
 
     const allowedFields = [
       'name',
@@ -202,21 +226,26 @@ export const updateSource = async (req: AuthRequest, res: Response) => {
 
     res.json(source);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-const getCloudKey = (url: string, activeConfig: any): string | null => {
+const getCloudKey = (url: string, activeConfig: StorageConfig): string | null => {
   if (!url || !activeConfig) return null;
   const rawPublicUrl = activeConfig.publicUrl;
-  
+
   // Normalize both by removing trailing slash and protocols
-  const cleanPublicUrl = rawPublicUrl.replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase();
+  const cleanPublicUrl = rawPublicUrl
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/+$/, '')
+    .toLowerCase();
   const cleanUrl = url.replace(/^https?:\/\//i, '').toLowerCase();
 
   if (cleanUrl.startsWith(cleanPublicUrl)) {
     // Return original case key (since S3/R2 keys are case sensitive)
-    const originalKey = url.slice(url.toLowerCase().indexOf(cleanPublicUrl) + cleanPublicUrl.length);
+    const originalKey = url.slice(
+      url.toLowerCase().indexOf(cleanPublicUrl) + cleanPublicUrl.length,
+    );
     return originalKey.startsWith('/') ? originalKey.substring(1) : originalKey;
   }
   return null;
@@ -226,18 +255,18 @@ const runDeleteSourceFilesInBackground = async (
   sourceId: string,
   sourceIconUrl: string | null,
   resources: { thumbnailUrl: string | null; contentHtml: string | null }[],
-  activeConfig: any,
+  activeConfig: StorageConfig | null,
 ) => {
   try {
     const localFilesToDelete = new Set<string>();
 
-    const r2Config = activeConfig ? toDecryptedConfig(activeConfig) : null;
+    const r2Config = activeConfig ? buildDecryptedStorageConfig(activeConfig) : null;
 
     let totalSizeFreed = 0;
     const keysToDelete = new Set<string>();
 
     // 1. Process custom icon
-    if (sourceIconUrl && r2Config) {
+    if (sourceIconUrl && r2Config && activeConfig) {
       const cloudKey = getCloudKey(sourceIconUrl, activeConfig);
       if (cloudKey) {
         keysToDelete.add(cloudKey);
@@ -265,7 +294,10 @@ const runDeleteSourceFilesInBackground = async (
           totalSizeFreed += file.Size;
         }
       } catch (err) {
-        logger.error(`[DeleteSourceBackground] Failed to list R2 files under prefix mirror/${sourceId}/:`, err);
+        logger.error(
+          `[DeleteSourceBackground] Failed to list R2 files under prefix mirror/${sourceId}/:`,
+          err,
+        );
       }
     }
 
@@ -283,7 +315,9 @@ const runDeleteSourceFilesInBackground = async (
           if (match[1]) {
             const part = match[1].split(/[?#]/)[0];
             if (part) {
-              localFilesToDelete.add(path.join(process.cwd(), 'uploads', 'mirror', sourceId, path.basename(part)));
+              localFilesToDelete.add(
+                path.join(process.cwd(), 'uploads', 'mirror', sourceId, path.basename(part)),
+              );
             }
           }
         }
@@ -291,7 +325,7 @@ const runDeleteSourceFilesInBackground = async (
     }
 
     // 4. Perform bulk cloud deletion
-    if (r2Config && keysToDelete.size > 0) {
+    if (r2Config && activeConfig && keysToDelete.size > 0) {
       try {
         await storageService.deleteFilesBulk(r2Config, Array.from(keysToDelete));
         logger.info(`[DeleteSourceBackground] Bulk deleted ${keysToDelete.size} files from R2`);
@@ -301,7 +335,9 @@ const runDeleteSourceFilesInBackground = async (
             where: { id: activeConfig.id },
             data: { usedBytes: { decrement: totalSizeFreed } },
           });
-          logger.info(`[DeleteSourceBackground] Freed ${totalSizeFreed} bytes in storage config [${activeConfig.name}]`);
+          logger.info(
+            `[DeleteSourceBackground] Freed ${totalSizeFreed} bytes in storage config [${activeConfig.name}]`,
+          );
         }
       } catch (err) {
         logger.error('[DeleteSourceBackground] Bulk R2 deletion or usedBytes update failed:', err);
@@ -330,7 +366,7 @@ const runDeleteSourceFilesInBackground = async (
   }
 };
 
-export const deleteSource = async (req: AuthRequest, res: Response) => {
+export const deleteSource = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
 
@@ -378,11 +414,11 @@ export const deleteSource = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: '镜像源已删除' });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const getAllSources = async (_req: AuthRequest, res: Response) => {
+export const getAllSources = async (_req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const sources = await prisma.mirrorSource.findMany({
       orderBy: { createdAt: 'desc' },
@@ -393,11 +429,11 @@ export const getAllSources = async (_req: AuthRequest, res: Response) => {
 
     res.json(sources);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const getSourceDetail = async (req: AuthRequest, res: Response) => {
+export const getSourceDetail = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
     const source = await prisma.mirrorSource.findUnique({
@@ -418,11 +454,11 @@ export const getSourceDetail = async (req: AuthRequest, res: Response) => {
 
     res.json({ ...source, latestSync });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const triggerSync = async (req: AuthRequest, res: Response) => {
+export const triggerSync = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
     const type = ((req.query.type as string) || 'FULL') as 'FULL' | 'INCREMENTAL';
@@ -448,11 +484,11 @@ export const triggerSync = async (req: AuthRequest, res: Response) => {
       logger.error(`Sync failed for source ${id}:`, e instanceof Error ? e.message : e);
     }
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const cancelSync = async (req: AuthRequest, res: Response) => {
+export const cancelSync = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
 
@@ -463,11 +499,11 @@ export const cancelSync = async (req: AuthRequest, res: Response) => {
     syncEngine.cancelSync(id);
     res.json({ message: '同步已取消' });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const getSyncStatus = async (req: AuthRequest, res: Response) => {
+export const getSyncStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
     const isSyncing = syncEngine.isSyncing(id);
@@ -498,11 +534,11 @@ export const getSyncStatus = async (req: AuthRequest, res: Response) => {
         : null,
     });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const getSyncLogs = async (req: AuthRequest, res: Response) => {
+export const getSyncLogs = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
     const limit = clampLimit(req.query.limit, 20, 100);
@@ -510,7 +546,7 @@ export const getSyncLogs = async (req: AuthRequest, res: Response) => {
     const logs = await mirrorService.getSyncLogs(id, limit);
     res.json(logs);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
@@ -712,7 +748,7 @@ export const matchLinks = async (req: AuthRequest, res: Response, next: NextFunc
   }
 };
 
-export const getSourceResources = async (req: AuthRequest, res: Response) => {
+export const getSourceResources = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const sourceId = req.params.sourceId as string;
     const page = clampPage(req.query.page);
@@ -776,11 +812,11 @@ export const getSourceResources = async (req: AuthRequest, res: Response) => {
       totalPages: Math.ceil(total / pageSize),
     });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const getResourceDetail = async (req: AuthRequest, res: Response) => {
+export const getResourceDetail = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
 
@@ -797,11 +833,11 @@ export const getResourceDetail = async (req: AuthRequest, res: Response) => {
 
     res.json(resource);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const createResource = async (req: AuthRequest, res: Response) => {
+export const createResource = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const sourceId = req.params.sourceId as string;
     const {
@@ -837,14 +873,14 @@ export const createResource = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(resource);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const updateResource = async (req: AuthRequest, res: Response) => {
+export const updateResource = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const updateData: Record<string, any> = {};
+    const updateData: Record<string, unknown> = {};
 
     const allowedFields = [
       'title',
@@ -874,11 +910,11 @@ export const updateResource = async (req: AuthRequest, res: Response) => {
 
     res.json(resource);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const deleteResource = async (req: AuthRequest, res: Response) => {
+export const deleteResource = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
 
@@ -890,11 +926,11 @@ export const deleteResource = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: '资源已删除' });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const getSourceCategories = async (req: AuthRequest, res: Response) => {
+export const getSourceCategories = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const sourceId = req.params.sourceId as string;
     const categories = await prisma.mirrorCategory.findMany({
@@ -903,11 +939,11 @@ export const getSourceCategories = async (req: AuthRequest, res: Response) => {
     });
     res.json(categories);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const getCategoryDetail = async (req: AuthRequest, res: Response) => {
+export const getCategoryDetail = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
     const category = await prisma.mirrorCategory.findUnique({
@@ -918,11 +954,11 @@ export const getCategoryDetail = async (req: AuthRequest, res: Response) => {
     }
     res.json(category);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const createCategory = async (req: AuthRequest, res: Response) => {
+export const createCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const sourceId = req.params.sourceId as string;
     const { name, slug, parentExternalId, order = 0, childExternalIds } = req.body;
@@ -956,11 +992,11 @@ export const createCategory = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(category);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const updateCategory = async (req: AuthRequest, res: Response) => {
+export const updateCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
     const { name, slug, parentExternalId, order, childExternalIds } = req.body;
@@ -1004,11 +1040,11 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
 
     res.json(category);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const deleteCategory = async (req: AuthRequest, res: Response) => {
+export const deleteCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
 
@@ -1018,19 +1054,19 @@ export const deleteCategory = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: '分类已删除' });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const uploadImage = async (req: AuthRequest, res: Response) => {
+export const uploadImage = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: '请选择要上传的图片文件' });
     }
     const relativePath = `/uploads/mirror/${req.file.filename}`;
     res.json({ url: relativePath });
-  } catch (_error) {
-    res.status(500).json({ error: '图片上传失败' });
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -1074,7 +1110,7 @@ const startImportTaskCleanup = () => {
 
 startImportTaskCleanup();
 
-export const exportSource = async (req: AuthRequest, res: Response) => {
+export const exportSource = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   const exportFull = req.query.full === 'true';
 
@@ -1220,14 +1256,14 @@ export const exportSource = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     logger.error('[ExportMirror] Failed to export mirror source:', error);
     if (!headersSent) {
-      res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+      next(error);
     } else {
       res.destroy(error instanceof Error ? error : new Error(String(error)));
     }
   }
 };
 
-export const importSource = async (req: AuthRequest, res: Response) => {
+export const importSource = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: '请选择要导入的 ZIP 压缩包文件' });
@@ -1254,11 +1290,11 @@ export const importSource = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     logger.error('[ImportMirror] Failed to start import:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const getImportStatus = async (req: AuthRequest, res: Response) => {
+export const getImportStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const taskId = req.params.taskId as string;
     const task = importTasks.get(taskId);
@@ -1267,11 +1303,11 @@ export const getImportStatus = async (req: AuthRequest, res: Response) => {
     }
     res.json(task);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const cleanupSourceImages = async (req: AuthRequest, res: Response) => {
+export const cleanupSourceImages = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
     const source = await prisma.mirrorSource.findUnique({
@@ -1291,7 +1327,7 @@ export const cleanupSourceImages = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     logger.error('[CleanupMirror] Failed to cleanup mirror source images:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
@@ -1304,7 +1340,6 @@ const getMimetype = (filename: string): string => {
   if (ext === '.svg') return 'image/svg+xml';
   return 'application/octet-stream';
 };
-
 
 const runImportInBackground = async (taskId: string, zipFilePath: string) => {
   const task = importTasks.get(taskId);
@@ -1346,7 +1381,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     task.message = '正在解析元数据...';
     task.progress = 5;
 
-    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8')) as MirrorMetadata;
     const { source, categories = [], resources = [] } = metadata;
 
     if (!source || !source.name || !source.displayName || !source.baseUrl) {
@@ -1446,7 +1481,9 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     let tempIconPath = '';
 
     if (fs.existsSync(iconDir)) {
-      const iconFiles = fs.readdirSync(iconDir).filter((f) => fs.statSync(path.join(iconDir, f)).isFile());
+      const iconFiles = fs
+        .readdirSync(iconDir)
+        .filter((f) => fs.statSync(path.join(iconDir, f)).isFile());
       if (iconFiles.length > 0) {
         iconFilename = iconFiles[0]!;
         tempIconPath = path.join(iconDir, iconFilename);
@@ -1475,14 +1512,17 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
         if (updateResult.count > 0) {
           try {
             const r2Url = await storageService.uploadFile(
-              toDecryptedConfig(activeConfig),
+              buildDecryptedStorageConfig(activeConfig),
               tempIconPath,
               key,
               getMimetype(iconFilename),
             );
             importedIconUrl = r2Url;
           } catch (uploadErr) {
-            logger.error('[ImportMirror] Failed to upload icon to R2, falling back to local storage:', uploadErr);
+            logger.error(
+              '[ImportMirror] Failed to upload icon to R2, falling back to local storage:',
+              uploadErr,
+            );
             // Revert reserved space
             await prisma.storageConfig.update({
               where: { id: activeConfig.id },
@@ -1498,7 +1538,9 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
           }
         } else {
           // Space full, fall back to local storage
-          logger.warn('[ImportMirror] Cloud storage space full, falling back to local storage for icon');
+          logger.warn(
+            '[ImportMirror] Cloud storage space full, falling back to local storage for icon',
+          );
           const localIconDestDir = path.join(process.cwd(), 'uploads', 'mirror');
           if (!fs.existsSync(localIconDestDir)) {
             fs.mkdirSync(localIconDestDir, { recursive: true });
@@ -1551,7 +1593,9 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
       let actualBytes = activeConfig.usedBytes;
       try {
         // Retrieve actual R2 occupancy in real-time
-        actualBytes = await storageService.getActualBucketSize(toDecryptedConfig(activeConfig));
+        actualBytes = await storageService.getActualBucketSize(
+          buildDecryptedStorageConfig(activeConfig),
+        );
 
         // Sync to the DB to keep things accurate
         await prisma.storageConfig.update({
@@ -1560,7 +1604,10 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
         });
         activeConfig.usedBytes = actualBytes;
       } catch (err) {
-        logger.error('[ImportMirror] Failed to fetch actual bucket size from R2, falling back to db usedBytes:', err);
+        logger.error(
+          '[ImportMirror] Failed to fetch actual bucket size from R2, falling back to db usedBytes:',
+          err,
+        );
       }
 
       const limitBytes = activeConfig.limitGb * 1024 * 1024 * 1024;
@@ -1614,7 +1661,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
         const key = `mirror/${targetSourceId}/${filename}`;
         try {
           const r2Url = await storageService.uploadFile(
-            toDecryptedConfig(activeConfig),
+            buildDecryptedStorageConfig(activeConfig),
             tempFilePath,
             key,
             getMimetype(filename),
@@ -1622,7 +1669,10 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
           finalUrl = r2Url;
           successfullyUploadedBytes += fileBytes;
         } catch (uploadErr) {
-          logger.error(`[ImportMirror] Failed to upload ${filename} to R2, falling back to local storage:`, uploadErr);
+          logger.error(
+            `[ImportMirror] Failed to upload ${filename} to R2, falling back to local storage:`,
+            uploadErr,
+          );
           ensureLocalDestDir();
           fs.copyFileSync(tempFilePath, path.join(localDestDir, filename));
           finalUrl = `/uploads/mirror/${targetSourceId}/${filename}`;
@@ -1665,7 +1715,10 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
           `[ImportMirror] Successfully updated R2 storage configuration usage by ${successfullyUploadedBytes} bytes.`,
         );
       } catch (dbErr) {
-        logger.error('[ImportMirror] Failed to increment storageConfig usedBytes after parallel uploads:', dbErr);
+        logger.error(
+          '[ImportMirror] Failed to increment storageConfig usedBytes after parallel uploads:',
+          dbErr,
+        );
       }
     }
 
@@ -1680,6 +1733,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
       insertedInLoop = false;
       for (let i = 0; i < pendingCats.length; i++) {
         const cat = pendingCats[i];
+        if (!cat) continue;
         if (!cat.parentExternalId || categoryMap.has(cat.parentExternalId)) {
           task.message = `正在导入分类: ${cat.name}...`;
           const createdCat = await prisma.mirrorCategory.create({
@@ -1729,9 +1783,9 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     if (!oldSourceId) {
       // Fallback: Extract oldSourceId from the first resource with a localized URL
       const sampleLocalizedRes = resources.find(
-        (r: any) => r.thumbnailUrl && r.thumbnailUrl.startsWith('/uploads/mirror/'),
+        (r) => r.thumbnailUrl && r.thumbnailUrl.startsWith('/uploads/mirror/'),
       );
-      if (sampleLocalizedRes) {
+      if (sampleLocalizedRes && sampleLocalizedRes.thumbnailUrl) {
         const parts = sampleLocalizedRes.thumbnailUrl.split('/');
         if (parts[3]) {
           oldSourceId = parts[3];
@@ -1743,7 +1797,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
       const batch = resources.slice(i, i + batchSize);
       task.message = `正在导入镜像资源 (${i + 1} - ${Math.min(i + batchSize, resources.length)} / ${resources.length})...`;
 
-      const insertData = batch.map((r: any) => {
+      const insertData = batch.map((r) => {
         let thumbnailUrl = r.thumbnailUrl;
         if (
           thumbnailUrl &&
@@ -1835,7 +1889,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
   }
 };
 
-export const scanCloudSources = async (req: AuthRequest, res: Response) => {
+export const scanCloudSources = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const activeConfig = await getActiveStorageConfig('MIRROR');
     if (!activeConfig) {
@@ -1843,11 +1897,12 @@ export const scanCloudSources = async (req: AuthRequest, res: Response) => {
     }
 
     // List all directories under mirror/
-    const prefixes = await storageService.listCommonPrefixes(toDecryptedConfig(activeConfig),
+    const prefixes = await storageService.listCommonPrefixes(
+      buildDecryptedStorageConfig(activeConfig),
       'mirror/',
     );
 
-    const discoveredSources: any[] = [];
+    const discoveredSources: DiscoveredCloudSource[] = [];
 
     // For each prefix directory, try to read metadata.json
     for (const prefix of prefixes) {
@@ -1862,14 +1917,14 @@ export const scanCloudSources = async (req: AuthRequest, res: Response) => {
       const metadataKey = `${prefix}metadata.json`;
       try {
         const jsonStr = await storageService.getObjectString(
-          toDecryptedConfig(activeConfig),
+          buildDecryptedStorageConfig(activeConfig),
           metadataKey,
         );
 
         if (jsonStr) {
-          let metadata: any;
+          let metadata: MirrorMetadata;
           try {
-            metadata = JSON.parse(jsonStr);
+            metadata = JSON.parse(jsonStr) as MirrorMetadata;
           } catch (parseErr) {
             logger.error('[ConnectCloudSource] Failed to parse metadata.json:', parseErr);
             return res.status(400).json({ error: 'metadata.json 解析失败，内容可能被篡改或损坏' });
@@ -1879,11 +1934,8 @@ export const scanCloudSources = async (req: AuthRequest, res: Response) => {
             // Check if already connected (exists in DB)
             const localSource = await prisma.mirrorSource.findFirst({
               where: {
-                OR: [
-                  { id: source.id },
-                  { name: source.name }
-                ]
-              }
+                OR: [{ id: source.id }, { name: source.name }],
+              },
             });
 
             discoveredSources.push({
@@ -1898,20 +1950,21 @@ export const scanCloudSources = async (req: AuthRequest, res: Response) => {
             });
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         // NoSuchKey or parsing error is common if prefix has no metadata.json
-        logger.warn(`[ScanCloudSources] Skip key ${metadataKey} due to error: ${err.message}`);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        logger.warn(`[ScanCloudSources] Skip key ${metadataKey} due to error: ${errMsg}`);
       }
     }
 
     res.json(discoveredSources);
   } catch (error) {
     logger.error('[ScanCloudSources] Failed to scan Cloudflare R2:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
 
-export const connectCloudSource = async (req: AuthRequest, res: Response) => {
+export const connectCloudSource = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { metadataKey } = req.body;
     if (!metadataKey) {
@@ -1924,7 +1977,7 @@ export const connectCloudSource = async (req: AuthRequest, res: Response) => {
     }
 
     const jsonStr = await storageService.getObjectString(
-      toDecryptedConfig(activeConfig),
+      buildDecryptedStorageConfig(activeConfig),
       metadataKey,
     );
 
@@ -1932,9 +1985,9 @@ export const connectCloudSource = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: '未能在 R2 找到对应的 metadata.json 文件' });
     }
 
-    let metadata: any;
+    let metadata: MirrorMetadata;
     try {
-      metadata = JSON.parse(jsonStr);
+      metadata = JSON.parse(jsonStr) as MirrorMetadata;
     } catch (parseErr) {
       logger.error('[ConnectCloudSource] Failed to parse metadata.json:', parseErr);
       return res.status(400).json({ error: 'metadata.json 解析失败，内容可能被篡改或损坏' });
@@ -1951,13 +2004,13 @@ export const connectCloudSource = async (req: AuthRequest, res: Response) => {
     const nameCollision = await prisma.mirrorSource.findFirst({
       where: {
         name: source.name,
-        id: { not: targetSourceId }
-      }
+        id: { not: targetSourceId },
+      },
     });
 
     if (nameCollision) {
       return res.status(400).json({
-        error: `连接失败：镜像源名称「${source.name}」已被另一个 ID 为「${nameCollision.id}」的镜像源占用。`
+        error: `连接失败：镜像源名称「${source.name}」已被另一个 ID 为「${nameCollision.id}」的镜像源占用。`,
       });
     }
 
@@ -2006,6 +2059,7 @@ export const connectCloudSource = async (req: AuthRequest, res: Response) => {
       insertedInLoop = false;
       for (let i = 0; i < pendingCats.length; i++) {
         const cat = pendingCats[i];
+        if (!cat) continue;
         if (!cat.parentExternalId || categoryMap.has(cat.parentExternalId)) {
           const createdCat = await prisma.mirrorCategory.create({
             data: {
@@ -2046,7 +2100,7 @@ export const connectCloudSource = async (req: AuthRequest, res: Response) => {
     const batchSize = 100;
     for (let i = 0; i < resources.length; i += batchSize) {
       const batch = resources.slice(i, i + batchSize);
-      const insertData = batch.map((r: any) => ({
+      const insertData = batch.map((r) => ({
         sourceId: targetSourceId,
         externalId: r.externalId,
         categoryId: r.categoryExternalId ? categoryMap.get(r.categoryExternalId) || null : null,
@@ -2081,8 +2135,6 @@ export const connectCloudSource = async (req: AuthRequest, res: Response) => {
     res.json({ message: '成功接入云端镜像源！', sourceId: targetSourceId });
   } catch (error) {
     logger.error('[ConnectCloudSource] Failed to connect Cloudflare R2 mirror source:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    next(error);
   }
 };
-
-

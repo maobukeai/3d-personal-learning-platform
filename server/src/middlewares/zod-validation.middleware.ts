@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { AppError } from './error.middleware';
+import { AppError } from '../utils/error';
 
 export interface RequestValidationSchema {
   body?: z.ZodTypeAny;

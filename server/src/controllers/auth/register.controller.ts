@@ -5,7 +5,7 @@ import prisma from '../../services/prisma';
 import { sendEmail } from '../../utils/email';
 import { sanitizeUser } from '../../utils/auth';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
-import { AppError } from '../../middlewares/error.middleware';
+import { AppError } from '../../utils/error';
 import { provisionUserWorkspaces } from '../../services/user-workspace.service';
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {

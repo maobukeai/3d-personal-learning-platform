@@ -5,7 +5,7 @@ import prisma from '../../services/prisma';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
 import { sanitizeUser } from '../../utils/auth';
-import { AppError } from '../../middlewares/error.middleware';
+import { AppError } from '../../utils/error';
 import { createPaginationMeta, getPaginationParams } from '../../utils/pagination';
 import { redisService } from '../../services/redis.service';
 import { provisionUserWorkspaces } from '../../services/user-workspace.service';

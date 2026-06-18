@@ -393,7 +393,6 @@ const handleDelete = async (note: Note) => {
     await loadNotes();
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to delete note:', error);
       ElMessage.error(t('notes.deleteFailed') || '删除笔记失败');
     }
   }
@@ -489,7 +488,6 @@ const handleBatchDelete = async () => {
       await loadTagsAndCategories();
       await loadNotes();
     } catch (err) {
-      console.error(err);
       ElMessage.error(t('notes.batchDeleteFailed'));
     } finally {
       loading.value = false;
@@ -525,7 +523,6 @@ const confirmBatchMove = async () => {
     await loadTagsAndCategories();
     await loadNotes();
   } catch (err) {
-    console.error(err);
     ElMessage.error(t('notes.batchMoveFailed'));
   } finally {
     loading.value = false;
@@ -573,7 +570,6 @@ const handleRenameNotebook = async (oldName: string) => {
           notesToUpdate.map((note) => api.put(`/api/notes/${note.id}`, { category: trimmedName })),
         );
       } catch (err) {
-        console.error(err);
         ElMessage.error(t('notes.moveSomeNotesFailed'));
       } finally {
         loading.value = false;
@@ -619,7 +615,6 @@ const handleDeleteNotebook = async (name: string) => {
           notesToUpdate.map((note) => api.put(`/api/notes/${note.id}`, { category: null })),
         );
       } catch (err) {
-        console.error(err);
         ElMessage.error(t('notes.moveToUncategorizedFailed'));
       } finally {
         loading.value = false;

@@ -1,5 +1,5 @@
 import { logger } from '../utils/logger';
-import axios from 'axios';
+import axios, { type AxiosError, type AxiosProxyConfig } from 'axios';
 import prisma from './prisma';
 import { decryptSecret, encryptSecret } from '../utils/secret-field';
 
@@ -9,15 +9,40 @@ interface SendMailParams {
   content: string;
 }
 
+/** Extracts a human-readable error message from an Axios error. */
+const resolveAxiosErrorMessage = (error: unknown, fallback: string): string => {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const axiosErr = error as AxiosError<{
+      error_description?: string;
+      error?: { message?: string };
+    }>;
+    const desc = axiosErr.response?.data?.error_description;
+    if (desc) return desc;
+    const msg = axiosErr.response?.data?.error?.message;
+    if (msg) return msg;
+  }
+  if (error instanceof Error) return error.message;
+  return String(error) || fallback;
+};
+
+/** Extracts the HTTP status code from an Axios error, if available. */
+const resolveAxiosErrorStatus = (error: unknown): number | undefined => {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const axiosErr = error as AxiosError;
+    return axiosErr.response?.status;
+  }
+  return undefined;
+};
+
 export class MicrosoftGraphService {
   /**
    * Helper to parse a proxy URL string into an Axios-compatible proxy configuration object
    */
-  private static parseProxy(proxyUrl: string | null) {
+  private static parseProxy(proxyUrl: string | null): AxiosProxyConfig | undefined {
     if (!proxyUrl) return undefined;
     try {
       const url = new URL(proxyUrl);
-      const config: any = {
+      const config: AxiosProxyConfig = {
         protocol: url.protocol.replace(':', ''),
         host: url.hostname,
         port: parseInt(url.port, 10) || (url.protocol === 'https:' ? 443 : 80),
@@ -95,15 +120,11 @@ export class MicrosoftGraphService {
 
       return data.access_token;
     } catch (error) {
-      const responseStatus = (error as any).response?.status;
-      const responseData = (error as any).response?.data;
-      const errorMsg =
-        responseData?.error_description ||
-        (error instanceof Error ? error.message : String(error)) ||
-        'Unknown error refreshing token';
+      const responseStatus = resolveAxiosErrorStatus(error);
+      const errorMsg = resolveAxiosErrorMessage(error, 'Unknown error refreshing token');
       logger.error(`MicrosoftGraphService: Refresh failed for ${account.email}:`, errorMsg);
 
-      const isOAuthError = responseStatus >= 400 && responseStatus < 500;
+      const isOAuthError = responseStatus !== undefined && responseStatus >= 400 && responseStatus < 500;
 
       if (isOAuthError) {
         // Real credential/OAuth expiration: mark as EXPIRED
@@ -155,7 +176,7 @@ export class MicrosoftGraphService {
   /**
    * Tests the connection validity of a Microsoft Account by requesting the profile endpoint
    */
-  public static async testConnection(accountId: string): Promise<any> {
+  public static async testConnection(accountId: string): Promise<Record<string, unknown>> {
     const account = await prisma.microsoftEmailAccount.findUnique({
       where: { id: accountId },
     });
@@ -188,12 +209,9 @@ export class MicrosoftGraphService {
         },
       });
 
-      return response.data;
+      return response.data as Record<string, unknown>;
     } catch (error) {
-      const errorMsg =
-        (error as any).response?.data?.error?.message ||
-        (error instanceof Error ? error.message : String(error)) ||
-        'Connection test failed';
+      const errorMsg = resolveAxiosErrorMessage(error, 'Connection test failed');
       logger.error(`MicrosoftGraphService: Test connection failed for ${account.email}:`, errorMsg);
 
       await prisma.microsoftEmailAccount.update({
@@ -210,7 +228,7 @@ export class MicrosoftGraphService {
   /**
    * Fetches folders for the Microsoft account
    */
-  public static async fetchFolders(accountId: string): Promise<any[]> {
+  public static async fetchFolders(accountId: string): Promise<Record<string, unknown>[]> {
     try {
       const token = await this.getValidAccessToken(accountId);
       const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
@@ -220,16 +238,13 @@ export class MicrosoftGraphService {
         headers: { Authorization: `Bearer ${token}` },
         proxy: proxyConfig,
       });
-      return response.data.value || [];
+      return (response.data.value as Record<string, unknown>[]) || [];
     } catch (error) {
       logger.error(
         `MicrosoftGraphService: Fetch folders failed for ${accountId}:`,
         error instanceof Error ? error.message : error,
       );
-      throw new Error(
-        (error as any).response?.data?.error?.message ||
-          (error instanceof Error ? error.message : String(error)),
-      );
+      throw new Error(resolveAxiosErrorMessage(error, 'Failed to fetch folders'));
     }
   }
 
@@ -240,7 +255,7 @@ export class MicrosoftGraphService {
     accountId: string,
     folderId: string = 'inbox',
     limit: number = 20,
-  ): Promise<any[]> {
+  ): Promise<Record<string, unknown>[]> {
     try {
       const token = await this.getValidAccessToken(accountId);
       const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
@@ -258,16 +273,13 @@ export class MicrosoftGraphService {
           proxy: proxyConfig,
         },
       );
-      return response.data.value || [];
+      return (response.data.value as Record<string, unknown>[]) || [];
     } catch (error) {
       logger.error(
         `MicrosoftGraphService: Fetch messages failed for folder ${folderId} inside ${accountId}:`,
         error instanceof Error ? error.message : String(error),
       );
-      throw new Error(
-        (error as any).response?.data?.error?.message ||
-          (error instanceof Error ? error.message : String(error)),
-      );
+      throw new Error(resolveAxiosErrorMessage(error, 'Failed to fetch messages'));
     }
   }
 
@@ -300,10 +312,7 @@ export class MicrosoftGraphService {
         `MicrosoftGraphService: Mark message read failed for message ${messageId}:`,
         error instanceof Error ? error.message : String(error),
       );
-      throw new Error(
-        (error as any).response?.data?.error?.message ||
-          (error instanceof Error ? error.message : String(error)),
-      );
+      throw new Error(resolveAxiosErrorMessage(error, 'Failed to mark message read'));
     }
   }
 
@@ -361,10 +370,7 @@ export class MicrosoftGraphService {
         `MicrosoftGraphService: Delete message failed for message ${messageId}:`,
         error instanceof Error ? error.message : String(error),
       );
-      throw new Error(
-        (error as any).response?.data?.error?.message ||
-          (error instanceof Error ? error.message : String(error)),
-      );
+      throw new Error(resolveAxiosErrorMessage(error, 'Failed to delete message'));
     }
   }
 
@@ -453,10 +459,7 @@ export class MicrosoftGraphService {
         },
       });
     } catch (error) {
-      const errorMsg =
-        (error as any).response?.data?.error?.message ||
-        (error instanceof Error ? error.message : String(error)) ||
-        'Failed to send mail';
+      const errorMsg = resolveAxiosErrorMessage(error, 'Failed to send mail');
       logger.error(`MicrosoftGraphService: Send mail failed for ${account.email}:`, errorMsg);
       throw new Error(errorMsg);
     }

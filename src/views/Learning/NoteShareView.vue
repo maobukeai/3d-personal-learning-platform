@@ -78,7 +78,14 @@ const isCopying = ref(false);
 const isCloning = ref(false);
 
 // Comments States & Functions
-const comments = ref<any[]>([]);
+interface NoteComment {
+  id: string;
+  userId: string;
+  user: { id: string; name: string; avatarUrl?: string | null };
+  content: string;
+  createdAt: string;
+}
+const comments = ref<NoteComment[]>([]);
 const commentContent = ref('');
 const submittingComment = ref(false);
 const loadingComments = ref(false);
@@ -109,7 +116,7 @@ const submitComment = async () => {
     comments.value.push(res.data);
     commentContent.value = '';
     ElMessage.success('发表评论成功！');
-  } catch (err: any) {
+  } catch (err: unknown) {
     ElMessage.error(getApiErrorMessage(err, '发表评论失败'));
   } finally {
     submittingComment.value = false;
@@ -121,7 +128,7 @@ const handleDeleteComment = async (commentId: string) => {
     await api.delete(`/api/notes/comment/${commentId}`);
     comments.value = comments.value.filter((c) => c.id !== commentId);
     ElMessage.success('删除评论成功');
-  } catch (err: any) {
+  } catch (err: unknown) {
     ElMessage.error(getApiErrorMessage(err, '删除评论失败'));
   }
 };
@@ -160,7 +167,7 @@ const loadSharedNote = async () => {
   sessionSummary.value = '';
   isSummarizing.value = false;
   try {
-    const res = await api.get(`/api/notes/share/${shareId}`);
+    const res = await api.get(`/api/notes/share/${shareId}?t=${Date.now()}`);
     note.value = res.data.note;
     expiresAt.value = res.data.expiresAt;
     shareMessage.value = res.data.customText;
@@ -321,7 +328,7 @@ const generateAiSummary = async () => {
       }
       ElMessage.error('未能获取生成摘要');
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (progressInterval) {
       clearInterval(progressInterval);
       progressInterval = null;
@@ -372,7 +379,7 @@ onUnmounted(() => {
     class="min-h-screen flex flex-col font-sans antialiased bg-[var(--bg-app)] text-[var(--text-primary)]"
   >
     <!-- Sticky Top Reading Progress -->
-    <div class="fixed top-0 left-0 right-0 z-[100] h-0.5 bg-transparent">
+    <div class="fixed top-0 left-0 right-0 z-[110] h-0.5 bg-transparent">
       <div
         class="h-full bg-gradient-to-r from-purple-500 via-accent to-indigo-500 transition-all duration-75"
         :style="{ width: readProgress + '%' }"
@@ -381,7 +388,7 @@ onUnmounted(() => {
 
     <!-- Clean Minimalist Header -->
     <header
-      class="sticky top-0 z-50 backdrop-blur-md px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between border-b shadow-xs transition-colors bg-[var(--bg-card)]/80 border-[var(--border-base)]"
+      class="sticky top-0 z-[100] backdrop-blur-md px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between border-b shadow-xs transition-colors bg-[var(--bg-card)]/80 border-[var(--border-base)]"
     >
       <div class="flex items-center gap-2 cursor-pointer select-none" @click="goHome">
         <div
@@ -657,7 +664,7 @@ onUnmounted(() => {
                 rows="3"
                 placeholder="写下你的想法，交流看法..."
                 maxlength="500"
-                class="w-full text-xs font-medium rounded-xl transition-all duration-300 outline-none focus:outline-none bg-slate-50 dark:bg-zinc-900 border border-[var(--border-base)] text-[var(--text-primary)] focus:border-accent p-3 focus:ring-2 focus:ring-accent/20"
+                class="w-full text-sm font-medium rounded-xl transition-all duration-300 outline-none focus:outline-none bg-slate-50 dark:bg-zinc-900 border border-[var(--border-base)] text-[var(--text-primary)] focus:border-accent p-3 focus:ring-2 focus:ring-accent/20"
               ></textarea>
               <div class="text-[10px] text-[var(--text-muted)] text-right mt-0.5">
                 {{ commentContent.length }} / 500
@@ -891,21 +898,21 @@ onUnmounted(() => {
 
 /* Headings proportional scaling */
 .modern-markdown-content :deep(h1) {
-  font-size: 1.5em !important;
+  font-size: 1.85em !important;
   font-weight: 800 !important;
 }
 .modern-markdown-content :deep(h2) {
-  font-size: 1.35em !important;
+  font-size: 1.55em !important;
   font-weight: 800 !important;
   border-bottom: 1px dashed var(--border-base) !important;
   padding-bottom: 0.3em;
 }
 .modern-markdown-content :deep(h3) {
-  font-size: 1.2em !important;
+  font-size: 1.3em !important;
   font-weight: 700 !important;
 }
 .modern-markdown-content :deep(h4) {
-  font-size: 1.1em !important;
+  font-size: 1.15em !important;
   font-weight: 700 !important;
 }
 
@@ -941,5 +948,16 @@ onUnmounted(() => {
     white-space: nowrap !important;
     word-break: keep-all !important;
   }
+}
+
+/* Prevent code block elements from overlaying the sticky header */
+.modern-markdown-content :deep(.md-editor-code),
+.modern-markdown-content :deep(.md-editor-code-head),
+.modern-markdown-content :deep(.md-editor-code-copy),
+.modern-markdown-content :deep(.md-code),
+.modern-markdown-content :deep(.md-code-head),
+.modern-markdown-content :deep(.md-code-copy),
+.modern-markdown-content :deep(pre) {
+  z-index: 2 !important;
 }
 </style>

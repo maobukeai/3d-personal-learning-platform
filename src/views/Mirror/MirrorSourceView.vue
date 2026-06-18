@@ -269,7 +269,7 @@ function handlePageJump() {
         size="sm"
         @update:model-value="
           (val) => {
-            mirrorStore.setSortBy(val);
+            mirrorStore.setSortBy(val as string);
             doSearch();
           }
         "

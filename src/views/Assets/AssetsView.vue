@@ -609,8 +609,8 @@ onUnmounted(() => {
             :is-favorited="asset.likes > 0"
             :active-tab="activeTab"
             @click="goToDetail(asset)"
-            @like="handleLike(asset, $event)"
-            @download="handleDownload(asset, $event)"
+            @like="(item, event) => handleLike(asset, event)"
+            @download="(item, event) => handleDownload(asset, event)"
           />
         </div>
 

@@ -639,7 +639,7 @@ onUnmounted(() => {
             :options="smartFilterTabOptions"
             direction="vertical"
             size="sm"
-            @update:model-value="setBucket"
+            @update:model-value="(val: any) => setBucket(val)"
           />
         </div>
 

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { settingsService } from './settings.service';
 import { logger } from '../utils/logger';
 import prisma from './prisma';
@@ -28,6 +28,21 @@ export interface AIServiceConfig {
 }
 
 type AIProvider = 'DEEPSEEK' | 'OPENAI' | 'AZURE' | 'GEMINI' | 'OLLAMA' | string;
+
+interface AIModelOption {
+  enabled?: boolean;
+  provider?: string;
+  modelName?: string;
+  temperature?: number;
+  maxTokens?: number;
+  systemPrompt?: string;
+  isDefault?: boolean;
+}
+
+interface GeminiResponsePart {
+  thought?: boolean;
+  text?: string;
+}
 
 interface PreparedAIRequest {
   url: string;
@@ -518,19 +533,21 @@ async function prepareRequestConfig(
   }
 
   // Look up model config for custom parameters
-  let matchingModel: any = null;
+  let matchingModel: AIModelOption | null = null;
   if (settings.AI_MODEL_OPTIONS) {
     try {
       const models = JSON.parse(settings.AI_MODEL_OPTIONS);
       if (Array.isArray(models)) {
         matchingModel = models.find(
-          (m: any) =>
+          (m: AIModelOption) =>
             m.enabled &&
             String(m.provider).toUpperCase() === String(provider).toUpperCase() &&
             m.modelName === modelName,
-        );
+        ) as AIModelOption | null;
         if (!matchingModel) {
-          matchingModel = models.find((m: any) => m.enabled && m.isDefault);
+          matchingModel = models.find(
+            (m: AIModelOption) => m.enabled && m.isDefault,
+          ) as AIModelOption | null;
         }
       }
     } catch (e) {
@@ -692,8 +709,8 @@ async function executeLLMRequest(
       let text = '';
       if (Array.isArray(parts)) {
         const textParts = parts
-          .filter((part: any) => !part.thought)
-          .map((part: any) => part.text)
+          .filter((part: GeminiResponsePart) => !part.thought)
+          .map((part: GeminiResponsePart) => part.text)
           .filter(Boolean);
         text = textParts.join('');
       } else {
@@ -801,6 +818,7 @@ export async function streamLLMChat(
   messages: AIChatMessage[],
   systemPrompt: string,
   res: Response,
+  next: NextFunction,
   overrides?: Partial<AIServiceConfig>,
   userId?: string,
   streamMeta?: Record<string, unknown>,
@@ -1277,7 +1295,7 @@ export async function streamLLMChat(
       sendSSE(res, { error: errMsg });
       res.end();
     } else {
-      res.status(500).json({ success: false, error: errMsg });
+      next(error);
     }
   }
 }

@@ -6,7 +6,7 @@ import { config } from '../../config/env';
 import { generateAccessToken, generateRefreshToken } from '../../utils/auth';
 import { settingsService } from '../../services/settings.service';
 import { OAuthService } from '../../services/oauth.service';
-import { AppError } from '../../middlewares/error.middleware';
+import { AppError } from '../../utils/error';
 import { provisionUserWorkspaces } from '../../services/user-workspace.service';
 
 const frontendLoginUrl = (query: string) =>

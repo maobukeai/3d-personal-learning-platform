@@ -5,7 +5,7 @@ import QRCode from 'qrcode';
 import prisma from '../../services/prisma';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { generateRecoveryCodes, hashRecoveryCodes } from '../../utils/auth';
-import { AppError } from '../../middlewares/error.middleware';
+import { AppError } from '../../utils/error';
 import { redisService } from '../../services/redis.service';
 
 export const setup2FA = async (req: AuthRequest, res: Response, next: NextFunction) => {

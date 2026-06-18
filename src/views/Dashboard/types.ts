@@ -1,3 +1,5 @@
+import type { Component } from 'vue';
+
 export interface DashboardEnrollment {
   courseId: string;
   progress: number;
@@ -319,7 +321,7 @@ export interface MetricTile {
   value: string | number;
   detail: string;
   trend?: string;
-  icon: any;
+  icon: Component;
   route: string;
   tone: string;
 }
@@ -328,7 +330,7 @@ export interface QuickAction {
   id: string;
   label: string;
   hint: string;
-  icon: any;
+  icon: Component;
   route?: string;
   mode?: 'ai_assistant' | 'traditional';
   tone: string;
@@ -336,7 +338,7 @@ export interface QuickAction {
 
 export interface FeedItem {
   id: string;
-  icon: any;
+  icon: Component;
   title: string;
   description: string;
   time: string;

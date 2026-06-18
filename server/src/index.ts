@@ -31,7 +31,9 @@ const initActiveBucketsCors = async () => {
       where: { status: 'ACTIVE' },
     });
     if (activeConfigs.length > 0) {
-      logger.info(`[Startup] Found ${activeConfigs.length} active storage config(s). Configuring CORS...`);
+      logger.info(
+        `[Startup] Found ${activeConfigs.length} active storage config(s). Configuring CORS...`,
+      );
       for (const raw of activeConfigs) {
         const configData = {
           endpoint: raw.endpoint,
@@ -86,4 +88,17 @@ const gracefulShutdown = async (signal: string) => {
 
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-// Hot reload trigger: updated with stable keys and encryption fallback
+
+// Catch unhandled promise rejections — without this, Node logs a warning and
+// future versions will terminate the process. Log and keep running so transient
+// failures don't take down the server.
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('[Fatal] Unhandled Promise Rejection at:', promise, 'reason:', reason);
+});
+
+// Catch uncaught exceptions — the process is in an unknown state after this,
+// so log the error with stack and exit to let the process manager restart it.
+process.on('uncaughtException', (err) => {
+  logger.error('[Fatal] Uncaught Exception:', err);
+  process.exit(1);
+});

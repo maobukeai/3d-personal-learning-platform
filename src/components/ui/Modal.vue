@@ -10,6 +10,7 @@ interface Props {
   closeOnOutsideClick?: boolean;
   padding?: 'none' | 'sm' | 'md' | 'lg';
   fullscreen?: boolean;
+  zIndex?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -18,6 +19,7 @@ const props = withDefaults(defineProps<Props>(), {
   closeOnOutsideClick: true,
   padding: 'lg',
   fullscreen: false,
+  zIndex: 1000,
 });
 
 const emit = defineEmits<{
@@ -69,7 +71,8 @@ onUnmounted(() => {
     >
       <div
         v-if="show"
-        class="fixed inset-0 z-[1000] flex items-center justify-center"
+        class="fixed inset-0 flex items-center justify-center"
+        :style="{ zIndex: zIndex }"
         :class="fullscreen ? 'p-0 overflow-hidden' : 'p-4 overflow-y-auto'"
       >
         <!-- Frosted Glass Backdrop Overlay -->

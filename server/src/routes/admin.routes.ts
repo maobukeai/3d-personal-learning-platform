@@ -8,6 +8,11 @@ import * as managementController from '../controllers/admin/management.controlle
 import * as teamController from '../controllers/admin/team.controller';
 import * as subscriptionController from '../controllers/admin/subscription.controller';
 import * as bannerController from '../controllers/admin/banner.controller';
+import * as categoryController from '../controllers/category.controller';
+import * as assetController from '../controllers/asset.controller';
+import * as activationCodeController from '../controllers/activationCode.controller';
+import * as storageController from '../controllers/admin/storage.controller';
+import * as cloudflareController from '../controllers/admin/cloudflare.controller';
 import { authenticate, isAdmin } from '../middlewares/auth.middleware';
 import { upload, validateFileContent } from '../middlewares/upload.middleware';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
@@ -125,7 +130,6 @@ router.put('/teams/:teamId/members/:userId/role', teamController.updateTeamMembe
 router.delete('/teams/:teamId/members/:userId', teamController.removeTeamMember);
 
 // Material audit
-import * as categoryController from '../controllers/category.controller';
 router.get('/asset-categories', categoryController.getAllCategories);
 router.post('/asset-categories', categoryController.adminCreateCategory);
 router.put('/asset-categories/:id', categoryController.adminUpdateCategory);
@@ -145,7 +149,6 @@ router.put('/showcases/:id', contentController.adminUpdateShowcase);
 router.delete('/showcases/:id', contentController.adminDeleteShowcase);
 
 // Asset management
-import * as assetController from '../controllers/asset.controller';
 router.get('/assets', assetController.getAllAssetsForAdmin);
 router.put('/assets/batch-status', assetController.batchUpdateAssetStatus);
 router.put('/assets/:id/status', assetController.updateAssetStatus);
@@ -164,7 +167,6 @@ router.delete('/subscriptions/:id', subscriptionController.deleteSubscription);
 router.get('/transactions', subscriptionController.getAllTransactions);
 
 // Activation codes management
-import * as activationCodeController from '../controllers/activationCode.controller';
 router.get('/activation-codes', activationCodeController.getAllActivationCodes);
 router.post('/activation-codes', activationCodeController.createActivationCode);
 router.delete('/activation-codes/:id', activationCodeController.deleteActivationCode);
@@ -182,7 +184,6 @@ router.post(
 );
 
 // Storage Config management
-import * as storageController from '../controllers/admin/storage.controller';
 router.get('/storage-configs', storageController.getConfigs);
 router.get('/storage-configs/export', storageController.exportConfigs);
 router.post('/storage-configs/import', storageController.importConfigs);
@@ -194,12 +195,15 @@ router.get('/storage-configs/:id/files', storageController.listBucketFiles);
 router.patch('/storage-configs/:id/files/rename', storageController.renameBucketFile);
 router.post('/storage-configs/:id/files/bulk-delete', storageController.deleteBucketFilesBulk);
 router.delete('/storage-configs/:id/files', storageController.deleteBucketFile);
-router.post('/storage-configs/:id/files', upload.single('file'), storageController.uploadDirectFile);
+router.post(
+  '/storage-configs/:id/files',
+  upload.single('file'),
+  storageController.uploadDirectFile,
+);
 router.get('/storage-configs/:id/actual-size', storageController.getActualSize);
 router.post('/storage-configs/sync-all-sizes', storageController.syncAllActualSizes);
 router.post('/storage-configs/:id/sync-size', storageController.syncActualSize);
 
-import * as cloudflareController from '../controllers/admin/cloudflare.controller';
 router.get('/cloudflare/config', cloudflareController.getConfig);
 router.put('/cloudflare/config', cloudflareController.saveConfig);
 router.delete('/cloudflare/config', cloudflareController.clearConfig);

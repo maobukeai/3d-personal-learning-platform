@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { configureAxiosProxy } from '../utils/axios-proxy';
+import { logger } from '../utils/logger';
 
 const searchHttp = axios.create();
 configureAxiosProxy(searchHttp, { preferAiProxy: true });
@@ -72,7 +73,7 @@ function summarizeSearchError(error: unknown): string {
 }
 
 function logSearchWarning(engine: string, error: unknown): void {
-  console.warn(`[Web Search] ${engine} unavailable: ${summarizeSearchError(error)}`);
+  logger.warn(`[Web Search] ${engine} unavailable: ${summarizeSearchError(error)}`);
 }
 
 function cleanSearchQuery(query: string): string {
@@ -537,7 +538,7 @@ async function fetchPageContent(
       }
     }
   } catch (err) {
-    console.warn(
+    logger.warn(
       `[Web Search] Jina Reader failed for ${url}, falling back to direct scraper: ${summarizeSearchError(err)}`,
     );
   }

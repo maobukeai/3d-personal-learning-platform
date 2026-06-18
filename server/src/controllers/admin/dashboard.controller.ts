@@ -3,7 +3,7 @@ import prisma from '../../services/prisma';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { emitToAll } from '../../services/socket.service';
 import { createNotificationBatch } from '../../utils/notification';
-import { AppError } from '../../middlewares/error.middleware';
+import { AppError } from '../../utils/error';
 import { auditService, AuditAction, AuditModule } from '../../services/audit.service';
 import { redisService } from '../../services/redis.service';
 

@@ -1,4 +1,5 @@
 import type { AxiosInstance, AxiosProxyConfig } from 'axios';
+import { logger } from './logger';
 
 type ProxyOptions = {
   preferAiProxy?: boolean;
@@ -64,7 +65,7 @@ const getProxyForRequest = (
           : undefined,
     };
   } catch (error) {
-    console.error('[Proxy Config] Error parsing proxy URL:', error);
+    logger.error('[Proxy Config] Error parsing proxy URL:', error);
     return undefined;
   }
 };

@@ -31,12 +31,12 @@ const emit = defineEmits<{
 
 const { t: i18nT } = useI18n();
 
-const t = (key: string, ...args: any[]) => {
+const t = (key: string, ...args: unknown[]) => {
   const prefixes = ['showcase.', 'teams.', 'members.', 'teamDetail.', 'discussions.', 'chat.'];
   if (prefixes.some((p) => key.startsWith(p))) {
-    return (i18nT as any)(`community.${key}`, ...args);
+    return (i18nT as (key: string, ...args: unknown[]) => string)(`community.${key}`, ...args);
   }
-  return (i18nT as any)(key, ...args);
+  return (i18nT as (key: string, ...args: unknown[]) => string)(key, ...args);
 };
 
 const localEditForm = computed({
@@ -78,7 +78,7 @@ const parseDescriptionAndCoreValues = (rawDesc: string) => {
     try {
       const parsedValues = JSON.parse(parts[1]);
       if (Array.isArray(parsedValues.values) && parsedValues.values.length > 0) {
-        values = parsedValues.values.map((v: any) => ({
+        values = parsedValues.values.map((v: { title?: string; desc?: string }) => ({
           title: v.title || '',
           desc: v.desc || '',
         }));
@@ -199,9 +199,9 @@ const handleAiGenerateDescription = async () => {
       updateParentDescription();
       ElMessage.success('AI 已成功为您策划了小组介绍与核心价值！');
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err);
-    ElMessage.error(err.message || 'AI 策划失败，请尝试手动填写');
+    ElMessage.error((err instanceof Error ? err.message : null) || 'AI 策划失败，请尝试手动填写');
   } finally {
     isGenerating.value = false;
   }

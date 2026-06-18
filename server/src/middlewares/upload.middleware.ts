@@ -6,21 +6,14 @@ import { Request, Response, NextFunction } from 'express';
 import { settingsService } from '../services/settings.service';
 import prisma from '../services/prisma';
 import { storageService } from '../services/storage.service';
-import { decrypt } from '../utils/crypto';
+import { decryptSecretIfNeeded } from '../utils/crypto';
 
-/** Matches the encrypted format produced by `encrypt()`: iv(24hex):tag(32hex):ciphertext */
-const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
-
-function getDecryptedSecret(raw: string | null | undefined): string {
-  if (!raw) return '';
-  if (!ENCRYPTED_VALUE_RE.test(raw)) return raw;
-  try {
-    return decrypt(raw);
-  } catch (err) {
-    logger.error('[UploadMiddleware] Failed to decrypt secretAccessKey:', err);
-    return raw;
-  }
-}
+/** Multer file augmented with R2 cloud upload metadata. */
+type UploadedFile = Express.Multer.File & {
+  url?: string;
+  r2Key?: string;
+  r2ConfigId?: string;
+};
 
 const getStorageTypeForField = (file: Express.Multer.File, req: Request): string => {
   const fieldname = file.fieldname;
@@ -116,7 +109,6 @@ const storage = multer.diskStorage({
   },
 });
 
-
 const createUploadMiddleware = (config: {
   type: 'single' | 'array' | 'fields';
   fieldname?: string;
@@ -136,7 +128,7 @@ const createUploadMiddleware = (config: {
             .split(',')
             .map((ext) => ext.trim().toLowerCase());
         } else if (Array.isArray(settings.ALLOWED_EXTENSIONS)) {
-          allowedExtensions = (settings.ALLOWED_EXTENSIONS as any[]).map((ext) =>
+          allowedExtensions = (settings.ALLOWED_EXTENSIONS as string[]).map((ext) =>
             ext.toLowerCase(),
           );
         }
@@ -249,17 +241,18 @@ const createUploadMiddleware = (config: {
         multerAction = dynamicMulter.fields(config.fields!);
       }
 
-      multerAction(req, res, async (err: any) => {
+      multerAction(req, res, async (err: unknown) => {
         if (err instanceof multer.MulterError) {
           if (err.code === 'LIMIT_FILE_SIZE') {
             const isMirrorImport =
               config.fieldname === 'file' &&
-              (req.originalUrl.includes('/mirror/sources/import') || req.baseUrl.includes('mirror'));
+              (req.originalUrl.includes('/mirror/sources/import') ||
+                req.baseUrl.includes('mirror'));
             const displayLimit = isMirrorImport
               ? '5GB'
               : isSystemImage
-              ? '5MB'
-              : `${settings.MAX_FILE_SIZE || 100}MB`;
+                ? '5MB'
+                : `${settings.MAX_FILE_SIZE || 100}MB`;
             logger.error(`[UploadError] LIMIT_FILE_SIZE: file size exceeded (${displayLimit})`);
             return res.status(400).json({ error: `文件大小超过限制 (${displayLimit})` });
           }
@@ -279,7 +272,9 @@ const createUploadMiddleware = (config: {
           req.file.originalname = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
         }
         if (req.files) {
-          const filesMap = req.files as { [fieldname: string]: Express.Multer.File[] } | Express.Multer.File[];
+          const filesMap = req.files as
+            | { [fieldname: string]: Express.Multer.File[] }
+            | Express.Multer.File[];
           if (Array.isArray(filesMap)) {
             for (const file of filesMap) {
               if (file) {
@@ -322,12 +317,13 @@ const createUploadMiddleware = (config: {
                 if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
                 const isMirrorImport =
                   file.fieldname === 'file' &&
-                  (req.originalUrl.includes('/mirror/sources/import') || req.baseUrl.includes('mirror'));
+                  (req.originalUrl.includes('/mirror/sources/import') ||
+                    req.baseUrl.includes('mirror'));
                 const displayLimit = isMirrorImport
                   ? '5GB'
                   : isImageField(file.fieldname)
-                  ? '5MB'
-                  : `${settings.MAX_FILE_SIZE || 100}MB`;
+                    ? '5MB'
+                    : `${settings.MAX_FILE_SIZE || 100}MB`;
                 logger.error(
                   `[UploadError] File ${file.originalname} size ${file.size} exceeded limit ${displayLimit}`,
                 );
@@ -394,14 +390,17 @@ const createUploadMiddleware = (config: {
                   .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
                   .replace(/\s+/g, '_');
                 const mainExtName = path.extname(mainSanitizedOriginalName);
-                const mainBaseName = path.basename(mainSanitizedOriginalName, mainExtName) || 'file';
+                const mainBaseName =
+                  path.basename(mainSanitizedOriginalName, mainExtName) || 'file';
                 const sharedFolderName = `${mainBaseName}-${uniqueSuffix}`;
 
                 const getFolderPrefix = (fieldname: string): string => {
-                  if (req.originalUrl.includes('/showcase') || req.baseUrl.includes('showcase')) return 'showcase';
+                  if (req.originalUrl.includes('/showcase') || req.baseUrl.includes('showcase'))
+                    return 'showcase';
                   if (fieldname === 'asset' || fieldname === 'thumbnail') return 'asset';
                   if (fieldname === 'material' || fieldname === 'preview') return 'material';
-                  if (fieldname === 'plugin_file' || fieldname === 'plugin_preview') return 'plugin';
+                  if (fieldname === 'plugin_file' || fieldname === 'plugin_preview')
+                    return 'plugin';
                   if (
                     fieldname === 'mirror_image' ||
                     req.originalUrl.includes('/mirror') ||
@@ -422,10 +421,7 @@ const createUploadMiddleware = (config: {
                       status: 'ACTIVE',
                       assetType: storageType,
                     },
-                    orderBy: [
-                      { priority: 'desc' },
-                      { createdAt: 'desc' },
-                    ],
+                    orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
                   });
 
                   if (configs.length === 0 && storageType !== 'ALL') {
@@ -434,10 +430,7 @@ const createUploadMiddleware = (config: {
                         status: 'ACTIVE',
                         assetType: 'ALL',
                       },
-                      orderBy: [
-                        { priority: 'desc' },
-                        { createdAt: 'desc' },
-                      ],
+                      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
                     });
                   }
 
@@ -478,7 +471,7 @@ const createUploadMiddleware = (config: {
                           {
                             endpoint: config.endpoint,
                             accessKeyId: config.accessKeyId,
-                            secretAccessKey: getDecryptedSecret(config.secretAccessKey),
+                            secretAccessKey: decryptSecretIfNeeded(config.secretAccessKey),
                             bucketName: config.bucketName,
                             publicUrl: config.publicUrl,
                           },
@@ -487,14 +480,15 @@ const createUploadMiddleware = (config: {
                           file.mimetype,
                         );
 
-                        (file as any).url = r2Url;
-                        (file as any).r2Key = key;
-                        (file as any).r2ConfigId = config.id;
+                        (file as UploadedFile).url = r2Url;
+                        (file as UploadedFile).r2Key = key;
+                        (file as UploadedFile).r2ConfigId = config.id;
 
                         // Delete local file immediately unless it's a 3D asset file (.glb or .gltf)
                         // that needs background processing in asset controller.
                         const ext = path.extname(file.originalname).toLowerCase();
-                        const is3DAsset = file.fieldname === 'asset' && (ext === '.glb' || ext === '.gltf');
+                        const is3DAsset =
+                          file.fieldname === 'asset' && (ext === '.glb' || ext === '.gltf');
 
                         if (!is3DAsset && fs.existsSync(file.path)) {
                           fs.unlinkSync(file.path);
@@ -502,8 +496,10 @@ const createUploadMiddleware = (config: {
 
                         uploaded = true;
                         break;
-                      } catch (uploadError: any) {
-                        uploadErrorMsg = uploadError.message || String(uploadError);
+                      } catch (uploadError: unknown) {
+                        uploadErrorMsg =
+                          (uploadError instanceof Error ? uploadError.message : null) ||
+                          String(uploadError);
                         logger.error(
                           `[UploadMiddleware] Upload to R2 config [${config.name}] failed:`,
                           uploadError,
@@ -530,12 +526,16 @@ const createUploadMiddleware = (config: {
                   }
                 }
               }
-            } catch (storageDbError: any) {
-              logger.error('[UploadMiddleware] Storage interception DB/validation error:', storageDbError);
+            } catch (storageDbError: unknown) {
+              logger.error(
+                '[UploadMiddleware] Storage interception DB/validation error:',
+                storageDbError,
+              );
               for (const f of allFiles) {
                 if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
               }
-              const errorMessage = storageDbError instanceof Error ? storageDbError.message : '存储系统初始化失败';
+              const errorMessage =
+                storageDbError instanceof Error ? storageDbError.message : '存储系统初始化失败';
               return res.status(400).json({ error: errorMessage });
             }
           }
@@ -678,13 +678,13 @@ export const validateFileContent = async (req: Request, res: Response, next: Nex
   try {
     for (const file of files) {
       // If the file was already uploaded to R2 and deleted locally, skip local content check
-      if ((file as any).url) {
+      if ((file as UploadedFile).url) {
         continue;
       }
       await validateSingleFileContent(file);
     }
     next();
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('File validation error:', error);
     for (const file of files) {
       try {
@@ -695,6 +695,7 @@ export const validateFileContent = async (req: Request, res: Response, next: Nex
         logger.error('Cleanup error:', cleanupError);
       }
     }
-    return res.status(400).json({ error: error.message || '文件验证失败' });
+    const errMsg = error instanceof Error ? error.message : '文件验证失败';
+    return res.status(400).json({ error: errMsg });
   }
 };

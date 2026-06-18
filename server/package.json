@@ -58,7 +58,6 @@
     "@gltf-transform/extensions": "^4.3.0",
     "@gltf-transform/functions": "^4.3.0",
     "@prisma/client": "^6.2.1",
-    "alipay-sdk": "^4.14.0",
     "archiver": "^5.3.2",
     "axios": "^1.16.1",
     "bcryptjs": "^3.0.3",

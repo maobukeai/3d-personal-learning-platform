@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { Response, NextFunction } from 'express';
 import prisma from '../../services/prisma';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { AppError } from '../../middlewares/error.middleware';
+import { AppError } from '../../utils/error';
 
 export const getAllSubscriptionPlans = async (
   req: AuthRequest,

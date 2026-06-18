@@ -20,6 +20,8 @@ import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import { fetchManagementInsights } from './adminManagementInsights';
+import UiButton from '@/components/ui/Button.vue';
+import UiInput from '@/components/ui/Input.vue';
 
 interface CloudflareZone {
   id: string;
@@ -675,24 +677,19 @@ onMounted(async () => {
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-xs font-bold shadow-sm cursor-pointer"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="openCloudflareDashboard()"
-          >
-            <ExternalLink class="w-3.5 h-3.5" />
+          <UiButton variant="outline" size="sm" :icon="ExternalLink" @click="openCloudflareDashboard()">
             <span class="hidden sm:inline">控制台</span>
-          </button>
-          <button
-            type="button"
-            :disabled="!hasToken || loadingZones"
-            class="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent-hover disabled:opacity-50 text-white rounded-xl font-bold text-xs transition-all shadow-sm cursor-pointer"
+          </UiButton>
+          <UiButton
+            variant="primary"
+            size="sm"
+            :icon="RefreshCw"
+            :loading="loadingZones"
+            :disabled="!hasToken"
             @click="fetchZones"
           >
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': loadingZones }" />
-            <span>刷新</span>
-          </button>
+            刷新
+          </UiButton>
         </div>
       </div>
     </div>
@@ -717,48 +714,30 @@ onMounted(async () => {
               </span>
             </div>
 
-            <input
+            <UiInput
               v-model="apiTokenInput"
               type="password"
               :placeholder="hasToken ? '已保存 Token，输入新 Token 可覆盖' : 'Cloudflare API Token（Zone:Read, DNS:Edit）'"
-              class="w-full px-3.5 py-2.5 rounded-xl border text-xs font-mono outline-none focus:ring-2 focus:ring-accent/20"
-              style="background-color: var(--bg-card); border-color: var(--border-base); color: var(--text-primary)"
+              :glass="false"
+              input-class="text-xs font-mono"
             />
 
             <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2">
-              <input
+              <UiInput
                 v-model="accountId"
-                type="text"
                 placeholder="Account ID（可选）"
-                class="w-full px-3 py-2 rounded-xl border text-xs font-mono outline-none"
-                style="background-color: var(--bg-card); border-color: var(--border-base); color: var(--text-primary)"
+                :glass="false"
+                input-class="text-xs font-mono"
               />
-              <button
-                type="button"
-                :disabled="verifyingToken"
-                class="px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer disabled:opacity-50"
-                style="border-color: var(--border-base); color: var(--text-secondary)"
-                @click="verifyToken"
-              >
+              <UiButton variant="outline" size="sm" :disabled="verifyingToken" @click="verifyToken">
                 {{ verifyingToken ? '验证中...' : '验证' }}
-              </button>
-              <button
-                type="button"
-                :disabled="savingConfig"
-                class="px-3 py-2 rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-50 text-white text-xs font-bold cursor-pointer"
-                @click="saveConfig"
-              >
+              </UiButton>
+              <UiButton variant="primary" size="sm" :disabled="savingConfig" @click="saveConfig">
                 {{ savingConfig ? '保存中...' : '保存' }}
-              </button>
-              <button
-                v-if="hasToken"
-                type="button"
-                :disabled="clearingConfig"
-                class="px-3 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white text-xs font-bold cursor-pointer transition-colors"
-                @click="clearConfig"
-              >
+              </UiButton>
+              <UiButton v-if="hasToken" variant="danger" size="sm" :disabled="clearingConfig" @click="clearConfig">
                 {{ clearingConfig ? '清空中...' : '清空' }}
-              </button>
+              </UiButton>
             </div>
           </div>
 
@@ -782,16 +761,14 @@ onMounted(async () => {
             </span>
           </div>
 
-          <div class="relative mb-3">
-            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <input
-              v-model="zoneSearch"
-              type="text"
-              placeholder="搜索域名..."
-              class="w-full pl-9 pr-3 py-2 rounded-xl border text-xs outline-none"
-              style="background-color: var(--bg-card); border-color: var(--border-base); color: var(--text-primary)"
-            />
-          </div>
+          <UiInput
+            v-model="zoneSearch"
+            placeholder="搜索域名..."
+            :icon="Search"
+            :glass="false"
+            input-class="text-xs"
+            class="mb-3"
+          />
 
           <div v-if="!hasToken" class="flex-1 grid place-items-center text-xs text-center px-4" style="color: var(--text-muted)">
             请先配置并保存 Cloudflare API Token
@@ -866,36 +843,23 @@ onMounted(async () => {
                 <Pause v-else class="w-3 h-3" />
                 {{ selectedZone.paused ? '恢复 Zone' : '暂停 Zone' }}
               </button>
-              <button
-                type="button"
-                class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold cursor-pointer"
-                style="border-color: var(--border-base); color: var(--text-secondary)"
-                @click="openCloudflareDashboard(selectedZone)"
-              >
-                <ExternalLink class="w-3 h-3" />
+              <UiButton variant="outline" size="sm" :icon="ExternalLink" @click="openCloudflareDashboard(selectedZone)">
                 控制台
-              </button>
-              <button
-                type="button"
-                class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-[10px] font-bold cursor-pointer"
-                @click="openCreateDns"
-              >
-                <Plus class="w-3 h-3" />
+              </UiButton>
+              <UiButton variant="primary" size="sm" :icon="Plus" @click="openCreateDns">
                 添加 DNS
-              </button>
+              </UiButton>
             </div>
           </div>
 
-          <div class="relative mb-3">
-            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <input
-              v-model="dnsSearch"
-              type="text"
-              placeholder="搜索 DNS 记录..."
-              class="w-full pl-9 pr-3 py-2 rounded-xl border text-xs outline-none"
-              style="background-color: var(--bg-card); border-color: var(--border-base); color: var(--text-primary)"
-            />
-          </div>
+          <UiInput
+            v-model="dnsSearch"
+            placeholder="搜索 DNS 记录..."
+            :icon="Search"
+            :glass="false"
+            input-class="text-xs"
+            class="mb-3"
+          />
 
           <div class="flex-1 overflow-auto border rounded-xl" style="border-color: var(--border-base)">
             <table class="w-full text-left text-xs">
@@ -1009,7 +973,7 @@ onMounted(async () => {
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1">
               <label class="text-[11px] font-bold text-slate-500">服务 (Service) *</label>
-              <input v-model="dnsForm.srvService" type="text" placeholder="例如: _sip" class="w-full px-3 py-2 rounded-xl border text-xs font-mono text-primary" style="background-color: var(--bg-card); border-color: var(--border-base)" />
+              <UiInput v-model="dnsForm.srvService" placeholder="例如: _sip" :glass="false" input-class="text-xs font-mono" />
             </div>
             <div class="space-y-1">
               <label class="text-[11px] font-bold text-slate-500">协议 (Protocol) *</label>
@@ -1022,27 +986,27 @@ onMounted(async () => {
           </div>
           <div class="space-y-1">
             <label class="text-[11px] font-bold text-slate-500">名称 (Name/域) *</label>
-            <input v-model="dnsForm.name" type="text" class="w-full px-3 py-2 rounded-xl border text-xs font-mono text-primary" style="background-color: var(--bg-card); border-color: var(--border-base)" />
+            <UiInput v-model="dnsForm.name" :glass="false" input-class="text-xs font-mono" />
             <div class="mt-1 text-[10px]" style="color: var(--text-muted)">
               解析为: <span class="font-mono font-bold text-accent">{{ namePreview }}</span>
             </div>
           </div>
           <div class="space-y-1">
             <label class="text-[11px] font-bold text-slate-500">目标 (Target) *</label>
-            <input v-model="dnsForm.srvTarget" type="text" placeholder="例如: sipserver.example.com" class="w-full px-3 py-2 rounded-xl border text-xs font-mono text-primary" style="background-color: var(--bg-card); border-color: var(--border-base)" />
+            <UiInput v-model="dnsForm.srvTarget" placeholder="例如: sipserver.example.com" :glass="false" input-class="text-xs font-mono" />
           </div>
           <div class="grid grid-cols-3 gap-3">
             <div class="space-y-1">
               <label class="text-[11px] font-bold text-slate-500">优先级 (Priority) *</label>
-              <input v-model.number="dnsForm.priority" type="number" min="0" max="65535" class="w-full px-3 py-2 rounded-xl border text-xs text-primary" style="background-color: var(--bg-card); border-color: var(--border-base)" />
+              <UiInput v-model.number="dnsForm.priority" type="number" :glass="false" input-class="text-xs" />
             </div>
             <div class="space-y-1">
               <label class="text-[11px] font-bold text-slate-500">权重 (Weight) *</label>
-              <input v-model.number="dnsForm.srvWeight" type="number" min="0" max="65535" class="w-full px-3 py-2 rounded-xl border text-xs text-primary" style="background-color: var(--bg-card); border-color: var(--border-base)" />
+              <UiInput v-model.number="dnsForm.srvWeight" type="number" :glass="false" input-class="text-xs" />
             </div>
             <div class="space-y-1">
               <label class="text-[11px] font-bold text-slate-500">端口 (Port) *</label>
-              <input v-model.number="dnsForm.srvPort" type="number" min="1" max="65535" class="w-full px-3 py-2 rounded-xl border text-xs text-primary" style="background-color: var(--bg-card); border-color: var(--border-base)" />
+              <UiInput v-model.number="dnsForm.srvPort" type="number" :glass="false" input-class="text-xs" />
             </div>
           </div>
         </template>
@@ -1051,7 +1015,7 @@ onMounted(async () => {
         <template v-else-if="dnsForm.type === 'CAA'">
           <div class="space-y-1">
             <label class="text-[11px] font-bold text-slate-500">名称 (Name) *</label>
-            <input v-model="dnsForm.name" type="text" class="w-full px-3 py-2 rounded-xl border text-xs font-mono text-primary" style="background-color: var(--bg-card); border-color: var(--border-base)" />
+            <UiInput v-model="dnsForm.name" :glass="false" input-class="text-xs font-mono" />
             <div class="mt-1 text-[10px]" style="color: var(--text-muted)">
               解析为: <span class="font-mono font-bold text-accent">{{ namePreview }}</span>
             </div>
@@ -1059,7 +1023,7 @@ onMounted(async () => {
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1">
               <label class="text-[11px] font-bold text-slate-500">标志 (Flags) *</label>
-              <input v-model.number="dnsForm.caaFlags" type="number" min="0" max="255" class="w-full px-3 py-2 rounded-xl border text-xs text-primary" style="background-color: var(--bg-card); border-color: var(--border-base)" />
+              <UiInput v-model.number="dnsForm.caaFlags" type="number" :glass="false" input-class="text-xs" />
             </div>
             <div class="space-y-1">
               <label class="text-[11px] font-bold text-slate-500">标签 (Tag) *</label>
@@ -1072,7 +1036,7 @@ onMounted(async () => {
           </div>
           <div class="space-y-1">
             <label class="text-[11px] font-bold text-slate-500">值 (Value/CA域名) *</label>
-            <input v-model="dnsForm.caaValue" type="text" placeholder="例如: letsencrypt.org" class="w-full px-3 py-2 rounded-xl border text-xs font-mono text-primary" style="background-color: var(--bg-card); border-color: var(--border-base)" />
+            <UiInput v-model="dnsForm.caaValue" placeholder="例如: letsencrypt.org" :glass="false" input-class="text-xs font-mono" />
           </div>
         </template>
 
@@ -1080,7 +1044,7 @@ onMounted(async () => {
         <template v-else>
           <div class="space-y-1">
             <label class="text-[11px] font-bold text-slate-500">名称 (Name) *</label>
-            <input v-model="dnsForm.name" type="text" class="w-full px-3 py-2 rounded-xl border text-xs font-mono text-primary" style="background-color: var(--bg-card); border-color: var(--border-base)" />
+            <UiInput v-model="dnsForm.name" :glass="false" input-class="text-xs font-mono" />
             <div class="mt-1 text-[10px]" style="color: var(--text-muted)">
               解析为: <span class="font-mono font-bold text-accent">{{ namePreview }}</span>
               <span class="ml-1">(输入 @ 代表根域名)</span>
@@ -1089,11 +1053,11 @@ onMounted(async () => {
           <div class="space-y-1">
             <label class="text-[11px] font-bold text-slate-500">{{ contentLabel }} *</label>
             <textarea v-if="dnsForm.type === 'TXT'" v-model="dnsForm.content" rows="3" :placeholder="contentPlaceholder" class="w-full px-3 py-2 rounded-xl border text-xs font-mono text-primary outline-none resize-none" style="background-color: var(--bg-card); border-color: var(--border-base)"></textarea>
-            <input v-else v-model="dnsForm.content" type="text" :placeholder="contentPlaceholder" class="w-full px-3 py-2 rounded-xl border text-xs font-mono text-primary" style="background-color: var(--bg-card); border-color: var(--border-base)" />
+            <UiInput v-else v-model="dnsForm.content" :placeholder="contentPlaceholder" :glass="false" input-class="text-xs font-mono" />
           </div>
           <div v-if="dnsForm.type === 'MX'" class="space-y-1">
             <label class="text-[11px] font-bold text-slate-500">优先级 (Priority) *</label>
-            <input v-model.number="dnsForm.priority" type="number" min="0" max="65535" class="w-full px-3 py-2 rounded-xl border text-xs text-primary" style="background-color: var(--bg-card); border-color: var(--border-base)" />
+            <UiInput v-model.number="dnsForm.priority" type="number" :glass="false" input-class="text-xs" />
           </div>
 
           <!-- Cloudflare Proxy Toggle Card -->
@@ -1123,17 +1087,12 @@ onMounted(async () => {
         </template>
       </div>
       <template #footer>
-        <button type="button" class="px-4 py-2 rounded-xl border text-xs font-bold mr-2 cursor-pointer" @click="dnsDialogVisible = false">
+        <UiButton variant="outline" size="sm" class="mr-2" @click="dnsDialogVisible = false">
           取消
-        </button>
-        <button
-          type="button"
-          :disabled="submittingDns"
-          class="px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-50 text-white text-xs font-bold cursor-pointer"
-          @click="submitDnsForm"
-        >
+        </UiButton>
+        <UiButton variant="primary" size="sm" :disabled="submittingDns" @click="submitDnsForm">
           {{ submittingDns ? '保存中...' : '保存' }}
-        </button>
+        </UiButton>
       </template>
     </el-dialog>
   </div>

@@ -25,7 +25,7 @@ model User {
   emailVerified              Boolean                     @default(false)
   twoFactorEnabled           Boolean                     @default(false)
   twoFactorSecret            String?
-  twoFactorRecoveryCodes     String? @db.Text // Hashed JSON string of recovery codes
+  twoFactorRecoveryCodes     String?                     @db.Text // Hashed JSON string of recovery codes
   createdAt                  DateTime                    @default(now())
   updatedAt                  DateTime                    @updatedAt
   assets                     Asset[]
@@ -75,29 +75,29 @@ model User {
   teamApplications TeamApplication[]
 
   // Subscriptions & Billing
-  subscription Subscription?
-  transactions Transaction[]
+  subscription            Subscription?
+  transactions            Transaction[]
   activationCodesRedeemed ActivationCode[]
-  userSettings UserSetting[]
-  auditLogs      AuditLog[]
-  mirrorComments MirrorResourceComment[]
-  mirrorLikes    MirrorResourceLike[]
-  manualComments ManualResourceComment[]
-  manualLikes    ManualResourceLike[]
+  userSettings            UserSetting[]
+  auditLogs               AuditLog[]
+  mirrorComments          MirrorResourceComment[]
+  mirrorLikes             MirrorResourceLike[]
+  manualComments          ManualResourceComment[]
+  manualLikes             ManualResourceLike[]
 
-  googleId   String? @unique
-  githubId   String? @unique
-  microsoftEmailAccounts MicrosoftEmailAccount[]
-  googleWarmingAccounts GoogleWarmingAccount[]
-  twoFactorAccounts     TwoFactorAccount[]
-  aiBotIntegrations        AiBotIntegration[]
-  aiBotMessages            AiBotMessage[]
-  aiChatSessions           AiChatSession[]
+  googleId                  String?                   @unique
+  githubId                  String?                   @unique
+  microsoftEmailAccounts    MicrosoftEmailAccount[]
+  googleWarmingAccounts     GoogleWarmingAccount[]
+  twoFactorAccounts         TwoFactorAccount[]
+  aiBotIntegrations         AiBotIntegration[]
+  aiBotMessages             AiBotMessage[]
+  aiChatSessions            AiChatSession[]
   aiBotKnowledgeSources     AiBotKnowledgeSource[]
   directMessageEmailBatches DirectMessageEmailBatch[]
-  aiMessages    AiMessage[]
-  plugins    Plugin[]
-  assetLikes AssetLike[]
+  aiMessages                AiMessage[]
+  plugins                   Plugin[]
+  assetLikes                AssetLike[]
 }
 
 model Conversation {
@@ -109,6 +109,8 @@ model Conversation {
   messages     Message[]
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  @@index([updatedAt])
 }
 
 model Message {
@@ -128,6 +130,7 @@ model Message {
 
   @@index([conversationId])
   @@index([senderId])
+  @@index([createdAt])
 }
 
 model MessageRead {
@@ -224,20 +227,21 @@ model Notification {
   createdAt   DateTime   @default(now())
 
   @@index([userId, isRead])
+  @@index([broadcastId])
 }
 
 model NotificationPreference {
-  id                 String   @id @default(uuid())
-  userId             String   @unique
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  emailSystemUpdates Boolean  @default(true)
-  emailTeamActivity  Boolean  @default(true)
-  emailMarketing     Boolean  @default(false)
-  pushMentions       Boolean  @default(true)
-  pushDirectMessages Boolean  @default(true)
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailSystemUpdates  Boolean  @default(true)
+  emailTeamActivity   Boolean  @default(true)
+  emailMarketing      Boolean  @default(false)
+  pushMentions        Boolean  @default(true)
+  pushDirectMessages  Boolean  @default(true)
   emailDirectMessages Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model Broadcast {
@@ -247,6 +251,8 @@ model Broadcast {
   link          String?
   notifications Notification[]
   createdAt     DateTime       @default(now())
+
+  @@index([createdAt])
 }
 
 model TrustedDevice {
@@ -317,16 +323,16 @@ model Asset {
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
-  userId    String
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  teamId    String?
-  team      Team?      @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  showcases Showcase[]
-  versions    AssetVersion[]
-  annotations AssetAnnotation[]
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId        String?
+  team          Team?             @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  showcases     Showcase[]
+  versions      AssetVersion[]
+  annotations   AssetAnnotation[]
   likesRelation AssetLike[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   @@index([userId])
   @@index([categoryId])
@@ -390,6 +396,9 @@ model Lesson {
   notes       CourseNote[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+
+  @@index([courseId])
+  @@index([courseId, order])
 }
 
 model Enrollment {
@@ -405,6 +414,9 @@ model Enrollment {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, courseId, teamId])
+  @@index([courseId])
+  @@index([userId])
+  @@index([teamId])
 }
 
 model Discussion {
@@ -543,6 +555,7 @@ model Feedback {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  @@index([status])
 }
 
 model VerificationCode {
@@ -566,6 +579,8 @@ model Roadmap {
   project     Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+
+  @@index([creatorId])
 }
 
 model RoadmapStep {
@@ -579,6 +594,8 @@ model RoadmapStep {
   userProgress UserRoadmapProgress[]
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
+
+  @@index([roadmapId])
 }
 
 model UserRoadmapProgress {
@@ -592,6 +609,7 @@ model UserRoadmapProgress {
   updatedAt     DateTime    @updatedAt
 
   @@unique([userId, roadmapStepId])
+  @@index([roadmapStepId])
 }
 
 model Project {
@@ -645,6 +663,9 @@ model ProjectDiscussion {
   user      User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   reactions ProjectDiscussionReaction[]
   createdAt DateTime                    @default(now())
+
+  @@index([projectId])
+  @@index([projectId, createdAt])
 }
 
 model ProjectDiscussionReaction {
@@ -657,6 +678,7 @@ model ProjectDiscussionReaction {
   createdAt    DateTime          @default(now())
 
   @@unique([discussionId, userId, emoji])
+  @@index([discussionId])
 }
 
 model ProjectInvitation {
@@ -697,6 +719,9 @@ model Material {
   updatedAt    DateTime           @updatedAt
 
   @@index([userId])
+  @@index([teamId])
+  @@index([status])
+  @@index([category])
 }
 
 model MaterialFavorite {
@@ -765,24 +790,24 @@ model ShowcaseComment {
 }
 
 model SubscriptionPlan {
-  id            String         @id @default(uuid())
-  name          String         @unique
-  displayName   String?
-  price         Float
-  yearlyPrice   Float?
-  interval      String         @default("MONTHLY")
-  features      String?
-  maxStorage    Float          @default(1)
-  maxTeams      Int            @default(1)
-  maxProjects   Int            @default(5)
-  maxAssets     Int            @default(50)
-  priority      Int            @default(0)
-  isPopular     Boolean        @default(false)
-  badgeColor    String?
-  subscriptions Subscription[]
+  id              String           @id @default(uuid())
+  name            String           @unique
+  displayName     String?
+  price           Float
+  yearlyPrice     Float?
+  interval        String           @default("MONTHLY")
+  features        String?
+  maxStorage      Float            @default(1)
+  maxTeams        Int              @default(1)
+  maxProjects     Int              @default(5)
+  maxAssets       Int              @default(50)
+  priority        Int              @default(0)
+  isPopular       Boolean          @default(false)
+  badgeColor      String?
+  subscriptions   Subscription[]
   activationCodes ActivationCode[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model Subscription {
@@ -800,6 +825,9 @@ model Subscription {
   paymentMethod     String?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
+
+  @@index([planId])
+  @@index([status])
 }
 
 model ActivationCode {
@@ -839,6 +867,10 @@ model Transaction {
   metadata      String? // JSON string for additional data
   createdAt     DateTime @default(now())
   updatedAt     DateTime @default(now()) @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model CourseReview {
@@ -854,6 +886,7 @@ model CourseReview {
 
   @@unique([userId, courseId])
   @@index([courseId])
+  @@index([rating])
 }
 
 model LessonProgress {
@@ -883,6 +916,7 @@ model CourseNote {
   updatedAt DateTime @updatedAt
 
   @@index([userId, lessonId])
+  @@index([lessonId])
 }
 
 model Note {
@@ -906,6 +940,8 @@ model Note {
 
   @@index([userId])
   @@index([category])
+  @@index([visibility, isPopular])
+  @@index([isPinned])
 }
 
 model NoteLike {
@@ -949,73 +985,74 @@ model AuditLog {
 }
 
 model MirrorSource {
-  id              String           @id @default(uuid())
-  name            String           @unique
-  displayName     String
-  baseUrl         String
-  adapterType     String           @default("GENERIC_WP")
-  status          String           @default("ACTIVE")
-  syncStatus      String           @default("IDLE")
-  lastSyncAt      DateTime?
+  id               String           @id @default(uuid())
+  name             String           @unique
+  displayName      String
+  baseUrl          String
+  adapterType      String           @default("GENERIC_WP")
+  status           String           @default("ACTIVE")
+  syncStatus       String           @default("IDLE")
+  lastSyncAt       DateTime?
   lastSyncDuration Int?
-  totalResources  Int              @default(0)
-  syncInterval    Int              @default(3600)
-  syncConfig      String?
-  minPlanPriority Int              @default(1)
-  iconUrl         String?
-  description     String?
-  categories      MirrorCategory[]
-  resources       MirrorResource[]
-  syncLogs        SyncLog[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  totalResources   Int              @default(0)
+  syncInterval     Int              @default(3600)
+  syncConfig       String?
+  minPlanPriority  Int              @default(1)
+  iconUrl          String?
+  description      String?
+  categories       MirrorCategory[]
+  resources        MirrorResource[]
+  syncLogs         SyncLog[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 }
 
 model MirrorCategory {
-  id               String          @id @default(uuid())
+  id               String           @id @default(uuid())
   sourceId         String
-  source           MirrorSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  source           MirrorSource     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   externalId       String
   name             String
   slug             String?
   parentExternalId String?
-  order            Int             @default(0)
-  resourceCount    Int             @default(0)
+  order            Int              @default(0)
+  resourceCount    Int              @default(0)
   resources        MirrorResource[]
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   @@unique([sourceId, externalId])
 }
 
 model MirrorResource {
-  id            String                  @id @default(uuid())
-  sourceId      String
-  source        MirrorSource            @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  externalId    String
-  categoryId    String?
-  category      MirrorCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  title         String
-  description   String?                 @db.Text
-  thumbnailUrl  String?
-  contentUrl    String?
-  tags          String?
-  externalData  String?                 @db.Text
-  contentHtml   String?                 @db.Text
-  resourceType  String                  @default("COURSE")
-  viewCount     Int                     @default(0)
-  publishedAt   DateTime?
-  syncedAt      DateTime                @default(now())
-  contentHash   String?
-  comments      MirrorResourceComment[]
-  likes         MirrorResourceLike[]
-  createdAt     DateTime                @default(now())
-  updatedAt     DateTime                @updatedAt
+  id           String                  @id @default(uuid())
+  sourceId     String
+  source       MirrorSource            @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  externalId   String
+  categoryId   String?
+  category     MirrorCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  title        String
+  description  String?                 @db.Text
+  thumbnailUrl String?
+  contentUrl   String?
+  tags         String?
+  externalData String?                 @db.Text
+  contentHtml  String?                 @db.Text
+  resourceType String                  @default("COURSE")
+  viewCount    Int                     @default(0)
+  publishedAt  DateTime?
+  syncedAt     DateTime                @default(now())
+  contentHash  String?
+  comments     MirrorResourceComment[]
+  likes        MirrorResourceLike[]
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
 
   @@unique([sourceId, externalId])
   @@index([sourceId, categoryId])
   @@index([title])
   @@index([syncedAt])
+  @@index([contentHash])
 }
 
 model SyncLog {
@@ -1034,6 +1071,9 @@ model SyncLog {
   error            String?
   metadata         String?
   createdAt        DateTime     @default(now())
+
+  @@index([sourceId])
+  @@index([startedAt])
 }
 
 model MirrorResourceComment {
@@ -1045,6 +1085,9 @@ model MirrorResourceComment {
   user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
+
+  @@index([resourceId])
+  @@index([userId])
 }
 
 model MirrorResourceLike {
@@ -1074,41 +1117,41 @@ model ManualStation {
 }
 
 model ManualCategory {
-  id               String          @id @default(uuid())
-  stationId        String
-  station          ManualStation   @relation(fields: [stationId], references: [id], onDelete: Cascade)
-  name             String
-  slug             String?
-  parentId         String?
-  parent           ManualCategory? @relation("ManualCategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
-  children         ManualCategory[] @relation("ManualCategoryParent")
-  order            Int             @default(0)
-  resourceCount    Int             @default(0)
-  resources        ManualResource[]
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id            String           @id @default(uuid())
+  stationId     String
+  station       ManualStation    @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  name          String
+  slug          String?
+  parentId      String?
+  parent        ManualCategory?  @relation("ManualCategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
+  children      ManualCategory[] @relation("ManualCategoryParent")
+  order         Int              @default(0)
+  resourceCount Int              @default(0)
+  resources     ManualResource[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   @@index([stationId])
 }
 
 model ManualResource {
-  id            String                  @id @default(uuid())
-  stationId     String
-  station       ManualStation           @relation(fields: [stationId], references: [id], onDelete: Cascade)
-  categoryId    String?
-  category      ManualCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  title         String
-  description   String?                 @db.Text
-  thumbnailUrl  String?
-  contentUrl    String?
-  tags          String?
-  contentHtml   String?                 @db.Text
-  resourceType  String                  @default("COURSE")
-  viewCount     Int                     @default(0)
-  createdAt     DateTime                @default(now())
-  updatedAt     DateTime                @updatedAt
-  comments      ManualResourceComment[]
-  likes         ManualResourceLike[]
+  id           String                  @id @default(uuid())
+  stationId    String
+  station      ManualStation           @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  categoryId   String?
+  category     ManualCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  title        String
+  description  String?                 @db.Text
+  thumbnailUrl String?
+  contentUrl   String?
+  tags         String?
+  contentHtml  String?                 @db.Text
+  resourceType String                  @default("COURSE")
+  viewCount    Int                     @default(0)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  comments     ManualResourceComment[]
+  likes        ManualResourceLike[]
 
   @@index([stationId, categoryId])
   @@index([title])
@@ -1141,29 +1184,29 @@ model ManualResourceLike {
 }
 
 model MicrosoftEmailAccount {
-  id               String   @id @default(uuid())
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  email            String   @unique
-  password         String?  // Encrypted with enc:v1 when provided
-  clientId         String   // Microsoft OAuth Client ID
-  refreshToken     String   @db.Text // OAuth2 Refresh Token (used to acquire access tokens)
-  accessToken      String?  @db.Text // Current active ephemeral access token
-  tokenExpiresAt   DateTime? // Expiry timestamp of the current access token
-  status           String   @default("ACTIVE") // 'ACTIVE', 'EXPIRED', 'ERROR'
-  statusMessage    String?  @db.Text
-  
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email          String    @unique
+  password       String? // Encrypted with enc:v1 when provided
+  clientId       String // Microsoft OAuth Client ID
+  refreshToken   String    @db.Text // OAuth2 Refresh Token (used to acquire access tokens)
+  accessToken    String?   @db.Text // Current active ephemeral access token
+  tokenExpiresAt DateTime? // Expiry timestamp of the current access token
+  status         String    @default("ACTIVE") // 'ACTIVE', 'EXPIRED', 'ERROR'
+  statusMessage  String?   @db.Text
+
   // Anti-Ban & Safe Sending Configurations
-  proxy            String?  // Proxy URL, e.g., http://user:pass@host:port
-  userAgent        String?  @db.Text // Custom User-Agent
-  dailyLimit       Int      @default(50) // Max sends per day
-  sentCountToday   Int      @default(0) // Counter for today
-  lastResetDate    DateTime @default(now()) // Daily limit reset tracker
-  minDelay         Int      @default(5) // Min seconds delay between actions
-  maxDelay         Int      @default(15) // Max seconds delay between actions
-  
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  proxy          String? // Proxy URL, e.g., http://user:pass@host:port
+  userAgent      String?  @db.Text // Custom User-Agent
+  dailyLimit     Int      @default(50) // Max sends per day
+  sentCountToday Int      @default(0) // Counter for today
+  lastResetDate  DateTime @default(now()) // Daily limit reset tracker
+  minDelay       Int      @default(5) // Min seconds delay between actions
+  maxDelay       Int      @default(15) // Max seconds delay between actions
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
 }
@@ -1172,7 +1215,7 @@ model AiMessage {
   id           String   @id @default(uuid())
   userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role         String   // 'user' or 'assistant'
+  role         String // 'user' or 'assistant'
   content      String   @db.Text
   reasoning    String?  @db.Text
   sessionId    String   @default("default")
@@ -1197,6 +1240,7 @@ model NoteShare {
 
   @@index([noteId])
   @@index([userId])
+  @@index([expiresAt])
 }
 
 model Banner {
@@ -1220,10 +1264,10 @@ model AssetVersion {
   id            String   @id @default(uuid())
   assetId       String
   asset         Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  version       String   
+  version       String
   url           String
   thumbnail     String?
-  size          Float?   
+  size          Float?
   vertices      Int?
   faces         Int?
   materials     Int?
@@ -1248,8 +1292,8 @@ model AssetAnnotation {
   x            Float
   y            Float
   z            Float
-  cameraPos    String?  
-  cameraTarget String?  
+  cameraPos    String?
+  cameraTarget String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -1266,7 +1310,7 @@ model Plugin {
   compatibility String   @default("") // e.g. "Blender 3.x / 4.x"
   tags          String?  @db.Text
   fileUrl       String
-  fileSize      Float?   // in MB
+  fileSize      Float? // in MB
   previewUrl    String?
   installGuide  String?  @db.Text // Markdown
   status        String   @default("PENDING") // 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -1279,6 +1323,7 @@ model Plugin {
 
   @@index([userId])
   @@index([status])
+  @@index([category])
 }
 
 model AssetLike {
@@ -1297,11 +1342,11 @@ model TwoFactorAccount {
   id        String   @id @default(uuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  label     String   // e.g. "Github", "Google"
-  email     String?  // e.g. "user@example.com"
-  secret    String   // Base32 encoded secret key
-  note      String?  // Optional remarks
-  category  String?  // e.g. "Personal", "Work"
+  label     String // e.g. "Github", "Google"
+  email     String? // e.g. "user@example.com"
+  secret    String // Base32 encoded secret key
+  note      String? // Optional remarks
+  category  String? // e.g. "Personal", "Work"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1309,47 +1354,47 @@ model TwoFactorAccount {
 }
 
 model GoogleWarmingAccount {
-  id             String    @id @default(uuid())
-  userId         String
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  email          String
-  password       String
-  recoveryEmail  String?
-  twoFASecret    String?
-  country        String?
-  note           String?
-  backupCodes    String?
-  category       String?   @default("未分类")
-  status         String    @default("warming") // "warming", "completed", "paused"
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  startDate      DateTime  @default(now())
-  currentDay     Int       @default(1)
-  lastWarmedAt   DateTime?
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email         String
+  password      String
+  recoveryEmail String?
+  twoFASecret   String?
+  country       String?
+  note          String?
+  backupCodes   String?
+  category      String?   @default("未分类")
+  status        String    @default("warming") // "warming", "completed", "paused"
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  startDate     DateTime  @default(now())
+  currentDay    Int       @default(1)
+  lastWarmedAt  DateTime?
 
   @@index([userId])
 }
 
 model AiBotIntegration {
-  id              String                 @id @default(uuid())
-  userId          String
-  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name            String
-  platform        String
-  status          String                 @default("ACTIVE")
-  webhookUrl      String?                @db.Text
-  secret          String?                @db.Text
-  publicToken     String                 @unique
-  triggerKeywords String?                @db.Text
-  systemPrompt    String?                @db.Text
-  responseMode    String                 @default("CALLBACK_AND_WEBHOOK")
-  aiModelId       String?
-  aiTemperature   Float?
-  aiMaxTokens     Int?
-  lastUsedAt      DateTime?
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
-  messages        AiBotMessage[]
+  id               String                 @id @default(uuid())
+  userId           String
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  platform         String
+  status           String                 @default("ACTIVE")
+  webhookUrl       String?                @db.Text
+  secret           String?                @db.Text
+  publicToken      String                 @unique
+  triggerKeywords  String?                @db.Text
+  systemPrompt     String?                @db.Text
+  responseMode     String                 @default("CALLBACK_AND_WEBHOOK")
+  aiModelId        String?
+  aiTemperature    Float?
+  aiMaxTokens      Int?
+  lastUsedAt       DateTime?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  messages         AiBotMessage[]
   knowledgeSources AiBotKnowledgeSource[]
 
   @@index([userId])
@@ -1441,30 +1486,29 @@ model DirectMessageEmailBatch {
   @@unique([userId, conversationId])
   @@index([scheduledFor])
   @@index([userId])
+  @@index([processingAt])
 }
 
 model StorageConfig {
-  id              String   @id @default(uuid())
-  name            String
-  provider        String   @default("CLOUDFLARE_R2") // 'CLOUDFLARE_R2'
-  endpoint        String
-  accessKeyId     String
-  secretAccessKey String
-  bucketName      String
-  publicUrl       String
+  id                  String   @id @default(uuid())
+  name                String
+  provider            String   @default("CLOUDFLARE_R2") // 'CLOUDFLARE_R2'
+  endpoint            String
+  accessKeyId         String
+  secretAccessKey     String
+  bucketName          String
+  publicUrl           String
   cloudflareAccountId String?
   cloudflareApiToken  String?  @db.Text
-  remark          String?
-  limitGb         Float    @default(9.8) // Configurable limit in GB, default 9.8
-  usedBytes       Float    @default(0)   // Space used in bytes, precise and editable
-  assetType       String   // 'ALL' | 'ASSET' | 'MATERIAL' | 'PLUGIN' | 'SHOWCASE' | 'MIRROR'
-  priority        Int      @default(0)   // Higher number = higher priority
-  status          String   @default("ACTIVE") // 'ACTIVE' | 'INACTIVE'
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  remark              String?
+  limitGb             Float    @default(9.8) // Configurable limit in GB, default 9.8
+  usedBytes           Float    @default(0) // Space used in bytes, precise and editable
+  assetType           String // 'ALL' | 'ASSET' | 'MATERIAL' | 'PLUGIN' | 'SHOWCASE' | 'MIRROR'
+  priority            Int      @default(0) // Higher number = higher priority
+  status              String   @default("ACTIVE") // 'ACTIVE' | 'INACTIVE'
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@index([status])
   @@index([assetType])
 }
-
-

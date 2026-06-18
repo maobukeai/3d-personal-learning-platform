@@ -1,18 +1,5 @@
 import { logger } from '../utils/logger';
-import { decrypt } from '../utils/crypto';
-
-const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
-
-function getDecryptedSecret(raw: string | null | undefined): string {
-  if (!raw) return '';
-  if (!ENCRYPTED_VALUE_RE.test(raw)) return raw;
-  try {
-    return decrypt(raw);
-  } catch (err) {
-    logger.error('[AssetController] Failed to decrypt secretAccessKey:', err);
-    return raw;
-  }
-}
+import { decryptSecretIfNeeded } from '../utils/crypto';
 import { Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
@@ -25,13 +12,20 @@ import { process3DAsset } from '../utils/asset-processor';
 import { checkAssetQuota, checkStorageQuota } from '../utils/quota';
 import { deleteCloudOrLocalFileByUrl } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
-import { AppError } from '../middlewares/error.middleware';
+import { AppError } from '../utils/error';
 import { clampLimit, clampPage } from '../utils/pagination';
 import { redisService } from '../services/redis.service';
 import { storageService } from '../services/storage.service';
 
 const TAG_SEARCH_REDIS_TTL = 7 * 24 * 3600; // 7 days
 const tagSearchKey = (tag: string) => `asset_tag_search:${tag}`;
+
+/** Multer file augmented with R2 cloud upload metadata. */
+type UploadedFile = Express.Multer.File & {
+  url?: string;
+  r2Key?: string;
+  r2ConfigId?: string;
+};
 
 const splitTagText = (value: string): string[] =>
   value
@@ -57,7 +51,6 @@ const normalizeAssetTags = (tags: unknown): string[] => {
 
   return splitTagText(tags);
 };
-
 
 type PerformanceTone = 'pass' | 'notice' | 'warning' | 'danger';
 
@@ -335,13 +328,17 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
       if (!fs.existsSync(assetsDir)) {
         fs.mkdirSync(assetsDir, { recursive: true });
       }
-      url = (assetFile as any).url || `${req.protocol}://${req.get('host')}/uploads/assets/${assetFile.filename}`;
+      url =
+        (assetFile as UploadedFile).url ||
+        `${req.protocol}://${req.get('host')}/uploads/assets/${assetFile.filename}`;
       type = path.extname(assetFile.originalname).slice(1).toUpperCase();
     }
 
     let thumbnailUrl = null;
     if (files?.thumbnail?.[0]) {
-      thumbnailUrl = (files.thumbnail[0] as any).url || `${req.protocol}://${req.get('host')}/uploads/assets/${files.thumbnail[0].filename}`;
+      thumbnailUrl =
+        (files.thumbnail[0] as UploadedFile).url ||
+        `${req.protocol}://${req.get('host')}/uploads/assets/${files.thumbnail[0].filename}`;
     }
 
     let parsedFormats = formats;
@@ -398,7 +395,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
           logger.error(`[AssetProcessor] Background processing error for asset: ${asset.id}:`, err);
         })
         .finally(() => {
-          if ((assetFile as any).url && fs.existsSync(fullPath)) {
+          if ((assetFile as UploadedFile).url && fs.existsSync(fullPath)) {
             try {
               fs.unlinkSync(fullPath);
             } catch (cleanupErr) {
@@ -570,10 +567,7 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response, next
         status: 'ACTIVE',
         assetType: 'ASSET',
       },
-      orderBy: [
-        { priority: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
     });
 
     if (activeConfigs.length === 0) {
@@ -582,10 +576,7 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response, next
           status: 'ACTIVE',
           assetType: 'ALL',
         },
-        orderBy: [
-          { priority: 'desc' },
-          { createdAt: 'desc' },
-        ],
+        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
       });
     }
 
@@ -614,7 +605,7 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response, next
                 {
                   endpoint: config.endpoint,
                   accessKeyId: config.accessKeyId,
-                  secretAccessKey: getDecryptedSecret(config.secretAccessKey),
+                  secretAccessKey: decryptSecretIfNeeded(config.secretAccessKey),
                   bucketName: config.bucketName,
                   publicUrl: config.publicUrl,
                 },
@@ -626,7 +617,10 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response, next
               fs.unlinkSync(filePath);
               break;
             } catch (uploadError) {
-              logger.error('[AssetController] Failed to upload screenshot thumbnail to R2:', uploadError);
+              logger.error(
+                '[AssetController] Failed to upload screenshot thumbnail to R2:',
+                uploadError,
+              );
               // Revert space
               await prisma.storageConfig.update({
                 where: { id: config.id },
@@ -711,7 +705,7 @@ export const getPublicAssets = async (req: AuthRequest, res: Response, next: Nex
     if (sort === 'views') orderBy = { viewCount: 'desc' };
     if (sort === 'size') orderBy = { size: 'desc' };
 
-    let assets: any[];
+    let assets: unknown[];
     if (lite) {
       assets = await prisma.asset.findMany({
         where,
@@ -853,7 +847,6 @@ export const getAssetInsights = async (req: AuthRequest, res: Response, next: Ne
       topDownloads: [...assets].sort((a, b) => b.downloads - a.downloads).slice(0, 6),
       latest: assets.slice(0, 6),
     });
-
   } catch (error) {
     next(error);
   }
@@ -1065,11 +1058,17 @@ export const deleteAsset = async (req: AuthRequest, res: Response, next: NextFun
 
     // Delete files from disk or cloud (run in background)
     deleteCloudOrLocalFileByUrl(asset.url).catch((err) => {
-      logger.error(`[AssetController] Failed to delete asset file ${asset.url} in background:`, err);
+      logger.error(
+        `[AssetController] Failed to delete asset file ${asset.url} in background:`,
+        err,
+      );
     });
     if (asset.thumbnail) {
       deleteCloudOrLocalFileByUrl(asset.thumbnail).catch((err) => {
-        logger.error(`[AssetController] Failed to delete asset thumbnail ${asset.thumbnail} in background:`, err);
+        logger.error(
+          `[AssetController] Failed to delete asset thumbnail ${asset.thumbnail} in background:`,
+          err,
+        );
       });
     }
 
@@ -1332,11 +1331,17 @@ export const adminDeleteAsset = async (req: AuthRequest, res: Response, next: Ne
 
     // Delete files from disk or cloud if they exist (run in background)
     deleteCloudOrLocalFileByUrl(asset.url).catch((err) => {
-      logger.error(`[AssetController] Failed to delete asset file ${asset.url} in background:`, err);
+      logger.error(
+        `[AssetController] Failed to delete asset file ${asset.url} in background:`,
+        err,
+      );
     });
     if (asset.thumbnail) {
       deleteCloudOrLocalFileByUrl(asset.thumbnail).catch((err) => {
-        logger.error(`[AssetController] Failed to delete asset thumbnail ${asset.thumbnail} in background:`, err);
+        logger.error(
+          `[AssetController] Failed to delete asset thumbnail ${asset.thumbnail} in background:`,
+          err,
+        );
       });
     }
 
@@ -1386,7 +1391,9 @@ export const uploadAssetVersion = async (req: AuthRequest, res: Response, next: 
       return next(new AppError(storageQuota.message || 'Storage quota exceeded', 403));
     }
 
-    const url = (assetFile as any).url || `${req.protocol}://${req.get('host')}/uploads/assets/${assetFile.filename}`;
+    const url =
+      (assetFile as UploadedFile).url ||
+      `${req.protocol}://${req.get('host')}/uploads/assets/${assetFile.filename}`;
     const type = path.extname(assetFile.originalname).slice(1).toUpperCase();
 
     // Check if same type
@@ -1446,7 +1453,7 @@ export const uploadAssetVersion = async (req: AuthRequest, res: Response, next: 
           );
         })
         .finally(() => {
-          if ((assetFile as any).url && fs.existsSync(fullPath)) {
+          if ((assetFile as UploadedFile).url && fs.existsSync(fullPath)) {
             try {
               fs.unlinkSync(fullPath);
             } catch (cleanupErr) {
@@ -1657,9 +1664,7 @@ export const getAssetTags = async (req: AuthRequest, res: Response, next: NextFu
       }
     });
 
-    const allTags = Array.from(
-      new Set([...Object.keys(tagUsageCounts)]),
-    );
+    const allTags = Array.from(new Set([...Object.keys(tagUsageCounts)]));
     // Batch-read search counts from Redis
     const searchCounts = await Promise.all(
       allTags.map((tag) => redisService.get<number>(tagSearchKey(tag)).then((v) => v ?? 0)),

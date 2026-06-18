@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
@@ -22,7 +22,7 @@ interface BatchCreateTaskInput {
   participantIds?: string[];
 }
 
-export const getAllTasks = async (req: AuthRequest, res: Response) => {
+export const getAllTasks = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { date, status, priority, projectId, assigneeId } = req.query;
   try {
     const where: Prisma.TaskWhereInput = {
@@ -88,12 +88,12 @@ export const getAllTasks = async (req: AuthRequest, res: Response) => {
       orderBy: [{ priority: 'desc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
     });
     res.json(tasks);
-  } catch (_error) {
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const createTask = async (req: AuthRequest, res: Response) => {
+export const createTask = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const {
     title,
     description,
@@ -248,12 +248,12 @@ export const createTask = async (req: AuthRequest, res: Response) => {
     }
 
     res.status(201).json(task);
-  } catch (_error) {
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const batchCreateTasks = async (req: AuthRequest, res: Response) => {
+export const batchCreateTasks = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { tasks } = req.body as { tasks?: BatchCreateTaskInput[] };
 
   if (!Array.isArray(tasks) || tasks.length === 0) {
@@ -474,11 +474,11 @@ export const batchCreateTasks = async (req: AuthRequest, res: Response) => {
     res.status(201).json({ count: createdTasks.length, tasks: createdTasks });
   } catch (error) {
     logger.error('Failed to batch create tasks:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const updateTask = async (req: AuthRequest, res: Response) => {
+export const updateTask = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   const {
     title,
@@ -700,12 +700,12 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
     }
 
     res.json(task);
-  } catch (_error) {
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const deleteTask = async (req: AuthRequest, res: Response) => {
+export const deleteTask = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const existingTask = await prisma.task.findFirst({
@@ -788,12 +788,12 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
     }
 
     res.json({ message: 'Task deleted successfully' });
-  } catch (_error) {
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const getTaskStats = async (req: AuthRequest, res: Response) => {
+export const getTaskStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const where: Prisma.TaskWhereInput = {
       teamId: req.workspaceId || null,
@@ -846,7 +846,7 @@ export const getTaskStats = async (req: AuthRequest, res: Response) => {
         {} as Record<string, number>,
       ),
     });
-  } catch (_error) {
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 };

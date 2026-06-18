@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, onBeforeUpdate } from 'vue';
+import { ref, onMounted, watch, onBeforeUpdate, type Component } from 'vue';
+
+type TabValue = string | number | null;
 
 interface TabOption {
   label?: string;
-  value: any;
-  icon?: any;
+  value: TabValue;
+  icon?: Component;
   badge?: number | string;
 }
 
 interface Props {
   options: readonly TabOption[];
-  modelValue: any;
+  modelValue: TabValue;
   size?: 'sm' | 'md' | 'lg';
   variant?: 'default' | 'solid';
   direction?: 'horizontal' | 'vertical';
@@ -23,8 +25,8 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: any): void;
-  (e: 'change', value: any): void;
+  (e: 'update:modelValue', value: TabValue): void;
+  (e: 'change', value: TabValue): void;
 }>();
 
 const containerRef = ref<HTMLElement | null>(null);
@@ -37,7 +39,7 @@ const sliderStyle = ref({
   opacity: 0,
 });
 
-const selectTab = (value: any, index: number) => {
+const selectTab = (value: TabValue, index: number) => {
   emit('update:modelValue', value);
   emit('change', value);
   updateSlider(index);
@@ -119,7 +121,7 @@ onMounted(() => {
     <!-- Tab buttons -->
     <button
       v-for="(option, index) in options"
-      :key="option.value"
+      :key="option.value === null ? 'null' : option.value"
       ref="activeTabRef"
       type="button"
       class="relative z-10 flex items-center gap-1.5 font-bold tracking-tight rounded-lg transition-colors duration-200 outline-none focus:outline-none"

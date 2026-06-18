@@ -70,7 +70,6 @@ const fetchBanners = async () => {
     banners.value = data;
     fetchManagementInsights(true);
   } catch (error) {
-    console.error('Failed to fetch banners:', error);
     ElMessage.error('获取轮播图列表失败');
   } finally {
     isLoading.value = false;
@@ -121,7 +120,6 @@ const handleImageUpload = async (event: Event) => {
     form.value.imageUrl = data.url;
     ElMessage.success('图片上传成功');
   } catch (error) {
-    console.error('Upload image error:', error);
     ElMessage.error('图片上传失败');
   } finally {
     isUploading.value = false;
@@ -136,7 +134,6 @@ const handleToggleStatus = async (banner: Banner) => {
     banner.isActive = nextStatus;
     ElMessage.success(nextStatus ? '轮播图已启用' : '轮播图已禁用');
   } catch (error) {
-    console.error('Toggle status error:', error);
     ElMessage.error('更新状态失败');
   }
 };
@@ -161,7 +158,6 @@ const saveBanner = async () => {
     isDialogOpen.value = false;
     fetchBanners();
   } catch (error) {
-    console.error('Save banner error:', error);
     ElMessage.error(dialogMode.value === 'create' ? '创建轮播图失败' : '更新轮播图失败');
   } finally {
     isSaving.value = false;
@@ -184,7 +180,6 @@ const handleDeleteBanner = async (id: string) => {
     ElMessage.success('删除成功');
     fetchBanners();
   } catch (error) {
-    console.error('Delete banner error:', error);
     ElMessage.error('删除轮播图失败');
   }
 };

@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { AppError } from '../middlewares/error.middleware';
+import { AppError } from '../utils/error';
 import { AIChatMessage, streamLLMChat } from '../services/ai.service';
 import { PROMPT_INJECTION_DEFENSE } from '../config/prompts';
 import { hasPromptInjection } from '../utils/security';
@@ -215,7 +215,7 @@ export const writeAssist = async (req: AuthRequest, res: Response, next: NextFun
       `[AI Write Assist] action=${action}, scope=${scope}, request=${requestId}, user=${req.userId}`,
     );
 
-    await streamLLMChat(messages, systemPrompt, res, undefined, undefined, {
+    await streamLLMChat(messages, systemPrompt, res, next, undefined, undefined, {
       event: 'meta',
       requestId,
       action,

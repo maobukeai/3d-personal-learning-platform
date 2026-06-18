@@ -6,7 +6,7 @@ import nodemailer from 'nodemailer';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { settingsService } from '../../services/settings.service';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
-import { AppError } from '../../middlewares/error.middleware';
+import { AppError } from '../../utils/error';
 import { callLLM } from '../../services/ai.service';
 import { configureAxiosProxy } from '../../utils/axios-proxy';
 

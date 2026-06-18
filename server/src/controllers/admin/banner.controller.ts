@@ -1,7 +1,8 @@
 import { Response, NextFunction } from 'express';
 import prisma from '../../services/prisma';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { AppError } from '../../middlewares/error.middleware';
+import { AppError } from '../../utils/error';
+import { logger } from '../../utils/logger';
 import fs from 'fs';
 import path from 'path';
 
@@ -66,7 +67,7 @@ export const updateBanner = async (req: AuthRequest, res: Response, next: NextFu
         try {
           fs.unlinkSync(oldLocalPath);
         } catch (err) {
-          console.error('Failed to remove old banner image file:', err);
+          logger.error('Failed to remove old banner image file:', err);
         }
       }
     }
@@ -111,7 +112,7 @@ export const deleteBanner = async (req: AuthRequest, res: Response, next: NextFu
         try {
           fs.unlinkSync(localPath);
         } catch (err) {
-          console.error('Failed to delete banner image file:', err);
+          logger.error('Failed to delete banner image file:', err);
         }
       }
     }

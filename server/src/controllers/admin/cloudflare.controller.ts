@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { cloudflareAdminService } from '../../services/cloudflare-admin.service';
 import { auditService, AuditModule } from '../../services/audit.service';
-import { AppError } from '../../middlewares/error.middleware';
+import { AppError } from '../../utils/error';
 
 export const getConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

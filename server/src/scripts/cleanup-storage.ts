@@ -4,31 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { urlToPath } from '../utils/file';
 import { storageService } from '../services/storage.service';
-import { decrypt } from '../utils/crypto';
-
-/** Matches the encrypted format produced by `encrypt()`: iv(24hex):tag(32hex):ciphertext */
-const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
-
-function getDecryptedSecret(raw: string | null | undefined): string {
-  if (!raw) return '';
-  if (!ENCRYPTED_VALUE_RE.test(raw)) return raw;
-  try {
-    return decrypt(raw);
-  } catch (err) {
-    logger.error('[CleanupEngine] Failed to decrypt secretAccessKey:', err);
-    return raw;
-  }
-}
-
-function toDecryptedConfig(raw: any) {
-  return {
-    endpoint: raw.endpoint,
-    accessKeyId: raw.accessKeyId ?? '',
-    secretAccessKey: getDecryptedSecret(raw.secretAccessKey),
-    bucketName: raw.bucketName,
-    publicUrl: raw.publicUrl,
-  };
-}
+import { buildDecryptedStorageConfig } from '../utils/crypto';
 
 /**
  * Storage Cleanup Engine
@@ -262,10 +238,12 @@ export async function cleanupOrphanedFiles() {
         if (!config) break;
 
         try {
-          logger.info(`[CleanupEngine] Scanning R2 bucket: ${config.bucketName} (${config.name})...`);
-          const decryptedConfig = toDecryptedConfig(config);
+          logger.info(
+            `[CleanupEngine] Scanning R2 bucket: ${config.bucketName} (${config.name})...`,
+          );
+          const decryptedConfig = buildDecryptedStorageConfig(config);
           const objects = await storageService.listAllObjects(decryptedConfig);
-          
+
           let baseUrl = config.publicUrl.endsWith('/')
             ? config.publicUrl.slice(0, -1)
             : config.publicUrl;
@@ -279,7 +257,7 @@ export async function cleanupOrphanedFiles() {
 
           for (const obj of objects) {
             if (!obj.Key) continue;
-            
+
             // Protect mirror assets only for sources that currently exist in the database
             if (obj.Key.startsWith('mirror/')) {
               const parts = obj.Key.split('/');
@@ -299,15 +277,19 @@ export async function cleanupOrphanedFiles() {
             if (!isReferenced) {
               orphanedKeys.push(obj.Key);
               bucketDeletedBytes += obj.Size;
-              logger.info(`[CleanupEngine] Found orphaned R2 object: ${obj.Key} (Size: ${obj.Size})`);
+              logger.info(
+                `[CleanupEngine] Found orphaned R2 object: ${obj.Key} (Size: ${obj.Size})`,
+              );
             }
           }
 
           if (orphanedKeys.length > 0) {
             try {
-              logger.info(`[CleanupEngine] Bulk deleting ${orphanedKeys.length} orphaned objects from bucket ${config.bucketName}...`);
+              logger.info(
+                `[CleanupEngine] Bulk deleting ${orphanedKeys.length} orphaned objects from bucket ${config.bucketName}...`,
+              );
               await storageService.deleteFilesBulk(decryptedConfig, orphanedKeys);
-              
+
               // Decrement the DB configuration usedBytes count in a single update
               await prisma.storageConfig.update({
                 where: { id: config.id },
@@ -315,30 +297,39 @@ export async function cleanupOrphanedFiles() {
                   usedBytes: { decrement: bucketDeletedBytes },
                 },
               });
-              
+
               stats.deleted += orphanedKeys.length;
               bucketDeletedCount = orphanedKeys.length;
             } catch (err) {
               stats.errors += orphanedKeys.length;
-              logger.error(`[CleanupEngine] Error bulk deleting objects from ${config.bucketName}:`, err);
+              logger.error(
+                `[CleanupEngine] Error bulk deleting objects from ${config.bucketName}:`,
+                err,
+              );
             }
           }
 
           if (bucketDeletedCount > 0) {
-            logger.info(`[CleanupEngine] Cleaned bucket ${config.bucketName}: Deleted ${bucketDeletedCount} files, freed ${bucketDeletedBytes} bytes.`);
+            logger.info(
+              `[CleanupEngine] Cleaned bucket ${config.bucketName}: Deleted ${bucketDeletedCount} files, freed ${bucketDeletedBytes} bytes.`,
+            );
           } else {
-            logger.info(`[CleanupEngine] Bucket ${config.bucketName} is clean. No orphaned files deleted.`);
+            logger.info(
+              `[CleanupEngine] Bucket ${config.bucketName} is clean. No orphaned files deleted.`,
+            );
           }
         } catch (bucketErr) {
           stats.errors++;
-          logger.error(`[CleanupEngine] Failed to run cleanup for bucket ${config.bucketName}:`, bucketErr);
+          logger.error(
+            `[CleanupEngine] Failed to run cleanup for bucket ${config.bucketName}:`,
+            bucketErr,
+          );
         }
       }
     };
 
-    const workers = Array.from(
-      { length: Math.min(concurrencyLimit, activeConfigs.length) },
-      () => runWorker(),
+    const workers = Array.from({ length: Math.min(concurrencyLimit, activeConfigs.length) }, () =>
+      runWorker(),
     );
     await Promise.all(workers);
 

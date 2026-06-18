@@ -527,7 +527,7 @@ onMounted(() => {
     <!-- Toolbar -->
     <div class="toolbar-panel">
       <div class="shrink-0 overflow-x-auto" style="scrollbar-width: none; -ms-overflow-style: none">
-        <Tabs v-model="activeTab" :options="tabsListOptions" size="sm" @change="handleTabChange" />
+        <Tabs v-model="activeTab" :options="tabsListOptions" size="sm" @change="(val: any) => handleTabChange(val)" />
       </div>
 
       <div class="shrink-0 overflow-x-auto" style="scrollbar-width: none; -ms-overflow-style: none">
@@ -535,7 +535,7 @@ onMounted(() => {
           v-model="statusFilter"
           :options="statusFilterOptions"
           size="sm"
-          @change="handleStatusFilterChange"
+          @change="(val: any) => handleStatusFilterChange(val)"
         />
       </div>
 

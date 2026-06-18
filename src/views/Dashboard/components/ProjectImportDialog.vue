@@ -15,6 +15,7 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
+import { getApiErrorMessage } from '@/utils/error';
 import { useSystemStore } from '@/stores/system';
 import { preferences } from '@/utils/preferences';
 import { parseMarkdownToPlanJson, getStableId } from '@/utils/planParser';
@@ -58,6 +59,7 @@ const isParsingNetdisk = ref(false);
 const parsedNetdisk = ref<{
   title: string;
   directories: { name: string; files: string[] }[];
+  isFallback?: boolean;
 } | null>(null);
 
 // Chat & Planning states
@@ -171,9 +173,8 @@ const handleAiGenerate = async () => {
     } else {
       ElMessage.error('AI 生成文本失败，请稍后重试。');
     }
-  } catch (error: any) {
-    const errorMsg = error.response?.data?.error || error.message || 'AI 生成失败';
-    ElMessage.error(errorMsg);
+  } catch (error: unknown) {
+    ElMessage.error(getApiErrorMessage(error, 'AI 生成失败'));
   } finally {
     isAiGenerating.value = false;
   }
@@ -257,9 +258,8 @@ const handleImportProject = async () => {
     } else {
       ElMessage.error('导入解析失败，请检查文本格式。');
     }
-  } catch (error: any) {
-    const errorMsg = error.response?.data?.error || error.message || '导入解析失败';
-    ElMessage.error(errorMsg);
+  } catch (error: unknown) {
+    ElMessage.error(getApiErrorMessage(error, '导入解析失败'));
   } finally {
     isImporting.value = false;
   }
@@ -313,7 +313,7 @@ const initializeCoPlan = () => {
     },
   };
 
-  const isFallback = (parsedNetdisk.value as any).isFallback ?? false;
+  const isFallback = parsedNetdisk.value.isFallback ?? false;
 
   const greetingContent = isFallback
     ? `⚠️ **注意**：未能从网盘链接读取到真实文件列表（链接可能已失效，或需要提取码），以下大纲为 AI 根据链接主题**智能估算**生成，仅供参考，实际内容请以您的网盘为准。\n\n---\n\n✨ 孨！我是您的 AI 智能规划助手。我已基于您的链接主题，为课程 **${title}** 生成了一套包含 **${tasks.length}** 个看板任务和 **${steps.length}** 个学习阶段的初始参考计划。📋\n\n您可以直接与我对话来调整方案，直到满意为止！👾`
@@ -364,9 +364,8 @@ const handleParseNetdisk = async () => {
     } else {
       ElMessage.error('解析网盘链接失败，请重试');
     }
-  } catch (error: any) {
-    const errorMsg = error.response?.data?.error || error.message || '解析失败';
-    ElMessage.error(errorMsg);
+  } catch (error: unknown) {
+    ElMessage.error(getApiErrorMessage(error, '解析失败'));
   } finally {
     isParsingNetdisk.value = false;
   }
@@ -500,8 +499,8 @@ const triggerCoPlanStream = async (activeMessageIndex: number) => {
     } catch (e) {
       console.warn('Final markdown parse failed:', e);
     }
-  } catch (err: any) {
-    ElMessage.error(err.message || '规划助手对话发生错误');
+  } catch (err: unknown) {
+    ElMessage.error(getApiErrorMessage(err, '规划助手对话发生错误'));
     planMessages.value[activeMessageIndex].content =
       '抱歉，AI 规划助手遇到了一点问题。请稍后重试，或检查后台 AI 配置是否正常。🛠️';
   } finally {
@@ -564,12 +563,12 @@ const handleImportCoPlan = async () => {
   if (!currentPlanJson.value) return;
   isFinalImporting.value = true;
 
-  let planPayload = currentPlanJson.value;
+  let planPayload = currentPlanJson.value as (PlanJson & { plan?: PlanJson; project?: PlanJson }) | null;
   if (planPayload && !planPayload.title) {
-    if ((planPayload as any).plan && (planPayload as any).plan.title) {
-      planPayload = (planPayload as any).plan;
-    } else if ((planPayload as any).project && (planPayload as any).project.title) {
-      planPayload = (planPayload as any).project;
+    if (planPayload.plan && planPayload.plan.title) {
+      planPayload = planPayload.plan;
+    } else if (planPayload.project && planPayload.project.title) {
+      planPayload = planPayload.project;
     }
   }
 
@@ -593,9 +592,8 @@ const handleImportCoPlan = async () => {
     } else {
       ElMessage.error(data.message || '导入项目失败');
     }
-  } catch (error: any) {
-    const errorMsg = error.response?.data?.error || error.message || '导入项目失败';
-    ElMessage.error(errorMsg);
+  } catch (error: unknown) {
+    ElMessage.error(getApiErrorMessage(error, '导入项目失败'));
   } finally {
     isFinalImporting.value = false;
   }

@@ -22,6 +22,8 @@ import type { Feedback } from '@/types';
 import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import { fetchManagementInsights } from './adminManagementInsights';
 import Modal from '@/components/ui/Modal.vue';
+import UiButton from '@/components/ui/Button.vue';
+import UiInput from '@/components/ui/Input.vue';
 
 type FeedbackStatus = Feedback['status'];
 type FeedbackPriority = Feedback['priority'];
@@ -319,10 +321,9 @@ onMounted(fetchFeedbacks);
         <p class="eyebrow">用户与团队</p>
         <h1>用户反馈</h1>
       </div>
-      <button type="button" class="ghost-btn" @click="fetchFeedbacks">
-        <RefreshCw :class="{ spinning: isLoading }" />
+      <UiButton variant="secondary" :icon="RefreshCw" :loading="isLoading" @click="fetchFeedbacks">
         刷新
-      </button>
+      </UiButton>
     </header>
 
     <AdminOpsPanel scope="feedback" />
@@ -376,20 +377,23 @@ onMounted(fetchFeedbacks);
           {{ item.label }}
         </option>
       </select>
-      <label class="search-box">
-        <Search />
-        <input v-model="searchQuery" type="search" placeholder="搜索标题、内容、用户" />
-      </label>
+      <UiInput
+        v-model="searchQuery"
+        :icon="Search"
+        placeholder="搜索标题、内容、用户"
+        :glass="false"
+        class="ml-auto min-w-[260px]"
+      />
     </section>
 
     <section v-if="selectedIds.length" class="batch-bar">
       <span>已选择 {{ selectedIds.length }} 条反馈</span>
       <div>
-        <button type="button" @click="batchUpdateStatus('IN_PROGRESS')">标记处理中</button>
-        <button type="button" @click="batchUpdateStatus('RESOLVED')">标记已解决</button>
-        <button type="button" @click="batchUpdateStatus('CLOSED')">关闭</button>
-        <button type="button" @click="batchDelete">删除</button>
-        <button type="button" @click="selectedIds = []">清空</button>
+        <UiButton variant="secondary" size="sm" @click="batchUpdateStatus('IN_PROGRESS')">标记处理中</UiButton>
+        <UiButton variant="primary" size="sm" @click="batchUpdateStatus('RESOLVED')">标记已解决</UiButton>
+        <UiButton variant="secondary" size="sm" @click="batchUpdateStatus('CLOSED')">关闭</UiButton>
+        <UiButton variant="danger" size="sm" @click="batchDelete">删除</UiButton>
+        <UiButton variant="secondary" size="sm" @click="selectedIds = []">清空</UiButton>
       </div>
     </section>
 
@@ -447,14 +451,14 @@ onMounted(fetchFeedbacks);
                 }}</span>
               </td>
               <td>
-                <button
+                <UiButton
                   v-if="item.attachmentUrl"
-                  type="button"
-                  class="link-btn"
+                  variant="link"
+                  size="sm"
                   @click.stop="showImage(item.attachmentUrl)"
                 >
                   查看附件
-                </button>
+                </UiButton>
                 <span v-else class="muted">无</span>
               </td>
               <td>{{ formatDate(item.updatedAt || item.createdAt) }}</td>
@@ -525,14 +529,14 @@ onMounted(fetchFeedbacks);
         <section class="detail-section">
           <h3>反馈内容</h3>
           <p class="body-text">{{ activeFeedback.description }}</p>
-          <button
+          <UiButton
             v-if="activeFeedback.attachmentUrl"
-            type="button"
-            class="attachment-btn"
+            variant="secondary"
+            :icon="ImageIcon"
             @click="showImage(activeFeedback.attachmentUrl)"
           >
-            <ImageIcon /> 查看附件
-          </button>
+            查看附件
+          </UiButton>
         </section>
 
         <section v-if="activeFeedback.adminReply" class="detail-section">
@@ -542,13 +546,15 @@ onMounted(fetchFeedbacks);
         </section>
 
         <div class="drawer-actions">
-          <button type="button" @click="openReplyDialog(activeFeedback)">
-            <MessageSquare /> 回复
-          </button>
-          <button type="button" @click="updateStatus(activeFeedback.id, 'RESOLVED')">
-            <CheckCircle2 /> 解决
-          </button>
-          <button type="button" @click="deleteFeedback(activeFeedback)"><Trash2 /> 删除</button>
+          <UiButton variant="secondary" :icon="MessageSquare" @click="openReplyDialog(activeFeedback)">
+            回复
+          </UiButton>
+          <UiButton variant="primary" :icon="CheckCircle2" @click="updateStatus(activeFeedback.id, 'RESOLVED')">
+            解决
+          </UiButton>
+          <UiButton variant="danger" :icon="Trash2" @click="deleteFeedback(activeFeedback)">
+            删除
+          </UiButton>
         </div>
       </aside>
     </el-drawer>
@@ -584,17 +590,15 @@ onMounted(fetchFeedbacks);
         </label>
       </div>
       <template #footer>
-        <button type="button" class="ghost-btn dialog-btn" @click="replyDialogVisible = false">
-          取消
-        </button>
-        <button
-          type="button"
-          class="primary-btn dialog-btn"
+        <UiButton variant="secondary" @click="replyDialogVisible = false">取消</UiButton>
+        <UiButton
+          variant="primary"
+          :icon="Send"
           :disabled="isSubmittingReply || !replyText.trim()"
           @click="handleReply"
         >
-          <Send /> 发送回复
-        </button>
+          发送回复
+        </UiButton>
       </template>
     </Modal>
 

@@ -42,6 +42,7 @@ import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { getDefaultThumbnailUrl } from '@/utils/defaultThumbnail';
 import type { Asset } from '@/types';
+import UiButton from '@/components/ui/Button.vue';
 
 type ViewMode = 'solid' | 'wireframe' | 'solid+wireframe';
 type CameraPresetKey = 'iso' | 'front' | 'side' | 'top';
@@ -831,10 +832,7 @@ onUnmounted(() => {
 <template>
   <div class="asset-detail-page">
     <main class="detail-main">
-      <button type="button" class="back-link" @click="goBack">
-        <ChevronLeft class="h-4 w-4" />
-        返回资源库
-      </button>
+      <UiButton variant="link" :icon="ChevronLeft" @click="goBack">返回资源库</UiButton>
 
       <header class="detail-header">
         <div class="title-block">
@@ -856,14 +854,10 @@ onUnmounted(() => {
         </div>
 
         <div class="header-actions">
-          <button type="button" class="soft-button" @click="handleFavorite">
-            <Star class="h-4 w-4" />
+          <UiButton variant="secondary" :icon="Star" @click="handleFavorite">
             收藏 {{ favoriteCount }}
-          </button>
-          <button type="button" class="soft-button" @click="handleShare">
-            <Share2 class="h-4 w-4" />
-            分享
-          </button>
+          </UiButton>
+          <UiButton variant="secondary" :icon="Share2" @click="handleShare">分享</UiButton>
           <button type="button" class="icon-button" @click="ElMessage.info('更多操作入口已保留')">
             <MoreHorizontal class="h-4 w-4" />
           </button>
@@ -1069,10 +1063,15 @@ onUnmounted(() => {
               rows="2"
               placeholder="记录本次修改内容"
             ></textarea>
-            <button type="button" :disabled="isUploadingVersion" @click="uploadNewVersion">
-              <UploadCloud class="h-4 w-4" />
+            <UiButton
+              variant="primary"
+              :icon="UploadCloud"
+              :disabled="isUploadingVersion"
+              :loading="isUploadingVersion"
+              @click="uploadNewVersion"
+            >
               {{ isUploadingVersion ? '上传中...' : '发布新版本' }}
-            </button>
+            </UiButton>
           </div>
           <article v-for="version in versions" :key="version.id" class="version-card">
             <div>
@@ -1186,10 +1185,7 @@ onUnmounted(() => {
               {{ annotationCoords.z.toFixed(2) }}</span
             >
             <textarea v-model="newAnnotationText" rows="3" placeholder="输入评论内容"></textarea>
-            <button type="button" @click="saveAnnotation">
-              <Plus class="h-4 w-4" />
-              保存评论
-            </button>
+            <UiButton variant="primary" :icon="Plus" @click="saveAnnotation">保存评论</UiButton>
           </div>
           <article
             v-for="annotation in annotations"
@@ -1277,10 +1273,9 @@ onUnmounted(() => {
           <span>{{ performanceToneLabel }}</span>
         </div>
         <p><Smartphone class="h-4 w-4" />{{ mobileRiskLabel }}</p>
-        <button type="button" @click="activePanel = 'performance'">
-          <Gauge class="h-4 w-4" />
+        <UiButton variant="secondary" :icon="Gauge" @click="activePanel = 'performance'">
           查看检测报告
-        </button>
+        </UiButton>
       </section>
 
       <section class="side-card tags-card">
@@ -1291,15 +1286,11 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <button type="button" class="download-button" @click="handleDownload">
-        <Download class="h-4 w-4" />
-        下载资源
-      </button>
-      <button type="button" class="blender-button" @click="openInBlender">
-        <PackageCheck class="h-4 w-4" />
+      <UiButton variant="primary" :icon="Download" @click="handleDownload">下载资源</UiButton>
+      <UiButton variant="secondary" :icon="PackageCheck" @click="openInBlender">
         在 Blender 中打开
         <ChevronDown class="h-4 w-4" />
-      </button>
+      </UiButton>
     </aside>
   </div>
 </template>

@@ -256,7 +256,7 @@ const open = async (targetNote: Note) => {
   qrCodeDataUrl.value = '';
 
   try {
-    const res = await api.get(`/api/notes/${targetNote.id}/share`);
+    const res = await api.get(`/api/notes/${targetNote.id}/share?t=${Date.now()}`);
     if (res.data) {
       shareConfig.value = res.data;
       customText.value = res.data.customText || '';
@@ -365,7 +365,7 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" size="lg" @close="visible = false">
+  <Modal :show="visible" size="lg" :z-index="1100" @close="visible = false">
     <template #header>
       <div class="flex items-center gap-2.5">
         <div

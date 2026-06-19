@@ -514,33 +514,35 @@ class SettingsService {
     return all[key];
   }
 
-  async update(key: string, value: unknown): Promise<void> {
-    let stringValue: string;
-
+  private serializeValue(key: string, value: unknown): string {
     if (key === 'AI_MODEL_OPTIONS') {
-      stringValue = encryptAIModelOptions(value);
+      return encryptAIModelOptions(value);
     } else if (key === 'AI_API_KEY' || key === 'SMTP_PASS') {
-      stringValue = encryptSecret(value as string) || '';
+      return encryptSecret(value as string) || '';
     } else if (Array.isArray(value)) {
-      stringValue = JSON.stringify(value);
+      return JSON.stringify(value);
     } else if (typeof value === 'string') {
       // If it's already a JSON array string, don't stringify it again
       const trimmed = value.trim();
       if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
         try {
           JSON.parse(trimmed);
-          stringValue = trimmed;
+          return trimmed;
         } catch (_e) {
-          stringValue = value;
+          return value;
         }
       } else {
-        stringValue = value;
+        return value;
       }
     } else if (typeof value === 'object' && value !== null) {
-      stringValue = JSON.stringify(value);
+      return JSON.stringify(value);
     } else {
-      stringValue = String(value);
+      return String(value);
     }
+  }
+
+  async update(key: string, value: unknown): Promise<void> {
+    const stringValue = this.serializeValue(key, value);
 
     // Determine if we need to update synced keys
     const syncedKey = this.getSyncedKey(key);
@@ -607,13 +609,14 @@ class SettingsService {
     if (entries.length === 0) return;
 
     await prisma.$transaction(
-      entries.map(([key, value]) =>
-        prisma.systemSetting.upsert({
+      entries.map(([key, value]) => {
+        const stringValue = this.serializeValue(key, value);
+        return prisma.systemSetting.upsert({
           where: { key },
-          update: { value: String(value) },
-          create: { key, value: String(value) },
-        }),
-      ),
+          update: { value: stringValue },
+          create: { key, value: stringValue },
+        });
+      }),
     );
   }
 }

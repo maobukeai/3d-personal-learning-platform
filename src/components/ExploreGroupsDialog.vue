@@ -6,6 +6,7 @@ import GroupDetailDialog from '@/components/GroupDetailDialog.vue';
 import api from '@/utils/api';
 import Modal from '@/components/ui/Modal.vue';
 import type { Team } from '@/types';
+import { cleanTeamDescription } from '@/utils/team';
 
 const props = defineProps<{
   visible: boolean;
@@ -57,12 +58,6 @@ watch(selectedCategory, () => {
 
 const handleJoinGroup = (groupName: string) => {
   ElMessage.success(`申请加入小组 "${groupName}" 成功！请等待管理员审核。`);
-};
-
-const cleanDescription = (description?: string | null) => {
-  if (!description) return '';
-  const separator = '\n\n===CORE_VALUES===\n';
-  return description.split(separator)[0];
 };
 
 const handleViewDetails = (group: Team) => {
@@ -163,7 +158,7 @@ onMounted(() => {
               {{ group.name }}
             </h3>
             <p class="text-[10.5px] text-slate-500 mt-2 line-clamp-1 italic font-medium">
-              {{ cleanDescription(group.description) || '暂无小组描述' }}
+              {{ cleanTeamDescription(group.description) || '暂无小组描述' }}
             </p>
 
             <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-50">

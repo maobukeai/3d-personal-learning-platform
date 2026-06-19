@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatFileSize } from '@/utils/format';
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { ElMessage } from 'element-plus';
 import {
@@ -233,12 +234,6 @@ const parseImages = (images: string | null | undefined): string[] => {
 
 const openImage = (url: string) => {
   window.open(url, '_blank', 'noopener,noreferrer');
-};
-
-const formatFileSize = (sizeMb: number | null): string => {
-  if (!sizeMb) return '';
-  if (sizeMb < 1) return `${Math.round(sizeMb * 1024)} KB`;
-  return `${sizeMb.toFixed(1)} MB`;
 };
 
 const hasReaction = (reactions: DiscussionReaction[] | undefined, emoji: string) => {

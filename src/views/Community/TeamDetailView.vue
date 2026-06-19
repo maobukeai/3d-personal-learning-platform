@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { formatRelativeTime, formatDate } from '@/utils/format';
 import { getApiErrorMessage, getApiErrorStatus } from '@/utils/error';
+import { cleanTeamDescription } from '@/utils/team';
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -290,11 +292,7 @@ const workspaceStore = useWorkspaceStore();
 const teamId = computed(() => route.params.id as string);
 
 const team = ref<DetailedTeam | null>(null);
-const parsedDescription = computed(() => {
-  const desc = team.value?.description || '';
-  const separator = '\n\n===CORE_VALUES===\n';
-  return desc.split(separator)[0];
-});
+const parsedDescription = computed(() => cleanTeamDescription(team.value?.description));
 const overview = ref<TeamOverview | null>(null);
 const insights = ref<TeamCollaborationInsights | null>(null);
 const isLoading = ref(false);
@@ -985,32 +983,11 @@ const handleChatWithUser = async (user: TeamUser) => {
   }
 };
 
-const formatRelativeTime = (dateStr: string) => {
-  const date = new Date(dateStr);
-  const diff = Date.now() - date.getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return '刚刚';
-  if (mins < 60) return `${mins}分钟前`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}小时前`;
-  return `${Math.floor(hours / 24)}天前`;
-};
-
 const activityDotClass = (type: string) => {
   if (type.startsWith('task')) return 'bg-accent';
   if (type.startsWith('project')) return 'bg-emerald-500';
   if (type.startsWith('team')) return 'bg-purple-500';
   return 'bg-slate-400';
-};
-
-const formatDate = (dateStr?: string | null) => {
-  if (!dateStr) return '-';
-  return new Date(dateStr).toLocaleDateString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 };
 
 onMounted(() => {

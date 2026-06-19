@@ -9,17 +9,12 @@ import { auditService, AuditAction, AuditModule } from '../services/audit.servic
 import { AppError } from '../utils/error';
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
 import { parseTags } from '../utils/tags';
+import { UploadedFile } from '../types/upload';
 
 type ShowcaseSortKey = 'popular' | 'newest' | 'trending' | 'viewed' | 'discussed' | 'featured';
 type ShowcaseScope = 'all' | 'my' | 'liked';
 type ShowcaseStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 type ShowcaseBucket = 'all' | 'fresh' | 'downloadable' | 'discussed' | 'pending' | 'rejected';
-
-type UploadedFile = Express.Multer.File & {
-  url?: string;
-  r2Key?: string;
-  r2ConfigId?: string;
-};
 
 type ShowcaseListItem = Prisma.ShowcaseGetPayload<{
   select: {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime as formatDate } from '@/utils/format';
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
@@ -414,16 +415,6 @@ const itemKind = (item: AuditItem) => {
   if (activeTab.value === 'materials') return item.category || '材质';
   if (activeTab.value === 'plugins') return item.category || '插件';
   return item.type || '作品';
-};
-
-const formatDate = (value?: string | null) => {
-  if (!value) return '未记录';
-  return new Date(value).toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 };
 
 const metricLine = (item: AuditItem) => {

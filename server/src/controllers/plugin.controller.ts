@@ -4,16 +4,12 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../utils/error';
 import prisma from '../services/prisma';
 import { logger } from '../utils/logger';
+import { getPaginationParams, createPaginationMeta } from '../utils/pagination';
 
 import fs from 'fs';
 import { deleteCloudOrLocalFileByUrl } from '../utils/file';
 import { parseTags } from '../utils/tags';
-
-type UploadedFile = Express.Multer.File & {
-  url?: string;
-  r2Key?: string;
-  r2ConfigId?: string;
-};
+import { UploadedFile } from '../types/upload';
 
 const PLUGIN_FAVORITES_SETTING_KEY = 'favorite_plugins';
 
@@ -55,11 +51,10 @@ const saveFavoritePluginIds = async (userId: string, pluginIds: string[]) => {
 // ── Public: list approved plugins ─────────────────────────────────────────────
 export const listPlugins = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const pageSize = Math.min(50, Math.max(1, parseInt(req.query.pageSize as string) || 20));
+    const { page, limit, skip } = getPaginationParams(req.query as Record<string, unknown>, 20, 50);
     const category = req.query.category as string | undefined;
     const search = req.query.search as string | undefined;
-    
+
     const authReq = req as AuthRequest;
     const mine = req.query.mine === 'true';
     const favoritesOnly = req.query.favoritesOnly === 'true';
@@ -93,14 +88,14 @@ export const listPlugins = async (req: Request, res: Response, next: NextFunctio
       prisma.plugin.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        skip,
+        take: limit,
         include: { user: { select: { id: true, name: true, avatarUrl: true } } },
       }),
       prisma.plugin.count({ where }),
     ]);
 
-    res.json({ plugins, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
+    res.json({ plugins, pagination: createPaginationMeta(page, limit, total) });
   } catch (err) {
     next(err);
   }

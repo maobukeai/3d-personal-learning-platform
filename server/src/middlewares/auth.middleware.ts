@@ -264,8 +264,16 @@ export const optionalAuthenticate = async (req: AuthRequest, res: Response, next
     };
     await attachAuthenticatedUser(req, decoded.id);
     next();
-  } catch (_error) {
-    // If token is invalid, just proceed as guest
+  } catch (error) {
+    // Invalid/expired tokens are expected for guests, but log them at debug
+    // level so token-probing attacks leave an audit trail when needed.
+    if (error instanceof jwt.TokenExpiredError) {
+      logger.debug('[optionalAuthenticate] Expired token ignored');
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      logger.debug('[optionalAuthenticate] Invalid token ignored');
+    } else {
+      logger.warn('[optionalAuthenticate] Unexpected token verification error:', error);
+    }
     next();
   }
 };

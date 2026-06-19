@@ -23,6 +23,7 @@ import {
   Upload,
 } from 'lucide-vue-next';
 import { getAssetUrl } from '@/utils/api';
+import { formatCompactNumber as formatNumber, formatDate } from '@/utils/format';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
@@ -113,12 +114,6 @@ const commandHeadline = computed(() => {
   if (momentumScore.value >= 55) return '节奏正常，适合推进关键任务';
   return '建议先建立一个清晰的今日推进目标';
 });
-
-function formatNumber(value: number | string | undefined) {
-  if (value === undefined) return '0';
-  const numericValue = typeof value === 'number' ? value : parseNumericStat(value);
-  return numericValue.toLocaleString('zh-CN');
-}
 
 const metricTiles = computed<MetricTile[]>(() => [
   {
@@ -303,13 +298,6 @@ const quickActions = computed<QuickAction[]>(() => [
 const visibleTasks = computed(() => props.recentTasks.slice(0, 6));
 const visibleAssets = computed(() => props.recentAssets.slice(0, 6));
 
-function parseNumericStat(value: string | number | undefined) {
-  if (typeof value === 'number') return value;
-  if (!value) return 0;
-  const parsed = Number.parseFloat(value.replace(/,/g, '').replace(/[^\d.-]/g, ''));
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
 function calculateFallbackMomentum() {
   const assetWeight = Math.min(contentSummary.value.assets * 8, 24);
   return Math.max(
@@ -324,10 +312,6 @@ function calculateFallbackMomentum() {
       ),
     ),
   );
-}
-
-function formatDate(date: string | Date) {
-  return new Date(date).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
 }
 
 function isOverdue(task: DashboardTask) {

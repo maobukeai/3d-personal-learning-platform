@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime as formatDate } from '@/utils/format';
 import { computed, onMounted, ref, type Component } from 'vue';
 import { useRouter } from 'vue-router';
 import {
@@ -456,16 +457,6 @@ const handleDeleteBroadcast = async (id: string) => {
       ElMessage.error(getApiErrorMessage(error, '撤回失败'));
     }
   }
-};
-
-const formatDate = (date?: string) => {
-  if (!date) return '-';
-  return new Date(date).toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 };
 
 const getHealthMeta = (level: HealthLevel) => {

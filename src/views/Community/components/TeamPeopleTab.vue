@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDate } from '@/utils/format';
 import { ref, computed, type Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
@@ -312,15 +313,6 @@ const capacityClass = (score?: number) => {
   return 'bg-rose-500/10 text-rose-500';
 };
 
-const formatDate = (dateStr?: string | null) => {
-  if (!dateStr) return '-';
-  return new Date(dateStr).toLocaleDateString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
 </script>
 
 <template>

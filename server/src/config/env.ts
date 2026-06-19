@@ -54,3 +54,12 @@ export const config = {
 if (!config.DATABASE_URL) {
   console.warn('WARNING: DATABASE_URL is not set. Prisma will use the default from schema.prisma');
 }
+
+/**
+ * Parse a positive integer from an env string, falling back when missing/invalid.
+ * Shared by app.ts and route files to avoid duplicate implementations.
+ */
+export const readPositiveInt = (value: string | undefined, fallback: number): number => {
+  const parsed = Number.parseInt(value || '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};

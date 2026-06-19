@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime as formatDate } from '@/utils/format';
 import { computed } from 'vue';
 import {
   BookOpen,
@@ -62,16 +63,6 @@ const runbookTodoCount = computed(
       ...(props.runbook?.checklist || []),
     ].filter((item) => item.status !== 'pass').length,
 );
-
-const formatDate = (value?: string | null) => {
-  if (!value) return '尚未使用';
-  return new Date(value).toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
 
 const getKnowledgeStatusClass = (status: string) => {
   if (status === 'ACTIVE') return 'status-success';

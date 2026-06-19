@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button.vue';
 import { useSystemStore } from '@/stores/system';
 import { ElMessage } from 'element-plus';
 import { createJsonHeaders, readFetchErrorMessage } from '@/utils/aiHelpers';
+import { TEAM_CORE_VALUES_SEPARATOR } from '@/utils/team';
 
 interface EditForm {
   name: string;
@@ -57,8 +58,7 @@ const coreValuesList = ref([
 ]);
 
 const parseDescriptionAndCoreValues = (rawDesc: string) => {
-  const separator = '\n\n===CORE_VALUES===\n';
-  const parts = rawDesc.split(separator);
+  const parts = rawDesc.split(TEAM_CORE_VALUES_SEPARATOR);
   let desc = parts[0];
   let values = [
     {
@@ -111,11 +111,10 @@ watch(
 );
 
 const updateParentDescription = () => {
-  const separator = '\n\n===CORE_VALUES===\n';
   const payload = JSON.stringify({
     values: coreValuesList.value.map((v) => ({ title: v.title, desc: v.desc })),
   });
-  const newRawDesc = plainDescription.value + separator + payload;
+  const newRawDesc = plainDescription.value + TEAM_CORE_VALUES_SEPARATOR + payload;
   if (props.editForm.description !== newRawDesc) {
     emit('update:editForm', { ...props.editForm, description: newRawDesc });
   }

@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { Users, Check } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
+import { cleanTeamDescription } from '@/utils/team';
 
 interface Member {
   id: string;
@@ -39,11 +40,7 @@ const props = withDefaults(defineProps<Props>(), {
   index: 0,
 });
 
-const parsedDescription = computed(() => {
-  const desc = props.team.description || '';
-  const separator = '\n\n===CORE_VALUES===\n';
-  return desc.split(separator)[0];
-});
+const parsedDescription = computed(() => cleanTeamDescription(props.team.description));
 
 const emit = defineEmits<{
   (e: 'click', team: Team): void;

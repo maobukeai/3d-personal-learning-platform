@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatCompactNumber as formatNumber, formatRelativeTime as formatTime } from '@/utils/format';
 import { ref, computed, watch, defineAsyncComponent } from 'vue';
 import type { Component } from 'vue';
 import {
@@ -28,6 +29,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import type { Asset } from '@/types';
+import { parseTags } from '@/utils/tags';
 
 type ShowcaseType = 'IMAGE' | 'VIDEO' | 'MODEL' | 'TEXT' | 'OTHER';
 type ShowcaseStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -123,35 +125,6 @@ const typeOptions: Array<{ value: ShowcaseType; label: string; icon: Component }
   { value: 'TEXT', label: '文本', icon: Type },
   { value: 'OTHER', label: '其他', icon: Layers3 },
 ];
-
-const formatNumber = (value: number) =>
-  new Intl.NumberFormat('zh-CN', { notation: 'compact', maximumFractionDigits: 1 }).format(
-    value || 0,
-  );
-
-const parseTags = (tags: string | null | undefined): string[] => {
-  if (!tags) return [];
-  try {
-    const parsed = JSON.parse(tags);
-    if (Array.isArray(parsed)) return parsed.map((tag) => String(tag).trim()).filter(Boolean);
-  } catch {}
-  return tags
-    .split(/[，,]/)
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-};
-
-const formatTime = (dateStr: string) => {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-  if (minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes}分钟前`;
-  if (hours < 24) return `${hours}小时前`;
-  if (days < 30) return `${days}天前`;
-  return new Date(dateStr).toLocaleDateString('zh-CN');
-};
 
 const getTypeLabel = (type: ShowcaseType) =>
   typeOptions.find((option) => option.value === type)?.label ?? '作品';

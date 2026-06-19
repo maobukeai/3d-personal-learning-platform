@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime as formatDate } from '@/utils/format';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
@@ -183,16 +184,6 @@ const progressPercent = (status: string) => {
     CLOSED: 100,
   };
   return map[status] || 20;
-};
-
-const formatDate = (value?: string | null) => {
-  if (!value) return '-';
-  return new Date(value).toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 };
 
 const formatRelativeDate = (value?: string | null) => {

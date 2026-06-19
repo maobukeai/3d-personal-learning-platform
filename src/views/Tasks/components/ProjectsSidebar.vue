@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDate, formatRelativeTime } from '@/utils/format';
 import {
   Activity,
   AlertTriangle,
@@ -144,21 +145,6 @@ const quickSeedTemplates: SeedTemplate[] = [
 
 const isOverdue = (task: Task) => {
   return task.status !== 'DONE' && !!task.dueDate && new Date(task.dueDate).getTime() < Date.now();
-};
-
-const formatDate = (value?: string | null) => {
-  if (!value) return '未设置';
-  return new Date(value).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
-};
-
-const formatRelativeTime = (value?: string | null) => {
-  if (!value) return '刚刚';
-  const diff = Date.now() - new Date(value).getTime();
-  const minutes = Math.max(1, Math.floor(diff / 60000));
-  if (minutes < 60) return `${minutes} 分钟前`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} 小时前`;
-  return `${Math.floor(hours / 24)} 天前`;
 };
 
 const activityDotClass = (type: string) => {

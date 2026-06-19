@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { parseTags } from '@/utils/tags';
 import {
   ArrowLeft,
   Eye,
@@ -22,6 +23,7 @@ import { ElMessage } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import { getPlanName } from '@/utils/plans';
 import MarkdownEditor from '@/components/MarkdownEditor.vue';
+import { formatDateTime as formatDate } from '@/utils/format';
 
 interface ManualLink {
   id?: string;
@@ -124,23 +126,6 @@ async function loadResource() {
     }
   } finally {
     isLoading.value = false;
-  }
-}
-
-function formatDate(date: string | null | undefined) {
-  if (!date) return '-';
-  return new Date(date).toLocaleString('zh-CN');
-}
-
-function parseTags(tags?: string | null) {
-  if (!tags) return [];
-  try {
-    return JSON.parse(tags);
-  } catch {
-    if (tags.includes(',')) {
-      return tags.split(',').map((t) => t.trim());
-    }
-    return [tags];
   }
 }
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatRelativeTime as formatTime } from '@/utils/format';
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
@@ -20,6 +21,7 @@ import { useAuthStore } from '@/stores/auth';
 import MarkdownEditor from '@/components/MarkdownEditor.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
 import type { Discussion, DiscussionComment } from '../DiscussionsView.vue';
+import { parseTags } from '@/utils/tags';
 
 const props = defineProps<{
   discussion: Discussion;
@@ -68,21 +70,6 @@ watch(
   { immediate: true },
 );
 
-const formatTime = (dateStr: string) => {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diff = Math.max(0, now.getTime() - date.getTime());
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return t('common.time.justNow');
-  if (minutes < 60) return t('common.time.minutesAgo', { n: minutes });
-  if (hours < 24) return t('common.time.hoursAgo', { n: hours });
-  if (days < 7) return t('common.time.daysAgo', { n: days });
-  return date.toLocaleDateString(locale.value === 'en-US' ? 'en-US' : 'zh-CN');
-};
-
 const parseImages = (imagesStr: string | null | undefined): string[] => {
   try {
     const parsed = imagesStr ? JSON.parse(imagesStr) : [];
@@ -91,22 +78,6 @@ const parseImages = (imagesStr: string | null | undefined): string[] => {
       : [];
   } catch (_e) {
     return [];
-  }
-};
-
-const parseTags = (tagsStr: string | null | undefined): string[] => {
-  try {
-    const parsed = tagsStr ? JSON.parse(tagsStr) : [];
-    return Array.isArray(parsed)
-      ? parsed.filter((tagName): tagName is string => typeof tagName === 'string')
-      : [];
-  } catch (_e) {
-    return tagsStr
-      ? tagsStr
-          .split(',')
-          .map((tagName) => tagName.trim())
-          .filter(Boolean)
-      : [];
   }
 };
 

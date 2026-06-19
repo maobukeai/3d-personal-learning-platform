@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { formatDate } from '@/utils/format';
 import { computed, defineAsyncComponent } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useI18n } from 'vue-i18n';
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
 
 const ModelViewer = defineAsyncComponent(() => import('./ModelViewer.vue'));
 import {
@@ -50,15 +51,6 @@ const getFormatIcon = (format: string) => {
   if (['ZTL', 'SPP'].includes(f)) return Layers;
   if (f === 'TEXTURES') return FileArchive;
   return FileCode;
-};
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  return new Date(dateStr).toLocaleDateString(locale.value === 'zh-CN' ? 'zh-CN' : 'en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
 };
 
 const handleDownload = () => {

@@ -7,13 +7,7 @@ import { settingsService } from '../services/settings.service';
 import prisma from '../services/prisma';
 import { storageService } from '../services/storage.service';
 import { decryptSecretIfNeeded } from '../utils/crypto';
-
-/** Multer file augmented with R2 cloud upload metadata. */
-type UploadedFile = Express.Multer.File & {
-  url?: string;
-  r2Key?: string;
-  r2ConfigId?: string;
-};
+import { UploadedFile } from '../types/upload';
 
 const getStorageTypeForField = (file: Express.Multer.File, req: Request): string => {
   const fieldname = file.fieldname;

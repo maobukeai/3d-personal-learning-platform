@@ -43,12 +43,11 @@ function stopCarousel() {
 }
 
 watch(
-  () => props.activeBanners,
+  () => props.activeBanners?.length,
   () => {
     activeSlideIndex.value = 0;
     startCarousel();
   },
-  { deep: true },
 );
 
 onMounted(() => {

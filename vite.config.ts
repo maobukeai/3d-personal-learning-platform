@@ -64,6 +64,26 @@ export default defineConfig(({ mode }) => {
         dts: 'src/components.d.ts',
       }),
     ],
+    optimizeDeps: {
+      // Pre-bundle heavy deps so the first dev visit doesn't stall on
+      // on-demand discovery + esbuild transforms.
+      include: [
+        'vue',
+        'vue-router',
+        'pinia',
+        'vue-i18n',
+        'element-plus',
+        'three',
+        'md-editor-v3',
+        'gsap',
+        'axios',
+        'socket.io-client',
+        'lucide-vue-next',
+        'dompurify',
+        'vuedraggable',
+        'qrcode',
+      ],
+    },
     server: {
       proxy: {
         '/api/projects/ai-chat': createStreamingProxy(300000),

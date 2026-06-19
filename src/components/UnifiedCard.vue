@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatFileSize, formatRelativeTime } from '@/utils/format';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
@@ -87,15 +88,6 @@ const emit = defineEmits<{
   (e: 'user-click', userId: string): void;
 }>();
 
-// Helper to format file size
-const formatFileSize = (size: unknown) => {
-  if (size === undefined || size === null || size === '') return '';
-  const num = Number(size);
-  if (isNaN(num)) return String(size);
-  if (num < 0.1) return `${(num * 1024).toFixed(0)} KB`;
-  return `${num.toFixed(1)} MB`;
-};
-
 // Kind Meta helper
 const kindMeta = {
   asset: { label: label('资源', 'Asset'), tone: 'blue', icon: Box },
@@ -146,21 +138,8 @@ const previewUrl = computed(() => {
 
 const sizeLabel = computed(() => {
   const size = props.item?.size || props.item?.fileSize || props.item?.sizeMb;
-  return formatFileSize(size);
+  return formatFileSize(Number(size));
 });
-
-const formatRelativeTime = (dateStr?: string | Date) => {
-  if (!dateStr) return '';
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-  if (minutes < 1) return label('刚刚', 'Just now');
-  if (minutes < 60) return label(`${minutes}分钟前`, `${minutes}m ago`);
-  if (hours < 24) return label(`${hours}小时前`, `${hours}h ago`);
-  if (days < 30) return label(`${days}天前`, `${days}d ago`);
-  return new Date(dateStr).toLocaleDateString();
-};
 
 const dateLabel = computed(() => {
   const date = props.item?.updatedAt || props.item?.createdAt;

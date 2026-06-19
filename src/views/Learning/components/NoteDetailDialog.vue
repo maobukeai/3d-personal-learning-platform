@@ -27,6 +27,7 @@ import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import { useI18n } from 'vue-i18n';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
+import { parseTags } from '@/utils/tags';
 
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
@@ -262,19 +263,6 @@ const changeFontSize = (delta: number) => {
   }
 };
 
-const parseTags = (note: Note): string[] => {
-  if (!note.tags) return [];
-  try {
-    const parsed = JSON.parse(note.tags);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return note.tags
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean);
-  }
-};
-
 const isFallbackExcerpt = (summary: string, content: string): boolean => {
   if (!summary || !content) return false;
   const cleanStr = (str: string) => str.replace(/[#*`>_\-[\]()+:\s\r\n.,，。！!？?、]/g, '');
@@ -496,7 +484,7 @@ defineExpose({ open });
                 >{{ detailNote.category }}</span
               >
               <span
-                v-for="tag in parseTags(detailNote)"
+                v-for="tag in parseTags(detailNote.tags)"
                 :key="tag"
                 class="px-2 py-0.5 rounded-lg bg-slate-50 dark:bg-zinc-800/40 text-[var(--text-secondary)] text-[9px] font-black border border-[var(--border-base)]"
                 >#{{ tag }}</span
@@ -786,7 +774,7 @@ defineExpose({ open });
 
               <!-- Tags list on mobile -->
               <div
-                v-if="parseTags(detailNote).length || detailNote.category"
+                v-if="parseTags(detailNote.tags).length || detailNote.category"
                 class="pt-2 border-t border-[var(--border-base)]"
               >
                 <div class="flex flex-wrap gap-1">
@@ -796,7 +784,7 @@ defineExpose({ open });
                     >{{ detailNote.category }}</span
                   >
                   <span
-                    v-for="tag in parseTags(detailNote)"
+                    v-for="tag in parseTags(detailNote.tags)"
                     :key="tag"
                     class="px-1.5 py-0.2 rounded-md bg-slate-50 dark:bg-zinc-800/40 text-[var(--text-secondary)] text-[9px] font-black border border-[var(--border-base)]"
                     >#{{ tag }}</span

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatRelativeTime as formatTime, formatCompactNumber as formatNumber } from '@/utils/format';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
@@ -36,6 +37,7 @@ import DiscussionDetail from './components/DiscussionDetail.vue';
 import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
 import Modal from '@/components/ui/Modal.vue';
+import { parseTags } from '@/utils/tags';
 
 const authStore = useAuthStore();
 const { t, locale } = useI18n();
@@ -340,44 +342,6 @@ watch(searchQuery, () => {
 watch([sortBy, selectedTag, activeFilter], () => {
   resetAndFetch();
 });
-
-const parseTags = (tagsStr: string | null | undefined): string[] => {
-  try {
-    const parsed = tagsStr ? JSON.parse(tagsStr) : [];
-    return Array.isArray(parsed)
-      ? parsed.filter((tagName): tagName is string => typeof tagName === 'string')
-      : [];
-  } catch (_e) {
-    return tagsStr
-      ? tagsStr
-          .split(',')
-          .map((tagName) => tagName.trim())
-          .filter(Boolean)
-      : [];
-  }
-};
-
-const formatTime = (dateStr: string) => {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diff = Math.max(0, now.getTime() - date.getTime());
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return t('common.time.justNow');
-  if (minutes < 60) return t('common.time.minutesAgo', { n: minutes });
-  if (hours < 24) return t('common.time.hoursAgo', { n: hours });
-  if (days < 7) return t('common.time.daysAgo', { n: days });
-  return date.toLocaleDateString(locale.value === 'en-US' ? 'en-US' : 'zh-CN');
-};
-
-function formatNumber(value: number | undefined) {
-  const safe = value || 0;
-  if (safe >= 10000) return `${(safe / 10000).toFixed(1)}w`;
-  if (safe >= 1000) return `${(safe / 1000).toFixed(1)}k`;
-  return String(safe);
-}
 
 function resetAndFetch() {
   pagination.value.page = 1;

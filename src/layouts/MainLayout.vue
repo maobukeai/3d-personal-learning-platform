@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
@@ -15,10 +15,12 @@ import {
   FolderTree,
   MonitorPlay,
 } from 'lucide-vue-next';
-import AISprite from '@/components/AISprite.vue';
+
+// AISprite is heavy (pulls in md-editor-v3 styles & three.js deps) and not
+// needed on first paint — load it lazily so it stays out of the MainLayout chunk.
+const AISprite = defineAsyncComponent(() => import('@/components/AISprite.vue'));
 
 // Async sub-dialogs/components
-import { defineAsyncComponent } from 'vue';
 const CreateTeamDialog = defineAsyncComponent(() => import('@/components/CreateTeamDialog.vue'));
 const ExploreGroupsDialog = defineAsyncComponent(
   () => import('@/components/ExploreGroupsDialog.vue'),

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDate } from '@/utils/format';
 import { computed, onMounted, ref, watch, type Component } from 'vue';
 import { useRoute } from 'vue-router';
 import {
@@ -533,11 +534,6 @@ const formatSize = (size?: number | null) => {
   if (!size) return label('未知大小', 'Unknown size');
   if (size >= 1) return `${size.toFixed(1)} MB`;
   return `${Math.max(1, Math.round(size * 1024))} KB`;
-};
-
-const formatDate = (date?: string) => {
-  if (!date) return '-';
-  return new Date(date).toLocaleDateString(locale.value === 'en-US' ? 'en-US' : 'zh-CN');
 };
 
 const getTagsList = (tags?: string) =>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatDate } from '@/utils/format';
+import { parseTags } from '@/utils/tags';
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
@@ -46,24 +48,24 @@ const userPlanPriority = computed(() => {
 });
 
 const hasAccess = computed(() => {
-  if (!mirrorStore.currentSource) return null;
-  return userPlanPriority.value >= mirrorStore.currentSource.minPlanPriority;
+  if (!mirrorStore.currentStation) return null;
+  return userPlanPriority.value >= mirrorStore.currentStation.minPlanPriority;
 });
 
 const pageTitle = computed(() => {
-  if (!mirrorStore.currentSource) return '加载中...';
+  if (!mirrorStore.currentStation) return '加载中...';
   if (mirrorStore.activeCategoryId) {
     const activeCat = mirrorStore.categories.find((c) => c.id === mirrorStore.activeCategoryId);
     if (activeCat) {
       return activeCat.name;
     }
   }
-  return mirrorStore.currentSource.displayName;
+  return mirrorStore.currentStation.displayName;
 });
 
 async function loadData() {
   await Promise.all([
-    mirrorStore.fetchSource(sourceId.value),
+    mirrorStore.fetchStation(sourceId.value),
     mirrorStore.fetchCategories(sourceId.value),
   ]);
 
@@ -111,20 +113,6 @@ function doSearch() {
 
 function viewResource(resourceId: string) {
   router.push(`/mirror/resource/${resourceId}`);
-}
-
-function formatDate(date: string | null) {
-  if (!date) return '-';
-  return new Date(date).toLocaleDateString('zh-CN');
-}
-
-function parseTags(tags: string | null) {
-  if (!tags) return [];
-  try {
-    return JSON.parse(tags);
-  } catch {
-    return [];
-  }
 }
 
 onMounted(() => {
@@ -202,7 +190,7 @@ function handlePageJump() {
           class="text-xs md:text-sm text-slate-500 dark:text-slate-400 font-medium truncate flex-1"
         >
           {{
-            mirrorStore.currentSource?.description ||
+            mirrorStore.currentStation?.description ||
             '同步第三方海量极速高质感资产，高速通道极速获取'
           }}
         </p>
@@ -227,7 +215,7 @@ function handlePageJump() {
         <div class="flex items-center gap-1.5">
           <span class="text-[10px] text-slate-400">获取权限：</span>
           <span class="text-[11px] font-bold"
-            >需要 {{ getPlanName(mirrorStore.currentSource?.minPlanPriority ?? 0) }} 会员</span
+            >需要 {{ getPlanName(mirrorStore.currentStation?.minPlanPriority ?? 0) }} 会员</span
           >
         </div>
       </div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDate } from '@/utils/format';
 import { BarChart3, LayoutGrid, List, Search, SlidersHorizontal } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import Tabs from '@/components/ui/Tabs.vue';
@@ -66,10 +67,6 @@ const focusTabsOptions = [
   { value: 'unassigned', label: '待分配', icon: Users },
 ];
 
-const formatDate = (value?: string | null) => {
-  if (!value) return '未设置';
-  return new Date(value).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
-};
 </script>
 
 <template>

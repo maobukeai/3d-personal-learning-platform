@@ -44,6 +44,7 @@ import {
   serializeAiChatTags,
   touchAiChatSession,
 } from '../services/ai-chat-session.service';
+import { UploadedFile } from '../types/upload';
 
 type AiChatMessage = {
   role: 'user' | 'assistant';
@@ -51,12 +52,6 @@ type AiChatMessage = {
 };
 
 type AiChatMode = 'default' | 'search' | 'research';
-
-type UploadedFile = Express.Multer.File & {
-  url?: string;
-  r2Key?: string;
-  r2ConfigId?: string;
-};
 
 const MAX_AI_CHAT_MESSAGES = 12;
 const MAX_AI_CHAT_MESSAGE_CHARS = 12000;

@@ -9,20 +9,8 @@ export {
   formatCompactNumber,
 } from '@/utils/format';
 
-export function parseTags(tags?: string | string[] | null) {
-  if (!tags) return [];
-  if (Array.isArray(tags)) return tags.map(String).filter(Boolean);
-  try {
-    const parsed = JSON.parse(tags);
-    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
-  } catch (_error) {
-    // Fall through to delimiter parsing.
-  }
-  return tags
-    .split(/[,，\s]+/)
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-}
+// Re-export unified tag parser for backward compatibility
+export { parseTags } from '@/utils/tags';
 
 export function resolvePreviewUrl(url?: string | null, fallbackType = 'GLB') {
   if (url) return getAssetUrl(url);

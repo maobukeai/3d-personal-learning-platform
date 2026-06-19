@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { Eye, Heart, MessageSquare, Pin, Sparkles, Tag, Trash2 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { getAssetUrl } from '@/utils/api';
+import { formatRelativeTime as formatTime, formatCompactNumber as formatNumber } from '@/utils/format';
 import type { User } from '@/types';
 
 interface DiscussionCardUser extends Pick<User, 'id' | 'name' | 'avatarUrl'> {
@@ -66,7 +67,7 @@ const emit = defineEmits<{
   (e: 'tag', tag: string, event: Event): void;
 }>();
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
 
 const isOwner = computed(() => props.currentUserId === props.discussion?.user?.id);
 
@@ -119,29 +120,6 @@ const score = computed(() => {
   const views = props.discussion.viewCount || 0;
   return likes * 3 + comments * 4 + Math.round(views / 12);
 });
-
-function formatTime(dateStr: string) {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diff = Math.max(0, now.getTime() - date.getTime());
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return t('common.time.justNow');
-  if (minutes < 60) return t('common.time.minutesAgo', { n: minutes });
-  if (hours < 24) return t('common.time.hoursAgo', { n: hours });
-  if (days < 7) return t('common.time.daysAgo', { n: days });
-  return date.toLocaleDateString(locale.value === 'en-US' ? 'en-US' : 'zh-CN');
-}
-
-function formatNumber(value: number | undefined) {
-  const safe = value || 0;
-  if (safe >= 10000) return `${(safe / 10000).toFixed(1)}w`;
-  if (safe >= 1000) return `${(safe / 1000).toFixed(1)}k`;
-  return String(safe);
-}
 
 function handleCardClick() {
   emit('click', props.discussion.id);

@@ -41,13 +41,9 @@ import { requestContext } from './middlewares/request-context.middleware';
 import { notFoundHandler } from './middlewares/not-found.middleware';
 import { createRateLimitHandler } from './middlewares/rate-limit.middleware';
 import { csrfProtection } from './middlewares/csrf.middleware';
+import { readPositiveInt } from './config/env';
 
 const app = express();
-
-const readPositiveInt = (value: string | undefined, fallback: number) => {
-  const parsed = Number.parseInt(value || '', 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-};
 
 const parseTrustProxy = (value: string | undefined) => {
   if (!value) return 1;

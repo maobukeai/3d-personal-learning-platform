@@ -31,13 +31,17 @@ interface ImportedStorageConfig {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Returns a safe API response payload — decrypts secrets for admin display.
+ * Returns a safe API response payload — secrets are NEVER returned in plaintext.
+ * Instead, we expose boolean flags so the frontend can indicate that a secret
+ * is already configured, while the actual value stays server-side only.
  */
 function prepareConfigResponse(config: StorageConfig) {
   return {
     ...config,
-    secretAccessKey: decryptSecretIfNeeded(config.secretAccessKey),
-    cloudflareApiToken: decryptSecretIfNeeded(config.cloudflareApiToken),
+    secretAccessKey: '',
+    cloudflareApiToken: '',
+    hasSecretAccessKey: Boolean(config.secretAccessKey),
+    hasCloudflareApiToken: Boolean(config.cloudflareApiToken),
   };
 }
 

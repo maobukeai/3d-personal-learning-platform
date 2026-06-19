@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import api from '@/utils/api';
+export { formatCompactNumber } from '@/utils/format';
 
 export type AdminInsightIssue = {
   severity: 'critical' | 'warning' | 'info';
@@ -345,13 +346,6 @@ export async function fetchManagementInsights(force = false) {
     });
 
   return currentRequest;
-}
-
-export function formatCompactNumber(value: number | null | undefined) {
-  const num = Number(value || 0);
-  if (num >= 100000000) return `${(num / 100000000).toFixed(1)}亿`;
-  if (num >= 10000) return `${(num / 10000).toFixed(1)}万`;
-  return `${num}`;
 }
 
 export function getIssueClasses(severity: AdminInsightIssue['severity']) {

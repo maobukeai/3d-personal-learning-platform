@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime as formatDate } from '@/utils/format';
 import { computed, onMounted, ref } from 'vue';
 import {
   AlertTriangle,
@@ -189,16 +190,6 @@ const priorityClass = (priority: string) => ({
   'tone-amber': priority === 'MEDIUM',
   'tone-green': priority === 'LOW',
 });
-
-const formatDate = (value?: string | null) => {
-  if (!value) return '未记录';
-  return new Date(value).toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
 
 const openDetail = (item: AdminFeedback) => {
   activeFeedback.value = item;

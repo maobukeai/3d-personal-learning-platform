@@ -51,6 +51,8 @@ interface StorageConfig {
   accessKeyId: string;
   secretAccessKey: string;
   cloudflareApiToken?: string;
+  hasSecretAccessKey?: boolean;
+  hasCloudflareApiToken?: boolean;
   remark?: string;
   bucketName: string;
   publicUrl: string;
@@ -183,7 +185,10 @@ const openAddDialog = () => {
 const openEditDialog = (config: StorageConfig) => {
   form.value = {
     ...config,
-    cloudflareApiToken: config.cloudflareApiToken || '',
+    // Secrets are no longer returned by the API; clear them so the user can
+    // optionally enter a new value. Leaving them blank keeps the stored secret.
+    secretAccessKey: '',
+    cloudflareApiToken: '',
     remark: config.remark || '',
   };
   isEdit.value = true;
@@ -225,13 +230,15 @@ const testConnection = async () => {
 };
 
 const submitForm = async () => {
+  // In create mode all connection fields are required; in edit mode the
+  // secret fields are optional (leaving them blank keeps the stored value).
   if (
     !form.value.name ||
     !form.value.endpoint ||
     !form.value.accessKeyId ||
-    !form.value.secretAccessKey ||
     !form.value.bucketName ||
-    !form.value.publicUrl
+    !form.value.publicUrl ||
+    (!isEdit.value && !form.value.secretAccessKey)
   ) {
     ElMessage.warning('请填写所有必填字段');
     return;
@@ -240,7 +247,12 @@ const submitForm = async () => {
   submitting.value = true;
   try {
     if (isEdit.value) {
-      await api.put(`/api/admin/storage-configs/${form.value.id}`, form.value);
+      // Build payload omitting blank secret fields so the backend preserves
+      // the previously stored encrypted values.
+      const payload: Record<string, unknown> = { ...form.value };
+      if (!form.value.secretAccessKey) delete payload.secretAccessKey;
+      if (!form.value.cloudflareApiToken) delete payload.cloudflareApiToken;
+      await api.put(`/api/admin/storage-configs/${form.value.id}`, payload);
       ElMessage.success('存储配置更新成功');
     } else {
       await api.post('/api/admin/storage-configs', form.value);
@@ -1217,9 +1229,9 @@ onMounted(() => {
               <Input
                 v-model="form.secretAccessKey"
                 label="Secret Access Key"
-                placeholder="R2 机密存取密钥"
+                :placeholder="isEdit ? '留空则不修改已保存的密钥' : 'R2 机密存取密钥'"
                 inputClass="!py-2.5 font-mono text-xs"
-                required
+                :required="!isEdit"
               />
             </div>
             <div class="col-span-4">

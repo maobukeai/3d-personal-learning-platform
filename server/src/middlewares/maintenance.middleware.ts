@@ -3,6 +3,7 @@ import prisma from '../services/prisma';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env';
 import { settingsService } from '../services/settings.service';
+import { logger } from '../utils/logger';
 
 export const checkMaintenanceMode = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -52,7 +53,11 @@ export const checkMaintenanceMode = async (req: Request, res: Response, next: Ne
     }
 
     next();
-  } catch (_error) {
-    next(); // If service fails, don't block the site
+  } catch (error) {
+    // If the settings service fails (e.g. DB unreachable), don't block the
+    // site, but record the failure so silent maintenance-mode bypasses are
+    // visible during incident investigation.
+    logger.warn('[MaintenanceMiddleware] Failed to read maintenance mode, allowing request:', error);
+    next();
   }
 };

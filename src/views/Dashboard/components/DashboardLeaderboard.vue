@@ -4,19 +4,11 @@ import UserAvatar from '@/components/UserAvatar.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import type { LeaderboardMember } from '../types';
+import { formatCompactNumber as formatNumber } from '@/utils/format';
 
 defineProps<{
   leaderboardTop: LeaderboardMember[];
 }>();
-
-function formatNumber(value: number | string | undefined) {
-  if (value === undefined) return '0';
-  const numericValue =
-    typeof value === 'number'
-      ? value
-      : Number.parseFloat(value.replace(/,/g, '').replace(/[^\d.-]/g, ''));
-  return Number.isFinite(numericValue) ? numericValue.toLocaleString('zh-CN') : '0';
-}
 </script>
 
 <template>

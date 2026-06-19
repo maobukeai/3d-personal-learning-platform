@@ -328,13 +328,15 @@ const settingsSignalCards = computed(() => [
   },
 ]);
 
+// Compare via serialized snapshot instead of deep-watching the entire object:
+// deep watch fires on every nested mutation and re-serializes twice per tick.
+const settingsSnapshot = computed(() => JSON.stringify(settings.value));
+const originalSnapshot = computed(() => JSON.stringify(originalSettings.value));
 watch(
-  settings,
+  [settingsSnapshot, originalSnapshot],
   () => {
-    hasUnsavedChanges.value =
-      JSON.stringify(settings.value) !== JSON.stringify(originalSettings.value);
+    hasUnsavedChanges.value = settingsSnapshot.value !== originalSnapshot.value;
   },
-  { deep: true },
 );
 
 const fetchSettings = async () => {

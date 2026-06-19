@@ -21,6 +21,7 @@ import DashboardEnrollments from './components/DashboardEnrollments.vue';
 import DashboardLeaderboard from './components/DashboardLeaderboard.vue';
 import DashboardActivityStream from './components/DashboardActivityStream.vue';
 import api from '@/utils/api';
+import { formatRelativeTime as formatTime, formatDate } from '@/utils/format';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { socketService } from '@/utils/socket';
@@ -106,21 +107,6 @@ const lastUpdatedText = computed(() => {
   if (!lastUpdatedAt.value) return '等待同步';
   return `更新于 ${lastUpdatedAt.value.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
 });
-
-function formatDate(date: string | Date) {
-  return new Date(date).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
-}
-
-function formatTime(date: string) {
-  const timestamp = new Date(date).getTime();
-  if (!Number.isFinite(timestamp)) return '刚刚';
-  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
-  if (minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes} 分钟前`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} 小时前`;
-  return formatDate(date);
-}
 
 function getTaskStatusLabel(status: string) {
   if (status === TaskStatus.DONE) return '已完成';

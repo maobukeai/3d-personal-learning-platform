@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDate } from '@/utils/format';
 import { ref, watch } from 'vue';
 import { X, MapPin, Calendar, MessageSquare, Link as LinkIcon, Quote } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
@@ -57,11 +58,6 @@ const startChat = () => {
   emit('update:modelValue', false);
 };
 
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-};
 </script>
 
 <template>

@@ -9,6 +9,11 @@ import type { GoogleWarmingAccount } from '@prisma/client';
 /**
  * Decrypts sensitive fields before returning account data to the client.
  * Plaintext values (existing unencrypted rows) are returned as-is by decryptSecret.
+ *
+ * Security note: This is a password-manager-style feature where users manage
+ * THEIR OWN Google account credentials. All queries are scoped by `userId`
+ * (see `where: { userId }`), so secrets are only ever returned to the owner.
+ * Do NOT log the output of this function.
  */
 const toPublicAccount = (account: GoogleWarmingAccount) => ({
   ...account,

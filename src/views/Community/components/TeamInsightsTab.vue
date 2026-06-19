@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatRelativeTime } from '@/utils/format';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowRight } from 'lucide-vue-next';
@@ -185,16 +186,6 @@ const activityDotClass = (type: string) => {
   return 'bg-slate-400';
 };
 
-const formatRelativeTime = (dateStr: string) => {
-  const date = new Date(dateStr);
-  const diff = Date.now() - date.getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return '刚刚';
-  if (mins < 60) return `${mins}分钟前`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}小时前`;
-  return `${Math.floor(hours / 24)}天前`;
-};
 </script>
 
 <template>

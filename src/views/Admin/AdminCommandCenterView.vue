@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime } from '@/utils/format';
 import { computed, onMounted, type Component } from 'vue';
 import { useRouter } from 'vue-router';
 import {
@@ -163,18 +164,6 @@ const formatAge = (hours: number) => {
   if (hours < 1) return '刚刚';
   if (hours < 24) return `${hours} 小时`;
   return `${Math.floor(hours / 24)} 天 ${hours % 24} 小时`;
-};
-
-const formatDateTime = (value?: string | null) => {
-  if (!value) return '未设置';
-  const time = new Date(value).getTime();
-  if (!Number.isFinite(time)) return '未设置';
-  return new Date(time).toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 };
 
 const openRoute = (route?: string) => {

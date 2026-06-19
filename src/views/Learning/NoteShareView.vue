@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDate } from '@/utils/format';
 import { ref, computed, onMounted, defineAsyncComponent, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
@@ -27,6 +28,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import { watch } from 'vue';
 import Button from '@/components/ui/Button.vue';
+import { parseTags } from '@/utils/tags';
 
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
@@ -131,29 +133,6 @@ const handleDeleteComment = async (commentId: string) => {
   } catch (err: unknown) {
     ElMessage.error(getApiErrorMessage(err, '删除评论失败'));
   }
-};
-
-const parseTags = (noteTags?: string): string[] => {
-  if (!noteTags) return [];
-  try {
-    const parsed = JSON.parse(noteTags);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return noteTags
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean);
-  }
-};
-
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 };
 
 const goHome = () => {

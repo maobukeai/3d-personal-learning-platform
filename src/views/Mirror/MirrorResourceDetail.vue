@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '@/utils/error';
+import { formatDateTime as formatDate } from '@/utils/format';
+import { parseTags } from '@/utils/tags';
 
 import { ref, computed, onMounted, watch } from 'vue';
 
@@ -111,22 +113,6 @@ async function loadResource() {
     }
   } finally {
     isLoading.value = false;
-  }
-}
-
-function formatDate(date: string | null) {
-  if (!date) return '-';
-
-  return new Date(date).toLocaleString('zh-CN');
-}
-
-function parseTags(tags: string | null) {
-  if (!tags) return [];
-
-  try {
-    return JSON.parse(tags);
-  } catch {
-    return [];
   }
 }
 

@@ -86,59 +86,54 @@ const localSettings = reactive({ ...props.settings }) as Record<string, any>;
 const localAiModelConfigs = ref<AiModelConfig[]>([]);
 const localPendingModelFamilyIds = ref<string[]>([]);
 
+// Snapshot-based watchers: compare serialized values instead of deep-traversing
+// the entire object on every nested mutation. This avoids the O(n) deep walk
+// that Vue performs on each tick for `{ deep: true }`.
+const propsSettingsSnapshot = computed(() => JSON.stringify(props.settings));
+const localSettingsSnapshot = computed(() => JSON.stringify(localSettings));
+const propsAiModelConfigsSnapshot = computed(() => JSON.stringify(props.aiModelConfigs));
+const localAiModelConfigsSnapshot = computed(() => JSON.stringify(localAiModelConfigs.value));
+const propsPendingSnapshot = computed(() => JSON.stringify(props.pendingModelFamilyIds));
+const localPendingSnapshot = computed(() => JSON.stringify(localPendingModelFamilyIds.value));
+
+watch(propsSettingsSnapshot, (val) => {
+  const incoming = JSON.parse(val);
+  if (localSettingsSnapshot.value !== val) {
+    Object.assign(localSettings, incoming);
+  }
+});
+
+watch(localSettingsSnapshot, () => {
+  emit('update:settings', { ...props.settings, ...localSettings });
+});
+
 watch(
-  () => props.settings,
+  propsAiModelConfigsSnapshot,
   (val) => {
-    if (JSON.stringify(localSettings) !== JSON.stringify(val)) {
-      Object.assign(localSettings, val);
+    if (localAiModelConfigsSnapshot.value !== val) {
+      localAiModelConfigs.value = JSON.parse(val);
     }
   },
-  { deep: true },
+  { immediate: true },
 );
 
-watch(
-  localSettings,
-  (val) => {
-    emit('update:settings', { ...props.settings, ...val });
-  },
-  { deep: true },
-);
+watch(localAiModelConfigsSnapshot, () => {
+  emit('update:aiModelConfigs', localAiModelConfigs.value);
+});
 
 watch(
-  () => props.aiModelConfigs,
+  propsPendingSnapshot,
   (val) => {
-    if (JSON.stringify(localAiModelConfigs.value) !== JSON.stringify(val)) {
-      localAiModelConfigs.value = JSON.parse(JSON.stringify(val));
+    if (localPendingSnapshot.value !== val) {
+      localPendingModelFamilyIds.value = JSON.parse(val);
     }
   },
-  { deep: true, immediate: true },
+  { immediate: true },
 );
 
-watch(
-  localAiModelConfigs,
-  (val) => {
-    emit('update:aiModelConfigs', val);
-  },
-  { deep: true },
-);
-
-watch(
-  () => props.pendingModelFamilyIds,
-  (val) => {
-    if (JSON.stringify(localPendingModelFamilyIds.value) !== JSON.stringify(val)) {
-      localPendingModelFamilyIds.value = [...val];
-    }
-  },
-  { deep: true, immediate: true },
-);
-
-watch(
-  localPendingModelFamilyIds,
-  (val) => {
-    emit('update:pendingModelFamilyIds', val);
-  },
-  { deep: true },
-);
+watch(localPendingSnapshot, () => {
+  emit('update:pendingModelFamilyIds', localPendingModelFamilyIds.value);
+});
 
 const aiProviderDefaults: Record<string, { endpoint: string; model: string; name: string }> = {
   DEEPSEEK: {

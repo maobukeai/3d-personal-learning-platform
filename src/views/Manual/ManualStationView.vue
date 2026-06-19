@@ -20,6 +20,8 @@ import { useManualStore } from '@/stores/manual';
 import { useAuthStore } from '@/stores/auth';
 import { getPlanName } from '@/utils/plans';
 import { getAssetUrl } from '@/utils/api';
+import { parseTags } from '@/utils/tags';
+import { formatDate } from '@/utils/format';
 
 const route = useRoute();
 const router = useRouter();
@@ -100,23 +102,6 @@ function doSearch() {
 
 function viewResource(resourceId: string) {
   router.push(`/manual/resource/${resourceId}`);
-}
-
-function formatDate(date: string | null) {
-  if (!date) return '-';
-  return new Date(date).toLocaleDateString('zh-CN');
-}
-
-function parseTags(tags: string | null) {
-  if (!tags) return [];
-  try {
-    return JSON.parse(tags);
-  } catch {
-    if (tags.includes(',')) {
-      return tags.split(',').map((t) => t.trim());
-    }
-    return [tags];
-  }
 }
 
 onMounted(() => {

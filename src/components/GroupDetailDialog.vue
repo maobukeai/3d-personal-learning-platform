@@ -6,6 +6,7 @@ import type { TeamMember } from '@/types';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
+import { TEAM_CORE_VALUES_SEPARATOR } from '@/utils/team';
 
 interface GroupDetailTeam {
   id: string;
@@ -44,8 +45,7 @@ const displayMembers = computed(() => {
 
 const parsedData = computed(() => {
   const desc = props.group?.description || '';
-  const separator = '\n\n===CORE_VALUES===\n';
-  const parts = desc.split(separator);
+  const parts = desc.split(TEAM_CORE_VALUES_SEPARATOR);
   if (parts.length > 1) {
     try {
       const parsedValues = JSON.parse(parts[1]);

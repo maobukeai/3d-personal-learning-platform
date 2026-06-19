@@ -15,6 +15,7 @@ import {
   HelpCircle,
   CheckSquare,
 } from 'lucide-vue-next';
+import { parseTags } from '@/utils/tags';
 
 interface Assignee {
   id: string;
@@ -93,18 +94,6 @@ const getPriorityConfig = (priority?: string) => {
       return { label: '低', color: 'bg-blue-500', textColor: 'text-blue-500', icon: ArrowDown };
     default:
       return { label: '无', color: 'bg-slate-400', textColor: 'text-slate-400', icon: HelpCircle };
-  }
-};
-
-const parseTags = (tagsStr: string | null | undefined) => {
-  if (!tagsStr) return [];
-  try {
-    return JSON.parse(tagsStr);
-  } catch (_e) {
-    return tagsStr
-      .split(',')
-      .map((t) => t.trim())
-      .filter((t) => t);
   }
 };
 

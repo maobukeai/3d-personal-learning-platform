@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime as formatDate } from '@/utils/format';
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
@@ -298,18 +299,6 @@ const metricLine = (item: ContentItem) => {
   const likes = item.likes ?? 0;
   const downloads = item.downloads ?? 0;
   return `浏览 ${views} · 点赞 ${likes} · 下载 ${downloads}`;
-};
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '-';
-  const date = new Date(dateStr);
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 };
 
 // Create Operations

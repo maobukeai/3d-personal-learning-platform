@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime as formatDate } from '@/utils/format';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   Activity,
@@ -267,17 +268,6 @@ const selectSource = (ip?: string | null) => {
 const selectActor = (actor: { userId?: string | null }) => {
   if (!actor.userId) return;
   userIdFilter.value = userIdFilter.value === actor.userId ? '' : actor.userId;
-};
-
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
 };
 
 const formatShortDate = (date: string) => {

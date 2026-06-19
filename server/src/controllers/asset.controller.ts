@@ -16,16 +16,10 @@ import { AppError } from '../utils/error';
 import { clampLimit, clampPage } from '../utils/pagination';
 import { redisService } from '../services/redis.service';
 import { storageService } from '../services/storage.service';
+import { UploadedFile } from '../types/upload';
 
 const TAG_SEARCH_REDIS_TTL = 7 * 24 * 3600; // 7 days
 const tagSearchKey = (tag: string) => `asset_tag_search:${tag}`;
-
-/** Multer file augmented with R2 cloud upload metadata. */
-type UploadedFile = Express.Multer.File & {
-  url?: string;
-  r2Key?: string;
-  r2ConfigId?: string;
-};
 
 const splitTagText = (value: string): string[] =>
   value
@@ -655,7 +649,7 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response, next
 export const getPublicAssets = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const page = clampPage(req.query.page);
-    const limit = clampLimit(req.query.limit, 12, 100);
+    const limit = clampLimit(req.query.limit, 12, 50);
     const lite = req.query.lite === 'true';
     const search = req.query.search as string;
     const categoryId = req.query.categoryId as string;
@@ -711,7 +705,7 @@ export const getPublicAssets = async (req: AuthRequest, res: Response, next: Nex
         where,
         orderBy,
         skip,
-        take: Math.min(limit, 50),
+        take: limit,
         select: {
           id: true,
           title: true,
@@ -732,7 +726,7 @@ export const getPublicAssets = async (req: AuthRequest, res: Response, next: Nex
         where,
         orderBy,
         skip,
-        take: Math.min(limit, 50),
+        take: limit,
         include: {
           category: true,
           user: {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime as formatTime } from '@/utils/format';
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -391,11 +392,6 @@ function stopPolling() {
     clearInterval(pollTimer);
     pollTimer = null;
   }
-}
-
-function formatTime(date: string | null) {
-  if (!date) return '-';
-  return new Date(date).toLocaleString('zh-CN');
 }
 
 function formatDuration(seconds: number | null) {

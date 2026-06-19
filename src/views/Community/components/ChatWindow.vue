@@ -533,15 +533,16 @@ const scrollToBottom = () => {
   });
 };
 
+// Only react to the array length / last message identity instead of deep
+// traversing every nested property of every message on each tick.
 watch(
-  () => props.messages,
+  () => [props.messages.length, props.messages[props.messages.length - 1]?.id],
   () => {
     // If we loaded newer messages, scroll down
     if (!props.isLoadingOlderMessages) {
       scrollToBottom();
     }
   },
-  { deep: true },
 );
 
 onUnmounted(() => {

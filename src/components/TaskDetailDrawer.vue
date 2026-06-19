@@ -2,6 +2,7 @@
 import { ref, watch, type Component } from 'vue';
 import { CheckCircle2, Copy, Maximize2, Minimize2, Trash2, X, CheckSquare } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
+import { parseTags } from '@/utils/tags';
 
 interface Member {
   id: string;
@@ -95,18 +96,6 @@ const drawerSubtasks = ref<{ id: string; text: string; done: boolean }[]>([]);
 const newSubtaskText = ref('');
 const detailDrawerTagInput = ref('');
 
-const parseTags = (tagsStr: string | null | undefined): string[] => {
-  if (!tagsStr) return [];
-  try {
-    return JSON.parse(tagsStr);
-  } catch (_e) {
-    return tagsStr
-      .split(',')
-      .map((t) => t.trim())
-      .filter((t) => t);
-  }
-};
-
 const parseSubtasks = (subtasksStr: string | null | undefined): Subtask[] => {
   if (!subtasksStr) return [];
   try {
@@ -117,10 +106,13 @@ const parseSubtasks = (subtasksStr: string | null | undefined): Subtask[] => {
   }
 };
 
-// Initialize form from task prop
+// Initialize form from task prop — react to identity change (task switch)
+// rather than deep-watching every nested property, which would overwrite
+// in-progress edits whenever any subfield mutates.
 watch(
-  () => props.task,
-  (newTask) => {
+  () => props.task?.id,
+  () => {
+    const newTask = props.task;
     if (newTask) {
       drawerForm.value = {
         title: newTask.title,
@@ -139,7 +131,7 @@ watch(
       detailDrawerTagInput.value = '';
     }
   },
-  { immediate: true, deep: true },
+  { immediate: true },
 );
 
 const triggerSave = () => {

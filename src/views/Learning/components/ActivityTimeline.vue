@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDate } from '@/utils/format';
 import { ref, computed } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Loading } from '@element-plus/icons-vue';
@@ -6,6 +7,7 @@ import { ThumbsUp, MessageSquare, Bookmark, Edit3, Trash2, Flame, BookOpen } fro
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
+import { parseTags } from '@/utils/tags';
 
 interface Note {
   id: string;
@@ -148,26 +150,6 @@ const topContributors = computed(() => {
     .slice(0, 5);
 });
 
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
-
-const parseTags = (note: Note): string[] => {
-  if (!note.tags) return [];
-  try {
-    const parsed = JSON.parse(note.tags);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return note.tags
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean);
-  }
-};
 </script>
 
 <template>
@@ -222,9 +204,9 @@ const parseTags = (note: Note): string[] => {
         </div>
 
         <!-- Tags (Super compact) -->
-        <div v-if="parseTags(note).length" class="flex flex-wrap gap-1 my-0.5">
+        <div v-if="parseTags(note.tags).length" class="flex flex-wrap gap-1 my-0.5">
           <span
-            v-for="tag in parseTags(note)"
+            v-for="tag in parseTags(note.tags)"
             :key="tag"
             class="px-2 py-0.5 rounded-full bg-slate-50 dark:bg-white/5 text-[var(--text-muted)] text-[9px] font-bold border border-[var(--border-base)]"
           >

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime as formatDate } from '@/utils/format';
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
@@ -577,17 +578,6 @@ const riskToneText = (tone: PerformanceTone) => {
   if (tone === 'warning') return '需优化';
   if (tone === 'notice') return '关注';
   return '通过';
-};
-
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return '未知';
-  return new Date(dateStr).toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 };
 
 const goBack = () => {

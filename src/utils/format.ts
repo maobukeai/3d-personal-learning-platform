@@ -75,9 +75,10 @@ export function formatFileSize(sizeMb?: number | null, fallback = '未知大小'
 
 // ─── 数字格式化 ───────────────────────────────────────────────────────────────
 
-/** 紧凑数字（如 "1.2万"、"3.5k"） */
+/** 紧凑数字（如 "1.2亿"、"3.5万"、"1.2k"） */
 export function formatCompactNumber(value?: number | null): string {
   const number = Number(value || 0);
+  if (number >= 100000000) return `${(number / 100000000).toFixed(1)}亿`;
   if (number >= 10000) return `${(number / 10000).toFixed(1)}万`;
   if (number >= 1000) return `${(number / 1000).toFixed(1)}k`;
   return String(number);

@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Loader2, X } from 'lucide-vue-next';
 import api from '@/utils/api';
+import { formatDateTime as formatTime } from '@/utils/format';
 import type { MirrorSource, SyncLog } from '../AdminMirrorView.vue';
 
 const visible = defineModel<boolean>({ default: false });
@@ -38,11 +39,6 @@ watch(
   },
   { immediate: true },
 );
-
-function formatTime(date: string | null) {
-  if (!date) return '-';
-  return new Date(date).toLocaleString('zh-CN');
-}
 
 function formatDuration(seconds: number | null) {
   if (!seconds) return '-';

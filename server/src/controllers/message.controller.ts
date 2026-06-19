@@ -6,18 +6,13 @@ import { emitToConversation, emitToUser } from '../services/socket.service';
 import { queueDirectMessageEmail } from '../services/direct-message-email.service';
 import { createNotification } from '../utils/notification';
 import { clampLimit } from '../utils/pagination';
+import { UploadedFile } from '../types/upload';
 
 type ConversationParticipant = {
   id: string;
   name?: string | null;
   email?: string;
   avatarUrl?: string | null;
-};
-
-type UploadedFile = Express.Multer.File & {
-  url?: string;
-  r2Key?: string;
-  r2ConfigId?: string;
 };
 
 export const getConversations = async (req: AuthRequest, res: Response, next: NextFunction) => {

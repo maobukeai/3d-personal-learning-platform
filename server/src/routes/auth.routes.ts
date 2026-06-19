@@ -6,6 +6,7 @@ import { upload, validateFileContent } from '../middlewares/upload.middleware';
 import { sanitizeInput } from '../middlewares/validation.middleware';
 import { validateRequest } from '../middlewares/zod-validation.middleware';
 import { createRateLimitHandler } from '../middlewares/rate-limit.middleware';
+import { readPositiveInt } from '../config/env';
 import {
   registerSchema,
   sendCodePublicSchema,
@@ -80,11 +81,6 @@ import {
 const router = Router();
 
 const isDev = process.env.NODE_ENV === 'development';
-
-const readPositiveInt = (value: string | undefined, fallback: number) => {
-  const parsed = Number.parseInt(value || '', 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-};
 
 const getAuthAttemptKey = (req: Request) => {
   const body = req.body as {

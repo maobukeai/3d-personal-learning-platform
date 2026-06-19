@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDate } from '@/utils/format';
 import { computed } from 'vue';
 import {
   Eye,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
+import { parseTags } from '@/utils/tags';
 
 interface Note {
   id: string;
@@ -80,28 +82,7 @@ const onDragStart = (event: DragEvent) => {
   emit('dragstart', event, props.note);
 };
 
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
-
 const getVisibilityLabel = (v: string) => (v === 'PUBLIC' ? '公开' : '私有');
-
-const parseTags = (note: Note): string[] => {
-  if (!note.tags) return [];
-  try {
-    const parsed = JSON.parse(note.tags);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return note.tags
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean);
-  }
-};
 
 const cleanSummary = computed(() => {
   if (props.note.summary) return props.note.summary;
@@ -310,12 +291,12 @@ const cleanSummary = computed(() => {
 
     <!-- Tags Row -->
     <div
-      v-if="parseTags(props.note).length"
+      v-if="parseTags(props.note.tags).length"
       class="flex flex-wrap gap-1"
       :class="props.viewMode === 'list' ? 'mb-0 hidden sm:flex' : 'mb-2.5 md:mb-3.5'"
     >
       <span
-        v-for="tag in parseTags(props.note).slice(0, props.isMobile ? 1 : 3)"
+        v-for="tag in parseTags(props.note.tags).slice(0, props.isMobile ? 1 : 3)"
         :key="tag"
         class="px-2 py-0.5 rounded bg-purple-500/5 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[9px] md:text-[10px] font-bold border border-purple-500/15 whitespace-nowrap truncate max-w-[80px] hover:bg-purple-500/10 transition-all duration-200"
       >

@@ -30,15 +30,20 @@ const handleLogout = async () => {
 </script>
 
 <template>
-  <el-dropdown trigger="click" placement="bottom-end" @command="handleProfileClick">
+  <el-dropdown
+    trigger="click"
+    placement="bottom-end"
+    popper-class="user-dropdown-popper"
+    @command="handleProfileClick"
+  >
     <button
       type="button"
-      class="flex items-center gap-2 p-0.5 sm:px-2.5 sm:py-1 rounded-full sm:rounded-lg hover:bg-slate-100/5 dark:hover:bg-white/5 border border-transparent hover:border-slate-200/10 dark:hover:border-white/5 transition-all cursor-pointer outline-none"
+      class="flex items-center gap-2 p-0.5 sm:px-2.5 sm:py-1 rounded-full sm:rounded-lg hover:bg-slate-100/5 dark:hover:bg-white/5 border border-transparent hover:border-slate-200/10 dark:hover:border-white/5 transition-all cursor-pointer outline-none min-w-0"
     >
       <UserAvatar :user="authStore.user ?? undefined" size="md" />
-      <div class="flex flex-col text-left leading-tight hidden sm:flex">
+      <div class="flex flex-col text-left leading-tight hidden sm:flex min-w-0">
         <span
-          class="text-xs font-semibold text-slate-700 dark:text-slate-200 max-w-[90px] truncate"
+          class="text-xs font-semibold text-slate-700 dark:text-slate-200 max-w-[150px] truncate"
         >
           {{ authStore.user?.name || '未命名用户' }}
         </span>

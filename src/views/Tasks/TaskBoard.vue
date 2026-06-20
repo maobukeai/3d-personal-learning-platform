@@ -1075,7 +1075,6 @@ onActivated(() => {
 <template>
   <div
     class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
-    style="background-color: var(--bg-app)"
   >
     <!-- Header -->
     <div

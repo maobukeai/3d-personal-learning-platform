@@ -75,9 +75,14 @@ const handleQuickSettings = (ws: Workspace) => {
   <div v-if="!workspaceStore.isInitialized" class="flex items-center gap-2.5 animate-pulse">
     <div class="w-7 h-7 rounded bg-slate-200/50 dark:bg-white/10"></div>
   </div>
-  <el-dropdown v-else-if="workspaceStore.currentWorkspace" trigger="click" placement="bottom-start">
+  <el-dropdown
+    v-else-if="workspaceStore.currentWorkspace"
+    trigger="click"
+    placement="bottom-start"
+    popper-class="workspace-switcher-popper"
+  >
     <div
-      class="workspace-switcher-badge min-h-8 h-8 px-2.5 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 flex items-center gap-2 cursor-pointer hover:bg-slate-200/50 dark:hover:bg-white/8 transition-colors animate-in fade-in duration-300"
+      class="workspace-switcher-badge min-h-8 h-8 px-2.5 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 flex items-center gap-2 cursor-pointer hover:bg-slate-200/50 dark:hover:bg-white/8 transition-colors animate-in fade-in duration-300 min-w-0"
     >
       <div class="relative shrink-0">
         <img
@@ -114,7 +119,7 @@ const handleQuickSettings = (ws: Workspace) => {
         </div>
       </div>
       <span
-        class="text-xs font-bold text-slate-600 dark:text-slate-200 truncate max-w-[120px] hidden md:block"
+        class="text-xs font-bold text-slate-600 dark:text-slate-200 truncate max-w-[180px] hidden md:block"
       >
         {{ workspaceStore.currentWorkspace.name }}
       </span>

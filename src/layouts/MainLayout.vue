@@ -378,7 +378,7 @@ onUnmounted(() => {
       class="topbar h-12 lg:h-14 flex items-center justify-between px-3 md:px-4 shrink-0 z-30 glass-header"
     >
       <!-- Left: Brand Logo + Brand Name & Workspace Switcher -->
-      <div class="flex items-center gap-2.5 min-w-0 lg:w-[260px] xl:w-[280px] shrink-0">
+      <div class="flex items-center gap-2.5 min-w-0 lg:w-auto lg:min-w-[260px] xl:w-auto xl:min-w-[280px] shrink-0">
         <button
           type="button"
           class="topbar-icon-btn w-9 h-9 flex items-center justify-center lg:hidden shrink-0 -ml-1"
@@ -461,7 +461,7 @@ onUnmounted(() => {
 
       <!-- Right: Actions + Avatar -->
       <div
-        class="flex items-center justify-end gap-1.5 md:gap-2 lg:w-[380px] xl:w-[440px] shrink-0"
+        class="flex items-center justify-end gap-1.5 md:gap-2 lg:w-auto lg:min-w-[380px] xl:w-auto xl:min-w-[440px] shrink-0 min-w-0"
       >
         <!-- Search bar for desktop mode when tabs are visible -->
         <div
@@ -536,7 +536,6 @@ onUnmounted(() => {
       <!-- Main Content Area -->
       <main
         class="content-surface flex-1 flex flex-col overflow-hidden relative mobile-main-content lg:pb-0"
-        style="background-color: var(--bg-app)"
       >
         <div
           v-if="systemStore.settings.MAINTENANCE_MODE && authStore.user?.role === 'ADMIN'"

@@ -272,6 +272,8 @@ function handleTagClick(tagName: string, event: Event) {
   background: var(--bg-card);
   cursor: pointer;
   transition: all 0.18s ease;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 150px;
 }
 
 .discussion-card:hover {

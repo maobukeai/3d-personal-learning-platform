@@ -1648,6 +1648,11 @@ onUnmounted(() => {
 </template>
 
 <style>
+.acc-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 180px;
+}
+
 /* Custom dialog style overrides for a dark slate visual vibe */
 .custom-el-dialog {
   background-color: var(--bg-card) !important;

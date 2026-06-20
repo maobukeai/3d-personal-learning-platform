@@ -192,6 +192,9 @@ export const writeAssist = async (req: AuthRequest, res: Response, next: NextFun
     if (safeInstruction && hasPromptInjection(safeInstruction)) {
       return next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
     }
+    if (safeText && hasPromptInjection(safeText)) {
+      return next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
+    }
 
     const systemPrompt = buildSystemPrompt(action, req.body.targetLanguage, tone, length, format);
     const scopeLabel = scope === 'selected' ? '选区' : '全文';

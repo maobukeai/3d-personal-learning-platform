@@ -60,6 +60,7 @@ export interface AIModelOption {
   modelName: string;
   endpoint: string;
   apiKey?: string;
+  apiKeys?: string[];
   enabled: boolean;
   isDefault?: boolean;
   description?: string;
@@ -69,6 +70,8 @@ export interface AIModelOption {
   systemPrompt?: string;
   customFamilyKey?: string;
   customFamilyLabel?: string;
+  priority?: number;
+  failoverEnabled?: boolean;
 }
 
 export interface PublicAIModelOption {
@@ -236,10 +239,22 @@ const DEFAULT_SETTINGS: SystemSettings = {
       name: 'Gemini 2.5 Flash',
       provider: 'GEMINI',
       modelName: 'gemini-2.5-flash',
-      endpoint: 'https://generativelanguage.googleapis.com',
+      endpoint: 'https://gateway.ai.cloudflare.com/v1/15f8013c69ef90d952d7a2945a949e52/gemini-proxy/google-ai-studio',
       enabled: true,
       description: 'Google 最新主力大模型，支持多模态，超大上下文',
       capabilities: ['chat', 'multimodal'],
+      temperature: 0.3,
+      maxTokens: 8192,
+    },
+    {
+      id: 'agnes-2.0-flash',
+      name: 'Agnes 2.0 Flash',
+      provider: 'AGNES',
+      modelName: 'agnes-2.0-flash',
+      endpoint: 'https://apihub.agnes-ai.com/v1',
+      enabled: true,
+      description: 'Agnes 全模态轻量大模型，支持聊天、图像输入、推理与工具调用',
+      capabilities: ['chat', 'multimodal', 'reasoning', 'tools'],
       temperature: 0.3,
       maxTokens: 8192,
     },
@@ -293,6 +308,10 @@ const normalizeAIModelOptions = (value: unknown): AIModelOption[] => {
             .filter(Boolean)
         : [];
 
+    const apiKeys = Array.isArray(model.apiKeys)
+      ? model.apiKeys.map((k) => String(k).trim()).filter(Boolean)
+      : [];
+
     normalized.push({
       id,
       name: String(model.name || `${provider} ${modelName}`).trim(),
@@ -300,6 +319,7 @@ const normalizeAIModelOptions = (value: unknown): AIModelOption[] => {
       modelName,
       endpoint,
       apiKey: typeof model.apiKey === 'string' ? model.apiKey : '',
+      apiKeys,
       enabled: model.enabled === true || model.enabled === 'true',
       isDefault: model.isDefault === true || model.isDefault === 'true',
       description: typeof model.description === 'string' ? model.description.trim() : '',
@@ -311,6 +331,8 @@ const normalizeAIModelOptions = (value: unknown): AIModelOption[] => {
         typeof model.customFamilyKey === 'string' ? model.customFamilyKey.trim() : undefined,
       customFamilyLabel:
         typeof model.customFamilyLabel === 'string' ? model.customFamilyLabel.trim() : undefined,
+      priority: typeof model.priority === 'number' ? model.priority : undefined,
+      failoverEnabled: typeof model.failoverEnabled === 'boolean' ? model.failoverEnabled : true,
     });
   });
   return normalized;
@@ -320,6 +342,7 @@ const decryptAIModelOptions = (value: string): string => {
   const models = normalizeAIModelOptions(value).map((model) => ({
     ...model,
     apiKey: model.apiKey ? decryptSecret(model.apiKey) || model.apiKey : '',
+    apiKeys: (model.apiKeys || []).map((k) => (k ? decryptSecret(k) || k : '')).filter(Boolean),
   }));
   return JSON.stringify(models);
 };
@@ -329,6 +352,7 @@ const encryptAIModelOptions = (value: unknown): string => {
     ...model,
     isDefault: model.isDefault || (!arr.some((item) => item.isDefault) && index === 0),
     apiKey: model.apiKey ? encryptSecret(model.apiKey) || '' : '',
+    apiKeys: (model.apiKeys || []).map((k) => (k ? encryptSecret(k) || '' : '')).filter(Boolean),
   }));
   return JSON.stringify(models);
 };
@@ -402,12 +426,25 @@ class SettingsService {
   private cache: Partial<SystemSettings> | null = null;
   private lastFetch: number = 0;
   private readonly CACHE_TTL = 60 * 1000; // 1 minute
+  /** In-flight fetch promise to prevent thundering herd on cache miss. */
+  private fetchPromise: Promise<SystemSettings> | null = null;
 
   async getAll(): Promise<SystemSettings> {
     if (this.cache && Date.now() - this.lastFetch < this.CACHE_TTL) {
       return { ...DEFAULT_SETTINGS, ...this.cache } as SystemSettings;
     }
 
+    // Return the existing in-flight fetch if one is already running,
+    // so concurrent requests don't fan out into multiple DB queries.
+    if (this.fetchPromise) return this.fetchPromise;
+
+    this.fetchPromise = this._fetchFromDb().finally(() => {
+      this.fetchPromise = null;
+    });
+    return this.fetchPromise;
+  }
+
+  private async _fetchFromDb(): Promise<SystemSettings> {
     const dbSettings = await prisma.systemSetting.findMany();
     const settings = {} as Record<string, unknown>;
 
@@ -495,18 +532,27 @@ class SettingsService {
       settings['MAX_UPLOAD_SIZE_MB'] = settings['MAX_FILE_SIZE'];
     }
 
-    // Migrate old PLUGIN_CATEGORIES default list if present
-    const pluginCatsObj = settings['PLUGIN_CATEGORIES'];
-    if (Array.isArray(pluginCatsObj) && pluginCatsObj.includes('Blender 插件')) {
-      const newDefaults = DEFAULT_SETTINGS.PLUGIN_CATEGORIES;
-      await this.update('PLUGIN_CATEGORIES', newDefaults);
-      settings['PLUGIN_CATEGORIES'] = newDefaults;
-      logger.info('[Settings Migration] Migrated PLUGIN_CATEGORIES to Blender-specific categories');
-    }
-
     this.cache = settings as unknown as Partial<SystemSettings>;
     this.lastFetch = Date.now();
     return { ...DEFAULT_SETTINGS, ...settings } as unknown as SystemSettings;
+  }
+
+  /**
+   * Run one-time data migrations that should execute at application startup.
+   * Call this once from the server entry point (e.g. src/index.ts) after
+   * the DB connection is established. Never call inside getAll().
+   */
+  async runStartupMigrations(): Promise<void> {
+    try {
+      const pluginCatsObj = (await this.getAll()).PLUGIN_CATEGORIES;
+      if (Array.isArray(pluginCatsObj) && pluginCatsObj.includes('Blender 插件')) {
+        const newDefaults = DEFAULT_SETTINGS.PLUGIN_CATEGORIES;
+        await this.update('PLUGIN_CATEGORIES', newDefaults);
+        logger.info('[Settings Migration] Migrated PLUGIN_CATEGORIES to Blender-specific categories');
+      }
+    } catch (e) {
+      logger.error('[Settings Migration] Failed to run startup migrations:', e);
+    }
   }
 
   async get<K extends keyof SystemSettings>(key: K): Promise<SystemSettings[K]> {
@@ -618,6 +664,8 @@ class SettingsService {
         });
       }),
     );
+
+    this.cache = null; // Invalidate cache
   }
 }
 

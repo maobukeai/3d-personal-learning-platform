@@ -80,6 +80,10 @@ export interface Task {
   team?: Team | null;
   assignee?: UserType | null;
   participants?: { userId: string }[];
+  timeEstimate?: number | null;
+  timeSpent?: number | null;
+  dependencies?: { id: string; dependsOnId: string; dependsOn: { id: string; title: string; status: string } }[];
+  dependents?: { id: string; task: { id: string; title: string; status: string } }[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -109,4 +113,6 @@ export interface TaskUpdatePayload {
   tags: string | null;
   subtasks: string;
   participantIds: string[];
+  timeEstimate?: number;
+  timeSpent?: number;
 }

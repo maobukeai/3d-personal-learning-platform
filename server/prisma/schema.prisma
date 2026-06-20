@@ -62,6 +62,7 @@ model User {
   notes          Note[]
   noteShares     NoteShare[]
   noteComments   NoteComment[]
+  taskComments   TaskComment[]
 
   // Messaging & Teams
   conversations    Conversation[]    @relation("UserConversations")
@@ -501,6 +502,11 @@ model Task {
   projectId    String?
   project      Project?          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   participants TaskParticipant[]
+  comments     TaskComment[]
+  timeEstimate Int               @default(0)
+  timeSpent    Int               @default(0)
+  dependencies TaskDependency[]  @relation("TaskDeps")
+  dependents   TaskDependency[]  @relation("TaskBlockedBy")
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 
@@ -520,6 +526,33 @@ model TaskParticipant {
 
   @@unique([taskId, userId])
   @@index([userId])
+}
+
+model TaskComment {
+  id        String   @id @default(uuid())
+  content   String   @db.Text
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+model TaskDependency {
+  id          String   @id @default(uuid())
+  taskId      String
+  task        Task     @relation("TaskDeps", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOnId String
+  dependsOn   Task     @relation("TaskBlockedBy", fields: [dependsOnId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([taskId, dependsOnId])
+  @@index([taskId])
+  @@index([dependsOnId])
 }
 
 model TeamApplication {

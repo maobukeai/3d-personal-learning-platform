@@ -10,6 +10,7 @@ import {
   PutBucketCorsCommand,
   CopyObjectCommand,
 } from '@aws-sdk/client-s3';
+import crypto from 'crypto';
 import fs from 'fs';
 import { logger } from '../utils/logger';
 import { decryptSecretIfNeeded, ENCRYPTED_VALUE_RE } from '../utils/crypto';
@@ -54,7 +55,12 @@ export class StorageService {
    */
   private getS3Client(config: StorageConfigData): S3Client {
     const decryptedSecret = decryptSecretIfNeeded(config.secretAccessKey);
-    const cacheKey = `${config.endpoint}-${config.accessKeyId}-${decryptedSecret}`;
+    // Use a SHA-256 hash as the cache key to avoid storing the plaintext
+    // secretAccessKey in the Map (safe against memory dumps / heap snapshots).
+    const cacheKey = crypto
+      .createHash('sha256')
+      .update(`${config.endpoint}:${config.accessKeyId}:${decryptedSecret}`)
+      .digest('hex');
     let client = this.clients.get(cacheKey);
     if (!client) {
       client = new S3Client({

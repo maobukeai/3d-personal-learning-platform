@@ -338,8 +338,17 @@ const buildOllamaModelsUrl = (endpoint: string) => {
 };
 
 const buildGeminiModelsUrl = (endpoint: string, apiKey: string) => {
-  const base = trimTrailingSlash(endpoint || 'https://generativelanguage.googleapis.com');
-  const normalizedBase = base.includes('/v1') ? base : `${base}/v1beta`;
+  let base = trimTrailingSlash(endpoint || 'https://gateway.ai.cloudflare.com/v1/15f8013c69ef90d952d7a2945a949e52/gemini-proxy/google-ai-studio');
+  base = base
+    .replace(/\/chat\/completions$/i, '')
+    .replace(/\/v1beta$/i, '')
+    .replace(/\/v1$/i, '')
+    .replace(/\/+$/, '');
+
+  let normalizedBase = base;
+  if (!base.endsWith('/v1') && !base.endsWith('/v1beta')) {
+    normalizedBase = `${base}/v1beta`;
+  }
   const separator = normalizedBase.includes('?') ? '&' : '?';
   return `${normalizedBase}/models${separator}key=${encodeURIComponent(apiKey)}`;
 };
@@ -356,12 +365,20 @@ const buildOpenAICompatibleModelsUrl = (endpoint: string) => {
   }
 
   let pathname = url.pathname.replace(/\/+$/, '');
-
-  pathname = pathname
-    .replace(/\/chat\/completions$/i, '')
-    .replace(/\/responses$/i, '')
-    .replace(/\/completions$/i, '')
-    .replace(/\/messages$/i, '');
+  let previous = '';
+  while (pathname !== previous) {
+    previous = pathname;
+    pathname = pathname
+      .replace(/\/chat\/completions$/i, '')
+      .replace(/\/responses$/i, '')
+      .replace(/\/completions$/i, '')
+      .replace(/\/messages$/i, '')
+      .replace(/\/images\/generations$/i, '')
+      .replace(/\/images$/i, '')
+      .replace(/\/videos\/generations$/i, '')
+      .replace(/\/videos$/i, '')
+      .replace(/\/+$/, '');
+  }
 
   if (!pathname || pathname === '/') {
     pathname = '/v1';

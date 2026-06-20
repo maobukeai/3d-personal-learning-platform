@@ -33,6 +33,7 @@ import aiBotRoutes from './routes/ai-bot.routes';
 import bannerRoutes from './routes/banner.routes';
 import pluginRoutes from './routes/plugin.routes';
 import adminPluginRoutes from './routes/plugin.admin.routes';
+import backupRoutes from './routes/backup.routes';
 
 import rateLimit from 'express-rate-limit';
 import { errorHandler } from './middlewares/error.middleware';
@@ -189,6 +190,7 @@ app.use('/api/ai-bots', aiBotRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/plugins', pluginRoutes);
 app.use('/api/admin', adminPluginRoutes);
+app.use('/api/backup', backupRoutes);
 
 app.get('/', (req, res) => {
   res.send('3D Personal Learning Platform API');

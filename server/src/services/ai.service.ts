@@ -27,16 +27,29 @@ export interface AIServiceConfig {
   capabilities?: string[];
 }
 
-type AIProvider = 'DEEPSEEK' | 'OPENAI' | 'AZURE' | 'GEMINI' | 'OLLAMA' | string;
+type AIProvider = 'DEEPSEEK' | 'OPENAI' | 'AZURE' | 'GEMINI' | 'OLLAMA' | 'AGNES' | string;
 
 interface AIModelOption {
+  id?: string;
+  name?: string;
   enabled?: boolean;
   provider?: string;
   modelName?: string;
+  endpoint?: string;
+  apiKey?: string;
+  apiKeys?: string[];
   temperature?: number;
   maxTokens?: number;
   systemPrompt?: string;
   isDefault?: boolean;
+  capabilities?: string[];
+  priority?: number;
+  failoverEnabled?: boolean;
+}
+
+interface ModelKeyEntry {
+  model: AIModelOption;
+  apiKey: string;
 }
 
 interface GeminiResponsePart {
@@ -57,8 +70,9 @@ const DEFAULT_PROVIDER_ENDPOINTS: Record<string, string> = {
   DEEPSEEK: 'https://api.deepseek.com/v1',
   OPENAI: 'https://api.openai.com/v1',
   QWEN: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  GEMINI: 'https://generativelanguage.googleapis.com',
+  GEMINI: 'https://gateway.ai.cloudflare.com/v1/15f8013c69ef90d952d7a2945a949e52/gemini-proxy/google-ai-studio',
   OLLAMA: 'http://localhost:11434/api',
+  AGNES: 'https://apihub.agnes-ai.com/v1',
   CUSTOM: '',
 };
 
@@ -68,8 +82,45 @@ const DEFAULT_PROVIDER_MODELS: Record<string, string> = {
   QWEN: 'qwen-plus',
   GEMINI: 'gemini-1.5-flash',
   OLLAMA: 'llama3',
+  AGNES: 'agnes-2.0-flash',
   CUSTOM: '',
 };
+
+/**
+ * Resolves all (model × API key) combinations into a priority-ordered chain for failover.
+ * Models with a lower `priority` value (closer to 0) are tried first.
+ * For each model, keys are ordered: [primaryKey, ...backupKeys].
+ */
+function resolveModelKeyChain(models: AIModelOption[]): ModelKeyEntry[] {
+  const enabled = [...models]
+    .filter((m) => m.enabled && m.failoverEnabled !== false)
+    .sort((a, b) => {
+      const pa = a.priority ?? 999;
+      const pb = b.priority ?? 999;
+      return pa - pb;
+    });
+
+  const chain: ModelKeyEntry[] = [];
+  for (const model of enabled) {
+    const primaryKey = model.apiKey || '';
+    const backupKeys = (model.apiKeys || []).filter(Boolean);
+    // Deduplicate keys while preserving order
+    const seen = new Set<string>();
+    const allKeys: string[] = [];
+    for (const k of [primaryKey, ...backupKeys]) {
+      if (k && !seen.has(k)) {
+        seen.add(k);
+        allKeys.push(k);
+      }
+    }
+    // OLLAMA and similar local providers don't need a key
+    const effectiveKeys = allKeys.length > 0 ? allKeys : [''];
+    for (const key of effectiveKeys) {
+      chain.push({ model, apiKey: key });
+    }
+  }
+  return chain;
+}
 
 const AI_REQUEST_TIMEOUT_MS = 60_000;
 /** Generous timeout for streaming responses — deep research mode can take 60-90 s before the LLM starts generating. */
@@ -218,27 +269,63 @@ function cleanEndpointUrl(url: string | undefined | null): string {
   return cleaned;
 }
 
+function isJsonResponseMode(responseFormat: unknown): boolean {
+  return (
+    responseFormat === 'json' ||
+    (responseFormat != null &&
+      typeof responseFormat === 'object' &&
+      (responseFormat as any).type === 'json_object')
+  );
+}
+
 /**
- * Normalizes endpoint URL to robustly append /images/generations for image models.
+ * Helper to recursively clean all API path suffixes from an endpoint URL.
  */
-function cleanImageEndpointUrl(url: string | undefined | null): string {
+function cleanBaseUrl(url: string | undefined | null): string {
   if (!url) return '';
-  let cleaned = normalizeParam(url);
-  cleaned = cleaned.replace(/\/+$/, '');
-  if (cleaned.endsWith('/chat/completions')) {
-    cleaned = cleaned.substring(0, cleaned.length - '/chat/completions'.length);
-  }
-  cleaned = cleaned.replace(/\/+$/, '');
-  if (!cleaned.endsWith('/images/generations')) {
-    cleaned += '/images/generations';
+  let cleaned = normalizeParam(url).trim().replace(/\/+$/, '');
+  let previous = '';
+  while (cleaned !== previous) {
+    previous = cleaned;
+    cleaned = cleaned
+      .replace(/\/chat\/completions$/i, '')
+      .replace(/\/messages$/i, '')
+      .replace(/\/images\/generations$/i, '')
+      .replace(/\/images$/i, '')
+      .replace(/\/videos\/generations$/i, '')
+      .replace(/\/videos$/i, '')
+      .replace(/\/video\/generations$/i, '')
+      .replace(/\/video$/i, '')
+      .replace(/\/+$/, '');
   }
   return cleaned;
 }
 
 /**
- * Detects if a model is an image generation model based on its name or capabilities.
+ * Normalizes endpoint URL to robustly append /images/generations for image models.
  */
-function isImageGenerationModel(modelName: string, capabilities?: string[]): boolean {
+function cleanImageEndpointUrl(url: string | undefined | null): string {
+  if (!url) return '';
+  const original = normalizeParam(url).trim().replace(/\/+$/, '');
+
+  // If the original URL explicitly contained /videos/generations, we respect it
+  if (original.includes('/videos/generations')) {
+    const base = cleanBaseUrl(original);
+    return `${base}/videos/generations`;
+  }
+
+  const base = cleanBaseUrl(original);
+  return `${base}/images/generations`;
+}
+
+/**
+ * Detects if a model is an image generation model based on its name, capabilities, or endpoint.
+ */
+function isImageGenerationModel(modelName: string, capabilities?: string[], endpoint?: string): boolean {
+  // If endpoint already points to /images/generations, it's definitely an image model
+  if (endpoint && endpoint.includes('/images/generations')) {
+    return true;
+  }
   if (capabilities && Array.isArray(capabilities)) {
     const list = capabilities.map((c) => c.toLowerCase().trim());
     if (
@@ -270,8 +357,76 @@ function isImageGenerationModel(modelName: string, capabilities?: string[]): boo
     name.includes('generate-image') ||
     name.includes('text-to-image') ||
     name.includes('txt2img') ||
-    name.includes('t2i')
+    name.includes('t2i') ||
+    /image[s]?[.-]\d/.test(name) // e.g. image-2.1, images-3
   );
+}
+
+/**
+ * Detects if a model is a video generation model based on its name, capabilities, or endpoint.
+ */
+function isVideoGenerationModel(modelName: string, capabilities?: string[], endpoint?: string): boolean {
+  if (endpoint && (endpoint.includes('/videos/generations') || endpoint.includes('/video/generations'))) {
+    return true;
+  }
+  if (capabilities && Array.isArray(capabilities)) {
+    const list = capabilities.map((c) => c.toLowerCase().trim());
+    if (
+      list.some(
+        (c) =>
+          c === 'video' ||
+          c === 'video_generation' ||
+          c === 'text-to-video' ||
+          c === 't2v',
+      )
+    ) {
+      return true;
+    }
+  }
+  const name = modelName.toLowerCase();
+  return (
+    name.includes('video') ||
+    name.includes('cogvideo') ||
+    name.includes('luma') ||
+    name.includes('runway') ||
+    name.includes('kling') ||
+    name.includes('sora') ||
+    name.includes('pika') ||
+    name.includes('anima') ||
+    name.includes('t2v') ||
+    name.includes('text-to-video')
+  );
+}
+
+/**
+ * Normalizes endpoint URL to robustly append /videos/generations for video models.
+ */
+function cleanVideoEndpointUrl(url: string | undefined | null, modelName?: string): string {
+  if (!url) return '';
+  const original = normalizeParam(url).trim().replace(/\/+$/, '');
+
+  // If the original URL explicitly contained /video/generations or /videos/generations, respect it
+  if (original.includes('/video/generations')) {
+    const base = cleanBaseUrl(original);
+    return `${base}/video/generations`;
+  }
+  if (original.includes('/videos/generations')) {
+    const base = cleanBaseUrl(original);
+    return `${base}/videos/generations`;
+  }
+
+  const base = cleanBaseUrl(original);
+
+  // If model name contains "agnes" or url contains "agnes-ai.com", default to /video/generations (singular)
+  const isAgnes =
+    (modelName && modelName.toLowerCase().includes('agnes')) ||
+    original.toLowerCase().includes('agnes');
+
+  if (isAgnes) {
+    return `${base}/video/generations`;
+  }
+
+  return `${base}/videos/generations`;
 }
 
 /**
@@ -327,10 +482,15 @@ function toUserFacingAIError(error: unknown, provider: AIProvider): string {
   } else if (response.status === 403) {
     errMsg = '权限不足或当前模型不可用，请检查账号额度、模型权限和服务区域。';
   } else if (response.status === 404) {
-    errMsg =
-      provider === 'OLLAMA'
-        ? 'Ollama 接口未找到，请确认本地服务已启动且 Endpoint 指向 http://localhost:11434/api。'
-        : 'API 终端未找到 (404)。如果使用自定义 API Endpoint，请确认地址是否正确，或是否需要补全 /chat/completions。';
+    const rawMsg = getErrorRecord(data.error).message || data.message;
+    if (rawMsg) {
+      errMsg = `${rawMsg} (404)`;
+    } else {
+      errMsg =
+        provider === 'OLLAMA'
+          ? 'Ollama 接口未找到，请确认本地服务已启动且 Endpoint 指向 http://localhost:11434/api。'
+          : 'API 终端未找到 (404)。如果使用自定义 API Endpoint，请确认地址是否正确，或是否需要补全 /chat/completions。';
+    }
   } else if (response.status === 429) {
     errMsg = 'AI 服务请求过于频繁或额度不足，请稍后再试。';
   } else if (Number(response.status) >= 500) {
@@ -385,16 +545,45 @@ function resolveSafeAiImagePath(imageUrl: string): string | null {
   return diskPath;
 }
 
+async function fetchExternalImage(url: string): Promise<AIImagePayload | null> {
+  try {
+    const response = await aiHttp.get(url, {
+      responseType: 'arraybuffer',
+      timeout: 5000,
+    });
+    const rawContentType = response.headers['content-type'];
+    const contentType = typeof rawContentType === 'string' ? rawContentType : 'image/jpeg';
+    if (!SUPPORTED_AI_IMAGE_MIME_TYPES.has(contentType)) {
+      logger.warn(`[AI Service] External image has unsupported content type: ${contentType}`);
+      return null;
+    }
+    const base64 = Buffer.from(response.data as ArrayBuffer).toString('base64');
+    return { mimeType: contentType, data: base64 };
+  } catch (e) {
+    logger.warn(`[AI Service] Failed to fetch external image from ${url}:`, e);
+    return null;
+  }
+}
+
 async function extractImagesAndText(
   content: string,
 ): Promise<{ text: string; images: AIImagePayload[] }> {
-  const imageRegex = /!\[.*?\]\((.*?)\)/g;
+  // Support nested parentheses in URLs (e.g. url containing (3))
+  const imageRegex = /!\[.*?\]\(((?:[^()]+|\([^()]*\))+)\)/g;
   let match;
   const images: AIImagePayload[] = [];
 
   while ((match = imageRegex.exec(content)) !== null) {
     const imgUrl = match[1];
     if (!imgUrl || images.length >= MAX_AI_IMAGES_PER_MESSAGE) continue;
+
+    if (imgUrl.startsWith('http://') || imgUrl.startsWith('https://')) {
+      const fetched = await fetchExternalImage(imgUrl);
+      if (fetched) {
+        images.push(fetched);
+      }
+      continue;
+    }
 
     const diskPath = resolveSafeAiImagePath(imgUrl);
     if (!diskPath) continue;
@@ -421,8 +610,22 @@ async function extractImagesAndText(
   }
 
   // Replace all matches of image markdown with a placeholder indicator
-  const cleanText = content.replace(/!\[.*?\]\((.*?)\)/g, '[图片]');
+  const cleanText = content.replace(/!\[.*?\]\(((?:[^()]+|\([^()]*\))+)\)/g, '[图片]');
   return { text: cleanText, images };
+}
+
+function mergeToolCalls(existing: any[], deltas: any[]): any[] {
+  const result = [...existing];
+  for (const delta of deltas) {
+    const idx = delta.index ?? 0;
+    if (!result[idx]) {
+      result[idx] = { id: '', type: 'function', function: { name: '', arguments: '' } };
+    }
+    if (delta.id) result[idx].id += delta.id;
+    if (delta.function?.name) result[idx].function.name += delta.function.name;
+    if (delta.function?.arguments) result[idx].function.arguments += delta.function.arguments;
+  }
+  return result;
 }
 
 type OpenAIContentPart =
@@ -446,6 +649,30 @@ async function formatOpenAiMessage(role: AIChatRole, content: string) {
   }
   return { role, content: contentArray };
 }
+
+async function formatAnthropicMessage(role: AIChatRole, content: string) {
+  const { text, images } = await extractImagesAndText(content);
+  if (images.length === 0) {
+    return { role, content };
+  }
+
+  const contentArray: any[] = [];
+  for (const img of images) {
+    contentArray.push({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: img.mimeType,
+        data: img.data,
+      },
+    });
+  }
+  if (text.trim()) {
+    contentArray.push({ type: 'text', text });
+  }
+  return { role, content: contentArray };
+}
+
 
 type GeminiPart = { text: string } | { inlineData: AIImagePayload };
 
@@ -507,11 +734,14 @@ async function prepareRequestConfig(
     temperature?: number;
     isSingleTurn?: boolean;
     promptText?: string;
+    responseFormat?: 'json' | { type: 'json_object' } | any;
+    tools?: any[];
+    toolChoice?: any;
   } = {},
 ): Promise<PreparedAIRequest> {
   const settings = await settingsService.getAll();
 
-  const provider = normalizeProvider(overrides?.AI_PROVIDER ?? settings.AI_PROVIDER);
+  let provider = normalizeProvider(overrides?.AI_PROVIDER ?? settings.AI_PROVIDER);
   const apiKey = normalizeParam(overrides?.AI_API_KEY ?? settings.AI_API_KEY);
   const endpoint = resolveEndpoint(
     provider,
@@ -521,6 +751,11 @@ async function prepareRequestConfig(
     provider,
     normalizeParam(overrides?.AI_MODEL_NAME ?? settings.AI_MODEL_NAME),
   );
+
+  if (modelName.toLowerCase().includes('agnes')) {
+    provider = 'AGNES';
+  }
+
   const enabled = overrides?.AI_IMPORT_ENABLED ?? settings.AI_IMPORT_ENABLED;
   const requestId = createRequestId();
 
@@ -614,16 +849,37 @@ async function prepareRequestConfig(
         ...(maxTokens && { num_predict: maxTokens }),
       },
     };
-  } else if (
-    provider === 'GEMINI' &&
-    (!endpoint || endpoint.includes('generativelanguage.googleapis.com'))
-  ) {
+  } else if (provider === 'GEMINI') {
+    // 支持原生 googleapis.com 地址和 Cloudflare AI Gateway 等代理地址
+    let geminiBase = (endpoint || 'https://generativelanguage.googleapis.com').trim().replace(/\/+$/, '');
+    geminiBase = geminiBase
+      .replace(/\/chat\/completions$/i, '')
+      .replace(/\/v1beta$/i, '')
+      .replace(/\/v1$/i, '')
+      .replace(/\/+$/, '');
     const model = modelName || 'gemini-1.5-flash';
     const isThinkingModel = model.toLowerCase().includes('thinking');
     const thinkingParams = isThinkingModel ? { thinkingConfig: { includeThoughts: true } } : {};
 
+    const isJsonMode = isJsonResponseMode(options.responseFormat);
+
+    let geminiTools: unknown[] | undefined;
+    if (options.tools && Array.isArray(options.tools)) {
+      const functionDeclarations = options.tools.map((t: any) => {
+        if (t.type === 'function' && t.function) {
+          return {
+            name: t.function.name,
+            description: t.function.description,
+            parameters: t.function.parameters
+          };
+        }
+        return t;
+      });
+      geminiTools = [{ functionDeclarations }];
+    }
+
     if (isSingleTurn) {
-      url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:${stream ? 'streamGenerateContent?alt=sse&' : 'generateContent?'}key=${apiKey}`;
+      url = `${geminiBase}/v1beta/models/${model}:${stream ? 'streamGenerateContent?alt=sse&' : 'generateContent?'}key=${apiKey}`;
       const parts = await formatGeminiParts(options.promptText || '');
       const textPart = parts.find(
         (part): part is { text: string } => 'text' in part && typeof part.text === 'string',
@@ -642,7 +898,9 @@ async function prepareRequestConfig(
           temperature,
           ...(maxTokens && { maxOutputTokens: maxTokens }),
           ...thinkingParams,
+          ...(isJsonMode && { responseMimeType: 'application/json' }),
         },
+        ...(geminiTools && { tools: geminiTools }),
       };
     } else {
       const geminiContents = await Promise.all(
@@ -651,7 +909,7 @@ async function prepareRequestConfig(
           parts: await formatGeminiParts(m.content),
         })),
       );
-      url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:${stream ? 'streamGenerateContent?alt=sse&' : 'generateContent?'}key=${apiKey}`;
+      url = `${geminiBase}/v1beta/models/${model}:${stream ? 'streamGenerateContent?alt=sse&' : 'generateContent?'}key=${apiKey}`;
       body = {
         contents: geminiContents,
         systemInstruction: {
@@ -661,7 +919,86 @@ async function prepareRequestConfig(
           temperature,
           ...(maxTokens && { maxOutputTokens: maxTokens }),
           ...thinkingParams,
+          ...(isJsonMode && { responseMimeType: 'application/json' }),
         },
+        ...(geminiTools && { tools: geminiTools }),
+      };
+    }
+  } else if (provider === 'AGNES') {
+    const urlPath = url ? new URL(url, 'http://base').pathname.toLowerCase() : '';
+    const isAnthropic =
+      urlPath.endsWith('/messages') ||
+      urlPath.includes('/v1/messages');
+    
+    if (isAnthropic) {
+      const anthropicMessages = await Promise.all(
+        messages.map((m) => formatAnthropicMessage(m.role, m.content)),
+      );
+      const anthropicUserMsg = await formatAnthropicMessage('user', options.promptText || '');
+
+      headers['x-api-key'] = apiKey;
+      headers['anthropic-version'] = '2023-06-01';
+      
+      if (!url.endsWith('/v1/messages') && !url.endsWith('/messages')) {
+        let base = cleanBaseUrl(url);
+        if (!base.endsWith('/v1')) {
+          base += '/v1';
+        }
+        url = base + '/messages';
+      }
+
+      let formattedTools: unknown[] | undefined;
+      if (options.tools && Array.isArray(options.tools)) {
+        formattedTools = options.tools.map((t: any) => {
+          if (t.type === 'function' && t.function) {
+            return {
+              name: t.function.name,
+              description: t.function.description,
+              input_schema: t.function.parameters
+            };
+          }
+          return t;
+        });
+      }
+
+      body = {
+        model: modelName,
+        messages: isSingleTurn
+          ? [anthropicUserMsg]
+          : anthropicMessages,
+        system: finalSystemPrompt,
+        temperature,
+        max_tokens: maxTokens ?? (stream ? 8192 : 4096),
+        ...(stream && { stream: true }),
+        ...(formattedTools && { tools: formattedTools }),
+        ...(options.toolChoice && { tool_choice: options.toolChoice }),
+      };
+    } else {
+      const openAiMessages = await Promise.all(
+        messages.map((m) => formatOpenAiMessage(m.role, m.content)),
+      );
+      const openAiUserMsg = await formatOpenAiMessage('user', options.promptText || '');
+
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+      if (!url.endsWith('/chat/completions')) {
+        url = cleanEndpointUrl(url);
+      }
+
+      const isJsonMode = isJsonResponseMode(options.responseFormat);
+
+      body = {
+        model: modelName,
+        messages: isSingleTurn
+          ? [{ role: 'system', content: finalSystemPrompt }, openAiUserMsg]
+          : [{ role: 'system', content: finalSystemPrompt }, ...openAiMessages],
+        temperature,
+        max_tokens: maxTokens ?? (stream ? 8192 : 4096),
+        ...(stream && { stream: true }),
+        ...(isJsonMode && { response_format: { type: 'json_object' } }),
+        ...(options.tools && { tools: options.tools }),
+        ...(options.toolChoice && { tool_choice: options.toolChoice }),
       };
     }
   } else {
@@ -673,6 +1010,9 @@ async function prepareRequestConfig(
       messages.map((m) => formatOpenAiMessage(m.role, m.content)),
     );
     const openAiUserMsg = await formatOpenAiMessage('user', options.promptText || '');
+    
+    const isJsonMode = isJsonResponseMode(options.responseFormat);
+
     body = {
       model: modelName,
       messages: isSingleTurn
@@ -681,6 +1021,9 @@ async function prepareRequestConfig(
       temperature,
       max_tokens: maxTokens ?? (stream ? 8192 : 4096),
       ...(stream && { stream: true }),
+      ...(isJsonMode && { response_format: { type: 'json_object' } }),
+      ...(options.tools && { tools: options.tools }),
+      ...(options.toolChoice && { tool_choice: options.toolChoice }),
     };
   }
 
@@ -704,7 +1047,7 @@ async function executeLLMRequest(
       timeout: timeoutMs,
     });
 
-    if (provider === 'GEMINI' && url.includes('generativelanguage.googleapis.com')) {
+    if (provider === 'GEMINI') {
       const parts = response.data?.candidates?.[0]?.content?.parts;
       let text = '';
       if (Array.isArray(parts)) {
@@ -726,8 +1069,43 @@ async function executeLLMRequest(
         throw new Error('Ollama 返回内容为空，请检查模型名称是否已拉取。');
       }
       return text;
+    } else if (provider === 'AGNES') {
+      if (Array.isArray(response.data?.content)) {
+        const toolUses = response.data.content.filter((part: any) => part.type === 'tool_use');
+        if (toolUses.length > 0) {
+          const formattedToolCalls = toolUses.map((tu: any) => ({
+            id: tu.id,
+            type: 'function',
+            function: {
+              name: tu.name,
+              arguments: JSON.stringify(tu.input || {})
+            }
+          }));
+          return JSON.stringify({ tool_calls: formattedToolCalls });
+        }
+
+        const textParts = response.data.content
+          .filter((part: any) => part.type === 'text')
+          .map((part: any) => part.text)
+          .join('');
+        return textParts;
+      } else {
+        const msg = response.data?.choices?.[0]?.message;
+        if (msg?.tool_calls && msg.tool_calls.length > 0) {
+          return JSON.stringify({ tool_calls: msg.tool_calls });
+        }
+        const text = msg?.content;
+        if (!text) {
+          throw new Error('Agnes API 返回内容为空，请确认模型名称与接口是否兼容。');
+        }
+        return text;
+      }
     } else {
-      const text = response.data?.choices?.[0]?.message?.content;
+      const msg = response.data?.choices?.[0]?.message;
+      if (msg?.tool_calls && msg.tool_calls.length > 0) {
+        return JSON.stringify({ tool_calls: msg.tool_calls });
+      }
+      const text = msg?.content;
       if (!text) {
         throw new Error('API 返回内容为空，请确认模型名称与接口是否兼容。');
       }
@@ -765,7 +1143,39 @@ export async function callLLM(
     },
   );
 
-  if (isImageGenerationModel(modelName, overrides?.capabilities)) {
+  if (isVideoGenerationModel(modelName, overrides?.capabilities, url)) {
+    try {
+      const videoUrl = cleanVideoEndpointUrl(url, modelName);
+      logger.info(
+        `[AI Service Video Test] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(videoUrl)}`,
+      );
+
+      const response = await aiHttp.post(
+        videoUrl,
+        {
+          model: modelName,
+          prompt: 'a bouncing ball',
+        },
+        {
+          headers,
+          timeout: timeoutMs,
+        },
+      );
+
+      const responseData = response.data;
+      const hasUrl = responseData.data?.[0]?.url || responseData.url;
+      const taskId = responseData.task_id || responseData.data?.task_id || responseData.id;
+      if (hasUrl || taskId) {
+        return `OK [视频模型测试成功${taskId ? `，已提交任务 ${taskId}` : '，已生成测试视频'}]`;
+      }
+      throw new Error('未获取到生成的视频数据或任务ID，请检查视频模型接口响应格式。');
+    } catch (error: unknown) {
+      logger.error(`[AI Service Video Test Error (${provider})]:`, sanitizeAIError(error));
+      throw new Error(toUserFacingAIError(error, provider));
+    }
+  }
+
+  if (isImageGenerationModel(modelName, overrides?.capabilities, url)) {
     try {
       const imgUrl = cleanImageEndpointUrl(url);
       logger.info(
@@ -876,7 +1286,197 @@ export async function streamLLMChat(
     );
     activeProvider = provider;
 
-    if (isImageGenerationModel(modelName, overrides?.capabilities)) {
+    if (isVideoGenerationModel(modelName, overrides?.capabilities, url)) {
+      // Establish SSE stream headers
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.setHeader('Content-Encoding', 'none');
+      res.flushHeaders();
+
+      sendSSE(res, {
+        event: 'meta',
+        requestId,
+        provider,
+        model: modelName,
+        ...streamMetaForClient,
+      });
+
+      sendSSE(res, {
+        reasoning: `正在为您使用视频生成模型 ${modelName} 生成视频，请稍候...\n(Please wait while generating video using model: ${modelName})`,
+        requestId,
+      });
+
+      try {
+        const lastUserMsg = messages[messages.length - 1]?.content || '生成一段3D模型旋转的精美视频';
+        const cleanPrompt = lastUserMsg.replace(/\[(图片|视频)\]/g, '').trim();
+        const videoUrl = cleanVideoEndpointUrl(url, modelName);
+
+        logger.info(
+          `[AI Video Generation] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(videoUrl)}`,
+        );
+
+        const response = await aiHttp.post(
+          videoUrl,
+          {
+            model: modelName,
+            prompt: cleanPrompt,
+          },
+          {
+            headers,
+            timeout: AI_STREAM_TIMEOUT_MS,
+            signal: controller.signal,
+          },
+        );
+
+        const responseData = response.data;
+        let finalVideoUrl = responseData.data?.[0]?.url || responseData.url;
+        const taskId = responseData.task_id || responseData.data?.task_id || responseData.id;
+
+        if (!finalVideoUrl && taskId) {
+          logger.info(`[AI Video Generation] Task submitted. Task ID: ${taskId}. Start polling...`);
+          
+          // Generate fallback task query URLs
+          const cleanBase = cleanBaseUrl(videoUrl);
+          const taskUrls = [
+            `${cleanBase}/video/tasks/${taskId}`,
+            `${cleanBase}/videos/tasks/${taskId}`,
+            `${cleanBase}/videos/${taskId}`,
+            `${cleanBase}/video/${taskId}`,
+            `${cleanBase}/tasks/${taskId}`
+          ];
+
+          let attempts = 0;
+          const maxAttempts = 40;
+          let pollCompleted = false;
+          let urlIndex = 0;
+          let taskStatusUrl = taskUrls[urlIndex];
+
+          while (attempts < maxAttempts && !pollCompleted && !res.destroyed) {
+            attempts++;
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+            logger.info(`[AI Video Generation] Polling task ${taskId}, attempt ${attempts}/${maxAttempts}`);
+
+            try {
+              let statusResponse: any = null;
+              let gotValidUrl = false;
+
+              // Iterate through target candidate URLs immediately on 404 without waiting
+              while (urlIndex < taskUrls.length && !gotValidUrl) {
+                const currentUrl = taskUrls[urlIndex];
+                if (!currentUrl) {
+                  urlIndex++;
+                  continue;
+                }
+                try {
+                  logger.info(`[AI Video Polling] Querying status at: ${currentUrl}`);
+                  statusResponse = await aiHttp.get(currentUrl, { headers });
+                  gotValidUrl = true;
+                  taskStatusUrl = currentUrl;
+                } catch (pollErr: any) {
+                  if (pollErr.response?.status === 404 && urlIndex < taskUrls.length - 1) {
+                    logger.warn(`[AI Video Polling 404] url=${currentUrl}, trying fallback URL...`);
+                    urlIndex++;
+                  } else {
+                    throw pollErr;
+                  }
+                }
+              }
+
+              if (!gotValidUrl || !statusResponse) {
+                throw new Error('无法获取任务状态，所有查询接口均返回 404。');
+              }
+
+              const statusData = statusResponse.data;
+              const status = (statusData.status || statusData.data?.status || '').toLowerCase();
+              
+              sendSSE(res, {
+                reasoning: `视频生成中... 进度: ${status === 'succeeded' ? '100' : status === 'processing' ? '进行中' : '排队中'} (尝试 ${attempts}/${maxAttempts})`,
+                requestId,
+              });
+
+              if (status === 'succeeded') {
+                finalVideoUrl = statusData.result?.video_url || statusData.data?.result?.video_url || statusData.result?.url;
+                pollCompleted = true;
+              } else if (status === 'failed') {
+                throw new Error(statusData.reason || statusData.message || '生成任务失败');
+              }
+            } catch (pollErr: any) {
+              logger.warn(`[AI Video Polling Error] url=${taskStatusUrl}: ${pollErr.message}`);
+            }
+          }
+
+          if (!finalVideoUrl && !pollCompleted) {
+            throw new Error('视频生成超时，未能在规定时间内完成，请稍后检查。');
+          }
+        }
+
+        let finalMarkdown = '';
+        if (finalVideoUrl) {
+          finalMarkdown = `Generated video for: **${cleanPrompt}**\n\n<video src="${finalVideoUrl}" controls style="max-width: 100%; border-radius: 12px; border: 1px solid rgba(148,163,184,0.2);"></video>`;
+        }
+
+        if (!finalMarkdown) {
+          throw new Error('未获取到生成的视频数据，请检查视频接口响应格式。');
+        }
+
+        sendSSE(res, { text: finalMarkdown, requestId });
+
+        if (userId) {
+          try {
+            const sId =
+              typeof streamMetaForClient.sessionId === 'string'
+                ? streamMetaForClient.sessionId
+                : 'default';
+            const sTitle =
+              typeof streamMetaForClient.sessionTitle === 'string'
+                ? streamMetaForClient.sessionTitle
+                : '新对话';
+            await prisma.aiMessage.create({
+              data: {
+                userId,
+                role: 'assistant',
+                content: finalMarkdown,
+                reasoning: `使用视频模型 ${modelName} 生成视频。`,
+                sessionId: sId,
+                sessionTitle: sTitle,
+              },
+            });
+            await touchAiChatSession({
+              userId,
+              sessionId: sId,
+              sessionTitle: sTitle,
+              mode: streamMetaForClient.mode,
+            });
+          } catch (dbErr) {
+            logger.error('[AI Chat] Failed to save video message to DB:', dbErr);
+          }
+        }
+
+        sendSSE(res, {
+          event: 'done',
+          requestId,
+          usage: {
+            outputChars: finalMarkdown.length,
+            reasoningChars: 0,
+          },
+        });
+        sendSSE(res, '[DONE]');
+      } catch (error: unknown) {
+        logger.error('[AI Video Generation Error]:', sanitizeAIError(error));
+        sendSSE(res, {
+          error: `视频生成失败: ${toUserFacingAIError(error, provider)}`,
+          requestId,
+        });
+        sendSSE(res, '[DONE]');
+      } finally {
+        res.end();
+      }
+      return;
+    }
+
+    if (isImageGenerationModel(modelName, overrides?.capabilities, url)) {
       // Establish SSE stream headers
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
@@ -903,18 +1503,77 @@ export async function streamLLMChat(
         const cleanPrompt = lastUserMsg.replace(/\[图片\]/g, '').trim();
         const imgUrl = cleanImageEndpointUrl(url);
 
+        // 1. Flexible size control (灵活的尺寸控制)
+        let size = '1024x1024';
+        const sizeMatch = cleanPrompt.match(/(\d{3,4})[xX](\d{3,4})/);
+        if (sizeMatch) {
+          size = `${sizeMatch[1]}x${sizeMatch[2]}`;
+        }
+
+        // 2. Base64 vs URL return format (Base64返回 / 网址返回)
+        let responseFormat = 'url';
+        if (cleanPrompt.toLowerCase().includes('base64')) {
+          responseFormat = 'b64_json';
+        }
+
+        // 3. Image-to-Image input (URL 或数据 URI 输入 / 图生图)
+        const { images: inputImages } = await extractImagesAndText(lastUserMsg);
+        let inputImage: string | undefined;
+        if (inputImages && inputImages.length > 0) {
+          const firstImg = inputImages[0];
+          if (firstImg) {
+            inputImage = `data:${firstImg.mimeType};base64,${firstImg.data}`;
+          }
+        }
+
         logger.info(
-          `[AI Image Generation] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(imgUrl)}`,
+          `[AI Image Generation] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(imgUrl)} size=${size} format=${responseFormat} isImg2Img=${!!inputImage}`,
         );
+
+        // 4. Request payload setup including Structure Preservation (结构保持) and High Information Density (高信息密度)
+        const imageBody: any = {
+          model: modelName,
+          prompt: cleanPrompt,
+          n: 1,
+          size,
+          ...(responseFormat !== 'url' && { response_format: responseFormat }),
+        };
+
+        if (provider === 'AGNES') {
+          // High Information Density Image Optimization (高信息密度图像优化)
+          imageBody.high_density = true;
+          imageBody.density = 'high';
+          imageBody.quality = 'hd';
+          imageBody.extra_body = {
+            high_density: true,
+            density: 'high',
+            quality: 'hd'
+          };
+
+          if (inputImage) {
+            imageBody.image = inputImage;
+            imageBody.image_url = inputImage;
+            // Structure Preservation (结构保持)
+            imageBody.structure_preservation = true;
+            imageBody.keep_structure = true;
+            imageBody.structure_strength = 0.8;
+
+            imageBody.extra_body.image = inputImage;
+            imageBody.extra_body.image_url = inputImage;
+            imageBody.extra_body.structure_preservation = true;
+            imageBody.extra_body.keep_structure = true;
+            imageBody.extra_body.structure_strength = 0.8;
+          }
+        } else {
+          if (inputImage) {
+            imageBody.image = inputImage;
+            imageBody.image_url = inputImage;
+          }
+        }
 
         const response = await aiHttp.post(
           imgUrl,
-          {
-            model: modelName,
-            prompt: cleanPrompt,
-            n: 1,
-            size: '1024x1024',
-          },
+          imageBody,
           {
             headers,
             timeout: AI_STREAM_TIMEOUT_MS,
@@ -930,7 +1589,8 @@ export async function streamLLMChat(
           const urlOrBase64 =
             imgData.url || (imgData.b64_json ? `data:image/png;base64,${imgData.b64_json}` : null);
           if (urlOrBase64) {
-            finalMarkdown = `![${cleanPrompt}](${urlOrBase64})`;
+            const displayPrompt = cleanPrompt.substring(0, 80) + (cleanPrompt.length > 80 ? '...' : '');
+            finalMarkdown = `![${displayPrompt}](${urlOrBase64})`;
           }
         }
 
@@ -989,6 +1649,7 @@ export async function streamLLMChat(
         logger.error('[AI Image Generation Error]:', sanitizeAIError(err));
         const errMsg = toUserFacingAIError(err, provider);
         sendSSE(res, { error: `图片生成失败: ${errMsg}`, requestId });
+        sendSSE(res, '[DONE]');
         res.end();
         cleanupPersistentRun();
         return;
@@ -1083,7 +1744,8 @@ export async function streamLLMChat(
     let assistantContent = '';
     let assistantReasoning = '';
 
-    const appendAssistantChunk = (payload: { text?: string; reasoning?: string }) => {
+    let assistantToolCalls: any[] = [];
+    const appendAssistantChunk = (payload: { text?: string; reasoning?: string; tool_calls?: any[] }) => {
       if (payload.reasoning) {
         assistantReasoning += payload.reasoning;
         sendSSE(res, { reasoning: payload.reasoning, requestId });
@@ -1091,6 +1753,10 @@ export async function streamLLMChat(
       if (payload.text) {
         assistantContent += payload.text;
         sendSSE(res, { text: payload.text, requestId });
+      }
+      if (payload.tool_calls) {
+        assistantToolCalls = mergeToolCalls(assistantToolCalls, payload.tool_calls);
+        sendSSE(res, { tool_calls: payload.tool_calls, requestId });
       }
       if (persistentRunKey) {
         const run = activePersistentAiRuns.get(persistentRunKey);
@@ -1134,10 +1800,45 @@ export async function streamLLMChat(
           if (parsed.error) {
             appendAssistantChunk({ text: `\n[错误: ${parsed.error}]` });
           }
+        } else if (provider === 'AGNES') {
+          if (parsed.type === 'content_block_delta') {
+            if (parsed.delta?.type === 'text_delta') {
+              const text = parsed.delta?.text;
+              if (text) appendAssistantChunk({ text });
+            } else if (parsed.delta?.type === 'thinking_delta') {
+              const reasoning = parsed.delta?.thinking;
+              if (reasoning) appendAssistantChunk({ reasoning });
+            } else if (parsed.delta?.type === 'input_json_delta') {
+              const toolCallDelta = [{
+                index: parsed.index ?? 0,
+                function: {
+                  arguments: parsed.delta.partial_json
+                }
+              }];
+              appendAssistantChunk({ tool_calls: toolCallDelta });
+            }
+          } else if (parsed.type === 'content_block_start') {
+            if (parsed.content_block?.type === 'tool_use') {
+              const toolCallStart = [{
+                index: parsed.index ?? 0,
+                id: parsed.content_block.id,
+                function: {
+                  name: parsed.content_block.name
+                }
+              }];
+              appendAssistantChunk({ tool_calls: toolCallStart });
+            }
+          } else {
+            const content = parsed.choices?.[0]?.delta?.content;
+            const reasoning = parsed.choices?.[0]?.delta?.reasoning_content;
+            const toolCalls = parsed.choices?.[0]?.delta?.tool_calls;
+            appendAssistantChunk({ text: content, reasoning, tool_calls: toolCalls });
+          }
         } else {
           const content = parsed.choices?.[0]?.delta?.content;
           const reasoning = parsed.choices?.[0]?.delta?.reasoning_content;
-          appendAssistantChunk({ text: content, reasoning });
+          const toolCalls = parsed.choices?.[0]?.delta?.tool_calls;
+          appendAssistantChunk({ text: content, reasoning, tool_calls: toolCalls });
         }
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
@@ -1297,5 +1998,161 @@ export async function streamLLMChat(
     } else {
       next(error);
     }
+  }
+}
+
+/**
+ * Calls the LLM with automatic failover across all configured model × key combinations.
+ * Tries each entry in priority order until one succeeds.
+ * Falls back to global settings if no models are configured.
+ */
+export async function callLLMWithFailover(
+  prompt: string,
+  systemPrompt: string,
+  timeoutMs: number = AI_REQUEST_TIMEOUT_MS,
+): Promise<string> {
+  const settings = await settingsService.getAll();
+
+  let models: AIModelOption[] = [];
+  if (settings.AI_MODEL_OPTIONS) {
+    try {
+      const parsed = JSON.parse(settings.AI_MODEL_OPTIONS);
+      if (Array.isArray(parsed)) {
+        models = parsed as AIModelOption[];
+      }
+    } catch {
+      // ignore parse error, fall through to single call
+    }
+  }
+
+  const chain = resolveModelKeyChain(models);
+
+  if (chain.length === 0) {
+    // No models configured — fall back to global settings
+    return callLLM(prompt, systemPrompt, undefined, timeoutMs);
+  }
+
+  let lastError: Error | null = null;
+  const failedLabels: string[] = [];
+
+  for (const entry of chain) {
+    const label = `${entry.model.name || entry.model.id || entry.model.modelName}(key#${failedLabels.length + 1})`;
+    const overrides: Partial<AIServiceConfig> = {
+      AI_IMPORT_ENABLED: true,
+      AI_PROVIDER: entry.model.provider,
+      AI_API_KEY: entry.apiKey || settings.AI_API_KEY,
+      AI_API_ENDPOINT: entry.model.endpoint || settings.AI_API_ENDPOINT,
+      AI_MODEL_NAME: entry.model.modelName,
+      capabilities: entry.model.capabilities,
+    };
+    try {
+      if (failedLabels.length > 0) {
+        logger.info(
+          `[AI Failover] Retrying with model: ${label} (after ${failedLabels.length} failure(s))`,
+        );
+      }
+      const result = await callLLM(prompt, systemPrompt, overrides, timeoutMs);
+      if (failedLabels.length > 0) {
+        logger.info(`[AI Failover] Succeeded with model: ${label}`);
+      }
+      return result;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      failedLabels.push(label);
+      logger.warn(
+        `[AI Failover] Model ${label} failed: ${lastError.message}. Trying next...`,
+      );
+    }
+  }
+
+  logger.error(
+    `[AI Failover] All ${chain.length} model/key combination(s) failed. Tried: ${failedLabels.join(', ')}`,
+  );
+  throw lastError ?? new Error('所有 AI 模型均不可用，请联系管理员检查配置。');
+}
+
+/**
+ * Streams LLM chat with automatic failover on initial connection.
+ * Only attempts failover BEFORE streaming starts — if the connection drops mid-stream,
+ * the error is forwarded to the client to avoid delivering duplicate content.
+ */
+export async function streamLLMChatWithFailover(
+  messages: AIChatMessage[],
+  systemPrompt: string,
+  res: Response,
+  next: NextFunction,
+  userId?: string,
+  streamMeta?: Record<string, unknown>,
+): Promise<void> {
+  const settings = await settingsService.getAll();
+
+  let models: AIModelOption[] = [];
+  if (settings.AI_MODEL_OPTIONS) {
+    try {
+      const parsed = JSON.parse(settings.AI_MODEL_OPTIONS);
+      if (Array.isArray(parsed)) {
+        models = parsed as AIModelOption[];
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const chain = resolveModelKeyChain(models);
+
+  if (chain.length === 0) {
+    // No models configured — use global settings directly
+    return streamLLMChat(messages, systemPrompt, res, next, undefined, userId, streamMeta);
+  }
+
+  let lastError: Error | null = null;
+
+  for (let i = 0; i < chain.length; i++) {
+    const entry = chain[i];
+    if (!entry) continue;
+    const isLast = i === chain.length - 1;
+
+    // Once headers are sent, we cannot attempt another model
+    if (res.headersSent && !isLast) {
+      logger.warn(
+        `[AI Stream Failover] Headers already sent after model ${entry.model.name}; stopping failover.`,
+      );
+      break;
+    }
+
+    const overrides: Partial<AIServiceConfig> = {
+      AI_IMPORT_ENABLED: true,
+      AI_PROVIDER: entry.model.provider,
+      AI_API_KEY: entry.apiKey || settings.AI_API_KEY,
+      AI_API_ENDPOINT: entry.model.endpoint || settings.AI_API_ENDPOINT,
+      AI_MODEL_NAME: entry.model.modelName,
+      capabilities: entry.model.capabilities,
+    };
+
+    try {
+      if (i > 0) {
+        logger.info(
+          `[AI Stream Failover] Retrying with model: ${entry.model.name || entry.model.id}`,
+        );
+      }
+      await streamLLMChat(messages, systemPrompt, res, next, overrides, userId, streamMeta);
+      return; // success — done
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      logger.warn(
+        `[AI Stream Failover] Model ${entry.model.name || entry.model.id} failed: ${lastError.message}`,
+      );
+      if (!isLast && !res.headersSent) {
+        continue;
+      }
+      break;
+    }
+  }
+
+  // If we get here, all entries failed
+  if (!res.headersSent) {
+    next(lastError ?? new Error('所有 AI 模型均不可用'));
+  } else if (!res.writableEnded) {
+    res.end();
   }
 }

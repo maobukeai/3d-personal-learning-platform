@@ -9,6 +9,10 @@ import { redisService } from '../../services/redis.service';
 import { uploadSourceMetadataToR2 } from './metadata.helper';
 import { Prisma, type MirrorSource, type SyncLog, type MirrorResource } from '@prisma/client';
 
+function isAbortError(e: unknown): boolean {
+  return e instanceof Error && (e.name === 'AbortError' || e.message === 'AbortError');
+}
+
 async function runWithLimit<T>(
   limit: number,
   items: T[],
@@ -445,7 +449,7 @@ export class SyncEngine {
             }
           }
         } catch (e) {
-          if (e instanceof Error && e.name === 'AbortError') throw e;
+          if (isAbortError(e)) throw e;
           logger.error(
             `Failed to fetch detail for ${resource.externalId}:`,
             e instanceof Error ? e.message : e,
@@ -537,9 +541,7 @@ export class SyncEngine {
 
       progress.estimatedProgress = 100;
     } catch (error) {
-      const isAborted =
-        (error instanceof Error && error.name === 'AbortError') ||
-        (error instanceof Error ? error.message : String(error)) === 'AbortError';
+      const isAborted = isAbortError(error);
       const duration = Math.round((Date.now() - startTime) / 1000);
 
       if (typeof syncLog !== 'undefined') {
@@ -897,7 +899,7 @@ export class SyncEngine {
             }
           }
         } catch (e) {
-          if (e instanceof Error && e.name === 'AbortError') throw e;
+          if (isAbortError(e)) throw e;
           logger.error(
             `Failed to fetch detail for ${resource.externalId}:`,
             e instanceof Error ? e.message : e,
@@ -989,9 +991,7 @@ export class SyncEngine {
 
       progress.estimatedProgress = 100;
     } catch (error) {
-      const isAborted =
-        (error instanceof Error && error.name === 'AbortError') ||
-        (error instanceof Error ? error.message : String(error)) === 'AbortError';
+      const isAborted = isAbortError(error);
       const duration = Math.round((Date.now() - startTime) / 1000);
 
       if (typeof syncLog !== 'undefined') {

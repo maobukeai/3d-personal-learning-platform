@@ -42,6 +42,13 @@ import {
   updateAiBotKnowledgeSource,
 } from '../services/ai-bot.service';
 
+function requireUserId(req: AuthRequest): string {
+  if (!req.userId) {
+    throw new AppError('登录会话已过期，请重新登录', 401, 'UNAUTHORIZED');
+  }
+  return req.userId;
+}
+
 type AnyRecord = Record<string, unknown>;
 type PublicModelOption = Awaited<ReturnType<typeof getAiBotModelOptions>>[number];
 
@@ -403,7 +410,7 @@ const isFreshTimestamp = (timestamp: string): boolean => {
   const raw = Number(timestamp);
   if (!Number.isFinite(raw)) return false;
   const millis = raw > 10_000_000_000 ? raw : raw * 1000;
-  return Math.abs(Date.now() - millis) <= 60 * 60 * 1000;
+  return Math.abs(Date.now() - millis) <= 5 * 60 * 1000;
 };
 
 const getRawCallbackBody = (req: Request): Buffer => {
@@ -501,7 +508,7 @@ const verifyCallbackSecret = (req: Request, secret: string): boolean => {
 
 export const getEntitlement = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const entitlement = await getAiBotEntitlement(userId);
     res.json(entitlement);
   } catch (error) {
@@ -511,7 +518,7 @@ export const getEntitlement = async (req: AuthRequest, res: Response, next: Next
 
 export const listIntegrations = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const [entitlement, integrations, modelOptions] = await Promise.all([
       getAiBotEntitlement(userId),
       prisma.aiBotIntegration.findMany({
@@ -534,7 +541,7 @@ export const listIntegrations = async (req: AuthRequest, res: Response, next: Ne
 
 export const getAnalytics = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const analytics = await getAiBotAnalytics(userId, req.query.days);
     res.json(analytics);
   } catch (error) {
@@ -544,7 +551,7 @@ export const getAnalytics = async (req: AuthRequest, res: Response, next: NextFu
 
 export const getOperationsReport = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const report = await getAiBotOperationsReport(userId, req.query.days);
     res.json({ report });
   } catch (error) {
@@ -573,7 +580,7 @@ export const listModels = async (_req: AuthRequest, res: Response, next: NextFun
 
 export const createIntegration = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     await assertCanCreateAiBot(userId);
     const body = asRecord(req.body);
     await assertAiModelAvailable(normalizeAiModelId(body.aiModelId));
@@ -597,7 +604,7 @@ export const createIntegration = async (req: AuthRequest, res: Response, next: N
 
 export const updateIntegration = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     await getOwnedIntegration(id, userId);
     const body = asRecord(req.body);
@@ -621,7 +628,7 @@ export const updateIntegration = async (req: AuthRequest, res: Response, next: N
 
 export const deleteIntegration = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     await getOwnedIntegration(id, userId);
 
@@ -639,7 +646,7 @@ export const deleteIntegration = async (req: AuthRequest, res: Response, next: N
 
 export const rotatePublicToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     await getOwnedIntegration(id, userId);
 
@@ -659,7 +666,7 @@ export const rotatePublicToken = async (req: AuthRequest, res: Response, next: N
 
 export const testIntegration = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     const integration = await getOwnedIntegration(id, userId);
     await assertCanUseAiBot(userId);
@@ -690,7 +697,7 @@ export const testIntegration = async (req: AuthRequest, res: Response, next: Nex
 
 export const diagnoseIntegration = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     const integration = await getOwnedIntegration(id, userId);
     const entitlement = await getAiBotEntitlement(userId);
@@ -711,7 +718,7 @@ export const getIntegrationRunbook = async (
   next: NextFunction,
 ) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     const integration = await getOwnedIntegration(id, userId);
     const entitlement = await getAiBotEntitlement(userId);
@@ -725,7 +732,7 @@ export const getIntegrationRunbook = async (
 
 export const runPlayground = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     const integration = await getOwnedIntegration(id, userId);
     await assertCanUseAiBot(userId);
@@ -758,7 +765,7 @@ export const runPlayground = async (req: AuthRequest, res: Response, next: NextF
 
 export const getEvolutionInsights = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     const integration = await getOwnedIntegration(id, userId);
     const insights = await buildAiBotEvolutionInsights(integration, req.query.days);
@@ -773,7 +780,7 @@ export const getEvolutionInsights = async (req: AuthRequest, res: Response, next
 
 export const runEvaluation = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     const integration = await getOwnedIntegration(id, userId);
     await assertCanUseAiBot(userId);
@@ -798,7 +805,7 @@ export const runEvaluation = async (req: AuthRequest, res: Response, next: NextF
 
 export const optimizePrompt = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     const integration = await getOwnedIntegration(id, userId);
     await assertCanUseAiBot(userId);
@@ -819,7 +826,7 @@ export const optimizePrompt = async (req: AuthRequest, res: Response, next: Next
 
 export const listKnowledgeSources = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     await getOwnedIntegration(id, userId);
     const result = await listAiBotKnowledgeSources(userId, id);
@@ -835,7 +842,7 @@ export const createKnowledgeSource = async (
   next: NextFunction,
 ) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     await getOwnedIntegration(id, userId);
     const result = await createAiBotKnowledgeSource(userId, id, asRecord(req.body));
@@ -851,7 +858,7 @@ export const updateKnowledgeSource = async (
   next: NextFunction,
 ) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     const sourceId = req.params.sourceId as string;
     await getOwnedIntegration(id, userId);
@@ -868,7 +875,7 @@ export const deleteKnowledgeSource = async (
   next: NextFunction,
 ) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     const sourceId = req.params.sourceId as string;
     await getOwnedIntegration(id, userId);
@@ -904,14 +911,14 @@ export const previewPayload = async (req: AuthRequest, res: Response, next: Next
 
 export const listMessages = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     await getOwnedIntegration(id, userId);
 
     const parsedLimit = Number(req.query.limit || 20);
     const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 80) : 20;
     const status = normalizeMessageStatusFilter(req.query.status);
-    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
     const where: Prisma.AiBotMessageWhereInput = {
       integrationId: id,
       userId,
@@ -959,7 +966,7 @@ export const listMessages = async (req: AuthRequest, res: Response, next: NextFu
 
 export const replayMessage = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.userId as string;
+    const userId = requireUserId(req);
     const id = req.params.id as string;
     const messageId = req.params.messageId as string;
     const integration = await getOwnedIntegration(id, userId);
@@ -1044,6 +1051,11 @@ export const handleCallback = async (req: Request, res: Response, next: NextFunc
     const incoming = extractIncomingAiBotMessage(req.body);
     if (!incoming.text) {
       throw new AppError('未识别到可回复的文本消息', 400, 'AI_BOT_MESSAGE_EMPTY');
+    }
+
+    const MAX_CALLBACK_TEXT_LENGTH = 4000;
+    if (incoming.text.length > MAX_CALLBACK_TEXT_LENGTH) {
+      incoming.text = incoming.text.slice(0, MAX_CALLBACK_TEXT_LENGTH);
     }
 
     if (!shouldAnswerMessage(integration, incoming.text)) {

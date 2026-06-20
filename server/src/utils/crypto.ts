@@ -67,6 +67,12 @@ export function decryptText(hex: string, key: string): string {
     }
   }
 
+  // Fallback: v1 format (legacy RC4 — deprecated, insecure, scheduled for removal)
+  // TODO: Force re-encryption to v2 on next user login and remove this branch.
+  logger.warn(
+    '[Crypto] Detected legacy v1 (RC4) encrypted value. ' +
+      'This algorithm is insecure (RFC 7465). Please trigger a re-encryption cycle.',
+  );
   let str = '';
   for (let i = 0; i < hex.length; i += 2) {
     str += String.fromCharCode(parseInt(hex.substring(i, i + 2), 16));

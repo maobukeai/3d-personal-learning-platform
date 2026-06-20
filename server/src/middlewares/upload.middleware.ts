@@ -8,6 +8,7 @@ import prisma from '../services/prisma';
 import { storageService } from '../services/storage.service';
 import { decryptSecretIfNeeded } from '../utils/crypto';
 import { UploadedFile } from '../types/upload';
+import { optimizeImage } from '../utils/image';
 
 const getStorageTypeForField = (file: Express.Multer.File, req: Request): string => {
   const fieldname = file.fieldname;
@@ -48,6 +49,7 @@ const IMAGE_FIELD_NAMES = [
   'banner_image',
   'preview',
   'plugin_preview',
+  'task_image',
 ] as const;
 type ImageFieldName = (typeof IMAGE_FIELD_NAMES)[number];
 
@@ -75,11 +77,12 @@ const FIELD_TO_DIR: Record<string, string> = {
   plugin_preview: './uploads/plugins',
   banner: './uploads/banners',
   banner_image: './uploads/banners',
+  task_image: './uploads/tasks',
 };
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    let dir = './uploads/avatars'; // default
+    let dir: string;
 
     // Showcase context overrides thumbnail/images destination
     if (
@@ -327,8 +330,65 @@ const createUploadMiddleware = (config: {
               }
             }
           }
+        }
 
-          // R2 Cloud Storage Interception
+        // Automatic image optimization for system images
+        if (files) {
+          try {
+            for (const fieldname in files) {
+              const fileList = Array.isArray(files[fieldname])
+                ? files[fieldname]
+                : [files[fieldname]];
+              for (const file of fileList) {
+                if (!file) continue;
+
+                const ext = path.extname(file.originalname).toLowerCase();
+                const isImageExtension = [
+                  '.png',
+                  '.jpg',
+                  '.jpeg',
+                  '.bmp',
+                  '.tiff',
+                  '.webp',
+                  '.gif',
+                  '.svg',
+                ].includes(ext);
+
+                // Optimize if it is a standard image field OR a general file field carrying an image
+                const shouldOptimize =
+                  isImageField(file.fieldname) ||
+                  (['message_file', 'attachment', 'file', 'files'].includes(file.fieldname) &&
+                    isImageExtension);
+
+                if (shouldOptimize) {
+                  // Validate first (before compression to avoid wasting CPU/memory)
+                  await validateSingleFileContent(file);
+                  // Optimize (resize, convert to WebP / SVGO)
+                  await optimizeImage(file);
+                }
+              }
+            }
+          } catch (optimizeError: unknown) {
+            logger.error(`[UploadError] Image optimization failed:`, optimizeError);
+            // Cleanup all uploaded files in this request on failure to prevent orphans
+            for (const fieldname in files) {
+              const fileList = Array.isArray(files[fieldname])
+                ? files[fieldname]
+                : [files[fieldname]];
+              for (const file of fileList) {
+                if (file && fs.existsSync(file.path)) {
+                  fs.unlinkSync(file.path);
+                }
+              }
+            }
+            return res.status(400).json({
+              error: optimizeError instanceof Error ? optimizeError.message : '图片压缩失败',
+            });
+          }
+        }
+
+        // R2 Cloud Storage Interception
+        if (files) {
           const allFiles: Express.Multer.File[] = [];
           for (const fieldname in files) {
             const fileList = Array.isArray(files[fieldname])
@@ -381,6 +441,7 @@ const createUploadMiddleware = (config: {
 
                 const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
                 const mainSanitizedOriginalName = mainFile.originalname
+                  // eslint-disable-next-line no-control-regex
                   .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
                   .replace(/\s+/g, '_');
                 const mainExtName = path.extname(mainSanitizedOriginalName);
@@ -457,6 +518,7 @@ const createUploadMiddleware = (config: {
                     if (updateResult.count > 0) {
                       try {
                         const sanitizedOriginalName = file.originalname
+                          // eslint-disable-next-line no-control-regex
                           .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
                           .replace(/\s+/g, '_');
                         const key = `${folderPrefix}/${sharedFolderName}/${sanitizedOriginalName}`;
@@ -563,15 +625,20 @@ const model3dExtensions = [
 ];
 const documentExtensions = ['.pdf', '.zip', '.rar', '.7z'];
 const imageUploadFields = new Set([
+  'logo',
+  'favicon',
   'avatar',
   'cover',
-  'thumbnail',
-  'images',
   'manual_image',
   'mirror_image',
   'image',
+  'images',
+  'thumbnail',
   'banner',
   'banner_image',
+  'preview',
+  'plugin_preview',
+  'task_image',
 ]);
 
 const detectImageMime = (buffer: Buffer): string | null => {

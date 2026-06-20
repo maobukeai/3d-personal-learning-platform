@@ -76,8 +76,10 @@
     "qrcode": "^1.5.4",
     "read-excel-file": "^9.0.10",
     "sanitize-html": "^2.17.5",
+    "sharp": "^0.35.2",
     "socket.io": "^4.8.3",
     "speakeasy": "^2.0.0",
+    "svgo": "^4.0.1",
     "unzipper": "^0.12.3",
     "zod": "^4.4.3"
   }

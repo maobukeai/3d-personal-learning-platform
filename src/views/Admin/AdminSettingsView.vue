@@ -208,6 +208,8 @@ const normalizeAiModels = (value: unknown): AiModelConfig[] => {
       const provider = String(model.provider || 'DEEPSEEK').toUpperCase();
       const modelName = String(model.modelName || '').trim();
       return {
+        // Spread ALL original fields first so no extra fields (apiKeys, failoverEnabled, priority…) are lost
+        ...(model as Partial<AiModelConfig>),
         id: String(model.id || `model_${index + 1}`),
         name: String(model.name || `${provider} ${modelName}`),
         provider,
@@ -339,8 +341,23 @@ watch(
   },
 );
 
+// Keep settings.value.AI_MODEL_OPTIONS in sync with aiModelConfigs so that
+// saveSettings() always writes the latest user edits (e.g. capabilities changes).
+// Guard: don't fire during fetchSettings to avoid overwriting with a stripped version.
+let _isLoadingSettings = false;
+watch(
+  aiModelConfigs,
+  (newVal) => {
+    if (_isLoadingSettings) return;
+    settings.value.AI_MODEL_OPTIONS = JSON.stringify(newVal);
+  },
+  { deep: true },
+);
+
+
 const fetchSettings = async () => {
   try {
+    _isLoadingSettings = true;
     isLoading.value = true;
     const { data } = await api.get('/api/admin/settings');
 
@@ -453,6 +470,7 @@ const fetchSettings = async () => {
     console.error('Fetch settings error:', error);
     ElMessage.error(t('admin.failed_to_get_settings'));
   } finally {
+    _isLoadingSettings = false;
     isLoading.value = false;
   }
 };

@@ -357,9 +357,20 @@ const deleteSession = async (sessionId: string) => {
   }
 };
 
-const availableAiModels = computed(() =>
-  (systemStore.settings.AI_MODEL_OPTIONS || []).filter((model) => model.enabled),
-);
+const AUTO_MODEL_ID = '__AUTO__';
+
+const autoModelOption = {
+  id: AUTO_MODEL_ID,
+  name: '✨ 自动（推荐）',
+  provider: 'AUTO',
+  enabled: true,
+  isAuto: true,
+};
+
+const availableAiModels = computed(() => [
+  autoModelOption,
+  ...(systemStore.settings.AI_MODEL_OPTIONS || []).filter((model) => model.enabled),
+]);
 
 const currentModel = computed(
   () =>
@@ -371,13 +382,13 @@ watch(
   availableAiModels,
   (models) => {
     if (models.length === 0) {
-      selectedModelId.value = '';
+      selectedModelId.value = AUTO_MODEL_ID;
       return;
     }
-
     const existing = models.find((model) => model.id === selectedModelId.value);
     if (!existing) {
-      selectedModelId.value = models.find((model) => model.isDefault)?.id || models[0].id;
+      // Default to auto mode if no previously-selected model is found
+      selectedModelId.value = AUTO_MODEL_ID;
     }
   },
   { immediate: true },
@@ -1410,6 +1421,19 @@ const regenerateResponse = async () => {
   const lastUserMessage = [...sessionMessages].reverse().find((message) => message.role === 'user');
   if (!lastUserMessage) return;
 
+  if (authStore.isAuthenticated) {
+    try {
+      await api.post('/api/projects/ai-chat/messages/clean', {
+        sessionId: sId,
+        messageId: lastUserMessage.id,
+        inclusive: true,
+      });
+    } catch (error) {
+      console.error('Failed to clean messages on server for regeneration:', error);
+      return;
+    }
+  }
+
   messages.value = messages.value.filter(
     (message) =>
       (message.sessionId || 'default') !== sId ||
@@ -1419,6 +1443,38 @@ const regenerateResponse = async () => {
   chatAreaRef.value?.focusTextarea();
   await handleSend();
 };
+
+const editMessage = async (messageId: string, newContent: string) => {
+  const sId = currentSessionId.value;
+  if (isGeneratingMap.value[sId] || isTypingMap.value[sId]) return;
+
+  const targetMsg = messages.value.find((m) => m.id === messageId);
+  if (!targetMsg) return;
+
+  if (authStore.isAuthenticated) {
+    try {
+      await api.post('/api/projects/ai-chat/messages/clean', {
+        sessionId: sId,
+        messageId: messageId,
+        inclusive: true,
+      });
+    } catch (error) {
+      console.error('Failed to clean messages on server:', error);
+      return;
+    }
+  }
+
+  messages.value = messages.value.filter(
+    (message) =>
+      (message.sessionId || 'default') !== sId ||
+      new Date(message.createdAt).getTime() < new Date(targetMsg.createdAt).getTime(),
+  );
+
+  inputMessage.value = newContent;
+  chatAreaRef.value?.focusTextarea();
+  await handleSend();
+};
+
 
 const copyToClipboard = (text: string): Promise<void> => {
   if (navigator.clipboard?.writeText) {
@@ -1602,6 +1658,7 @@ onUnmounted(() => {
             @handle-send="handleSend"
             @handle-stop="handleStop()"
             @paste="handlePaste"
+            @edit-message="editMessage"
           />
 
           <!-- Resize Handle (Desktop floating window only) -->
@@ -1849,89 +1906,6 @@ onUnmounted(() => {
   border-radius: 999px;
 }
 
-.ai-preview {
-  background: transparent !important;
-}
-
-.ai-preview .md-editor-preview {
-  background: transparent !important;
-  color: inherit !important;
-  padding: 0 !important;
-  line-height: 1.6 !important;
-}
-
-.ai-preview .md-editor-preview-wrapper {
-  padding: 0 !important;
-}
-
-.ai-preview .md-editor-preview p:first-child {
-  margin-top: 0 !important;
-}
-
-.ai-preview .md-editor-preview p:last-child {
-  margin-bottom: 0 !important;
-}
-
-.ai-preview .md-editor-preview p {
-  margin-top: 4px !important;
-  margin-bottom: 4px !important;
-}
-
-.ai-preview .md-editor-preview h1,
-.ai-preview .md-editor-preview h2,
-.ai-preview .md-editor-preview h3,
-.ai-preview .md-editor-preview h4,
-.ai-preview .md-editor-preview h5,
-.ai-preview .md-editor-preview h6 {
-  margin-top: 10px !important;
-  margin-bottom: 4px !important;
-  font-weight: 600 !important;
-}
-
-.ai-preview .md-editor-preview ul,
-.ai-preview .md-editor-preview ol {
-  margin-top: 4px !important;
-  margin-bottom: 4px !important;
-  padding-left: 20px !important;
-}
-
-.ai-preview .md-editor-preview li {
-  margin-top: 2px !important;
-  margin-bottom: 2px !important;
-}
-
-.ai-preview .md-editor-preview img {
-  max-width: 100% !important;
-  max-height: 280px !important;
-  border-radius: 16px !important;
-  object-fit: cover !important;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1) !important;
-}
-
-.ai-preview .md-editor-code pre {
-  border-radius: 16px !important;
-  padding: 14px 16px !important;
-  font-size: 11px !important;
-}
-
-.ai-preview .md-editor-preview blockquote {
-  margin: 12px 0 !important;
-  border-left: 3px solid rgba(244, 114, 182, 0.5) !important;
-  background: rgba(255, 241, 242, 0.7) !important;
-  color: inherit !important;
-  border-radius: 14px !important;
-  padding: 12px 14px !important;
-}
-
-.dark .ai-preview .md-editor-preview blockquote {
-  background: rgba(30, 41, 59, 0.75) !important;
-}
-
-.ai-preview .md-editor-preview code {
-  border-radius: 8px !important;
-  padding: 2px 6px !important;
-}
-
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
@@ -2089,13 +2063,6 @@ html.theme-glass .ai-sidebar input[type='text']:focus,
     padding-right: 12px !important;
     padding-top: 14px !important;
     padding-bottom: 14px !important;
-  }
-  .ai-preview .md-editor-preview {
-    line-height: 1.55 !important;
-  }
-  .ai-preview .md-editor-code pre {
-    padding: 10px 12px !important;
-    border-radius: 10px !important;
   }
   .ai-assistant-bubble,
   .ai-user-bubble {

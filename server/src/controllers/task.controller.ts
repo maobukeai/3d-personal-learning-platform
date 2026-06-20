@@ -84,6 +84,20 @@ export const getAllTasks = async (req: AuthRequest, res: Response, next: NextFun
             user: { select: { id: true, name: true, avatarUrl: true } },
           },
         },
+        dependencies: {
+          include: {
+            dependsOn: {
+              select: { id: true, title: true, status: true },
+            },
+          },
+        },
+        dependents: {
+          include: {
+            task: {
+              select: { id: true, title: true, status: true },
+            },
+          },
+        },
       },
       orderBy: [{ priority: 'desc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
     });
@@ -105,6 +119,8 @@ export const createTask = async (req: AuthRequest, res: Response, next: NextFunc
     assigneeId,
     projectId,
     participantIds,
+    timeEstimate,
+    timeSpent,
   } = req.body;
   try {
     const effectiveTeamId = req.workspaceId || null;
@@ -153,6 +169,8 @@ export const createTask = async (req: AuthRequest, res: Response, next: NextFunc
         projectId: projectId || null,
         userId: req.userId as string,
         teamId: effectiveTeamId,
+        timeEstimate: timeEstimate !== undefined ? Number(timeEstimate) : 0,
+        timeSpent: timeSpent !== undefined ? Number(timeSpent) : 0,
         participants:
           participantIds && participantIds.length > 0
             ? {
@@ -175,6 +193,20 @@ export const createTask = async (req: AuthRequest, res: Response, next: NextFunc
             id: true,
             userId: true,
             user: { select: { id: true, name: true, avatarUrl: true } },
+          },
+        },
+        dependencies: {
+          include: {
+            dependsOn: {
+              select: { id: true, title: true, status: true },
+            },
+          },
+        },
+        dependents: {
+          include: {
+            task: {
+              select: { id: true, title: true, status: true },
+            },
           },
         },
       },
@@ -491,6 +523,8 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
     assigneeId,
     projectId,
     participantIds,
+    timeEstimate,
+    timeSpent,
   } = req.body;
   try {
     const existingTask = await prisma.task.findFirst({
@@ -549,6 +583,34 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
       }
     }
 
+    // Check dependencies if status is changing to DONE
+    if (status === TaskStatus.DONE && existingTask.status !== TaskStatus.DONE) {
+      const incompleteDependencies = await prisma.taskDependency.findMany({
+        where: {
+          taskId: id,
+          dependsOn: {
+            status: { not: TaskStatus.DONE },
+          },
+        },
+        include: {
+          dependsOn: {
+            select: {
+              title: true,
+            },
+          },
+        },
+      });
+
+      if (incompleteDependencies.length > 0) {
+        const blockedByTitles = incompleteDependencies
+          .map((dep) => `「${dep.dependsOn.title}」`)
+          .join(', ');
+        return res.status(400).json({
+          error: `该任务的前置依赖任务尚未完成，无法关闭。未完成的前置任务: ${blockedByTitles}`,
+        });
+      }
+    }
+
     const task = await prisma.task.update({
       where: { id },
       data: {
@@ -561,6 +623,8 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
         dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : undefined,
         assigneeId: assigneeId !== undefined ? assigneeId || null : undefined,
         projectId: projectId !== undefined ? projectId || null : undefined,
+        timeEstimate: timeEstimate !== undefined ? Number(timeEstimate) : undefined,
+        timeSpent: timeSpent !== undefined ? Number(timeSpent) : undefined,
         participants: participantIds
           ? {
               deleteMany: {},
@@ -583,6 +647,20 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
             id: true,
             userId: true,
             user: { select: { id: true, name: true, avatarUrl: true } },
+          },
+        },
+        dependencies: {
+          include: {
+            dependsOn: {
+              select: { id: true, title: true, status: true },
+            },
+          },
+        },
+        dependents: {
+          include: {
+            task: {
+              select: { id: true, title: true, status: true },
+            },
           },
         },
       },
@@ -850,3 +928,182 @@ export const getTaskStats = async (req: AuthRequest, res: Response, next: NextFu
     next(error);
   }
 };
+
+export const addTaskDependency = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
+  const dependsOnId = req.body.dependsOnId as string;
+
+  try {
+    if (id === dependsOnId) {
+      return res.status(400).json({ error: '任务不能依赖于其自身' });
+    }
+
+    const task = await prisma.task.findUnique({ where: { id } });
+    const dependsOn = await prisma.task.findUnique({ where: { id: dependsOnId } });
+
+    if (!task || !dependsOn) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    // Check if duplicate
+    const existing = await prisma.taskDependency.findUnique({
+      where: {
+        taskId_dependsOnId: {
+          taskId: id,
+          dependsOnId,
+        },
+      },
+    });
+
+    if (existing) {
+      return res.status(400).json({ error: '依赖关系已存在' });
+    }
+
+    // Check if cyclic dependency
+    const cyclic = await prisma.taskDependency.findUnique({
+      where: {
+        taskId_dependsOnId: {
+          taskId: dependsOnId,
+          dependsOnId: id,
+        },
+      },
+    });
+
+    if (cyclic) {
+      return res.status(400).json({ error: '检测到循环依赖关系 (任务之间不能互为依赖)' });
+    }
+
+    await prisma.taskDependency.create({
+      data: {
+        taskId: id,
+        dependsOnId,
+      },
+    });
+
+    // Return the updated task with full dependencies/dependents
+    const updatedTask = await prisma.task.findUnique({
+      where: { id },
+      include: {
+        assignee: {
+          select: { id: true, name: true, avatarUrl: true },
+        },
+        project: {
+          select: { id: true, title: true, color: true },
+        },
+        team: {
+          select: { id: true, name: true, avatarUrl: true },
+        },
+        participants: {
+          select: {
+            id: true,
+            userId: true,
+            user: { select: { id: true, name: true, avatarUrl: true } },
+          },
+        },
+        dependencies: {
+          include: {
+            dependsOn: {
+              select: { id: true, title: true, status: true },
+            },
+          },
+        },
+        dependents: {
+          include: {
+            task: {
+              select: { id: true, title: true, status: true },
+            },
+          },
+        },
+      },
+    });
+
+    res.status(201).json(updatedTask);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteTaskDependency = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
+  const dependsOnId = req.params.dependsOnId as string;
+
+  try {
+    const dependency = await prisma.taskDependency.findUnique({
+      where: {
+        taskId_dependsOnId: {
+          taskId: id,
+          dependsOnId,
+        },
+      },
+    });
+
+    if (!dependency) {
+      return res.status(404).json({ error: 'Dependency not found' });
+    }
+
+    await prisma.taskDependency.delete({
+      where: {
+        taskId_dependsOnId: {
+          taskId: id,
+          dependsOnId,
+        },
+      },
+    });
+
+    // Return updated task
+    const updatedTask = await prisma.task.findUnique({
+      where: { id },
+      include: {
+        assignee: {
+          select: { id: true, name: true, avatarUrl: true },
+        },
+        project: {
+          select: { id: true, title: true, color: true },
+        },
+        team: {
+          select: { id: true, name: true, avatarUrl: true },
+        },
+        participants: {
+          select: {
+            id: true,
+            userId: true,
+            user: { select: { id: true, name: true, avatarUrl: true } },
+          },
+        },
+        dependencies: {
+          include: {
+            dependsOn: {
+              select: { id: true, title: true, status: true },
+            },
+          },
+        },
+        dependents: {
+          include: {
+            task: {
+              select: { id: true, title: true, status: true },
+            },
+          },
+        },
+      },
+    });
+
+    res.json(updatedTask);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadImage = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '没有上传文件' });
+    }
+    const parts = req.file.destination ? req.file.destination.split(/[/\\]/) : [];
+    const subFolder = parts[parts.length - 1] || 'tasks';
+    const attachmentUrl = (req.file as any).url || `${req.protocol}://${req.get('host')}/uploads/${subFolder}/${req.file.filename}`;
+    res.json({ url: attachmentUrl });
+  } catch (error) {
+    next(error);
+  }
+};
+

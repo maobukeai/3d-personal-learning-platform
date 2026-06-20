@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   User,
   Users,
+  Cloud,
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { preferences } from '@/utils/preferences';
@@ -25,8 +26,9 @@ import SecuritySection from './components/SecuritySection.vue';
 import AppearanceSection from './components/AppearanceSection.vue';
 import TeamsSection from './components/TeamsSection.vue';
 import DataSection from './components/DataSection.vue';
+import BackupSection from './components/BackupSection.vue';
 
-type SectionId = 'profile' | 'notifications' | 'security' | 'appearance' | 'teams' | 'data';
+type SectionId = 'profile' | 'notifications' | 'security' | 'appearance' | 'teams' | 'data' | 'backup';
 type SectionTone = 'green' | 'amber' | 'red' | 'blue' | 'slate';
 
 interface SettingsSection {
@@ -136,6 +138,16 @@ const sections = computed<SettingsSection[]>(() => [
     status: label('谨慎操作', 'Sensitive'),
     metric: label('高风险', 'High risk'),
     tone: 'red',
+  },
+  {
+    id: 'backup',
+    label: label('备份与同步', 'Backup & Sync'),
+    subtitle: label('WebDAV 备份与精细化恢复', 'WebDAV backup & fine-grained restore'),
+    icon: Cloud,
+    keywords: ['backup', 'restore', 'webdav', 'sync', '备份', '恢复', '同步'],
+    status: label('多平台', 'Multi-platform'),
+    metric: label('云同步', 'Cloud sync'),
+    tone: 'blue',
   },
 ]);
 
@@ -292,6 +304,7 @@ watch(filteredSections, (next) => {
         <AppearanceSection v-else-if="activeSection === 'appearance'" />
         <TeamsSection v-else-if="activeSection === 'teams'" />
         <DataSection v-else-if="activeSection === 'data'" />
+        <BackupSection v-else-if="activeSection === 'backup'" />
       </div>
     </main>
   </div>

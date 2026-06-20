@@ -21,6 +21,8 @@ import {
   Cloud,
   Settings,
   Square,
+  Send,
+  Pencil,
 } from 'lucide-vue-next';
 import { getAssetUrl } from '@/utils/api';
 
@@ -60,6 +62,7 @@ interface AiModel {
   name: string;
   provider: string;
   enabled: boolean;
+  isAuto?: boolean;
 }
 
 const props = defineProps<{
@@ -104,6 +107,7 @@ const emit = defineEmits<{
   (e: 'handle-send'): void;
   (e: 'handle-stop'): void;
   (e: 'paste', event: ClipboardEvent): void;
+  (e: 'edit-message', id: string, newContent: string): void;
 }>();
 
 const chatContainer = ref<HTMLDivElement | null>(null);
@@ -114,6 +118,13 @@ const providerMeta: Record<
   string,
   { color: string; bg: string; border: string; label: string; lucideIcon: any }
 > = {
+  AGNES: {
+    color: '#8b5cf6',
+    bg: 'rgba(139,92,246,0.08)',
+    border: 'rgba(139,92,246,0.2)',
+    label: 'Agnes',
+    lucideIcon: Cpu,
+  },
   DEEPSEEK: {
     color: '#2563eb',
     bg: 'rgba(37,99,235,0.08)',
@@ -230,6 +241,71 @@ const resetTextareaHeight = () => {
   if (textareaRef.value) {
     textareaRef.value.style.height = 'auto';
   }
+};
+
+const editingMessageId = ref<string | null>(null);
+const editingContent = ref<string>('');
+const editingImages = ref<{ url: string; name: string }[]>([]);
+const editTextareaRef = ref<HTMLTextAreaElement | null>(null);
+
+const parseImagesFromMarkdown = (content: string) => {
+  const images: { url: string; name: string }[] = [];
+  const regex = /!\[([^\]]*?)\]\(([^)]+?)\)/g;
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    images.push({
+      name: match[1],
+      url: match[2],
+    });
+  }
+  const cleanText = content.replace(/!\[[^\]]*?\]\([^)]+?\)/g, '').trim();
+  return { images, cleanText };
+};
+
+const startEditMessage = (msg: Message) => {
+  editingMessageId.value = msg.id;
+  const parsed = parseImagesFromMarkdown(msg.content);
+  editingImages.value = parsed.images;
+  editingContent.value = parsed.cleanText;
+  nextTick(() => {
+    editTextareaRef.value?.focus();
+  });
+};
+
+const handleEditKeydown = (event: KeyboardEvent, msg: Message) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    saveAndSubmitEdit(msg);
+  } else if (event.key === 'Escape') {
+    cancelEdit();
+  }
+};
+
+const saveAndSubmitEdit = (msg: Message) => {
+  const trimmedText = editingContent.value.trim();
+  let finalContent = trimmedText;
+  if (editingImages.value.length > 0) {
+    const imageMarkdown = editingImages.value
+      .map((image) => `![${image.name}](${image.url})`)
+      .join('\n');
+    finalContent = trimmedText ? `${imageMarkdown}\n\n${trimmedText}` : imageMarkdown;
+  }
+
+  if (!finalContent.trim()) return;
+
+  if (finalContent === msg.content) {
+    cancelEdit();
+    return;
+  }
+
+  emit('edit-message', msg.id, finalContent);
+  cancelEdit();
+};
+
+const cancelEdit = () => {
+  editingMessageId.value = null;
+  editingContent.value = '';
+  editingImages.value = [];
 };
 
 defineExpose({
@@ -360,7 +436,13 @@ defineExpose({
           <div class="group max-w-[92%] md:max-w-[90%]">
             <div
               class="rounded-[22px] px-[18px] py-[12px] shadow-xs"
-              :class="msg.role === 'user' ? 'ai-user-bubble ml-auto' : 'ai-assistant-bubble'"
+              :class="
+                msg.role === 'user'
+                  ? editingMessageId === msg.id
+                    ? 'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 ml-auto'
+                    : 'ai-user-bubble ml-auto'
+                  : 'ai-assistant-bubble'
+              "
             >
               <div
                 v-if="msg.role === 'assistant' && (msg.reasoning || msg.isThinking)"
@@ -464,7 +546,56 @@ defineExpose({
                 </div>
               </div>
 
+              <div v-if="msg.role === 'user' && editingMessageId === msg.id" class="flex flex-col gap-2 min-w-[240px] sm:min-w-[320px] py-1">
+                <!-- Image Previews for editing -->
+                <div v-if="editingImages.length > 0" class="flex flex-wrap gap-2 mb-2">
+                  <div
+                    v-for="(image, imgIdx) in editingImages"
+                    :key="image.url"
+                    class="group relative h-12 w-12 overflow-hidden rounded-xl border border-slate-200/80 bg-white/70 dark:bg-slate-800/80"
+                  >
+                    <img
+                      :src="getAssetUrl(image.url)"
+                      :alt="image.name"
+                      class="h-full w-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      class="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white opacity-0 transition group-hover:opacity-100 cursor-pointer"
+                      title="删除图片"
+                      @click="editingImages.splice(imgIdx, 1)"
+                    >
+                      <X class="h-2.5 w-2.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <textarea
+                  ref="editTextareaRef"
+                  v-model="editingContent"
+                  rows="3"
+                  class="w-full resize-none rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-sm text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  @keydown="handleEditKeydown($event, msg)"
+                />
+                <div class="flex justify-end gap-2 text-[11px]">
+                  <button
+                    type="button"
+                    class="rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                    @click="cancelEdit"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-lg bg-indigo-600 px-2.5 py-1 text-white hover:bg-indigo-700 transition"
+                    @click="saveAndSubmitEdit(msg)"
+                  >
+                    保存并提交
+                  </button>
+                </div>
+              </div>
               <MdPreview
+                v-else
                 :model-value="msg.content"
                 :theme="isDark ? 'dark' : 'light'"
                 class="ai-preview"
@@ -475,6 +606,15 @@ defineExpose({
               class="mt-2 flex items-center gap-3 px-1 text-[11px] text-slate-400 opacity-0 transition group-hover:opacity-100"
               :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
             >
+              <button
+                v-if="msg.role === 'user' && !isGenerating && !isTyping"
+                type="button"
+                class="flex items-center gap-1 transition hover:text-slate-700"
+                @click="startEditMessage(msg)"
+              >
+                <Pencil class="h-3.5 w-3.5" />
+                <span>编辑</span>
+              </button>
               <button
                 type="button"
                 class="flex items-center gap-1 transition hover:text-slate-700"
@@ -605,19 +745,21 @@ defineExpose({
               >
                 <button
                   type="button"
-                  class="flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[10px] sm:text-xs font-medium transition hover:bg-slate-50"
-                  :style="{
-                    background: getProviderMeta(currentModel?.provider || '').bg,
-                    color: getProviderMeta(currentModel?.provider || '').color,
-                    borderColor: getProviderMeta(currentModel?.provider || '').border,
-                  }"
+                  class="flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[10px] sm:text-xs font-medium transition hover:opacity-90"
+                  :style="
+                    currentModel?.id === '__AUTO__'
+                      ? 'background: linear-gradient(135deg,#6366f1,#8b5cf6); color: #fff; border-color: transparent;'
+                      : `background: ${getProviderMeta(currentModel?.provider || '').bg}; color: ${getProviderMeta(currentModel?.provider || '').color}; border-color: ${getProviderMeta(currentModel?.provider || '').border};`
+                  "
                   @click.stop="emit('update:showModelDropdown', !showModelDropdown)"
                 >
                   <component
+                    v-if="currentModel?.id !== '__AUTO__'"
                     :is="getProviderMeta(currentModel?.provider || '').lucideIcon"
                     class="h-3.5 w-3.5"
                   />
-                  <span class="hidden sm:inline">{{ currentModel?.name || '默认模型' }}</span>
+                  <Sparkles v-else class="h-3.5 w-3.5" />
+                  <span class="hidden sm:inline">{{ currentModel?.name || '自动' }}</span>
                   <ChevronDown class="h-3.5 w-3.5" />
                 </button>
 
@@ -647,7 +789,12 @@ defineExpose({
                         v-for="model in availableAiModels"
                         :key="model.id"
                         type="button"
-                        class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                        class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition"
+                        :class="
+                          model.id === '__AUTO__'
+                            ? 'bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/30 dark:to-violet-950/30 hover:from-indigo-100 hover:to-violet-100 dark:hover:from-indigo-900/40 dark:hover:to-violet-900/40 border border-indigo-200/60 dark:border-indigo-700/40'
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                        "
                         @click="
                           emit('select-model', model.id);
                           emit('update:showModelDropdown', false);
@@ -655,16 +802,22 @@ defineExpose({
                       >
                         <div class="min-w-0 flex-1">
                           <div class="flex items-center gap-2">
+                            <Sparkles v-if="model.id === '__AUTO__'" class="h-3.5 w-3.5 text-indigo-500 shrink-0" />
                             <span
-                              class="truncate text-xs font-semibold text-slate-800 dark:text-slate-200"
+                              class="truncate text-xs font-semibold"
+                              :class="model.id === '__AUTO__' ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-800 dark:text-slate-200'"
                             >
                               {{ model.name }}
                             </span>
                           </div>
+                          <p v-if="model.id === '__AUTO__'" class="mt-0.5 text-[9px] text-indigo-500/80 dark:text-indigo-400/70">
+                            按优先级自动选择，失败时无缝切换
+                          </p>
                         </div>
                         <Check
                           v-if="currentModel?.id === model.id"
-                          class="ml-2 h-4 w-4 text-emerald-500 shrink-0"
+                          class="ml-2 h-4 w-4 shrink-0"
+                          :class="model.id === '__AUTO__' ? 'text-indigo-500' : 'text-emerald-500'"
                         />
                       </button>
                     </div>
@@ -695,18 +848,120 @@ defineExpose({
               </button>
             </div>
           </div>
-
-          <p class="mt-2 px-1 text-xs text-slate-400 dark:text-slate-500">
-            {{
-              chatMode === 'research'
-                ? '深度研究会自动规划多轮检索并整理来源，适合做方案调研、竞品分析和技术选型。'
-                : chatMode === 'search'
-                  ? '联网搜索会补充实时网页结果，适合查询最新信息。'
-                  : '普通对话更适合继续当前上下文、代码协作和日常提问。'
-            }}
-          </p>
         </div>
       </div>
     </footer>
   </section>
 </template>
+
+<style scoped>
+/* Accent-based Send Button */
+.ai-send-btn {
+  background: var(--accent) !important;
+  box-shadow: 0 10px 20px -5px rgba(var(--accent-rgb), 0.3) !important;
+}
+
+.ai-send-btn:hover:not(:disabled) {
+  opacity: 0.95;
+  box-shadow: 0 12px 24px -5px rgba(var(--accent-rgb), 0.45) !important;
+}
+
+.ai-send-btn:disabled {
+  opacity: 0.45;
+  box-shadow: none !important;
+}
+
+.ai-preview {
+  background: transparent !important;
+}
+
+.ai-preview :deep(.md-editor-preview) {
+  background: transparent !important;
+  color: inherit !important;
+  padding: 0 !important;
+  line-height: 1.6 !important;
+}
+
+.ai-preview :deep(.md-editor-preview-wrapper) {
+  padding: 0 !important;
+}
+
+.ai-preview :deep(.md-editor-preview p:first-child) {
+  margin-top: 0 !important;
+}
+
+.ai-preview :deep(.md-editor-preview p:last-child) {
+  margin-bottom: 0 !important;
+}
+
+.ai-preview :deep(.md-editor-preview p) {
+  margin-top: 4px !important;
+  margin-bottom: 4px !important;
+}
+
+.ai-preview :deep(.md-editor-preview h1),
+.ai-preview :deep(.md-editor-preview h2),
+.ai-preview :deep(.md-editor-preview h3),
+.ai-preview :deep(.md-editor-preview h4),
+.ai-preview :deep(.md-editor-preview h5),
+.ai-preview :deep(.md-editor-preview h6) {
+  margin-top: 10px !important;
+  margin-bottom: 4px !important;
+  font-weight: 600 !important;
+}
+
+.ai-preview :deep(.md-editor-preview ul),
+.ai-preview :deep(.md-editor-preview ol) {
+  margin-top: 4px !important;
+  margin-bottom: 4px !important;
+  padding-left: 20px !important;
+}
+
+.ai-preview :deep(.md-editor-preview li) {
+  margin-top: 2px !important;
+  margin-bottom: 2px !important;
+}
+
+.ai-preview :deep(.md-editor-preview img) {
+  max-width: 220px !important;
+  max-height: 150px !important;
+  border-radius: 12px !important;
+  object-fit: cover !important;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08) !important;
+}
+
+.ai-preview :deep(.md-editor-code pre) {
+  border-radius: 16px !important;
+  padding: 14px 16px !important;
+  font-size: 11px !important;
+}
+
+.ai-preview :deep(.md-editor-preview blockquote) {
+  margin: 12px 0 !important;
+  border-left: 3px solid rgba(244, 114, 182, 0.5) !important;
+  background: rgba(255, 241, 242, 0.7) !important;
+  color: inherit !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+}
+
+.dark .ai-preview :deep(.md-editor-preview blockquote) {
+  background: rgba(30, 41, 59, 0.75) !important;
+}
+
+.ai-preview :deep(.md-editor-preview code) {
+  border-radius: 8px !important;
+  padding: 2px 6px !important;
+}
+
+@media (max-width: 768px) {
+  .ai-preview :deep(.md-editor-preview) {
+    line-height: 1.55 !important;
+  }
+  .ai-preview :deep(.md-editor-code pre) {
+    padding: 10px 12px !important;
+    border-radius: 10px !important;
+  }
+}
+</style>
+

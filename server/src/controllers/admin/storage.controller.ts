@@ -529,25 +529,14 @@ export const uploadDirectFile = async (req: AuthRequest, res: Response, next: Ne
       return next(new AppError('配置未找到', 404));
     }
 
-    const config = buildDecryptedStorageConfig(raw);
-
-    // Check capacity limit
+    // Check capacity limit before uploading (read-only check, no write yet)
     const limitBytes = raw.limitGb * 1024 * 1024 * 1024;
-    const updateResult = await prisma.storageConfig.updateMany({
-      where: {
-        id: raw.id,
-        status: 'ACTIVE',
-        usedBytes: { lte: limitBytes - file.size },
-      },
-      data: {
-        usedBytes: { increment: file.size },
-      },
-    });
-
-    if (updateResult.count === 0) {
+    if (raw.status !== 'ACTIVE' || raw.usedBytes + file.size > limitBytes) {
       if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
       return next(new AppError('云端存储容量已满，无法上传', 400));
     }
+
+    const config = buildDecryptedStorageConfig(raw);
 
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const sanitizedOriginalName = file.originalname
@@ -562,9 +551,22 @@ export const uploadDirectFile = async (req: AuthRequest, res: Response, next: Ne
       ? `${normalizedPrefix}${sanitizedOriginalName}`
       : `manual/${baseName}-${uniqueSuffix}/${sanitizedOriginalName}`;
 
+    // Upload first — only increment usedBytes after a confirmed successful upload
     const r2Url = await storageService.uploadFile(config, file.path, key, file.mimetype);
 
     if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+
+    // Increment usedBytes atomically, re-checking capacity to guard against concurrent uploads
+    await prisma.storageConfig.updateMany({
+      where: {
+        id: raw.id,
+        status: 'ACTIVE',
+        usedBytes: { lte: limitBytes - file.size },
+      },
+      data: {
+        usedBytes: { increment: file.size },
+      },
+    });
 
     await auditService.log({
       req,
@@ -806,62 +808,64 @@ export const importConfigs = async (req: AuthRequest, res: Response, next: NextF
       );
     }
 
+    // Pre-compute counts before the transaction so the response is accurate
+    // even if the transaction were to partially fail.
     let importedCount = 0;
     let updatedCount = 0;
 
-    // Use transaction for batch operations
-    await prisma.$transaction(
-      validConfigs.map((raw: ImportedStorageConfig) => {
-        const {
-          name,
-          provider = 'CLOUDFLARE_R2',
-          endpoint,
-          accessKeyId,
-          secretAccessKey,
-          bucketName,
-          publicUrl,
-          cloudflareApiToken,
-          remark,
-          limitGb = 9.8,
-          usedBytes = 0,
-          assetType,
-          priority = 0,
-          status = 'ACTIVE',
-        } = raw;
+    const ops = validConfigs.map((raw: ImportedStorageConfig) => {
+      const {
+        name,
+        provider = 'CLOUDFLARE_R2',
+        endpoint,
+        accessKeyId,
+        secretAccessKey,
+        bucketName,
+        publicUrl,
+        cloudflareApiToken,
+        remark,
+        limitGb = 9.8,
+        usedBytes = 0,
+        assetType,
+        priority = 0,
+        status = 'ACTIVE',
+      } = raw;
 
-        const encryptedSecret = encrypt(secretAccessKey);
-        const data = {
-          provider,
-          endpoint,
-          accessKeyId,
-          secretAccessKey: encryptedSecret,
-          bucketName,
-          publicUrl,
-          cloudflareApiToken: cloudflareApiToken ? encrypt(cloudflareApiToken) : null,
-          remark: remark || null,
-          limitGb,
-          usedBytes,
-          assetType,
-          priority,
-          status,
-        };
+      const encryptedSecret = encrypt(secretAccessKey);
+      const data = {
+        provider,
+        endpoint,
+        accessKeyId,
+        secretAccessKey: encryptedSecret,
+        bucketName,
+        publicUrl,
+        cloudflareApiToken: cloudflareApiToken ? encrypt(cloudflareApiToken) : null,
+        remark: remark || null,
+        limitGb,
+        usedBytes,
+        assetType,
+        priority,
+        status,
+      };
 
-        const existingId =
-          existingMap.get(name) || existingMap.get(`${endpoint}|${bucketName}|${assetType}`);
+      const existingId =
+        existingMap.get(name) || existingMap.get(`${endpoint}|${bucketName}|${assetType}`);
 
-        if (existingId) {
-          updatedCount++;
-          return prisma.storageConfig.update({
-            where: { id: existingId },
-            data: { ...data, name },
-          });
-        }
-        importedCount++;
-        return prisma.storageConfig.create({
+      if (existingId) {
+        updatedCount++;
+        return prisma.storageConfig.update({
+          where: { id: existingId },
           data: { ...data, name },
         });
-      }),
-    );
+      }
+      importedCount++;
+      return prisma.storageConfig.create({
+        data: { ...data, name },
+      });
+    });
+
+    // Execute all upserts in a single atomic transaction
+    await prisma.$transaction(ops);
 
     res.json({
       success: true,

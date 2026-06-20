@@ -117,10 +117,11 @@ export abstract class BaseAdapter {
 
   private isNonRetryableError(error: unknown): boolean {
     if (error instanceof Error) {
-      if (error.message?.includes('HTTP 4')) return true;
-      if (error.message?.includes('HTTP 403')) return true;
-      if (error.message?.includes('HTTP 404')) return true;
       if (error.name === 'AbortError') return false;
+      const nonRetryableCodes = ['400', '401', '403', '404', '422'];
+      if (nonRetryableCodes.some(code => error.message?.includes(`HTTP ${code}`))) {
+        return true;
+      }
     }
     return false;
   }

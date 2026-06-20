@@ -6,6 +6,7 @@ import { initSocket } from './services/socket.service';
 import { syncEngine } from './mirror/services/sync-engine.service';
 import { runManualStationMigration } from './manual/services/migration.service';
 import { startCleanupJob } from './services/cleanup.service';
+import { settingsService } from './services/settings.service';
 import {
   startDirectMessageEmailScheduler,
   stopDirectMessageEmailScheduler,
@@ -54,6 +55,11 @@ const initActiveBucketsCors = async () => {
 
 initActiveBucketsCors().catch((err) => {
   logger.error('[Startup] CORS initialization error:', err);
+});
+
+// Run one-time settings data migrations (e.g. PLUGIN_CATEGORIES rename)
+settingsService.runStartupMigrations().catch((err) => {
+  logger.error('[Startup] Settings migration error:', err);
 });
 
 // Run legacy manual station migration asynchronously on startup

@@ -12,17 +12,28 @@ import type { ActiveColumn, Task } from '@/types/task';
 interface Props {
   tasksByGroup: Record<string, Task[]>;
   activeColumns: ActiveColumn[];
-  groupBy: 'status' | 'priority';
+  groupBy: 'status' | 'priority' | 'assignee' | 'dueDate';
+  cardSettings: {
+    assignee: boolean;
+    dueDate: boolean;
+    priority: boolean;
+    project: boolean;
+    subtasks: boolean;
+    description: boolean;
+  };
+  teamMembers: any[];
 }
 
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  (e: 'refresh'): void;
+  (e: 'refresh', updatedTask?: Task): void;
   (e: 'refresh-stats'): void;
   (e: 'open-add-dialog', colId: string): void;
   (e: 'open-detail', task: Task): void;
   (e: 'open-profile', userId: string): void;
+  (e: 'update-subtask', parentId: string, subtaskIndex: number, fields: Record<string, any>): void;
+  (e: 'drag-subtask', parentId: string, subtaskIndex: number, columnId: string): void;
 }>();
 
 const { t } = useI18n();
@@ -38,30 +49,54 @@ interface DragChangeEvent {
 const onDragChange = async (event: DragChangeEvent, columnId: string) => {
   if (event.added) {
     const task = event.added.element;
+    if ((task as any).isSubtask && (task as any).parentId) {
+      emit('drag-subtask', (task as any).parentId, (task as any).subtaskIndex, columnId);
+      return;
+    }
     try {
-      const updatePayload: Task = { ...task };
-      if (props.groupBy === 'status') {
-        updatePayload.status = columnId;
-      } else {
-        updatePayload.priority = columnId;
-      }
-
       const cleanPayload = {
-        title: updatePayload.title,
-        description: updatePayload.description,
-        status: updatePayload.status,
-        priority: updatePayload.priority,
-        tags: updatePayload.tags,
-        dueDate: updatePayload.dueDate,
-        assigneeId: updatePayload.assigneeId,
-        projectId: updatePayload.projectId,
-        subtasks: updatePayload.subtasks,
-        participantIds: updatePayload.participants
-          ? updatePayload.participants.map((p) => p.userId)
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        tags: task.tags,
+        dueDate: task.dueDate,
+        assigneeId: task.assigneeId,
+        projectId: task.projectId,
+        subtasks: task.subtasks,
+        participantIds: task.participants
+          ? task.participants.map((p: any) => p.userId)
           : [],
       };
 
-      await api.put(`/api/tasks/${task.id}`, cleanPayload);
+      if (props.groupBy === 'status') {
+        cleanPayload.status = columnId;
+      } else if (props.groupBy === 'priority') {
+        cleanPayload.priority = columnId;
+      } else if (props.groupBy === 'assignee') {
+        cleanPayload.assigneeId = columnId === 'unassigned' ? null : columnId;
+      } else if (props.groupBy === 'dueDate') {
+        const today = new Date();
+        if (columnId === 'today') {
+          cleanPayload.dueDate = today.toISOString();
+        } else if (columnId === 'tomorrow') {
+          const tomorrow = new Date(today);
+          tomorrow.setDate(today.getDate() + 1);
+          cleanPayload.dueDate = tomorrow.toISOString();
+        } else if (columnId === 'week') {
+          const endOfWeek = new Date(today);
+          endOfWeek.setDate(today.getDate() + 3);
+          cleanPayload.dueDate = endOfWeek.toISOString();
+        } else if (columnId === 'future') {
+          const futureDate = new Date(today);
+          futureDate.setDate(today.getDate() + 10);
+          cleanPayload.dueDate = futureDate.toISOString();
+        } else {
+          cleanPayload.dueDate = null;
+        }
+      }
+
+      const res = await api.put(`/api/tasks/${task.id}`, cleanPayload);
 
       if (props.groupBy === 'status') {
         const labels: Record<string, string> = {
@@ -70,7 +105,7 @@ const onDragChange = async (event: DragChangeEvent, columnId: string) => {
           DONE: t('tasks.done'),
         };
         ElMessage.success(t('tasks.movedTo', { status: labels[columnId] || columnId }));
-      } else {
+      } else if (props.groupBy === 'priority') {
         const labels: Record<string, string> = {
           URGENT: t('tasks.urgent'),
           HIGH: t('tasks.high'),
@@ -79,11 +114,16 @@ const onDragChange = async (event: DragChangeEvent, columnId: string) => {
           NONE: t('tasks.none'),
         };
         ElMessage.success(t('tasks.priorityUpdated', { priority: labels[columnId] || columnId }));
+      } else if (props.groupBy === 'assignee') {
+        ElMessage.success('负责人已更新');
+      } else if (props.groupBy === 'dueDate') {
+        ElMessage.success('截止日期已更新');
       }
       emit('refresh-stats');
-      emit('refresh');
-    } catch {
-      ElMessage.error(t('tasks.updateFailed'));
+      emit('refresh', res.data);
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || t('tasks.updateFailed');
+      ElMessage.error(errorMsg);
       emit('refresh');
     }
   }
@@ -107,10 +147,10 @@ const handleInlineAdd = async (columnId: string) => {
       participantIds: [],
     };
 
-    await api.post('/api/tasks', payload);
+    const res = await api.post('/api/tasks', payload);
     ElMessage.success(t('tasks.quickCreateSuccess'));
     inlineTitles.value[columnId] = '';
-    emit('refresh');
+    emit('refresh', res.data);
     emit('refresh-stats');
   } catch {
     ElMessage.error(t('tasks.quickCreateFailed'));
@@ -187,8 +227,13 @@ const openUserProfile = (userId: string) => {
               <TaskCard
                 :task="task"
                 layout="board"
+                :config="cardSettings"
+                :team-members="teamMembers"
                 @click="openDetailDrawer"
                 @user-click="openUserProfile"
+                @refresh="(val) => emit('refresh', val)"
+                @refresh-stats="emit('refresh-stats')"
+                @update-subtask="(pId, sIdx, fields) => emit('update-subtask', pId, sIdx, fields)"
               />
             </div>
           </template>

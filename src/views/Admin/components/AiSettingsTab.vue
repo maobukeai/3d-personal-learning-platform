@@ -35,6 +35,7 @@ interface AiModelConfig {
   modelName: string;
   endpoint: string;
   apiKey: string;
+  apiKeys?: string[];
   enabled: boolean;
   isDefault: boolean;
   description: string;
@@ -45,6 +46,8 @@ interface AiModelConfig {
   showAdvanced?: boolean;
   customFamilyKey?: string;
   customFamilyLabel?: string;
+  failoverEnabled?: boolean;
+  priority?: number;
 }
 
 interface AiModelCategory {
@@ -136,6 +139,11 @@ watch(localPendingSnapshot, () => {
 });
 
 const aiProviderDefaults: Record<string, { endpoint: string; model: string; name: string }> = {
+  AGNES: {
+    endpoint: 'https://apihub.agnes-ai.com/v1',
+    model: 'agnes-2.0-flash',
+    name: 'Agnes 2.0 Flash',
+  },
   DEEPSEEK: {
     endpoint: 'https://api.deepseek.com/v1',
     model: 'deepseek-chat',
@@ -175,6 +183,7 @@ const createAiModelConfig = (provider = 'DEEPSEEK'): AiModelConfig => {
     modelName: defaults.model,
     endpoint: defaults.endpoint,
     apiKey: '',
+    apiKeys: [],
     enabled: true,
     isDefault: localAiModelConfigs.value.length === 0,
     description: '',
@@ -183,6 +192,7 @@ const createAiModelConfig = (provider = 'DEEPSEEK'): AiModelConfig => {
     maxTokens: 2000,
     systemPrompt: '',
     showAdvanced: false,
+    failoverEnabled: true,
   };
 };
 
@@ -202,6 +212,10 @@ const syncAiModelsToSettings = () => {
   if (persistableModels.length > 0 && !persistableModels.some((model) => model.isDefault)) {
     persistableModels[0].isDefault = true;
   }
+  // Auto-assign priority based on list order so failover engine respects admin drag ordering
+  persistableModels.forEach((model, idx) => {
+    model.priority = idx;
+  });
   localSettings.AI_MODEL_OPTIONS = JSON.stringify(persistableModels);
   syncCustomCategoriesToSettings();
 
@@ -434,6 +448,13 @@ const providerMeta: Record<
   string,
   { color: string; bg: string; border: string; label: string; lucideIcon: Component }
 > = {
+  AGNES: {
+    color: '#8b5cf6',
+    bg: 'rgba(139,92,246,0.08)',
+    border: 'rgba(139,92,246,0.25)',
+    label: 'Agnes',
+    lucideIcon: Cpu,
+  },
   DEEPSEEK: {
     color: '#2563eb',
     bg: 'rgba(37,99,235,0.08)',
@@ -1760,6 +1781,20 @@ onMounted(() => {
                       class="px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-500 text-[9px] font-bold"
                       >{{ $t('admin.not_classified') }}</span
                     >
+                    <!-- Key count badge — visible when backup keys are configured -->
+                    <span
+                      v-if="(model.apiKeys || []).filter(Boolean).length > 0"
+                      class="px-1.5 py-0.5 rounded text-[9px] font-bold"
+                      style="background: rgba(16,185,129,0.1); color: #059669"
+                      :title="`共 ${1 + (model.apiKeys || []).filter(Boolean).length} 个密钥，主密钥失效时自动轮换`"
+                    >{{ 1 + (model.apiKeys || []).filter(Boolean).length }} 个密钥</span>
+                    <!-- Failover disabled indicator -->
+                    <span
+                      v-if="model.failoverEnabled === false"
+                      class="px-1.5 py-0.5 rounded text-[9px] font-bold"
+                      style="background: rgba(100,116,139,0.1); color: #64748b"
+                      title="此模型不参与自动故障转移"
+                    >故障转移已关闭</span>
                   </div>
                   <div
                     class="flex items-center gap-3 mt-1 text-[9px]"
@@ -1904,9 +1939,17 @@ onMounted(() => {
                   </div>
 
                   <div class="space-y-1.5 md:col-span-2">
-                    <label class="text-[10px] font-bold text-slate-400 flex items-center gap-1.5"
-                      >API Key (密钥)</label
-                    >
+                    <div class="flex items-center justify-between">
+                      <label class="text-[10px] font-bold text-slate-400 flex items-center gap-1.5"
+                        >API Key (主密钥)</label
+                      >
+                      <span
+                        v-if="(model.apiKeys || []).filter(Boolean).length > 0"
+                        class="px-2 py-0.5 rounded-full text-[9px] font-bold"
+                        style="background: rgba(16,185,129,0.1); color: #059669"
+                        >+{{ (model.apiKeys || []).filter(Boolean).length }} 个备用密钥</span
+                      >
+                    </div>
                     <input
                       v-model="model.apiKey"
                       type="password"
@@ -1916,9 +1959,48 @@ onMounted(() => {
                         border-color: var(--border-base);
                         color: var(--text-primary);
                       "
-                      placeholder="••••••••••••••••••••••••••••••••"
+                      placeholder="主 API Key（必填）"
                       @change="syncAiModelsToSettings"
                     />
+
+                    <!-- Backup Keys -->
+                    <div class="mt-2 space-y-1.5">
+                      <label class="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                        <svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        备用密钥（自动故障转移轮换，主密钥失效时依次尝试）
+                      </label>
+                      <div
+                        v-for="(_, keyIdx) in (model.apiKeys || [])"
+                        :key="keyIdx"
+                        class="flex items-center gap-2"
+                      >
+                        <input
+                          :value="(model.apiKeys || [])[keyIdx]"
+                          type="password"
+                          class="flex-1 px-3 py-1.5 rounded-lg border text-xs font-mono outline-none transition-colors"
+                          style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                          :placeholder="`备用密钥 ${keyIdx + 1}`"
+                          @input="(e: Event) => { if (!model.apiKeys) model.apiKeys = []; model.apiKeys[keyIdx] = (e.target as HTMLInputElement).value; syncAiModelsToSettings(); }"
+                        />
+                        <button
+                          type="button"
+                          class="w-6 h-6 rounded flex items-center justify-center text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors flex-shrink-0"
+                          title="删除此备用密钥"
+                          @click="() => { model.apiKeys = (model.apiKeys || []).filter((_, i) => i !== keyIdx); syncAiModelsToSettings(); }"
+                        >
+                          <svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        class="flex items-center gap-1 text-[10px] font-semibold transition-colors cursor-pointer bg-transparent border-none"
+                        style="color: #6366f1"
+                        @click="() => { if (!model.apiKeys) model.apiKeys = []; model.apiKeys.push(''); syncAiModelsToSettings(); }"
+                      >
+                        <svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        添加备用密钥
+                      </button>
+                    </div>
                   </div>
 
                   <div class="space-y-1.5 md:col-span-2">
@@ -2027,6 +2109,23 @@ onMounted(() => {
                             }
                           "
                         />
+                        <el-checkbox
+                          :model-value="model.capabilities.includes('video')"
+                          label="视频 (Video)"
+                          @change="
+                            (checked: unknown) => {
+                              if (checked) {
+                                if (!model.capabilities.includes('video'))
+                                  model.capabilities.push('video');
+                              } else {
+                                model.capabilities = model.capabilities.filter(
+                                  (c) => c !== 'video',
+                                );
+                              }
+                              syncAiModelsToSettings();
+                            }
+                          "
+                        />
                       </div>
                     </div>
 
@@ -2081,6 +2180,20 @@ onMounted(() => {
                         placeholder="引导AI的系统 Prompt 提示词"
                         @change="syncAiModelsToSettings"
                       ></textarea>
+                    </div>
+
+                    <!-- Failover Settings -->
+                    <div class="md:col-span-2 flex items-center justify-between p-3 rounded-xl border" style="border-color: var(--border-base); background: var(--bg-app)">
+                      <div>
+                        <div class="text-[10px] font-bold" style="color: var(--text-primary)">参与自动故障转移</div>
+                        <div class="text-[9px] mt-0.5" style="color: var(--text-muted)">开启后，主密钥或模型失败时系统将自动切换至此模型/其他密钥</div>
+                      </div>
+                      <el-switch
+                        :model-value="model.failoverEnabled !== false"
+                        size="small"
+                        style="--el-switch-on-color: #6366f1; --el-switch-off-color: #94a3b8"
+                        @change="(val: boolean | string | number) => { model.failoverEnabled = Boolean(val); syncAiModelsToSettings(); }"
+                      />
                     </div>
                   </div>
                 </div>

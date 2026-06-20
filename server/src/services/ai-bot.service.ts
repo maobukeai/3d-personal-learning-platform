@@ -3019,6 +3019,18 @@ export async function queueAiBotMessage(
   setImmediate(() => {
     void processAiBotMessageLog(integration, incoming, log.id).catch((error) => {
       logger.error(`[AI Bot] Background processing failed for log ${log.id}:`, error);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      prisma.aiBotMessage
+        .update({
+          where: { id: log.id },
+          data: {
+            status: AI_BOT_MESSAGE_STATUS.ERROR,
+            error: errMsg,
+          },
+        })
+        .catch((dbErr) => {
+          logger.error(`[AI Bot] Failed to write error status for log ${log.id}:`, dbErr);
+        });
     });
   });
 

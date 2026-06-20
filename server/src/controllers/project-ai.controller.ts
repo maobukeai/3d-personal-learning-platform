@@ -15,6 +15,7 @@ import {
   registerPersistentAiRun,
   appendPersistentAiRunReasoning,
   streamLLMChat,
+  streamLLMChatWithFailover,
   sendSSE,
   AIServiceConfig,
 } from '../services/ai.service';
@@ -516,6 +517,10 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
   const safeClientRunId =
     typeof clientRunId === 'string' ? clientRunId.replace(/[^\w:-]/g, '').slice(0, 120) : '';
 
+  // '__AUTO__' triggers system-wide automatic failover across all configured models
+  const isAutoMode =
+    typeof modelId === 'string' && modelId.trim() === '__AUTO__';
+
   if (req.userId && safeClientRunId) {
     registerPersistentAiRun(req.userId, safeClientRunId);
   }
@@ -549,15 +554,33 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
   }
 
   const settings = await settingsService.getAll();
-  const selectedModel = getAIModelById(
-    settings,
-    typeof modelId === 'string' ? modelId.trim() : undefined,
-  );
-  if (!selectedModel || !selectedModel.enabled) {
-    return next(new AppError('当前没有可用的 AI 聊天模型，请联系管理员配置。', 503));
+
+  // In auto mode, skip specific model lookup — failover engine handles selection
+  let selectedModel: Awaited<ReturnType<typeof getAIModelById>> = null;
+  if (!isAutoMode) {
+    selectedModel = getAIModelById(
+      settings,
+      typeof modelId === 'string' ? modelId.trim() : undefined,
+    );
+    if (!selectedModel || !selectedModel.enabled) {
+      return next(new AppError('当前没有可用的 AI 聊天模型，请联系管理员配置。', 503));
+    }
   }
 
   let researchSources: ResearchSource[] = [];
+
+  // For search/research mode meta events, we need a model reference for display.
+  // In auto mode, fall back to the system default model.
+  const effectiveModel =
+    selectedModel ||
+    getAIModelById(settings, undefined) ||
+    (() => ({
+      provider: settings.AI_PROVIDER,
+      modelName: settings.AI_MODEL_NAME,
+      apiKey: settings.AI_API_KEY,
+      endpoint: settings.AI_API_ENDPOINT,
+      capabilities: ['chat'] as string[],
+    }))();
 
   if (chatMode === 'search') {
     let searchQuery = lastMessage.content;
@@ -577,19 +600,19 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
         sendSSE(res, {
           event: 'meta',
           requestId: 'search-' + Date.now(),
-          provider: selectedModel.provider,
-          model: selectedModel.modelName,
+          provider: effectiveModel.provider,
+          model: effectiveModel.modelName,
         });
 
         const searchContext = await buildSearchModeContext(
           searchQuery,
           todayStr,
           {
-            AI_PROVIDER: selectedModel.provider,
-            AI_API_KEY: selectedModel.apiKey || settings.AI_API_KEY,
-            AI_API_ENDPOINT: selectedModel.endpoint || settings.AI_API_ENDPOINT,
-            AI_MODEL_NAME: selectedModel.modelName,
-            capabilities: selectedModel.capabilities,
+            AI_PROVIDER: effectiveModel.provider,
+            AI_API_KEY: effectiveModel.apiKey || settings.AI_API_KEY,
+            AI_API_ENDPOINT: effectiveModel.endpoint || settings.AI_API_ENDPOINT,
+            AI_MODEL_NAME: effectiveModel.modelName,
+            capabilities: effectiveModel.capabilities,
           },
           (update) => sendSSE(res, { reasoning: update }),
         );
@@ -637,8 +660,8 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
     sendSSE(res, {
       event: 'meta',
       requestId: 'research-' + Date.now(),
-      provider: selectedModel.provider,
-      model: selectedModel.modelName,
+      provider: effectiveModel.provider,
+      model: effectiveModel.modelName,
     });
 
     let researchQuery = lastMessage.content.replace(/!\[.*?\]\((.*?)\)/g, '').trim();
@@ -648,11 +671,11 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
         const researchContext = await buildDeepResearchContext(
           researchQuery,
           {
-            AI_PROVIDER: selectedModel.provider,
-            AI_API_KEY: selectedModel.apiKey || settings.AI_API_KEY,
-            AI_API_ENDPOINT: selectedModel.endpoint || settings.AI_API_ENDPOINT,
-            AI_MODEL_NAME: selectedModel.modelName,
-            capabilities: selectedModel.capabilities,
+            AI_PROVIDER: effectiveModel.provider,
+            AI_API_KEY: effectiveModel.apiKey || settings.AI_API_KEY,
+            AI_API_ENDPOINT: effectiveModel.endpoint || settings.AI_API_ENDPOINT,
+            AI_MODEL_NAME: effectiveModel.modelName,
+            capabilities: effectiveModel.capabilities,
           },
           (update) => {
             sendSSE(res, { reasoning: update });
@@ -706,29 +729,48 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
   }
 
   try {
-    await streamLLMChat(
-      normalizedMessages,
-      systemPrompt,
-      res,
-      next,
-      {
-        AI_IMPORT_ENABLED: true,
-        AI_PROVIDER: selectedModel.provider,
-        AI_API_KEY: selectedModel.apiKey || settings.AI_API_KEY,
-        AI_API_ENDPOINT: selectedModel.endpoint || settings.AI_API_ENDPOINT,
-        AI_MODEL_NAME: selectedModel.modelName,
-        capabilities: selectedModel.capabilities,
-      },
-      req.userId,
-      {
-        sessionId: safeSessionId,
-        sessionTitle: safeSessionTitle,
-        mode: safeSessionMode,
-        sources: researchSources,
-        clientRunId: safeClientRunId,
-        continueOnClientDisconnect: Boolean(req.userId && safeClientRunId),
-      },
-    );
+    if (isAutoMode) {
+      // Auto mode: use failover engine to automatically select and retry models
+      await streamLLMChatWithFailover(
+        normalizedMessages,
+        systemPrompt,
+        res,
+        next,
+        req.userId,
+        {
+          sessionId: safeSessionId,
+          sessionTitle: safeSessionTitle,
+          mode: safeSessionMode,
+          sources: researchSources,
+          clientRunId: safeClientRunId,
+          continueOnClientDisconnect: Boolean(req.userId && safeClientRunId),
+        },
+      );
+    } else {
+      await streamLLMChat(
+        normalizedMessages,
+        systemPrompt,
+        res,
+        next,
+        {
+          AI_IMPORT_ENABLED: true,
+          AI_PROVIDER: selectedModel!.provider,
+          AI_API_KEY: selectedModel!.apiKey || settings.AI_API_KEY,
+          AI_API_ENDPOINT: selectedModel!.endpoint || settings.AI_API_ENDPOINT,
+          AI_MODEL_NAME: selectedModel!.modelName,
+          capabilities: selectedModel!.capabilities,
+        },
+        req.userId,
+        {
+          sessionId: safeSessionId,
+          sessionTitle: safeSessionTitle,
+          mode: safeSessionMode,
+          sources: researchSources,
+          clientRunId: safeClientRunId,
+          continueOnClientDisconnect: Boolean(req.userId && safeClientRunId),
+        },
+      );
+    }
   } catch (error) {
     if (res.headersSent) {
       if (!res.writableEnded) {
@@ -872,6 +914,59 @@ export const clearAiChatHistory = async (req: AuthRequest, res: Response, next: 
     res.json({
       success: true,
       message: sessionId ? '对话会话已删除' : '聊天历史记录已清除',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+export const cleanAiMessages = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const userId = req.userId as string;
+  const { sessionId, messageId, inclusive } = req.body;
+
+  if (!sessionId || !messageId) {
+    return next(new AppError('会话 ID 和消息 ID 不能为空', 400));
+  }
+
+  try {
+    const targetMessage = await prisma.aiMessage.findFirst({
+      where: {
+        id: messageId,
+        userId,
+        sessionId,
+      },
+    });
+
+    if (!targetMessage) {
+      return next(new AppError('找不到指定的消息', 404));
+    }
+
+    if (inclusive) {
+      await prisma.aiMessage.deleteMany({
+        where: {
+          userId,
+          sessionId,
+          createdAt: {
+            gte: targetMessage.createdAt,
+          },
+        },
+      });
+    } else {
+      await prisma.aiMessage.deleteMany({
+        where: {
+          userId,
+          sessionId,
+          createdAt: {
+            gt: targetMessage.createdAt,
+          },
+        },
+      });
+    }
+
+    res.json({
+      success: true,
+      message: '消息清理成功',
     });
   } catch (error) {
     next(error);

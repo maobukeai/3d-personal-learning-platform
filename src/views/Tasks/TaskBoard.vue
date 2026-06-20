@@ -1,6 +1,13 @@
+<script lang="ts">
+import { ref } from 'vue';
+import type { Task } from '@/types/task';
+const cachedTasksByTeam = ref<Record<string, Task[]>>({});
+const cachedStatsByTeam = ref<Record<string, any>>({});
+</script>
+
 <script setup lang="ts">
 import { getApiErrorMessage } from '@/utils/error';
-import { ref, onMounted, computed, watch, defineAsyncComponent } from 'vue';
+import { onMounted, computed, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -19,6 +26,7 @@ import {
   BarChart3,
   RotateCcw,
   SlidersHorizontal,
+  Calendar,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
@@ -27,15 +35,16 @@ import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue';
 import TaskFilterBar from '@/components/TaskFilterBar.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import Input from '@/components/ui/Input.vue';
-const TaskBoardView = defineAsyncComponent(() => import('./components/TaskBoardView.vue'));
-const TaskListView = defineAsyncComponent(() => import('./components/TaskListView.vue'));
+import TaskBoardView from './components/TaskBoardView.vue';
+import TaskListView from './components/TaskListView.vue';
+import TaskCalendarView from './components/TaskCalendarView.vue';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useAuthStore } from '@/stores/auth';
 import { getTaskDayIndex, getTaskTime } from '@/utils/taskSort';
 
 import { TaskStatus } from '@/types/task';
-import type { UserType, Team, Task, Project, TaskUpdatePayload } from '@/types/task';
+import type { UserType, Team, Project, TaskUpdatePayload } from '@/types/task';
 
 const { t } = useI18n();
 const workspaceStore = useWorkspaceStore();
@@ -55,6 +64,11 @@ const onlyMyTasks = ref(false);
 const sortBy = ref<'natural' | 'createdAt_asc' | 'createdAt_desc'>(
   (localStorage.getItem('task_sort_by') as any) || 'natural',
 );
+const sortOrder = ref<'asc' | 'desc'>('asc');
+
+const assigneeFilter = ref<string>('all');
+const tagFilter = ref<string>('all');
+const subtaskDisplay = ref<'collapse' | 'expand' | 'separate'>('collapse');
 
 watch(sortBy, (newVal) => {
   localStorage.setItem('task_sort_by', newVal);
@@ -66,6 +80,25 @@ const visibleColumns = ref({
   dueDate: localStorage.getItem('task_visible_col_dueDate') !== 'false',
   priority: localStorage.getItem('task_visible_col_priority') !== 'false',
 });
+const cardSettings = ref({
+  assignee: localStorage.getItem('task_card_settings_assignee') !== 'false',
+  dueDate: localStorage.getItem('task_card_settings_dueDate') !== 'false',
+  priority: localStorage.getItem('task_card_settings_priority') !== 'false',
+  project: localStorage.getItem('task_card_settings_project') !== 'false',
+  subtasks: localStorage.getItem('task_card_settings_subtasks') !== 'false',
+  description: localStorage.getItem('task_card_settings_description') !== 'false',
+  timeTracking: localStorage.getItem('task_card_settings_timeTracking') !== 'false',
+});
+const toggleCardSetting = (field: string) => {
+  const key = field as keyof typeof cardSettings.value;
+  cardSettings.value[key] = !cardSettings.value[key];
+  localStorage.setItem(`task_card_settings_${field}`, String(cardSettings.value[key]));
+};
+const toggleColumnVisibility = (col: string) => {
+  const key = col as keyof typeof visibleColumns.value;
+  visibleColumns.value[key] = !visibleColumns.value[key];
+  localStorage.setItem(`task_visible_col_${col}`, String(visibleColumns.value[key]));
+};
 const isAddDialogOpen = ref(false);
 
 const selectedProjectId = ref<string | null>((route.query.projectId as string) || null);
@@ -82,11 +115,11 @@ const clearProjectFilter = () => {
   router.replace({ query: { ...route.query, projectId: undefined } });
 };
 
-const loadViewMode = (): 'board' | 'list' => {
+const loadViewMode = (): 'board' | 'list' | 'calendar' => {
   const saved = localStorage.getItem('task_view_mode');
-  return saved === 'list' || saved === 'board' ? saved : 'board';
+  return saved === 'list' || saved === 'board' || saved === 'calendar' ? saved : 'list';
 };
-const viewMode = ref<'board' | 'list'>(loadViewMode());
+const viewMode = ref<'board' | 'list' | 'calendar'>(loadViewMode());
 
 watch(viewMode, (newVal) => {
   localStorage.setItem('task_view_mode', newVal);
@@ -160,6 +193,7 @@ const newTask = ref({
 // ClickUp style detail drawer states
 const isDetailDrawerOpen = ref(false);
 const activeTask = ref<Task | null>(null);
+const activeSubtaskId = ref<string | null>(null);
 const taskDetailViewMode = ref<'drawer' | 'modal'>(
   (localStorage.getItem('task_detail_view_mode') as 'drawer' | 'modal') || 'drawer',
 );
@@ -169,7 +203,7 @@ watch(taskDetailViewMode, (newVal) => {
 });
 
 // Grouping features
-const groupBy = ref<'status' | 'priority'>('status');
+const groupBy = ref<'status' | 'priority' | 'assignee' | 'dueDate'>('status');
 
 const teamMembers = ref<UserType[]>([]);
 const projects = ref<Project[]>([]);
@@ -229,9 +263,71 @@ const priorityColumns = computed(() => [
   },
 ]);
 
-const activeColumns = computed(() =>
-  groupBy.value === 'status' ? statusColumns.value : priorityColumns.value,
-);
+const assigneeColumns = computed(() => {
+  const cols = [
+    {
+      id: 'unassigned',
+      title: '未指派',
+      color: 'bg-slate-400',
+      headerBg: 'from-slate-400/10 to-transparent',
+    },
+  ];
+  teamMembers.value.forEach((m) => {
+    cols.push({
+      id: m.id,
+      title: m.name || '团队成员',
+      color: 'bg-accent',
+      headerBg: 'from-accent/10 to-transparent',
+    });
+  });
+  return cols;
+});
+
+const dueDateColumns = computed(() => [
+  {
+    id: 'overdue',
+    title: '已逾期',
+    color: 'bg-rose-500',
+    headerBg: 'from-rose-500/10 to-transparent',
+  },
+  {
+    id: 'today',
+    title: '今天截止',
+    color: 'bg-orange-500',
+    headerBg: 'from-orange-500/10 to-transparent',
+  },
+  {
+    id: 'tomorrow',
+    title: '明天截止',
+    color: 'bg-amber-500',
+    headerBg: 'from-amber-500/10 to-transparent',
+  },
+  {
+    id: 'week',
+    title: '本周截止',
+    color: 'bg-blue-500',
+    headerBg: 'from-blue-500/10 to-transparent',
+  },
+  {
+    id: 'future',
+    title: '以后截止',
+    color: 'bg-emerald-500',
+    headerBg: 'from-emerald-500/10 to-transparent',
+  },
+  {
+    id: 'none',
+    title: '无截止日期',
+    color: 'bg-slate-400',
+    headerBg: 'from-slate-400/10 to-transparent',
+  },
+]);
+
+const activeColumns = computed(() => {
+  if (groupBy.value === 'status') return statusColumns.value;
+  if (groupBy.value === 'priority') return priorityColumns.value;
+  if (groupBy.value === 'assignee') return assigneeColumns.value;
+  return dueDateColumns.value;
+});
 
 const isAnyFilterActive = computed(() => {
   return (
@@ -239,6 +335,9 @@ const isAnyFilterActive = computed(() => {
     dateFilter.value !== 'all' ||
     statusFilter.value !== 'all' ||
     priorityFilter.value !== 'all' ||
+    assigneeFilter.value !== 'all' ||
+    tagFilter.value !== 'all' ||
+    subtaskDisplay.value !== 'collapse' ||
     hideCompleted.value ||
     onlyMyTasks.value
   );
@@ -249,6 +348,9 @@ const resetAllFilters = () => {
   dateFilter.value = 'all';
   statusFilter.value = 'all';
   priorityFilter.value = 'all';
+  assigneeFilter.value = 'all';
+  tagFilter.value = 'all';
+  subtaskDisplay.value = 'collapse';
   hideCompleted.value = false;
   onlyMyTasks.value = false;
 };
@@ -262,8 +364,37 @@ const filteredTasks = computed(() => {
       (t) =>
         t.title.toLowerCase().includes(q) ||
         t.description?.toLowerCase().includes(q) ||
-        (t.tags && JSON.parse(t.tags).some((tag: string) => tag.toLowerCase().includes(q))),
+        (t.tags && (() => {
+          try {
+            const parsed = JSON.parse(t.tags);
+            return Array.isArray(parsed) && parsed.some((tag: string) => tag.toLowerCase().includes(q));
+          } catch {
+            return false;
+          }
+        })()),
     );
+  }
+
+  // Assignee Filter
+  if (assigneeFilter.value !== 'all') {
+    if (assigneeFilter.value === 'unassigned') {
+      filtered = filtered.filter((t) => !t.assigneeId);
+    } else {
+      filtered = filtered.filter((t) => t.assigneeId === assigneeFilter.value);
+    }
+  }
+
+  // Tag Filter
+  if (tagFilter.value !== 'all') {
+    filtered = filtered.filter((t) => {
+      if (!t.tags) return false;
+      try {
+        const parsed = JSON.parse(t.tags);
+        return Array.isArray(parsed) && parsed.includes(tagFilter.value);
+      } catch {
+        return false;
+      }
+    });
   }
 
   if (dateFilter.value !== 'all') {
@@ -340,11 +471,72 @@ const filteredTasks = computed(() => {
     filtered = [...filtered].sort((a, b) => getTaskTime(b) - getTaskTime(a));
   }
 
+  if (sortOrder.value === 'desc') {
+    filtered = [...filtered].reverse();
+  }
+
   return filtered;
 });
 
+const allTags = computed(() => {
+  const tagsSet = new Set<string>();
+  tasks.value.forEach((t) => {
+    if (t.tags) {
+      try {
+        const parsed = JSON.parse(t.tags);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((tag) => tagsSet.add(tag));
+        }
+      } catch {
+        // ignore
+      }
+    }
+  });
+  return Array.from(tagsSet);
+});
+
+const processedTasks = computed(() => {
+  let list = filteredTasks.value;
+  if (subtaskDisplay.value === 'separate') {
+    const flattened: Task[] = [];
+    list.forEach((t) => {
+      flattened.push(t);
+      if (t.subtasks) {
+        try {
+          const parsed = JSON.parse(t.subtasks);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((sub: any, index: number) => {
+              flattened.push({
+                id: `${t.id}_sub_${index}`,
+                title: sub.text,
+                description: `子任务来自: ${t.title}`,
+                status: sub.done ? TaskStatus.DONE : TaskStatus.TODO,
+                priority: t.priority || 'MEDIUM',
+                dueDate: t.dueDate,
+                assigneeId: sub.assigneeId || null,
+                projectId: t.projectId,
+                teamId: t.teamId,
+                tags: t.tags,
+                isSubtask: true,
+                parentId: t.id,
+                subtaskIndex: index,
+                project: t.project,
+                assignee: sub.assigneeId ? teamMembers.value.find((m) => m.id === sub.assigneeId) : null,
+              } as unknown as Task);
+            });
+          }
+        } catch {
+          // ignore
+        }
+      }
+    });
+    return flattened;
+  }
+  return list;
+});
+
 const tasksByProject = computed(() => {
-  const filtered = filteredTasks.value;
+  const filtered = processedTasks.value;
   const projectMap: Record<string, { id: string | null; name: string; tasks: Task[] }> = {};
 
   projectMap['unassigned'] = {
@@ -384,22 +576,90 @@ const tasksByProject = computed(() => {
   return result;
 });
 
+const getDueDateGroup = (dateStr: string | null | undefined, status: string): string => {
+  if (!dateStr) return 'none';
+  const d = new Date(dateStr);
+  const now = new Date();
+  
+  const dDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffTime = dDate.getTime() - nowDate.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return status === 'DONE' ? 'none' : 'overdue';
+  }
+  if (diffDays === 0) return 'today';
+  if (diffDays === 1) return 'tomorrow';
+  if (diffDays <= 7) return 'week';
+  return 'future';
+};
+
 const tasksByGroup = computed(() => {
-  const filtered = filteredTasks.value;
+  const filtered = processedTasks.value;
   const map: Record<string, Task[]> = {};
+
   if (groupBy.value === 'status') {
-    map[TaskStatus.TODO] = filtered.filter((t) => t.status === TaskStatus.TODO);
-    map[TaskStatus.IN_PROGRESS] = filtered.filter((t) => t.status === TaskStatus.IN_PROGRESS);
-    map[TaskStatus.DONE] = filtered.filter((t) => t.status === TaskStatus.DONE);
-  } else {
-    map['URGENT'] = filtered.filter((t) => t.priority === 'URGENT');
-    map['HIGH'] = filtered.filter((t) => t.priority === 'HIGH');
-    map['MEDIUM'] = filtered.filter((t) => t.priority === 'MEDIUM');
-    map['LOW'] = filtered.filter((t) => t.priority === 'LOW');
-    map['NONE'] = filtered.filter((t) => !t.priority || t.priority === 'NONE');
+    map[TaskStatus.TODO] = [];
+    map[TaskStatus.IN_PROGRESS] = [];
+    map[TaskStatus.DONE] = [];
+    filtered.forEach((t) => {
+      const status = t.status || TaskStatus.TODO;
+      if (map[status]) map[status].push(t);
+    });
+  } else if (groupBy.value === 'priority') {
+    map['URGENT'] = [];
+    map['HIGH'] = [];
+    map['MEDIUM'] = [];
+    map['LOW'] = [];
+    map['NONE'] = [];
+    filtered.forEach((t) => {
+      const p = t.priority || 'NONE';
+      if (map[p]) {
+        map[p].push(t);
+      } else {
+        map['NONE'].push(t);
+      }
+    });
+  } else if (groupBy.value === 'assignee') {
+    map['unassigned'] = [];
+    teamMembers.value.forEach((m) => {
+      map[m.id] = [];
+    });
+    filtered.forEach((t) => {
+      if (!t.assigneeId || !map[t.assigneeId]) {
+        map['unassigned'].push(t);
+      } else {
+        map[t.assigneeId].push(t);
+      }
+    });
+  } else if (groupBy.value === 'dueDate') {
+    map['overdue'] = [];
+    map['today'] = [];
+    map['tomorrow'] = [];
+    map['week'] = [];
+    map['future'] = [];
+    map['none'] = [];
+    filtered.forEach((t) => {
+      const group = getDueDateGroup(t.dueDate, t.status);
+      if (map[group]) map[group].push(t);
+    });
   }
   return map;
 });
+
+const boardTasksByGroup = computed(() => {
+  return viewMode.value === 'board' ? tasksByGroup.value : {};
+});
+
+const listTasksByProject = computed(() => {
+  return viewMode.value === 'list' ? tasksByProject.value : [];
+});
+
+const calendarTasks = computed(() => {
+  return viewMode.value === 'calendar' ? processedTasks.value : [];
+});
+
 
 const completionRate = computed(() => {
   const total = tasks.value.length;
@@ -415,10 +675,14 @@ const overdueCount = computed(() => {
 });
 
 const fetchTasks = async () => {
-  isLoading.value = true;
+  const tid = workspaceStore.activeTeamId || 'personal';
+  if (tasks.value.length === 0) {
+    isLoading.value = true;
+  }
   try {
     const response = await api.get('/api/tasks');
     tasks.value = response.data;
+    cachedTasksByTeam.value[tid] = response.data;
   } catch {
     ElMessage.error(t('tasks.fetchFailed'));
   } finally {
@@ -426,10 +690,32 @@ const fetchTasks = async () => {
   }
 };
 
+const handleTaskUpdated = (updatedTask?: Task) => {
+  const tid = workspaceStore.activeTeamId || 'personal';
+  if (updatedTask && updatedTask.id) {
+    const idx = tasks.value.findIndex((t) => t.id === updatedTask.id);
+    if (idx !== -1) {
+      tasks.value[idx] = updatedTask;
+    } else {
+      tasks.value.push(updatedTask);
+    }
+    if (activeTask.value && activeTask.value.id === updatedTask.id) {
+      activeTask.value = updatedTask;
+    }
+    cachedTasksByTeam.value[tid] = [...tasks.value];
+    fetchStats();
+  } else {
+    fetchTasks();
+    fetchStats();
+  }
+};
+
 const fetchStats = async () => {
+  const tid = workspaceStore.activeTeamId || 'personal';
   try {
     const response = await api.get('/api/tasks/stats');
     stats.value = response.data;
+    cachedStatsByTeam.value[tid] = response.data;
   } catch {
     // silently fail
   }
@@ -476,6 +762,7 @@ const handleAddTaskWithPayload = async (payload: {
   teamId?: string | null;
   participantIds?: string[];
 }) => {
+  const tid = workspaceStore.activeTeamId || 'personal';
   try {
     const formattedPayload = {
       ...payload,
@@ -488,10 +775,11 @@ const handleAddTaskWithPayload = async (payload: {
           ? payload.participantIds
           : undefined,
     };
-    await api.post('/api/tasks', formattedPayload);
+    const response = await api.post('/api/tasks', formattedPayload);
     ElMessage.success(t('tasks.addSuccess'));
     isAddDialogOpen.value = false;
-    fetchTasks();
+    tasks.value.push(response.data);
+    cachedTasksByTeam.value[tid] = [...tasks.value];
     fetchStats();
   } catch (error) {
     const errMsg = getApiErrorMessage(error, t('tasks.addFailed'));
@@ -531,9 +819,8 @@ const handleOpenAddDialogFromList = (payload: { colId: string; projectId: string
   openAddDialogByCol(payload);
 };
 
-const handleListViewRefresh = () => {
-  fetchTasks();
-  fetchStats();
+const handleListViewRefresh = (updatedTask?: Task) => {
+  handleTaskUpdated(updatedTask);
 };
 
 const deleteTask = (task: Task) => {
@@ -542,11 +829,13 @@ const deleteTask = (task: Task) => {
     confirmButtonText: t('tasks.confirmDelete'),
     cancelButtonText: t('common.cancel'),
   }).then(async () => {
+    const tid = workspaceStore.activeTeamId || 'personal';
     try {
       await api.delete(`/api/tasks/${task.id}`);
       ElMessage.success(t('tasks.deleteSuccess'));
       isDetailDrawerOpen.value = false;
-      fetchTasks();
+      tasks.value = tasks.value.filter((t) => t.id !== task.id);
+      cachedTasksByTeam.value[tid] = [...tasks.value];
       fetchStats();
     } catch {
       ElMessage.error(t('tasks.deleteFailed'));
@@ -554,10 +843,20 @@ const deleteTask = (task: Task) => {
   });
 };
 
-const openDetailDrawer = (task: Task) => {
-  activeTask.value = task;
-  if (task.teamId) {
-    fetchTeamMembers(task.teamId);
+const openDetailDrawer = (task: Task, subtaskId?: string) => {
+  let targetTask = task;
+  let targetSubtaskId = subtaskId || null;
+  if ((task as any).isSubtask && (task as any).parentId) {
+    const parent = tasks.value.find((t) => t.id === (task as any).parentId);
+    if (parent) {
+      targetTask = parent;
+      targetSubtaskId = task.id;
+    }
+  }
+  activeTask.value = targetTask;
+  activeSubtaskId.value = targetSubtaskId;
+  if (targetTask.teamId) {
+    fetchTeamMembers(targetTask.teamId);
   } else {
     fetchTeamMembers(workspaceStore.activeTeamId || undefined);
   }
@@ -567,62 +866,133 @@ const openDetailDrawer = (task: Task) => {
 const closeDetailDrawer = () => {
   isDetailDrawerOpen.value = false;
   activeTask.value = null;
-  fetchTasks();
+  activeSubtaskId.value = null;
 };
 
-const autoSaveTask = async (payload: TaskUpdatePayload) => {
+const autoSaveTask = async (payload: TaskUpdatePayload | Task) => {
   if (!activeTask.value) return;
+  const tid = workspaceStore.activeTeamId || 'personal';
   try {
-    await api.put(`/api/tasks/${activeTask.value.id}`, payload);
-
-    // Update the local task object attributes immediately
-    const idx = tasks.value.findIndex((t) => t.id === (activeTask.value as Task).id);
-    if (idx !== -1) {
-      tasks.value[idx].title = payload.title;
-      tasks.value[idx].description = payload.description;
-      tasks.value[idx].status = payload.status;
-      tasks.value[idx].priority = payload.priority;
-      tasks.value[idx].dueDate = payload.dueDate;
-      tasks.value[idx].assigneeId = payload.assigneeId;
-      tasks.value[idx].projectId = payload.projectId;
-      tasks.value[idx].teamId = payload.teamId;
-      tasks.value[idx].tags = payload.tags || undefined;
-      tasks.value[idx].subtasks = payload.subtasks || undefined;
-
-      // Re-resolve team and project relationships dynamically after save
-      const assignedTeam = teams.value.find((t) => t.id === payload.teamId);
-      const assignedProj = projects.value.find((p) => p.id === payload.projectId);
-      tasks.value[idx].team = assignedTeam
-        ? { id: assignedTeam.id, name: assignedTeam.name, members: assignedTeam.members }
-        : null;
-      tasks.value[idx].project = assignedProj
-        ? { id: assignedProj.id, title: assignedProj.title, color: assignedProj.color }
-        : null;
+    if ('id' in payload) {
+      // Direct task object update from drawer API (like dependencies)
+      activeTask.value = payload;
+      const idx = tasks.value.findIndex((t) => t.id === payload.id);
+      if (idx !== -1) {
+        tasks.value[idx] = payload;
+      }
+      cachedTasksByTeam.value[tid] = [...tasks.value];
+      fetchStats();
+      return;
     }
+
+    const response = await api.put(`/api/tasks/${activeTask.value.id}`, payload);
+    const updated = response.data;
+    activeTask.value = updated;
+    const idx = tasks.value.findIndex((t) => t.id === updated.id);
+    if (idx !== -1) {
+      tasks.value[idx] = updated;
+    }
+    cachedTasksByTeam.value[tid] = [...tasks.value];
+    fetchStats();
+  } catch (error: any) {
+    const errorMsg = error.response?.data?.error || '保存任务失败';
+    ElMessage.error(errorMsg);
+    fetchTasks();
+  }
+};
+
+const handleUpdateSubtask = async (parentId: string, subtaskIndex: number, fields: Record<string, any>) => {
+  const parent = tasks.value.find((t) => t.id === parentId);
+  if (!parent) return;
+  const tid = workspaceStore.activeTeamId || 'personal';
+  try {
+    let subtasksList: any[] = [];
+    if (parent.subtasks) {
+      subtasksList = JSON.parse(parent.subtasks);
+    }
+    if (subtasksList[subtaskIndex]) {
+      subtasksList[subtaskIndex] = {
+        ...subtasksList[subtaskIndex],
+        ...fields,
+      };
+    }
+    const response = await api.put(`/api/tasks/${parentId}`, { subtasks: JSON.stringify(subtasksList) });
+    ElMessage.success('子任务已更新');
+    const idx = tasks.value.findIndex((t) => t.id === parentId);
+    if (idx !== -1) {
+      tasks.value[idx] = response.data;
+    }
+    if (activeTask.value && activeTask.value.id === parentId) {
+      activeTask.value = response.data;
+    }
+    cachedTasksByTeam.value[tid] = [...tasks.value];
     fetchStats();
   } catch {
-    // silently fail
+    ElMessage.error('更新子任务失败');
+  }
+};
+
+const handleSubtaskDrag = async (parentId: string, subtaskIndex: number, columnId: string) => {
+  const parent = tasks.value.find((t) => t.id === parentId);
+  if (!parent) return;
+  const tid = workspaceStore.activeTeamId || 'personal';
+  try {
+    let subtasksList: any[] = [];
+    if (parent.subtasks) {
+      subtasksList = JSON.parse(parent.subtasks);
+    }
+    if (subtasksList[subtaskIndex]) {
+      if (groupBy.value === 'status') {
+        subtasksList[subtaskIndex].done = columnId === TaskStatus.DONE;
+      } else if (groupBy.value === 'assignee') {
+        subtasksList[subtaskIndex].assigneeId = columnId === 'unassigned' ? null : columnId;
+      }
+    }
+    const response = await api.put(`/api/tasks/${parentId}`, { subtasks: JSON.stringify(subtasksList) });
+    ElMessage.success('子任务已更新');
+    const idx = tasks.value.findIndex((t) => t.id === parentId);
+    if (idx !== -1) {
+      tasks.value[idx] = response.data;
+    }
+    if (activeTask.value && activeTask.value.id === parentId) {
+      activeTask.value = response.data;
+    }
+    cachedTasksByTeam.value[tid] = [...tasks.value];
+    fetchStats();
+  } catch {
+    ElMessage.error('更新子任务失败');
   }
 };
 
 watch(
   () => workspaceStore.activeTeamId,
-  () => {
+  (newTeamId) => {
+    const tid = newTeamId || 'personal';
+    if (cachedTasksByTeam.value[tid]) {
+      tasks.value = cachedTasksByTeam.value[tid];
+    } else {
+      tasks.value = [];
+    }
+    if (cachedStatsByTeam.value[tid]) {
+      stats.value = cachedStatsByTeam.value[tid];
+    } else {
+      stats.value = {
+        totalTasks: 0,
+        completedTasks: 0,
+        completionRate: 0,
+        overdueTasks: 0,
+        byPriority: { HIGH: 0, MEDIUM: 0, LOW: 0, NONE: 0 },
+        byStatus: { TODO: 0, IN_PROGRESS: 0, REVIEW: 0, DONE: 0 },
+      };
+    }
     fetchTasks();
     fetchStats();
     fetchTeamMembers();
     fetchProjects();
     fetchTeams();
   },
+  { immediate: true }
 );
-
-onMounted(() => {
-  fetchTasks();
-  fetchStats();
-  fetchTeamMembers();
-  fetchProjects();
-  fetchTeams();
-});
 </script>
 
 <template>
@@ -702,10 +1072,95 @@ onMounted(() => {
           :options="[
             { value: 'board', icon: LayoutGrid },
             { value: 'list', icon: List },
+            { value: 'calendar', icon: Calendar },
           ]"
           size="sm"
           class="!bg-transparent border-none shrink-0"
         />
+
+        <el-popover
+          v-if="viewMode === 'board'"
+          placement="bottom-end"
+          :width="180"
+          trigger="click"
+          popper-class="glass-popover"
+        >
+          <template #reference>
+            <button
+              type="button"
+              class="px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all flex items-center gap-1 cursor-pointer shrink-0 animate-spin-hover"
+            >
+              <SlidersHorizontal class="w-3.5 h-3.5 text-slate-500" />
+              <span>卡片设置</span>
+            </button>
+          </template>
+          <div class="p-1 space-y-2.5">
+            <div class="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-1">
+              看板卡片显示属性
+            </div>
+            <label
+              v-for="(val, field) in cardSettings"
+              :key="field"
+              class="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300 select-none hover:text-accent transition-colors"
+            >
+              <input
+                type="checkbox"
+                :checked="val"
+                class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
+                @change="toggleCardSetting(String(field))"
+              />
+              <span>{{ 
+                field === 'assignee' ? '负责人头像' : 
+                field === 'dueDate' ? '截止日期' : 
+                field === 'priority' ? '优先级标签' : 
+                field === 'project' ? '关联项目名称' : 
+                field === 'subtasks' ? '子任务进度' : 
+                field === 'timeTracking' ? '工时进度' : '任务简短描述'
+              }}</span>
+            </label>
+          </div>
+        </el-popover>
+
+        <el-popover
+          v-if="viewMode === 'list'"
+          placement="bottom-end"
+          :width="180"
+          trigger="click"
+          popper-class="glass-popover"
+        >
+          <template #reference>
+            <button
+              type="button"
+              class="px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all flex items-center gap-1 cursor-pointer shrink-0 animate-spin-hover"
+            >
+              <SlidersHorizontal class="w-3.5 h-3.5 text-slate-500" />
+              <span>卡片设置</span>
+            </button>
+          </template>
+          <div class="p-1 space-y-2.5">
+            <div class="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-1">
+              列表卡片显示属性
+            </div>
+            <label
+              v-for="(val, field) in visibleColumns"
+              :key="field"
+              class="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300 select-none hover:text-accent transition-colors"
+            >
+              <input
+                type="checkbox"
+                :checked="val"
+                class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
+                @change="toggleColumnVisibility(String(field))"
+              />
+              <span>{{ 
+                field === 'status' ? t('tasks.statusLabel') : 
+                field === 'project' ? t('tasks.associatedProject') : 
+                field === 'assignee' ? t('tasks.assignee') : 
+                field === 'dueDate' ? t('tasks.dueDate') : t('tasks.priority')
+              }}</span>
+            </label>
+          </div>
+        </el-popover>
 
         <button
           type="button"
@@ -731,9 +1186,13 @@ onMounted(() => {
       v-model:priority-filter="priorityFilter"
       v-model:group-by="groupBy"
       v-model:sort-by="sortBy"
+      v-model:sort-order="sortOrder"
       v-model:hide-completed="hideCompleted"
       v-model:only-my-tasks="onlyMyTasks"
       v-model:visible-columns="visibleColumns"
+      v-model:assignee-filter="assigneeFilter"
+      v-model:tag-filter="tagFilter"
+      v-model:subtask-display="subtaskDisplay"
       :total-tasks-count="tasks.length"
       :completion-rate="completionRate"
       :overdue-count="overdueCount"
@@ -741,48 +1200,88 @@ onMounted(() => {
       :projects="projects"
       :view-mode="viewMode"
       :is-any-filter-active="isAnyFilterActive"
+      :team-members="teamMembers"
+      :all-tags="allTags"
       @clear-project-filter="clearProjectFilter"
       @reset-all-filters="resetAllFilters"
     />
 
+    <!-- Loading Skeleton -->
+    <div v-if="isLoading" class="flex-1 p-1 sm:p-4 space-y-4 overflow-hidden">
+      <!-- Board Skeleton -->
+      <div v-if="viewMode === 'board'" class="flex gap-4 h-full">
+        <div v-for="i in 3" :key="i" class="flex-1 bg-card rounded-2xl border p-4 space-y-3 animate-pulse h-full" style="background-color: var(--bg-card); border-color: var(--border-base)">
+          <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-4"></div>
+          <div v-for="j in 3" :key="j" class="h-24 bg-slate-100 dark:bg-slate-800/40 rounded-xl border p-3 space-y-2" style="border-color: var(--border-base)">
+            <div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
+            <div class="h-2 bg-slate-250 dark:bg-slate-750 rounded w-1/2"></div>
+            <div class="flex justify-between items-center pt-2">
+              <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-8"></div>
+              <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-4"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- List/Calendar Skeleton -->
+      <div v-else class="space-y-3 animate-pulse">
+        <div v-for="i in 6" :key="i" class="h-12 bg-slate-100 dark:bg-slate-850 rounded-xl border" style="background-color: var(--bg-card); border-color: var(--border-base)"></div>
+      </div>
+    </div>
+
     <!-- Board View -->
     <TaskBoardView
-      v-if="viewMode === 'board'"
-      :tasks-by-group="tasksByGroup"
+      v-show="!isLoading && viewMode === 'board'"
+      :tasks-by-group="boardTasksByGroup"
       :active-columns="activeColumns"
       :group-by="groupBy"
-      @refresh="fetchTasks"
+      :card-settings="cardSettings"
+      :team-members="teamMembers"
+      @refresh="handleTaskUpdated"
       @refresh-stats="fetchStats"
       @open-add-dialog="handleOpenAddDialogFromBoard"
       @open-detail="openDetailDrawer"
       @open-profile="openUserProfile"
+      @update-subtask="handleUpdateSubtask"
+      @drag-subtask="(pId, sIdx, colId) => handleSubtaskDrag(pId, sIdx, colId)"
     />
 
     <!-- List View -->
     <TaskListView
-      v-if="viewMode === 'list'"
-      :tasks-by-project="tasksByProject"
+      v-show="!isLoading && viewMode === 'list'"
+      :tasks-by-project="listTasksByProject"
       :active-columns="activeColumns"
       :visible-columns="visibleColumns"
       :projects="projects"
       :team-members="teamMembers"
       :teams="teams"
       :group-by="groupBy"
+      :subtask-display="subtaskDisplay"
       @refresh="handleListViewRefresh"
       @open-add-dialog="handleOpenAddDialogFromList"
+      @open-detail="openDetailDrawer"
+      @update-subtask="handleUpdateSubtask"
+    />
+
+    <!-- Calendar View -->
+    <TaskCalendarView
+      v-show="!isLoading && viewMode === 'calendar'"
+      :tasks="calendarTasks"
+      :team-members="teamMembers"
+      @refresh="handleTaskUpdated"
+      @refresh-stats="fetchStats"
       @open-detail="openDetailDrawer"
     />
 
     <!-- Global Empty State -->
     <div
-      v-if="tasks.length === 0"
+      v-if="!isLoading && tasks.length === 0"
       class="task-empty-state py-20 flex flex-col items-center justify-center bg-card rounded-2xl border"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div
         class="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-4"
       >
-        <CheckCircle2 class="w-8 h-8 text-slate-300 dark:text-slate-600" />
+        <CheckCircle2 class="w-8 h-8 text-slate-300 dark:text-slate-650" />
       </div>
       <p class="text-sm font-bold text-slate-400 mb-1">{{ t('tasks.noTasks') }}</p>
       <p class="text-xs text-slate-400 mb-4">{{ t('tasks.clickNewTaskTip') }}</p>
@@ -797,14 +1296,14 @@ onMounted(() => {
 
     <!-- Filtered Empty State -->
     <div
-      v-if="tasks.length > 0 && filteredTasks.length === 0"
+      v-if="!isLoading && tasks.length > 0 && filteredTasks.length === 0"
       class="task-empty-state py-20 flex flex-col items-center justify-center bg-card rounded-2xl border text-center"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div
         class="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-4"
       >
-        <SlidersHorizontal class="w-8 h-8 text-slate-300 dark:text-slate-600" />
+        <SlidersHorizontal class="w-8 h-8 text-slate-300 dark:text-slate-650" />
       </div>
       <p class="text-sm font-bold text-slate-400 mb-1">{{ t('tasks.noMatchingTasks') }}</p>
       <p class="text-xs text-slate-400 mb-4">
@@ -823,6 +1322,7 @@ onMounted(() => {
     <TaskDetailDrawer
       v-model="isDetailDrawerOpen"
       v-model:view-mode="taskDetailViewMode"
+      v-model:active-subtask-id="activeSubtaskId"
       :task="activeTask"
       :team-members="teamMembers"
       :projects="projects"

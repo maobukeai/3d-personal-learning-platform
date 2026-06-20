@@ -26,7 +26,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
 import SafeHtml from '@/components/SafeHtml.vue';
-import api from '@/utils/api';
+import api, { getAssetUrl } from '@/utils/api';
 
 interface UserType {
   id: string;
@@ -853,9 +853,9 @@ defineExpose({
                 <template v-if="msg.type === 'IMAGE'">
                   <img
                     alt=""
-                    :src="api.defaults.baseURL + msg.content"
+                    :src="getAssetUrl(msg.content)"
                     class="max-w-xs rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                    @click="openLink(api.defaults.baseURL + msg.content)"
+                    @click="openLink(getAssetUrl(msg.content))"
                   />
                 </template>
                 <template v-else-if="msg.type === 'VOICE'">
@@ -877,7 +877,7 @@ defineExpose({
                       />
                       <audio
                         :id="`audio-${msg.id}`"
-                        :src="api.defaults.baseURL + msg.content"
+                        :src="getAssetUrl(msg.content)"
                         class="hidden"
                       ></audio>
                     </button>
@@ -916,7 +916,7 @@ defineExpose({
                         {{ msg.content.split('/').pop() }}
                       </p>
                       <a
-                        :href="api.defaults.baseURL + msg.content"
+                        :href="getAssetUrl(msg.content)"
                         target="_blank"
                         rel="noopener noreferrer"
                         class="text-[9px] text-accent hover:underline font-bold"

@@ -51,6 +51,8 @@ router.patch('/ai-chat/sessions/:sessionId', projectAiController.updateAiChatSes
 router.post('/ai-chat/sessions/:sessionId/summary', projectAiController.summarizeAiChatSession);
 router.get('/ai-chat/history', projectAiController.getAiChatHistory);
 router.delete('/ai-chat/history', projectAiController.clearAiChatHistory);
+router.post('/ai-chat/messages/clean', projectAiController.cleanAiMessages);
+
 
 router.get('/', projectController.getAllProjects);
 router.post('/', projectController.createProject);

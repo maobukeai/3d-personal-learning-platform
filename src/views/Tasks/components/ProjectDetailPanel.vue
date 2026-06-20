@@ -200,6 +200,163 @@ const sortedTasks = computed(() => {
   });
 });
 
+// Project Description Edit, Preview & Clipboard Paste states
+const isEditingProjectDescription = ref(false);
+const tempProjectDescription = ref('');
+const tempProjectDescriptionImages = ref<string[]>([]);
+const isImagePreviewOpen = ref(false);
+const previewImageUrl = ref('');
+
+const openImageModal = (url: string) => {
+  previewImageUrl.value = url;
+  isImagePreviewOpen.value = true;
+};
+
+const startEditingProjectDescription = () => {
+  const parsed = parseCommentContent(projectDetail.value?.description || '');
+  tempProjectDescription.value = parsed.text;
+  tempProjectDescriptionImages.value = [...parsed.images];
+  isEditingProjectDescription.value = true;
+};
+
+const saveProjectDescription = async () => {
+  if (!projectDetail.value?.id) return;
+  try {
+    let finalDesc = (tempProjectDescription.value || '').trim();
+    if (tempProjectDescriptionImages.value.length > 0) {
+      finalDesc += (finalDesc ? '\n' : '') + tempProjectDescriptionImages.value.map((url) => `![图片](${url})`).join('\n');
+    }
+
+    await api.put(`/api/projects/${projectDetail.value.id}`, {
+      description: finalDesc,
+    });
+    projectDetail.value.description = finalDesc;
+    ElMessage.success('更新项目描述成功');
+    isEditingProjectDescription.value = false;
+    emit('refresh-list');
+  } catch (error) {
+    ElMessage.error('更新项目描述失败');
+  }
+};
+
+const cancelEditingProjectDescription = () => {
+  isEditingProjectDescription.value = false;
+};
+
+const parseCommentContent = (content: string) => {
+  if (!content) return { text: '', images: [] };
+  const regex = /!\[.*?\]\((.*?)\)/g;
+  const images: string[] = [];
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    images.push(match[1]);
+  }
+  const cleanText = content.replace(regex, '').trim();
+  return {
+    text: cleanText,
+    images,
+  };
+};
+
+const isImageUrl = (url: string): boolean => {
+  const clean = url.trim();
+  if (!clean.startsWith('http://') && !clean.startsWith('https://') && !clean.startsWith('data:image/')) return false;
+  if (clean.startsWith('data:image/')) return true;
+
+  try {
+    const urlObj = new URL(clean);
+    const pathname = urlObj.pathname.toLowerCase();
+    const cleanUrl = clean.toLowerCase();
+
+    if (
+      pathname.endsWith('.png') ||
+      pathname.endsWith('.jpg') ||
+      pathname.endsWith('.jpeg') ||
+      pathname.endsWith('.gif') ||
+      pathname.endsWith('.webp') ||
+      pathname.endsWith('.svg') ||
+      pathname.endsWith('.bmp') ||
+      pathname.endsWith('.tiff') ||
+      pathname.endsWith('.ico')
+    ) {
+      return true;
+    }
+
+    if (
+      cleanUrl.includes('/uploads/') ||
+      cleanUrl.includes('/image') ||
+      cleanUrl.includes('/img/') ||
+      cleanUrl.includes('/avatar') ||
+      cleanUrl.includes('/photo') ||
+      cleanUrl.includes('/pic/') ||
+      cleanUrl.includes('placeholder')
+    ) {
+      return true;
+    }
+
+    const format = urlObj.searchParams.get('format') || urlObj.searchParams.get('fmt');
+    if (format && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(format.toLowerCase())) {
+      return true;
+    }
+  } catch (e) {
+    const lower = clean.toLowerCase();
+    return (
+      lower.endsWith('.png') ||
+      lower.endsWith('.jpg') ||
+      lower.endsWith('.jpeg') ||
+      lower.endsWith('.gif') ||
+      lower.endsWith('.webp')
+    );
+  }
+
+  return false;
+};
+
+const handlePasteProjectDescription = async (event: ClipboardEvent) => {
+  const items = event.clipboardData?.items;
+  if (!items) return;
+
+  let hasImage = false;
+  for (const item of items) {
+    if (item.type.indexOf('image') !== -1) {
+      hasImage = true;
+      break;
+    }
+  }
+
+  if (hasImage) {
+    event.preventDefault();
+    for (const item of items) {
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        const formData = new FormData();
+        formData.append('task_image', file);
+        try {
+          ElMessage.info('图片上传中...');
+          const response = await api.post('/api/tasks/upload-image', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+          const imageUrl = response.data.url;
+          tempProjectDescriptionImages.value.push(imageUrl);
+          ElMessage.success('图片上传成功');
+        } catch (error) {
+          ElMessage.error('图片上传失败');
+        }
+      }
+    }
+    return;
+  }
+
+  const pastedText = event.clipboardData.getData('text');
+  if (pastedText && isImageUrl(pastedText)) {
+    event.preventDefault();
+    tempProjectDescriptionImages.value.push(pastedText.trim());
+    ElMessage.success('图片链接已识别');
+  }
+};
+
 const fetchProjectDetail = async (id: string) => {
   isDetailLoading.value = true;
   try {
@@ -1472,17 +1629,97 @@ defineExpose({
             <div class="space-y-4 md:space-y-5">
               <!-- Project Vision (Description) -->
               <div>
-                <h4
-                  class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1 text-left"
-                >
-                  {{ t('projects.projectVision') }}
-                </h4>
-                <p
-                  class="text-xs text-slate-500 leading-relaxed bg-slate-50 dark:bg-slate-800/20 p-3 rounded-xl border text-left"
+                <div class="flex items-center justify-between mb-1.5 ml-1">
+                  <h4 class="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    {{ t('projects.projectVision') }}
+                  </h4>
+                  <button
+                    v-if="!isEditingProjectDescription"
+                    type="button"
+                    class="text-[10px] font-bold text-accent hover:underline cursor-pointer"
+                    @click="startEditingProjectDescription"
+                  >
+                    编辑描述
+                  </button>
+                </div>
+
+                <!-- Edit Mode -->
+                <div v-if="isEditingProjectDescription" class="space-y-2">
+                  <textarea
+                    v-model="tempProjectDescription"
+                    placeholder="输入项目描述... (支持粘贴图片)"
+                    rows="4"
+                    class="w-full p-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:border-accent/45 transition-all resize-y"
+                    style="color: var(--text-primary)"
+                    @paste="handlePasteProjectDescription"
+                  ></textarea>
+
+                  <!-- Image Previews during Editing -->
+                  <div
+                    v-if="tempProjectDescriptionImages.length > 0"
+                    class="flex flex-wrap gap-1.5 p-1.5 bg-slate-50/50 dark:bg-white/2 border border-dashed border-slate-200 dark:border-slate-700 rounded-lg"
+                  >
+                    <div
+                      v-for="(img, idx) in tempProjectDescriptionImages"
+                      :key="img"
+                      class="relative group w-12 h-12 rounded border border-slate-200 dark:border-slate-700 overflow-hidden"
+                    >
+                      <img :src="img" class="w-full h-full object-cover cursor-zoom-in" @click="openImageModal(img)" />
+                      <button
+                        type="button"
+                        class="absolute top-0.5 right-0.5 p-0.5 bg-black/55 hover:bg-rose-600 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center"
+                        @click="tempProjectDescriptionImages.splice(idx, 1)"
+                      >
+                        <X class="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      class="px-2.5 py-1 bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-200 text-[10px] font-bold rounded-lg hover:opacity-80 transition-all cursor-pointer"
+                      @click="cancelEditingProjectDescription"
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="button"
+                      class="px-2.5 py-1 bg-accent text-white text-[10px] font-bold rounded-lg hover:opacity-85 transition-all cursor-pointer"
+                      @click="saveProjectDescription"
+                    >
+                      保存
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Preview Mode -->
+                <div
+                  v-else
+                  class="p-3 bg-slate-50 dark:bg-slate-800/20 rounded-xl border text-left cursor-pointer hover:bg-slate-100/30 dark:hover:bg-slate-800/30 transition-all"
                   style="border-color: var(--border-base)"
+                  @click="startEditingProjectDescription"
                 >
-                  {{ projectDetail.description || t('projects.noDescription') }}
-                </p>
+                  <div v-if="!projectDetail.description" class="text-xs text-slate-400 dark:text-slate-500 italic py-2 text-center select-none">
+                    + 点击添加详细项目愿景...
+                  </div>
+                  <div v-else class="text-xs leading-relaxed whitespace-pre-wrap text-slate-650 dark:text-slate-350 space-y-2">
+                    <p>{{ parseCommentContent(projectDetail.description).text }}</p>
+                    <div
+                      v-if="parseCommentContent(projectDetail.description).images.length > 0"
+                      class="flex flex-wrap gap-2 pt-1"
+                    >
+                      <img
+                        v-for="img in parseCommentContent(projectDetail.description).images"
+                        :key="img"
+                        :src="img"
+                        class="max-w-full max-h-[150px] rounded-lg border object-contain cursor-zoom-in hover:opacity-90 transition-opacity"
+                        style="border-color: var(--border-base)"
+                        @click.stop="openImageModal(img)"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- Project Meta (Deadline & Progress) -->
@@ -1808,6 +2045,22 @@ defineExpose({
       </div>
     </div>
   </Transition>
+
+  <!-- Image Preview Dialog -->
+  <el-dialog
+    v-model="isImagePreviewOpen"
+    :show-close="true"
+    align-center
+    width="fit-content"
+    style="background: transparent; box-shadow: none;"
+  >
+    <img
+      v-if="previewImageUrl"
+      :src="previewImageUrl"
+      class="max-w-[85vw] max-h-[80vh] rounded-xl object-contain border"
+      style="border-color: var(--border-base)"
+    />
+  </el-dialog>
 </template>
 
 <style scoped>

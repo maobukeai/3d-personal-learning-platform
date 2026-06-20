@@ -1,7 +1,9 @@
-import { encrypt, decrypt } from '../utils/crypto';
+import { encrypt, ENCRYPTED_VALUE_RE, decryptSecretIfNeeded } from '../utils/crypto';
 import prisma from './prisma';
 
-const ENCRYPTED_VALUE_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/;
+// Re-export for convenience — the canonical definitions live in utils/crypto.
+export { ENCRYPTED_VALUE_RE };
+
 const API_BASE = 'https://api.cloudflare.com/client/v4';
 const CONFIG_TOKEN_KEY = 'CLOUDFLARE_DOMAIN_API_TOKEN';
 const CONFIG_ACCOUNT_KEY = 'CLOUDFLARE_DOMAIN_ACCOUNT_ID';
@@ -37,15 +39,6 @@ export interface CloudflareDnsRecord {
   modifiedOn: string;
 }
 
-function decryptSecretIfNeeded(raw: string | null | undefined): string {
-  if (!raw) return '';
-  if (!ENCRYPTED_VALUE_RE.test(raw)) return raw;
-  try {
-    return decrypt(raw);
-  } catch {
-    return raw;
-  }
-}
 
 async function cloudflareRequest<T>(
   apiToken: string,
@@ -154,8 +147,11 @@ class CloudflareAdminService {
   }
 
   async listZones(): Promise<CloudflareZoneSummary[]> {
-    const apiToken = await this.requireToken();
     const config = await this.getConfig();
+    if (!config.apiToken) {
+      throw new Error('请先在 Cloudflare 域名管理页面配置 API Token');
+    }
+    const apiToken = config.apiToken;
     const zones: CloudflareZoneSummary[] = [];
     let page = 1;
     let totalPages = 1;

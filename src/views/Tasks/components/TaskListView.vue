@@ -40,15 +40,17 @@ interface Props {
   projects: Project[];
   teamMembers: UserType[];
   teams: Team[];
-  groupBy: 'status' | 'priority';
+  groupBy: 'status' | 'priority' | 'assignee' | 'dueDate';
+  subtaskDisplay?: 'collapse' | 'expand' | 'separate';
 }
 
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  (e: 'refresh'): void;
+  (e: 'refresh', updatedTask?: Task): void;
   (e: 'open-add-dialog', payload: { colId: string; projectId: string | null }): void;
-  (e: 'open-detail', task: Task): void;
+  (e: 'open-detail', task: Task, subtaskId?: string): void;
+  (e: 'update-subtask', parentId: string, subtaskIndex: number, fields: Record<string, any>): void;
 }>();
 
 const { t } = useI18n();
@@ -91,6 +93,53 @@ watch(
     localStorage.setItem('task_collapsed_projects', JSON.stringify(newVal));
   },
   { deep: true },
+);
+
+watch(
+  () => props.subtaskDisplay,
+  (newVal) => {
+    if (newVal === 'expand') {
+      props.tasksByProject.forEach((group) => {
+        group.tasks.forEach((t) => {
+          if (t.subtasks) {
+            try {
+              const parsed = JSON.parse(t.subtasks);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                expandedTasks.value[t.id] = true;
+              }
+            } catch {
+              // ignore
+            }
+          }
+        });
+      });
+    } else if (newVal === 'collapse') {
+      expandedTasks.value = {};
+    }
+  },
+  { immediate: true }
+);
+
+watch(
+  () => props.tasksByProject,
+  () => {
+    if (props.subtaskDisplay === 'expand') {
+      props.tasksByProject.forEach((group) => {
+        group.tasks.forEach((t) => {
+          if (t.subtasks) {
+            try {
+              const parsed = JSON.parse(t.subtasks);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                expandedTasks.value[t.id] = true;
+              }
+            } catch {
+              // ignore
+            }
+          }
+        });
+      });
+    }
+  }
 );
 
 const toggleTaskExpand = (taskId: string) => {
@@ -174,7 +223,13 @@ const parseSubtasks = (subtasksStr: string | null | undefined): Subtask[] => {
   if (!subtasksStr) return [];
   try {
     const parsed = JSON.parse(subtasksStr);
-    return Array.isArray(parsed) ? parsed : [];
+    if (Array.isArray(parsed)) {
+      return parsed.map((s, idx) => ({
+        ...s,
+        id: s.id || `subtask-legacy-${idx}`,
+      }));
+    }
+    return [];
   } catch {
     return [];
   }
@@ -188,9 +243,20 @@ const getSubtaskProgress = (task: Task) => {
   };
 };
 
+const handleSubtaskUpdateInList = (task: Task, fields: Record<string, any>) => {
+  if ((task as any).isSubtask && (task as any).parentId) {
+    emit('update-subtask', (task as any).parentId, (task as any).subtaskIndex, fields);
+    return true;
+  }
+  return false;
+};
+
 const quickStatusChange = async (task: Task, newStatus: string) => {
+  if (handleSubtaskUpdateInList(task, { done: newStatus === 'DONE' })) {
+    return;
+  }
   try {
-    await api.put(`/api/tasks/${task.id}`, { status: newStatus });
+    const response = await api.put(`/api/tasks/${task.id}`, { status: newStatus });
     ElMessage.success(
       t('tasks.movedTo', {
         status:
@@ -201,9 +267,10 @@ const quickStatusChange = async (task: Task, newStatus: string) => {
               : t('tasks.todo'),
       }),
     );
-    emit('refresh');
-  } catch {
-    ElMessage.error(t('tasks.updateStatusFailed'));
+    emit('refresh', response.data);
+  } catch (error: any) {
+    const errorMsg = error.response?.data?.error || t('tasks.updateStatusFailed');
+    ElMessage.error(errorMsg);
   }
 };
 
@@ -241,35 +308,63 @@ const toggleTaskCompletion = async (task: Task) => {
 };
 
 const handleProjectChange = async (task: Task, projectId: string | null) => {
+  if ((task as any).isSubtask) {
+    ElMessage.warning('子任务不能独立关联项目');
+    return;
+  }
   try {
-    await api.put(`/api/tasks/${task.id}`, { projectId });
+    const response = await api.put(`/api/tasks/${task.id}`, { projectId });
     ElMessage.success(projectId ? t('tasks.projectAssociated') : t('tasks.projectUnassociated'));
-    emit('refresh');
+    emit('refresh', response.data);
   } catch {
     ElMessage.error(t('tasks.updateProjectFailed'));
   }
 };
 
 const handleAssigneeChange = async (task: Task, assigneeId: string | null) => {
+  if (handleSubtaskUpdateInList(task, { assigneeId })) {
+    return;
+  }
   try {
-    await api.put(`/api/tasks/${task.id}`, { assigneeId });
+    const response = await api.put(`/api/tasks/${task.id}`, { assigneeId });
     ElMessage.success(assigneeId ? t('tasks.assigneeAssigned') : t('tasks.assigneeCleared'));
-    emit('refresh');
+    emit('refresh', response.data);
   } catch {
     ElMessage.error(t('tasks.updateAssigneeFailed'));
   }
 };
 
+const userMap = computed(() => {
+  const map = new Map<string, UserType>();
+  props.teamMembers.forEach((u) => {
+    if (u.id) map.set(u.id, u);
+  });
+  props.teams.forEach((team) => {
+    if (team.members) {
+      team.members.forEach((m) => {
+        if (m.user?.id) {
+          map.set(m.user.id, m.user);
+        }
+      });
+    }
+  });
+  return map;
+});
+
+const teamMembersMap = computed(() => {
+  const map = new Map<string, UserType[]>();
+  props.teams.forEach((team) => {
+    if (team.id && team.members) {
+      map.set(team.id, team.members.map((m) => m.user));
+    }
+  });
+  return map;
+});
+
 const getUserById = (userId: string | null, task: Task | null) => {
   if (!userId) return null;
-  for (const team of props.teams) {
-    if (team.members) {
-      const member = team.members.find((m) => m.user?.id === userId);
-      if (member) return member.user;
-    }
-  }
-  const m = props.teamMembers.find((u) => u.id === userId);
-  if (m) return m;
+  const u = userMap.value.get(userId);
+  if (u) return u;
   if (task && task.assignee && task.assignee.id === userId) {
     return task.assignee;
   }
@@ -278,13 +373,12 @@ const getUserById = (userId: string | null, task: Task | null) => {
 
 const getMembersForSubtask = (task: Task) => {
   if (task.teamId) {
-    const team = props.teams.find((t) => t.id === task.teamId);
-    if (team && team.members) {
-      return team.members.map((m) => m.user);
-    }
+    const members = teamMembersMap.value.get(task.teamId);
+    if (members) return members;
   }
   return props.teamMembers;
 };
+
 
 const toggleSubtaskInline = async (task: Task, subIdx: number) => {
   const list = parseSubtasks(task.subtasks);
@@ -292,9 +386,9 @@ const toggleSubtaskInline = async (task: Task, subIdx: number) => {
     list[subIdx].done = !list[subIdx].done;
     try {
       const subtasksStr = JSON.stringify(list);
-      await api.put(`/api/tasks/${task.id}`, { subtasks: subtasksStr });
+      const response = await api.put(`/api/tasks/${task.id}`, { subtasks: subtasksStr });
       task.subtasks = subtasksStr;
-      emit('refresh');
+      emit('refresh', response.data);
     } catch {
       ElMessage.error(t('tasks.updateSubtaskFailed'));
     }
@@ -306,9 +400,9 @@ const removeSubtaskInline = async (task: Task, subIdx: number) => {
   list.splice(subIdx, 1);
   try {
     const subtasksStr = JSON.stringify(list);
-    await api.put(`/api/tasks/${task.id}`, { subtasks: subtasksStr });
+    const response = await api.put(`/api/tasks/${task.id}`, { subtasks: subtasksStr });
     task.subtasks = subtasksStr;
-    emit('refresh');
+    emit('refresh', response.data);
     ElMessage.success(t('tasks.subtaskDeleted'));
   } catch {
     ElMessage.error(t('tasks.deleteSubtaskFailed'));
@@ -325,8 +419,9 @@ const handleSubtaskAssigneeChange = async (
     list[subIdx].assigneeId = assigneeId;
     try {
       const subtasksStr = JSON.stringify(list);
-      await api.put(`/api/tasks/${task.id}`, { subtasks: subtasksStr });
+      const response = await api.put(`/api/tasks/${task.id}`, { subtasks: subtasksStr });
       task.subtasks = subtasksStr;
+      emit('refresh', response.data);
     } catch {
       ElMessage.error(t('tasks.assignSubtaskAssigneeFailed'));
     }
@@ -345,10 +440,10 @@ const addSubtaskInline = async (task: Task) => {
   });
   try {
     const subtasksStr = JSON.stringify(list);
-    await api.put(`/api/tasks/${task.id}`, { subtasks: subtasksStr });
+    const response = await api.put(`/api/tasks/${task.id}`, { subtasks: subtasksStr });
     task.subtasks = subtasksStr;
     newSubtaskTexts.value[task.id] = '';
-    emit('refresh');
+    emit('refresh', response.data);
     ElMessage.success(t('tasks.subtaskAdded'));
   } catch {
     ElMessage.error(t('tasks.addSubtaskFailed'));
@@ -374,10 +469,10 @@ const handleInlineAddInProject = async (columnId: string, projectId: string | nu
       participantIds: [],
     };
 
-    await api.post('/api/tasks', payload);
+    const response = await api.post('/api/tasks', payload);
     ElMessage.success(t('tasks.quickCreateSuccess'));
     inlineTitles.value[key] = '';
-    emit('refresh');
+    emit('refresh', response.data);
   } catch {
     ElMessage.error(t('tasks.quickCreateFailed'));
   }
@@ -387,13 +482,13 @@ const openAddDialogByCol = (colId: string, projectId: string | null) => {
   emit('open-add-dialog', { colId, projectId });
 };
 
-const openDetailDrawer = (task: Task) => {
-  emit('open-detail', task);
+const openDetailDrawer = (task: Task, subtaskId?: string) => {
+  emit('open-detail', task, subtaskId);
 };
 </script>
 
 <template>
-  <div class="flex-1 overflow-y-auto p-1 sm:p-8 scrollbar-hide">
+  <div class="flex-1 overflow-y-auto p-1 sm:p-4 scrollbar-hide">
     <div class="w-full max-w-none space-y-8">
       <!-- Project Group Card -->
       <div
@@ -568,7 +663,7 @@ const openDetailDrawer = (task: Task) => {
                       </button>
 
                       <span
-                        class="truncate font-semibold transition-colors group-hover:text-accent"
+                        class="truncate font-semibold transition-colors group-hover:text-accent flex items-center gap-1.5 min-w-0"
                         :class="
                           task.status === 'DONE'
                             ? 'line-through text-slate-400 dark:text-slate-500'
@@ -576,7 +671,13 @@ const openDetailDrawer = (task: Task) => {
                         "
                         style="color: var(--text-primary)"
                       >
-                        {{ task.title }}
+                        <span
+                          v-if="(task as any).isSubtask"
+                          class="shrink-0 inline-flex items-center px-1.5 py-0.2 rounded text-[7px] font-black bg-purple-500/10 text-purple-500 border border-purple-500/20 uppercase tracking-wider scale-90 mr-1 select-none"
+                        >
+                          子任务
+                        </span>
+                        <span class="truncate">{{ task.title }}</span>
                       </span>
 
                       <!-- Subtasks Checklist Badge -->
@@ -876,10 +977,11 @@ const openDetailDrawer = (task: Task) => {
 
                           <!-- Subtask title text -->
                           <span
-                            class="truncate font-medium text-xs"
+                            class="truncate font-medium text-xs cursor-pointer hover:text-accent hover:underline transition-all"
                             :class="
                               sub.done ? 'line-through text-slate-400 dark:text-slate-500' : ''
                             "
+                            @click.stop="openDetailDrawer(task, sub.id)"
                           >
                             {{ sub.text }}
                           </span>

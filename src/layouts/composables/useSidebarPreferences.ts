@@ -1,6 +1,7 @@
 import { onMounted, onUnmounted, ref, watch, type Ref } from 'vue';
 import { fetchUserSettings, updateUserSettings } from '@/services/account.service';
 import { preferences, type SidebarMode } from '@/utils/preferences';
+import { useWorkspaceStore } from '@/stores/workspace';
 
 const CLOUD_MODE_KEY = 'layoutSidebarMode';
 const CLOUD_GROUPS_KEY = 'layoutSidebarCollapsedGroups';
@@ -24,11 +25,13 @@ const parseCloudGroups = (value?: string) => {
 };
 
 export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarPreferenceOptions) {
+  const workspaceStore = useWorkspaceStore();
   const sidebarMode = ref<SidebarMode>(initialMode);
   const collapsedGroupKeys = ref<Set<string>>(new Set(preferences.getSidebarCollapsedGroups()));
   const cloudPreferenceLoaded = ref(false);
   const isSavingPreference = ref(false);
   const hasLocalPreferenceChange = ref(false);
+  const lastAvailableKeys = ref<string[]>([]);
 
   let savePreferenceTimer: number | undefined;
 
@@ -84,16 +87,92 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
     persistSidebarPreferences();
   };
 
+  const checkAndApplyMigration = () => {
+    if (!lastAvailableKeys.value.length) return;
+
+    // If authenticated, wait until cloud preferences are loaded
+    if (isAuthenticated.value && !cloudPreferenceLoaded.value) return;
+
+    const user = preferences.getUser<{ id: string | number }>();
+    const userId = user?.id ? `_${user.id}` : '';
+    const workspaceId = workspaceStore.currentWorkspace?.id ? `_${workspaceStore.currentWorkspace.id}` : '';
+    const migrationKey = `layout_sidebar_default_collapsed_v4${userId}${workspaceId}`;
+
+    if (localStorage.getItem(migrationKey) !== null) return;
+
+    const next = new Set(collapsedGroupKeys.value);
+    let migrated = false;
+
+    const isResourceWorkspace = window.location.pathname.startsWith('/mirror') || 
+                                window.location.pathname.startsWith('/manual');
+
+    lastAvailableKeys.value.forEach((key) => {
+      const lowercaseKey = key.toLowerCase();
+      const isToolsGroup = lowercaseKey.includes('tools') || 
+                           lowercaseKey.includes('工具服务') || 
+                           lowercaseKey.includes('ai') || 
+                           lowercaseKey.includes('智能') ||
+                           lowercaseKey.includes('assistance');
+      
+      const isCategoryGroup = isResourceWorkspace && !key.startsWith('0:');
+
+      if (isToolsGroup || isCategoryGroup) {
+        if (!next.has(key)) {
+          next.add(key);
+          migrated = true;
+        }
+      }
+    });
+
+    localStorage.setItem(migrationKey, 'true');
+
+    if (migrated) {
+      collapsedGroupKeys.value = next;
+      persistSidebarPreferences();
+    }
+  };
+
   const syncAvailableGroupKeys = (availableGroupKeys: string[]) => {
     if (!availableGroupKeys.length) return;
 
-    const availableKeys = new Set(availableGroupKeys);
-    const next = new Set([...collapsedGroupKeys.value].filter((key) => availableKeys.has(key)));
+    lastAvailableKeys.value = availableGroupKeys;
 
-    if (next.size !== collapsedGroupKeys.value.size) {
+    const hasStored = localStorage.getItem(CLOUD_GROUPS_KEY) !== null || 
+                      localStorage.getItem(preferences.keys.sidebarCollapsedGroups) !== null;
+
+    let next: Set<string>;
+    if (hasStored) {
+      const availableKeys = new Set(availableGroupKeys);
+      next = new Set([...collapsedGroupKeys.value].filter((key) => availableKeys.has(key)));
+    } else {
+      next = new Set<string>();
+      availableGroupKeys.forEach((key) => {
+        const lowercaseKey = key.toLowerCase();
+        const isToolsGroup = lowercaseKey.includes('tools') || 
+                             lowercaseKey.includes('工具服务') || 
+                             lowercaseKey.includes('ai') || 
+                             lowercaseKey.includes('智能') ||
+                             lowercaseKey.includes('assistance');
+                             
+        const isResourceWorkspace = window.location.pathname.startsWith('/mirror') || 
+                                    window.location.pathname.startsWith('/manual');
+        const isCategoryGroup = isResourceWorkspace && !key.startsWith('0:');
+
+        if (isToolsGroup || isCategoryGroup) {
+          next.add(key);
+        }
+      });
+    }
+
+    const hasChanged = next.size !== collapsedGroupKeys.value.size || 
+                       [...next].some((k) => !collapsedGroupKeys.value.has(k));
+
+    if (hasChanged) {
       collapsedGroupKeys.value = next;
       preferences.setSidebarCollapsedGroups([...next]);
     }
+
+    checkAndApplyMigration();
   };
 
   const loadCloudSidebarPreferences = async () => {
@@ -120,14 +199,27 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
       }
 
       cloudPreferenceLoaded.value = true;
+      checkAndApplyMigration();
     } catch {
       cloudPreferenceLoaded.value = false;
     }
   };
 
   watch(isAuthenticated, (authenticated) => {
-    if (authenticated) loadCloudSidebarPreferences();
+    if (authenticated) {
+      loadCloudSidebarPreferences();
+    } else {
+      cloudPreferenceLoaded.value = false;
+      checkAndApplyMigration();
+    }
   });
+
+  watch(
+    () => workspaceStore.currentWorkspace?.id,
+    () => {
+      checkAndApplyMigration();
+    }
+  );
 
   onMounted(loadCloudSidebarPreferences);
 

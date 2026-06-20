@@ -234,16 +234,17 @@ watch(
 );
 
 watch(
-  [() => route.path, preparedGroups],
-  () => {
-    preparedGroups.value.forEach((group) => {
-      if (isGroupActive(group)) {
-        expandGroupKey(group.key);
-      }
-    });
+  () => route.path,
+  (newPath, oldPath) => {
+    if (oldPath && newPath !== oldPath) {
+      preparedGroups.value.forEach((group) => {
+        if (isGroupActive(group)) {
+          expandGroupKey(group.key);
+        }
+      });
+    }
     updateActiveIndicator();
-  },
-  { immediate: true },
+  }
 );
 
 watch(isExpanded, (val) => {

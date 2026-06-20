@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, onMounted, watch, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import {
   Settings,
   Mail,
@@ -36,11 +37,26 @@ import TemplateSettingsTab from './components/TemplateSettingsTab.vue';
 import AiSettingsTab from './components/AiSettingsTab.vue';
 import StorageSettingsTab from './components/StorageSettingsTab.vue';
 
+const route = useRoute();
+const router = useRouter();
 const systemStore = useSystemStore();
 const isLoading = ref(false);
 const isSaving = ref(false);
 
-const activeTab = ref('general');
+const getInitialTab = (): string => {
+  const queryTab = route.query.tab as string;
+  const validTabs = ['general', 'branding', 'security', 'upload', 'storage', 'smtp', 'social', 'template', 'ai'];
+  if (queryTab && validTabs.includes(queryTab)) {
+    return queryTab;
+  }
+  const saved = localStorage.getItem('admin_settings_active_tab');
+  if (saved && validTabs.includes(saved)) {
+    return saved;
+  }
+  return 'general';
+};
+
+const activeTab = ref(getInitialTab());
 const hasUnsavedChanges = ref(false);
 
 const defaultSettings = {
@@ -685,6 +701,23 @@ const exportSettings = () => {
   ElMessage.success('配置导出成功。');
 };
 
+const selectTab = (tabId: string) => {
+  activeTab.value = tabId;
+  localStorage.setItem('admin_settings_active_tab', tabId);
+  router.replace({ query: { ...route.query, tab: tabId } });
+};
+
+watch(
+  () => route.query.tab,
+  (newTab) => {
+    const validTabs = ['general', 'branding', 'security', 'upload', 'storage', 'smtp', 'social', 'template', 'ai'];
+    if (typeof newTab === 'string' && validTabs.includes(newTab)) {
+      activeTab.value = newTab;
+      localStorage.setItem('admin_settings_active_tab', newTab);
+    }
+  }
+);
+
 onMounted(() => {
   fetchSettings();
 });
@@ -804,7 +837,7 @@ onMounted(() => {
                 ? 'bg-accent text-white shadow-md shadow-accent/15'
                 : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-white/5'
             "
-            @click="activeTab = tab.id"
+            @click="selectTab(tab.id)"
           >
             <component :is="tab.icon" class="w-3.5 h-3.5 shrink-0" />
             <span>{{ tab.label }}</span>

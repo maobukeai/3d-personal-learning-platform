@@ -239,9 +239,10 @@ const addAiModel = (provider = 'CUSTOM') => {
   localAiModelConfigs.value.push(model);
   markAiModelPending(model.id);
   expandedModelId.value = model.id;
-  collapsedModelFamilyGroups.value = collapsedModelFamilyGroups.value.filter(
-    (k) => k !== PENDING_MODEL_FAMILY_KEY,
-  );
+  if (!expandedModelFamilyGroups.value.includes(PENDING_MODEL_FAMILY_KEY)) {
+    expandedModelFamilyGroups.value.push(PENDING_MODEL_FAMILY_KEY);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(expandedModelFamilyGroups.value));
+  }
   syncAiModelsToSettings();
 };
 
@@ -289,7 +290,7 @@ const expandModelNameLines = (
     localAiModelConfigs.value.push({
       ...JSON.parse(JSON.stringify(model)),
       id: newModelId,
-      name: `${providerLabelStr} ${modelName}`,
+      name: model.provider === 'CUSTOM' ? modelName : `${providerLabelStr} ${modelName}`,
       modelName,
       isDefault: false,
       showAdvanced: false,
@@ -306,7 +307,7 @@ const expandModelNameLines = (
     originalName === model.modelName ||
     Object.values(aiProviderDefaults).some((item) => item.name === originalName)
   ) {
-    model.name = `${providerLabelStr} ${model.modelName}`;
+    model.name = model.provider === 'CUSTOM' ? model.modelName : `${providerLabelStr} ${model.modelName}`;
   }
   syncAiModelsToSettings();
   if (showMessage && added > 0) {
@@ -397,13 +398,40 @@ const toggleModelExpand = (id: string) => {
 };
 
 const dragIndex = ref<number | null>(null);
-const isDraggable = ref(false);
+const isHandleClicked = ref(false);
+
+const draggedGroupKey = ref<string | null>(null);
+const isGroupHandleClicked = ref(false);
+
+const handleMouseDown = () => {
+  isHandleClicked.value = true;
+};
 
 const handleDragStart = (event: DragEvent, index: number) => {
+  if (!isHandleClicked.value) {
+    event.preventDefault();
+    return;
+  }
   dragIndex.value = index;
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move';
   }
+};
+
+const handleGroupMouseDown = () => {
+  isGroupHandleClicked.value = true;
+};
+
+const handleGroupDragStart = (event: DragEvent, key: string) => {
+  draggedGroupKey.value = key;
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+  }
+};
+
+const handleGroupDragEnd = () => {
+  draggedGroupKey.value = null;
+  isGroupHandleClicked.value = false;
 };
 
 const handleDrop = (event: DragEvent, toIndex: number) => {
@@ -441,7 +469,9 @@ const handleDrop = (event: DragEvent, toIndex: number) => {
 
 const handleDragEnd = () => {
   dragIndex.value = null;
-  isDraggable.value = false;
+  isHandleClicked.value = false;
+  draggedGroupKey.value = null;
+  isGroupHandleClicked.value = false;
 };
 
 const providerMeta: Record<
@@ -668,9 +698,10 @@ const addCustomCategory = async () => {
       customCategories.value.push({ key, label: categoryName.trim() });
       syncCustomCategoriesToSettings();
       // Expand by default when created
-      collapsedModelFamilyGroups.value = collapsedModelFamilyGroups.value.filter(
-        (item) => item !== key,
-      );
+      if (!expandedModelFamilyGroups.value.includes(key)) {
+        expandedModelFamilyGroups.value.push(key);
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(expandedModelFamilyGroups.value));
+      }
       ElMessage.success('自定义分类创建成功，请将模型拖拽至此分类');
     }
   } catch (_e) {
@@ -795,7 +826,10 @@ watch(
   { deep: true },
 );
 
-const collapsedModelFamilyGroups = ref<string[]>([]);
+const LOCAL_STORAGE_KEY = 'admin_ai_expanded_family_groups';
+const expandedModelFamilyGroups = ref<string[]>(
+  JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]'),
+);
 
 const modelFamilyGroups = computed<ModelFamilyGroup[]>(() => {
   const groups = new Map<string, AiModelConfig[]>();
@@ -844,6 +878,11 @@ const modelFamilyGroups = computed<ModelFamilyGroup[]>(() => {
     .sort((a, b) => {
       if (a.key === PENDING_MODEL_FAMILY_KEY) return -1;
       if (b.key === PENDING_MODEL_FAMILY_KEY) return 1;
+
+      const minA = a.models.length > 0 ? Math.min(...a.models.map((m) => m.priority ?? 999)) : 999;
+      const minB = b.models.length > 0 ? Math.min(...b.models.map((m) => m.priority ?? 999)) : 999;
+
+      if (minA !== minB) return minA - minB;
       return a.label.localeCompare(b.label);
     });
 });
@@ -856,16 +895,17 @@ const disabledModelFamilyGroups = computed(() => {
   return modelFamilyGroups.value.filter((group) => disabledGroupKeys.value.includes(group.key));
 });
 
-const isModelFamilyGroupCollapsed = (key: string) => collapsedModelFamilyGroups.value.includes(key);
+const isModelFamilyGroupCollapsed = (key: string) => !expandedModelFamilyGroups.value.includes(key);
 
 const toggleModelFamilyGroup = (key: string) => {
-  if (isModelFamilyGroupCollapsed(key)) {
-    collapsedModelFamilyGroups.value = collapsedModelFamilyGroups.value.filter(
+  if (expandedModelFamilyGroups.value.includes(key)) {
+    expandedModelFamilyGroups.value = expandedModelFamilyGroups.value.filter(
       (item) => item !== key,
     );
   } else {
-    collapsedModelFamilyGroups.value.push(key);
+    expandedModelFamilyGroups.value.push(key);
   }
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(expandedModelFamilyGroups.value));
 };
 
 const selectedAiModels = computed(() => {
@@ -991,9 +1031,10 @@ const batchMoveAiModelsToFamily = () => {
     }
   });
 
-  collapsedModelFamilyGroups.value = collapsedModelFamilyGroups.value.filter(
-    (key) => key !== batchTargetFamilyKey.value,
-  );
+  if (batchTargetFamilyKey.value && !expandedModelFamilyGroups.value.includes(batchTargetFamilyKey.value)) {
+    expandedModelFamilyGroups.value.push(batchTargetFamilyKey.value);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(expandedModelFamilyGroups.value));
+  }
   syncAiModelsToSettings();
   ElMessage.success(`已将 ${selectedAiModels.value.length} 个模型移动到 ${targetLabel}`);
 };
@@ -1072,13 +1113,54 @@ const addAiModelToFamily = (group: ModelFamilyGroup) => {
   localAiModelConfigs.value.push(model);
   markAiModelPending(model.id);
   expandedModelId.value = model.id;
-  collapsedModelFamilyGroups.value = collapsedModelFamilyGroups.value.filter(
-    (k) => k !== group.key,
-  );
+  if (group.key && !expandedModelFamilyGroups.value.includes(group.key)) {
+    expandedModelFamilyGroups.value.push(group.key);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(expandedModelFamilyGroups.value));
+  }
   syncAiModelsToSettings();
 };
 
-const handleDropOnGroup = (_event: DragEvent, group: ModelFamilyGroup) => {
+const handleDropOnGroup = (event: DragEvent, group: ModelFamilyGroup) => {
+  if (draggedGroupKey.value !== null) {
+    const sourceGroupKey = draggedGroupKey.value;
+    if (sourceGroupKey === group.key) return;
+
+    const list = [...localAiModelConfigs.value];
+    
+    // Find all models belonging to sourceGroup
+    const sourceModels = list.filter((m) => {
+      const fk = inferModelFamilyKey(m, { isPending: isPendingAiModel(m.id) });
+      return fk === sourceGroupKey;
+    });
+
+    if (sourceModels.length === 0) return; // No models to move
+
+    // Filter out source models from the list
+    const remainingList = list.filter((m) => {
+      const fk = inferModelFamilyKey(m, { isPending: isPendingAiModel(m.id) });
+      return fk !== sourceGroupKey;
+    });
+
+    // Find target insertion index (first model of targetGroup in the remaining list)
+    let insertIndex = remainingList.findIndex((m) => {
+      const fk = inferModelFamilyKey(m, { isPending: isPendingAiModel(m.id) });
+      return fk === group.key;
+    });
+
+    if (insertIndex === -1) {
+      // If targetGroup has no models, append to the end
+      insertIndex = remainingList.length;
+    }
+
+    // Insert source models at insertIndex
+    remainingList.splice(insertIndex, 0, ...sourceModels);
+    
+    localAiModelConfigs.value = remainingList;
+    syncAiModelsToSettings();
+    ElMessage.success('已成功更新分组优先级顺序');
+    return;
+  }
+
   if (dragIndex.value !== null) {
     const list = [...localAiModelConfigs.value];
     const draggedItem = list[dragIndex.value];
@@ -1541,8 +1623,14 @@ onMounted(() => {
         <section
           v-for="group in enabledModelFamilyGroups"
           :key="group.key"
-          class="rounded-2xl border overflow-hidden"
+          :draggable="isGroupHandleClicked"
+          class="rounded-2xl border overflow-hidden transition-all duration-300"
+          :class="{
+            'opacity-50 border-indigo-400 scale-[0.99]': draggedGroupKey === group.key
+          }"
           :style="`border-color: ${group.meta.border}; background: var(--bg-card);`"
+          @dragstart="handleGroupDragStart($event, group.key)"
+          @dragend="handleGroupDragEnd"
           @dragover.prevent
           @drop="handleDropOnGroup($event, group)"
         >
@@ -1555,6 +1643,16 @@ onMounted(() => {
                 class="flex items-start gap-3 min-w-0 cursor-pointer select-none"
                 @click="toggleModelFamilyGroup(group.key)"
               >
+                <!-- Group Drag handle -->
+                <div
+                  class="flex items-center justify-center p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors duration-150 cursor-grab active:cursor-grabbing flex-shrink-0 mt-3"
+                  title="拖动调整分组排序"
+                  @mousedown="handleGroupMouseDown"
+                  @click.stop
+                >
+                  <GripVertical class="w-3.5 h-3.5 text-slate-400" />
+                </div>
+
                 <div
                   class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
                   :style="`background: ${group.meta.bg}; border: 1px solid ${group.meta.border}; color: ${group.meta.color};`"
@@ -1702,7 +1800,7 @@ onMounted(() => {
             <div
               v-for="model in group.models"
               :key="model.id"
-              :draggable="isDraggable"
+              draggable="true"
               class="group rounded-xl border overflow-hidden transition-all duration-300 hover:shadow-sm hover:border-slate-300 dark:hover:border-zinc-700"
               :class="{
                 'opacity-50 border-indigo-400 scale-[0.99]':
@@ -1740,8 +1838,7 @@ onMounted(() => {
                 <div
                   class="flex items-center justify-center p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors duration-150 cursor-grab active:cursor-grabbing flex-shrink-0"
                   :title="$t('admin.drag_and_drop_to')"
-                  @mouseenter="isDraggable = true"
-                  @mouseleave="isDraggable = false"
+                  @mousedown="handleMouseDown"
                   @click.stop
                 >
                   <GripVertical class="w-3.5 h-3.5 text-slate-400" />

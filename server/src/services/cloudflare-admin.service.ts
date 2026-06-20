@@ -283,27 +283,35 @@ class CloudflareAdminService {
 
   async getZoneSettings(zoneId: string) {
     const apiToken = await this.requireToken();
-    const ssl = await cloudflareRequest<{ value: string; modified_on?: string }>(
-      apiToken,
-      `/zones/${zoneId}/settings/ssl`,
-    );
-
-    let sslStatus = 'unknown';
     try {
-      const verification = await cloudflareRequest<{
-        certificate_status?: string;
-        verification_status?: string;
-      }>(apiToken, `/zones/${zoneId}/ssl/verification`);
-      sslStatus = verification.certificate_status || verification.verification_status || 'unknown';
-    } catch {
-      sslStatus = ssl.value === 'off' ? 'disabled' : 'active';
-    }
+      const ssl = await cloudflareRequest<{ value: string; modified_on?: string }>(
+        apiToken,
+        `/zones/${zoneId}/settings/ssl`,
+      );
 
-    return {
-      sslMode: ssl.value,
-      sslStatus,
-      sslModifiedOn: ssl.modified_on || null,
-    };
+      let sslStatus = 'unknown';
+      try {
+        const verification = await cloudflareRequest<{
+          certificate_status?: string;
+          verification_status?: string;
+        }>(apiToken, `/zones/${zoneId}/ssl/verification`);
+        sslStatus = verification.certificate_status || verification.verification_status || 'unknown';
+      } catch {
+        sslStatus = ssl.value === 'off' ? 'disabled' : 'active';
+      }
+
+      return {
+        sslMode: ssl.value,
+        sslStatus,
+        sslModifiedOn: ssl.modified_on || null,
+      };
+    } catch (error) {
+      return {
+        sslMode: 'unknown',
+        sslStatus: 'unknown',
+        sslModifiedOn: null,
+      };
+    }
   }
 
   async setZonePaused(zoneId: string, paused: boolean) {

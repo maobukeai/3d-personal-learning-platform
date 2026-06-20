@@ -803,6 +803,23 @@ async function prepareRequestConfig(
     finalSystemPrompt = `${systemPromptPreset.trim()}\n\n${systemPrompt}`;
   }
 
+  // Truncate message history to prevent exceeding model/TPM limits (e.g. Groq 12k TPM limit)
+  let chatMessages: AIChatMessage[] = [];
+  let charCount = 0;
+  const maxCharBudget = 24000; // ~6k tokens budget for history context
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (!msg) continue;
+    const contentStr = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+    const msgLen = contentStr.length;
+    if (charCount + msgLen > maxCharBudget && chatMessages.length > 0) {
+      break;
+    }
+    chatMessages.unshift(msg);
+    charCount += msgLen;
+  }
+  messages = chatMessages;
+
   const stream = options.stream ?? false;
   const isSingleTurn = options.isSingleTurn ?? false;
 

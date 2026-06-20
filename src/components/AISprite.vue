@@ -367,10 +367,17 @@ const autoModelOption = {
   isAuto: true,
 };
 
-const availableAiModels = computed(() => [
-  autoModelOption,
-  ...(systemStore.settings.AI_MODEL_OPTIONS || []).filter((model) => model.enabled),
-]);
+const availableAiModels = computed(() => {
+  const models = [...(systemStore.settings.AI_MODEL_OPTIONS || [])]
+    .filter((model) => model.enabled)
+    .sort((a, b) => {
+      const pa = a.priority ?? 999;
+      const pb = b.priority ?? 999;
+      return pa - pb;
+    });
+
+  return [autoModelOption, ...models];
+});
 
 const currentModel = computed(
   () =>

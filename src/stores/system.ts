@@ -37,6 +37,7 @@ export interface PublicAIModelOption {
   isDefault: boolean;
   description?: string;
   capabilities: string[];
+  priority?: number;
 }
 
 let pendingSettingsFetch: Promise<void> | null = null;
@@ -178,6 +179,7 @@ export const useSystemStore = defineStore('system', {
                   capabilities: Array.isArray(model.capabilities)
                     ? model.capabilities.map(String)
                     : ['chat'],
+                  priority: typeof model.priority === 'number' ? model.priority : 999,
                 };
               })
               .filter((item): item is PublicAIModelOption => Boolean(item));

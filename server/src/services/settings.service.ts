@@ -83,6 +83,7 @@ export interface PublicAIModelOption {
   isDefault: boolean;
   description?: string;
   capabilities: string[];
+  priority?: number;
 }
 
 const DEFAULT_SETTINGS: SystemSettings = {
@@ -385,6 +386,7 @@ export const getPublicAIModels = (settings: SystemSettings): PublicAIModelOption
       isDefault: model.isDefault || (!hasDefault && index === 0),
       description: model.description || '',
       capabilities: model.capabilities?.length ? model.capabilities : ['chat'],
+      priority: typeof model.priority === 'number' ? model.priority : 999,
     }));
 };
 

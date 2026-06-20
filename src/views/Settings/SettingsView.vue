@@ -47,7 +47,20 @@ const router = useRouter();
 const authStore = useAuthStore();
 const { locale } = useI18n();
 
-const activeSection = ref<SectionId>('profile');
+const getInitialSection = (): SectionId => {
+  const tab = route.query.tab;
+  const validIds = ['profile', 'notifications', 'security', 'appearance', 'teams', 'data', 'backup'];
+  if (typeof tab === 'string' && validIds.includes(tab)) {
+    return tab as SectionId;
+  }
+  const saved = localStorage.getItem('user_settings_active_tab') as SectionId;
+  if (saved && validIds.includes(saved)) {
+    return saved;
+  }
+  return 'profile';
+};
+
+const activeSection = ref<SectionId>(getInitialSection());
 const searchTerm = ref('');
 const isRefreshing = ref(false);
 const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
@@ -173,6 +186,7 @@ const initials = computed(() => {
 
 const setSection = (sectionId: SectionId) => {
   activeSection.value = sectionId;
+  localStorage.setItem('user_settings_active_tab', sectionId);
   router.replace({ query: { ...route.query, tab: sectionId } });
 };
 
@@ -180,6 +194,7 @@ const syncSectionFromRoute = () => {
   const tab = route.query.tab;
   if (typeof tab === 'string' && sections.value.some((section) => section.id === tab)) {
     activeSection.value = tab as SectionId;
+    localStorage.setItem('user_settings_active_tab', tab);
   }
 };
 

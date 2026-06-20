@@ -267,9 +267,7 @@ html.theme-glass .el-popper,
 html.theme-glass .el-dropdown__popper,
 html.theme-glass .el-select__popper,
 html.theme-glass .el-cascader__dropdown,
-html.theme-glass .el-popover,
-html.theme-glass .workspace-switcher-popper,
-html.theme-glass .user-dropdown-popper {
+html.theme-glass .el-popover {
   background: var(--glass-bg) !important;
   backdrop-filter: blur(10px) saturate(145%) !important;
   -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
@@ -277,6 +275,25 @@ html.theme-glass .user-dropdown-popper {
   box-shadow: var(--glass-shadow) !important;
   transform: translateZ(0);
   will-change: auto !important;
+}
+
+/* Fallback for workspace switcher and user dropdown when backdrop-filter is disabled/not supported */
+html.theme-glass .workspace-switcher-popper,
+html.theme-glass .user-dropdown-popper {
+  background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
+  border: var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  transform: translateZ(0);
+  will-change: auto !important;
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  html.theme-glass .workspace-switcher-popper,
+  html.theme-glass .user-dropdown-popper {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(10px) saturate(145%) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
+  }
 }
 
 html.theme-glass .glass-header {

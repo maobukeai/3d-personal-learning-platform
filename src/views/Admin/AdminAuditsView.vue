@@ -7,23 +7,16 @@ import {
   ArrowUpDown,
   Box,
   CheckCircle2,
-  CheckSquare,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   Edit3,
   Eye,
   FolderCog,
   Layers,
   ListChecks,
-  PackageCheck,
+  MoreHorizontal,
   Puzzle,
   RefreshCw,
   Search,
-  SlidersHorizontal,
   Sparkles,
-  Square,
   Trash2,
   XCircle,
 } from 'lucide-vue-next';
@@ -33,11 +26,13 @@ import { getApiErrorMessage } from '@/utils/error';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { fetchManagementInsights } from './adminManagementInsights';
-import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import UiButton from '@/components/ui/Button.vue';
 import UiInput from '@/components/ui/Input.vue';
+import Card from '@/components/ui/Card.vue';
+import Badge from '@/components/ui/Badge.vue';
+import PageHeader from '@/components/PageHeader.vue';
 
 type AuditTab = 'assets' | 'materials' | 'showcases' | 'plugins';
 type AuditStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -193,9 +188,15 @@ const queueStats = ref<AuditListResponse['stats'] | null>(null);
 const selectedIds = ref<string[]>([]);
 const activeItem = ref<AuditItem | null>(null);
 const rejectDialogVisible = ref(false);
+const detailDrawerVisible = ref(false);
 const isEditOpen = ref(false);
 const isSaving = ref(false);
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
+
+const openDetail = (item: AuditItem) => {
+  activeItem.value = item;
+  detailDrawerVisible.value = true;
+};
 
 const rejectionForm = ref({
   reason: '',
@@ -347,6 +348,56 @@ const backlogLabel = computed(() => {
   if (stats.value.pending > 20) return '积压偏高';
   if (stats.value.pending > 5) return '需要关注';
   return '队列健康';
+});
+
+const consolidatedCards = computed(() => {
+  const pendingCount = stats.value.pending;
+  const backlogText = backlogLabel.value;
+
+  let backlogVariant: 'success' | 'warning' | 'danger' = 'success';
+  if (pendingCount > 20) backlogVariant = 'danger';
+  else if (pendingCount > 5) backlogVariant = 'warning';
+
+  return [
+    {
+      label: '审核队列总量',
+      value: stats.value.total,
+      hint: `已通过 ${stats.value.approved} · 已打回 ${stats.value.rejected}`,
+      icon: Layers,
+      color: 'text-sky-600 bg-sky-500/10 border-sky-500/20',
+      health: { label: '正常', variant: 'success' as const },
+    },
+    {
+      label: '待审核资源',
+      value: pendingCount,
+      hint: `需优先处理`,
+      icon: AlertTriangle,
+      color:
+        pendingCount > 0
+          ? 'text-rose-600 bg-rose-500/10 border-rose-500/20'
+          : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      health: { label: backlogText, variant: backlogVariant },
+    },
+    {
+      label: '审核通过数',
+      value: stats.value.approved,
+      hint: `已发布上线`,
+      icon: CheckCircle2,
+      color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      health: { label: '稳定', variant: 'success' as const },
+    },
+    {
+      label: '审核通过率',
+      value: `${approvalRate.value}%`,
+      hint: `已审核占总量比`,
+      icon: ListChecks,
+      color: 'text-purple-600 bg-purple-500/10 border-purple-500/20',
+      health:
+        approvalRate.value >= 80
+          ? { label: '高效', variant: 'success' as const }
+          : { label: '关注', variant: 'warning' as const },
+    },
+  ];
 });
 
 const isAllSelected = computed(
@@ -624,296 +675,446 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="admin-workbench">
-    <header class="workbench-header">
-      <div>
-        <p class="eyebrow">内容审核 · {{ backlogLabel }}</p>
-        <h1>{{ pageConfig.title }}</h1>
-      </div>
-      <div class="header-actions">
-        <UiButton variant="secondary" :icon="FolderCog" @click="openCategoryManager">
+  <div
+    class="admin-audits-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
+  >
+    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
+      <PageHeader :title="pageConfig.title" subtitle="内容审核" variant="card">
+        <UiButton variant="secondary" size="sm" :icon="FolderCog" @click="openCategoryManager">
           分类管理
         </UiButton>
-        <UiButton variant="secondary" :icon="RefreshCw" :loading="isLoading" @click="refreshQueue">
+        <UiButton
+          variant="secondary"
+          size="sm"
+          :icon="RefreshCw"
+          :loading="isLoading"
+          @click="refreshQueue"
+        >
           刷新
         </UiButton>
-      </div>
-    </header>
-
-    <AdminOpsPanel scope="audits" />
-
-    <section class="metric-grid">
-      <article class="metric-card">
-        <PackageCheck />
-        <div>
-          <span>总量</span><strong>{{ stats.total }}</strong>
-        </div>
-      </article>
-      <article class="metric-card">
-        <AlertTriangle />
-        <div>
-          <span>待审核</span><strong>{{ stats.pending }}</strong>
-        </div>
-      </article>
-      <article class="metric-card">
-        <CheckCircle2 />
-        <div>
-          <span>已通过</span><strong>{{ stats.approved }}</strong>
-        </div>
-      </article>
-      <article class="metric-card">
-        <XCircle />
-        <div>
-          <span>已打回</span><strong>{{ stats.rejected }}</strong>
-        </div>
-      </article>
-      <article class="metric-card">
-        <ListChecks />
-        <div>
-          <span>通过率</span><strong>{{ approvalRate }}%</strong>
-        </div>
-      </article>
-    </section>
-
-    <section class="toolbar-panel">
-      <div class="shrink-0 overflow-x-auto" style="scrollbar-width: none; -ms-overflow-style: none">
-        <Tabs v-model="activeTab" :options="moderationTabOptions" size="sm" />
-      </div>
-      <div class="shrink-0 overflow-x-auto" style="scrollbar-width: none; -ms-overflow-style: none">
-        <Tabs
-          v-model="statusFilter"
-          :options="statusFilterOptions"
-          size="sm"
-          @change="(val: any) => setStatusFilter(val)"
-        />
-      </div>
-      <UiInput
-        v-model="searchQuery"
-        :icon="Search"
-        placeholder="搜索标题、作者、标签、分类"
-        :glass="false"
-        class="ml-auto min-w-[280px]"
-      />
-      <div class="toolbar-meta">
-        <span><ArrowUpDown /> 最新提交优先</span>
-        <label>
-          <SlidersHorizontal />
-          <select v-model.number="pageSize">
-            <option :value="24">24 条</option>
-            <option :value="36">36 条</option>
-            <option :value="60">60 条</option>
-            <option :value="100">100 条</option>
-          </select>
-        </label>
-      </div>
-    </section>
-
-    <section v-if="selectedIds.length" class="batch-bar">
-      <span>已选择 {{ selectedIds.length }} 条记录</span>
-      <div>
-        <UiButton variant="primary" size="sm" @click="handleBatchApprove">批量通过</UiButton>
-        <UiButton variant="danger" size="sm" @click="handleBatchReject">批量打回</UiButton>
-        <UiButton variant="secondary" size="sm" @click="selectedIds = []">清空</UiButton>
-      </div>
-    </section>
-
-    <main class="review-shell">
-      <section class="queue-panel">
-        <div class="queue-head">
-          <UiButton
-            variant="secondary"
-            size="sm"
-            :icon="isAllSelected ? CheckSquare : Square"
-            @click="toggleSelectAll"
-          >
-            全选当前队列
-          </UiButton>
-          <span>{{ visibleRange }} / {{ totalItems }} 条</span>
-        </div>
-
-        <div v-if="isLoading" class="loading-state">
-          <RefreshCw class="spinning" />
-          <span>正在加载审核队列</span>
-        </div>
-
-        <div v-else-if="filteredItems.length === 0" class="empty-state">
-          <component :is="pageConfig.icon" />
-          <strong>{{ pageConfig.emptyLabel }}</strong>
-          <span>当前筛选条件下没有需要展示的记录。</span>
-        </div>
-
-        <div v-else class="review-list">
-          <article
-            v-for="item in filteredItems"
-            :key="item.id"
-            class="review-row"
-            :class="{ active: activeItem?.id === item.id, selected: selectedIds.includes(item.id) }"
-            @click="activeItem = item"
-          >
-            <button type="button" class="row-check" @click.stop="toggleSelection(item.id)">
-              <CheckSquare v-if="selectedIds.includes(item.id)" />
-              <Square v-else />
-            </button>
-            <div class="row-thumb">
-              <img v-if="mediaUrl(item)" :src="mediaUrl(item)" alt="" />
-              <component :is="pageConfig.icon" v-else />
-            </div>
-            <div class="row-main">
-              <div class="row-title">
-                <strong>{{ item.title }}</strong>
-                <span class="pill" :class="statusClass(item.status)">{{
-                  statusLabel(item.status)
-                }}</span>
-              </div>
-              <p>{{ item.description || '暂无描述' }}</p>
-              <div class="row-meta">
-                <span>{{ itemKind(item) }}</span>
-                <span>{{ metricLine(item) }}</span>
-                <span>{{ formatDate(item.createdAt) }}</span>
-                <UserAvatar :user="item.user" size="xs" />
-                <span>{{ item.user?.name || item.user?.email || '匿名创作者' }}</span>
+      </PageHeader>
+      <!-- KPI Metrics Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card
+          v-for="card in consolidatedCards"
+          :key="card.label"
+          hoverable
+          glow
+          class="group !p-2 px-2.5"
+        >
+          <div class="flex items-center justify-between w-full gap-3">
+            <div class="flex items-center gap-2 min-w-0">
+              <span
+                class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-slate-100/10"
+                :class="card.color"
+              >
+                <component :is="card.icon" class="h-3.5 w-3.5" />
+              </span>
+              <div class="min-w-0">
+                <p
+                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
+                >
+                  {{ card.label }}
+                </p>
+                <p
+                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
+                  :title="card.hint"
+                >
+                  {{ card.hint }}
+                </p>
               </div>
             </div>
-            <div class="row-actions" @click.stop>
-              <UiButton
-                v-if="item.status !== 'APPROVED'"
-                variant="primary"
-                size="sm"
-                :icon="CheckCircle2"
-                @click="handleStatusUpdate(item, 'APPROVED')"
-              >
-                通过
-              </UiButton>
-              <UiButton
-                v-if="item.status !== 'REJECTED'"
-                variant="danger"
-                size="sm"
-                :icon="XCircle"
-                @click="handleStatusUpdate(item, 'REJECTED')"
-              >
-                打回
-              </UiButton>
-              <UiButton variant="secondary" size="sm" :icon="Edit3" @click="openEdit(item)">
-                编辑
-              </UiButton>
+
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-base font-black text-[var(--text-primary)] leading-none">
+                {{ card.value }}
+              </span>
+              <Badge :variant="card.health.variant">
+                {{ card.health.label }}
+              </Badge>
             </div>
-          </article>
+          </div>
+        </Card>
+      </div>
+
+      <!-- Filters & Search Toolbar -->
+      <Card padding="sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex items-center gap-3 overflow-x-auto scrollbar-hide shrink-0">
+            <!-- Resource Type Tabs -->
+            <Tabs v-model="activeTab" :options="moderationTabOptions" variant="solid" />
+            <!-- Status Tabs -->
+            <Tabs
+              v-model="statusFilter"
+              :options="statusFilterOptions"
+              variant="solid"
+              @change="(val: any) => setStatusFilter(val)"
+            />
+          </div>
+          <div class="flex flex-1 items-center justify-center max-w-md mx-auto w-full">
+            <UiInput
+              v-model="searchQuery"
+              :icon="Search"
+              placeholder="搜索标题、作者、标签、分类"
+              :glass="false"
+              class="w-full"
+            />
+          </div>
+          <div class="flex items-center gap-2">
+            <span
+              class="text-xs text-[var(--text-secondary)] shrink-0 flex items-center gap-1 font-semibold"
+            >
+              <ArrowUpDown class="w-3.5 h-3.5" /> 最新提交优先
+            </span>
+            <el-select v-model="pageSize" size="small" style="width: 100px">
+              <el-option :value="24" label="24 条" />
+              <el-option :value="36" label="36 条" />
+              <el-option :value="60" label="60 条" />
+              <el-option :value="100" label="100 条" />
+            </el-select>
+          </div>
+        </div>
+      </Card>
+
+      <!-- Batch operations bar -->
+      <div
+        v-if="selectedIds.length"
+        class="batch-bar flex items-center justify-between gap-3 p-2 px-3 border border-slate-100 dark:border-white/5 bg-white/40 dark:bg-white/5 backdrop-blur-sm rounded-lg"
+      >
+        <span class="text-xs font-semibold text-[var(--text-secondary)]">
+          已选择 {{ selectedIds.length }} 条记录
+        </span>
+        <div class="flex items-center gap-2">
+          <UiButton variant="primary" size="sm" @click="handleBatchApprove">批量通过</UiButton>
+          <UiButton variant="danger" size="sm" @click="handleBatchReject">批量打回</UiButton>
+          <UiButton variant="secondary" size="sm" @click="selectedIds = []">清空</UiButton>
+        </div>
+      </div>
+
+      <!-- Data Panel -->
+      <Card
+        padding="none"
+        class="table-shell-card overflow-hidden flex-1 flex flex-col min-h-[360px]"
+      >
+        <el-table
+          v-loading="isLoading"
+          :data="filteredItems"
+          class="user-table w-full flex-1"
+          row-class-name="table-row"
+          @row-click="openDetail"
+        >
+          <el-table-column width="48">
+            <template #header>
+              <input
+                type="checkbox"
+                :checked="isAllSelected"
+                @change="toggleSelectAll"
+                @click.stop
+              />
+            </template>
+            <template #default="{ row }">
+              <input
+                type="checkbox"
+                :checked="selectedIds.includes(row.id)"
+                @change="toggleSelection(row.id)"
+                @click.stop
+              />
+            </template>
+          </el-table-column>
+
+          <el-table-column label="预览" width="80">
+            <template #default="{ row }">
+              <div
+                class="row-thumb w-10 h-10 rounded-lg border border-slate-100 dark:border-white/5 overflow-hidden flex items-center justify-center bg-slate-50 dark:bg-white/5"
+              >
+                <img
+                  v-if="mediaUrl(row)"
+                  :src="mediaUrl(row)"
+                  alt=""
+                  class="w-full h-full object-cover"
+                />
+                <component :is="pageConfig.icon" v-else class="w-5 h-5 text-slate-400" />
+              </div>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="资源名称" min-width="220">
+            <template #default="{ row }">
+              <div class="min-w-0">
+                <strong class="text-sm font-bold truncate text-[var(--text-primary)] block">{{
+                  row.title
+                }}</strong>
+                <small class="text-[11px] text-[var(--text-secondary)] truncate block mt-0.5">
+                  {{ row.description || '暂无描述' }}
+                </small>
+              </div>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="作者" width="180">
+            <template #default="{ row }">
+              <div class="user-cell flex items-center gap-2">
+                <UserAvatar :user="row.user" size="xs" />
+                <span class="text-sm font-semibold text-[var(--text-primary)] truncate">
+                  {{ row.user?.name || row.user?.email || '匿名创作者' }}
+                </span>
+              </div>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="规格参数" width="160">
+            <template #default="{ row }">
+              <span class="text-xs text-[var(--text-secondary)]">
+                {{ itemKind(row) }} · {{ metricLine(row) }}
+              </span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="状态" width="120">
+            <template #default="{ row }">
+              <span
+                class="pill text-xs px-2 py-0.5 font-bold rounded-full"
+                :class="statusClass(row.status)"
+              >
+                {{ statusLabel(row.status) }}
+              </span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="提交时间" width="180">
+            <template #default="{ row }">
+              <span class="text-xs text-[var(--text-secondary)]">
+                {{ formatDate(row.createdAt) }}
+              </span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="操作" width="220" align="right">
+            <template #default="{ row }">
+              <div class="flex items-center justify-end gap-1.5" @click.stop>
+                <UiButton
+                  v-if="row.status !== 'APPROVED'"
+                  variant="primary"
+                  size="sm"
+                  :icon="CheckCircle2"
+                  @click="handleStatusUpdate(row, 'APPROVED')"
+                >
+                  通过
+                </UiButton>
+                <UiButton
+                  v-if="row.status !== 'REJECTED'"
+                  variant="danger"
+                  size="sm"
+                  :icon="XCircle"
+                  @click="handleStatusUpdate(row, 'REJECTED')"
+                >
+                  打回
+                </UiButton>
+                <el-dropdown trigger="click">
+                  <button
+                    type="button"
+                    class="icon-btn p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+                  >
+                    <MoreHorizontal class="w-4 h-4 text-slate-500" />
+                  </button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item @click="openDetail(row)">
+                        <Eye class="dropdown-icon" /> 查看详情
+                      </el-dropdown-item>
+                      <el-dropdown-item @click="openEdit(row)">
+                        <Edit3 class="dropdown-icon" /> 编辑
+                      </el-dropdown-item>
+                      <el-dropdown-item divided @click="handleDelete(row)">
+                        <Trash2 class="dropdown-icon danger" /> 删除
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <!-- Empty state inside ElTable wrapper or custom if filteredItems is empty -->
+        <div
+          v-if="filteredItems.length === 0"
+          class="empty-state py-12 flex flex-col items-center justify-center text-center flex-1"
+        >
+          <component
+            :is="pageConfig.icon"
+            class="w-12 h-12 text-slate-300 dark:text-white/10 mb-4"
+          />
+          <strong class="text-base font-bold text-[var(--text-primary)]">{{
+            pageConfig.emptyLabel
+          }}</strong>
+          <span class="text-sm text-[var(--text-secondary)] mt-1"
+            >当前筛选条件下暂无需要处理的记录。</span
+          >
         </div>
 
-        <footer class="queue-pagination">
-          <span>第 {{ currentPage }} / {{ totalPages }} 页</span>
-          <div>
-            <button
-              type="button"
-              class="icon-btn"
-              :disabled="currentPage === 1"
-              @click="setPage(1)"
-            >
-              <ChevronsLeft />
-            </button>
-            <button
-              type="button"
-              class="icon-btn"
-              :disabled="currentPage === 1"
-              @click="setPage(currentPage - 1)"
-            >
-              <ChevronLeft />
-            </button>
-            <button
-              type="button"
-              class="icon-btn"
-              :disabled="currentPage === totalPages"
-              @click="setPage(currentPage + 1)"
-            >
-              <ChevronRight />
-            </button>
-            <button
-              type="button"
-              class="icon-btn"
-              :disabled="currentPage === totalPages"
-              @click="setPage(totalPages)"
-            >
-              <ChevronsRight />
-            </button>
-          </div>
-        </footer>
-      </section>
+        <!-- Pagination -->
+        <div
+          class="flex items-center justify-between p-3 border-t border-slate-100 dark:border-white/5 bg-white/40 dark:bg-white/5 shrink-0"
+        >
+          <span class="text-xs text-[var(--text-secondary)]">
+            显示 {{ visibleRange }} / 共 {{ totalItems }} 条记录
+          </span>
+          <el-pagination
+            v-model:current-page="currentPage"
+            :page-size="pageSize"
+            :total="totalItems"
+            layout="prev, pager, next"
+            small
+            background
+            @current-change="setPage"
+          />
+        </div>
+      </Card>
+    </main>
 
-      <aside class="inspector-panel">
-        <template v-if="activeItem">
-          <div class="inspector-media">
-            <img v-if="mediaUrl(activeItem)" :src="mediaUrl(activeItem)" alt="" />
-            <component :is="pageConfig.icon" v-else />
-          </div>
-          <div class="inspector-title">
-            <span class="pill" :class="statusClass(activeItem.status)">
+    <el-drawer v-model="detailDrawerVisible" size="500px" :with-header="false">
+      <aside
+        v-if="activeItem"
+        class="detail-drawer flex flex-col h-full p-4 overflow-y-auto space-y-4"
+      >
+        <!-- Header -->
+        <div class="flex items-start justify-between">
+          <div class="min-w-0">
+            <span
+              class="pill text-xs px-2 py-0.5 font-bold rounded-full inline-block"
+              :class="statusClass(activeItem.status)"
+            >
               {{ statusLabel(activeItem.status) }}
             </span>
-            <h2>{{ activeItem.title }}</h2>
-            <p>{{ activeItem.description || '暂无描述' }}</p>
+            <h2 class="text-xl font-bold mt-2 text-[var(--text-primary)] break-words">
+              {{ activeItem.title }}
+            </h2>
+            <p class="text-xs text-[var(--text-secondary)] mt-1">
+              {{ itemKind(activeItem) }} · {{ formatDate(activeItem.createdAt) }}
+            </p>
           </div>
+          <button
+            type="button"
+            class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl font-light leading-none"
+            @click="detailDrawerVisible = false"
+          >
+            &times;
+          </button>
+        </div>
 
-          <div class="inspector-section">
-            <h3>提交信息</h3>
-            <div class="detail-grid">
-              <span>作者</span
-              ><strong>{{
-                activeItem.user?.name || activeItem.user?.email || '匿名创作者'
-              }}</strong>
-              <span>类型</span><strong>{{ itemKind(activeItem) }}</strong> <span>指标</span
-              ><strong>{{ metricLine(activeItem) }}</strong> <span>时间</span
-              ><strong>{{ formatDate(activeItem.createdAt) }}</strong>
-            </div>
-          </div>
+        <!-- Preview Media -->
+        <div
+          class="inspector-media w-full h-48 rounded-lg overflow-hidden flex items-center justify-center bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5"
+        >
+          <img
+            v-if="mediaUrl(activeItem)"
+            :src="mediaUrl(activeItem)"
+            alt=""
+            class="w-full h-full object-cover"
+          />
+          <component :is="pageConfig.icon" v-else class="w-12 h-12 text-slate-400" />
+        </div>
 
-          <div v-if="activeItem.tags" class="inspector-section">
-            <h3>标签</h3>
-            <p class="tag-line">{{ activeItem.tags }}</p>
+        <!-- Details -->
+        <div
+          class="inspector-section p-3 border border-slate-100 dark:border-white/5 rounded-lg space-y-2"
+        >
+          <h3 class="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+            提交信息
+          </h3>
+          <div class="grid grid-cols-[80px_1fr] gap-x-2 gap-y-1 text-xs">
+            <span class="text-[var(--text-secondary)]">作者</span>
+            <strong class="text-[var(--text-primary)]">{{
+              activeItem.user?.name || activeItem.user?.email || '匿名创作者'
+            }}</strong>
+            <span class="text-[var(--text-secondary)]">类型</span>
+            <strong class="text-[var(--text-primary)]">{{ itemKind(activeItem) }}</strong>
+            <span class="text-[var(--text-secondary)]">规格</span>
+            <strong class="text-[var(--text-primary)]">{{ metricLine(activeItem) }}</strong>
+            <span class="text-[var(--text-secondary)]">时间</span>
+            <strong class="text-[var(--text-primary)]">{{
+              formatDate(activeItem.createdAt)
+            }}</strong>
           </div>
+        </div>
 
-          <div v-if="activeItem.rejectReason" class="inspector-section">
-            <h3>打回原因</h3>
-            <p class="body-text">{{ activeItem.rejectReason }}</p>
-          </div>
+        <!-- Description -->
+        <div
+          class="inspector-section p-3 border border-slate-100 dark:border-white/5 rounded-lg space-y-2"
+        >
+          <h3 class="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+            资源描述
+          </h3>
+          <p class="text-xs text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed">
+            {{ activeItem.description || '暂无描述' }}
+          </p>
+        </div>
 
-          <div class="inspector-actions">
-            <a
-              v-if="mediaUrl(activeItem)"
-              :href="mediaUrl(activeItem)"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Eye /> 查看原件
-            </a>
-            <UiButton variant="secondary" :icon="Edit3" @click="openEdit(activeItem)">编辑</UiButton>
-            <UiButton
-              v-if="activeItem.status !== 'APPROVED'"
-              variant="primary"
-              :icon="CheckCircle2"
-              @click="handleStatusUpdate(activeItem, 'APPROVED')"
-            >
-              通过
-            </UiButton>
-            <UiButton
-              v-if="activeItem.status !== 'REJECTED'"
-              variant="danger"
-              :icon="XCircle"
-              @click="handleStatusUpdate(activeItem, 'REJECTED')"
-            >
-              打回
-            </UiButton>
-            <UiButton variant="danger" :icon="Trash2" @click="handleDelete(activeItem)">
-              删除
-            </UiButton>
-          </div>
-        </template>
-        <div v-else class="empty-state">
-          <ChevronRight />
-          <strong>选择一条记录</strong>
-          <span>右侧会显示审核详情。</span>
+        <!-- Tags -->
+        <div
+          v-if="activeItem.tags"
+          class="inspector-section p-3 border border-slate-100 dark:border-white/5 rounded-lg space-y-2"
+        >
+          <h3 class="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+            标签
+          </h3>
+          <p class="text-xs text-[var(--text-primary)] break-all">{{ activeItem.tags }}</p>
+        </div>
+
+        <!-- Rejection Reason if rejected -->
+        <div
+          v-if="activeItem.rejectReason"
+          class="inspector-section p-3 border border-red-100 dark:border-red-950/20 bg-red-50/50 dark:bg-red-950/5 rounded-lg space-y-2"
+        >
+          <h3 class="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">
+            打回原因
+          </h3>
+          <p class="text-xs text-red-700 dark:text-red-300 leading-relaxed">
+            {{ activeItem.rejectReason }}
+          </p>
+        </div>
+
+        <!-- Drawer Actions -->
+        <div
+          class="drawer-actions pt-4 mt-auto border-t border-slate-100 dark:border-white/5 flex flex-wrap gap-2"
+        >
+          <a
+            v-if="mediaUrl(activeItem)"
+            :href="mediaUrl(activeItem)"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="px-3 py-1.5 bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-lg flex items-center gap-1.5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
+          >
+            <Eye class="w-3.5 h-3.5" /> 查看原件
+          </a>
+          <UiButton variant="secondary" size="sm" :icon="Edit3" @click="openEdit(activeItem)">
+            编辑
+          </UiButton>
+          <UiButton
+            v-if="activeItem.status !== 'APPROVED'"
+            variant="primary"
+            size="sm"
+            :icon="CheckCircle2"
+            @click="handleStatusUpdate(activeItem, 'APPROVED')"
+          >
+            通过
+          </UiButton>
+          <UiButton
+            v-if="activeItem.status !== 'REJECTED'"
+            variant="danger"
+            size="sm"
+            :icon="XCircle"
+            @click="handleStatusUpdate(activeItem, 'REJECTED')"
+          >
+            打回
+          </UiButton>
+          <UiButton variant="danger" size="sm" :icon="Trash2" @click="handleDelete(activeItem)">
+            删除
+          </UiButton>
         </div>
       </aside>
-    </main>
+    </el-drawer>
 
     <Modal
       :show="isEditOpen"
@@ -960,7 +1161,9 @@ onBeforeUnmount(() => {
           <label>版本<UiInput v-model="editForm.version" :glass="false" /></label>
           <label>兼容性<UiInput v-model="editForm.compatibility" :glass="false" /></label>
         </div>
-        <label>标签<UiInput v-model="editForm.tags" placeholder="用逗号分隔" :glass="false" /></label>
+        <label
+          >标签<UiInput v-model="editForm.tags" placeholder="用逗号分隔" :glass="false"
+        /></label>
       </div>
       <template #footer>
         <UiButton variant="secondary" @click="isEditOpen = false">取消</UiButton>
@@ -1004,561 +1207,38 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.admin-workbench {
+.admin-audits-page {
   height: 100%;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  overflow: hidden;
-  background: var(--bg-app);
+  background: transparent;
   color: var(--text-primary);
 }
 
-.workbench-header,
-.toolbar-panel,
-.batch-bar,
-.queue-panel,
-.inspector-panel {
-  border: 1px solid var(--border-base);
-  background: var(--bg-card);
-  border-radius: 8px;
-  box-shadow: var(--shadow-enterprise);
+:deep(.el-drawer__body) {
+  padding: 0;
 }
 
-.workbench-header {
+.detail-drawer {
+  height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 16px;
-  padding: 12px 14px;
-}
-
-h1,
-h2,
-h3,
-p {
-  margin: 0;
-}
-
-.eyebrow {
-  margin-bottom: 4px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-h1 {
-  font-size: 20px;
-  font-weight: 900;
-}
-
-button {
-  border: 0;
-  cursor: pointer;
-  font: inherit;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.primary-btn,
-.ghost-btn,
-.batch-bar button,
-.select-all-btn,
-.card-actions button,
-.row-actions button,
-.inspector-actions button,
-.inspector-actions a,
-.reason-templates button,
-.icon-btn {
-  min-height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 0 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 900;
-  text-decoration: none;
-}
-
-.primary-btn,
-.approve-btn {
-  background: var(--accent);
-  color: white;
-}
-
-.ghost-btn,
-.ghost-mini,
-.select-all-btn,
-.icon-btn,
-.inspector-actions button,
-.inspector-actions a {
-  border: 1px solid var(--border-base);
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-}
-
-.reject-btn,
-.danger-action {
-  background: rgba(220, 38, 38, 0.1);
-  color: var(--danger);
-}
-
-button svg,
-a svg,
-.toolbar-meta svg {
-  width: 16px;
-  height: 16px;
-}
-
-.metric-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.metric-card {
-  min-height: 62px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-}
-
-.metric-card svg {
-  width: 24px;
-  height: 24px;
-  color: var(--accent);
-}
-
-.metric-card span {
-  display: block;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.metric-card strong {
-  display: block;
-  margin-top: 2px;
-  font-size: 22px;
-}
-
-.toolbar-panel {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px;
-  flex-wrap: wrap;
-}
-
-.tab-strip,
-.segmented {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
-}
-
-.tab-strip button,
-.segmented button {
-  min-height: 30px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 10px;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.tab-strip button.active,
-.segmented button.active {
-  background: var(--bg-card);
-  color: var(--accent);
-  box-shadow: var(--shadow-enterprise);
-}
-
-.tab-strip span {
-  min-width: 18px;
-  padding: 1px 5px;
-  border-radius: 999px;
-  background: var(--danger);
-  color: white;
-  font-size: 10px;
-}
-
-.search-box {
-  margin-left: auto;
-  min-width: 280px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-elevated);
-}
-
-.toolbar-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.toolbar-meta span,
-.toolbar-meta label {
-  min-height: 34px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 10px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-elevated);
-}
-
-.toolbar-meta select {
-  min-width: 76px;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-weight: 900;
-}
-
-.search-box input,
-.form-stack input,
-.form-stack textarea,
-.form-stack select {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-}
-
-.batch-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.batch-bar > div {
-  display: flex;
-  gap: 8px;
-}
-
-.batch-bar button {
-  border: 1px solid var(--border-base);
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-}
-
-.review-shell {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 12px;
-}
-
-.queue-panel,
-.inspector-panel {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.queue-panel {
-  display: flex;
-  flex-direction: column;
-}
-
-.queue-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px;
-  border-bottom: 1px solid var(--border-base);
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.select-all-btn {
-  background: transparent;
-  color: var(--text-secondary);
-}
-
-.review-grid {
-  min-height: 0;
+  padding: 20px;
   overflow: auto;
-  padding: 12px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px;
-}
-
-.review-list {
-  min-height: 0;
-  overflow: auto;
-  padding: 8px;
-  display: grid;
-  gap: 8px;
-}
-
-.review-row {
-  min-height: 92px;
-  display: grid;
-  grid-template-columns: 34px 74px minmax(0, 1fr) minmax(210px, auto);
-  align-items: center;
-  gap: 10px;
-  padding: 8px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
   background: var(--bg-card);
-  cursor: pointer;
+  color: var(--text-primary);
 }
 
-.review-row.active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent);
-}
-
-.review-row.selected {
-  border-color: var(--accent);
-}
-
-.row-check {
-  width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-}
-
-.row-thumb {
-  width: 74px;
-  height: 74px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 8px;
-  background: var(--bg-app);
-}
-
-.row-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.row-thumb > svg {
-  width: 28px;
-  height: 28px;
-  color: var(--text-muted);
-}
-
-.row-main {
-  min-width: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.row-title {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.row-title strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
-  font-weight: 950;
-}
-
-.row-main p {
-  display: -webkit-box;
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 1.45;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.row-meta {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  flex-wrap: wrap;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 850;
-}
-
-.row-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 7px;
-  flex-wrap: wrap;
-}
-
-.row-actions button {
-  min-height: 32px;
-  padding: 0 9px;
-}
-
-.review-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  cursor: pointer;
-}
-
-.review-card.active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
-}
-
-.review-card.selected {
-  border-color: var(--accent);
-}
-
-.card-check {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1;
-  width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  background: rgba(15, 23, 42, 0.7);
-  color: white;
-}
-
-.media-box,
 .inspector-media {
-  display: grid;
-  place-items: center;
-  overflow: hidden;
+  height: 190px;
   background: var(--bg-app);
+  border: 1px solid var(--border-base);
 }
 
-.media-box {
-  height: 150px;
-}
-
-.media-box img,
-.inspector-media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.media-box > svg,
-.inspector-media > svg {
-  width: 42px;
-  height: 42px;
-  color: var(--text-muted);
-}
-
-.card-body {
-  display: grid;
-  gap: 10px;
+.inspector-section {
   padding: 12px;
-}
-
-.card-title {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.card-title strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.card-body p {
-  min-height: 38px;
-  color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.5;
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.card-meta {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.card-user {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.card-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.card-actions button {
-  min-height: 32px;
-  flex: 1;
-  padding: 0 8px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
 }
 
 .pill {
@@ -1587,116 +1267,28 @@ a svg,
   background: rgba(245, 158, 11, 0.14);
 }
 
-.inspector-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 10px;
-  overflow: auto;
-}
-
-.inspector-media {
-  height: 160px;
-  border-radius: 8px;
-}
-
-.inspector-title h2 {
-  margin-top: 10px;
-  font-size: 20px;
-  font-weight: 900;
-}
-
-.inspector-title p,
-.body-text {
-  margin-top: 8px;
-  color: var(--text-secondary);
-  line-height: 1.7;
-}
-
-.inspector-section {
-  padding: 12px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-}
-
-.inspector-section h3 {
-  margin-bottom: 10px;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: 72px 1fr;
-  gap: 9px;
-  font-size: 13px;
-}
-
-.detail-grid span {
-  color: var(--text-muted);
-}
-
-.tag-line {
-  color: var(--text-secondary);
-  word-break: break-word;
-}
-
-.inspector-actions {
-  display: grid;
-  gap: 8px;
-}
-
-.loading-state,
-.empty-state {
-  min-height: 190px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: var(--text-muted);
-}
-
-.queue-pagination {
-  min-height: 45px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 7px 10px;
-  border-top: 1px solid var(--border-base);
-  background: var(--bg-app);
-  color: var(--text-secondary);
+.user-table :deep(.el-table__header th) {
+  height: 40px;
+  background: #f8fafc;
+  color: #64748b;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 800;
 }
 
-.queue-pagination > div {
+.user-table :deep(.el-table__row) {
+  height: 48px;
+  cursor: pointer;
+}
+
+.user-table :deep(.el-table__cell) {
+  padding: 4px 0;
+}
+
+.user-cell {
   display: flex;
   align-items: center;
-  gap: 6px;
-}
-
-.icon-btn {
-  width: 32px;
-  padding: 0;
-  color: var(--text-secondary);
-}
-
-.loading-state svg,
-.empty-state svg {
-  width: 36px;
-  height: 36px;
-}
-
-.spinning {
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  gap: 10px;
+  min-width: 0;
 }
 
 .form-stack {
@@ -1727,6 +1319,8 @@ a svg,
   border-radius: 8px;
   background: var(--bg-app);
   resize: vertical;
+  color: var(--text-primary);
+  outline: none;
 }
 
 .reason-templates {
@@ -1736,6 +1330,14 @@ a svg,
 }
 
 .reason-templates button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 900;
   border: 1px solid var(--border-base);
   background: var(--bg-app);
   color: var(--text-secondary);
@@ -1747,46 +1349,30 @@ a svg,
   color: white;
 }
 
-.dialog-btn {
-  margin-left: 8px;
+.empty-state,
+.loading-state {
+  min-height: 190px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-muted);
 }
 
-@media (max-width: 1180px) {
-  .review-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .inspector-panel {
-    display: none;
-  }
+.empty-state svg,
+.loading-state svg {
+  width: 36px;
+  height: 36px;
 }
 
-@media (max-width: 980px) {
-  .metric-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .search-box {
-    width: 100%;
-    min-width: 0;
-    margin-left: 0;
-  }
+.spinning {
+  animation: spin 0.9s linear infinite;
 }
 
-@media (max-width: 640px) {
-  .admin-workbench {
-    padding: 10px;
-  }
-
-  .workbench-header,
-  .batch-bar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .metric-grid,
-  .form-grid {
-    grid-template-columns: 1fr;
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 </style>

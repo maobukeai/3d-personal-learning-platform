@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { formatDateTime } from '@/utils/format';
-import { computed, onMounted, type Component } from 'vue';
+import { computed, onMounted, ref, type Component } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   Activity,
@@ -13,27 +13,29 @@ import {
   RefreshCw,
   Settings2,
   ShieldCheck,
-  SlidersHorizontal,
   TrendingUp,
   Workflow,
-  Zap,
 } from 'lucide-vue-next';
 import {
   fetchManagementInsights,
   formatCompactNumber,
-  getHealthClasses,
   getHealthLabel,
   isLoadingManagementInsights,
   managementInsights,
   managementInsightsError,
-  type AdminCommandQueueItem,
-  type AdminSlaItem,
-  type AdminSystemSignal,
 } from './adminManagementInsights';
 
-type Tone = 'sky' | 'rose' | 'emerald' | 'amber' | 'violet';
+// UI components
+import PageHeader from '@/components/PageHeader.vue';
+import Card from '@/components/ui/Card.vue';
+import Button from '@/components/ui/Button.vue';
+import Badge from '@/components/ui/Badge.vue';
+import Tabs from '@/components/ui/Tabs.vue';
 
 const router = useRouter();
+
+const activeCommandTab = ref<'queue' | 'sla'>('queue');
+const activeSignalTab = ref<'signals' | 'playbooks'>('signals');
 
 const commandCenter = computed(() => managementInsights.value?.commandCenter);
 const overview = computed(() => managementInsights.value?.overview);
@@ -67,17 +69,13 @@ const statusSentence = computed(() => {
   return '后台运营状态稳定';
 });
 
-const healthDialStyle = computed(() => ({
-  '--score': `${Math.min(100, Math.max(0, overview.value?.healthScore || 0))}%`,
-}));
-
 const kpiCards = computed<
   Array<{
     label: string;
     value: number;
     sub: string;
     icon: Component;
-    tone: Tone;
+    color: string;
     route?: string;
   }>
 >(() => [
@@ -86,7 +84,9 @@ const kpiCards = computed<
     value: totalQueue.value,
     sub: `${urgentQueue.value} 个高优先`,
     icon: Workflow,
-    tone: urgentQueue.value ? 'rose' : 'emerald',
+    color: urgentQueue.value
+      ? 'text-rose-600 bg-rose-500/10 border-rose-500/20'
+      : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
     route: '/admin/audits',
   },
   {
@@ -94,60 +94,61 @@ const kpiCards = computed<
     value: command.value?.workloadTotal || 0,
     sub: '跨模块待处理',
     icon: Clock,
-    tone: watchQueue.value ? 'amber' : 'emerald',
+    color: watchQueue.value
+      ? 'text-amber-600 bg-amber-500/10 border-amber-500/20'
+      : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
   },
   {
     label: '有效权益',
     value: overview.value?.activeEntitlements || 0,
     sub: '当前订阅用户',
     icon: ShieldCheck,
-    tone: 'violet',
+    color: 'text-violet-600 bg-violet-500/10 border-violet-500/20',
     route: '/admin/subscriptions',
   },
 ]);
 
-const slaStatusMeta: Record<AdminSlaItem['status'], { label: string; class: string }> = {
-  healthy: {
-    label: '健康',
-    class: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  },
-  watch: {
-    label: '关注',
-    class: 'border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  },
-  breached: {
-    label: '超时',
-    class: 'border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-400',
-  },
+const getBadgeVariant = (status: string) => {
+  if (status === 'healthy') return 'success';
+  if (status === 'watch') return 'warning';
+  return 'danger';
 };
 
-const signalStatusMeta: Record<AdminSystemSignal['status'], { label: string; class: string }> = {
-  healthy: slaStatusMeta.healthy,
-  watch: slaStatusMeta.watch,
-  breached: slaStatusMeta.breached,
+const getSeverityBadgeVariant = (severity: string) => {
+  if (severity === 'critical') return 'danger';
+  if (severity === 'warning') return 'warning';
+  return 'info';
 };
 
-const queueTypeMeta: Record<AdminCommandQueueItem['type'], { label: string; class: string }> = {
-  feedback: { label: '反馈', class: 'bg-sky-500/10 text-sky-600 dark:text-sky-400' },
-  audit: { label: '审核', class: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
-  team: { label: '团队', class: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
-  billing: { label: '商业', class: 'bg-rose-500/10 text-rose-600 dark:text-rose-400' },
-  resource: { label: '资源', class: 'bg-violet-500/10 text-violet-600 dark:text-violet-400' },
+const severityLabel = (severity: string) => {
+  if (severity === 'critical') return '高';
+  if (severity === 'warning') return '中';
+  return '低';
 };
 
-const severityMeta: Record<AdminCommandQueueItem['severity'], { label: string; class: string }> = {
-  critical: {
-    label: '高',
-    class: 'border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-400',
-  },
-  warning: {
-    label: '中',
-    class: 'border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  },
-  info: {
-    label: '低',
-    class: 'border-sky-500/25 bg-sky-500/10 text-sky-600 dark:text-sky-400',
-  },
+const queueTypeLabel = (type: string) => {
+  const labels: Record<string, string> = {
+    feedback: '反馈',
+    audit: '审核',
+    team: '团队',
+    billing: '商业',
+    resource: '资源',
+  };
+  return labels[type] || type;
+};
+
+const queueTypeVariant = (type: string) => {
+  const variants: Record<
+    string,
+    'info' | 'warning' | 'success' | 'danger' | 'blender' | 'primary'
+  > = {
+    feedback: 'info',
+    audit: 'warning',
+    team: 'success',
+    billing: 'danger',
+    resource: 'blender',
+  };
+  return variants[type] || 'primary';
 };
 
 const progressWidth = (value: number, total: number) => {
@@ -175,601 +176,684 @@ onMounted(() => {
 });
 
 void Gauge;
-void healthDialStyle.value;
 </script>
 
 <template>
-  <div class="admin-command-center">
-    <header class="command-header">
-      <div class="command-title">
-        <span class="panel-icon tone-sky">
-          <SlidersHorizontal class="h-4 w-4" />
-        </span>
-        <div class="min-w-0">
-          <div class="title-row">
-            <h1>管理指挥中心</h1>
-            <span
+  <div class="admin-command-center flex flex-1 min-h-0 flex-col overflow-hidden">
+    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
+      <div class="space-y-3">
+        <!-- Reusable PageHeader component -->
+        <PageHeader
+          title="管理指挥中心"
+          subtitle="统一调度 SLA、风险队列、系统信号和运营动作"
+          variant="card"
+        >
+          <template #center>
+            <Badge
               v-if="overview"
-              class="health-badge"
-              :class="getHealthClasses(overview.healthScore)"
+              :variant="
+                overview.healthScore >= 80
+                  ? 'success'
+                  : overview.healthScore >= 60
+                    ? 'warning'
+                    : 'danger'
+              "
+              dot
             >
               {{ overview.healthScore }} / {{ getHealthLabel(overview.healthScore) }}
-            </span>
-          </div>
-          <p>统一调度 SLA、风险队列、系统信号和运营动作</p>
-        </div>
-      </div>
+            </Badge>
+          </template>
 
-      <div class="command-actions">
-        <button type="button" class="secondary-button" @click="router.push('/admin/audit-logs')">
-          <BarChart3 class="h-4 w-4" />
-          <span>审计日志</span>
-        </button>
-        <button type="button" class="secondary-button" @click="router.push('/admin/settings')">
-          <Settings2 class="h-4 w-4" />
-          <span>系统设置</span>
-        </button>
-        <button
-          type="button"
-          class="primary-button"
-          :disabled="isLoadingManagementInsights"
-          @click="fetchManagementInsights(true)"
-        >
-          <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': isLoadingManagementInsights }" />
-          <span>刷新</span>
-        </button>
-      </div>
-    </header>
-
-    <main class="command-main">
-      <section class="overview-grid">
-        <div class="overview-card status-card">
-          <div class="health-dial">
-            <svg class="health-ring" viewBox="0 0 100 100">
-              <defs>
-                <linearGradient id="healthGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-                  <stop offset="0%" stop-color="var(--accent)" />
-                  <stop offset="100%" stop-color="color-mix(in srgb, var(--accent) 70%, #10b981)" />
-                </linearGradient>
-              </defs>
-              <circle class="ring-bg" cx="50" cy="50" r="42" fill="transparent" stroke-width="7" />
-              <circle
-                class="ring-progress"
-                cx="50"
-                cy="50"
-                r="42"
-                fill="transparent"
-                stroke="url(#healthGrad)"
-                stroke-width="8"
-                stroke-linecap="round"
-                :stroke-dasharray="263.89"
-                :stroke-dashoffset="
-                  263.89 - (263.89 * Math.min(100, Math.max(0, overview?.healthScore || 0))) / 100
-                "
-              />
-            </svg>
-            <div class="dial-content">
-              <strong>{{ overview?.healthScore || 0 }}</strong>
-              <span>{{ overview ? getHealthLabel(overview.healthScore) : '加载中' }}</span>
-            </div>
-          </div>
-          <div class="overview-copy">
-            <div class="eyebrow">
-              <Activity class="h-3.5 w-3.5" />
-              <span>后台运营态势</span>
-            </div>
-            <h2>{{ statusSentence }}</h2>
-            <p>
-              {{ overview?.issueCount || 0 }} 个风险信号，{{ command?.workloadTotal || 0 }}
-              个待处理负载
-            </p>
-            <div class="risk-strip" aria-label="风险分布">
-              <span class="risk-critical">高 {{ riskMix.critical }}</span>
-              <span class="risk-warning">中 {{ riskMix.warning }}</span>
-              <span class="risk-info">低 {{ riskMix.info }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="overview-card metrics-card">
-          <button
-            v-for="card in kpiCards"
-            :key="card.label"
-            type="button"
-            class="metric-item-btn"
-            :class="`tone-${card.tone}`"
-            @click="openRoute(card.route)"
+          <!-- Standard header buttons -->
+          <Button
+            variant="secondary"
+            size="sm"
+            :icon="BarChart3"
+            @click="router.push('/admin/audit-logs')"
           >
-            <span class="metric-icon">
-              <component :is="card.icon" class="h-4 w-4" />
-            </span>
-            <span class="metric-copy">
-              <small>{{ card.label }}</small>
-              <strong>{{ formatCompactNumber(card.value) }}</strong>
-              <em>{{ card.sub }}</em>
-            </span>
-          </button>
-        </div>
-
-        <button
-          v-if="primaryAction"
-          type="button"
-          class="overview-card action-card-btn action-risk"
-          @click="openRoute(primaryAction.route)"
-        >
-          <div class="action-copy">
-            <small>优先动作</small>
-            <strong>{{ primaryAction.cta }}</strong>
-            <em>{{ primaryAction.title }} / {{ primaryAction.metric }}</em>
-          </div>
-          <span class="action-arrow">
-            <ArrowRight class="h-4 w-4" />
-          </span>
-        </button>
-        <div v-else class="overview-card action-card-btn action-stable">
-          <div class="action-copy">
-            <small>优先动作</small>
-            <strong>状态稳定</strong>
-            <em>当前没有高优行动项</em>
-          </div>
-          <span class="action-arrow">
-            <CheckCircle2 class="h-4 w-4" />
-          </span>
-        </div>
-      </section>
-
-      <section class="command-grid">
-        <div class="primary-column">
-          <section class="panel queue-panel">
-            <div class="panel-header">
-              <div>
-                <h2 class="panel-title">统一风险队列</h2>
-                <p class="panel-subtitle">{{ totalQueue }} 个跨模块条目</p>
-              </div>
-              <AlertTriangle class="h-4 w-4 text-amber-500" />
-            </div>
-
-            <div class="queue-list">
-              <button
-                v-for="item in commandCenter?.queue || []"
-                :key="`${item.type}-${item.id}`"
-                type="button"
-                class="queue-row"
-                :data-severity="item.severity"
-                @click="openRoute(item.route)"
-              >
-                <span class="queue-rail"></span>
-                <span class="type-pill" :class="queueTypeMeta[item.type].class">
-                  {{ queueTypeMeta[item.type].label }}
-                </span>
-                <span class="queue-copy">
-                  <b>{{ item.title }}</b>
-                  <small>{{ item.detail }} / {{ item.owner }}</small>
-                </span>
-                <span class="queue-meta">
-                  <i :class="severityMeta[item.severity].class">
-                    {{ severityMeta[item.severity].label }}
-                  </i>
-                  <small>{{ formatAge(item.ageHours) }}</small>
-                </span>
-                <ArrowRight class="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-              </button>
-              <div v-if="!commandCenter?.queue.length" class="empty-line">
-                当前没有跨模块风险条目
-              </div>
-            </div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-header">
-              <div>
-                <h2 class="panel-title">SLA 控制台</h2>
-                <p class="panel-subtitle">反馈、审核、准入、商业和资源恢复</p>
-              </div>
-              <Clock class="h-4 w-4 text-sky-500" />
-            </div>
-
-            <div class="sla-grid">
-              <button
-                v-for="item in commandCenter?.sla || []"
-                :key="item.key"
-                type="button"
-                class="sla-card"
-                @click="openRoute(item.route)"
-              >
-                <div class="sla-topline">
-                  <div class="min-w-0">
-                    <p>{{ item.label }}</p>
-                    <small>{{ item.owner }} / {{ item.targetHours }}h</small>
+            审计日志
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            :icon="Settings2"
+            @click="router.push('/admin/settings')"
+          >
+            系统设置
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            :icon="RefreshCw"
+            :loading="isLoadingManagementInsights"
+            @click="fetchManagementInsights(true)"
+          >
+            刷新
+          </Button>
+        </PageHeader>
+        <!-- Overview Grid (5-Column Flat Layout) -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+          <!-- Card 1: System Health -->
+          <Card
+            hoverable
+            clickable
+            glow
+            class="group cursor-pointer !p-2 px-2.5 flex items-center"
+            @click="router.push('/admin/audits')"
+          >
+            <div class="flex items-center justify-between w-full gap-2">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <div class="health-dial shrink-0 relative h-8 w-8">
+                  <svg class="transform -rotate-90 w-full h-full" viewBox="0 0 100 100">
+                    <defs>
+                      <linearGradient id="healthGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="var(--accent)" />
+                        <stop
+                          offset="100%"
+                          stop-color="color-mix(in srgb, var(--accent) 70%, #10b981)"
+                        />
+                      </linearGradient>
+                    </defs>
+                    <circle
+                      class="stroke-[var(--border-base)]/40 stroke-[12]"
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      fill="transparent"
+                    />
+                    <circle
+                      class="transition-all duration-350 stroke-[12] stroke-linecap-round"
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      fill="transparent"
+                      stroke="url(#healthGrad)"
+                      :stroke-dasharray="238.76"
+                      :stroke-dashoffset="
+                        238.76 -
+                        (238.76 * Math.min(100, Math.max(0, overview?.healthScore || 0))) / 100
+                      "
+                    />
+                  </svg>
+                  <div
+                    class="absolute inset-0 flex items-center justify-center text-center leading-none"
+                  >
+                    <strong class="text-[9px] font-black text-[var(--text-primary)]">{{
+                      overview?.healthScore || 0
+                    }}</strong>
                   </div>
-                  <span class="status-pill" :class="slaStatusMeta[item.status].class">
-                    {{ slaStatusMeta[item.status].label }}
+                </div>
+                <div class="min-w-0">
+                  <span
+                    class="text-[10px] font-bold text-[var(--text-secondary)] block truncate leading-tight"
+                    >系统健康度</span
+                  >
+                  <span
+                    class="text-[8px] text-[var(--text-secondary)] opacity-85 block truncate mt-0.5 leading-none"
+                  >
+                    {{ overview?.issueCount || 0 }} 个风险信号
                   </span>
                 </div>
-                <div class="sla-numbers">
-                  <span class="num-item">
-                    <small>当前</small>
-                    <b>{{ item.current }}</b>
-                  </span>
-                  <span class="num-item">
-                    <small>临近</small>
-                    <b>{{ item.dueSoon }}</b>
-                  </span>
-                  <span class="num-item">
-                    <small>超时</small>
-                    <b>{{ item.overdue }}</b>
+              </div>
+              <Badge
+                v-if="overview"
+                :variant="
+                  overview.healthScore >= 80
+                    ? 'success'
+                    : overview.healthScore >= 60
+                      ? 'warning'
+                      : 'danger'
+                "
+                size="sm"
+                class="shrink-0"
+              >
+                {{ getHealthLabel(overview.healthScore) }}
+              </Badge>
+            </div>
+          </Card>
+
+          <!-- Card 2: Pending Queue -->
+          <Card
+            hoverable
+            clickable
+            glow
+            class="group cursor-pointer !p-2 px-2.5 flex items-center"
+            @click="router.push('/admin/audits')"
+          >
+            <div class="flex items-center justify-between w-full gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span
+                  class="metric-icon border border-base rounded-lg p-1 transition-transform group-hover:scale-105 shrink-0 flex items-center justify-center h-7 w-7"
+                  :class="
+                    urgentQueue
+                      ? 'text-rose-600 bg-rose-500/10 border-rose-500/20'
+                      : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20'
+                  "
+                >
+                  <Workflow class="h-3.5 w-3.5" />
+                </span>
+                <div class="min-w-0">
+                  <span
+                    class="text-[10px] font-bold text-[var(--text-secondary)] block truncate leading-tight"
+                    >待办队列</span
+                  >
+                  <span
+                    class="text-[8px] text-[var(--text-secondary)] opacity-85 block truncate mt-0.5 leading-none"
+                  >
+                    {{ urgentQueue }} 个高优先
                   </span>
                 </div>
-                <i class="track">
-                  <em
-                    :style="{
-                      width: progressWidth(item.current - item.overdue, Math.max(item.current, 1)),
-                    }"
-                  ></em>
-                </i>
-              </button>
-            </div>
-          </section>
-        </div>
-
-        <div class="secondary-column">
-          <section class="panel">
-            <div class="panel-header">
-              <div>
-                <h2 class="panel-title">14 天运营趋势</h2>
-                <p class="panel-subtitle">用户、内容、反馈与审计动作</p>
               </div>
-              <TrendingUp class="h-4 w-4 text-emerald-500" />
+              <strong class="text-sm font-black text-[var(--text-primary)] leading-none shrink-0">
+                {{ formatCompactNumber(totalQueue) }}
+              </strong>
             </div>
+          </Card>
 
-            <div class="trend-chart">
-              <div
-                v-for="point in commandCenter?.trend || []"
-                :key="point.date"
-                class="trend-column"
-                :title="point.date"
-              >
-                <div class="trend-bars">
-                  <span class="bar-users" :style="{ height: barHeight(point.users) }"></span>
-                  <span class="bar-content" :style="{ height: barHeight(point.content) }"></span>
-                  <span class="bar-feedback" :style="{ height: barHeight(point.feedback) }"></span>
-                  <span class="bar-audit" :style="{ height: barHeight(point.audit) }"></span>
+          <!-- Card 3: SLA Workload -->
+          <Card
+            hoverable
+            clickable
+            glow
+            class="group cursor-pointer !p-2 px-2.5 flex items-center"
+            @click="activeCommandTab = 'sla'"
+          >
+            <div class="flex items-center justify-between w-full gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span
+                  class="metric-icon border border-base rounded-lg p-1 transition-transform group-hover:scale-105 shrink-0 flex items-center justify-center h-7 w-7"
+                  :class="
+                    watchQueue
+                      ? 'text-amber-600 bg-amber-500/10 border-amber-500/20'
+                      : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20'
+                  "
+                >
+                  <Clock class="h-3.5 w-3.5" />
+                </span>
+                <div class="min-w-0">
+                  <span
+                    class="text-[10px] font-bold text-[var(--text-secondary)] block truncate leading-tight"
+                    >SLA 负载</span
+                  >
+                  <span
+                    class="text-[8px] text-[var(--text-secondary)] opacity-85 block truncate mt-0.5 leading-none"
+                    >跨模块待处理</span
+                  >
                 </div>
-                <small>{{ point.date.slice(5) }}</small>
               </div>
+              <strong class="text-sm font-black text-[var(--text-primary)] leading-none shrink-0">
+                {{ formatCompactNumber(command?.workloadTotal || 0) }}
+              </strong>
             </div>
+          </Card>
 
-            <div class="legend-grid">
-              <span><i class="bg-sky-500"></i>用户</span>
-              <span><i class="bg-emerald-500"></i>内容</span>
-              <span><i class="bg-amber-500"></i>反馈</span>
-              <span><i class="bg-violet-500"></i>审计</span>
-            </div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-header">
-              <div>
-                <h2 class="panel-title">系统信号</h2>
-                <p class="panel-subtitle">关键运营开关</p>
+          <!-- Card 4: Active Entitlements -->
+          <Card
+            hoverable
+            clickable
+            glow
+            class="group cursor-pointer !p-2 px-2.5 flex items-center"
+            @click="router.push('/admin/subscriptions')"
+          >
+            <div class="flex items-center justify-between w-full gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span
+                  class="metric-icon border border-base rounded-lg p-1 transition-transform group-hover:scale-105 shrink-0 flex items-center justify-center h-7 w-7 text-violet-600 bg-violet-500/10 border-violet-500/20"
+                >
+                  <ShieldCheck class="h-3.5 w-3.5" />
+                </span>
+                <div class="min-w-0">
+                  <span
+                    class="text-[10px] font-bold text-[var(--text-secondary)] block truncate leading-tight"
+                    >有效权益</span
+                  >
+                  <span
+                    class="text-[8px] text-[var(--text-secondary)] opacity-85 block truncate mt-0.5 leading-none"
+                    >当前订阅用户</span
+                  >
+                </div>
               </div>
-              <Activity class="h-4 w-4 text-violet-500" />
+              <strong class="text-sm font-black text-[var(--text-primary)] leading-none shrink-0">
+                {{ formatCompactNumber(overview?.activeEntitlements || 0) }}
+              </strong>
             </div>
-            <div class="signal-grid">
-              <button
-                v-for="signal in commandCenter?.systemSignals || []"
-                :key="signal.key"
-                type="button"
-                @click="openRoute(signal.route)"
+          </Card>
+
+          <!-- Card 5: Priority Action / Stable Status -->
+          <Card
+            v-if="primaryAction"
+            clickable
+            hoverable
+            class="action-risk !border-transparent text-white cursor-pointer !p-2 px-2.5 flex items-center"
+            @click="openRoute(primaryAction.route)"
+          >
+            <div class="flex items-center justify-between w-full gap-2 h-full">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1 leading-none">
+                  <span
+                    class="inline-flex items-center px-1 rounded text-[7px] font-black bg-white/25 text-white uppercase tracking-wider"
+                    >优先动作</span
+                  >
+                  <span
+                    class="text-[8px] text-white/80 truncate not-italic max-w-[80px]"
+                    :title="primaryAction.title"
+                    >{{ primaryAction.title }}</span
+                  >
+                </div>
+                <strong
+                  class="text-[10px] font-black block text-white mt-1 truncate leading-tight"
+                  >{{ primaryAction.cta }}</strong
+                >
+              </div>
+              <span
+                class="action-arrow shrink-0 h-5 w-5 flex items-center justify-center rounded-lg bg-white/20 text-white"
               >
-                <span class="signal-icon" :class="signalStatusMeta[signal.status].class">
-                  <CheckCircle2 v-if="signal.status === 'healthy'" class="h-4 w-4" />
-                  <AlertTriangle v-else class="h-4 w-4" />
-                </span>
-                <span class="signal-copy">
-                  <b>{{ signal.label }}</b>
-                  <small>{{ signal.value }}</small>
-                </span>
-                <span class="status-dot" :class="signal.status"></span>
-              </button>
+                <ArrowRight class="h-3 w-3" />
+              </span>
             </div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-header">
-              <div>
-                <h2 class="panel-title">行动手册</h2>
-                <p class="panel-subtitle">
-                  下一次巡检 {{ formatDateTime(commandCenter?.nextReviewAt) }}
-                </p>
+          </Card>
+          <Card v-else class="action-stable text-[var(--success)] !p-2 px-2.5 flex items-center">
+            <div class="flex items-center justify-between w-full gap-2 h-full">
+              <div class="flex items-center gap-2 min-w-0">
+                <span
+                  class="metric-icon border border-base rounded-lg p-1 shrink-0 flex items-center justify-center h-7 w-7 bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                >
+                  <CheckCircle2 class="h-3.5 w-3.5" />
+                </span>
+                <div class="min-w-0">
+                  <span
+                    class="text-[10px] font-bold text-[var(--text-secondary)] block truncate leading-tight"
+                    >优先动作</span
+                  >
+                  <span class="text-[8px] text-slate-400 block truncate mt-0.5 leading-none"
+                    >当前无高优动作</span
+                  >
+                </div>
               </div>
-              <Zap class="h-4 w-4 text-rose-500" />
-            </div>
-            <div class="playbook-list">
-              <button
-                v-for="playbook in commandCenter?.playbooks || []"
-                :key="playbook.id"
-                type="button"
-                @click="openRoute(playbook.route)"
+              <strong class="text-xs font-black text-emerald-500 leading-none shrink-0"
+                >状态稳定</strong
               >
-                <span class="playbook-icon" :class="severityMeta[playbook.severity].class">
-                  <CheckCircle2 v-if="playbook.severity === 'info'" class="h-4 w-4" />
-                  <AlertTriangle v-else class="h-4 w-4" />
-                </span>
-                <span class="playbook-copy">
-                  <b>{{ playbook.title }}</b>
-                  <small>{{ playbook.impact }} / {{ playbook.detail }}</small>
-                </span>
-                <span class="playbook-cta">{{ playbook.cta }}</span>
-              </button>
             </div>
-          </section>
-        </div>
-      </section>
+          </Card>
+        </section>
+
+        <!-- Command Grid (Balanced asymmetric layout) -->
+        <section class="grid gap-3 xl:grid-cols-[1.25fr_0.75fr] grid-cols-1">
+          <!-- Left Column: Unified Monitoring & Dispatch Card (Tabbed) -->
+          <div class="space-y-3">
+            <Card padding="sm">
+              <template #header>
+                <div class="flex items-center justify-between w-full">
+                  <h2
+                    class="panel-title flex items-center gap-2 text-xs font-bold text-[var(--text-primary)]"
+                  >
+                    <Workflow class="h-4 w-4 text-[var(--accent)]" />
+                    监控与调度
+                  </h2>
+                  <Tabs
+                    v-model="activeCommandTab"
+                    :options="[
+                      { label: '风险队列', value: 'queue' },
+                      { label: 'SLA 控制', value: 'sla' },
+                    ]"
+                    size="sm"
+                    variant="solid"
+                  />
+                </div>
+              </template>
+
+              <!-- Tab: Risk Queue -->
+              <div v-show="activeCommandTab === 'queue'" class="space-y-2">
+                <div
+                  class="flex items-center justify-between text-[10px] text-[var(--text-secondary)]"
+                >
+                  <span>当前有 {{ totalQueue }} 个跨模块条目需要审计与干预。</span>
+                  <span class="flex gap-1.5 shrink-0">
+                    <Badge variant="danger" size="sm">高 {{ riskMix.critical }}</Badge>
+                    <Badge variant="warning" size="sm">中 {{ riskMix.warning }}</Badge>
+                    <Badge variant="info" size="sm">低 {{ riskMix.info }}</Badge>
+                  </span>
+                </div>
+
+                <!-- Queue list sliced to 2 items for layout compactness -->
+                <div class="queue-list flex flex-col gap-1.5 mt-1.5">
+                  <button
+                    v-for="item in commandCenter?.queue.slice(0, 2) || []"
+                    :key="`${item.type}-${item.id}`"
+                    type="button"
+                    class="queue-row relative flex items-center gap-3 p-1.5 px-3 border border-base rounded-lg bg-card text-left transition-all hover:border-[var(--accent)] hover:bg-hover cursor-pointer"
+                    :data-severity="item.severity"
+                    @click="openRoute(item.route)"
+                  >
+                    <span
+                      class="absolute left-0 top-0 bottom-0 w-1 rounded-r"
+                      :class="{
+                        'bg-rose-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]':
+                          item.severity === 'critical',
+                        'bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.5)]':
+                          item.severity === 'warning',
+                        'bg-sky-500': item.severity === 'info',
+                      }"
+                    ></span>
+                    <Badge :variant="queueTypeVariant(item.type)">
+                      {{ queueTypeLabel(item.type) }}
+                    </Badge>
+                    <div class="min-w-0 flex-1 pl-1">
+                      <b class="text-xs font-bold block truncate text-[var(--text-primary)]">{{
+                        item.title
+                      }}</b>
+                      <small class="text-[10px] text-slate-400 block truncate mt-0.5"
+                        >{{ item.detail }} / {{ item.owner }}</small
+                      >
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <Badge :variant="getSeverityBadgeVariant(item.severity)">
+                        {{ severityLabel(item.severity) }}
+                      </Badge>
+                      <small class="text-[10px] text-slate-400 w-16 text-right">{{
+                        formatAge(item.ageHours)
+                      }}</small>
+                      <ArrowRight class="h-3.5 w-3.5 text-slate-400" />
+                    </div>
+                  </button>
+                  <div
+                    v-if="!commandCenter?.queue.length"
+                    class="empty-line py-5 text-center text-xs border border-dashed border-base rounded-lg text-slate-400"
+                  >
+                    当前没有跨模块风险条目
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tab: SLA Console -->
+              <div v-show="activeCommandTab === 'sla'" class="space-y-2">
+                <div
+                  class="flex items-center justify-between text-[10px] text-[var(--text-secondary)]"
+                >
+                  <span>反馈、审核、准入、商业和资源恢复时效（SLA）。</span>
+                  <span class="text-[10px] font-bold text-[var(--text-primary)] shrink-0"
+                    >总负载: {{ command?.workloadTotal || 0 }}</span
+                  >
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mt-1.5">
+                  <Card
+                    v-for="item in commandCenter?.sla || []"
+                    :key="item.key"
+                    padding="sm"
+                    clickable
+                    hoverable
+                    class="bg-subtle/40 border-base cursor-pointer"
+                    @click="openRoute(item.route)"
+                  >
+                    <div class="flex items-start justify-between gap-2.5">
+                      <div class="min-w-0">
+                        <p class="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                          {{ item.label }}
+                        </p>
+                        <small class="text-[9px] text-slate-400 block mt-0.5 truncate"
+                          >{{ item.owner }} / {{ item.targetHours }}h</small
+                        >
+                      </div>
+                      <Badge :variant="getBadgeVariant(item.status)">
+                        {{
+                          item.status === 'healthy'
+                            ? '健康'
+                            : item.status === 'watch'
+                              ? '关注'
+                              : '超时'
+                        }}
+                      </Badge>
+                    </div>
+                    <div
+                      class="flex justify-between gap-1.5 mt-2 bg-card p-1 px-1.5 border border-base rounded-md"
+                    >
+                      <span class="flex items-center gap-1 min-w-0">
+                        <small class="text-[9px] text-slate-400">当前</small>
+                        <b class="text-[10px] font-bold text-[var(--text-primary)]">{{
+                          item.current
+                        }}</b>
+                      </span>
+                      <span class="flex items-center gap-1 min-w-0">
+                        <small class="text-[9px] text-slate-400">临近</small>
+                        <b class="text-[10px] font-bold text-[var(--text-primary)]">{{
+                          item.dueSoon
+                        }}</b>
+                      </span>
+                      <span class="flex items-center gap-1 min-w-0">
+                        <small class="text-[9px] text-slate-400">超时</small>
+                        <b class="text-[10px] font-bold text-[var(--text-primary)]">{{
+                          item.overdue
+                        }}</b>
+                      </span>
+                    </div>
+                    <div
+                      class="w-full h-1 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden mt-2"
+                    >
+                      <div
+                        class="h-full rounded-full bg-accent"
+                        :style="{
+                          width: progressWidth(
+                            item.current - item.overdue,
+                            Math.max(item.current, 1),
+                          ),
+                        }"
+                      ></div>
+                    </div>
+                  </Card>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          <!-- Right Column: Trends, Signals, Playbooks -->
+          <div class="space-y-3">
+            <!-- 14-Day Trend Chart -->
+            <Card padding="sm">
+              <template #header>
+                <div class="flex items-center justify-between w-full">
+                  <div>
+                    <h2
+                      class="panel-title flex items-center gap-2 text-xs font-bold text-[var(--text-primary)]"
+                    >
+                      <TrendingUp class="h-4 w-4 text-[var(--accent)]" />
+                      14 天运营趋势
+                    </h2>
+                    <p class="text-[10px] text-[var(--text-secondary)] mt-0.5">
+                      用户、内容、反馈与审计动作
+                    </p>
+                  </div>
+                  <TrendingUp class="h-4 w-4 text-emerald-500" />
+                </div>
+              </template>
+
+              <div class="trend-chart pr-1">
+                <div
+                  v-for="point in commandCenter?.trend || []"
+                  :key="point.date"
+                  class="trend-column"
+                  :title="point.date"
+                >
+                  <div class="trend-bars">
+                    <span class="bar-users" :style="{ height: barHeight(point.users) }"></span>
+                    <span class="bar-content" :style="{ height: barHeight(point.content) }"></span>
+                    <span
+                      class="bar-feedback"
+                      :style="{ height: barHeight(point.feedback) }"
+                    ></span>
+                    <span class="bar-audit" :style="{ height: barHeight(point.audit) }"></span>
+                  </div>
+                  <small>{{ point.date.slice(5) }}</small>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-4 gap-1.5 mt-2.5 text-center">
+                <span
+                  class="inline-flex items-center justify-center gap-1.5 text-[9px] font-bold text-[var(--text-secondary)]"
+                >
+                  <i class="h-1.5 w-1.5 rounded-full bg-[#0ea5e9]"></i>用户
+                </span>
+                <span
+                  class="inline-flex items-center justify-center gap-1.5 text-[9px] font-bold text-[var(--text-secondary)]"
+                >
+                  <i class="h-1.5 w-1.5 rounded-full bg-[#10b981]"></i>内容
+                </span>
+                <span
+                  class="inline-flex items-center justify-center gap-1.5 text-[9px] font-bold text-[var(--text-secondary)]"
+                >
+                  <i class="h-1.5 w-1.5 rounded-full bg-[#f59e0b]"></i>反馈
+                </span>
+                <span
+                  class="inline-flex items-center justify-center gap-1.5 text-[9px] font-bold text-[var(--text-secondary)]"
+                >
+                  <i class="h-1.5 w-1.5 rounded-full bg-[#8b5cf6]"></i>审计
+                </span>
+              </div>
+            </Card>
+
+            <!-- Unified System Signals & Action Playbooks (Tabbed) -->
+            <Card padding="sm">
+              <template #header>
+                <div class="flex items-center justify-between w-full">
+                  <h2
+                    class="panel-title flex items-center gap-2 text-xs font-bold text-[var(--text-primary)]"
+                  >
+                    <Activity class="h-4 w-4 text-[var(--accent)]" />
+                    信号与预案
+                  </h2>
+                  <Tabs
+                    v-model="activeSignalTab"
+                    :options="[
+                      { label: '系统信号', value: 'signals' },
+                      { label: '应急预案', value: 'playbooks' },
+                    ]"
+                    size="sm"
+                    variant="solid"
+                  />
+                </div>
+              </template>
+
+              <!-- Tab: System Signals -->
+              <div v-show="activeSignalTab === 'signals'" class="space-y-2">
+                <div
+                  class="flex items-center justify-between text-[10px] text-[var(--text-secondary)]"
+                >
+                  <span>运行环境关键开关与状态。</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 mt-1.5">
+                  <button
+                    v-for="signal in commandCenter?.systemSignals || []"
+                    :key="signal.key"
+                    type="button"
+                    class="group flex items-center gap-2 p-1.5 px-2 border border-base rounded-lg bg-subtle text-left transition-all hover:border-[var(--accent)] hover:bg-hover cursor-pointer"
+                    @click="openRoute(signal.route)"
+                  >
+                    <span
+                      class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg border border-base transition-transform group-hover:scale-105"
+                      :class="[
+                        signal.status === 'healthy'
+                          ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
+                          : signal.status === 'watch'
+                            ? 'text-amber-500 bg-amber-500/10 border-amber-500/20'
+                            : 'text-red-500 bg-red-500/10 border-red-500/20',
+                      ]"
+                    >
+                      <CheckCircle2 v-if="signal.status === 'healthy'" class="h-3.5 w-3.5" />
+                      <AlertTriangle v-else class="h-3.5 w-3.5" />
+                    </span>
+                    <div class="min-w-0 flex-1">
+                      <span
+                        class="group-hover:text-[var(--accent)] transition-colors text-[10px] font-bold block truncate text-[var(--text-primary)] leading-tight"
+                      >
+                        {{ signal.label }}
+                      </span>
+                      <span class="text-[9px] text-slate-400 block truncate mt-0.5 leading-none">{{
+                        signal.value
+                      }}</span>
+                    </div>
+                    <span
+                      class="h-1.5 w-1.5 rounded-full shrink-0 shadow-[0_0_6px_currentColor]"
+                      :class="{
+                        'bg-emerald-500 text-emerald-500': signal.status === 'healthy',
+                        'bg-amber-500 text-amber-500': signal.status === 'watch',
+                        'bg-red-500 text-red-500': signal.status === 'breached',
+                      }"
+                    ></span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Tab: Action Playbooks -->
+              <div v-show="activeSignalTab === 'playbooks'" class="space-y-2">
+                <div
+                  class="flex items-center justify-between text-[10px] text-[var(--text-secondary)]"
+                >
+                  <span
+                    >应急预案。下一次巡检: {{ formatDateTime(commandCenter?.nextReviewAt) }}</span
+                  >
+                </div>
+
+                <div class="playbook-list flex flex-col gap-1.5 mt-1.5">
+                  <button
+                    v-for="playbook in commandCenter?.playbooks || []"
+                    :key="playbook.id"
+                    type="button"
+                    class="group flex items-center gap-2.5 p-1.5 px-2 border border-base rounded-lg bg-subtle text-left transition-all hover:border-[var(--accent)] hover:bg-hover cursor-pointer w-full"
+                    @click="openRoute(playbook.route)"
+                  >
+                    <span
+                      class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg border border-base transition-transform group-hover:scale-105"
+                      :class="[
+                        playbook.severity === 'info'
+                          ? 'text-sky-500 bg-sky-500/10 border-sky-500/20'
+                          : playbook.severity === 'warning'
+                            ? 'text-amber-500 bg-amber-500/10 border-amber-500/20'
+                            : 'text-red-500 bg-red-500/10 border-red-500/20',
+                      ]"
+                    >
+                      <CheckCircle2 v-if="playbook.severity === 'info'" class="h-3.5 w-3.5" />
+                      <AlertTriangle v-else class="h-3.5 w-3.5" />
+                    </span>
+                    <div class="min-w-0 flex-1">
+                      <b
+                        class="text-[10px] font-bold block truncate text-[var(--text-primary)] leading-tight"
+                        >{{ playbook.title }}</b
+                      >
+                      <small class="text-[9px] text-slate-400 block truncate mt-0.5 leading-none"
+                        >{{ playbook.impact }} / {{ playbook.detail }}</small
+                      >
+                    </div>
+                    <span
+                      class="playbook-cta text-[10px] font-black text-[var(--accent)] shrink-0 pl-1"
+                      >{{ playbook.cta }}</span
+                    >
+                  </button>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </section>
+      </div>
     </main>
   </div>
 </template>
 
 <style scoped>
 .admin-command-center {
-  display: flex;
-  height: 100%;
-  min-height: 0;
-  flex-direction: column;
-  overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(var(--accent-rgb), 0.03), transparent 260px), var(--bg-app);
+  background: transparent;
 }
 
-.command-header {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  border-bottom: 1px solid var(--border-base);
-  background: color-mix(in srgb, var(--bg-card) 96%, transparent);
-  padding: 0.75rem 1.25rem;
+.health-dial {
+  position: relative;
 }
 
-.command-title {
-  display: flex;
-  min-width: 0;
-  align-items: center;
+.overview-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.25fr) minmax(340px, 1.5fr) minmax(260px, 0.75fr);
   gap: 0.75rem;
 }
 
-.title-row {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.title-row h1 {
-  color: var(--text-primary);
-  font-size: 15px;
-  font-weight: 900;
-  letter-spacing: -0.01em;
-}
-
-.command-title p {
-  margin-top: 0.1rem;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.health-badge,
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
-  border: 1px solid;
-  border-radius: 999px;
-  padding: 0.12rem 0.45rem;
-  font-size: 9px;
-  font-weight: 800;
-}
-
-.command-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
-
-.primary-button,
-.secondary-button {
-  display: inline-flex;
-  min-height: 32px;
-  align-items: center;
-  gap: 0.4rem;
-  border-radius: 6px;
-  padding: 0 0.75rem;
-  font-size: 11px;
-  font-weight: 800;
-  transition: all 0.18s ease;
-}
-
-.primary-button {
-  color: #fff;
-  background: var(--accent);
-}
-
-.primary-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-
-.secondary-button {
-  border: 1px solid var(--border-base);
-  color: var(--text-secondary);
-  background: var(--bg-card);
-}
-
-.primary-button:hover,
-.secondary-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.secondary-button:hover {
-  border-color: rgba(var(--accent-rgb), 0.35);
-  color: var(--accent);
-  background: rgba(var(--accent-rgb), 0.05);
-}
-
-.command-main {
-  min-height: 0;
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-/* Redesigned Overview Grid */
-.overview-grid {
-  display: grid;
-  grid-template-columns: minmax(320px, 1.2fr) minmax(340px, 1.5fr) minmax(260px, 0.9fr);
-  gap: 1rem;
-  flex-shrink: 0;
-}
-
-.overview-card {
-  border: 1px solid var(--border-base);
-  border-radius: 10px;
-  background: var(--bg-card);
-  padding: 0.85rem 1rem;
-  box-shadow: var(--shadow-enterprise);
-  transition: all 0.2s ease;
-  min-width: 0;
-}
-
-.status-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-/* SVG Health Gauge Dial */
-.health-dial {
-  position: relative;
-  height: 72px;
-  width: 72px;
-  flex-shrink: 0;
-}
-
-.health-ring {
-  transform: rotate(-90deg);
-  width: 100%;
-  height: 100%;
-}
-
-.ring-bg {
-  stroke: color-mix(in srgb, var(--border-base) 40%, transparent);
-}
-
-.ring-progress {
-  transition: stroke-dashoffset 0.35s ease;
-}
-
-.dial-content {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  line-height: 1.1;
-  text-align: center;
-}
-
-.dial-content strong {
-  color: var(--text-primary);
-  font-size: 18px;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-}
-
-.dial-content span {
-  color: var(--text-secondary);
-  font-size: 9px;
-  font-weight: 700;
-  margin-top: 1px;
-}
-
-.overview-copy {
-  min-width: 0;
-  flex: 1;
-}
-
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.overview-copy h2 {
-  margin-top: 0.2rem;
-  overflow: hidden;
-  color: var(--text-primary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
-  font-weight: 900;
-}
-
-.overview-copy p {
-  margin-top: 0.15rem;
-  overflow: hidden;
-  color: var(--text-secondary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.risk-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  margin-top: 0.45rem;
-}
-
-.risk-strip span {
-  border-radius: 99px;
-  padding: 0.1rem 0.4rem;
-  font-size: 9px;
-  font-weight: 800;
-}
-
-.risk-critical {
-  color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 10%, transparent);
-}
-
-.risk-warning {
-  color: var(--warning);
-  background: color-mix(in srgb, var(--warning) 10%, transparent);
-}
-
-.risk-info {
-  color: #0284c7;
-  background: rgba(14, 165, 233, 0.1);
-}
-
-/* 3-Column KPI Grid */
 .metrics-card {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -777,442 +861,36 @@ void healthDialStyle.value;
   align-items: center;
 }
 
-.metric-item-btn {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.4rem 0.6rem;
-  text-align: left;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  transition: all 0.18s ease;
-  height: 100%;
-}
-
-.metric-item-btn:hover {
-  background: color-mix(in srgb, var(--bg-hover) 80%, transparent);
-  border-color: var(--border-base);
-  transform: translateY(-1px);
-}
-
-.metric-icon {
-  display: inline-flex;
-  height: 30px;
-  width: 30px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid;
-  border-radius: 6px;
-  transition: all 0.18s ease;
-}
-
-.metric-copy {
-  min-width: 0;
-}
-
-.metric-copy small {
-  display: block;
-  color: var(--text-secondary);
-  font-size: 10px;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.metric-copy strong {
-  display: block;
-  color: var(--text-primary);
-  font-size: 18px;
-  font-weight: 900;
-  line-height: 1.1;
-}
-
-.metric-copy em {
-  display: block;
-  color: var(--text-muted);
-  font-size: 9px;
-  font-style: normal;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tone-sky .metric-icon {
-  border-color: rgba(14, 165, 233, 0.2);
-  color: #0284c7;
-  background: rgba(14, 165, 233, 0.08);
-}
-
-.tone-rose .metric-icon {
-  border-color: color-mix(in srgb, var(--danger) 22%, transparent);
-  color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 8%, transparent);
-}
-
-.tone-emerald .metric-icon {
-  border-color: color-mix(in srgb, var(--success) 22%, transparent);
-  color: var(--success);
-  background: color-mix(in srgb, var(--success) 8%, transparent);
-}
-
-.tone-amber .metric-icon {
-  border-color: color-mix(in srgb, var(--warning) 22%, transparent);
-  color: var(--warning);
-  background: color-mix(in srgb, var(--warning) 8%, transparent);
-}
-
-.tone-violet .metric-icon {
-  border-color: rgba(139, 92, 246, 0.2);
-  color: #7c3aed;
-  background: rgba(139, 92, 246, 0.08);
-}
-
-/* Action Card Button styling */
-.action-card-btn {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  text-align: left;
-  cursor: pointer;
-}
-
-.action-card-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.action-copy {
-  min-width: 0;
-  flex: 1;
-}
-
-.action-copy small {
-  display: block;
-  color: var(--text-secondary);
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.action-copy strong {
-  display: block;
-  font-size: 13px;
-  font-weight: 900;
-  margin-top: 0.1rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.action-copy em {
-  display: block;
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 600;
-  margin-top: 0.1rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.action-arrow {
-  display: inline-flex;
-  height: 28px;
-  width: 28px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.15);
-}
-
 .action-risk {
   color: #fff;
-  border-color: transparent;
   background: linear-gradient(135deg, color-mix(in srgb, var(--danger) 90%, black), var(--accent));
 }
 
-.action-risk .action-copy small,
-.action-risk .action-copy strong,
-.action-risk .action-copy em {
-  color: #fff;
-}
-
-.action-risk .action-copy em {
-  opacity: 0.85;
-}
-
 .action-stable {
-  color: var(--success);
   border-color: color-mix(in srgb, var(--success) 20%, transparent);
   background: color-mix(in srgb, var(--success) 6%, transparent);
 }
 
-.action-stable .action-copy small,
-.action-stable .action-copy em {
-  color: var(--text-secondary);
-}
-
-.action-stable .action-copy strong {
-  color: var(--text-primary);
-}
-
-.action-stable .action-arrow {
-  background: color-mix(in srgb, var(--success) 10%, transparent);
-  color: var(--success);
-}
-
-/* Grid Layout styling */
-.command-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
-  gap: 1rem;
-  flex: 1;
-}
-
-.primary-column,
-.secondary-column {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.panel {
-  min-width: 0;
-  border: 1px solid var(--border-base);
-  border-radius: 10px;
-  background: var(--bg-card);
-  padding: 0.85rem 1rem;
-  box-shadow: var(--shadow-enterprise);
-}
-
-.panel-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.panel-title {
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: -0.01em;
-}
-
-.panel-subtitle {
-  margin-top: 0.15rem;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.queue-list,
-.playbook-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-
-/* Compact Risk Queue Row */
-.queue-row {
-  position: relative;
-  display: flex;
-  min-height: 48px;
-  align-items: center;
-  gap: 0.75rem;
-  overflow: hidden;
-  border: 1px solid var(--border-base);
+.empty-line {
+  border: 1px dashed var(--border-base);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-card) 92%, var(--bg-app));
-  padding: 0.45rem 0.65rem 0.45rem 0.8rem;
-  text-align: left;
-  transition: all 0.18s ease;
-}
-
-.queue-row:hover,
-.sla-card:hover,
-.signal-grid button:hover,
-.playbook-list button:hover {
-  border-color: rgba(var(--accent-rgb), 0.35);
-  background: color-mix(in srgb, var(--accent) 5%, var(--bg-card));
-  transform: translateY(-1.5px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
-}
-
-.queue-rail {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 2.5px;
-  background: #0ea5e9;
-  border-radius: 0 2px 2px 0;
-}
-
-.queue-row[data-severity='critical'] .queue-rail {
-  background: var(--danger);
-  box-shadow: 0 0 4px var(--danger);
-}
-
-.queue-row[data-severity='warning'] .queue-rail {
-  background: var(--warning);
-  box-shadow: 0 0 4px var(--warning);
-}
-
-.type-pill {
-  display: inline-flex;
-  width: 38px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  padding: 0.2rem 0;
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.queue-copy,
-.signal-copy,
-.playbook-copy {
-  min-width: 0;
-  flex: 1;
-}
-
-.queue-row b,
-.signal-grid b,
-.playbook-list b {
-  display: block;
-  overflow: hidden;
-  color: var(--text-primary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.queue-row small,
-.signal-grid small,
-.playbook-list small {
-  display: block;
-  overflow: hidden;
-  margin-top: 0.1rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.queue-meta {
-  display: flex;
-  min-width: 58px;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.1rem;
-}
-
-.queue-meta i {
-  border: 1px solid;
-  border-radius: 99px;
-  padding: 0.05rem 0.35rem;
-  font-size: 8px;
-  font-style: normal;
-  font-weight: 800;
-}
-
-/* Compact SLA Console cards */
-.sla-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 0.5rem;
-}
-
-.sla-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-height: 94px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-card) 92%, var(--bg-app));
-  padding: 0.55rem;
-  text-align: left;
-  transition: all 0.18s ease;
-}
-
-.sla-topline {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.4rem;
-}
-
-.sla-topline p {
-  overflow: hidden;
-  color: var(--text-primary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.sla-numbers {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.3rem;
-  margin-top: 0.4rem;
-  background: color-mix(in srgb, var(--bg-app) 40%, var(--bg-card));
-  padding: 0.25rem 0.4rem;
-  border-radius: 5px;
-  border: 1px solid var(--border-base);
-}
-
-.num-item {
-  display: flex;
-  align-items: center;
-  gap: 0.15rem;
-  min-width: 0;
-}
-
-.num-item small {
+  padding: 1rem;
   color: var(--text-secondary);
-  font-size: 9px;
-  font-weight: 600;
-}
-
-.num-item b {
-  color: var(--text-primary);
+  text-align: center;
   font-size: 11px;
-  font-weight: 800;
 }
 
-.track {
-  display: block;
-  height: 4px;
-  overflow: hidden;
-  border-radius: 99px;
-  background: color-mix(in srgb, var(--border-base) 30%, transparent);
+/* SLA Console specific track */
+.sla-card .w-full {
   margin-top: 0.45rem;
 }
 
-.track em {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent);
-}
-
-/* Sleeker Trend Chart */
+/* Trend Chart */
 .trend-chart {
   display: grid;
   grid-template-columns: repeat(14, minmax(18px, 1fr));
   gap: 0.4rem;
-  height: 154px;
+  height: 140px;
   align-items: end;
   border: 1px solid var(--border-base);
   border-radius: 8px;
@@ -1228,7 +906,7 @@ void healthDialStyle.value;
       transparent 75%
     ),
     color-mix(in srgb, var(--bg-card) 92%, var(--bg-app));
-  padding: 0.75rem 0.55rem 0.45rem;
+  padding: 0.6rem 0.55rem 0.35rem;
 }
 
 .trend-column {
@@ -1281,191 +959,9 @@ void healthDialStyle.value;
   font-weight: 700;
 }
 
-.legend-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.4rem;
-  margin-top: 0.6rem;
-}
-
-.legend-grid span {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  color: var(--text-secondary);
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.legend-grid i {
-  height: 6px;
-  width: 6px;
-  border-radius: 99px;
-}
-
-/* System Signals with switches & indicator dots */
-.signal-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
-}
-
-.signal-grid button,
-.playbook-list button {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.5rem;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-card) 92%, var(--bg-app));
-  padding: 0.45rem 0.55rem;
-  text-align: left;
-  transition: all 0.18s ease;
-}
-
-.signal-icon,
-.playbook-icon {
-  display: inline-flex;
-  height: 28px;
-  width: 28px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid;
-  border-radius: 6px;
-  transition: all 0.18s ease;
-}
-
-.signal-icon svg,
-.playbook-icon svg {
-  height: 12px;
-  width: 12px;
-}
-
-.status-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 99px;
-  margin-left: auto;
-  flex-shrink: 0;
-  box-shadow: 0 0 6px currentColor;
-}
-
-.status-dot.healthy {
-  background-color: var(--success);
-  color: var(--success);
-}
-
-.status-dot.watch {
-  background-color: var(--warning);
-  color: var(--warning);
-}
-
-.status-dot.breached {
-  background-color: var(--danger);
-  color: var(--danger);
-}
-
-/* Playbooks List spacing */
-.playbook-cta {
-  flex-shrink: 0;
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.empty-line {
-  border: 1px dashed var(--border-base);
-  border-radius: 8px;
-  padding: 0.85rem;
-  color: var(--text-secondary);
-  text-align: center;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-@media (max-width: 1400px) {
+@media (max-width: 768px) {
   .overview-grid {
     grid-template-columns: 1fr;
-  }
-
-  .metrics-card {
-    border-top: 1px solid var(--border-base);
-  }
-}
-
-@media (max-width: 1100px) {
-  .command-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .command-header {
-    align-items: stretch;
-    flex-direction: column;
-    padding: 0.75rem;
-  }
-
-  .command-actions {
-    justify-content: flex-start;
-  }
-
-  .command-actions button {
-    flex: 1;
-    justify-content: center;
-    min-width: 0;
-  }
-
-  .command-main {
-    padding: 0.5rem;
-  }
-
-  .status-card {
-    padding: 0.75rem;
-  }
-
-  .health-dial {
-    height: 56px;
-    width: 56px;
-  }
-
-  .dial-content strong {
-    font-size: 15px;
-  }
-
-  .overview-copy h2 {
-    white-space: normal;
-    font-size: 13px;
-  }
-
-  .overview-copy p {
-    white-space: normal;
-  }
-
-  .metrics-card,
-  .signal-grid,
-  .legend-grid,
-  .sla-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .metric-item-btn {
-    padding: 0.5rem 0;
-  }
-
-  .queue-row {
-    align-items: flex-start;
-  }
-
-  .queue-meta {
-    align-items: flex-start;
-  }
-
-  .trend-chart {
-    overflow-x: auto;
-    grid-template-columns: repeat(14, minmax(24px, 1fr));
   }
 }
 </style>

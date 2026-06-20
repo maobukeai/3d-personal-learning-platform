@@ -499,7 +499,7 @@ const activityDotClass = (type: string) => {
               <h4 class="text-xs font-black" style="color: var(--text-primary)">协作动态流</h4>
             </div>
             <span
-              class="text-[9px] font-black text-slate-450 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5"
+              class="text-[9px] font-black text-slate-400 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5"
             >
               {{ activityItems.length }} 条更新
             </span>
@@ -529,7 +529,7 @@ const activityDotClass = (type: string) => {
                   style="color: var(--text-primary)"
                   >{{ item.title }}</span
                 >
-                <span class="block text-[9px] font-bold text-slate-450 truncate mt-0.5">{{
+                <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">{{
                   item.description
                 }}</span>
               </span>

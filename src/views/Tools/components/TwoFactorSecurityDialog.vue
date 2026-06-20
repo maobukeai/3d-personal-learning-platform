@@ -268,9 +268,7 @@ function handleImportFile(event: Event) {
         isFileEncrypted.value = false;
       }
     } catch (err: unknown) {
-      ElMessage.error(
-        `读取备份失败: ${err instanceof Error ? err.message : '文件格式不正确'}`,
-      );
+      ElMessage.error(`读取备份失败: ${err instanceof Error ? err.message : '文件格式不正确'}`);
     } finally {
       target.value = '';
     }
@@ -373,7 +371,7 @@ async function submitImport() {
         class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3 flex items-start gap-2"
       >
         <Clock class="h-4.5 w-4.5 text-indigo-400 shrink-0 mt-0.5" />
-        <p class="text-xs leading-normal text-slate-350">
+        <p class="text-xs leading-normal text-slate-300">
           2FA 基于时间生成动态验证码，如果您的系统本地时间与服务器相差超过 30
           秒，生成的验证码会失效导致校验失败。
         </p>
@@ -407,7 +405,7 @@ async function submitImport() {
         class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3.5 flex items-start gap-2"
       >
         <Shield class="h-5 w-5 text-indigo-400 shrink-0 mt-0.5" />
-        <p class="text-xs leading-normal text-slate-350">
+        <p class="text-xs leading-normal text-slate-300">
           导出您的 2FA 账户数据。为了数据安全，强烈建议启用密码加密，防止密钥在本地或传输中泄漏。
         </p>
       </div>
@@ -465,7 +463,7 @@ async function submitImport() {
         class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3 flex items-start gap-2"
       >
         <Upload class="h-4.5 w-4.5 text-indigo-400 shrink-0 mt-0.5" />
-        <p class="text-xs leading-normal text-slate-350">
+        <p class="text-xs leading-normal text-slate-300">
           从备份的 JSON 文件导入 2FA 账户数据，系统会自动还原所有账号、分组及备注。
         </p>
       </div>

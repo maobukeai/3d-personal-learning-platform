@@ -97,7 +97,10 @@ const loadData = async () => {
     // Load backup files list
     await refreshBackupsList();
   } catch (error: any) {
-    ElMessage.error(label('加载备份配置失败: ', 'Failed to load backup config: ') + (error.response?.data?.error || error.message));
+    ElMessage.error(
+      label('加载备份配置失败: ', 'Failed to load backup config: ') +
+        (error.response?.data?.error || error.message),
+    );
   } finally {
     isLoadingList.value = false;
   }
@@ -108,7 +111,7 @@ const refreshBackupsList = async () => {
     isLoadingList.value = true;
     const res = await fetchBackupsList();
     backups.value = res.backups || [];
-    
+
     if (res.lastBackup) {
       const [time, file] = res.lastBackup.split('|');
       lastBackupTime.value = time || null;
@@ -154,7 +157,10 @@ const handleSaveConfig = async () => {
     ElMessage.success(label('同步配置已保存', 'Sync configuration saved'));
     await refreshBackupsList();
   } catch (error: any) {
-    ElMessage.error(label('保存配置失败: ', 'Failed to save config: ') + (error.response?.data?.error || error.message));
+    ElMessage.error(
+      label('保存配置失败: ', 'Failed to save config: ') +
+        (error.response?.data?.error || error.message),
+    );
   } finally {
     isSaving.value = false;
   }
@@ -176,11 +182,14 @@ const handleTestConfig = async () => {
       dir: dir.value,
     });
     ElMessage.success(label('WebDAV 服务连接测试成功！', 'WebDAV connection test successful!'));
-    
+
     // Automatically save config if test passes
     await handleSaveConfig();
   } catch (error: any) {
-    ElMessage.error(label('连接测试失败: ', 'Connection test failed: ') + (error.response?.data?.error || error.message));
+    ElMessage.error(
+      label('连接测试失败: ', 'Connection test failed: ') +
+        (error.response?.data?.error || error.message),
+    );
   } finally {
     isTesting.value = false;
   }
@@ -189,16 +198,20 @@ const handleTestConfig = async () => {
 // Run manual backup
 const handleRunBackup = async () => {
   const selectedCategories = Object.keys(backupSelection.value).filter(
-    (key) => backupSelection.value[key as keyof typeof backupSelection.value]
+    (key) => backupSelection.value[key as keyof typeof backupSelection.value],
   );
 
   // If not admin, filter out admin categories just in case
-  const finalCategories = isAdmin.value 
-    ? selectedCategories 
-    : selectedCategories.filter(cat => ['notes', 'microsoftEmail', 'googleWarming', 'twoFactor'].includes(cat));
+  const finalCategories = isAdmin.value
+    ? selectedCategories
+    : selectedCategories.filter((cat) =>
+        ['notes', 'microsoftEmail', 'googleWarming', 'twoFactor'].includes(cat),
+      );
 
   if (finalCategories.length === 0) {
-    ElMessage.warning(label('请至少选择一个备份分类', 'Please select at least one backup category'));
+    ElMessage.warning(
+      label('请至少选择一个备份分类', 'Please select at least one backup category'),
+    );
     return;
   }
 
@@ -208,7 +221,9 @@ const handleRunBackup = async () => {
     ElMessage.success(label('备份打包并上传成功！', 'Backup packaged and uploaded successfully!'));
     await refreshBackupsList();
   } catch (error: any) {
-    ElMessage.error(label('备份失败: ', 'Backup failed: ') + (error.response?.data?.error || error.message));
+    ElMessage.error(
+      label('备份失败: ', 'Backup failed: ') + (error.response?.data?.error || error.message),
+    );
   } finally {
     isBackingUp.value = false;
   }
@@ -217,7 +232,7 @@ const handleRunBackup = async () => {
 // Open selective restore wizard
 const openRestoreDialog = (filename: string) => {
   selectedRestoreFile.value = filename;
-  
+
   // Set default checkboxes based on filename if possible (if full backup or custom)
   const isFull = filename.includes('_full_');
   restoreOptions.value = {
@@ -230,22 +245,26 @@ const openRestoreDialog = (filename: string) => {
     aiAssistant: isAdmin.value && isFull,
     controlCenter: isAdmin.value && isFull,
   };
-  
+
   showRestoreDialog.value = true;
 };
 
 // Perform restore
 const handleRestore = async () => {
   const selectedRestoreCategories = Object.keys(restoreOptions.value).filter(
-    (key) => restoreOptions.value[key as keyof typeof restoreOptions.value]
+    (key) => restoreOptions.value[key as keyof typeof restoreOptions.value],
   );
 
-  const finalRestoreCategories = isAdmin.value 
-    ? selectedRestoreCategories 
-    : selectedRestoreCategories.filter(cat => ['notes', 'microsoftEmail', 'googleWarming', 'twoFactor'].includes(cat));
+  const finalRestoreCategories = isAdmin.value
+    ? selectedRestoreCategories
+    : selectedRestoreCategories.filter((cat) =>
+        ['notes', 'microsoftEmail', 'googleWarming', 'twoFactor'].includes(cat),
+      );
 
   if (finalRestoreCategories.length === 0) {
-    ElMessage.warning(label('请选择要恢复的模块数据', 'Please select at least one module to restore'));
+    ElMessage.warning(
+      label('请选择要恢复的模块数据', 'Please select at least one module to restore'),
+    );
     return;
   }
 
@@ -253,26 +272,29 @@ const handleRestore = async () => {
     await ElMessageBox.confirm(
       label(
         '恢复备份将会用备份中的数据覆盖或合并当前系统对应的模块记录。此操作不可撤销，确定恢复吗？',
-        'Restoring a backup will overwrite or merge data in the selected modules. This action cannot be undone. Are you sure?'
+        'Restoring a backup will overwrite or merge data in the selected modules. This action cannot be undone. Are you sure?',
       ),
       label('确认还原备份数据', 'Confirm Restore'),
       {
         confirmButtonText: label('确认恢复', 'Restore'),
         cancelButtonText: label('取消', 'Cancel'),
         type: 'warning',
-      }
+      },
     );
 
     isRestoring.value = true;
     showRestoreDialog.value = false;
-    
+
     await restoreBackup(selectedRestoreFile.value, finalRestoreCategories);
-    
+
     ElMessage.success(label('备份数据已成功恢复！', 'Backup data successfully restored!'));
     await refreshBackupsList();
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(label('恢复备份失败: ', 'Failed to restore backup: ') + (error.response?.data?.error || error.message));
+      ElMessage.error(
+        label('恢复备份失败: ', 'Failed to restore backup: ') +
+          (error.response?.data?.error || error.message),
+      );
     }
   } finally {
     isRestoring.value = false;
@@ -283,14 +305,17 @@ const handleRestore = async () => {
 const handleDeleteBackup = async (filename: string) => {
   try {
     await ElMessageBox.confirm(
-      label('确定要永久从 WebDAV 云端删除该备份文件吗？', 'Are you sure you want to permanently delete this backup from WebDAV?'),
+      label(
+        '确定要永久从 WebDAV 云端删除该备份文件吗？',
+        'Are you sure you want to permanently delete this backup from WebDAV?',
+      ),
       label('删除备份文件', 'Delete Backup'),
       {
         confirmButtonText: label('确定删除', 'Delete'),
         cancelButtonText: label('取消', 'Cancel'),
         confirmButtonClass: 'el-button--danger',
         type: 'error',
-      }
+      },
     );
 
     isDeleting.value[filename] = true;
@@ -299,7 +324,9 @@ const handleDeleteBackup = async (filename: string) => {
     await refreshBackupsList();
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(label('删除失败: ', 'Failed to delete: ') + (error.response?.data?.error || error.message));
+      ElMessage.error(
+        label('删除失败: ', 'Failed to delete: ') + (error.response?.data?.error || error.message),
+      );
     }
   } finally {
     isDeleting.value[filename] = false;
@@ -332,7 +359,12 @@ const formatDate = (dateStr: string) => {
           <span>{{ label('WebDAV 同步配置', 'WebDAV Sync Config') }}</span>
         </div>
         <p class="header-desc">
-          {{ label('配置坚果云、Nextcloud 等第三方 WebDAV 存储以实现跨平台备份与独立还原。', 'Configure third-party WebDAV (e.g. Jianguoyun, Nextcloud) to sync backups and restore independently.') }}
+          {{
+            label(
+              '配置坚果云、Nextcloud 等第三方 WebDAV 存储以实现跨平台备份与独立还原。',
+              'Configure third-party WebDAV (e.g. Jianguoyun, Nextcloud) to sync backups and restore independently.',
+            )
+          }}
         </p>
       </div>
 
@@ -346,7 +378,12 @@ const formatDate = (dateStr: string) => {
             :disabled="isSaving || isTesting"
           />
           <span class="input-tip">
-            {{ label('坚果云默认地址：https://dav.jianguoyun.com/dav/', 'Jianguoyun default URL: https://dav.jianguoyun.com/dav/') }}
+            {{
+              label(
+                '坚果云默认地址：https://dav.jianguoyun.com/dav/',
+                'Jianguoyun default URL: https://dav.jianguoyun.com/dav/',
+              )
+            }}
           </span>
         </div>
 
@@ -358,7 +395,9 @@ const formatDate = (dateStr: string) => {
             placeholder="example@qq.com"
             :disabled="isSaving || isTesting"
           />
-          <span class="input-tip">{{ label('第三方云盘绑定的登录邮箱账号。', 'Log in account email of your WebDAV service.') }}</span>
+          <span class="input-tip">{{
+            label('第三方云盘绑定的登录邮箱账号。', 'Log in account email of your WebDAV service.')
+          }}</span>
         </div>
 
         <div class="form-item">
@@ -366,10 +405,19 @@ const formatDate = (dateStr: string) => {
             v-model="password"
             type="password"
             :label="label('应用密码', 'App Password')"
-            :placeholder="hasSavedPassword ? label('已保存，留空保持不变', 'Saved, leave blank to keep unchanged') : label('输入应用密码', 'Enter application password')"
+            :placeholder="
+              hasSavedPassword
+                ? label('已保存，留空保持不变', 'Saved, leave blank to keep unchanged')
+                : label('输入应用密码', 'Enter application password')
+            "
             :disabled="isSaving || isTesting"
           />
-          <span class="input-tip">{{ label('在网盘后台“第三方应用管理”中生成的独立应用密码。', 'Specific application password generated in your cloud disk settings.') }}</span>
+          <span class="input-tip">{{
+            label(
+              '在网盘后台“第三方应用管理”中生成的独立应用密码。',
+              'Specific application password generated in your cloud disk settings.',
+            )
+          }}</span>
         </div>
 
         <div class="form-item">
@@ -380,7 +428,12 @@ const formatDate = (dateStr: string) => {
             placeholder="cockpit-tools"
             :disabled="isSaving || isTesting"
           />
-          <span class="input-tip">{{ label('在 WebDAV 中管理备份文件的子文件夹目录。', 'Subdirectory folder to manage backup files in WebDAV.') }}</span>
+          <span class="input-tip">{{
+            label(
+              '在 WebDAV 中管理备份文件的子文件夹目录。',
+              'Subdirectory folder to manage backup files in WebDAV.',
+            )
+          }}</span>
         </div>
 
         <div class="form-item">
@@ -393,7 +446,12 @@ const formatDate = (dateStr: string) => {
             placeholder="15"
             :disabled="isSaving || isTesting"
           />
-          <span class="input-tip">{{ label('云端超过天数的备份会在下次同步时自动清理。', 'Backups older than this number of days will be auto-cleaned on next sync.') }}</span>
+          <span class="input-tip">{{
+            label(
+              '云端超过天数的备份会在下次同步时自动清理。',
+              'Backups older than this number of days will be auto-cleaned on next sync.',
+            )
+          }}</span>
         </div>
       </div>
 
@@ -401,14 +459,21 @@ const formatDate = (dateStr: string) => {
         <p class="status-info">
           <strong>{{ label('同步状态：', 'Sync Status: ') }}</strong>
           <span>
-            {{ label('远端恢复需要手动选择，不会静默覆盖本地数据。', 'Remote restoration requires manual selection and does not silently overwrite data.') }}
+            {{
+              label(
+                '远端恢复需要手动选择，不会静默覆盖本地数据。',
+                'Remote restoration requires manual selection and does not silently overwrite data.',
+              )
+            }}
           </span>
         </p>
         <p v-if="lastBackupTime" class="status-details">
-          {{ label('最近上传：', 'Last Upload: ') }} {{ formatDate(lastBackupTime) }} &middot; <code class="filename">{{ lastBackupFile }}</code>
+          {{ label('最近上传：', 'Last Upload: ') }} {{ formatDate(lastBackupTime) }} &middot;
+          <code class="filename">{{ lastBackupFile }}</code>
         </p>
         <p v-if="lastRestoreTime" class="status-details text-blue">
-          {{ label('最近恢复：', 'Last Restore: ') }} {{ formatDate(lastRestoreTime) }} &middot; <code class="filename">{{ lastRestoreFile }}</code>
+          {{ label('最近恢复：', 'Last Restore: ') }} {{ formatDate(lastRestoreTime) }} &middot;
+          <code class="filename">{{ lastRestoreFile }}</code>
         </p>
         <p v-if="!lastBackupTime && !lastRestoreTime" class="status-details">
           {{ label('最近同步：尚未同步', 'Last Sync: Not synced yet') }}
@@ -445,7 +510,12 @@ const formatDate = (dateStr: string) => {
           <span>{{ label('精细化数据打包', 'Fine-grained Backup') }}</span>
         </div>
         <p class="header-desc">
-          {{ label('选择要立即备份的数据项，系统会自动将其打包成加密的 ZIP 压缩包并上传。', 'Select data components to back up, and the system will zip and upload them directly.') }}
+          {{
+            label(
+              '选择要立即备份的数据项，系统会自动将其打包成加密的 ZIP 压缩包并上传。',
+              'Select data components to back up, and the system will zip and upload them directly.',
+            )
+          }}
         </p>
       </div>
 
@@ -454,34 +524,54 @@ const formatDate = (dateStr: string) => {
           <h4 class="category-title">{{ label('个人数据备份', 'Personal Data Backups') }}</h4>
           <div class="checkbox-grid">
             <label class="checkbox-item">
-              <input type="checkbox" v-model="backupSelection.notes" />
+              <input v-model="backupSelection.notes" type="checkbox" />
               <div class="checkbox-label">
                 <strong>{{ label('个人笔记备份', 'Notes Backup') }}</strong>
-                <span>{{ label('备份您的创作笔记、评论、点赞与分享记录。', 'Back up user notes, comments, likes, and shares.') }}</span>
+                <span>{{
+                  label(
+                    '备份您的创作笔记、评论、点赞与分享记录。',
+                    'Back up user notes, comments, likes, and shares.',
+                  )
+                }}</span>
               </div>
             </label>
 
             <label class="checkbox-item">
-              <input type="checkbox" v-model="backupSelection.microsoftEmail" />
+              <input v-model="backupSelection.microsoftEmail" type="checkbox" />
               <div class="checkbox-label">
                 <strong>{{ label('微软邮箱备份', 'Microsoft Emails') }}</strong>
-                <span>{{ label('备份配置的微软邮箱账户、代理与发信限制。', 'Back up Outlook integration account settings & sending limits.') }}</span>
+                <span>{{
+                  label(
+                    '备份配置的微软邮箱账户、代理与发信限制。',
+                    'Back up Outlook integration account settings & sending limits.',
+                  )
+                }}</span>
               </div>
             </label>
 
             <label class="checkbox-item">
-              <input type="checkbox" v-model="backupSelection.googleWarming" />
+              <input v-model="backupSelection.googleWarming" type="checkbox" />
               <div class="checkbox-label">
                 <strong>{{ label('谷歌养号备份', 'Google Warming Accounts') }}</strong>
-                <span>{{ label('备份用于养号的谷歌账户、辅助密码及状态。', 'Back up Google account details, passwords, and warming states.') }}</span>
+                <span>{{
+                  label(
+                    '备份用于养号的谷歌账户、辅助密码及状态。',
+                    'Back up Google account details, passwords, and warming states.',
+                  )
+                }}</span>
               </div>
             </label>
 
             <label class="checkbox-item">
-              <input type="checkbox" v-model="backupSelection.twoFactor" />
+              <input v-model="backupSelection.twoFactor" type="checkbox" />
               <div class="checkbox-label">
                 <strong>{{ label('2FA 验证备份', '2FA Accounts') }}</strong>
-                <span>{{ label('备份绑定的双重身份验证（2FA）应用账户密钥。', 'Back up Google/GitHub Two-Factor authentication accounts.') }}</span>
+                <span>{{
+                  label(
+                    '备份绑定的双重身份验证（2FA）应用账户密钥。',
+                    'Back up Google/GitHub Two-Factor authentication accounts.',
+                  )
+                }}</span>
               </div>
             </label>
           </div>
@@ -493,34 +583,54 @@ const formatDate = (dateStr: string) => {
           </h4>
           <div class="checkbox-grid">
             <label class="checkbox-item">
-              <input type="checkbox" v-model="backupSelection.storageConfig" />
+              <input v-model="backupSelection.storageConfig" type="checkbox" />
               <div class="checkbox-label">
                 <strong>{{ label('云端存储配置备份', 'Cloud Storage Configurations') }}</strong>
-                <span>{{ label('备份 S3、Cloudflare R2 等多端云存储配置信息。', 'Back up Cloudflare R2 / S3 storage configuration records.') }}</span>
+                <span>{{
+                  label(
+                    '备份 S3、Cloudflare R2 等多端云存储配置信息。',
+                    'Back up Cloudflare R2 / S3 storage configuration records.',
+                  )
+                }}</span>
               </div>
             </label>
 
             <label class="checkbox-item">
-              <input type="checkbox" v-model="backupSelection.emailService" />
+              <input v-model="backupSelection.emailService" type="checkbox" />
               <div class="checkbox-label">
                 <strong>{{ label('邮箱服务备份', 'Email Service Settings') }}</strong>
-                <span>{{ label('备份系统全局邮件 SMTP 网关与发信模板参数。', 'Back up SMTP servers and email verification body setups.') }}</span>
+                <span>{{
+                  label(
+                    '备份系统全局邮件 SMTP 网关与发信模板参数。',
+                    'Back up SMTP servers and email verification body setups.',
+                  )
+                }}</span>
               </div>
             </label>
 
             <label class="checkbox-item">
-              <input type="checkbox" v-model="backupSelection.aiAssistant" />
+              <input v-model="backupSelection.aiAssistant" type="checkbox" />
               <div class="checkbox-label">
                 <strong>{{ label('AI 智能辅助备份', 'AI Assistant Settings') }}</strong>
-                <span>{{ label('备份 AI 助理通道、API Key 与智能机器人知识库。', 'Back up AI models, API keys, and chatbot integrations.') }}</span>
+                <span>{{
+                  label(
+                    '备份 AI 助理通道、API Key 与智能机器人知识库。',
+                    'Back up AI models, API keys, and chatbot integrations.',
+                  )
+                }}</span>
               </div>
             </label>
 
             <label class="checkbox-item">
-              <input type="checkbox" v-model="backupSelection.controlCenter" />
+              <input v-model="backupSelection.controlCenter" type="checkbox" />
               <div class="checkbox-label">
                 <strong>{{ label('系统控制中心备份', 'System Control Center') }}</strong>
-                <span>{{ label('备份系统注册规则、外观配置及扩展等其他设置。', 'Back up platform options, branding URLs, and other settings.') }}</span>
+                <span>{{
+                  label(
+                    '备份系统注册规则、外观配置及扩展等其他设置。',
+                    'Back up platform options, branding URLs, and other settings.',
+                  )
+                }}</span>
               </div>
             </label>
           </div>
@@ -549,7 +659,12 @@ const formatDate = (dateStr: string) => {
             <span>{{ label('远端备份历史', 'Remote Backups') }}</span>
           </div>
           <p class="header-desc">
-            {{ label('显示匹配系统命名格式的远端备份文件，支持按模块精细化恢复。', 'Displays remote backup files from WebDAV. Click Restore for selective recovery.') }}
+            {{
+              label(
+                '显示匹配系统命名格式的远端备份文件，支持按模块精细化恢复。',
+                'Displays remote backup files from WebDAV. Click Restore for selective recovery.',
+              )
+            }}
           </p>
         </div>
         <Button variant="secondary" size="sm" :disabled="isLoadingList" @click="refreshBackupsList">
@@ -561,7 +676,14 @@ const formatDate = (dateStr: string) => {
       <div class="backups-list-container">
         <div v-if="backups.length === 0" class="empty-list">
           <HelpCircle />
-          <p>{{ label('未检测到云端备份文件，请先“生成并上传备份”', 'No remote backups found. Please configure WebDAV and run a backup.') }}</p>
+          <p>
+            {{
+              label(
+                '未检测到云端备份文件，请先“生成并上传备份”',
+                'No remote backups found. Please configure WebDAV and run a backup.',
+              )
+            }}
+          </p>
         </div>
 
         <div v-else class="table-wrapper">
@@ -630,66 +752,81 @@ const formatDate = (dateStr: string) => {
           <div class="alert-box warning-alert">
             <AlertTriangle />
             <p>
-              {{ label('重要提示：数据还原操作会将选中的模块内容与当前系统记录覆盖或合并。对于敏感凭据（如密码/Key），还原时将重新使用本地密钥加密存储。', 'Important: Restoration will replace or merge selected module records. Credentials will be re-encrypted using the current server key.') }}
+              {{
+                label(
+                  '重要提示：数据还原操作会将选中的模块内容与当前系统记录覆盖或合并。对于敏感凭据（如密码/Key），还原时将重新使用本地密钥加密存储。',
+                  'Important: Restoration will replace or merge selected module records. Credentials will be re-encrypted using the current server key.',
+                )
+              }}
             </p>
           </div>
 
           <div class="category-block">
-            <h4 class="category-title">{{ label('请选择要恢复的模块数据：', 'Select modules to restore:') }}</h4>
+            <h4 class="category-title">
+              {{ label('请选择要恢复的模块数据：', 'Select modules to restore:') }}
+            </h4>
             <div class="checkbox-grid compact">
               <label class="checkbox-item">
-                <input type="checkbox" v-model="restoreOptions.notes" />
+                <input v-model="restoreOptions.notes" type="checkbox" />
                 <div class="checkbox-label">
                   <strong>{{ label('恢复个人笔记', 'Restore Notes') }}</strong>
                 </div>
               </label>
 
               <label class="checkbox-item">
-                <input type="checkbox" v-model="restoreOptions.microsoftEmail" />
+                <input v-model="restoreOptions.microsoftEmail" type="checkbox" />
                 <div class="checkbox-label">
                   <strong>{{ label('恢复微软邮箱', 'Restore Microsoft Emails') }}</strong>
                 </div>
               </label>
 
               <label class="checkbox-item">
-                <input type="checkbox" v-model="restoreOptions.googleWarming" />
+                <input v-model="restoreOptions.googleWarming" type="checkbox" />
                 <div class="checkbox-label">
                   <strong>{{ label('恢复谷歌养号', 'Restore Google Warming') }}</strong>
                 </div>
               </label>
 
               <label class="checkbox-item">
-                <input type="checkbox" v-model="restoreOptions.twoFactor" />
+                <input v-model="restoreOptions.twoFactor" type="checkbox" />
                 <div class="checkbox-label">
                   <strong>{{ label('恢复 2FA 验证', 'Restore 2FA Accounts') }}</strong>
                 </div>
               </label>
 
               <label v-if="isAdmin" class="checkbox-item">
-                <input type="checkbox" v-model="restoreOptions.storageConfig" />
+                <input v-model="restoreOptions.storageConfig" type="checkbox" />
                 <div class="checkbox-label">
-                  <strong class="text-amber">{{ label('恢复云端存储配置', 'Restore Storage Configurations') }}</strong>
+                  <strong class="text-amber">{{
+                    label('恢复云端存储配置', 'Restore Storage Configurations')
+                  }}</strong>
                 </div>
               </label>
 
               <label v-if="isAdmin" class="checkbox-item">
-                <input type="checkbox" v-model="restoreOptions.emailService" />
+                <input v-model="restoreOptions.emailService" type="checkbox" />
                 <div class="checkbox-label">
-                  <strong class="text-amber">{{ label('恢复邮箱服务配置', 'Restore Email Service') }}</strong>
+                  <strong class="text-amber">{{
+                    label('恢复邮箱服务配置', 'Restore Email Service')
+                  }}</strong>
                 </div>
               </label>
 
               <label v-if="isAdmin" class="checkbox-item">
-                <input type="checkbox" v-model="restoreOptions.aiAssistant" />
+                <input v-model="restoreOptions.aiAssistant" type="checkbox" />
                 <div class="checkbox-label">
-                  <strong class="text-amber">{{ label('恢复 AI 智能辅助', 'Restore AI Settings') }}</strong>
+                  <strong class="text-amber">{{
+                    label('恢复 AI 智能辅助', 'Restore AI Settings')
+                  }}</strong>
                 </div>
               </label>
 
               <label v-if="isAdmin" class="checkbox-item">
-                <input type="checkbox" v-model="restoreOptions.controlCenter" />
+                <input v-model="restoreOptions.controlCenter" type="checkbox" />
                 <div class="checkbox-label">
-                  <strong class="text-amber">{{ label('恢复系统控制中心', 'Restore Control Center') }}</strong>
+                  <strong class="text-amber">{{
+                    label('恢复系统控制中心', 'Restore Control Center')
+                  }}</strong>
                 </div>
               </label>
             </div>
@@ -1123,7 +1260,8 @@ const formatDate = (dateStr: string) => {
   .span-full {
     grid-column: span 1;
   }
-  .checkbox-grid, .checkbox-grid.compact {
+  .checkbox-grid,
+  .checkbox-grid.compact {
     grid-template-columns: 1fr;
   }
 }

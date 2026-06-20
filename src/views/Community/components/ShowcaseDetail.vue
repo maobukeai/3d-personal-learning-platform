@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { formatCompactNumber as formatNumber, formatRelativeTime as formatTime } from '@/utils/format';
+import {
+  formatCompactNumber as formatNumber,
+  formatRelativeTime as formatTime,
+} from '@/utils/format';
 import { ref, computed, watch, defineAsyncComponent } from 'vue';
 import type { Component } from 'vue';
 import {

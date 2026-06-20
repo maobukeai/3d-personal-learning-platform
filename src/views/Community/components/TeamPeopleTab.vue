@@ -312,7 +312,6 @@ const capacityClass = (score?: number) => {
   if (score < 90) return 'bg-amber-500/10 text-amber-500';
   return 'bg-rose-500/10 text-rose-500';
 };
-
 </script>
 
 <template>

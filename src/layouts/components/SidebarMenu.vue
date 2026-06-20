@@ -244,7 +244,7 @@ watch(
       });
     }
     updateActiveIndicator();
-  }
+  },
 );
 
 watch(isExpanded, (val) => {
@@ -699,27 +699,11 @@ watch(isExpanded, (val) => {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--sidebar-accent) 5%, transparent),
-      transparent 160px
-    ),
-    color-mix(in srgb, var(--bg-sidebar) 96%, transparent);
+  background: transparent;
 }
 
 .workspace-sidebar__panel::before {
-  position: absolute;
-  inset: 0;
-  content: '';
-  pointer-events: none;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--sidebar-accent) 12%, transparent),
-    transparent 34%
-  );
-  opacity: 0.65;
-  mask-image: linear-gradient(180deg, #000 0, transparent 58%);
+  display: none;
 }
 
 .workspace-sidebar__panel > * {
@@ -735,26 +719,16 @@ watch(isExpanded, (val) => {
 
 .panel-header {
   position: relative;
-  min-height: 44px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin: 6px 6px 4px;
-  padding: 5px 36px 5px 8px;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--sidebar-accent) 25%, var(--border-base));
-  border-radius: 8px;
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--sidebar-accent) 15%, var(--bg-card)),
-      color-mix(in srgb, var(--bg-card) 92%, transparent)
-    ),
-    var(--bg-card);
-  box-shadow:
-    0 12px 26px -24px rgba(var(--sidebar-accent-rgb), 0.72),
-    inset 0 1px 0 color-mix(in srgb, #ffffff 64%, transparent);
+  margin: 0;
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--border-base);
+  background: transparent;
+  box-shadow: none;
 }
 
 .panel-header::before {
@@ -862,24 +836,22 @@ watch(isExpanded, (val) => {
 
 .panel-icon-button {
   position: absolute;
-  top: 9px;
-  right: 6px;
+  top: 12px;
+  right: 12px;
   z-index: 2;
   width: 24px;
   height: 24px;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  border: 1px solid color-mix(in srgb, var(--sidebar-accent) 18%, var(--border-base));
+  border: none;
   border-radius: 6px;
-  background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+  background: transparent;
   color: var(--text-muted);
   cursor: pointer;
   transition:
-    border-color 0.16s ease,
     color 0.16s ease,
-    background-color 0.16s ease,
-    transform 0.16s ease;
+    background-color 0.16s ease;
 }
 
 .panel-icon-button svg {
@@ -888,9 +860,8 @@ watch(isExpanded, (val) => {
 }
 
 .panel-icon-button:hover {
-  border-color: color-mix(in srgb, var(--sidebar-accent) 40%, var(--border-base));
-  color: var(--sidebar-accent);
-  transform: translateY(-1px);
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .quick-zone {
@@ -1008,29 +979,31 @@ watch(isExpanded, (val) => {
 
 .group-trigger {
   width: 100%;
-  height: 22px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 0 4px 0 5px;
+  border: none;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
   font-size: 9.5px;
-  font-weight: 900;
+  font-weight: 800;
   line-height: 1;
   text-align: left;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 4px;
 }
 
-.group-trigger:hover,
+.group-trigger:hover {
+  color: var(--text-primary);
+}
+
 .group-trigger--active {
-  border-color: color-mix(in srgb, var(--sidebar-accent) 14%, transparent);
-  color: var(--sidebar-accent);
-  background: color-mix(in srgb, var(--sidebar-accent) 7%, transparent);
+  color: var(--text-primary);
+  font-weight: 900;
 }
 
 .group-trigger__title {
@@ -1053,17 +1026,17 @@ watch(isExpanded, (val) => {
   display: grid;
   place-items: center;
   padding: 0 4px;
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--sidebar-accent) 10%, transparent);
-  color: color-mix(in srgb, var(--text-muted) 78%, var(--sidebar-accent));
-  font-size: 9px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  font-size: 8.5px;
   font-weight: 900;
   line-height: 1;
 }
 
-.group-trigger--active .group-count,
-.group-trigger:hover .group-count {
-  background: color-mix(in srgb, var(--sidebar-accent) 18%, transparent);
+.group-trigger:hover .group-count,
+.group-trigger--active .group-count {
+  background: color-mix(in srgb, var(--sidebar-accent) 8%, transparent);
   color: var(--sidebar-accent);
 }
 
@@ -1092,14 +1065,11 @@ watch(isExpanded, (val) => {
   top: 4px;
   bottom: 4px;
   left: 1px;
-  width: 1.5px;
+  width: 1px;
   content: '';
   border-radius: 999px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--sidebar-accent) 42%, transparent),
-    color-mix(in srgb, var(--border-base) 42%, transparent)
-  );
+  background: var(--border-base);
+  opacity: 0.35;
 }
 
 .panel-list--resource-grid {
@@ -1150,13 +1120,7 @@ watch(isExpanded, (val) => {
   pointer-events: none;
   z-index: 1;
   border-radius: 6px;
-  border: 1px solid color-mix(in srgb, var(--sidebar-accent) 26%, var(--border-base));
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--sidebar-accent) 14%, transparent),
-    color-mix(in srgb, var(--bg-card) 60%, transparent)
-  );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sidebar-accent) 10%, transparent);
+  background: color-mix(in srgb, var(--sidebar-accent) 10%, transparent);
   opacity: 0;
 }
 
@@ -1170,19 +1134,12 @@ watch(isExpanded, (val) => {
 }
 
 .active-indicator-bg::before {
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: -5px;
-  width: 3px;
-  content: '';
-  border-radius: 999px;
-  background: var(--sidebar-accent);
+  display: none;
 }
 
 .active-indicator-bg--resource {
-  border-color: color-mix(in srgb, var(--sidebar-accent) 36%, var(--border-base));
-  background: color-mix(in srgb, var(--sidebar-accent) 12%, transparent);
+  background: color-mix(in srgb, var(--sidebar-accent) 10%, transparent);
+  border: none;
   box-shadow: none;
 }
 
@@ -1197,7 +1154,7 @@ watch(isExpanded, (val) => {
   display: grid;
   place-items: center;
   border-radius: 5px;
-  background: color-mix(in srgb, var(--sidebar-accent) 8%, transparent);
+  background: transparent;
   color: var(--text-muted);
   transition:
     background-color 0.16s ease,
@@ -1206,6 +1163,7 @@ watch(isExpanded, (val) => {
 
 .panel-link:hover .panel-link-icon-wrap {
   color: var(--sidebar-accent);
+  background: color-mix(in srgb, var(--sidebar-accent) 8%, transparent);
 }
 
 .panel-link--active .panel-link-icon-wrap {

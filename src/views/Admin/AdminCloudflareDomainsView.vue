@@ -18,8 +18,10 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
-import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import { fetchManagementInsights } from './adminManagementInsights';
+import PageHeader from '@/components/PageHeader.vue';
+import Card from '@/components/ui/Card.vue';
+import Badge from '@/components/ui/Badge.vue';
 import UiButton from '@/components/ui/Button.vue';
 import UiInput from '@/components/ui/Input.vue';
 
@@ -117,7 +119,7 @@ const contentPlaceholder = computed(() => {
 const namePreview = computed(() => {
   const name = dnsForm.value.name.trim();
   const zoneName = selectedZone.value?.name || '';
-  
+
   if (dnsForm.value.type === 'SRV') {
     const service = dnsForm.value.srvService.trim();
     const proto = dnsForm.value.srvProtocol.trim();
@@ -132,27 +134,33 @@ const namePreview = computed(() => {
     }
     return domainPart;
   }
-  
+
   if (!name || name === '@') return zoneName;
   if (name.endsWith(zoneName)) return name;
   return `${name}.${zoneName}`;
 });
 
 // Watch type change to reset proxy status
-watch(() => dnsForm.value.type, (newType) => {
-  if (!['A', 'AAAA', 'CNAME'].includes(newType)) {
-    dnsForm.value.proxied = false;
-  } else {
-    dnsForm.value.proxied = true;
-  }
-});
+watch(
+  () => dnsForm.value.type,
+  (newType) => {
+    if (!['A', 'AAAA', 'CNAME'].includes(newType)) {
+      dnsForm.value.proxied = false;
+    } else {
+      dnsForm.value.proxied = true;
+    }
+  },
+);
 
 // Watch proxied to force TTL to Auto
-watch(() => dnsForm.value.proxied, (isProxied) => {
-  if (isProxied && ['A', 'AAAA', 'CNAME'].includes(dnsForm.value.type)) {
-    dnsForm.value.ttl = 1;
-  }
-});
+watch(
+  () => dnsForm.value.proxied,
+  (isProxied) => {
+    if (isProxied && ['A', 'AAAA', 'CNAME'].includes(dnsForm.value.type)) {
+      dnsForm.value.ttl = 1;
+    }
+  },
+);
 
 const validateDnsForm = (): boolean => {
   const type = dnsForm.value.type;
@@ -180,7 +188,8 @@ const validateDnsForm = (): boolean => {
     }
   } else if (type === 'AAAA') {
     const ip = dnsForm.value.content.trim();
-    const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
+    const ipv6Regex =
+      /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
     if (!ipv6Regex.test(ip)) {
       ElMessage.warning('请输入有效的 IPv6 地址');
       return false;
@@ -207,7 +216,11 @@ const validateDnsForm = (): boolean => {
       ElMessage.warning('请输入有效的邮件服务器域名');
       return false;
     }
-    if (dnsForm.value.priority === undefined || dnsForm.value.priority < 0 || dnsForm.value.priority > 65535) {
+    if (
+      dnsForm.value.priority === undefined ||
+      dnsForm.value.priority < 0 ||
+      dnsForm.value.priority > 65535
+    ) {
       ElMessage.warning('优先级必须在 0 到 65535 之间');
       return false;
     }
@@ -234,15 +247,27 @@ const validateDnsForm = (): boolean => {
       ElMessage.warning('请输入有效的目标主机域名');
       return false;
     }
-    if (dnsForm.value.priority === undefined || dnsForm.value.priority < 0 || dnsForm.value.priority > 65535) {
+    if (
+      dnsForm.value.priority === undefined ||
+      dnsForm.value.priority < 0 ||
+      dnsForm.value.priority > 65535
+    ) {
       ElMessage.warning('优先级必须在 0 到 65535 之间');
       return false;
     }
-    if (dnsForm.value.srvWeight === undefined || dnsForm.value.srvWeight < 0 || dnsForm.value.srvWeight > 65535) {
+    if (
+      dnsForm.value.srvWeight === undefined ||
+      dnsForm.value.srvWeight < 0 ||
+      dnsForm.value.srvWeight > 65535
+    ) {
       ElMessage.warning('权重必须在 0 到 65535 之间');
       return false;
     }
-    if (dnsForm.value.srvPort === undefined || dnsForm.value.srvPort < 1 || dnsForm.value.srvPort > 65535) {
+    if (
+      dnsForm.value.srvPort === undefined ||
+      dnsForm.value.srvPort < 1 ||
+      dnsForm.value.srvPort > 65535
+    ) {
       ElMessage.warning('端口必须在 1 到 65535 之间');
       return false;
     }
@@ -251,7 +276,11 @@ const validateDnsForm = (): boolean => {
       ElMessage.warning('请填写 CA 域名值');
       return false;
     }
-    if (dnsForm.value.caaFlags === undefined || dnsForm.value.caaFlags < 0 || dnsForm.value.caaFlags > 255) {
+    if (
+      dnsForm.value.caaFlags === undefined ||
+      dnsForm.value.caaFlags < 0 ||
+      dnsForm.value.caaFlags > 255
+    ) {
       ElMessage.warning('标志位必须在 0 到 255 之间');
       return false;
     }
@@ -273,6 +302,60 @@ const filteredZones = computed(() => {
   if (!q) return zones.value;
   return zones.value.filter((zone) => zone.name.toLowerCase().includes(q));
 });
+
+const consolidatedCards = computed(() => {
+  const totalCount = zones.value.length;
+  const activeCount = zones.value.filter((z) => z.status === 'active').length;
+  const pausedCount = zones.value.filter((z) => z.paused).length;
+  const apiStatus = hasToken.value ? '已配置' : '未配置';
+
+  return [
+    {
+      label: '托管域名',
+      value: totalCount,
+      hint: `活跃: ${activeCount} / 暂停: ${pausedCount}`,
+      icon: Globe2,
+      color: 'text-indigo-600 bg-indigo-500/10 border-indigo-500/20',
+      health: { label: totalCount > 0 ? '已连接' : '无域名' },
+    },
+    {
+      label: '活跃 Zone',
+      value: activeCount,
+      hint: '正常接收解析请求',
+      icon: ShieldCheck,
+      color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      health: { label: activeCount > 0 ? '正常' : '无活跃' },
+    },
+    {
+      label: '暂停域名',
+      value: pausedCount,
+      hint: '流量绕过 Cloudflare',
+      icon: Pause,
+      color: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
+      health: { label: pausedCount > 0 ? '有暂停' : '无暂停' },
+    },
+    {
+      label: 'API Token',
+      value: apiStatus,
+      hint: accountId.value
+        ? `Account ID: ${accountId.value.slice(0, 8)}...`
+        : '独立于 R2 存储配置',
+      icon: KeyRound,
+      color: hasToken.value
+        ? 'text-cyan-600 bg-cyan-500/10 border-cyan-500/20'
+        : 'text-rose-600 bg-rose-500/10 border-rose-500/20',
+      health: { label: apiStatus },
+    },
+  ];
+});
+
+const getBadgeVariant = (label: string) => {
+  if (label === '已连接' || label === '正常' || label === '无暂停' || label === '已配置')
+    return 'success';
+  if (label === '未配置' || label === '无活跃') return 'danger';
+  if (label === '有暂停' || label === '无域名') return 'warning';
+  return 'primary';
+};
 
 const filteredDnsRecords = computed(() => {
   const q = dnsSearch.value.trim().toLowerCase();
@@ -346,11 +429,15 @@ const saveConfig = async () => {
 
 const clearConfig = async () => {
   try {
-    await ElMessageBox.confirm('确定要清空 Cloudflare 域名管理的 API Token 和 Account ID 配置吗？该操作不可撤销。', '确认清空', {
-      type: 'warning',
-      confirmButtonText: '确定清空',
-      cancelButtonText: '取消',
-    });
+    await ElMessageBox.confirm(
+      '确定要清空 Cloudflare 域名管理的 API Token 和 Account ID 配置吗？该操作不可撤销。',
+      '确认清空',
+      {
+        type: 'warning',
+        confirmButtonText: '确定清空',
+        cancelButtonText: '取消',
+      },
+    );
   } catch {
     return;
   }
@@ -393,7 +480,8 @@ const fetchZones = async () => {
     const { data } = await api.get('/api/admin/cloudflare/zones');
     zones.value = data;
     if (selectedZone.value) {
-      selectedZone.value = data.find((z: CloudflareZone) => z.id === selectedZone.value?.id) || null;
+      selectedZone.value =
+        data.find((z: CloudflareZone) => z.id === selectedZone.value?.id) || null;
     }
     fetchManagementInsights(true);
   } catch (error) {
@@ -458,9 +546,15 @@ const toggleZonePause = async () => {
     const { data } = await api.patch(`/api/admin/cloudflare/zones/${selectedZone.value.id}/pause`, {
       paused: nextPaused,
     });
-    selectedZone.value = { ...selectedZone.value, paused: data.paused, status: data.status || selectedZone.value.status };
+    selectedZone.value = {
+      ...selectedZone.value,
+      paused: data.paused,
+      status: data.status || selectedZone.value.status,
+    };
     zones.value = zones.value.map((zone) =>
-      zone.id === selectedZone.value?.id ? { ...zone, paused: data.paused, status: data.status || zone.status } : zone,
+      zone.id === selectedZone.value?.id
+        ? { ...zone, paused: data.paused, status: data.status || zone.status }
+        : zone,
     );
     ElMessage.success(`域名已${actionLabel}`);
   } catch (error) {
@@ -536,7 +630,7 @@ const openEditDns = (record: CloudflareDnsRecord) => {
 
 const submitDnsForm = async () => {
   if (!selectedZone.value) return;
-  
+
   if (!validateDnsForm()) {
     return;
   }
@@ -553,7 +647,7 @@ const submitDnsForm = async () => {
   submittingDns.value = true;
   try {
     const isProxyable = ['A', 'AAAA', 'CNAME'].includes(type);
-    
+
     let payload: any = {
       type,
       name: relativeName,
@@ -570,7 +664,7 @@ const submitDnsForm = async () => {
           fullName = `${prefix}${relativeName}`;
         }
       }
-      
+
       payload.name = fullName;
       payload.data = {
         service,
@@ -650,296 +744,446 @@ onMounted(async () => {
 
 <template>
   <div
-    class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
-    style="background-color: var(--bg-app)"
+    class="admin-cloudflare-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
   >
-    <div
-      class="relative shrink-0 border-b overflow-hidden"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <div
-        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-orange-500/10 via-indigo-500/5 to-transparent pointer-events-none"
-      ></div>
-
-      <div class="px-4 sm:px-8 py-3 flex flex-row items-center justify-between gap-3 relative z-10">
-        <div class="flex items-center gap-3 min-w-0">
-          <span class="p-1.5 rounded-xl bg-orange-500/10 text-orange-500 shadow-sm border border-orange-500/20 shrink-0">
-            <Globe2 class="w-4.5 h-4.5" />
-          </span>
-          <div class="min-w-0">
-            <h1 class="text-sm sm:text-base font-black tracking-tight truncate" style="color: var(--text-primary)">
-              Cloudflare 域名管理
-            </h1>
-            <p class="text-[10px] hidden sm:block truncate" style="color: var(--text-muted)">
-              Zone / DNS / SSL 状态 · 复杂配置请跳转 Cloudflare 控制台
-            </p>
+    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
+      <!-- Page Header -->
+      <PageHeader title="Cloudflare 域名管理" variant="card">
+        <template #center>
+          <div class="flex flex-wrap items-center gap-1.5 ml-2">
+            <Badge variant="info"> 域名数: {{ zones.length }} </Badge>
           </div>
-        </div>
+        </template>
 
-        <div class="flex items-center gap-2 shrink-0">
-          <UiButton variant="outline" size="sm" :icon="ExternalLink" @click="openCloudflareDashboard()">
-            <span class="hidden sm:inline">控制台</span>
-          </UiButton>
-          <UiButton
-            variant="primary"
-            size="sm"
-            :icon="RefreshCw"
-            :loading="loadingZones"
-            :disabled="!hasToken"
-            @click="fetchZones"
-          >
-            刷新
-          </UiButton>
-        </div>
-      </div>
-    </div>
+        <!-- Actions -->
+        <UiButton
+          variant="outline"
+          size="sm"
+          :icon="ExternalLink"
+          @click="openCloudflareDashboard()"
+        >
+          <span class="hidden sm:inline">控制台</span>
+        </UiButton>
+        <UiButton
+          variant="primary"
+          size="sm"
+          :icon="RefreshCw"
+          :loading="loadingZones"
+          :disabled="!hasToken"
+          @click="fetchZones"
+        >
+          刷新
+        </UiButton>
+      </PageHeader>
 
-    <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
-      <AdminOpsPanel scope="cloudflare" />
-
-      <div class="blender-card p-4 mb-4">
-        <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] gap-4">
-          <div class="space-y-3">
-            <div class="flex items-center gap-2 text-xs font-bold" style="color: var(--text-primary)">
-              <KeyRound class="w-4 h-4 text-accent" />
-              API Token 配置
+      <!-- KPI Metrics Grid -->
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        <Card
+          v-for="card in consolidatedCards"
+          :key="card.label"
+          hoverable
+          glow
+          class="group !p-2 px-2.5"
+        >
+          <div class="flex items-center justify-between w-full gap-3">
+            <!-- Left: Icon & Info -->
+            <div class="flex items-center gap-2.5 min-w-0">
               <span
-                v-if="hasToken"
-                class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600"
+                class="panel-icon border border-base rounded-lg p-1.5 transition-transform group-hover:scale-105 shrink-0"
+                :class="card.color"
               >
-                已配置
+                <component :is="card.icon" class="h-3.5 w-3.5" />
               </span>
-              <span v-else class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600">
-                未配置
-              </span>
+              <div class="min-w-0">
+                <p
+                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
+                >
+                  {{ card.label }}
+                </p>
+                <p
+                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
+                  :title="card.hint"
+                >
+                  {{ card.hint }}
+                </p>
+              </div>
             </div>
 
-            <UiInput
-              v-model="apiTokenInput"
-              type="password"
-              :placeholder="hasToken ? '已保存 Token，输入新 Token 可覆盖' : 'Cloudflare API Token（Zone:Read, DNS:Edit）'"
-              :glass="false"
-              input-class="text-xs font-mono"
-            />
+            <!-- Right: Metric & Health Badge -->
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-base font-black text-[var(--text-primary)] leading-none">
+                {{ card.value }}
+              </span>
+              <Badge :variant="getBadgeVariant(card.health.label)">
+                {{ card.health.label }}
+              </Badge>
+            </div>
+          </div>
+        </Card>
+      </section>
 
-            <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2">
+      <!-- Workspace layout: Single Column Workspace -->
+      <div class="mt-3 w-full min-w-0">
+        <div class="space-y-3 min-w-0">
+          <Card padding="md" class="blender-card mb-3">
+            <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] gap-4">
+              <div class="space-y-3">
+                <div
+                  class="flex items-center gap-2 text-xs font-bold"
+                  style="color: var(--text-primary)"
+                >
+                  <KeyRound class="w-4 h-4 text-accent" />
+                  API Token 配置
+                  <span
+                    v-if="hasToken"
+                    class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600"
+                  >
+                    已配置
+                  </span>
+                  <span
+                    v-else
+                    class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600"
+                  >
+                    未配置
+                  </span>
+                </div>
+
+                <UiInput
+                  v-model="apiTokenInput"
+                  type="password"
+                  :placeholder="
+                    hasToken
+                      ? '已保存 Token，输入新 Token 可覆盖'
+                      : 'Cloudflare API Token（Zone:Read, DNS:Edit）'
+                  "
+                  :glass="false"
+                  input-class="text-xs font-mono"
+                />
+
+                <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2">
+                  <UiInput
+                    v-model="accountId"
+                    placeholder="Account ID（可选）"
+                    :glass="false"
+                    input-class="text-xs font-mono"
+                  />
+                  <UiButton
+                    variant="outline"
+                    size="sm"
+                    :disabled="verifyingToken"
+                    @click="verifyToken"
+                  >
+                    {{ verifyingToken ? '验证中...' : '验证' }}
+                  </UiButton>
+                  <UiButton
+                    variant="primary"
+                    size="sm"
+                    :disabled="savingConfig"
+                    @click="saveConfig"
+                  >
+                    {{ savingConfig ? '保存中...' : '保存' }}
+                  </UiButton>
+                  <UiButton
+                    v-if="hasToken"
+                    variant="danger"
+                    size="sm"
+                    :disabled="clearingConfig"
+                    @click="clearConfig"
+                  >
+                    {{ clearingConfig ? '清空中...' : '清空' }}
+                  </UiButton>
+                </div>
+              </div>
+
+              <div
+                class="text-[11px] leading-relaxed rounded-xl border p-3"
+                style="border-color: var(--border-base); color: var(--text-secondary)"
+              >
+                <p class="font-bold mb-1.5" style="color: var(--text-primary)">功能说明</p>
+                <ul class="space-y-1">
+                  <li>· 支持 DNS 增删改、SSL 状态查看、Zone 暂停/恢复</li>
+                  <li>· SSL/TLS 模式修改、Page Rules 等请在 Cloudflare 控制台操作</li>
+                  <li>· 此 Token 独立于 R2 存储配置</li>
+                </ul>
+              </div>
+            </div>
+          </Card>
+
+          <div class="grid grid-cols-1 xl:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] gap-3">
+            <Card padding="md" class="flex flex-col min-h-[420px]">
+              <div class="flex items-center justify-between gap-2 mb-3">
+                <h2 class="text-sm font-black" style="color: var(--text-primary)">域名列表</h2>
+                <span
+                  class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/5"
+                  style="color: var(--text-secondary)"
+                >
+                  {{ zones.length }} 个
+                </span>
+              </div>
+
               <UiInput
-                v-model="accountId"
-                placeholder="Account ID（可选）"
+                v-model="zoneSearch"
+                placeholder="搜索域名..."
+                :icon="Search"
                 :glass="false"
-                input-class="text-xs font-mono"
+                input-class="text-xs"
+                class="mb-3"
               />
-              <UiButton variant="outline" size="sm" :disabled="verifyingToken" @click="verifyToken">
-                {{ verifyingToken ? '验证中...' : '验证' }}
-              </UiButton>
-              <UiButton variant="primary" size="sm" :disabled="savingConfig" @click="saveConfig">
-                {{ savingConfig ? '保存中...' : '保存' }}
-              </UiButton>
-              <UiButton v-if="hasToken" variant="danger" size="sm" :disabled="clearingConfig" @click="clearConfig">
-                {{ clearingConfig ? '清空中...' : '清空' }}
-              </UiButton>
-            </div>
-          </div>
 
-          <div class="text-[11px] leading-relaxed rounded-xl border p-3" style="border-color: var(--border-base); color: var(--text-secondary)">
-            <p class="font-bold mb-1.5" style="color: var(--text-primary)">功能说明</p>
-            <ul class="space-y-1">
-              <li>· 支持 DNS 增删改、SSL 状态查看、Zone 暂停/恢复</li>
-              <li>· SSL/TLS 模式修改、Page Rules 等请在 Cloudflare 控制台操作</li>
-              <li>· 此 Token 独立于 R2 存储配置</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 xl:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] gap-4">
-        <div class="blender-card p-4 flex flex-col min-h-[420px]">
-          <div class="flex items-center justify-between gap-2 mb-3">
-            <h2 class="text-sm font-black" style="color: var(--text-primary)">域名列表</h2>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/5" style="color: var(--text-secondary)">
-              {{ zones.length }} 个
-            </span>
-          </div>
-
-          <UiInput
-            v-model="zoneSearch"
-            placeholder="搜索域名..."
-            :icon="Search"
-            :glass="false"
-            input-class="text-xs"
-            class="mb-3"
-          />
-
-          <div v-if="!hasToken" class="flex-1 grid place-items-center text-xs text-center px-4" style="color: var(--text-muted)">
-            请先配置并保存 Cloudflare API Token
-          </div>
-          <div v-else-if="loadingZones" class="flex-1 grid place-items-center">
-            <RefreshCw class="w-5 h-5 animate-spin text-accent" />
-          </div>
-          <div v-else class="flex-1 overflow-y-auto space-y-2 pr-1">
-            <button
-              v-for="zone in filteredZones"
-              :key="zone.id"
-              type="button"
-              class="w-full text-left rounded-xl border px-3 py-2.5 transition-all cursor-pointer"
-              :class="selectedZone?.id === zone.id ? 'border-accent bg-accent/5' : 'hover:bg-hover'"
-              :style="{ borderColor: selectedZone?.id === zone.id ? undefined : 'var(--border-base)' }"
-              @click="selectZone(zone)"
-            >
-              <div class="flex items-center justify-between gap-2">
-                <strong class="text-xs truncate" style="color: var(--text-primary)">{{ zone.name }}</strong>
-                <span
-                  class="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
-                  :class="zone.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'"
-                >
-                  {{ zone.status }}
-                </span>
-              </div>
-              <div class="mt-1 text-[10px] flex flex-wrap items-center gap-1.5" style="color: var(--text-secondary)">
-                <span>{{ zone.plan }} · {{ zone.type }}</span>
-                <span v-if="zone.paused" class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600">已暂停</span>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        <div v-if="selectedZone" class="blender-card p-4 flex flex-col min-h-[420px]">
-          <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3 pb-3 border-b" style="border-color: var(--border-base)">
-            <div class="min-w-0">
-              <h2 class="text-sm font-black truncate" style="color: var(--text-primary)">{{ selectedZone.name }}</h2>
-              <p class="text-[10px] mt-0.5 truncate" style="color: var(--text-secondary)">
-                NS: {{ selectedZone.nameServers.join(', ') || '—' }}
-              </p>
-              <div class="flex flex-wrap items-center gap-2 mt-2">
-                <span
-                  v-if="loadingZoneSettings"
-                  class="text-[10px]"
-                  style="color: var(--text-muted)"
-                >
-                  SSL 加载中...
-                </span>
-                <template v-else-if="zoneSslMode">
-                  <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600">
-                    <Lock class="w-3 h-3" />
-                    SSL: {{ sslModeLabel(zoneSslMode) }}
-                  </span>
-                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600">
-                    {{ sslStatusLabel(zoneSslStatus) }}
-                  </span>
-                </template>
-              </div>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-              <button
-                type="button"
-                :disabled="togglingPause"
-                class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold cursor-pointer disabled:opacity-50"
-                :class="selectedZone.paused ? 'text-emerald-600 border-emerald-500/30' : 'text-amber-600 border-amber-500/30'"
-                style="border-color: var(--border-base)"
-                @click="toggleZonePause"
+              <div
+                v-if="!hasToken"
+                class="flex-1 grid place-items-center text-xs text-center px-4"
+                style="color: var(--text-muted)"
               >
-                <Play v-if="selectedZone.paused" class="w-3 h-3" />
-                <Pause v-else class="w-3 h-3" />
-                {{ selectedZone.paused ? '恢复 Zone' : '暂停 Zone' }}
-              </button>
-              <UiButton variant="outline" size="sm" :icon="ExternalLink" @click="openCloudflareDashboard(selectedZone)">
-                控制台
-              </UiButton>
-              <UiButton variant="primary" size="sm" :icon="Plus" @click="openCreateDns">
-                添加 DNS
-              </UiButton>
-            </div>
-          </div>
-
-          <UiInput
-            v-model="dnsSearch"
-            placeholder="搜索 DNS 记录..."
-            :icon="Search"
-            :glass="false"
-            input-class="text-xs"
-            class="mb-3"
-          />
-
-          <div class="flex-1 overflow-auto border rounded-xl" style="border-color: var(--border-base)">
-            <table class="w-full text-left text-xs">
-              <thead class="sticky top-0 z-10" style="background-color: var(--bg-hover)">
-                <tr>
-                  <th class="px-3 py-2 font-bold">类型</th>
-                  <th class="px-3 py-2 font-bold">名称</th>
-                  <th class="px-3 py-2 font-bold">内容</th>
-                  <th class="px-3 py-2 font-bold">代理</th>
-                  <th class="px-3 py-2 font-bold">TTL</th>
-                  <th class="px-3 py-2 font-bold text-right">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="loadingDns">
-                  <td colspan="6" class="px-3 py-10 text-center" style="color: var(--text-muted)">
-                    <RefreshCw class="w-4 h-4 animate-spin inline-block" />
-                  </td>
-                </tr>
-                <tr v-else-if="filteredDnsRecords.length === 0">
-                  <td colspan="6" class="px-3 py-10 text-center" style="color: var(--text-muted)">暂无 DNS 记录</td>
-                </tr>
-                <tr
-                  v-for="record in filteredDnsRecords"
-                  :key="record.id"
-                  class="border-t"
-                  style="border-color: var(--border-base)"
+                请先配置并保存 Cloudflare API Token
+              </div>
+              <div v-else-if="loadingZones" class="flex-1 grid place-items-center">
+                <RefreshCw class="w-5 h-5 animate-spin text-accent" />
+              </div>
+              <div v-else class="flex-1 overflow-y-auto space-y-2 pr-1">
+                <button
+                  v-for="zone in filteredZones"
+                  :key="zone.id"
+                  type="button"
+                  class="w-full text-left rounded-xl border px-3 py-2.5 transition-all cursor-pointer"
+                  :class="
+                    selectedZone?.id === zone.id ? 'border-accent bg-accent/5' : 'hover:bg-hover'
+                  "
+                  :style="{
+                    borderColor: selectedZone?.id === zone.id ? undefined : 'var(--border-base)',
+                  }"
+                  @click="selectZone(zone)"
                 >
-                  <td class="px-3 py-2 font-bold">{{ record.type }}</td>
-                  <td class="px-3 py-2 font-mono text-[11px]">{{ record.name }}</td>
-                  <td class="px-3 py-2 font-mono text-[11px] max-w-[280px] truncate" :title="record.content">
-                    {{ record.content }}
-                  </td>
-                  <td class="px-3 py-2">
-                    <div class="flex items-center gap-1.5">
-                      <span class="transition-colors duration-200"
-                            :class="record.proxied ? 'text-orange-500' : 'text-slate-400'"
-                            :title="record.proxied ? '已代理: 加速并受保护' : '仅 DNS: 绕过代理'">
-                        <Cloud class="w-4 h-4 inline-block" />
-                      </span>
-                      <span class="text-[10px] font-bold"
-                            :style="{ color: record.proxied ? 'var(--text-primary)' : 'var(--text-secondary)' }">
-                        {{ record.proxied ? '已代理' : '仅 DNS' }}
-                      </span>
-                    </div>
-                  </td>
-                  <td class="px-3 py-2">{{ formatTtl(record.ttl) }}</td>
-                  <td class="px-3 py-2">
-                    <div class="flex items-center justify-end gap-1">
-                      <button type="button" class="p-1 rounded hover:bg-hover cursor-pointer" @click="openEditDns(record)">
-                        <Edit2 class="w-3.5 h-3.5" />
-                      </button>
-                      <button type="button" class="p-1 rounded hover:bg-rose-50 text-rose-500 cursor-pointer" @click="deleteDnsRecord(record)">
-                        <Trash2 class="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  <div class="flex items-center justify-between gap-2">
+                    <strong class="text-xs truncate" style="color: var(--text-primary)">{{
+                      zone.name
+                    }}</strong>
+                    <span
+                      class="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                      :class="
+                        zone.status === 'active'
+                          ? 'bg-emerald-50 text-emerald-600'
+                          : 'bg-amber-50 text-amber-600'
+                      "
+                    >
+                      {{ zone.status }}
+                    </span>
+                  </div>
+                  <div
+                    class="mt-1 text-[10px] flex flex-wrap items-center gap-1.5"
+                    style="color: var(--text-secondary)"
+                  >
+                    <span>{{ zone.plan }} · {{ zone.type }}</span>
+                    <span
+                      v-if="zone.paused"
+                      class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600"
+                      >已暂停</span
+                    >
+                  </div>
+                </button>
+              </div>
+            </Card>
 
-        <div v-else class="blender-card p-4 flex flex-col min-h-[420px]">
-          <div class="flex-1 grid place-items-center text-xs text-center px-6" style="color: var(--text-muted)">
-            <div class="space-y-2">
-              <ShieldCheck class="w-8 h-8 mx-auto opacity-40" />
-              <p>从左侧选择一个域名，查看 DNS 与 SSL 状态</p>
-            </div>
+            <Card v-if="selectedZone" padding="md" class="flex flex-col min-h-[420px]">
+              <div
+                class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3 pb-3 border-b"
+                style="border-color: var(--border-base)"
+              >
+                <div class="min-w-0">
+                  <h2 class="text-sm font-black truncate" style="color: var(--text-primary)">
+                    {{ selectedZone.name }}
+                  </h2>
+                  <p class="text-[10px] mt-0.5 truncate" style="color: var(--text-secondary)">
+                    NS: {{ selectedZone.nameServers.join(', ') || '—' }}
+                  </p>
+                  <div class="flex flex-wrap items-center gap-2 mt-2">
+                    <span
+                      v-if="loadingZoneSettings"
+                      class="text-[10px]"
+                      style="color: var(--text-muted)"
+                    >
+                      SSL 加载中...
+                    </span>
+                    <template v-else-if="zoneSslMode">
+                      <span
+                        class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600"
+                      >
+                        <Lock class="w-3 h-3" />
+                        SSL: {{ sslModeLabel(zoneSslMode) }}
+                      </span>
+                      <span
+                        class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600"
+                      >
+                        {{ sslStatusLabel(zoneSslStatus) }}
+                      </span>
+                    </template>
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    :disabled="togglingPause"
+                    class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold cursor-pointer disabled:opacity-50"
+                    :class="
+                      selectedZone.paused
+                        ? 'text-emerald-600 border-emerald-500/30'
+                        : 'text-amber-600 border-amber-500/30'
+                    "
+                    style="border-color: var(--border-base)"
+                    @click="toggleZonePause"
+                  >
+                    <Play v-if="selectedZone.paused" class="w-3 h-3" />
+                    <Pause v-else class="w-3 h-3" />
+                    {{ selectedZone.paused ? '恢复 Zone' : '暂停 Zone' }}
+                  </button>
+                  <UiButton
+                    variant="outline"
+                    size="sm"
+                    :icon="ExternalLink"
+                    @click="openCloudflareDashboard(selectedZone)"
+                  >
+                    控制台
+                  </UiButton>
+                  <UiButton variant="primary" size="sm" :icon="Plus" @click="openCreateDns">
+                    添加 DNS
+                  </UiButton>
+                </div>
+              </div>
+
+              <UiInput
+                v-model="dnsSearch"
+                placeholder="搜索 DNS 记录..."
+                :icon="Search"
+                :glass="false"
+                input-class="text-xs"
+                class="mb-3"
+              />
+
+              <div
+                class="flex-1 overflow-auto border rounded-xl"
+                style="border-color: var(--border-base)"
+              >
+                <table class="w-full text-left text-xs">
+                  <thead class="sticky top-0 z-10" style="background-color: var(--bg-hover)">
+                    <tr>
+                      <th class="px-3 py-2 font-bold">类型</th>
+                      <th class="px-3 py-2 font-bold">名称</th>
+                      <th class="px-3 py-2 font-bold">内容</th>
+                      <th class="px-3 py-2 font-bold">代理</th>
+                      <th class="px-3 py-2 font-bold">TTL</th>
+                      <th class="px-3 py-2 font-bold text-right">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="loadingDns">
+                      <td
+                        colspan="6"
+                        class="px-3 py-10 text-center"
+                        style="color: var(--text-muted)"
+                      >
+                        <RefreshCw class="w-4 h-4 animate-spin inline-block" />
+                      </td>
+                    </tr>
+                    <tr v-else-if="filteredDnsRecords.length === 0">
+                      <td
+                        colspan="6"
+                        class="px-3 py-10 text-center"
+                        style="color: var(--text-muted)"
+                      >
+                        暂无 DNS 记录
+                      </td>
+                    </tr>
+                    <tr
+                      v-for="record in filteredDnsRecords"
+                      :key="record.id"
+                      class="border-t"
+                      style="border-color: var(--border-base)"
+                    >
+                      <td class="px-3 py-2 font-bold">{{ record.type }}</td>
+                      <td class="px-3 py-2 font-mono text-[11px]">{{ record.name }}</td>
+                      <td
+                        class="px-3 py-2 font-mono text-[11px] max-w-[280px] truncate"
+                        :title="record.content"
+                      >
+                        {{ record.content }}
+                      </td>
+                      <td class="px-3 py-2">
+                        <div class="flex items-center gap-1.5">
+                          <span
+                            class="transition-colors duration-200"
+                            :class="record.proxied ? 'text-orange-500' : 'text-slate-400'"
+                            :title="record.proxied ? '已代理: 加速并受保护' : '仅 DNS: 绕过代理'"
+                          >
+                            <Cloud class="w-4 h-4 inline-block" />
+                          </span>
+                          <span
+                            class="text-[10px] font-bold"
+                            :style="{
+                              color: record.proxied
+                                ? 'var(--text-primary)'
+                                : 'var(--text-secondary)',
+                            }"
+                          >
+                            {{ record.proxied ? '已代理' : '仅 DNS' }}
+                          </span>
+                        </div>
+                      </td>
+                      <td class="px-3 py-2">{{ formatTtl(record.ttl) }}</td>
+                      <td class="px-3 py-2">
+                        <div class="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            class="p-1 rounded hover:bg-hover cursor-pointer"
+                            @click="openEditDns(record)"
+                          >
+                            <Edit2 class="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            class="p-1 rounded hover:bg-rose-50 text-rose-500 cursor-pointer"
+                            @click="deleteDnsRecord(record)"
+                          >
+                            <Trash2 class="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            <Card v-else padding="md" class="flex flex-col min-h-[420px]">
+              <div
+                class="flex-1 grid place-items-center text-xs text-center px-6"
+                style="color: var(--text-muted)"
+              >
+                <div class="space-y-2">
+                  <ShieldCheck class="w-8 h-8 mx-auto opacity-40" />
+                  <p>从左侧选择一个域名，查看 DNS 与 SSL 状态</p>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
       </div>
-    </div>
+    </main>
 
-    <el-dialog v-model="dnsDialogVisible" :title="dnsDialogMode === 'create' ? '添加 DNS 记录' : '编辑 DNS 记录'" width="560px" align-center>
+    <el-dialog
+      v-model="dnsDialogVisible"
+      :title="dnsDialogMode === 'create' ? '添加 DNS 记录' : '编辑 DNS 记录'"
+      width="560px"
+      align-center
+    >
       <div class="space-y-4 py-2">
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1">
             <label class="text-[11px] font-bold text-slate-500">类型</label>
-            <select v-model="dnsForm.type" class="w-full px-3 py-2 rounded-xl border text-xs bg-card border-base text-primary">
+            <select
+              v-model="dnsForm.type"
+              class="w-full px-3 py-2 rounded-xl border text-xs bg-card border-base text-primary"
+            >
               <option value="A">A</option>
               <option value="AAAA">AAAA</option>
               <option value="CNAME">CNAME</option>
@@ -952,7 +1196,11 @@ onMounted(async () => {
           </div>
           <div class="space-y-1">
             <label class="text-[11px] font-bold text-slate-500">TTL</label>
-            <select v-model="dnsForm.ttl" :disabled="['A', 'AAAA', 'CNAME'].includes(dnsForm.type) && dnsForm.proxied" class="w-full px-3 py-2 rounded-xl border text-xs bg-card border-base text-primary disabled:opacity-60 disabled:cursor-not-allowed">
+            <select
+              v-model="dnsForm.ttl"
+              :disabled="['A', 'AAAA', 'CNAME'].includes(dnsForm.type) && dnsForm.proxied"
+              class="w-full px-3 py-2 rounded-xl border text-xs bg-card border-base text-primary disabled:opacity-60 disabled:cursor-not-allowed"
+            >
               <option :value="1">Auto (自动)</option>
               <option :value="120">2 minutes</option>
               <option :value="300">5 minutes</option>
@@ -973,11 +1221,19 @@ onMounted(async () => {
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1">
               <label class="text-[11px] font-bold text-slate-500">服务 (Service) *</label>
-              <UiInput v-model="dnsForm.srvService" placeholder="例如: _sip" :glass="false" input-class="text-xs font-mono" />
+              <UiInput
+                v-model="dnsForm.srvService"
+                placeholder="例如: _sip"
+                :glass="false"
+                input-class="text-xs font-mono"
+              />
             </div>
             <div class="space-y-1">
               <label class="text-[11px] font-bold text-slate-500">协议 (Protocol) *</label>
-              <select v-model="dnsForm.srvProtocol" class="w-full px-3 py-2 rounded-xl border text-xs bg-card border-base text-primary">
+              <select
+                v-model="dnsForm.srvProtocol"
+                class="w-full px-3 py-2 rounded-xl border text-xs bg-card border-base text-primary"
+              >
                 <option value="_tcp">_tcp</option>
                 <option value="_udp">_udp</option>
                 <option value="_tls">_tls</option>
@@ -993,20 +1249,40 @@ onMounted(async () => {
           </div>
           <div class="space-y-1">
             <label class="text-[11px] font-bold text-slate-500">目标 (Target) *</label>
-            <UiInput v-model="dnsForm.srvTarget" placeholder="例如: sipserver.example.com" :glass="false" input-class="text-xs font-mono" />
+            <UiInput
+              v-model="dnsForm.srvTarget"
+              placeholder="例如: sipserver.example.com"
+              :glass="false"
+              input-class="text-xs font-mono"
+            />
           </div>
           <div class="grid grid-cols-3 gap-3">
             <div class="space-y-1">
               <label class="text-[11px] font-bold text-slate-500">优先级 (Priority) *</label>
-              <UiInput v-model.number="dnsForm.priority" type="number" :glass="false" input-class="text-xs" />
+              <UiInput
+                v-model.number="dnsForm.priority"
+                type="number"
+                :glass="false"
+                input-class="text-xs"
+              />
             </div>
             <div class="space-y-1">
               <label class="text-[11px] font-bold text-slate-500">权重 (Weight) *</label>
-              <UiInput v-model.number="dnsForm.srvWeight" type="number" :glass="false" input-class="text-xs" />
+              <UiInput
+                v-model.number="dnsForm.srvWeight"
+                type="number"
+                :glass="false"
+                input-class="text-xs"
+              />
             </div>
             <div class="space-y-1">
               <label class="text-[11px] font-bold text-slate-500">端口 (Port) *</label>
-              <UiInput v-model.number="dnsForm.srvPort" type="number" :glass="false" input-class="text-xs" />
+              <UiInput
+                v-model.number="dnsForm.srvPort"
+                type="number"
+                :glass="false"
+                input-class="text-xs"
+              />
             </div>
           </div>
         </template>
@@ -1023,11 +1299,19 @@ onMounted(async () => {
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1">
               <label class="text-[11px] font-bold text-slate-500">标志 (Flags) *</label>
-              <UiInput v-model.number="dnsForm.caaFlags" type="number" :glass="false" input-class="text-xs" />
+              <UiInput
+                v-model.number="dnsForm.caaFlags"
+                type="number"
+                :glass="false"
+                input-class="text-xs"
+              />
             </div>
             <div class="space-y-1">
               <label class="text-[11px] font-bold text-slate-500">标签 (Tag) *</label>
-              <select v-model="dnsForm.caaTag" class="w-full px-3 py-2 rounded-xl border text-xs bg-card border-base text-primary">
+              <select
+                v-model="dnsForm.caaTag"
+                class="w-full px-3 py-2 rounded-xl border text-xs bg-card border-base text-primary"
+              >
                 <option value="issue">issue (允许单个 CA)</option>
                 <option value="issuewild">issuewild (允许通配符证书)</option>
                 <option value="iodef">iodef (报告违规行为 URL)</option>
@@ -1036,7 +1320,12 @@ onMounted(async () => {
           </div>
           <div class="space-y-1">
             <label class="text-[11px] font-bold text-slate-500">值 (Value/CA域名) *</label>
-            <UiInput v-model="dnsForm.caaValue" placeholder="例如: letsencrypt.org" :glass="false" input-class="text-xs font-mono" />
+            <UiInput
+              v-model="dnsForm.caaValue"
+              placeholder="例如: letsencrypt.org"
+              :glass="false"
+              input-class="text-xs font-mono"
+            />
           </div>
         </template>
 
@@ -1052,36 +1341,75 @@ onMounted(async () => {
           </div>
           <div class="space-y-1">
             <label class="text-[11px] font-bold text-slate-500">{{ contentLabel }} *</label>
-            <textarea v-if="dnsForm.type === 'TXT'" v-model="dnsForm.content" rows="3" :placeholder="contentPlaceholder" class="w-full px-3 py-2 rounded-xl border text-xs font-mono text-primary outline-none resize-none" style="background-color: var(--bg-card); border-color: var(--border-base)"></textarea>
-            <UiInput v-else v-model="dnsForm.content" :placeholder="contentPlaceholder" :glass="false" input-class="text-xs font-mono" />
+            <textarea
+              v-if="dnsForm.type === 'TXT'"
+              v-model="dnsForm.content"
+              rows="3"
+              :placeholder="contentPlaceholder"
+              class="w-full px-3 py-2 rounded-xl border text-xs font-mono text-primary outline-none resize-none"
+              style="background-color: var(--bg-card); border-color: var(--border-base)"
+            ></textarea>
+            <UiInput
+              v-else
+              v-model="dnsForm.content"
+              :placeholder="contentPlaceholder"
+              :glass="false"
+              input-class="text-xs font-mono"
+            />
           </div>
           <div v-if="dnsForm.type === 'MX'" class="space-y-1">
             <label class="text-[11px] font-bold text-slate-500">优先级 (Priority) *</label>
-            <UiInput v-model.number="dnsForm.priority" type="number" :glass="false" input-class="text-xs" />
+            <UiInput
+              v-model.number="dnsForm.priority"
+              type="number"
+              :glass="false"
+              input-class="text-xs"
+            />
           </div>
 
           <!-- Cloudflare Proxy Toggle Card -->
           <div v-if="['A', 'AAAA', 'CNAME'].includes(dnsForm.type)" class="pt-2 animate-fade-in">
-            <div class="p-3 rounded-xl border flex items-center justify-between gap-4 transition-all duration-200"
-                 :style="{
-                   borderColor: dnsForm.proxied ? 'rgba(249, 115, 22, 0.3)' : 'var(--border-base)',
-                   backgroundColor: dnsForm.proxied ? 'rgba(249, 115, 22, 0.03)' : 'var(--bg-card)'
-                 }">
+            <div
+              class="p-3 rounded-xl border flex items-center justify-between gap-4 transition-all duration-200"
+              :style="{
+                borderColor: dnsForm.proxied ? 'rgba(249, 115, 22, 0.3)' : 'var(--border-base)',
+                backgroundColor: dnsForm.proxied ? 'rgba(249, 115, 22, 0.03)' : 'var(--bg-card)',
+              }"
+            >
               <div class="flex items-center gap-3">
-                <div class="p-2 rounded-lg transition-colors duration-200"
-                     :class="dnsForm.proxied ? 'bg-orange-500/10 text-orange-500' : 'bg-slate-500/10 text-slate-400'">
+                <div
+                  class="p-2 rounded-lg transition-colors duration-200"
+                  :class="
+                    dnsForm.proxied
+                      ? 'bg-orange-500/10 text-orange-500'
+                      : 'bg-slate-500/10 text-slate-400'
+                  "
+                >
                   <Cloud class="w-5 h-5" />
                 </div>
                 <div>
-                  <div class="text-xs font-bold" :style="{ color: dnsForm.proxied ? 'var(--text-primary)' : 'var(--text-secondary)' }">
+                  <div
+                    class="text-xs font-bold"
+                    :style="{
+                      color: dnsForm.proxied ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    }"
+                  >
                     代理状态: {{ dnsForm.proxied ? '已代理' : '仅 DNS' }}
                   </div>
                   <div class="text-[10px]" style="color: var(--text-muted)">
-                    {{ dnsForm.proxied ? '已加速并受到 Cloudflare 保护' : '绕过 Cloudflare 代理，流量直达源站' }}
+                    {{
+                      dnsForm.proxied
+                        ? '已加速并受到 Cloudflare 保护'
+                        : '绕过 Cloudflare 代理，流量直达源站'
+                    }}
                   </div>
                 </div>
               </div>
-              <el-switch v-model="dnsForm.proxied" active-color="#f97316" inactive-color="#94a3b8" />
+              <el-switch
+                v-model="dnsForm.proxied"
+                active-color="#f97316"
+                inactive-color="#94a3b8"
+              />
             </div>
           </div>
         </template>

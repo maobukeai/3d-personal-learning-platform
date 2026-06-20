@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   Cloud,
@@ -101,7 +101,9 @@ const searchTruncated = ref(false);
 
 // Actual size
 const actualBytes = ref<number | null>(null);
-const actualUsageSource = ref<'cloudflare-graphql' | 'cloudflare-usage-api' | 'list-objects' | null>(null);
+const actualUsageSource = ref<
+  'cloudflare-graphql' | 'cloudflare-usage-api' | 'list-objects' | null
+>(null);
 const actualUsageWarning = ref<string | null>(null);
 const actualObjectCount = ref<number | null>(null);
 const loadingActualSize = ref(false);
@@ -1108,22 +1110,22 @@ onMounted(() => {
                 variant="link"
                 size="sm"
                 :icon="FolderOpen"
-                @click="openFileDrawer(config)"
                 title="浏览/管理文件"
+                @click="openFileDrawer(config)"
               />
               <Button
                 variant="link"
                 size="sm"
                 :icon="Edit2"
-                @click="openEditDialog(config)"
                 title="编辑配置"
+                @click="openEditDialog(config)"
               />
               <Button
                 variant="danger"
                 size="sm"
                 :icon="Trash2"
-                @click="deleteConfig(config.id, config.name)"
                 title="删除配置"
+                @click="deleteConfig(config.id, config.name)"
               />
             </div>
           </div>
@@ -1150,7 +1152,7 @@ onMounted(() => {
                 v-model="form.name"
                 label="配置别名"
                 placeholder="例如：材质仓 R2"
-                inputClass="!py-2.5"
+                input-class="!py-2.5"
                 required
               />
             </div>
@@ -1159,11 +1161,13 @@ onMounted(() => {
                 v-model="form.remark"
                 label="账号备注"
                 placeholder="例如：开发环境 / 主账号"
-                inputClass="!py-2.5"
+                input-class="!py-2.5"
               />
             </div>
             <div>
-              <label class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">
+              <label
+                class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+              >
                 应用类型 <span class="text-red-500">*</span>
               </label>
               <div class="relative">
@@ -1180,13 +1184,18 @@ onMounted(() => {
                     {{ type.label }}
                   </option>
                 </select>
-                <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <div
+                  class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
+                >
                   ▼
                 </div>
               </div>
             </div>
             <div>
-              <label class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">提供商</label>
+              <label
+                class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+                >提供商</label
+              >
               <select
                 v-model="form.provider"
                 disabled
@@ -1212,7 +1221,7 @@ onMounted(() => {
                 v-model="form.endpoint"
                 label="终端节点 (Endpoint URL)"
                 placeholder="https://<account_id>.r2.cloudflarestorage.com"
-                inputClass="!py-2.5 font-mono text-xs"
+                input-class="!py-2.5 font-mono text-xs"
                 required
               />
             </div>
@@ -1221,7 +1230,7 @@ onMounted(() => {
                 v-model="form.accessKeyId"
                 label="Access Key ID"
                 placeholder="R2 存取密钥 ID"
-                inputClass="!py-2.5 font-mono text-xs"
+                input-class="!py-2.5 font-mono text-xs"
                 required
               />
             </div>
@@ -1230,7 +1239,7 @@ onMounted(() => {
                 v-model="form.secretAccessKey"
                 label="Secret Access Key"
                 :placeholder="isEdit ? '留空则不修改已保存的密钥' : 'R2 机密存取密钥'"
-                inputClass="!py-2.5 font-mono text-xs"
+                input-class="!py-2.5 font-mono text-xs"
                 :required="!isEdit"
               />
             </div>
@@ -1239,7 +1248,7 @@ onMounted(() => {
                 v-model="form.cloudflareApiToken"
                 label="Cloudflare API Token（可选，推荐）"
                 placeholder="此 Cloudflare 账号的 R2 只读 API Token"
-                inputClass="!py-2.5 font-mono text-xs"
+                input-class="!py-2.5 font-mono text-xs"
               />
               <p class="text-[9px] leading-relaxed mt-1" style="color: var(--text-secondary)">
                 配置 Token 后可直接读取 Cloudflare Metrics 接口，展示与官网一致的物理占用。
@@ -1250,14 +1259,16 @@ onMounted(() => {
 
         <!-- Section: Bucket & Storage Config -->
         <div>
-          <h3 class="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-2">Bucket & 存储属性</h3>
+          <h3 class="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-2">
+            Bucket & 存储属性
+          </h3>
           <div class="grid grid-cols-3 gap-3">
             <div>
               <Input
                 v-model="form.bucketName"
                 label="存储桶名称"
                 placeholder="例如: materials-bucket"
-                inputClass="!py-2.5"
+                input-class="!py-2.5"
                 required
               />
             </div>
@@ -1266,7 +1277,7 @@ onMounted(() => {
                 v-model="form.publicUrl"
                 label="公共访问域名 (Public URL)"
                 placeholder="https://pub-xxxx.r2.dev 或自定义域名"
-                inputClass="!py-2.5 font-mono text-xs"
+                input-class="!py-2.5 font-mono text-xs"
                 required
               />
             </div>
@@ -1275,7 +1286,7 @@ onMounted(() => {
                 v-model.number="form.priority"
                 type="number"
                 label="匹配优先级"
-                inputClass="!py-2.5"
+                input-class="!py-2.5"
               />
             </div>
             <div>
@@ -1283,7 +1294,7 @@ onMounted(() => {
                 v-model.number="form.limitGb"
                 type="number"
                 label="配额限制 (GB)"
-                inputClass="!py-2.5"
+                input-class="!py-2.5"
                 required
               />
             </div>
@@ -1292,7 +1303,7 @@ onMounted(() => {
                 v-model.number="form.usedBytes"
                 type="number"
                 label="已用存储空间 (Bytes)"
-                inputClass="!py-2.5"
+                input-class="!py-2.5"
                 required
               />
             </div>
@@ -1505,7 +1516,9 @@ onMounted(() => {
         >
           <div v-if="loadingFiles" class="flex flex-col items-center justify-center py-24 gap-3">
             <RefreshCw class="w-8 h-8 animate-spin text-accent" />
-            <span class="text-xs font-bold text-[var(--text-secondary)]">正在加载文件，请稍候...</span>
+            <span class="text-xs font-bold text-[var(--text-secondary)]"
+              >正在加载文件，请稍候...</span
+            >
           </div>
 
           <div
@@ -1603,12 +1616,12 @@ onMounted(() => {
                     </div>
 
                     <span
-                      class="truncate font-bold"
                       v-if="item.type === 'folder'"
+                      class="truncate font-bold"
                       :title="item.name"
                       >{{ item.name }}/</span
                     >
-                    <span class="truncate" v-else :title="item.name">{{ item.name }}</span>
+                    <span v-else class="truncate" :title="item.name">{{ item.name }}</span>
 
                     <button
                       v-if="item.type === 'file'"

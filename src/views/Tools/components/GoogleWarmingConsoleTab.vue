@@ -357,7 +357,7 @@ const generateAppealText = async () => {
   appealAbortCtrl = new AbortController();
 
   const isEn = appealLanguage.value === 'en';
-  
+
   const lengthConstraint = isEn
     ? 'The length of the response must be between 60 and 80 words, and strictly under 90 words. The total character count (including letters, spaces, and punctuation) must be strictly under 450 characters. Write a brief, concise, and complete explanation.'
     : '中文陈述字数在 150-250 字之间，必须严格控制在 350 字以内，绝对不能超过 450 个字。请写出精简、完整的说明。';
@@ -819,7 +819,6 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
           </div>
         </div>
       </div>
-
     </div>
   </div>
 

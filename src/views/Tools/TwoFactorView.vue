@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable vue/no-v-html */
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue';
 
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -587,7 +588,7 @@ function getBrandInfo(label: string, email?: string | null) {
   return {
     name: 'Generic',
     gradient: `from-hsl(${hue},45%,15%)/15 via-hsl(${hue},30%,8%)/10 to-transparent border-slate-700/60`,
-    text: `text-slate-350`,
+    text: `text-slate-300`,
     accentColor: `hsl(${hue},50%,50%)`,
     tagBg: `bg-slate-800 text-slate-400 border-slate-700/40`,
     icon: 'KeyRound',
@@ -700,7 +701,6 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- eslint-disable vue/no-v-html -->
   <div
     class="two-fa-container min-h-screen p-4 sm:p-6"
     style="background-color: var(--bg-app); color: var(--text-primary)"
@@ -726,20 +726,20 @@ onUnmounted(() => {
             class="flex items-center gap-1.5 text-[10.5px] bg-slate-100 dark:bg-slate-800/60 border px-2 py-0.5 rounded-full select-none w-max max-w-full overflow-hidden text-ellipsis whitespace-nowrap"
             style="border-color: var(--border-base)"
           >
-            <span class="text-slate-600 dark:text-slate-350"
+            <span class="text-slate-600 dark:text-slate-300"
               >账号
               <b class="text-indigo-600 dark:text-indigo-300 font-bold ml-0.5">{{
                 accounts.length
               }}</b></span
             >
-            <span class="text-slate-350 dark:text-slate-650">|</span>
-            <span class="text-slate-600 dark:text-slate-350"
+            <span class="text-slate-300 dark:text-slate-600">|</span>
+            <span class="text-slate-600 dark:text-slate-300"
               >分组
               <b class="text-emerald-600 dark:text-emerald-300 font-bold ml-0.5">{{
                 allCategories.length
               }}</b></span
             >
-            <span class="text-slate-350 dark:text-slate-650">|</span>
+            <span class="text-slate-300 dark:text-slate-600">|</span>
             <span
               v-if="lastBackupTime"
               class="text-emerald-600 dark:text-emerald-300 font-semibold flex items-center gap-0.5 animate-fade-in"
@@ -819,7 +819,7 @@ onUnmounted(() => {
 
           <!-- Import button -->
           <button
-            class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border hover:bg-emerald-550/10 hover:border-emerald-550/40 hover:text-emerald-450"
+            class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:text-emerald-500"
             style="
               background-color: var(--bg-app);
               border-color: var(--border-base);
@@ -863,7 +863,7 @@ onUnmounted(() => {
           <transition name="el-fade-in-linear">
             <span
               v-if="filteredAccounts.length !== accounts.length"
-              class="absolute -top-2 -right-1.5 px-1.5 py-0.5 text-[8.5px] font-bold rounded bg-indigo-650 text-white border border-slate-900 shadow-md select-none shrink-0"
+              class="absolute -top-2 -right-1.5 px-1.5 py-0.5 text-[8.5px] font-bold rounded bg-indigo-600 text-white border border-slate-900 shadow-md select-none shrink-0"
             >
               已过滤 {{ filteredAccounts.length }}
             </span>
@@ -1248,7 +1248,7 @@ onUnmounted(() => {
               </span>
               <div class="flex items-center gap-0.5 shrink-0">
                 <button
-                  class="text-slate-500 hover:text-slate-355 transition-colors cursor-pointer border-none bg-transparent p-0.5"
+                  class="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer border-none bg-transparent p-0.5"
                   title="隐藏/显示"
                   @click="toggleSecret(acc.id)"
                 >
@@ -1256,7 +1256,7 @@ onUnmounted(() => {
                   <Eye v-else class="h-3 w-3" />
                 </button>
                 <button
-                  class="text-slate-500 hover:text-slate-355 transition-colors cursor-pointer border-none bg-transparent p-0.5"
+                  class="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer border-none bg-transparent p-0.5"
                   title="复制"
                   @click="copyToClipboard(acc.secret, acc.id, '密钥已复制')"
                 >
@@ -1318,7 +1318,7 @@ onUnmounted(() => {
           <!-- Column 1: Info (Label / User Email / Category tag) -->
           <div class="flex items-center gap-3 w-full lg:w-[260px] shrink-0 min-w-0">
             <button
-              class="p-1 rounded transition-colors cursor-pointer bg-transparent border-none text-slate-500 hover:text-slate-350 shrink-0"
+              class="p-1 rounded transition-colors cursor-pointer bg-transparent border-none text-slate-500 hover:text-slate-300 shrink-0"
               :title="pinnedAccountIds.includes(acc.id) ? '取消置顶' : '置顶'"
               @click="togglePin(acc.id)"
             >
@@ -1445,14 +1445,14 @@ onUnmounted(() => {
             </span>
             <div class="flex items-center gap-1.5 shrink-0 ml-1">
               <button
-                class="text-slate-500 hover:text-slate-350 transition-colors cursor-pointer border-none bg-transparent"
+                class="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer border-none bg-transparent"
                 @click="toggleSecret(acc.id)"
               >
                 <EyeOff v-if="revealedSecrets[acc.id]" class="h-3.5 w-3.5" />
                 <Eye v-else class="h-3.5 w-3.5" />
               </button>
               <button
-                class="text-slate-500 hover:text-slate-355 transition-colors cursor-pointer border-none bg-transparent"
+                class="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer border-none bg-transparent"
                 @click="copyToClipboard(acc.secret, acc.id, '密钥已复制')"
               >
                 <Copy class="h-3.5 w-3.5" />

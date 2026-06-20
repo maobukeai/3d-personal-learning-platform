@@ -632,9 +632,7 @@ const loadHistory = async () => {
         );
         // Merge: DB messages for non-active sessions + local messages for active sessions
         messages.value = [
-          ...dbMessages.filter(
-            (m: Message) => !activePollerSessions.has(m.sessionId || 'default'),
-          ),
+          ...dbMessages.filter((m: Message) => !activePollerSessions.has(m.sessionId || 'default')),
           ...localActiveMessages,
         ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       } else {
@@ -1481,7 +1479,6 @@ const editMessage = async (messageId: string, newContent: string) => {
   chatAreaRef.value?.focusTextarea();
   await handleSend();
 };
-
 
 const copyToClipboard = (text: string): Promise<void> => {
   if (navigator.clipboard?.writeText) {

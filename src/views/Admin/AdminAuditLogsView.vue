@@ -2,27 +2,19 @@
 import { formatDateTime as formatDate } from '@/utils/format';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
-  Activity,
   AlertTriangle,
   BarChart3,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   Clock3,
   Copy,
   Download,
   Eye,
   FileSearch,
   Filter,
-  Globe2,
   Pause,
   Play,
   RefreshCw,
   Search,
-  ShieldCheck,
   SlidersHorizontal,
-  Terminal,
   UserRound,
   X,
 } from 'lucide-vue-next';
@@ -31,6 +23,13 @@ import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import UserAvatar from '@/components/UserAvatar.vue';
 import type { User } from '@/types';
+
+// UI components
+import PageHeader from '@/components/PageHeader.vue';
+import Card from '@/components/ui/Card.vue';
+import Button from '@/components/ui/Button.vue';
+import Badge from '@/components/ui/Badge.vue';
+import Tabs from '@/components/ui/Tabs.vue';
 
 interface AuditLog {
   id: string;
@@ -77,6 +76,9 @@ const pageSize = ref(50);
 const isLoading = ref(true);
 const isExporting = ref(false);
 const selectedLog = ref<AuditLog | null>(null);
+const tableRowClassName = ({ row }: { row: AuditLog }) => {
+  return selectedLog.value?.id === row.id ? 'selected-row' : '';
+};
 const autoRefresh = ref(false);
 const showAdvancedFilters = ref(false);
 const activeInsightTab = ref<'actors' | 'modules' | 'sources'>('actors');
@@ -396,455 +398,391 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="audit-console">
-    <header class="audit-command">
-      <div class="title-row">
-        <div class="title-copy">
-          <span class="panel-icon">
-            <Terminal />
-          </span>
-          <div>
-            <div class="title-heading-row">
-              <h1>审计日志</h1>
-              <div class="header-stats">
-                <span class="stat-item"
-                  >匹配: <b>{{ total }}</b></span
-                >
-                <span class="stat-divider">|</span>
-                <span class="stat-item"
-                  >高风险: <b>{{ highRiskCount }}</b></span
-                >
-                <span class="stat-divider">|</span>
-                <span class="stat-item"
-                  >最新事件: <b>{{ latestLogTime }}</b></span
-                >
-                <span class="stat-divider">|</span>
-                <span class="stat-item"
-                  >筛选: <b>{{ activeFilters }}</b></span
-                >
-              </div>
-            </div>
-            <p>追踪后台关键操作、来源、风险动作与操作者行为。</p>
+  <div class="audit-console flex flex-1 min-h-0 flex-col overflow-hidden">
+    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
+      <PageHeader
+        title="审计日志"
+        subtitle="追踪后台关键操作、来源、风险动作与操作者行为。"
+        variant="card"
+      >
+        <template #center>
+          <div class="flex flex-wrap items-center gap-1.5 ml-2">
+            <Badge variant="info">匹配: {{ total }}</Badge>
+            <Badge :variant="highRiskCount > 0 ? 'danger' : 'info'"
+              >高风险: {{ highRiskCount }}</Badge
+            >
+            <Badge variant="info">最新事件: {{ latestLogTime }}</Badge>
+            <Badge :variant="activeFilters > 0 ? 'warning' : 'info'"
+              >筛选: {{ activeFilters }}</Badge
+            >
           </div>
-        </div>
+        </template>
 
-        <div class="command-actions">
-          <button
-            type="button"
-            class="ghost-button"
-            :class="{ active: showAdvancedFilters }"
-            @click="showAdvancedFilters = !showAdvancedFilters"
-          >
-            <SlidersHorizontal />
-            高级筛选
-          </button>
-          <button
-            type="button"
-            class="ghost-button"
-            :class="{ active: autoRefresh }"
-            @click="toggleAutoRefresh"
-          >
-            <Pause v-if="autoRefresh" />
-            <Play v-else />
-            {{ autoRefresh ? '实时中' : '实时' }}
-          </button>
-          <button type="button" class="ghost-button" @click="resetFilters">
-            <X />
-            清空
-          </button>
-          <button type="button" class="ghost-button" :disabled="isExporting" @click="exportCsv">
-            <Download />
-            {{ isExporting ? '导出中' : '导出 CSV' }}
-          </button>
-          <button type="button" class="primary-button" @click="fetchLogs">
-            <RefreshCw :class="{ spinning: isLoading }" />
-            刷新
-          </button>
-        </div>
-      </div>
-
-      <div class="filter-bar-row">
-        <label class="search-box">
+        <!-- Compact Search Box -->
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-60 shrink-0">
           <Search />
           <input
             v-model="searchFilter"
             type="text"
-            placeholder="搜索描述、模块、动作、IP、操作者"
+            placeholder="搜索描述、模块、动作、IP、操作者..."
           />
         </label>
-      </div>
 
-      <div v-show="showAdvancedFilters" class="advanced-filters-grid">
-        <label class="filter-field">
-          <Filter />
-          <select v-model="moduleFilter">
-            <option v-for="item in modules" :key="item.value" :value="item.value">
-              {{ item.label }}
-            </option>
-          </select>
-        </label>
-        <label class="filter-field">
-          <FileSearch />
-          <input v-model="actionFilter" type="text" placeholder="动作，例如 LOGIN" />
-        </label>
-        <label class="date-field">
-          <Clock3 />
-          <input
-            v-model="dateFrom"
-            type="date"
-            class="cursor-pointer"
-            @click="
-              (e) => {
-                const target = e.target as HTMLInputElement & { showPicker?: () => void };
-                target.showPicker?.();
-              }
-            "
-          />
-        </label>
-        <span class="text-slate-400">-</span>
-        <label class="date-field">
-          <Clock3 />
-          <input
-            v-model="dateTo"
-            type="date"
-            class="cursor-pointer"
-            @click="
-              (e) => {
-                const target = e.target as HTMLInputElement & { showPicker?: () => void };
-                target.showPicker?.();
-              }
-            "
-          />
-        </label>
-      </div>
-
-      <div class="quick-strip">
-        <button
-          v-for="item in summary.modules.slice(0, 9)"
-          :key="item.module"
-          type="button"
-          class="summary-chip"
-          :class="[getModuleTone(item.module || ''), { active: moduleFilter === item.module }]"
-          @click="selectModule(item.module)"
+        <!-- Reusable Buttons -->
+        <Button
+          variant="secondary"
+          size="sm"
+          :class="{ active: showAdvancedFilters }"
+          :icon="SlidersHorizontal"
+          @click="showAdvancedFilters = !showAdvancedFilters"
         >
-          {{ getModuleLabel(item.module || '') }}
-          <b>{{ item.count }}</b>
-        </button>
-        <button
-          v-for="item in summary.actions.slice(0, 5)"
-          :key="item.action"
-          type="button"
-          class="summary-chip action-chip"
-          :class="{ active: actionFilter === item.action }"
-          @click="selectAction(item.action)"
+          高级筛选
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          :class="{ active: autoRefresh }"
+          :icon="autoRefresh ? Pause : Play"
+          @click="toggleAutoRefresh"
         >
-          {{ getActionLabel(item.action || '') }}
-          <b>{{ item.count }}</b>
-        </button>
-        <button
-          v-if="userIdFilter"
-          type="button"
-          class="summary-chip active"
-          @click="userIdFilter = ''"
+          {{ autoRefresh ? '实时中' : '实时' }}
+        </Button>
+        <Button variant="secondary" size="sm" :icon="X" @click="resetFilters"> 清空 </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          :disabled="isExporting"
+          :icon="Download"
+          @click="exportCsv"
         >
-          <UserRound />
-          已筛操作者
-          <X />
-        </button>
-      </div>
-    </header>
-
-    <main class="audit-body">
-      <section class="ledger-panel">
-        <div class="ledger-toolbar">
-          <div>
-            <strong>事件流</strong>
-            <span>{{ visibleRange }} / {{ total }} 条</span>
-          </div>
-          <div class="toolbar-controls">
-            <label>
-              <SlidersHorizontal />
-              <select v-model.number="pageSize">
-                <option :value="25">25 条</option>
-                <option :value="50">50 条</option>
-                <option :value="100">100 条</option>
-                <option :value="200">200 条</option>
-              </select>
-            </label>
+          {{ isExporting ? '导出中' : '导出 CSV' }}
+        </Button>
+        <Button
+          variant="primary"
+          size="sm"
+          :icon="RefreshCw"
+          :loading="isLoading"
+          @click="fetchLogs"
+        >
+          刷新
+        </Button>
+      </PageHeader>
+      <!-- Sub-header for Search & Quick Strip inside a Card -->
+      <Card padding="sm" class="audit-command-card">
+        <div v-show="showAdvancedFilters" class="advanced-filters-grid mb-3">
+          <label class="filter-field">
+            <Filter />
+            <select v-model="moduleFilter">
+              <option v-for="item in modules" :key="item.value" :value="item.value">
+                {{ item.label }}
+              </option>
+            </select>
+          </label>
+          <label class="filter-field">
+            <FileSearch />
+            <input v-model="actionFilter" type="text" placeholder="动作，例如 LOGIN" />
+          </label>
+          <div class="date-range-container">
+            <Clock3 class="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0" />
+            <input
+              v-model="dateFrom"
+              type="date"
+              class="cursor-pointer text-center"
+              @click="
+                (e) => {
+                  const target = e.target as HTMLInputElement & { showPicker?: () => void };
+                  target.showPicker?.();
+                }
+              "
+            />
+            <span class="text-slate-400 text-xs shrink-0 px-0.5">-</span>
+            <input
+              v-model="dateTo"
+              type="date"
+              class="cursor-pointer text-center"
+              @click="
+                (e) => {
+                  const target = e.target as HTMLInputElement & { showPicker?: () => void };
+                  target.showPicker?.();
+                }
+              "
+            />
           </div>
         </div>
 
-        <div class="table-scroll">
-          <table class="audit-table">
-            <colgroup>
-              <col class="col-time" />
-              <col class="col-actor" />
-              <col class="col-module" />
-              <col class="col-action" />
-              <col class="col-risk" />
-              <col class="col-source" />
-              <col />
-              <col class="col-detail" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>时间</th>
-                <th>操作者</th>
-                <th>模块</th>
-                <th>动作</th>
-                <th>风险</th>
-                <th>来源</th>
-                <th>描述</th>
-                <th>详情</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="isLoading">
-                <td colspan="8" class="empty-cell">
-                  <RefreshCw class="spinning" />
-                  正在加载审计记录
-                </td>
-              </tr>
-              <tr
-                v-for="log in logs"
-                v-else
-                :key="log.id"
-                :class="{ selected: selectedLog?.id === log.id }"
-                @click="selectedLog = log"
-              >
-                <td class="time-cell">
+        <div class="quick-strip">
+          <button
+            v-for="item in summary.modules.slice(0, 9)"
+            :key="item.module"
+            type="button"
+            class="summary-chip"
+            :class="[getModuleTone(item.module || ''), { active: moduleFilter === item.module }]"
+            @click="selectModule(item.module)"
+          >
+            {{ getModuleLabel(item.module || '') }}
+            <b>{{ item.count }}</b>
+          </button>
+          <button
+            v-for="item in summary.actions.slice(0, 5)"
+            :key="item.action"
+            type="button"
+            class="summary-chip action-chip"
+            :class="{ active: actionFilter === item.action }"
+            @click="selectAction(item.action)"
+          >
+            {{ getActionLabel(item.action || '') }}
+            <b>{{ item.count }}</b>
+          </button>
+          <button
+            v-if="userIdFilter"
+            type="button"
+            class="summary-chip active"
+            @click="userIdFilter = ''"
+          >
+            <UserRound />
+            已筛操作者
+            <X />
+          </button>
+        </div>
+      </Card>
+
+      <div class="audit-body">
+        <!-- Reusable Card for the event ledger table -->
+        <Card padding="none" class="ledger-panel">
+          <div class="table-wrap flex-1 min-h-0 overflow-auto">
+            <el-table
+              v-loading="isLoading"
+              :data="logs"
+              class="user-table w-full"
+              :row-class-name="tableRowClassName"
+              row-key="id"
+              @row-click="(row) => (selectedLog = row)"
+            >
+              <!-- Time Column -->
+              <el-table-column label="时间" width="118">
+                <template #default="{ row }">
                   <div class="time-container">
-                    <strong>{{ formatShortDate(log.createdAt) }}</strong>
-                    <span class="relative-time">{{ formatRelative(log.createdAt) }}</span>
+                    <strong>{{ formatShortDate(row.createdAt) }}</strong>
+                    <span class="relative-time">{{ formatRelative(row.createdAt) }}</span>
                   </div>
-                </td>
-                <td>
+                </template>
+              </el-table-column>
+
+              <!-- Actor Column -->
+              <el-table-column label="操作者" width="150">
+                <template #default="{ row }">
                   <div class="user-cell">
-                    <UserAvatar :user="log.user" size="xs" />
+                    <UserAvatar :user="row.user" size="xs" />
                     <div class="user-info">
-                      <p :title="log.user?.email || 'SYSTEM'">{{ getActorName(log.user) }}</p>
+                      <p :title="row.user?.email || 'SYSTEM'">{{ getActorName(row.user) }}</p>
                     </div>
                   </div>
-                </td>
-                <td>
-                  <span class="status-pill" :class="getModuleTone(log.module)">
-                    {{ getModuleLabel(log.module) }}
+                </template>
+              </el-table-column>
+
+              <!-- Module Column -->
+              <el-table-column label="模块" width="96">
+                <template #default="{ row }">
+                  <span class="status-pill" :class="getModuleTone(row.module)">
+                    {{ getModuleLabel(row.module) }}
                   </span>
-                </td>
-                <td>
+                </template>
+              </el-table-column>
+
+              <!-- Action Column -->
+              <el-table-column label="动作" width="130">
+                <template #default="{ row }">
                   <div class="action-cell-content">
                     <button
                       type="button"
                       class="text-action"
-                      @click.stop="selectAction(log.action)"
+                      @click.stop="selectAction(row.action)"
                     >
-                      {{ getActionLabel(log.action) }}
+                      {{ getActionLabel(row.action) }}
                     </button>
-                    <small class="action-raw-code">{{ log.action }}</small>
+                    <small class="action-raw-code">{{ row.action }}</small>
                   </div>
-                </td>
-                <td>
-                  <span class="risk-pill" :class="`risk-${getSeverity(log.action)}`">
-                    {{ getSeverityLabel(log.action) }}
+                </template>
+              </el-table-column>
+
+              <!-- Risk Column -->
+              <el-table-column label="风险" width="60">
+                <template #default="{ row }">
+                  <span class="risk-pill" :class="`risk-${getSeverity(row.action)}`">
+                    {{ getSeverityLabel(row.action) }}
                   </span>
-                </td>
-                <td>
+                </template>
+              </el-table-column>
+
+              <!-- Source Column -->
+              <el-table-column label="来源" width="130">
+                <template #default="{ row }">
                   <div class="source-cell-content">
                     <button
                       type="button"
                       class="source-button"
-                      @click.stop="selectSource(log.ipAddress)"
+                      @click.stop="selectSource(row.ipAddress)"
                     >
-                      {{ log.ipAddress || '-' }}
+                      {{ row.ipAddress || '-' }}
                     </button>
-                    <small class="agent-label-text">{{ getAgentLabel(log.userAgent) }}</small>
+                    <small class="agent-label-text">{{ getAgentLabel(row.userAgent) }}</small>
                   </div>
-                </td>
-                <td>
-                  <p class="description-cell" :title="log.description || ''">
-                    {{ log.description || '-' }}
+                </template>
+              </el-table-column>
+
+              <!-- Description Column -->
+              <el-table-column label="描述" min-width="200">
+                <template #default="{ row }">
+                  <p class="description-cell" :title="row.description || ''">
+                    {{ row.description || '-' }}
                   </p>
-                </td>
-                <td>
+                </template>
+              </el-table-column>
+
+              <!-- Detail Action Column -->
+              <el-table-column label="详情" width="55" align="right">
+                <template #default="{ row }">
                   <button
                     type="button"
                     class="icon-button"
                     title="查看详情"
-                    @click.stop="selectedLog = log"
+                    @click.stop="selectedLog = row"
                   >
-                    <Eye />
+                    <Eye class="w-3.5 h-3.5" />
                   </button>
-                </td>
-              </tr>
-              <tr v-if="!isLoading && logs.length === 0">
-                <td colspan="8" class="empty-cell">
-                  <ShieldCheck />
-                  没有匹配的审计记录
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
 
-        <footer class="pagination-bar">
-          <span>第 {{ currentPage }} / {{ totalPages }} 页</span>
-          <div>
-            <button
-              type="button"
-              class="icon-button"
-              :disabled="currentPage === 1"
-              @click="setPage(1)"
-            >
-              <ChevronsLeft />
-            </button>
-            <button
-              type="button"
-              class="icon-button"
-              :disabled="currentPage === 1"
-              @click="setPage(currentPage - 1)"
-            >
-              <ChevronLeft />
-            </button>
-            <button
-              type="button"
-              class="icon-button"
-              :disabled="currentPage === totalPages"
-              @click="setPage(currentPage + 1)"
-            >
-              <ChevronRight />
-            </button>
-            <button
-              type="button"
-              class="icon-button"
-              :disabled="currentPage === totalPages"
-              @click="setPage(totalPages)"
-            >
-              <ChevronsRight />
-            </button>
+          <!-- Pagination wrap -->
+          <div
+            class="pagination-wrap mt-4 flex items-center justify-between p-3 border-t border-slate-100 dark:border-white/5 bg-white/40 dark:bg-transparent"
+          >
+            <el-pagination
+              v-model:current-page="currentPage"
+              v-model:page-size="pageSize"
+              :page-sizes="[25, 50, 100, 200]"
+              :total="total"
+              layout="total, sizes, prev, pager, next"
+              @current-change="fetchLogs"
+            />
           </div>
-        </footer>
-      </section>
+        </Card>
 
-      <aside class="insights-panel">
-        <section class="insight-block">
-          <div class="block-title">
-            <AlertTriangle />
-            <strong>风险分布</strong>
-          </div>
-          <div class="risk-stack">
-            <button
-              v-for="item in severityBars"
-              :key="item.key"
-              type="button"
-              class="risk-row"
-              :class="item.tone"
-            >
-              <span>{{ item.label }}</span>
-              <b>{{ item.value }}</b>
-              <i :style="{ width: `${severityTotal ? (item.value / severityTotal) * 100 : 0}%` }" />
-            </button>
-          </div>
-        </section>
-
-        <section class="insight-block">
-          <div class="block-title">
-            <BarChart3 />
-            <strong>{{
-              insights.windowDays ? `${insights.windowDays} 天趋势` : '筛选趋势'
-            }}</strong>
-          </div>
-          <div class="trend-chart">
-            <div v-for="item in insights.trend" :key="item.date" class="trend-bar">
-              <span :style="{ height: `${Math.max(8, (item.total / maxTrendValue) * 100)}%` }" />
-              <small>{{ formatDay(item.date) }}</small>
+        <!-- Sidebar insights wrapped in Cards -->
+        <aside class="insights-panel">
+          <!-- Card 1: Risk Distribution -->
+          <Card padding="sm">
+            <div class="block-title flex items-center gap-1.5 mb-2.5">
+              <AlertTriangle class="h-3.5 w-3.5 text-[var(--accent)] shrink-0" />
+              <strong class="text-xs font-bold text-[var(--text-primary)]">风险分布</strong>
             </div>
-            <p v-if="!insights.trend.length" class="empty-line">暂无趋势数据</p>
-          </div>
-        </section>
-
-        <section class="insight-block ranking-tabs-block">
-          <div class="tabs-header">
-            <button
-              type="button"
-              class="tab-btn"
-              :class="{ active: activeInsightTab === 'actors' }"
-              @click="activeInsightTab = 'actors'"
-            >
-              <UserRound class="tab-icon" />
-              <span>操作者</span>
-            </button>
-            <button
-              type="button"
-              class="tab-btn"
-              :class="{ active: activeInsightTab === 'modules' }"
-              @click="activeInsightTab = 'modules'"
-            >
-              <Activity class="tab-icon" />
-              <span>模块</span>
-            </button>
-            <button
-              type="button"
-              class="tab-btn"
-              :class="{ active: activeInsightTab === 'sources' }"
-              @click="activeInsightTab = 'sources'"
-            >
-              <Globe2 class="tab-icon" />
-              <span>IP 来源</span>
-            </button>
-          </div>
-
-          <div class="tab-content">
-            <!-- Active Actors Tab -->
-            <div v-if="activeInsightTab === 'actors'" class="tab-pane">
+            <div class="risk-stack">
               <button
-                v-for="item in insights.actors.slice(0, 5)"
-                :key="item.userId || 'system'"
+                v-for="item in severityBars"
+                :key="item.key"
                 type="button"
-                class="actor-row"
-                :class="{ active: userIdFilter === item.userId }"
-                @click="selectActor(item)"
+                class="risk-row"
+                :class="item.tone"
               >
-                <UserAvatar :user="item.user" size="xs" />
-                <span class="actor-name">{{ getActorName(item.user) }}</span>
-                <b class="count-badge">{{ item.count }}</b>
+                <span>{{ item.label }}</span>
+                <b>{{ item.value }}</b>
+                <i
+                  :style="{ width: `${severityTotal ? (item.value / severityTotal) * 100 : 0}%` }"
+                />
               </button>
-              <p v-if="!insights.actors.length" class="empty-line">暂无操作者数据</p>
+            </div>
+          </Card>
+
+          <!-- Card 2: Trend Chart -->
+          <Card padding="sm">
+            <div class="block-title flex items-center gap-1.5 mb-2.5">
+              <BarChart3 class="h-3.5 w-3.5 text-[var(--accent)] shrink-0" />
+              <strong class="text-xs font-bold text-[var(--text-primary)]">
+                {{ insights.windowDays ? `${insights.windowDays} 天趋势` : '筛选趋势' }}
+              </strong>
+            </div>
+            <div class="trend-chart">
+              <div v-for="item in insights.trend" :key="item.date" class="trend-bar">
+                <span :style="{ height: `${Math.max(8, (item.total / maxTrendValue) * 100)}%` }" />
+                <small>{{ formatDay(item.date) }}</small>
+              </div>
+              <p v-if="!insights.trend.length" class="empty-line">暂无趋势数据</p>
+            </div>
+          </Card>
+
+          <!-- Card 3: Association Insights Ranking (Tabbed) -->
+          <Card padding="sm" class="ranking-tabs-block flex flex-col min-h-0">
+            <div
+              class="tabs-header flex items-center justify-between gap-1.5 mb-2 border-none p-0 min-h-0 bg-transparent"
+            >
+              <strong class="text-xs font-bold text-[var(--text-primary)]">关联分析</strong>
+              <Tabs
+                v-model="activeInsightTab"
+                :options="[
+                  { label: '操作者', value: 'actors' },
+                  { label: '模块', value: 'modules' },
+                  { label: 'IP 来源', value: 'sources' },
+                ]"
+                size="sm"
+                variant="solid"
+              />
             </div>
 
-            <!-- Active Modules Tab -->
-            <div v-if="activeInsightTab === 'modules'" class="tab-pane">
-              <button
-                v-for="item in summary.modules.slice(0, 5)"
-                :key="item.module"
-                type="button"
-                class="rank-row"
-                :class="{ active: moduleFilter === item.module }"
-                @click="selectModule(item.module)"
-              >
-                <span>{{ getModuleLabel(item.module || '') }}</span>
-                <b>{{ item.count }}</b>
-                <i :style="{ width: `${(item.count / moduleTotal) * 100}%` }" />
-              </button>
-              <p v-if="!summary.modules.length" class="empty-line">暂无模块数据</p>
-            </div>
+            <div class="tab-content">
+              <!-- Active Actors Tab -->
+              <div v-show="activeInsightTab === 'actors'" class="tab-pane">
+                <button
+                  v-for="item in insights.actors.slice(0, 5)"
+                  :key="item.userId || 'system'"
+                  type="button"
+                  class="actor-row"
+                  :class="{ active: userIdFilter === item.userId }"
+                  @click="selectActor(item)"
+                >
+                  <UserAvatar :user="item.user" size="xs" />
+                  <span class="actor-name">{{ getActorName(item.user) }}</span>
+                  <b class="count-badge">{{ item.count }}</b>
+                </button>
+                <p v-if="!insights.actors.length" class="empty-line">暂无操作者数据</p>
+              </div>
 
-            <!-- Source IP Tab -->
-            <div v-if="activeInsightTab === 'sources'" class="tab-pane">
-              <button
-                v-for="item in insights.sources.slice(0, 5)"
-                :key="item.ipAddress || 'unknown'"
-                type="button"
-                class="mini-row"
-                @click="selectSource(item.ipAddress)"
-              >
-                <span>{{ item.ipAddress || '未知来源' }}</span>
-                <b>{{ item.count }}</b>
-              </button>
-              <p v-if="!insights.sources.length" class="empty-line">暂无来源数据</p>
+              <!-- Active Modules Tab -->
+              <div v-show="activeInsightTab === 'modules'" class="tab-pane">
+                <button
+                  v-for="item in summary.modules.slice(0, 5)"
+                  :key="item.module"
+                  type="button"
+                  class="rank-row"
+                  :class="{ active: moduleFilter === item.module }"
+                  @click="selectModule(item.module)"
+                >
+                  <span>{{ getModuleLabel(item.module || '') }}</span>
+                  <b>{{ item.count }}</b>
+                  <i :style="{ width: `${(item.count / moduleTotal) * 100}%` }" />
+                </button>
+                <p v-if="!summary.modules.length" class="empty-line">暂无模块数据</p>
+              </div>
+
+              <!-- Source IP Tab -->
+              <div v-show="activeInsightTab === 'sources'" class="tab-pane">
+                <button
+                  v-for="item in insights.sources.slice(0, 5)"
+                  :key="item.ipAddress || 'unknown'"
+                  type="button"
+                  class="mini-row"
+                  @click="selectSource(item.ipAddress)"
+                >
+                  <span>{{ item.ipAddress || '未知来源' }}</span>
+                  <b>{{ item.count }}</b>
+                </button>
+                <p v-if="!insights.sources.length" class="empty-line">暂无来源数据</p>
+              </div>
             </div>
-          </div>
-        </section>
-      </aside>
+          </Card>
+        </aside>
+      </div>
     </main>
 
     <div v-if="selectedLog" class="drawer-shell" @click="selectedLog = null">
@@ -930,7 +868,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--bg-app);
+  background: transparent;
   color: var(--text-primary);
 }
 
@@ -957,14 +895,7 @@ button:disabled {
   opacity: 0.48;
 }
 
-.audit-command {
-  flex: 0 0 auto;
-  display: grid;
-  gap: 8px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border-base);
-  background: var(--bg-card);
-}
+/* Floating command overrides */
 
 .title-row,
 .title-copy,
@@ -1117,13 +1048,9 @@ button:disabled {
   border-color: rgba(var(--accent-rgb), 0.35);
 }
 
-.filter-bar-row {
-  width: 100%;
-}
-
 .advanced-filters-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -1135,7 +1062,8 @@ button:disabled {
 
 .search-box,
 .filter-field,
-.date-field {
+.date-field,
+.date-range-container {
   min-height: 30px;
   display: flex;
   align-items: center;
@@ -1151,6 +1079,7 @@ button:disabled {
 .filter-field input,
 .filter-field select,
 .date-field input,
+.date-range-container input,
 .toolbar-controls select {
   width: 100%;
   min-width: 0;
@@ -1159,6 +1088,11 @@ button:disabled {
   background: transparent;
   color: var(--text-primary);
   font-size: 11px;
+}
+
+.date-range-container input {
+  flex: 1;
+  text-align: center;
 }
 
 .quick-strip {
@@ -1197,13 +1131,10 @@ button:disabled {
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 310px;
-  gap: 8px;
-  padding: 8px;
+  gap: 12px;
 }
 
-.ledger-panel,
-.insights-panel,
-.insight-block {
+.ledger-panel {
   border: 1px solid var(--border-base);
   border-radius: 8px;
   background: var(--bg-card);
@@ -1217,105 +1148,29 @@ button:disabled {
   overflow: hidden;
 }
 
-.ledger-toolbar {
-  min-height: 38px;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border-base);
-}
-
-.ledger-toolbar strong {
-  display: block;
-  font-size: 12px;
-  font-weight: 950;
-}
-
-.ledger-toolbar span {
+.user-table :deep(.el-table__header th) {
+  height: 40px;
+  background: var(--bg-subtle) !important;
   color: var(--text-secondary);
   font-size: 11px;
   font-weight: 800;
 }
 
-.toolbar-controls label {
-  min-height: 28px;
-  gap: 4px;
-  padding: 0 8px;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  color: var(--text-secondary);
-  background: var(--bg-app);
+.user-table :deep(.el-table__row) {
+  height: 48px;
+  cursor: pointer;
 }
 
-.table-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
+.user-table :deep(.el-table__cell) {
+  padding: 4px 0;
 }
 
-.audit-table {
-  min-width: 1080px;
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
+.user-table :deep(.selected-row > td.el-table__cell) {
+  background-color: rgba(var(--accent-rgb), 0.08) !important;
 }
 
-.col-time {
-  width: 118px;
-}
-
-.col-actor {
-  width: 150px;
-}
-
-.col-module {
-  width: 96px;
-}
-
-.col-action {
-  width: 130px;
-}
-
-.col-risk {
-  width: 60px;
-}
-
-.col-source {
-  width: 130px;
-}
-
-.col-detail {
-  width: 44px;
-}
-
-.audit-table th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--border-base);
-  background: var(--bg-app);
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 950;
-}
-
-.audit-table td {
-  padding: 5px 8px;
-  border-bottom: 1px solid var(--border-base);
-  vertical-align: middle;
-  font-size: 11px;
-}
-
-.audit-table tbody tr {
-  transition:
-    background 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
-.audit-table tbody tr:hover,
-.audit-table tbody tr.selected {
-  background: rgba(var(--accent-rgb), 0.05);
+.user-table :deep(.el-table__row:hover > td.el-table__cell) {
+  background-color: rgba(var(--accent-rgb), 0.05) !important;
 }
 
 .time-container {
@@ -1493,45 +1348,11 @@ button:disabled {
   -webkit-line-clamp: 1;
 }
 
-.empty-cell {
-  height: 220px;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-.empty-cell svg {
-  width: 24px;
-  height: 24px;
-  display: block;
-  margin: 0 auto 8px;
-}
-
-.pagination-bar {
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 10px;
-  border-top: 1px solid var(--border-base);
-  background: var(--bg-app);
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.pagination-bar > div {
-  gap: 6px;
-}
-
 .insights-panel {
   min-height: 0;
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  padding: 8px;
-  overflow: auto;
-}
-
-.insight-block {
-  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .block-title {
@@ -1883,6 +1704,7 @@ button:disabled {
   }
 
   .filter-grid,
+  .advanced-filters-grid,
   .detail-grid,
   .json-grid,
   .insights-panel {

@@ -31,10 +31,12 @@ const AssetDetailsDrawer = defineAsyncComponent(
 );
 
 // Extracted Sub-components
-import GlobalSearchDialog from './components/GlobalSearchDialog.vue';
+const GlobalSearchDialog = defineAsyncComponent(
+  () => import('./components/GlobalSearchDialog.vue'),
+);
+const MobileSidebar = defineAsyncComponent(() => import('./components/MobileSidebar.vue'));
 import NotificationCenter from './components/NotificationCenter.vue';
 import SidebarMenu from './components/SidebarMenu.vue';
-import MobileSidebar from './components/MobileSidebar.vue';
 import WorkspaceSwitcher from './components/WorkspaceSwitcher.vue';
 import UserDropdown from './components/UserDropdown.vue';
 
@@ -254,6 +256,19 @@ onMounted(async () => {
   if (authStore.user?.role === 'ADMIN') {
     workspaceStore.fetchAdminStats();
   }
+
+  // Load heavy AI assistant lazily to optimize initial load performance
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(() => {
+      setTimeout(() => {
+        renderAiSprite.value = true;
+      }, 1000);
+    });
+  } else {
+    setTimeout(() => {
+      renderAiSprite.value = true;
+    }, 2000);
+  }
 });
 
 // Watch for auth changes to re-initialize workspaces
@@ -302,6 +317,42 @@ watch(
     }
   },
 );
+
+// Lazy component rendering triggers to preserve exit transitions
+const hasLoadedCreateTeam = ref(false);
+watch(isCreateTeamVisible, (val) => {
+  if (val) hasLoadedCreateTeam.value = true;
+});
+
+const hasLoadedInvitation = ref(false);
+watch(isInvitationVisible, (val) => {
+  if (val) hasLoadedInvitation.value = true;
+});
+
+const hasLoadedExploreGroups = ref(false);
+watch(isExploreGroupsVisible, (val) => {
+  if (val) hasLoadedExploreGroups.value = true;
+});
+
+const hasLoadedSearch = ref(false);
+watch(isSearchVisible, (val) => {
+  if (val) hasLoadedSearch.value = true;
+});
+
+const hasLoadedMobileSidebar = ref(false);
+watch(isMobileSidebarOpen, (val) => {
+  if (val) hasLoadedMobileSidebar.value = true;
+});
+
+const hasLoadedAssetDetails = ref(false);
+watch(
+  () => workspaceStore.isDetailDrawerOpen,
+  (val) => {
+    if (val) hasLoadedAssetDetails.value = true;
+  },
+);
+
+const renderAiSprite = ref(false);
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
@@ -503,9 +554,11 @@ onUnmounted(() => {
             >{{ $t('layout.goToDisable') }}</RouterLink
           >
         </div>
-        <RouterView v-slot="{ Component }">
+        <RouterView v-slot="{ Component, route }">
           <Transition name="page-fade" mode="out-in">
-            <component :is="Component" />
+            <keep-alive :include="['TaskBoard']">
+              <component :is="Component" :key="route.path" />
+            </keep-alive>
           </Transition>
         </RouterView>
       </main>
@@ -540,30 +593,36 @@ onUnmounted(() => {
     </nav>
 
     <!-- Create Team Dialog -->
-    <CreateTeamDialog v-model:visible="isCreateTeamVisible" @success="handleTeamCreated" />
+    <CreateTeamDialog
+      v-if="hasLoadedCreateTeam"
+      v-model:visible="isCreateTeamVisible"
+      @success="handleTeamCreated"
+    />
 
     <InvitationDialog
+      v-if="hasLoadedInvitation"
       v-model:visible="isInvitationVisible"
       :invitation-id="activeInvitationId"
       @success="handleInvitationSuccess"
     />
 
-    <ExploreGroupsDialog v-model:visible="isExploreGroupsVisible" />
+    <ExploreGroupsDialog v-if="hasLoadedExploreGroups" v-model:visible="isExploreGroupsVisible" />
 
     <!-- Global Search Dialog component -->
-    <GlobalSearchDialog v-model="isSearchVisible" :is-mobile="isMobile" />
+    <GlobalSearchDialog v-if="hasLoadedSearch" v-model="isSearchVisible" :is-mobile="isMobile" />
 
     <!-- Asset Details Drawer -->
-    <AssetDetailsDrawer />
+    <AssetDetailsDrawer v-if="hasLoadedAssetDetails" />
 
     <!-- Mobile Sidebar Drawer component -->
     <MobileSidebar
+      v-if="hasLoadedMobileSidebar"
       v-model="isMobileSidebarOpen"
       :menu-groups="menuGroups"
       @report-bug="handleReportBug"
     />
     <!-- Floating AI Sprite -->
-    <AISprite />
+    <AISprite v-if="renderAiSprite" />
   </div>
 </template>
 

@@ -933,12 +933,16 @@ defineExpose({
       <div
         class="flex flex-col items-center gap-4 p-6 glass-card border border-red-500/30 max-w-sm text-center bg-slate-900/90 text-white rounded-xl shadow-2xl"
       >
-        <div class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
+        <div
+          class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500"
+        >
           <Info class="w-6 h-6 animate-pulse" />
         </div>
         <div>
           <p class="text-sm font-bold text-red-400">无法加载该 3D 资产</p>
-          <p class="text-[10px] text-slate-300 mt-2 break-all bg-slate-950/50 p-2.5 rounded border border-white/5 font-mono select-text">
+          <p
+            class="text-[10px] text-slate-300 mt-2 break-all bg-slate-950/50 p-2.5 rounded border border-white/5 font-mono select-text"
+          >
             {{ error }}
           </p>
           <p class="text-[9px] text-slate-400 mt-2">

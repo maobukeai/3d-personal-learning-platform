@@ -117,7 +117,7 @@ watch(
       expandedTasks.value = {};
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 watch(
@@ -139,7 +139,7 @@ watch(
         });
       });
     }
-  }
+  },
 );
 
 const toggleTaskExpand = (taskId: string) => {
@@ -355,7 +355,10 @@ const teamMembersMap = computed(() => {
   const map = new Map<string, UserType[]>();
   props.teams.forEach((team) => {
     if (team.id && team.members) {
-      map.set(team.id, team.members.map((m) => m.user));
+      map.set(
+        team.id,
+        team.members.map((m) => m.user),
+      );
     }
   });
   return map;
@@ -378,7 +381,6 @@ const getMembersForSubtask = (task: Task) => {
   }
   return props.teamMembers;
 };
-
 
 const toggleSubtaskInline = async (task: Task, subIdx: number) => {
   const list = parseSubtasks(task.subtasks);
@@ -648,7 +650,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                         :class="
                           task.status === 'DONE'
                             ? 'border-emerald-500 bg-emerald-500/10'
-                            : 'border-slate-300 dark:border-slate-650 hover:border-emerald-500 hover:bg-emerald-500/10'
+                            : 'border-slate-300 dark:border-slate-600 hover:border-emerald-500 hover:bg-emerald-500/10'
                         "
                         @click.stop="toggleTaskCompletion(task)"
                       >
@@ -657,7 +659,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                           :class="
                             task.status === 'DONE'
                               ? 'text-emerald-500'
-                              : 'text-slate-350 dark:text-slate-600 group-hover:text-emerald-500'
+                              : 'text-slate-300 dark:text-slate-600 group-hover:text-emerald-500'
                           "
                         />
                       </button>
@@ -711,7 +713,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                     <!-- Status -->
                     <div
                       v-if="visibleColumns.status"
-                      class="col-span-1 text-center text-slate-450 dark:text-slate-400 font-medium truncate px-0.5"
+                      class="col-span-1 text-center text-slate-400 dark:text-slate-400 font-medium truncate px-0.5"
                       @click.stop
                     >
                       <Dropdown align="left" width-class="w-28">
@@ -768,7 +770,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                     <!-- Project -->
                     <div
                       v-if="visibleColumns.project"
-                      class="col-span-2 text-center text-slate-450 dark:text-slate-400 font-medium truncate px-0.5"
+                      class="col-span-2 text-center text-slate-400 dark:text-slate-400 font-medium truncate px-0.5"
                       @click.stop
                     >
                       <Dropdown align="left" width-class="w-48">
@@ -784,7 +786,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                             >
                             <span
                               v-else
-                              class="text-slate-450 dark:text-slate-400 text-[8px] sm:text-[10px] font-bold"
+                              class="text-slate-400 dark:text-slate-400 text-[8px] sm:text-[10px] font-bold"
                               >+ {{ t('tasks.associatedProject') }}</span
                             >
                           </span>
@@ -842,7 +844,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                             </template>
                             <span
                               v-else
-                              class="text-slate-455 dark:text-slate-400 text-[8px] sm:text-[10px] font-bold"
+                              class="text-slate-400 dark:text-slate-400 text-[8px] sm:text-[10px] font-bold"
                               >+ {{ t('tasks.assignee') }}</span
                             >
                           </span>
@@ -897,7 +899,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                           }}</span
                         >
                       </span>
-                      <span v-else class="text-slate-350 dark:text-slate-650">-</span>
+                      <span v-else class="text-slate-300 dark:text-slate-600">-</span>
                     </div>
 
                     <!-- Priority -->
@@ -932,7 +934,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                                   : t('tasks.none')
                         }}
                       </span>
-                      <span v-else class="text-slate-350 dark:text-slate-600">-</span>
+                      <span v-else class="text-slate-300 dark:text-slate-600">-</span>
                     </div>
                   </div>
 
@@ -951,7 +953,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                       <div
                         v-for="(sub, index) in parseSubtasks(task.subtasks)"
                         :key="sub.id"
-                        class="flex items-center justify-between py-1.5 px-2 bg-slate-100/50 dark:bg-white/2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors text-xs text-slate-650 dark:text-slate-300"
+                        class="flex items-center justify-between py-1.5 px-2 bg-slate-100/50 dark:bg-white/2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors text-xs text-slate-600 dark:text-slate-300"
                       >
                         <div class="flex items-center gap-2.5 min-w-0 flex-1">
                           <!-- Subtask Checklist checkbox -->
@@ -961,7 +963,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                             :class="
                               sub.done
                                 ? 'border-emerald-500 bg-emerald-500/10'
-                                : 'border-slate-350 dark:border-slate-600 hover:border-emerald-500 hover:bg-emerald-500/10'
+                                : 'border-slate-300 dark:border-slate-600 hover:border-emerald-500 hover:bg-emerald-500/10'
                             "
                             @click.stop="toggleSubtaskInline(task, index)"
                           >
@@ -1059,7 +1061,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                         v-model="newSubtaskTexts[task.id]"
                         type="text"
                         :placeholder="t('tasks.quickAddSubtaskPlaceholder')"
-                        class="w-full px-2.5 py-1.5 bg-transparent border border-dashed border-slate-200 dark:border-slate-700 hover:border-slate-350 dark:hover:border-slate-600 focus:border-accent/40 focus:border-solid rounded-lg text-xs focus:outline-none transition-all pr-8"
+                        class="w-full px-2.5 py-1.5 bg-transparent border border-dashed border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:border-accent/40 focus:border-solid rounded-lg text-xs focus:outline-none transition-all pr-8"
                         style="color: var(--text-primary)"
                         @keyup.enter="addSubtaskInline(task)"
                       />

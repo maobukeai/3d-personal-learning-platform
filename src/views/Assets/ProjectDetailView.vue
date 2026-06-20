@@ -442,7 +442,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-50 dark:bg-slate-955 font-sans relative"
+    class="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans relative"
   >
     <!-- Global Loading -->
     <div
@@ -488,7 +488,7 @@ onUnmounted(() => {
                 :class="
                   activeTab === tab.id
                     ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
-                    : 'text-slate-555 hover:text-slate-700 dark:hover:text-slate-300'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 "
                 @click="activeTab = tab.id"
               >
@@ -770,9 +770,9 @@ onUnmounted(() => {
                           getStepStatus(step, index) === 'completed',
                         'bg-accent text-white shadow-md shadow-accent/20 animate-pulse ring-4 ring-accent/10':
                           getStepStatus(step, index) === 'current',
-                        'bg-slate-100 dark:bg-slate-800 text-slate-350 dark:text-slate-650':
+                        'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600':
                           getStepStatus(step, index) === 'locked',
-                        'bg-white dark:bg-slate-900 text-slate-450 border-slate-200 dark:border-slate-700':
+                        'bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-700':
                           getStepStatus(step, index) === 'upcoming',
                       }"
                     >
@@ -838,7 +838,7 @@ onUnmounted(() => {
                               'text-emerald-600 dark:text-emerald-400':
                                 getStepStatus(step, index) === 'completed',
                               'text-accent': getStepStatus(step, index) === 'current',
-                              'text-slate-400 dark:text-slate-550':
+                              'text-slate-400 dark:text-slate-500':
                                 getStepStatus(step, index) === 'locked',
                               'text-slate-800 dark:text-slate-100':
                                 getStepStatus(step, index) === 'upcoming',
@@ -864,7 +864,7 @@ onUnmounted(() => {
                             <CheckCircle2 class="w-3.5 h-3.5" />
                           </div>
                           <ArrowRight
-                            class="w-4 h-4 text-slate-350 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform"
+                            class="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform"
                           />
                         </div>
                       </div>
@@ -916,7 +916,7 @@ onUnmounted(() => {
                       {{ activeStep.title }}
                     </h3>
                     <p
-                      class="text-xs text-slate-555 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-white/[0.01] p-3 rounded-xl border border-slate-100 dark:border-slate-850"
+                      class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-white/[0.01] p-3 rounded-xl border border-slate-100 dark:border-slate-800"
                     >
                       {{
                         activeStep.description ||
@@ -961,7 +961,7 @@ onUnmounted(() => {
                           class="flex items-center justify-between text-[10px] text-slate-500 mb-1"
                         >
                           <span>技能挑战难度</span>
-                          <span class="font-bold text-slate-700 dark:text-slate-350">
+                          <span class="font-bold text-slate-700 dark:text-slate-300">
                             {{
                               getMetricsForStep(
                                 activeStep,
@@ -991,7 +991,7 @@ onUnmounted(() => {
                           class="flex items-center justify-between text-[10px] text-slate-500 mb-1"
                         >
                           <span>工程实战权重</span>
-                          <span class="font-bold text-slate-700 dark:text-slate-350">
+                          <span class="font-bold text-slate-700 dark:text-slate-300">
                             {{
                               getMetricsForStep(
                                 activeStep,
@@ -1058,7 +1058,7 @@ onUnmounted(() => {
                           :class="
                             checkedSubTasks[task.id]
                               ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/10'
-                              : 'border-slate-300 dark:border-slate-650 group-hover/item:border-accent bg-white dark:bg-slate-850'
+                              : 'border-slate-300 dark:border-slate-600 group-hover/item:border-accent bg-white dark:bg-slate-800'
                           "
                         >
                           <CheckCircle2
@@ -1070,7 +1070,7 @@ onUnmounted(() => {
                           class="text-xs transition-all duration-300"
                           :class="
                             checkedSubTasks[task.id]
-                              ? 'text-slate-400 dark:text-slate-550 line-through'
+                              ? 'text-slate-400 dark:text-slate-500 line-through'
                               : 'text-slate-600 dark:text-slate-300 group-hover/item:text-slate-800 dark:group-hover/item:text-slate-100'
                           "
                         >
@@ -1100,7 +1100,7 @@ onUnmounted(() => {
                         @click="router.push({ name: 'CourseDetail', params: { id: course.id } })"
                       >
                         <div
-                          class="w-16 h-10 rounded bg-slate-100 dark:bg-slate-850 shrink-0 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden"
+                          class="w-16 h-10 rounded bg-slate-100 dark:bg-slate-800 shrink-0 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden"
                         >
                           <img
                             v-if="course.thumbnail"
@@ -1116,7 +1116,7 @@ onUnmounted(() => {
                           >
                             {{ course.title }}
                           </h4>
-                          <div class="flex items-center justify-between text-[10px] text-slate-450">
+                          <div class="flex items-center justify-between text-[10px] text-slate-400">
                             <span
                               class="px-1 py-0.2 bg-slate-100 dark:bg-slate-800 rounded text-[9px]"
                             >

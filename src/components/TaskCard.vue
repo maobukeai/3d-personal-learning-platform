@@ -44,7 +44,13 @@ interface Task {
   project?: Project | null;
   timeEstimate?: number | null;
   timeSpent?: number | null;
-  dependencies?: { id: string; dependsOnId: string; dependsOn: { id: string; title: string; status: string } }[];
+  dependencies?: {
+    id: string;
+    dependsOnId: string;
+    dependsOn: { id: string; title: string; status: string };
+  }[];
+  parsedTags?: string[];
+  parsedSubtasks?: any[];
 }
 
 interface Subtask {
@@ -85,10 +91,14 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const isBlocked = computed(() => {
-  return props.task.dependencies && props.task.dependencies.some((d) => d.dependsOn?.status !== 'DONE');
+  return (
+    props.task.dependencies && props.task.dependencies.some((d) => d.dependsOn?.status !== 'DONE')
+  );
 });
 
-const timeEstimateHours = computed(() => (props.task.timeEstimate ? props.task.timeEstimate / 60 : 0));
+const timeEstimateHours = computed(() =>
+  props.task.timeEstimate ? props.task.timeEstimate / 60 : 0,
+);
 const timeSpentHours = computed(() => (props.task.timeSpent ? props.task.timeSpent / 60 : 0));
 const timePercent = computed(() => {
   if (!props.task.timeEstimate) return 0;
@@ -112,11 +122,19 @@ const parseSubtasks = (subtasksStr: string | null | undefined): Subtask[] => {
   }
 };
 
-const parsedSubtasks = computed(() => parseSubtasks(props.task.subtasks));
+const parsedSubtasks = computed((): Subtask[] => {
+  if (props.task.parsedSubtasks && Array.isArray(props.task.parsedSubtasks)) {
+    return props.task.parsedSubtasks.map((s: any, idx: number): Subtask => ({
+      ...s,
+      id: s.id || `subtask-legacy-${idx}`,
+    }));
+  }
+  return parseSubtasks(props.task.subtasks);
+});
 const hasSubtasks = computed(() => parsedSubtasks.value.length > 0);
 const subtasksProgress = computed(() => {
   const total = parsedSubtasks.value.length;
-  const completed = parsedSubtasks.value.filter((s) => s.done).length;
+  const completed = parsedSubtasks.value.filter((s: Subtask) => s.done).length;
   return `${completed}/${total}`;
 });
 
@@ -203,7 +221,9 @@ const updatePriority = async (priority: string) => {
 
 const updateAssignee = async (assigneeId: string | null) => {
   if ((props.task as any).isSubtask && (props.task as any).parentId) {
-    emit('update-subtask', (props.task as any).parentId, (props.task as any).subtaskIndex, { assigneeId });
+    emit('update-subtask', (props.task as any).parentId, (props.task as any).subtaskIndex, {
+      assigneeId,
+    });
     return;
   }
   try {
@@ -220,7 +240,9 @@ const updateDueDate = async (val: any) => {
   if ((props.task as any).isSubtask && (props.task as any).parentId) {
     try {
       const dueDateVal = val ? new Date(val).toISOString() : null;
-      const res = await api.put(`/api/tasks/${(props.task as any).parentId}`, { dueDate: dueDateVal });
+      const res = await api.put(`/api/tasks/${(props.task as any).parentId}`, {
+        dueDate: dueDateVal,
+      });
       ElMessage.success('截止日期已更新');
       emit('refresh', res.data);
       emit('refresh-stats');
@@ -315,14 +337,18 @@ const updateDueDate = async (val: any) => {
       class="hidden sm:block mt-2 mb-2"
       @click.stop
     >
-      <div class="flex items-center justify-between text-[8px] font-bold text-slate-400 dark:text-slate-500 mb-1">
+      <div
+        class="flex items-center justify-between text-[8px] font-bold text-slate-400 dark:text-slate-500 mb-1"
+      >
         <span class="flex items-center gap-0.5">
           <Clock class="w-2.5 h-2.5 shrink-0" />
           <span>工时追踪: {{ timePercent }}%</span>
         </span>
         <span>{{ timeSpentHours.toFixed(1) }}h / {{ timeEstimateHours.toFixed(1) }}h</span>
       </div>
-      <div class="w-full bg-slate-100 dark:bg-white/5 h-1.5 rounded-full overflow-hidden border border-slate-200/20 dark:border-white/5">
+      <div
+        class="w-full bg-slate-100 dark:bg-white/5 h-1.5 rounded-full overflow-hidden border border-slate-200/20 dark:border-white/5"
+      >
         <div
           class="h-full rounded-full transition-all duration-300"
           :class="timeSpentHours > timeEstimateHours ? 'bg-amber-500' : 'bg-emerald-500'"
@@ -334,7 +360,10 @@ const updateDueDate = async (val: any) => {
     <!-- Footer: Date + Subtasks + Priority + Assignee -->
     <div
       v-if="
-        (task.dueDate && config.dueDate) || hasSubtasks || (task.priority && task.priority !== 'NONE' && config.priority) || config.assignee
+        (task.dueDate && config.dueDate) ||
+        hasSubtasks ||
+        (task.priority && task.priority !== 'NONE' && config.priority) ||
+        config.assignee
       "
       class="flex items-center justify-between pt-1 mt-1 border-t"
       style="border-color: var(--border-base)"
@@ -344,7 +373,11 @@ const updateDueDate = async (val: any) => {
         <div
           v-if="config.dueDate"
           class="relative flex items-center gap-0.5 text-[8px] sm:text-[9px] font-semibold shrink-0 cursor-pointer hover:text-accent transition-colors"
-          :class="task.dueDate && isOverdue(task.dueDate, task.status) ? 'text-rose-500' : 'text-slate-400'"
+          :class="
+            task.dueDate && isOverdue(task.dueDate, task.status)
+              ? 'text-rose-500'
+              : 'text-slate-400'
+          "
           @click.stop
         >
           <input
@@ -354,13 +387,19 @@ const updateDueDate = async (val: any) => {
             @change="(e) => updateDueDate((e.target as HTMLInputElement).value)"
           />
           <Calendar class="w-2.5 h-2.5 text-slate-400 shrink-0" />
-          <span v-if="task.dueDate" class="hidden sm:inline">{{ formatDueDate(task.dueDate) }}</span>
+          <span v-if="task.dueDate" class="hidden sm:inline">{{
+            formatDueDate(task.dueDate)
+          }}</span>
           <span v-if="task.dueDate" class="sm:hidden"
             >{{ new Date(task.dueDate).getMonth() + 1 }}/{{
               new Date(task.dueDate).getDate()
             }}</span
           >
-          <span v-else class="text-[8px] sm:text-[9px] text-slate-400 hover:text-accent font-semibold">+ 日期</span>
+          <span
+            v-else
+            class="text-[8px] sm:text-[9px] text-slate-400 hover:text-accent font-semibold"
+            >+ 日期</span
+          >
         </div>
 
         <!-- Subtasks Progress -->
@@ -430,11 +469,7 @@ const updateDueDate = async (val: any) => {
           <template #dropdown>
             <el-dropdown-menu class="max-h-60 overflow-y-auto">
               <el-dropdown-item command="">清除指派</el-dropdown-item>
-              <el-dropdown-item
-                v-for="m in teamMembers"
-                :key="m.id"
-                :command="m.id"
-              >
+              <el-dropdown-item v-for="m in teamMembers" :key="m.id" :command="m.id">
                 <div class="flex items-center gap-2 py-0.5">
                   <img
                     v-if="m.avatarUrl"

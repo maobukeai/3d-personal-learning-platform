@@ -3,11 +3,18 @@ import { ref } from 'vue';
 import type { Task } from '@/types/task';
 const cachedTasksByTeam = ref<Record<string, Task[]>>({});
 const cachedStatsByTeam = ref<Record<string, any>>({});
+const cachedTeamMembersByTeam = ref<Record<string, any[]>>({});
+const cachedProjectsByTeam = ref<Record<string, any[]>>({});
+const cachedTeams = ref<any[]>([]);
+
+export default {
+  name: 'TaskBoard',
+};
 </script>
 
 <script setup lang="ts">
 import { getApiErrorMessage } from '@/utils/error';
-import { onMounted, computed, watch, defineAsyncComponent } from 'vue';
+import { computed, watch, onActivated } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -53,6 +60,36 @@ const route = useRoute();
 const router = useRouter();
 
 const tasks = ref<Task[]>([]);
+const parseTaskProps = (task: Task): Task => {
+  if (task.tags && typeof task.tags === 'string') {
+    try {
+      task.parsedTags = JSON.parse(task.tags);
+    } catch {
+      task.parsedTags = [];
+    }
+  } else if (Array.isArray(task.tags)) {
+    task.parsedTags = task.tags;
+  } else {
+    task.parsedTags = [];
+  }
+
+  if (task.subtasks && typeof task.subtasks === 'string') {
+    try {
+      task.parsedSubtasks = JSON.parse(task.subtasks);
+    } catch {
+      task.parsedSubtasks = [];
+    }
+  } else if (Array.isArray(task.subtasks)) {
+    task.parsedSubtasks = task.subtasks;
+  } else {
+    task.parsedSubtasks = [];
+  }
+  return task;
+};
+
+const parseTasksList = (list: Task[]): Task[] => {
+  return list.map(parseTaskProps);
+};
 const isLoading = ref(false);
 const searchQuery = ref('');
 const dateFilter = ref('all');
@@ -99,7 +136,6 @@ const toggleColumnVisibility = (col: string) => {
   visibleColumns.value[key] = !visibleColumns.value[key];
   localStorage.setItem(`task_visible_col_${col}`, String(visibleColumns.value[key]));
 };
-const isAddDialogOpen = ref(false);
 
 const selectedProjectId = ref<string | null>((route.query.projectId as string) || null);
 
@@ -126,7 +162,6 @@ watch(viewMode, (newVal) => {
 });
 const stats = ref<unknown>(null);
 
-const isProfileDialogOpen = ref(false);
 const selectedUserId = ref<string | null>(null);
 
 const openUserProfile = (userId: string) => {
@@ -192,6 +227,23 @@ const newTask = ref({
 
 // ClickUp style detail drawer states
 const isDetailDrawerOpen = ref(false);
+const hasLoadedDetailDrawer = ref(false);
+watch(isDetailDrawerOpen, (val) => {
+  if (val) hasLoadedDetailDrawer.value = true;
+});
+
+const isAddDialogOpen = ref(false);
+const hasLoadedAddDialog = ref(false);
+watch(isAddDialogOpen, (val) => {
+  if (val) hasLoadedAddDialog.value = true;
+});
+
+const isProfileDialogOpen = ref(false);
+const hasLoadedProfileDialog = ref(false);
+watch(isProfileDialogOpen, (val) => {
+  if (val) hasLoadedProfileDialog.value = true;
+});
+
 const activeTask = ref<Task | null>(null);
 const activeSubtaskId = ref<string | null>(null);
 const taskDetailViewMode = ref<'drawer' | 'modal'>(
@@ -364,14 +416,7 @@ const filteredTasks = computed(() => {
       (t) =>
         t.title.toLowerCase().includes(q) ||
         t.description?.toLowerCase().includes(q) ||
-        (t.tags && (() => {
-          try {
-            const parsed = JSON.parse(t.tags);
-            return Array.isArray(parsed) && parsed.some((tag: string) => tag.toLowerCase().includes(q));
-          } catch {
-            return false;
-          }
-        })()),
+        (t.parsedTags && t.parsedTags.some((tag: string) => tag.toLowerCase().includes(q))),
     );
   }
 
@@ -387,13 +432,7 @@ const filteredTasks = computed(() => {
   // Tag Filter
   if (tagFilter.value !== 'all') {
     filtered = filtered.filter((t) => {
-      if (!t.tags) return false;
-      try {
-        const parsed = JSON.parse(t.tags);
-        return Array.isArray(parsed) && parsed.includes(tagFilter.value);
-      } catch {
-        return false;
-      }
+      return t.parsedTags && t.parsedTags.includes(tagFilter.value);
     });
   }
 
@@ -481,15 +520,8 @@ const filteredTasks = computed(() => {
 const allTags = computed(() => {
   const tagsSet = new Set<string>();
   tasks.value.forEach((t) => {
-    if (t.tags) {
-      try {
-        const parsed = JSON.parse(t.tags);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((tag) => tagsSet.add(tag));
-        }
-      } catch {
-        // ignore
-      }
+    if (t.parsedTags) {
+      t.parsedTags.forEach((tag) => tagsSet.add(tag));
     }
   });
   return Array.from(tagsSet);
@@ -501,33 +533,29 @@ const processedTasks = computed(() => {
     const flattened: Task[] = [];
     list.forEach((t) => {
       flattened.push(t);
-      if (t.subtasks) {
-        try {
-          const parsed = JSON.parse(t.subtasks);
-          if (Array.isArray(parsed)) {
-            parsed.forEach((sub: any, index: number) => {
-              flattened.push({
-                id: `${t.id}_sub_${index}`,
-                title: sub.text,
-                description: `子任务来自: ${t.title}`,
-                status: sub.done ? TaskStatus.DONE : TaskStatus.TODO,
-                priority: t.priority || 'MEDIUM',
-                dueDate: t.dueDate,
-                assigneeId: sub.assigneeId || null,
-                projectId: t.projectId,
-                teamId: t.teamId,
-                tags: t.tags,
-                isSubtask: true,
-                parentId: t.id,
-                subtaskIndex: index,
-                project: t.project,
-                assignee: sub.assigneeId ? teamMembers.value.find((m) => m.id === sub.assigneeId) : null,
-              } as unknown as Task);
-            });
-          }
-        } catch {
-          // ignore
-        }
+      if (t.parsedSubtasks && Array.isArray(t.parsedSubtasks)) {
+        t.parsedSubtasks.forEach((sub: any, index: number) => {
+          flattened.push({
+            id: `${t.id}_sub_${index}`,
+            title: sub.text,
+            description: `子任务来自: ${t.title}`,
+            status: sub.done ? TaskStatus.DONE : TaskStatus.TODO,
+            priority: t.priority || 'MEDIUM',
+            dueDate: t.dueDate,
+            assigneeId: sub.assigneeId || null,
+            projectId: t.projectId,
+            teamId: t.teamId,
+            tags: t.tags,
+            parsedTags: t.parsedTags,
+            isSubtask: true,
+            parentId: t.id,
+            subtaskIndex: index,
+            project: t.project,
+            assignee: sub.assigneeId
+              ? teamMembers.value.find((m) => m.id === sub.assigneeId)
+              : null,
+          } as unknown as Task);
+        });
       }
     });
     return flattened;
@@ -580,7 +608,7 @@ const getDueDateGroup = (dateStr: string | null | undefined, status: string): st
   if (!dateStr) return 'none';
   const d = new Date(dateStr);
   const now = new Date();
-  
+
   const dDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const diffTime = dDate.getTime() - nowDate.getTime();
@@ -660,7 +688,6 @@ const calendarTasks = computed(() => {
   return viewMode.value === 'calendar' ? processedTasks.value : [];
 });
 
-
 const completionRate = computed(() => {
   const total = tasks.value.length;
   if (total === 0) return 0;
@@ -681,8 +708,9 @@ const fetchTasks = async () => {
   }
   try {
     const response = await api.get('/api/tasks');
-    tasks.value = response.data;
-    cachedTasksByTeam.value[tid] = response.data;
+    const parsed = parseTasksList(response.data);
+    tasks.value = parsed;
+    cachedTasksByTeam.value[tid] = parsed;
   } catch {
     ElMessage.error(t('tasks.fetchFailed'));
   } finally {
@@ -693,14 +721,15 @@ const fetchTasks = async () => {
 const handleTaskUpdated = (updatedTask?: Task) => {
   const tid = workspaceStore.activeTeamId || 'personal';
   if (updatedTask && updatedTask.id) {
-    const idx = tasks.value.findIndex((t) => t.id === updatedTask.id);
+    const parsedTask = parseTaskProps(updatedTask);
+    const idx = tasks.value.findIndex((t) => t.id === parsedTask.id);
     if (idx !== -1) {
-      tasks.value[idx] = updatedTask;
+      tasks.value[idx] = parsedTask;
     } else {
-      tasks.value.push(updatedTask);
+      tasks.value.push(parsedTask);
     }
-    if (activeTask.value && activeTask.value.id === updatedTask.id) {
-      activeTask.value = updatedTask;
+    if (activeTask.value && activeTask.value.id === parsedTask.id) {
+      activeTask.value = parsedTask;
     }
     cachedTasksByTeam.value[tid] = [...tasks.value];
     fetchStats();
@@ -726,7 +755,9 @@ const fetchTeamMembers = async (teamId?: string) => {
     const tid = teamId || workspaceStore.activeTeamId;
     if (!tid) return;
     const response = await api.get(`/api/teams/${tid}/members`);
-    teamMembers.value = response.data?.map((m: { user: UserType }) => m.user) || [];
+    const list = response.data?.map((m: { user: UserType }) => m.user) || [];
+    teamMembers.value = list;
+    cachedTeamMembersByTeam.value[tid] = list;
   } catch {
     // silently fail
   }
@@ -736,6 +767,7 @@ const fetchTeams = async () => {
   try {
     const response = await api.get('/api/teams');
     teams.value = response.data;
+    cachedTeams.value = response.data;
   } catch {
     // silently fail
   }
@@ -745,6 +777,8 @@ const fetchProjects = async () => {
   try {
     const response = await api.get('/api/projects');
     projects.value = response.data;
+    const tid = workspaceStore.activeTeamId || 'personal';
+    cachedProjectsByTeam.value[tid] = response.data;
   } catch {
     // silently fail
   }
@@ -778,7 +812,7 @@ const handleAddTaskWithPayload = async (payload: {
     const response = await api.post('/api/tasks', formattedPayload);
     ElMessage.success(t('tasks.addSuccess'));
     isAddDialogOpen.value = false;
-    tasks.value.push(response.data);
+    tasks.value.push(parseTaskProps(response.data));
     cachedTasksByTeam.value[tid] = [...tasks.value];
     fetchStats();
   } catch (error) {
@@ -846,6 +880,7 @@ const deleteTask = (task: Task) => {
 const openDetailDrawer = (task: Task, subtaskId?: string) => {
   let targetTask = task;
   let targetSubtaskId = subtaskId || null;
+  const isSub = ((task as any).isSubtask && (task as any).parentId) || !!subtaskId;
   if ((task as any).isSubtask && (task as any).parentId) {
     const parent = tasks.value.find((t) => t.id === (task as any).parentId);
     if (parent) {
@@ -860,7 +895,9 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
   } else {
     fetchTeamMembers(workspaceStore.activeTeamId || undefined);
   }
-  isDetailDrawerOpen.value = true;
+  if (!isSub) {
+    isDetailDrawerOpen.value = true;
+  }
 };
 
 const closeDetailDrawer = () => {
@@ -875,10 +912,11 @@ const autoSaveTask = async (payload: TaskUpdatePayload | Task) => {
   try {
     if ('id' in payload) {
       // Direct task object update from drawer API (like dependencies)
-      activeTask.value = payload;
-      const idx = tasks.value.findIndex((t) => t.id === payload.id);
+      const parsedPayload = parseTaskProps(payload as Task);
+      activeTask.value = parsedPayload;
+      const idx = tasks.value.findIndex((t) => t.id === parsedPayload.id);
       if (idx !== -1) {
-        tasks.value[idx] = payload;
+        tasks.value[idx] = parsedPayload;
       }
       cachedTasksByTeam.value[tid] = [...tasks.value];
       fetchStats();
@@ -886,7 +924,7 @@ const autoSaveTask = async (payload: TaskUpdatePayload | Task) => {
     }
 
     const response = await api.put(`/api/tasks/${activeTask.value.id}`, payload);
-    const updated = response.data;
+    const updated = parseTaskProps(response.data);
     activeTask.value = updated;
     const idx = tasks.value.findIndex((t) => t.id === updated.id);
     if (idx !== -1) {
@@ -901,7 +939,11 @@ const autoSaveTask = async (payload: TaskUpdatePayload | Task) => {
   }
 };
 
-const handleUpdateSubtask = async (parentId: string, subtaskIndex: number, fields: Record<string, any>) => {
+const handleUpdateSubtask = async (
+  parentId: string,
+  subtaskIndex: number,
+  fields: Record<string, any>,
+) => {
   const parent = tasks.value.find((t) => t.id === parentId);
   if (!parent) return;
   const tid = workspaceStore.activeTeamId || 'personal';
@@ -916,14 +958,17 @@ const handleUpdateSubtask = async (parentId: string, subtaskIndex: number, field
         ...fields,
       };
     }
-    const response = await api.put(`/api/tasks/${parentId}`, { subtasks: JSON.stringify(subtasksList) });
+    const response = await api.put(`/api/tasks/${parentId}`, {
+      subtasks: JSON.stringify(subtasksList),
+    });
     ElMessage.success('子任务已更新');
+    const parsed = parseTaskProps(response.data);
     const idx = tasks.value.findIndex((t) => t.id === parentId);
     if (idx !== -1) {
-      tasks.value[idx] = response.data;
+      tasks.value[idx] = parsed;
     }
     if (activeTask.value && activeTask.value.id === parentId) {
-      activeTask.value = response.data;
+      activeTask.value = parsed;
     }
     cachedTasksByTeam.value[tid] = [...tasks.value];
     fetchStats();
@@ -948,14 +993,17 @@ const handleSubtaskDrag = async (parentId: string, subtaskIndex: number, columnI
         subtasksList[subtaskIndex].assigneeId = columnId === 'unassigned' ? null : columnId;
       }
     }
-    const response = await api.put(`/api/tasks/${parentId}`, { subtasks: JSON.stringify(subtasksList) });
+    const response = await api.put(`/api/tasks/${parentId}`, {
+      subtasks: JSON.stringify(subtasksList),
+    });
     ElMessage.success('子任务已更新');
+    const parsed = parseTaskProps(response.data);
     const idx = tasks.value.findIndex((t) => t.id === parentId);
     if (idx !== -1) {
-      tasks.value[idx] = response.data;
+      tasks.value[idx] = parsed;
     }
     if (activeTask.value && activeTask.value.id === parentId) {
-      activeTask.value = response.data;
+      activeTask.value = parsed;
     }
     cachedTasksByTeam.value[tid] = [...tasks.value];
     fetchStats();
@@ -963,6 +1011,12 @@ const handleSubtaskDrag = async (parentId: string, subtaskIndex: number, columnI
     ElMessage.error('更新子任务失败');
   }
 };
+
+watch(activeSubtaskId, (newVal) => {
+  if (!newVal && !isDetailDrawerOpen.value) {
+    activeTask.value = null;
+  }
+});
 
 watch(
   () => workspaceStore.activeTeamId,
@@ -985,14 +1039,37 @@ watch(
         byStatus: { TODO: 0, IN_PROGRESS: 0, REVIEW: 0, DONE: 0 },
       };
     }
+    if (cachedTeamMembersByTeam.value[tid]) {
+      teamMembers.value = cachedTeamMembersByTeam.value[tid];
+    } else {
+      teamMembers.value = [];
+    }
+    if (cachedProjectsByTeam.value[tid]) {
+      projects.value = cachedProjectsByTeam.value[tid];
+    } else {
+      projects.value = [];
+    }
+    if (cachedTeams.value && cachedTeams.value.length > 0) {
+      teams.value = cachedTeams.value;
+    } else {
+      teams.value = [];
+    }
     fetchTasks();
     fetchStats();
     fetchTeamMembers();
     fetchProjects();
     fetchTeams();
   },
-  { immediate: true }
+  { immediate: true },
 );
+
+onActivated(() => {
+  fetchTasks();
+  fetchStats();
+  fetchTeamMembers();
+  fetchProjects();
+  fetchTeams();
+});
 </script>
 
 <template>
@@ -1095,7 +1172,9 @@ watch(
             </button>
           </template>
           <div class="p-1 space-y-2.5">
-            <div class="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-1">
+            <div
+              class="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-1"
+            >
               看板卡片显示属性
             </div>
             <label
@@ -1109,13 +1188,20 @@ watch(
                 class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
                 @change="toggleCardSetting(String(field))"
               />
-              <span>{{ 
-                field === 'assignee' ? '负责人头像' : 
-                field === 'dueDate' ? '截止日期' : 
-                field === 'priority' ? '优先级标签' : 
-                field === 'project' ? '关联项目名称' : 
-                field === 'subtasks' ? '子任务进度' : 
-                field === 'timeTracking' ? '工时进度' : '任务简短描述'
+              <span>{{
+                field === 'assignee'
+                  ? '负责人头像'
+                  : field === 'dueDate'
+                    ? '截止日期'
+                    : field === 'priority'
+                      ? '优先级标签'
+                      : field === 'project'
+                        ? '关联项目名称'
+                        : field === 'subtasks'
+                          ? '子任务进度'
+                          : field === 'timeTracking'
+                            ? '工时进度'
+                            : '任务简短描述'
               }}</span>
             </label>
           </div>
@@ -1138,7 +1224,9 @@ watch(
             </button>
           </template>
           <div class="p-1 space-y-2.5">
-            <div class="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-1">
+            <div
+              class="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-1"
+            >
               列表卡片显示属性
             </div>
             <label
@@ -1152,11 +1240,16 @@ watch(
                 class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
                 @change="toggleColumnVisibility(String(field))"
               />
-              <span>{{ 
-                field === 'status' ? t('tasks.statusLabel') : 
-                field === 'project' ? t('tasks.associatedProject') : 
-                field === 'assignee' ? t('tasks.assignee') : 
-                field === 'dueDate' ? t('tasks.dueDate') : t('tasks.priority')
+              <span>{{
+                field === 'status'
+                  ? t('tasks.statusLabel')
+                  : field === 'project'
+                    ? t('tasks.associatedProject')
+                    : field === 'assignee'
+                      ? t('tasks.assignee')
+                      : field === 'dueDate'
+                        ? t('tasks.dueDate')
+                        : t('tasks.priority')
               }}</span>
             </label>
           </div>
@@ -1210,11 +1303,21 @@ watch(
     <div v-if="isLoading" class="flex-1 p-1 sm:p-4 space-y-4 overflow-hidden">
       <!-- Board Skeleton -->
       <div v-if="viewMode === 'board'" class="flex gap-4 h-full">
-        <div v-for="i in 3" :key="i" class="flex-1 bg-card rounded-2xl border p-4 space-y-3 animate-pulse h-full" style="background-color: var(--bg-card); border-color: var(--border-base)">
+        <div
+          v-for="i in 3"
+          :key="i"
+          class="flex-1 bg-card rounded-2xl border p-4 space-y-3 animate-pulse h-full"
+          style="background-color: var(--bg-card); border-color: var(--border-base)"
+        >
           <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-4"></div>
-          <div v-for="j in 3" :key="j" class="h-24 bg-slate-100 dark:bg-slate-800/40 rounded-xl border p-3 space-y-2" style="border-color: var(--border-base)">
+          <div
+            v-for="j in 3"
+            :key="j"
+            class="h-24 bg-slate-100 dark:bg-slate-800/40 rounded-xl border p-3 space-y-2"
+            style="border-color: var(--border-base)"
+          >
             <div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
-            <div class="h-2 bg-slate-250 dark:bg-slate-750 rounded w-1/2"></div>
+            <div class="h-2 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div>
             <div class="flex justify-between items-center pt-2">
               <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-8"></div>
               <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-4"></div>
@@ -1224,13 +1327,18 @@ watch(
       </div>
       <!-- List/Calendar Skeleton -->
       <div v-else class="space-y-3 animate-pulse">
-        <div v-for="i in 6" :key="i" class="h-12 bg-slate-100 dark:bg-slate-850 rounded-xl border" style="background-color: var(--bg-card); border-color: var(--border-base)"></div>
+        <div
+          v-for="i in 6"
+          :key="i"
+          class="h-12 bg-slate-100 dark:bg-slate-800 rounded-xl border"
+          style="background-color: var(--bg-card); border-color: var(--border-base)"
+        ></div>
       </div>
     </div>
 
     <!-- Board View -->
     <TaskBoardView
-      v-show="!isLoading && viewMode === 'board'"
+      v-if="!isLoading && viewMode === 'board'"
       :tasks-by-group="boardTasksByGroup"
       :active-columns="activeColumns"
       :group-by="groupBy"
@@ -1247,7 +1355,7 @@ watch(
 
     <!-- List View -->
     <TaskListView
-      v-show="!isLoading && viewMode === 'list'"
+      v-if="!isLoading && viewMode === 'list'"
       :tasks-by-project="listTasksByProject"
       :active-columns="activeColumns"
       :visible-columns="visibleColumns"
@@ -1264,7 +1372,7 @@ watch(
 
     <!-- Calendar View -->
     <TaskCalendarView
-      v-show="!isLoading && viewMode === 'calendar'"
+      v-if="!isLoading && viewMode === 'calendar'"
       :tasks="calendarTasks"
       :team-members="teamMembers"
       @refresh="handleTaskUpdated"
@@ -1281,7 +1389,7 @@ watch(
       <div
         class="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-4"
       >
-        <CheckCircle2 class="w-8 h-8 text-slate-300 dark:text-slate-650" />
+        <CheckCircle2 class="w-8 h-8 text-slate-300 dark:text-slate-600" />
       </div>
       <p class="text-sm font-bold text-slate-400 mb-1">{{ t('tasks.noTasks') }}</p>
       <p class="text-xs text-slate-400 mb-4">{{ t('tasks.clickNewTaskTip') }}</p>
@@ -1303,7 +1411,7 @@ watch(
       <div
         class="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-4"
       >
-        <SlidersHorizontal class="w-8 h-8 text-slate-300 dark:text-slate-650" />
+        <SlidersHorizontal class="w-8 h-8 text-slate-300 dark:text-slate-600" />
       </div>
       <p class="text-sm font-bold text-slate-400 mb-1">{{ t('tasks.noMatchingTasks') }}</p>
       <p class="text-xs text-slate-400 mb-4">
@@ -1320,6 +1428,7 @@ watch(
 
     <!-- ClickUp-Style Double-Column Detail Drawer -->
     <TaskDetailDrawer
+      v-if="hasLoadedDetailDrawer"
       v-model="isDetailDrawerOpen"
       v-model:view-mode="taskDetailViewMode"
       v-model:active-subtask-id="activeSubtaskId"
@@ -1336,6 +1445,7 @@ watch(
 
     <!-- Add Task Dialog -->
     <TaskAddDialog
+      v-if="hasLoadedAddDialog"
       v-model="isAddDialogOpen"
       :team-members="teamMembers"
       :projects="projects"
@@ -1348,6 +1458,7 @@ watch(
     />
 
     <UserProfileDialog
+      v-if="hasLoadedProfileDialog"
       v-model="isProfileDialogOpen"
       :user-id="selectedUserId"
       @chat="handleStartChat"

@@ -95,7 +95,9 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
 
     const user = preferences.getUser<{ id: string | number }>();
     const userId = user?.id ? `_${user.id}` : '';
-    const workspaceId = workspaceStore.currentWorkspace?.id ? `_${workspaceStore.currentWorkspace.id}` : '';
+    const workspaceId = workspaceStore.currentWorkspace?.id
+      ? `_${workspaceStore.currentWorkspace.id}`
+      : '';
     const migrationKey = `layout_sidebar_default_collapsed_v4${userId}${workspaceId}`;
 
     if (localStorage.getItem(migrationKey) !== null) return;
@@ -103,17 +105,19 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
     const next = new Set(collapsedGroupKeys.value);
     let migrated = false;
 
-    const isResourceWorkspace = window.location.pathname.startsWith('/mirror') || 
-                                window.location.pathname.startsWith('/manual');
+    const isResourceWorkspace =
+      window.location.pathname.startsWith('/mirror') ||
+      window.location.pathname.startsWith('/manual');
 
     lastAvailableKeys.value.forEach((key) => {
       const lowercaseKey = key.toLowerCase();
-      const isToolsGroup = lowercaseKey.includes('tools') || 
-                           lowercaseKey.includes('工具服务') || 
-                           lowercaseKey.includes('ai') || 
-                           lowercaseKey.includes('智能') ||
-                           lowercaseKey.includes('assistance');
-      
+      const isToolsGroup =
+        lowercaseKey.includes('tools') ||
+        lowercaseKey.includes('工具服务') ||
+        lowercaseKey.includes('ai') ||
+        lowercaseKey.includes('智能') ||
+        lowercaseKey.includes('assistance');
+
       const isCategoryGroup = isResourceWorkspace && !key.startsWith('0:');
 
       if (isToolsGroup || isCategoryGroup) {
@@ -137,8 +141,9 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
 
     lastAvailableKeys.value = availableGroupKeys;
 
-    const hasStored = localStorage.getItem(CLOUD_GROUPS_KEY) !== null || 
-                      localStorage.getItem(preferences.keys.sidebarCollapsedGroups) !== null;
+    const hasStored =
+      localStorage.getItem(CLOUD_GROUPS_KEY) !== null ||
+      localStorage.getItem(preferences.keys.sidebarCollapsedGroups) !== null;
 
     let next: Set<string>;
     if (hasStored) {
@@ -148,14 +153,16 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
       next = new Set<string>();
       availableGroupKeys.forEach((key) => {
         const lowercaseKey = key.toLowerCase();
-        const isToolsGroup = lowercaseKey.includes('tools') || 
-                             lowercaseKey.includes('工具服务') || 
-                             lowercaseKey.includes('ai') || 
-                             lowercaseKey.includes('智能') ||
-                             lowercaseKey.includes('assistance');
-                             
-        const isResourceWorkspace = window.location.pathname.startsWith('/mirror') || 
-                                    window.location.pathname.startsWith('/manual');
+        const isToolsGroup =
+          lowercaseKey.includes('tools') ||
+          lowercaseKey.includes('工具服务') ||
+          lowercaseKey.includes('ai') ||
+          lowercaseKey.includes('智能') ||
+          lowercaseKey.includes('assistance');
+
+        const isResourceWorkspace =
+          window.location.pathname.startsWith('/mirror') ||
+          window.location.pathname.startsWith('/manual');
         const isCategoryGroup = isResourceWorkspace && !key.startsWith('0:');
 
         if (isToolsGroup || isCategoryGroup) {
@@ -164,8 +171,9 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
       });
     }
 
-    const hasChanged = next.size !== collapsedGroupKeys.value.size || 
-                       [...next].some((k) => !collapsedGroupKeys.value.has(k));
+    const hasChanged =
+      next.size !== collapsedGroupKeys.value.size ||
+      [...next].some((k) => !collapsedGroupKeys.value.has(k));
 
     if (hasChanged) {
       collapsedGroupKeys.value = next;
@@ -218,7 +226,7 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
     () => workspaceStore.currentWorkspace?.id,
     () => {
       checkAndApplyMigration();
-    }
+    },
   );
 
   onMounted(loadCloudSidebarPreferences);

@@ -20,8 +20,12 @@ import {
 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
-import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import { fetchManagementInsights } from './adminManagementInsights';
+import PageHeader from '@/components/PageHeader.vue';
+import Button from '@/components/ui/Button.vue';
+import Card from '@/components/ui/Card.vue';
+import Badge from '@/components/ui/Badge.vue';
+import Tabs from '@/components/ui/Tabs.vue';
 import ManualStationDialog from './components/ManualStationDialog.vue';
 import StationResourcesTab from './components/StationResourcesTab.vue';
 import StationCategoriesTab from './components/StationCategoriesTab.vue';
@@ -139,7 +143,11 @@ async function fetchStations() {
     const res = await api.get('/api/manual/stations');
     stations.value = res.data;
     fetchManagementInsights(true);
-  } catch (e: unknown) {}
+  } catch (e: unknown) {
+    ElMessage.error('加载资源站失败');
+  } finally {
+    isLoading.value = false;
+  }
 }
 
 const isUploadingThumbnail = ref(false);
@@ -204,12 +212,76 @@ const parsedNetdisk = computed(() => {
 });
 
 const statusFilter = ref<'ALL' | 'ACTIVE' | 'DISABLED'>('ALL');
-const setStatusFilter = (key: string) => {
-  if (key === 'ALL' || key === 'ACTIVE' || key === 'DISABLED') {
-    statusFilter.value = key;
-  }
-};
 const stationSearchQuery = ref('');
+
+const consolidatedCards = computed(() => {
+  const activeCount = stations.value.filter((s) => s.status === 'ACTIVE').length;
+  const totalCount = stations.value.length;
+  const totalResources = stations.value.reduce((sum, s) => sum + (s.totalResources || 0), 0);
+  const disabledCount = stations.value.filter((s) => s.status === 'DISABLED').length;
+  const emptyCount = stations.value.filter((s) => s.totalResources === 0).length;
+  const totalCategories = stations.value.reduce((sum, s) => sum + (s._count?.categories || 0), 0);
+  const memberCount = stations.value.filter((s) => s.minPlanPriority > 0).length;
+
+  return [
+    {
+      label: '启用站点',
+      value: `${activeCount}/${totalCount}`,
+      hint: `${memberCount} 个会员站`,
+      icon: Database,
+      color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      health: { label: activeCount > 0 ? '运行中' : '空闲' },
+    },
+    {
+      label: '资源总量',
+      value: totalResources,
+      hint: `${totalCategories} 个分类`,
+      icon: FileText,
+      color: 'text-blue-600 bg-blue-500/10 border-blue-500/20',
+      health: { label: '资源库' },
+    },
+    {
+      label: '空站点',
+      value: emptyCount,
+      hint: '需要补充资源',
+      icon: X,
+      color:
+        emptyCount > 0
+          ? 'text-amber-600 bg-amber-500/10 border-amber-500/20'
+          : 'text-slate-500 bg-slate-500/10 border-slate-500/20',
+      health: { label: emptyCount > 0 ? '需补充' : '正常' },
+    },
+    {
+      label: '停用站点',
+      value: disabledCount,
+      hint: '不对前台开放',
+      icon: Lock,
+      color: 'text-rose-600 bg-rose-500/10 border-rose-500/20',
+      health: { label: disabledCount > 0 ? '有禁用' : '无禁用' },
+    },
+  ];
+});
+
+const getBadgeVariant = (label: string) => {
+  if (label === '运行中' || label === '正常' || label === '无禁用') return 'success';
+  if (label === '有禁用' || label === '需补充') return 'danger';
+  if (label === '空闲') return 'warning';
+  return 'primary';
+};
+
+const tabOptions = computed(() => [
+  { label: `${t('admin.all_sites')} (${stations.value.length})`, value: 'ALL', icon: Database },
+  {
+    label: `${t('admin.activating')} (${stations.value.filter((s) => s.status === 'ACTIVE').length})`,
+    value: 'ACTIVE',
+    icon: Check,
+  },
+  {
+    label: `${t('admin.disabled')} (${stations.value.filter((s) => s.status === 'DISABLED').length})`,
+    value: 'DISABLED',
+    icon: X,
+  },
+]);
 
 const filteredStations = computed(() => {
   return stations.value.filter((station) => {
@@ -328,354 +400,322 @@ onMounted(async () => {
 
 <template>
   <div
-    class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
-    style="background-color: var(--bg-app)"
+    class="admin-manual-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
   >
-    <!-- 奢华顶栏 (超紧凑高阶版) -->
-    <div
-      class="relative shrink-0 border-b overflow-hidden"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <!-- 极光背景装饰 -->
-      <div
-        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-cyan-500/10 via-emerald-500/5 to-transparent pointer-events-none"
-      ></div>
+    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
+      <!-- Page Header -->
+      <PageHeader title="手动资源站管理" variant="card">
+        <template #center>
+          <div class="flex flex-wrap items-center gap-1.5 ml-2">
+            <Badge variant="info"> 站点数: {{ stations.length }} </Badge>
+          </div>
+        </template>
 
-      <!-- Row 1: 标题 & 主要动作 -->
-      <div
-        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10 border-b"
-        style="border-color: var(--border-base)"
-      >
-        <div class="flex items-center gap-2">
-          <span
-            class="p-1 rounded-xl bg-cyan-500/10 text-cyan-500 shadow-sm border border-cyan-500/20 shrink-0"
-          >
-            <Database class="w-4 h-4" />
-          </span>
-          <h1 class="text-sm font-black tracking-tight shrink-0" style="color: var(--text-primary)">
-            手动资源站管理
-          </h1>
-        </div>
+        <!-- Actions -->
+        <Button variant="primary" size="sm" :icon="Plus" @click="openCreate">
+          {{ $t('admin.create_a_manual_resource') }}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          :icon="RefreshCw"
+          :loading="isLoading"
+          @click="fetchStations"
+        >
+          {{ $t('admin.refresh') }}
+        </Button>
+      </PageHeader>
 
-        <div class="flex items-center gap-1.5 sm:gap-2.5">
-          <button
-            type="button"
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
-            @click="openCreate"
-          >
-            <Plus class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">{{ $t('admin.create_a_manual_resource') }}</span>
-          </button>
-          <button
-            type="button"
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="fetchStations"
-          >
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-            <span class="hidden sm:inline">{{ $t('admin.refresh') }}</span>
-          </button>
-        </div>
-      </div>
+      <!-- KPI Metrics Grid -->
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        <Card
+          v-for="card in consolidatedCards"
+          :key="card.label"
+          hoverable
+          glow
+          class="group !p-2 px-2.5"
+        >
+          <div class="flex items-center justify-between w-full gap-3">
+            <!-- Left: Icon & Info -->
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span
+                class="panel-icon border border-base rounded-lg p-1.5 transition-transform group-hover:scale-105 shrink-0"
+                :class="card.color"
+              >
+                <component :is="card.icon" class="h-3.5 w-3.5" />
+              </span>
+              <div class="min-w-0">
+                <p
+                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
+                >
+                  {{ card.label }}
+                </p>
+                <p
+                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
+                  :title="card.hint"
+                >
+                  {{ card.hint }}
+                </p>
+              </div>
+            </div>
 
-      <!-- Row 2: 状态与检索 Pills -->
-      <div
-        class="px-4 sm:px-8 py-2 flex flex-col md:flex-row md:flex-wrap md:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
-      >
-        <!-- 状态 Pills -->
-        <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
-          <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
+            <!-- Right: Metric & Health Badge -->
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-base font-black text-[var(--text-primary)] leading-none">
+                {{ card.value }}
+              </span>
+              <Badge :variant="getBadgeVariant(card.health.label)">
+                {{ card.health.label }}
+              </Badge>
+            </div>
+          </div>
+        </Card>
+      </section>
+
+      <!-- Workspace layout: Single Column Workspace -->
+      <div class="mt-3 w-full min-w-0">
+        <div class="space-y-3 min-w-0">
+          <!-- Toolbar Card -->
+          <Card padding="sm" class="workbench-toolbar-card">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full">
+                <Tabs v-model="statusFilter" :options="tabOptions" size="sm" />
+              </div>
+
+              <!-- Search & Filter count info -->
+              <div class="flex items-center gap-3 shrink-0">
+                <label class="search-box !min-h-0 !h-8 w-44 sm:w-60 shrink-0">
+                  <Search class="w-3.5 h-3.5" />
+                  <input
+                    v-model="stationSearchQuery"
+                    type="text"
+                    :placeholder="$t('admin.search_sites_by_name')"
+                  />
+                </label>
+                <div class="text-[10px] font-bold text-slate-400 shrink-0">
+                  已过滤:
+                  <span class="text-indigo-600 font-extrabold">{{ filteredStations.length }}</span>
+                  / 总计: {{ stations.length }}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <!-- Loading State -->
+          <div v-if="isLoading" class="flex flex-col items-center justify-center py-24 gap-4">
+            <Loader2 class="w-10 h-10 text-cyan-500 animate-spin" />
+            <span class="text-slate-400 text-xs tracking-widest uppercase">{{
+              $t('admin.loading_data')
+            }}</span>
+          </div>
+
+          <!-- Empty State -->
+          <div
+            v-else-if="stations.length === 0"
+            class="flex flex-col items-center justify-center py-20 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl"
+          >
+            <Database class="w-12 h-12 text-slate-300 dark:text-slate-700 mb-4" />
+            <h3 class="text-sm font-semibold text-slate-600 dark:text-slate-400">
+              {{ $t('admin.there_is_currently_no') }}
+            </h3>
+            <p class="text-xs text-slate-400 mt-1 mb-6">{{ $t('admin.click_the_button_in') }}</p>
             <button
-              v-for="filter in [
-                {
-                  key: 'ALL',
-                  label: $t('admin.all_sites'),
-                  count: stations.length,
-                  color: 'indigo',
-                  icon: Database,
-                },
-                {
-                  key: 'ACTIVE',
-                  label: $t('admin.activating'),
-                  count: stations.filter((s) => s.status === 'ACTIVE').length,
-                  color: 'emerald',
-                  icon: Check,
-                },
-                {
-                  key: 'DISABLED',
-                  label: $t('admin.disabled'),
-                  count: stations.filter((s) => s.status === 'DISABLED').length,
-                  color: 'rose',
-                  icon: X,
-                },
-              ]"
-              :key="filter.key"
               type="button"
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
-              :class="[
-                statusFilter === filter.key
-                  ? filter.key === 'ACTIVE'
-                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
-                    : filter.key === 'DISABLED'
-                      ? 'bg-rose-500/10 text-rose-500 border-rose-500/30 ring-1 ring-rose-500/20 font-extrabold shadow-sm'
-                      : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
-                  : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5',
-              ]"
-              @click="setStatusFilter(filter.key)"
+              class="px-4 py-2 border border-cyan-500/30 text-cyan-500 hover:bg-cyan-500/5 rounded-xl text-xs transition-colors"
+              @click="openCreate"
             >
-              <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
-              <span>{{ filter.label }}</span>
-              <span class="opacity-60">({{ filter.count }})</span>
+              立即创建
             </button>
           </div>
-        </div>
 
-        <!-- 检索与统计 -->
-        <div
-          class="w-full flex items-center justify-between md:justify-end gap-3 md:w-auto shrink-0"
-        >
-          <div class="relative flex-1 md:flex-none md:w-64">
-            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <input
-              v-model="stationSearchQuery"
-              type="text"
-              :placeholder="$t('admin.search_sites_by_name')"
-              class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-[11px] shadow-sm"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            />
-          </div>
-          <div class="text-[10px] font-bold text-right shrink-0" style="color: var(--text-muted)">
-            已过滤:
-            <span class="text-indigo-600 font-extrabold">{{ filteredStations.length }}</span> /
-            总计: {{ stations.length }}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 主体内容区 -->
-    <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
-      <div class="max-w-none">
-        <AdminOpsPanel scope="manual" />
-
-        <!-- Loading State -->
-        <div v-if="isLoading" class="flex flex-col items-center justify-center py-24 gap-4">
-          <Loader2 class="w-10 h-10 text-cyan-500 animate-spin" />
-          <span class="text-slate-400 text-xs tracking-widest uppercase">{{
-            $t('admin.loading_data')
-          }}</span>
-        </div>
-
-        <!-- Empty State -->
-        <div
-          v-else-if="stations.length === 0"
-          class="flex flex-col items-center justify-center py-20 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl"
-        >
-          <Database class="w-12 h-12 text-slate-300 dark:text-slate-700 mb-4" />
-          <h3 class="text-sm font-semibold text-slate-600 dark:text-slate-400">
-            {{ $t('admin.there_is_currently_no') }}
-          </h3>
-          <p class="text-xs text-slate-400 mt-1 mb-6">{{ $t('admin.click_the_button_in') }}</p>
-          <button
-            type="button"
-            class="px-4 py-2 border border-cyan-500/30 text-cyan-500 hover:bg-cyan-500/5 rounded-xl text-xs transition-colors"
-            @click="openCreate"
-          >
-            立即创建
-          </button>
-        </div>
-
-        <!-- Stations Grid/List -->
-        <div v-else class="space-y-4">
-          <div
-            v-for="station in filteredStations"
-            :key="station.id"
-            class="border border-slate-200/60 dark:border-slate-800 rounded-2xl overflow-hidden transition-all duration-300 bg-white dark:bg-slate-900/40"
-          >
-            <!-- Station Main Card Content -->
-            <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-5">
-              <div class="flex items-start gap-4">
-                <div
-                  class="w-12 h-12 rounded-2xl bg-cyan-50 dark:bg-cyan-950/20 text-cyan-500 flex items-center justify-center shrink-0 border border-cyan-100 dark:border-cyan-950/50 overflow-hidden"
-                >
-                  <img
-                    v-if="station.iconUrl"
-                    alt=""
-                    :src="getAssetUrl(station.iconUrl)"
-                    class="w-full h-full object-cover"
-                  />
-                  <Database v-else class="w-6 h-6" />
-                </div>
-                <div class="space-y-1">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <h3 class="text-base font-semibold text-slate-800 dark:text-slate-200">
-                      {{ station.displayName }}
-                    </h3>
-                    <span
-                      class="text-[10px] font-mono px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-md"
-                    >
-                      {{ station.name }}
-                    </span>
-                    <span
-                      class="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                      :class="statusLabels[station.status]?.color || 'text-slate-500 bg-slate-50'"
-                    >
-                      {{ statusLabels[station.status]?.label || station.status }}
-                    </span>
-                    <span
-                      class="text-[10px] bg-cyan-500/10 text-cyan-500 px-2 py-0.5 rounded-full flex items-center gap-1"
-                    >
-                      <Lock class="w-3 h-3" />
-                      {{
-                        station.minPlanPriority === 0
-                          ? [t('admin.free_for_all')]
-                          : $t('admin.getplanname_station_minplanpriority_and')
-                      }}
-                    </span>
+          <!-- Stations Grid/List -->
+          <div v-else class="space-y-4">
+            <div
+              v-for="station in filteredStations"
+              :key="station.id"
+              class="border border-slate-200/60 dark:border-slate-800 rounded-2xl overflow-hidden transition-all duration-300 bg-white dark:bg-slate-900/40"
+            >
+              <!-- Station Main Card Content -->
+              <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-5">
+                <div class="flex items-start gap-4">
+                  <div
+                    class="w-12 h-12 rounded-2xl bg-cyan-50 dark:bg-cyan-950/20 text-cyan-500 flex items-center justify-center shrink-0 border border-cyan-100 dark:border-cyan-950/50 overflow-hidden"
+                  >
+                    <img
+                      v-if="station.iconUrl"
+                      alt=""
+                      :src="getAssetUrl(station.iconUrl)"
+                      class="w-full h-full object-cover"
+                    />
+                    <Database v-else class="w-6 h-6" />
                   </div>
-                  <p class="text-xs text-slate-400 line-clamp-2 pr-6">
-                    {{ station.description || $t('admin.no_description_yet') }}
-                  </p>
+                  <div class="space-y-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <h3 class="text-base font-semibold text-slate-800 dark:text-slate-200">
+                        {{ station.displayName }}
+                      </h3>
+                      <span
+                        class="text-[10px] font-mono px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-md"
+                      >
+                        {{ station.name }}
+                      </span>
+                      <span
+                        class="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        :class="statusLabels[station.status]?.color || 'text-slate-500 bg-slate-50'"
+                      >
+                        {{ statusLabels[station.status]?.label || station.status }}
+                      </span>
+                      <span
+                        class="text-[10px] bg-cyan-500/10 text-cyan-500 px-2 py-0.5 rounded-full flex items-center gap-1"
+                      >
+                        <Lock class="w-3 h-3" />
+                        {{
+                          station.minPlanPriority === 0
+                            ? [t('admin.free_for_all')]
+                            : $t('admin.getplanname_station_minplanpriority_and')
+                        }}
+                      </span>
+                    </div>
+                    <p class="text-xs text-slate-400 line-clamp-2 pr-6">
+                      {{ station.description || $t('admin.no_description_yet') }}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <!-- Quick Stats and Actions -->
-              <div
-                class="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 border-slate-100 dark:border-slate-800/60 pt-4 md:pt-0"
-              >
-                <div class="flex gap-4 items-center">
-                  <div class="text-left md:text-right shrink-0">
-                    <div class="text-xs text-slate-400">{{ $t('admin.total_resources') }}</div>
-                    <div class="text-base font-bold text-slate-700 dark:text-slate-300 font-mono">
-                      {{ station.totalResources }}
+                <!-- Quick Stats and Actions -->
+                <div
+                  class="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 border-slate-100 dark:border-slate-800/60 pt-4 md:pt-0"
+                >
+                  <div class="flex gap-4 items-center">
+                    <div class="text-left md:text-right shrink-0">
+                      <div class="text-xs text-slate-400">{{ $t('admin.total_resources') }}</div>
+                      <div class="text-base font-bold text-slate-700 dark:text-slate-300 font-mono">
+                        {{ station.totalResources }}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div class="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    class="px-4 py-2 border rounded-xl text-xs font-medium transition-all"
-                    :class="
-                      expandedStationId === station.id
-                        ? 'bg-cyan-500 text-white border-cyan-500'
-                        : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
-                    "
-                    @click="handleExpandStation(station.id)"
-                  >
-                    {{
-                      expandedStationId === station.id
-                        ? [t('admin.collapse_panel')]
-                        : $t('admin.manage_categories_resources')
-                    }}
-                  </button>
-                  <button
-                    type="button"
-                    class="p-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl transition-colors"
-                    :title="$t('admin.edit_basic_information')"
-                    @click="openEdit(station)"
-                  >
-                    <Edit3 class="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    class="p-2 border border-rose-200/50 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded-xl transition-colors"
-                    :title="$t('admin.delete_resource_site')"
-                    @click="deleteStation(station)"
-                  >
-                    <Trash2 class="w-4 h-4" />
-                  </button>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      class="px-4 py-2 border rounded-xl text-xs font-medium transition-all"
+                      :class="
+                        expandedStationId === station.id
+                          ? 'bg-cyan-500 text-white border-cyan-500'
+                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      "
+                      @click="handleExpandStation(station.id)"
+                    >
+                      {{
+                        expandedStationId === station.id
+                          ? [t('admin.collapse_panel')]
+                          : $t('admin.manage_categories_resources')
+                      }}
+                    </button>
+                    <button
+                      type="button"
+                      class="p-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl transition-colors"
+                      :title="$t('admin.edit_basic_information')"
+                      @click="openEdit(station)"
+                    >
+                      <Edit3 class="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      class="p-2 border border-rose-200/50 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded-xl transition-colors"
+                      :title="$t('admin.delete_resource_site')"
+                      @click="deleteStation(station)"
+                    >
+                      <Trash2 class="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- STATION DETAILS EXPAND PANEL -->
-            <div
-              v-if="expandedStationId === station.id"
-              class="border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/10 p-5 space-y-5 animate-in slide-in-from-top duration-300"
-            >
-              <!-- Internal Navigation Tabs -->
+              <!-- STATION DETAILS EXPAND PANEL -->
               <div
-                class="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-3"
+                v-if="expandedStationId === station.id"
+                class="border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/10 p-5 space-y-5 animate-in slide-in-from-top duration-300"
               >
-                <div class="flex gap-2">
+                <!-- Internal Navigation Tabs -->
+                <div
+                  class="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-3"
+                >
+                  <div class="flex gap-2">
+                    <button
+                      type="button"
+                      class="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer border-none bg-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                      :class="{
+                        'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200/40 dark:border-slate-700/40':
+                          expandedTab === 'resources',
+                      }"
+                      @click="expandedTab = 'resources'"
+                    >
+                      <FileText class="w-4 h-4" /> 资源库
+                    </button>
+                    <button
+                      type="button"
+                      class="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer border-none bg-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                      :class="{
+                        'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200/40 dark:border-slate-700/40':
+                          expandedTab === 'categories',
+                      }"
+                      @click="expandedTab = 'categories'"
+                    >
+                      <Layers class="w-4 h-4" /> 分类配置 ({{ stationCategories.length }})
+                    </button>
+                  </div>
+
                   <button
+                    v-if="expandedTab === 'resources'"
                     type="button"
-                    class="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer border-none bg-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                    :class="{
-                      'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200/40 dark:border-slate-700/40':
-                        expandedTab === 'resources',
-                    }"
-                    @click="expandedTab = 'resources'"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 text-xs font-semibold transition-all cursor-pointer border-none"
+                    @click="stationResourcesTabRef?.openCreateResource()"
                   >
-                    <FileText class="w-4 h-4" /> 资源库
+                    <Plus class="w-3.5 h-3.5" /> 上传资源
                   </button>
                   <button
+                    v-else
                     type="button"
-                    class="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer border-none bg-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                    :class="{
-                      'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200/40 dark:border-slate-700/40':
-                        expandedTab === 'categories',
-                    }"
-                    @click="expandedTab = 'categories'"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 text-xs font-semibold transition-all cursor-pointer border-none"
+                    @click="stationCategoriesTabRef?.openCreateCategory()"
                   >
-                    <Layers class="w-4 h-4" /> 分类配置 ({{ stationCategories.length }})
+                    <Plus class="w-3.5 h-3.5" /> 添加分类
                   </button>
                 </div>
 
-                <button
+                <!-- TAB 1: RESOURCES MANAGEMENT -->
+                <StationResourcesTab
                   v-if="expandedTab === 'resources'"
-                  type="button"
-                  class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 text-xs font-semibold transition-all cursor-pointer border-none"
-                  @click="stationResourcesTabRef?.openCreateResource()"
-                >
-                  <Plus class="w-3.5 h-3.5" /> 上传资源
-                </button>
-                <button
+                  ref="stationResourcesTabRef"
+                  :station-id="station.id"
+                  :categories="stationCategories"
+                  :formatted-categories="formattedManualCategories"
+                  @refresh-station="handleRefreshStation(station.id)"
+                />
+
+                <!-- TAB 2: CATEGORIES CONFIGURATION -->
+                <StationCategoriesTab
                   v-else
-                  type="button"
-                  class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 text-xs font-semibold transition-all cursor-pointer border-none"
-                  @click="stationCategoriesTabRef?.openCreateCategory()"
-                >
-                  <Plus class="w-3.5 h-3.5" /> 添加分类
-                </button>
+                  ref="stationCategoriesTabRef"
+                  :station-id="station.id"
+                  :categories="stationCategories"
+                  :formatted-categories="formattedManualCategories"
+                  @refresh="handleRefreshStation(station.id)"
+                />
               </div>
-
-              <!-- TAB 1: RESOURCES MANAGEMENT -->
-              <StationResourcesTab
-                v-if="expandedTab === 'resources'"
-                ref="stationResourcesTabRef"
-                :station-id="station.id"
-                :categories="stationCategories"
-                :formatted-categories="formattedManualCategories"
-                @refresh-station="handleRefreshStation(station.id)"
-              />
-
-              <!-- TAB 2: CATEGORIES CONFIGURATION -->
-              <StationCategoriesTab
-                v-else
-                ref="stationCategoriesTabRef"
-                :station-id="station.id"
-                :categories="stationCategories"
-                :formatted-categories="formattedManualCategories"
-                @refresh="handleRefreshStation(station.id)"
-              />
             </div>
           </div>
         </div>
-
-        <!-- Manual Station Dialog -->
-        <ManualStationDialog
-          v-model="showStationDialog"
-          :station="editingStation"
-          @saved="fetchStations"
-        />
       </div>
-    </div>
+    </main>
+
+    <!-- Manual Station Dialog -->
+    <ManualStationDialog
+      v-model="showStationDialog"
+      :station="editingStation"
+      @saved="fetchStations"
+    />
   </div>
 </template>
 

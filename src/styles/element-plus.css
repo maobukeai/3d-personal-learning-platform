@@ -229,7 +229,7 @@ html.dark.theme-glass {
 }
 .el-overlay-dialog {
   backdrop-filter: blur(6px);
-}/* Message Box (ElMessageBox) */
+} /* Message Box (ElMessageBox) */
 .el-message-box {
   background-color: var(--bg-card) !important;
   border: 1px solid var(--border-base) !important;

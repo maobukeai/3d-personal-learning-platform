@@ -563,7 +563,9 @@ const handleImportCoPlan = async () => {
   if (!currentPlanJson.value) return;
   isFinalImporting.value = true;
 
-  let planPayload = currentPlanJson.value as (PlanJson & { plan?: PlanJson; project?: PlanJson }) | null;
+  let planPayload = currentPlanJson.value as
+    | (PlanJson & { plan?: PlanJson; project?: PlanJson })
+    | null;
   if (planPayload && !planPayload.title) {
     if (planPayload.plan && planPayload.plan.title) {
       planPayload = planPayload.plan;
@@ -667,7 +669,7 @@ onUnmounted(() => {
               :class="
                 importMode === 'ai_assistant'
                   ? 'bg-white dark:bg-slate-800 text-accent shadow-sm'
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
               "
               @click="importMode = 'ai_assistant'"
             >
@@ -679,7 +681,7 @@ onUnmounted(() => {
               :class="
                 importMode === 'netdisk'
                   ? 'bg-white dark:bg-slate-800 text-accent shadow-sm'
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
               "
               @click="importMode = 'netdisk'"
             >
@@ -1117,7 +1119,7 @@ onUnmounted(() => {
                       :class="
                         previewTab === 'info'
                           ? 'text-accent'
-                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'
+                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                       "
                       @click="previewTab = 'info'"
                     >
@@ -1133,7 +1135,7 @@ onUnmounted(() => {
                       :class="
                         previewTab === 'tasks'
                           ? 'text-accent'
-                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'
+                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                       "
                       @click="previewTab = 'tasks'"
                     >
@@ -1149,7 +1151,7 @@ onUnmounted(() => {
                       :class="
                         previewTab === 'roadmap'
                           ? 'text-accent'
-                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'
+                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                       "
                       @click="previewTab = 'roadmap'"
                     >

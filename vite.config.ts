@@ -12,6 +12,7 @@ export default defineConfig(({ mode }) => {
 
   const vendorChunks: Array<[string, string[]]> = [
     ['vue-core', ['vue', '@vue', 'vue-router', 'pinia', 'vue-i18n', '@intlify']],
+    ['element-plus', ['element-plus', '@element-plus']],
     ['icons', ['lucide-vue-next', '@element-plus/icons-vue']],
     [
       'markdown-parser',

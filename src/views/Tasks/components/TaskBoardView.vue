@@ -64,9 +64,7 @@ const onDragChange = async (event: DragChangeEvent, columnId: string) => {
         assigneeId: task.assigneeId,
         projectId: task.projectId,
         subtasks: task.subtasks,
-        participantIds: task.participants
-          ? task.participants.map((p: any) => p.userId)
-          : [],
+        participantIds: task.participants ? task.participants.map((p: any) => p.userId) : [],
       };
 
       if (props.groupBy === 'status') {

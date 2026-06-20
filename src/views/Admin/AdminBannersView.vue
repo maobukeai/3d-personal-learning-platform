@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import {
   Plus,
   Trash2,
@@ -10,8 +10,12 @@ import {
 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import { fetchManagementInsights } from './adminManagementInsights';
+import PageHeader from '@/components/PageHeader.vue';
+import Button from '@/components/ui/Button.vue';
+import Card from '@/components/ui/Card.vue';
+import Badge from '@/components/ui/Badge.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 interface Banner {
   id: string;
@@ -183,6 +187,54 @@ const handleDeleteBanner = async (id: string) => {
     ElMessage.error('删除轮播图失败');
   }
 };
+const consolidatedCards = computed(() => {
+  const activeCount = banners.value.filter((b) => b.isActive).length;
+  const inactiveCount = banners.value.filter((b) => !b.isActive).length;
+  const missingImageCount = banners.value.filter((b) => !b.imageUrl).length;
+  const totalCount = banners.value.length;
+
+  return [
+    {
+      label: '启用轮播',
+      value: activeCount,
+      hint: '前台大图轮播展示数',
+      icon: ImageIcon,
+      color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      health: { label: '活动中' },
+    },
+    {
+      label: '停用轮播',
+      value: inactiveCount,
+      hint: '已下架或暂停推广',
+      icon: Trash2,
+      color: 'text-slate-600 bg-slate-500/10 border-slate-500/20',
+      health: { label: '未展示' },
+    },
+    {
+      label: '缺图素材',
+      value: missingImageCount,
+      hint: '检查无图片素材配置',
+      icon: ImageIcon,
+      color: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
+      health: { label: missingImageCount > 0 ? '需修复' : '无异常' },
+    },
+    {
+      label: '投放位',
+      value: totalCount,
+      hint: '配置的推广图层总量',
+      icon: LinkIcon,
+      color: 'text-indigo-600 bg-indigo-500/10 border-indigo-500/20',
+      health: { label: '按序预览' },
+    },
+  ];
+});
+
+const getBadgeVariant = (label: string) => {
+  if (label === '活动中' || label === '无异常' || label === '正常') return 'success';
+  if (label === '需修复') return 'danger';
+  if (label === '未展示') return 'warning';
+  return 'primary';
+};
 
 onMounted(() => {
   fetchBanners();
@@ -191,196 +243,218 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
-    style="background-color: var(--bg-app)"
+    class="admin-banners-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
   >
-    <!-- Header -->
-    <div
-      class="relative shrink-0 border-b overflow-hidden"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <div
-        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-orange-500/10 via-purple-500/5 to-transparent pointer-events-none"
-      ></div>
+    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
+      <!-- Page Header -->
+      <PageHeader
+        title="工作台轮播管理"
+        subtitle="配置主页首屏的精美广告宣传以及社区挑战活动位"
+        variant="card"
+      >
+        <template #center>
+          <div class="flex flex-wrap items-center gap-1.5 ml-2">
+            <Badge variant="info"> 轮播图数: {{ banners.length }} </Badge>
+          </div>
+        </template>
 
-      <div class="px-4 sm:px-8 py-3 flex flex-row items-center justify-between gap-3 relative z-10">
-        <div class="flex items-center gap-3">
-          <span
-            class="p-1.5 rounded-xl bg-orange-500/10 text-orange-500 shadow-sm border border-orange-500/20"
-          >
-            <ImageIcon class="w-4.5 h-4.5" />
-          </span>
-          <div>
-            <h1
-              class="text-sm sm:text-base font-black tracking-tight"
-              style="color: var(--text-primary)"
-            >
-              工作台轮播管理
-            </h1>
-            <p class="text-[10px] text-slate-400 hidden sm:block">
-              配置主页首屏的精美广告宣传以及社区挑战活动位
-            </p>
+        <!-- Actions -->
+        <Button variant="primary" size="sm" :icon="Plus" @click="openCreateDialog">
+          新建轮播图
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          :icon="RefreshCw"
+          :loading="isLoading"
+          @click="fetchBanners"
+        >
+          刷新
+        </Button>
+      </PageHeader>
+
+      <!-- KPI Metrics Grid -->
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        <Card
+          v-for="card in consolidatedCards"
+          :key="card.label"
+          hoverable
+          glow
+          class="group !p-2 px-2.5"
+        >
+          <div class="flex items-center justify-between w-full gap-3">
+            <!-- Left: Icon & Info -->
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span
+                class="panel-icon border border-base rounded-lg p-1.5 transition-transform group-hover:scale-105 shrink-0"
+                :class="card.color"
+              >
+                <component :is="card.icon" class="h-3.5 w-3.5" />
+              </span>
+              <div class="min-w-0">
+                <p
+                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
+                >
+                  {{ card.label }}
+                </p>
+                <p
+                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
+                  :title="card.hint"
+                >
+                  {{ card.hint }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Right: Metric & Health Badge -->
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-base font-black text-[var(--text-primary)] leading-none">
+                {{ card.value }}
+              </span>
+              <Badge :variant="getBadgeVariant(card.health.label)">
+                {{ card.health.label }}
+              </Badge>
+            </div>
+          </div>
+        </Card>
+      </section>
+
+      <!-- Workspace layout: Single Column Workspace -->
+      <div class="mt-3 w-full min-w-0">
+        <div class="space-y-3 min-w-0">
+          <div v-if="isLoading" class="flex flex-col items-center justify-center py-24">
+            <div
+              class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"
+            ></div>
+          </div>
+
+          <div v-else class="max-w-none">
+            <Card padding="none" class="table-shell-card overflow-hidden">
+              <el-table
+                :data="banners"
+                style="
+                  width: 100%;
+                  --el-table-bg-color: transparent;
+                  --el-table-tr-bg-color: transparent;
+                  --el-table-header-bg-color: transparent;
+                "
+                class="custom-el-table"
+              >
+                <el-table-column label="预览" width="160">
+                  <template #default="{ row }">
+                    <div
+                      class="w-28 aspect-video rounded-lg overflow-hidden border border-white/10 bg-slate-800 flex items-center justify-center relative"
+                    >
+                      <img
+                        v-if="row.imageUrl"
+                        :src="getAssetUrl(row.imageUrl)"
+                        class="w-full h-full object-cover"
+                        alt="Banner preview"
+                      />
+                      <ImageIcon v-else class="w-5 h-5 text-slate-500" />
+
+                      <span
+                        v-if="row.tag"
+                        class="absolute top-1 left-1 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full scale-90 origin-top-left"
+                        :class="row.tagColor || 'bg-accent/15 text-accent border border-accent/30'"
+                      >
+                        {{ row.tag }}
+                      </span>
+                    </div>
+                  </template>
+                </el-table-column>
+
+                <el-table-column label="标题信息" min-width="200">
+                  <template #default="{ row }">
+                    <div class="space-y-1">
+                      <h4 class="font-bold text-xs sm:text-sm text-slate-100">{{ row.title }}</h4>
+                      <p v-if="row.subtitle" class="text-[10px] text-slate-400 line-clamp-1">
+                        {{ row.subtitle }}
+                      </p>
+                    </div>
+                  </template>
+                </el-table-column>
+
+                <el-table-column label="链接路由" width="160">
+                  <template #default="{ row }">
+                    <div class="flex items-center gap-1.5 text-xs text-slate-300">
+                      <LinkIcon class="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span
+                        class="truncate font-mono text-[10px] bg-slate-900/40 px-1.5 py-0.5 rounded"
+                        >{{ row.route }}</span
+                      >
+                    </div>
+                  </template>
+                </el-table-column>
+
+                <el-table-column label="按钮文本" width="100">
+                  <template #default="{ row }">
+                    <span class="text-xs font-semibold text-slate-300">{{ row.buttonText }}</span>
+                  </template>
+                </el-table-column>
+
+                <el-table-column label="排序值" width="90" align="center">
+                  <template #default="{ row }">
+                    <span
+                      class="text-xs font-mono font-bold bg-slate-100 dark:bg-white/5 border dark:border-white/5 px-2 py-0.5 rounded-md"
+                      >{{ row.order }}</span
+                    >
+                  </template>
+                </el-table-column>
+
+                <el-table-column label="启用状态" width="100" align="center">
+                  <template #default="{ row }">
+                    <el-switch
+                      :model-value="row.isActive"
+                      active-color="var(--accent)"
+                      inactive-color="rgba(255,255,255,0.15)"
+                      @change="handleToggleStatus(row)"
+                    />
+                  </template>
+                </el-table-column>
+
+                <el-table-column label="操作" width="120" align="right">
+                  <template #default="{ row }">
+                    <div class="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        class="p-1.5 rounded-lg hover:bg-white/5 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                        @click="openEditDialog(row)"
+                      >
+                        <Edit2 class="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        class="p-1.5 rounded-lg hover:bg-rose-500/10 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                        @click="handleDeleteBanner(row.id)"
+                      >
+                        <Trash2 class="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </template>
+                </el-table-column>
+              </el-table>
+
+              <div v-if="banners.length === 0" class="py-16 text-center">
+                <ImageIcon class="w-12 h-12 text-slate-600 mx-auto mb-3 opacity-30" />
+                <p class="text-xs text-slate-500 font-bold">
+                  暂无轮播图配置，前台将自动加载系统预设的静态广告位
+                </p>
+              </div>
+            </Card>
           </div>
         </div>
-
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            class="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-xl font-bold text-xs transition-all shadow-sm cursor-pointer"
-            @click="openCreateDialog"
-          >
-            <Plus class="w-4 h-4" />
-            <span>新建轮播图</span>
-          </button>
-          <button
-            type="button"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-xs font-bold shadow-sm cursor-pointer"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="fetchBanners"
-          >
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-            <span>刷新</span>
-          </button>
-        </div>
       </div>
-    </div>
-
-    <!-- Main List content -->
-    <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
-      <AdminOpsPanel scope="banners" />
-
-      <div v-if="isLoading" class="flex flex-col items-center justify-center py-24">
-        <div
-          class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"
-        ></div>
-      </div>
-
-      <div v-else class="max-w-none">
-        <div class="blender-card p-4">
-          <el-table
-            :data="banners"
-            style="
-              width: 100%;
-              --el-table-bg-color: transparent;
-              --el-table-tr-bg-color: transparent;
-              --el-table-header-bg-color: transparent;
-            "
-            class="custom-el-table"
-          >
-            <el-table-column label="预览" width="160">
-              <template #default="{ row }">
-                <div
-                  class="w-28 aspect-video rounded-lg overflow-hidden border border-white/10 bg-slate-800 flex items-center justify-center relative"
-                >
-                  <img
-                    v-if="row.imageUrl"
-                    :src="getAssetUrl(row.imageUrl)"
-                    class="w-full h-full object-cover"
-                    alt="Banner preview"
-                  />
-                  <ImageIcon v-else class="w-5 h-5 text-slate-500" />
-
-                  <span
-                    v-if="row.tag"
-                    class="absolute top-1 left-1 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full scale-90 origin-top-left"
-                    :class="row.tagColor || 'bg-accent/15 text-accent border border-accent/30'"
-                  >
-                    {{ row.tag }}
-                  </span>
-                </div>
-              </template>
-            </el-table-column>
-
-            <el-table-column label="标题信息" min-width="200">
-              <template #default="{ row }">
-                <div class="space-y-1">
-                  <h4 class="font-bold text-xs sm:text-sm text-slate-100">{{ row.title }}</h4>
-                  <p v-if="row.subtitle" class="text-[10px] text-slate-400 line-clamp-1">
-                    {{ row.subtitle }}
-                  </p>
-                </div>
-              </template>
-            </el-table-column>
-
-            <el-table-column label="链接路由" width="160">
-              <template #default="{ row }">
-                <div class="flex items-center gap-1.5 text-xs text-slate-300">
-                  <LinkIcon class="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                  <span
-                    class="truncate font-mono text-[10px] bg-slate-900/40 px-1.5 py-0.5 rounded"
-                    >{{ row.route }}</span
-                  >
-                </div>
-              </template>
-            </el-table-column>
-
-            <el-table-column label="按钮文本" width="100">
-              <template #default="{ row }">
-                <span class="text-xs font-semibold text-slate-300">{{ row.buttonText }}</span>
-              </template>
-            </el-table-column>
-
-            <el-table-column label="排序值" width="90" align="center">
-              <template #default="{ row }">
-                <span
-                  class="text-xs font-mono font-bold bg-slate-100 dark:bg-white/5 border dark:border-white/5 px-2 py-0.5 rounded-md"
-                  >{{ row.order }}</span
-                >
-              </template>
-            </el-table-column>
-
-            <el-table-column label="启用状态" width="100" align="center">
-              <template #default="{ row }">
-                <el-switch
-                  :model-value="row.isActive"
-                  active-color="var(--accent)"
-                  inactive-color="rgba(255,255,255,0.15)"
-                  @change="handleToggleStatus(row)"
-                />
-              </template>
-            </el-table-column>
-
-            <el-table-column label="操作" width="120" align="right">
-              <template #default="{ row }">
-                <div class="flex items-center justify-end gap-1">
-                  <button
-                    type="button"
-                    class="p-1.5 rounded-lg hover:bg-white/5 text-slate-400 hover:text-white transition-colors cursor-pointer"
-                    @click="openEditDialog(row)"
-                  >
-                    <Edit2 class="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    class="p-1.5 rounded-lg hover:bg-rose-500/10 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
-                    @click="handleDeleteBanner(row.id)"
-                  >
-                    <Trash2 class="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
-
-          <div v-if="banners.length === 0" class="py-16 text-center">
-            <ImageIcon class="w-12 h-12 text-slate-600 mx-auto mb-3 opacity-30" />
-            <p class="text-xs text-slate-500 font-bold">
-              暂无轮播图配置，前台将自动加载系统预设的静态广告位
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+    </main>
 
     <!-- Edit Dialog -->
-    <el-drawer
-      v-model="isDialogOpen"
+    <Modal
+      :show="isDialogOpen"
       :title="dialogMode === 'create' ? '新建轮播广告图' : '编辑轮播广告图'"
-      size="480px"
-      destroy-on-close
-      class="custom-el-drawer"
+      size="md"
+      @close="isDialogOpen = false"
     >
-      <div class="space-y-5 p-2">
+      <div class="space-y-4">
         <!-- Title -->
         <div class="space-y-1.5">
           <label class="text-xs font-black text-slate-300">轮播图标题 *</label>
@@ -431,7 +505,7 @@ onMounted(() => {
             <div class="space-y-2">
               <button
                 type="button"
-                class="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded-lg border dark:border-white/10 text-xs font-bold cursor-pointer transition-colors"
+                class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg border dark:border-white/10 text-xs font-bold cursor-pointer transition-colors"
                 @click="triggerFileUpload"
               >
                 选择图片并上传
@@ -516,27 +590,14 @@ onMounted(() => {
       </div>
 
       <template #footer>
-        <div class="flex items-center justify-end gap-2 px-2 py-3 border-t dark:border-white/5">
-          <button
-            type="button"
-            class="px-4 py-2 border dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl text-xs font-bold cursor-pointer transition-colors"
-            style="color: var(--text-secondary)"
-            @click="isDialogOpen = false"
-          >
-            取消
-          </button>
-          <button
-            type="button"
-            class="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-xl text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5"
-            :disabled="isSaving"
-            @click="saveBanner"
-          >
-            <RefreshCw v-if="isSaving" class="w-3.5 h-3.5 animate-spin" />
-            <span>保存</span>
-          </button>
+        <div class="flex items-center gap-3">
+          <Button variant="secondary" size="md" @click="isDialogOpen = false"> 取消 </Button>
+          <Button variant="primary" size="md" :loading="isSaving" @click="saveBanner">
+            保存
+          </Button>
         </div>
       </template>
-    </el-drawer>
+    </Modal>
   </div>
 </template>
 
@@ -565,27 +626,7 @@ onMounted(() => {
   border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
 }
 
-:deep(.custom-el-drawer) {
-  background-color: #121921 !important; /* side panel matching sidebar background */
-  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-:deep(.custom-el-drawer .el-drawer__title) {
-  font-weight: 800 !important;
-  color: var(--text-primary) !important;
-  font-size: 14px !important;
-}
-:deep(.custom-el-drawer .el-drawer__header) {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-  padding: 14px 20px !important;
-  margin-bottom: 0 !important;
-}
-:deep(.custom-el-drawer .el-drawer__body) {
-  padding: 16px 20px !important;
-}
-:deep(.custom-el-drawer .el-drawer__close-btn) {
-  color: var(--text-muted) !important;
-}
-:deep(.custom-el-drawer .el-drawer__close-btn:hover) {
-  color: var(--text-primary) !important;
+.admin-banners-page {
+  background: transparent !important;
 }
 </style>

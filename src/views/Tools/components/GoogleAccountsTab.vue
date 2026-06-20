@@ -299,7 +299,7 @@ const copyText = (text?: string) => {
             :class="[
               'px-1.5 py-0.5 rounded text-[10px] transition-all font-mono ml-1.5 lg:ml-0',
               selectedCategory === cat
-                ? 'bg-violet-500/20 dark:bg-violet-500/30 text-violet-850 dark:text-violet-200'
+                ? 'bg-violet-500/20 dark:bg-violet-500/30 text-violet-800 dark:text-violet-200'
                 : 'bg-slate-200/60 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
             ]"
           >

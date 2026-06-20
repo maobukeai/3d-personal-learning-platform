@@ -57,7 +57,6 @@ const startChat = () => {
   emit('chat', userProfile.value);
   emit('update:modelValue', false);
 };
-
 </script>
 
 <template>

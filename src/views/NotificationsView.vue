@@ -530,7 +530,7 @@ onMounted(() => {
                         <button
                           type="button"
                           :disabled="processingInvitations[n.id]"
-                          class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-350 text-[10px] font-bold transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                          class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-300 text-[10px] font-bold transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                           @click="handleProjectInvitation(n, false)"
                         >
                           {{ $t('notifications.reject') }}

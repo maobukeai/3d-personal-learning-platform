@@ -20,11 +20,13 @@ import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import UserAvatar from '@/components/UserAvatar.vue';
 import type { Feedback } from '@/types';
-import AdminOpsPanel from './components/AdminOpsPanel.vue';
-import { fetchManagementInsights } from './adminManagementInsights';
 import Modal from '@/components/ui/Modal.vue';
 import UiButton from '@/components/ui/Button.vue';
 import UiInput from '@/components/ui/Input.vue';
+import Card from '@/components/ui/Card.vue';
+import Badge from '@/components/ui/Badge.vue';
+import Tabs from '@/components/ui/Tabs.vue';
+import PageHeader from '@/components/PageHeader.vue';
 
 type FeedbackStatus = Feedback['status'];
 type FeedbackPriority = Feedback['priority'];
@@ -91,7 +93,6 @@ const fetchFeedbacks = async () => {
     selectedIds.value = selectedIds.value.filter((id) =>
       response.data.some((item) => item.id === id),
     );
-    fetchManagementInsights(true);
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, '无法加载反馈数据'));
   } finally {
@@ -124,6 +125,72 @@ const stats = computed(() => ({
   high: feedbacks.value.filter((item) => item.priority === 'HIGH' && item.status !== 'CLOSED')
     .length,
 }));
+
+const resolvedRate = computed(() => {
+  if (feedbacks.value.length === 0) return 100;
+  const resolvedCount = feedbacks.value.filter(
+    (item) => item.status === 'RESOLVED' || item.status === 'CLOSED',
+  ).length;
+  return Math.round((resolvedCount / feedbacks.value.length) * 100);
+});
+
+const consolidatedCards = computed(() => {
+  const total = feedbacks.value.length;
+  const openCount = feedbacks.value.filter((item) => item.status === 'OPEN').length;
+  const progressCount = feedbacks.value.filter((item) => item.status === 'IN_PROGRESS').length;
+  const closedCount = feedbacks.value.filter(
+    (item) => item.status === 'RESOLVED' || item.status === 'CLOSED',
+  ).length;
+  const highCount = feedbacks.value.filter(
+    (item) => item.priority === 'HIGH' && item.status !== 'CLOSED',
+  ).length;
+
+  return [
+    {
+      label: '反馈工单总量',
+      value: total,
+      hint: `处理中 ${progressCount} · 已闭环 ${closedCount}`,
+      icon: Inbox,
+      color: 'text-sky-600 bg-sky-500/10 border-sky-500/20',
+      health: { label: '正常', variant: 'success' as const },
+    },
+    {
+      label: '待处理反馈',
+      value: openCount,
+      hint: `高优先级待办 ${highCount}`,
+      icon: AlertTriangle,
+      color:
+        openCount > 0
+          ? 'text-rose-600 bg-rose-500/10 border-rose-500/20'
+          : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      health:
+        openCount > 5
+          ? { label: '积压', variant: 'danger' as const }
+          : openCount > 0
+            ? { label: '待办', variant: 'warning' as const }
+            : { label: '已清空', variant: 'success' as const },
+    },
+    {
+      label: '处理中工单',
+      value: progressCount,
+      hint: '正在推进中',
+      icon: Clock,
+      color: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
+      health: { label: '跟进中', variant: 'primary' as const },
+    },
+    {
+      label: '工单闭环率',
+      value: `${resolvedRate.value}%`,
+      hint: `已解决/关闭 ${closedCount} 个反馈`,
+      icon: CheckCircle2,
+      color: 'text-purple-600 bg-purple-500/10 border-purple-500/20',
+      health:
+        resolvedRate.value >= 90
+          ? { label: '高效', variant: 'success' as const }
+          : { label: '关注', variant: 'warning' as const },
+    },
+  ];
+});
 
 const allPageSelected = computed(
   () =>
@@ -306,191 +373,272 @@ onMounted(fetchFeedbacks);
 </script>
 
 <template>
-  <div class="admin-workbench">
-    <header class="workbench-header">
-      <div>
-        <p class="eyebrow">用户与团队</p>
-        <h1>用户反馈</h1>
-      </div>
-      <UiButton variant="secondary" :icon="RefreshCw" :loading="isLoading" @click="fetchFeedbacks">
-        刷新
-      </UiButton>
-    </header>
-
-    <AdminOpsPanel scope="feedback" />
-
-    <section class="metric-grid">
-      <article class="metric-card">
-        <Inbox />
-        <div>
-          <span>反馈总量</span><strong>{{ stats.total }}</strong>
-        </div>
-      </article>
-      <article class="metric-card">
-        <AlertTriangle />
-        <div>
-          <span>待处理</span><strong>{{ stats.open }}</strong>
-        </div>
-      </article>
-      <article class="metric-card">
-        <Clock />
-        <div>
-          <span>处理中</span><strong>{{ stats.processing }}</strong>
-        </div>
-      </article>
-      <article class="metric-card">
-        <CheckCircle2 />
-        <div>
-          <span>已解决</span><strong>{{ stats.resolved }}</strong>
-        </div>
-      </article>
-    </section>
-
-    <section class="toolbar-panel">
-      <div class="segmented">
-        <button
-          v-for="tab in statusTabs"
-          :key="tab.value"
-          type="button"
-          :class="{ active: statusFilter === tab.value }"
-          @click="statusFilter = tab.value"
+  <div
+    class="admin-feedback-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
+  >
+    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
+      <PageHeader title="用户反馈" subtitle="用户与团队" variant="card">
+        <UiButton
+          variant="secondary"
+          size="sm"
+          :icon="RefreshCw"
+          :loading="isLoading"
+          @click="fetchFeedbacks"
         >
-          {{ tab.label }}
-        </button>
-      </div>
-      <select v-model="priorityFilter" class="filter-select">
-        <option v-for="item in priorityOptions" :key="item.value" :value="item.value">
-          {{ item.label }}
-        </option>
-      </select>
-      <select v-model="typeFilter" class="filter-select">
-        <option v-for="item in typeOptions" :key="item.value" :value="item.value">
-          {{ item.label }}
-        </option>
-      </select>
-      <UiInput
-        v-model="searchQuery"
-        :icon="Search"
-        placeholder="搜索标题、内容、用户"
-        :glass="false"
-        class="ml-auto min-w-[260px]"
-      />
-    </section>
-
-    <section v-if="selectedIds.length" class="batch-bar">
-      <span>已选择 {{ selectedIds.length }} 条反馈</span>
-      <div>
-        <UiButton variant="secondary" size="sm" @click="batchUpdateStatus('IN_PROGRESS')">标记处理中</UiButton>
-        <UiButton variant="primary" size="sm" @click="batchUpdateStatus('RESOLVED')">标记已解决</UiButton>
-        <UiButton variant="secondary" size="sm" @click="batchUpdateStatus('CLOSED')">关闭</UiButton>
-        <UiButton variant="danger" size="sm" @click="batchDelete">删除</UiButton>
-        <UiButton variant="secondary" size="sm" @click="selectedIds = []">清空</UiButton>
-      </div>
-    </section>
-
-    <main class="data-panel">
-      <div v-if="isLoading" class="loading-state">
-        <RefreshCw class="spinning" />
-        <span>正在同步反馈工单</span>
-      </div>
-
-      <div v-else class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th class="check-cell">
-                <input type="checkbox" :checked="allPageSelected" @change="toggleSelectAll" />
-              </th>
-              <th>反馈</th>
-              <th>用户</th>
-              <th>优先级</th>
-              <th>状态</th>
-              <th>附件</th>
-              <th>更新时间</th>
-              <th class="right-cell">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in filteredFeedbacks" :key="item.id" @click="openDetail(item)">
-              <td class="check-cell" @click.stop>
-                <input
-                  type="checkbox"
-                  :checked="selectedIds.includes(item.id)"
-                  @change="toggleSelect(item.id)"
-                />
-              </td>
-              <td>
-                <div class="feedback-cell">
-                  <strong>{{ item.title }}</strong>
-                  <small>{{ typeLabel(item.type) }} · {{ item.description }}</small>
-                </div>
-              </td>
-              <td>
-                <div class="user-cell">
-                  <UserAvatar :user="item.user" size="xs" />
-                  <span>{{ item.user.name || item.user.email }}</span>
-                </div>
-              </td>
-              <td>
-                <span class="pill" :class="priorityClass(item.priority)">{{
-                  priorityLabel(item.priority)
-                }}</span>
-              </td>
-              <td>
-                <span class="pill" :class="statusClass(item.status)">{{
-                  statusLabel(item.status)
-                }}</span>
-              </td>
-              <td>
-                <UiButton
-                  v-if="item.attachmentUrl"
-                  variant="link"
-                  size="sm"
-                  @click.stop="showImage(item.attachmentUrl)"
+          刷新
+        </UiButton>
+      </PageHeader>
+      <!-- KPI Metrics Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card
+          v-for="card in consolidatedCards"
+          :key="card.label"
+          hoverable
+          glow
+          class="group !p-2 px-2.5"
+        >
+          <div class="flex items-center justify-between w-full gap-3">
+            <!-- Left: Icon & Info -->
+            <div class="flex items-center gap-2 min-w-0">
+              <span
+                class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-slate-100/10"
+                :class="card.color"
+              >
+                <component :is="card.icon" class="h-3.5 w-3.5" />
+              </span>
+              <div class="min-w-0">
+                <p
+                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
                 >
-                  查看附件
-                </UiButton>
-                <span v-else class="muted">无</span>
-              </td>
-              <td>{{ formatDate(item.updatedAt || item.createdAt) }}</td>
-              <td class="right-cell" @click.stop>
+                  {{ card.label }}
+                </p>
+                <p
+                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
+                  :title="card.hint"
+                >
+                  {{ card.hint }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Right: Metric & Health Badge -->
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-base font-black text-[var(--text-primary)] leading-none">
+                {{ card.value }}
+              </span>
+              <Badge :variant="card.health.variant">
+                {{ card.health.label }}
+              </Badge>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <!-- Filters & Search Toolbar -->
+      <Card padding="sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex items-center gap-3 overflow-x-auto scrollbar-hide shrink-0">
+            <Tabs v-model="statusFilter" :options="statusTabs" variant="solid" />
+          </div>
+          <div class="flex flex-1 items-center justify-center max-w-md mx-auto w-full">
+            <UiInput
+              v-model="searchQuery"
+              :icon="Search"
+              placeholder="搜索标题、内容、用户"
+              :glass="false"
+              class="w-full"
+            />
+          </div>
+          <div class="flex items-center gap-2">
+            <el-select v-model="priorityFilter" size="small" style="width: 120px">
+              <el-option
+                v-for="item in priorityOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+            <el-select v-model="typeFilter" size="small" style="width: 120px">
+              <el-option
+                v-for="item in typeOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </div>
+        </div>
+      </Card>
+
+      <!-- Batch operations bar -->
+      <div
+        v-if="selectedIds.length"
+        class="batch-bar flex items-center justify-between gap-3 p-2 px-3 border border-slate-100 dark:border-white/5 bg-white/40 dark:bg-white/5 backdrop-blur-sm rounded-lg"
+      >
+        <span class="text-xs font-semibold text-[var(--text-secondary)]"
+          >已选择 {{ selectedIds.length }} 条反馈</span
+        >
+        <div class="flex items-center gap-2">
+          <UiButton variant="secondary" size="sm" @click="batchUpdateStatus('IN_PROGRESS')"
+            >标记处理中</UiButton
+          >
+          <UiButton variant="primary" size="sm" @click="batchUpdateStatus('RESOLVED')"
+            >标记已解决</UiButton
+          >
+          <UiButton variant="secondary" size="sm" @click="batchUpdateStatus('CLOSED')"
+            >关闭</UiButton
+          >
+          <UiButton variant="danger" size="sm" @click="batchDelete">删除</UiButton>
+          <UiButton variant="secondary" size="sm" @click="selectedIds = []">清空</UiButton>
+        </div>
+      </div>
+
+      <!-- Data Panel -->
+      <Card
+        padding="none"
+        class="table-shell-card overflow-hidden flex-1 flex flex-col min-h-[360px]"
+      >
+        <el-table
+          v-loading="isLoading"
+          :data="filteredFeedbacks"
+          class="user-table w-full flex-1"
+          row-class-name="table-row"
+          @row-click="openDetail"
+        >
+          <el-table-column width="48">
+            <template #header>
+              <input
+                type="checkbox"
+                :checked="allPageSelected"
+                @change="toggleSelectAll"
+                @click.stop
+              />
+            </template>
+            <template #default="{ row }">
+              <input
+                type="checkbox"
+                :checked="selectedIds.includes(row.id)"
+                @change="toggleSelect(row.id)"
+                @click.stop
+              />
+            </template>
+          </el-table-column>
+
+          <el-table-column label="反馈" min-width="260">
+            <template #default="{ row }">
+              <div class="feedback-cell min-w-0">
+                <strong class="text-sm font-bold truncate text-[var(--text-primary)] block">{{
+                  row.title
+                }}</strong>
+                <small class="text-[11px] text-[var(--text-secondary)] truncate block mt-0.5"
+                  >{{ typeLabel(row.type) }} · {{ row.description }}</small
+                >
+              </div>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="用户" width="180">
+            <template #default="{ row }">
+              <div class="user-cell flex items-center gap-2">
+                <UserAvatar :user="row.user" size="xs" />
+                <span class="text-sm font-semibold text-[var(--text-primary)] truncate">{{
+                  row.user.name || row.user.email
+                }}</span>
+              </div>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="优先级" width="120">
+            <template #default="{ row }">
+              <span
+                class="pill text-xs px-1.5 py-0.5 font-bold"
+                :class="priorityClass(row.priority)"
+              >
+                {{ priorityLabel(row.priority) }}
+              </span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="状态" width="120">
+            <template #default="{ row }">
+              <span class="pill text-xs px-1.5 py-0.5 font-bold" :class="statusClass(row.status)">
+                {{ statusLabel(row.status) }}
+              </span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="附件" width="120">
+            <template #default="{ row }">
+              <UiButton
+                v-if="row.attachmentUrl"
+                variant="link"
+                size="sm"
+                @click.stop="showImage(row.attachmentUrl)"
+              >
+                查看附件
+              </UiButton>
+              <span v-else class="text-xs text-[var(--text-secondary)]">无</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="更新时间" width="180">
+            <template #default="{ row }">
+              <span class="text-xs text-[var(--text-secondary)]">{{
+                formatDate(row.updatedAt || row.createdAt)
+              }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="操作" width="80" align="right">
+            <template #default="{ row }">
+              <div @click.stop>
                 <el-dropdown trigger="click">
-                  <button type="button" class="icon-btn"><MoreHorizontal /></button>
+                  <button
+                    type="button"
+                    class="icon-btn p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+                  >
+                    <MoreHorizontal class="w-4 h-4 text-slate-500" />
+                  </button>
                   <template #dropdown>
                     <el-dropdown-menu>
-                      <el-dropdown-item @click="openDetail(item)">
+                      <el-dropdown-item @click="openDetail(row)">
                         <ChevronRight class="dropdown-icon" /> 查看详情
                       </el-dropdown-item>
-                      <el-dropdown-item @click="openReplyDialog(item)">
+                      <el-dropdown-item @click="openReplyDialog(row)">
                         <MessageSquare class="dropdown-icon" />
-                        {{ item.adminReply ? '编辑回复' : '回复用户' }}
+                        {{ row.adminReply ? '编辑回复' : '回复用户' }}
                       </el-dropdown-item>
-                      <el-dropdown-item @click="updateStatus(item.id, 'IN_PROGRESS')"
-                        >标记处理中</el-dropdown-item
-                      >
-                      <el-dropdown-item @click="updateStatus(item.id, 'RESOLVED')"
-                        >标记已解决</el-dropdown-item
-                      >
-                      <el-dropdown-item @click="updateStatus(item.id, 'CLOSED')"
-                        >关闭反馈</el-dropdown-item
-                      >
-                      <el-dropdown-item divided @click="deleteFeedback(item)">
+                      <el-dropdown-item @click="updateStatus(row.id, 'IN_PROGRESS')">
+                        标记处理中
+                      </el-dropdown-item>
+                      <el-dropdown-item @click="updateStatus(row.id, 'RESOLVED')">
+                        标记已解决
+                      </el-dropdown-item>
+                      <el-dropdown-item @click="updateStatus(row.id, 'CLOSED')">
+                        关闭反馈
+                      </el-dropdown-item>
+                      <el-dropdown-item divided @click="deleteFeedback(row)">
                         <Trash2 class="dropdown-icon danger" /> 删除
                       </el-dropdown-item>
                     </el-dropdown-menu>
                   </template>
                 </el-dropdown>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
 
-        <div v-if="filteredFeedbacks.length === 0" class="empty-state">
-          <CheckCircle2 />
-          <strong>没有匹配的反馈</strong>
-          <span>当前筛选条件下暂无待处理事项。</span>
+        <div
+          v-if="filteredFeedbacks.length === 0"
+          class="empty-state py-12 flex flex-col items-center justify-center text-center"
+        >
+          <CheckCircle2 class="w-12 h-12 text-slate-300 dark:text-white/10 mb-4" />
+          <strong class="text-base font-bold text-[var(--text-primary)]">没有匹配的反馈</strong>
+          <span class="text-sm text-[var(--text-secondary)] mt-1"
+            >当前筛选条件下暂无待处理事项。</span
+          >
         </div>
-      </div>
+      </Card>
     </main>
 
     <el-drawer v-model="detailDrawerVisible" size="500px" :with-header="false">
@@ -537,10 +685,18 @@ onMounted(fetchFeedbacks);
         </section>
 
         <div class="drawer-actions">
-          <UiButton variant="secondary" :icon="MessageSquare" @click="openReplyDialog(activeFeedback)">
+          <UiButton
+            variant="secondary"
+            :icon="MessageSquare"
+            @click="openReplyDialog(activeFeedback)"
+          >
             回复
           </UiButton>
-          <UiButton variant="primary" :icon="CheckCircle2" @click="updateStatus(activeFeedback.id, 'RESOLVED')">
+          <UiButton
+            variant="primary"
+            :icon="CheckCircle2"
+            @click="updateStatus(activeFeedback.id, 'RESOLVED')"
+          >
             解决
           </UiButton>
           <UiButton variant="danger" :icon="Trash2" @click="deleteFeedback(activeFeedback)">
@@ -600,386 +756,8 @@ onMounted(fetchFeedbacks);
 </template>
 
 <style scoped>
-.admin-workbench {
-  height: 100%;
+.admin-feedback-page {
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  overflow: hidden;
-  background: var(--bg-app);
-  color: var(--text-primary);
-}
-
-.workbench-header,
-.toolbar-panel,
-.data-panel,
-.batch-bar {
-  border: 1px solid var(--border-base);
-  background: var(--bg-card);
-  border-radius: 8px;
-  box-shadow: var(--shadow-enterprise);
-}
-
-.workbench-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 16px;
-}
-
-h1,
-h2,
-h3,
-p {
-  margin: 0;
-}
-
-.eyebrow {
-  margin-bottom: 4px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-h1 {
-  font-size: 20px;
-  font-weight: 900;
-}
-
-button {
-  border: 0;
-  cursor: pointer;
-  font: inherit;
-}
-
-.primary-btn,
-.ghost-btn,
-.batch-bar button,
-.drawer-actions button {
-  min-height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 0 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.primary-btn {
-  background: var(--accent);
-  color: white;
-}
-
-.ghost-btn,
-.drawer-actions button {
-  border: 1px solid var(--border-base);
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-}
-
-button svg {
-  width: 16px;
-  height: 16px;
-}
-
-.metric-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.metric-card {
-  min-height: 82px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-}
-
-.metric-card svg {
-  width: 24px;
-  height: 24px;
-  color: var(--accent);
-}
-
-.metric-card span {
-  display: block;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.metric-card strong {
-  display: block;
-  margin-top: 4px;
-  font-size: 24px;
-}
-
-.toolbar-panel {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 10px;
-}
-
-.segmented {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
-}
-
-.segmented button {
-  min-height: 30px;
-  padding: 0 10px;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.segmented button.active {
-  background: var(--bg-card);
-  color: var(--accent);
-  box-shadow: var(--shadow-enterprise);
-}
-
-.filter-select,
-.search-box {
-  height: 38px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-}
-
-.filter-select {
-  padding: 0 10px;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.search-box {
-  margin-left: auto;
-  min-width: 280px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-}
-
-.search-box svg {
-  color: var(--text-muted);
-}
-
-.search-box input,
-.form-stack textarea,
-.form-stack select {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-}
-
-.batch-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.batch-bar > div {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.batch-bar button {
-  border: 1px solid var(--border-base);
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-}
-
-.data-panel {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.table-wrap {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
-table {
-  width: 100%;
-  min-width: 1050px;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  padding: 13px 14px;
-  border-bottom: 1px solid var(--border-base);
-  text-align: left;
-  vertical-align: middle;
-  white-space: nowrap;
-}
-
-th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--bg-card);
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 900;
-}
-
-tbody tr {
-  cursor: pointer;
-}
-
-tr:hover td {
-  background: color-mix(in srgb, var(--accent) 5%, transparent);
-}
-
-.check-cell {
-  width: 44px;
-}
-
-.right-cell {
-  text-align: right;
-}
-
-.feedback-cell {
-  max-width: 420px;
-}
-
-.feedback-cell strong,
-.feedback-cell small {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.feedback-cell small {
-  margin-top: 4px;
-  color: var(--text-muted);
-}
-
-.user-cell,
-.submitter-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.pill {
-  min-height: 24px;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.tone-green {
-  color: #047857;
-  background: rgba(16, 185, 129, 0.12);
-}
-
-.tone-red {
-  color: #dc2626;
-  background: rgba(239, 68, 68, 0.12);
-}
-
-.tone-amber {
-  color: #b45309;
-  background: rgba(245, 158, 11, 0.14);
-}
-
-.tone-slate {
-  color: var(--text-secondary);
-  background: var(--bg-app);
-}
-
-.muted {
-  color: var(--text-muted);
-}
-
-.link-btn,
-.icon-btn {
-  background: transparent;
-  color: var(--accent);
-  font-weight: 900;
-}
-
-.icon-btn {
-  width: 32px;
-  height: 32px;
-  display: inline-grid;
-  place-items: center;
-  border-radius: 8px;
-  color: var(--text-muted);
-}
-
-.icon-btn:hover {
-  background: var(--bg-app);
-  color: var(--text-primary);
-}
-
-.dropdown-icon {
-  width: 14px;
-  height: 14px;
-  margin-right: 6px;
-}
-
-.dropdown-icon.danger {
-  color: var(--danger);
-}
-
-.loading-state,
-.empty-state {
-  min-height: 260px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: var(--text-muted);
-}
-
-.spinning {
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 :deep(.el-drawer__body) {
@@ -1113,77 +891,5 @@ tr:hover td {
   border-radius: 8px;
 }
 
-@media (max-width: 980px) {
-  .metric-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .search-box {
-    width: 100%;
-    min-width: 0;
-    margin-left: 0;
-  }
-}
-
-@media (max-width: 640px) {
-  .admin-workbench {
-    padding: 10px;
-    gap: 8px;
-  }
-
-  .workbench-header,
-  .batch-bar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .metric-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .metric-card {
-    min-height: 66px;
-    gap: 8px;
-    padding: 10px;
-  }
-
-  .metric-card svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  .metric-card strong {
-    font-size: 20px;
-  }
-
-  .toolbar-panel {
-    gap: 8px;
-    padding: 8px;
-  }
-
-  .segmented {
-    max-width: 100%;
-    overflow-x: auto;
-  }
-
-  .filter-select {
-    flex: 1 1 8rem;
-    min-width: 0;
-  }
-
-  table {
-    min-width: 780px;
-  }
-
-  th,
-  td {
-    padding: 9px 10px;
-    font-size: 11px;
-  }
-
-  .feedback-cell {
-    max-width: 260px;
-  }
-}
+/* Media queries removed as layout elements are now handled responsively by Tailwind CSS */
 </style>

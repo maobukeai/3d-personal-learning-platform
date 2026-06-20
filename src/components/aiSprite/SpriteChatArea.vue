@@ -546,7 +546,10 @@ defineExpose({
                 </div>
               </div>
 
-              <div v-if="msg.role === 'user' && editingMessageId === msg.id" class="flex flex-col gap-2 min-w-[240px] sm:min-w-[320px] py-1">
+              <div
+                v-if="msg.role === 'user' && editingMessageId === msg.id"
+                class="flex flex-col gap-2 min-w-[240px] sm:min-w-[320px] py-1"
+              >
                 <!-- Image Previews for editing -->
                 <div v-if="editingImages.length > 0" class="flex flex-wrap gap-2 mb-2">
                   <div
@@ -754,8 +757,8 @@ defineExpose({
                   @click.stop="emit('update:showModelDropdown', !showModelDropdown)"
                 >
                   <component
-                    v-if="currentModel?.id !== '__AUTO__'"
                     :is="getProviderMeta(currentModel?.provider || '').lucideIcon"
+                    v-if="currentModel?.id !== '__AUTO__'"
                     class="h-3.5 w-3.5"
                   />
                   <Sparkles v-else class="h-3.5 w-3.5" />
@@ -802,15 +805,25 @@ defineExpose({
                       >
                         <div class="min-w-0 flex-1">
                           <div class="flex items-center gap-2">
-                            <Sparkles v-if="model.id === '__AUTO__'" class="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                            <Sparkles
+                              v-if="model.id === '__AUTO__'"
+                              class="h-3.5 w-3.5 text-indigo-500 shrink-0"
+                            />
                             <span
                               class="truncate text-xs font-semibold"
-                              :class="model.id === '__AUTO__' ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-800 dark:text-slate-200'"
+                              :class="
+                                model.id === '__AUTO__'
+                                  ? 'text-indigo-700 dark:text-indigo-300'
+                                  : 'text-slate-800 dark:text-slate-200'
+                              "
                             >
                               {{ model.name }}
                             </span>
                           </div>
-                          <p v-if="model.id === '__AUTO__'" class="mt-0.5 text-[9px] text-indigo-500/80 dark:text-indigo-400/70">
+                          <p
+                            v-if="model.id === '__AUTO__'"
+                            class="mt-0.5 text-[9px] text-indigo-500/80 dark:text-indigo-400/70"
+                          >
                             按优先级自动选择，失败时无缝切换
                           </p>
                         </div>
@@ -964,4 +977,3 @@ defineExpose({
   }
 }
 </style>
-

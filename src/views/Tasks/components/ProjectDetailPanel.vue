@@ -224,7 +224,9 @@ const saveProjectDescription = async () => {
   try {
     let finalDesc = (tempProjectDescription.value || '').trim();
     if (tempProjectDescriptionImages.value.length > 0) {
-      finalDesc += (finalDesc ? '\n' : '') + tempProjectDescriptionImages.value.map((url) => `![图片](${url})`).join('\n');
+      finalDesc +=
+        (finalDesc ? '\n' : '') +
+        tempProjectDescriptionImages.value.map((url) => `![图片](${url})`).join('\n');
     }
 
     await api.put(`/api/projects/${projectDetail.value.id}`, {
@@ -260,7 +262,12 @@ const parseCommentContent = (content: string) => {
 
 const isImageUrl = (url: string): boolean => {
   const clean = url.trim();
-  if (!clean.startsWith('http://') && !clean.startsWith('https://') && !clean.startsWith('data:image/')) return false;
+  if (
+    !clean.startsWith('http://') &&
+    !clean.startsWith('https://') &&
+    !clean.startsWith('data:image/')
+  )
+    return false;
   if (clean.startsWith('data:image/')) return true;
 
   try {
@@ -933,7 +940,7 @@ defineExpose({
               >
                 <!-- Sliding Pill Background -->
                 <div
-                  class="absolute top-0.5 bottom-0.5 bg-white dark:bg-slate-700 rounded-lg shadow-sm border border-slate-200/40 dark:border-slate-650/30 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] z-0 pointer-events-none"
+                  class="absolute top-0.5 bottom-0.5 bg-white dark:bg-slate-700 rounded-lg shadow-sm border border-slate-200/40 dark:border-slate-600/30 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] z-0 pointer-events-none"
                   :style="{
                     width: 'calc(50% - 2px)',
                     left: activeLeftTab === 'tasks' ? '2px' : 'calc(50%)',
@@ -1252,9 +1259,9 @@ defineExpose({
                             getStepStatus(step, index) === 'completed',
                           'bg-accent text-white shadow-md shadow-accent/20 animate-pulse ring-4 ring-accent/10':
                             getStepStatus(step, index) === 'current',
-                          'bg-slate-100 dark:bg-slate-800 text-slate-350 dark:text-slate-650':
+                          'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600':
                             getStepStatus(step, index) === 'locked',
-                          'bg-white dark:bg-slate-900 text-slate-450 border-slate-200 dark:border-slate-700':
+                          'bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-700':
                             getStepStatus(step, index) === 'upcoming',
                         }"
                       >
@@ -1320,7 +1327,7 @@ defineExpose({
                                 'text-emerald-600 dark:text-emerald-400':
                                   getStepStatus(step, index) === 'completed',
                                 'text-accent': getStepStatus(step, index) === 'current',
-                                'text-slate-400 dark:text-slate-550':
+                                'text-slate-400 dark:text-slate-500':
                                   getStepStatus(step, index) === 'locked',
                                 'text-slate-800 dark:text-slate-100':
                                   getStepStatus(step, index) === 'upcoming',
@@ -1337,7 +1344,7 @@ defineExpose({
                               <CheckCircle2 class="w-3 h-3" />
                             </div>
                             <ArrowRight
-                              class="w-3.5 h-3.5 text-slate-350 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform"
+                              class="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform"
                             />
                           </div>
                         </div>
@@ -1437,7 +1444,7 @@ defineExpose({
                             class="flex items-center justify-between text-[9px] text-slate-500 mb-0.5"
                           >
                             <span>{{ t('projects.skillDifficulty') }}</span>
-                            <span class="font-bold text-slate-700 dark:text-slate-355">
+                            <span class="font-bold text-slate-700 dark:text-slate-300">
                               {{
                                 getMetricsForStep(
                                   activeStep,
@@ -1467,7 +1474,7 @@ defineExpose({
                             class="flex items-center justify-between text-[9px] text-slate-500 mb-0.5"
                           >
                             <span>{{ t('projects.practicalWeight') }}</span>
-                            <span class="font-bold text-slate-700 dark:text-slate-355">
+                            <span class="font-bold text-slate-700 dark:text-slate-300">
                               {{
                                 getMetricsForStep(
                                   activeStep,
@@ -1494,7 +1501,7 @@ defineExpose({
 
                         <div class="flex items-center justify-between text-[11px] pt-0.5">
                           <span class="text-slate-500 flex items-center gap-1">
-                            <Clock class="w-3 h-3 text-slate-450" />
+                            <Clock class="w-3 h-3 text-slate-400" />
                             {{ t('projects.estimatedStudyTime') }}
                           </span>
                           <span class="font-black text-slate-700 dark:text-slate-200">
@@ -1538,7 +1545,7 @@ defineExpose({
                             :class="
                               checkedSubTasks[subtask.id]
                                 ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/10'
-                                : 'border-slate-300 dark:border-slate-650 group-hover/item:border-accent bg-white dark:bg-slate-850'
+                                : 'border-slate-300 dark:border-slate-600 group-hover/item:border-accent bg-white dark:bg-slate-800'
                             "
                           >
                             <CheckCircle2
@@ -1550,7 +1557,7 @@ defineExpose({
                             class="text-xs transition-all duration-300"
                             :class="
                               checkedSubTasks[subtask.id]
-                                ? 'text-slate-400 dark:text-slate-550 line-through'
+                                ? 'text-slate-400 dark:text-slate-500 line-through'
                                 : 'text-slate-600 dark:text-slate-300 group-hover/item:text-slate-800 dark:group-hover/item:text-slate-100'
                             "
                           >
@@ -1580,7 +1587,7 @@ defineExpose({
                           @click="router.push({ name: 'CourseDetail', params: { id: course.id } })"
                         >
                           <div
-                            class="w-14 h-9 rounded bg-slate-100 dark:bg-slate-850 shrink-0 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden"
+                            class="w-14 h-9 rounded bg-slate-100 dark:bg-slate-800 shrink-0 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden"
                           >
                             <img
                               v-if="course.thumbnail"
@@ -1664,7 +1671,11 @@ defineExpose({
                       :key="img"
                       class="relative group w-12 h-12 rounded border border-slate-200 dark:border-slate-700 overflow-hidden"
                     >
-                      <img :src="img" class="w-full h-full object-cover cursor-zoom-in" @click="openImageModal(img)" />
+                      <img
+                        :src="img"
+                        class="w-full h-full object-cover cursor-zoom-in"
+                        @click="openImageModal(img)"
+                      />
                       <button
                         type="button"
                         class="absolute top-0.5 right-0.5 p-0.5 bg-black/55 hover:bg-rose-600 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center"
@@ -1700,10 +1711,16 @@ defineExpose({
                   style="border-color: var(--border-base)"
                   @click="startEditingProjectDescription"
                 >
-                  <div v-if="!projectDetail.description" class="text-xs text-slate-400 dark:text-slate-500 italic py-2 text-center select-none">
+                  <div
+                    v-if="!projectDetail.description"
+                    class="text-xs text-slate-400 dark:text-slate-500 italic py-2 text-center select-none"
+                  >
                     + 点击添加详细项目愿景...
                   </div>
-                  <div v-else class="text-xs leading-relaxed whitespace-pre-wrap text-slate-650 dark:text-slate-350 space-y-2">
+                  <div
+                    v-else
+                    class="text-xs leading-relaxed whitespace-pre-wrap text-slate-600 dark:text-slate-300 space-y-2"
+                  >
                     <p>{{ parseCommentContent(projectDetail.description).text }}</p>
                     <div
                       v-if="parseCommentContent(projectDetail.description).images.length > 0"
@@ -2052,7 +2069,7 @@ defineExpose({
     :show-close="true"
     align-center
     width="fit-content"
-    style="background: transparent; box-shadow: none;"
+    style="background: transparent; box-shadow: none"
   >
     <img
       v-if="previewImageUrl"

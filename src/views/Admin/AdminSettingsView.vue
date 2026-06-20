@@ -45,7 +45,17 @@ const isSaving = ref(false);
 
 const getInitialTab = (): string => {
   const queryTab = route.query.tab as string;
-  const validTabs = ['general', 'branding', 'security', 'upload', 'storage', 'smtp', 'social', 'template', 'ai'];
+  const validTabs = [
+    'general',
+    'branding',
+    'security',
+    'upload',
+    'storage',
+    'smtp',
+    'social',
+    'template',
+    'ai',
+  ];
   if (queryTab && validTabs.includes(queryTab)) {
     return queryTab;
   }
@@ -350,12 +360,9 @@ const settingsSignalCards = computed(() => [
 // deep watch fires on every nested mutation and re-serializes twice per tick.
 const settingsSnapshot = computed(() => JSON.stringify(settings.value));
 const originalSnapshot = computed(() => JSON.stringify(originalSettings.value));
-watch(
-  [settingsSnapshot, originalSnapshot],
-  () => {
-    hasUnsavedChanges.value = settingsSnapshot.value !== originalSnapshot.value;
-  },
-);
+watch([settingsSnapshot, originalSnapshot], () => {
+  hasUnsavedChanges.value = settingsSnapshot.value !== originalSnapshot.value;
+});
 
 // Keep settings.value.AI_MODEL_OPTIONS in sync with aiModelConfigs so that
 // saveSettings() always writes the latest user edits (e.g. capabilities changes).
@@ -369,7 +376,6 @@ watch(
   },
   { deep: true },
 );
-
 
 const fetchSettings = async () => {
   try {
@@ -710,12 +716,22 @@ const selectTab = (tabId: string) => {
 watch(
   () => route.query.tab,
   (newTab) => {
-    const validTabs = ['general', 'branding', 'security', 'upload', 'storage', 'smtp', 'social', 'template', 'ai'];
+    const validTabs = [
+      'general',
+      'branding',
+      'security',
+      'upload',
+      'storage',
+      'smtp',
+      'social',
+      'template',
+      'ai',
+    ];
     if (typeof newTab === 'string' && validTabs.includes(newTab)) {
       activeTab.value = newTab;
       localStorage.setItem('admin_settings_active_tab', newTab);
     }
-  }
+  },
 );
 
 onMounted(() => {
@@ -897,7 +913,7 @@ onMounted(() => {
               />
 
               <!-- Cloud Storage Settings -->
-              <StorageSettingsTab v-slot="{}" v-if="activeTab === 'storage'" />
+              <StorageSettingsTab v-if="activeTab === 'storage'" v-slot="{}" />
 
               <!-- SMTP Settings -->
               <SmtpSettingsTab

@@ -126,7 +126,7 @@ const activateOperationalLane = (lane: InsightOperationalLane) => {
           @click="focusFilter = metric.filter"
         >
           <div class="flex items-center justify-between gap-2 w-full">
-            <span class="text-[9.5px] font-black text-slate-450 truncate">{{ metric.label }}</span>
+            <span class="text-[9.5px] font-black text-slate-400 truncate">{{ metric.label }}</span>
             <div class="p-0.5 rounded bg-white dark:bg-slate-900 shadow-sm shrink-0">
               <component :is="metric.icon" class="w-3 h-3 shrink-0" :class="metric.colorClass" />
             </div>

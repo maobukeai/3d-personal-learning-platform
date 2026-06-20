@@ -418,8 +418,10 @@
     -webkit-line-clamp: 2;
   }
 
-  .enterprise-page :where([class*='filter'], [class*='toolbar'], [class*='tabs'], [class*='actions']),
-  .content-surface :where([class*='filter'], [class*='toolbar'], [class*='tabs'], [class*='actions']) {
+  .enterprise-page
+    :where([class*='filter'], [class*='toolbar'], [class*='tabs'], [class*='actions']),
+  .content-surface
+    :where([class*='filter'], [class*='toolbar'], [class*='tabs'], [class*='actions']) {
     min-width: 0;
   }
 

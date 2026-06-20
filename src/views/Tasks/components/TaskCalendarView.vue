@@ -1,6 +1,18 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { ChevronLeft, ChevronRight, Calendar, Clock, Flame, ArrowUp, Minus, ArrowDown, HelpCircle, PanelRightOpen, PanelRightClose, FolderSearch } from 'lucide-vue-next';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  Flame,
+  ArrowUp,
+  Minus,
+  ArrowDown,
+  HelpCircle,
+  PanelRightOpen,
+  PanelRightClose,
+  FolderSearch,
+} from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import type { Task, UserType } from '@/types/task';
@@ -23,8 +35,18 @@ const currentYear = ref(today.getFullYear());
 const currentMonth = ref(today.getMonth()); // 0-indexed (Jan = 0, Dec = 11)
 
 const monthNames = [
-  '一月', '二月', '三月', '四月', '五月', '六月',
-  '七月', '八月', '九月', '十月', '十一月', '十二月'
+  '一月',
+  '二月',
+  '三月',
+  '四月',
+  '五月',
+  '六月',
+  '七月',
+  '八月',
+  '九月',
+  '十月',
+  '十一月',
+  '十二月',
 ];
 
 const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
@@ -57,7 +79,7 @@ const calendarDays = computed(() => {
       date: prevDate,
       isCurrentMonth: false,
       dayNumber: prevDate.getDate(),
-      isToday: isSameDay(prevDate, today)
+      isToday: isSameDay(prevDate, today),
     });
   }
 
@@ -68,7 +90,7 @@ const calendarDays = computed(() => {
       date: currDate,
       isCurrentMonth: true,
       dayNumber: i,
-      isToday: isSameDay(currDate, today)
+      isToday: isSameDay(currDate, today),
     });
   }
 
@@ -80,7 +102,7 @@ const calendarDays = computed(() => {
       date: nextDate,
       isCurrentMonth: false,
       dayNumber: i,
-      isToday: isSameDay(nextDate, today)
+      isToday: isSameDay(nextDate, today),
     });
   }
 
@@ -165,7 +187,9 @@ const onDropToDate = async (event: DragEvent, targetDate: Date) => {
     const scheduledDate = new Date(targetDate);
     scheduledDate.setHours(12, 0, 0, 0);
 
-    const response = await api.put(`/api/tasks/${taskId}`, { dueDate: scheduledDate.toISOString() });
+    const response = await api.put(`/api/tasks/${taskId}`, {
+      dueDate: scheduledDate.toISOString(),
+    });
     ElMessage.success(`截止时间已变更为: ${scheduledDate.toLocaleDateString()}`);
     emit('refresh', response.data);
     emit('refresh-stats');
@@ -235,7 +259,7 @@ const onDropToSidebar = async (event: DragEvent) => {
             <ChevronRight class="w-3.5 h-3.5" />
           </button>
           <div class="w-[1px] h-3.5 bg-slate-200 dark:bg-slate-700"></div>
-          
+
           <!-- Toggle Sidebar Button -->
           <button
             type="button"
@@ -251,7 +275,11 @@ const onDropToSidebar = async (event: DragEvent) => {
       <!-- Weekday Header labels -->
       <div
         class="grid grid-cols-7 border-x border-b py-2 text-center text-[10px] font-black uppercase tracking-wider shrink-0"
-        style="background-color: var(--bg-card); border-color: var(--border-base); color: var(--text-secondary)"
+        style="
+          background-color: var(--bg-card);
+          border-color: var(--border-base);
+          color: var(--text-secondary);
+        "
       >
         <div v-for="day in weekDays" :key="day">
           {{ day }}
@@ -269,7 +297,7 @@ const onDropToSidebar = async (event: DragEvent) => {
           class="border-r border-t flex flex-col p-1 min-h-0 min-w-0 transition-colors duration-300 relative group/cell"
           :class="[
             cell.isCurrentMonth ? 'bg-card/20' : 'bg-slate-50/20 dark:bg-white/1',
-            cell.isToday ? 'bg-accent/2' : ''
+            cell.isToday ? 'bg-accent/2' : '',
           ]"
           style="background-color: var(--bg-card); border-color: var(--border-base)"
           @dragover="onDragOver"
@@ -280,8 +308,10 @@ const onDropToSidebar = async (event: DragEvent) => {
             <span
               class="text-[9px] font-bold inline-flex items-center justify-center w-4 h-4 rounded-full"
               :class="[
-                cell.isCurrentMonth ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-600',
-                cell.isToday ? 'bg-accent text-white font-black' : ''
+                cell.isCurrentMonth
+                  ? 'text-slate-700 dark:text-slate-200'
+                  : 'text-slate-400 dark:text-slate-600',
+                cell.isToday ? 'bg-accent text-white font-black' : '',
               ]"
             >
               {{ cell.dayNumber }}
@@ -301,13 +331,11 @@ const onDropToSidebar = async (event: DragEvent) => {
               :key="task.id"
               draggable="true"
               class="p-1 rounded-lg border text-[9px] font-semibold leading-tight shadow-sm hover:shadow-md hover:border-accent/30 transition-all cursor-grab active:cursor-grabbing truncate flex items-center gap-1"
-              :class="[
-                task.status === 'DONE' ? 'opacity-50 line-through' : ''
-              ]"
+              :class="[task.status === 'DONE' ? 'opacity-50 line-through' : '']"
               :style="{
                 backgroundColor: 'var(--bg-app)',
                 borderColor: 'var(--border-base)',
-                color: 'var(--text-primary)'
+                color: 'var(--text-primary)',
               }"
               @dragstart="onDragStart($event, task.id)"
               @click.stop="emit('open-detail', task)"
@@ -341,10 +369,16 @@ const onDropToSidebar = async (event: DragEvent) => {
       @dragover="onDragOver"
       @drop="onDropToSidebar"
     >
-      <div class="p-3 border-b flex items-center justify-between shrink-0" style="border-color: var(--border-base)">
+      <div
+        class="p-3 border-b flex items-center justify-between shrink-0"
+        style="border-color: var(--border-base)"
+      >
         <div class="flex items-center gap-1.5">
-          <FolderSearch class="w-4 h-4 text-slate-450" />
-          <h3 class="text-xs font-black uppercase tracking-wider" style="color: var(--text-primary)">
+          <FolderSearch class="w-4 h-4 text-slate-400" />
+          <h3
+            class="text-xs font-black uppercase tracking-wider"
+            style="color: var(--text-primary)"
+          >
             未排程任务 ({{ unscheduledTasks.length }})
           </h3>
         </div>
@@ -357,7 +391,11 @@ const onDropToSidebar = async (event: DragEvent) => {
           :key="task.id"
           draggable="true"
           class="p-2.5 rounded-xl border text-xs font-bold leading-tight shadow-sm hover:shadow-md hover:border-accent/30 transition-all cursor-grab active:cursor-grabbing relative flex flex-col gap-2"
-          style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary)"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
           @dragstart="onDragStart($event, task.id)"
           @click="emit('open-detail', task)"
         >
@@ -372,8 +410,10 @@ const onDropToSidebar = async (event: DragEvent) => {
           </div>
 
           <!-- Project and Assignee Footer -->
-          <div class="flex items-center justify-between gap-2 text-[9px] text-slate-450">
-            <span v-if="task.project" class="text-accent font-semibold truncate max-w-[120px]">{{ task.project.title }}</span>
+          <div class="flex items-center justify-between gap-2 text-[9px] text-slate-400">
+            <span v-if="task.project" class="text-accent font-semibold truncate max-w-[120px]">{{
+              task.project.title
+            }}</span>
             <img
               v-if="task.assignee?.avatarUrl"
               :src="task.assignee.avatarUrl"
@@ -384,8 +424,11 @@ const onDropToSidebar = async (event: DragEvent) => {
         </div>
 
         <!-- Empty State -->
-        <div v-if="unscheduledTasks.length === 0" class="text-center py-12 text-slate-400 dark:text-slate-500 italic text-[11px]">
-          暂无未排程任务<br/>可从日历拖拽任务到这里以取消计划
+        <div
+          v-if="unscheduledTasks.length === 0"
+          class="text-center py-12 text-slate-400 dark:text-slate-500 italic text-[11px]"
+        >
+          暂无未排程任务<br />可从日历拖拽任务到这里以取消计划
         </div>
       </div>
     </div>

@@ -67,7 +67,7 @@ export const getAssetUrl = (url: string | null | undefined): string => {
           host.startsWith('172.30.') ||
           host.startsWith('172.31.') ||
           host.endsWith('.local');
-        
+
         if (!isLocal) {
           normalized = `https://${parsed.host}${parsed.pathname}${parsed.search}${parsed.hash}`;
         }

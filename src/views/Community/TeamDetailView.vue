@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatRelativeTime, formatDate } from '@/utils/format';
+import { formatDate } from '@/utils/format';
 import { getApiErrorMessage, getApiErrorStatus } from '@/utils/error';
 import { cleanTeamDescription } from '@/utils/team';
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';

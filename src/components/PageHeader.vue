@@ -9,12 +9,14 @@ const props = withDefaults(
     icon?: Component;
     iconClass?: string;
     iconContainerClass?: string;
+    variant?: 'flat' | 'card';
   }>(),
   {
     subtitle: '',
     icon: undefined,
     iconClass: 'text-accent',
     iconContainerClass: 'p-2 bg-accent-subtle rounded-lg shrink-0 border border-accent/10',
+    variant: 'flat',
   },
 );
 
@@ -23,6 +25,7 @@ const hasIcon = computed(() => !!props.icon);
 
 <template>
   <div
+    v-if="variant === 'flat'"
     class="enterprise-toolbar h-auto sm:h-13 px-4 sm:px-6 lg:px-8 py-3 sm:py-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 border-b transition-colors duration-300"
     style="background-color: var(--bg-card); border-color: var(--border-base)"
   >
@@ -62,4 +65,49 @@ const hasIcon = computed(() => !!props.icon);
       <slot />
     </div>
   </div>
+
+  <div
+    v-else-if="variant === 'card'"
+    class="premium-card rounded-xl border bg-card border-base shadow-card p-3 sm:py-3 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0"
+  >
+    <div class="flex items-center gap-3 min-w-0">
+      <div class="min-w-0">
+        <p
+          v-if="subtitle"
+          class="block text-[10px] sm:text-xs font-semibold uppercase tracking-wider mb-1"
+          style="color: var(--text-muted)"
+        >
+          {{ subtitle }}
+        </p>
+        <h1 class="text-sm sm:text-lg font-bold leading-tight truncate text-[var(--text-primary)]">
+          {{ title }}
+        </h1>
+      </div>
+      <div v-if="$slots.center" class="flex items-center gap-1.5 ml-2">
+        <slot name="center" />
+      </div>
+    </div>
+
+    <!-- Actions / Filters slot -->
+    <div
+      class="flex flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto overflow-x-auto scrollbar-hide"
+    >
+      <slot />
+    </div>
+  </div>
 </template>
+
+<style scoped>
+.premium-card {
+  box-sizing: border-box;
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.4),
+    var(--shadow-card);
+}
+
+.dark .premium-card {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+    var(--shadow-card);
+}
+</style>

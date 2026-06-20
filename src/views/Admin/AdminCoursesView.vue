@@ -18,7 +18,6 @@ import {
   EyeOff,
   Clock,
   Users,
-  GraduationCap,
   RefreshCw,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
@@ -31,8 +30,11 @@ import CourseEditDialog from './components/CourseEditDialog.vue';
 import CategoryEditDialog from './components/CategoryEditDialog.vue';
 import CourseImportDialog from './components/CourseImportDialog.vue';
 import LessonEditDialog from './components/LessonEditDialog.vue';
-import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import { fetchManagementInsights } from './adminManagementInsights';
+import PageHeader from '@/components/PageHeader.vue';
+import Button from '@/components/ui/Button.vue';
+import Tabs from '@/components/ui/Tabs.vue';
+import Badge from '@/components/ui/Badge.vue';
 
 const router = useRouter();
 
@@ -47,10 +49,13 @@ const categoryEditDialogRef = ref<InstanceType<typeof CategoryEditDialog> | null
 const courseImportDialogRef = ref<InstanceType<typeof CourseImportDialog> | null>(null);
 const lessonEditDialogRef = ref<InstanceType<typeof LessonEditDialog> | null>(null);
 
-const handleTabChange = (tab: 'courses' | 'categories') => {
+const handleTabChange = (tab: string | number | null) => {
   if (tab === 'categories') {
     router.push('/admin/categories');
-  } else {
+    setTimeout(() => {
+      activeTab.value = 'courses';
+    }, 100);
+  } else if (tab === 'courses') {
     activeTab.value = tab;
   }
 };
@@ -71,6 +76,63 @@ const courseStats = computed(() => {
   const totalEnrollments = courses.value.reduce((sum, c) => sum + (c._count?.enrollments || 0), 0);
   const totalLessons = courses.value.reduce((sum, c) => sum + (c.lessons?.length || 0), 0);
   return { total, published, draft, totalEnrollments, totalLessons };
+});
+
+const getBadgeVariant = (label: string) => {
+  if (label === '正常' || label === '稳定') return 'success';
+  if (label === '关注') return 'warning';
+  if (label === '高压') return 'danger';
+  return 'primary';
+};
+
+const courseTabOptions = [
+  { label: '课程列表', value: 'courses' },
+  { label: '分类管理', value: 'categories' },
+];
+
+const presetTabOptions = computed(() => [
+  { label: `全部课程 (${courseStats.value.total})`, value: 'ALL', icon: BookOpen },
+  { label: `已发布 (${courseStats.value.published})`, value: 'PUBLISHED', icon: Eye },
+  { label: `草稿 (${courseStats.value.draft})`, value: 'DRAFT', icon: EyeOff },
+]);
+
+const consolidatedCards = computed(() => {
+  const stats = courseStats.value;
+  const avgLessons = stats.total > 0 ? Math.round(stats.totalLessons / stats.total) : 0;
+  return [
+    {
+      label: '课程规模',
+      value: stats.total,
+      hint: `${stats.published} 已发布 · ${stats.draft} 草稿`,
+      icon: BookOpen,
+      color: 'text-indigo-600 bg-indigo-500/10 border-indigo-500/20',
+      health: { label: '正常' },
+    },
+    {
+      label: '教学总课时',
+      value: stats.totalLessons,
+      hint: `平均 ${avgLessons} 节/课`,
+      icon: Clock,
+      color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      health: { label: '稳定' },
+    },
+    {
+      label: '累计学习人次',
+      value: stats.totalEnrollments,
+      hint: `全站学习总量`,
+      icon: Users,
+      color: 'text-purple-600 bg-purple-500/10 border-purple-500/20',
+      health: { label: '正常' },
+    },
+    {
+      label: '分类规模',
+      value: categories.value.length,
+      hint: `已建立课程分类`,
+      icon: FolderTree,
+      color: 'text-sky-600 bg-sky-500/10 border-sky-500/20',
+      health: { label: '正常' },
+    },
+  ];
 });
 
 const expandedCourseIds = ref<Set<string>>(new Set());
@@ -308,502 +370,422 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
-    style="background-color: var(--bg-app)"
+    class="admin-courses-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
   >
-    <!-- 奢华顶栏 (超紧凑高阶版) -->
-    <div
-      class="relative shrink-0 border-b overflow-hidden"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <!-- 极光背景装饰 -->
-      <div
-        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-indigo-500/10 via-purple-500/5 to-transparent pointer-events-none"
-      ></div>
-
-      <!-- Row 1: 标题 & 选项卡 & 主要动作 -->
-      <div
-        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10 border-b"
-        style="border-color: var(--border-base)"
-      >
-        <div class="flex items-center gap-2.5 sm:gap-4 shrink-0">
-          <div class="flex items-center gap-2">
-            <span
-              class="p-1 rounded-xl bg-indigo-500/10 text-indigo-500 shadow-sm border border-indigo-500/20"
-            >
-              <BookOpen class="w-4 h-4" />
-            </span>
-            <h1 class="text-sm font-black tracking-tight" style="color: var(--text-primary)">
-              学院课程
-            </h1>
-          </div>
-
-          <!-- 分段选项卡 -->
-          <div
-            class="flex items-center bg-slate-100 dark:bg-white/5 p-0.5 rounded-lg gap-0.5 shadow-inner shrink-0"
-          >
-            <button
-              type="button"
-              class="px-2 py-0.5 sm:px-3 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-              :class="
-                activeTab === 'courses'
-                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              "
-              @click="handleTabChange('courses')"
-            >
-              课程列表
-            </button>
-            <button
-              type="button"
-              class="px-2 py-0.5 sm:px-3 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-              :class="
-                activeTab === 'categories'
-                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              "
-              @click="handleTabChange('categories')"
-            >
-              分类管理
-            </button>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-1.5 sm:gap-2.5">
-          <button
-            type="button"
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="courseImportDialogRef?.open()"
-          >
-            <LinkIcon class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">{{ $t('admin.external_import') }}</span>
-          </button>
-          <button
-            type="button"
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
-            @click="courseEditDialogRef?.open()"
-          >
-            <Plus class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">{{ $t('admin.create_new_course') }}</span>
-          </button>
-          <button
-            type="button"
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="fetchCourses"
-          >
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-            <span class="hidden sm:inline">{{ $t('admin.refresh') }}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Row 2: 状态筛选 Pills & 检索工具栏 -->
-      <div
-        class="px-4 sm:px-8 py-2 flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
-      >
-        <!-- 状态筛选 Pills -->
-        <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
-          <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
-            <button
-              v-for="filter in [
-                {
-                  key: 'ALL',
-                  label: $t('admin.all_courses'),
-                  count: courseStats.total,
-                  color: 'indigo',
-                  icon: BookOpen,
-                },
-                {
-                  key: 'PUBLISHED',
-                  label: $t('admin.published'),
-                  count: courseStats.published,
-                  color: 'emerald',
-                  icon: Eye,
-                },
-                {
-                  key: 'DRAFT',
-                  label: $t('admin.draft'),
-                  count: courseStats.draft,
-                  color: 'amber',
-                  icon: EyeOff,
-                },
-              ]"
-              :key="filter.key"
-              type="button"
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
-              :class="[
-                statusFilter === filter.key
-                  ? filter.key === 'PUBLISHED'
-                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
-                    : filter.key === 'DRAFT'
-                      ? 'bg-amber-500/10 text-amber-500 border-amber-500/30 ring-1 ring-amber-500/20 font-extrabold shadow-sm'
-                      : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
-                  : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5',
-              ]"
-              @click="setStatusFilter(filter.key)"
-            >
-              <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
-              <span>{{ filter.label }}</span>
-              <span class="opacity-60">({{ filter.count }})</span>
-            </button>
-          </div>
-          <span class="text-[8px] opacity-45 px-1 sm:px-2 shrink-0">|</span>
-          <span
-            class="text-[8px] xs:text-[9px] sm:text-[10px] text-slate-400 font-bold flex items-center gap-0.5 sm:gap-1 shrink-0"
-          >
-            <GraduationCap class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-indigo-500" /> 总课时:
-            {{ courseStats.totalLessons }}
-          </span>
-          <span
-            class="text-[8px] xs:text-[9px] sm:text-[10px] text-slate-400 font-bold flex items-center gap-0.5 sm:gap-1 shrink-0"
-          >
-            <Users class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-indigo-500" /> 总报名:
-            {{ courseStats.totalEnrollments }}
-          </span>
-        </div>
-
-        <!-- 检索与排序 -->
-        <div
-          class="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto shrink-0"
-        >
-          <select
-            v-model="sortBy"
-            class="px-2 py-1.5 rounded-lg border text-[11px] font-bold outline-none cursor-pointer shrink-0"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-          >
-            <option value="newest">{{ $t('admin.latest_creation') }}</option>
-            <option value="enrollments">{{ $t('admin.most_registrations') }}</option>
-            <option value="rating">{{ $t('admin.top_rated') }}</option>
-          </select>
-
-          <div class="relative flex-1 lg:flex-none lg:w-64">
-            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <input
-              v-model="searchQuery"
-              type="text"
-              :placeholder="$t('admin.search_course_title_or')"
-              class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-[11px] shadow-sm"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
+    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
+      <!-- 奢华顶栏 (PageHeader card variant) -->
+      <PageHeader title="学院课程" subtitle="系统课程与课时资源管理" variant="card">
+        <template #center>
+          <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full">
+            <Tabs
+              v-model="activeTab"
+              :options="courseTabOptions"
+              size="sm"
+              @update:model-value="handleTabChange"
             />
           </div>
-          <div class="text-[10px] font-bold text-right shrink-0" style="color: var(--text-muted)">
-            匹配: <span class="text-indigo-600 font-extrabold">{{ filteredCourses.length }}</span> /
-            {{ courses.length }}
-          </div>
-        </div>
-      </div>
-    </div>
+        </template>
 
-    <!-- Main Content -->
-    <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
-      <AdminOpsPanel scope="courses" />
-
-      <div
-        v-if="activeTab === 'courses'"
-        class="mb-4 rounded-lg border border-[var(--border-base)] bg-[var(--bg-card)] px-4 py-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
-      >
-        <label class="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)]">
+        <!-- Compact Search Box -->
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-60 shrink-0">
+          <Search />
           <input
-            type="checkbox"
-            class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-            :checked="allFilteredSelected"
-            :disabled="filteredCourses.length === 0"
-            @change="toggleAllFilteredCourses"
+            v-model="searchQuery"
+            type="search"
+            :placeholder="$t('admin.search_course_title_or')"
           />
-          <span>选择当前筛选结果</span>
-          <span class="text-[var(--text-muted)]">已选 {{ selectedCourseCount }}</span>
         </label>
-        <div class="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            class="px-3 py-1.5 rounded-lg border border-emerald-500/25 bg-emerald-500/10 text-emerald-600 text-[11px] font-black disabled:opacity-40 disabled:cursor-not-allowed"
-            :disabled="selectedCourseCount === 0"
-            @click="batchUpdateCourseStatus('PUBLISHED')"
-          >
-            批量发布
-          </button>
-          <button
-            type="button"
-            class="px-3 py-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 text-amber-600 text-[11px] font-black disabled:opacity-40 disabled:cursor-not-allowed"
-            :disabled="selectedCourseCount === 0"
-            @click="batchUpdateCourseStatus('DRAFT')"
-          >
-            转为草稿
-          </button>
-          <button
-            type="button"
-            class="px-3 py-1.5 rounded-lg border border-rose-500/25 bg-rose-500/10 text-rose-600 text-[11px] font-black disabled:opacity-40 disabled:cursor-not-allowed"
-            :disabled="selectedCourseCount === 0"
-            @click="batchDeleteCourses"
-          >
-            批量删除
-          </button>
-          <button
-            v-if="selectedCourseCount > 0"
-            type="button"
-            class="px-3 py-1.5 rounded-lg border border-[var(--border-base)] text-[var(--text-muted)] text-[11px] font-black hover:text-[var(--text-primary)]"
-            @click="clearCourseSelection"
-          >
-            清空选择
-          </button>
-        </div>
-      </div>
 
-      <div v-if="isLoading" class="flex flex-col items-center justify-center py-24">
-        <div
-          class="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"
-        ></div>
-      </div>
+        <!-- Action Buttons -->
+        <Button
+          variant="secondary"
+          size="sm"
+          :icon="LinkIcon"
+          @click="courseImportDialogRef?.open()"
+        >
+          导入
+        </Button>
+        <Button variant="primary" size="sm" :icon="Plus" @click="courseEditDialogRef?.open()">
+          新建课程
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          :icon="RefreshCw"
+          :loading="isLoading"
+          @click="fetchCourses"
+        >
+          刷新
+        </Button>
+      </PageHeader>
 
-      <div v-else class="max-w-none space-y-6">
-        <!-- Courses List -->
-        <template v-if="activeTab === 'courses'">
-          <div
-            v-for="course in filteredCourses"
-            :key="course.id"
-            class="group rounded-3xl border overflow-hidden transition-all hover:shadow-lg animate-fade-in"
-            style="background-color: var(--bg-card); border-color: var(--border-base)"
-          >
-            <div class="p-3.5 sm:p-6 flex items-center gap-3 sm:gap-6">
-              <input
-                type="checkbox"
-                class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 shrink-0"
-                :checked="isCourseSelected(course.id)"
-                @click.stop
-                @change="toggleCourseSelection(course.id)"
-              />
-              <!-- Thumbnail -->
-              <div
-                class="w-16 sm:w-40 aspect-video rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-white/5 overflow-hidden shrink-0 relative"
+      <!-- KPI Metrics Grid -->
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        <Card
+          v-for="card in consolidatedCards"
+          :key="card.label"
+          hoverable
+          glow
+          class="group !p-2 px-2.5"
+        >
+          <div class="flex items-center justify-between w-full gap-3">
+            <!-- Left: Icon & Info -->
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span
+                class="panel-icon border border-base rounded-lg p-1.5 transition-transform group-hover:scale-105 shrink-0"
+                :class="card.color"
               >
-                <img
-                  v-if="course.thumbnail"
-                  alt=""
-                  :src="course.thumbnail"
-                  referrerpolicy="no-referrer"
-                  class="w-full h-full object-cover"
-                />
-                <div v-else class="w-full h-full flex items-center justify-center">
-                  <BookOpen class="w-8 h-8 text-slate-300" />
-                </div>
-                <div
-                  v-if="course.status === 'DRAFT'"
-                  class="absolute inset-0 bg-black/50 flex items-center justify-center"
+                <component :is="card.icon" class="h-3.5 w-3.5" />
+              </span>
+              <div class="min-w-0">
+                <p
+                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
                 >
-                  <span
-                    class="px-2 py-1 rounded text-[10px] font-bold bg-slate-800 text-slate-300"
-                    >{{ $t('admin.draft') }}</span
-                  >
-                </div>
+                  {{ card.label }}
+                </p>
+                <p
+                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
+                  :title="card.hint"
+                >
+                  {{ card.hint }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Right: Metric & Health Badge -->
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-base font-black text-[var(--text-primary)] leading-none">
+                {{ card.value.toLocaleString() }}
+              </span>
+              <Badge :variant="getBadgeVariant(card.health.label)">
+                {{ card.health.label }}
+              </Badge>
+            </div>
+          </div>
+        </Card>
+      </section>
+
+      <!-- Workspace layout: Single Column Workspace -->
+      <div class="mt-3 w-full min-w-0">
+        <div class="space-y-3 min-w-0">
+          <!-- Workbench Toolbar / Batch Operations Card -->
+          <Card v-if="activeTab === 'courses'" padding="sm" class="workbench-toolbar-card">
+            <div class="toolbar-top">
+              <div
+                class="flex items-center gap-3 overflow-x-auto scrollbar-hide shrink-0 max-w-full"
+              >
+                <!-- Checkbox to Select All -->
+                <label
+                  class="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)] border-r border-slate-200 dark:border-slate-800 pr-3 shrink-0 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    :checked="allFilteredSelected"
+                    :disabled="filteredCourses.length === 0"
+                    @change="toggleAllFilteredCourses"
+                  />
+                  <span>全选</span>
+                  <span class="text-[var(--text-muted)]">({{ selectedCourseCount }})</span>
+                </label>
+
+                <!-- Status Preset Tabs -->
+                <Tabs v-model="statusFilter" :options="presetTabOptions" size="sm" />
               </div>
 
-              <!-- Info -->
-              <div class="flex-1 min-w-0 cursor-pointer" @click="toggleCourseExpansion(course.id)">
-                <div class="flex items-start justify-between gap-4 mb-2">
-                  <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2 mb-1 min-w-0 flex-wrap">
-                      <span
-                        v-if="course.category"
-                        class="px-2 py-0.5 rounded-md bg-accent/10 text-accent text-[10px] font-bold shrink-0"
-                        >{{ course.category.name }}</span
-                      >
-                      <span
-                        :class="
-                          difficultyMap[course.difficulty]?.color ||
-                          'text-slate-400 bg-slate-400/10'
-                        "
-                        class="px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0"
-                      >
-                        {{ difficultyMap[course.difficulty]?.label || $t('admin.getting_started') }}
-                      </span>
-                      <h3
-                        class="font-bold text-sm sm:text-xl truncate"
-                        style="color: var(--text-primary)"
-                      >
-                        {{ course.title }}
-                      </h3>
-                      <ChevronRight
-                        class="w-4 h-4 text-slate-300 transition-transform duration-300 shrink-0"
-                        :class="{ 'rotate-90': expandedCourseIds.has(course.id) }"
-                      />
+              <div class="toolbar-actions">
+                <div class="text-[10px] font-bold text-slate-400 shrink-0">排序:</div>
+                <el-select v-model="sortBy" size="small" style="width: 100px">
+                  <el-option value="newest" :label="$t('admin.latest_creation')" />
+                  <el-option value="enrollments" :label="$t('admin.most_registrations')" />
+                  <el-option value="rating" :label="$t('admin.top_rated')" />
+                </el-select>
+
+                <div class="text-[10px] font-bold text-[var(--text-muted)] shrink-0 ml-2">
+                  匹配:
+                  <span class="text-indigo-600 font-extrabold">{{ filteredCourses.length }}</span> /
+                  {{ courses.length }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Batch Operations Toolbar -->
+            <div v-if="selectedCourseCount" class="batch-bar">
+              <div>
+                已选 <strong>{{ selectedCourseCount }}</strong> 门课程
+              </div>
+              <div class="batch-actions">
+                <el-button size="small" @click="batchUpdateCourseStatus('PUBLISHED')">
+                  批量发布
+                </el-button>
+                <el-button size="small" @click="batchUpdateCourseStatus('DRAFT')">
+                  转为草稿
+                </el-button>
+                <el-button size="small" type="danger" plain @click="batchDeleteCourses">
+                  批量删除
+                </el-button>
+                <el-button size="small" text @click="clearCourseSelection">取消选择</el-button>
+              </div>
+            </div>
+          </Card>
+
+          <div v-if="isLoading" class="flex flex-col items-center justify-center py-24">
+            <div
+              class="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"
+            ></div>
+          </div>
+
+          <div v-else class="max-w-none space-y-6">
+            <!-- Courses List -->
+            <template v-if="activeTab === 'courses'">
+              <div
+                v-for="course in filteredCourses"
+                :key="course.id"
+                class="group rounded-3xl border overflow-hidden transition-all hover:shadow-lg animate-fade-in"
+                style="background-color: var(--bg-card); border-color: var(--border-base)"
+              >
+                <div class="p-3.5 sm:p-6 flex items-center gap-3 sm:gap-6">
+                  <input
+                    type="checkbox"
+                    class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 shrink-0"
+                    :checked="isCourseSelected(course.id)"
+                    @click.stop
+                    @change="toggleCourseSelection(course.id)"
+                  />
+                  <!-- Thumbnail -->
+                  <div
+                    class="w-16 sm:w-40 aspect-video rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-white/5 overflow-hidden shrink-0 relative"
+                  >
+                    <img
+                      v-if="course.thumbnail"
+                      alt=""
+                      :src="course.thumbnail"
+                      referrerpolicy="no-referrer"
+                      class="w-full h-full object-cover"
+                    />
+                    <div v-else class="w-full h-full flex items-center justify-center">
+                      <BookOpen class="w-8 h-8 text-slate-300" />
                     </div>
-                    <p class="text-xs text-slate-400 line-clamp-2">{{ course.description }}</p>
+                    <div
+                      v-if="course.status === 'DRAFT'"
+                      class="absolute inset-0 bg-black/50 flex items-center justify-center"
+                    >
+                      <span
+                        class="px-2 py-1 rounded text-[10px] font-bold bg-slate-800 text-slate-300"
+                        >{{ $t('admin.draft') }}</span
+                      >
+                    </div>
                   </div>
-                  <div class="flex items-center gap-2 shrink-0" @click.stop>
+
+                  <!-- Info -->
+                  <div
+                    class="flex-1 min-w-0 cursor-pointer"
+                    @click="toggleCourseExpansion(course.id)"
+                  >
+                    <div class="flex items-start justify-between gap-4 mb-2">
+                      <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2 mb-1 min-w-0 flex-wrap">
+                          <span
+                            v-if="course.category"
+                            class="px-2 py-0.5 rounded-md bg-accent/10 text-accent text-[10px] font-bold shrink-0"
+                            >{{ course.category.name }}</span
+                          >
+                          <span
+                            :class="
+                              difficultyMap[course.difficulty]?.color ||
+                              'text-slate-400 bg-slate-400/10'
+                            "
+                            class="px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0"
+                          >
+                            {{
+                              difficultyMap[course.difficulty]?.label || $t('admin.getting_started')
+                            }}
+                          </span>
+                          <h3
+                            class="font-bold text-sm sm:text-xl truncate"
+                            style="color: var(--text-primary)"
+                          >
+                            {{ course.title }}
+                          </h3>
+                          <ChevronRight
+                            class="w-4 h-4 text-slate-300 transition-transform duration-300 shrink-0"
+                            :class="{ 'rotate-90': expandedCourseIds.has(course.id) }"
+                          />
+                        </div>
+                        <p class="text-xs text-slate-400 line-clamp-2">{{ course.description }}</p>
+                      </div>
+                      <div class="flex items-center gap-2 shrink-0" @click.stop>
+                        <button
+                          type="button"
+                          class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                          :title="
+                            course.status === 'PUBLISHED'
+                              ? $t('admin.convert_to_draft')
+                              : $t('admin.publish_course')
+                          "
+                          @click="toggleCourseStatus(course)"
+                        >
+                          <Eye
+                            v-if="course.status === 'PUBLISHED'"
+                            class="w-4 h-4 text-emerald-500"
+                          />
+                          <EyeOff v-else class="w-4 h-4 text-slate-400" />
+                        </button>
+                        <button
+                          type="button"
+                          class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-colors cursor-pointer"
+                          @click="courseEditDialogRef?.open(course)"
+                        >
+                          <Edit2 class="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                          @click="handleDeleteCourse(course.id)"
+                        >
+                          <Trash2 class="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-4 text-[10px] font-bold text-slate-400">
+                      <span class="flex items-center gap-1.5"
+                        ><Video class="w-3.5 h-3.5" />
+                        {{
+                          $t('admin.lessons_count', { count: course.lessons?.length || 0 })
+                        }}</span
+                      >
+                      <span>•</span>
+                      <span>{{
+                        $t('admin.enrollments_count', { count: course._count?.enrollments || 0 })
+                      }}</span>
+                      <span>•</span>
+                      <span class="flex items-center gap-1"
+                        ><Star class="w-3 h-3 text-amber-400" /> {{ course.avgRating || '-' }}</span
+                      >
+                      <span v-if="course._count?.reviews">•</span>
+                      <span v-if="course._count?.reviews">{{
+                        $t('admin.reviews_count', { count: course._count?.reviews || 0 })
+                      }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Lessons List Accordion -->
+                <div
+                  v-if="expandedCourseIds.has(course.id)"
+                  class="border-t p-4 transition-all duration-300 animate-fade-in"
+                  style="background-color: var(--bg-app); border-color: var(--border-base)"
+                >
+                  <div class="space-y-2">
+                    <div
+                      v-for="lesson in course.lessons"
+                      :key="lesson.id"
+                      class="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-800/50 border border-transparent hover:border-accent/20 transition-all group/lesson shadow-sm"
+                    >
+                      <div class="flex items-center gap-3">
+                        <GripVertical class="w-4 h-4 text-slate-300" />
+                        <span
+                          class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-white/5 flex items-center justify-center text-[10px] font-black text-slate-400"
+                          >{{ lesson.order }}</span
+                        >
+                        <span
+                          class="text-sm font-bold truncate max-w-md"
+                          style="color: var(--text-primary)"
+                          >{{ lesson.title }}</span
+                        >
+                        <span
+                          v-if="lesson.duration"
+                          class="flex items-center gap-1 text-[10px] text-slate-400"
+                        >
+                          <Clock class="w-3 h-3" /> {{ lesson.duration }}分钟
+                        </span>
+                      </div>
+                      <div
+                        class="flex items-center gap-1 md:opacity-0 md:group-hover/lesson:opacity-100 transition-opacity shrink-0"
+                      >
+                        <button
+                          type="button"
+                          class="p-1.5 rounded-lg text-slate-400 hover:text-accent cursor-pointer"
+                          @click="lessonEditDialogRef?.open(course, lesson)"
+                        >
+                          <Edit2 class="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          class="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 cursor-pointer"
+                          @click="handleDeleteLesson(lesson.id)"
+                        >
+                          <Trash2 class="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
                     <button
                       type="button"
-                      class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                      :title="
-                        course.status === 'PUBLISHED'
-                          ? $t('admin.convert_to_draft')
-                          : $t('admin.publish_course')
-                      "
-                      @click="toggleCourseStatus(course)"
+                      class="w-full py-2.5 rounded-xl border-2 border-dashed border-slate-200 dark:border-white/5 text-slate-400 hover:text-accent hover:border-accent/40 transition-all text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
+                      @click="lessonEditDialogRef?.open(course)"
                     >
-                      <Eye v-if="course.status === 'PUBLISHED'" class="w-4 h-4 text-emerald-500" />
-                      <EyeOff v-else class="w-4 h-4 text-slate-400" />
+                      <Plus class="w-4 h-4" />
+                      添加课时
                     </button>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Categories List -->
+            <template v-else>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div
+                  v-for="cat in categories"
+                  :key="cat.id"
+                  class="p-6 rounded-3xl border flex items-center justify-between transition-all hover:shadow-md animate-fade-in"
+                  style="background-color: var(--bg-card); border-color: var(--border-base)"
+                >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent"
+                    >
+                      <FolderTree class="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 class="font-bold text-lg" style="color: var(--text-primary)">
+                        {{ cat.name }}
+                      </h4>
+                      <p class="text-xs text-slate-400">
+                        排序: {{ cat.order }} · {{ cat._count?.courses || 0 }} 门课程
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
                     <button
                       type="button"
                       class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-colors cursor-pointer"
-                      @click="courseEditDialogRef?.open(course)"
+                      @click="categoryEditDialogRef?.open(cat)"
                     >
                       <Edit2 class="w-4 h-4" />
                     </button>
                     <button
                       type="button"
                       class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
-                      @click="handleDeleteCourse(course.id)"
+                      @click="handleDeleteCategory(cat.id)"
                     >
                       <Trash2 class="w-4 h-4" />
                     </button>
                   </div>
                 </div>
-
-                <div class="flex items-center gap-4 text-[10px] font-bold text-slate-400">
-                  <span class="flex items-center gap-1.5"
-                    ><Video class="w-3.5 h-3.5" />
-                    {{ $t('admin.lessons_count', { count: course.lessons?.length || 0 }) }}</span
-                  >
-                  <span>•</span>
-                  <span>{{
-                    $t('admin.enrollments_count', { count: course._count?.enrollments || 0 })
-                  }}</span>
-                  <span>•</span>
-                  <span class="flex items-center gap-1"
-                    ><Star class="w-3 h-3 text-amber-400" /> {{ course.avgRating || '-' }}</span
-                  >
-                  <span v-if="course._count?.reviews">•</span>
-                  <span v-if="course._count?.reviews">{{
-                    $t('admin.reviews_count', { count: course._count?.reviews || 0 })
-                  }}</span>
-                </div>
               </div>
-            </div>
 
-            <!-- Lessons List Accordion -->
-            <div
-              v-if="expandedCourseIds.has(course.id)"
-              class="border-t p-4 transition-all duration-300 animate-fade-in"
-              style="background-color: var(--bg-app); border-color: var(--border-base)"
-            >
-              <div class="space-y-2">
-                <div
-                  v-for="lesson in course.lessons"
-                  :key="lesson.id"
-                  class="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-800/50 border border-transparent hover:border-accent/20 transition-all group/lesson shadow-sm"
-                >
-                  <div class="flex items-center gap-3">
-                    <GripVertical class="w-4 h-4 text-slate-300" />
-                    <span
-                      class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-white/5 flex items-center justify-center text-[10px] font-black text-slate-400"
-                      >{{ lesson.order }}</span
-                    >
-                    <span
-                      class="text-sm font-bold truncate max-w-md"
-                      style="color: var(--text-primary)"
-                      >{{ lesson.title }}</span
-                    >
-                    <span
-                      v-if="lesson.duration"
-                      class="flex items-center gap-1 text-[10px] text-slate-400"
-                    >
-                      <Clock class="w-3 h-3" /> {{ lesson.duration }}分钟
-                    </span>
-                  </div>
-                  <div
-                    class="flex items-center gap-1 md:opacity-0 md:group-hover/lesson:opacity-100 transition-opacity shrink-0"
-                  >
-                    <button
-                      type="button"
-                      class="p-1.5 rounded-lg text-slate-400 hover:text-accent cursor-pointer"
-                      @click="lessonEditDialogRef?.open(course, lesson)"
-                    >
-                      <Edit2 class="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      class="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 cursor-pointer"
-                      @click="handleDeleteLesson(lesson.id)"
-                    >
-                      <Trash2 class="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  class="w-full py-2.5 rounded-xl border-2 border-dashed border-slate-200 dark:border-white/5 text-slate-400 hover:text-accent hover:border-accent/40 transition-all text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
-                  @click="lessonEditDialogRef?.open(course)"
-                >
-                  <Plus class="w-4 h-4" />
-                  添加课时
-                </button>
+              <!-- Empty State -->
+              <div v-if="categories.length === 0" class="py-24 text-center">
+                <FolderTree class="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                <p class="text-slate-400 font-medium">{{ $t('admin.there_is_no_category') }}</p>
               </div>
-            </div>
+            </template>
           </div>
-        </template>
-
-        <!-- Categories List -->
-        <template v-else>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div
-              v-for="cat in categories"
-              :key="cat.id"
-              class="p-6 rounded-3xl border flex items-center justify-between transition-all hover:shadow-md animate-fade-in"
-              style="background-color: var(--bg-card); border-color: var(--border-base)"
-            >
-              <div class="flex items-center gap-4">
-                <div
-                  class="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent"
-                >
-                  <FolderTree class="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 class="font-bold text-lg" style="color: var(--text-primary)">
-                    {{ cat.name }}
-                  </h4>
-                  <p class="text-xs text-slate-400">
-                    排序: {{ cat.order }} · {{ cat._count?.courses || 0 }} 门课程
-                  </p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <button
-                  type="button"
-                  class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-colors cursor-pointer"
-                  @click="categoryEditDialogRef?.open(cat)"
-                >
-                  <Edit2 class="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
-                  @click="handleDeleteCategory(cat.id)"
-                >
-                  <Trash2 class="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Empty State -->
-          <div v-if="categories.length === 0" class="py-24 text-center">
-            <FolderTree class="w-12 h-12 text-slate-200 mx-auto mb-4" />
-            <p class="text-slate-400 font-medium">{{ $t('admin.there_is_no_category') }}</p>
-          </div>
-        </template>
+        </div>
       </div>
-    </div>
+    </main>
 
     <!-- Modals Subcomponents -->
     <CourseEditDialog ref="courseEditDialogRef" :categories="categories" @saved="fetchCourses" />
@@ -830,6 +812,76 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.admin-courses-page {
+  height: 100%;
+  min-height: 0;
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.toolbar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.search-box {
+  width: min(320px, 28vw);
+  height: 34px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+}
+
+.search-box :deep(svg) {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.search-box input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 11px;
+}
+
+.batch-bar {
+  margin: 10px 0 0;
+  padding: 9px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #334155;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+}
+
+.batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }

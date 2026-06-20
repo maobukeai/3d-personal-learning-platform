@@ -28,7 +28,14 @@ import TeamsSection from './components/TeamsSection.vue';
 import DataSection from './components/DataSection.vue';
 import BackupSection from './components/BackupSection.vue';
 
-type SectionId = 'profile' | 'notifications' | 'security' | 'appearance' | 'teams' | 'data' | 'backup';
+type SectionId =
+  | 'profile'
+  | 'notifications'
+  | 'security'
+  | 'appearance'
+  | 'teams'
+  | 'data'
+  | 'backup';
 type SectionTone = 'green' | 'amber' | 'red' | 'blue' | 'slate';
 
 interface SettingsSection {
@@ -49,7 +56,15 @@ const { locale } = useI18n();
 
 const getInitialSection = (): SectionId => {
   const tab = route.query.tab;
-  const validIds = ['profile', 'notifications', 'security', 'appearance', 'teams', 'data', 'backup'];
+  const validIds = [
+    'profile',
+    'notifications',
+    'security',
+    'appearance',
+    'teams',
+    'data',
+    'backup',
+  ];
   if (typeof tab === 'string' && validIds.includes(tab)) {
     return tab as SectionId;
   }
@@ -334,7 +349,7 @@ watch(filteredSections, (next) => {
   gap: 14px;
   padding: 14px;
   overflow: hidden;
-  background: var(--bg-app);
+  background: transparent !important;
   color: var(--text-primary);
 }
 

@@ -58,9 +58,15 @@ type ActivityItem = {
 
 type ControlTone = AdminControlMetric['tone'];
 
-const props = defineProps<{
-  scope: AdminScope;
-}>();
+const props = withDefaults(
+  defineProps<{
+    scope: AdminScope;
+    compact?: boolean;
+  }>(),
+  {
+    compact: false,
+  },
+);
 
 const router = useRouter();
 const isExpanded = ref(false);
@@ -651,6 +657,7 @@ onMounted(() => {
 <template>
   <section
     class="ops-panel mb-4 rounded-lg border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden"
+    :class="{ 'ops-panel-compact': compact }"
   >
     <div class="px-3 py-2.5 flex flex-col gap-3 xl:flex-row xl:items-center">
       <div class="flex items-center gap-2 min-w-0 xl:w-64 shrink-0">
@@ -678,29 +685,48 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-2 flex-1 min-w-0">
-        <div
-          v-for="card in metricCards"
-          :key="card.label"
-          class="min-h-14 rounded-lg border border-[var(--border-base)] bg-slate-50/60 dark:bg-white/[0.03] px-3 py-2"
-        >
+      <!-- KPI Metrics Grid (Hidden in compact mode) -->
+      <div v-if="!compact" class="grid grid-cols-2 md:grid-cols-4 gap-2 flex-1 min-w-0">
+        <template v-if="!managementInsights">
           <div
-            class="text-[10px] font-black uppercase tracking-wide text-[var(--text-muted)] truncate"
+            v-for="i in 4"
+            :key="i"
+            class="min-h-14 rounded-lg border border-[var(--border-base)] bg-slate-50/60 dark:bg-white/[0.03] px-3 py-2 animate-pulse"
           >
-            {{ card.label }}
+            <div class="h-2 w-12 bg-slate-200 dark:bg-white/10 rounded"></div>
+            <div class="mt-1.5 flex items-baseline gap-2">
+              <div class="h-4.5 w-8 bg-slate-300 dark:bg-white/20 rounded"></div>
+              <div class="h-2 w-16 bg-slate-200 dark:bg-white/10 rounded"></div>
+            </div>
           </div>
-          <div class="mt-0.5 flex items-baseline gap-2 min-w-0">
-            <strong class="text-base font-black truncate" :class="toneClasses[card.tone]">
-              {{ formatValue(card.value) }}
-            </strong>
-            <span class="text-[10px] font-semibold text-[var(--text-muted)] truncate">
-              {{ card.sub }}
-            </span>
+        </template>
+        <template v-else>
+          <div
+            v-for="card in metricCards"
+            :key="card.label"
+            class="min-h-14 rounded-lg border border-[var(--border-base)] bg-slate-50/60 dark:bg-white/[0.03] px-3 py-2"
+          >
+            <div
+              class="text-[10px] font-black uppercase tracking-wide text-[var(--text-muted)] truncate"
+            >
+              {{ card.label }}
+            </div>
+            <div class="mt-0.5 flex items-baseline gap-2 min-w-0">
+              <strong class="text-base font-black truncate" :class="toneClasses[card.tone]">
+                {{ formatValue(card.value) }}
+              </strong>
+              <span class="text-[10px] font-semibold text-[var(--text-muted)] truncate">
+                {{ card.sub }}
+              </span>
+            </div>
           </div>
-        </div>
+        </template>
       </div>
 
-      <div class="flex items-center gap-2 xl:w-[300px] xl:justify-end shrink-0">
+      <div
+        class="flex items-center gap-2 xl:w-[300px] xl:justify-end shrink-0"
+        :class="{ 'ml-auto xl:w-auto': compact }"
+      >
         <button
           v-if="primaryAction"
           type="button"
@@ -739,96 +765,129 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Bottom Command Grid (Includes loading skeletons) -->
     <div
-      v-if="managementInsights?.command"
+      v-if="!managementInsights || managementInsights?.command"
       class="ops-command-grid border-t border-[var(--border-base)] px-3 py-3"
     >
-      <div class="ops-score-block">
-        <div class="ops-score-ring" :style="healthDialStyle">
-          <div>
-            <strong>{{ managementInsights.overview.healthScore }}</strong>
-            <span>{{ getHealthLabel(managementInsights.overview.healthScore) }}</span>
-          </div>
-        </div>
-        <div class="min-w-0">
-          <div class="flex items-center gap-1.5 text-xs font-black text-[var(--text-primary)]">
-            <Gauge class="h-4 w-4 text-sky-500" />
-            后台态势
-          </div>
-          <p class="mt-1 text-[10px] leading-relaxed text-[var(--text-muted)]">
-            {{ managementInsights.command?.workloadTotal || 0 }} 个待处理负载，{{
-              managementInsights.overview.issueCount
-            }}
-            个风险信号
-          </p>
-        </div>
-      </div>
-
-      <div class="ops-control-list">
-        <button
-          v-for="metric in scopedControlMetrics.slice(0, 3)"
-          :key="metric.key"
-          type="button"
-          class="ops-control-item"
-          @click="openRoute(metric.route)"
-        >
-          <div class="flex items-center justify-between gap-3">
-            <span class="truncate text-[11px] font-black text-[var(--text-primary)]">{{
-              metric.label
-            }}</span>
-            <strong class="text-xs font-black" :class="controlToneClasses[metric.tone]"
-              >{{ metric.score }}%</strong
-            >
-          </div>
-          <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200/70 dark:bg-white/10">
-            <span
-              class="block h-full rounded-full"
-              :class="controlBarClasses[metric.tone]"
-              :style="{ width: clampPercent(metric.score) }"
-            ></span>
-          </div>
+      <template v-if="!managementInsights">
+        <!-- Skeleton for ops-score-block -->
+        <div class="ops-score-block animate-pulse">
           <div
-            class="mt-1 flex items-center justify-between gap-2 text-[10px] font-semibold text-[var(--text-muted)]"
+            class="ops-score-ring bg-slate-200 dark:bg-white/10 flex items-center justify-center"
           >
-            <span class="truncate">{{ metric.primary }}</span>
-            <span class="truncate">{{ metric.secondary }}</span>
+            <div class="h-6 w-6 rounded-full bg-slate-300 dark:bg-white/20"></div>
           </div>
-        </button>
-      </div>
+          <div class="space-y-1.5 flex-1">
+            <div class="h-3 w-16 bg-slate-200 dark:bg-white/10 rounded"></div>
+            <div class="h-2.5 w-24 bg-slate-200 dark:bg-white/10 rounded"></div>
+          </div>
+        </div>
+        <!-- Skeleton for ops-control-list -->
+        <div class="ops-control-list animate-pulse">
+          <div v-for="i in 3" :key="i" class="ops-control-item space-y-2">
+            <div class="h-3 w-20 bg-slate-200 dark:bg-white/10 rounded"></div>
+            <div class="h-1.5 w-full bg-slate-200 dark:bg-white/10 rounded-full"></div>
+            <div class="h-2.5 w-24 bg-slate-200 dark:bg-white/10 rounded"></div>
+          </div>
+        </div>
+        <!-- Skeleton for ops-workload-list -->
+        <div class="ops-workload-list animate-pulse">
+          <div v-for="i in 3" :key="i" class="ops-workload-item space-y-2">
+            <div class="h-3 w-20 bg-slate-200 dark:bg-white/10 rounded"></div>
+            <div class="h-1.5 w-full bg-slate-200 dark:bg-white/10 rounded-full"></div>
+            <div class="h-2.5 w-12 bg-slate-200 dark:bg-white/10 rounded"></div>
+          </div>
+        </div>
+      </template>
+      <template v-else>
+        <div class="ops-score-block">
+          <div class="ops-score-ring" :style="healthDialStyle">
+            <div>
+              <strong>{{ managementInsights.overview.healthScore }}</strong>
+              <span>{{ getHealthLabel(managementInsights.overview.healthScore) }}</span>
+            </div>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5 text-xs font-black text-[var(--text-primary)]">
+              <Gauge class="h-4 w-4 text-sky-500" />
+              后台态势
+            </div>
+            <p class="mt-1 text-[10px] leading-relaxed text-[var(--text-muted)]">
+              {{ managementInsights.command?.workloadTotal || 0 }} 个待处理负载，{{
+                managementInsights.overview.issueCount
+              }}
+              个风险信号
+            </p>
+          </div>
+        </div>
 
-      <div class="ops-workload-list">
-        <button
-          v-for="item in scopedWorkloadItems.slice(0, 3)"
-          :key="item.key"
-          type="button"
-          class="ops-workload-item"
-          @click="openRoute(item.route)"
-        >
-          <div class="flex items-center justify-between gap-3">
-            <span
-              class="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-black text-[var(--text-primary)]"
+        <div class="ops-control-list">
+          <button
+            v-for="metric in scopedControlMetrics.slice(0, 3)"
+            :key="metric.key"
+            type="button"
+            class="ops-control-item"
+            @click="openRoute(metric.route)"
+          >
+            <div class="flex items-center justify-between gap-3">
+              <span class="truncate text-[11px] font-black text-[var(--text-primary)]">{{
+                metric.label
+              }}</span>
+              <strong class="text-xs font-black" :class="controlToneClasses[metric.tone]"
+                >{{ metric.score }}%</strong
+              >
+            </div>
+            <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200/70 dark:bg-white/10">
+              <span
+                class="block h-full rounded-full"
+                :class="controlBarClasses[metric.tone]"
+                :style="{ width: clampPercent(metric.score) }"
+              ></span>
+            </div>
+            <div
+              class="mt-1 flex items-center justify-between gap-2 text-[10px] font-semibold text-[var(--text-muted)]"
             >
-              <Workflow class="h-3.5 w-3.5 shrink-0 text-slate-400" />
-              <span class="truncate">{{ item.label }}</span>
-            </span>
-            <span
-              class="rounded-md border px-1.5 py-0.5 text-[10px] font-black"
-              :class="workloadLevelClasses[item.level]"
-            >
-              {{ item.current }}
-            </span>
-          </div>
-          <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200/70 dark:bg-white/10">
-            <span
-              class="block h-full rounded-full bg-sky-500"
-              :style="{ width: workloadWidth(item) }"
-            ></span>
-          </div>
-          <p class="mt-1 text-[10px] font-semibold text-[var(--text-muted)]">
-            {{ item.overdue ? `${item.overdue} 个超时` : '队列可控' }}
-          </p>
-        </button>
-      </div>
+              <span class="truncate">{{ metric.primary }}</span>
+              <span class="truncate">{{ metric.secondary }}</span>
+            </div>
+          </button>
+        </div>
+
+        <div class="ops-workload-list">
+          <button
+            v-for="item in scopedWorkloadItems.slice(0, 3)"
+            :key="item.key"
+            type="button"
+            class="ops-workload-item"
+            @click="openRoute(item.route)"
+          >
+            <div class="flex items-center justify-between gap-3">
+              <span
+                class="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-black text-[var(--text-primary)]"
+              >
+                <Workflow class="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                <span class="truncate">{{ item.label }}</span>
+              </span>
+              <span
+                class="rounded-md border px-1.5 py-0.5 text-[10px] font-black"
+                :class="workloadLevelClasses[item.level]"
+              >
+                {{ item.current }}
+              </span>
+            </div>
+            <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200/70 dark:bg-white/10">
+              <span
+                class="block h-full rounded-full bg-sky-500"
+                :style="{ width: workloadWidth(item) }"
+              ></span>
+            </div>
+            <p class="mt-1 text-[10px] font-semibold text-[var(--text-muted)]">
+              {{ item.overdue ? `${item.overdue} 个超时` : '队列可控' }}
+            </p>
+          </button>
+        </div>
+      </template>
     </div>
 
     <div
@@ -935,13 +994,13 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Error Alert Footer (only visible when failed to load insights) -->
     <div
-      v-if="!managementInsights"
+      v-if="!managementInsights && managementInsightsError"
       class="px-3 pb-3 flex items-center gap-2 text-xs text-[var(--text-muted)]"
     >
-      <RefreshCw v-if="isLoadingManagementInsights" class="w-4 h-4 animate-spin text-sky-500" />
-      <AlertTriangle v-else class="w-4 h-4 text-amber-500" />
-      <span>{{ managementInsightsError || '正在加载后台运营数据...' }}</span>
+      <AlertTriangle class="w-4 h-4 text-amber-500" />
+      <span>{{ managementInsightsError }}</span>
     </div>
   </section>
 </template>
@@ -1058,5 +1117,15 @@ onMounted(() => {
     height: 60px;
     width: 60px;
   }
+}
+
+/* Compact mode overrides for narrow layout */
+.ops-panel-compact .ops-command-grid {
+  grid-template-columns: 1fr !important;
+}
+
+.ops-panel-compact .ops-control-list,
+.ops-panel-compact .ops-workload-list {
+  grid-template-columns: 1fr !important;
 }
 </style>

@@ -158,7 +158,6 @@
   position: relative;
 }
 
-
 /* Top nav tab active */
 .topbar-tab {
   position: relative;
@@ -290,8 +289,8 @@ html.theme-glass .glass-header {
 
 html.theme-glass .glass-sidebar {
   background: var(--glass-sidebar-bg, var(--glass-bg)) !important;
-  backdrop-filter: blur(10px) saturate(145%) !important;
-  -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
   border: var(--glass-border) !important;
   box-shadow: var(--glass-shadow) !important;
   transform: translateZ(0);
@@ -347,7 +346,7 @@ html.theme-glass .el-card,
 .theme-glass .dark\:bg-neutral-800,
 .theme-glass .dark\:bg-neutral-900,
 .theme-glass .dark\:bg-black,
-.theme-glass [style*="background-color: var(--bg-card)"] {
+.theme-glass [style*='background-color: var(--bg-card)'] {
   background: var(--glass-bg) !important;
   border: var(--glass-border) !important;
   box-shadow: var(--glass-shadow) !important;
@@ -414,9 +413,33 @@ html.dark.theme-glass .text-slate-400 {
   background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-/* Ensure the body remains solid to provide the base canvas */
+/* Ensure the body has the base canvas with premium mesh gradient blobs for glass themes */
 html.theme-glass body {
-  background-color: var(--bg-app) !important;
+  background: 
+    radial-gradient(at 0% 20%, rgba(245, 121, 42, 0.15) 0px, transparent 50%),
+    radial-gradient(at 90% 10%, rgba(59, 130, 246, 0.18) 0px, transparent 50%),
+    radial-gradient(at 0% 80%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+    radial-gradient(at 70% 80%, rgba(34, 197, 94, 0.1) 0px, transparent 50%),
+    var(--bg-app) !important;
+  background-attachment: fixed !important;
+  background-size: cover !important;
+}
+
+html.theme-glass.dark body,
+html.dark.theme-glass body {
+  background: 
+    radial-gradient(at 0% 20%, rgba(245, 121, 42, 0.15) 0px, transparent 50%),
+    radial-gradient(at 90% 10%, rgba(37, 99, 235, 0.22) 0px, transparent 50%),
+    radial-gradient(at 0% 80%, rgba(124, 58, 237, 0.15) 0px, transparent 50%),
+    radial-gradient(at 70% 80%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
+    var(--bg-app) !important;
+  background-attachment: fixed !important;
+  background-size: cover !important;
+}
+
+/* Override content surface background in glass mode so the body gradients show through */
+html.theme-glass .content-surface {
+  background: transparent !important;
 }
 
 /* Make all inner elements transparent so neon background blobs shine through */
@@ -645,19 +668,31 @@ html.dark.theme-glass .hover\:shadow-2xl:hover {
 
 /* Base Glassmorphism Panels and Primitives (available everywhere) */
 .glass-panel {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.76) 0%, rgba(255, 255, 255, 0.66) 100%) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.76) 0%,
+    rgba(255, 255, 255, 0.66) 100%
+  ) !important;
   backdrop-filter: blur(20px) saturate(190%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
   border: 1px solid rgba(255, 255, 255, 0.65) !important;
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.55), 0 8px 32px 0 rgba(31, 38, 135, 0.06) !important;
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.55),
+    0 8px 32px 0 rgba(31, 38, 135, 0.06) !important;
 }
 
 .dark .glass-panel {
-  background: linear-gradient(135deg, rgba(28, 35, 48, 0.88) 0%, rgba(18, 22, 30, 0.80) 100%) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(28, 35, 48, 0.88) 0%,
+    rgba(18, 22, 30, 0.8) 100%
+  ) !important;
   backdrop-filter: blur(20px) saturate(190%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.15), 0 12px 40px 0 rgba(0, 0, 0, 0.35) !important;
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.15),
+    0 12px 40px 0 rgba(0, 0, 0, 0.35) !important;
 }
 
 .glass-input {
@@ -700,7 +735,11 @@ html.dark.theme-glass .hover\:shadow-2xl:hover {
   border: 1px solid rgba(255, 255, 255, 0.5) !important;
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04) !important;
   border-radius: var(--radius-lg) !important;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition:
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .dark .glass-card {
@@ -750,8 +789,8 @@ html body .dark .subscription-btn:hover {
 .glass-card,
 .glass-sidebar,
 .glass-header,
-article[class*="backdrop-blur-"],
-div[class*="backdrop-blur-"] {
+article[class*='backdrop-blur-'],
+div[class*='backdrop-blur-'] {
   will-change: transform, opacity;
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;

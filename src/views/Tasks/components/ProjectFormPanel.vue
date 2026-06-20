@@ -400,7 +400,7 @@ defineExpose({
                   <button
                     v-if="m.role !== 'OWNER' && m.userId !== authStore.user?.id"
                     type="button"
-                    class="p-1 hover:text-rose-500 text-slate-400 rounded transition-all hover:bg-rose-55 dark:hover:bg-rose-500/10 bg-transparent border-none cursor-pointer"
+                    class="p-1 hover:text-rose-500 text-slate-400 rounded transition-all hover:bg-rose-50 dark:hover:bg-rose-500/10 bg-transparent border-none cursor-pointer"
                     :title="t('projects.removeMember')"
                     @click="handleRemoveMember(m.userId)"
                   >

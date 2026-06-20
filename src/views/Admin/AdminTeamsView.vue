@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { formatDate, formatDateTime } from '@/utils/format';
+import { formatDate } from '@/utils/format';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import {
-  AlertTriangle,
-  BarChart3,
   Boxes,
   Briefcase,
   CheckCircle2,
-  Clock,
+  ClipboardList,
   Download,
   Edit3,
   Eye,
@@ -28,12 +26,13 @@ import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useWorkspaceStore } from '@/stores/workspace';
-import AdminOpsPanel from './components/AdminOpsPanel.vue';
-import AdminTeamDetailDrawer from './components/AdminTeamDetailDrawer.vue';
+import AdminTeamDetailDialog from './components/AdminTeamDetailDialog.vue';
 import AdminTeamFormDialog from './components/AdminTeamFormDialog.vue';
 import Modal from '@/components/ui/Modal.vue';
 import UiButton from '@/components/ui/Button.vue';
-import UiInput from '@/components/ui/Input.vue';
+import Card from '@/components/ui/Card.vue';
+import Badge from '@/components/ui/Badge.vue';
+import PageHeader from '@/components/PageHeader.vue';
 
 export type TeamVisibility = 'PUBLIC' | 'PRIVATE';
 type VisibilityFilter = 'ALL' | TeamVisibility;
@@ -320,7 +319,7 @@ const sortOrder = ref<SortOrder>('desc');
 const selectedIds = ref<string[]>([]);
 const selectedTeam = ref<AdminTeam | null>(null);
 const selectedTeamDetail = ref<TeamDetailResponse | null>(null);
-const detailDrawerVisible = ref(false);
+const detailDialogVisible = ref(false);
 const detailTab = ref<'overview' | 'members' | 'pending' | 'activity'>('overview');
 const teamDialogVisible = ref(false);
 const addMemberDialogVisible = ref(false);
@@ -430,6 +429,12 @@ const riskClass = (level?: string) => ({
   'tone-green': !level || level === 'LOW',
 });
 
+const scoreToneClass = (score?: number) => ({
+  'tone-red': (score || 0) < 60,
+  'tone-amber': (score || 0) >= 60 && (score || 0) < 80,
+  'tone-green': (score || 0) >= 80,
+});
+
 const scoreClass = (score?: number) => ({
   'score-red': (score || 0) < 60,
   'score-amber': (score || 0) >= 60 && (score || 0) < 80,
@@ -467,48 +472,85 @@ const attentionTeams = computed(() =>
     .slice(0, 6),
 );
 
-const quickStats = computed(() => [
-  {
-    key: 'teams',
-    label: '团队',
-    value: summary.value.totalTeams,
-    sub: `${summary.value.publicTeams} 公开 / ${summary.value.privateTeams} 私有`,
-    icon: Briefcase,
-    tone: 'blue',
-  },
-  {
-    key: 'members',
-    label: '成员',
-    value: summary.value.totalMembers,
-    sub: `${summary.value.totalProjects} 项目协作中`,
-    icon: Users,
-    tone: 'green',
-  },
-  {
-    key: 'resources',
-    label: '资源',
-    value: summary.value.totalResources,
-    sub: `${summary.value.totalAssets} 资产 / ${summary.value.totalMaterials} 材质 / ${summary.value.totalShowcases} 作品`,
-    icon: Boxes,
-    tone: 'purple',
-  },
-  {
-    key: 'tasks',
-    label: '任务',
-    value: summary.value.totalTasks,
-    sub: `${summary.value.overdueTeams} 个团队存在逾期`,
-    icon: CheckCircle2,
-    tone: summary.value.overdueTeams ? 'amber' : 'green',
-  },
-  {
-    key: 'pending',
-    label: '待处理',
-    value: totalPending.value,
-    sub: `${summary.value.pendingApplications} 申请 / ${summary.value.pendingInvitations} 邀请`,
-    icon: AlertTriangle,
-    tone: totalPending.value ? 'amber' : 'green',
-  },
-]);
+const getBadgeVariant = (label: string) => {
+  if (label === '正常' || label === '稳定' || label === '低风险' || label === '丰富')
+    return 'success';
+  if (label === '关注' || label === '需关注' || label === '存在逾期') return 'warning';
+  if (label === '高压' || label === '高风险') return 'danger';
+  return 'primary';
+};
+
+const averageHealth = computed(() => {
+  if (teams.value.length === 0) return 100;
+  const sum = teams.value.reduce((acc, t) => acc + (t.metrics?.healthScore ?? 100), 0);
+  return Math.round(sum / teams.value.length);
+});
+
+const consolidatedCards = computed(() => {
+  const sumVal = summary.value;
+  return [
+    {
+      label: '全站团队规模',
+      value: sumVal.totalTeams,
+      hint: `${sumVal.publicTeams} 公开 · ${sumVal.privateTeams} 私有`,
+      icon: Briefcase,
+      color: 'text-sky-600 bg-sky-500/10 border-sky-500/20',
+      health: { label: '正常', variant: 'success' as const },
+    },
+    {
+      label: '协作成员覆盖',
+      value: sumVal.totalMembers,
+      hint: `活动项目 ${sumVal.totalProjects} · 平均健康 ${averageHealth.value}分`,
+      icon: Users,
+      color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      health:
+        averageHealth.value < 70
+          ? { label: '关注', variant: 'warning' as const }
+          : { label: '稳定', variant: 'success' as const },
+    },
+    {
+      label: '内容资产沉淀',
+      value: sumVal.totalResources,
+      hint: `${sumVal.totalAssets} 资产 · ${sumVal.totalMaterials} 材质 · ${sumVal.totalShowcases} 作品`,
+      icon: Boxes,
+      color: 'text-purple-600 bg-purple-500/10 border-purple-500/20',
+      health: { label: '丰富', variant: 'success' as const },
+    },
+    {
+      label: '项目任务状态',
+      value: sumVal.totalTasks,
+      hint: `逾期团队 ${sumVal.overdueTeams} · 待处理 ${totalPending.value}`,
+      icon: CheckCircle2,
+      color: sumVal.overdueTeams
+        ? 'text-amber-600 bg-amber-500/10 border-amber-500/20'
+        : 'text-green-600 bg-green-500/10 border-green-500/20',
+      health: sumVal.overdueTeams
+        ? { label: '存在逾期', variant: 'warning' as const }
+        : { label: '稳定', variant: 'success' as const },
+    },
+  ];
+});
+
+const visibilityOptions = [
+  { value: 'ALL', label: '全部公开性' },
+  { value: 'PUBLIC', label: '公开' },
+  { value: 'PRIVATE', label: '私有' },
+];
+
+const riskOptions = [
+  { value: 'ALL', label: '全部状态' },
+  { value: 'PENDING', label: '有待处理' },
+  { value: 'OVERDUE', label: '存在逾期' },
+  { value: 'UNASSIGNED', label: '未分配任务' },
+  { value: 'EMPTY', label: '空团队' },
+];
+
+const sortOptions = [
+  { value: 'createdAt', label: '创建时间' },
+  { value: 'updatedAt', label: '最近更新' },
+  { value: 'name', label: '团队名称' },
+  { value: 'health', label: '健康分' },
+];
 
 const detailTeam = computed(() => selectedTeamDetail.value?.team || selectedTeam.value);
 const detailCounts = computed(() => selectedTeamDetail.value?.counts);
@@ -587,7 +629,7 @@ const fetchTeams = async (page = pagination.value.page) => {
       teams.value.some((team) => team.id === id),
     );
 
-    if (detailDrawerVisible.value && detailTeam.value) {
+    if (detailDialogVisible.value && detailTeam.value) {
       const fresh = teams.value.find((team) => team.id === detailTeam.value?.id);
       if (fresh) selectedTeam.value = fresh;
     }
@@ -612,7 +654,7 @@ const fetchTeamDetail = async (teamId: string) => {
 
 const refreshAll = async () => {
   await Promise.all([fetchTeams(), fetchUsers()]);
-  if (detailDrawerVisible.value && detailTeam.value) {
+  if (detailDialogVisible.value && detailTeam.value) {
     await fetchTeamDetail(detailTeam.value.id);
   }
 };
@@ -621,7 +663,7 @@ const openDetail = async (team: AdminTeam) => {
   selectedTeam.value = team;
   selectedTeamDetail.value = null;
   detailTab.value = 'overview';
-  detailDrawerVisible.value = true;
+  detailDialogVisible.value = true;
   await fetchTeamDetail(team.id);
 };
 
@@ -699,7 +741,7 @@ const handleSubmit = async () => {
 
     teamDialogVisible.value = false;
     await fetchTeams(modalMode.value === 'create' ? 1 : pagination.value.page);
-    if (detailDrawerVisible.value && form.value.id) await fetchTeamDetail(form.value.id);
+    if (detailDialogVisible.value && form.value.id) await fetchTeamDetail(form.value.id);
     workspaceStore.fetchWorkspaces();
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, '操作失败'));
@@ -722,7 +764,7 @@ const deleteTeam = async (team: AdminTeam) => {
     );
     await api.delete(`/api/admin/teams/${team.id}`);
     ElMessage.success('团队已解散');
-    if (detailTeam.value?.id === team.id) detailDrawerVisible.value = false;
+    if (detailTeam.value?.id === team.id) detailDialogVisible.value = false;
     await fetchTeams();
     workspaceStore.fetchWorkspaces();
   } catch (error) {
@@ -790,7 +832,7 @@ const handleBatchDelete = async () => {
     await api.delete('/api/admin/teams/batch', { data: { ids: selectedIds.value } });
     ElMessage.success('批量解散完成');
     selectedIds.value = [];
-    detailDrawerVisible.value = false;
+    detailDialogVisible.value = false;
     await fetchTeams();
     workspaceStore.fetchWorkspaces();
   } catch (error) {
@@ -933,375 +975,395 @@ onUnmounted(() => {
   window.removeEventListener('resize', updateMobileStatus);
 });
 
-void quickStats.value;
+void consolidatedCards.value;
 </script>
 
 <template>
-  <div class="admin-teams-page">
-    <header class="page-header">
-      <div class="header-copy">
-        <p class="eyebrow">用户与团队</p>
-        <h1>团队管理</h1>
-        <div class="header-meta">
-          <span>{{ compactNumber(summary.filteredTeams) }} 个结果</span>
-          <span>{{ compactNumber(summary.totalMembers) }} 名成员</span>
-          <span>{{ compactNumber(totalPending) }} 个待处理</span>
-        </div>
-      </div>
-      <div class="header-actions">
-        <UiButton variant="secondary" :icon="RefreshCw" :loading="isLoading" @click="refreshAll">刷新</UiButton>
-        <UiButton variant="secondary" :icon="Download" @click="exportCsv">导出</UiButton>
-        <UiButton variant="primary" :icon="Plus" @click="openCreateModal">新建团队</UiButton>
-      </div>
-    </header>
+  <div class="admin-teams-page flex flex-1 min-h-0 flex-col overflow-hidden">
+    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
+      <PageHeader
+        title="团队管理"
+        subtitle="全站团队组织、协作规范及数据资产的合规统计与治理"
+        variant="card"
+      >
+        <template #center>
+          <div class="flex flex-wrap items-center gap-1.5 ml-2">
+            <Badge variant="info">团队数: {{ compactNumber(summary.totalTeams) }}</Badge>
+            <Badge variant="info">成员数: {{ compactNumber(summary.totalMembers) }}</Badge>
+            <Badge variant="info">待处理: {{ compactNumber(totalPending) }}</Badge>
+          </div>
+        </template>
 
-    <AdminOpsPanel scope="teams" />
-
-    <section class="control-panel">
-      <UiInput
-        v-model="searchQuery"
-        :icon="Search"
-        placeholder="搜索团队、负责人、分类"
-        :glass="false"
-        class="max-w-[360px]"
-      />
-
-      <div class="filter-row">
-        <div class="segmented">
-          <button
-            type="button"
-            :class="{ active: visibilityFilter === 'ALL' }"
-            @click="visibilityFilter = 'ALL'"
-          >
-            全部
-          </button>
-          <button
-            type="button"
-            :class="{ active: visibilityFilter === 'PUBLIC' }"
-            @click="visibilityFilter = 'PUBLIC'"
-          >
-            公开
-          </button>
-          <button
-            type="button"
-            :class="{ active: visibilityFilter === 'PRIVATE' }"
-            @click="visibilityFilter = 'PRIVATE'"
-          >
-            私有
-          </button>
-        </div>
-
-        <select v-model="riskFilter" class="control-select">
-          <option value="ALL">全部状态</option>
-          <option value="PENDING">有待处理</option>
-          <option value="OVERDUE">存在逾期</option>
-          <option value="UNASSIGNED">未分配任务</option>
-          <option value="EMPTY">空团队</option>
-        </select>
-
-        <select v-model="categoryFilter" class="control-select">
-          <option value="">全部分类</option>
-          <option v-for="category in categories" :key="category" :value="category">
-            {{ category }}
-          </option>
-        </select>
-
-        <select v-model="sortBy" class="control-select compact">
-          <option value="createdAt">创建时间</option>
-          <option value="updatedAt">最近更新</option>
-          <option value="name">团队名称</option>
-          <option value="health">健康分</option>
-        </select>
-
-        <button
-          type="button"
-          class="icon-toggle"
-          :title="sortOrder === 'desc' ? '降序' : '升序'"
-          @click="sortOrder = sortOrder === 'desc' ? 'asc' : 'desc'"
+        <UiButton
+          variant="secondary"
+          size="sm"
+          :icon="RefreshCw"
+          :loading="isLoading"
+          @click="refreshAll"
         >
-          <BarChart3 :class="{ flipped: sortOrder === 'asc' }" />
-        </button>
-      </div>
-    </section>
-
-    <section v-if="selectedIds.length" class="batch-bar">
-      <span>已选择 {{ selectedIds.length }} 个团队</span>
-      <div class="batch-actions">
-        <UiButton variant="secondary" :icon="Globe" @click="handleBatchVisibility('PUBLIC')">设为公开</UiButton>
-        <UiButton variant="secondary" :icon="Lock" @click="handleBatchVisibility('PRIVATE')">设为私有</UiButton>
-        <UiButton variant="secondary" :icon="Layers" @click="handleBatchCategory">分类</UiButton>
-        <UiButton variant="danger" :icon="Trash2" @click="handleBatchDelete">解散</UiButton>
-      </div>
-    </section>
-
-    <main class="content-grid">
-      <section class="table-panel">
-        <div v-if="isLoading" class="loading-state">
-          <RefreshCw class="spinning" />
-          <span>正在同步团队数据</span>
-        </div>
-
-        <div v-else class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th class="select-col">
-                  <input type="checkbox" :checked="allPageSelected" @change="toggleSelectAll" />
-                </th>
-                <th>团队</th>
-                <th>负责人</th>
-                <th>健康</th>
-                <th>协作规模</th>
-                <th>内容资产</th>
-                <th>待处理</th>
-                <th>最近活动</th>
-                <th class="right-cell">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="team in teams"
-                :key="team.id"
-                :class="{ selected: selectedIds.includes(team.id) }"
-                @click="openDetail(team)"
+          刷新
+        </UiButton>
+        <UiButton variant="secondary" size="sm" :icon="Download" @click="exportCsv">
+          导出
+        </UiButton>
+        <UiButton variant="primary" size="sm" :icon="Plus" @click="openCreateModal">
+          新建团队
+        </UiButton>
+      </PageHeader>
+      <!-- Top KPI metrics grid (Horizontal compact) -->
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        <Card
+          v-for="card in consolidatedCards"
+          :key="card.label"
+          hoverable
+          glow
+          class="group !p-2 px-2.5"
+        >
+          <div class="flex items-center justify-between w-full gap-3">
+            <!-- Left: Icon & Info -->
+            <div class="flex items-center gap-2 min-w-0">
+              <span
+                class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                :class="card.color"
               >
-                <td class="select-col" @click.stop>
+                <component :is="card.icon" class="h-3.5 w-3.5" />
+              </span>
+              <div class="min-w-0">
+                <p
+                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
+                >
+                  {{ card.label }}
+                </p>
+                <p
+                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
+                  :title="card.hint"
+                >
+                  {{ card.hint }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Right: Metric & Health Badge -->
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-base font-black text-[var(--text-primary)] leading-none">
+                {{ card.value.toLocaleString() }}
+              </span>
+              <Badge :variant="getBadgeVariant(card.health.label)">
+                {{ card.health.label }}
+              </Badge>
+            </div>
+          </div>
+        </Card>
+      </section>
+
+      <Card padding="sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 w-full">
+          <!-- Left empty helper for desktop centering -->
+          <div class="hidden md:block flex-1 min-w-0"></div>
+
+          <!-- Center: Search Box -->
+          <div class="flex justify-center md:flex-initial w-full md:w-auto">
+            <label class="search-box !min-h-0 !h-8 w-full md:w-64 shrink-0">
+              <Search />
+              <input v-model="searchQuery" placeholder="搜索团队、负责人、分类..." type="search" />
+            </label>
+          </div>
+
+          <!-- Right: Filters -->
+          <div class="flex justify-end flex-1 w-full md:w-auto">
+            <div class="filter-row flex items-center gap-2 flex-wrap justify-end">
+              <el-select v-model="visibilityFilter" size="small" style="width: 110px">
+                <el-option
+                  v-for="option in visibilityOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+
+              <el-select v-model="riskFilter" size="small" style="width: 120px">
+                <el-option
+                  v-for="option in riskOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+
+              <el-select v-model="categoryFilter" size="small" style="width: 110px">
+                <el-option label="全部分类" value="" />
+                <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
+              </el-select>
+
+              <el-select v-model="sortBy" size="small" style="width: 110px">
+                <el-option
+                  v-for="option in sortOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <section v-if="selectedIds.length" class="batch-bar">
+        <span>已选择 {{ selectedIds.length }} 个团队</span>
+        <div class="batch-actions">
+          <UiButton variant="secondary" :icon="Globe" @click="handleBatchVisibility('PUBLIC')"
+            >设为公开</UiButton
+          >
+          <UiButton variant="secondary" :icon="Lock" @click="handleBatchVisibility('PRIVATE')"
+            >设为私有</UiButton
+          >
+          <UiButton variant="secondary" :icon="Layers" @click="handleBatchCategory">分类</UiButton>
+          <UiButton variant="danger" :icon="Trash2" @click="handleBatchDelete">解散</UiButton>
+        </div>
+      </section>
+
+      <div class="content-grid">
+        <Card padding="none" class="table-shell-card overflow-hidden">
+          <div class="table-wrap flex-1 min-h-0 overflow-auto">
+            <el-table
+              v-loading="isLoading"
+              :data="teams"
+              class="user-table w-full"
+              row-class-name="table-row"
+              @row-click="openDetail"
+            >
+              <el-table-column width="48">
+                <template #header>
                   <input
                     type="checkbox"
-                    :checked="selectedIds.includes(team.id)"
-                    @change="toggleSelect(team.id)"
+                    :checked="allPageSelected"
+                    @change="toggleSelectAll"
+                    @click.stop
                   />
-                </td>
-                <td>
-                  <div class="team-cell">
-                    <div class="team-avatar">
-                      <img v-if="team.avatarUrl" :src="team.avatarUrl" alt="" />
-                      <Briefcase v-else />
-                    </div>
-                    <span>
-                      <strong>{{ team.name }}</strong>
-                      <small>{{ team.category || team.description || '未设置分类' }}</small>
-                    </span>
-                  </div>
-                </td>
-                <td>
-                  <div class="owner-cell">
-                    <UserAvatar :user="team.owner" size="xs" />
-                    <span>{{ ownerName(team.owner) }}</span>
-                  </div>
-                </td>
-                <td>
-                  <div class="health-cell">
-                    <strong :class="scoreClass(team.metrics?.healthScore)">
-                      {{ team.metrics?.healthScore ?? 100 }}
-                    </strong>
-                    <span class="mini-bar">
-                      <i
-                        :class="scoreClass(team.metrics?.healthScore)"
-                        :style="{ width: `${team.metrics?.healthScore ?? 100}%` }"
+                </template>
+                <template #default="{ row }">
+                  <input
+                    type="checkbox"
+                    :checked="selectedIds.includes(row.id)"
+                    @change="toggleSelect(row.id)"
+                    @click.stop
+                  />
+                </template>
+              </el-table-column>
+
+              <el-table-column label="团队" min-width="220">
+                <template #default="{ row }">
+                  <div class="team-cell flex items-center gap-2.5">
+                    <div
+                      class="team-avatar w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-purple-50 text-[var(--accent)] border border-purple-100 dark:bg-white/5 dark:border-white/10"
+                    >
+                      <img
+                        v-if="row.avatarUrl"
+                        :src="row.avatarUrl"
+                        alt=""
+                        class="w-full h-full object-cover"
                       />
-                    </span>
-                    <small :class="riskClass(team.metrics?.riskLevel)">{{
-                      riskLabel(team.metrics?.riskLevel)
-                    }}</small>
+                      <Briefcase v-else class="w-4 h-4 text-purple-500" />
+                    </div>
+                    <div class="min-w-0">
+                      <strong class="text-sm font-bold truncate text-[var(--text-primary)] block">{{
+                        row.name
+                      }}</strong>
+                      <small
+                        class="text-[11px] text-[var(--text-secondary)] truncate block mt-0.5"
+                        >{{ row.category || row.description || '未分类' }}</small
+                      >
+                    </div>
                   </div>
-                </td>
-                <td>
-                  <div class="dense-metrics">
-                    <span><Users />{{ team._count?.members || 0 }} 人</span>
-                    <span><Shield />{{ team.metrics?.admins || 0 }} 管理</span>
-                    <span><CheckCircle2 />{{ team.metrics?.completionRate || 0 }}%</span>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="负责人" width="160">
+                <template #default="{ row }">
+                  <div class="owner-cell flex items-center gap-2">
+                    <UserAvatar :user="row.owner" size="xs" />
+                    <span class="text-sm font-semibold text-[var(--text-primary)] truncate">{{
+                      ownerName(row.owner)
+                    }}</span>
                   </div>
-                </td>
-                <td>
-                  <div class="dense-metrics">
-                    <span><Briefcase />{{ team._count?.projects || 0 }} 项目</span>
-                    <span><CheckCircle2 />{{ team._count?.tasks || 0 }} 任务</span>
-                    <span><Boxes />{{ team.metrics?.resourceTotal || 0 }} 资源</span>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="健康" width="150">
+                <template #default="{ row }">
+                  <div class="health-cell flex flex-col gap-1.5 w-full pr-2">
+                    <div class="flex items-center justify-between gap-1 text-xs">
+                      <span
+                        class="pill text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none shrink-0"
+                        :class="scoreToneClass(row.metrics?.healthScore)"
+                      >
+                        {{ row.metrics?.healthScore ?? 100 }}分
+                      </span>
+                      <span
+                        class="pill text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none shrink-0"
+                        :class="riskClass(row.metrics?.riskLevel)"
+                      >
+                        {{ riskLabel(row.metrics?.riskLevel) }}
+                      </span>
+                    </div>
+                    <div
+                      class="w-full h-1 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden"
+                    >
+                      <div
+                        class="h-full rounded-full"
+                        :class="scoreClass(row.metrics?.healthScore)"
+                        :style="{ width: `${row.metrics?.healthScore ?? 100}%` }"
+                      ></div>
+                    </div>
                   </div>
-                </td>
-                <td>
-                  <div class="pending-cell">
+                </template>
+              </el-table-column>
+
+              <el-table-column label="协作规模" width="180">
+                <template #default="{ row }">
+                  <div
+                    class="dense-metrics flex items-center gap-3 text-xs text-[var(--text-secondary)]"
+                  >
+                    <span class="inline-flex items-center gap-1" title="成员数量"
+                      ><Users class="w-3.5 h-3.5 text-slate-400" />{{
+                        row._count?.members || 0
+                      }}</span
+                    >
+                    <span class="inline-flex items-center gap-1" title="管理员数量"
+                      ><Shield class="w-3.5 h-3.5 text-slate-400" />{{
+                        row.metrics?.admins || 0
+                      }}</span
+                    >
+                    <span class="inline-flex items-center gap-1" title="完成率"
+                      ><CheckCircle2 class="w-3.5 h-3.5 text-slate-400" />{{
+                        row.metrics?.completionRate || 0
+                      }}%</span
+                    >
+                  </div>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="内容资产" width="180">
+                <template #default="{ row }">
+                  <div
+                    class="dense-metrics flex items-center gap-3 text-xs text-[var(--text-secondary)]"
+                  >
+                    <span class="inline-flex items-center gap-1" title="项目数"
+                      ><Briefcase class="w-3.5 h-3.5 text-slate-400" />{{
+                        row._count?.projects || 0
+                      }}</span
+                    >
+                    <span class="inline-flex items-center gap-1" title="任务数"
+                      ><ClipboardList class="w-3.5 h-3.5 text-slate-400" />{{
+                        row._count?.tasks || 0
+                      }}</span
+                    >
+                    <span class="inline-flex items-center gap-1" title="资源总数"
+                      ><Boxes class="w-3.5 h-3.5 text-slate-400" />{{
+                        row.metrics?.resourceTotal || 0
+                      }}</span
+                    >
+                  </div>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="待处理" width="150">
+                <template #default="{ row }">
+                  <div class="flex items-center gap-2">
                     <span
-                      class="pill"
+                      class="pill text-xs px-1.5 py-0.5 font-bold"
                       :class="
-                        (team.metrics?.pendingApplications || 0) +
-                          (team.metrics?.pendingInvitations || 0) >
+                        (row.metrics?.pendingApplications || 0) +
+                          (row.metrics?.pendingInvitations || 0) >
                         0
                           ? 'tone-amber'
                           : 'tone-green'
                       "
                     >
                       {{
-                        (team.metrics?.pendingApplications || 0) +
-                        (team.metrics?.pendingInvitations || 0)
+                        (row.metrics?.pendingApplications || 0) +
+                        (row.metrics?.pendingInvitations || 0)
                       }}
+                      申请
                     </span>
-                    <small
-                      >{{ team.metrics?.overdueTasks || 0 }} 逾期 /
-                      {{ team.metrics?.unassignedTasks || 0 }} 未分配</small
+                    <span class="text-[11px] text-[var(--text-secondary)]">
+                      {{ row.metrics?.overdueTasks || 0 }} 逾期
+                    </span>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="最近活动" min-width="150">
+                <template #default="{ row }">
+                  <div class="flex flex-col gap-0.5 text-xs">
+                    <span class="font-bold text-[var(--text-primary)]">{{
+                      relativeTime(row.metrics?.lastActivityAt || row.updatedAt)
+                    }}</span>
+                    <span
+                      class="flex items-center gap-1 text-[11px] text-[var(--text-secondary)] mt-0.5"
                     >
+                      <component
+                        :is="row.visibility === 'PUBLIC' ? Globe : Lock"
+                        class="w-3 h-3 text-slate-400"
+                      />
+                      {{ visibilityLabel(row.visibility) }}
+                    </span>
                   </div>
-                </td>
-                <td>
-                  <div class="activity-cell">
-                    <span>{{ relativeTime(team.metrics?.lastActivityAt || team.updatedAt) }}</span>
-                    <small>
-                      <Globe v-if="team.visibility === 'PUBLIC'" />
-                      <Lock v-else />
-                      {{ visibilityLabel(team.visibility) }}
-                    </small>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="操作" width="80" align="right">
+                <template #default="{ row }">
+                  <div @click.stop>
+                    <el-dropdown trigger="click">
+                      <button
+                        type="button"
+                        class="icon-btn p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+                      >
+                        <MoreHorizontal class="w-4 h-4 text-slate-500" />
+                      </button>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item @click="openDetail(row)">
+                            <Eye class="dropdown-icon" /> 查看详情
+                          </el-dropdown-item>
+                          <el-dropdown-item @click="openEditModal(row)">
+                            <Edit3 class="dropdown-icon" /> 编辑团队
+                          </el-dropdown-item>
+                          <el-dropdown-item @click="openAddMemberDialog(row)">
+                            <UserPlus class="dropdown-icon" /> 添加成员
+                          </el-dropdown-item>
+                          <el-dropdown-item divided @click="deleteTeam(row)">
+                            <Trash2 class="dropdown-icon danger" /> 解散团队
+                          </el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
                   </div>
-                </td>
-                <td class="right-cell" @click.stop>
-                  <el-dropdown trigger="click">
-                    <button type="button" class="icon-btn"><MoreHorizontal /></button>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item @click="openDetail(team)">
-                          <Eye class="dropdown-icon" /> 查看详情
-                        </el-dropdown-item>
-                        <el-dropdown-item @click="openEditModal(team)">
-                          <Edit3 class="dropdown-icon" /> 编辑团队
-                        </el-dropdown-item>
-                        <el-dropdown-item @click="openAddMemberDialog(team)">
-                          <UserPlus class="dropdown-icon" /> 添加成员
-                        </el-dropdown-item>
-                        <el-dropdown-item divided @click="deleteTeam(team)">
-                          <Trash2 class="dropdown-icon danger" /> 解散团队
-                        </el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div v-if="teams.length === 0" class="empty-state">
-            <Search />
-            <strong>没有匹配的团队</strong>
-            <span>调整筛选条件后再试一次。</span>
+                </template>
+              </el-table-column>
+            </el-table>
           </div>
-        </div>
 
-        <footer class="pagination-bar">
-          <span>
-            第 {{ pagination.page }} / {{ pagination.totalPages }} 页，{{ pagination.total }} 条
-          </span>
-          <div class="pagination-actions">
-            <select v-model.number="pagination.limit" @change="fetchTeams(1)">
-              <option :value="20">20 条</option>
-              <option :value="30">30 条</option>
-              <option :value="50">50 条</option>
-              <option :value="100">100 条</option>
-            </select>
-            <UiButton
-              variant="secondary"
-              :disabled="pagination.page <= 1"
-              @click="setPage(pagination.page - 1)"
-            >
-              上一页
-            </UiButton>
-            <UiButton
-              variant="secondary"
-              :disabled="pagination.page >= pagination.totalPages"
-              @click="setPage(pagination.page + 1)"
-            >
-              下一页
-            </UiButton>
-          </div>
-        </footer>
-      </section>
-
-      <aside class="side-panel">
-        <section class="side-section">
-          <div class="side-head">
-            <h2>待处理队列</h2>
-            <span>{{ totalPending }}</span>
-          </div>
-          <button type="button" class="queue-item" @click="riskFilter = 'PENDING'">
-            <AlertTriangle />
-            <span>
-              <strong>{{ summary.pendingApplications }} 个加入申请</strong>
-              <small>{{ summary.pendingInvitations }} 个邀请等待确认</small>
-            </span>
-          </button>
-          <button type="button" class="queue-item" @click="riskFilter = 'OVERDUE'">
-            <Clock />
-            <span>
-              <strong>{{ summary.overdueTeams }} 个团队存在逾期</strong>
-              <small>优先检查任务负责人和截止时间</small>
-            </span>
-          </button>
-          <button type="button" class="queue-item" @click="riskFilter = 'EMPTY'">
-            <Layers />
-            <span>
-              <strong>{{ summary.emptyTeams }} 个空团队</strong>
-              <small>可归档、补充资源或合并管理</small>
-            </span>
-          </button>
-        </section>
-
-        <section class="side-section">
-          <div class="side-head">
-            <h2>本页风险团队</h2>
-            <span>{{ attentionTeams.length }}</span>
-          </div>
-          <button
-            v-for="team in attentionTeams"
-            :key="team.id"
-            type="button"
-            class="risk-team"
-            @click="openDetail(team)"
+          <div
+            class="pagination-wrap mt-4 flex items-center justify-between p-3 border-t border-slate-100 dark:border-white/5 bg-white/40 dark:bg-transparent"
           >
-            <span class="risk-score" :class="scoreClass(team.metrics?.healthScore)">
-              {{ team.metrics?.healthScore || 0 }}
-            </span>
-            <span>
-              <strong>{{ team.name }}</strong>
-              <small>
-                {{ team.metrics?.overdueTasks || 0 }} 逾期 /
-                {{ team.metrics?.pendingApplications || 0 }} 申请 /
-                {{ team.metrics?.unassignedTasks || 0 }} 未分配
-              </small>
-            </span>
-          </button>
-          <div v-if="attentionTeams.length === 0" class="quiet-state">
-            <CheckCircle2 />
-            <span>本页团队状态稳定</span>
+            <el-pagination
+              v-model:current-page="pagination.page"
+              v-model:page-size="pagination.limit"
+              :page-sizes="[20, 30, 50, 100]"
+              :total="pagination.total"
+              layout="total, sizes, prev, pager, next"
+              @current-change="fetchTeams"
+              @size-change="fetchTeams(1)"
+            />
           </div>
-        </section>
-
-        <section class="side-section">
-          <div class="side-head">
-            <h2>运营视图</h2>
-            <span>{{ categories.length }}</span>
-          </div>
-          <div class="mini-grid">
-            <button type="button" @click="visibilityFilter = 'PUBLIC'">
-              <strong>{{ summary.publicTeams }}</strong>
-              <span>公开团队</span>
-            </button>
-            <button type="button" @click="visibilityFilter = 'PRIVATE'">
-              <strong>{{ summary.privateTeams }}</strong>
-              <span>私有团队</span>
-            </button>
-            <button type="button" @click="riskFilter = 'UNASSIGNED'">
-              <strong>{{ compactNumber(summary.totalTasks) }}</strong>
-              <span>任务池</span>
-            </button>
-            <button type="button" @click="categoryFilter = ''">
-              <strong>{{ compactNumber(summary.totalResources) }}</strong>
-              <span>资源池</span>
-            </button>
-          </div>
-        </section>
-      </aside>
+        </Card>
+      </div>
     </main>
 
-    <AdminTeamDetailDrawer
-      v-model="detailDrawerVisible"
+    <AdminTeamDetailDialog
+      v-model="detailDialogVisible"
       :team="selectedTeam"
       :detail="selectedTeamDetail"
       :is-detail-loading="isDetailLoading"
@@ -1374,19 +1436,11 @@ void quickStats.value;
 
 <style scoped>
 .admin-teams-page {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  background: #f4f7fb;
+  min-height: 0;
+  background: transparent;
   color: #0f172a;
 }
 
-.page-header,
-.control-panel,
-.table-panel,
-.side-panel,
 .batch-bar {
   border: 1px solid #e5eaf3;
   border-radius: 8px;
@@ -1516,78 +1570,6 @@ button svg {
   height: 16px;
 }
 
-.metric-strip {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.metric-tile {
-  min-height: 54px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 8px 10px;
-  border: 1px solid #e8eef5;
-  border-radius: 8px;
-  background: #ffffff;
-  overflow: hidden;
-}
-
-.metric-tile > svg {
-  width: 22px;
-  height: 22px;
-  flex: 0 0 auto;
-}
-
-.metric-tile div {
-  min-width: 0;
-}
-
-.metric-tile span,
-.metric-tile small {
-  display: block;
-  color: #64748b;
-  font-size: 10px;
-  font-weight: 800;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.metric-tile strong {
-  display: block;
-  margin-top: 1px;
-  color: #0f172a;
-  font-size: 19px;
-  line-height: 1;
-  font-weight: 900;
-}
-
-.tile-blue > svg {
-  color: #2563eb;
-}
-
-.tile-green > svg {
-  color: #059669;
-}
-
-.tile-purple > svg {
-  color: #7c3aed;
-}
-
-.tile-amber > svg {
-  color: #d97706;
-}
-
-.control-panel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px;
-}
-
 .search-box {
   width: min(360px, 100%);
   height: 34px;
@@ -1599,6 +1581,18 @@ button svg {
   border-radius: 8px;
   background: #f8fafc;
   color: #64748b;
+}
+
+.search-box svg {
+  width: 14px;
+  height: 14px;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.search-box input {
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .search-box input,
@@ -1694,72 +1688,18 @@ button svg {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
-.table-panel {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+.table-shell-card {
+  min-height: 480px;
 }
 
 .table-wrap {
   flex: 1;
   min-height: 0;
   overflow: auto;
-}
-
-table {
-  width: 100%;
-  min-width: 1120px;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #edf2f7;
-  text-align: left;
-  vertical-align: middle;
-  white-space: nowrap;
-}
-
-th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  height: 42px;
-  color: #64748b;
-  background: #fbfdff;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-tbody tr {
-  height: 66px;
-  cursor: pointer;
-}
-
-tbody tr:hover td,
-tbody tr.selected td {
-  background: #f8f5ff;
-}
-
-.select-col {
-  width: 38px;
-}
-
-.select-col input {
-  width: 15px;
-  height: 15px;
-  accent-color: #7c3aed;
-  cursor: pointer;
-}
-
-.right-cell {
-  text-align: right;
 }
 
 .team-cell,
@@ -1878,9 +1818,9 @@ tbody tr.selected td {
 }
 
 .dense-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, max-content));
-  gap: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .dense-metrics span {
@@ -2051,145 +1991,7 @@ tbody tr.selected td {
   font-weight: 900;
 }
 
-.side-panel {
-  min-height: 0;
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  padding: 10px;
-  overflow: auto;
-}
-
-.side-section {
-  display: grid;
-  gap: 8px;
-}
-
-.side-head {
-  min-height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.side-head h2 {
-  font-size: 14px;
-  font-weight: 900;
-}
-
-.side-head span {
-  min-width: 24px;
-  min-height: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 7px;
-  border-radius: 999px;
-  color: #7c3aed;
-  background: #f3e8ff;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.queue-item,
-.risk-team {
-  width: 100%;
-  min-height: 58px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid #e8eef5;
-  border-radius: 8px;
-  color: #334155;
-  background: #fbfdff;
-  text-align: left;
-}
-
-.queue-item:hover,
-.risk-team:hover {
-  border-color: #c4b5fd;
-  background: #f8f5ff;
-}
-
-.queue-item svg {
-  width: 20px;
-  height: 20px;
-  color: #7c3aed;
-  flex: 0 0 auto;
-}
-
-.queue-item span,
-.risk-team span:not(.risk-score) {
-  min-width: 0;
-}
-
-.queue-item strong,
-.queue-item small,
-.risk-team strong,
-.risk-team small {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.queue-item strong,
-.risk-team strong {
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.queue-item small,
-.risk-team small {
-  margin-top: 3px;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.risk-score {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.mini-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.mini-grid button {
-  min-height: 62px;
-  display: grid;
-  gap: 4px;
-  padding: 10px;
-  border: 1px solid #e8eef5;
-  border-radius: 8px;
-  background: #fbfdff;
-  color: #334155;
-  text-align: left;
-}
-
-.mini-grid strong {
-  font-size: 20px;
-  line-height: 1;
-  font-weight: 900;
-}
-
-.mini-grid span {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 800;
-}
+/* Side panel styles removed */
 
 :deep(.el-drawer__body) {
   padding: 0;
@@ -2530,14 +2332,6 @@ tbody tr.selected td {
   .metric-strip {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-
-  .content-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .side-panel {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 920px) {
@@ -2559,11 +2353,6 @@ tbody tr.selected td {
     width: 100%;
   }
 
-  .control-select {
-    flex: 1;
-  }
-
-  .side-panel,
   .drawer-scoreboard,
   .resource-columns {
     grid-template-columns: 1fr;
@@ -2575,10 +2364,6 @@ tbody tr.selected td {
 }
 
 @media (max-width: 640px) {
-  .admin-teams-page {
-    padding: 8px;
-  }
-
   .metric-strip {
     grid-template-columns: 1fr;
   }

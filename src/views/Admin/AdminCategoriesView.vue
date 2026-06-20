@@ -7,7 +7,6 @@ import {
   Trash2,
   Edit2,
   FolderTree,
-  X,
   Layers,
   GraduationCap,
   Type,
@@ -16,11 +15,18 @@ import {
   Sparkles,
   Box,
   Users,
+  RefreshCw,
+  Puzzle,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import { fetchManagementInsights } from './adminManagementInsights';
+import PageHeader from '@/components/PageHeader.vue';
+import Button from '@/components/ui/Button.vue';
+import Card from '@/components/ui/Card.vue';
+import Tabs from '@/components/ui/Tabs.vue';
+import Badge from '@/components/ui/Badge.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 interface Category {
   id: string;
@@ -169,6 +175,68 @@ const filteredCategories = computed(() => {
         )
       : teamCategories.value;
   }
+});
+
+const getBadgeVariant = (label: string) => {
+  if (label === '正常' || label === '稳定') return 'success';
+  if (label === '关注') return 'warning';
+  if (label === '高压') return 'danger';
+  return 'primary';
+};
+
+const categoryTabOptions = computed(() => [
+  { label: `资产库 (${assetCategories.value.length})`, value: 'assets', icon: Box },
+  { label: `课程 (${courseCategories.value.length})`, value: 'courses', icon: GraduationCap },
+  { label: `材质 (${materialCategories.value.length})`, value: 'materials', icon: Layers },
+  { label: `插件 (${pluginCategories.value.length})`, value: 'plugins', icon: Puzzle },
+  { label: `作品展示 (${showcaseCategories.value.length})`, value: 'showcases', icon: Sparkles },
+  { label: `团队分类 (${teamCategories.value.length})`, value: 'teams', icon: Users },
+]);
+
+const consolidatedCards = computed(() => {
+  const assets = assetCategories.value.length;
+  const courses = courseCategories.value.length;
+  const others =
+    materialCategories.value.length +
+    pluginCategories.value.length +
+    showcaseCategories.value.length +
+    teamCategories.value.length;
+  const total = assets + courses + others;
+
+  return [
+    {
+      label: '资产分类',
+      value: assets,
+      hint: '资产模型分类图谱',
+      icon: Box,
+      color: 'text-indigo-600 bg-indigo-500/10 border-indigo-500/20',
+      health: { label: '正常' },
+    },
+    {
+      label: '课程分类',
+      value: courses,
+      hint: '课程教学分体系',
+      icon: GraduationCap,
+      color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      health: { label: '稳定' },
+    },
+    {
+      label: '后台侧属',
+      value: others,
+      hint: '材质、插件、作品等分类',
+      icon: Layers,
+      color: 'text-purple-600 bg-purple-500/10 border-purple-500/20',
+      health: { label: '正常' },
+    },
+    {
+      label: '分类总量',
+      value: total,
+      hint: '全站业务分类总和',
+      icon: FolderTree,
+      color: 'text-sky-600 bg-sky-500/10 border-sky-500/20',
+      health: { label: '稳定' },
+    },
+  ];
 });
 
 const openModal = (category: Category | string | null = null) => {
@@ -344,485 +412,367 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
-    style="background-color: var(--bg-app)"
+    class="admin-categories-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
   >
-    <!-- Header (超紧凑双行版) -->
-    <div
-      class="relative shrink-0 border-b overflow-hidden"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <!-- 极光背景装饰 -->
-      <div
-        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-indigo-500/10 via-purple-500/5 to-transparent pointer-events-none"
-      ></div>
-
-      <!-- Row 1: 标题 & 主要动作 -->
-      <div
-        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10 border-b"
-        style="border-color: var(--border-base)"
+    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
+      <!-- 平台分类管理 (PageHeader card variant) -->
+      <PageHeader
+        title="平台分类管理"
+        subtitle="全局业务分类、显示权重与 Emoji 标识设计"
+        variant="card"
       >
-        <div class="flex items-center gap-2">
-          <span
-            class="p-1 rounded-xl bg-indigo-500/10 text-indigo-500 shadow-sm border border-indigo-500/20"
-          >
-            <FolderTree class="w-4 h-4" />
-          </span>
-          <h1 class="text-sm font-black tracking-tight" style="color: var(--text-primary)">
-            平台分类管理
-          </h1>
-        </div>
-
-        <button
-          type="button"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-[11px] transition-all shadow-sm cursor-pointer whitespace-nowrap"
-          @click="openModal()"
-        >
-          <Plus class="w-3.5 h-3.5" />
-          <span class="hidden sm:inline">新建分类</span>
-        </button>
-      </div>
-
-      <!-- Row 2: 条件筛选与快速搜索 -->
-      <div
-        class="px-4 sm:px-8 py-2 flex flex-col md:flex-row md:flex-wrap md:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
-      >
-        <!-- 分类选项卡 & 统计 Pills -->
-        <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
-          <!-- 极品分段选项卡 -->
-          <div
-            class="flex flex-nowrap items-center bg-slate-100 dark:bg-white/5 p-0.5 rounded-lg gap-0.5 shadow-inner shrink-0"
-          >
-            <button
-              type="button"
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
-              :class="
-                activeTab === 'assets'
-                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              "
-              @click="activeTab = 'assets'"
-            >
-              <Box class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-              <span>资产库</span>
-              <span class="opacity-60 text-[8px] xs:text-[9px]"
-                >({{ assetCategories.length }})</span
-              >
-            </button>
-            <button
-              type="button"
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
-              :class="
-                activeTab === 'courses'
-                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              "
-              @click="activeTab = 'courses'"
-            >
-              <GraduationCap class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-              <span>课程</span>
-              <span class="opacity-60 text-[8px] xs:text-[9px]"
-                >({{ courseCategories.length }})</span
-              >
-            </button>
-            <button
-              type="button"
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
-              :class="
-                activeTab === 'materials'
-                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              "
-              @click="activeTab = 'materials'"
-            >
-              <Layers class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-              <span>材质</span>
-              <span class="opacity-60 text-[8px] xs:text-[9px]"
-                >({{ materialCategories.length }})</span
-              >
-            </button>
-            <button
-              type="button"
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
-              :class="
-                activeTab === 'plugins'
-                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              "
-              @click="activeTab = 'plugins'"
-            >
-              <Puzzle class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-              <span>插件</span>
-              <span class="opacity-60 text-[8px] xs:text-[9px]"
-                >({{ pluginCategories.length }})</span
-              >
-            </button>
-            <button
-              type="button"
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
-              :class="
-                activeTab === 'showcases'
-                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              "
-              @click="activeTab = 'showcases'"
-            >
-              <Sparkles class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-              <span>作品展示</span>
-              <span class="opacity-60 text-[8px] xs:text-[9px]"
-                >({{ showcaseCategories.length }})</span
-              >
-            </button>
-            <button
-              type="button"
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
-              :class="
-                activeTab === 'teams'
-                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              "
-              @click="activeTab = 'teams'"
-            >
-              <Users class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-              <span>团队分类</span>
-              <span class="opacity-60 text-[8px] xs:text-[9px]">({{ teamCategories.length }})</span>
-            </button>
+        <template #center>
+          <div class="flex flex-wrap items-center gap-1.5 ml-2">
+            <Badge variant="info"> 当前类目数: {{ filteredCategories.length }} </Badge>
           </div>
+        </template>
 
-          <div class="w-[1px] h-3 bg-slate-200 dark:bg-slate-800 shrink-0 mx-1 sm:mx-3"></div>
+        <!-- Compact Search Box -->
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-60 shrink-0">
+          <Search />
+          <input v-model="searchQuery" type="search" placeholder="搜索当前分类..." />
+        </label>
 
-          <!-- 统计 Pills -->
-          <span
-            class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-indigo-500 text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 shrink-0"
-          >
-            <FolderTree class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-            <span>当前类目数</span>
-            <span class="opacity-60">({{ filteredCategories.length }})</span>
-          </span>
-        </div>
-
-        <!-- 检索工具 -->
-        <div
-          class="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0"
+        <!-- Action Buttons -->
+        <Button variant="primary" size="sm" :icon="Plus" @click="openModal()"> 新建分类 </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          :icon="RefreshCw"
+          :loading="isLoading"
+          @click="fetchData"
         >
-          <div class="relative flex-1 md:flex-none md:w-64">
-            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="搜索当前分类..."
-              class="w-full pl-9 pr-7 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-[11px] shadow-sm"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            />
-            <button
-              v-if="searchQuery"
-              type="button"
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              @click="searchQuery = ''"
-            >
-              <X class="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+          刷新
+        </Button>
+      </PageHeader>
 
-    <!-- Main Content -->
-    <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
-      <AdminOpsPanel scope="categories" />
-
-      <div v-if="isLoading" class="flex flex-col items-center justify-center py-24">
-        <div
-          class="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"
-        ></div>
-      </div>
-
-      <div v-else class="max-w-none">
-        <template v-if="filteredCategories.length > 0">
-          <!-- Desktop Table View -->
-          <div
-            class="hidden md:block rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden overflow-x-auto scrollbar-hide"
-          >
-            <table class="w-full text-left border-collapse min-w-[600px]">
-              <thead>
-                <tr
-                  class="border-b bg-slate-50/50 dark:bg-slate-800/50"
-                  style="border-color: var(--border-base)"
+      <!-- KPI Metrics Grid -->
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        <Card
+          v-for="card in consolidatedCards"
+          :key="card.label"
+          hoverable
+          glow
+          class="group !p-2 px-2.5"
+        >
+          <div class="flex items-center justify-between w-full gap-3">
+            <!-- Left: Icon & Info -->
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span
+                class="panel-icon border border-base rounded-lg p-1.5 transition-transform group-hover:scale-105 shrink-0"
+                :class="card.color"
+              >
+                <component :is="card.icon" class="h-3.5 w-3.5" />
+              </span>
+              <div class="min-w-0">
+                <p
+                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
                 >
-                  <th
-                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
-                  >
-                    图标
-                  </th>
-                  <th
-                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
-                  >
-                    分类名称
-                  </th>
-                  <th
-                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
-                  >
-                    排序权重
-                  </th>
-                  <th
-                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
-                  >
-                    关联统计
-                  </th>
-                  <th
-                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right"
-                  >
-                    操作
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
+                  {{ card.label }}
+                </p>
+                <p
+                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
+                  :title="card.hint"
+                >
+                  {{ card.hint }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Right: Metric & Health Badge -->
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-base font-black text-[var(--text-primary)] leading-none">
+                {{ card.value }}
+              </span>
+              <Badge :variant="getBadgeVariant(card.health.label)">
+                {{ card.health.label }}
+              </Badge>
+            </div>
+          </div>
+        </Card>
+      </section>
+
+      <!-- Workspace layout: Single Column Workspace -->
+      <div class="mt-3 w-full min-w-0">
+        <div class="space-y-3 min-w-0">
+          <!-- Workbench Toolbar / Batch Operations Card -->
+          <Card padding="sm" class="workbench-toolbar-card">
+            <div class="toolbar-top">
+              <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full">
+                <!-- Preset Type Tabs -->
+                <Tabs v-model="activeTab" :options="categoryTabOptions" size="sm" />
+              </div>
+            </div>
+          </Card>
+
+          <div v-if="isLoading" class="flex flex-col items-center justify-center py-24">
+            <div
+              class="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"
+            ></div>
+          </div>
+
+          <div v-else class="max-w-none">
+            <template v-if="filteredCategories.length > 0">
+              <!-- Desktop Table View -->
+              <Card
+                padding="none"
+                class="hidden md:block table-shell-card overflow-hidden overflow-x-auto scrollbar-hide"
+              >
+                <table class="w-full text-left border-collapse min-w-[600px]">
+                  <thead>
+                    <tr
+                      class="border-b bg-slate-50/50 dark:bg-slate-800/50"
+                      style="border-color: var(--border-base)"
+                    >
+                      <th
+                        class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                      >
+                        图标
+                      </th>
+                      <th
+                        class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                      >
+                        分类名称
+                      </th>
+                      <th
+                        class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                      >
+                        排序权重
+                      </th>
+                      <th
+                        class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                      >
+                        关联统计
+                      </th>
+                      <th
+                        class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right"
+                      >
+                        操作
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="cat in filteredCategories"
+                      :key="typeof cat === 'string' ? cat : cat.id"
+                      class="border-b last:border-0 hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors group"
+                      style="border-color: var(--border-base)"
+                    >
+                      <td class="px-4 sm:px-6 py-3.5 sm:py-4">
+                        <div
+                          class="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent"
+                        >
+                          <span v-if="typeof cat !== 'string' && cat.icon" class="text-lg">{{
+                            cat.icon
+                          }}</span>
+                          <FolderTree v-else class="w-5 h-5" />
+                        </div>
+                      </td>
+                      <td
+                        class="px-4 sm:px-6 py-3.5 sm:py-4 font-bold text-sm"
+                        style="color: var(--text-primary)"
+                      >
+                        {{ typeof cat === 'string' ? cat : cat.name }}
+                      </td>
+                      <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs font-medium text-slate-500">
+                        <template v-if="typeof cat !== 'string'">
+                          {{ cat.order }}
+                        </template>
+                        <template v-else> - </template>
+                      </td>
+                      <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs font-semibold text-slate-400">
+                        <template v-if="typeof cat !== 'string'">
+                          {{
+                            activeTab === 'assets'
+                              ? (cat._count?.assets || 0) + ' 个资产'
+                              : (cat._count?.courses || 0) + ' 门课程'
+                          }}
+                        </template>
+                        <template v-else> 系统预设分类 </template>
+                      </td>
+                      <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-right">
+                        <div
+                          class="flex items-center justify-end gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                        >
+                          <button
+                            type="button"
+                            class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-accent transition-colors"
+                            @click="openModal(cat)"
+                          >
+                            <Edit2 class="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
+                            @click="handleDeleteCategory(cat)"
+                          >
+                            <Trash2 class="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </Card>
+
+              <!-- Mobile Card View -->
+              <div class="md:hidden space-y-3">
+                <div
                   v-for="cat in filteredCategories"
                   :key="typeof cat === 'string' ? cat : cat.id"
-                  class="border-b last:border-0 hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors group"
+                  class="p-4 rounded-2xl border bg-[var(--bg-card)] transition-all flex items-center justify-between shadow-sm"
                   style="border-color: var(--border-base)"
                 >
-                  <td class="px-4 sm:px-6 py-3.5 sm:py-4">
+                  <div class="flex items-center gap-3 min-w-0">
                     <div
-                      class="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent"
+                      class="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0"
                     >
                       <span v-if="typeof cat !== 'string' && cat.icon" class="text-lg">{{
                         cat.icon
                       }}</span>
                       <FolderTree v-else class="w-5 h-5" />
                     </div>
-                  </td>
-                  <td
-                    class="px-4 sm:px-6 py-3.5 sm:py-4 font-bold text-sm"
-                    style="color: var(--text-primary)"
-                  >
-                    {{ typeof cat === 'string' ? cat : cat.name }}
-                  </td>
-                  <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs font-medium text-slate-500">
-                    <template v-if="typeof cat !== 'string'">
-                      {{ cat.order }}
-                    </template>
-                    <template v-else> - </template>
-                  </td>
-                  <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs font-semibold text-slate-400">
-                    <template v-if="typeof cat !== 'string'">
-                      {{
-                        activeTab === 'assets'
-                          ? (cat._count?.assets || 0) + ' 个资产'
-                          : (cat._count?.courses || 0) + ' 门课程'
-                      }}
-                    </template>
-                    <template v-else> 系统预设分类 </template>
-                  </td>
-                  <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-right">
-                    <div
-                      class="flex items-center justify-end gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-                    >
-                      <button
-                        type="button"
-                        class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-accent transition-colors"
-                        @click="openModal(cat)"
-                      >
-                        <Edit2 class="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
-                        @click="handleDeleteCategory(cat)"
-                      >
-                        <Trash2 class="w-4 h-4" />
-                      </button>
+                    <div class="min-w-0">
+                      <h4 class="font-bold text-sm text-[var(--text-primary)] truncate">
+                        {{ typeof cat === 'string' ? cat : cat.name }}
+                      </h4>
+                      <div class="flex items-center gap-2 mt-1">
+                        <span class="text-[10px] text-slate-400 shrink-0">
+                          权重: {{ typeof cat !== 'string' ? cat.order : '-' }}
+                        </span>
+                        <span class="w-1 h-1 rounded-full bg-slate-300 shrink-0"></span>
+                        <span class="text-[10px] text-slate-400 truncate">
+                          {{
+                            typeof cat !== 'string'
+                              ? activeTab === 'assets'
+                                ? (cat._count?.assets || 0) + ' 个资产'
+                                : (cat._count?.courses || 0) + ' 门课程'
+                              : '系统预设'
+                          }}
+                        </span>
+                      </div>
                     </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                  </div>
 
-          <!-- Mobile Card View -->
-          <div class="md:hidden space-y-3">
-            <div
-              v-for="cat in filteredCategories"
-              :key="typeof cat === 'string' ? cat : cat.id"
-              class="p-4 rounded-2xl border bg-[var(--bg-card)] transition-all flex items-center justify-between shadow-sm"
-              style="border-color: var(--border-base)"
-            >
-              <div class="flex items-center gap-3 min-w-0">
-                <div
-                  class="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0"
-                >
-                  <span v-if="typeof cat !== 'string' && cat.icon" class="text-lg">{{
-                    cat.icon
-                  }}</span>
-                  <FolderTree v-else class="w-5 h-5" />
-                </div>
-                <div class="min-w-0">
-                  <h4 class="font-bold text-sm text-[var(--text-primary)] truncate">
-                    {{ typeof cat === 'string' ? cat : cat.name }}
-                  </h4>
-                  <div class="flex items-center gap-2 mt-1">
-                    <span class="text-[10px] text-slate-400 shrink-0">
-                      权重: {{ typeof cat !== 'string' ? cat.order : '-' }}
-                    </span>
-                    <span class="w-1 h-1 rounded-full bg-slate-300 shrink-0"></span>
-                    <span class="text-[10px] text-slate-400 truncate">
-                      {{
-                        typeof cat !== 'string'
-                          ? activeTab === 'assets'
-                            ? (cat._count?.assets || 0) + ' 个资产'
-                            : (cat._count?.courses || 0) + ' 门课程'
-                          : '系统预设'
-                      }}
-                    </span>
+                  <div class="flex items-center gap-1 shrink-0 ml-2">
+                    <button
+                      type="button"
+                      class="p-2 rounded-lg text-slate-400 hover:text-accent transition-colors"
+                      @click="openModal(cat)"
+                    >
+                      <Edit2 class="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      class="p-2 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
+                      @click="handleDeleteCategory(cat)"
+                    >
+                      <Trash2 class="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>
+            </template>
 
-              <div class="flex items-center gap-1 shrink-0 ml-2">
-                <button
-                  type="button"
-                  class="p-2 rounded-lg text-slate-400 hover:text-accent transition-colors"
-                  @click="openModal(cat)"
-                >
-                  <Edit2 class="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  class="p-2 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
-                  @click="handleDeleteCategory(cat)"
-                >
-                  <Trash2 class="w-4 h-4" />
-                </button>
+            <!-- Empty State -->
+            <div v-else class="py-24 text-center">
+              <div
+                class="w-20 h-20 rounded-full bg-slate-50 dark:bg-white/5 flex items-center justify-center mx-auto mb-6"
+              >
+                <FolderTree class="w-10 h-10 text-slate-200" />
               </div>
+              <h3 class="text-lg font-bold mb-2" style="color: var(--text-primary)">未找到分类</h3>
+              <p class="text-sm text-slate-400">试试其他关键词，或者点击右上角新建一个分类</p>
             </div>
           </div>
-        </template>
-
-        <!-- Empty State -->
-        <div v-else class="py-24 text-center">
-          <div
-            class="w-20 h-20 rounded-full bg-slate-50 dark:bg-white/5 flex items-center justify-center mx-auto mb-6"
-          >
-            <FolderTree class="w-10 h-10 text-slate-200" />
-          </div>
-          <h3 class="text-lg font-bold mb-2" style="color: var(--text-primary)">未找到分类</h3>
-          <p class="text-sm text-slate-400">试试其他关键词，或者点击右上角新建一个分类</p>
         </div>
       </div>
-    </div>
+    </main>
 
     <!-- Category Modal -->
-    <div
-      v-if="showModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
-    >
-      <div
-        class="w-full max-w-md rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300"
-        style="background-color: var(--bg-card)"
-      >
-        <div class="flex items-center justify-between mb-8">
-          <div>
-            <h3 class="text-xl font-bold" style="color: var(--text-primary)">
-              {{ currentCategory ? '编辑分类' : '新建分类' }}
-            </h3>
-            <p class="text-xs text-slate-400 mt-1">管理系统全局分类映射</p>
-          </div>
-          <button
-            type="button"
-            class="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400"
-            @click="showModal = false"
-          >
-            <X class="w-6 h-6" />
-          </button>
+    <Modal :show="showModal" size="md" @close="showModal = false">
+      <template #header>
+        <div>
+          <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
+            {{ currentCategory ? '编辑分类' : '新建分类' }}
+          </h3>
+          <p class="text-xs text-slate-400 mt-1">管理系统全局分类映射</p>
         </div>
+      </template>
 
-        <div class="space-y-6">
-          <div>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-              >分类名称</label
-            >
-            <div class="relative">
-              <Type class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                v-model="categoryForm.name"
-                type="text"
-                placeholder="输入分类名称..."
-                class="w-full pl-12 pr-4 py-3 rounded-2xl border transition-all outline-none"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
-          </div>
-
-          <div v-if="activeTab === 'assets'">
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-              >图标 (Emoji)</label
-            >
-            <div class="relative">
-              <Smile class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                v-model="categoryForm.icon"
-                type="text"
-                placeholder="输入一个 Emoji 图标..."
-                class="w-full pl-12 pr-4 py-3 rounded-2xl border transition-all outline-none"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
-          </div>
-
-          <div v-if="activeTab === 'assets' || activeTab === 'courses'">
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-              >显示权重 (越小越靠前)</label
-            >
-            <div class="relative">
-              <Hash class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                v-model="categoryForm.order"
-                type="number"
-                class="w-full pl-12 pr-4 py-3 rounded-2xl border transition-all outline-none font-bold"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
+      <div class="space-y-6">
+        <div>
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+            >分类名称</label
+          >
+          <div class="relative">
+            <Type class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              v-model="categoryForm.name"
+              type="text"
+              placeholder="输入分类名称..."
+              class="w-full pl-12 pr-4 py-3 rounded-2xl border transition-all outline-none"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
           </div>
         </div>
 
-        <div class="flex items-center gap-4 mt-10">
-          <button
-            type="button"
-            class="flex-1 py-4 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-            @click="showModal = false"
+        <div v-if="activeTab === 'assets'">
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+            >图标 (Emoji)</label
           >
-            取消
-          </button>
-          <button
-            type="button"
-            class="flex-1 py-4 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98]"
-            @click="handleSaveCategory"
+          <div class="relative">
+            <Smile class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              v-model="categoryForm.icon"
+              type="text"
+              placeholder="输入一个 Emoji 图标..."
+              class="w-full pl-12 pr-4 py-3 rounded-2xl border transition-all outline-none"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+          </div>
+        </div>
+
+        <div v-if="activeTab === 'assets' || activeTab === 'courses'">
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+            >显示权重 (越小越靠前)</label
           >
-            {{ currentCategory ? '保存修改' : '立即创建' }}
-          </button>
+          <div class="relative">
+            <Hash class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              v-model="categoryForm.order"
+              type="number"
+              class="w-full pl-12 pr-4 py-3 rounded-2xl border transition-all outline-none font-bold"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+          </div>
         </div>
       </div>
-    </div>
+
+      <template #footer>
+        <div class="flex items-center gap-3">
+          <Button variant="secondary" size="md" @click="showModal = false"> 取消 </Button>
+          <Button variant="primary" size="md" @click="handleSaveCategory">
+            {{ currentCategory ? '保存修改' : '立即创建' }}
+          </Button>
+        </div>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -833,5 +783,34 @@ onMounted(() => {
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.admin-categories-page {
+  background: transparent !important;
+}
+
+.search-box {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-base);
+  border-radius: 12px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-box svg {
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
+}
+
+.search-box input {
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  color: var(--text-primary);
+  font-size: 0.875rem;
 }
 </style>

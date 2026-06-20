@@ -71,7 +71,7 @@
   --shadow-enterprise-hover: 0 10px 24px rgb(16 24 40 / 0.08);
 
   /* Blender/3D platform specific */
-  --blender-orange: #F5792A;
+  --blender-orange: #f5792a;
   --blender-orange-hover: #d16421;
   --blender-orange-subtle: rgba(245, 121, 42, 0.1);
   --glow-orange: 0 0 16px rgba(245, 121, 42, 0.2);
@@ -88,12 +88,12 @@
   color-scheme: dark;
 
   /* Layout backgrounds — authentic warm carbon/charcoal grays from Blender */
-  --bg-app: #0F1319;
+  --bg-app: #0f1319;
   --bg-card: rgba(28, 33, 41, 0.75);
   --bg-card-rgb: 28, 33, 41;
   --bg-elevated: rgba(36, 42, 53, 0.82);
   --bg-sidebar: rgba(18, 22, 30, 0.8);
-  --bg-subtle: #0F1319;
+  --bg-subtle: #0f1319;
   --bg-hover: rgba(36, 42, 53, 0.7);
   --bg-active: rgba(245, 121, 42, 0.1);
 
@@ -103,12 +103,12 @@
   --text-muted: #7d7e82;
 
   /* Borders — subtle warm dark */
-  --border-base: #2A3342;
+  --border-base: #2a3342;
   --border-strong: rgba(255, 255, 255, 0.11);
-  --border-card: #2A3342;
+  --border-card: #2a3342;
 
   /* Accent — Orange for dark mode (Blender-inspired) */
-  --accent: #F5792A;
+  --accent: #f5792a;
   --accent-rgb: 245, 121, 42;
   --accent-hover: #d16421;
   --accent-subtle: rgba(245, 121, 42, 0.15);
@@ -122,8 +122,10 @@
   /* Glow effects */
   --glow-orange: 0 0 16px rgba(224, 125, 46, 0.3);
   --glow-orange-strong: 0 0 24px rgba(224, 125, 46, 0.5);
-  --card-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 4px 20px rgba(0,0,0,0.4);
-  --card-shadow-hover: 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(224, 125, 46, 0.2);
+  --card-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 20px rgba(0, 0, 0, 0.4);
+  --card-shadow-hover:
+    0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 32px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(224, 125, 46, 0.2);
 }
 
 /* ============================================================

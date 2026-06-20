@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { formatRelativeTime as formatTime } from '@/utils/format';
-import { ref, watch } from 'vue';
+import { ref, watch, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   ChevronDown,
@@ -18,7 +18,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
-import MarkdownEditor from '@/components/MarkdownEditor.vue';
+const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 import UserAvatar from '@/components/UserAvatar.vue';
 import type { Discussion, DiscussionComment } from '../DiscussionsView.vue';
 import { parseTags } from '@/utils/tags';

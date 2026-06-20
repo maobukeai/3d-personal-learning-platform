@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
-import { ref, onMounted } from 'vue';
-import { CreditCard, Plus, RefreshCw } from 'lucide-vue-next';
+import { ref, onMounted, computed } from 'vue';
+import { CreditCard, Plus, RefreshCw, Users, Key } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import SubscriptionPlansTab from './components/SubscriptionPlansTab.vue';
 import UserSubscriptionsTab from './components/UserSubscriptionsTab.vue';
 import ActivationCodesTab from './components/ActivationCodesTab.vue';
-import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import { fetchManagementInsights } from './adminManagementInsights';
+import PageHeader from '@/components/PageHeader.vue';
+import Button from '@/components/ui/Button.vue';
+import Card from '@/components/ui/Card.vue';
+import Badge from '@/components/ui/Badge.vue';
+import Tabs from '@/components/ui/Tabs.vue';
 
 interface SubscriptionPlan {
   id: string;
@@ -103,153 +107,215 @@ const handleCreateAction = () => {
   }
 };
 
+const monthlyIncome = computed(() => {
+  return subscriptions.value
+    .filter((sub) => sub.status === 'ACTIVE' || sub.status === 'active')
+    .reduce((sum, sub) => {
+      const plan = plans.value.find((p) => p.id === sub.planId);
+      if (!plan) return sum;
+      const isYearly =
+        sub.interval === 'YEARLY' ||
+        sub.interval === 'yearly' ||
+        plan.interval === 'YEARLY' ||
+        plan.interval === 'yearly';
+      const monthlyPrice = isYearly ? plan.price / 12 : plan.price;
+      return sum + monthlyPrice;
+    }, 0);
+});
+
+const expiringSoonCount = computed(() => {
+  return subscriptions.value.filter((sub) => {
+    if (sub.status !== 'ACTIVE' && sub.status !== 'active') return false;
+    return (
+      sub.cancelAtPeriodEnd ||
+      (sub.endDate && new Date(sub.endDate).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000)
+    );
+  }).length;
+});
+
+const usedCodesCount = computed(() => {
+  return activationCodes.value.filter((c) => c.status === 'USED' || c.status === 'used').length;
+});
+
+const consolidatedCards = computed(() => {
+  const activeSubs = subscriptions.value.filter(
+    (sub) => sub.status === 'ACTIVE' || sub.status === 'active',
+  ).length;
+  const income = monthlyIncome.value;
+  const expiring = expiringSoonCount.value;
+  const usedCodes = usedCodesCount.value;
+  const totalPlans = plans.value.length;
+  const totalCodes = activationCodes.value.length;
+
+  return [
+    {
+      label: '活跃订阅',
+      value: activeSubs,
+      hint: `${totalPlans} 个套餐计划`,
+      icon: CreditCard,
+      color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      health: { label: '运行中' },
+    },
+    {
+      label: '月收入估算',
+      value: `¥${Math.round(income)}`,
+      hint: '按当前活跃订阅估算',
+      icon: CreditCard,
+      color: 'text-indigo-600 bg-indigo-500/10 border-indigo-500/20',
+      health: { label: '正常' },
+    },
+    {
+      label: '即将到期',
+      value: expiring,
+      hint: '当前预约取消数',
+      icon: CreditCard,
+      color: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
+      health: { label: expiring > 0 ? '关注' : '正常' },
+    },
+    {
+      label: '激活码',
+      value: usedCodes,
+      hint: `${totalCodes} 个激活码总量`,
+      icon: Key,
+      color: 'text-purple-600 bg-purple-500/10 border-purple-500/20',
+      health: { label: `${totalCodes - usedCodes} 个待使用` },
+    },
+  ];
+});
+
+const getBadgeVariant = (label: string) => {
+  if (label === '运行中' || label === '正常') return 'success';
+  if (label === '关注') return 'warning';
+  return 'primary';
+};
+
+const tabOptions = computed(() => [
+  { label: '订阅计划', value: 'plans', icon: CreditCard },
+  { label: '用户订阅', value: 'subscriptions', icon: Users },
+  { label: '激活码管理', value: 'codes', icon: Key },
+]);
+
 onMounted(() => {
   fetchData();
 });
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col h-full overflow-hidden bg-[var(--bg-app)]">
-    <!-- 奢华顶栏 (超紧凑高阶版) -->
-    <div
-      class="relative shrink-0 border-b overflow-hidden animate-in fade-in duration-300"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <!-- 极光背景装饰 -->
-      <div
-        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-violet-500/10 via-fuchsia-500/5 to-transparent pointer-events-none"
-      ></div>
-
-      <!-- Row 1: 标题 & 选项卡 & 主要动作 -->
-      <div
-        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10 border-b"
-        style="border-color: var(--border-base)"
-      >
-        <div class="flex items-center gap-1.5 sm:gap-4 shrink-0 max-w-full min-w-0 overflow-hidden">
-          <div class="flex items-center gap-1.5 shrink-0">
-            <span
-              class="p-1 rounded-xl bg-violet-500/10 text-violet-500 shadow-sm border border-violet-500/20 shrink-0"
-            >
-              <CreditCard class="w-4 h-4" />
-            </span>
-            <h1
-              class="text-xs sm:text-sm font-black tracking-tight"
-              style="color: var(--text-primary)"
-            >
-              订阅管理
-            </h1>
+  <div
+    class="admin-subscriptions-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
+  >
+    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
+      <!-- Page Header -->
+      <PageHeader title="订阅管理" variant="card">
+        <template #center>
+          <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full">
+            <Tabs v-model="activeTab" :options="tabOptions" size="sm" />
           </div>
+        </template>
 
-          <!-- 横向分段选项卡 -->
-          <div
-            class="flex bg-[var(--bg-app)] rounded-xl p-0.5 border border-[var(--border-base)] shadow-inner shrink-0"
-          >
-            <button
-              type="button"
-              class="px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[9px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer"
-              :class="
-                activeTab === 'plans'
-                  ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              "
-              @click="activeTab = 'plans'"
-            >
-              订阅计划
-            </button>
-            <button
-              type="button"
-              class="px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[9px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer"
-              :class="
-                activeTab === 'subscriptions'
-                  ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              "
-              @click="activeTab = 'subscriptions'"
-            >
-              用户订阅
-            </button>
-            <button
-              type="button"
-              class="px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[9px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer"
-              :class="
-                activeTab === 'codes'
-                  ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              "
-              @click="activeTab = 'codes'"
-            >
-              激活码管理
-            </button>
+        <!-- Actions -->
+        <Button variant="primary" size="sm" :icon="Plus" @click="handleCreateAction">
+          {{
+            activeTab === 'plans'
+              ? t('admin.new_plan')
+              : activeTab === 'subscriptions'
+                ? t('admin.add_new_subscription')
+                : $t('admin.generate_activation_code')
+          }}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          :icon="RefreshCw"
+          :loading="isLoading"
+          @click="fetchData"
+        >
+          刷新
+        </Button>
+      </PageHeader>
+
+      <!-- KPI Metrics Grid -->
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        <Card
+          v-for="card in consolidatedCards"
+          :key="card.label"
+          hoverable
+          glow
+          class="group !p-2 px-2.5"
+        >
+          <div class="flex items-center justify-between w-full gap-3">
+            <!-- Left: Icon & Info -->
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span
+                class="panel-icon border border-base rounded-lg p-1.5 transition-transform group-hover:scale-105 shrink-0"
+                :class="card.color"
+              >
+                <component :is="card.icon" class="h-3.5 w-3.5" />
+              </span>
+              <div class="min-w-0">
+                <p
+                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
+                >
+                  {{ card.label }}
+                </p>
+                <p
+                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
+                  :title="card.hint"
+                >
+                  {{ card.hint }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Right: Metric & Health Badge -->
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-base font-black text-[var(--text-primary)] leading-none">
+                {{ card.value }}
+              </span>
+              <Badge :variant="getBadgeVariant(card.health.label)">
+                {{ card.health.label }}
+              </Badge>
+            </div>
           </div>
-        </div>
+        </Card>
+      </section>
 
-        <div class="flex items-center gap-1.5 sm:gap-2.5">
-          <button
-            type="button"
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
-            @click="handleCreateAction"
-          >
-            <Plus class="w-3.5 h-3.5" />
-            <span>
-              {{
-                activeTab === 'plans'
-                  ? t('admin.new_plan')
-                  : activeTab === 'subscriptions'
-                    ? t('admin.add_new_subscription')
-                    : $t('admin.generate_activation_code')
-              }}
-            </span>
-          </button>
+      <!-- Workspace layout: Single Column Workspace -->
+      <div class="mt-3 w-full min-w-0">
+        <div class="space-y-3 min-w-0">
+          <!-- Plans Tab -->
+          <SubscriptionPlansTab
+            v-if="activeTab === 'plans'"
+            ref="plansTabRef"
+            :plans="plans"
+            :is-loading="isLoading"
+            @refresh="fetchData"
+          />
 
-          <button
-            type="button"
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="fetchData"
-          >
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-            刷新
-          </button>
+          <!-- Subscriptions Tab -->
+          <UserSubscriptionsTab
+            v-if="activeTab === 'subscriptions'"
+            ref="subsTabRef"
+            :subscriptions="subscriptions"
+            :plans="plans"
+            :users="users"
+            :is-loading="isLoading"
+            @refresh="fetchData"
+            @fetch-users="fetchUsers"
+          />
+
+          <!-- Codes Tab -->
+          <ActivationCodesTab
+            v-if="activeTab === 'codes'"
+            ref="codesTabRef"
+            :activation-codes="activationCodes"
+            :plans="plans"
+            :is-loading="isLoading"
+            @refresh="fetchData"
+          />
         </div>
       </div>
-    </div>
-
-    <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
-      <div class="max-w-none">
-        <AdminOpsPanel scope="subscriptions" />
-
-        <!-- Plans Tab -->
-        <SubscriptionPlansTab
-          v-if="activeTab === 'plans'"
-          ref="plansTabRef"
-          :plans="plans"
-          :is-loading="isLoading"
-          @refresh="fetchData"
-        />
-
-        <!-- Subscriptions Tab -->
-        <UserSubscriptionsTab
-          v-if="activeTab === 'subscriptions'"
-          ref="subsTabRef"
-          :subscriptions="subscriptions"
-          :plans="plans"
-          :users="users"
-          :is-loading="isLoading"
-          @refresh="fetchData"
-          @fetch-users="fetchUsers"
-        />
-
-        <!-- Codes Tab -->
-        <ActivationCodesTab
-          v-if="activeTab === 'codes'"
-          ref="codesTabRef"
-          :activation-codes="activationCodes"
-          :plans="plans"
-          :is-loading="isLoading"
-          @refresh="fetchData"
-        />
-      </div>
-    </div>
+    </main>
   </div>
 </template>
 
@@ -260,5 +326,9 @@ onMounted(() => {
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.admin-subscriptions-page {
+  background: transparent !important;
 }
 </style>

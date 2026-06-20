@@ -3,18 +3,21 @@ import { formatDateTime as formatDate } from '@/utils/format';
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
+  AlertTriangle,
   Box,
+  CheckCircle2,
   Edit3,
+  Eye,
+  Inbox,
   Layers,
-  Sparkles,
-  Puzzle,
-  Search,
-  Trash2,
+  ListChecks,
+  MoreHorizontal,
   Plus,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight as ChevronRightIcon,
-  ChevronsRight,
+  Puzzle,
+  RefreshCw,
+  Search,
+  Sparkles,
+  Trash2,
   Upload,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -23,6 +26,12 @@ import { getApiErrorMessage } from '@/utils/error';
 import { useWorkspaceStore } from '@/stores/workspace';
 import Modal from '@/components/ui/Modal.vue';
 import Tabs from '@/components/ui/Tabs.vue';
+import Card from '@/components/ui/Card.vue';
+import Badge from '@/components/ui/Badge.vue';
+import PageHeader from '@/components/PageHeader.vue';
+import UiButton from '@/components/ui/Button.vue';
+import UiInput from '@/components/ui/Input.vue';
+import UserAvatar from '@/components/UserAvatar.vue';
 
 type ContentTab = 'assets' | 'materials' | 'showcases' | 'plugins';
 type ContentStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -126,6 +135,20 @@ const pageSize = ref(12);
 const totalItems = ref(0);
 const totalPages = ref(1);
 const activeItem = ref<ContentItem | null>(null);
+const detailModalVisible = ref(false);
+
+interface ContentStats {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+}
+const queueStats = ref<ContentStats | null>(null);
+
+const openDetail = (item: ContentItem) => {
+  activeItem.value = item;
+  detailModalVisible.value = true;
+};
 
 // Edit / Create Dialog States
 const isCreateOpen = ref(false);
@@ -180,6 +203,7 @@ const statusFilterOptions = computed(() => [
   { label: '已通过', value: 'APPROVED' as const },
   { label: '已打回', value: 'REJECTED' as const },
 ]);
+
 const fetchItems = async (silent = false) => {
   if (!silent) isLoading.value = true;
   try {
@@ -195,12 +219,14 @@ const fetchItems = async (silent = false) => {
       items.value = response.data;
       totalItems.value = response.data.length;
       totalPages.value = 1;
+      queueStats.value = null;
     } else {
       items.value = response.data.items || [];
       totalItems.value = response.data.total || 0;
       currentPage.value = response.data.page || currentPage.value;
       pageSize.value = response.data.pageSize || pageSize.value;
       totalPages.value = Math.max(response.data.pages || 1, 1);
+      queueStats.value = response.data.stats || null;
     }
     if (items.value.length > 0) {
       if (!activeItem.value || !items.value.some((i) => i.id === activeItem.value?.id)) {
@@ -275,17 +301,11 @@ const statusLabel = (status: string) => {
   }
 };
 
-const statusClass = (status: string) => {
-  switch (status) {
-    case 'APPROVED':
-      return 'approved';
-    case 'REJECTED':
-      return 'rejected';
-    case 'PENDING':
-    default:
-      return 'pending';
-  }
-};
+const statusClass = (status: string) => ({
+  'tone-amber': status === 'PENDING',
+  'tone-green': status === 'APPROVED',
+  'tone-red': status === 'REJECTED',
+});
 
 const itemKind = (item: ContentItem) => {
   if (activeTab.value === 'assets') return item.type || 'GLB';
@@ -295,10 +315,174 @@ const itemKind = (item: ContentItem) => {
 };
 
 const metricLine = (item: ContentItem) => {
-  const views = item.views ?? item.views ?? 0;
+  const views = item.views ?? 0;
   const likes = item.likes ?? 0;
   const downloads = item.downloads ?? 0;
   return `浏览 ${views} · 点赞 ${likes} · 下载 ${downloads}`;
+};
+
+const stats = computed(() => {
+  if (queueStats.value) return queueStats.value;
+  const source = items.value;
+  return {
+    total: source.length,
+    pending: source.filter((item) => item.status === 'PENDING').length,
+    approved: source.filter((item) => item.status === 'APPROVED').length,
+    rejected: source.filter((item) => item.status === 'REJECTED').length,
+  };
+});
+
+const approvalRate = computed(() => {
+  const denominator = Math.max(stats.value.total, 1);
+  return Math.round((stats.value.approved / denominator) * 100);
+});
+
+const consolidatedCards = computed(() => {
+  const pendingCount = stats.value.pending;
+
+  return [
+    {
+      label: '管理资源总量',
+      value: stats.value.total,
+      hint: `已通过 ${stats.value.approved} · 已打回 ${stats.value.rejected}`,
+      icon: Inbox,
+      color: 'text-sky-600 bg-sky-500/10 border-sky-500/20',
+      health: { label: '常态', variant: 'success' as const },
+    },
+    {
+      label: '待审核资源',
+      value: pendingCount,
+      hint: `需审核队列`,
+      icon: AlertTriangle,
+      color:
+        pendingCount > 0
+          ? 'text-rose-600 bg-rose-500/10 border-rose-500/20'
+          : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      health:
+        pendingCount > 20
+          ? { label: '积压高', variant: 'danger' as const }
+          : pendingCount > 0
+            ? { label: '待处理', variant: 'warning' as const }
+            : { label: '已清空', variant: 'success' as const },
+    },
+    {
+      label: '已发布资源',
+      value: stats.value.approved,
+      hint: `正常公开展示`,
+      icon: CheckCircle2,
+      color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      health: { label: '已同步', variant: 'success' as const },
+    },
+    {
+      label: '资源上架率',
+      value: `${approvalRate.value}%`,
+      hint: `通过数占总量`,
+      icon: ListChecks,
+      color: 'text-purple-600 bg-purple-500/10 border-purple-500/20',
+      health:
+        approvalRate.value >= 80
+          ? { label: '稳定', variant: 'success' as const }
+          : { label: '关注', variant: 'warning' as const },
+    },
+  ];
+});
+
+// Format helpers
+const formatSize = (bytes?: number | null) => {
+  if (bytes === null || bytes === undefined || isNaN(bytes)) return '-';
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+const statusBadgeVariant = (status: ContentStatus) => {
+  switch (status) {
+    case 'APPROVED':
+      return 'success';
+    case 'REJECTED':
+      return 'danger';
+    case 'PENDING':
+    default:
+      return 'warning';
+  }
+};
+
+const handleQuickApprove = async (item: ContentItem) => {
+  try {
+    const payload: Record<string, any> = {
+      title: item.title,
+      description: item.description,
+      status: 'APPROVED' as ContentStatus,
+      tags: item.tags,
+    };
+    if (activeTab.value === 'assets') {
+      payload.categoryId = item.categoryId;
+    } else if (activeTab.value === 'materials') {
+      payload.category = item.category;
+      payload.resolution = item.resolution;
+    } else if (activeTab.value === 'showcases') {
+      payload.type = item.type;
+    } else if (activeTab.value === 'plugins') {
+      payload.category = item.category;
+      payload.version = item.version;
+      payload.compatibility = item.compatibility;
+    }
+    await api.put(`${pageConfig.value.apiPath}/${item.id}`, payload);
+    ElMessage.success('已批准发布');
+    fetchItems(true);
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '审批失败'));
+  }
+};
+
+const handleQuickReject = (item: ContentItem) => {
+  ElMessageBox.prompt('请输入退回理由：', '退回审核', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    inputPattern: /\S+/,
+    inputErrorMessage: '请输入理由',
+  })
+    .then(async ({ value }) => {
+      try {
+        const payload: Record<string, any> = {
+          title: item.title,
+          description: item.description,
+          status: 'REJECTED' as ContentStatus,
+          tags: item.tags,
+          rejectReason: value,
+        };
+        if (activeTab.value === 'assets') {
+          payload.categoryId = item.categoryId;
+        } else if (activeTab.value === 'materials') {
+          payload.category = item.category;
+          payload.resolution = item.resolution;
+        } else if (activeTab.value === 'showcases') {
+          payload.type = item.type;
+        } else if (activeTab.value === 'plugins') {
+          payload.category = item.category;
+          payload.version = item.version;
+          payload.compatibility = item.compatibility;
+        }
+        await api.put(`${pageConfig.value.apiPath}/${item.id}`, payload);
+        ElMessage.success('已退回发布');
+        fetchItems(true);
+      } catch (error) {
+        ElMessage.error(getApiErrorMessage(error, '退回失败'));
+      }
+    })
+    .catch(() => {});
+};
+
+const handleCommand = (cmd: string, item: ContentItem) => {
+  if (cmd === 'details') {
+    openDetail(item);
+  } else if (cmd === 'edit') {
+    openEdit(item);
+  } else if (cmd === 'delete') {
+    handleDelete(item);
+  }
 };
 
 // Create Operations
@@ -478,7 +662,8 @@ const handleDelete = (item: ContentItem) => {
       ElMessage.success('资源已删除');
 
       // 后台执行请求并在成功后静默拉取
-      api.delete(`${pageConfig.value.apiPath}/${item.id}`)
+      api
+        .delete(`${pageConfig.value.apiPath}/${item.id}`)
         .then(() => {
           fetchItems(true);
         })
@@ -499,175 +684,442 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="admin-workbench">
-    <!-- Header -->
-    <header class="workbench-header">
-      <div>
-        <p class="eyebrow">平台管理 · 资源清单</p>
-        <h1>{{ pageConfig.title }}</h1>
-      </div>
-      <div class="header-actions">
-        <button type="button" class="primary-btn" @click="openCreate">
-          <Plus /> 发布{{ pageConfig.label }}
-        </button>
-      </div>
-    </header>
-
-    <!-- Toolbar -->
-    <div class="toolbar-panel">
-      <div class="shrink-0 overflow-x-auto" style="scrollbar-width: none; -ms-overflow-style: none">
-        <Tabs v-model="activeTab" :options="tabsListOptions" size="sm" @change="(val: any) => handleTabChange(val)" />
-      </div>
-
-      <div class="shrink-0 overflow-x-auto" style="scrollbar-width: none; -ms-overflow-style: none">
-        <Tabs
-          v-model="statusFilter"
-          :options="statusFilterOptions"
-          size="sm"
-          @change="(val: any) => handleStatusFilterChange(val)"
-        />
-      </div>
-
-      <div class="search-box">
-        <Search />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="搜索关键字或创作者..."
-          @keyup.enter="handleSearch"
-        />
-      </div>
-    </div>
-
-    <!-- Main Shell -->
-    <main class="review-shell">
-      <!-- Left List Panel -->
-      <section class="queue-panel">
-        <div class="queue-head">
-          <span>共 {{ totalItems }} 个记录</span>
-          <span>第 {{ currentPage }} / {{ totalPages }} 页</span>
-        </div>
-
-        <div v-if="items.length > 0" class="review-list custom-scrollbar">
-          <div
-            v-for="item in items"
-            :key="item.id"
-            class="review-row"
-            :class="{ active: activeItem?.id === item.id }"
-            @click="selectItem(item)"
+  <div
+    class="admin-contents-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
+  >
+    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
+      <!-- Reusable PageHeader -->
+      <PageHeader :title="pageConfig.title" subtitle="平台管理 · 资源清单" variant="card">
+        <div class="flex items-center gap-2">
+          <UiButton
+            variant="secondary"
+            size="sm"
+            :icon="RefreshCw"
+            :loading="isLoading"
+            @click="fetchItems(false)"
           >
-            <div class="row-check">
-              <component :is="pageConfig.icon" class="w-4 h-4 text-accent" />
+            刷新
+          </UiButton>
+          <UiButton variant="primary" size="sm" :icon="Plus" @click="openCreate">
+            发布{{ pageConfig.label }}
+          </UiButton>
+        </div>
+      </PageHeader>
+
+      <!-- KPI Metrics Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card
+          v-for="card in consolidatedCards"
+          :key="card.label"
+          hoverable
+          glow
+          class="group !p-2 px-2.5"
+        >
+          <div class="flex items-center justify-between w-full gap-3">
+            <!-- Left: Icon & Info -->
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span
+                class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-slate-100/10"
+                :class="card.color"
+              >
+                <component :is="card.icon" class="h-3.5 w-3.5" />
+              </span>
+              <div class="min-w-0">
+                <p
+                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
+                >
+                  {{ card.label }}
+                </p>
+                <p
+                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
+                  :title="card.hint"
+                >
+                  {{ card.hint }}
+                </p>
+              </div>
             </div>
-            <div class="row-thumb">
-              <img v-if="mediaUrl(item)" :src="mediaUrl(item)" alt="" />
-              <component :is="pageConfig.icon" v-else />
+
+            <!-- Right: Metric & Health Badge -->
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-base font-black text-[var(--text-primary)] leading-none">
+                {{ card.value }}
+              </span>
+              <Badge :variant="card.health.variant">
+                {{ card.health.label }}
+              </Badge>
             </div>
-            <div class="row-main">
-              <div class="row-title">
-                <span class="pill" :class="statusClass(item.status)">
-                  {{ statusLabel(item.status) }}
+          </div>
+        </Card>
+      </div>
+
+      <!-- Filters & Search Toolbar -->
+      <Card padding="sm">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <!-- Tabs for activeTab and statusFilter -->
+          <div class="flex flex-wrap items-center gap-3 overflow-x-auto scrollbar-hide shrink-0">
+            <!-- Resource Categories Tab -->
+            <Tabs
+              v-slot="{}"
+              v-model="activeTab"
+              :options="tabsListOptions"
+              variant="solid"
+              @change="(val: any) => handleTabChange(val)"
+            />
+            <!-- Status filter Tab -->
+            <Tabs
+              v-slot="{}"
+              v-model="statusFilter"
+              :options="statusFilterOptions"
+              variant="solid"
+              @change="(val: any) => handleStatusFilterChange(val)"
+            />
+          </div>
+
+          <!-- Center-aligned Search -->
+          <div class="flex flex-1 items-center justify-center max-w-md w-full">
+            <UiInput
+              v-model="searchQuery"
+              :icon="Search"
+              placeholder="搜索关键字或创作者..."
+              :glass="false"
+              class="w-full"
+              @keyup.enter="handleSearch"
+            />
+          </div>
+
+          <!-- Page size selector -->
+          <div class="flex items-center gap-2 self-end md:self-auto">
+            <span class="text-xs text-[var(--text-muted)] font-medium">每页条数:</span>
+            <el-select
+              v-model="pageSize"
+              size="small"
+              style="width: 80px"
+              @change="
+                () => {
+                  currentPage = 1;
+                  fetchItems();
+                }
+              "
+            >
+              <el-option :value="10" label="10条" />
+              <el-option :value="12" label="12条" />
+              <el-option :value="20" label="20条" />
+              <el-option :value="50" label="50条" />
+            </el-select>
+          </div>
+        </div>
+      </Card>
+
+      <!-- Table Shell Card -->
+      <Card padding="none" class="table-shell-card overflow-hidden">
+        <el-table
+          v-loading="isLoading"
+          :data="items"
+          class="user-table"
+          row-key="id"
+          @row-click="openDetail"
+        >
+          <!-- Selection Column -->
+          <el-table-column type="selection" width="48" align="center" />
+
+          <!-- Thumbnail Preview -->
+          <el-table-column label="预览" width="80" align="center">
+            <template #default="{ row }">
+              <div
+                class="w-10 h-10 rounded-lg border border-base overflow-hidden flex items-center justify-center bg-[var(--bg-app)] shrink-0"
+              >
+                <img v-if="mediaUrl(row)" :src="mediaUrl(row)" class="w-full h-full object-cover" />
+                <component :is="pageConfig.icon" v-else class="w-5 h-5 text-[var(--text-muted)]" />
+              </div>
+            </template>
+          </el-table-column>
+
+          <!-- Resource Title and Description -->
+          <el-table-column label="资源名称" min-width="220">
+            <template #default="{ row }">
+              <div class="flex flex-col text-left">
+                <button
+                  class="text-sm font-bold text-[var(--text-primary)] hover:text-accent transition-colors truncate text-left focus:outline-none"
+                  type="button"
+                  @click.stop="openDetail(row)"
+                >
+                  {{ row.title }}
+                </button>
+                <p class="text-xs text-[var(--text-secondary)] truncate mt-0.5">
+                  {{ row.description || '暂无描述信息' }}
+                </p>
+              </div>
+            </template>
+          </el-table-column>
+
+          <!-- Creator -->
+          <el-table-column label="创作者" min-width="140">
+            <template #default="{ row }">
+              <div class="flex items-center gap-2">
+                <UserAvatar :user="row.user" size="sm" />
+                <span
+                  class="text-xs font-semibold text-[var(--text-primary)] truncate max-w-[100px]"
+                >
+                  {{ row.user?.name || row.user?.email || '匿名' }}
                 </span>
-                <strong class="truncate">{{ item.title }}</strong>
               </div>
-              <p class="row-desc truncate">{{ item.description || '无描述' }}</p>
-            </div>
-            <div class="row-meta">
-              <div class="meta-author truncate">
-                作者：{{ item.user?.name || item.user?.email || '匿名' }}
+            </template>
+          </el-table-column>
+
+          <!-- Specifications / Meta properties -->
+          <el-table-column label="规格属性" min-width="140">
+            <template #default="{ row }">
+              <div class="flex flex-col text-left">
+                <span class="text-xs text-[var(--text-primary)] font-semibold">
+                  {{ itemKind(row) }}
+                </span>
+                <span
+                  v-if="row.fileSize || row.size"
+                  class="text-[10px] text-[var(--text-muted)] mt-0.5"
+                >
+                  {{ formatSize(row.fileSize || row.size) }}
+                </span>
+                <span
+                  v-else-if="row.compatibility || row.version"
+                  class="text-[10px] text-[var(--text-muted)] mt-0.5"
+                >
+                  {{ row.compatibility || row.version }}
+                </span>
               </div>
-              <div class="meta-time">{{ formatDate(item.createdAt) }}</div>
-            </div>
-          </div>
-        </div>
+            </template>
+          </el-table-column>
 
-        <div v-else-if="!isLoading" class="empty-list-state">
-          <component :is="pageConfig.icon" class="w-12 h-12 text-slate-300 dark:text-slate-700" />
-          <p>{{ pageConfig.emptyLabel }}</p>
-          <span>当前筛选条件下没有需要展示的记录。</span>
-        </div>
+          <!-- Status badge -->
+          <el-table-column label="状态" width="100" align="center">
+            <template #default="{ row }">
+              <Badge :variant="statusBadgeVariant(row.status)">
+                {{ statusLabel(row.status) }}
+              </Badge>
+            </template>
+          </el-table-column>
 
-        <!-- Footer Pagination -->
-        <footer class="queue-foot">
-          <div class="pagination">
-            <button type="button" :disabled="currentPage === 1" @click="setPage(1)">
-              <ChevronsLeft />
-            </button>
-            <button type="button" :disabled="currentPage === 1" @click="setPage(currentPage - 1)">
-              <ChevronLeft />
-            </button>
-            <span class="page-indicator">{{ currentPage }} / {{ totalPages }}</span>
-            <button
-              type="button"
-              :disabled="currentPage === totalPages"
-              @click="setPage(currentPage + 1)"
+          <!-- Created Date -->
+          <el-table-column label="提交时间" width="140" align="center">
+            <template #default="{ row }">
+              <span class="text-xs text-[var(--text-secondary)]">
+                {{ formatDate(row.createdAt).substring(0, 10) }}
+              </span>
+            </template>
+          </el-table-column>
+
+          <!-- Actions column -->
+          <el-table-column label="操作" width="180" align="center">
+            <template #default="{ row }">
+              <div class="flex items-center justify-center gap-1.5" @click.stop>
+                <!-- Quick audit action buttons -->
+                <UiButton
+                  v-if="row.status === 'PENDING'"
+                  v-slot="{}"
+                  size="sm"
+                  variant="secondary"
+                  class="!py-1 !px-2 !min-h-0 text-[11px]"
+                  @click="handleQuickApprove(row)"
+                >
+                  通过
+                </UiButton>
+                <UiButton
+                  v-if="row.status === 'PENDING'"
+                  v-slot="{}"
+                  size="sm"
+                  variant="secondary"
+                  class="danger-action !py-1 !px-2 !min-h-0 text-[11px]"
+                  @click="handleQuickReject(row)"
+                >
+                  退回
+                </UiButton>
+
+                <!-- More action dropdown -->
+                <el-dropdown trigger="click" @command="(cmd: any) => handleCommand(cmd, row)">
+                  <UiButton v-slot="{}" size="sm" variant="secondary" class="!p-1.5 !min-h-0">
+                    <MoreHorizontal class="w-3.5 h-3.5" />
+                  </UiButton>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="details">
+                        <Eye class="w-3.5 h-3.5 mr-1" /> 查看详情
+                      </el-dropdown-item>
+                      <el-dropdown-item command="edit">
+                        <Edit3 class="w-3.5 h-3.5 mr-1" /> 编辑资源
+                      </el-dropdown-item>
+                      <el-dropdown-item command="delete" class="!text-[var(--danger)]">
+                        <Trash2 class="w-3.5 h-3.5 mr-1" /> 彻底删除
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
+            </template>
+          </el-table-column>
+
+          <!-- Empty state slot inside el-table -->
+          <template #empty>
+            <div
+              class="flex flex-col items-center justify-center py-8 text-[var(--text-muted)] gap-2"
             >
-              <ChevronRightIcon />
-            </button>
-            <button
-              type="button"
-              :disabled="currentPage === totalPages"
-              @click="setPage(totalPages)"
-            >
-              <ChevronsRight />
-            </button>
-          </div>
-        </footer>
-      </section>
-
-      <!-- Right Inspector Panel -->
-      <aside class="inspector-panel">
-        <template v-if="activeItem">
-          <div class="inspector-media">
-            <img v-if="mediaUrl(activeItem)" :src="mediaUrl(activeItem)" alt="" />
-            <component :is="pageConfig.icon" v-else />
-          </div>
-          <div class="inspector-title">
-            <span class="pill" :class="statusClass(activeItem.status)">
-              {{ statusLabel(activeItem.status) }}
-            </span>
-            <h2>{{ activeItem.title }}</h2>
-            <p class="custom-scrollbar">{{ activeItem.description || '暂无描述' }}</p>
-          </div>
-
-          <div class="inspector-section">
-            <h3>资产信息</h3>
-            <div class="detail-grid">
-              <span>作者</span>
-              <strong>{{ activeItem.user?.name || activeItem.user?.email || '匿名创作者' }}</strong>
-              <span>类别</span>
-              <strong>{{ itemKind(activeItem) }}</strong>
-              <span>指标</span>
-              <strong>{{ metricLine(activeItem) }}</strong>
-              <span>创建时间</span>
-              <strong>{{ formatDate(activeItem.createdAt) }}</strong>
+              <component :is="pageConfig.icon" class="w-8 h-8 text-[var(--text-muted)]" />
+              <p class="text-sm font-semibold">{{ pageConfig.emptyLabel }}</p>
+              <span class="text-xs">当前筛选条件下没有找到记录。</span>
             </div>
-          </div>
+          </template>
+        </el-table>
 
-          <div v-if="activeItem.tags" class="inspector-section">
-            <h3>标签</h3>
-            <p class="tag-line">{{ activeItem.tags }}</p>
-          </div>
-
-          <div v-if="activeItem.rejectReason" class="inspector-section">
-            <h3>退回理由</h3>
-            <p class="body-text">{{ activeItem.rejectReason }}</p>
-          </div>
-
-          <div class="inspector-actions">
-            <button type="button" @click="openEdit(activeItem)"><Edit3 /> 编辑资源</button>
-            <button type="button" class="danger-action" @click="handleDelete(activeItem)">
-              <Trash2 /> 彻底删除
-            </button>
-          </div>
-        </template>
-        <div v-else class="empty-state">
-          <ChevronRightIcon />
-          <strong>选择一条记录</strong>
-          <span>右侧会显示资源详细信息及操作。</span>
+        <!-- Pagination Wrap -->
+        <div class="pagination-wrap">
+          <span class="text-xs text-[var(--text-secondary)]"
+            >当前显示 {{ items.length }} 条，共 {{ totalItems }} 条</span
+          >
+          <el-pagination
+            background
+            :current-page="currentPage"
+            :page-size="pageSize"
+            :total="totalItems"
+            layout="prev, pager, next, jumper"
+            @current-change="setPage"
+          />
         </div>
-      </aside>
+      </Card>
     </main>
+
+    <!-- Details Modal -->
+    <Modal
+      :show="detailModalVisible"
+      title="资源详情"
+      size="md"
+      @close="detailModalVisible = false"
+    >
+      <template v-if="activeItem">
+        <div class="flex flex-col gap-4 text-left">
+          <!-- Media Preview -->
+          <div
+            class="w-full aspect-video rounded-xl border border-base overflow-hidden flex items-center justify-center bg-[var(--bg-app)] relative group/modal-media"
+          >
+            <img
+              v-if="mediaUrl(activeItem)"
+              :src="mediaUrl(activeItem)"
+              class="w-full h-full object-cover"
+            />
+            <component :is="pageConfig.icon" v-else class="w-12 h-12 text-[var(--text-muted)]" />
+          </div>
+
+          <!-- Basic Info -->
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <Badge :variant="statusBadgeVariant(activeItem.status)">
+                {{ statusLabel(activeItem.status) }}
+              </Badge>
+              <span class="text-xs text-[var(--text-muted)]">{{
+                formatDate(activeItem.createdAt)
+              }}</span>
+            </div>
+            <h3 class="text-lg font-black text-[var(--text-primary)] leading-tight mb-2">
+              {{ activeItem.title }}
+            </h3>
+            <p
+              class="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar"
+            >
+              {{ activeItem.description || '暂无描述信息' }}
+            </p>
+          </div>
+
+          <!-- Details Grid -->
+          <div class="border-t border-base pt-3 space-y-2">
+            <h4 class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
+              资产元数据
+            </h4>
+
+            <div
+              class="grid grid-cols-2 gap-3 text-xs bg-[var(--bg-app)] p-3 rounded-xl border border-base"
+            >
+              <div>
+                <span class="text-[var(--text-muted)] block mb-0.5">作者</span>
+                <span class="font-bold text-[var(--text-primary)]">
+                  {{ activeItem.user?.name || activeItem.user?.email || '匿名创作者' }}
+                </span>
+              </div>
+              <div>
+                <span class="text-[var(--text-muted)] block mb-0.5">类型/类别</span>
+                <span class="font-bold text-[var(--text-primary)]">{{ itemKind(activeItem) }}</span>
+              </div>
+              <div class="col-span-2 border-t border-strong pt-2 mt-1">
+                <span class="text-[var(--text-muted)] block mb-0.5">指标数据</span>
+                <span class="font-bold text-[var(--text-primary)]">{{
+                  metricLine(activeItem)
+                }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Extra details e.g., Tags, Reject Reason -->
+          <div v-if="activeItem.tags" class="border-t border-base pt-3">
+            <h4 class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">
+              标签
+            </h4>
+            <div class="flex flex-wrap gap-1.5">
+              <Badge v-for="tag in activeItem.tags.split(',')" :key="tag" variant="info" outline>
+                {{ tag.trim() }}
+              </Badge>
+            </div>
+          </div>
+
+          <div
+            v-if="activeItem.rejectReason"
+            class="border-t border-base pt-3 bg-red-500/5 p-3 rounded-xl border border-red-500/10"
+          >
+            <h4
+              class="text-xs font-bold text-red-500 uppercase tracking-wider mb-1 flex items-center gap-1"
+            >
+              <AlertTriangle class="w-3.5 h-3.5" /> 退回理由
+            </h4>
+            <p class="text-xs text-red-600 dark:text-red-400 font-medium leading-normal">
+              {{ activeItem.rejectReason }}
+            </p>
+          </div>
+        </div>
+      </template>
+      <div
+        v-else
+        class="flex flex-col items-center justify-center py-12 text-[var(--text-muted)] gap-2"
+      >
+        <Inbox class="w-8 h-8" />
+        <span class="text-sm font-semibold">未选中资源</span>
+      </div>
+
+      <template v-if="activeItem" #footer>
+        <div class="flex w-full gap-2 justify-end">
+          <UiButton
+            variant="secondary"
+            :icon="Edit3"
+            @click="
+              () => {
+                detailModalVisible = false;
+                openEdit(activeItem!);
+              }
+            "
+          >
+            编辑资源
+          </UiButton>
+          <UiButton
+            variant="secondary"
+            class="danger-action"
+            :icon="Trash2"
+            @click="
+              () => {
+                detailModalVisible = false;
+                handleDelete(activeItem!);
+              }
+            "
+          >
+            彻底删除
+          </UiButton>
+          <UiButton variant="secondary" @click="detailModalVisible = false"> 关闭 </UiButton>
+        </div>
+      </template>
+    </Modal>
 
     <!-- Create Modal -->
     <Modal
@@ -934,519 +1386,71 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.admin-workbench {
+.admin-contents-page {
   height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  overflow: hidden;
-  background: var(--bg-app);
-  color: var(--text-primary);
+  background: transparent;
 }
 
-.workbench-header,
-.toolbar-panel,
-.queue-panel,
-.inspector-panel {
+.table-shell-card {
   border: 1px solid var(--border-base);
-  background: var(--bg-card);
-  border-radius: 8px;
   box-shadow: var(--shadow-enterprise);
 }
 
-.workbench-header {
+.user-table {
+  width: 100%;
+}
+
+.pagination-wrap {
+  min-height: 48px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 12px 14px;
-}
-
-h1,
-h2,
-h3,
-p {
-  margin: 0;
-}
-
-.eyebrow {
-  margin-bottom: 4px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-h1 {
-  font-size: 20px;
-  font-weight: 900;
-}
-
-button {
-  border: 0;
-  cursor: pointer;
-  font: inherit;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.primary-btn,
-.ghost-btn,
-.inspector-actions button,
-.dialog-btn {
-  min-height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 0 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 900;
-  text-decoration: none;
-}
-
-.primary-btn {
-  background: var(--accent);
-  color: white;
-}
-
-.ghost-btn,
-.inspector-actions button {
-  border: 1px solid var(--border-base);
-  background: var(--bg-elevated);
+  gap: 12px;
   color: var(--text-secondary);
+  font-size: 13px;
+  border-top: 1px solid var(--border-base);
 }
 
 .danger-action {
-  background: rgba(220, 38, 38, 0.1) !important;
+  background: rgba(220, 38, 38, 0.05) !important;
   color: var(--danger) !important;
-  border-color: rgba(220, 38, 38, 0.2) !important;
+  border-color: rgba(220, 38, 38, 0.15) !important;
 }
 
-button svg {
-  width: 15px;
-  height: 15px;
+.danger-action:hover {
+  background: rgba(220, 38, 38, 0.1) !important;
 }
 
-.toolbar-panel {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px;
-  flex-wrap: wrap;
+:deep(.el-table) {
+  --el-table-border-color: var(--border-base);
+  --el-table-header-bg-color: var(--bg-app);
+  --el-table-row-hover-bg-color: var(--bg-hover);
+  background-color: transparent;
 }
 
-.tab-strip,
-.segmented {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
-}
-
-.tab-strip button,
-.segmented button {
-  min-height: 30px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 12px;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.tab-strip button.active,
-.segmented button.active {
-  background: var(--bg-card);
-  color: var(--accent);
-  box-shadow: var(--shadow-enterprise);
-}
-
-.search-box {
-  margin-left: auto;
-  min-width: 280px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-elevated);
-}
-
-.search-box input {
-  width: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 12px;
-}
-
-.review-shell {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 12px;
-}
-
-.queue-panel,
-.inspector-panel {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.queue-panel {
-  display: flex;
-  flex-direction: column;
-}
-
-.queue-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border-base);
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.review-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.review-row {
-  min-height: 76px;
-  display: grid;
-  grid-template-columns: 32px 64px minmax(0, 1fr) minmax(180px, auto);
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
+:deep(.el-table__row) {
   cursor: pointer;
-  transition: all 0.2s;
 }
 
-.review-row:hover {
-  border-color: var(--border-strong);
-  background: var(--bg-elevated);
-}
-
-.review-row.active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 4%, var(--bg-card));
-  box-shadow: 0 0 0 1px var(--accent);
-}
-
-.row-check {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border-radius: 6px;
-  background: var(--bg-app);
-}
-
-.row-thumb {
-  width: 64px;
-  height: 64px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 6px;
-  background: var(--bg-app);
-  border: 1px solid var(--border-base);
-}
-
-.row-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.row-thumb > svg {
-  width: 20px;
-  height: 20px;
-  color: var(--text-muted);
-}
-
-.row-main {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  text-align: left;
-}
-
-.row-title {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.row-title strong {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--text-primary);
-}
-
-.row-desc {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.row-meta {
-  text-align: right;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 11px;
-}
-
-.meta-author {
-  font-weight: 700;
-  color: var(--text-secondary);
-}
-
-.meta-time {
-  color: var(--text-muted);
-}
-
-.pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 9px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.pill.pending {
-  background: rgba(245, 158, 11, 0.1);
-  color: #d97706;
-}
-
-.pill.approved {
-  background: rgba(16, 185, 129, 0.1);
-  color: #059669;
-}
-
-.pill.rejected {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-}
-
-.empty-list-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  color: var(--text-muted);
-  text-align: center;
-  gap: 8px;
-}
-
-.empty-list-state p {
-  font-weight: 800;
-  color: var(--text-secondary);
-}
-
-.empty-list-state span {
-  font-size: 12px;
-}
-
-.queue-foot {
-  padding: 10px 14px;
-  border-top: 1px solid var(--border-base);
-  display: flex;
-  justify-content: center;
-}
-
-.pagination {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.pagination button {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
+:deep(.el-drawer) {
   background: var(--bg-card);
-  color: var(--text-secondary);
-}
-
-.pagination button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.page-indicator {
-  font-size: 12px;
-  font-weight: 800;
-  padding: 0 10px;
-}
-
-.inspector-panel {
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  overflow-y: auto;
-  text-align: left;
-}
-
-.inspector-media {
-  width: 100%;
-  aspect-ratio: 16 / 10;
-  border-radius: 8px;
-  overflow: hidden;
-  background: var(--bg-app);
-  border: 1px solid var(--border-base);
-  display: grid;
-  place-items: center;
-  margin-bottom: 16px;
-}
-
-.inspector-media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.inspector-media svg {
-  width: 48px;
-  height: 48px;
-  color: var(--text-muted);
-}
-
-.inspector-title {
-  margin-bottom: 20px;
-}
-
-.inspector-title h2 {
-  font-size: 18px;
-  font-weight: 900;
-  margin: 6px 0 8px;
   color: var(--text-primary);
+  border-left: 1px solid var(--border-base);
 }
 
-.inspector-title p {
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
-
-.inspector-section {
-  border-top: 1px solid var(--border-base);
-  padding-top: 16px;
-  margin-bottom: 16px;
-}
-
-.inspector-section h3 {
-  font-size: 11px;
-  font-weight: 900;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 10px;
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: 80px minmax(0, 1fr);
-  gap: 8px 12px;
-  font-size: 12px;
-}
-
-.detail-grid span {
-  color: var(--text-secondary);
-}
-
-.detail-grid strong {
-  font-weight: 700;
+:deep(.el-drawer__header) {
+  margin-bottom: 12px;
+  padding: 16px 20px 0;
   color: var(--text-primary);
+  font-weight: bold;
 }
 
-.tag-line {
-  font-size: 12px;
-  color: var(--accent);
-  font-family: monospace;
-}
-
-.body-text {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text-primary);
-}
-
-.inspector-actions {
-  margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-base);
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
-.inspector-actions button {
-  width: 100%;
-}
-
-.empty-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  text-align: center;
-  gap: 6px;
-}
-
-.empty-state svg {
-  width: 32px;
-  height: 32px;
-}
-
-.empty-state strong {
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.empty-state span {
-  font-size: 12px;
+:deep(.el-drawer__body) {
+  padding: 20px;
 }
 
 /* Modal Form Styles */
@@ -1534,5 +1538,39 @@ button svg {
 
 .checkbox-label input {
   width: auto;
+}
+
+.primary-btn,
+.ghost-btn,
+.dialog-btn {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.primary-btn {
+  background: var(--accent);
+  color: white;
+}
+
+.ghost-btn {
+  border: 1px solid var(--border-base);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+
+.primary-btn:hover {
+  filter: brightness(1.1);
+}
+
+.ghost-btn:hover {
+  background: var(--bg-hover);
 }
 </style>

@@ -3,9 +3,7 @@ import { formatDateTime as formatDate } from '@/utils/format';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import {
   Ban,
-  BarChart3,
   CheckCircle2,
-  ChevronRight,
   Clock,
   Copy,
   CreditCard,
@@ -18,25 +16,24 @@ import {
   Plus,
   RefreshCw,
   Search,
-  ShieldAlert,
   ShieldCheck,
-  SlidersHorizontal,
-  Sparkles,
   TimerReset,
   Trash2,
   UserCog,
   Users,
-  X,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import UserAvatar from '@/components/UserAvatar.vue';
-import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import { fetchManagementInsights, formatCompactNumber } from './adminManagementInsights';
 import UserDetailDrawer from './components/UserDetailDrawer.vue';
 import UserQuotaDialog from './components/UserQuotaDialog.vue';
 import Modal from '@/components/ui/Modal.vue';
+import PageHeader from '@/components/PageHeader.vue';
+import Button from '@/components/ui/Button.vue';
+import Tabs from '@/components/ui/Tabs.vue';
+import Badge from '@/components/ui/Badge.vue';
 
 export type UserRole = 'USER' | 'ADMIN' | 'INSTRUCTOR';
 export type UserStatus = 'ACTIVE' | 'BANNED';
@@ -177,7 +174,6 @@ interface AdminUserOverview {
 interface FocusPreset {
   key: string;
   label: string;
-  hint: string;
   role?: RoleFilter;
   status?: StatusFilter;
   activity?: ActivityFilter;
@@ -193,7 +189,6 @@ const isOverviewLoading = ref(false);
 const isSubmitting = ref(false);
 const isSubLoading = ref(false);
 const searchQuery = ref('');
-const showAdvancedFilters = ref(false);
 const roleFilter = ref<RoleFilter>('ALL');
 const statusFilter = ref<StatusFilter>('ALL');
 const activityFilter = ref<ActivityFilter>('ALL');
@@ -253,35 +248,39 @@ const activityOptions: Array<{ value: ActivityFilter; label: string }> = [
 
 const focusPresets: FocusPreset[] = [
   {
+    key: 'all',
+    label: '全部用户',
+    role: 'ALL',
+    status: 'ALL',
+    activity: 'ALL',
+    smart: 'ALL',
+    q: '',
+  },
+  {
     key: 'risk',
     label: '风险账号',
-    hint: '封禁、未验证、会话异常',
     activity: 'RISK',
   },
   {
     key: 'admin-security',
     label: '管理员安全',
-    hint: '管理员与 2FA 检查',
     role: 'ADMIN',
     activity: 'ALL',
   },
   {
     key: 'subscribed',
     label: '订阅用户',
-    hint: '商业用户留存跟进',
     activity: 'ALL',
     smart: 'SUBSCRIBED',
   },
   {
     key: 'dormant',
     label: '沉睡唤醒',
-    hint: '超过 30 天未登录',
     activity: 'DORMANT',
   },
   {
     key: 'new',
     label: '新注册',
-    hint: '近 7 日新增画像',
     activity: 'ALL',
     smart: 'NEW',
   },
@@ -463,48 +462,69 @@ const stats = computed(() => {
   };
 });
 
-const overviewMetrics = computed(() => {
+const getBadgeVariant = (label: string) => {
+  if (label === '正常' || label === '稳定') return 'success';
+  if (label === '关注') return 'warning';
+  if (label === '高压') return 'danger';
+  return 'primary';
+};
+
+const consolidatedCards = computed(() => {
   const overview = userOverview.value;
   return [
     {
-      key: 'users',
-      label: '全站用户',
+      label: '全站用户规模',
       value: overview?.totals.total ?? stats.value.total,
-      sub: overview ? `7日新增 ${overview.totals.newLast7d}` : `当前页 ${users.value.length}`,
+      hint: overview
+        ? `7d 新增 ${overview.totals.newLast7d} · 30d 新增 ${overview.totals.newLast30d}`
+        : `当前页 ${users.value.length} 个用户`,
       icon: Users,
-      tone: 'blue',
+      color: 'text-sky-600 bg-sky-500/10 border-sky-500/20',
+      progress: null,
+      health: { label: '正常', variant: 'success' as const },
     },
     {
-      key: 'security',
-      label: '安全覆盖',
+      label: '系统安全覆盖',
       value: overview
         ? `${Math.round((overview.security.twoFactorEnabled / Math.max(1, overview.totals.total)) * 100)}%`
         : stats.value.mfaEnabled,
-      sub: overview
-        ? `${overview.security.adminsWithoutMfa} 个管理员未开 2FA`
-        : `${stats.value.mfaEnabled} 个已开 2FA`,
+      hint: overview
+        ? `${overview.security.adminsWithoutMfa} 管理员未开 2FA · 未验证 ${overview.security.emailUnverified}`
+        : `${stats.value.mfaEnabled} 个已开启 2FA`,
       icon: ShieldCheck,
-      tone: overview?.security.adminsWithoutMfa ? 'amber' : 'green',
+      color: overview?.security.adminsWithoutMfa
+        ? 'text-amber-600 bg-amber-500/10 border-amber-500/20'
+        : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      progress: overview
+        ? Math.round(
+            (overview.security.twoFactorEnabled / Math.max(1, overview.totals.total)) * 100,
+          )
+        : null,
+      health: overview?.security.adminsWithoutMfa
+        ? { label: '关注', variant: 'warning' as const }
+        : { label: '稳定', variant: 'success' as const },
     },
     {
-      key: 'activity',
-      label: '活跃会话',
+      label: '活跃会话监测',
       value: overview?.security.activeSessions ?? stats.value.activeSessions,
-      sub: overview
-        ? `${overview.security.activeSessionUsers} 个用户在线`
+      hint: overview
+        ? `${overview.security.activeSessionUsers} 个用户在线 · 设备 ${overview.security.trustedDevices}`
         : `${stats.value.recentLogins} 个近7日登录`,
       icon: MonitorSmartphone,
-      tone: 'green',
+      color: 'text-green-600 bg-green-500/10 border-green-500/20',
+      progress: null,
+      health: { label: '稳定', variant: 'success' as const },
     },
     {
-      key: 'commerce',
-      label: '订阅转化',
+      label: '商业订阅转化',
       value: overview ? `${overview.commerce.conversionRate}%` : stats.value.subscribed,
-      sub: overview
-        ? `${overview.commerce.activeSubscriptions} 活跃订阅 / ${overview.commerce.expiringSoon} 即将到期`
+      hint: overview
+        ? `活跃订阅 ${overview.commerce.activeSubscriptions} · 即将到期 ${overview.commerce.expiringSoon}`
         : `${stats.value.subscribed} 个活跃订阅`,
       icon: CreditCard,
-      tone: 'purple',
+      color: 'text-purple-600 bg-purple-500/10 border-purple-500/20',
+      progress: overview ? overview.commerce.conversionRate : null,
+      health: { label: '稳定', variant: 'success' as const },
     },
   ];
 });
@@ -553,16 +573,40 @@ const maxPlanCount = computed(() =>
   Math.max(1, ...planDistribution.value.map((item) => item.count)),
 );
 
-const activePresetKey = computed(() => {
-  const preset = focusPresets.find(
-    (item) =>
-      (item.role || 'ALL') === roleFilter.value &&
-      (item.status || 'ALL') === statusFilter.value &&
-      (item.activity || 'ALL') === activityFilter.value &&
-      (item.smart || 'ALL') === smartFilter.value &&
-      (item.q || '') === searchQuery.value.trim(),
-  );
-  return preset?.key || '';
+const activePresetKey = computed({
+  get() {
+    const preset = focusPresets.find(
+      (item) =>
+        (item.role || 'ALL') === roleFilter.value &&
+        (item.status || 'ALL') === statusFilter.value &&
+        (item.activity || 'ALL') === activityFilter.value &&
+        (item.smart || 'ALL') === smartFilter.value &&
+        (item.q || '') === searchQuery.value.trim(),
+    );
+    return preset?.key || '';
+  },
+  set(newKey) {
+    const preset = focusPresets.find((p) => p.key === newKey);
+    if (preset) {
+      applyPreset(preset);
+    }
+  },
+});
+
+const presetTabOptions = computed(() => {
+  const iconMap: Record<string, any> = {
+    all: Users,
+    risk: Ban,
+    'admin-security': ShieldCheck,
+    subscribed: CreditCard,
+    dormant: Clock,
+    new: Plus,
+  };
+  return focusPresets.map((preset) => ({
+    label: preset.label,
+    value: preset.key,
+    icon: iconMap[preset.key],
+  }));
 });
 
 const allPageSelected = computed(
@@ -653,14 +697,6 @@ const applyPreset = (preset: FocusPreset) => {
   activityFilter.value = preset.activity || 'ALL';
   smartFilter.value = preset.smart || 'ALL';
   searchQuery.value = preset.q || '';
-};
-
-const clearFilters = () => {
-  roleFilter.value = 'ALL';
-  statusFilter.value = 'ALL';
-  activityFilter.value = 'ALL';
-  smartFilter.value = 'ALL';
-  searchQuery.value = '';
 };
 
 const copyEmail = async (user: AdminUser) => {
@@ -1029,434 +1065,408 @@ onUnmounted(() => {
   if (searchTimer) clearTimeout(searchTimer);
 });
 
-void overviewMetrics.value;
+void consolidatedCards.value;
 </script>
 
 <template>
-  <div class="admin-users-page">
-    <header class="page-header">
-      <div>
-        <div class="eyebrow">
-          <UserCog :size="14" />
-          用户与团队
-        </div>
-        <h1>用户管理</h1>
-        <p class="page-subtitle">
-          {{
-            userOverview
-              ? `覆盖 ${compact(userOverview.totals.total)} 个账号，${compact(userOverview.security.activeSessions)} 个活跃会话`
-              : '正在同步账号、会话与订阅数据'
-          }}
-        </p>
-      </div>
-      <div class="header-actions">
-        <el-button :loading="isLoading || isOverviewLoading" @click="refreshDashboard()">
-          <RefreshCw :size="16" />
-          刷新
-        </el-button>
-        <el-button type="primary" @click="openCreateDialog">
-          <Plus :size="16" />
-          新建用户
-        </el-button>
-      </div>
-    </header>
-
-    <section class="command-center">
-      <div class="command-main">
-        <AdminOpsPanel scope="users" />
-      </div>
-
-      <aside class="command-side">
-        <section class="signal-card">
-          <div class="signal-head">
-            <div>
-              <span>风险处理队列</span>
-              <strong>{{ riskQueue.length }} 个信号</strong>
-            </div>
-            <ShieldAlert :size="17" />
-          </div>
-          <button
-            v-for="user in riskQueue.slice(0, 4)"
-            :key="user.id"
-            class="risk-row"
-            type="button"
-            @click="openDetail(user)"
-          >
-            <UserAvatar :user="user" size="sm" />
-            <span>
-              <strong>{{ user.name || user.email }}</strong>
-              <em>{{ user.risk?.reason || riskLabel(user) }}</em>
-            </span>
-            <ChevronRight :size="15" />
-          </button>
-          <div v-if="riskQueue.length === 0" class="quiet-empty">当前没有高优先级账号风险。</div>
-        </section>
-
-        <section class="signal-card">
-          <div class="signal-head">
-            <div>
-              <span>角色与订阅分布</span>
-              <strong>真实全站聚合</strong>
-            </div>
-            <BarChart3 :size="17" />
-          </div>
-          <div class="distribution-list">
-            <div
-              v-for="item in roleDistribution"
-              :key="`role-${item.key}`"
-              class="distribution-row"
-            >
-              <span>{{ item.label }}</span>
-              <div><i :style="{ width: `${(item.count / maxRoleCount) * 100}%` }" /></div>
-              <strong>{{ item.count }}</strong>
-            </div>
-            <div
-              v-for="item in planDistribution.slice(0, 3)"
-              :key="`plan-${item.key}`"
-              class="distribution-row plan"
-            >
-              <span>{{ item.label }}</span>
-              <div><i :style="{ width: `${(item.count / maxPlanCount) * 100}%` }" /></div>
-              <strong>{{ item.count }}</strong>
-            </div>
-          </div>
-        </section>
-      </aside>
-    </section>
-
-    <section class="workbench-toolbar">
-      <div class="toolbar-top">
-        <div class="preset-strip">
-          <button
-            v-for="preset in focusPresets"
-            :key="preset.key"
-            :class="{ active: activePresetKey === preset.key }"
-            type="button"
-            @click="applyPreset(preset)"
-          >
-            <Sparkles :size="14" />
-            <span>{{ preset.label }}</span>
-            <em>{{ preset.hint }}</em>
-          </button>
-        </div>
-
-        <label class="search-box">
-          <Search :size="17" />
-          <input v-model="searchQuery" placeholder="搜索姓名、邮箱" type="search" />
-        </label>
-
-        <div class="toolbar-actions">
-          <el-button
-            :type="showAdvancedFilters ? 'primary' : ''"
-            plain
-            @click="showAdvancedFilters = !showAdvancedFilters"
-          >
-            <SlidersHorizontal :size="15" />
-            高级筛选
-          </el-button>
-          <el-button plain @click="exportVisibleUsers">
-            <Download :size="15" />
-            导出
-          </el-button>
-          <el-button plain @click="clearFilters">
-            <X :size="15" />
-            清空
-          </el-button>
-        </div>
-      </div>
-
-      <div v-show="showAdvancedFilters" class="filter-row">
-        <div class="filter-title">
-          <SlidersHorizontal :size="15" />
-          精准筛选
-        </div>
-        <div class="filter-wrap">
-          <div class="segmented">
-            <button
-              v-for="option in statusOptions"
-              :key="option.value"
-              :class="{ active: statusFilter === option.value }"
-              type="button"
-              @click="statusFilter = option.value"
-            >
-              {{ option.label }}
-            </button>
-          </div>
-          <div class="segmented">
-            <button
-              v-for="option in roleOptions"
-              :key="option.value"
-              :class="{ active: roleFilter === option.value }"
-              type="button"
-              @click="roleFilter = option.value"
-            >
-              {{ option.label }}
-            </button>
-          </div>
-          <div class="segmented">
-            <button
-              v-for="option in activityOptions"
-              :key="option.value"
-              :class="{ active: activityFilter === option.value }"
-              type="button"
-              @click="activityFilter = option.value"
-            >
-              {{ option.label }}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="selectedIds.length" class="batch-bar">
-        <div>
-          已选 <strong>{{ selectedIds.length }}</strong> 个用户
-        </div>
-        <div class="batch-actions">
-          <el-button size="small" @click="handleBatchUpdate({ status: 'ACTIVE' })">
-            <CheckCircle2 :size="14" />
-            恢复
-          </el-button>
-          <el-button size="small" @click="handleBatchUpdate({ status: 'BANNED' })">
-            <Ban :size="14" />
-            封禁
-          </el-button>
-          <el-dropdown
-            trigger="click"
-            @command="
-              (command: unknown) => handleBatchUpdate({ role: String(command) as UserRole })
-            "
-          >
-            <el-button size="small">
-              <UserCog :size="14" />
-              改角色
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="USER">普通用户</el-dropdown-item>
-                <el-dropdown-item command="INSTRUCTOR">导师</el-dropdown-item>
-                <el-dropdown-item command="ADMIN">管理员</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-          <el-button size="small" @click="handleBatchRevokeSessions">
-            <TimerReset :size="14" />
-            清退会话
-          </el-button>
-          <el-button size="small" text @click="selectedIds = []">取消选择</el-button>
-        </div>
-      </div>
-    </section>
-
-    <section class="table-shell">
-      <el-table
-        v-loading="isLoading"
-        :data="filteredUsers"
-        class="user-table"
-        row-key="id"
-        @row-dblclick="openDetail"
+  <div class="admin-users-page flex flex-1 min-h-0 flex-col overflow-hidden">
+    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
+      <PageHeader
+        title="用户管理"
+        :subtitle="
+          userOverview
+            ? `覆盖 ${compact(userOverview.totals.total)} 个账号，${compact(userOverview.security.activeSessions)} 个活跃会话`
+            : '正在同步账号、会话与订阅数据'
+        "
+        variant="card"
       >
-        <el-table-column width="48">
-          <template #header>
-            <input
-              :checked="allPageSelected"
-              class="select-checkbox"
-              type="checkbox"
-              @change="toggleSelectAll"
-            />
-          </template>
-          <template #default="{ row }">
-            <input
-              :checked="selectedIds.includes(row.id)"
-              class="select-checkbox"
-              type="checkbox"
-              @change.stop="toggleSelect(row.id)"
-            />
-          </template>
-        </el-table-column>
-
-        <el-table-column label="用户" min-width="260">
-          <template #default="{ row }">
-            <div class="user-cell">
-              <UserAvatar :user="row" size="md" />
-              <div class="user-main">
-                <button class="link-button user-name" type="button" @click.stop="openDetail(row)">
-                  {{ row.name || '未命名用户' }}
-                </button>
-                <span class="email-line">
-                  {{ row.email }}
-                  <button title="复制邮箱" type="button" @click.stop="copyEmail(row)">
-                    <Copy :size="12" />
-                  </button>
-                </span>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="角色" width="118">
-          <template #default="{ row }">
-            <span class="pill" :class="roleClass(row.role)">
-              {{ roleLabel(row.role) }}
-            </span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="状态" width="104">
-          <template #default="{ row }">
-            <span class="pill" :class="statusClass(row.status)">
-              {{ statusLabel(row.status) }}
-            </span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="最后登录" min-width="220">
-          <template #default="{ row }">
-            <div class="stack-cell">
-              <span class="pill icon-pill" :class="loginClass(row)">
-                <Clock :size="13" />
-                {{ lastLoginText(row) }}
-              </span>
-              <span class="muted-line">
-                {{ row.lastLoginIp || '无 IP' }} / {{ shortUserAgent(row.lastLoginUserAgent) }}
-              </span>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="活跃 / 会话" min-width="220">
-          <template #default="{ row }">
-            <div class="activity-cell">
-              <span>{{ activityText(row) }}</span>
-              <div class="inline-metrics">
-                <span>
-                  <MonitorSmartphone :size="13" />
-                  {{ row.activeSessions || 0 }} 会话
-                </span>
-                <span>
-                  <Fingerprint :size="13" />
-                  {{ row.trustedDevices || 0 }} 设备
-                </span>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="内容贡献" min-width="190">
-          <template #default="{ row }">
-            <div class="contrib-grid">
-              <span>{{ row._count?.assets || 0 }} 资产</span>
-              <span>{{ row._count?.showcases || 0 }} 作品</span>
-              <span>{{ row._count?.feedbacks || 0 }} 反馈</span>
-              <span>{{ row._count?.projects || 0 }} 项目</span>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="订阅" width="132">
-          <template #default="{ row }">
-            <button class="sub-button" type="button" @click.stop="openSubDialog(row)">
-              {{ planLabel(row) }}
-            </button>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="安全" min-width="170">
-          <template #default="{ row }">
-            <div class="stack-cell">
-              <span class="pill icon-pill" :class="riskClass(row)">
-                <ShieldCheck :size="13" />
-                {{ riskLabel(row) }}
-              </span>
-              <span class="muted-line">
-                邮箱{{ row.emailVerified ? '已验' : '未验' }} / 2FA{{
-                  row.twoFactorEnabled ? '开' : '关'
-                }}
-              </span>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="注册时间" width="132">
-          <template #default="{ row }">
-            {{ formatDateShort(row.createdAt) }}
-          </template>
-        </el-table-column>
-
-        <el-table-column fixed="right" label="操作" width="94">
-          <template #default="{ row }">
-            <el-dropdown
-              trigger="click"
-              @command="(command: unknown) => handleRowCommand(String(command), row)"
-            >
-              <el-button class="icon-button" text>
-                <MoreHorizontal :size="18" />
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="detail">
-                    <Eye :size="14" />
-                    查看画像
-                  </el-dropdown-item>
-                  <el-dropdown-item command="copy-email">
-                    <Copy :size="14" />
-                    复制邮箱
-                  </el-dropdown-item>
-                  <el-dropdown-item command="edit">
-                    <UserCog :size="14" />
-                    编辑资料
-                  </el-dropdown-item>
-                  <el-dropdown-item command="subscription">
-                    <CreditCard :size="14" />
-                    订阅管理
-                  </el-dropdown-item>
-                  <el-dropdown-item command="reset">
-                    <KeyRound :size="14" />
-                    重置密码
-                  </el-dropdown-item>
-                  <el-dropdown-item command="revoke">
-                    <TimerReset :size="14" />
-                    清退登录态
-                  </el-dropdown-item>
-                  <el-dropdown-item command="revoke-device">
-                    <Fingerprint :size="14" />
-                    移除可信设备
-                  </el-dropdown-item>
-                  <el-dropdown-item command="status">
-                    <Ban :size="14" />
-                    {{ row.status === 'BANNED' ? '恢复账号' : '封禁账号' }}
-                  </el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>
-                    <Trash2 :size="14" />
-                    永久删除
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </template>
-        </el-table-column>
-
-        <template #empty>
-          <div class="empty-state">
-            <Users :size="30" />
-            <span>暂无匹配用户</span>
+        <template #center>
+          <div v-if="userOverview" class="flex flex-wrap items-center gap-1.5 ml-2">
+            <Badge variant="info">封禁: {{ userOverview.totals.banned }}</Badge>
+            <Badge variant="info">管理员: {{ userOverview.totals.admins }}</Badge>
+            <Badge variant="info">活跃订阅: {{ userOverview.commerce.activeSubscriptions }}</Badge>
           </div>
         </template>
-      </el-table>
 
-      <div class="pagination-wrap">
-        <span>当前筛选显示 {{ filteredUsers.length }} 条</span>
-        <el-pagination
-          background
-          :current-page="pagination.page"
-          :page-size="pagination.limit"
-          :page-sizes="[20, 50, 100, 200]"
-          :total="pagination.total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @current-change="fetchUsers"
-          @size-change="handleSizeChange"
-        />
+        <!-- Compact Search Box -->
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-60 shrink-0">
+          <Search />
+          <input v-model="searchQuery" placeholder="搜索姓名、邮箱..." type="search" />
+        </label>
+
+        <!-- Reusable Buttons -->
+        <Button
+          variant="secondary"
+          size="sm"
+          :loading="isLoading || isOverviewLoading"
+          :icon="RefreshCw"
+          @click="refreshDashboard()"
+        >
+          刷新
+        </Button>
+        <Button variant="primary" size="sm" :icon="Plus" @click="openCreateDialog">
+          新建用户
+        </Button>
+      </PageHeader>
+      <!-- Top KPI metrics grid (Horizontal compact) -->
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        <Card
+          v-for="card in consolidatedCards"
+          :key="card.label"
+          hoverable
+          glow
+          class="group !p-2 px-2.5"
+        >
+          <div class="flex items-center justify-between w-full gap-3">
+            <!-- Left: Icon & Info -->
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span
+                class="panel-icon border border-base rounded-lg p-1.5 transition-transform group-hover:scale-105 shrink-0"
+                :class="card.color"
+              >
+                <component :is="card.icon" class="h-3.5 w-3.5" />
+              </span>
+              <div class="min-w-0">
+                <p
+                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
+                >
+                  {{ card.label }}
+                </p>
+                <p
+                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
+                  :title="card.hint"
+                >
+                  {{ card.hint }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Right: Metric & Health Badge -->
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-base font-black text-[var(--text-primary)] leading-none">
+                {{ card.value.toLocaleString() }}
+              </span>
+              <Badge :variant="getBadgeVariant(card.health.label)">
+                {{ card.health.label }}
+              </Badge>
+            </div>
+          </div>
+
+          <!-- Sleek flat progress bar -->
+          <div
+            v-if="card.progress !== null"
+            class="w-full h-[3px] bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden mt-1.5"
+          >
+            <div
+              class="h-full rounded-full bg-accent"
+              :style="{ width: `${card.progress}%` }"
+            ></div>
+          </div>
+        </Card>
+      </section>
+
+      <!-- Workspace layout: Single Column Workspace -->
+      <div class="mt-3 w-full min-w-0">
+        <!-- Left: Workbench Toolbar & User Table -->
+        <div class="space-y-3 min-w-0">
+          <Card padding="sm" class="workbench-toolbar-card">
+            <div class="toolbar-top">
+              <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full">
+                <Tabs v-model="activePresetKey" :options="presetTabOptions" size="sm" />
+              </div>
+
+              <div class="toolbar-actions">
+                <el-select v-model="statusFilter" size="small" style="width: 100px">
+                  <el-option
+                    v-for="option in statusOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </el-select>
+
+                <el-select v-model="roleFilter" size="small" style="width: 110px">
+                  <el-option
+                    v-for="option in roleOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </el-select>
+
+                <el-select v-model="activityFilter" size="small" style="width: 110px">
+                  <el-option
+                    v-for="option in activityOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </el-select>
+
+                <Button variant="secondary" size="sm" :icon="Download" @click="exportVisibleUsers">
+                  导出
+                </Button>
+              </div>
+            </div>
+
+            <div v-if="selectedIds.length" class="batch-bar">
+              <div>
+                已选 <strong>{{ selectedIds.length }}</strong> 个用户
+              </div>
+              <div class="batch-actions">
+                <el-button size="small" @click="handleBatchUpdate({ status: 'ACTIVE' })">
+                  <CheckCircle2 :size="14" />
+                  恢复
+                </el-button>
+                <el-button size="small" @click="handleBatchUpdate({ status: 'BANNED' })">
+                  <Ban :size="14" />
+                  封禁
+                </el-button>
+                <el-dropdown
+                  trigger="click"
+                  @command="
+                    (command: unknown) => handleBatchUpdate({ role: String(command) as UserRole })
+                  "
+                >
+                  <el-button size="small">
+                    <UserCog :size="14" />
+                    改角色
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="USER">普通用户</el-dropdown-item>
+                      <el-dropdown-item command="INSTRUCTOR">导师</el-dropdown-item>
+                      <el-dropdown-item command="ADMIN">管理员</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+                <el-button size="small" @click="handleBatchRevokeSessions">
+                  <TimerReset :size="14" />
+                  清退会话
+                </el-button>
+                <el-button size="small" text @click="selectedIds = []">取消选择</el-button>
+              </div>
+            </div>
+          </Card>
+
+          <Card padding="none" class="table-shell-card overflow-hidden">
+            <el-table
+              v-loading="isLoading"
+              :data="filteredUsers"
+              class="user-table"
+              row-key="id"
+              @row-dblclick="openDetail"
+            >
+              <el-table-column width="48">
+                <template #header>
+                  <input
+                    :checked="allPageSelected"
+                    class="select-checkbox"
+                    type="checkbox"
+                    @change="toggleSelectAll"
+                  />
+                </template>
+                <template #default="{ row }">
+                  <input
+                    :checked="selectedIds.includes(row.id)"
+                    class="select-checkbox"
+                    type="checkbox"
+                    @change.stop="toggleSelect(row.id)"
+                  />
+                </template>
+              </el-table-column>
+
+              <el-table-column label="用户" min-width="260">
+                <template #default="{ row }">
+                  <div class="user-cell">
+                    <UserAvatar :user="row" size="md" />
+                    <div class="user-main">
+                      <button
+                        class="link-button user-name"
+                        type="button"
+                        @click.stop="openDetail(row)"
+                      >
+                        {{ row.name || '未命名用户' }}
+                      </button>
+                      <span class="email-line">
+                        {{ row.email }}
+                        <button title="复制邮箱" type="button" @click.stop="copyEmail(row)">
+                          <Copy :size="12" />
+                        </button>
+                      </span>
+                    </div>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="角色" width="118">
+                <template #default="{ row }">
+                  <span class="pill" :class="roleClass(row.role)">
+                    {{ roleLabel(row.role) }}
+                  </span>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="状态" width="104">
+                <template #default="{ row }">
+                  <span class="pill" :class="statusClass(row.status)">
+                    {{ statusLabel(row.status) }}
+                  </span>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="最后登录" min-width="220">
+                <template #default="{ row }">
+                  <div class="stack-cell">
+                    <span class="pill icon-pill" :class="loginClass(row)">
+                      <Clock :size="13" />
+                      {{ lastLoginText(row) }}
+                    </span>
+                    <span class="muted-line">
+                      {{ row.lastLoginIp || '无 IP' }} /
+                      {{ shortUserAgent(row.lastLoginUserAgent) }}
+                    </span>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="活跃 / 会话" min-width="220">
+                <template #default="{ row }">
+                  <div class="activity-cell">
+                    <span>{{ activityText(row) }}</span>
+                    <div class="inline-metrics">
+                      <span>
+                        <MonitorSmartphone :size="13" />
+                        {{ row.activeSessions || 0 }} 会话
+                      </span>
+                      <span>
+                        <Fingerprint :size="13" />
+                        {{ row.trustedDevices || 0 }} 设备
+                      </span>
+                    </div>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="内容贡献" min-width="190">
+                <template #default="{ row }">
+                  <div class="contrib-grid">
+                    <span>{{ row._count?.assets || 0 }} 资产</span>
+                    <span>{{ row._count?.showcases || 0 }} 作品</span>
+                    <span>{{ row._count?.feedbacks || 0 }} 反馈</span>
+                    <span>{{ row._count?.projects || 0 }} 项目</span>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="订阅" width="132">
+                <template #default="{ row }">
+                  <button class="pill sub-button" type="button" @click.stop="openSubDialog(row)">
+                    {{ planLabel(row) }}
+                  </button>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="安全" min-width="170">
+                <template #default="{ row }">
+                  <div class="stack-cell">
+                    <span class="pill icon-pill" :class="riskClass(row)">
+                      <ShieldCheck :size="13" />
+                      {{ riskLabel(row) }}
+                    </span>
+                    <span class="muted-line">
+                      邮箱{{ row.emailVerified ? '已验' : '未验' }} / 2FA{{
+                        row.twoFactorEnabled ? '开' : '关'
+                      }}
+                    </span>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="注册时间" width="132">
+                <template #default="{ row }">
+                  {{ formatDateShort(row.createdAt) }}
+                </template>
+              </el-table-column>
+
+              <el-table-column label="操作" width="94">
+                <template #default="{ row }">
+                  <el-dropdown
+                    trigger="click"
+                    @command="(command: unknown) => handleRowCommand(String(command), row)"
+                  >
+                    <el-button class="icon-button" text>
+                      <MoreHorizontal :size="18" />
+                    </el-button>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item command="detail">
+                          <Eye :size="14" />
+                          查看画像
+                        </el-dropdown-item>
+                        <el-dropdown-item command="copy-email">
+                          <Copy :size="14" />
+                          复制邮箱
+                        </el-dropdown-item>
+                        <el-dropdown-item command="edit">
+                          <UserCog :size="14" />
+                          编辑资料
+                        </el-dropdown-item>
+                        <el-dropdown-item command="subscription">
+                          <CreditCard :size="14" />
+                          订阅管理
+                        </el-dropdown-item>
+                        <el-dropdown-item command="reset">
+                          <KeyRound :size="14" />
+                          重置密码
+                        </el-dropdown-item>
+                        <el-dropdown-item command="revoke">
+                          <TimerReset :size="14" />
+                          清退登录态
+                        </el-dropdown-item>
+                        <el-dropdown-item command="revoke-device">
+                          <Fingerprint :size="14" />
+                          移除可信设备
+                        </el-dropdown-item>
+                        <el-dropdown-item command="status">
+                          <Ban :size="14" />
+                          {{ row.status === 'BANNED' ? '恢复账号' : '封禁账号' }}
+                        </el-dropdown-item>
+                        <el-dropdown-item command="delete" divided>
+                          <Trash2 :size="14" />
+                          永久删除
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </template>
+              </el-table-column>
+
+              <template #empty>
+                <div class="empty-state">
+                  <Users :size="30" />
+                  <span>暂无匹配用户</span>
+                </div>
+              </template>
+            </el-table>
+
+            <div class="pagination-wrap">
+              <span>当前筛选显示 {{ filteredUsers.length }} 条</span>
+              <el-pagination
+                background
+                :current-page="pagination.page"
+                :page-size="pagination.limit"
+                :page-sizes="[20, 50, 100, 200]"
+                :total="pagination.total"
+                layout="total, sizes, prev, pager, next, jumper"
+                @current-change="fetchUsers"
+                @size-change="handleSizeChange"
+              />
+            </div>
+          </Card>
+        </div>
       </div>
-    </section>
+    </main>
 
     <UserDetailDrawer
       v-model="detailDrawerVisible"
@@ -1549,45 +1559,9 @@ void overviewMetrics.value;
 
 <style scoped>
 .admin-users-page {
-  min-height: 100%;
-  background: #f5f7fb;
+  min-height: 0;
+  background: transparent;
   color: #0f172a;
-  padding: 0 0 20px;
-}
-
-.page-header {
-  min-height: 64px;
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  background: #ffffff;
-  border-bottom: 1px solid #e5eaf3;
-}
-
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.page-header h1 {
-  margin: 4px 0 0;
-  font-size: 22px;
-  line-height: 1.2;
-  font-weight: 800;
-  letter-spacing: 0;
-}
-
-.page-subtitle {
-  margin: 4px 0 0;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 700;
 }
 
 .header-actions,
@@ -1609,12 +1583,7 @@ void overviewMetrics.value;
   gap: 6px;
 }
 
-.command-center {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(420px, 520px);
-  gap: 10px;
-  padding: 10px 14px;
-}
+/* Layout structures managed by tailwind grids */
 
 .command-main {
   min-width: 0;
@@ -1685,92 +1654,6 @@ void overviewMetrics.value;
   min-width: 0;
 }
 
-.command-side {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: start;
-  gap: 8px;
-  min-width: 0;
-}
-
-.signal-card {
-  min-width: 0;
-  padding: 10px;
-  background: #ffffff;
-  border: 1px solid #e8edf5;
-  border-radius: 8px;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.035);
-}
-
-.signal-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
-  color: #64748b;
-}
-
-.signal-head span {
-  display: block;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.signal-head strong {
-  display: block;
-  margin-top: 2px;
-  color: #0f172a;
-  font-size: 13px;
-  font-weight: 850;
-}
-
-.risk-row {
-  width: 100%;
-  min-height: 34px;
-  padding: 5px 4px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: #334155;
-  text-align: left;
-  cursor: pointer;
-}
-
-.risk-row:hover {
-  background: #f8fafc;
-}
-
-.risk-row span {
-  min-width: 0;
-}
-
-.risk-row strong,
-.risk-row em {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.risk-row strong {
-  color: #0f172a;
-  font-size: 12px;
-  font-weight: 850;
-}
-
-.risk-row em {
-  margin-top: 1px;
-  color: #64748b;
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 700;
-}
-
 .quiet-empty {
   padding: 12px;
   color: #94a3b8;
@@ -1817,93 +1700,19 @@ void overviewMetrics.value;
   text-align: right;
 }
 
-.workbench-toolbar {
-  margin: 0 14px 10px;
-  padding: 8px;
-  background: #ffffff;
-  border: 1px solid #e9eef6;
-  border-radius: 8px;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.035);
-}
+/* Card contains workbench toolbar styles */
 
-.toolbar-top,
-.filter-row {
+.toolbar-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
-.filter-row {
-  margin-top: 7px;
-  padding-top: 7px;
-  border-top: 1px solid #eef2f7;
-}
-
-.filter-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 850;
-  white-space: nowrap;
-}
-
-.preset-strip {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  overflow-x: auto;
-}
-
-.preset-strip button {
-  min-width: 118px;
-  min-height: 34px;
-  padding: 5px 8px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0 6px;
-  align-items: center;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #f8fafc;
-  color: #334155;
-  text-align: left;
-  cursor: pointer;
-}
-
-.preset-strip button:hover,
-.preset-strip button.active {
-  border-color: #93c5fd;
-  background: #eff6ff;
-  color: #0369a1;
-}
-
-.preset-strip span,
-.preset-strip em {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.preset-strip span {
-  font-size: 12px;
-  font-weight: 850;
-}
-
-.preset-strip em {
-  grid-column: 2;
-  color: #64748b;
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 700;
-}
-
 .toolbar-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   flex: 0 0 auto;
 }
@@ -1912,41 +1721,6 @@ void overviewMetrics.value;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-}
-
-.filter-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.segmented {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 3px;
-  background: #eef3f9;
-  border-radius: 8px;
-}
-
-.segmented button {
-  min-height: 28px;
-  border: 0;
-  border-radius: 6px;
-  padding: 0 12px;
-  background: transparent;
-  color: #334155;
-  font-size: 13px;
-  font-weight: 800;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.segmented button.active {
-  color: #7c3aed;
-  background: #ffffff;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.09);
 }
 
 .search-box {
@@ -1962,13 +1736,20 @@ void overviewMetrics.value;
   border-radius: 8px;
 }
 
+.search-box :deep(svg) {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
 .search-box input {
   width: 100%;
   border: 0;
   outline: 0;
   background: transparent;
   color: #0f172a;
-  font-size: 14px;
+  font-size: 11px;
 }
 
 .batch-bar {
@@ -1984,13 +1765,10 @@ void overviewMetrics.value;
   border-radius: 8px;
 }
 
-.table-shell {
-  margin: 0 14px;
-  background: #ffffff;
-  border: 1px solid #e8edf5;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.045);
+/* Card contains table shell styles */
+
+.table-shell-card {
+  min-height: 480px;
 }
 
 .user-table {
@@ -2006,11 +1784,11 @@ void overviewMetrics.value;
 }
 
 .user-table :deep(.el-table__row) {
-  height: 62px;
+  height: 48px;
 }
 
 .user-table :deep(.el-table__cell) {
-  padding: 6px 0;
+  padding: 4px 0;
 }
 
 .select-checkbox {
@@ -2132,26 +1910,6 @@ void overviewMetrics.value;
   font-weight: 700;
 }
 
-.pill,
-.sub-button {
-  min-height: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 0 9px;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  font-size: 12px;
-  line-height: 1;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.icon-pill {
-  width: fit-content;
-}
-
 .sub-button {
   border: 0;
   color: #7c3aed;
@@ -2163,40 +1921,8 @@ void overviewMetrics.value;
   background: #ede9fe;
 }
 
-.tone-blue {
-  color: #0369a1;
-  background: #e0f2fe;
-  border-color: #bae6fd;
-}
-
-.tone-green {
-  color: #047857;
-  background: #d1fae5;
-  border-color: #a7f3d0;
-}
-
-.tone-purple {
-  color: #7c3aed;
-  background: #f3e8ff;
-  border-color: #e9d5ff;
-}
-
-.tone-amber {
-  color: #b45309;
-  background: #fef3c7;
-  border-color: #fde68a;
-}
-
-.tone-red {
-  color: #be123c;
-  background: #ffe4e6;
-  border-color: #fecdd3;
-}
-
-.tone-slate {
-  color: #475569;
-  background: #f1f5f9;
-  border-color: #e2e8f0;
+.icon-pill {
+  width: fit-content;
 }
 
 .icon-button {
@@ -2228,132 +1954,6 @@ void overviewMetrics.value;
   border-top: 1px solid #edf2f7;
 }
 
-.drawer-body {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.drawer-hero {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-
-.drawer-hero h2 {
-  margin: 0;
-  color: #0f172a;
-  font-size: 24px;
-  line-height: 1.2;
-  font-weight: 850;
-  letter-spacing: 0;
-}
-
-.drawer-hero p {
-  margin: 6px 0 10px;
-  color: #64748b;
-  font-size: 14px;
-}
-
-.drawer-pills {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  flex-wrap: wrap;
-}
-
-.detail-section {
-  padding-top: 18px;
-  border-top: 1px solid #e8eef5;
-}
-
-.detail-section h3 {
-  margin: 0 0 12px;
-  color: #0f172a;
-  font-size: 15px;
-  font-weight: 850;
-  letter-spacing: 0;
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.detail-grid.three {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.detail-grid > div {
-  min-height: 68px;
-  padding: 12px;
-  border: 1px solid #e8eef5;
-  border-radius: 8px;
-  background: #fbfdff;
-}
-
-.detail-grid span,
-.timeline-list span,
-.detail-list span {
-  display: block;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.detail-grid strong {
-  display: block;
-  margin-top: 7px;
-  color: #0f172a;
-  font-size: 18px;
-  line-height: 1.1;
-  font-weight: 850;
-  word-break: break-word;
-}
-
-.detail-list {
-  display: grid;
-  gap: 8px;
-}
-
-.detail-list > div {
-  display: grid;
-  grid-template-columns: 20px 92px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  color: #475569;
-}
-
-.detail-list strong,
-.timeline-list strong {
-  color: #0f172a;
-  font-size: 13px;
-  font-weight: 800;
-  word-break: break-word;
-}
-
-.timeline-list {
-  display: grid;
-  gap: 10px;
-}
-
-.timeline-list > div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px dashed #e2e8f0;
-}
-
-.drawer-danger {
-  padding-top: 16px;
-  border-top: 1px solid #fee2e2;
-}
-
 .full-width {
   width: 100%;
 }
@@ -2378,15 +1978,9 @@ void overviewMetrics.value;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .toolbar-top,
-  .filter-row {
+  .toolbar-top {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .preset-strip,
-  .filter-wrap {
-    width: 100%;
   }
 
   .search-box {
@@ -2397,7 +1991,6 @@ void overviewMetrics.value;
 @media (max-width: 720px) {
   .page-header,
   .toolbar-top,
-  .filter-row,
   .batch-bar,
   .pagination-wrap {
     align-items: stretch;
@@ -2413,16 +2006,6 @@ void overviewMetrics.value;
     grid-template-columns: 1fr;
   }
 
-  .filter-wrap {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .segmented {
-    overflow-x: auto;
-    justify-content: flex-start;
-  }
-
   .table-shell {
     margin: 0 10px;
   }
@@ -2436,13 +2019,10 @@ void overviewMetrics.value;
     width: 100%;
   }
 
-  .toolbar-actions :deep(.el-button) {
-    flex: 1;
-  }
-
-  .detail-grid,
-  .detail-grid.three {
-    grid-template-columns: 1fr;
+  .toolbar-actions :deep(.el-button),
+  .toolbar-actions :deep(.el-select) {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 100px;
   }
 }
 </style>

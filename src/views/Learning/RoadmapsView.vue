@@ -875,7 +875,7 @@ onMounted(() => {
                   </h2>
                   <span
                     v-if="selectedRoadmap.projectId"
-                    class="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-amber-550/10 text-amber-600 dark:text-amber-400 text-[8px] sm:text-[10px] font-black rounded-full shrink-0"
+                    class="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[8px] sm:text-[10px] font-black rounded-full shrink-0"
                   >
                     <FolderOpen class="w-2.5 h-2.5" /> {{ t('roadmaps.projectRoadmap') }}
                   </span>
@@ -1578,7 +1578,7 @@ onMounted(() => {
                     v-model="step.description"
                     rows="1"
                     :placeholder="t('roadmaps.formStageDescPlaceholder')"
-                    class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-650 bg-white dark:bg-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-accent resize-none"
                   ></textarea>
 
                   <!-- User Customizable Subtasks List Editor -->
@@ -1607,7 +1607,7 @@ onMounted(() => {
                         class="flex items-center gap-2"
                       >
                         <div
-                          class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-650 flex items-center justify-center shrink-0 text-[9px] font-black text-slate-450"
+                          class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center shrink-0 text-[9px] font-black text-slate-400"
                         >
                           {{ sIdx + 1 }}
                         </div>
@@ -1615,7 +1615,7 @@ onMounted(() => {
                           v-model="step.subtasks[sIdx]"
                           type="text"
                           :placeholder="t('roadmaps.formTaskPlaceholder')"
-                          class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-750 text-xs outline-none focus:ring-1 focus:ring-accent text-slate-900 dark:text-white"
+                          class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs outline-none focus:ring-1 focus:ring-accent text-slate-900 dark:text-white"
                         />
                         <button
                           type="button"

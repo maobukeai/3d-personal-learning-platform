@@ -202,7 +202,7 @@ onUnmounted(() => {
         <!-- Vertical Benefit Items -->
         <div class="flex flex-col gap-2.5">
           <div
-            class="flex items-center gap-3 px-3 py-2.5 bg-white/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800/40 text-xs font-bold text-slate-600 dark:text-slate-350 shadow-2xs hover:border-accent/20 transition-all duration-300"
+            class="flex items-center gap-3 px-3 py-2.5 bg-white/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800/40 text-xs font-bold text-slate-600 dark:text-slate-300 shadow-2xs hover:border-accent/20 transition-all duration-300"
           >
             <div class="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
               <Layers class="w-4 h-4 text-accent" />
@@ -218,7 +218,7 @@ onUnmounted(() => {
           </div>
 
           <div
-            class="flex items-center gap-3 px-3 py-2.5 bg-white/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800/40 text-xs font-bold text-slate-600 dark:text-slate-350 shadow-2xs hover:border-accent/20 transition-all duration-300"
+            class="flex items-center gap-3 px-3 py-2.5 bg-white/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800/40 text-xs font-bold text-slate-600 dark:text-slate-300 shadow-2xs hover:border-accent/20 transition-all duration-300"
           >
             <div
               class="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0"
@@ -236,7 +236,7 @@ onUnmounted(() => {
           </div>
 
           <div
-            class="flex items-center gap-3 px-3 py-2.5 bg-white/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800/40 text-xs font-bold text-slate-600 dark:text-slate-350 shadow-2xs hover:border-accent/20 transition-all duration-300"
+            class="flex items-center gap-3 px-3 py-2.5 bg-white/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800/40 text-xs font-bold text-slate-600 dark:text-slate-300 shadow-2xs hover:border-accent/20 transition-all duration-300"
           >
             <div
               class="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0"

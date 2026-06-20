@@ -66,7 +66,6 @@ const focusTabsOptions = [
   { value: 'dueSoon', label: '即将到期', icon: CalendarClock },
   { value: 'unassigned', label: '待分配', icon: Users },
 ];
-
 </script>
 
 <template>
@@ -203,7 +202,7 @@ const focusTabsOptions = [
                 <template #trigger>
                   <button
                     type="button"
-                    class="h-7 w-7 rounded-lg bg-white dark:bg-slate-900 text-slate-450 border-none cursor-pointer flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    class="h-7 w-7 rounded-lg bg-white dark:bg-slate-900 text-slate-400 border-none cursor-pointer flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                   >
                     <SlidersHorizontal class="w-3.5 h-3.5" />
                   </button>
@@ -267,7 +266,7 @@ const focusTabsOptions = [
           <div class="mt-3 flex items-center gap-3">
             <div class="min-w-0 flex-1">
               <div class="flex items-center justify-between text-[9px] font-black mb-1">
-                <span class="text-slate-450"
+                <span class="text-slate-400"
                   >完成 {{ row.taskStats.done }}/{{ row.taskStats.total }}</span
                 >
                 <span class="text-accent">{{ row.taskStats.completionRate }}%</span>
@@ -303,7 +302,7 @@ const focusTabsOptions = [
         <table class="w-full min-w-[900px] text-left border-collapse">
           <thead>
             <tr
-              class="border-b text-[10px] font-black uppercase tracking-widest text-slate-450"
+              class="border-b text-[10px] font-black uppercase tracking-widest text-slate-400"
               style="border-color: var(--border-base)"
             >
               <th class="px-3 py-3">项目</th>
@@ -361,7 +360,7 @@ const focusTabsOptions = [
               <td class="px-3 py-3">
                 <div class="w-40">
                   <div class="flex justify-between text-[10px] font-black mb-1">
-                    <span class="text-slate-450"
+                    <span class="text-slate-400"
                       >{{ row.taskStats.done }}/{{ row.taskStats.total }}</span
                     >
                     <span class="text-accent">{{ row.taskStats.completionRate }}%</span>
@@ -408,7 +407,7 @@ const focusTabsOptions = [
                     <template #trigger>
                       <button
                         type="button"
-                        class="h-7 w-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-450 border-none cursor-pointer flex items-center justify-center transition-colors"
+                        class="h-7 w-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 border-none cursor-pointer flex items-center justify-center transition-colors"
                       >
                         <SlidersHorizontal class="w-3.5 h-3.5" />
                       </button>

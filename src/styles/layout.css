@@ -18,8 +18,7 @@ body {
   margin: 0;
   padding: 0;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0) 220px),
-    var(--bg-app);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0) 220px), var(--bg-app);
   color: var(--text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -193,7 +192,9 @@ button {
 /* Vue Router View Slide-Fade Transition */
 .fade-slide-enter-active,
 .fade-slide-leave-active {
-  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform, opacity;
 }
 .fade-slide-enter-from {
@@ -208,7 +209,9 @@ button {
 /* Vue Router View Fade-Blur Transition */
 .fade-blur-enter-active,
 .fade-blur-leave-active {
-  transition: opacity 0.25s ease-out, filter 0.25s ease-out;
+  transition:
+    opacity 0.25s ease-out,
+    filter 0.25s ease-out;
   will-change: opacity, filter;
 }
 .fade-blur-enter-from {
@@ -264,8 +267,7 @@ button {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 70%, transparent), transparent 260px),
     linear-gradient(var(--border-base) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border-base) 1px, transparent 1px),
-    var(--bg-app);
+    linear-gradient(90deg, var(--border-base) 1px, transparent 1px), var(--bg-app);
   background-size:
     auto,
     36px 36px,
@@ -336,4 +338,3 @@ button {
   font-weight: 500;
   padding: 24px;
 }
-

@@ -75,11 +75,14 @@ interface MailMessage {
 const { t, locale } = useI18n();
 
 const copyToClipboard = (text: string) => {
-  navigator.clipboard.writeText(text).then(() => {
-    ElMessage.success(locale.value === 'en-US' ? 'Copied to clipboard' : '已复制到剪贴板');
-  }).catch(() => {
-    ElMessage.error(locale.value === 'en-US' ? 'Copy failed' : '复制失败');
-  });
+  navigator.clipboard
+    .writeText(text)
+    .then(() => {
+      ElMessage.success(locale.value === 'en-US' ? 'Copied to clipboard' : '已复制到剪贴板');
+    })
+    .catch(() => {
+      ElMessage.error(locale.value === 'en-US' ? 'Copy failed' : '复制失败');
+    });
 };
 
 const accounts = ref<EmailAccount[]>([]);
@@ -634,12 +637,11 @@ const handleSendEmail = async () => {
     isSending.value = false;
   }
 };
-
 </script>
 
 <template>
   <div
-    class="email-system flex h-full w-full overflow-hidden bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-200"
+    class="email-system flex h-full w-full overflow-hidden bg-transparent dark:bg-transparent text-slate-700 dark:text-slate-200"
   >
     <!-- LEFT COLUMN: Accounts, Folders & Controls (280px) -->
     <aside
@@ -786,7 +788,10 @@ const handleSendEmail = async () => {
                     >
                       {{ acc.email }}
                     </span>
-                    <el-tooltip :content="locale === 'en-US' ? 'Copy Email' : '复制邮箱'" placement="top">
+                    <el-tooltip
+                      :content="locale === 'en-US' ? 'Copy Email' : '复制邮箱'"
+                      placement="top"
+                    >
                       <button
                         type="button"
                         class="p-0.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-500 rounded transition-colors shrink-0 opacity-0 group-hover:opacity-100 duration-200 ml-auto cursor-pointer"
@@ -1650,6 +1655,7 @@ example2@hotmail.com----00000000-0000-0000-0000-000000000000----MC...9a"
 <style scoped>
 .email-system {
   height: calc(100vh - 3.5rem); /* offset MainLayout topbar height */
+  background: transparent !important;
 }
 
 /* Custom scrolling classes */

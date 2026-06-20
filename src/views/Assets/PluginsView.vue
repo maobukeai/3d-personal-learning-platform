@@ -1367,7 +1367,7 @@ watch(
       rgba(20, 184, 166, 0.03) 200px,
       transparent 380px
     ),
-    var(--bg-app);
+    transparent !important;
   color: var(--text-primary);
 }
 

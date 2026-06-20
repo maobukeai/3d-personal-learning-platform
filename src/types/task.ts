@@ -82,10 +82,16 @@ export interface Task {
   participants?: { userId: string }[];
   timeEstimate?: number | null;
   timeSpent?: number | null;
-  dependencies?: { id: string; dependsOnId: string; dependsOn: { id: string; title: string; status: string } }[];
+  dependencies?: {
+    id: string;
+    dependsOnId: string;
+    dependsOn: { id: string; title: string; status: string };
+  }[];
   dependents?: { id: string; task: { id: string; title: string; status: string } }[];
   createdAt?: string;
   updatedAt?: string;
+  parsedTags?: string[];
+  parsedSubtasks?: any[];
 }
 
 export interface ActiveColumn {

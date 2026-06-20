@@ -149,7 +149,6 @@ const topContributors = computed(() => {
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 });
-
 </script>
 
 <template>

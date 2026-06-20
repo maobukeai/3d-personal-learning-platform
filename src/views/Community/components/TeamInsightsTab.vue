@@ -185,7 +185,6 @@ const activityDotClass = (type: string) => {
   if (type.startsWith('team')) return 'bg-purple-500';
   return 'bg-slate-400';
 };
-
 </script>
 
 <template>
@@ -239,7 +238,7 @@ const activityDotClass = (type: string) => {
               </span>
             </div>
           </div>
-          <p class="text-xs text-slate-450 dark:text-slate-400 mt-4 px-6 leading-relaxed">
+          <p class="text-xs text-slate-400 dark:text-slate-400 mt-4 px-6 leading-relaxed">
             该得分基于任务逾期率、成员高负载比例以及项目风险综合计算。
           </p>
         </Card>
@@ -387,13 +386,13 @@ const activityDotClass = (type: string) => {
                   {{ item.title }}
                 </span>
                 <span
-                  class="block text-[10px] font-bold text-slate-400 dark:text-slate-450 truncate mt-0.5"
+                  class="block text-[10px] font-bold text-slate-400 dark:text-slate-400 truncate mt-0.5"
                 >
                   {{ item.description }}
                 </span>
               </span>
               <ArrowRight
-                class="w-4 h-4 text-slate-350 shrink-0 group-hover:translate-x-0.5 transition-transform"
+                class="w-4 h-4 text-slate-300 shrink-0 group-hover:translate-x-0.5 transition-transform"
               />
             </button>
           </div>
@@ -433,7 +432,7 @@ const activityDotClass = (type: string) => {
                   {{ item.title }}
                 </span>
                 <span
-                  class="block text-[10px] font-bold text-slate-400 dark:text-slate-450 truncate mt-0.5"
+                  class="block text-[10px] font-bold text-slate-400 dark:text-slate-400 truncate mt-0.5"
                 >
                   {{ item.description }}
                 </span>

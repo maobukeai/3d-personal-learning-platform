@@ -8,6 +8,7 @@ interface TabOption {
   value: TabValue;
   icon?: Component;
   badge?: number | string;
+  hint?: string;
 }
 
 interface Props {
@@ -78,6 +79,15 @@ const updateSlider = (index?: number) => {
   }
 };
 
+const setTabRef = (el: unknown, index: number) => {
+  if (el) {
+    const node = (el as Element & { $el?: Element })?.$el ?? (el as Element);
+    if (node) {
+      activeTabRef.value[index] = node as HTMLElement;
+    }
+  }
+};
+
 onBeforeUpdate(() => {
   activeTabRef.value = [];
 });
@@ -122,7 +132,7 @@ onMounted(() => {
     <button
       v-for="(option, index) in options"
       :key="option.value === null ? 'null' : option.value"
-      ref="activeTabRef"
+      :ref="(el) => setTabRef(el, index)"
       type="button"
       class="relative z-10 flex items-center gap-1.5 font-bold tracking-tight rounded-lg transition-colors duration-200 outline-none focus:outline-none"
       :class="[
@@ -142,7 +152,11 @@ onMounted(() => {
     >
       <div class="flex items-center gap-1.5">
         <component :is="option.icon" v-if="option.icon" class="w-4 h-4 shrink-0" />
-        <span v-if="option.label">{{ option.label }}</span>
+        <div v-if="option.hint" class="flex flex-col text-left">
+          <span v-if="option.label" class="leading-none">{{ option.label }}</span>
+          <span class="text-[9px] font-normal opacity-60 mt-1 leading-none">{{ option.hint }}</span>
+        </div>
+        <span v-else-if="option.label">{{ option.label }}</span>
       </div>
       <span
         v-if="

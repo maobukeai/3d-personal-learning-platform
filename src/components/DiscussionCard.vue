@@ -4,7 +4,10 @@ import { useI18n } from 'vue-i18n';
 import { Eye, Heart, MessageSquare, Pin, Sparkles, Tag, Trash2 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { getAssetUrl } from '@/utils/api';
-import { formatRelativeTime as formatTime, formatCompactNumber as formatNumber } from '@/utils/format';
+import {
+  formatRelativeTime as formatTime,
+  formatCompactNumber as formatNumber,
+} from '@/utils/format';
 import type { User } from '@/types';
 
 interface DiscussionCardUser extends Pick<User, 'id' | 'name' | 'avatarUrl'> {

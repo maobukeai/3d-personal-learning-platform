@@ -1035,7 +1035,7 @@ async function handleImportFile(event: Event) {
         >
           <!-- Dev Test Mode toggle -->
           <label
-            class="flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/40 text-[10px] font-semibold text-slate-600 dark:text-slate-350 cursor-pointer select-none"
+            class="flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/40 text-[10px] font-semibold text-slate-600 dark:text-slate-300 cursor-pointer select-none"
           >
             <input
               v-model="testMode"
@@ -1229,7 +1229,7 @@ async function handleImportFile(event: Event) {
                   <el-dropdown-item
                     command="delete"
                     divided
-                    class="text-red-650 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    class="text-red-600 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                     >批量删除</el-dropdown-item
                   >
                 </el-dropdown-menu>
@@ -1687,7 +1687,7 @@ async function handleImportFile(event: Event) {
               type="text"
               readonly
               :value="passGenResult"
-              class="w-full bg-transparent border-none outline-none font-mono text-base font-semibold tracking-wider text-violet-655 dark:text-violet-400 select-all pr-12"
+              class="w-full bg-transparent border-none outline-none font-mono text-base font-semibold tracking-wider text-violet-600 dark:text-violet-400 select-all pr-12"
             />
             <div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
               <button
@@ -1710,7 +1710,7 @@ async function handleImportFile(event: Event) {
           <div class="space-y-3.5">
             <div class="space-y-1.5">
               <div class="flex items-center justify-between text-xs font-semibold">
-                <span class="text-slate-655 dark:text-slate-300"
+                <span class="text-slate-600 dark:text-slate-300"
                   >密码长度 ({{ passGenLength }}位)</span
                 >
               </div>
@@ -1720,10 +1720,10 @@ async function handleImportFile(event: Event) {
                   type="range"
                   min="6"
                   max="32"
-                  class="flex-1 accent-violet-600 dark:accent-violet-500 cursor-pointer h-1.5 rounded-lg bg-slate-250 dark:bg-slate-800"
+                  class="flex-1 accent-violet-600 dark:accent-violet-500 cursor-pointer h-1.5 rounded-lg bg-slate-200 dark:bg-slate-800"
                 />
                 <span
-                  class="font-mono text-xs font-bold w-6 text-right text-slate-700 dark:text-slate-350"
+                  class="font-mono text-xs font-bold w-6 text-right text-slate-700 dark:text-slate-300"
                   >{{ passGenLength }}</span
                 >
               </div>
@@ -1815,7 +1815,7 @@ async function handleImportFile(event: Event) {
 
 .gw-page {
   min-height: 100vh;
-  background: var(--bg-app);
+  background: transparent !important;
   color: var(--text-primary);
   padding: 12px 16px;
 }

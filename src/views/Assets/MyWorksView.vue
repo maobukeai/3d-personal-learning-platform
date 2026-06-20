@@ -607,7 +607,12 @@ onMounted(async () => {
           <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
           {{ isStatsExpanded ? '收起指标' : '数据指标' }}
         </button>
-        <button type="button" class="ghost-button" :disabled="isLoading" @click="() => fetchWorks()">
+        <button
+          type="button"
+          class="ghost-button"
+          :disabled="isLoading"
+          @click="() => fetchWorks()"
+        >
           <Loader2 v-if="isLoading" class="icon-sm spinning" />
           <Sparkles v-else class="icon-sm" />
           刷新
@@ -956,7 +961,7 @@ onMounted(async () => {
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  background: var(--bg-app);
+  background: transparent !important;
   color: var(--text-primary);
 }
 

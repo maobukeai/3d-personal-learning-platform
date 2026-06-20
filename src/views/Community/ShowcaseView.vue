@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { formatCompactNumber as formatNumber, formatRelativeTime as formatTime } from '@/utils/format';
+import {
+  formatCompactNumber as formatNumber,
+  formatRelativeTime as formatTime,
+} from '@/utils/format';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -676,7 +679,7 @@ onUnmounted(() => {
 
               <!-- Compact Result Summary -->
               <span
-                class="text-[10px] text-slate-550 dark:text-slate-400 font-semibold hidden sm:inline select-none"
+                class="text-[10px] text-slate-500 dark:text-slate-400 font-semibold hidden sm:inline select-none"
                 >{{ resultSummary }}</span
               >
 
@@ -855,7 +858,7 @@ onUnmounted(() => {
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
-  background: var(--bg-app);
+  background: transparent !important;
 }
 
 .showcase-header-actions {

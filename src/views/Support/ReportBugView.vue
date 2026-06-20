@@ -14,7 +14,6 @@ import {
   History,
   Image as ImageIcon,
   Inbox,
-  LifeBuoy,
   Loader2,
   MessageSquare,
   Plus,
@@ -32,6 +31,10 @@ import UiButton from '@/components/ui/Button.vue';
 import UiInput from '@/components/ui/Input.vue';
 import { getApiErrorMessage } from '@/utils/error';
 import type { Feedback } from '@/types';
+import PageHeader from '@/components/PageHeader.vue';
+import Card from '@/components/ui/Card.vue';
+import Tabs from '@/components/ui/Tabs.vue';
+import Badge from '@/components/ui/Badge.vue';
 
 type FeedbackType = Feedback['type'];
 type FeedbackPriority = Feedback['priority'];
@@ -148,6 +151,80 @@ const latestActivityText = computed(() => {
   if (!latest) return '暂无工单动态';
   return `${statusLabel(latest.status)} · ${formatRelativeDate(latest.updatedAt)}`;
 });
+
+const getBadgeVariant = (label: string) => {
+  if (
+    label === '全部' ||
+    label === '正常' ||
+    label === '稳定' ||
+    label === '高效' ||
+    label === '无'
+  )
+    return 'success';
+  if (label === '关注' || label === '积压') return 'warning';
+  if (label === '紧急') return 'danger';
+  return 'primary';
+};
+
+const consolidatedCards = computed(() => {
+  return [
+    {
+      label: '全部工单',
+      value: stats.value.total,
+      hint: `已解决/关闭 ${stats.value.resolved + stats.value.closed} 个工单`,
+      icon: Inbox,
+      color: 'text-sky-600 bg-sky-500/10 border-sky-500/20',
+      health: { label: '全部', variant: 'success' as const },
+    },
+    {
+      label: '进行中',
+      value: activeTickets.value,
+      hint: `待处理 ${stats.value.open} · 处理中 ${stats.value.inProgress}`,
+      icon: CircleDashed,
+      color: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
+      health:
+        activeTickets.value > 5
+          ? { label: '积压', variant: 'warning' as const }
+          : { label: '稳定', variant: 'success' as const },
+    },
+    {
+      label: '解决率',
+      value: `${resolutionRate.value}%`,
+      hint: `已解决 ${stats.value.resolved} · 已关闭 ${stats.value.closed}`,
+      icon: CheckCircle2,
+      color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      health:
+        resolutionRate.value > 80
+          ? { label: '高效', variant: 'success' as const }
+          : { label: '一般', variant: 'primary' as const },
+    },
+    {
+      label: '高优先级',
+      value: stats.value.highOpen,
+      hint: '当前高优先级待处理工单',
+      icon: AlertCircle,
+      color: 'text-red-600 bg-red-500/10 border-red-500/20',
+      health:
+        stats.value.highOpen > 0
+          ? { label: '紧急', variant: 'danger' as const }
+          : { label: '无', variant: 'success' as const },
+    },
+  ];
+});
+
+const tabOptions = computed(() => [
+  {
+    label: '提交反馈',
+    value: 'submit',
+    icon: Bug,
+  },
+  {
+    label: '我的工单',
+    value: 'history',
+    icon: History,
+    badge: activeTickets.value || undefined,
+  },
+]);
 
 const statusLabel = (status: string) => {
   const map: Record<string, string> = {
@@ -386,416 +463,434 @@ onMounted(refreshAll);
 </script>
 
 <template>
-  <div class="support-workbench">
-    <header class="support-header">
-      <div class="title-block">
-        <div class="title-icon"><LifeBuoy /></div>
-        <div>
-          <p class="eyebrow">支持中心</p>
-          <h1>问题反馈</h1>
-        </div>
-      </div>
-      <div class="header-actions">
-        <UiButton variant="secondary" :icon="RefreshCw" :loading="isLoadingHistory" @click="refreshAll">
-          刷新
-        </UiButton>
-        <UiButton variant="primary" :icon="Plus" @click="setTab('submit')">新建工单</UiButton>
-      </div>
-    </header>
-
-    <section class="metric-grid">
-      <article class="metric-panel">
-        <Inbox />
-        <div>
-          <span>全部工单</span>
-          <strong>{{ stats.total }}</strong>
-        </div>
-      </article>
-      <article class="metric-panel">
-        <CircleDashed />
-        <div>
-          <span>进行中</span>
-          <strong>{{ activeTickets }}</strong>
-        </div>
-      </article>
-      <article class="metric-panel">
-        <CheckCircle2 />
-        <div>
-          <span>解决率</span>
-          <strong>{{ resolutionRate }}%</strong>
-        </div>
-      </article>
-      <article class="metric-panel">
-        <AlertCircle />
-        <div>
-          <span>高优先级</span>
-          <strong>{{ stats.highOpen }}</strong>
-        </div>
-      </article>
-      <article class="metric-panel wide">
-        <History />
-        <div>
-          <span>最近动态</span>
-          <strong>{{ latestActivityText }}</strong>
-        </div>
-      </article>
-    </section>
-
-    <nav class="tabbar">
-      <button type="button" :class="{ active: activeTab === 'submit' }" @click="setTab('submit')">
-        <Bug />
-        提交反馈
-      </button>
-      <button type="button" :class="{ active: activeTab === 'history' }" @click="setTab('history')">
-        <History />
-        我的工单
-        <span v-if="activeTickets">{{ activeTickets }}</span>
-      </button>
-    </nav>
-
-    <main v-if="activeTab === 'submit'" class="submit-layout">
-      <section class="form-panel">
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">Ticket {{ ticketNo() }}</p>
-            <h2>描述问题</h2>
-          </div>
-          <span class="status-pill tone-amber">草稿</span>
-        </div>
-
-        <div class="compact-grid">
-          <label>
-            反馈类型
-            <select v-model="bugForm.type">
-              <option v-for="item in typeOptions" :key="item.value" :value="item.value">
-                {{ item.label }} · {{ item.hint }}
-              </option>
-            </select>
-          </label>
-          <label>
-            优先级
-            <select v-model="bugForm.priority">
-              <option v-for="item in priorityOptions" :key="item.value" :value="item.value">
-                {{ item.label }} · {{ item.hint }}
-              </option>
-            </select>
-          </label>
-        </div>
-
-        <label>
-          工单标题
-          <UiInput
-            v-model="bugForm.title"
-            placeholder="例如：学习路线页面保存后步骤顺序错乱"
-            :glass="false"
-          />
-        </label>
-
-        <label>
-          问题描述
-          <textarea
-            v-model="bugForm.description"
-            rows="4"
-            maxlength="1500"
-            placeholder="发生了什么？在哪个页面？影响了什么流程？"
-          ></textarea>
-        </label>
-
-        <div class="compact-grid">
-          <label>
-            复现步骤
-            <textarea
-              v-model="bugForm.steps"
-              rows="5"
-              placeholder="1. 进入...\A2. 点击...\A3. 观察结果..."
-            ></textarea>
-          </label>
-          <div class="field-stack">
-            <label>
-              期望结果
-              <textarea
-                v-model="bugForm.expected"
-                rows="2"
-                placeholder="正常情况下应该怎样"
-              ></textarea>
-            </label>
-            <label>
-              实际结果
-              <textarea
-                v-model="bugForm.actual"
-                rows="2"
-                placeholder="现在出现了什么异常"
-              ></textarea>
-            </label>
-          </div>
-        </div>
-
-        <div class="compact-grid">
-          <label>
-            影响范围
-            <UiInput v-model="bugForm.impact" placeholder="例如：影响团队任务提交 / 仅自己可见" :glass="false" />
-          </label>
-          <label>
-            页面链接
-            <UiInput v-model="bugForm.pageUrl" placeholder="https://..." :glass="false" />
-          </label>
-        </div>
-
-        <div class="upload-row">
-          <input
-            ref="fileInput"
-            type="file"
-            class="hidden-input"
-            accept="image/*"
-            @change="handleFileUpload"
-          />
-          <button v-if="!previewUrl" type="button" class="upload-box" @click="triggerFileInput">
-            <Loader2 v-if="isUploading" class="spinning" />
-            <FileImage v-else />
-            <span>{{ isUploading ? '上传中...' : '上传截图' }}</span>
-            <small>PNG / JPG / WebP，最大 5MB</small>
-          </button>
-          <div v-else class="attachment-preview">
-            <img :src="previewUrl" alt="" />
-            <div>
-              <strong>截图已附加</strong>
-              <span>管理员可直接预览定位问题</span>
-            </div>
-            <button type="button" class="icon-btn danger" @click="removeAttachment"><X /></button>
-          </div>
-        </div>
-
-        <div class="form-actions">
-          <UiButton variant="secondary" :icon="RotateCcw" @click="resetForm">重置</UiButton>
-          <UiButton
-            variant="primary"
-            :icon="Send"
-            :disabled="isSubmitting"
-            :loading="isSubmitting"
-            @click="handleSubmit"
-          >
-            {{ isSubmitting ? '提交中' : '提交工单' }}
-          </UiButton>
-        </div>
-      </section>
-
-      <aside class="assist-panel">
-        <section>
-          <div class="side-title">
-            <Sparkles />
-            <h3>处理流程</h3>
-          </div>
-          <ol class="process-list">
-            <li>
-              <strong>接收</strong>
-              <span>系统记录截图、链接和优先级，并通知管理员。</span>
-            </li>
-            <li>
-              <strong>定位</strong>
-              <span>管理员在后台筛选、回复、更新状态。</span>
-            </li>
-            <li>
-              <strong>回访</strong>
-              <span>你会在工单历史和通知中心看到处理结果。</span>
-            </li>
-          </ol>
-        </section>
-
-        <section>
-          <div class="side-title">
-            <Filter />
-            <h3>提交质量</h3>
-          </div>
-          <div class="quality-grid">
-            <span :class="{ done: bugForm.title.trim().length >= 3 }">标题清晰</span>
-            <span :class="{ done: bugForm.description.trim().length >= 10 }">描述完整</span>
-            <span :class="{ done: bugForm.steps.trim().length > 0 }">可复现</span>
-            <span :class="{ done: Boolean(bugForm.attachmentUrl) }">有截图</span>
-          </div>
-        </section>
-
-        <section class="mini-feed">
-          <div class="side-title">
-            <MessageSquare />
-            <h3>最近工单</h3>
-          </div>
-          <button
-            v-for="item in feedbacks.slice(0, 4)"
-            :key="item.id"
-            type="button"
-            class="mini-ticket"
-            @click="
-              setTab('history');
-              selectFeedback(item);
-            "
-          >
-            <span>{{ ticketNo(item.id) }}</span>
-            <strong>{{ item.title }}</strong>
-            <small>{{ statusLabel(item.status) }} · {{ formatRelativeDate(item.updatedAt) }}</small>
-          </button>
-          <div v-if="feedbacks.length === 0" class="empty-mini">还没有历史反馈</div>
-        </section>
-      </aside>
-    </main>
-
-    <main v-else class="history-layout">
-      <section class="ticket-list-panel">
-        <div class="toolbar">
-          <UiInput
-            v-model="searchQuery"
-            :icon="Search"
-            placeholder="搜索标题或描述"
-            :glass="false"
-            class="min-w-[200px]"
-          />
-          <select v-model="statusFilter">
-            <option v-for="item in statusOptions" :key="item.value" :value="item.value">
-              {{ item.label }}
-            </option>
-          </select>
-          <select v-model="typeFilter">
-            <option value="ALL">全部类型</option>
-            <option v-for="item in typeOptions" :key="item.value" :value="item.value">
-              {{ item.label }}
-            </option>
-          </select>
-          <select v-model="priorityFilter">
-            <option value="ALL">全部优先级</option>
-            <option v-for="item in priorityOptions" :key="item.value" :value="item.value">
-              {{ item.label }}
-            </option>
-          </select>
-        </div>
-
-        <div v-if="isLoadingHistory" class="loading-state">
-          <Loader2 class="spinning" />
-          正在同步工单
-        </div>
-
-        <div v-else-if="filteredFeedbacks.length === 0" class="empty-state">
-          <Inbox />
-          <strong>没有匹配的工单</strong>
-          <span>调整筛选条件，或新建一个反馈工单。</span>
-          <UiButton variant="primary" :icon="Plus" @click="setTab('submit')">新建工单</UiButton>
-        </div>
-
-        <div v-else class="ticket-list">
-          <button
-            v-for="item in filteredFeedbacks"
-            :key="item.id"
-            type="button"
-            class="ticket-row"
-            :class="{ selected: activeFeedback?.id === item.id }"
-            @click="selectFeedback(item)"
-          >
-            <div class="row-main">
-              <span class="ticket-id">{{ ticketNo(item.id) }}</span>
-              <strong>{{ item.title }}</strong>
-              <small>{{ typeLabel(item.type) }} · {{ formatDate(item.updatedAt) }}</small>
-            </div>
-            <div class="row-meta">
-              <span class="status-pill" :class="statusTone(item.status)">{{
-                statusLabel(item.status)
-              }}</span>
-              <span class="status-pill" :class="priorityTone(item.priority)"
-                >P{{ priorityLabel(item.priority) }}</span
-              >
-            </div>
-            <ChevronRight />
-          </button>
-        </div>
-      </section>
-
-      <aside class="detail-panel">
-        <div v-if="!activeFeedback" class="empty-state detail-empty">
-          <MessageSquare />
-          <strong>选择一个工单</strong>
-          <span>右侧会显示状态进度、官方回复和附件。</span>
-        </div>
-
-        <template v-else>
-          <div class="detail-head">
-            <div>
-              <p class="eyebrow">{{ ticketNo(activeFeedback.id) }}</p>
-              <h2>{{ activeFeedback.title }}</h2>
-            </div>
-            <span class="status-pill" :class="statusTone(activeFeedback.status)">
-              {{ statusLabel(activeFeedback.status) }}
-            </span>
-          </div>
-
-          <div class="progress-track">
-            <span :style="{ width: `${progressPercent(activeFeedback.status)}%` }"></span>
-          </div>
-
-          <div class="detail-meta">
-            <div>
-              <span>类型</span>
-              <strong>{{ typeLabel(activeFeedback.type) }}</strong>
-            </div>
-            <div>
-              <span>优先级</span>
-              <strong>{{ priorityLabel(activeFeedback.priority) }}</strong>
-            </div>
-            <div>
-              <span>提交</span>
-              <strong>{{ formatDate(activeFeedback.createdAt) }}</strong>
-            </div>
-            <div>
-              <span>更新</span>
-              <strong>{{ formatDate(activeFeedback.updatedAt) }}</strong>
-            </div>
-          </div>
-
-          <div v-if="isLoadingDetail" class="inline-loading">
-            <Loader2 class="spinning" />
-            正在刷新详情
-          </div>
-
-          <section class="detail-section">
-            <h3>反馈内容</h3>
-            <p>{{ activeFeedback.description }}</p>
-          </section>
-
-          <section v-if="activeFeedback.adminReply" class="detail-section official-reply">
-            <div class="reply-head">
-              <h3>官方回复</h3>
-              <span>{{ formatDate(activeFeedback.repliedAt) }}</span>
-            </div>
-            <p>{{ activeFeedback.adminReply }}</p>
-          </section>
-
-          <UiButton
-            v-if="activeFeedback.attachmentUrl"
-            variant="secondary"
-            :icon="ImageIcon"
-            @click="openPreview(activeFeedback.attachmentUrl)"
-          >
-            查看附件截图
-            <ArrowUpRight />
-          </UiButton>
-
-          <div class="detail-actions">
-            <UiButton
-              v-if="activeFeedback.status !== 'CLOSED'"
-              variant="secondary"
-              :icon="CheckCircle2"
-              @click="updateMyStatus(activeFeedback, 'CLOSED')"
-            >
-              我已确认，关闭
-            </UiButton>
-            <UiButton
-              v-else
-              variant="secondary"
-              :icon="RotateCcw"
-              @click="updateMyStatus(activeFeedback, 'OPEN')"
-            >
-              重新打开
-            </UiButton>
-            <UiButton variant="primary" :icon="Plus" @click="setTab('submit')">继续反馈</UiButton>
+  <div class="support-workbench flex flex-1 min-h-0 flex-col overflow-hidden">
+    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
+      <PageHeader title="问题反馈" subtitle="支持中心" variant="card">
+        <template #center>
+          <div class="flex flex-wrap items-center gap-1.5 ml-2">
+            <Badge variant="info">{{ latestActivityText }}</Badge>
           </div>
         </template>
-      </aside>
+
+        <UiButton
+          variant="secondary"
+          :icon="RefreshCw"
+          :loading="isLoadingHistory"
+          size="sm"
+          @click="refreshAll"
+        >
+          刷新
+        </UiButton>
+        <UiButton variant="primary" :icon="Plus" size="sm" @click="setTab('submit')"
+          >新建工单</UiButton
+        >
+      </PageHeader>
+
+      <!-- Top KPI metrics grid (Horizontal compact) -->
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        <Card
+          v-for="card in consolidatedCards"
+          :key="card.label"
+          hoverable
+          glow
+          class="group !p-2 px-2.5"
+        >
+          <div class="flex items-center justify-between w-full gap-3">
+            <!-- Left: Icon & Info -->
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span
+                class="panel-icon border border-base rounded-lg p-1.5 transition-transform group-hover:scale-105 shrink-0"
+                :class="card.color"
+              >
+                <component :is="card.icon" class="h-3.5 w-3.5" />
+              </span>
+              <div class="min-w-0">
+                <p
+                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
+                >
+                  {{ card.label }}
+                </p>
+                <p
+                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
+                  :title="card.hint"
+                >
+                  {{ card.hint }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Right: Metric & Health Badge -->
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-base font-black text-[var(--text-primary)] leading-none">
+                {{ card.value }}
+              </span>
+              <Badge :variant="getBadgeVariant(card.health.label)">
+                {{ card.health.label }}
+              </Badge>
+            </div>
+          </div>
+        </Card>
+      </section>
+
+      <!-- Workbench Toolbar -->
+      <Card padding="sm" class="workbench-toolbar-card">
+        <div class="toolbar-top flex items-center justify-between">
+          <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full">
+            <Tabs v-model="activeTab" :options="tabOptions" size="sm" />
+          </div>
+        </div>
+      </Card>
+
+      <div v-if="activeTab === 'submit'" class="submit-layout">
+        <Card class="form-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Ticket {{ ticketNo() }}</p>
+              <h2>描述问题</h2>
+            </div>
+            <span class="status-pill tone-amber">草稿</span>
+          </div>
+
+          <div class="compact-grid">
+            <label>
+              反馈类型
+              <select v-model="bugForm.type">
+                <option v-for="item in typeOptions" :key="item.value" :value="item.value">
+                  {{ item.label }} · {{ item.hint }}
+                </option>
+              </select>
+            </label>
+            <label>
+              优先级
+              <select v-model="bugForm.priority">
+                <option v-for="item in priorityOptions" :key="item.value" :value="item.value">
+                  {{ item.label }} · {{ item.hint }}
+                </option>
+              </select>
+            </label>
+          </div>
+
+          <label>
+            工单标题
+            <UiInput
+              v-model="bugForm.title"
+              placeholder="例如：学习路线页面保存后步骤顺序错乱"
+              :glass="false"
+            />
+          </label>
+
+          <label>
+            问题描述
+            <textarea
+              v-model="bugForm.description"
+              rows="4"
+              maxlength="1500"
+              placeholder="发生了什么？在哪个页面？影响了什么流程？"
+            ></textarea>
+          </label>
+
+          <div class="compact-grid">
+            <label>
+              复现步骤
+              <textarea
+                v-model="bugForm.steps"
+                rows="5"
+                placeholder="1. 进入...\A2. 点击...\A3. 观察结果..."
+              ></textarea>
+            </label>
+            <div class="field-stack">
+              <label>
+                期望结果
+                <textarea
+                  v-model="bugForm.expected"
+                  rows="2"
+                  placeholder="正常情况下应该怎样"
+                ></textarea>
+              </label>
+              <label>
+                实际结果
+                <textarea
+                  v-model="bugForm.actual"
+                  rows="2"
+                  placeholder="现在出现了什么异常"
+                ></textarea>
+              </label>
+            </div>
+          </div>
+
+          <div class="compact-grid">
+            <label>
+              影响范围
+              <UiInput
+                v-model="bugForm.impact"
+                placeholder="例如：影响团队任务提交 / 仅自己可见"
+                :glass="false"
+              />
+            </label>
+            <label>
+              页面链接
+              <UiInput v-model="bugForm.pageUrl" placeholder="https://..." :glass="false" />
+            </label>
+          </div>
+
+          <div class="upload-row">
+            <input
+              ref="fileInput"
+              type="file"
+              class="hidden-input"
+              accept="image/*"
+              @change="handleFileUpload"
+            />
+            <button v-if="!previewUrl" type="button" class="upload-box" @click="triggerFileInput">
+              <Loader2 v-if="isUploading" class="spinning" />
+              <FileImage v-else />
+              <span>{{ isUploading ? '上传中...' : '上传截图' }}</span>
+              <small>PNG / JPG / WebP，最大 5MB</small>
+            </button>
+            <div v-else class="attachment-preview">
+              <img :src="previewUrl" alt="" />
+              <div>
+                <strong>截图已附加</strong>
+                <span>管理员可直接预览定位问题</span>
+              </div>
+              <button type="button" class="icon-btn danger" @click="removeAttachment"><X /></button>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <UiButton variant="secondary" :icon="RotateCcw" @click="resetForm">重置</UiButton>
+            <UiButton
+              variant="primary"
+              :icon="Send"
+              :disabled="isSubmitting"
+              :loading="isSubmitting"
+              @click="handleSubmit"
+            >
+              {{ isSubmitting ? '提交中' : '提交工单' }}
+            </UiButton>
+          </div>
+        </Card>
+
+        <aside class="assist-panel">
+          <Card>
+            <div class="side-title">
+              <Sparkles />
+              <h3>处理流程</h3>
+            </div>
+            <ol class="process-list">
+              <li>
+                <strong>接收</strong>
+                <span>系统记录截图、链接和优先级，并通知管理员。</span>
+              </li>
+              <li>
+                <strong>定位</strong>
+                <span>管理员在后台筛选、回复、更新状态。</span>
+              </li>
+              <li>
+                <strong>回访</strong>
+                <span>你会在工单历史和通知中心看到处理结果。</span>
+              </li>
+            </ol>
+          </Card>
+
+          <Card>
+            <div class="side-title">
+              <Filter />
+              <h3>提交质量</h3>
+            </div>
+            <div class="quality-grid">
+              <span :class="{ done: bugForm.title.trim().length >= 3 }">标题清晰</span>
+              <span :class="{ done: bugForm.description.trim().length >= 10 }">描述完整</span>
+              <span :class="{ done: bugForm.steps.trim().length > 0 }">可复现</span>
+              <span :class="{ done: Boolean(bugForm.attachmentUrl) }">有截图</span>
+            </div>
+          </Card>
+
+          <Card class="mini-feed">
+            <div class="side-title">
+              <MessageSquare />
+              <h3>最近工单</h3>
+            </div>
+            <button
+              v-for="item in feedbacks.slice(0, 4)"
+              :key="item.id"
+              type="button"
+              class="mini-ticket"
+              @click="
+                setTab('history');
+                selectFeedback(item);
+              "
+            >
+              <span>{{ ticketNo(item.id) }}</span>
+              <strong>{{ item.title }}</strong>
+              <small
+                >{{ statusLabel(item.status) }} · {{ formatRelativeDate(item.updatedAt) }}</small
+              >
+            </button>
+            <div v-if="feedbacks.length === 0" class="empty-mini">还没有历史反馈</div>
+          </Card>
+        </aside>
+      </div>
+
+      <div v-else class="history-layout">
+        <Card class="ticket-list-panel !p-0">
+          <div class="toolbar">
+            <UiInput
+              v-model="searchQuery"
+              :icon="Search"
+              placeholder="搜索标题或描述"
+              :glass="false"
+              class="min-w-[200px]"
+            />
+            <select v-model="statusFilter">
+              <option v-for="item in statusOptions" :key="item.value" :value="item.value">
+                {{ item.label }}
+              </option>
+            </select>
+            <select v-model="typeFilter">
+              <option value="ALL">全部类型</option>
+              <option v-for="item in typeOptions" :key="item.value" :value="item.value">
+                {{ item.label }}
+              </option>
+            </select>
+            <select v-model="priorityFilter">
+              <option value="ALL">全部优先级</option>
+              <option v-for="item in priorityOptions" :key="item.value" :value="item.value">
+                {{ item.label }}
+              </option>
+            </select>
+          </div>
+
+          <div v-if="isLoadingHistory" class="loading-state">
+            <Loader2 class="spinning" />
+            正在同步工单
+          </div>
+
+          <div v-else-if="filteredFeedbacks.length === 0" class="empty-state">
+            <Inbox />
+            <strong>没有匹配的工单</strong>
+            <span>调整筛选条件，或新建一个反馈工单。</span>
+            <UiButton variant="primary" :icon="Plus" @click="setTab('submit')">新建工单</UiButton>
+          </div>
+
+          <div v-else class="ticket-list">
+            <button
+              v-for="item in filteredFeedbacks"
+              :key="item.id"
+              type="button"
+              class="ticket-row"
+              :class="{ selected: activeFeedback?.id === item.id }"
+              @click="selectFeedback(item)"
+            >
+              <div class="row-main">
+                <span class="ticket-id">{{ ticketNo(item.id) }}</span>
+                <strong>{{ item.title }}</strong>
+                <small>{{ typeLabel(item.type) }} · {{ formatDate(item.updatedAt) }}</small>
+              </div>
+              <div class="row-meta">
+                <span class="status-pill" :class="statusTone(item.status)">{{
+                  statusLabel(item.status)
+                }}</span>
+                <span class="status-pill" :class="priorityTone(item.priority)"
+                  >P{{ priorityLabel(item.priority) }}</span
+                >
+              </div>
+              <ChevronRight />
+            </button>
+          </div>
+        </Card>
+
+        <Card class="detail-panel">
+          <div v-if="!activeFeedback" class="empty-state detail-empty">
+            <MessageSquare />
+            <strong>选择一个工单</strong>
+            <span>右侧会显示状态进度、官方回复和附件。</span>
+          </div>
+
+          <template v-else>
+            <div class="detail-head">
+              <div>
+                <p class="eyebrow">{{ ticketNo(activeFeedback.id) }}</p>
+                <h2>{{ activeFeedback.title }}</h2>
+              </div>
+              <span class="status-pill" :class="statusTone(activeFeedback.status)">
+                {{ statusLabel(activeFeedback.status) }}
+              </span>
+            </div>
+
+            <div class="progress-track">
+              <span :style="{ width: `${progressPercent(activeFeedback.status)}%` }"></span>
+            </div>
+
+            <div class="detail-meta">
+              <div>
+                <span>类型</span>
+                <strong>{{ typeLabel(activeFeedback.type) }}</strong>
+              </div>
+              <div>
+                <span>优先级</span>
+                <strong>{{ priorityLabel(activeFeedback.priority) }}</strong>
+              </div>
+              <div>
+                <span>提交</span>
+                <strong>{{ formatDate(activeFeedback.createdAt) }}</strong>
+              </div>
+              <div>
+                <span>更新</span>
+                <strong>{{ formatDate(activeFeedback.updatedAt) }}</strong>
+              </div>
+            </div>
+
+            <div v-if="isLoadingDetail" class="inline-loading">
+              <Loader2 class="spinning" />
+              正在刷新详情
+            </div>
+
+            <section class="detail-section">
+              <h3>反馈内容</h3>
+              <p>{{ activeFeedback.description }}</p>
+            </section>
+
+            <section v-if="activeFeedback.adminReply" class="detail-section official-reply">
+              <div class="reply-head">
+                <h3>官方回复</h3>
+                <span>{{ formatDate(activeFeedback.repliedAt) }}</span>
+              </div>
+              <p>{{ activeFeedback.adminReply }}</p>
+            </section>
+
+            <UiButton
+              v-if="activeFeedback.attachmentUrl"
+              variant="secondary"
+              :icon="ImageIcon"
+              @click="openPreview(activeFeedback.attachmentUrl)"
+            >
+              查看附件截图
+              <ArrowUpRight />
+            </UiButton>
+
+            <div class="detail-actions">
+              <UiButton
+                v-if="activeFeedback.status !== 'CLOSED'"
+                variant="secondary"
+                :icon="CheckCircle2"
+                @click="updateMyStatus(activeFeedback, 'CLOSED')"
+              >
+                我已确认，关闭
+              </UiButton>
+              <UiButton
+                v-else
+                variant="secondary"
+                :icon="RotateCcw"
+                @click="updateMyStatus(activeFeedback, 'OPEN')"
+              >
+                重新打开
+              </UiButton>
+              <UiButton variant="primary" :icon="Plus" @click="setTab('submit')">继续反馈</UiButton>
+            </div>
+          </template>
+        </Card>
+      </div>
     </main>
 
     <Modal
@@ -815,59 +910,19 @@ onMounted(refreshAll);
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px;
   overflow: hidden;
-  background: var(--bg-app);
+  background: transparent !important;
   color: var(--text-primary);
 }
 
-.support-header,
-.metric-panel,
-.tabbar,
-.form-panel,
-.assist-panel,
-.ticket-list-panel,
-.detail-panel {
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-enterprise);
-}
-
-.support-header {
-  min-height: 62px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-}
-
-.title-block,
-.header-actions,
 .form-actions,
 .detail-actions,
-.title-icon,
 .side-title,
 .attachment-preview,
 .attachment-link,
 .inline-loading {
   display: flex;
   align-items: center;
-}
-
-.title-block {
-  gap: 10px;
-}
-
-.title-icon {
-  width: 38px;
-  height: 38px;
-  justify-content: center;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--accent);
 }
 
 .title-icon svg,
@@ -917,7 +972,6 @@ button:disabled {
   opacity: 0.58;
 }
 
-.header-actions,
 .form-actions,
 .detail-actions {
   gap: 8px;
@@ -959,27 +1013,6 @@ button:disabled {
   color: #dc2626;
 }
 
-.metric-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(130px, 1fr)) minmax(220px, 1.5fr);
-  gap: 10px;
-}
-
-.metric-panel {
-  min-height: 72px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-}
-
-.metric-panel svg {
-  width: 20px;
-  height: 20px;
-  color: var(--accent);
-}
-
-.metric-panel span,
 .detail-meta span,
 .mini-ticket span,
 .ticket-id {
@@ -988,64 +1021,10 @@ button:disabled {
   font-weight: 900;
 }
 
-.metric-panel strong {
-  display: block;
-  margin-top: 3px;
-  font-size: 21px;
-  line-height: 1;
-}
-
-.metric-panel.wide strong {
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
-  line-height: 1.2;
-}
-
-.tabbar {
-  width: fit-content;
-  display: inline-flex;
-  gap: 3px;
-  padding: 3px;
-}
-
-.tabbar button {
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 12px;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.tabbar button.active {
-  background: var(--accent);
-  color: white;
-}
-
-.tabbar span {
-  min-width: 18px;
-  height: 18px;
-  display: inline-grid;
-  place-items: center;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
-  font-size: 10px;
-}
-
 .submit-layout,
 .history-layout {
-  flex: 1;
-  min-height: 0;
   display: grid;
   gap: 12px;
-  overflow: hidden;
 }
 
 .submit-layout {
@@ -1054,14 +1033,6 @@ button:disabled {
 
 .history-layout {
   grid-template-columns: minmax(420px, 0.92fr) minmax(360px, 1fr);
-}
-
-.form-panel,
-.assist-panel,
-.ticket-list-panel,
-.detail-panel {
-  min-height: 0;
-  overflow: auto;
 }
 
 .form-panel {
@@ -1591,14 +1562,6 @@ textarea:focus {
 }
 
 @media (max-width: 1180px) {
-  .metric-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .metric-panel.wide {
-    grid-column: span 2;
-  }
-
   .submit-layout,
   .history-layout {
     grid-template-columns: 1fr;
@@ -1612,41 +1575,20 @@ textarea:focus {
 }
 
 @media (max-width: 720px) {
-  .support-workbench {
-    padding: 10px;
-    overflow: auto;
-  }
-
-  .support-header,
   .panel-head,
   .detail-head {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .header-actions {
-    justify-content: stretch;
-  }
-
-  .header-actions button,
   .form-actions button,
   .detail-actions button {
     flex: 1;
   }
 
-  .metric-grid,
   .compact-grid,
   .detail-meta {
     grid-template-columns: 1fr;
-  }
-
-  .tabbar {
-    width: 100%;
-  }
-
-  .tabbar button {
-    flex: 1;
-    justify-content: center;
   }
 
   .ticket-row {

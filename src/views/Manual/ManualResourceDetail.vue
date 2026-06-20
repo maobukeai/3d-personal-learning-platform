@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { parseTags } from '@/utils/tags';
 import {
@@ -22,7 +22,7 @@ import { useAuthStore } from '@/stores/auth';
 import { ElMessage } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import { getPlanName } from '@/utils/plans';
-import MarkdownEditor from '@/components/MarkdownEditor.vue';
+const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 import { formatDateTime as formatDate } from '@/utils/format';
 
 interface ManualLink {
@@ -445,7 +445,7 @@ watch(resourceId, () => {
               <!-- Mobile Link Box -->
               <div class="block lg:hidden mb-6">
                 <div
-                  class="bg-slate-50 dark:bg-slate-900/60 border border-slate-150 dark:border-slate-800 rounded-2xl p-5"
+                  class="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5"
                 >
                   <h3
                     class="flex items-center gap-2 text-sm font-black text-slate-800 dark:text-slate-200 mb-4 border-b border-slate-100 dark:border-slate-800 pb-3 uppercase tracking-wider"
@@ -611,7 +611,7 @@ watch(resourceId, () => {
             <!-- Comments List -->
             <div
               v-if="!resource.comments || resource.comments.length === 0"
-              class="text-center py-12 text-slate-450 text-xs"
+              class="text-center py-12 text-slate-400 text-xs"
             >
               <MessageSquare class="w-8 h-8 text-slate-200 dark:text-slate-800 mx-auto mb-2" />
               暂无任何讨论评论，快来发表你的精彩观点吧~
@@ -650,7 +650,7 @@ watch(resourceId, () => {
                     }}</span>
                   </div>
                   <p
-                    class="text-xs sm:text-sm text-slate-650 dark:text-slate-350 whitespace-pre-wrap break-words leading-relaxed"
+                    class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap break-words leading-relaxed"
                   >
                     {{ comment.content }}
                   </p>
@@ -683,7 +683,7 @@ watch(resourceId, () => {
                 <div
                   v-for="(link, idx) in extractedLinks"
                   :key="idx"
-                  class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-150 dark:border-slate-800/80 flex flex-col gap-2 shadow-sm bg-white"
+                  class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-2 shadow-sm bg-white"
                 >
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
@@ -691,7 +691,7 @@ watch(resourceId, () => {
                         class="w-2.5 h-2.5 rounded-full"
                         :class="getLinkTypeColor(link.type)"
                       ></div>
-                      <span class="text-xs font-bold text-slate-700 dark:text-slate-250">{{
+                      <span class="text-xs font-bold text-slate-700 dark:text-slate-200">{{
                         link.name
                       }}</span>
                     </div>
@@ -824,7 +824,7 @@ watch(resourceId, () => {
                   type="text"
                   readonly
                   :value="activeLink.url"
-                  class="flex-1 min-w-0 px-3 py-2 text-xs rounded-lg border border-white/10 bg-white/5 text-slate-350 focus:outline-none select-all font-mono"
+                  class="flex-1 min-w-0 px-3 py-2 text-xs rounded-lg border border-white/10 bg-white/5 text-slate-300 focus:outline-none select-all font-mono"
                 />
                 <button
                   type="button"

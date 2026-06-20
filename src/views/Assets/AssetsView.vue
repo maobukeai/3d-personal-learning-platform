@@ -880,7 +880,7 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  background: var(--bg-app);
+  background: transparent !important;
   color: var(--text-primary);
 }
 

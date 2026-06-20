@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { formatRelativeTime as formatTime, formatCompactNumber as formatNumber } from '@/utils/format';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import {
+  formatRelativeTime as formatTime,
+  formatCompactNumber as formatNumber,
+} from '@/utils/format';
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   BarChart3,
@@ -29,7 +32,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
-import MarkdownEditor from '@/components/MarkdownEditor.vue';
+const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 import UserAvatar from '@/components/UserAvatar.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import DiscussionCard from '@/components/DiscussionCard.vue';
@@ -1006,7 +1009,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: var(--bg-app);
+  background: transparent !important;
 }
 
 .discussion-header-actions {

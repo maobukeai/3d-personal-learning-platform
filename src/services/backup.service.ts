@@ -25,12 +25,16 @@ export const fetchBackupConfig = async (): Promise<BackupConfig> => {
   return data;
 };
 
-export const saveBackupConfig = async (payload: Partial<BackupConfig> & { password?: string }): Promise<any> => {
+export const saveBackupConfig = async (
+  payload: Partial<BackupConfig> & { password?: string },
+): Promise<any> => {
   const { data } = await api.post('/api/backup/config', payload);
   return data;
 };
 
-export const testBackupConfig = async (payload: Partial<BackupConfig> & { password?: string }): Promise<any> => {
+export const testBackupConfig = async (
+  payload: Partial<BackupConfig> & { password?: string },
+): Promise<any> => {
   const { data } = await api.post('/api/backup/test', payload);
   return data;
 };
@@ -45,7 +49,10 @@ export const fetchBackupsList = async (): Promise<BackupListResponse> => {
   return data;
 };
 
-export const restoreBackup = async (filename: string, restoreCategories: string[]): Promise<any> => {
+export const restoreBackup = async (
+  filename: string,
+  restoreCategories: string[],
+): Promise<any> => {
   const { data } = await api.post('/api/backup/restore', { filename, restoreCategories });
   return data;
 };

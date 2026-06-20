@@ -307,7 +307,8 @@ const expandModelNameLines = (
     originalName === model.modelName ||
     Object.values(aiProviderDefaults).some((item) => item.name === originalName)
   ) {
-    model.name = model.provider === 'CUSTOM' ? model.modelName : `${providerLabelStr} ${model.modelName}`;
+    model.name =
+      model.provider === 'CUSTOM' ? model.modelName : `${providerLabelStr} ${model.modelName}`;
   }
   syncAiModelsToSettings();
   if (showMessage && added > 0) {
@@ -1031,7 +1032,10 @@ const batchMoveAiModelsToFamily = () => {
     }
   });
 
-  if (batchTargetFamilyKey.value && !expandedModelFamilyGroups.value.includes(batchTargetFamilyKey.value)) {
+  if (
+    batchTargetFamilyKey.value &&
+    !expandedModelFamilyGroups.value.includes(batchTargetFamilyKey.value)
+  ) {
     expandedModelFamilyGroups.value.push(batchTargetFamilyKey.value);
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(expandedModelFamilyGroups.value));
   }
@@ -1126,7 +1130,7 @@ const handleDropOnGroup = (event: DragEvent, group: ModelFamilyGroup) => {
     if (sourceGroupKey === group.key) return;
 
     const list = [...localAiModelConfigs.value];
-    
+
     // Find all models belonging to sourceGroup
     const sourceModels = list.filter((m) => {
       const fk = inferModelFamilyKey(m, { isPending: isPendingAiModel(m.id) });
@@ -1154,7 +1158,7 @@ const handleDropOnGroup = (event: DragEvent, group: ModelFamilyGroup) => {
 
     // Insert source models at insertIndex
     remainingList.splice(insertIndex, 0, ...sourceModels);
-    
+
     localAiModelConfigs.value = remainingList;
     syncAiModelsToSettings();
     ElMessage.success('已成功更新分组优先级顺序');
@@ -1626,7 +1630,7 @@ onMounted(() => {
           :draggable="isGroupHandleClicked"
           class="rounded-2xl border overflow-hidden transition-all duration-300"
           :class="{
-            'opacity-50 border-indigo-400 scale-[0.99]': draggedGroupKey === group.key
+            'opacity-50 border-indigo-400 scale-[0.99]': draggedGroupKey === group.key,
           }"
           :style="`border-color: ${group.meta.border}; background: var(--bg-card);`"
           @dragstart="handleGroupDragStart($event, group.key)"
@@ -1882,16 +1886,18 @@ onMounted(() => {
                     <span
                       v-if="(model.apiKeys || []).filter(Boolean).length > 0"
                       class="px-1.5 py-0.5 rounded text-[9px] font-bold"
-                      style="background: rgba(16,185,129,0.1); color: #059669"
+                      style="background: rgba(16, 185, 129, 0.1); color: #059669"
                       :title="`共 ${1 + (model.apiKeys || []).filter(Boolean).length} 个密钥，主密钥失效时自动轮换`"
-                    >{{ 1 + (model.apiKeys || []).filter(Boolean).length }} 个密钥</span>
+                      >{{ 1 + (model.apiKeys || []).filter(Boolean).length }} 个密钥</span
+                    >
                     <!-- Failover disabled indicator -->
                     <span
                       v-if="model.failoverEnabled === false"
                       class="px-1.5 py-0.5 rounded text-[9px] font-bold"
-                      style="background: rgba(100,116,139,0.1); color: #64748b"
+                      style="background: rgba(100, 116, 139, 0.1); color: #64748b"
                       title="此模型不参与自动故障转移"
-                    >故障转移已关闭</span>
+                      >故障转移已关闭</span
+                    >
                   </div>
                   <div
                     class="flex items-center gap-3 mt-1 text-[9px]"
@@ -2043,7 +2049,7 @@ onMounted(() => {
                       <span
                         v-if="(model.apiKeys || []).filter(Boolean).length > 0"
                         class="px-2 py-0.5 rounded-full text-[9px] font-bold"
-                        style="background: rgba(16,185,129,0.1); color: #059669"
+                        style="background: rgba(16, 185, 129, 0.1); color: #059669"
                         >+{{ (model.apiKeys || []).filter(Boolean).length }} 个备用密钥</span
                       >
                     </div>
@@ -2063,11 +2069,23 @@ onMounted(() => {
                     <!-- Backup Keys -->
                     <div class="mt-2 space-y-1.5">
                       <label class="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                        <svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        <svg
+                          viewBox="0 0 24 24"
+                          class="w-3 h-3"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                        >
+                          <path
+                            d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
                         备用密钥（自动故障转移轮换，主密钥失效时依次尝试）
                       </label>
                       <div
-                        v-for="(_, keyIdx) in (model.apiKeys || [])"
+                        v-for="(_, keyIdx) in model.apiKeys || []"
                         :key="keyIdx"
                         class="flex items-center gap-2"
                       >
@@ -2075,26 +2093,65 @@ onMounted(() => {
                           :value="(model.apiKeys || [])[keyIdx]"
                           type="password"
                           class="flex-1 px-3 py-1.5 rounded-lg border text-xs font-mono outline-none transition-colors"
-                          style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                          style="
+                            background-color: var(--bg-app);
+                            border-color: var(--border-base);
+                            color: var(--text-primary);
+                          "
                           :placeholder="`备用密钥 ${keyIdx + 1}`"
-                          @input="(e: Event) => { if (!model.apiKeys) model.apiKeys = []; model.apiKeys[keyIdx] = (e.target as HTMLInputElement).value; syncAiModelsToSettings(); }"
+                          @input="
+                            (e: Event) => {
+                              if (!model.apiKeys) model.apiKeys = [];
+                              model.apiKeys[keyIdx] = (e.target as HTMLInputElement).value;
+                              syncAiModelsToSettings();
+                            }
+                          "
                         />
                         <button
                           type="button"
                           class="w-6 h-6 rounded flex items-center justify-center text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors flex-shrink-0"
                           title="删除此备用密钥"
-                          @click="() => { model.apiKeys = (model.apiKeys || []).filter((_, i) => i !== keyIdx); syncAiModelsToSettings(); }"
+                          @click="
+                            () => {
+                              model.apiKeys = (model.apiKeys || []).filter((_, i) => i !== keyIdx);
+                              syncAiModelsToSettings();
+                            }
+                          "
                         >
-                          <svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          <svg
+                            viewBox="0 0 24 24"
+                            class="w-3 h-3"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                          >
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
                         </button>
                       </div>
                       <button
                         type="button"
                         class="flex items-center gap-1 text-[10px] font-semibold transition-colors cursor-pointer bg-transparent border-none"
                         style="color: #6366f1"
-                        @click="() => { if (!model.apiKeys) model.apiKeys = []; model.apiKeys.push(''); syncAiModelsToSettings(); }"
+                        @click="
+                          () => {
+                            if (!model.apiKeys) model.apiKeys = [];
+                            model.apiKeys.push('');
+                            syncAiModelsToSettings();
+                          }
+                        "
                       >
-                        <svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        <svg
+                          viewBox="0 0 24 24"
+                          class="w-3 h-3"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                        >
+                          <line x1="12" y1="5" x2="12" y2="19" />
+                          <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
                         添加备用密钥
                       </button>
                     </div>
@@ -2280,16 +2337,28 @@ onMounted(() => {
                     </div>
 
                     <!-- Failover Settings -->
-                    <div class="md:col-span-2 flex items-center justify-between p-3 rounded-xl border" style="border-color: var(--border-base); background: var(--bg-app)">
+                    <div
+                      class="md:col-span-2 flex items-center justify-between p-3 rounded-xl border"
+                      style="border-color: var(--border-base); background: var(--bg-app)"
+                    >
                       <div>
-                        <div class="text-[10px] font-bold" style="color: var(--text-primary)">参与自动故障转移</div>
-                        <div class="text-[9px] mt-0.5" style="color: var(--text-muted)">开启后，主密钥或模型失败时系统将自动切换至此模型/其他密钥</div>
+                        <div class="text-[10px] font-bold" style="color: var(--text-primary)">
+                          参与自动故障转移
+                        </div>
+                        <div class="text-[9px] mt-0.5" style="color: var(--text-muted)">
+                          开启后，主密钥或模型失败时系统将自动切换至此模型/其他密钥
+                        </div>
                       </div>
                       <el-switch
                         :model-value="model.failoverEnabled !== false"
                         size="small"
                         style="--el-switch-on-color: #6366f1; --el-switch-off-color: #94a3b8"
-                        @change="(val: boolean | string | number) => { model.failoverEnabled = Boolean(val); syncAiModelsToSettings(); }"
+                        @change="
+                          (val: boolean | string | number) => {
+                            model.failoverEnabled = Boolean(val);
+                            syncAiModelsToSettings();
+                          }
+                        "
                       />
                     </div>
                   </div>

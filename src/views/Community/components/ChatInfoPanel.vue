@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { X, Users, LogOut, Image as ImageIcon, Paperclip, Download } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
-import api, { getAssetUrl } from '@/utils/api';
+import { getAssetUrl } from '@/utils/api';
 
 type InfoTab = 'info' | 'photos' | 'files';
 
@@ -266,11 +266,7 @@ const openLink = (url: string) => {
             class="aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-all border border-[var(--border-base)]"
             @click="openLink(getAssetUrl(photo.url))"
           >
-            <img
-              alt=""
-              :src="getAssetUrl(photo.url)"
-              class="w-full h-full object-cover"
-            />
+            <img alt="" :src="getAssetUrl(photo.url)" class="w-full h-full object-cover" />
           </div>
         </div>
       </div>

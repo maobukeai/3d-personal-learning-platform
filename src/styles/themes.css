@@ -7,10 +7,10 @@ html.theme-glass {
 
   /* Layout backgrounds – translucent frosted white */
   --bg-app: #f1f5f9;
-  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-card: rgba(255, 255, 255, 0.65);
   --bg-card-rgb: 255, 255, 255;
-  --bg-sidebar: rgba(248, 250, 252, 0.95);
-  --bg-elevated: rgba(255, 255, 255, 0.95);
+  --bg-sidebar: rgba(248, 250, 252, 0.65);
+  --bg-elevated: rgba(255, 255, 255, 0.7);
   --bg-subtle: #f8fafc;
   --bg-hover: rgba(0, 0, 0, 0.04);
   --bg-active: rgba(37, 99, 235, 0.08);
@@ -29,9 +29,10 @@ html.theme-glass {
   --accent-subtle: color-mix(in srgb, var(--accent) 12%, rgba(255, 255, 255, 0.8));
 
   /* Glass specifics */
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: 1px solid rgba(203, 213, 225, 0.8);
-  --glass-border-color: rgba(203, 213, 225, 0.8);
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-sidebar-bg: rgba(248, 250, 252, 0.42);
+  --glass-border-color: rgba(255, 255, 255, 0.6);
+  --glass-border: 1px solid var(--glass-border-color);
   --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -40,12 +41,12 @@ html.dark.theme-glass {
   color-scheme: dark;
 
   /* Layout backgrounds – transparent/translucent frosted dark (Blender-inspired #0F1319 / #1C2129 / #12161E) */
-  --bg-app: #0F1319;
-  --bg-card: rgba(28, 33, 41, 0.82);
+  --bg-app: #0f1319;
+  --bg-card: rgba(28, 33, 41, 0.62);
   --bg-card-rgb: 28, 33, 41;
-  --bg-sidebar: rgba(18, 22, 30, 0.88);
-  --bg-elevated: rgba(36, 42, 53, 0.85);
-  --bg-subtle: #0F1319;
+  --bg-sidebar: rgba(18, 22, 30, 0.62);
+  --bg-elevated: rgba(36, 42, 53, 0.65);
+  --bg-subtle: #0f1319;
   --bg-hover: rgba(36, 42, 53, 0.7);
 
   /* Text — neutral light grays */
@@ -59,30 +60,32 @@ html.dark.theme-glass {
   --border-card: rgba(42, 51, 66, 0.4);
 
   /* Accent subtle - dark */
-  --accent: #F5792A;
+  --accent: #f5792a;
   --accent-rgb: 245, 121, 42;
   --accent-subtle: rgba(245, 121, 42, 0.15);
 
   /* Glass specifics */
-  --glass-bg: rgba(28, 33, 41, 0.82);
-  --glass-header-bg: rgba(12, 15, 22, 0.9);
-  --glass-sidebar-bg: rgba(18, 22, 30, 0.88);
-  --glass-border: 1px solid rgba(42, 51, 66, 0.5);
-  --glass-border-color: rgba(42, 51, 66, 0.5);
+  --glass-bg: rgba(20, 24, 33, 0.48);
+  --glass-header-bg: rgba(12, 15, 22, 0.85);
+  --glass-sidebar-bg: rgba(12, 16, 22, 0.52);
+  --glass-border-color: rgba(255, 255, 255, 0.08);
+  --glass-border: 1px solid var(--glass-border-color);
   --glass-shadow: 0 10px 26px -22px rgba(0, 0, 0, 0.9);
 }
 
 /* Glass performance budget values */
 html.theme-glass {
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: 1px solid rgba(203, 213, 225, 0.8);
-  --glass-border-color: rgba(203, 213, 225, 0.8);
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-sidebar-bg: rgba(248, 250, 252, 0.42);
+  --glass-border-color: rgba(255, 255, 255, 0.6);
+  --glass-border: 1px solid var(--glass-border-color);
   --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
 html.dark.theme-glass {
-  --glass-bg: rgba(28, 33, 41, 0.82);
-  --glass-border: 1px solid rgba(42, 51, 66, 0.5);
-  --glass-border-color: rgba(42, 51, 66, 0.5);
+  --glass-bg: rgba(20, 24, 33, 0.48);
+  --glass-sidebar-bg: rgba(12, 16, 22, 0.52);
+  --glass-border-color: rgba(255, 255, 255, 0.08);
+  --glass-border: 1px solid var(--glass-border-color);
   --glass-shadow: 0 10px 26px -22px rgba(0, 0, 0, 0.9);
 }

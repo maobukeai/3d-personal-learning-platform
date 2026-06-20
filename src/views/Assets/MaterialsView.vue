@@ -823,7 +823,8 @@ async function deleteMaterial(material: NormalizedMaterial) {
     closeDetail();
 
     // 后台异步执行请求并在成功后静默拉取更新，失败后恢复界面
-    api.delete(`/api/materials/${material.id}`)
+    api
+      .delete(`/api/materials/${material.id}`)
       .then(() => {
         refreshWorkspace(true);
       })
@@ -1581,7 +1582,7 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  background: var(--bg-app);
+  background: transparent !important;
   color: var(--text-primary);
 }
 

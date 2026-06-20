@@ -246,7 +246,7 @@ const getReactionCount = (reactions: DiscussionReaction[] | undefined, emoji: st
 </script>
 
 <template>
-  <div class="absolute inset-0 flex flex-col bg-white dark:bg-slate-955">
+  <div class="absolute inset-0 flex flex-col bg-white dark:bg-slate-950">
     <template v-if="props.isMember">
       <div ref="chatScroll" class="flex-1 overflow-y-auto p-10 space-y-8 scrollbar-hide">
         <div
@@ -357,7 +357,7 @@ const getReactionCount = (reactions: DiscussionReaction[] | undefined, emoji: st
 
       <!-- Input Area -->
       <div
-        class="p-6 bg-white dark:bg-slate-955 border-t shrink-0"
+        class="p-6 bg-white dark:bg-slate-950 border-t shrink-0"
         style="border-color: var(--border-base)"
       >
         <!-- Image Preview -->

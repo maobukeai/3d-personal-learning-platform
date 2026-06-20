@@ -629,7 +629,7 @@ html.dark.theme-glass .hover\:shadow-2xl:hover {
 }
 
 /* Mobile responsive and low-power hardware performance budgets (all filters disabled) */
-@media (max-width: 1024px), (pointer: coarse), (prefers-reduced-motion: reduce) {
+@media (max-width: 768px), (prefers-reduced-motion: reduce) {
   html.theme-glass .glass-header,
   html.theme-glass .glass-sidebar,
   html.theme-glass .notification-panel,

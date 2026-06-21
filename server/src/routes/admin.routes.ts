@@ -29,6 +29,7 @@ router.get('/audit-logs', dashboardController.getAuditLogs);
 router.get('/broadcasts', dashboardController.getBroadcasts);
 router.post('/broadcast', dashboardController.sendBroadcast);
 router.delete('/broadcasts/:id', dashboardController.deleteBroadcast);
+router.post('/broadcasts/:id/toggle-offline', dashboardController.toggleBroadcastOffline);
 router.get('/management-insights', managementController.getManagementInsights);
 
 // Settings
@@ -90,6 +91,7 @@ router.delete('/feedback/:id', contentController.deleteFeedback);
 // Roadmap management
 router.get('/roadmaps', courseController.getAllRoadmaps);
 router.post('/roadmaps', courseController.createRoadmap);
+router.post('/roadmaps/ai-generate', courseController.aiGenerateRoadmap);
 router.put('/roadmaps/:id', courseController.updateRoadmap);
 router.delete('/roadmaps/:id', courseController.deleteRoadmap);
 router.post('/roadmaps/steps', courseController.createRoadmapStep);

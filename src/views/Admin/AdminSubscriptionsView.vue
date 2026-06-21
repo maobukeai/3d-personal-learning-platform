@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, onMounted, computed } from 'vue';
-import { CreditCard, Plus, RefreshCw, Users, Key } from 'lucide-vue-next';
+import { CreditCard, Plus, RefreshCw, Users, Key, Search } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import SubscriptionPlansTab from './components/SubscriptionPlansTab.vue';
@@ -62,6 +62,7 @@ const users = ref<AdminUser[]>([]);
 const activationCodes = ref<ActivationCodeRecord[]>([]);
 const isLoading = ref(true);
 const activeTab = ref('plans');
+const searchQuery = ref('');
 
 const plansTabRef = ref<InstanceType<typeof SubscriptionPlansTab> | null>(null);
 const subsTabRef = ref<InstanceType<typeof UserSubscriptionsTab> | null>(null);
@@ -208,9 +209,15 @@ onMounted(() => {
       <!-- Page Header -->
       <PageHeader title="订阅管理" variant="card">
         <template #center>
-          <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full">
-            <Tabs v-model="activeTab" :options="tabOptions" size="sm" />
-          </div>
+          <!-- Compact Search Box (Centered) -->
+          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+            <Search />
+            <input
+              v-model="searchQuery"
+              type="search"
+              placeholder="搜索当前列表..."
+            />
+          </label>
         </template>
 
         <!-- Actions -->
@@ -280,6 +287,13 @@ onMounted(() => {
         </Card>
       </section>
 
+      <!-- Tabs Switcher Card in Main Body -->
+      <Card padding="sm" class="mt-3">
+        <div class="flex items-center justify-between">
+          <Tabs v-slot="{}" v-model="activeTab" :options="tabOptions" variant="solid" />
+        </div>
+      </Card>
+
       <!-- Workspace layout: Single Column Workspace -->
       <div class="mt-3 w-full min-w-0">
         <div class="space-y-3 min-w-0">
@@ -289,6 +303,7 @@ onMounted(() => {
             ref="plansTabRef"
             :plans="plans"
             :is-loading="isLoading"
+            :search-query="searchQuery"
             @refresh="fetchData"
           />
 
@@ -300,6 +315,7 @@ onMounted(() => {
             :plans="plans"
             :users="users"
             :is-loading="isLoading"
+            :search-query="searchQuery"
             @refresh="fetchData"
             @fetch-users="fetchUsers"
           />
@@ -311,6 +327,7 @@ onMounted(() => {
             :activation-codes="activationCodes"
             :plans="plans"
             :is-loading="isLoading"
+            :search-query="searchQuery"
             @refresh="fetchData"
           />
         </div>

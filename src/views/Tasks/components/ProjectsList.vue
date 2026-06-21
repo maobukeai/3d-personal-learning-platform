@@ -99,7 +99,6 @@ const focusTabsOptions = [
             v-model="focusFilter"
             :options="focusTabsOptions"
             size="sm"
-            variant="solid"
             class="!bg-transparent border-none shrink-0"
           />
         </div>

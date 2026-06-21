@@ -24,6 +24,7 @@ import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import UiButton from '@/components/ui/Button.vue';
 import UiInput from '@/components/ui/Input.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 interface CloudflareZone {
   id: string;
@@ -67,6 +68,13 @@ const zoneSearch = ref('');
 const selectedZone = ref<CloudflareZone | null>(null);
 const dnsRecords = ref<CloudflareDnsRecord[]>([]);
 const dnsSearch = ref('');
+const searchQuery = ref('');
+
+watch(searchQuery, (val) => {
+  zoneSearch.value = val;
+  dnsSearch.value = val;
+});
+
 const zoneSslMode = ref('');
 const zoneSslStatus = ref('');
 
@@ -749,10 +757,18 @@ onMounted(async () => {
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
       <!-- Page Header -->
       <PageHeader title="Cloudflare 域名管理" variant="card">
-        <template #center>
+        <template #title-badge>
           <div class="flex flex-wrap items-center gap-1.5 ml-2">
             <Badge variant="info"> 域名数: {{ zones.length }} </Badge>
           </div>
+        </template>
+
+        <template #center>
+          <!-- Compact Search Box (Centered) -->
+          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+            <Search />
+            <input v-model="searchQuery" type="text" placeholder="搜索域名/DNS记录..." />
+          </label>
         </template>
 
         <!-- Actions -->
@@ -921,14 +937,7 @@ onMounted(async () => {
                 </span>
               </div>
 
-              <UiInput
-                v-model="zoneSearch"
-                placeholder="搜索域名..."
-                :icon="Search"
-                :glass="false"
-                input-class="text-xs"
-                class="mb-3"
-              />
+
 
               <div
                 v-if="!hasToken"
@@ -1051,14 +1060,7 @@ onMounted(async () => {
                 </div>
               </div>
 
-              <UiInput
-                v-model="dnsSearch"
-                placeholder="搜索 DNS 记录..."
-                :icon="Search"
-                :glass="false"
-                input-class="text-xs"
-                class="mb-3"
-              />
+
 
               <div
                 class="flex-1 overflow-auto border rounded-xl"
@@ -1170,19 +1172,25 @@ onMounted(async () => {
       </div>
     </main>
 
-    <el-dialog
-      v-model="dnsDialogVisible"
+    <Modal
+      :show="dnsDialogVisible"
       :title="dnsDialogMode === 'create' ? '添加 DNS 记录' : '编辑 DNS 记录'"
-      width="560px"
-      align-center
+      size="md"
+      glass-card
+      @close="dnsDialogVisible = false"
     >
-      <div class="space-y-4 py-2">
+      <div class="space-y-4">
         <div class="grid grid-cols-2 gap-3">
-          <div class="space-y-1">
-            <label class="text-[11px] font-bold text-slate-500">类型</label>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">类型</label>
             <select
               v-model="dnsForm.type"
-              class="w-full px-3 py-2 rounded-xl border text-xs bg-card border-base text-primary"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
             >
               <option value="A">A</option>
               <option value="AAAA">AAAA</option>
@@ -1194,12 +1202,17 @@ onMounted(async () => {
               <option value="CAA">CAA</option>
             </select>
           </div>
-          <div class="space-y-1">
-            <label class="text-[11px] font-bold text-slate-500">TTL</label>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">TTL</label>
             <select
               v-model="dnsForm.ttl"
               :disabled="['A', 'AAAA', 'CNAME'].includes(dnsForm.type) && dnsForm.proxied"
-              class="w-full px-3 py-2 rounded-xl border text-xs bg-card border-base text-primary disabled:opacity-60 disabled:cursor-not-allowed"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
             >
               <option :value="1">Auto (自动)</option>
               <option :value="120">2 minutes</option>
@@ -1219,20 +1232,24 @@ onMounted(async () => {
         <!-- SRV specific fields -->
         <template v-if="dnsForm.type === 'SRV'">
           <div class="grid grid-cols-2 gap-3">
-            <div class="space-y-1">
-              <label class="text-[11px] font-bold text-slate-500">服务 (Service) *</label>
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">服务 (Service) *</label>
               <UiInput
                 v-model="dnsForm.srvService"
                 placeholder="例如: _sip"
-                :glass="false"
                 input-class="text-xs font-mono"
               />
             </div>
-            <div class="space-y-1">
-              <label class="text-[11px] font-bold text-slate-500">协议 (Protocol) *</label>
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">协议 (Protocol) *</label>
               <select
                 v-model="dnsForm.srvProtocol"
-                class="w-full px-3 py-2 rounded-xl border text-xs bg-card border-base text-primary"
+                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
+                style="
+                  background-color: var(--bg-app);
+                  border-color: var(--border-base);
+                  color: var(--text-primary);
+                "
               >
                 <option value="_tcp">_tcp</option>
                 <option value="_udp">_udp</option>
@@ -1240,47 +1257,43 @@ onMounted(async () => {
               </select>
             </div>
           </div>
-          <div class="space-y-1">
-            <label class="text-[11px] font-bold text-slate-500">名称 (Name/域) *</label>
-            <UiInput v-model="dnsForm.name" :glass="false" input-class="text-xs font-mono" />
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">名称 (Name/域) *</label>
+            <UiInput v-model="dnsForm.name" input-class="text-xs font-mono" />
             <div class="mt-1 text-[10px]" style="color: var(--text-muted)">
               解析为: <span class="font-mono font-bold text-accent">{{ namePreview }}</span>
             </div>
           </div>
-          <div class="space-y-1">
-            <label class="text-[11px] font-bold text-slate-500">目标 (Target) *</label>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">目标 (Target) *</label>
             <UiInput
               v-model="dnsForm.srvTarget"
               placeholder="例如: sipserver.example.com"
-              :glass="false"
               input-class="text-xs font-mono"
             />
           </div>
           <div class="grid grid-cols-3 gap-3">
-            <div class="space-y-1">
-              <label class="text-[11px] font-bold text-slate-500">优先级 (Priority) *</label>
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">优先级 (Priority) *</label>
               <UiInput
                 v-model.number="dnsForm.priority"
                 type="number"
-                :glass="false"
                 input-class="text-xs"
               />
             </div>
-            <div class="space-y-1">
-              <label class="text-[11px] font-bold text-slate-500">权重 (Weight) *</label>
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">权重 (Weight) *</label>
               <UiInput
                 v-model.number="dnsForm.srvWeight"
                 type="number"
-                :glass="false"
                 input-class="text-xs"
               />
             </div>
-            <div class="space-y-1">
-              <label class="text-[11px] font-bold text-slate-500">端口 (Port) *</label>
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">端口 (Port) *</label>
               <UiInput
                 v-model.number="dnsForm.srvPort"
                 type="number"
-                :glass="false"
                 input-class="text-xs"
               />
             </div>
@@ -1289,28 +1302,32 @@ onMounted(async () => {
 
         <!-- CAA specific fields -->
         <template v-else-if="dnsForm.type === 'CAA'">
-          <div class="space-y-1">
-            <label class="text-[11px] font-bold text-slate-500">名称 (Name) *</label>
-            <UiInput v-model="dnsForm.name" :glass="false" input-class="text-xs font-mono" />
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">名称 (Name) *</label>
+            <UiInput v-model="dnsForm.name" input-class="text-xs font-mono" />
             <div class="mt-1 text-[10px]" style="color: var(--text-muted)">
               解析为: <span class="font-mono font-bold text-accent">{{ namePreview }}</span>
             </div>
           </div>
           <div class="grid grid-cols-2 gap-3">
-            <div class="space-y-1">
-              <label class="text-[11px] font-bold text-slate-500">标志 (Flags) *</label>
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">标志 (Flags) *</label>
               <UiInput
                 v-model.number="dnsForm.caaFlags"
                 type="number"
-                :glass="false"
                 input-class="text-xs"
               />
             </div>
-            <div class="space-y-1">
-              <label class="text-[11px] font-bold text-slate-500">标签 (Tag) *</label>
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">标签 (Tag) *</label>
               <select
                 v-model="dnsForm.caaTag"
-                class="w-full px-3 py-2 rounded-xl border text-xs bg-card border-base text-primary"
+                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
+                style="
+                  background-color: var(--bg-app);
+                  border-color: var(--border-base);
+                  color: var(--text-primary);
+                "
               >
                 <option value="issue">issue (允许单个 CA)</option>
                 <option value="issuewild">issuewild (允许通配符证书)</option>
@@ -1318,12 +1335,11 @@ onMounted(async () => {
               </select>
             </div>
           </div>
-          <div class="space-y-1">
-            <label class="text-[11px] font-bold text-slate-500">值 (Value/CA域名) *</label>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">值 (Value/CA域名) *</label>
             <UiInput
               v-model="dnsForm.caaValue"
               placeholder="例如: letsencrypt.org"
-              :glass="false"
               input-class="text-xs font-mono"
             />
           </div>
@@ -1331,38 +1347,40 @@ onMounted(async () => {
 
         <!-- Standard DNS record fields (A, AAAA, CNAME, TXT, MX, NS) -->
         <template v-else>
-          <div class="space-y-1">
-            <label class="text-[11px] font-bold text-slate-500">名称 (Name) *</label>
-            <UiInput v-model="dnsForm.name" :glass="false" input-class="text-xs font-mono" />
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">名称 (Name) *</label>
+            <UiInput v-model="dnsForm.name" input-class="text-xs font-mono" />
             <div class="mt-1 text-[10px]" style="color: var(--text-muted)">
               解析为: <span class="font-mono font-bold text-accent">{{ namePreview }}</span>
               <span class="ml-1">(输入 @ 代表根域名)</span>
             </div>
           </div>
-          <div class="space-y-1">
-            <label class="text-[11px] font-bold text-slate-500">{{ contentLabel }} *</label>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{ contentLabel }} *</label>
             <textarea
               v-if="dnsForm.type === 'TXT'"
               v-model="dnsForm.content"
               rows="3"
               :placeholder="contentPlaceholder"
-              class="w-full px-3 py-2 rounded-xl border text-xs font-mono text-primary outline-none resize-none"
-              style="background-color: var(--bg-card); border-color: var(--border-base)"
+              class="w-full px-4 py-3 rounded-2xl border text-sm font-mono transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 resize-none"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
             ></textarea>
             <UiInput
               v-else
               v-model="dnsForm.content"
               :placeholder="contentPlaceholder"
-              :glass="false"
               input-class="text-xs font-mono"
             />
           </div>
-          <div v-if="dnsForm.type === 'MX'" class="space-y-1">
-            <label class="text-[11px] font-bold text-slate-500">优先级 (Priority) *</label>
+          <div v-if="dnsForm.type === 'MX'">
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">优先级 (Priority) *</label>
             <UiInput
               v-model.number="dnsForm.priority"
               type="number"
-              :glass="false"
               input-class="text-xs"
             />
           </div>
@@ -1415,13 +1433,15 @@ onMounted(async () => {
         </template>
       </div>
       <template #footer>
-        <UiButton variant="outline" size="sm" class="mr-2" @click="dnsDialogVisible = false">
-          取消
-        </UiButton>
-        <UiButton variant="primary" size="sm" :disabled="submittingDns" @click="submitDnsForm">
-          {{ submittingDns ? '保存中...' : '保存' }}
-        </UiButton>
+        <div class="flex items-center gap-3">
+          <UiButton variant="secondary" size="md" @click="dnsDialogVisible = false">
+            取消
+          </UiButton>
+          <UiButton variant="primary" size="md" :loading="submittingDns" @click="submitDnsForm">
+            保存
+          </UiButton>
+        </div>
       </template>
-    </el-dialog>
+    </Modal>
   </div>
 </template>

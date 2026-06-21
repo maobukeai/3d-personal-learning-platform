@@ -986,12 +986,20 @@ void consolidatedCards.value;
         subtitle="全站团队组织、协作规范及数据资产的合规统计与治理"
         variant="card"
       >
-        <template #center>
+        <template #title-badge>
           <div class="flex flex-wrap items-center gap-1.5 ml-2">
             <Badge variant="info">团队数: {{ compactNumber(summary.totalTeams) }}</Badge>
             <Badge variant="info">成员数: {{ compactNumber(summary.totalMembers) }}</Badge>
             <Badge variant="info">待处理: {{ compactNumber(totalPending) }}</Badge>
           </div>
+        </template>
+
+        <template #center>
+          <!-- Compact Search Box (Centered) -->
+          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+            <Search />
+            <input v-model="searchQuery" placeholder="搜索团队、负责人..." type="search" />
+          </label>
         </template>
 
         <UiButton
@@ -1057,54 +1065,38 @@ void consolidatedCards.value;
       </section>
 
       <Card padding="sm">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 w-full">
-          <!-- Left empty helper for desktop centering -->
-          <div class="hidden md:block flex-1 min-w-0"></div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <el-select v-model="visibilityFilter" size="small" style="width: 110px">
+            <el-option
+              v-for="option in visibilityOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
 
-          <!-- Center: Search Box -->
-          <div class="flex justify-center md:flex-initial w-full md:w-auto">
-            <label class="search-box !min-h-0 !h-8 w-full md:w-64 shrink-0">
-              <Search />
-              <input v-model="searchQuery" placeholder="搜索团队、负责人、分类..." type="search" />
-            </label>
-          </div>
+          <el-select v-model="riskFilter" size="small" style="width: 120px">
+            <el-option
+              v-for="option in riskOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
 
-          <!-- Right: Filters -->
-          <div class="flex justify-end flex-1 w-full md:w-auto">
-            <div class="filter-row flex items-center gap-2 flex-wrap justify-end">
-              <el-select v-model="visibilityFilter" size="small" style="width: 110px">
-                <el-option
-                  v-for="option in visibilityOptions"
-                  :key="option.value"
-                  :label="option.label"
-                  :value="option.value"
-                />
-              </el-select>
+          <el-select v-model="categoryFilter" size="small" style="width: 110px">
+            <el-option label="全部分类" value="" />
+            <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
+          </el-select>
 
-              <el-select v-model="riskFilter" size="small" style="width: 120px">
-                <el-option
-                  v-for="option in riskOptions"
-                  :key="option.value"
-                  :label="option.label"
-                  :value="option.value"
-                />
-              </el-select>
-
-              <el-select v-model="categoryFilter" size="small" style="width: 110px">
-                <el-option label="全部分类" value="" />
-                <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
-              </el-select>
-
-              <el-select v-model="sortBy" size="small" style="width: 110px">
-                <el-option
-                  v-for="option in sortOptions"
-                  :key="option.value"
-                  :label="option.label"
-                  :value="option.value"
-                />
-              </el-select>
-            </div>
-          </div>
+          <el-select v-model="sortBy" size="small" style="width: 110px">
+            <el-option
+              v-for="option in sortOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
         </div>
       </Card>
 
@@ -1570,32 +1562,6 @@ button svg {
   height: 16px;
 }
 
-.search-box {
-  width: min(360px, 100%);
-  height: 34px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  border: 1px solid #dbe5f2;
-  border-radius: 8px;
-  background: #f8fafc;
-  color: #64748b;
-}
-
-.search-box svg {
-  width: 14px;
-  height: 14px;
-  color: #94a3b8;
-  flex-shrink: 0;
-}
-
-.search-box input {
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.search-box input,
 .form-stack input,
 .form-stack select,
 .form-stack textarea {

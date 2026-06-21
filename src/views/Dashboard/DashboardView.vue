@@ -433,15 +433,8 @@ onUnmounted(() => {
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--bg-app) 75%, white) 0, var(--bg-app) 180px),
-    var(--bg-app);
   color: var(--text-primary);
   position: relative;
-}
-
-.dark .dashboard-page {
-  background: var(--bg-app);
 }
 
 .dashboard-topbar {

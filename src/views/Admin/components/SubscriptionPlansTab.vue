@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import {
   CreditCard,
   Pencil,
@@ -20,6 +20,8 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getApiErrorMessage } from '@/utils/error';
 import api from '@/utils/api';
+import Button from '@/components/ui/Button.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 interface SubscriptionPlan {
   id: string;
@@ -42,12 +44,23 @@ interface SubscriptionPlan {
 interface Props {
   plans: SubscriptionPlan[];
   isLoading: boolean;
+  searchQuery?: string;
 }
 
 const _props = defineProps<Props>();
 const emit = defineEmits<{
   (e: 'refresh'): void;
 }>();
+
+const filteredPlans = computed(() => {
+  const q = (_props.searchQuery || '').trim().toLowerCase();
+  if (!q) return _props.plans;
+  return _props.plans.filter(
+    (plan) =>
+      plan.name.toLowerCase().includes(q) ||
+      (plan.displayName || '').toLowerCase().includes(q),
+  );
+});
 
 const showPlanDialog = ref(false);
 const editingPlan = ref<SubscriptionPlan | null>(null);
@@ -165,7 +178,7 @@ const getPlanIcon = (name: string) => {
   <div class="space-y-6 animate-in fade-in duration-200">
     <div class="grid gap-4">
       <div
-        v-for="plan in plans"
+        v-for="plan in filteredPlans"
         :key="plan.id"
         class="p-6 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] hover:shadow-lg transition-all"
       >
@@ -285,272 +298,256 @@ const getPlanIcon = (name: string) => {
     </div>
 
     <!-- Plan Edit/Create Dialog -->
-    <Transition name="fade">
-      <div v-if="showPlanDialog" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-        <div
-          class="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          @click="showPlanDialog = false"
-        ></div>
-        <div
-          class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto p-5 sm:p-8 rounded-3xl shadow-2xl space-y-6 bg-[var(--bg-card)]"
-        >
-          <div class="flex items-center justify-between">
-            <h3 class="text-xl font-bold text-[var(--text-primary)]">
-              {{ editingPlan ? t('admin.edit_plan') : $t('admin.new_plan') }}
-            </h3>
-            <button
-              type="button"
-              class="text-[var(--text-secondary)]"
-              @click="showPlanDialog = false"
-            >
-              <X class="w-5 h-5" />
-            </button>
-          </div>
+    <Modal
+      :show="showPlanDialog"
+      size="lg"
+      glass-card
+      @close="showPlanDialog = false"
+    >
+      <template #header>
+        <div>
+          <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
+            {{ editingPlan ? t('admin.edit_plan') : $t('admin.new_plan') }}
+          </h3>
+          <p class="text-xs text-slate-400 mt-1">
+            {{ editingPlan ? '修改和调整当前订阅方案的计费和配额参数' : '配置一个新的系统订阅和计费方案' }}
+          </p>
+        </div>
+      </template>
 
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.program_logo_english')
-              }}</label>
-              <input
-                v-model="planForm.name"
-                type="text"
-                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-                placeholder="e.g. VIP"
-              />
-            </div>
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.display_name')
-              }}</label>
-              <input
-                v-model="planForm.displayName"
-                type="text"
-                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-                :placeholder="$t('admin.e_g_professional_edition')"
-              />
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.monthly_payment_price')
-              }}</label>
-              <input
-                v-model.number="planForm.price"
-                type="number"
-                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.annual_payment_price')
-              }}</label>
-              <input
-                v-model.number="planForm.yearlyPrice"
-                type="number"
-                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-                :placeholder="$t('admin.if_left_blank_annual')"
-              />
-            </div>
-          </div>
-
-          <div class="grid grid-cols-4 gap-4">
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.storage_gb')
-              }}</label>
-              <input
-                v-model.number="planForm.maxStorage"
-                type="number"
-                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.number_of_teams')
-              }}</label>
-              <input
-                v-model.number="planForm.maxTeams"
-                type="number"
-                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.number_of_items')
-              }}</label>
-              <input
-                v-model.number="planForm.maxProjects"
-                type="number"
-                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.number_of_assets')
-              }}</label>
-              <input
-                v-model.number="planForm.maxAssets"
-                type="number"
-                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
-          </div>
-
-          <div class="grid grid-cols-3 gap-4">
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.sort_priority')
-              }}</label>
-              <input
-                v-model.number="planForm.priority"
-                type="number"
-                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.badge_color')
-              }}</label>
-              <input
-                v-model="planForm.badgeColor"
-                type="color"
-                class="w-full h-12 rounded-2xl border cursor-pointer"
-                style="border-color: var(--border-base)"
-              />
-            </div>
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.recommended_tag')
-              }}</label>
-              <button
-                type="button"
-                class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all"
-                :class="
-                  planForm.isPopular
-                    ? 'border-amber-500 bg-amber-500/5 text-amber-500'
-                    : 'border-[var(--border-base)] text-[var(--text-muted)]'
-                "
-                style="border-color: planForm.isPopular ? undefined : 'var(--border-base)'"
-                @click="planForm.isPopular = !planForm.isPopular"
-              >
-                <component :is="planForm.isPopular ? Check : X" class="w-4 h-4" />
-                <span class="text-xs font-bold">{{
-                  planForm.isPopular ? $t('admin.recommended') : $t('admin.normal_plan')
-                }}</span>
-              </button>
-            </div>
-          </div>
-
+      <div class="space-y-6">
+        <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-              $t('admin.features')
+              $t('admin.program_logo_english')
             }}</label>
-            <div class="flex gap-2">
-              <input
-                v-model="newFeature"
-                type="text"
-                class="flex-1 px-4 py-2 rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-                :placeholder="$t('admin.enter_the_function_description')"
-                @keyup.enter="addFeature"
-              />
-              <button
-                type="button"
-                class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold"
-                @click="addFeature"
-              >
-                添加
-              </button>
-            </div>
-            <div class="flex flex-wrap gap-2 mt-2">
-              <span
-                v-for="(feature, idx) in planForm.features"
-                :key="idx"
-                class="flex items-center gap-1 px-3 py-1 bg-[var(--bg-app)] rounded-lg text-xs text-[var(--text-secondary)]"
-              >
-                {{ feature }}
-                <button
-                  type="button"
-                  class="text-slate-400 hover:text-rose-500"
-                  @click="removeFeature(idx)"
-                >
-                  <X class="w-3 h-3" />
-                </button>
-              </span>
-            </div>
+            <input
+              v-model="planForm.name"
+              type="text"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+              placeholder="e.g. VIP"
+            />
           </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.display_name')
+            }}</label>
+            <input
+              v-model="planForm.displayName"
+              type="text"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+              :placeholder="$t('admin.e_g_professional_edition')"
+            />
+          </div>
+        </div>
 
-          <div class="flex gap-3 pt-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.monthly_payment_price')
+            }}</label>
+            <input
+              v-model.number="planForm.price"
+              type="number"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+          </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.annual_payment_price')
+            }}</label>
+            <input
+              v-model.number="planForm.yearlyPrice"
+              type="number"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+              :placeholder="$t('admin.if_left_blank_annual')"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-4 gap-4">
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.storage_gb')
+            }}</label>
+            <input
+              v-model.number="planForm.maxStorage"
+              type="number"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+          </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.number_of_teams')
+            }}</label>
+            <input
+              v-model.number="planForm.maxTeams"
+              type="number"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+          </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.number_of_items')
+            }}</label>
+            <input
+              v-model.number="planForm.maxProjects"
+              type="number"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+          </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.number_of_assets')
+            }}</label>
+            <input
+              v-model.number="planForm.maxAssets"
+              type="number"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.sort_priority')
+            }}</label>
+            <input
+              v-model.number="planForm.priority"
+              type="number"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+          </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.badge_color')
+            }}</label>
+            <input
+              v-model="planForm.badgeColor"
+              type="color"
+              class="w-full h-12 rounded-2xl border cursor-pointer bg-transparent"
+              style="border-color: var(--border-base)"
+            />
+          </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.recommended_tag')
+            }}</label>
             <button
               type="button"
-              class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all"
-              @click="showPlanDialog = false"
+              class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all"
+              :class="
+                planForm.isPopular
+                  ? 'border-amber-500 bg-amber-500/5 text-amber-500'
+                  : 'border-[var(--border-base)] text-[var(--text-muted)]'
+              "
+              style="border-color: planForm.isPopular ? undefined : 'var(--border-base)'"
+              @click="planForm.isPopular = !planForm.isPopular"
             >
-              取消
-            </button>
-            <button
-              type="button"
-              class="flex-1 py-3 rounded-2xl font-bold text-sm bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2"
-              @click="handleSavePlan"
-            >
-              <Save class="w-4 h-4" />
-              {{ editingPlan ? t('admin.save_changes_1') : $t('admin.create_plan') }}
+              <component :is="planForm.isPopular ? Check : X" class="w-4 h-4" />
+              <span class="text-xs font-bold">{{
+                planForm.isPopular ? $t('admin.recommended') : $t('admin.normal_plan')
+              }}</span>
             </button>
           </div>
         </div>
+
+        <div class="space-y-2">
+          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+            $t('admin.features')
+          }}</label>
+          <div class="flex gap-2">
+            <input
+              v-model="newFeature"
+              type="text"
+              class="flex-1 px-4 py-2 rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+              :placeholder="$t('admin.enter_the_function_description')"
+              @keyup.enter="addFeature"
+            />
+            <Button variant="primary" size="sm" @click="addFeature">
+              添加
+            </Button>
+          </div>
+          <div class="flex flex-wrap gap-2 mt-2">
+            <span
+              v-for="(feature, idx) in planForm.features"
+              :key="idx"
+              class="flex items-center gap-1 px-3 py-1 bg-[var(--bg-app)] rounded-lg text-xs text-[var(--text-secondary)]"
+            >
+              {{ feature }}
+              <button
+                type="button"
+                class="text-slate-400 hover:text-rose-500"
+                @click="removeFeature(idx)"
+              >
+                <X class="w-3 h-3" />
+              </button>
+            </span>
+          </div>
+        </div>
       </div>
-    </Transition>
+
+      <template #footer>
+        <div class="flex items-center gap-3">
+          <Button variant="secondary" size="md" @click="showPlanDialog = false">
+            取消
+          </Button>
+          <Button variant="primary" size="md" :icon="Save" @click="handleSavePlan">
+            {{ editingPlan ? t('admin.save_changes_1') : $t('admin.create_plan') }}
+          </Button>
+        </div>
+      </template>
+    </Modal>
   </div>
 </template>

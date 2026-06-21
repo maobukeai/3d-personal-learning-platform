@@ -7,6 +7,8 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { clampLimit, clampPage } from '../utils/pagination';
 import { sanitizeHtml } from '../utils/sanitize';
 import { callLLM } from '../services/ai.service';
+import fs from 'fs';
+import path from 'path';
 
 export const getNotes = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { visibility, search, sort, tag, category, author } = req.query;
@@ -117,9 +119,14 @@ export const getNotes = async (req: AuthRequest, res: Response, next: NextFuncti
 };
 
 export const getPopularNotes = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const page = clampPage(req.query.page);
+  const limit = clampLimit(req.query.limit, 12, 100);
+  const skip = (page - 1) * limit;
+
   try {
+    const where: Prisma.NoteWhereInput = { visibility: 'PUBLIC', isPopular: true };
     const notes = await prisma.note.findMany({
-      where: { visibility: 'PUBLIC', isPopular: true },
+      where,
       include: {
         user: {
           select: { id: true, name: true, avatarUrl: true },
@@ -133,16 +140,47 @@ export const getPopularNotes = async (req: AuthRequest, res: Response, next: Nex
         },
       },
       orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
-      take: 12,
+      take: 500, // Safety cap to prevent unbounded memory usage
     });
 
-    const notesWithLiked = notes.map((n) => ({
-      ...n,
-      isLiked: n.likes.length > 0,
-      likes: undefined,
-    }));
+    const notesWithLikedAndScore = notes.map((n) => {
+      const likesCount = n._count.likes;
+      const commentsCount = n._count.comments;
+      // Hotness score = views * 1 + likes * 5 + comments * 10
+      const score = n.views * 1 + likesCount * 5 + commentsCount * 10;
+      return {
+        ...n,
+        isLiked: n.likes.length > 0,
+        likes: undefined,
+        score,
+      };
+    });
 
-    res.json(notesWithLiked);
+    // Pinned notes always appear first, sorted by score among themselves
+    const pinned = notesWithLikedAndScore.filter((n) => n.isPinned);
+    const unpinned = notesWithLikedAndScore.filter((n) => !n.isPinned);
+    pinned.sort((a, b) => b.score - a.score);
+
+    // Among unpinned: top 3 by hotness first, rest by updatedAt
+    const sortedUnpinned = [...unpinned].sort((a, b) => b.score - a.score);
+    const top3 = sortedUnpinned.slice(0, 3);
+    const top3Ids = new Set(top3.map((n) => n.id));
+    const remaining = unpinned.filter((n) => !top3Ids.has(n.id));
+    remaining.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+    const finalSortedNotes = [...pinned, ...top3, ...remaining];
+    const total = finalSortedNotes.length;
+    const paginatedNotes = finalSortedNotes.slice(skip, skip + limit);
+
+    res.json({
+      notes: paginatedNotes,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     logger.error('Get popular notes error:', error);
     next(error);
@@ -634,6 +672,85 @@ export const summarizeSharedNote = async (req: AuthRequest, res: Response, next:
     res.json({ success: true, summary });
   } catch (error: unknown) {
     logger.error('Summarize shared note error:', error);
+    next(error);
+  }
+};
+
+/** Returns today's date as YYYY-MM-DD in local time. */
+const getTodayStr = (): string => new Date().toLocaleDateString('sv-SE');
+
+/**
+ * Stable path to the daily-quote cache file.
+ * Uses process.cwd() instead of __dirname so the path is identical
+ * in both ts-node (dev) and tsc-compiled (prod) environments.
+ */
+const DAILY_QUOTE_CACHE = path.join(process.cwd(), 'uploads', 'daily-quote.json');
+
+export const getDailyQuote = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const todayStr = getTodayStr();
+
+  try {
+    let cachedData: { date: string; quote: string } | null = null;
+
+    try {
+      const raw = await fs.promises.readFile(DAILY_QUOTE_CACHE, 'utf8');
+      cachedData = JSON.parse(raw) as { date: string; quote: string };
+    } catch {
+      // File doesn't exist or is unreadable — treat as no cache
+    }
+
+    if (cachedData && cachedData.date === todayStr && cachedData.quote) {
+      return res.json({ quote: cachedData.quote, generated: true });
+    }
+
+    // Not yet generated for today
+    return res.json({ quote: null, generated: false });
+  } catch (error) {
+    logger.error('Get daily quote error:', error);
+    next(error);
+  }
+};
+
+export const generateDailyQuote = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const todayStr = getTodayStr();
+
+  try {
+    // Ensure uploads directory exists (non-blocking)
+    await fs.promises.mkdir(path.dirname(DAILY_QUOTE_CACHE), { recursive: true });
+
+    // Call LLM to generate a new quote
+    logger.info(`[Daily Quote] Generating new quote for date ${todayStr}...`);
+    const systemPrompt = `You are a wise and inspiring mentor in a 3D personal learning and development platform. Your task is to generate a single, highly inspiring and concise daily learning quote (今日灵感寄语) to motivate students. The quote should be about learning, programming, 3D modeling, computer graphics, persistence, or craftsmanship. Keep it brief (within 1 to 2 sentences), in Chinese. Do NOT include any markdown formatting, quotes, headers, or surrounding text. Output only the quote itself.`;
+    const prompt = 'Please generate an inspiring quote for today.';
+
+    let generatedQuote: string | undefined;
+    try {
+      // Use a distinct name to avoid shadowing the outer `res` (Express Response)
+      const llmResult = await callLLM(prompt, systemPrompt);
+      if (llmResult) {
+        generatedQuote = llmResult.replace(/^["'\u201c\u201d\u2018\u2019]|["'\u201c\u201d\u2018\u2019]$/g, '').trim();
+      }
+    } catch (llmErr) {
+      logger.error('LLM quote generation failed, using fallback:', llmErr);
+    }
+
+    if (!generatedQuote) {
+      const fallbacks = [
+        '学而不思则罔，思而不学则殆。记录每一次心得，都是成长的印记。',
+        '成功的秘诀在于持之以恒的积累。每一篇笔记都是通往精通的阶梯。',
+        '将复杂的知识写下来、讲出来，这是最顶级的学习方法——费曼学习法。',
+        '智能的本质不在于获取多少现成答案，而在于探索未知的过程。',
+        '精于工，匠于心；创于想，行于行。保持好奇，不断打磨你的3D视界！',
+      ];
+      generatedQuote = fallbacks[new Date().getDate() % fallbacks.length];
+    }
+
+    // Cache the new quote (non-blocking)
+    await fs.promises.writeFile(DAILY_QUOTE_CACHE, JSON.stringify({ date: todayStr, quote: generatedQuote }), 'utf8');
+
+    res.json({ quote: generatedQuote, generated: true });
+  } catch (error) {
+    logger.error('Generate daily quote error:', error);
     next(error);
   }
 };

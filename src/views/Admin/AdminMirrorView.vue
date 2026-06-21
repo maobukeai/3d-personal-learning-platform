@@ -38,6 +38,7 @@ import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Tabs from '@/components/ui/Tabs.vue';
+import Modal from '@/components/ui/Modal.vue';
 import MirrorSourceDialog from './components/MirrorSourceDialog.vue';
 import MirrorSyncLogsDialog from './components/MirrorSyncLogsDialog.vue';
 
@@ -1040,10 +1041,18 @@ onUnmounted(() => {
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
       <!-- Page Header -->
       <PageHeader title="镜像源管理" variant="card">
-        <template #center>
+        <template #title-badge>
           <div class="flex flex-wrap items-center gap-1.5 ml-2">
             <Badge variant="info"> 镜像源数: {{ sources.length }} </Badge>
           </div>
+        </template>
+
+        <template #center>
+          <!-- Compact Search Box (Centered) -->
+          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+            <Search />
+            <input v-model="mirrorSearchQuery" type="text" placeholder="搜索镜像源..." />
+          </label>
         </template>
 
         <!-- Actions -->
@@ -1121,12 +1130,8 @@ onUnmounted(() => {
                 <Tabs v-model="statusFilter" :options="tabOptions" size="sm" />
               </div>
 
-              <!-- Search & Filter count info -->
+              <!-- Filter count info -->
               <div class="flex items-center gap-3 shrink-0">
-                <label class="search-box !min-h-0 !h-8 w-44 sm:w-60 shrink-0">
-                  <Search class="w-3.5 h-3.5" />
-                  <input v-model="mirrorSearchQuery" type="text" placeholder="搜索镜像源..." />
-                </label>
                 <div class="text-[10px] font-bold text-slate-400 shrink-0">
                   已过滤:
                   <span class="text-blue-500 font-extrabold">{{ filteredSources.length }}</span> /
@@ -1793,719 +1798,634 @@ onUnmounted(() => {
       <MirrorSyncLogsDialog v-model="showSyncLogsDialog" :source="editingSource" />
 
       <!-- Match Links Dialog -->
-      <div
-        v-if="showMatchDialog"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-        @click.self="showMatchDialog = false"
+      <Modal
+        :show="showMatchDialog"
+        size="sm"
+        glass-card
+        padding="md"
+        @close="showMatchDialog = false"
       >
-        <div
-          class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md mx-4 shadow-2xl overflow-hidden"
-        >
+        <template #header>
+          <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <Link2 class="w-5 h-5 text-indigo-500" />
+            匹配提取链接 - {{ selectedSource?.displayName }}
+          </h2>
+        </template>
+
+        <div class="space-y-4">
           <div
-            class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700"
+            class="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 rounded-lg text-xs text-slate-500 dark:text-slate-400 space-y-1.5"
           >
-            <h2
-              class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2"
-            >
-              <Link2 class="w-5 h-5 text-indigo-500" />
-              匹配提取链接 - {{ selectedSource?.displayName }}
-            </h2>
-            <button
-              type="button"
-              class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-              @click="showMatchDialog = false"
-            >
-              <X class="w-5 h-5" />
-            </button>
-          </div>
-
-          <div class="p-5 space-y-4">
-            <div
-              class="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 rounded-lg text-xs text-slate-500 dark:text-slate-400 space-y-1.5"
-            >
-              <p class="font-bold text-slate-700 dark:text-slate-300">💡 上传说明：</p>
-              <p>
-                1. 支持 <strong class="text-slate-700 dark:text-slate-300">.xlsx</strong> 格式的
-                Excel 数据。
-              </p>
-              <p>2. 数据表中应包含以下列头名称：</p>
-              <ul class="list-disc pl-4 space-y-0.5 mt-1 text-slate-600 dark:text-slate-400">
-                <li><strong class="text-indigo-500">课程名称</strong>（用于匹配系统内已有课程）</li>
-                <li><strong class="text-indigo-500">链接</strong>（如百度网盘、夸克网盘链接）</li>
-                <li><strong class="text-indigo-500">链接密码</strong> / 提取码（选填）</li>
-                <li>
-                  <strong class="text-indigo-500">课程备注</strong> / 备注（包含原站链接如
-                  zycku.com/xxxx.html 可实现100%精准匹配）
-                </li>
-              </ul>
-            </div>
-
-            <div
-              class="border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 rounded-xl p-6 text-center cursor-pointer transition-all relative"
-            >
-              <input
-                type="file"
-                accept=".xlsx"
-                multiple
-                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                @change="handleFileChange"
-              />
-              <div class="flex flex-col items-center justify-center space-y-2">
-                <div class="p-3 bg-indigo-50 dark:bg-indigo-500/10 rounded-full text-indigo-500">
-                  <Database class="w-6 h-6 animate-pulse" />
-                </div>
-                <div class="text-sm font-medium text-slate-700 dark:text-slate-200">
-                  点击或拖拽上传 Excel 文件
-                </div>
-                <div class="text-xs text-slate-400">支持多选，仅限 .xlsx 格式文件</div>
-              </div>
-            </div>
-
-            <!-- Selected Files List -->
-            <div v-if="excelFiles.length > 0" class="space-y-1.5 max-h-48 overflow-y-auto p-0.5">
-              <div
-                class="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center justify-between px-1"
-              >
-                <span>已选择的文件 ({{ excelFiles.length }})</span>
-                <button
-                  type="button"
-                  class="text-indigo-500 hover:text-indigo-600 transition-colors"
-                  @click="excelFiles = []"
-                >
-                  清空全部
-                </button>
-              </div>
-              <div
-                v-for="(file, index) in excelFiles"
-                :key="file.name + '-' + file.size + '-' + index"
-                class="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-lg text-xs"
-              >
-                <div class="flex items-center gap-2 overflow-hidden mr-2">
-                  <FileText class="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span
-                    class="text-slate-700 dark:text-slate-300 truncate font-medium max-w-[200px]"
-                    :title="file.name"
-                    >{{ file.name }}</span
-                  >
-                  <span class="text-slate-400 flex-shrink-0"
-                    >({{ (file.size / 1024).toFixed(1) }} KB)</span
-                  >
-                </div>
-                <button
-                  type="button"
-                  class="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex-shrink-0"
-                  @click="removeFile(index)"
-                >
-                  <Trash2 class="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            <!-- Match Results -->
-            <div
-              v-if="matchResult"
-              class="p-4 bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 rounded-lg text-sm text-emerald-600 dark:text-emerald-400"
-            >
-              <p class="font-semibold flex items-center gap-1.5 mb-1">
-                <Sparkles class="w-4 h-4 text-emerald-500" />
-                自动匹配完成！
-              </p>
-              <div class="grid grid-cols-2 gap-4 mt-2">
-                <div
-                  class="bg-white dark:bg-slate-800/40 p-2.5 rounded-lg border border-emerald-100/50 dark:border-emerald-500/5 text-center"
-                >
-                  <div class="text-xs text-slate-400">发现课程链接</div>
-                  <div class="text-lg font-bold text-slate-800 dark:text-slate-200">
-                    {{ matchResult.totalLinks }}
-                  </div>
-                </div>
-                <div
-                  class="bg-white dark:bg-slate-800/40 p-2.5 rounded-lg border border-emerald-100/50 dark:border-emerald-500/5 text-center"
-                >
-                  <div class="text-xs text-slate-400">成功匹配绑定</div>
-                  <div class="text-lg font-bold text-emerald-500">
-                    {{ matchResult.matchedCount }}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <p class="font-bold text-slate-700 dark:text-slate-300">💡 上传说明：</p>
+            <p>
+              1. 支持 <strong class="text-slate-700 dark:text-slate-300">.xlsx</strong> 格式的 Excel
+              数据。
+            </p>
+            <p>2. 数据表中应包含以下列头名称：</p>
+            <ul class="list-disc pl-4 space-y-0.5 mt-1 text-slate-600 dark:text-slate-400">
+              <li><strong class="text-indigo-500">课程名称</strong>（用于匹配系统内已有课程）</li>
+              <li><strong class="text-indigo-500">链接</strong>（如百度网盘、夸克网盘链接）</li>
+              <li><strong class="text-indigo-500">链接密码</strong> / 提取码（选填）</li>
+              <li>
+                <strong class="text-indigo-500">课程备注</strong> / 备注（包含原站链接如
+                zycku.com/xxxx.html 可实现100%精准匹配）
+              </li>
+            </ul>
           </div>
 
           <div
-            class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40"
+            class="border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 rounded-xl p-6 text-center cursor-pointer transition-all relative"
           >
-            <button
-              type="button"
-              class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-              :disabled="isUploading"
-              @click="showMatchDialog = false"
+            <input
+              type="file"
+              accept=".xlsx"
+              multiple
+              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              @change="handleFileChange"
+            />
+            <div class="flex flex-col items-center justify-center space-y-2">
+              <div class="p-3 bg-indigo-50 dark:bg-indigo-500/10 rounded-full text-indigo-500">
+                <Database class="w-6 h-6 animate-pulse" />
+              </div>
+              <div class="text-sm font-medium text-slate-700 dark:text-slate-200">
+                点击或拖拽上传 Excel 文件
+              </div>
+              <div class="text-xs text-slate-400">支持多选，仅限 .xlsx 格式文件</div>
+            </div>
+          </div>
+
+          <!-- Selected Files List -->
+          <div v-if="excelFiles.length > 0" class="space-y-1.5 max-h-48 overflow-y-auto p-0.5">
+            <div
+              class="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center justify-between px-1"
             >
-              关闭
-            </button>
-            <button
-              type="button"
-              class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-500"
-              :disabled="excelFiles.length === 0 || isUploading"
-              @click="uploadAndMatch"
+              <span>已选择的文件 ({{ excelFiles.length }})</span>
+              <button
+                type="button"
+                class="text-indigo-500 hover:text-indigo-600 transition-colors"
+                @click="excelFiles = []"
+              >
+                清空全部
+              </button>
+            </div>
+            <div
+              v-for="(file, index) in excelFiles"
+              :key="file.name + '-' + file.size + '-' + index"
+              class="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-lg text-xs"
             >
-              <Loader2 v-if="isUploading" class="w-4 h-4 animate-spin" />
-              {{ isUploading ? '匹配中...' : '开始匹配' }}
-            </button>
+              <div class="flex items-center gap-2 overflow-hidden mr-2">
+                <FileText class="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                <span
+                  class="text-slate-700 dark:text-slate-300 truncate font-medium max-w-[200px]"
+                  :title="file.name"
+                  >{{ file.name }}</span
+                >
+                <span class="text-slate-400 flex-shrink-0"
+                  >({{ (file.size / 1024).toFixed(1) }} KB)</span
+                >
+              </div>
+              <button
+                type="button"
+                class="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex-shrink-0"
+                @click="removeFile(index)"
+              >
+                <Trash2 class="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Match Results -->
+          <div
+            v-if="matchResult"
+            class="p-4 bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 rounded-lg text-sm text-emerald-600 dark:text-emerald-400"
+          >
+            <p class="font-semibold flex items-center gap-1.5 mb-1">
+              <Sparkles class="w-4 h-4 text-emerald-500" />
+              自动匹配完成！
+            </p>
+            <div class="grid grid-cols-2 gap-4 mt-2">
+              <div
+                class="bg-white dark:bg-slate-800/40 p-2.5 rounded-lg border border-emerald-100/50 dark:border-emerald-500/5 text-center"
+              >
+                <div class="text-xs text-slate-400">发现课程链接</div>
+                <div class="text-lg font-bold text-slate-800 dark:text-slate-200">
+                  {{ matchResult.totalLinks }}
+                </div>
+              </div>
+              <div
+                class="bg-white dark:bg-slate-800/40 p-2.5 rounded-lg border border-emerald-100/50 dark:border-emerald-500/5 text-center"
+              >
+                <div class="text-xs text-slate-400">成功匹配绑定</div>
+                <div class="text-lg font-bold text-emerald-500">
+                  {{ matchResult.matchedCount }}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+
+        <template #footer>
+          <button
+            type="button"
+            class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            :disabled="isUploading"
+            @click="showMatchDialog = false"
+          >
+            关闭
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-500"
+            :disabled="excelFiles.length === 0 || isUploading"
+            @click="uploadAndMatch"
+          >
+            <Loader2 v-if="isUploading" class="w-4 h-4 animate-spin" />
+            {{ isUploading ? '匹配中...' : '开始匹配' }}
+          </button>
+        </template>
+      </Modal>
       <!-- Resource Create/Edit Dialog -->
-      <div
-        v-if="showResourceDialog"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-        @click.self="showResourceDialog = false"
+      <Modal
+        :show="showResourceDialog"
+        size="lg"
+        glass-card
+        padding="md"
+        @close="showResourceDialog = false"
       >
-        <div
-          class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-2xl mx-4 shadow-2xl max-h-[90vh] overflow-y-auto"
-        >
-          <div
-            class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700"
-          >
-            <h2
-              class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2"
-            >
-              <FileText class="w-5 h-5 text-cyan-500" />
-              {{ isEditingResource ? '编辑资源' : '新增资源' }}
-            </h2>
-            <button
-              type="button"
-              class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-              @click="showResourceDialog = false"
-            >
-              <X class="w-5 h-5" />
-            </button>
-          </div>
+        <template #header>
+          <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <FileText class="w-5 h-5 text-cyan-500" />
+            {{ isEditingResource ? '编辑资源' : '新增资源' }}
+          </h2>
+        </template>
 
-          <div class="p-5 space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >标题 <span class="text-red-400">*</span></label
-              >
-              <input
-                v-model="resourceForm.title"
-                type="text"
-                placeholder="资源标题"
-                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >描述</label
-              >
-              <textarea
-                v-model="resourceForm.description"
-                rows="2"
-                placeholder="资源描述..."
-                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 resize-none"
-              ></textarea>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                  >分类</label
-                >
-                <select
-                  v-model="resourceForm.categoryId"
-                  class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-                >
-                  <option value="">未分类</option>
-                  <option v-for="cat in formattedMirrorCategories" :key="cat.id" :value="cat.id">
-                    {{ cat.name }}
-                  </option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                  >资源类型</label
-                >
-                <input
-                  v-model="resourceForm.resourceType"
-                  type="text"
-                  placeholder="COURSE"
-                  class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
-                />
-              </div>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >缩略图URL</label
-              >
-              <input
-                v-model="resourceForm.thumbnailUrl"
-                type="text"
-                placeholder="https://..."
-                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >网盘链接 (contentUrl)</label
-              >
-              <input
-                v-model="resourceForm.contentUrl"
-                type="text"
-                placeholder="网盘下载链接..."
-                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >标签</label
-              >
-              <input
-                v-model="resourceForm.tags"
-                type="text"
-                placeholder='JSON数组格式, 如: ["3D", "教程"]'
-                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >正文 HTML</label
-              >
-              <textarea
-                v-model="resourceForm.contentHtml"
-                rows="6"
-                placeholder="HTML内容..."
-                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 resize-none font-mono text-xs"
-              ></textarea>
-            </div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+              >标题 <span class="text-red-400">*</span></label
+            >
+            <input
+              v-model="resourceForm.title"
+              type="text"
+              placeholder="资源标题"
+              class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
+            />
           </div>
-
-          <div class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700">
-            <button
-              type="button"
-              class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-              @click="showResourceDialog = false"
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+              >描述</label
             >
-              取消
-            </button>
-            <button
-              type="button"
-              class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors"
-              @click="saveResource"
-            >
-              {{ isEditingResource ? '保存' : '创建' }}
-            </button>
+            <textarea
+              v-model="resourceForm.description"
+              rows="2"
+              placeholder="资源描述..."
+              class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 resize-none"
+            ></textarea>
           </div>
-        </div>
-      </div>
-
-      <!-- Category Create/Edit Dialog -->
-      <div
-        v-if="showCategoryDialog"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-        @click.self="showCategoryDialog = false"
-      >
-        <div
-          class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md mx-4 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-        >
-          <div
-            class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700"
-          >
-            <h2
-              class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2"
-            >
-              <Layers class="w-5 h-5 text-cyan-500" />
-              {{ isEditingCategory ? '编辑分类' : '新增分类' }}
-            </h2>
-            <button
-              type="button"
-              class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-              @click="showCategoryDialog = false"
-            >
-              <X class="w-5 h-5" />
-            </button>
-          </div>
-
-          <div class="p-5 space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >分类名称 <span class="text-red-400">*</span></label
-              >
-              <input
-                v-model="categoryForm.name"
-                type="text"
-                placeholder="例如: 3D模型"
-                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >父级分类
-                <span class="text-xs text-slate-400 font-normal"
-                  >（可选，用于侧边栏分组）</span
-                ></label
+                >分类</label
               >
               <select
-                v-model="categoryForm.parentExternalId"
+                v-model="resourceForm.categoryId"
                 class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
               >
-                <option :value="null">无（作为一级分类/大类）</option>
-                <option v-for="cat in parentCategoryOptions" :key="cat.id" :value="cat.externalId">
+                <option value="">未分类</option>
+                <option v-for="cat in formattedMirrorCategories" :key="cat.id" :value="cat.id">
                   {{ cat.name }}
                 </option>
               </select>
             </div>
-            <div
-              v-if="!categoryForm.parentExternalId && eligibleSubcategories.length > 0"
-              class="space-y-2 border-t border-slate-100 dark:border-slate-800/80 pt-3 mt-1"
-            >
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >分配子分类
-                <span class="text-xs text-slate-400 font-normal"
-                  >（从现有分类中选择归属于本大类）</span
-                ></label
-              >
-              <div
-                class="max-h-36 overflow-y-auto border border-slate-200/60 dark:border-slate-800/80 rounded-lg p-2.5 bg-slate-50/50 dark:bg-slate-900/30 space-y-1.5 scrollbar-hide"
-              >
-                <div
-                  v-for="cat in eligibleSubcategories"
-                  :key="cat.id"
-                  class="flex items-center gap-2 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 p-1 rounded-lg transition-colors"
-                >
-                  <input
-                    :id="'subcat-' + cat.id"
-                    v-model="categoryForm.childExternalIds"
-                    type="checkbox"
-                    :value="cat.externalId"
-                    class="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 w-3.5 h-3.5"
-                  />
-                  <label
-                    :for="'subcat-' + cat.id"
-                    class="text-[11px] text-slate-600 dark:text-slate-300 cursor-pointer select-none flex-1"
-                  >
-                    {{ cat.name }}
-                    <span
-                      v-if="cat.parentExternalId"
-                      class="text-[9px] text-slate-400 dark:text-slate-500 ml-1"
-                    >
-                      (当前父: {{ getParentCategoryName(cat) }})
-                    </span>
-                  </label>
-                </div>
-              </div>
-            </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >Slug (别名) <span class="text-xs text-slate-400 font-normal">（可选）</span></label
+                >资源类型</label
               >
               <input
-                v-model="categoryForm.slug"
+                v-model="resourceForm.resourceType"
                 type="text"
-                placeholder="例如: 3d-models"
-                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >排序权重 (Order)
-                <span class="text-xs text-slate-400 font-normal">（越小越靠前）</span></label
-              >
-              <input
-                v-model.number="categoryForm.order"
-                type="number"
-                placeholder="0"
+                placeholder="COURSE"
                 class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
               />
             </div>
           </div>
-
-          <div
-            class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40"
-          >
-            <button
-              type="button"
-              class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-              @click="showCategoryDialog = false"
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+              >缩略图URL</label
             >
-              取消
-            </button>
-            <button
-              type="button"
-              class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors"
-              @click="saveCategory"
+            <input
+              v-model="resourceForm.thumbnailUrl"
+              type="text"
+              placeholder="https://..."
+              class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+              >网盘链接 (contentUrl)</label
             >
-              {{ isEditingCategory ? '保存' : '创建' }}
-            </button>
+            <input
+              v-model="resourceForm.contentUrl"
+              type="text"
+              placeholder="网盘下载链接..."
+              class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+              >标签</label
+            >
+            <input
+              v-model="resourceForm.tags"
+              type="text"
+              placeholder='JSON数组格式, 如: ["3D", "教程"]'
+              class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+              >正文 HTML</label
+            >
+            <textarea
+              v-model="resourceForm.contentHtml"
+              rows="6"
+              placeholder="HTML内容..."
+              class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 resize-none font-mono text-xs"
+            ></textarea>
           </div>
         </div>
-      </div>
+
+        <template #footer>
+          <button
+            type="button"
+            class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            @click="showResourceDialog = false"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors"
+            @click="saveResource"
+          >
+            {{ isEditingResource ? '保存' : '创建' }}
+          </button>
+        </template>
+      </Modal>
+
+      <!-- Category Create/Edit Dialog -->
+      <Modal
+        :show="showCategoryDialog"
+        size="sm"
+        glass-card
+        padding="md"
+        @close="showCategoryDialog = false"
+      >
+        <template #header>
+          <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <Layers class="w-5 h-5 text-cyan-500" />
+            {{ isEditingCategory ? '编辑分类' : '新增分类' }}
+          </h2>
+        </template>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+              >分类名称 <span class="text-red-400">*</span></label
+            >
+            <input
+              v-model="categoryForm.name"
+              type="text"
+              placeholder="例如: 3D模型"
+              class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+              >父级分类
+              <span class="text-xs text-slate-400 font-normal"
+                >（可选，用于侧边栏分组）</span
+              ></label
+            >
+            <select
+              v-model="categoryForm.parentExternalId"
+              class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+            >
+              <option :value="null">无（作为一级分类/大类）</option>
+              <option v-for="cat in parentCategoryOptions" :key="cat.id" :value="cat.externalId">
+                {{ cat.name }}
+              </option>
+            </select>
+          </div>
+          <div
+            v-if="!categoryForm.parentExternalId && eligibleSubcategories.length > 0"
+            class="space-y-2 border-t border-slate-100 dark:border-slate-800/80 pt-3 mt-1"
+          >
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+              >分配子分类
+              <span class="text-xs text-slate-400 font-normal"
+                >（从现有分类中选择归属于本大类）</span
+              ></label
+            >
+            <div
+              class="max-h-36 overflow-y-auto border border-slate-200/60 dark:border-slate-800/80 rounded-lg p-2.5 bg-slate-50/50 dark:bg-slate-900/30 space-y-1.5 scrollbar-hide"
+            >
+              <div
+                v-for="cat in eligibleSubcategories"
+                :key="cat.id"
+                class="flex items-center gap-2 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 p-1 rounded-lg transition-colors"
+              >
+                <input
+                  :id="'subcat-' + cat.id"
+                  v-model="categoryForm.childExternalIds"
+                  type="checkbox"
+                  :value="cat.externalId"
+                  class="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 w-3.5 h-3.5"
+                />
+                <label
+                  :for="'subcat-' + cat.id"
+                  class="text-[11px] text-slate-600 dark:text-slate-300 cursor-pointer select-none flex-1"
+                >
+                  {{ cat.name }}
+                  <span
+                    v-if="cat.parentExternalId"
+                    class="text-[9px] text-slate-400 dark:text-slate-500 ml-1"
+                  >
+                    (当前父: {{ getParentCategoryName(cat) }})
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+              >Slug (别名) <span class="text-xs text-slate-400 font-normal">（可选）</span></label
+            >
+            <input
+              v-model="categoryForm.slug"
+              type="text"
+              placeholder="例如: 3d-models"
+              class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+              >排序权重 (Order)
+              <span class="text-xs text-slate-400 font-normal">（越小越靠前）</span></label
+            >
+            <input
+              v-model.number="categoryForm.order"
+              type="number"
+              placeholder="0"
+              class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
+            />
+          </div>
+        </div>
+
+        <template #footer>
+          <button
+            type="button"
+            class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            @click="showCategoryDialog = false"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors"
+            @click="saveCategory"
+          >
+            {{ isEditingCategory ? '保存' : '创建' }}
+          </button>
+        </template>
+      </Modal>
 
       <!-- Cloud Mirror Discovery Dialog -->
-      <div
-        v-if="showCloudScanDialog"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      >
-        <div
-          class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-4xl mx-4 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200"
-        >
-          <div
-            class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700 shrink-0"
-          >
-            <h2
-              class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2"
-            >
-              <Search class="w-5 h-5 text-blue-500" />
+      <Modal :show="showCloudScanDialog" size="xl" glass-card @close="showCloudScanDialog = false">
+        <template #header>
+          <div class="flex items-center gap-2">
+            <Search class="w-5 h-5 text-blue-500" />
+            <h3 class="text-lg font-semibold text-[var(--text-primary)]">
               扫描云端镜像源 (Cloudflare R2)
-            </h2>
-            <button
-              type="button"
-              class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-              @click="showCloudScanDialog = false"
+            </h3>
+          </div>
+        </template>
+
+        <div class="space-y-4">
+          <p class="text-xs text-slate-500 dark:text-slate-400">
+            系统将自动检索 Cloudflare R2
+            存储桶中已同步的镜像站数据（`metadata.json`），您可以一键将其接入当前系统，无需重复下载或上传媒体文件，共享云端存储。
+          </p>
+
+          <!-- Loading State -->
+          <div v-if="isScanningCloud" class="flex flex-col items-center justify-center py-12">
+            <RefreshCw class="w-8 h-8 text-blue-500 animate-spin mb-3" />
+            <span class="text-sm text-slate-500 dark:text-slate-400"
+              >正在扫描云端存储中，这可能需要几秒钟...</span
             >
-              <X class="w-5 h-5" />
-            </button>
           </div>
 
-          <!-- Content Area -->
-          <div class="flex-1 overflow-y-auto p-6 scrollbar-hide">
-            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">
-              系统将自动检索 Cloudflare R2
-              存储桶中已同步的镜像站数据（`metadata.json`），您可以一键将其接入当前系统，无需重复下载或上传媒体文件，共享云端存储。
-            </p>
-
-            <!-- Loading State -->
-            <div v-if="isScanningCloud" class="flex flex-col items-center justify-center py-12">
-              <RefreshCw class="w-8 h-8 text-blue-500 animate-spin mb-3" />
-              <span class="text-sm text-slate-500 dark:text-slate-400"
-                >正在扫描云端存储中，这可能需要几秒钟...</span
-              >
-            </div>
-
-            <!-- Empty State -->
-            <div
-              v-else-if="cloudSources.length === 0"
-              class="flex flex-col items-center justify-center py-12 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl"
-            >
-              <Database class="w-10 h-10 text-slate-300 dark:text-slate-600 mb-3" />
-              <span class="text-sm text-slate-500 dark:text-slate-400"
-                >未在 Cloudflare R2 存储桶中扫描到任何镜像源</span
-              >
-            </div>
-
-            <!-- Discovered List Table -->
-            <div
-              v-else
-              class="border border-slate-100 dark:border-slate-700/80 rounded-xl overflow-hidden"
-            >
-              <table class="w-full text-left border-collapse">
-                <thead>
-                  <tr
-                    class="bg-slate-50 dark:bg-slate-800/40 text-[11px] font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700/80"
-                  >
-                    <th class="px-5 py-3">图标</th>
-                    <th class="px-5 py-3">镜像源显示名称 / 名称</th>
-                    <th class="px-5 py-3">资源数量</th>
-                    <th class="px-5 py-3">唯一识别 ID</th>
-                    <th class="px-5 py-3 text-right">操作</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-700/80 text-xs">
-                  <tr
-                    v-for="item in cloudSources"
-                    :key="item.id"
-                    class="hover:bg-slate-50/40 dark:hover:bg-white/[0.02] transition-colors"
-                  >
-                    <td class="px-5 py-3">
-                      <img
-                        v-if="item.iconUrl"
-                        :src="getAssetUrl(item.iconUrl)"
-                        class="w-7 h-7 rounded-lg object-cover bg-slate-100 dark:bg-slate-700"
-                      />
-                      <div
-                        v-else
-                        class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-500 flex items-center justify-center font-bold text-[10px]"
-                      >
-                        {{ item.displayName.charAt(0) }}
-                      </div>
-                    </td>
-                    <td class="px-5 py-3">
-                      <div class="font-bold text-slate-800 dark:text-slate-200">
-                        {{ item.displayName }}
-                      </div>
-                      <div class="text-[10px] text-slate-400 dark:text-slate-500">
-                        {{ item.name }}
-                      </div>
-                    </td>
-                    <td class="px-5 py-3 text-slate-600 dark:text-slate-400 font-medium">
-                      {{ item.totalResources }} 个资源
-                    </td>
-                    <td class="px-5 py-3 font-mono text-[10px] text-slate-400 dark:text-slate-500">
-                      {{ item.id }}
-                    </td>
-                    <td class="px-5 py-3 text-right">
-                      <button
-                        v-if="item.isConnected"
-                        type="button"
-                        class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-300 transition-colors font-semibold cursor-pointer shrink-0"
-                        :disabled="isConnectingCloud"
-                        @click="connectCloudMirror(item.metadataKey)"
-                      >
-                        <span v-if="isConnectingCloud" class="flex items-center gap-1"
-                          ><RefreshCw class="w-3 h-3 animate-spin" /> 接入中...</span
-                        >
-                        <span v-else>重新接入 (更新)</span>
-                      </button>
-                      <button
-                        v-else
-                        type="button"
-                        class="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm transition-colors cursor-pointer shrink-0"
-                        :disabled="isConnectingCloud"
-                        @click="connectCloudMirror(item.metadataKey)"
-                      >
-                        <span v-if="isConnectingCloud" class="flex items-center gap-1"
-                          ><RefreshCw class="w-3 h-3 animate-spin" /> 接入中...</span
-                        >
-                        <span v-else>一键接入</span>
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Footer -->
+          <!-- Empty State -->
           <div
-            class="flex justify-between items-center p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 shrink-0"
+            v-else-if="cloudSources.length === 0"
+            class="flex flex-col items-center justify-center py-12 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl"
           >
-            <button
-              type="button"
-              class="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
-              :disabled="isScanningCloud"
+            <Database class="w-10 h-10 text-slate-300 dark:text-slate-600 mb-3" />
+            <span class="text-sm text-slate-500 dark:text-slate-400"
+              >未在 Cloudflare R2 存储桶中扫描到任何镜像源</span
+            >
+          </div>
+
+          <!-- Discovered List Table -->
+          <div
+            v-else
+            class="border border-slate-100 dark:border-slate-700/80 rounded-xl overflow-hidden"
+          >
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="bg-slate-50 dark:bg-slate-800/40 text-[11px] font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700/80"
+                >
+                  <th class="px-5 py-3">图标</th>
+                  <th class="px-5 py-3">镜像源显示名称 / 名称</th>
+                  <th class="px-5 py-3">资源数量</th>
+                  <th class="px-5 py-3">唯一识别 ID</th>
+                  <th class="px-5 py-3 text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 dark:divide-slate-700/80 text-xs">
+                <tr
+                  v-for="item in cloudSources"
+                  :key="item.id"
+                  class="hover:bg-slate-50/40 dark:hover:bg-white/[0.02] transition-colors"
+                >
+                  <td class="px-5 py-3">
+                    <img
+                      v-if="item.iconUrl"
+                      :src="getAssetUrl(item.iconUrl)"
+                      class="w-7 h-7 rounded-lg object-cover bg-slate-100 dark:bg-slate-700"
+                    />
+                    <div
+                      v-else
+                      class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-500 flex items-center justify-center font-bold text-[10px]"
+                    >
+                      {{ item.displayName.charAt(0) }}
+                    </div>
+                  </td>
+                  <td class="px-5 py-3">
+                    <div class="font-bold text-slate-800 dark:text-slate-200">
+                      {{ item.displayName }}
+                    </div>
+                    <div class="text-[10px] text-slate-400 dark:text-slate-500">
+                      {{ item.name }}
+                    </div>
+                  </td>
+                  <td class="px-5 py-3 text-slate-600 dark:text-slate-400 font-medium">
+                    {{ item.totalResources }} 个资源
+                  </td>
+                  <td class="px-5 py-3 font-mono text-[10px] text-slate-400 dark:text-slate-500">
+                    {{ item.id }}
+                  </td>
+                  <td class="px-5 py-3 text-right">
+                    <Button
+                      v-if="item.isConnected"
+                      variant="secondary"
+                      size="sm"
+                      :loading="isConnectingCloud"
+                      @click="connectCloudMirror(item.metadataKey)"
+                    >
+                      重新接入 (更新)
+                    </Button>
+                    <Button
+                      v-else
+                      variant="primary"
+                      size="sm"
+                      :loading="isConnectingCloud"
+                      @click="connectCloudMirror(item.metadataKey)"
+                    >
+                      一键接入
+                    </Button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <template #footer>
+          <div class="flex justify-between items-center w-full">
+            <Button
+              variant="secondary"
+              size="sm"
+              :icon="RefreshCw"
+              :loading="isScanningCloud"
               @click="fetchCloudSources"
             >
-              <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isScanningCloud }" />
               重新扫描
-            </button>
-            <button
-              type="button"
-              class="px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 text-xs font-semibold transition-colors cursor-pointer"
-              @click="showCloudScanDialog = false"
-            >
+            </Button>
+            <Button variant="secondary" size="sm" @click="showCloudScanDialog = false">
               关闭
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
+        </template>
+      </Modal>
 
       <!-- Import Progress Dialog -->
-      <div
-        v-if="showImportProgressDialog"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      <Modal
+        :show="showImportProgressDialog"
+        size="sm"
+        glass-card
+        padding="md"
+        @close="closeImportDialog"
       >
-        <div
-          class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md mx-4 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-        >
-          <div
-            class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700"
-          >
-            <h2
-              class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2"
+        <template #header>
+          <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <Upload class="w-5 h-5 text-cyan-500" />
+            导入镜像源
+          </h2>
+        </template>
+
+        <div class="text-center">
+          <!-- Status Icons -->
+          <div class="flex justify-center mb-4">
+            <div
+              v-if="
+                importTaskStatus === 'uploading' ||
+                importTaskStatus === 'processing' ||
+                importTaskStatus === 'extracting' ||
+                importTaskStatus === 'importing_metadata' ||
+                importTaskStatus === 'copying_files'
+              "
+              class="p-3 bg-cyan-50 dark:bg-cyan-500/15 rounded-full text-cyan-500"
             >
-              <Upload class="w-5 h-5 text-cyan-500" />
-              导入镜像源
-            </h2>
-            <button
-              v-if="importTaskStatus === 'completed' || importTaskStatus === 'failed'"
-              type="button"
-              class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-              @click="closeImportDialog"
+              <RefreshCw class="w-8 h-8 animate-spin" />
+            </div>
+            <div
+              v-else-if="importTaskStatus === 'completed'"
+              class="p-3 bg-emerald-50 dark:bg-emerald-500/15 rounded-full text-emerald-500"
             >
-              <X class="w-5 h-5" />
-            </button>
+              <Check class="w-8 h-8" />
+            </div>
+            <div
+              v-else-if="importTaskStatus === 'failed'"
+              class="p-3 bg-rose-50 dark:bg-rose-500/15 rounded-full text-rose-500"
+            >
+              <X class="w-8 h-8" />
+            </div>
           </div>
 
-          <div class="p-6 text-center">
-            <!-- Status Icons -->
-            <div class="flex justify-center mb-4">
-              <div
-                v-if="
-                  importTaskStatus === 'uploading' ||
-                  importTaskStatus === 'processing' ||
-                  importTaskStatus === 'extracting' ||
-                  importTaskStatus === 'importing_metadata' ||
-                  importTaskStatus === 'copying_files'
-                "
-                class="p-3 bg-cyan-50 dark:bg-cyan-500/15 rounded-full text-cyan-500"
-              >
-                <RefreshCw class="w-8 h-8 animate-spin" />
-              </div>
-              <div
-                v-else-if="importTaskStatus === 'completed'"
-                class="p-3 bg-emerald-50 dark:bg-emerald-500/15 rounded-full text-emerald-500"
-              >
-                <Check class="w-8 h-8" />
-              </div>
-              <div
-                v-else-if="importTaskStatus === 'failed'"
-                class="p-3 bg-rose-50 dark:bg-rose-500/15 rounded-full text-rose-500"
-              >
-                <X class="w-8 h-8" />
-              </div>
-            </div>
+          <!-- Status Title -->
+          <h3 class="text-base font-semibold text-slate-800 dark:text-slate-200 mb-2">
+            <span v-if="importTaskStatus === 'uploading'">正在上传镜像包...</span>
+            <span v-else-if="importTaskStatus === 'completed'">导入成功</span>
+            <span v-else-if="importTaskStatus === 'failed'">导入失败</span>
+            <span v-else>正在同步数据中...</span>
+          </h3>
 
-            <!-- Status Title -->
-            <h3 class="text-base font-semibold text-slate-800 dark:text-slate-200 mb-2">
-              <span v-if="importTaskStatus === 'uploading'">正在上传镜像包...</span>
-              <span v-else-if="importTaskStatus === 'completed'">导入成功</span>
-              <span v-else-if="importTaskStatus === 'failed'">导入失败</span>
-              <span v-else>正在同步数据中...</span>
-            </h3>
+          <!-- Status Text & Details -->
+          <p
+            class="text-sm text-slate-500 dark:text-slate-400 mb-4 min-h-[40px] flex items-center justify-center text-center break-words"
+          >
+            {{ importStatusText }}
+          </p>
 
-            <!-- Status Text & Details -->
-            <p
-              class="text-sm text-slate-500 dark:text-slate-400 mb-4 min-h-[40px] flex items-center justify-center text-center break-words"
-            >
-              {{ importStatusText }}
-            </p>
-
-            <!-- Progress Bar -->
+          <!-- Progress Bar -->
+          <div
+            v-if="importTaskStatus !== 'failed'"
+            class="w-full bg-slate-100 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden mb-2"
+          >
             <div
-              v-if="importTaskStatus !== 'failed'"
-              class="w-full bg-slate-100 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden mb-2"
-            >
-              <div
-                class="bg-cyan-500 h-2.5 rounded-full transition-all duration-300"
-                :style="{ width: importProgress + '%' }"
-              ></div>
-            </div>
-            <div
-              v-if="importTaskStatus !== 'failed'"
-              class="text-xs text-slate-400 dark:text-slate-500 text-right mb-6"
-            >
-              {{ importProgress }}%
-            </div>
+              class="bg-cyan-500 h-2.5 rounded-full transition-all duration-300"
+              :style="{ width: importProgress + '%' }"
+            ></div>
+          </div>
+          <div
+            v-if="importTaskStatus !== 'failed'"
+            class="text-xs text-slate-400 dark:text-slate-500 text-right mb-6"
+          >
+            {{ importProgress }}%
+          </div>
 
-            <!-- Error Message Alert -->
-            <div
-              v-if="importTaskStatus === 'failed' && importError"
-              class="p-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-lg text-rose-600 dark:text-rose-400 text-sm text-left mb-6 break-all"
-            >
-              {{ importError }}
-            </div>
-
-            <!-- Action Button -->
-            <div class="flex justify-end gap-3 mt-4">
-              <button
-                v-if="importTaskStatus === 'completed' || importTaskStatus === 'failed'"
-                type="button"
-                class="w-full py-2.5 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors"
-                @click="closeImportDialog"
-              >
-                确定
-              </button>
-            </div>
+          <!-- Error Message Alert -->
+          <div
+            v-if="importTaskStatus === 'failed' && importError"
+            class="p-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-lg text-rose-600 dark:text-rose-400 text-sm text-left mb-6 break-all"
+          >
+            {{ importError }}
           </div>
         </div>
-      </div>
+
+        <template #footer>
+          <button
+            v-if="importTaskStatus === 'completed' || importTaskStatus === 'failed'"
+            type="button"
+            class="w-full py-2.5 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors"
+            @click="closeImportDialog"
+          >
+            确定
+          </button>
+        </template>
+      </Modal>
     </Teleport>
   </div>
 </template>

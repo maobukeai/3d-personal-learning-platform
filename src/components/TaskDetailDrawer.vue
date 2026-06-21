@@ -882,26 +882,25 @@ watch(
       :class="
         viewMode === 'drawer'
           ? 'justify-end'
-          : 'items-center justify-center p-3 sm:p-6 bg-black/40 backdrop-blur-sm'
+          : 'items-center justify-center p-3 sm:p-6 bg-black/40 backdrop-blur-md'
       "
     >
       <!-- Backdrop -->
       <div
         class="absolute inset-0 cursor-pointer"
-        :class="viewMode === 'drawer' ? 'bg-black/40 backdrop-blur-sm' : ''"
+        :class="viewMode === 'drawer' ? 'bg-black/40 backdrop-blur-md' : ''"
         @click="handleClose"
       ></div>
 
       <!-- Drawer/Modal Content Container -->
       <div
-        class="task-detail-content relative shadow-2xl flex flex-col overflow-hidden transition-all duration-300"
+        class="task-detail-content relative shadow-2xl flex flex-col overflow-hidden transition-all duration-300 border-[var(--border-base)] bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl"
         :class="[
           viewMode === 'drawer'
             ? 'w-full sm:w-[85%] md:w-[75%] lg:w-[65%] xl:w-[55%] h-full'
             : 'w-full max-w-4xl h-[90vh] md:h-[85vh] rounded-2xl border',
         ]"
         :style="{
-          backgroundColor: 'var(--bg-card)',
           borderColor: 'var(--border-base)',
           borderLeftWidth: viewMode === 'drawer' ? '1px' : '0px',
         }"

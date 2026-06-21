@@ -35,6 +35,8 @@ import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import UserAvatar from '@/components/UserAvatar.vue';
 import Button from '@/components/ui/Button.vue';
+import Modal from '@/components/ui/Modal.vue';
+import SegmentedControl from '@/components/ui/SegmentedControl.vue';
 import { getTaskDayIndex, getTaskTime } from '@/utils/taskSort';
 import Dropdown from '@/components/ui/Dropdown.vue';
 
@@ -98,13 +100,6 @@ const isDetailDrawerOpen = ref(false);
 const activeProjectId = ref<string | null>(null);
 const projectDetail = ref<ProjectDetail | null>(null);
 const isDetailLoading = ref(false);
-
-const projectDetailViewMode = ref(localStorage.getItem('project_detail_view_mode') || 'drawer');
-
-const toggleDetailViewMode = () => {
-  projectDetailViewMode.value = projectDetailViewMode.value === 'drawer' ? 'modal' : 'drawer';
-  localStorage.setItem('project_detail_view_mode', projectDetailViewMode.value);
-};
 
 // Batch task state
 const isBatchDialogOpen = ref(false);
@@ -816,107 +811,58 @@ defineExpose({
 </script>
 
 <template>
-  <Transition :name="projectDetailViewMode === 'drawer' ? 'drawer-slide' : 'modal-fade'">
-    <div
-      v-if="isDetailDrawerOpen && projectDetail"
-      class="fixed inset-0 z-50 flex transition-all duration-300"
-      :class="
-        projectDetailViewMode === 'drawer'
-          ? 'justify-end'
-          : 'items-center justify-center p-3 sm:p-6 bg-black/40 backdrop-blur-sm'
-      "
-    >
-      <!-- Backdrop -->
-      <div
-        class="absolute inset-0 cursor-pointer"
-        :class="projectDetailViewMode === 'drawer' ? 'bg-black/40 backdrop-blur-sm' : ''"
-        @click="isDetailDrawerOpen = false"
-      ></div>
-
-      <!-- Project Detail Panel Content Container -->
-      <div
-        class="project-detail-content relative shadow-2xl flex flex-col overflow-hidden transition-all duration-300"
-        :class="[
-          projectDetailViewMode === 'drawer'
-            ? 'w-full sm:w-[85%] md:w-[75%] lg:w-[65%] xl:w-[55%] h-full'
-            : 'w-full max-w-4xl h-[90vh] md:h-[85vh] rounded-2xl border',
-        ]"
-        :style="{
-          backgroundColor: 'var(--bg-card)',
-          borderColor: 'var(--border-base)',
-          borderLeftWidth: projectDetailViewMode === 'drawer' ? '1px' : '0px',
-        }"
-      >
-        <!-- Header -->
-        <div
-          class="px-6 py-4 border-b flex items-center justify-between shrink-0"
-          style="border-color: var(--border-base)"
-        >
-          <div class="flex items-center gap-3">
-            <div
-              class="w-10 h-10 rounded-xl flex items-center justify-center text-white text-base font-black shadow-md shrink-0"
-              :class="projectDetail.color"
-            >
-              {{ projectDetail.title.substring(0, 1) }}
-            </div>
-            <div class="text-left">
-              <h3 class="text-lg font-black tracking-tight" style="color: var(--text-primary)">
-                {{ projectDetail.title }}
-              </h3>
-              <p class="text-[10px] font-bold text-slate-400">{{ t('projects.detailSubtitle') }}</p>
-            </div>
+  <Modal
+    :show="isDetailDrawerOpen && !!projectDetail"
+    size="xl"
+    glass-card
+    padding="none"
+    @close="isDetailDrawerOpen = false"
+  >
+    <template #header>
+      <div v-if="projectDetail" class="flex items-center justify-between w-full pr-6">
+        <!-- Title Info -->
+        <div class="flex items-center gap-3">
+          <div
+            class="w-10 h-10 rounded-xl flex items-center justify-center text-white text-base font-black shadow-md shrink-0"
+            :class="projectDetail?.color"
+          >
+            {{ projectDetail?.title?.substring(0, 1) }}
           </div>
-          <div class="flex items-center gap-2">
-            <!-- Join Project Button for non-members on PUBLIC projects -->
-            <button
-              v-if="!isDetailMember && projectDetail.visibility === 'PUBLIC'"
-              type="button"
-              class="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-500/10 border-none"
-              @click="handleJoinProjectDetail"
-            >
-              <Plus class="w-3.5 h-3.5" />
-              <span>{{ t('projects.joinProject') }}</span>
-            </button>
-
-            <button
-              type="button"
-              class="px-3 py-1.5 bg-accent/10 hover:bg-accent/20 text-accent rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border-none"
-              @click="navigateToTaskBoard(projectDetail.id)"
-            >
-              <FolderOpen class="w-3.5 h-3.5" />
-              <span>{{ t('projects.viewInBoard') }}</span>
-            </button>
-
-            <!-- View Mode Toggle (Drawer vs Modal) -->
-            <button
-              type="button"
-              class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer bg-transparent border-none"
-              :title="
-                projectDetailViewMode === 'drawer'
-                  ? t('projects.switchToModal')
-                  : t('projects.switchToDrawer')
-              "
-              @click="toggleDetailViewMode"
-            >
-              <component
-                :is="projectDetailViewMode === 'drawer' ? Maximize2 : Minimize2"
-                class="w-4.5 h-4.5"
-              />
-            </button>
-
-            <button
-              type="button"
-              class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all cursor-pointer bg-transparent border-none"
-              style="color: var(--text-secondary)"
-              @click="isDetailDrawerOpen = false"
-            >
-              <X class="w-5 h-5" />
-            </button>
+          <div class="text-left">
+            <h3 class="text-lg font-black tracking-tight" style="color: var(--text-primary)">
+              {{ projectDetail?.title }}
+            </h3>
+            <p class="text-[10px] font-bold text-slate-400">{{ t('projects.detailSubtitle') }}</p>
           </div>
         </div>
+        <!-- Actions -->
+        <div class="flex items-center gap-2">
+          <!-- Join Project Button for non-members on PUBLIC projects -->
+          <Button
+            v-if="!isDetailMember && projectDetail?.visibility === 'PUBLIC'"
+            variant="primary"
+            size="sm"
+            :icon="Plus"
+            class="!bg-emerald-500 hover:!bg-emerald-600 !text-white !border-transparent !h-8 !text-xs"
+            @click="handleJoinProjectDetail"
+          >
+            {{ t('projects.joinProject') }}
+          </Button>
 
-        <!-- Content Body -->
-        <div class="flex-1 overflow-y-auto p-4 md:p-5 scrollbar-hide">
+          <Button
+            variant="secondary"
+            size="sm"
+            :icon="FolderOpen"
+            class="!h-8 !text-xs"
+            @click="navigateToTaskBoard(projectDetail?.id)"
+          >
+            {{ t('projects.viewInBoard') }}
+          </Button>
+        </div>
+      </div>
+    </template>
+
+    <div v-if="projectDetail" class="overflow-y-auto p-4 md:p-5 scrollbar-hide max-h-[75vh] text-left">
           <div
             v-if="isDetailLoading"
             class="flex flex-col items-center justify-center py-20 opacity-50"
@@ -934,45 +880,16 @@ defineExpose({
             <!-- Left Column: Tasks / Roadmap (col-span-2) -->
             <div class="md:col-span-2 space-y-4">
               <!-- Tab Header Switcher if project has roadmap -->
-              <div
+              <SegmentedControl
                 v-if="projectDetail.roadmap"
-                class="relative flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl max-w-xs text-left select-none overflow-hidden"
-              >
-                <!-- Sliding Pill Background -->
-                <div
-                  class="absolute top-0.5 bottom-0.5 bg-white dark:bg-slate-700 rounded-lg shadow-sm border border-slate-200/40 dark:border-slate-600/30 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] z-0 pointer-events-none"
-                  :style="{
-                    width: 'calc(50% - 2px)',
-                    left: activeLeftTab === 'tasks' ? '2px' : 'calc(50%)',
-                  }"
-                ></div>
-
-                <!-- Tab Buttons -->
-                <button
-                  type="button"
-                  class="relative z-10 flex-1 py-1.5 px-3 rounded-lg text-xs font-black transition-colors duration-200 cursor-pointer border-none bg-transparent"
-                  :class="
-                    activeLeftTab === 'tasks'
-                      ? 'text-accent'
-                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                  "
-                  @click="activeLeftTab = 'tasks'"
-                >
-                  {{ t('projects.projectTasks') }}
-                </button>
-                <button
-                  type="button"
-                  class="relative z-10 flex-1 py-1.5 px-3 rounded-lg text-xs font-black transition-colors duration-200 cursor-pointer border-none bg-transparent"
-                  :class="
-                    activeLeftTab === 'roadmap'
-                      ? 'text-accent'
-                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                  "
-                  @click="activeLeftTab = 'roadmap'"
-                >
-                  {{ t('projects.learningPath') }}
-                </button>
-              </div>
+                v-model="activeLeftTab"
+                :options="[
+                  { value: 'tasks', label: t('projects.projectTasks') },
+                  { value: 'roadmap', label: t('projects.learningPath') }
+                ]"
+                size="sm"
+                class="max-w-xs"
+              />
 
               <!-- Tasks Tab Content -->
               <div v-if="activeLeftTab === 'tasks'" class="space-y-4">
@@ -985,14 +902,15 @@ defineExpose({
                     }})
                   </h4>
                   <div class="flex gap-2">
-                    <button
-                      type="button"
-                      class="px-2.5 py-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold flex items-center gap-1 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all cursor-pointer shadow-sm"
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      :icon="Plus"
+                      class="!h-7 !text-[10px] !px-2"
                       @click="isBatchDialogOpen = true"
                     >
-                      <Plus class="w-3 h-3" />
-                      <span>{{ t('projects.batchAdd') }}</span>
-                    </button>
+                      {{ t('projects.batchAdd') }}
+                    </Button>
                   </div>
                 </div>
 
@@ -1408,23 +1326,24 @@ defineExpose({
 
                     <!-- Toggle Step Completion -->
                     <div class="pt-0.5 relative z-10">
-                      <button
-                        type="button"
-                        class="w-full py-2 px-3 rounded-lg text-xs font-black text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md border-none"
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        :icon="CheckCircle2"
+                        class="w-full !h-9 text-xs"
                         :class="
                           isStepCompleted(activeStep.id)
-                            ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10'
-                            : 'bg-accent hover:bg-accent-dark shadow-accent/10'
+                            ? '!bg-emerald-500 hover:!bg-emerald-600 hover:!shadow-emerald-500/20'
+                            : ''
                         "
                         @click="toggleStep(activeStep.id)"
                       >
-                        <CheckCircle2 class="w-3.5 h-3.5" />
-                        <span>{{
+                        {{
                           isStepCompleted(activeStep.id)
                             ? t('projects.stepCompletedReset')
                             : t('projects.stepCompleteTarget')
-                        }}</span>
-                      </button>
+                        }}
+                      </Button>
                     </div>
 
                     <!-- Attributes -->
@@ -1687,20 +1606,22 @@ defineExpose({
                   </div>
 
                   <div class="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      class="px-2.5 py-1 bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-200 text-[10px] font-bold rounded-lg hover:opacity-80 transition-all cursor-pointer"
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      class="!py-1 !px-2.5 !h-7 !text-[10px]"
                       @click="cancelEditingProjectDescription"
                     >
                       取消
-                    </button>
-                    <button
-                      type="button"
-                      class="px-2.5 py-1 bg-accent text-white text-[10px] font-bold rounded-lg hover:opacity-85 transition-all cursor-pointer"
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      class="!py-1 !px-2.5 !h-7 !text-[10px]"
                       @click="saveProjectDescription"
                     >
                       保存
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
@@ -1789,15 +1710,16 @@ defineExpose({
                       projectDetail.members.length
                     }})
                   </h4>
-                  <button
+                  <Button
                     v-if="isDetailOwner"
-                    type="button"
-                    class="px-2 py-0.5 bg-accent/10 hover:bg-accent/20 text-accent rounded-lg text-[10px] font-bold transition-all flex items-center gap-0.5 cursor-pointer border-none"
+                    variant="secondary"
+                    size="sm"
+                    :icon="Plus"
+                    class="!py-0.5 !px-2 !h-6 !text-[10px]"
                     @click="openInviteDetailDialog"
                   >
-                    <Plus class="w-2.5 h-2.5" />
-                    <span>{{ t('projects.invite') }}</span>
-                  </button>
+                    {{ t('projects.invite') }}
+                  </Button>
                 </div>
                 <div class="flex flex-wrap gap-1.5">
                   <div
@@ -1845,223 +1767,193 @@ defineExpose({
               </div>
             </div>
           </div>
-        </div>
-      </div>
     </div>
-  </Transition>
+  </Modal>
 
   <!-- Batch Create Tasks Dialog -->
-  <Transition name="fade">
-    <div
-      v-if="isBatchDialogOpen"
-      class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4"
-    >
-      <div
-        class="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        @click="isBatchDialogOpen = false"
-      ></div>
-      <div
-        class="relative w-full max-w-lg p-5 sm:p-8 rounded-2xl sm:rounded-3xl shadow-2xl space-y-4 sm:space-y-5 max-h-[90vh] overflow-y-auto"
-        style="background-color: var(--bg-card)"
-      >
-        <div class="flex items-center justify-between">
-          <h3 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary)">
-            {{ t('projects.batchAddTask') }}
-          </h3>
-          <button
-            type="button"
-            class="bg-transparent border-none cursor-pointer"
-            style="color: var(--text-secondary)"
-            @click="isBatchDialogOpen = false"
-          >
-            <X class="w-5 h-5" />
-          </button>
-        </div>
-        <div class="space-y-4 text-left">
-          <div>
-            <label
-              class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400"
-              >{{ t('projects.batchTaskTitleList') }}</label
-            >
-            <textarea
-              v-model="batchTaskText"
-              rows="6"
-              class="w-full px-4 py-2.5 sm:py-3 bg-slate-100 dark:bg-white/5 border-none rounded-xl sm:rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed"
-              style="color: var(--text-primary)"
-              :placeholder="t('projects.batchTaskPlaceholder')"
-            ></textarea>
-          </div>
+  <Modal
+    :show="isBatchDialogOpen"
+    size="md"
+    glass-card
+    @close="isBatchDialogOpen = false"
+  >
+    <template #header>
+      <h3 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary)">
+        {{ t('projects.batchAddTask') }}
+      </h3>
+    </template>
 
-          <!-- Tasks Preview -->
-          <div v-if="parsedBatchTasks.length > 0" class="space-y-1.5 sm:space-y-2">
-            <label class="block text-[10px] sm:text-xs font-bold uppercase text-slate-400 ml-1">{{
-              t('projects.batchTaskPreview', { count: parsedBatchTasks.length })
-            }}</label>
-            <div
-              class="max-h-24 overflow-y-auto border rounded-xl p-2.5 space-y-1 bg-slate-50 dark:bg-slate-800/10 scrollbar-hide"
-              style="border-color: var(--border-base)"
-            >
-              <div
-                v-for="(tTask, index) in parsedBatchTasks"
-                :key="index"
-                class="flex items-center justify-between text-[11px] font-bold py-0.5 border-b last:border-0"
-                style="border-color: var(--border-base)"
-              >
-                <span class="truncate flex-1 pr-4" style="color: var(--text-primary)">
-                  {{ index + 1 }}. {{ tTask }}
-                </span>
-                <span
-                  class="px-1 py-0.2 bg-accent/10 text-accent rounded text-[7px] uppercase font-black tracking-wider shrink-0"
-                  >{{ t('projects.toBeCreated') }}</span
-                >
-              </div>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3 sm:gap-4">
-            <div>
-              <label
-                class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
-                >{{ t('projects.batchAssignee') }}</label
-              >
-              <el-select
-                v-model="batchAssigneeId"
-                clearable
-                :placeholder="t('projects.selectAssignee')"
-                class="!w-full custom-select"
-              >
-                <el-option
-                  v-for="m in teamMembers"
-                  :key="m.id"
-                  :label="m.name || m.email"
-                  :value="m.id"
-                >
-                  <div class="flex items-center gap-2">
-                    <UserAvatar :user="m" size="sm" />
-                    <span class="text-xs sm:text-sm">{{ m.name || m.email }}</span>
-                  </div>
-                </el-option>
-              </el-select>
-            </div>
-            <div>
-              <label
-                class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
-                >{{ t('projects.batchPriority') }}</label
-              >
-              <el-select v-model="batchPriority" class="!w-full custom-select">
-                <el-option v-for="p in priorityOptions" :key="p.id" :label="p.label" :value="p.id">
-                  <div class="flex items-center gap-2">
-                    <div class="w-2 h-2 rounded-full" :class="p.color"></div>
-                    <span class="text-xs sm:text-sm font-bold">{{ p.label }}</span>
-                  </div>
-                </el-option>
-              </el-select>
-            </div>
-          </div>
-
-          <div>
-            <label
-              class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
-              >{{ t('projects.batchDueDate') }}</label
-            >
-            <el-date-picker
-              v-model="batchDueDate"
-              type="date"
-              :placeholder="t('tasks.dueDate')"
-              class="!w-full !rounded-2xl custom-date-picker"
-              popper-class="custom-date-popper"
-            />
-          </div>
-        </div>
-        <button
-          type="button"
-          class="w-full py-3.5 bg-accent text-white rounded-xl sm:rounded-2xl font-bold shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-sm border-none cursor-pointer"
-          @click="handleBatchCreateTasks"
+    <div class="space-y-4 text-left">
+      <div>
+        <label
+          class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400"
+          >{{ t('projects.batchTaskTitleList') }}</label
         >
-          {{ t('projects.batchCreateButton') }}
-        </button>
+        <textarea
+          v-model="batchTaskText"
+          rows="6"
+          class="w-full px-4 py-2.5 sm:py-3 bg-slate-100 dark:bg-white/5 border-none rounded-xl sm:rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed"
+          style="color: var(--text-primary)"
+          :placeholder="t('projects.batchTaskPlaceholder')"
+        ></textarea>
+      </div>
+
+      <!-- Tasks Preview -->
+      <div v-if="parsedBatchTasks.length > 0" class="space-y-1.5 sm:space-y-2">
+        <label class="block text-[10px] sm:text-xs font-bold uppercase text-slate-400 ml-1">{{
+          t('projects.batchTaskPreview', { count: parsedBatchTasks.length })
+        }}</label>
+        <div
+          class="max-h-24 overflow-y-auto border rounded-xl p-2.5 space-y-1 bg-slate-50 dark:bg-slate-800/10 scrollbar-hide"
+          style="border-color: var(--border-base)"
+        >
+          <div
+            v-for="(tTask, index) in parsedBatchTasks"
+            :key="index"
+            class="flex items-center justify-between text-[11px] font-bold py-0.5 border-b last:border-0"
+            style="border-color: var(--border-base)"
+          >
+            <span class="truncate flex-1 pr-4" style="color: var(--text-primary)">
+              {{ index + 1 }}. {{ tTask }}
+            </span>
+            <span
+              class="px-1 py-0.2 bg-accent/10 text-accent rounded text-[7px] uppercase font-black tracking-wider shrink-0"
+              >{{ t('projects.toBeCreated') }}</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 sm:gap-4">
+        <div>
+          <label
+            class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
+            >{{ t('projects.batchAssignee') }}</label
+          >
+          <el-select
+            v-model="batchAssigneeId"
+            clearable
+            :placeholder="t('projects.selectAssignee')"
+            class="!w-full custom-select"
+          >
+            <el-option
+              v-for="m in teamMembers"
+              :key="m.id"
+              :label="m.name || m.email"
+              :value="m.id"
+            >
+              <div class="flex items-center gap-2">
+                <UserAvatar :user="m" size="sm" />
+                <span class="text-xs sm:text-sm">{{ m.name || m.email }}</span>
+              </div>
+            </el-option>
+          </el-select>
+        </div>
+        <div>
+          <label
+            class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
+            >{{ t('projects.batchPriority') }}</label
+          >
+          <el-select v-model="batchPriority" class="!w-full custom-select">
+            <el-option v-for="p in priorityOptions" :key="p.id" :label="p.label" :value="p.id">
+              <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full" :class="p.color"></div>
+                <span class="text-xs sm:text-sm font-bold">{{ p.label }}</span>
+              </div>
+            </el-option>
+          </el-select>
+        </div>
+      </div>
+
+      <div>
+        <label
+          class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
+          >{{ t('projects.batchDueDate') }}</label
+        >
+        <el-date-picker
+          v-model="batchDueDate"
+          type="date"
+          :placeholder="t('tasks.dueDate')"
+          class="!w-full !rounded-2xl custom-date-picker"
+          popper-class="custom-date-popper"
+        />
       </div>
     </div>
-  </Transition>
+
+    <template #footer>
+      <Button
+        type="button"
+        variant="primary"
+        size="lg"
+        full-width
+        @click="handleBatchCreateTasks"
+      >
+        {{ t('projects.batchCreateButton') }}
+      </Button>
+    </template>
+  </Modal>
 
   <!-- Invite Project Members Dialog -->
-  <Transition name="fade">
-    <div
-      v-if="isDetailInviteDialogOpen"
-      class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4"
-    >
-      <div
-        class="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        @click="isDetailInviteDialogOpen = false"
-      ></div>
-      <div
-        class="relative w-full max-w-md p-5 sm:p-8 rounded-2xl sm:rounded-3xl shadow-2xl space-y-4 sm:space-y-5"
-        style="background-color: var(--bg-card)"
-      >
-        <div class="flex items-center justify-between">
-          <h3 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary)">
-            {{ t('projects.inviteMembersTitle') }}
-          </h3>
-          <button
-            type="button"
-            class="bg-transparent border-none cursor-pointer"
-            style="color: var(--text-secondary)"
-            @click="isDetailInviteDialogOpen = false"
-          >
-            <X class="w-5 h-5" />
-          </button>
-        </div>
+  <Modal
+    :show="isDetailInviteDialogOpen"
+    size="sm"
+    glass-card
+    @close="isDetailInviteDialogOpen = false"
+  >
+    <template #header>
+      <h3 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary)">
+        {{ t('projects.inviteMembersTitle') }}
+      </h3>
+    </template>
 
-        <div class="space-y-4 text-left">
-          <div v-if="availableMembersForDetailInvite.length > 0">
-            <label
-              class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400"
-              >{{ t('projects.selectTeamMembers') }}</label
-            >
-            <el-select
-              v-model="detailInviteUserIds"
-              multiple
-              :placeholder="t('projects.selectMember')"
-              class="!w-full custom-select"
-            >
-              <el-option
-                v-for="m in availableMembersForDetailInvite"
-                :key="m.id"
-                :label="m.name || m.email"
-                :value="m.id"
-              >
-                <div class="flex items-center gap-3">
-                  <UserAvatar :user="m" size="sm" />
-                  <span class="font-bold text-xs sm:text-sm">{{ m.name || m.email }}</span>
-                </div>
-              </el-option>
-            </el-select>
-          </div>
-          <div v-else class="text-center py-6 text-slate-400 text-xs font-bold">
-            {{ t('projects.noOtherMembersToInvite') }}
-          </div>
-        </div>
-
-        <div class="flex justify-end gap-2.5 sm:gap-3 pt-2">
-          <Button
-            variant="secondary"
-            class="text-xs sm:text-sm"
-            @click="isDetailInviteDialogOpen = false"
+    <div class="space-y-4 text-left">
+      <div v-if="availableMembersForDetailInvite.length > 0">
+        <label
+          class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400"
+          >{{ t('projects.selectTeamMembers') }}</label
+        >
+        <el-select
+          v-model="detailInviteUserIds"
+          multiple
+          :placeholder="t('projects.selectMember')"
+          class="!w-full custom-select"
+        >
+          <el-option
+            v-for="m in availableMembersForDetailInvite"
+            :key="m.id"
+            :label="m.name || m.email"
+            :value="m.id"
           >
-            {{ t('common.cancel') }}
-          </Button>
-          <Button
-            variant="primary"
-            class="text-xs sm:text-sm"
-            :disabled="detailInviteUserIds.length === 0"
-            @click="handleSendDetailInvite"
-          >
-            {{ t('projects.sendInvite') }}
-          </Button>
-        </div>
+            <div class="flex items-center gap-3">
+              <UserAvatar :user="m" size="sm" />
+              <span class="font-bold text-xs sm:text-sm">{{ m.name || m.email }}</span>
+            </div>
+          </el-option>
+        </el-select>
+      </div>
+      <div v-else class="text-center py-6 text-slate-400 text-xs font-bold">
+        {{ t('projects.noOtherMembersToInvite') }}
       </div>
     </div>
-  </Transition>
+
+    <template #footer>
+      <Button
+        variant="secondary"
+        class="text-xs sm:text-sm"
+        @click="isDetailInviteDialogOpen = false"
+      >
+        {{ t('common.cancel') }}
+      </Button>
+      <Button
+        variant="primary"
+        class="text-xs sm:text-sm"
+        :disabled="detailInviteUserIds.length === 0"
+        @click="handleSendDetailInvite"
+      >
+        {{ t('projects.sendInvite') }}
+      </Button>
+    </template>
+  </Modal>
 
   <!-- Image Preview Dialog -->
   <el-dialog

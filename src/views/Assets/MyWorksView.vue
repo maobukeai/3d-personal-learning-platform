@@ -586,8 +586,8 @@ onMounted(async () => {
 
 <template>
   <div class="my-works-page">
-    <header class="page-header">
-      <div class="title-block">
+    <header class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
+      <div class="title-block flex-1 min-w-0">
         <div class="title-icon">
           <PackageCheck class="icon-sm" />
         </div>
@@ -597,7 +597,19 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div class="header-actions">
+      <!-- Center: Centered Search Input -->
+      <div class="flex justify-center flex-1 w-full md:w-auto">
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 md:w-80 shrink-0">
+          <Search />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="搜索标题、说明、标签或发布位置"
+          />
+        </label>
+      </div>
+
+      <div class="header-actions flex-1 flex justify-end">
         <button
           v-if="activeTab === 'mine'"
           type="button"
@@ -725,17 +737,7 @@ onMounted(async () => {
             <Tabs v-model="activeTab" :options="libraryTabOptions" size="sm" />
           </div>
 
-          <div class="toolbar-center">
-            <Input
-              v-model="searchQuery"
-              type="search"
-              placeholder="搜索标题、说明、标签或发布位置"
-              :icon="Search"
-              clearable
-              input-class="!py-1.5 !h-8.5 !rounded-lg"
-              class="w-full max-w-[280px]"
-            />
-          </div>
+
 
           <div class="toolbar-right">
             <select v-model="sortBy" class="select-field" aria-label="排序方式">
@@ -786,169 +788,210 @@ onMounted(async () => {
       </main>
     </section>
 
-    <Transition name="fade">
-      <div v-if="isEditDialogOpen && selectedWork" class="modal-layer">
-        <button type="button" class="modal-backdrop" @click="isEditDialogOpen = false"></button>
-        <section class="edit-dialog">
-          <header>
-            <div>
-              <h2>编辑作品</h2>
-              <p>保存后会根据内容类型重新提交审核。</p>
-            </div>
-            <button type="button" class="icon-button" @click="isEditDialogOpen = false">
-              <X class="icon-sm" />
-            </button>
-          </header>
+    <Modal
+      :show="isEditDialogOpen && !!selectedWork"
+      size="xl"
+      glass-card
+      @close="isEditDialogOpen = false"
+    >
+      <template #header>
+        <div>
+          <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">编辑作品</h3>
+          <p class="text-xs text-[var(--text-muted)] mt-1">保存后会根据内容类型重新提交审核。</p>
+        </div>
+      </template>
 
-          <div class="edit-grid">
-            <label class="form-field">
-              <span>作品名称</span>
-              <input v-model="editForm.title" type="text" />
-            </label>
+      <div class="edit-grid" v-if="selectedWork">
+        <div class="col-span-2">
+          <Input
+            v-model="editForm.title"
+            type="text"
+            label="作品名称"
+            required
+          />
+        </div>
 
-            <label v-if="selectedWork.kind === 'asset'" class="form-field">
-              <span>资源分类</span>
-              <select v-model="editForm.categoryId">
-                <option value="">未分类</option>
-                <option v-for="category in assetCategories" :key="category.id" :value="category.id">
-                  {{ category.name }}
-                </option>
-              </select>
-            </label>
+        <label v-if="selectedWork.kind === 'asset'" class="form-field flex flex-col col-span-2 sm:col-span-1">
+          <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">资源分类</span>
+          <select
+            v-model="editForm.categoryId"
+            class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+          >
+            <option value="">未分类</option>
+            <option v-for="category in assetCategories" :key="category.id" :value="category.id">
+              {{ category.name }}
+            </option>
+          </select>
+        </label>
 
-            <template v-if="selectedWork.kind === 'material'">
-              <label class="form-field">
-                <span>材料分类</span>
-                <select v-model="editForm.materialCategory">
-                  <option v-for="category in materialCategories" :key="category" :value="category">
-                    {{ category }}
-                  </option>
-                </select>
-              </label>
-              <label class="form-field">
-                <span>分辨率</span>
-                <select v-model="editForm.resolution">
-                  <option value="2K">2K</option>
-                  <option value="4K">4K</option>
-                  <option value="8K">8K</option>
-                  <option value="矢量">矢量</option>
-                  <option value="程序化">程序化</option>
-                </select>
-              </label>
-              <label class="switch-row">
-                <input v-model="editForm.isProcedural" type="checkbox" />
-                <span>程序化材质</span>
-              </label>
-            </template>
-
-            <template v-if="selectedWork.kind === 'plugin'">
-              <label class="form-field">
-                <span>插件分类</span>
-                <select v-model="editForm.pluginCategory">
-                  <option v-for="category in pluginCategories" :key="category" :value="category">
-                    {{ category }}
-                  </option>
-                </select>
-              </label>
-              <label class="form-field">
-                <span>版本</span>
-                <input v-model="editForm.pluginVersion" type="text" />
-              </label>
-              <label class="form-field">
-                <span>兼容版本</span>
-                <input v-model="editForm.pluginCompatibility" type="text" />
-              </label>
-            </template>
-
-            <template v-if="selectedWork.kind === 'showcase'">
-              <label class="form-field">
-                <span>展示类型</span>
-                <select v-model="editForm.showcaseType">
-                  <option value="IMAGE">图片作品</option>
-                  <option value="VIDEO">视频作品</option>
-                  <option value="MODEL">模型展示</option>
-                  <option value="TEXT">图文作品</option>
-                  <option value="OTHER">其他</option>
-                </select>
-              </label>
-              <label v-if="editForm.showcaseType === 'VIDEO'" class="form-field">
-                <span>视频链接</span>
-                <input v-model="editForm.videoUrl" type="text" />
-              </label>
-            </template>
-
-            <label class="form-field wide">
-              <span>标签</span>
-              <input v-model="editForm.tags" type="text" placeholder="用逗号分隔多个标签" />
-            </label>
-
-            <label class="form-field wide editor-field">
-              <span>作品说明</span>
-              <MarkdownEditor
-                v-model="editForm.description"
-                height="280px"
-                placeholder="描述作品用途、制作说明、安装方式或更新内容"
-                simple
-              />
-            </label>
-          </div>
-
-          <footer>
-            <button type="button" class="ghost-button" @click="isEditDialogOpen = false">
-              取消
-            </button>
-            <button
-              type="button"
-              class="primary-button"
-              :disabled="isSaving"
-              @click="handleSaveEdit"
+        <template v-if="selectedWork.kind === 'material'">
+          <label class="form-field flex flex-col col-span-2 sm:col-span-1">
+            <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">材料分类</span>
+            <select
+              v-model="editForm.materialCategory"
+              class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
             >
-              <Loader2 v-if="isSaving" class="icon-sm spinning" />
-              保存并提交审核
-            </button>
-          </footer>
-        </section>
+              <option v-for="category in materialCategories" :key="category" :value="category">
+                {{ category }}
+              </option>
+            </select>
+          </label>
+          <label class="form-field flex flex-col col-span-2 sm:col-span-1">
+            <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">分辨率</span>
+            <select
+              v-model="editForm.resolution"
+              class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+            >
+              <option value="2K">2K</option>
+              <option value="4K">4K</option>
+              <option value="8K">8K</option>
+              <option value="矢量">矢量</option>
+              <option value="程序化">程序化</option>
+            </select>
+          </label>
+          <div class="col-span-2 flex items-center py-2">
+            <Checkbox v-model="editForm.isProcedural">程序化材质</Checkbox>
+          </div>
+        </template>
+
+        <template v-if="selectedWork.kind === 'plugin'">
+          <label class="form-field flex flex-col col-span-2 sm:col-span-1">
+            <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">插件分类</span>
+            <select
+              v-model="editForm.pluginCategory"
+              class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+            >
+              <option v-for="category in pluginCategories" :key="category" :value="category">
+                {{ category }}
+              </option>
+            </select>
+          </label>
+          <div class="col-span-2 sm:col-span-1">
+            <Input
+              v-model="editForm.pluginVersion"
+              type="text"
+              label="版本"
+            />
+          </div>
+          <div class="col-span-2">
+            <Input
+              v-model="editForm.pluginCompatibility"
+              type="text"
+              label="兼容版本"
+            />
+          </div>
+        </template>
+
+        <template v-if="selectedWork.kind === 'showcase'">
+          <label class="form-field flex flex-col col-span-2 sm:col-span-1">
+            <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">展示类型</span>
+            <select
+              v-model="editForm.showcaseType"
+              class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+            >
+              <option value="IMAGE">图片作品</option>
+              <option value="VIDEO">视频作品</option>
+              <option value="MODEL">模型展示</option>
+              <option value="TEXT">图文作品</option>
+              <option value="OTHER">其他</option>
+            </select>
+          </label>
+          <div v-if="editForm.showcaseType === 'VIDEO'" class="col-span-2 sm:col-span-1">
+            <Input
+              v-model="editForm.videoUrl"
+              type="text"
+              label="视频链接"
+            />
+          </div>
+        </template>
+
+        <div class="col-span-2">
+          <Input
+            v-model="editForm.tags"
+            type="text"
+            label="标签"
+            placeholder="用逗号分隔多个标签"
+          />
+        </div>
+
+        <label class="form-field wide editor-field col-span-2">
+          <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">作品说明</span>
+          <MarkdownEditor
+            v-model="editForm.description"
+            height="280px"
+            placeholder="描述作品用途、制作说明、安装方式或更新内容"
+            simple
+          />
+        </label>
       </div>
-    </Transition>
 
-    <Transition name="fade">
-      <div v-if="isShowcaseDialogOpen" class="modal-layer">
-        <button type="button" class="modal-backdrop" @click="isShowcaseDialogOpen = false"></button>
-        <section class="showcase-dialog">
-          <header>
-            <div>
-              <h2>发布到作品展示</h2>
-              <p>用已审核资源生成展示作品。</p>
-            </div>
-            <button type="button" class="icon-button" @click="isShowcaseDialogOpen = false">
-              <X class="icon-sm" />
-            </button>
-          </header>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" @click="isEditDialogOpen = false">
+            取消
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            :loading="isSaving"
+            @click="handleSaveEdit"
+          >
+            保存并提交审核
+          </Button>
+        </div>
+      </template>
+    </Modal>
 
-          <label class="form-field">
-            <span>展示标题</span>
-            <input v-model="showcaseForm.title" type="text" />
-          </label>
-          <label class="form-field">
-            <span>展示说明</span>
-            <textarea v-model="showcaseForm.description" rows="4"></textarea>
-          </label>
-          <label class="form-field">
-            <span>标签</span>
-            <input v-model="showcaseForm.tags" type="text" />
-          </label>
+    <Modal
+      :show="isShowcaseDialogOpen"
+      size="lg"
+      glass-card
+      @close="isShowcaseDialogOpen = false"
+    >
+      <template #header>
+        <div>
+          <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">发布到作品展示</h3>
+          <p class="text-xs text-[var(--text-muted)] mt-1">用已审核资源生成展示作品。</p>
+        </div>
+      </template>
 
-          <footer>
-            <button type="button" class="ghost-button" @click="isShowcaseDialogOpen = false">
-              取消
-            </button>
-            <button type="button" class="primary-button" @click="publishToShowcase">
-              提交审核
-            </button>
-          </footer>
-        </section>
+      <div class="space-y-4">
+        <Input
+          v-model="showcaseForm.title"
+          type="text"
+          label="展示标题"
+          required
+        />
+        <label class="flex flex-col">
+          <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">展示说明</span>
+          <textarea
+            v-model="showcaseForm.description"
+            rows="4"
+            class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none"
+          ></textarea>
+        </label>
+        <Input
+          v-model="showcaseForm.tags"
+          type="text"
+          label="标签"
+        />
       </div>
-    </Transition>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" @click="isShowcaseDialogOpen = false">
+            取消
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            @click="publishToShowcase"
+          >
+            提交审核
+          </Button>
+        </div>
+      </template>
+    </Modal>
 
     <PublishWorkDialog v-model="isPublishWorkDialogOpen" @published="fetchWorks" />
   </div>
@@ -1387,35 +1430,7 @@ h1 {
   gap: 12px;
 }
 
-.search-box {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 200px;
-  height: 32px;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: var(--bg-card);
-  color: var(--text-muted);
-  padding: 0 10px;
-  transition: all 0.15s ease;
-}
-
-.search-box:focus-within {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
-}
-
-.search-box input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 12px;
-}
+/* Local .search-box styling removed to use global .search-box style */
 
 .select-field {
   width: 96px;
@@ -1861,120 +1876,7 @@ h1 {
   font-weight: 600;
 }
 
-/* Dialogs & Modals */
-.modal-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-}
 
-.modal-backdrop {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  background: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(6px);
-}
-
-.edit-dialog,
-.showcase-dialog {
-  position: relative;
-  z-index: 1;
-  width: min(820px, 100%);
-  max-height: min(86vh, 720px);
-  overflow: auto;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  background: var(--bg-card);
-  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
-  padding: 16px;
-}
-
-.showcase-dialog {
-  width: min(500px, 100%);
-  display: grid;
-  gap: 10px;
-}
-
-.edit-dialog header,
-.edit-dialog footer,
-.showcase-dialog header,
-.showcase-dialog footer {
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.edit-dialog header {
-  margin-bottom: 12px;
-}
-
-.edit-dialog h2,
-.showcase-dialog h2 {
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.edit-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.form-field {
-  display: grid;
-  gap: 4px;
-}
-
-.form-field.wide {
-  grid-column: 1 / -1;
-}
-
-.form-field > span,
-.switch-row span {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.form-field input,
-.form-field select,
-.form-field textarea {
-  height: 32px;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: var(--bg-app);
-  padding: 0 10px;
-  font-size: 12px;
-}
-
-.form-field textarea {
-  height: auto;
-  padding: 8px 10px;
-  resize: vertical;
-}
-
-.switch-row {
-  align-self: end;
-  gap: 8px;
-  height: 32px;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: var(--bg-app);
-  padding: 0 10px;
-}
-
-.editor-field :deep(.markdown-editor) {
-  min-width: 0;
-}
-
-.edit-dialog footer,
-.showcase-dialog footer {
-  margin-top: 12px;
-  justify-content: flex-end;
-}
 
 /* Skeletons */
 .skeleton {

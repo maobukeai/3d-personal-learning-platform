@@ -34,6 +34,7 @@ import { useSystemStore } from '@/stores/system';
 import UserAvatar from '@/components/UserAvatar.vue';
 import FileDropZone from '@/components/FileDropZone.vue';
 import Input from '@/components/ui/Input.vue';
+import Modal from '@/components/ui/Modal.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import UnifiedCard from '@/components/UnifiedCard.vue';
 import {
@@ -954,8 +955,8 @@ onUnmounted(() => {
 
 <template>
   <div class="materials-page">
-    <header class="page-header">
-      <div class="title-block">
+    <header class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
+      <div class="title-block flex-1 min-w-0">
         <div class="title-icon">
           <Layers class="icon-sm" />
         </div>
@@ -971,7 +972,20 @@ onUnmounted(() => {
           </p>
         </div>
       </div>
-      <div class="header-actions">
+
+      <!-- Center: Centered Search Input -->
+      <div class="flex justify-center flex-1 w-full md:w-auto">
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 md:w-80 shrink-0">
+          <Search />
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="label('搜索名称、标签、说明', 'Search name, tags, or description')"
+          />
+        </label>
+      </div>
+
+      <div class="header-actions flex-1 flex justify-end">
         <button
           type="button"
           class="ghost-button icon-text"
@@ -1091,17 +1105,7 @@ onUnmounted(() => {
             <Tabs v-model="activeTab" :options="libraryTabOptions" size="sm" />
           </div>
 
-          <div class="toolbar-center">
-            <Input
-              v-model="searchQuery"
-              type="search"
-              :placeholder="label('搜索名称、标签、说明', 'Search name, tags, or description')"
-              :icon="Search"
-              clearable
-              input-class="!py-1.5 !h-8.5 !rounded-lg"
-              class="w-full max-w-[280px]"
-            />
-          </div>
+
 
           <div class="toolbar-right">
             <button
@@ -1436,31 +1440,25 @@ onUnmounted(() => {
       </main>
     </div>
 
-    <Transition name="fade">
-      <div v-if="isUploadDialogOpen" class="modal-layer">
-        <button type="button" class="modal-backdrop" @click="closeMaterialDialog"></button>
-        <section class="material-dialog">
-          <header>
-            <div>
-              <h2>
-                {{
-                  isEditingMaterial
-                    ? label('编辑材料', 'Edit Material')
-                    : label('上传材质', 'Upload Material')
-                }}
-              </h2>
-              <p>
-                {{
-                  isEditingMaterial
-                    ? label('保存后将重新进入审核流程', 'Saving will send it back to review')
-                    : label('提交贴图包或 SBSAR 文件', 'Submit texture packs or SBSAR files')
-                }}
-              </p>
-            </div>
-            <button type="button" class="icon-button" @click="closeMaterialDialog">
-              <X class="icon-sm" />
-            </button>
-          </header>
+    <Modal :show="isUploadDialogOpen" size="xxl" glass-card @close="closeMaterialDialog">
+      <template #header>
+        <div>
+          <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">
+            {{
+              isEditingMaterial
+                ? label('编辑材料', 'Edit Material')
+                : label('上传材质', 'Upload Material')
+            }}
+          </h3>
+          <p class="text-xs text-[var(--text-muted)] mt-1">
+            {{
+              isEditingMaterial
+                ? label('保存后将重新进入审核流程', 'Saving will send it back to review')
+                : label('提交贴图包或 SBSAR 文件', 'Submit texture packs or SBSAR files')
+            }}
+          </p>
+        </div>
+      </template>
 
           <div class="dialog-grid">
             <div class="dialog-column">
@@ -1488,27 +1486,38 @@ onUnmounted(() => {
                 </div>
               </template>
 
-              <label class="form-field">
-                <span>{{ label('材料名称', 'Material Name') }}</span>
-                <input
+              <div class="mb-4">
+                <Input
                   v-model="materialForm.title"
                   type="text"
+                  :label="label('材料名称', 'Material Name')"
                   :placeholder="label('磨砂金属 PBR 套装', 'Brushed metal PBR set')"
+                  required
                 />
-              </label>
+              </div>
 
-              <div class="two-col">
-                <label class="form-field">
-                  <span>{{ label('分类', 'Category') }}</span>
-                  <select v-model="materialForm.category">
+              <div class="two-col grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <label class="form-field flex flex-col">
+                  <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">
+                    {{ label('分类', 'Category') }}
+                  </span>
+                  <select
+                    v-model="materialForm.category"
+                    class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  >
                     <option v-for="category in uploadCategories" :key="category" :value="category">
                       {{ category }}
                     </option>
                   </select>
                 </label>
-                <label class="form-field">
-                  <span>{{ label('分辨率', 'Resolution') }}</span>
-                  <select v-model="materialForm.resolution">
+                <label class="form-field flex flex-col">
+                  <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">
+                    {{ label('分辨率', 'Resolution') }}
+                  </span>
+                  <select
+                    v-model="materialForm.resolution"
+                    class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  >
                     <option
                       v-for="resolution in resolutionOptions"
                       :key="resolution"
@@ -1520,19 +1529,19 @@ onUnmounted(() => {
                 </label>
               </div>
 
-              <label class="switch-row">
+              <label class="switch-row mb-4">
                 <input v-model="materialForm.isProcedural" type="checkbox" />
                 <span>{{ label('程序化材质 / SBSAR', 'Procedural Material / SBSAR') }}</span>
               </label>
 
-              <label class="form-field">
-                <span>{{ label('标签', 'Tags') }}</span>
-                <input
+              <div class="mb-4">
+                <Input
                   v-model="materialForm.tags"
                   type="text"
+                  :label="label('标签', 'Tags')"
                   :placeholder="label('PBR, 金属, 4K, 游戏资产', 'PBR, metal, 4K, game asset')"
                 />
-              </label>
+              </div>
             </div>
 
             <div class="dialog-column">
@@ -1553,25 +1562,25 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <footer>
-            <button type="button" class="ghost-button" @click="closeMaterialDialog">
-              {{ label('取消', 'Cancel') }}
-            </button>
-            <button
-              type="button"
-              class="primary-button icon-text"
-              :disabled="isUploading || !canSubmitMaterial"
-              @click="submitMaterial"
-            >
-              <Loader2 v-if="isUploading" class="icon-sm spinning" />
-              {{
-                isEditingMaterial ? label('保存', 'Save') : label('提交审核', 'Submit for Review')
-              }}
-            </button>
-          </footer>
-        </section>
-      </div>
-    </Transition>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" @click="closeMaterialDialog">
+            {{ label('取消', 'Cancel') }}
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            :loading="isUploading"
+            :disabled="!canSubmitMaterial"
+            @click="submitMaterial"
+          >
+            {{
+              isEditingMaterial ? label('保存', 'Save') : label('提交审核', 'Submit for Review')
+            }}
+          </Button>
+        </div>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -1966,35 +1975,7 @@ button:disabled {
   color: #d97706;
 }
 
-.search-box {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 200px;
-  height: 32px;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: var(--bg-card);
-  color: var(--text-muted);
-  padding: 0 10px;
-  transition: all 0.15s ease;
-}
-
-.search-box:focus-within {
-  border-color: #d97706;
-  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.15);
-}
-
-.search-box input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 12px;
-}
+/* Local .search-box styling removed to use global .search-box style */
 
 .select-field {
   width: 96px;
@@ -3091,10 +3072,7 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .search-box {
-    min-width: 0;
-    width: 100%;
-  }
+
 
   .toolbar-actions,
   .command-actions {

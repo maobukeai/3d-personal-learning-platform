@@ -254,6 +254,20 @@ watch(taskDetailViewMode, (newVal) => {
   localStorage.setItem('task_detail_view_mode', newVal);
 });
 
+// Auto-open task if ID in query params
+watch(
+  [() => route.query.id, () => tasks.value],
+  ([newId, newTasks]) => {
+    if (newId && newTasks && newTasks.length > 0) {
+      const targetTask = newTasks.find((t) => t.id === newId);
+      if (targetTask && activeTask.value?.id !== targetTask.id) {
+        openDetailDrawer(targetTask);
+      }
+    }
+  },
+  { immediate: true },
+);
+
 // Grouping features
 const groupBy = ref<'status' | 'priority' | 'assignee' | 'dueDate'>('status');
 
@@ -897,6 +911,9 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
   }
   if (!isSub) {
     isDetailDrawerOpen.value = true;
+    if (route.query.id !== targetTask.id) {
+      router.replace({ query: { ...route.query, id: targetTask.id } });
+    }
   }
 };
 
@@ -904,6 +921,9 @@ const closeDetailDrawer = () => {
   isDetailDrawerOpen.value = false;
   activeTask.value = null;
   activeSubtaskId.value = null;
+  if (route.query.id) {
+    router.replace({ query: { ...route.query, id: undefined } });
+  }
 };
 
 const autoSaveTask = async (payload: TaskUpdatePayload | Task) => {
@@ -1129,16 +1149,14 @@ onActivated(() => {
 
       <!-- Center: Search Input -->
       <div class="flex justify-center w-full md:w-auto">
-        <Input
-          v-model="searchQuery"
-          type="text"
-          :placeholder="t('tasks.searchPlaceholder')"
-          :icon="Search"
-          clearable
-          glass
-          class="w-full md:w-64 lg:w-72"
-          input-class="!py-1.5 !h-8.5 text-xs w-full transition-all"
-        />
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+          <Search />
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="t('tasks.searchPlaceholder')"
+          />
+        </label>
       </div>
 
       <!-- Right: Action Controls -->
@@ -1444,7 +1462,6 @@ onActivated(() => {
 
     <!-- Add Task Dialog -->
     <TaskAddDialog
-      v-if="hasLoadedAddDialog"
       v-model="isAddDialogOpen"
       :team-members="teamMembers"
       :projects="projects"
@@ -1457,7 +1474,6 @@ onActivated(() => {
     />
 
     <UserProfileDialog
-      v-if="hasLoadedProfileDialog"
       v-model="isProfileDialogOpen"
       :user-id="selectedUserId"
       @chat="handleStartChat"

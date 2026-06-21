@@ -14,6 +14,7 @@ import {
   MessageSquare,
   FolderTree,
   MonitorPlay,
+  Megaphone,
 } from 'lucide-vue-next';
 
 // AISprite is heavy (pulls in md-editor-v3 styles & three.js deps) and not
@@ -48,6 +49,10 @@ import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { getAssetUrl } from '@/utils/api';
+import api from '@/utils/api';
+import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
+import { formatDateTime as formatDate } from '@/utils/format';
 import { fetchUnreadMessageCount } from '@/services/message.service';
 import type { AppNotification } from '@/services/notification.service';
 import { useThemeManager } from './composables/useThemeManager';
@@ -62,6 +67,31 @@ const { t } = useI18n();
 
 const { menuGroups, mobileNavItems } = useSidebarMenus();
 const { currentTheme, initTheme, cleanupTheme } = useThemeManager();
+
+const latestBroadcast = ref<any>(null);
+const showBroadcastPopup = ref(false);
+
+const fetchLatestBroadcast = async () => {
+  if (!authStore.isAuthenticated) return;
+  try {
+    const { data } = await api.get('/api/notifications/latest-broadcast');
+    if (data) {
+      latestBroadcast.value = data;
+      showBroadcastPopup.value = true;
+    }
+  } catch (error) {
+    console.error('Fetch latest broadcast error:', error);
+  }
+};
+
+const handleNavigateToLink = (url: string) => {
+  showBroadcastPopup.value = false;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  } else {
+    router.push(url);
+  }
+};
 
 // Top navigation tabs (Blender-club style center nav)
 const topNavTabs = computed(() => [
@@ -252,6 +282,7 @@ onMounted(async () => {
 
   fetchNotifications();
   fetchUnreadMessagesCount();
+  fetchLatestBroadcast();
 
   if (authStore.user?.role === 'ADMIN') {
     workspaceStore.fetchAdminStats();
@@ -277,6 +308,7 @@ watch(
   (isAuthenticated) => {
     if (isAuthenticated) {
       workspaceStore.initialize(route.path);
+      fetchLatestBroadcast();
     }
   },
 );
@@ -443,12 +475,11 @@ onUnmounted(() => {
         <!-- Search bar on medium screens (no tabs visible) -->
         <div
           v-else
-          class="topbar-search hidden md:flex items-center gap-2 w-[260px] xl:w-[380px] h-9 px-3 rounded-lg border cursor-pointer transition-colors"
-          style="background-color: var(--bg-subtle); border-color: var(--border-base)"
+          class="search-box hidden md:flex cursor-pointer w-[260px] xl:w-[380px] h-9"
           @click="handleSearch"
         >
-          <Search class="w-4 h-4 text-slate-400" />
-          <span class="text-xs text-slate-400 flex-1 truncate">{{
+          <Search />
+          <span class="text-xs flex-1 truncate">{{
             $t('layout.searchPlaceholder')
           }}</span>
           <kbd
@@ -466,12 +497,11 @@ onUnmounted(() => {
         <!-- Search bar for desktop mode when tabs are visible -->
         <div
           v-if="showTopTabs && !isMobile"
-          class="topbar-search hidden lg:flex items-center gap-2 w-[180px] xl:w-[240px] h-8.5 px-3 rounded-lg border cursor-pointer transition-colors"
-          style="background-color: var(--bg-subtle); border-color: var(--border-base)"
+          class="search-box hidden lg:flex cursor-pointer w-[180px] xl:w-[240px] h-8.5"
           @click="handleSearch"
         >
-          <Search class="w-3.5 h-3.5 text-slate-400" />
-          <span class="text-xs text-slate-400 flex-1 truncate">{{
+          <Search />
+          <span class="text-xs flex-1 truncate">{{
             $t('layout.searchPlaceholder')
           }}</span>
           <kbd
@@ -555,7 +585,7 @@ onUnmounted(() => {
         </div>
         <RouterView v-slot="{ Component, route }">
           <Transition name="page-fade" mode="out-in">
-            <keep-alive :include="['TaskBoard']">
+            <keep-alive :include="['TaskBoard', 'RoadmapsView']">
               <component :is="Component" :key="route.path" />
             </keep-alive>
           </Transition>
@@ -622,6 +652,61 @@ onUnmounted(() => {
     />
     <!-- Floating AI Sprite -->
     <AISprite v-if="renderAiSprite" />
+
+    <!-- Premium Broadcast Modal -->
+    <Modal
+      :show="showBroadcastPopup"
+      size="md"
+      glass-card
+      :close-on-outside-click="true"
+      @close="showBroadcastPopup = false"
+    >
+      <template #header>
+        <div class="flex flex-col text-left">
+          <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+            系统公告 / System Announcement
+          </span>
+        </div>
+      </template>
+
+      <div class="flex items-center gap-4 p-1">
+        <!-- Megaphone icon with beautiful gradient background box matching WorkspaceSwitcher aesthetics -->
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-tr from-amber-500 via-orange-500 to-rose-500 text-white shadow-md shadow-orange-500/20 shrink-0">
+          <Megaphone class="w-6 h-6 text-white" />
+        </div>
+        <div class="flex flex-col text-left min-w-0">
+          <span class="font-bold text-base text-[var(--text-primary)] truncate">
+            {{ latestBroadcast?.title }}
+          </span>
+          <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+            发布时间: {{ latestBroadcast ? formatDate(latestBroadcast.createdAt) : '' }}
+          </span>
+        </div>
+      </div>
+
+      <div class="mt-4 bg-subtle/30 border border-base rounded-xl p-4 text-xs sm:text-sm text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed max-h-[300px] overflow-y-auto">
+        {{ latestBroadcast?.content }}
+      </div>
+
+      <template #footer>
+        <Button
+          v-if="latestBroadcast?.link"
+          variant="primary"
+          size="sm"
+          :icon="ExternalLink"
+          @click="handleNavigateToLink(latestBroadcast.link)"
+        >
+          立即前往
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          @click="showBroadcastPopup = false"
+        >
+          我知道了
+        </Button>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -651,8 +736,7 @@ onUnmounted(() => {
 }
 
 .workspace-switcher:hover,
-.topbar-icon-btn:hover,
-.topbar-search:hover {
+.topbar-icon-btn:hover {
   background-color: var(--bg-subtle);
 }
 
@@ -661,10 +745,6 @@ onUnmounted(() => {
   transition:
     background-color 0.18s ease,
     color 0.18s ease;
-}
-
-.topbar-search {
-  box-shadow: inset 0 0 0 1px transparent;
 }
 
 .content-surface {
@@ -692,22 +772,6 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-:deep(.mobile-search-dialog) {
-  margin-bottom: 0 !important;
-  border-radius: 10px !important;
-}
-:deep(.mobile-search-dialog .el-dialog__header) {
-  padding: 12px 16px !important;
-  margin-right: 0;
-  border-bottom: none !important;
-}
-:deep(.mobile-search-dialog .el-dialog__body) {
-  padding: 8px 16px 20px !important;
-}
-:deep(.mobile-search-dialog .el-dialog__headerbtn) {
-  top: 12px !important;
-  right: 12px !important;
-}
 
 @media (max-width: 1023px) {
   .mobile-main-content {

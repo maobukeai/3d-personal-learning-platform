@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { X, Plus } from 'lucide-vue-next';
+import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 
 interface Member {
   id: string;
@@ -133,213 +135,196 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <Transition name="fade">
-    <div v-if="modelValue" class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
-      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="handleClose"></div>
-      <div
-        class="relative w-full max-w-5xl p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] shadow-2xl border space-y-4 sm:space-y-6 max-h-[95vh] overflow-y-auto"
-        style="background-color: var(--bg-card); border-color: var(--border-base)"
-      >
-        <div class="flex items-center justify-between">
-          <h3
-            class="text-xl sm:text-2xl font-black tracking-tight"
-            style="color: var(--text-primary)"
-          >
-            新建学习任务
-          </h3>
-          <button
-            type="button"
-            style="color: var(--text-secondary)"
-            class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"
-            @click="handleClose"
-          >
-            <X class="w-5 h-5 sm:w-6 sm:h-6" />
-          </button>
-        </div>
+  <Modal
+    :show="modelValue"
+    title="新建学习任务"
+    size="xl"
+    glass-card
+    @close="handleClose"
+  >
+    <div class="space-y-4">
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+          任务标题
+        </label>
+        <input
+          v-model="localNewTask.title"
+          type="text"
+          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm font-bold"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
+          placeholder="例如：深入学习 Blender 几何节点系统"
+        />
+      </div>
 
-        <div class="space-y-3 sm:space-y-4">
-          <div>
-            <label
-              class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400 tracking-widest"
-              >任务标题</label
-            >
-            <input
-              v-model="localNewTask.title"
-              type="text"
-              class="w-full px-4 sm:px-5 py-2.5 sm:py-3.5 bg-slate-100 dark:bg-white/5 border-none rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-bold"
-              placeholder="例如：深入学习 Blender 几何节点系统"
-            />
-          </div>
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+          详细描述 (可选)
+        </label>
+        <textarea
+          v-model="localNewTask.description"
+          rows="4"
+          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm resize-none leading-relaxed"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
+          placeholder="在此输入任务的详细背景、目标、步骤及参考资料..."
+        ></textarea>
+      </div>
 
-          <div>
-            <label
-              class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400 tracking-widest"
-              >详细描述 (可选)</label
-            >
-            <textarea
-              v-model="localNewTask.description"
-              rows="4"
-              class="w-full px-4 sm:px-5 py-2.5 sm:py-3.5 bg-slate-100 dark:bg-white/5 border-none rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed"
-              placeholder="在此输入任务的详细背景、目标、步骤及参考资料..."
-            ></textarea>
-          </div>
-
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-            <div>
-              <label
-                class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-1.5 ml-1 text-slate-400"
-                >优先级</label
-              >
-              <el-select v-model="localNewTask.priority" class="!w-full custom-select">
-                <el-option v-for="p in priorityOptions" :key="p.id" :label="p.label" :value="p.id">
-                  <div class="flex items-center gap-2">
-                    <div class="w-2 h-2 rounded-full" :class="p.color"></div>
-                    <span class="text-xs sm:text-sm">{{ p.label }}</span>
-                  </div>
-                </el-option>
-              </el-select>
-            </div>
-            <div>
-              <label
-                class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-1.5 ml-1 text-slate-400"
-                >截止日期</label
-              >
-              <el-date-picker
-                v-model="localNewTask.dueDate"
-                type="date"
-                placeholder="日期"
-                class="!w-full !rounded-2xl custom-date-picker"
-                popper-class="custom-date-popper"
-              />
-            </div>
-            <div>
-              <label
-                class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-1.5 ml-1 text-slate-400"
-                >负责人</label
-              >
-              <el-select
-                v-model="localNewTask.assigneeId"
-                clearable
-                placeholder="负责人"
-                class="!w-full custom-select"
-              >
-                <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
-                  <div class="flex items-center gap-2">
-                    <img
-                      v-if="m.avatarUrl"
-                      alt=""
-                      :src="m.avatarUrl"
-                      class="w-5 h-5 rounded-lg object-cover"
-                    />
-                    <span class="text-xs sm:text-sm">{{ m.name }}</span>
-                  </div>
-                </el-option>
-              </el-select>
-            </div>
-            <div>
-              <label
-                class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-1.5 ml-1 text-slate-400"
-                >关联项目</label
-              >
-              <el-select
-                v-model="localNewTask.projectId"
-                clearable
-                placeholder="项目"
-                class="!w-full custom-select"
-              >
-                <el-option v-for="p in projects" :key="p.id" :label="p.title" :value="p.id" />
-              </el-select>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            <div>
-              <label
-                class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400"
-                >参与人员</label
-              >
-              <el-select
-                v-model="localNewTask.participantIds"
-                multiple
-                placeholder="选择参与人员"
-                class="!w-full custom-select"
-              >
-                <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
-                  <div class="flex items-center gap-2">
-                    <img
-                      v-if="m.avatarUrl"
-                      alt=""
-                      :src="m.avatarUrl"
-                      class="w-5 h-5 rounded-lg object-cover"
-                    />
-                    <span>{{ m.name }}</span>
-                  </div>
-                </el-option>
-              </el-select>
-            </div>
-
-            <!-- Tags -->
-            <div>
-              <label
-                class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400"
-                >标签</label
-              >
-              <div class="flex flex-wrap gap-1.5 mb-2">
-                <span
-                  v-for="tag in localNewTask.tags"
-                  :key="tag"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold"
-                  :class="getTagClass(tag)"
-                >
-                  {{ tag }}
-                  <button
-                    type="button"
-                    class="hover:opacity-70 transition-opacity"
-                    @click="removeTag(tag)"
-                  >
-                    <X class="w-2.5 h-2.5" />
-                  </button>
-                </span>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+            优先级
+          </label>
+          <el-select v-model="localNewTask.priority" class="!w-full custom-select">
+            <el-option v-for="p in priorityOptions" :key="p.id" :label="p.label" :value="p.id">
+              <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full" :class="p.color"></div>
+                <span class="text-xs sm:text-sm">{{ p.label }}</span>
               </div>
-              <div class="flex gap-2">
-                <input
-                  v-model="tagInput"
-                  type="text"
-                  class="flex-1 px-4 py-2 bg-slate-100 dark:bg-white/5 border-none rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
-                  placeholder="输入标签名"
-                  @keyup.enter="addTag"
+            </el-option>
+          </el-select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+            截止日期
+          </label>
+          <el-date-picker
+            v-model="localNewTask.dueDate"
+            type="date"
+            placeholder="日期"
+            class="!w-full !rounded-2xl custom-date-picker"
+            popper-class="custom-date-popper"
+          />
+        </div>
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+            负责人
+          </label>
+          <el-select
+            v-model="localNewTask.assigneeId"
+            clearable
+            placeholder="负责人"
+            class="!w-full custom-select"
+          >
+            <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
+              <div class="flex items-center gap-2">
+                <img
+                  v-if="m.avatarUrl"
+                  alt=""
+                  :src="m.avatarUrl"
+                  class="w-5 h-5 rounded-lg object-cover"
                 />
-                <button
-                  type="button"
-                  class="px-3 py-2 bg-slate-100 dark:bg-white/5 rounded-xl text-xs font-bold text-slate-500 hover:text-accent transition-colors"
-                  @click="addTag"
-                >
-                  <Plus class="w-3.5 h-3.5" />
-                </button>
+                <span class="text-xs sm:text-sm">{{ m.name }}</span>
               </div>
-            </div>
-          </div>
+            </el-option>
+          </el-select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+            关联项目
+          </label>
+          <el-select
+            v-model="localNewTask.projectId"
+            clearable
+            placeholder="项目"
+            class="!w-full custom-select"
+          >
+            <el-option v-for="p in projects" :key="p.id" :label="p.title" :value="p.id" />
+          </el-select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+            参与人员
+          </label>
+          <el-select
+            v-model="localNewTask.participantIds"
+            multiple
+            placeholder="选择参与人员"
+            class="!w-full custom-select"
+          >
+            <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
+              <div class="flex items-center gap-2">
+                <img
+                  v-if="m.avatarUrl"
+                  alt=""
+                  :src="m.avatarUrl"
+                  class="w-5 h-5 rounded-lg object-cover"
+                />
+                <span>{{ m.name }}</span>
+              </div>
+            </el-option>
+          </el-select>
         </div>
 
-        <button
-          type="button"
-          class="w-full py-3 sm:py-3.5 bg-accent text-white rounded-xl font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all text-sm sm:text-base"
+        <!-- Tags -->
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+            标签
+          </label>
+          <div class="flex flex-wrap gap-1.5 mb-2">
+            <span
+              v-for="tag in localNewTask.tags"
+              :key="tag"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold"
+              :class="getTagClass(tag)"
+            >
+              {{ tag }}
+              <button
+                type="button"
+                class="hover:opacity-70 transition-opacity"
+                @click="removeTag(tag)"
+              >
+                <X class="w-2.5 h-2.5" />
+              </button>
+            </span>
+          </div>
+          <div class="flex gap-2">
+            <input
+              v-model="tagInput"
+              type="text"
+              class="flex-1 px-4 py-2.5 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+              placeholder="输入标签名"
+              @keyup.enter="addTag"
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              @click="addTag"
+            >
+              <Plus class="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-4">
+        <Button
+          variant="primary"
+          size="lg"
+          full-width
           @click="handleSubmit"
         >
           创建任务
-        </button>
+        </Button>
       </div>
     </div>
-  </Transition>
+  </Modal>
 </template>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
 </style>

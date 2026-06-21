@@ -590,15 +590,18 @@ onBeforeUnmount(() => {
       :subtitle="listSummary"
       :icon="MessageSquare"
     >
+      <template #center>
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+          <Search />
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="t('community.discussions.searchPlaceholder')"
+          />
+        </label>
+      </template>
+
       <div class="discussion-header-actions">
-        <Input
-          v-model="searchQuery"
-          type="text"
-          :placeholder="t('community.discussions.searchPlaceholder')"
-          :icon="Search"
-          class="!w-48 sm:!w-64"
-          input-class="!py-1 !h-8 !text-xs !rounded-lg"
-        />
         <Button
           variant="outline"
           size="sm"

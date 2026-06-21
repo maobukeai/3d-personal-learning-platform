@@ -405,10 +405,22 @@ onMounted(async () => {
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
       <!-- Page Header -->
       <PageHeader title="手动资源站管理" variant="card">
-        <template #center>
+        <template #title-badge>
           <div class="flex flex-wrap items-center gap-1.5 ml-2">
             <Badge variant="info"> 站点数: {{ stations.length }} </Badge>
           </div>
+        </template>
+
+        <template #center>
+          <!-- Compact Search Box (Centered) -->
+          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+            <Search />
+            <input
+              v-model="stationSearchQuery"
+              type="text"
+              :placeholder="$t('admin.search_sites_by_name')"
+            />
+          </label>
         </template>
 
         <!-- Actions -->
@@ -482,16 +494,8 @@ onMounted(async () => {
                 <Tabs v-model="statusFilter" :options="tabOptions" size="sm" />
               </div>
 
-              <!-- Search & Filter count info -->
+              <!-- Filter count info -->
               <div class="flex items-center gap-3 shrink-0">
-                <label class="search-box !min-h-0 !h-8 w-44 sm:w-60 shrink-0">
-                  <Search class="w-3.5 h-3.5" />
-                  <input
-                    v-model="stationSearchQuery"
-                    type="text"
-                    :placeholder="$t('admin.search_sites_by_name')"
-                  />
-                </label>
                 <div class="text-[10px] font-bold text-slate-400 shrink-0">
                   已过滤:
                   <span class="text-indigo-600 font-extrabold">{{ filteredStations.length }}</span>

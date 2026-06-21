@@ -15,6 +15,8 @@ import {
   UserCog,
 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
+import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 import type { AdminUser } from '../UsersView.vue';
 
 const props = defineProps<{
@@ -137,15 +139,14 @@ const riskClass = (user: AdminUser) => ({
 </script>
 
 <template>
-  <el-drawer
-    :model-value="modelValue"
-    :size="560"
-    :with-header="false"
-    class="user-drawer"
-    @update:model-value="emit('update:modelValue', $event)"
+  <Modal
+    :show="modelValue"
+    size="xl"
+    glass-card
+    @close="emit('update:modelValue', false)"
   >
-    <div v-if="user" class="drawer-body">
-      <div class="drawer-hero">
+    <template #header>
+      <div v-if="user" class="drawer-hero text-left">
         <UserAvatar :user="user" size="xl" />
         <div>
           <h2>{{ user.name || '未命名用户' }}</h2>
@@ -163,156 +164,160 @@ const riskClass = (user: AdminUser) => ({
           </div>
         </div>
       </div>
+    </template>
 
+    <div v-if="user" class="drawer-body text-left">
       <div class="drawer-actions">
-        <el-button @click="emit('edit', user)">
-          <UserCog :size="15" />
+        <Button size="sm" :icon="UserCog" @click="emit('edit', user)">
           编辑
-        </el-button>
-        <el-button @click="emit('subscription', user)">
-          <CreditCard :size="15" />
+        </Button>
+        <Button size="sm" :icon="CreditCard" @click="emit('subscription', user)">
           订阅
-        </el-button>
-        <el-button @click="emit('reset-password', user)">
-          <KeyRound :size="15" />
+        </Button>
+        <Button size="sm" :icon="KeyRound" @click="emit('reset-password', user)">
           密码
-        </el-button>
-        <el-button type="danger" plain @click="emit('revoke-sessions', user)">
-          <TimerReset :size="15" />
+        </Button>
+        <Button variant="danger" size="sm" :icon="TimerReset" @click="emit('revoke-sessions', user)">
           清退
-        </el-button>
+        </Button>
       </div>
 
-      <section class="detail-section">
-        <h3>账号状态</h3>
-        <div class="detail-grid">
-          <div>
-            <span>积分</span>
-            <strong>{{ user.points || 0 }}</strong>
-          </div>
-          <div>
-            <span>订阅</span>
-            <strong>{{ planLabel(user) }}</strong>
-          </div>
-          <div>
-            <span>邮箱验证</span>
-            <strong>{{ user.emailVerified ? '已验证' : '未验证' }}</strong>
-          </div>
-          <div>
-            <span>双因素认证</span>
-            <strong>{{ user.twoFactorEnabled ? '已开启' : '未开启' }}</strong>
-          </div>
-        </div>
-      </section>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-2">
+        <!-- Left Column -->
+        <div class="flex flex-col gap-6">
+          <section class="detail-section">
+            <h3>账号状态</h3>
+            <div class="detail-grid">
+              <div>
+                <span>积分</span>
+                <strong>{{ user.points || 0 }}</strong>
+              </div>
+              <div>
+                <span>订阅</span>
+                <strong>{{ planLabel(user) }}</strong>
+              </div>
+              <div>
+                <span>邮箱验证</span>
+                <strong>{{ user.emailVerified ? '已验证' : '未验证' }}</strong>
+              </div>
+              <div>
+                <span>双因素认证</span>
+                <strong>{{ user.twoFactorEnabled ? '已开启' : '未开启' }}</strong>
+              </div>
+            </div>
+          </section>
 
-      <section class="detail-section">
-        <h3>登录与活跃</h3>
-        <div class="detail-list">
-          <div>
-            <Clock :size="16" />
-            <span>最后登录</span>
-            <strong>{{ formatDate(user.lastLoginAt) }}</strong>
-          </div>
-          <div>
-            <Activity :size="16" />
-            <span>最后活动</span>
-            <strong>{{ activityText(user) }}</strong>
-          </div>
-          <div>
-            <MonitorSmartphone :size="16" />
-            <span>活跃会话</span>
-            <strong>{{ user.activeSessions || 0 }} 个</strong>
-          </div>
-          <div>
-            <Fingerprint :size="16" />
-            <span>可信设备</span>
-            <strong>{{ user.trustedDevices || 0 }} 台</strong>
-          </div>
-          <div>
-            <Mail :size="16" />
-            <span>登录 IP</span>
-            <strong>{{ user.lastLoginIp || '未记录' }}</strong>
-          </div>
-          <div>
-            <ShieldCheck :size="16" />
-            <span>设备环境</span>
-            <strong>{{ shortUserAgent(user.lastLoginUserAgent) }}</strong>
-          </div>
+          <section class="detail-section">
+            <h3>登录与活跃</h3>
+            <div class="detail-list">
+              <div>
+                <Clock :size="16" />
+                <span>最后登录</span>
+                <strong>{{ formatDate(user.lastLoginAt) }}</strong>
+              </div>
+              <div>
+                <Activity :size="16" />
+                <span>最后活动</span>
+                <strong>{{ activityText(user) }}</strong>
+              </div>
+              <div>
+                <MonitorSmartphone :size="16" />
+                <span>活跃会话</span>
+                <strong>{{ user.activeSessions || 0 }} 个</strong>
+              </div>
+              <div>
+                <Fingerprint :size="16" />
+                <span>可信设备</span>
+                <strong>{{ user.trustedDevices || 0 }} 台</strong>
+              </div>
+              <div>
+                <Mail :size="16" />
+                <span>登录 IP</span>
+                <strong>{{ user.lastLoginIp || '未记录' }}</strong>
+              </div>
+              <div>
+                <ShieldCheck :size="16" />
+                <span>设备环境</span>
+                <strong>{{ shortUserAgent(user.lastLoginUserAgent) }}</strong>
+              </div>
+            </div>
+          </section>
         </div>
-      </section>
 
-      <section class="detail-section">
-        <h3>平台贡献</h3>
-        <div class="detail-grid three">
-          <div>
-            <span>资产</span>
-            <strong>{{ user._count?.assets || 0 }}</strong>
-          </div>
-          <div>
-            <span>素材</span>
-            <strong>{{ user._count?.materials || 0 }}</strong>
-          </div>
-          <div>
-            <span>作品</span>
-            <strong>{{ user._count?.showcases || 0 }}</strong>
-          </div>
-          <div>
-            <span>团队</span>
-            <strong>{{ user._count?.teamMemberships || 0 }}</strong>
-          </div>
-          <div>
-            <span>项目</span>
-            <strong>{{ user._count?.projects || 0 }}</strong>
-          </div>
-          <div>
-            <span>任务</span>
-            <strong>{{ user._count?.tasks || 0 }}</strong>
-          </div>
-          <div>
-            <span>反馈</span>
-            <strong>{{ user._count?.feedbacks || 0 }}</strong>
-          </div>
-          <div>
-            <span>审计记录</span>
-            <strong>{{ user._count?.auditLogs || 0 }}</strong>
-          </div>
-          <div>
-            <span>累计登录</span>
-            <strong>{{ user.loginCount || 0 }}</strong>
-          </div>
-        </div>
-      </section>
+        <!-- Right Column -->
+        <div class="flex flex-col gap-6">
+          <section class="detail-section">
+            <h3>平台贡献</h3>
+            <div class="detail-grid three">
+              <div>
+                <span>资产</span>
+                <strong>{{ user._count?.assets || 0 }}</strong>
+              </div>
+              <div>
+                <span>素材</span>
+                <strong>{{ user._count?.materials || 0 }}</strong>
+              </div>
+              <div>
+                <span>作品</span>
+                <strong>{{ user._count?.showcases || 0 }}</strong>
+              </div>
+              <div>
+                <span>团队</span>
+                <strong>{{ user._count?.teamMemberships || 0 }}</strong>
+              </div>
+              <div>
+                <span>项目</span>
+                <strong>{{ user._count?.projects || 0 }}</strong>
+              </div>
+              <div>
+                <span>任务</span>
+                <strong>{{ user._count?.tasks || 0 }}</strong>
+              </div>
+              <div>
+                <span>反馈</span>
+                <strong>{{ user._count?.feedbacks || 0 }}</strong>
+              </div>
+              <div>
+                <span>审计记录</span>
+                <strong>{{ user._count?.auditLogs || 0 }}</strong>
+              </div>
+              <div>
+                <span>累计登录</span>
+                <strong>{{ user.loginCount || 0 }}</strong>
+              </div>
+            </div>
+          </section>
 
-      <section class="detail-section">
-        <h3>时间线</h3>
-        <div class="timeline-list">
-          <div>
-            <span>注册</span>
-            <strong>{{ formatDate(user.createdAt) }}</strong>
-          </div>
-          <div>
-            <span>资料更新</span>
-            <strong>{{ formatDate(user.updatedAt) }}</strong>
-          </div>
-          <div>
-            <span>最后活动 IP</span>
-            <strong>{{ user.lastActivityIp || '未记录' }}</strong>
-          </div>
+          <section class="detail-section">
+            <h3>时间线</h3>
+            <div class="timeline-list">
+              <div>
+                <span>注册</span>
+                <strong>{{ formatDate(user.createdAt) }}</strong>
+              </div>
+              <div>
+                <span>资料更新</span>
+                <strong>{{ formatDate(user.updatedAt) }}</strong>
+              </div>
+              <div>
+                <span>最后活动 IP</span>
+                <strong>{{ user.lastActivityIp || '未记录' }}</strong>
+              </div>
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
 
       <div class="drawer-danger">
-        <el-button plain @click="emit('toggle-status', user)">
-          <Ban :size="15" />
+        <Button variant="secondary" size="sm" :icon="Ban" @click="emit('toggle-status', user)">
           {{ user.status === 'BANNED' ? '恢复账号' : '封禁账号' }}
-        </el-button>
-        <el-button type="danger" plain @click="emit('delete', user)">
-          <Trash2 :size="15" />
+        </Button>
+        <Button variant="danger" size="sm" :icon="Trash2" @click="emit('delete', user)">
           永久删除
-        </el-button>
+        </Button>
       </div>
     </div>
-  </el-drawer>
+  </Modal>
 </template>
 
 <style scoped>

@@ -339,15 +339,15 @@ const capacityClass = (score?: number) => {
       </div>
 
       <!-- Center: Centered Search Input -->
-      <div class="flex-1 w-full sm:max-w-xs md:max-w-md sm:px-4 shrink-0">
-        <Input
-          v-model="memberSearchQuery"
-          type="text"
-          :placeholder="t('teamDetail.searchPlaceholder')"
-          :icon="Search"
-          class="w-full"
-          input-class="!py-2 !text-xs"
-        />
+      <div class="flex justify-center flex-1 w-full sm:max-w-xs md:max-w-md sm:px-4 shrink-0">
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+          <Search />
+          <input
+            v-model="memberSearchQuery"
+            type="text"
+            :placeholder="t('teamDetail.searchPlaceholder')"
+          />
+        </label>
       </div>
 
       <!-- Right: View Mode Switcher & Invite Button -->

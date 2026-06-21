@@ -33,6 +33,12 @@ export const getAllRoadmaps = async (req: AuthRequest, res: Response) => {
           steps: {
             orderBy: { order: 'asc' },
           },
+          project: {
+            select: {
+              id: true,
+              teamId: true,
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -125,6 +131,12 @@ export const createRoadmap = async (req: AuthRequest, res: Response) => {
         steps: {
           orderBy: { order: 'asc' },
         },
+        project: {
+          select: {
+            id: true,
+            teamId: true,
+          },
+        },
       },
     });
 
@@ -189,6 +201,12 @@ export const updateRoadmap = async (req: AuthRequest, res: Response) => {
       include: {
         steps: {
           orderBy: { order: 'asc' },
+        },
+        project: {
+          select: {
+            id: true,
+            teamId: true,
+          },
         },
       },
     });

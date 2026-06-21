@@ -405,8 +405,8 @@ onUnmounted(() => {
 
 <template>
   <div class="asset-library-page">
-    <header class="page-header">
-      <div class="title-block">
+    <header class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
+      <div class="title-block flex-1 min-w-0">
         <div class="title-icon">
           <Box class="icon-sm" />
         </div>
@@ -423,7 +423,24 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="header-actions">
+      <!-- Center: Centered Search Input -->
+      <div class="flex justify-center flex-1 w-full md:w-auto">
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 md:w-80 shrink-0">
+          <Search />
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="
+              label(
+                '搜索资源名称、标签、作者或描述',
+                'Search names, tags, authors, or descriptions',
+              )
+            "
+          />
+        </label>
+      </div>
+
+      <div class="header-actions flex-1 flex justify-end">
         <button type="button" class="ghost-button" @click="isStatsExpanded = !isStatsExpanded">
           <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
           {{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}
@@ -532,22 +549,7 @@ onUnmounted(() => {
             <Tabs v-model="activeTab" :options="libraryTabOptions" size="sm" />
           </div>
 
-          <div class="toolbar-center">
-            <Input
-              v-model="searchQuery"
-              type="search"
-              :placeholder="
-                label(
-                  '搜索资源名称、标签、作者或描述',
-                  'Search names, tags, authors, or descriptions',
-                )
-              "
-              :icon="Search"
-              clearable
-              input-class="!py-1.5 !h-8.5 !rounded-lg"
-              class="w-full max-w-[280px]"
-            />
-          </div>
+
 
           <div class="toolbar-right">
             <select v-model="sortKey" class="select-field" aria-label="排序方式">
@@ -692,7 +694,7 @@ onUnmounted(() => {
       </aside>
     </section>
 
-    <Modal :show="isUploadDialogOpen" size="xxl" @close="isUploadDialogOpen = false">
+    <Modal :show="isUploadDialogOpen" size="xxl" glass-card @close="isUploadDialogOpen = false">
       <template #header>
         <div>
           <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">
@@ -856,18 +858,20 @@ onUnmounted(() => {
       </div>
 
       <template #footer>
-        <button type="button" class="ghost-button" @click="isUploadDialogOpen = false">
-          {{ label('取消', 'Cancel') }}
-        </button>
-        <button
-          type="button"
-          class="primary-button"
-          :disabled="isUploading || !uploadCanSubmit"
-          @click="submitUpload"
-        >
-          <Loader2 v-if="isUploading" class="icon-sm spinning" />
-          {{ label('提交审核', 'Submit for Review') }}
-        </button>
+        <div class="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" @click="isUploadDialogOpen = false">
+            {{ label('取消', 'Cancel') }}
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            :loading="isUploading"
+            :disabled="!uploadCanSubmit"
+            @click="submitUpload"
+          >
+            {{ label('提交审核', 'Submit for Review') }}
+          </Button>
+        </div>
       </template>
     </Modal>
   </div>
@@ -1312,35 +1316,7 @@ h1 {
   gap: 12px;
 }
 
-.search-box {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 200px;
-  height: 32px;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: var(--bg-card);
-  color: var(--text-muted);
-  padding: 0 10px;
-  transition: all 0.15s ease;
-}
-
-.search-box:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-subtle);
-}
-
-.search-box input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 12px;
-}
+/* Local .search-box styling removed to use global .search-box style */
 
 .select-field {
   width: 96px;
@@ -1814,52 +1790,7 @@ h1 {
   border-color: var(--border-strong);
 }
 
-/* Modals */
-.modal-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-}
 
-.modal-backdrop {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  background: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(6px);
-}
-
-.upload-dialog {
-  position: relative;
-  z-index: 1;
-  width: min(920px, 100%);
-  max-height: min(86vh, 760px);
-  overflow: auto;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  background: var(--bg-card);
-  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
-  padding: 16px;
-}
-
-.upload-dialog header,
-.upload-dialog footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.upload-dialog header {
-  margin-bottom: 12px;
-}
-
-.upload-dialog h2 {
-  font-size: 16px;
-  font-weight: 700;
-}
 
 .upload-type-switch {
   display: flex;

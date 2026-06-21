@@ -146,3 +146,24 @@ export const deleteAllNotifications = async (req: AuthRequest, res: Response, ne
     next(error);
   }
 };
+
+export const getLatestBroadcast = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const broadcast = await prisma.broadcast.findFirst({
+      where: {
+        NOT: {
+          title: {
+            startsWith: '[OFFLINE]',
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    res.json(broadcast);
+  } catch (error) {
+    logger.error('[Notification] Get latest broadcast error:', error);
+    next(error);
+  }
+};

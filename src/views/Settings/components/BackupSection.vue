@@ -1127,6 +1127,16 @@ const formatDate = (dateStr: string) => {
   gap: 8px;
 }
 
+.settings-card :deep(button > span),
+.actions-bar :deep(button > span),
+.actions-cell :deep(button > span),
+.enterprise-page :deep(button > span) {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
 /* Modal dialog CSS */
 .modal-overlay {
   position: fixed;

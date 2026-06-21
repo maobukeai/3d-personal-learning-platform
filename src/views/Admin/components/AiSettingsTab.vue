@@ -21,6 +21,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 import {
   PENDING_MODEL_FAMILY_KEY,
   inferModelFamilyKey,
@@ -681,66 +682,78 @@ watch(
   { immediate: true },
 );
 
-const addCustomCategory = async () => {
-  try {
-    const { value: categoryName } = await ElMessageBox.prompt(
-      '请输入自定义分类名称',
-      '创建自定义分类',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        inputPattern: /\S+/,
-        inputErrorMessage: '分类名称不能为空',
-      },
-    );
-    if (categoryName?.trim()) {
-      const key =
-        'custom_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
-      customCategories.value.push({ key, label: categoryName.trim() });
-      syncCustomCategoriesToSettings();
-      // Expand by default when created
-      if (!expandedModelFamilyGroups.value.includes(key)) {
-        expandedModelFamilyGroups.value.push(key);
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(expandedModelFamilyGroups.value));
-      }
-      ElMessage.success('自定义分类创建成功，请将模型拖拽至此分类');
-    }
-  } catch (_e) {
-    // User canceled
-  }
+const categoryDialog = ref({
+  show: false,
+  mode: 'create' as 'create' | 'rename',
+  groupKey: '',
+  name: '',
+});
+
+const categoryDialogTitle = computed(() => {
+  return categoryDialog.value.mode === 'create' ? '创建自定义分类' : '重命名分组';
+});
+
+const categoryDialogLabel = computed(() => {
+  return categoryDialog.value.mode === 'create' ? '请输入自定义分类名称' : '请输入新的分组名称';
+});
+
+const addCustomCategory = () => {
+  categoryDialog.value = {
+    show: true,
+    mode: 'create',
+    groupKey: '',
+    name: '',
+  };
 };
 
-const renameModelFamilyGroup = async (groupKey: string, currentLabel: string) => {
-  try {
-    const { value: newLabel } = await ElMessageBox.prompt('请输入新的分组名称', '重命名分组', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      inputValue: currentLabel,
-      inputPattern: /\S+/,
-      inputErrorMessage: '分组名称不能为空',
-    });
-    if (newLabel?.trim()) {
-      const trimmedLabel = newLabel.trim();
-      const existing = customCategories.value.find((c) => c.key === groupKey);
-      if (existing) {
-        existing.label = trimmedLabel;
-      } else {
-        customCategories.value.push({ key: groupKey, label: trimmedLabel });
-      }
+const renameModelFamilyGroup = (groupKey: string, currentLabel: string) => {
+  categoryDialog.value = {
+    show: true,
+    mode: 'rename',
+    groupKey,
+    name: currentLabel,
+  };
+};
 
-      // Update any models currently referencing this category to sync label
-      localAiModelConfigs.value.forEach((model) => {
-        if (model.customFamilyKey === groupKey) {
-          model.customFamilyLabel = trimmedLabel;
-        }
-      });
-
-      syncAiModelsToSettings();
-      ElMessage.success('分组重命名成功');
-    }
-  } catch (_e) {
-    // User canceled
+const submitCategoryDialog = () => {
+  const name = categoryDialog.value.name.trim();
+  if (!name) {
+    ElMessage.warning('名称不能为空');
+    return;
   }
+
+  if (categoryDialog.value.mode === 'create') {
+    const key =
+      'custom_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+    customCategories.value.push({ key, label: name });
+    syncCustomCategoriesToSettings();
+    // Expand by default when created
+    if (!expandedModelFamilyGroups.value.includes(key)) {
+      expandedModelFamilyGroups.value.push(key);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(expandedModelFamilyGroups.value));
+    }
+    ElMessage.success('自定义分类创建成功，请将模型拖拽至此分类');
+  } else {
+    const groupKey = categoryDialog.value.groupKey;
+    const existing = customCategories.value.find((c) => c.key === groupKey);
+    if (existing) {
+      existing.label = name;
+    } else {
+      customCategories.value.push({ key: groupKey, label: name });
+    }
+
+    // Update any models currently referencing this category to sync label
+    localAiModelConfigs.value.forEach((model) => {
+      if (model.customFamilyKey === groupKey) {
+        model.customFamilyLabel = name;
+      }
+    });
+
+    syncAiModelsToSettings();
+    ElMessage.success('分组重命名成功');
+  }
+
+  categoryDialog.value.show = false;
 };
 
 const deleteCustomCategory = async (group: AiModelCategory) => {
@@ -2624,6 +2637,43 @@ onMounted(() => {
             应用选择
           </button>
         </div>
+      </div>
+    </template>
+  </Modal>
+
+  <Modal
+    :show="categoryDialog.show"
+    :title="categoryDialogTitle"
+    size="sm"
+    glass-card
+    @close="categoryDialog.show = false"
+  >
+    <div class="space-y-4">
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+          {{ categoryDialogLabel }}
+        </label>
+        <input
+          v-model="categoryDialog.name"
+          type="text"
+          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
+          @keyup.enter="submitCategoryDialog"
+        />
+      </div>
+    </div>
+    <template #footer>
+      <div class="flex items-center gap-3">
+        <Button variant="secondary" size="md" @click="categoryDialog.show = false">
+          取消
+        </Button>
+        <Button variant="primary" size="md" @click="submitCategoryDialog">
+          确定
+        </Button>
       </div>
     </template>
   </Modal>

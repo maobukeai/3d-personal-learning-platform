@@ -50,6 +50,8 @@ declare module 'vue' {
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     ExploreGroupsDialog: typeof import('./components/ExploreGroupsDialog.vue')['default']
     FileDropZone: typeof import('./components/FileDropZone.vue')['default']
+    GlassCard: typeof import('./components/ui/GlassCard.vue')['default']
+    GlassDropdown: typeof import('./components/ui/GlassDropdown.vue')['default']
     GroupDetailDialog: typeof import('./components/GroupDetailDialog.vue')['default']
     Input: typeof import('./components/ui/Input.vue')['default']
     InvitationDialog: typeof import('./components/InvitationDialog.vue')['default']

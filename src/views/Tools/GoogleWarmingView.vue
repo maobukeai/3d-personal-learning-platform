@@ -19,6 +19,7 @@ import {
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 
 // Subcomponents
 import GoogleWarmingConsoleTab from './components/GoogleWarmingConsoleTab.vue';
@@ -1145,16 +1146,15 @@ async function handleImportFile(event: Event) {
             </button>
           </div>
 
-          <div class="relative">
-            <input
-              v-model="searchQuery"
-              type="text"
-              :placeholder="t('tools.googleWarming.searchPlaceholder')"
-              class="gw-input !py-1.5 !text-xs !pl-8"
-            />
-            <Search
-              class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-            />
+          <div class="flex justify-center w-full">
+            <label class="search-box !min-h-0 !h-8 w-full shrink-0">
+              <Search />
+              <input
+                v-model="searchQuery"
+                type="text"
+                :placeholder="t('tools.googleWarming.searchPlaceholder')"
+              />
+            </label>
           </div>
 
           <div class="flex gap-0.5 p-0.5 rounded-lg text-[11px]" style="background: var(--bg-app)">
@@ -1383,6 +1383,7 @@ async function handleImportFile(event: Event) {
         :show="isImporting"
         :title="t('tools.googleWarming.bulkImport')"
         size="lg"
+        glass-card
         @close="isImporting = false"
       >
         <div class="space-y-4">
@@ -1532,21 +1533,23 @@ async function handleImportFile(event: Event) {
             </div>
 
             <div class="flex justify-end gap-3 pt-3">
-              <button
-                class="gw-btn-secondary text-xs cursor-pointer"
+              <Button
+                variant="secondary"
+                size="sm"
                 @click="
                   isImporting = false;
                   parsedAccounts = [];
                 "
               >
                 {{ t('tools.googleWarming.cancel_btn') }}
-              </button>
-              <button
-                class="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs px-5 py-2.5 rounded-lg transition-all font-semibold cursor-pointer"
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
                 @click="submitImport"
               >
                 {{ t('tools.googleWarming.importConfirm', { count: parsedAccounts.length }) }}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -1557,6 +1560,7 @@ async function handleImportFile(event: Event) {
         :show="isEditDialogVisible"
         :title="t('tools.googleWarming.editAccountTitle')"
         size="md"
+        glass-card
         @close="isEditDialogVisible = false"
       >
         <div class="space-y-2.5">
@@ -1655,18 +1659,20 @@ async function handleImportFile(event: Event) {
           </div>
 
           <div class="flex justify-end gap-2 pt-2 gw-border-top">
-            <button
-              class="gw-btn-secondary text-xs cursor-pointer"
+            <Button
+              variant="secondary"
+              size="sm"
               @click="isEditDialogVisible = false"
             >
               {{ t('tools.googleWarming.cancel_btn') }}
-            </button>
-            <button
-              class="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs px-4 py-1.5 rounded-lg transition-all font-semibold cursor-pointer"
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
               @click="saveAccountEdit"
             >
               保存修改
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>
@@ -1676,6 +1682,7 @@ async function handleImportFile(event: Event) {
         :show="isPasswordGenVisible"
         title="密码生成器"
         size="md"
+        glass-card
         @close="isPasswordGenVisible = false"
       >
         <div class="space-y-4">
@@ -1786,19 +1793,21 @@ async function handleImportFile(event: Event) {
               安全提示：请妥善保存您的密码
             </span>
             <div class="flex gap-2">
-              <button
-                class="gw-btn-secondary text-xs cursor-pointer"
+              <Button
+                variant="secondary"
+                size="sm"
                 @click="isPasswordGenVisible = false"
               >
                 关闭
-              </button>
-              <button
-                class="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-xs px-4 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1"
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
                 @click="generateDialogPassword"
               >
                 <Sparkles class="w-3.5 h-3.5" />
                 <span>重新生成</span>
-              </button>
+              </Button>
             </div>
           </div>
         </template>

@@ -35,6 +35,7 @@ import { useI18n } from 'vue-i18n';
 import { useSystemStore } from '@/stores/system';
 import FileDropZone from '@/components/FileDropZone.vue';
 import Input from '@/components/ui/Input.vue';
+import Modal from '@/components/ui/Modal.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import UnifiedCard from '@/components/UnifiedCard.vue';
 import api, { getAssetUrl } from '@/utils/api';
@@ -704,8 +705,8 @@ watch(
 
 <template>
   <div class="plugins-page">
-    <header class="page-header">
-      <div class="title-block">
+    <header class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
+      <div class="title-block flex-1 min-w-0">
         <div class="title-icon">
           <Puzzle class="icon-sm" />
         </div>
@@ -722,7 +723,20 @@ watch(
         </div>
       </div>
 
-      <div class="header-actions">
+      <!-- Center: Centered Search Input -->
+      <div class="flex justify-center flex-1 w-full md:w-auto">
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 md:w-80 shrink-0">
+          <Search />
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="label('搜索插件、标签、兼容版本', 'Search plugins, tags, or versions')"
+            @keydown.enter="fetchPlugins"
+          />
+        </label>
+      </div>
+
+      <div class="header-actions flex-1 flex justify-end">
         <button type="button" class="ghost-button" @click="isStatsExpanded = !isStatsExpanded">
           <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
           {{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}
@@ -920,18 +934,7 @@ watch(
             <Tabs v-model="activeTab" :options="libraryTabOptions" size="sm" />
           </div>
 
-          <div class="toolbar-center">
-            <Input
-              v-model="searchQuery"
-              type="search"
-              :placeholder="label('搜索插件、标签、兼容版本', 'Search plugins, tags, or versions')"
-              :icon="Search"
-              clearable
-              input-class="!py-1.5 !h-8.5 !rounded-lg"
-              class="w-full max-w-[280px]"
-              @keydown.enter="fetchPlugins"
-            />
-          </div>
+
 
           <div class="toolbar-right">
             <select v-model="sortBy" class="select-field" aria-label="排序方式">
@@ -1122,149 +1125,153 @@ watch(
       </main>
     </div>
 
-    <Transition name="fade">
-      <div v-if="isDetailDialogOpen && selectedPlugin" class="modal-layer">
-        <div class="modal-backdrop" @click="isDetailDialogOpen = false"></div>
-        <section class="detail-dialog">
-          <button type="button" class="close-button" @click="isDetailDialogOpen = false">
-            <X class="icon-sm" />
-          </button>
+    <Modal
+      :show="isDetailDialogOpen && !!selectedPlugin"
+      size="lg"
+      glass-card
+      @close="isDetailDialogOpen = false"
+    >
+      <div v-if="selectedPlugin">
+        <div class="detail-hero" :class="getCategoryTone(selectedPlugin.category)">
+          <img
+            v-if="selectedPlugin.previewUrl"
+            :src="getAssetUrl(selectedPlugin.previewUrl)"
+            :alt="selectedPlugin.title"
+          />
+          <component :is="getCategoryIcon(selectedPlugin.category)" v-else class="preview-icon" />
+        </div>
 
-          <div class="detail-hero" :class="getCategoryTone(selectedPlugin.category)">
-            <img
-              v-if="selectedPlugin.previewUrl"
-              :src="getAssetUrl(selectedPlugin.previewUrl)"
-              :alt="selectedPlugin.title"
-            />
-            <component :is="getCategoryIcon(selectedPlugin.category)" v-else class="preview-icon" />
+        <div class="detail-body">
+          <div class="meta-row">
+            <span class="category-pill">{{ categoryLabel(selectedPlugin.category) }}</span>
+            <span class="version-pill">v{{ selectedPlugin.version }}</span>
           </div>
+          <h2>{{ selectedPlugin.title }}</h2>
+          <p>
+            {{
+              selectedPlugin.description ||
+              label('作者暂未填写简介。', 'No plugin description yet.')
+            }}
+          </p>
 
-          <div class="detail-body">
-            <div class="meta-row">
-              <span class="category-pill">{{ categoryLabel(selectedPlugin.category) }}</span>
-              <span class="version-pill">v{{ selectedPlugin.version }}</span>
-            </div>
-            <h2>{{ selectedPlugin.title }}</h2>
-            <p>
-              {{
-                selectedPlugin.description ||
-                label('作者暂未填写简介。', 'No plugin description yet.')
-              }}
-            </p>
-
-            <dl class="detail-grid">
-              <div>
-                <dt>{{ label('兼容版本', 'Compatible With') }}</dt>
-                <dd>{{ selectedPlugin.compatibility }}</dd>
-              </div>
-              <div>
-                <dt>{{ label('文件大小', 'File Size') }}</dt>
-                <dd>{{ formatSize(selectedPlugin.fileSize) }}</dd>
-              </div>
-              <div>
-                <dt>{{ label('发布时间', 'Published') }}</dt>
-                <dd>{{ formatDate(selectedPlugin.createdAt) }}</dd>
-              </div>
-              <div>
-                <dt>{{ label('下载次数', 'Downloads') }}</dt>
-                <dd>{{ selectedPlugin.downloads }}</dd>
-              </div>
-            </dl>
-
-            <div class="tag-row detail-tags">
-              <span v-for="tag in getTagsList(selectedPlugin.tags)" :key="tag">#{{ tag }}</span>
-            </div>
-
-            <section class="install-box">
-              <h3>{{ label('安装说明', 'Installation Guide') }}</h3>
-              <p>{{ selectedPlugin.installGuide }}</p>
-            </section>
-          </div>
-
-          <footer class="detail-footer">
-            <button
-              type="button"
-              class="ghost-button"
-              :class="{ active: isFavorited(selectedPlugin.id) }"
-              @click="toggleFavorite(selectedPlugin.id)"
-            >
-              <Heart class="icon-sm" :class="{ filled: isFavorited(selectedPlugin.id) }" />
-              {{
-                isFavorited(selectedPlugin.id) ? label('已收藏', 'Saved') : label('收藏', 'Save')
-              }}
-            </button>
-            <button
-              type="button"
-              class="primary-button"
-              :disabled="downloadingIds[selectedPlugin.id]"
-              @click="handleDownload(selectedPlugin)"
-            >
-              <Loader2 v-if="downloadingIds[selectedPlugin.id]" class="icon-sm spinning" />
-              <Download v-else class="icon-sm" />
-              {{ label('下载插件', 'Download Plugin') }}
-            </button>
-          </footer>
-        </section>
-      </div>
-    </Transition>
-
-    <Transition name="fade">
-      <div v-if="isUploadDialogOpen" class="modal-layer">
-        <div class="modal-backdrop" @click="isUploadDialogOpen = false"></div>
-        <section class="upload-dialog">
-          <header>
+          <dl class="detail-grid">
             <div>
-              <h2>{{ label('上传插件', 'Upload Plugin') }}</h2>
-              <p>
-                {{
-                  label(
-                    '提交后进入管理员审核，通过后公开展示。',
-                    'Submissions enter admin review before public listing.',
-                  )
-                }}
-              </p>
+              <dt>{{ label('兼容版本', 'Compatible With') }}</dt>
+              <dd>{{ selectedPlugin.compatibility }}</dd>
             </div>
-            <button type="button" class="close-button" @click="isUploadDialogOpen = false">
-              <X class="icon-sm" />
-            </button>
-          </header>
+            <div>
+              <dt>{{ label('文件大小', 'File Size') }}</dt>
+              <dd>{{ formatSize(selectedPlugin.fileSize) }}</dd>
+            </div>
+            <div>
+              <dt>{{ label('发布时间', 'Published') }}</dt>
+              <dd>{{ formatDate(selectedPlugin.createdAt) }}</dd>
+            </div>
+            <div>
+              <dt>{{ label('下载次数', 'Downloads') }}</dt>
+              <dd>{{ selectedPlugin.downloads }}</dd>
+            </div>
+          </dl>
+
+          <div class="tag-row detail-tags">
+            <span v-for="tag in getTagsList(selectedPlugin.tags)" :key="tag">#{{ tag }}</span>
+          </div>
+
+          <section class="install-box">
+            <h3>{{ label('安装说明', 'Installation Guide') }}</h3>
+            <p>{{ selectedPlugin.installGuide }}</p>
+          </section>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-2 w-full" v-if="selectedPlugin">
+          <Button
+            variant="secondary"
+            size="sm"
+            :class="{ active: isFavorited(selectedPlugin.id) }"
+            @click="toggleFavorite(selectedPlugin.id)"
+          >
+            <Heart class="icon-sm inline mr-1" :class="{ filled: isFavorited(selectedPlugin.id) }" />
+            {{
+              isFavorited(selectedPlugin.id) ? label('已收藏', 'Saved') : label('收藏', 'Save')
+            }}
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            :loading="!!downloadingIds[selectedPlugin.id]"
+            @click="handleDownload(selectedPlugin)"
+          >
+            <Download class="icon-sm inline mr-1" v-if="!downloadingIds[selectedPlugin.id]" />
+            {{ label('下载插件', 'Download Plugin') }}
+          </Button>
+        </div>
+      </template>
+    </Modal>
+
+    <Modal :show="isUploadDialogOpen" size="xxl" glass-card @close="isUploadDialogOpen = false">
+      <template #header>
+        <div>
+          <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">
+            {{ label('上传插件', 'Upload Plugin') }}
+          </h3>
+          <p class="text-xs text-[var(--text-muted)] mt-1">
+            {{
+              label(
+                '提交后进入管理员审核，通过后公开展示。',
+                'Submissions enter admin review before public listing.',
+              )
+            }}
+          </p>
+        </div>
+      </template>
 
           <div class="upload-grid">
-            <label>
-              <span>{{ label('插件名称', 'Plugin Name') }}</span>
-              <input
+            <div class="col-span-2">
+              <Input
                 v-model="uploadForm.title"
                 type="text"
+                :label="label('插件名称', 'Plugin Name')"
                 :placeholder="label('给插件起个清晰的名字', 'Give the plugin a clear name')"
+                required
               />
-            </label>
-            <label>
-              <span>{{ label('分类', 'Category') }}</span>
-              <select v-model="uploadForm.category">
+            </div>
+            <label class="flex flex-col">
+              <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">
+                {{ label('分类', 'Category') }}
+              </span>
+              <select
+                v-model="uploadForm.category"
+                class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+              >
                 <option v-for="category in uploadCategories" :key="category" :value="category">
                   {{ categoryLabel(category) }}
                 </option>
               </select>
             </label>
-            <label>
-              <span>{{ label('版本', 'Version') }}</span>
-              <input v-model="uploadForm.version" type="text" placeholder="1.0.0" />
-            </label>
-            <label>
-              <span>{{ label('兼容版本', 'Compatibility') }}</span>
-              <input
+            <Input
+              v-model="uploadForm.version"
+              type="text"
+              :label="label('版本', 'Version')"
+              placeholder="1.0.0"
+              required
+            />
+            <div class="col-span-2">
+              <Input
                 v-model="uploadForm.compatibility"
                 type="text"
+                :label="label('兼容版本', 'Compatibility')"
                 :placeholder="
                   label('如 Blender 4.x / Three.js r160+', 'e.g. Blender 4.x / Three.js r160+')
                 "
               />
-            </label>
-            <label class="wide">
-              <span>{{ label('标签', 'Tags') }}</span>
-              <input
+            </div>
+            <div class="col-span-2">
+              <Input
                 v-model="uploadForm.tags"
                 type="text"
+                :label="label('标签', 'Tags')"
                 :placeholder="
                   label(
                     '用逗号分隔，如 glTF, 优化, 渲染',
@@ -1272,12 +1279,15 @@ watch(
                   )
                 "
               />
-            </label>
-            <label class="wide">
-              <span>{{ label('简介', 'Description') }}</span>
+            </div>
+            <label class="wide flex flex-col col-span-2">
+              <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">
+                {{ label('简介', 'Description') }}
+              </span>
               <textarea
                 v-model="uploadForm.description"
                 rows="3"
+                class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none"
                 :placeholder="
                   label(
                     '介绍插件用途、适用场景和核心能力',
@@ -1286,11 +1296,14 @@ watch(
                 "
               ></textarea>
             </label>
-            <label class="wide">
-              <span>{{ label('安装说明', 'Installation Guide') }}</span>
+            <label class="wide flex flex-col col-span-2">
+              <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">
+                {{ label('安装说明', 'Installation Guide') }}
+              </span>
               <textarea
                 v-model="uploadForm.installGuide"
                 rows="4"
+                class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none"
                 :placeholder="
                   label(
                     '写清楚安装步骤、依赖版本和注意事项',
@@ -1336,23 +1349,22 @@ watch(
             </div>
           </div>
 
-          <footer>
-            <button type="button" class="ghost-button" @click="isUploadDialogOpen = false">
-              {{ label('取消', 'Cancel') }}
-            </button>
-            <button
-              type="button"
-              class="primary-button"
-              :disabled="isUploading"
-              @click="submitPlugin"
-            >
-              <Loader2 v-if="isUploading" class="icon-sm spinning" />
-              {{ label('提交审核', 'Submit for Review') }}
-            </button>
-          </footer>
-        </section>
-      </div>
-    </Transition>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" @click="isUploadDialogOpen = false">
+            {{ label('取消', 'Cancel') }}
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            :loading="isUploading"
+            @click="submitPlugin"
+          >
+            {{ label('提交审核', 'Submit for Review') }}
+          </Button>
+        </div>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -1871,24 +1883,7 @@ p {
   gap: 12px;
 }
 
-.search-box {
-  flex: 1;
-  min-width: 220px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  padding: 0 10px;
-  background: var(--bg-card);
-  transition: all 0.15s ease;
-}
-
-.search-box:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-subtle);
-}
+/* Local .search-box styling removed to use global .search-box style */
 
 .select-field {
   min-width: 100px;
@@ -2541,42 +2536,7 @@ p {
   margin-top: auto;
 }
 
-/* Modals */
-.modal-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
 
-.modal-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(6px);
-}
-
-.detail-dialog,
-.upload-dialog {
-  position: relative;
-  width: min(640px, 100%);
-  max-height: min(86vh, 760px);
-  overflow: auto;
-  border: 1px solid var(--border-base);
-  border-radius: 10px;
-  background: var(--bg-card);
-  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
-}
-
-.detail-dialog .close-button {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 2;
-}
 
 .detail-hero {
   height: 180px;
@@ -2655,19 +2615,7 @@ p {
   padding: 10px 16px;
 }
 
-.upload-dialog {
-  width: min(720px, 100%);
-  padding: 16px;
-}
 
-.upload-dialog header,
-.upload-dialog footer {
-  justify-content: space-between;
-}
-
-.upload-dialog header {
-  margin-bottom: 12px;
-}
 
 .upload-grid {
   display: grid;
@@ -2753,10 +2701,7 @@ p {
   font-size: 10px;
 }
 
-.upload-dialog footer {
-  margin-top: 14px;
-  justify-content: flex-end;
-}
+
 
 .tone-orange {
   background: linear-gradient(135deg, #f97316, #7c2d12);

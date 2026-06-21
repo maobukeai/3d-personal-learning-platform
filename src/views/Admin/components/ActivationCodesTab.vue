@@ -6,11 +6,14 @@ import { Ticket, Trash2, Copy, Search, X } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getApiErrorMessage } from '@/utils/error';
 import api from '@/utils/api';
+import Button from '@/components/ui/Button.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 interface Props {
   activationCodes: ActivationCode[];
   plans: SubscriptionPlan[];
   isLoading: boolean;
+  searchQuery?: string;
 }
 
 interface SubscriptionPlan {
@@ -49,7 +52,6 @@ const emit = defineEmits<{
 
 const showCodeDialog = ref(false);
 const isGeneratingCodes = ref(false);
-const codeSearchQuery = ref('');
 const codeStatusFilter = ref<CodeStatus>('ALL');
 
 const codeForm = ref({
@@ -81,8 +83,8 @@ const filteredCodes = computed(() => {
       result = result.filter((code) => code.status === codeStatusFilter.value);
     }
   }
-  if (codeSearchQuery.value) {
-    const q = codeSearchQuery.value.toLowerCase();
+  const q = (props.searchQuery || '').trim().toLowerCase();
+  if (q) {
     result = result.filter(
       (code) =>
         code.code.toLowerCase().includes(q) ||
@@ -211,20 +213,6 @@ const copyToClipboard = (text: string) => {
       </div>
 
       <div class="w-full flex items-center justify-between md:justify-end gap-3 md:w-auto shrink-0">
-        <div class="relative flex-1 md:flex-none md:w-64">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <input
-            v-model="codeSearchQuery"
-            type="text"
-            :placeholder="$t('admin.search_for_activation_codes')"
-            class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-violet-500/20 outline-none text-[11px] shadow-sm"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-          />
-        </div>
         <div class="text-[10px] font-bold text-right shrink-0" style="color: var(--text-muted)">
           已过滤:
           <span class="text-violet-600 font-extrabold">{{ filteredCodes.length }}</span> / 总计:
@@ -537,220 +525,200 @@ const copyToClipboard = (text: string) => {
     </div>
 
     <!-- Code Generate Dialog -->
-    <Transition name="fade">
-      <div v-if="showCodeDialog" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-        <div
-          class="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          @click="showCodeDialog = false"
-        ></div>
-        <div
-          class="relative w-full max-w-md p-5 sm:p-8 rounded-3xl shadow-2xl space-y-6 bg-[var(--bg-card)] max-h-[85vh] overflow-y-auto scrollbar-hide"
-        >
-          <div class="flex items-center justify-between">
-            <h3 class="text-xl font-bold text-[var(--text-primary)]">
-              {{ $t('admin.generate_activation_code') }}
-            </h3>
+    <Modal
+      :show="showCodeDialog"
+      size="md"
+      glass-card
+      @close="showCodeDialog = false"
+    >
+      <template #header>
+        <div>
+          <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
+            {{ $t('admin.generate_activation_code') }}
+          </h3>
+          <p class="text-xs text-slate-400 mt-1">批量生成卡券激活码以供用户进行额度兑换</p>
+        </div>
+      </template>
+
+      <div class="space-y-6">
+        <!-- Plan Selection -->
+        <div class="space-y-2">
+          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+            $t('admin.subscription_plan')
+          }}</label>
+          <select
+            v-model="codeForm.planId"
+            class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-primary);
+            "
+          >
+            <option v-for="plan in plans" :key="plan.id" :value="plan.id">
+              {{ plan.displayName || plan.name }} (￥{{ plan.price }}/月)
+            </option>
+          </select>
+        </div>
+
+        <!-- Duration Preset & Custom Days -->
+        <div class="space-y-2">
+          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+            $t('admin.card_type_duration')
+          }}</label>
+          <div class="grid grid-cols-5 gap-2">
             <button
+              v-for="preset in [
+                { label: $t('admin.monthly_card'), value: '30' },
+                { label: $t('admin.season_card'), value: '90' },
+                { label: $t('admin.half_a_year'), value: '180' },
+                { label: $t('admin.annual_pass'), value: '365' },
+                { label: $t('admin.customize'), value: 'custom' },
+              ]"
+              :key="preset.value"
               type="button"
-              class="text-[var(--text-secondary)]"
-              @click="showCodeDialog = false"
+              class="py-2 text-[10px] font-bold rounded-xl border transition-all bg-transparent"
+              :style="{
+                backgroundColor:
+                  codeForm.durationPreset === preset.value
+                    ? 'rgba(var(--color-primary-rgb, 14, 165, 233), 0.15)'
+                    : 'transparent',
+                borderColor:
+                  codeForm.durationPreset === preset.value
+                    ? 'var(--accent)'
+                    : 'var(--border-base)',
+                color:
+                  codeForm.durationPreset === preset.value
+                    ? 'var(--accent)'
+                    : 'var(--text-secondary)',
+              }"
+              @click="codeForm.durationPreset = preset.value"
             >
-              <X class="w-5 h-5" />
+              {{ preset.label }}
             </button>
           </div>
-
-          <!-- Plan Selection -->
-          <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-              $t('admin.subscription_plan')
-            }}</label>
-            <select
-              v-model="codeForm.planId"
-              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            >
-              <option v-for="plan in plans" :key="plan.id" :value="plan.id">
-                {{ plan.displayName || plan.name }} (￥{{ plan.price }}/月)
-              </option>
-            </select>
-          </div>
-
-          <!-- Duration Preset & Custom Days -->
-          <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-              $t('admin.card_type_duration')
-            }}</label>
-            <div class="grid grid-cols-5 gap-2">
-              <button
-                v-for="preset in [
-                  { label: $t('admin.monthly_card'), value: '30' },
-                  { label: $t('admin.season_card'), value: '90' },
-                  { label: $t('admin.half_a_year'), value: '180' },
-                  { label: $t('admin.annual_pass'), value: '365' },
-                  { label: $t('admin.customize'), value: 'custom' },
-                ]"
-                :key="preset.value"
-                type="button"
-                class="py-2 text-[10px] font-bold rounded-xl border transition-all"
-                :style="{
-                  backgroundColor:
-                    codeForm.durationPreset === preset.value
-                      ? 'rgba(var(--color-primary-rgb, 14, 165, 233), 0.15)'
-                      : 'var(--bg-app)',
-                  borderColor:
-                    codeForm.durationPreset === preset.value
-                      ? 'var(--accent)'
-                      : 'var(--border-base)',
-                  color:
-                    codeForm.durationPreset === preset.value
-                      ? 'var(--accent)'
-                      : 'var(--text-secondary)',
-                }"
-                @click="codeForm.durationPreset = preset.value"
-              >
-                {{ preset.label }}
-              </button>
-            </div>
-            <!-- Custom Days Input -->
-            <div v-if="codeForm.durationPreset === 'custom'" class="pt-2">
-              <input
-                v-model.number="codeForm.durationDays"
-                type="number"
-                min="1"
-                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-                :placeholder="$t('admin.please_enter_a_custom')"
-              />
-            </div>
-            <div v-else class="text-[10px] text-emerald-500 font-bold ml-1">
-              已选择: {{ codeForm.durationDays }} 天
-            </div>
-          </div>
-
-          <!-- Code Prefix -->
-          <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-              $t('admin.activation_code_prefix_optional')
-            }}</label>
+          <!-- Custom Days Input -->
+          <div v-if="codeForm.durationPreset === 'custom'" class="pt-2">
             <input
-              v-model="codeForm.prefix"
-              type="text"
-              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-              :placeholder="$t('admin.for_example_vip_the')"
-            />
-          </div>
-
-          <!-- Bind Email -->
-          <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-              $t('admin.bind_email_restrictions_optional')
-            }}</label>
-            <input
-              v-model="codeForm.bindEmail"
-              type="email"
-              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-              :placeholder="$t('admin.only_available_for_redemption')"
-            />
-          </div>
-
-          <!-- Expiration Date -->
-          <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-              $t('admin.expiration_expiration_date_optional')
-            }}</label>
-            <input
-              v-model="codeForm.expiresAt"
-              type="date"
-              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            />
-          </div>
-
-          <!-- Description -->
-          <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-              $t('admin.usage_notes_optional')
-            }}</label>
-            <input
-              v-model="codeForm.description"
-              type="text"
-              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-              :placeholder="$t('admin.such_as_activity_gift')"
-            />
-          </div>
-
-          <!-- Quantity -->
-          <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-              $t('admin.generate_quantity')
-            }}</label>
-            <input
-              v-model.number="codeForm.quantity"
+              v-model.number="codeForm.durationDays"
               type="number"
               min="1"
-              max="100"
-              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
               style="
                 background-color: var(--bg-app);
                 border-color: var(--border-base);
                 color: var(--text-primary);
               "
-              :placeholder="$t('admin.such_as_5')"
+              :placeholder="$t('admin.please_enter_a_custom')"
             />
           </div>
-
-          <div class="flex gap-3 pt-4">
-            <button
-              type="button"
-              class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all"
-              @click="showCodeDialog = false"
-            >
-              取消
-            </button>
-            <button
-              type="button"
-              :disabled="isGeneratingCodes"
-              class="flex-1 py-3 rounded-2xl font-bold text-sm bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              @click="handleGenerateCodes"
-            >
-              <template v-if="isGeneratingCodes">
-                <div
-                  class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
-                ></div>
-                生成中...
-              </template>
-              <template v-else> {{ $t('admin.generate_activation_code') }} </template>
-            </button>
+          <div v-else class="text-[10px] text-emerald-500 font-bold ml-1">
+            已选择: {{ codeForm.durationDays }} 天
           </div>
         </div>
+
+        <!-- Code Prefix -->
+        <div class="space-y-2">
+          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+            $t('admin.activation_code_prefix_optional')
+          }}</label>
+          <input
+            v-model="codeForm.prefix"
+            type="text"
+            class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-primary);
+            "
+            :placeholder="$t('admin.for_example_vip_the')"
+          />
+        </div>
+
+        <!-- Bind Email -->
+        <div class="space-y-2">
+          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+            $t('admin.bind_email_restrictions_optional')
+          }}</label>
+          <input
+            v-model="codeForm.bindEmail"
+            type="email"
+            class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-primary);
+            "
+            :placeholder="$t('admin.only_available_for_redemption')"
+          />
+        </div>
+
+        <!-- Expiration Date -->
+        <div class="space-y-2">
+          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+            $t('admin.expiration_expiration_date_optional')
+          }}</label>
+          <input
+            v-model="codeForm.expiresAt"
+            type="date"
+            class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-primary);
+            "
+          />
+        </div>
+
+        <!-- Description -->
+        <div class="space-y-2">
+          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+            $t('admin.usage_notes_optional')
+          }}</label>
+          <input
+            v-model="codeForm.description"
+            type="text"
+            class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-primary);
+            "
+            :placeholder="$t('admin.such_as_activity_gift')"
+          />
+        </div>
+
+        <!-- Quantity -->
+        <div class="space-y-2">
+          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+            $t('admin.generate_quantity')
+          }}</label>
+          <input
+            v-model.number="codeForm.quantity"
+            type="number"
+            min="1"
+            max="100"
+            class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-primary);
+            "
+            :placeholder="$t('admin.such_as_5')"
+          />
+        </div>
       </div>
-    </Transition>
+
+      <template #footer>
+        <div class="flex items-center gap-3">
+          <Button variant="secondary" size="md" @click="showCodeDialog = false">
+            取消
+          </Button>
+          <Button variant="primary" size="md" :loading="isGeneratingCodes" @click="handleGenerateCodes">
+            {{ $t('admin.generate_activation_code') }}
+          </Button>
+        </div>
+      </template>
+    </Modal>
   </div>
 </template>

@@ -302,7 +302,14 @@ export const getAdminStats = async (req: AuthRequest, res: Response, next: NextF
       recentFeedbacks,
       recentAuditLogs,
       topCourses,
-      latestBroadcasts,
+      latestBroadcasts: latestBroadcasts.map((b) => {
+        const isOffline = b.title.startsWith('[OFFLINE]');
+        return {
+          ...b,
+          title: isOffline ? b.title.slice(9) : b.title,
+          isOffline,
+        };
+      }),
     };
 
     // Cache the response for 30 seconds to reduce database load
@@ -503,7 +510,15 @@ export const getBroadcasts = async (req: AuthRequest, res: Response, next: NextF
     const broadcasts = await prisma.broadcast.findMany({
       orderBy: { createdAt: 'desc' },
     });
-    res.json(broadcasts);
+    const mapped = broadcasts.map((b) => {
+      const isOffline = b.title.startsWith('[OFFLINE]');
+      return {
+        ...b,
+        title: isOffline ? b.title.slice(9) : b.title,
+        isOffline,
+      };
+    });
+    res.json(mapped);
   } catch (error) {
     next(error);
   }
@@ -578,6 +593,53 @@ export const sendBroadcast = async (req: AuthRequest, res: Response, next: NextF
     });
 
     res.json({ message: `广播发送成功，共发送给 ${users.length} 名用户` });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const toggleBroadcastOffline = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const { id } = req.params;
+  try {
+    const broadcast = await prisma.broadcast.findUnique({
+      where: { id: String(id) },
+    });
+
+    if (!broadcast) {
+      return next(new AppError('该广播不存在', 404));
+    }
+
+    const isCurrentlyOffline = broadcast.title.startsWith('[OFFLINE]');
+    let newTitle: string;
+    if (isCurrentlyOffline) {
+      newTitle = broadcast.title.slice(9);
+    } else {
+      newTitle = `[OFFLINE]${broadcast.title}`;
+    }
+
+    const updated = await prisma.broadcast.update({
+      where: { id: String(id) },
+      data: { title: newTitle },
+    });
+
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.UPDATE_SETTINGS,
+      module: AuditModule.SETTINGS,
+      description: isCurrentlyOffline ? `重新发布全站广播：${newTitle}` : `下架全站广播：${broadcast.title}`,
+      newValue: updated,
+      oldValue: broadcast,
+      req,
+    });
+
+    res.json({
+      message: isCurrentlyOffline ? '广播已重新发布（上架）' : '广播已下架',
+      broadcast: {
+        ...updated,
+        title: isCurrentlyOffline ? newTitle : broadcast.title,
+        isOffline: !isCurrentlyOffline,
+      },
+    });
   } catch (error) {
     next(error);
   }

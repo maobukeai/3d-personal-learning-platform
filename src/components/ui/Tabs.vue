@@ -120,9 +120,7 @@ onMounted(() => {
     <div
       class="absolute rounded-lg transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] z-0 pointer-events-none"
       :class="[
-        variant === 'solid'
-          ? 'bg-accent shadow-md shadow-accent/20'
-          : 'bg-white/60 dark:bg-white/10 shadow-sm border border-white/40 dark:border-white/5',
+        'bg-white/60 dark:bg-white/10 shadow-sm border border-white/40 dark:border-white/5',
         direction === 'vertical' ? 'left-0.5 right-0.5' : 'top-0.5 bottom-0.5',
       ]"
       :style="sliderStyle"
@@ -142,9 +140,7 @@ onMounted(() => {
             ? 'px-4 py-2 text-base'
             : 'px-3 py-1.5 text-sm',
         modelValue === option.value
-          ? variant === 'solid'
-            ? 'text-white'
-            : 'text-accent dark:text-white'
+          ? 'text-accent dark:text-white'
           : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
         direction === 'vertical' ? 'w-full justify-between' : 'shrink-0 justify-center',
       ]"

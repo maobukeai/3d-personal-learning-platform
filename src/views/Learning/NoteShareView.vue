@@ -454,7 +454,7 @@ onUnmounted(() => {
       <!-- Left Column: Compact Reader Body -->
       <article
         v-else-if="note"
-        class="flex-1 min-w-0 w-full rounded-3xl p-4 sm:p-8 lg:p-10 border shadow-md bg-[var(--bg-card)] border-[var(--border-base)]"
+        class="flex-1 min-w-0 w-full rounded-3xl p-4 sm:p-8 lg:p-10 border shadow-md bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border-[var(--border-base)]"
       >
         <!-- Floating status info for expiresAt -->
         <div
@@ -560,20 +560,17 @@ onUnmounted(() => {
               <Sparkles class="w-3.5 h-3.5 text-[var(--text-secondary)]" />
               <span>核心摘要</span>
             </div>
-            <button
-              type="button"
-              :disabled="isSummarizing"
-              class="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-white hover:bg-slate-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-[var(--border-base)] active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+            <Button
+              variant="secondary"
+              size="sm"
+              :loading="isSummarizing"
               @click="generateAiSummary"
             >
-              <Sparkles
-                class="w-3.5 h-3.5 text-[var(--text-muted)]"
-                :class="{ 'animate-pulse': isSummarizing }"
-              />
+              <Sparkles v-if="!isSummarizing" class="w-3.5 h-3.5 mr-1" />
               <span>{{
                 isSummarizing ? '提炼中...' : sessionSummary ? '重新生成' : '生成 AI 摘要'
               }}</span>
-            </button>
+            </Button>
           </div>
 
           <div
@@ -738,7 +735,7 @@ onUnmounted(() => {
       >
         <!-- Floating Reading adjustments -->
         <div
-          class="w-full border rounded-3xl p-4 shadow-sm flex flex-col gap-4 bg-[var(--bg-card)] border-[var(--border-base)]"
+          class="w-full border rounded-3xl p-4 shadow-sm flex flex-col gap-4 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border-[var(--border-base)]"
         >
           <!-- Title -->
           <p class="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
@@ -775,7 +772,7 @@ onUnmounted(() => {
 
         <!-- Import / Save actions -->
         <div
-          class="w-full border rounded-3xl p-4 shadow-sm flex flex-col gap-2.5 bg-[var(--bg-card)] border-[var(--border-base)]"
+          class="w-full border rounded-3xl p-4 shadow-sm flex flex-col gap-2.5 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border-[var(--border-base)]"
         >
           <p class="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
             文章工具
@@ -783,30 +780,26 @@ onUnmounted(() => {
           <div class="h-[1px] bg-[var(--border-base)]" />
 
           <!-- Logged-in Clone Feature -->
-          <button
-            type="button"
-            class="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-sm font-bold border transition-all active:scale-95 cursor-pointer"
-            :class="[
-              authStore.isAuthenticated
-                ? 'bg-accent border-accent text-white hover:bg-accent/90 shadow-sm'
-                : 'bg-transparent border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-zinc-800',
-            ]"
+          <Button
+            :variant="authStore.isAuthenticated ? 'primary' : 'secondary'"
+            size="sm"
+            full-width
             :loading="isCloning"
             @click="handleSaveToMyNotes"
           >
-            <BookMarked class="w-3.5 h-3.5" />
+            <BookMarked class="w-3.5 h-3.5 mr-1" />
             <span>{{ authStore.isAuthenticated ? '导入到我的笔记本' : '登录并导入收藏' }}</span>
-          </button>
+          </Button>
 
-          <!-- Copy whole body -->
-          <button
-            type="button"
-            class="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-sm font-bold border border-[var(--border-base)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all active:scale-95 cursor-pointer shadow-xs"
+          <Button
+            variant="secondary"
+            size="sm"
+            full-width
             @click="handleCopy"
           >
-            <component :is="isCopying ? Check : Copy" class="w-3.5 h-3.5" />
+            <component :is="isCopying ? Check : Copy" class="w-3.5 h-3.5 mr-1" />
             <span>{{ isCopying ? '已复制' : '复制全文' }}</span>
-          </button>
+          </Button>
         </div>
       </aside>
     </main>

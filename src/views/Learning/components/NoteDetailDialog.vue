@@ -352,10 +352,10 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" size="xxl" padding="none" @close="visible = false">
+  <Modal :show="visible" size="xxl" padding="none" glass-card @close="visible = false">
     <div
       v-if="detailNote"
-      class="flex flex-col md:flex-row h-screen md:h-[88vh] overflow-hidden relative rounded-none md:rounded-3xl bg-[var(--bg-card)]"
+      class="flex flex-col md:flex-row h-screen md:h-[88vh] overflow-hidden relative rounded-none md:rounded-3xl bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl"
     >
       <!-- Global Close Button (Top Right of the entire Dialog Container) -->
       <button
@@ -495,64 +495,60 @@ defineExpose({ open });
 
         <!-- Core Call-to-Actions -->
         <div class="flex flex-col pt-3 border-t border-[var(--border-base)] gap-2">
-          <button
+          <Button
             v-if="authStore.user?.role === 'ADMIN' && detailNote.visibility === 'PUBLIC'"
-            type="button"
-            class="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-black border transition-all active:scale-95 cursor-pointer"
-            :class="
-              detailNote.isPopular
-                ? 'bg-amber-500/10 border-amber-500/25 text-amber-500 hover:bg-amber-500/15'
-                : 'bg-transparent border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-zinc-800'
-            "
+            :variant="detailNote.isPopular ? 'glass' : 'secondary'"
+            size="sm"
+            full-width
+            :class="detailNote.isPopular ? '!text-amber-500 !border-amber-500/30 !bg-amber-500/10 hover:!bg-amber-500/15 dark:!bg-amber-500/20' : ''"
             @click="handleTogglePopular"
           >
-            <Star class="w-3.5 h-3.5" :class="{ 'fill-current': detailNote.isPopular }" />
+            <Star class="w-3.5 h-3.5 mr-1.5" :class="{ 'fill-current': detailNote.isPopular }" />
             <span>{{
               detailNote.isPopular
                 ? t('notes.popularRecommendedShort')
                 : t('notes.recommendPopular')
             }}</span>
-          </button>
+          </Button>
 
-          <button
-            type="button"
-            class="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-black border transition-all active:scale-95 cursor-pointer"
-            :class="
-              detailNote.isLiked
-                ? 'bg-rose-500/10 border-rose-500/25 text-rose-500 hover:bg-rose-500/15'
-                : 'bg-transparent border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-zinc-800'
-            "
+          <Button
+            :variant="detailNote.isLiked ? 'glass' : 'secondary'"
+            size="sm"
+            full-width
+            :class="detailNote.isLiked ? '!text-rose-500 !border-rose-500/30 !bg-rose-500/10 hover:!bg-rose-500/15 dark:!bg-rose-500/20' : ''"
             @click="handleLike"
           >
-            <Heart class="w-3.5 h-3.5" :class="{ 'fill-current': detailNote.isLiked }" />
+            <Heart class="w-3.5 h-3.5 mr-1.5" :class="{ 'fill-current': detailNote.isLiked }" />
             <span>{{ detailNote.isLiked ? t('notes.liked') : t('notes.likeNote') }}</span>
-          </button>
+          </Button>
 
-          <button
+          <Button
             v-if="detailNote.userId === authStore.user?.id"
-            type="button"
-            class="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-black border border-[var(--border-base)] text-[var(--text-secondary)] bg-[var(--bg-card)] hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all active:scale-95 cursor-pointer shadow-xs"
+            variant="secondary"
+            size="sm"
+            full-width
             @click="emit('share', detailNote)"
           >
-            <Share2 class="w-3.5 h-3.5" />
+            <Share2 class="w-3.5 h-3.5 mr-1.5" />
             <span>{{ t('notes.shareNote') }}</span>
-          </button>
+          </Button>
 
-          <button
-            type="button"
-            class="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-black border border-[var(--border-base)] text-[var(--text-secondary)] bg-[var(--bg-card)] hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all active:scale-95 cursor-pointer shadow-xs"
+          <Button
+            variant="secondary"
+            size="sm"
+            full-width
             @click="handleCopy"
           >
-            <component :is="isCopying ? Check : Copy" class="w-3.5 h-3.5" />
+            <component :is="isCopying ? Check : Copy" class="w-3.5 h-3.5 mr-1.5" />
             <span>{{ isCopying ? t('notes.copied') : t('notes.copyFullText') }}</span>
-          </button>
+          </Button>
         </div>
       </aside>
 
       <!-- Right Main Reading Canvas -->
       <div
         ref="scrollContainer"
-        class="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col bg-[var(--bg-card)] text-[var(--text-primary)]"
+        class="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col bg-white/20 dark:bg-zinc-900/20 text-[var(--text-primary)]"
         @scroll="handleScroll"
       >
         <!-- Floating Reading Progress Indicator -->
@@ -626,16 +622,13 @@ defineExpose({ open });
                     <Sparkles class="w-3.5 h-3.5 text-[var(--text-secondary)]" />
                     <span>{{ t('notes.coreSummary') }}</span>
                   </div>
-                  <button
-                    type="button"
-                    :disabled="isSummarizing"
-                    class="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-white hover:bg-slate-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-[var(--border-base)] active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    :loading="isSummarizing"
                     @click="generateAiSummary"
                   >
-                    <Sparkles
-                      class="w-3 h-3 text-[var(--text-muted)]"
-                      :class="{ 'animate-pulse': isSummarizing }"
-                    />
+                    <Sparkles v-if="!isSummarizing" class="w-3.5 h-3.5 mr-1" />
                     <span>{{
                       isSummarizing
                         ? t('notes.summarizing')
@@ -643,7 +636,7 @@ defineExpose({ open });
                           ? t('notes.regenerate')
                           : t('notes.generateAiSummary')
                     }}</span>
-                  </button>
+                  </Button>
                 </div>
 
                 <div
@@ -1073,5 +1066,11 @@ defineExpose({ open });
 .modern-markdown-content :deep(.md-code-copy),
 .modern-markdown-content :deep(pre) {
   z-index: 2 !important;
+}
+
+/* Enforce horizontal layout for action buttons in sidebar */
+aside :deep(button > span) {
+  flex-direction: row !important;
+  gap: 6px !important;
 }
 </style>

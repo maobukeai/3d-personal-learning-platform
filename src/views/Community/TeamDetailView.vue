@@ -40,6 +40,8 @@ import TeamSettingsTab from './components/TeamSettingsTab.vue';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
+import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 
 const getCategoryLabel = (cat?: string | null) => {
   if (!cat) return '';
@@ -1330,526 +1332,481 @@ onUnmounted(() => {
     </div>
 
     <!-- Unified Add Member Modal -->
-    <div
-      v-if="isAddModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 dark:bg-black/70 backdrop-blur-md transition-all duration-300"
+    <Modal
+      :show="isAddModalOpen"
+      size="md"
+      glass-card
+      @close="isAddModalOpen = false"
     >
-      <!-- Premium background glows -->
-      <div class="absolute inset-0 overflow-hidden pointer-events-none">
-        <div
-          class="absolute top-[20%] left-[25%] w-72 h-72 bg-purple-500/15 dark:bg-purple-500/10 rounded-full blur-3xl animate-pulse"
-        ></div>
-        <div
-          class="absolute bottom-[20%] right-[25%] w-80 h-80 bg-blue-500/15 dark:bg-blue-500/10 rounded-full blur-3xl animate-pulse"
-          style="animation-duration: 6s"
-        ></div>
-      </div>
-
-      <div
-        class="relative w-full max-w-xl rounded-[2rem] p-8 md:p-10 shadow-2xl bg-white/80 dark:bg-slate-900/80 border border-white/50 dark:border-slate-800/80 backdrop-blur-2xl transition-all duration-300 transform scale-100"
-      >
-        <!-- Modal Header -->
-        <div
-          class="flex items-center justify-between mb-6 border-b border-slate-100 dark:border-slate-800/60 pb-5"
-        >
-          <div>
-            <h3
-              class="text-xl md:text-2xl font-black tracking-tight"
-              style="color: var(--text-primary)"
-            >
-              {{ t('teamDetail.addMemberTitle') }}
-            </h3>
-            <p class="text-xs text-[var(--text-secondary)] opacity-75 font-semibold mt-1">
-              {{ t('teamDetail.addMemberSubtitle') }}
-            </p>
-          </div>
-          <button
-            type="button"
-            class="p-2 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700/80 text-[var(--text-secondary)] rounded-xl transition-all duration-300 hover:rotate-90"
-            @click="isAddModalOpen = false"
+      <template #header>
+        <div>
+          <h3
+            class="text-xl md:text-2xl font-black tracking-tight"
+            style="color: var(--text-primary)"
           >
-            <X class="w-5 h-5" />
-          </button>
+            {{ t('teamDetail.addMemberTitle') }}
+          </h3>
+          <p class="text-xs text-[var(--text-secondary)] opacity-75 font-semibold mt-1">
+            {{ t('teamDetail.addMemberSubtitle') }}
+          </p>
+        </div>
+      </template>
+
+      <div class="space-y-6">
+        <!-- Search Users -->
+        <div class="space-y-3">
+          <label
+            class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1"
+          >
+            {{ t('teamDetail.internalSearchLabel') }}
+          </label>
+          <div class="relative group">
+            <Search
+              class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-accent transition-colors"
+            />
+            <input
+              v-model="userSearchQuery"
+              type="text"
+              :placeholder="t('teamDetail.searchUserPlaceholder')"
+              class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80 rounded-xl text-sm focus:border-accent dark:focus:border-accent focus:bg-white dark:focus:bg-slate-950 outline-none transition-all duration-300 shadow-2xs focus:shadow-md focus:shadow-accent/5"
+              style="color: var(--text-primary)"
+            />
+          </div>
+
+          <!-- Search Results -->
+          <div
+            v-if="searchResults.length > 0"
+            class="max-h-56 overflow-y-auto space-y-2 p-1 bg-slate-50/50 dark:bg-slate-950/30 rounded-xl scrollbar-hide border border-slate-100 dark:border-slate-800/40"
+          >
+            <div
+              v-for="user in searchResults"
+              :key="user.id"
+              class="flex items-center justify-between p-3 bg-white/70 dark:bg-slate-900/40 rounded-lg border border-slate-100/80 dark:border-slate-800/40 hover:border-accent/50 dark:hover:border-accent/50 hover:bg-white dark:hover:bg-slate-900 hover:shadow-xs transition-all duration-300 group"
+            >
+              <div class="flex items-center gap-3">
+                <UserAvatar :user="user" size="md" />
+                <div>
+                  <p class="text-sm font-bold" style="color: var(--text-primary)">
+                    {{ user.name }}
+                  </p>
+                  <p class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                    {{ user.email }}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="p-2 bg-accent/15 hover:bg-accent text-accent hover:text-white rounded-lg transition-all duration-300 shadow-sm active:scale-90"
+                @click="handleAddUser(user)"
+              >
+                <Plus class="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <div
+            v-else-if="userSearchQuery && !isSearchingUsers"
+            class="text-center py-4 text-slate-400 dark:text-slate-500 text-xs italic font-medium"
+          >
+            {{ t('teamDetail.noUsersFound') }}
+          </div>
         </div>
 
-        <div class="space-y-6">
-          <!-- Search Users -->
-          <div class="space-y-3">
-            <label
-              class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1"
-            >
-              {{ t('teamDetail.internalSearchLabel') }}
-            </label>
-            <div class="relative group">
-              <Search
+        <!-- Divider -->
+        <div class="relative flex items-center justify-center my-2">
+          <div class="absolute inset-0 flex items-center">
+            <div class="w-full border-t border-slate-100 dark:border-slate-800/80"></div>
+          </div>
+          <span
+            class="relative px-4 bg-white/90 dark:bg-slate-900/90 rounded-full text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] backdrop-blur-md"
+          >
+            {{ t('teamDetail.orLabel') }}
+          </span>
+        </div>
+
+        <!-- Email Invite -->
+        <div class="space-y-3">
+          <label
+            class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1"
+          >
+            {{ t('teamDetail.emailInviteLabel') }}
+          </label>
+          <div class="flex gap-3">
+            <div class="relative flex-1 group">
+              <Mail
                 class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-accent transition-colors"
               />
               <input
-                v-model="userSearchQuery"
-                type="text"
-                :placeholder="t('teamDetail.searchUserPlaceholder')"
+                v-model="inviteEmailInput"
+                type="email"
+                placeholder="example@email.com"
                 class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80 rounded-xl text-sm focus:border-accent dark:focus:border-accent focus:bg-white dark:focus:bg-slate-950 outline-none transition-all duration-300 shadow-2xs focus:shadow-md focus:shadow-accent/5"
                 style="color: var(--text-primary)"
               />
             </div>
-
-            <!-- Search Results -->
-            <div
-              v-if="searchResults.length > 0"
-              class="max-h-56 overflow-y-auto space-y-2 p-1 bg-slate-50/50 dark:bg-slate-950/30 rounded-xl scrollbar-hide border border-slate-100 dark:border-slate-800/40"
+            <Button
+              variant="primary"
+              size="lg"
+              :disabled="!inviteEmailInput"
+              class="shrink-0"
+              @click="handleSendInvite"
             >
-              <div
-                v-for="user in searchResults"
-                :key="user.id"
-                class="flex items-center justify-between p-3 bg-white/70 dark:bg-slate-900/40 rounded-lg border border-slate-100/80 dark:border-slate-800/40 hover:border-accent/50 dark:hover:border-accent/50 hover:bg-white dark:hover:bg-slate-900 hover:shadow-xs transition-all duration-300 group"
-              >
-                <div class="flex items-center gap-3">
-                  <UserAvatar :user="user" size="md" />
-                  <div>
-                    <p class="text-sm font-bold" style="color: var(--text-primary)">
-                      {{ user.name }}
-                    </p>
-                    <p class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                      {{ user.email }}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  class="p-2 bg-accent/15 hover:bg-accent text-accent hover:text-white rounded-lg transition-all duration-300 shadow-sm active:scale-90"
-                  @click="handleAddUser(user)"
-                >
-                  <Plus class="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-            <div
-              v-else-if="userSearchQuery && !isSearchingUsers"
-              class="text-center py-4 text-slate-400 dark:text-slate-500 text-xs italic font-medium"
-            >
-              {{ t('teamDetail.noUsersFound') }}
-            </div>
-          </div>
-
-          <!-- Divider -->
-          <div class="relative flex items-center justify-center my-2">
-            <div class="absolute inset-0 flex items-center">
-              <div class="w-full border-t border-slate-100 dark:border-slate-800/80"></div>
-            </div>
-            <span
-              class="relative px-4 bg-white/90 dark:bg-slate-900/90 rounded-full text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] backdrop-blur-md"
-            >
-              {{ t('teamDetail.orLabel') }}
-            </span>
-          </div>
-
-          <!-- Email Invite -->
-          <div class="space-y-3">
-            <label
-              class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1"
-            >
-              {{ t('teamDetail.emailInviteLabel') }}
-            </label>
-            <div class="flex gap-3">
-              <div class="relative flex-1 group">
-                <Mail
-                  class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-accent transition-colors"
-                />
-                <input
-                  v-model="inviteEmailInput"
-                  type="email"
-                  placeholder="example@email.com"
-                  class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80 rounded-xl text-sm focus:border-accent dark:focus:border-accent focus:bg-white dark:focus:bg-slate-950 outline-none transition-all duration-300 shadow-2xs focus:shadow-md focus:shadow-accent/5"
-                  style="color: var(--text-primary)"
-                />
-              </div>
-              <button
-                type="button"
-                :disabled="!inviteEmailInput"
-                class="px-6 py-3 bg-accent hover:bg-accent/90 disabled:bg-slate-100 dark:disabled:bg-slate-800/50 disabled:text-slate-400 dark:disabled:text-slate-500 text-white rounded-xl font-bold text-sm hover:scale-[1.02] active:scale-95 transition-all shadow-md shadow-accent/10 disabled:shadow-none disabled:hover:scale-100 disabled:cursor-not-allowed shrink-0"
-                @click="handleSendInvite"
-              >
-                {{ t('teamDetail.sendBtn') }}
-              </button>
-            </div>
+              {{ t('teamDetail.sendBtn') }}
+            </Button>
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
 
     <!-- Dissolve Team Modal -->
-    <div
-      v-if="isDissolveModalOpen"
-      class="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md"
+    <Modal
+      :show="isDissolveModalOpen"
+      size="sm"
+      glass-card
+      @close="isDissolveModalOpen = false"
     >
-      <div
-        class="glass-dialog w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-in fade-in zoom-in-95 duration-300"
-      >
-        <div class="flex items-center justify-between mb-8">
-          <div class="p-4 bg-rose-50 dark:bg-rose-500/10 rounded-2xl text-rose-500">
-            <Trash2 class="w-6 h-6" />
-          </div>
-          <button
-            type="button"
-            class="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all"
-            @click="isDissolveModalOpen = false"
-          >
-            <X class="w-6 h-6 text-slate-400" />
-          </button>
+      <template #header>
+        <div class="p-3 bg-rose-50 dark:bg-rose-500/10 rounded-2xl text-rose-500 w-fit">
+          <Trash2 class="w-6 h-6" />
+        </div>
+      </template>
+
+      <div class="space-y-6">
+        <div>
+          <h3 class="text-2xl font-black text-rose-600">
+            {{ t('teamDetail.dissolveConfirmTitle') }}
+          </h3>
+          <SafeHtml
+            class="text-xs text-slate-400 font-medium mt-1 leading-relaxed"
+            tag="p"
+            :html="t('teamDetail.dissolveWarning', { name: team?.name })"
+          />
         </div>
 
-        <div class="space-y-6">
-          <div>
-            <h3 class="text-2xl font-black text-rose-600">
-              {{ t('teamDetail.dissolveConfirmTitle') }}
-            </h3>
-            <SafeHtml
-              class="text-xs text-slate-400 font-medium mt-1 leading-relaxed"
-              tag="p"
-              :html="t('teamDetail.dissolveWarning', { name: team?.name })"
+        <div class="space-y-4">
+          <div v-if="authStore.user?.twoFactorEnabled" class="space-y-2">
+            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{{
+              t('teamDetail.twoFactorLabel')
+            }}</label>
+            <input
+              v-model="dissolveCode"
+              type="text"
+              maxlength="6"
+              placeholder="000000"
+              class="w-full px-6 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-center text-2xl font-black tracking-[0.5em] focus:ring-4 focus:ring-rose-500/10 outline-none transition-all"
+              style="color: var(--text-primary)"
             />
           </div>
-
-          <div class="space-y-4">
-            <div v-if="authStore.user?.twoFactorEnabled" class="space-y-2">
-              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{{
-                t('teamDetail.twoFactorLabel')
-              }}</label>
+          <div v-else class="space-y-2">
+            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{{
+              t('teamDetail.emailCodeLabel')
+            }}</label>
+            <div class="flex gap-3">
               <input
                 v-model="dissolveCode"
                 type="text"
                 maxlength="6"
                 placeholder="000000"
-                class="w-full px-6 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-center text-2xl font-black tracking-[0.5em] focus:ring-4 focus:ring-rose-500/10 outline-none transition-all"
+                class="flex-1 px-6 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-center text-xl font-black tracking-[0.2em] focus:ring-4 focus:ring-rose-500/10 outline-none transition-all"
                 style="color: var(--text-primary)"
               />
-            </div>
-            <div v-else class="space-y-2">
-              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{{
-                t('teamDetail.emailCodeLabel')
-              }}</label>
-              <div class="flex gap-3">
-                <input
-                  v-model="dissolveCode"
-                  type="text"
-                  maxlength="6"
-                  placeholder="000000"
-                  class="flex-1 px-6 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-center text-xl font-black tracking-[0.2em] focus:ring-4 focus:ring-rose-500/10 outline-none transition-all"
-                  style="color: var(--text-primary)"
-                />
-                <button
-                  type="button"
-                  :disabled="dissolveCountdown > 0"
-                  class="px-4 py-4 bg-accent/10 text-accent rounded-2xl font-bold text-xs hover:bg-accent/20 transition-all whitespace-nowrap disabled:opacity-50"
-                  @click="sendDissolveCode"
-                >
-                  {{ dissolveCountdown > 0 ? `${dissolveCountdown}s` : t('teamDetail.getCodeBtn') }}
-                </button>
-              </div>
+              <Button
+                variant="secondary"
+                size="lg"
+                :disabled="dissolveCountdown > 0"
+                class="!rounded-2xl shrink-0"
+                @click="sendDissolveCode"
+              >
+                {{ dissolveCountdown > 0 ? `${dissolveCountdown}s` : t('teamDetail.getCodeBtn') }}
+              </Button>
             </div>
           </div>
-
-          <button
-            type="button"
-            :disabled="isDissolving || dissolveCode.length !== 6"
-            class="w-full py-4 bg-rose-600 text-white rounded-2xl font-bold shadow-xl shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            @click="confirmDeleteTeam"
-          >
-            <Trash2 class="w-4 h-4" />
-            {{ isDissolving ? t('teamDetail.dissolving') : t('teamDetail.confirmDissolveBtn') }}
-          </button>
         </div>
-      </div>
-    </div>
 
-    <!-- Member Workload Portrait Drawer -->
-    <div
-      v-if="isMemberPanelOpen"
-      class="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-[2px]"
-      @click.self="closeMemberPanel"
+        <Button
+          variant="danger"
+          size="lg"
+          full-width
+          :disabled="isDissolving || dissolveCode.length !== 6"
+          :loading="isDissolving"
+          :icon="Trash2"
+          @click="confirmDeleteTeam"
+        >
+          {{ t('teamDetail.confirmDissolveBtn') }}
+        </Button>
+      </div>
+    </Modal>
+
+    <!-- Member Workload Portrait Modal -->
+    <Modal
+      :show="isMemberPanelOpen"
+      size="md"
+      glass-card
+      @close="closeMemberPanel"
     >
-      <aside
-        class="member-drawer flex flex-col h-full bg-slate-900 border-l border-white/10 shadow-2xl relative"
+      <template #header>
+        <div class="flex items-center gap-3 min-w-0">
+          <UserAvatar v-if="selectedMember" :user="selectedMember.user" size="md" />
+          <div class="min-w-0 text-left">
+            <p class="text-sm font-black truncate text-[var(--text-primary)]">
+              {{ selectedMember?.user.name || memberInsight?.member.user.name || '未命名成员' }}
+            </p>
+            <p class="text-[10px] font-bold text-slate-400 truncate">
+              {{ selectedMember?.user.email || memberInsight?.member.user.email || '成员画像' }}
+            </p>
+          </div>
+        </div>
+      </template>
+
+      <div
+        v-if="isMemberInsightLoading"
+        class="py-12 flex flex-col items-center justify-center text-slate-400"
       >
         <div
-          class="drawer-head flex items-center justify-between p-4 border-b"
-          style="border-color: var(--border-base)"
+          class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin mb-3"
+        ></div>
+        <p class="text-xs font-black">正在生成成员画像</p>
+      </div>
+
+      <div
+        v-else-if="memberInsight"
+        class="space-y-4 max-h-[60vh] overflow-y-auto pr-1"
+      >
+        <section
+          class="p-3 rounded-xl border animate-in fade-in duration-300"
+          style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
         >
-          <div class="flex items-center gap-3 min-w-0">
-            <UserAvatar v-if="selectedMember" :user="selectedMember.user" size="md" />
-            <div class="min-w-0 text-left">
-              <p class="text-sm font-black truncate" style="color: var(--text-primary)">
-                {{ selectedMember?.user.name || memberInsight?.member.user.name || '未命名成员' }}
-              </p>
-              <p class="text-[10px] font-bold text-slate-400 truncate">
-                {{ selectedMember?.user.email || memberInsight?.member.user.email || '成员画像' }}
-              </p>
+          <div class="flex justify-between items-center">
+            <div class="text-left">
+              <p class="text-[10px] font-black text-slate-400 leading-none">容量分</p>
+              <strong
+                class="text-3xl font-black mt-1 block leading-none text-[var(--text-primary)]"
+              >
+                {{ memberInsight.stats.capacityScore }}
+              </strong>
+            </div>
+            <span
+              class="px-2.5 py-1 rounded-md text-[10px] font-black"
+              :class="capacityClass(memberInsight.stats.capacityScore)"
+            >
+              {{ selectedMemberCapacity?.focus || '工作节奏' }}
+            </span>
+          </div>
+          <div class="grid grid-cols-4 gap-2 mt-3 text-center">
+            <div
+              class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
+              style="border-color: var(--border-base)"
+            >
+              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                >项目</span
+              >
+              <strong
+                class="block text-base font-black mt-1 leading-none text-[var(--text-primary)]"
+                >{{ memberInsight.stats.projects }}</strong
+              >
+            </div>
+            <div
+              class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
+              style="border-color: var(--border-base)"
+            >
+              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                >进行</span
+              >
+              <strong
+                class="block text-base font-black mt-1 leading-none text-[var(--text-primary)]"
+                >{{ memberInsight.stats.activeTasks }}</strong
+              >
+            </div>
+            <div
+              class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
+              style="border-color: var(--border-base)"
+            >
+              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                >逾期</span
+              >
+              <strong
+                class="block text-base font-black mt-1 leading-none text-[var(--text-primary)]"
+                >{{ memberInsight.stats.overdueTasks }}</strong
+              >
+            </div>
+            <div
+              class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
+              style="border-color: var(--border-base)"
+            >
+              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                >完成率</span
+              >
+              <strong
+                class="block text-base font-black mt-1 leading-none text-[var(--text-primary)]"
+                >{{ memberInsight.stats.completionRate }}%</strong
+              >
             </div>
           </div>
-          <button type="button" class="drawer-close" @click="closeMemberPanel">
-            <X class="w-4 h-4" />
-          </button>
-        </div>
+        </section>
 
-        <div
-          v-if="isMemberInsightLoading"
-          class="flex-1 flex flex-col items-center justify-center text-slate-400 p-6"
+        <section
+          class="p-3 rounded-xl border text-left"
+          style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
         >
           <div
-            class="w-9 h-9 border-4 border-accent border-t-transparent rounded-full animate-spin mb-3"
-          ></div>
-          <p class="text-xs font-black">正在生成成员画像</p>
-        </div>
-
-        <div
-          v-else-if="memberInsight"
-          class="drawer-body flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4"
-        >
-          <section
-            class="drawer-section p-3 rounded-xl border animate-in fade-in duration-300"
-            style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
+            class="flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200"
           >
-            <div class="drawer-score flex justify-between items-center">
-              <div class="text-left">
-                <p class="text-[10px] font-black text-slate-400 leading-none">容量分</p>
-                <strong
-                  class="text-3xl font-black mt-1 block leading-none"
-                  style="color: var(--text-primary)"
-                >
-                  {{ memberInsight.stats.capacityScore }}
-                </strong>
-              </div>
+            <ClipboardCheck class="w-4 h-4 text-amber-500" />
+            <span>建议动作</span>
+          </div>
+          <div
+            v-if="memberInsight.recommendations.length === 0"
+            class="text-center py-4 text-slate-400 text-xs italic"
+          >
+            无特别建议动作
+          </div>
+          <div v-else class="space-y-2">
+            <button
+              v-for="item in memberInsight.recommendations"
+              :key="item.id"
+              type="button"
+              class="hover:bg-accent/5 p-2 bg-white/5 rounded-lg border flex items-center gap-2 w-full text-left cursor-pointer"
+              style="border-color: var(--border-base)"
+              @click="navigateInsight(item.targetRoute)"
+            >
               <span
-                class="px-2.5 py-1 rounded-md text-[10px] font-black"
-                :class="capacityClass(memberInsight.stats.capacityScore)"
+                class="px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0"
+                :class="severityClass(item.severity)"
               >
-                {{ selectedMemberCapacity?.focus || '工作节奏' }}
+                {{ severityLabel(item.severity) }}
               </span>
-            </div>
-            <div class="drawer-stat-grid grid grid-cols-4 gap-2 mt-3 text-center">
-              <div
-                class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
-                style="border-color: var(--border-base)"
-              >
-                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                  >项目</span
-                >
-                <strong
-                  class="block text-base font-black mt-1 leading-none"
-                  style="color: var(--text-primary)"
-                  >{{ memberInsight.stats.projects }}</strong
-                >
-              </div>
-              <div
-                class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
-                style="border-color: var(--border-base)"
-              >
-                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                  >进行</span
-                >
-                <strong
-                  class="block text-base font-black mt-1 leading-none"
-                  style="color: var(--text-primary)"
-                  >{{ memberInsight.stats.activeTasks }}</strong
-                >
-              </div>
-              <div
-                class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
-                style="border-color: var(--border-base)"
-              >
-                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                  >逾期</span
-                >
-                <strong
-                  class="block text-base font-black mt-1 leading-none"
-                  style="color: var(--text-primary)"
-                  >{{ memberInsight.stats.overdueTasks }}</strong
-                >
-              </div>
-              <div
-                class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
-                style="border-color: var(--border-base)"
-              >
-                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                  >完成率</span
-                >
-                <strong
-                  class="block text-base font-black mt-1 leading-none"
-                  style="color: var(--text-primary)"
-                  >{{ memberInsight.stats.completionRate }}%</strong
-                >
-              </div>
-            </div>
-          </section>
-
-          <section
-            class="drawer-section p-3 rounded-xl border text-left"
-            style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
-          >
-            <div
-              class="drawer-title flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200"
-            >
-              <ClipboardCheck class="w-4 h-4 text-amber-500" />
-              <span>建议动作</span>
-            </div>
-            <div
-              v-if="memberInsight.recommendations.length === 0"
-              class="text-center py-4 text-slate-400 text-xs italic"
-            >
-              无特别建议动作
-            </div>
-            <div v-else class="space-y-2">
-              <button
-                v-for="item in memberInsight.recommendations"
-                :key="item.id"
-                type="button"
-                class="drawer-action hover:bg-accent/5 p-2 bg-white/5 rounded-lg border flex items-center gap-2 w-full text-left cursor-pointer"
-                style="border-color: var(--border-base)"
-                @click="navigateInsight(item.targetRoute)"
-              >
+              <span class="min-w-0 flex-1">
                 <span
-                  class="px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0"
-                  :class="severityClass(item.severity)"
+                  class="block text-[11px] font-black truncate text-[var(--text-primary)]"
+                  >{{ item.title }}</span
                 >
-                  {{ severityLabel(item.severity) }}
-                </span>
-                <span class="min-w-0 flex-1">
-                  <span
-                    class="block text-[11px] font-black truncate"
-                    style="color: var(--text-primary)"
-                    >{{ item.title }}</span
-                  >
-                  <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">{{
-                    item.description
-                  }}</span>
-                </span>
-                <ArrowRight class="w-3.5 h-3.5 text-slate-300 shrink-0" />
-              </button>
-            </div>
-          </section>
+                <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">{{
+                  item.description
+                }}</span>
+              </span>
+              <ArrowRight class="w-3.5 h-3.5 text-slate-300 shrink-0" />
+            </button>
+          </div>
+        </section>
 
-          <section
-            class="drawer-section p-3 rounded-xl border text-left"
-            style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
-          >
-            <div
-              class="drawer-title flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200"
-            >
-              <Briefcase class="w-4 h-4 text-accent" />
-              <span>{{ drawerTaskTitle }}</span>
-            </div>
-            <div
-              v-if="drawerTasks.length === 0"
-              class="text-center py-4 text-slate-400 text-xs italic"
-            >
-              暂无任务记录
-            </div>
-            <div v-else class="space-y-2">
-              <button
-                v-for="task in drawerTasks"
-                :key="task.id"
-                type="button"
-                class="drawer-task hover:bg-accent/5 p-2 bg-white/5 rounded-lg border flex items-center justify-between w-full text-left cursor-pointer"
-                style="border-color: var(--border-base)"
-                @click="navigateInsight(task.targetRoute)"
-              >
-                <span class="min-w-0 flex-1">
-                  <span
-                    class="block text-[11px] font-black truncate"
-                    style="color: var(--text-primary)"
-                    >{{ task.title }}</span
-                  >
-                  <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">
-                    {{ task.project?.title || '独立任务' }} · {{ taskStatusLabel(task.status) }} ·
-                    {{ formatDate(task.dueDate || task.updatedAt) }}
-                  </span>
-                </span>
-                <span
-                  class="px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0 ml-2"
-                  :class="priorityClass(task.priority)"
-                >
-                  {{ task.priority || 'NONE' }}
-                </span>
-              </button>
-            </div>
-          </section>
-
-          <section
-            class="drawer-section p-3 rounded-xl border text-left"
-            style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
-          >
-            <div
-              class="drawer-title flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200"
-            >
-              <BarChart3 class="w-4 h-4 text-emerald-500" />
-              <span>参与项目</span>
-            </div>
-            <div
-              v-if="memberInsight.projects.length === 0"
-              class="text-center py-4 text-slate-400 text-xs italic"
-            >
-              暂未参与项目
-            </div>
-            <div v-else class="space-y-2">
-              <button
-                v-for="project in memberInsight.projects.slice(0, 6)"
-                :key="project.id"
-                type="button"
-                class="drawer-project hover:bg-accent/5 p-2 bg-white/5 rounded-lg border flex items-center justify-between w-full text-left cursor-pointer"
-                style="border-color: var(--border-base)"
-                @click="navigateInsight(project.targetRoute)"
-              >
-                <span class="min-w-0 flex-1">
-                  <span
-                    class="block text-[11px] font-black truncate"
-                    style="color: var(--text-primary)"
-                    >{{ project.title }}</span
-                  >
-                  <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">
-                    {{ roleLabel(project.role) }} · {{ project.activeTasks }} 进行 ·
-                    {{ project.overdueTasks }} 逾期
-                  </span>
-                </span>
-                <span class="w-14 shrink-0 ml-2">
-                  <span class="block text-right text-[9px] font-black text-slate-400"
-                    >{{ project.progress }}%</span
-                  >
-                  <span
-                    class="block h-1 mt-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"
-                  >
-                    <span
-                      class="block h-full rounded-full bg-accent"
-                      :style="{ width: progressWidth(project.progress) }"
-                    ></span>
-                  </span>
-                </span>
-              </button>
-            </div>
-          </section>
-        </div>
-
-        <div
-          v-if="memberInsight"
-          class="drawer-foot p-4 border-t grid grid-cols-2 gap-3 shrink-0"
-          style="border-color: var(--border-base)"
+        <section
+          class="p-3 rounded-xl border text-left"
+          style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
         >
-          <button
-            type="button"
-            class="drawer-secondary cursor-pointer"
+          <div
+            class="flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200"
+          >
+            <Briefcase class="w-4 h-4 text-accent" />
+            <span>{{ drawerTaskTitle }}</span>
+          </div>
+          <div
+            v-if="drawerTasks.length === 0"
+            class="text-center py-4 text-slate-400 text-xs italic"
+          >
+            暂无任务记录
+          </div>
+          <div v-else class="space-y-2">
+            <button
+              v-for="task in drawerTasks"
+              :key="task.id"
+              type="button"
+              class="hover:bg-accent/5 p-2 bg-white/5 rounded-lg border flex items-center justify-between w-full text-left cursor-pointer"
+              style="border-color: var(--border-base)"
+              @click="navigateInsight(task.targetRoute)"
+            >
+              <span class="min-w-0 flex-1">
+                <span
+                  class="block text-[11px] font-black truncate text-[var(--text-primary)]"
+                  >{{ task.title }}</span
+                >
+                <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">
+                  {{ task.project?.title || '独立任务' }} · {{ taskStatusLabel(task.status) }} ·
+                  {{ formatDate(task.dueDate || task.updatedAt) }}
+                </span>
+              </span>
+              <span
+                class="px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0 ml-2"
+                :class="priorityClass(task.priority)"
+              >
+                {{ task.priority || 'NONE' }}
+              </span>
+            </button>
+          </div>
+        </section>
+
+        <section
+          class="p-3 rounded-xl border text-left"
+          style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
+        >
+          <div
+            class="flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200"
+          >
+            <BarChart3 class="w-4 h-4 text-emerald-500" />
+            <span>参与项目</span>
+          </div>
+          <div
+            v-if="memberInsight.projects.length === 0"
+            class="text-center py-4 text-slate-400 text-xs italic"
+          >
+            暂未参与项目
+          </div>
+          <div v-else class="space-y-2">
+            <button
+              v-for="project in memberInsight.projects.slice(0, 6)"
+              :key="project.id"
+              type="button"
+              class="hover:bg-accent/5 p-2 bg-white/5 rounded-lg border flex items-center justify-between w-full text-left cursor-pointer"
+              style="border-color: var(--border-base)"
+              @click="navigateInsight(project.targetRoute)"
+            >
+              <span class="min-w-0 flex-1">
+                <span
+                  class="block text-[11px] font-black truncate text-[var(--text-primary)]"
+                  >{{ project.title }}</span
+                >
+                <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">
+                  {{ roleLabel(project.role) }} · {{ project.activeTasks }} 进行 ·
+                  {{ project.overdueTasks }} 逾期
+                </span>
+              </span>
+              <span class="w-14 shrink-0 ml-2">
+                <span class="block text-right text-[9px] font-black text-slate-400"
+                  >{{ project.progress }}%</span
+                >
+                <span
+                  class="block h-1 mt-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"
+                >
+                  <span
+                    class="block h-full rounded-full bg-accent"
+                    :style="{ width: progressWidth(project.progress) }"
+                  ></span>
+                </span>
+              </span>
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <template #footer v-if="memberInsight">
+        <div class="flex items-center gap-3 w-full">
+          <Button
+            variant="secondary"
+            class="flex-1"
+            size="md"
             @click="openUserProfile(memberInsight.member.userId)"
           >
             查看资料
-          </button>
-          <button
-            type="button"
-            class="drawer-primary cursor-pointer"
+          </Button>
+          <Button
+            variant="primary"
+            class="flex-1"
+            size="md"
             @click="handleChatWithUser(memberInsight.member.user)"
           >
             发起私聊
-          </button>
+          </Button>
         </div>
-      </aside>
-    </div>
+      </template>
+    </Modal>
 
     <UserProfileDialog
       v-model="isProfileDialogOpen"
@@ -2059,156 +2016,7 @@ onUnmounted(() => {
   font-weight: 800;
 }
 
-/* Member Portrait Side Drawer Styles */
-.member-drawer {
-  width: min(460px, 100vw);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  border-radius: 0;
-  border-top: 0;
-  border-right: 0;
-  border-bottom: 0;
-  box-shadow: -24px 0 60px rgb(15 23 42 / 0.22);
-  background: var(--bg-card);
-  animation: slide-in 0.3s ease-out;
-}
 
-@keyframes slide-in {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-.drawer-head {
-  min-height: 62px;
-  padding: 16px;
-  border-bottom: 1px solid var(--border-base);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.drawer-close {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: 0;
-  background: rgb(148 163 184 / 0.12);
-  color: var(--text-secondary);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s;
-}
-
-.drawer-close:hover {
-  background: rgb(148 163 184 / 0.2);
-}
-
-.drawer-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.drawer-section {
-  border: 1px solid var(--border-base);
-  border-radius: 12px;
-  padding: 16px;
-  background: rgb(148 163 184 / 0.04);
-}
-
-.drawer-score {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.drawer-stat-grid {
-  margin-top: 12px;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.drawer-stat-grid div {
-  border-radius: 8px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-base);
-  padding: 8px;
-}
-
-.drawer-stat-grid span {
-  display: block;
-  color: var(--text-muted);
-  font-size: 9px;
-  font-weight: 900;
-}
-
-.drawer-stat-grid strong {
-  display: block;
-  margin-top: 2px;
-  color: var(--text-primary);
-  font-size: 16px;
-  line-height: 1;
-}
-
-.drawer-title {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-bottom: 12px;
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.drawer-foot {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 16px;
-  background: var(--bg-card);
-}
-
-.drawer-primary,
-.drawer-secondary {
-  height: 40px;
-  border-radius: 8px;
-  border: 0;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.drawer-primary {
-  background: var(--accent);
-  color: white;
-}
-
-.drawer-primary:hover {
-  opacity: 0.9;
-}
-
-.drawer-secondary {
-  background: rgb(148 163 184 / 0.14);
-  color: var(--text-primary);
-}
-
-.drawer-secondary:hover {
-  background: rgb(148 163 184 / 0.2);
-}
 
 .role-select :deep(.el-select__wrapper) {
   min-height: 28px;

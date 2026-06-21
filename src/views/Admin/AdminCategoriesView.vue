@@ -421,17 +421,17 @@ onMounted(() => {
         subtitle="全局业务分类、显示权重与 Emoji 标识设计"
         variant="card"
       >
-        <template #center>
-          <div class="flex flex-wrap items-center gap-1.5 ml-2">
-            <Badge variant="info"> 当前类目数: {{ filteredCategories.length }} </Badge>
-          </div>
+        <template #title-badge>
+          <Badge variant="info" class="ml-1.5"> 当前类目数: {{ filteredCategories.length }} </Badge>
         </template>
 
-        <!-- Compact Search Box -->
-        <label class="search-box !min-h-0 !h-8 w-44 sm:w-60 shrink-0">
-          <Search />
-          <input v-model="searchQuery" type="search" placeholder="搜索当前分类..." />
-        </label>
+        <template #center>
+          <!-- Compact Search Box (Centered) -->
+          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+            <Search />
+            <input v-model="searchQuery" type="search" placeholder="搜索当前分类..." />
+          </label>
+        </template>
 
         <!-- Action Buttons -->
         <Button variant="primary" size="sm" :icon="Plus" @click="openModal()"> 新建分类 </Button>
@@ -592,7 +592,7 @@ onMounted(() => {
                       </td>
                       <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-right">
                         <div
-                          class="flex items-center justify-end gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                          class="flex items-center justify-end gap-1.5 transition-opacity"
                         >
                           <button
                             type="button"
@@ -690,7 +690,7 @@ onMounted(() => {
     </main>
 
     <!-- Category Modal -->
-    <Modal :show="showModal" size="md" @close="showModal = false">
+    <Modal :show="showModal" size="md" glass-card @close="showModal = false">
       <template #header>
         <div>
           <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
@@ -787,30 +787,5 @@ onMounted(() => {
 
 .admin-categories-page {
   background: transparent !important;
-}
-
-.search-box {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-base);
-  border-radius: 12px;
-  padding: 0 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.search-box svg {
-  width: 16px;
-  height: 16px;
-  color: var(--text-secondary);
-}
-
-.search-box input {
-  background: transparent;
-  border: none;
-  outline: none;
-  width: 100%;
-  color: var(--text-primary);
-  font-size: 0.875rem;
 }
 </style>

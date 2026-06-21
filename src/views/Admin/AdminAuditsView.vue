@@ -680,6 +680,18 @@ onBeforeUnmount(() => {
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
       <PageHeader :title="pageConfig.title" subtitle="内容审核" variant="card">
+        <template #center>
+          <!-- Compact Search Box (Centered) -->
+          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+            <Search />
+            <input
+              v-model="searchQuery"
+              type="search"
+              placeholder="搜索当前队列..."
+            />
+          </label>
+        </template>
+
         <UiButton variant="secondary" size="sm" :icon="FolderCog" @click="openCategoryManager">
           分类管理
         </UiButton>
@@ -749,15 +761,6 @@ onBeforeUnmount(() => {
               :options="statusFilterOptions"
               variant="solid"
               @change="(val: any) => setStatusFilter(val)"
-            />
-          </div>
-          <div class="flex flex-1 items-center justify-center max-w-md mx-auto w-full">
-            <UiInput
-              v-model="searchQuery"
-              :icon="Search"
-              placeholder="搜索标题、作者、标签、分类"
-              :glass="false"
-              class="w-full"
             />
           </div>
           <div class="flex items-center gap-2">

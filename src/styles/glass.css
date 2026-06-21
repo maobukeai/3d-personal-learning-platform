@@ -275,26 +275,22 @@ html.theme-glass .el-popover {
   box-shadow: var(--glass-shadow) !important;
 }
 
-/* Fallback for workspace switcher and user dropdown when backdrop-filter is disabled/not supported */
-html.theme-glass .workspace-switcher-popper,
-html.theme-glass .user-dropdown-popper {
+/* Reusable glass card style */
+html.theme-glass .glass-card {
   background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
   border: var(--glass-border) !important;
   box-shadow: var(--glass-shadow) !important;
-  border-radius: 1rem !important;
 }
 
 @supports (-webkit-backdrop-filter: blur(1px)) {
-  html.theme-glass .workspace-switcher-popper,
-  html.theme-glass .user-dropdown-popper {
+  html.theme-glass .glass-card {
     background: var(--glass-bg) !important;
     -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
   }
 }
 
 @supports (backdrop-filter: blur(1px)) {
-  html.theme-glass .workspace-switcher-popper,
-  html.theme-glass .user-dropdown-popper {
+  html.theme-glass .glass-card {
     background: var(--glass-bg) !important;
     backdrop-filter: blur(10px) saturate(145%) !important;
   }
@@ -333,7 +329,6 @@ html.theme-glass .glass-dialog {
 }
 
 /* Glass element styles - Tier 3: Content Cards & Background Blocks (High Performance: Filter Disabled) */
-html.theme-glass .glass-card,
 html.theme-glass .el-card,
 .theme-glass .bg-white,
 .theme-glass .bg-white\/50,
@@ -369,7 +364,7 @@ html.theme-glass .el-card,
 .theme-glass .dark\:bg-neutral-800,
 .theme-glass .dark\:bg-neutral-900,
 .theme-glass .dark\:bg-black,
-.theme-glass [style*='background-color: var(--bg-card)'] {
+.theme-glass [style*='background-color'][style*='--bg-card)'] {
   background: var(--glass-bg) !important;
   border: var(--glass-border) !important;
   box-shadow: var(--glass-shadow) !important;
@@ -385,8 +380,7 @@ html.theme-glass .el-picker-panel,
 html.theme-glass .el-popper .el-dropdown-menu,
 html.theme-glass .el-popper .el-select-dropdown,
 html.theme-glass .el-popper .el-picker-panel,
-html.theme-glass .workspace-switcher-popper .el-dropdown-menu,
-html.theme-glass .user-dropdown-popper .el-dropdown-menu {
+html.theme-glass .glass-card .el-dropdown-menu {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
@@ -650,7 +644,6 @@ html.dark.theme-glass .hover\:shadow-2xl:hover {
   html.theme-glass .backdrop-blur-xl,
   html.theme-glass .backdrop-blur-2xl,
   html.theme-glass .backdrop-blur-3xl,
-  .glass-card,
   .glass-header,
   .glass-sidebar,
   .glass-dialog,
@@ -759,7 +752,7 @@ html.dark.theme-glass .hover\:shadow-2xl:hover {
   -webkit-backdrop-filter: blur(16px) !important;
   border: 1px solid rgba(255, 255, 255, 0.5) !important;
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04) !important;
-  border-radius: var(--radius-lg) !important;
+  border-radius: 20px !important;
   transition:
     transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
     box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
@@ -808,6 +801,26 @@ html body .dark .subscription-btn {
 
 html body .dark .subscription-btn:hover {
   background-color: #e0661b !important;
+}
+
+/* Fast fade transition for poppers to avoid lag/stutter caused by backdrop-filter scaling */
+.fast-fade-enter-active,
+.fast-fade-leave-active {
+  transition: opacity 0.08s cubic-bezier(0, 0, 0.2, 1) !important;
+}
+.fast-fade-enter-from,
+.fast-fade-leave-to {
+  opacity: 0 !important;
+}
+
+/* Optimize default zoom-in transition for glass poppers to avoid scaling stutter with backdrop-filter */
+.el-popper.glass-card.el-zoom-in-top-enter-active,
+.el-popper.glass-card.el-zoom-in-top-leave-active {
+  transition: opacity 0.08s cubic-bezier(0, 0, 0.2, 1) !important;
+}
+.el-popper.glass-card.el-zoom-in-top-enter-from,
+.el-popper.glass-card.el-zoom-in-top-leave-to {
+  opacity: 0 !important;
 }
 
 /* GPU Hardware Acceleration for Glassmorphism & Transition Elements */

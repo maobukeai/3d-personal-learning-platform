@@ -1080,7 +1080,7 @@ void consolidatedCards.value;
         "
         variant="card"
       >
-        <template #center>
+        <template #title-badge>
           <div v-if="userOverview" class="flex flex-wrap items-center gap-1.5 ml-2">
             <Badge variant="info">封禁: {{ userOverview.totals.banned }}</Badge>
             <Badge variant="info">管理员: {{ userOverview.totals.admins }}</Badge>
@@ -1088,11 +1088,13 @@ void consolidatedCards.value;
           </div>
         </template>
 
-        <!-- Compact Search Box -->
-        <label class="search-box !min-h-0 !h-8 w-44 sm:w-60 shrink-0">
-          <Search />
-          <input v-model="searchQuery" placeholder="搜索姓名、邮箱..." type="search" />
-        </label>
+        <template #center>
+          <!-- Compact Search Box (Centered) -->
+          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+            <Search />
+            <input v-model="searchQuery" placeholder="搜索姓名、邮箱..." type="search" />
+          </label>
+        </template>
 
         <!-- Reusable Buttons -->
         <Button
@@ -1723,34 +1725,7 @@ void consolidatedCards.value;
   gap: 5px;
 }
 
-.search-box {
-  width: min(320px, 28vw);
-  height: 34px;
-  padding: 0 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #64748b;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-}
 
-.search-box :deep(svg) {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  color: var(--text-muted);
-}
-
-.search-box input {
-  width: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #0f172a;
-  font-size: 11px;
-}
 
 .batch-bar {
   margin: 10px 0 0;

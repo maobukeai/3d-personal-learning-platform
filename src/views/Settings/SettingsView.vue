@@ -253,13 +253,14 @@ watch(filteredSections, (next) => {
       </div>
 
       <div class="rail-search-wrap">
-        <Input
-          v-model="searchTerm"
-          type="search"
-          :placeholder="label('搜索设置项', 'Search settings')"
-          :icon="Search"
-          clearable
-        />
+        <label class="search-box !min-h-0 !h-8 w-full shrink-0">
+          <Search />
+          <input
+            v-model="searchTerm"
+            type="text"
+            :placeholder="label('搜索设置项', 'Search settings')"
+          />
+        </label>
       </div>
 
       <div class="rail-heading">

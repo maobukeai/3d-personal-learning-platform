@@ -22,6 +22,7 @@ import {
   Flame,
   ArrowRight,
   RefreshCw,
+  Wand2,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -30,6 +31,10 @@ import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Modal from '@/components/ui/Modal.vue';
+import { getApiErrorMessage } from '@/utils/error';
+import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
+import { parseMarkdownToPlanJson } from '@/utils/planParser';
+
 
 interface RoadmapStep {
   id?: string;
@@ -68,6 +73,130 @@ const editForm = ref({
 });
 
 const searchQuery = ref('');
+
+const aiPrompt = ref('');
+const isAiGenerating = ref(false);
+
+const handleAiGenerate = async () => {
+  if (!aiPrompt.value.trim()) {
+    ElMessage.warning('请输入您的教学目标或路线设想');
+    return;
+  }
+
+  // If there are existing edits, warn the user
+  if (editForm.value.title.trim() || editForm.value.steps.some((s) => s.title.trim())) {
+    try {
+      await ElMessageBox.confirm('AI 生成路线将会覆盖当前已填写的内容，确定要继续吗？', '确认提示', {
+        confirmButtonText: '确定覆盖',
+        cancelButtonText: '取消',
+        type: 'warning',
+      });
+    } catch {
+      return;
+    }
+  }
+
+  isAiGenerating.value = true;
+
+  // Clear fields beforehand to show typing effect
+  editForm.value.title = '';
+  editForm.value.description = '';
+  editForm.value.steps = [];
+
+  let currentText = '';
+  let lastParseTime = 0;
+
+  try {
+    const headers = createJsonHeaders();
+    const response = await fetch('/api/admin/roadmaps/ai-generate', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        prompt: aiPrompt.value.trim(),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await readFetchErrorMessage(response, 'AI 规划失败'));
+    }
+
+    if (!response.body) {
+      throw new Error('未获得数据流响应');
+    }
+
+    const reader = response.body.getReader();
+
+    await parseSSEStream(
+      reader,
+      (payload) => {
+        if (payload.error) {
+          throw new Error(payload.error);
+        }
+        if (payload.text) {
+          currentText += payload.text;
+
+          // Throttled real-time parse: update editForm every 150ms while streaming
+          const now = Date.now();
+          if (now - lastParseTime > 150) {
+            lastParseTime = now;
+            try {
+              const parsed = parseMarkdownToPlanJson(currentText);
+              if (parsed) {
+                editForm.value.title = parsed.title !== '未命名导入项目' ? parsed.title : '';
+                editForm.value.description = parsed.description || '';
+                if (parsed.roadmap?.steps) {
+                  editForm.value.steps = parsed.roadmap.steps.map((s: any, idx: number) => ({
+                    title: s.title || '',
+                    description: s.description || '',
+                    subtasks: s.subtasks ? s.subtasks.map((sub: any) => sub.text) : [],
+                    order: idx + 1,
+                  }));
+                }
+              }
+            } catch (e) {
+              // Ignore partial parsing errors
+            }
+          }
+        }
+      },
+      () => {
+        // Done
+      },
+      (err) => {
+        throw err;
+      }
+    );
+
+    // Final authoritative parse
+    try {
+      const finalParsed = parseMarkdownToPlanJson(currentText);
+      if (finalParsed) {
+        editForm.value.title = finalParsed.title !== '未命名导入项目' ? finalParsed.title : '';
+        editForm.value.description = finalParsed.description || '';
+        if (finalParsed.roadmap?.steps) {
+          editForm.value.steps = finalParsed.roadmap.steps.map((s: any, idx: number) => ({
+            title: s.title || '',
+            description: s.description || '',
+            subtasks: finalParsed.roadmap.steps[idx].subtasks
+              ? finalParsed.roadmap.steps[idx].subtasks.map((sub: any) => sub.text)
+              : [],
+            order: idx + 1,
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn('Final parse error:', e);
+    }
+
+    ElMessage.success('AI 已成功为您规划官方路线，请核对并继续编辑！');
+    aiPrompt.value = '';
+  } catch (error: unknown) {
+    console.error('AI generate roadmap error:', error);
+    ElMessage.error(getApiErrorMessage(error, 'AI 生成失败'));
+  } finally {
+    isAiGenerating.value = false;
+  }
+};
 
 const filteredRoadmaps = computed(() => {
   if (!searchQuery.value) return roadmaps.value;
@@ -148,6 +277,7 @@ const fetchRoadmaps = async () => {
 
 const openEditModal = (roadmap: Roadmap | null = null) => {
   currentRoadmap.value = roadmap;
+  aiPrompt.value = '';
   if (roadmap) {
     editForm.value = {
       title: roadmap.title || '',
@@ -180,28 +310,7 @@ const openEditModal = (roadmap: Roadmap | null = null) => {
     editForm.value = {
       title: '',
       description: '',
-      steps: [
-        {
-          title: t('admin.phase_1_core_basic'),
-          description: t('admin.introduce_basic_tool_interface'),
-          subtasks: [
-            t('admin.build_basic_scene_viewport'),
-            t('admin.understand_common_geometric_models'),
-            t('admin.proficient_in_modeling_using'),
-          ],
-          order: 1,
-        },
-        {
-          title: t('admin.stage_2_in_depth'),
-          description: t('admin.introduce_advanced_editing_instructions'),
-          subtasks: [
-            t('admin.use_the_subdivision_modifier'),
-            t('admin.complete_the_uv_unfolding'),
-            t('admin.debug_hdri_ambient_rendering'),
-          ],
-          order: 2,
-        },
-      ],
+      steps: [],
     };
   }
   showEditModal.value = true;
@@ -333,28 +442,29 @@ onMounted(() => {
     class="admin-roadmaps-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
-      <!-- 官方学习路线管理 (PageHeader card variant) -->
       <PageHeader
         title="官方学习路线管理"
-        subtitle="在这里定义、更新和维护官方推出的 3D 节点学习图谱"
+        subtitle="定义和维护官方 3D 学习图谱"
         variant="card"
       >
-        <template #center>
-          <div class="flex flex-wrap items-center gap-1.5 ml-2">
+        <template #title-badge>
+          <div class="flex items-center gap-1.5 ml-2">
             <Badge variant="info"> 官方路线: {{ totalRoadmapsCount }} </Badge>
             <Badge variant="info"> 核心步骤总数: {{ totalStepsCount }} </Badge>
           </div>
         </template>
 
-        <!-- Compact Search Box -->
-        <label class="search-box !min-h-0 !h-8 w-44 sm:w-60 shrink-0">
-          <Search />
-          <input
-            v-model="searchQuery"
-            type="search"
-            :placeholder="$t('admin.find_official_routes_quickly')"
-          />
-        </label>
+        <template #center>
+          <!-- Compact Search Box (Centered) -->
+          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+            <Search />
+            <input
+              v-model="searchQuery"
+              type="search"
+              :placeholder="$t('admin.find_official_routes_quickly')"
+            />
+          </label>
+        </template>
 
         <!-- Action Buttons -->
         <Button variant="primary" size="sm" :icon="Plus" @click="openEditModal()">
@@ -466,17 +576,17 @@ onMounted(() => {
           <!-- Roadmaps Grid List -->
           <div
             v-else
-            class="max-w-none grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6"
+            class="max-w-none grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4"
           >
             <div
               v-for="roadmap in filteredRoadmaps"
               :key="roadmap.id"
-              class="group relative rounded-3xl border flex flex-col justify-between overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5"
+              class="group relative rounded-2xl border flex flex-col justify-between overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <!-- Neon border glow effect on hover -->
               <div
-                class="absolute inset-0 border border-indigo-500/0 group-hover:border-indigo-500/20 pointer-events-none rounded-3xl transition-all duration-300"
+                class="absolute inset-0 border border-indigo-500/0 group-hover:border-indigo-500/20 pointer-events-none rounded-2xl transition-all duration-300"
               ></div>
 
               <!-- Top Gradient Accent -->
@@ -484,31 +594,31 @@ onMounted(() => {
                 class="h-1 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-400 opacity-60"
               ></div>
 
-              <div class="p-6 flex-1 flex flex-col justify-between">
+              <div class="p-4 flex-1 flex flex-col justify-between">
                 <div>
                   <!-- Header Row -->
-                  <div class="flex items-start justify-between mb-4 gap-3">
-                    <div class="flex items-center gap-3 min-w-0">
+                  <div class="flex items-start justify-between mb-3 gap-2">
+                    <div class="flex items-center gap-2.5 min-w-0">
                       <div
-                        class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 text-indigo-500 flex items-center justify-center shrink-0 border border-indigo-500/20"
+                        class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/10 to-purple-500/10 text-indigo-500 flex items-center justify-center shrink-0 border border-indigo-500/20"
                       >
-                        <Milestone class="w-5 h-5" />
+                        <Milestone class="w-4 h-4" />
                       </div>
                       <div class="min-w-0">
                         <h3
-                          class="font-bold text-md mb-0.5 truncate"
+                          class="font-bold text-sm mb-0.5 truncate"
                           style="color: var(--text-primary)"
                         >
                           {{ roadmap.title }}
                         </h3>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-1.5">
                           <span
-                            class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-slate-100 dark:bg-white/5 text-slate-400 border border-slate-200/50 dark:border-white/5"
+                            class="px-1 py-0.2 rounded text-[8px] font-extrabold bg-slate-100 dark:bg-white/5 text-slate-400 border border-slate-200/50 dark:border-white/5"
                           >
-                            {{ roadmap.steps?.length || 0 }} 个步骤节点
+                            {{ roadmap.steps?.length || 0 }} 个步骤
                           </span>
-                          <span class="text-[9px] text-slate-400 flex items-center gap-0.5">
-                            <Flame class="w-2.5 h-2.5 text-indigo-500 animate-pulse" />
+                          <span class="text-[8px] text-slate-400 flex items-center gap-0.5">
+                            <Flame class="w-2 h-2 text-indigo-500 animate-pulse" />
                             系统发布
                           </span>
                         </div>
@@ -516,29 +626,29 @@ onMounted(() => {
                     </div>
 
                     <!-- Quick Metadata Actions -->
-                    <div class="flex items-center gap-1 shrink-0">
+                    <div class="flex items-center gap-0.5 shrink-0">
                       <button
                         type="button"
-                        class="p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 transition-colors"
+                        class="p-1 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 transition-colors"
                         :title="$t('admin.edit_entire_route')"
                         @click="openEditModal(roadmap)"
                       >
-                        <Edit2 class="w-3.5 h-3.5" />
+                        <Edit2 class="w-3 h-3" />
                       </button>
                       <button
                         type="button"
-                        class="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
+                        class="p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
                         :title="$t('admin.cascading_delete_routes')"
                         @click="handleDeleteRoadmap(roadmap.id)"
                       >
-                        <Trash2 class="w-3.5 h-3.5" />
+                        <Trash2 class="w-3 h-3" />
                       </button>
                     </div>
                   </div>
 
                   <!-- Roadmap Description -->
                   <p
-                    class="text-xs text-slate-400 dark:text-slate-400 leading-relaxed mb-6 line-clamp-2"
+                    class="text-[11px] text-slate-400 dark:text-slate-400 leading-normal mb-3.5 line-clamp-2"
                   >
                     {{ roadmap.description || $t('admin.there_is_no_route') }}
                   </p>
@@ -546,31 +656,31 @@ onMounted(() => {
                   <!-- Step Outline Pipeline Visualization -->
                   <div
                     v-if="roadmap.steps && roadmap.steps.length > 0"
-                    class="space-y-3 mb-6 bg-slate-50/50 dark:bg-white/2 p-4 rounded-2xl border border-slate-200/30 dark:border-white/5"
+                    class="space-y-2 mb-4 bg-slate-50/50 dark:bg-white/2 p-3 rounded-xl border border-slate-200/30 dark:border-white/5"
                   >
                     <div
-                      class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"
+                      class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"
                     >
-                      <BookOpen class="w-3 h-3 text-indigo-500" />
+                      <BookOpen class="w-2.5 h-2.5 text-indigo-500" />
                       <span>{{ $t('admin.core_knowledge_outline_preview') }}</span>
                     </div>
 
                     <div
-                      class="relative pl-4 space-y-3 before:absolute before:left-[4px] before:top-2 before:bottom-2 before:w-[1.5px] before:bg-slate-200 dark:before:bg-white/5"
+                      class="relative pl-3.5 space-y-2 before:absolute before:left-[3px] before:top-1.5 before:bottom-1.5 before:w-[1px] before:bg-slate-200 dark:before:bg-white/5"
                     >
                       <div
                         v-for="step in roadmap.steps.slice(0, 3)"
                         :key="step.id"
-                        class="relative flex items-center gap-3 text-left"
+                        class="relative flex items-center gap-2.5 text-left"
                       >
                         <div
-                          class="absolute -left-[15px] top-1.5 w-2.5 h-2.5 rounded-full bg-indigo-500 ring-4 ring-white dark:ring-slate-900"
+                          class="absolute -left-[14px] top-1 w-2 h-2 rounded-full bg-indigo-500 ring-2 ring-white dark:ring-slate-900"
                         ></div>
                         <div class="min-w-0 flex-1">
-                          <h4 class="text-xs font-bold truncate" style="color: var(--text-primary)">
+                          <h4 class="text-[11px] font-bold truncate" style="color: var(--text-primary)">
                             {{ step.title }}
                           </h4>
-                          <p class="text-[9px] text-slate-400 truncate mt-0.5">
+                          <p class="text-[8px] text-slate-400 truncate mt-0.2">
                             {{ step.description }}
                           </p>
                         </div>
@@ -579,12 +689,12 @@ onMounted(() => {
                       <!-- Over-limit step counter indicator -->
                       <div
                         v-if="roadmap.steps.length > 3"
-                        class="pt-1 text-[10px] text-indigo-500/90 font-black flex items-center gap-1 pl-1"
+                        class="pt-0.5 text-[8px] text-indigo-500/90 font-black flex items-center gap-1 pl-0.5"
                       >
                         <span>{{
                           $t('admin.there_are_also_roadmap', { count: roadmap.steps.length - 3 })
                         }}</span>
-                        <ArrowRight class="w-3 h-3" />
+                        <ArrowRight class="w-2.5 h-2.5" />
                       </div>
                     </div>
                   </div>
@@ -592,10 +702,10 @@ onMounted(() => {
                   <!-- No steps placeholder -->
                   <div
                     v-else
-                    class="py-6 text-center bg-slate-50/50 dark:bg-white/2 rounded-2xl border border-dashed border-slate-200 dark:border-white/5 text-slate-400 mb-6 flex flex-col items-center justify-center gap-1.5"
+                    class="py-4 text-center bg-slate-50/50 dark:bg-white/2 rounded-xl border border-dashed border-slate-200 dark:border-white/5 text-slate-400 mb-4 flex flex-col items-center justify-center gap-1"
                   >
-                    <Layers class="w-5 h-5 opacity-40" />
-                    <span class="text-xs font-medium">{{
+                    <Layers class="w-4 h-4 opacity-40" />
+                    <span class="text-[10px] font-medium">{{
                       $t('admin.the_current_route_does_1')
                     }}</span>
                   </div>
@@ -603,7 +713,7 @@ onMounted(() => {
 
                 <!-- Card Footer Metadata -->
                 <div
-                  class="pt-4 border-t flex items-center justify-between text-[10px] text-slate-400"
+                  class="pt-3 border-t flex items-center justify-between text-[9px] text-slate-400"
                   style="border-color: var(--border-base)"
                 >
                   <div class="flex items-center gap-1">
@@ -633,16 +743,10 @@ onMounted(() => {
     </main>
 
     <!-- Unified Edit Modal (One-stop Roadmap & Steps Editor) -->
-    <Modal :show="showEditModal" size="xxl" padding="none" @close="showEditModal = false">
+    <Modal :show="showEditModal" size="xxl" padding="none" glass-card @close="showEditModal = false">
       <div
-        class="w-full max-w-5xl rounded-[32px] p-6 sm:p-8 shadow-2xl transition-colors duration-300 flex flex-col max-h-[90vh] overflow-hidden relative"
-        style="background-color: var(--bg-card); border: 1px solid var(--border-base)"
+        class="w-full p-6 sm:p-8 transition-colors duration-300 flex flex-col max-h-[90vh] overflow-hidden relative"
       >
-        <!-- Top Neon Stripe Accent -->
-        <div
-          class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 to-purple-500"
-        ></div>
-
         <!-- Modal Header -->
         <div
           class="flex items-center justify-between border-b pb-4 mb-6"
@@ -681,8 +785,46 @@ onMounted(() => {
 
         <!-- Split Grid Container (Scrollable) -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-y-auto pr-1 flex-1 pb-4">
-          <!-- Left Column (lg:col-span-5): Basic Information -->
+          <!-- Left Column (lg:col-span-5): Basic Information & AI Generator -->
           <div class="lg:col-span-5 space-y-5">
+            <!-- AI Generate Panel -->
+            <div
+              class="p-5 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-transparent border border-indigo-500/20 space-y-4 shadow-sm"
+            >
+              <div
+                class="text-xs font-black text-indigo-500 uppercase tracking-widest flex items-center gap-1.5"
+              >
+                <Wand2 class="w-3.5 h-3.5 text-indigo-500" :class="{ 'animate-spin': isAiGenerating }" />
+                <span>AI 智能生成路线</span>
+              </div>
+              <p class="text-[10px] text-slate-400 leading-relaxed">
+                输入您的教学目标或路线设想，AI 将自动为您规划整套学习阶段、节点及拆分任务。
+              </p>
+              <div class="space-y-2">
+                <textarea
+                  v-model="aiPrompt"
+                  rows="3"
+                  placeholder="例如：3D 角色绑定与骨骼动画从入门到精通，包含基础绑定、刷权重、IK/FK 切换和动画实战。"
+                  class="w-full px-3 py-2 rounded-xl border transition-all outline-none resize-none text-[11px] leading-relaxed"
+                  style="
+                    background-color: var(--bg-app);
+                    border-color: var(--border-base);
+                    color: var(--text-primary);
+                  "
+                ></textarea>
+                <button
+                  type="button"
+                  class="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-md shadow-indigo-500/10 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  :disabled="isAiGenerating || !aiPrompt.trim()"
+                  @click="handleAiGenerate"
+                >
+                  <RefreshCw v-if="isAiGenerating" class="w-3.5 h-3.5 animate-spin" />
+                  <Wand2 v-else class="w-3.5 h-3.5" />
+                  <span>{{ isAiGenerating ? 'AI 正在规划中...' : '开始 AI 智能规划' }}</span>
+                </button>
+              </div>
+            </div>
+
             <div
               class="p-5 rounded-2xl bg-slate-50/50 dark:bg-white/2 border border-slate-200/50 dark:border-white/5 space-y-4"
             >
@@ -793,7 +935,7 @@ onMounted(() => {
 
             <!-- Steps Scroll Container -->
             <div
-              class="flex-1 overflow-y-auto space-y-4 max-h-[42vh] pr-2 scrollbar-hide border border-dashed border-slate-200/50 dark:border-white/5 rounded-2xl p-4 bg-slate-50/20 dark:bg-white/1"
+              class="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-hide border border-dashed border-slate-200/50 dark:border-white/5 rounded-2xl p-4 bg-slate-50/20 dark:bg-white/1"
             >
               <!-- Empty Steps State -->
               <div
@@ -988,35 +1130,6 @@ onMounted(() => {
   min-height: 0;
   background: transparent;
   color: var(--text-primary);
-}
-
-.search-box {
-  width: min(320px, 28vw);
-  height: 34px;
-  padding: 0 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-muted);
-  background: var(--bg-card);
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-}
-
-.search-box :deep(svg) {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  color: var(--text-muted);
-}
-
-.search-box input {
-  width: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 11px;
 }
 
 .scrollbar-hide::-webkit-scrollbar {

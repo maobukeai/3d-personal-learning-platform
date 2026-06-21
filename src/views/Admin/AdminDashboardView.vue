@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { formatDateTime as formatDate } from '@/utils/format';
-import { computed, onMounted, ref, type Component } from 'vue';
+import { computed, onMounted, ref, watch, type Component } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   Activity,
@@ -11,6 +11,8 @@ import {
   Clock,
   CreditCard,
   Database,
+  Eye,
+  EyeOff,
   FileCheck2,
   Image as ImageIcon,
   Layers,
@@ -90,6 +92,7 @@ interface BroadcastHistoryItem {
   content: string;
   link?: string | null;
   createdAt: string;
+  isOffline?: boolean;
 }
 
 interface AdminStatsResponse {
@@ -146,6 +149,8 @@ const broadcastForm = ref({
   content: '',
   link: '',
 });
+
+
 
 const activeActivityTab = ref<'assets' | 'courses' | 'feedback'>('assets');
 const activeFeedTab = ref<'users' | 'logs'>('users');
@@ -430,6 +435,19 @@ const switchBroadcastTab = (tab: 'send' | 'history') => {
   }
 };
 
+watch(showBroadcastModal, (isOpen) => {
+  if (isOpen) {
+    broadcastTab.value = 'send';
+    broadcastForm.value = { title: '', content: '', link: '' };
+  }
+});
+
+watch(broadcastTab, (newTab) => {
+  if (newTab === 'history') {
+    fetchBroadcastHistory();
+  }
+});
+
 const handleSendBroadcast = async () => {
   if (!broadcastForm.value.title.trim() || !broadcastForm.value.content.trim()) {
     ElMessage.warning('请填写广播标题和内容');
@@ -465,6 +483,17 @@ const handleDeleteBroadcast = async (id: string) => {
     if (error !== 'cancel') {
       ElMessage.error(getApiErrorMessage(error, '撤回失败'));
     }
+  }
+};
+
+const handleToggleBroadcastOffline = async (id: string) => {
+  try {
+    const { data } = await api.post(`/api/admin/broadcasts/${id}/toggle-offline`);
+    ElMessage.success(data.message || '操作成功');
+    fetchBroadcastHistory();
+    fetchAdminStats();
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '操作失败'));
   }
 };
 
@@ -1116,6 +1145,7 @@ onMounted(fetchAdminStats);
       :show="showBroadcastModal"
       title="全站广播"
       size="md"
+      glass-card
       @close="showBroadcastModal = false"
     >
       <div class="space-y-4">
@@ -1181,12 +1211,27 @@ onMounted(fetchAdminStats);
             v-for="broadcast in broadcastHistory"
             v-else
             :key="broadcast.id"
-            class="broadcast-row flex items-start justify-between gap-3 p-3 border border-base bg-subtle/30 rounded-xl"
+            class="broadcast-row flex items-start justify-between gap-3 p-3 border border-base bg-subtle/30 rounded-xl transition-all duration-200"
+            :class="broadcast.isOffline ? 'opacity-65 bg-subtle/10' : ''"
           >
             <div class="min-w-0 flex-1">
-              <p class="truncate text-xs font-black text-[var(--text-primary)]">
-                {{ broadcast.title }}
-              </p>
+              <div class="flex items-center gap-1.5">
+                <span
+                  v-if="broadcast.isOffline"
+                  class="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-medium text-slate-500 shrink-0"
+                >
+                  已下架
+                </span>
+                <span
+                  v-else
+                  class="inline-flex items-center rounded-full bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 text-[9px] font-medium text-emerald-600 dark:text-emerald-400 shrink-0"
+                >
+                  展示中
+                </span>
+                <p class="truncate text-xs font-black text-[var(--text-primary)]">
+                  {{ broadcast.title }}
+                </p>
+              </div>
               <p class="mt-1 line-clamp-2 text-xs text-[var(--text-secondary)]">
                 {{ broadcast.content }}
               </p>
@@ -1195,14 +1240,24 @@ onMounted(fetchAdminStats);
                 <span v-if="broadcast.link">· {{ broadcast.link }}</span></small
               >
             </div>
-            <Button
-              variant="danger"
-              size="sm"
-              class="shrink-0 h-8 w-8 !p-0"
-              title="撤回广播"
-              :icon="Trash2"
-              @click="handleDeleteBroadcast(broadcast.id)"
-            />
+            <div class="flex items-center gap-1.5 shrink-0">
+              <Button
+                :variant="broadcast.isOffline ? 'secondary' : 'outline'"
+                size="sm"
+                class="h-8 w-8 !p-0"
+                :title="broadcast.isOffline ? '发布公告' : '下架公告'"
+                :icon="broadcast.isOffline ? Eye : EyeOff"
+                @click="handleToggleBroadcastOffline(broadcast.id)"
+              />
+              <Button
+                variant="danger"
+                size="sm"
+                class="h-8 w-8 !p-0"
+                title="撤回广播"
+                :icon="Trash2"
+                @click="handleDeleteBroadcast(broadcast.id)"
+              />
+            </div>
           </article>
           <div
             v-if="!isHistoryLoading && broadcastHistory.length === 0"

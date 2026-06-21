@@ -24,6 +24,8 @@ router.get('/', authenticate, noteController.getNotes);
 router.get('/popular', authenticate, noteController.getPopularNotes);
 router.get('/tags', authenticate, noteController.getNoteTags);
 router.get('/categories', authenticate, noteController.getNoteCategories);
+router.get('/daily-quote', authenticate, noteController.getDailyQuote);
+router.post('/daily-quote/generate', authenticate, noteController.generateDailyQuote);
 router.get('/:id', authenticate, noteController.getNoteById);
 router.post('/', authenticate, noteController.createNote);
 router.put('/:id', authenticate, noteController.updateNote);

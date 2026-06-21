@@ -7,6 +7,7 @@ import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import type { ManualStation } from '../AdminManualView.vue';
 import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 
 const { t } = useI18n();
 
@@ -118,6 +119,7 @@ async function submit() {
     :show="visible"
     :title="station ? $t('admin.edit_manual_resource_site') : $t('admin.create_a_manual_resource')"
     size="md"
+    glass-card
     @close="
       () => {
         visible = false;
@@ -125,44 +127,64 @@ async function submit() {
       }
     "
   >
-    <div class="space-y-4 py-2">
-      <div class="space-y-1">
-        <label class="text-xs font-semibold text-slate-500">{{
+    <div class="space-y-4">
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{
           station ? $t('admin.english_logo_as_the') : $t('admin.english_logo_letters_underscores')
         }}</label>
         <input
           v-model="formData.name"
           type="text"
           :placeholder="$t('admin.such_as_c4d_assets')"
-          class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
+          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
         />
       </div>
-      <div class="space-y-1">
-        <label class="text-xs font-semibold text-slate-500">{{ $t('admin.display_name') }}</label>
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{ $t('admin.display_name') }}</label>
         <input
           v-model="formData.displayName"
           type="text"
           :placeholder="$t('admin.such_as_cinema_4d')"
-          class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
+          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
         />
       </div>
-      <div v-if="station" class="space-y-1">
-        <label class="text-xs font-semibold text-slate-500">{{ $t('admin.status') }}</label>
+      <div v-if="station">
+        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{ $t('admin.status') }}</label>
         <select
           v-model="formData.status"
-          class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
+          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
         >
           <option value="ACTIVE">{{ $t('admin.enable') }}</option>
           <option value="DISABLED">{{ $t('admin.disable') }}</option>
         </select>
       </div>
-      <div class="space-y-1">
-        <label class="text-xs font-semibold text-slate-500">{{
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{
           $t('admin.membership_restrictions')
         }}</label>
         <select
           v-model="formData.minPlanPriority"
-          class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
+          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
         >
           <option :value="0">{{ $t('admin.free_users_and_above') }}</option>
           <option :value="1">{{ $t('admin.standard_member_and_above') }}</option>
@@ -170,8 +192,8 @@ async function submit() {
           <option :value="3">{{ $t('admin.diamond_members_and_above') }}</option>
         </select>
       </div>
-      <div class="space-y-1.5">
-        <label class="text-xs font-semibold text-slate-500">{{ $t('admin.site_icon_1_1') }}</label>
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{ $t('admin.site_icon_1_1') }}</label>
         <div class="flex items-center gap-4">
           <div
             class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800"
@@ -197,7 +219,12 @@ async function submit() {
               v-model="formData.iconUrl"
               type="text"
               :placeholder="$t('admin.or_enter_the_web')"
-              class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
             />
             <p class="text-[10px] text-slate-400 leading-none">
               推荐尺寸 128x128px，支持 PNG/JPG/WebP，大小不超过 5MB
@@ -205,38 +232,44 @@ async function submit() {
           </div>
         </div>
       </div>
-      <div class="space-y-1">
-        <label class="text-xs font-semibold text-slate-500">{{
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{
           $t('admin.description_information')
         }}</label>
         <textarea
           v-model="formData.description"
           rows="3"
           :placeholder="$t('admin.give_a_brief_introduction')"
-          class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
+          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm resize-none"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
         ></textarea>
       </div>
     </div>
     <template #footer>
-      <div class="flex justify-end gap-2 pt-2">
-        <button
-          type="button"
-          class="px-4 py-2 border rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors bg-transparent border-slate-200 dark:border-slate-800"
-          style="color: var(--text-secondary)"
+      <div class="flex items-center gap-3">
+        <Button
+          variant="secondary"
+          size="md"
           @click="
-            visible = false;
-            resetForm();
+            () => {
+              visible = false;
+              resetForm();
+            }
           "
         >
           {{ $t('admin.cancel') }}
-        </button>
-        <button
-          type="button"
-          class="px-4 py-2 bg-cyan-600 text-white rounded-xl hover:bg-cyan-500 text-xs font-semibold transition-colors border-none cursor-pointer"
+        </Button>
+        <Button
+          variant="primary"
+          size="md"
           @click="submit"
         >
           {{ station ? $t('admin.save_changes') : $t('admin.create_resource_site') }}
-        </button>
+        </Button>
       </div>
     </template>
   </Modal>

@@ -126,7 +126,7 @@ const memberCount = computed(() => {
 </script>
 
 <template>
-  <Modal :show="props.visible" size="xl" padding="none" @close="handleClose">
+  <Modal :show="props.visible" size="xl" padding="none" glass-card @close="handleClose">
     <div v-if="props.group" class="relative group/panel overflow-hidden rounded-2xl outline-none">
       <!-- Custom Close Button -->
       <Button
@@ -195,7 +195,7 @@ const memberCount = computed(() => {
 
         <!-- Right: Detailed Content -->
         <div
-          class="flex-1 p-5 md:p-8 overflow-y-auto scrollbar-hide flex flex-col bg-white dark:bg-slate-900"
+          class="flex-1 p-5 md:p-8 overflow-y-auto scrollbar-hide flex flex-col bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl"
         >
           <div class="space-y-5 flex-1 pb-4">
             <!-- About Section -->
@@ -306,7 +306,7 @@ const memberCount = computed(() => {
 
           <!-- Sticky Footer Action -->
           <div
-            class="pt-4 flex items-center justify-between mt-auto bg-white dark:bg-slate-900 outline-none"
+            class="pt-4 flex items-center justify-between mt-auto bg-transparent outline-none"
             style="
               border-top: 1px solid var(--border-base) !important;
               border-left: none !important;

@@ -17,6 +17,8 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getApiErrorMessage } from '@/utils/error';
 import api from '@/utils/api';
+import Button from '@/components/ui/Button.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 interface PlanType {
   id: string;
@@ -53,6 +55,7 @@ interface Props {
   plans: PlanType[];
   users: UserType[];
   isLoading: boolean;
+  searchQuery?: string;
 }
 
 const props = defineProps<Props>();
@@ -64,7 +67,6 @@ const emit = defineEmits<{
 const showSubDialog = ref(false);
 const editingSubscription = ref<SubscriptionType | null>(null);
 const userSearchQuery = ref('');
-const subSearchQuery = ref('');
 const subStatusFilter = ref<'ALL' | 'ACTIVE' | 'CANCELED' | 'EXPIRED' | 'PAST_DUE'>('ALL');
 const setSubStatusFilter = (key: string) => {
   if (
@@ -106,8 +108,8 @@ const filteredSubscriptions = computed(() => {
   if (subStatusFilter.value !== 'ALL') {
     result = result.filter((s: SubscriptionType) => s.status === subStatusFilter.value);
   }
-  if (subSearchQuery.value) {
-    const q = subSearchQuery.value.toLowerCase();
+  const q = (props.searchQuery || '').trim().toLowerCase();
+  if (q) {
     result = result.filter(
       (s: SubscriptionType) =>
         (s.user?.name || '').toLowerCase().includes(q) ||
@@ -298,20 +300,6 @@ const getStatusLabel = (status: string) => {
       </div>
 
       <div class="w-full flex items-center justify-between md:justify-end gap-3 md:w-auto shrink-0">
-        <div class="relative flex-1 md:flex-none md:w-64">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <input
-            v-model="subSearchQuery"
-            type="text"
-            :placeholder="$t('admin.search_for_username_email')"
-            class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-violet-500/20 outline-none text-[11px] shadow-sm"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-          />
-        </div>
         <div class="text-[10px] font-bold text-right shrink-0" style="color: var(--text-muted)">
           已过滤:
           <span class="text-violet-600 font-extrabold">{{ filteredSubscriptions.length }}</span>
@@ -571,233 +559,156 @@ const getStatusLabel = (status: string) => {
     </div>
 
     <!-- Subscription Edit/Create Dialog -->
-    <Transition name="fade">
-      <div v-if="showSubDialog" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-        <div
-          class="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          @click="showSubDialog = false"
-        ></div>
-        <div
-          class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto p-5 sm:p-8 rounded-3xl shadow-2xl space-y-6 bg-[var(--bg-card)]"
-        >
-          <div class="flex items-center justify-between">
-            <h3 class="text-xl font-bold text-[var(--text-primary)]">
-              {{
-                editingSubscription
-                  ? [t('admin.edit_subscription')]
-                  : $t('admin.add_new_subscription')
-              }}
-            </h3>
-            <button
-              type="button"
-              class="text-[var(--text-secondary)]"
-              @click="showSubDialog = false"
+    <Modal
+      :show="showSubDialog"
+      size="lg"
+      glass-card
+      @close="showSubDialog = false"
+    >
+      <template #header>
+        <div>
+          <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
+            {{
+              editingSubscription
+                ? t('admin.edit_subscription')
+                : $t('admin.add_new_subscription')
+            }}
+          </h3>
+          <p class="text-xs text-slate-400 mt-1">
+            {{ editingSubscription ? '修改和管理该用户的产品订阅和账期状态' : '为用户手动分配和开通一个新的产品订阅' }}
+          </p>
+        </div>
+      </template>
+
+      <div class="space-y-6">
+        <!-- User Selection -->
+        <div class="space-y-2">
+          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+            $t('admin.user_1')
+          }}</label>
+          <div
+            v-if="editingSubscription"
+            class="px-4 py-3 rounded-2xl border bg-[var(--bg-app)] border-[var(--border-base)]"
+          >
+            <div class="flex items-center gap-3">
+              <div
+                class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-500"
+              >
+                {{
+                  (editingSubscription.user?.name || editingSubscription.user?.email || '?')
+                    .charAt(0)
+                    .toUpperCase()
+                }}
+              </div>
+              <div>
+                <p class="text-sm font-bold text-[var(--text-primary)]">
+                  {{ editingSubscription.user?.name || $t('admin.unnamed') }}
+                </p>
+                <p class="text-[10px] text-[var(--text-muted)]">
+                  {{ editingSubscription.user?.email }}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div v-else class="space-y-2">
+            <div class="relative">
+              <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                v-model="userSearchQuery"
+                type="text"
+                class="w-full pl-10 pr-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+                style="
+                  background-color: var(--bg-app);
+                  border-color: var(--border-base);
+                  color: var(--text-primary);
+                "
+                :placeholder="$t('admin.search_for_username_or')"
+              />
+            </div>
+            <div
+              class="max-h-48 overflow-y-auto rounded-2xl border border-[var(--border-base)] bg-[var(--bg-app)] scrollbar-hide"
             >
-              <X class="w-5 h-5" />
+              <button
+                v-for="user in availableUsers"
+                :key="user.id"
+                type="button"
+                class="w-full px-4 py-3 flex items-center gap-3 hover:bg-[var(--bg-card)] transition-all text-left bg-transparent"
+                :class="subForm.userId === user.id ? 'bg-accent/5 ring-1 ring-accent/20' : ''"
+                @click="subForm.userId = user.id"
+              >
+                <div
+                  class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0"
+                >
+                  {{ (user.name || user.email || '?').charAt(0).toUpperCase() }}
+                </div>
+                <div class="min-w-0">
+                  <p class="text-sm font-bold text-[var(--text-primary)] truncate">
+                    {{ user.name || $t('admin.unnamed') }}
+                  </p>
+                  <p class="text-[10px] text-[var(--text-muted)] truncate">{{ user.email }}</p>
+                </div>
+                <Check
+                  v-if="subForm.userId === user.id"
+                  class="w-4 h-4 text-accent ml-auto shrink-0"
+                />
+              </button>
+              <div
+                v-if="availableUsers.length === 0"
+                class="px-4 py-8 text-center text-xs text-[var(--text-muted)]"
+              >
+                {{
+                  userSearchQuery
+                    ? t('admin.no_matching_user_found')
+                    : $t('admin.all_users_already_subscribed')
+                }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Plan Selection -->
+        <div class="space-y-2">
+          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+            $t('admin.subscription_plan')
+          }}</label>
+          <div class="grid grid-cols-3 gap-3">
+            <button
+              v-for="plan in plans"
+              :key="plan.id"
+              type="button"
+              class="p-4 rounded-2xl border-2 transition-all text-left bg-transparent"
+              :class="
+                subForm.planId === plan.id
+                  ? 'border-accent bg-accent/5'
+                  : 'border-[var(--border-base)] hover:border-accent/30'
+              "
+              @click="subForm.planId = plan.id"
+            >
+              <div class="flex items-center gap-2 mb-1">
+                <component
+                  :is="getPlanIcon(plan.name)"
+                  class="w-4 h-4"
+                  :style="{ color: plan.badgeColor || '#8b5cf6' }"
+                />
+                <span class="text-xs font-black text-[var(--text-primary)]">{{
+                  plan.displayName || plan.name
+                }}</span>
+              </div>
+              <p class="text-[10px] text-[var(--text-muted)]">
+                {{ $t('admin.plan_price_month_1', { price: plan.price }) }}
+              </p>
             </button>
           </div>
+        </div>
 
-          <!-- User Selection -->
+        <!-- Status & Interval -->
+        <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-              $t('admin.user_1')
-            }}</label>
-            <div
-              v-if="editingSubscription"
-              class="px-4 py-3 rounded-2xl border bg-[var(--bg-app)] border-[var(--border-base)]"
-            >
-              <div class="flex items-center gap-3">
-                <div
-                  class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-500"
-                >
-                  {{
-                    (editingSubscription.user?.name || editingSubscription.user?.email || '?')
-                      .charAt(0)
-                      .toUpperCase()
-                  }}
-                </div>
-                <div>
-                  <p class="text-sm font-bold text-[var(--text-primary)]">
-                    {{ editingSubscription.user?.name || $t('admin.unnamed') }}
-                  </p>
-                  <p class="text-[10px] text-[var(--text-muted)]">
-                    {{ editingSubscription.user?.email }}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div v-else class="space-y-2">
-              <div class="relative">
-                <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  v-model="userSearchQuery"
-                  type="text"
-                  class="w-full pl-10 pr-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  style="
-                    background-color: var(--bg-app);
-                    border-color: var(--border-base);
-                    color: var(--text-primary);
-                  "
-                  :placeholder="$t('admin.search_for_username_or')"
-                />
-              </div>
-              <div
-                class="max-h-48 overflow-y-auto rounded-2xl border border-[var(--border-base)] bg-[var(--bg-app)] scrollbar-hide"
-              >
-                <button
-                  v-for="user in availableUsers"
-                  :key="user.id"
-                  type="button"
-                  class="w-full px-4 py-3 flex items-center gap-3 hover:bg-[var(--bg-card)] transition-all text-left"
-                  :class="subForm.userId === user.id ? 'bg-accent/5 ring-1 ring-accent/20' : ''"
-                  @click="subForm.userId = user.id"
-                >
-                  <div
-                    class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0"
-                  >
-                    {{ (user.name || user.email || '?').charAt(0).toUpperCase() }}
-                  </div>
-                  <div class="min-w-0">
-                    <p class="text-sm font-bold text-[var(--text-primary)] truncate">
-                      {{ user.name || $t('admin.unnamed') }}
-                    </p>
-                    <p class="text-[10px] text-[var(--text-muted)] truncate">{{ user.email }}</p>
-                  </div>
-                  <Check
-                    v-if="subForm.userId === user.id"
-                    class="w-4 h-4 text-accent ml-auto shrink-0"
-                  />
-                </button>
-                <div
-                  v-if="availableUsers.length === 0"
-                  class="px-4 py-8 text-center text-xs text-[var(--text-muted)]"
-                >
-                  {{
-                    userSearchQuery
-                      ? [t('admin.no_matching_user_found')]
-                      : $t('admin.all_users_already_subscribed')
-                  }}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Plan Selection -->
-          <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-              $t('admin.subscription_plan')
-            }}</label>
-            <div class="grid grid-cols-3 gap-3">
-              <button
-                v-for="plan in plans"
-                :key="plan.id"
-                type="button"
-                class="p-4 rounded-2xl border-2 transition-all text-left"
-                :class="
-                  subForm.planId === plan.id
-                    ? 'border-accent bg-accent/5'
-                    : 'border-[var(--border-base)] hover:border-accent/30'
-                "
-                @click="subForm.planId = plan.id"
-              >
-                <div class="flex items-center gap-2 mb-1">
-                  <component
-                    :is="getPlanIcon(plan.name)"
-                    class="w-4 h-4"
-                    :style="{ color: plan.badgeColor || '#8b5cf6' }"
-                  />
-                  <span class="text-xs font-black text-[var(--text-primary)]">{{
-                    plan.displayName || plan.name
-                  }}</span>
-                </div>
-                <p class="text-[10px] text-[var(--text-muted)]">
-                  {{ $t('admin.plan_price_month_1', { price: plan.price }) }}
-                </p>
-              </button>
-            </div>
-          </div>
-
-          <!-- Status & Interval -->
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.subscription_status')
-              }}</label>
-              <select
-                v-model="subForm.status"
-                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              >
-                <option value="ACTIVE">{{ $t('admin.active_1') }}</option>
-                <option value="CANCELED">{{ $t('admin.canceled') }}</option>
-                <option value="EXPIRED">{{ $t('admin.expired_1') }}</option>
-                <option value="PAST_DUE">{{ $t('admin.overdue') }}</option>
-              </select>
-            </div>
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.billing_cycle')
-              }}</label>
-              <select
-                v-model="subForm.interval"
-                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              >
-                <option value="MONTHLY">{{ $t('admin.monthly_payment') }}</option>
-                <option value="YEARLY">{{ $t('admin.annual_payment') }}</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Dates -->
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.start_date')
-              }}</label>
-              <input
-                v-model="subForm.startDate"
-                type="datetime-local"
-                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.expiration_date')
-              }}</label>
-              <input
-                v-model="subForm.endDate"
-                type="datetime-local"
-                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
-          </div>
-
-          <!-- Payment Method -->
-          <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-              $t('admin.payment_method')
+              $t('admin.subscription_status')
             }}</label>
             <select
-              v-model="subForm.paymentMethod"
+              v-model="subForm.status"
               class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
               style="
                 background-color: var(--bg-app);
@@ -805,82 +716,147 @@ const getStatusLabel = (status: string) => {
                 color: var(--text-primary);
               "
             >
-              <option value="ADMIN_ASSIGN">{{ $t('admin.administrator_assignment') }}</option>
-              <option value="ALIPAY">{{ $t('admin.alipay') }}</option>
-              <option value="WECHAT">{{ $t('admin.wechat_pay') }}</option>
-              <option value="CARD">{{ $t('admin.bank_card') }}</option>
-              <option value="MOCK_PAYMENT">{{ $t('admin.simulate_payment') }}</option>
+              <option value="ACTIVE">{{ $t('admin.active_1') }}</option>
+              <option value="CANCELED">{{ $t('admin.canceled') }}</option>
+              <option value="EXPIRED">{{ $t('admin.expired_1') }}</option>
+              <option value="PAST_DUE">{{ $t('admin.overdue') }}</option>
             </select>
           </div>
-
-          <!-- Toggles -->
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.automatic_renewal_1')
-              }}</label>
-              <button
-                type="button"
-                class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all"
-                :class="
-                  subForm.autoRenew
-                    ? 'border-emerald-500 bg-emerald-500/5 text-emerald-500'
-                    : 'border-[var(--border-base)] text-[var(--text-muted)]'
-                "
-                @click="subForm.autoRenew = !subForm.autoRenew"
-              >
-                <component :is="subForm.autoRenew ? Check : X" class="w-4 h-4" />
-                <span class="text-xs font-bold">{{
-                  subForm.autoRenew ? $t('admin.opened') : $t('admin.closed')
-                }}</span>
-              </button>
-            </div>
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
-                $t('admin.cancel_at_the_end')
-              }}</label>
-              <button
-                type="button"
-                class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all"
-                :class="
-                  subForm.cancelAtPeriodEnd
-                    ? 'border-amber-500 bg-amber-500/5 text-amber-500'
-                    : 'border-[var(--border-base)] text-[var(--text-muted)]'
-                "
-                style="border-color: subForm.cancelAtPeriodEnd ? undefined : 'var(--border-base)'"
-                @click="subForm.cancelAtPeriodEnd = !subForm.cancelAtPeriodEnd"
-              >
-                <component :is="subForm.cancelAtPeriodEnd ? Check : X" class="w-4 h-4" />
-                <span class="text-xs font-bold">{{
-                  subForm.cancelAtPeriodEnd
-                    ? [t('admin.will_be_canceled')]
-                    : $t('admin.do_not_cancel')
-                }}</span>
-              </button>
-            </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.billing_cycle')
+            }}</label>
+            <select
+              v-model="subForm.interval"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            >
+              <option value="MONTHLY">{{ $t('admin.monthly_payment') }}</option>
+              <option value="YEARLY">{{ $t('admin.annual_payment') }}</option>
+            </select>
           </div>
+        </div>
 
-          <div class="flex gap-3 pt-4">
+        <!-- Dates -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.start_date')
+            }}</label>
+            <input
+              v-model="subForm.startDate"
+              type="datetime-local"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+          </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.expiration_date')
+            }}</label>
+            <input
+              v-model="subForm.endDate"
+              type="datetime-local"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+          </div>
+        </div>
+
+        <!-- Payment Method -->
+        <div class="space-y-2">
+          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+            $t('admin.payment_method')
+          }}</label>
+          <select
+            v-model="subForm.paymentMethod"
+            class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-primary);
+            "
+          >
+            <option value="ADMIN_ASSIGN">{{ $t('admin.administrator_assignment') }}</option>
+            <option value="ALIPAY">{{ $t('admin.alipay') }}</option>
+            <option value="WECHAT">{{ $t('admin.wechat_pay') }}</option>
+            <option value="CARD">{{ $t('admin.bank_card') }}</option>
+            <option value="MOCK_PAYMENT">{{ $t('admin.simulate_payment') }}</option>
+          </select>
+        </div>
+
+        <!-- Toggles -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.automatic_renewal_1')
+            }}</label>
             <button
               type="button"
-              class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all"
-              @click="showSubDialog = false"
+              class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all bg-transparent"
+              :class="
+                subForm.autoRenew
+                  ? 'border-emerald-500 bg-emerald-500/5 text-emerald-500'
+                  : 'border-[var(--border-base)] text-[var(--text-muted)]'
+              "
+              @click="subForm.autoRenew = !subForm.autoRenew"
             >
-              取消
+              <component :is="subForm.autoRenew ? Check : X" class="w-4 h-4" />
+              <span class="text-xs font-bold">{{
+                subForm.autoRenew ? $t('admin.opened') : $t('admin.closed')
+              }}</span>
             </button>
+          </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              $t('admin.cancel_at_the_end')
+            }}</label>
             <button
               type="button"
-              class="flex-1 py-3 rounded-2xl font-bold text-sm bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2"
-              @click="handleSaveSubscription"
+              class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all bg-transparent"
+              :class="
+                subForm.cancelAtPeriodEnd
+                  ? 'border-amber-500 bg-amber-500/5 text-amber-500'
+                  : 'border-[var(--border-base)] text-[var(--text-muted)]'
+              "
+              style="border-color: subForm.cancelAtPeriodEnd ? undefined : 'var(--border-base)'"
+              @click="subForm.cancelAtPeriodEnd = !subForm.cancelAtPeriodEnd"
             >
-              <Save class="w-4 h-4" />
-              {{
-                editingSubscription ? [t('admin.save_changes_1')] : $t('admin.create_subscription')
-              }}
+              <component :is="subForm.cancelAtPeriodEnd ? Check : X" class="w-4 h-4" />
+              <span class="text-xs font-bold">{{
+                subForm.cancelAtPeriodEnd
+                  ? t('admin.will_be_canceled')
+                  : $t('admin.do_not_cancel')
+              }}</span>
             </button>
           </div>
         </div>
       </div>
-    </Transition>
+
+      <template #footer>
+        <div class="flex items-center gap-3">
+          <Button variant="secondary" size="md" @click="showSubDialog = false">
+            取消
+          </Button>
+          <Button variant="primary" size="md" :icon="Save" @click="handleSaveSubscription">
+            {{
+              editingSubscription ? t('admin.save_changes_1') : $t('admin.create_subscription')
+            }}
+          </Button>
+        </div>
+      </template>
+    </Modal>
   </div>
 </template>

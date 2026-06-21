@@ -616,14 +616,14 @@ onUnmounted(() => {
 
 <template>
   <!-- Smart Import Dialog -->
-  <Transition name="fade">
+  <Transition name="modal">
     <div v-if="visible" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div
-        class="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        class="modal-backdrop absolute inset-0 bg-black/40 backdrop-blur-sm"
         @click="emit('update:visible', false)"
       ></div>
       <div
-        class="relative w-full p-6 sm:p-8 rounded-3xl shadow-2xl border space-y-5 sm:space-y-6 transition-all duration-500 ease-out overflow-hidden flex flex-col"
+        class="modal-content glass-card relative w-full p-6 sm:p-8 rounded-3xl shadow-2xl border space-y-5 sm:space-y-6 transition-all duration-500 ease-out overflow-hidden flex flex-col"
         :class="
           useTraditionalImport
             ? isHelpOpen
@@ -633,7 +633,6 @@ onUnmounted(() => {
               ? 'max-w-7xl h-[88vh]'
               : 'max-w-3xl'
         "
-        style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <!-- Unified Header -->
         <div
@@ -1650,14 +1649,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
 
 /* Slide fade transition for the help panel */
 .slide-fade-enter-active {

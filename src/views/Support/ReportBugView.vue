@@ -464,7 +464,7 @@ onMounted(refreshAll);
 
 <template>
   <div class="support-workbench flex flex-1 min-h-0 flex-col overflow-hidden">
-    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
+    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide w-full">
       <PageHeader title="问题反馈" subtitle="支持中心" variant="card">
         <template #center>
           <div class="flex flex-wrap items-center gap-1.5 ml-2">
@@ -552,85 +552,59 @@ onMounted(refreshAll);
           </div>
 
           <div class="compact-grid">
-            <label>
-              反馈类型
-              <select v-model="bugForm.type">
-                <option v-for="item in typeOptions" :key="item.value" :value="item.value">
-                  {{ item.label }} · {{ item.hint }}
-                </option>
-              </select>
-            </label>
-            <label>
-              优先级
-              <select v-model="bugForm.priority">
-                <option v-for="item in priorityOptions" :key="item.value" :value="item.value">
-                  {{ item.label }} · {{ item.hint }}
-                </option>
-              </select>
-            </label>
-          </div>
-
-          <label>
-            工单标题
-            <UiInput
-              v-model="bugForm.title"
-              placeholder="例如：学习路线页面保存后步骤顺序错乱"
-              :glass="false"
-            />
-          </label>
-
-          <label>
-            问题描述
-            <textarea
-              v-model="bugForm.description"
-              rows="4"
-              maxlength="1500"
-              placeholder="发生了什么？在哪个页面？影响了什么流程？"
-            ></textarea>
-          </label>
-
-          <div class="compact-grid">
-            <label>
-              复现步骤
-              <textarea
-                v-model="bugForm.steps"
-                rows="5"
-                placeholder="1. 进入...\A2. 点击...\A3. 观察结果..."
-              ></textarea>
-            </label>
-            <div class="field-stack">
-              <label>
-                期望结果
-                <textarea
-                  v-model="bugForm.expected"
-                  rows="2"
-                  placeholder="正常情况下应该怎样"
-                ></textarea>
-              </label>
-              <label>
-                实际结果
-                <textarea
-                  v-model="bugForm.actual"
-                  rows="2"
-                  placeholder="现在出现了什么异常"
-                ></textarea>
-              </label>
+            <div class="form-group">
+              <label class="form-label">反馈类型</label>
+              <div class="relative w-full">
+                <select v-model="bugForm.type" class="custom-select">
+                  <option v-for="item in typeOptions" :key="item.value" :value="item.value">
+                    {{ item.label }} · {{ item.hint }}
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">优先级</label>
+              <div class="relative w-full">
+                <select v-model="bugForm.priority" class="custom-select">
+                  <option v-for="item in priorityOptions" :key="item.value" :value="item.value">
+                    {{ item.label }} · {{ item.hint }}
+                  </option>
+                </select>
+              </div>
             </div>
           </div>
 
+          <UiInput
+            v-model="bugForm.title"
+            label="工单标题"
+            placeholder="例如：学习路线页面保存后步骤顺序错乱"
+            :glass="false"
+          />
+
+          <div class="form-group">
+            <label class="form-label">问题描述</label>
+            <textarea
+              v-model="bugForm.description"
+              class="custom-textarea"
+              rows="6"
+              maxlength="1500"
+              placeholder="请详细描述问题发生的页面、具体现象，或者在此处附带复现步骤、期望与实际结果，方便管理员快速定位。"
+            ></textarea>
+          </div>
+
           <div class="compact-grid">
-            <label>
-              影响范围
-              <UiInput
-                v-model="bugForm.impact"
-                placeholder="例如：影响团队任务提交 / 仅自己可见"
-                :glass="false"
-              />
-            </label>
-            <label>
-              页面链接
-              <UiInput v-model="bugForm.pageUrl" placeholder="https://..." :glass="false" />
-            </label>
+            <UiInput
+              v-model="bugForm.impact"
+              label="影响范围"
+              placeholder="例如：影响团队任务提交 / 仅自己可见"
+              :glass="false"
+            />
+            <UiInput
+              v-model="bugForm.pageUrl"
+              label="页面链接"
+              placeholder="https://..."
+              :glass="false"
+            />
           </div>
 
           <div class="upload-row">
@@ -677,20 +651,23 @@ onMounted(refreshAll);
               <Sparkles />
               <h3>处理流程</h3>
             </div>
-            <ol class="process-list">
-              <li>
-                <strong>接收</strong>
-                <span>系统记录截图、链接和优先级，并通知管理员。</span>
-              </li>
-              <li>
-                <strong>定位</strong>
-                <span>管理员在后台筛选、回复、更新状态。</span>
-              </li>
-              <li>
-                <strong>回访</strong>
-                <span>你会在工单历史和通知中心看到处理结果。</span>
-              </li>
-            </ol>
+            <div class="process-timeline relative pl-4 mt-2 before:content-[''] before:absolute before:left-[6px] before:top-2 before:bottom-2 before:w-[2px] before:bg-[var(--border-base)]">
+              <div class="timeline-item relative pb-4">
+                <span class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[8px] font-bold text-[var(--accent)] shrink-0">1</span>
+                <h4 class="text-xs font-bold text-[var(--text-primary)] pl-2">提交接收</h4>
+                <p class="text-[11px] text-[var(--text-muted)] mt-1 pl-2">系统记录问题截图、关联链接与工单优先级，并即时推送到后台管理员队列。</p>
+              </div>
+              <div class="timeline-item relative pb-4">
+                <span class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[8px] font-bold text-[var(--accent)] shrink-0">2</span>
+                <h4 class="text-xs font-bold text-[var(--text-primary)] pl-2">分析与处理</h4>
+                <p class="text-[11px] text-[var(--text-muted)] mt-1 pl-2">管理员根据您填写的重现信息与链接进行分析定位，并更新工单解决进度。</p>
+              </div>
+              <div class="timeline-item relative">
+                <span class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[8px] font-bold text-[var(--accent)] shrink-0">3</span>
+                <h4 class="text-xs font-bold text-[var(--text-primary)] pl-2">确认与回访</h4>
+                <p class="text-[11px] text-[var(--text-muted)] mt-1 pl-2">您将在“我的工单”和通知中心收到反馈，确认已解决后即可自主关闭工单。</p>
+              </div>
+            </div>
           </Card>
 
           <Card>
@@ -698,11 +675,31 @@ onMounted(refreshAll);
               <Filter />
               <h3>提交质量</h3>
             </div>
-            <div class="quality-grid">
-              <span :class="{ done: bugForm.title.trim().length >= 3 }">标题清晰</span>
-              <span :class="{ done: bugForm.description.trim().length >= 10 }">描述完整</span>
-              <span :class="{ done: bugForm.steps.trim().length > 0 }">可复现</span>
-              <span :class="{ done: Boolean(bugForm.attachmentUrl) }">有截图</span>
+            <div class="quality-list space-y-2 mt-2">
+              <div class="flex items-center justify-between text-xs py-1 border-b border-base/40">
+                <span class="text-[var(--text-secondary)]">标题长度 (≥3字)</span>
+                <span class="font-mono text-[11px]" :class="bugForm.title.trim().length >= 3 ? 'text-emerald-500 font-bold' : 'text-amber-500'">
+                  {{ bugForm.title.trim().length }}/3
+                </span>
+              </div>
+              <div class="flex items-center justify-between text-xs py-1 border-b border-base/40">
+                <span class="text-[var(--text-secondary)]">问题描述 (≥15字)</span>
+                <span class="font-mono text-[11px]" :class="bugForm.description.trim().length >= 15 ? 'text-emerald-500 font-bold' : 'text-amber-500'">
+                  {{ bugForm.description.trim().length }}/15
+                </span>
+              </div>
+              <div class="flex items-center justify-between text-xs py-1 border-b border-base/40">
+                <span class="text-[var(--text-secondary)]">页面链接关联</span>
+                <Badge :variant="bugForm.pageUrl.trim() ? 'success' : 'warning'" size="sm" class="!px-1.5 !py-0.5 text-[10px]">
+                  {{ bugForm.pageUrl.trim() ? '已关联' : '无链接' }}
+                </Badge>
+              </div>
+              <div class="flex items-center justify-between text-xs py-1">
+                <span class="text-[var(--text-secondary)]">图片截图附件</span>
+                <Badge :variant="bugForm.attachmentUrl ? 'success' : 'primary'" size="sm" class="!px-1.5 !py-0.5 text-[10px]">
+                  {{ bugForm.attachmentUrl ? '已上传' : '无附件' }}
+                </Badge>
+              </div>
             </div>
           </Card>
 
@@ -742,18 +739,18 @@ onMounted(refreshAll);
               :glass="false"
               class="min-w-[200px]"
             />
-            <select v-model="statusFilter">
+            <select v-model="statusFilter" class="custom-select toolbar-select">
               <option v-for="item in statusOptions" :key="item.value" :value="item.value">
                 {{ item.label }}
               </option>
             </select>
-            <select v-model="typeFilter">
+            <select v-model="typeFilter" class="custom-select toolbar-select">
               <option value="ALL">全部类型</option>
               <option v-for="item in typeOptions" :key="item.value" :value="item.value">
                 {{ item.label }}
               </option>
             </select>
-            <select v-model="priorityFilter">
+            <select v-model="priorityFilter" class="custom-select toolbar-select">
               <option value="ALL">全部优先级</option>
               <option v-for="item in priorityOptions" :key="item.value" :value="item.value">
                 {{ item.label }}
@@ -972,7 +969,11 @@ button:disabled {
   opacity: 0.58;
 }
 
-.form-actions,
+.form-actions {
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .detail-actions {
   gap: 8px;
 }
@@ -1037,8 +1038,9 @@ button:disabled {
 
 .form-panel {
   display: grid;
-  gap: 14px;
-  padding: 14px;
+  gap: 16px;
+  padding: 20px;
+  padding-bottom: 28px;
 }
 
 .panel-head,
@@ -1053,52 +1055,80 @@ button:disabled {
 .compact-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 14px;
 }
 
-label {
-  display: grid;
-  gap: 6px;
+/* Premium standard labels and inputs */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.form-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+  margin-left: 4px;
   color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 900;
+  transition: color 0.2s ease;
 }
 
-input,
-select,
-textarea {
+.form-group:focus-within .form-label {
+  color: var(--accent);
+}
+
+.custom-select,
+.custom-textarea {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--border-base);
-  border-radius: 8px;
-  outline: 0;
-  background: var(--bg-app);
+  border-radius: 12px;
+  outline: none;
+  background: var(--bg-card);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
 }
 
-input,
-select {
-  height: 38px;
-  padding: 0 10px;
+.custom-select {
+  height: 48px;
+  padding: 0 16px;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 16px;
+  padding-right: 40px;
+  cursor: pointer;
 }
 
-textarea {
-  padding: 10px;
-  line-height: 1.55;
-  resize: vertical;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
+.custom-select:focus,
+.custom-textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
-.field-stack {
-  display: grid;
-  gap: 10px;
+.custom-textarea {
+  padding: 14px 16px;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 140px;
+}
+
+.toolbar-select {
+  height: 38px;
+  min-width: 112px;
+  width: auto;
+  border-radius: 8px;
+  font-size: 12px;
+  padding: 0 28px 0 12px;
+  background-position: right 10px center;
+  background-size: 12px;
 }
 
 .hidden-input {
@@ -1111,29 +1141,44 @@ textarea:focus {
 
 .upload-box,
 .attachment-preview {
-  min-height: 64px;
-  border: 1px dashed var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
+  min-height: 80px;
+  border: 1.5px dashed var(--border-base);
+  border-radius: 12px;
+  background: var(--bg-card);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .upload-box {
-  display: grid;
-  place-items: center;
-  gap: 3px;
-  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 14px;
   color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.upload-box:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 4%, var(--bg-card));
+  color: var(--text-primary);
 }
 
 .upload-box svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   color: var(--accent);
+  transition: transform 0.3s ease;
+}
+
+.upload-box:hover svg {
+  transform: translateY(-2px);
 }
 
 .upload-box span {
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .upload-box small {
@@ -1142,15 +1187,20 @@ textarea:focus {
 }
 
 .attachment-preview {
-  gap: 10px;
-  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border-style: solid;
+  border-color: var(--border-base);
 }
 
 .attachment-preview img {
-  width: 54px;
-  height: 48px;
-  border-radius: 6px;
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
   object-fit: cover;
+  border: 1px solid var(--border-base);
 }
 
 .attachment-preview div {
@@ -1176,14 +1226,7 @@ textarea:focus {
   display: grid;
   align-content: start;
   gap: 12px;
-  padding: 12px;
-}
-
-.assist-panel section {
-  padding: 12px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-elevated);
+  padding: 0;
 }
 
 .side-title {
@@ -1202,45 +1245,40 @@ textarea:focus {
   font-weight: 900;
 }
 
-.process-list {
-  display: grid;
-  gap: 10px;
+/* Process Timeline styling */
+.process-timeline {
+  margin-top: 8px;
+}
+
+.timeline-item {
+  position: relative;
+  text-align: left;
+}
+
+.timeline-item h4 {
   margin: 0;
-  padding-left: 18px;
-}
-
-.process-list li {
-  color: var(--text-muted);
   font-size: 12px;
-  line-height: 1.5;
-}
-
-.process-list strong {
-  display: block;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
-.quality-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
-}
-
-.quality-grid span {
-  min-height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  background: var(--bg-app);
-  color: var(--text-muted);
+.timeline-item p {
+  margin: 0;
   font-size: 11px;
-  font-weight: 900;
+  line-height: 1.5;
+  color: var(--text-secondary);
 }
 
-.quality-grid span.done {
-  background: rgba(16, 185, 129, 0.12);
-  color: #047857;
+/* Quality Checklist styling */
+.quality-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.quality-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .mini-feed {
@@ -1250,12 +1288,21 @@ textarea:focus {
 
 .mini-ticket {
   display: grid;
-  gap: 3px;
-  padding: 9px;
-  border-radius: 8px;
-  background: var(--bg-app);
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border-base);
+  border-radius: 12px;
+  background: var(--bg-card);
   color: var(--text-primary);
   text-align: left;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mini-ticket:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-card-hover);
+  background: color-mix(in srgb, var(--accent) 3%, var(--bg-card));
 }
 
 .mini-ticket strong {
@@ -1282,11 +1329,6 @@ textarea:focus {
   padding: 10px;
   border-bottom: 1px solid var(--border-base);
   flex-wrap: wrap;
-}
-
-.toolbar select {
-  width: auto;
-  min-width: 112px;
 }
 
 .search-box {
@@ -1333,6 +1375,7 @@ textarea:focus {
   background: transparent;
   color: var(--text-primary);
   text-align: left;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .ticket-row:hover,
@@ -1413,19 +1456,20 @@ textarea:focus {
   margin-top: 3px;
 }
 
+/* Premium progress bar */
 .progress-track {
-  height: 8px;
-  margin: 14px 0;
-  overflow: hidden;
+  height: 6px;
+  margin: 16px 0;
   border-radius: 999px;
-  background: var(--bg-app);
+  background: var(--border-base);
 }
 
 .progress-track span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 70%, white) 100%);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .detail-meta {

@@ -70,7 +70,7 @@ const hasIcon = computed(() => !!props.icon);
     v-else-if="variant === 'card'"
     class="premium-card rounded-xl border bg-card border-base shadow-card p-3 sm:py-3 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0"
   >
-    <div class="flex items-center gap-3 min-w-0">
+    <div class="flex items-center gap-3 min-w-0 sm:flex-1">
       <div class="min-w-0">
         <p
           v-if="subtitle"
@@ -79,18 +79,26 @@ const hasIcon = computed(() => !!props.icon);
         >
           {{ subtitle }}
         </p>
-        <h1 class="text-sm sm:text-lg font-bold leading-tight truncate text-[var(--text-primary)]">
-          {{ title }}
-        </h1>
+        <div class="flex items-center gap-2">
+          <h1 class="text-sm sm:text-lg font-bold leading-tight truncate text-[var(--text-primary)]">
+            {{ title }}
+          </h1>
+          <slot name="title-badge" />
+        </div>
       </div>
-      <div v-if="$slots.center" class="flex items-center gap-1.5 ml-2">
-        <slot name="center" />
-      </div>
+    </div>
+
+    <!-- Center: Optional Center Content (e.g. Search Box) -->
+    <div
+      v-if="$slots.center"
+      class="flex-1 w-full sm:max-w-xs md:max-w-md mx-auto flex items-center justify-center sm:px-4"
+    >
+      <slot name="center" />
     </div>
 
     <!-- Actions / Filters slot -->
     <div
-      class="flex flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto overflow-x-auto scrollbar-hide"
+      class="flex flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto overflow-x-auto scrollbar-hide sm:flex-1 justify-end"
     >
       <slot />
     </div>

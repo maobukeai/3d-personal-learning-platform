@@ -377,7 +377,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <Modal :show="modelValue" size="xxl" @close="closeDialog">
+  <Modal :show="modelValue" size="xxl" glass-card @close="closeDialog">
     <template #header>
       <div>
         <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">
@@ -615,19 +615,13 @@ onMounted(() => {
             </div>
           </div>
 
-          <div>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-              >{{ t('publishDialog.titleLabel') }}</label
-            >
-            <input
-              v-model="publishForm.title"
-              type="text"
-              class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-              :placeholder="t('publishDialog.titlePlaceholder')"
-              style="color: var(--text-primary)"
-            />
-          </div>
+          <Input
+            v-model="publishForm.title"
+            type="text"
+            :label="t('publishDialog.titleLabel')"
+            :placeholder="t('publishDialog.titlePlaceholder')"
+            required
+          />
 
           <div v-if="publishForm.type !== 'TEXT'">
             <label
@@ -694,30 +688,20 @@ onMounted(() => {
           </div>
 
           <div v-if="publishForm.isVideo">
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-              >{{ t('publishDialog.videoUrlLabel') }}</label
-            >
-            <input
+            <Input
               v-model="publishForm.videoUrl"
               type="text"
-              class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+              :label="t('publishDialog.videoUrlLabel')"
               :placeholder="t('publishDialog.videoUrlPlaceholder')"
-              style="color: var(--text-primary)"
             />
           </div>
 
           <div>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-              >{{ t('publishDialog.tagsLabel') }}</label
-            >
-            <input
+            <Input
               v-model="publishForm.tags"
               type="text"
-              class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+              :label="t('publishDialog.tagsLabel')"
               :placeholder="t('publishDialog.tagsPlaceholder')"
-              style="color: var(--text-primary)"
             />
             <p class="text-[10px] text-slate-400 mt-1 ml-1">{{ t('publishDialog.tagsTip') }}</p>
           </div>
@@ -763,34 +747,24 @@ onMounted(() => {
 
           <!-- Plugin name -->
           <div>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-              >插件名称 *</label
-            >
-            <input
+            <Input
               v-model="publishForm.title"
               type="text"
-              class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all"
+              label="插件名称"
               placeholder="如：材质批量导出工具"
-              style="color: var(--text-primary)"
+              required
             />
           </div>
 
           <!-- Category & Version -->
           <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label
+            <label class="flex flex-col">
+              <span
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                >插件分类</label
-              >
+                >插件分类</span>
               <select
                 v-model="publishForm.pluginCategory"
-                class="w-full px-3 py-2.5 bg-slate-100 dark:bg-white/5 border border-transparent rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
-                style="
-                  color: var(--text-primary);
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                "
+                class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
               >
                 <option
                   v-for="cat in systemStore.settings.PLUGIN_CATEGORIES"
@@ -800,34 +774,24 @@ onMounted(() => {
                   {{ cat }}
                 </option>
               </select>
-            </div>
+            </label>
             <div>
-              <label
-                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                >版本号</label
-              >
-              <input
+              <Input
                 v-model="publishForm.pluginVersion"
                 type="text"
-                class="w-full px-3 py-2.5 bg-slate-100 dark:bg-white/5 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                label="版本号"
                 placeholder="1.0.0"
-                style="color: var(--text-primary); background-color: var(--bg-app)"
               />
             </div>
           </div>
 
           <!-- Compatibility -->
           <div>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-              >兼容性</label
-            >
-            <input
+            <Input
               v-model="publishForm.pluginCompatibility"
               type="text"
-              class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all"
+              label="兼容性"
               placeholder="如 Blender 3.x / 4.x"
-              style="color: var(--text-primary)"
             />
           </div>
 
@@ -849,16 +813,11 @@ onMounted(() => {
 
           <!-- Tags -->
           <div>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-              >标签</label
-            >
-            <input
+            <Input
               v-model="publishForm.tags"
               type="text"
-              class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all"
+              label="标签"
               placeholder="用逗号分隔，如：Blender, 材质, 批量"
-              style="color: var(--text-primary)"
             />
           </div>
         </div>
@@ -894,18 +853,17 @@ onMounted(() => {
     </template>
 
     <!-- Publish Button -->
-    <button
+    <Button
       type="button"
-      :disabled="isPublishing"
-      class="sticky bottom-0 z-10 w-full py-3 mt-4 bg-indigo-600 text-white rounded-lg font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 publish-submit"
+      variant="primary"
+      size="lg"
+      full-width
+      :loading="isPublishing"
+      class="sticky bottom-0 z-10 mt-4 publish-submit"
       @click="handlePublish"
     >
-      <div
-        v-if="isPublishing"
-        class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
-      ></div>
       {{ isPublishing ? t('publishDialog.publishing') : t('publishDialog.publishNow') }}
-    </button>
+    </Button>
   </Modal>
 </template>
 

@@ -8,6 +8,8 @@ import { parseYoutubeUrl } from '../../utils/youtube';
 import { parseGithubUrl } from '../../utils/github';
 import { AppError } from '../../utils/error';
 import { createPaginationMeta, getPaginationParams } from '../../utils/pagination';
+import { streamLLMChat, AIServiceConfig, AIChatMessage } from '../../services/ai.service';
+import { getAIModelById, settingsService } from '../../services/settings.service';
 
 export const parseExternalLink = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { url } = req.body;
@@ -517,5 +519,66 @@ export const deleteRoadmapStep = async (req: AuthRequest, res: Response, next: N
     res.json({ message: 'Roadmap step deleted successfully' });
   } catch (error) {
     next(error);
+  }
+};
+
+
+export const aiGenerateRoadmap = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const { prompt } = req.body;
+  if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+    return next(new AppError('Prompt is required', 400));
+  }
+
+  try {
+    const settings = await settingsService.getAll();
+    const selectedModel = getAIModelById(settings, undefined);
+    if (!selectedModel || !selectedModel.enabled) {
+      return next(new AppError('当前没有可用的 AI 聊天模型，请联系管理员配置。', 503));
+    }
+
+    const overrides: Partial<AIServiceConfig> = {
+      AI_IMPORT_ENABLED: true,
+      AI_PROVIDER: selectedModel.provider,
+      AI_API_KEY: selectedModel.apiKey || settings.AI_API_KEY,
+      AI_API_ENDPOINT: selectedModel.endpoint || settings.AI_API_ENDPOINT,
+      AI_MODEL_NAME: selectedModel.modelName,
+      capabilities: selectedModel.capabilities,
+      maxTokens: 4000,
+    };
+
+    const systemPrompt = `你是一个专业的 3D 节点学习图谱及学习路线规划专家。请根据用户的学习目标或主题，生成一条高精度的官方学习路线图谱。
+你必须严格按照下面的 Markdown 格式输出，不要输出任何其他的解释文字，不要用 \`\`\`markdown 包裹。只输出纯 Markdown 内容。
+
+规范格式如下：
+# 项目：[学习路线标题，如：Three.js 三维开发成长之路]
+描述：[学习路线核心描述。要求详细总结，包含学习目标、整体课程脉络分析、预估学习难度与重点难点，不少于 150 字。]
+
+## 学习路线
+### 阶段一：[阶段一名称]
+描述：[阶段一描述]
+- [ ] [任务项 1]
+- [ ] [任务项 2]
+
+### 阶段二：[阶段二名称]
+描述：[阶段二描述]
+- [ ] [任务项 1]
+- [ ] [任务项 2]
+
+要求：
+1. 路线结构应当合理、系统且由浅入深，每个阶段名称清晰有创意。
+2. 步骤数量在 3 到 6 个之间。每个阶段的任务列表提供 3 到 5 个核心知识技能点。
+3. 描述及标题字段使用中文（简体）。
+4. 严格禁止输出任何任务看板相关的内容，不要输出 ## 任务看板 模块。`;
+
+    const messages: AIChatMessage[] = [{ role: 'user', content: prompt.trim() }];
+    await streamLLMChat(messages, systemPrompt, res, next, overrides, req.userId);
+  } catch (error) {
+    if (res.headersSent) {
+      if (!res.writableEnded) {
+        res.end();
+      }
+    } else {
+      next(error);
+    }
   }
 };

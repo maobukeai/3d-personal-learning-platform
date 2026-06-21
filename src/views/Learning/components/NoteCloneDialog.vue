@@ -72,7 +72,7 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" title="一键转存笔记" size="sm" @close="visible = false">
+  <Modal :show="visible" title="一键转存笔记" size="sm" glass-card @close="visible = false">
     <div v-if="cloningNote" class="space-y-4">
       <div class="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-[var(--border-base)]">
         <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-1">

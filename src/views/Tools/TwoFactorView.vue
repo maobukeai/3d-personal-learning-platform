@@ -43,6 +43,8 @@ import TwoFactorEditDialog from './components/TwoFactorEditDialog.vue';
 import TwoFactorQrDialog from './components/TwoFactorQrDialog.vue';
 import TwoFactorSecurityDialog from './components/TwoFactorSecurityDialog.vue';
 import type { TwoFactorAccount } from '@/types';
+import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 
 interface LiveTotp {
   code: string;
@@ -710,7 +712,7 @@ onUnmounted(() => {
       class="two-fa-header bg-gradient-to-r from-violet-600/10 via-indigo-600/5 to-transparent border rounded-xl p-3 mb-3 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 animate-fade-in"
       style="border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-2.5 w-full lg:w-auto">
+      <div class="flex items-center gap-2.5 w-full lg:flex-1 lg:w-auto min-w-0">
         <div
           class="p-1.5 rounded-lg shrink-0"
           style="background-color: rgba(99, 102, 241, 0.1); color: var(--accent, #6366f1)"
@@ -765,9 +767,30 @@ onUnmounted(() => {
         </div>
       </div>
 
+      <!-- Center: Centered Search Input -->
+      <div class="flex justify-center lg:flex-1 w-full lg:w-auto relative">
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 md:w-80 shrink-0">
+          <Search />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="搜索标签、邮箱或备注..."
+          />
+        </label>
+        <!-- Floating Filter Result Badge -->
+        <transition name="el-fade-in-linear">
+          <span
+            v-if="filteredAccounts.length !== accounts.length"
+            class="absolute -top-2 px-1.5 py-0.5 text-[8.5px] font-bold rounded bg-indigo-600 text-white border border-slate-900 shadow-md select-none shrink-0"
+          >
+            已过滤 {{ filteredAccounts.length }}
+          </span>
+        </transition>
+      </div>
+
       <!-- Actions Group -->
       <div
-        class="flex items-center justify-between sm:justify-end gap-1.5 w-full lg:w-auto shrink-0 flex-wrap"
+        class="flex items-center justify-between sm:justify-end gap-1.5 w-full lg:flex-1 lg:justify-end lg:w-auto shrink-0 flex-wrap"
       >
         <!-- Time Sync status check -->
         <button
@@ -847,28 +870,6 @@ onUnmounted(() => {
     <!-- Filters & Search Toolbar -->
     <div class="flex flex-wrap items-center justify-between gap-2 mb-2 w-full">
       <div class="flex items-center gap-2 w-full sm:w-auto flex-1 sm:flex-initial">
-        <div class="relative flex-1 sm:w-60 md:w-72">
-          <el-input
-            v-model="searchQuery"
-            placeholder="搜索标签、邮箱或备注..."
-            clearable
-            class="custom-search-input"
-          >
-            <template #prefix>
-              <Search class="h-3.5 w-3.5 text-slate-400" />
-            </template>
-          </el-input>
-
-          <!-- Floating Filter Result Badge (compact & only visible when filtered) -->
-          <transition name="el-fade-in-linear">
-            <span
-              v-if="filteredAccounts.length !== accounts.length"
-              class="absolute -top-2 -right-1.5 px-1.5 py-0.5 text-[8.5px] font-bold rounded bg-indigo-600 text-white border border-slate-900 shadow-md select-none shrink-0"
-            >
-              已过滤 {{ filteredAccounts.length }}
-            </span>
-          </transition>
-        </div>
 
         <div class="shrink-0 w-24 sm:w-28">
           <el-select v-model="sortBy" placeholder="排序方式" class="custom-sort-select">
@@ -1509,13 +1510,12 @@ onUnmounted(() => {
     />
 
     <!-- Modal Dialog: Category Manager -->
-    <el-dialog
-      v-model="isCategoryManagerVisible"
+    <Modal
+      :show="isCategoryManagerVisible"
       title="管理分组"
-      width="90%"
-      style="max-width: 480px"
-      destroy-on-close
-      class="custom-el-dialog"
+      size="md"
+      glass-card
+      @close="isCategoryManagerVisible = false"
     >
       <div class="space-y-4">
         <!-- Create new category -->
@@ -1532,14 +1532,14 @@ onUnmounted(() => {
               clearable
               @keyup.enter="createCategory"
             />
-            <el-button
-              type="primary"
-              class="bg-indigo-600 hover:bg-indigo-500 border-none font-bold px-4 rounded-xl shrink-0"
+            <Button
+              variant="primary"
+              size="sm"
               @click="createCategory"
             >
               <Plus class="h-3.5 w-3.5 mr-1" />
               创建
-            </el-button>
+            </Button>
           </div>
           <p class="text-[10px] text-slate-500">
             创建后可在添加/编辑账号时选择，或直接将账号卡片拖入分组标签来分配。
@@ -1611,21 +1611,15 @@ onUnmounted(() => {
       </div>
 
       <template #footer>
-        <div class="flex justify-end pt-2">
-          <el-button
-            style="
-              background-color: var(--bg-app);
-              border: 1px solid var(--border-base);
-              color: var(--text-secondary);
-            "
-            class="px-4 py-1.5 rounded-xl text-xs font-bold"
-            @click="isCategoryManagerVisible = false"
-          >
-            关闭
-          </el-button>
-        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          @click="isCategoryManagerVisible = false"
+        >
+          关闭
+        </Button>
       </template>
-    </el-dialog>
+    </Modal>
 
     <!-- Modal Dialog: Add 2FA Account -->
     <TwoFactorAddDialog
@@ -1653,25 +1647,7 @@ onUnmounted(() => {
   contain-intrinsic-size: auto 180px;
 }
 
-/* Custom dialog style overrides for a dark slate visual vibe */
-.custom-el-dialog {
-  background-color: var(--bg-card) !important;
-  border-radius: 1rem !important; /* rounded-2xl */
-  border: 1px solid var(--border-base) !important;
-}
-
-.custom-el-dialog .el-dialog__title {
-  color: var(--text-primary) !important;
-  font-weight: 800 !important;
-}
-
-.custom-el-dialog .el-dialog__headerbtn .el-dialog__close {
-  color: var(--text-secondary) !important;
-}
-
-.custom-el-dialog .el-dialog__headerbtn:hover .el-dialog__close {
-  color: var(--accent, #6366f1) !important;
-}
+/* Custom dialog style overrides cleaned up */
 
 /* Custom Input Visual Styles for Element Plus */
 .custom-search-input .el-input__wrapper {
@@ -1711,16 +1687,6 @@ onUnmounted(() => {
 }
 
 /* Scrollbars */
-.custom-el-dialog ::-webkit-scrollbar {
-  width: 6px;
-}
-.custom-el-dialog ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.2);
-  border-radius: 10px;
-}
-.custom-el-dialog ::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.4);
-}
 
 .animate-fade-in {
   animation: fadeIn 0.35s ease-out forwards;

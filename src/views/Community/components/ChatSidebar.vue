@@ -139,18 +139,15 @@ const filteredConversations = computed(() => {
           </button>
         </div>
       </div>
-      <div class="relative">
-        <Search
-          class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2"
-          style="color: var(--text-muted)"
-        />
-        <input
-          v-model="localSearchQuery"
-          type="text"
-          :placeholder="t('messages.searchPlaceholder')"
-          class="pl-8 pr-3 py-1.5 border-none rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 w-full transition-all"
-          style="background-color: var(--bg-app); color: var(--text-primary)"
-        />
+      <div class="flex justify-center w-full">
+        <label class="search-box !min-h-0 !h-8 w-full shrink-0">
+          <Search />
+          <input
+            v-model="localSearchQuery"
+            type="text"
+            :placeholder="t('messages.searchPlaceholder')"
+          />
+        </label>
       </div>
     </div>
 

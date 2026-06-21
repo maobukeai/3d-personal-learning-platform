@@ -10,34 +10,52 @@
   text-align: center;
 }
 
-/* Search box - used in 11+ views */
 .search-box {
   position: relative;
   width: 100%;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 0 10px;
+  padding: 0 12px;
   border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-elevated);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+
+.search-box:hover {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.search-box:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 59, 130, 246), 0.2);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+
+.search-box svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
   color: var(--text-secondary);
 }
 
-.search-box svg {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  color: var(--text-muted);
-}
-
-.search-box input {
-  width: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 11px;
+.search-box input,
+.search-box input[type="text"],
+html.theme-glass .search-box input[type="text"],
+html.theme-glass .search-box input[type="text"]:focus {
+  width: 100% !important;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: var(--text-primary) !important;
+  font-size: 0.875rem;
 }
 
 

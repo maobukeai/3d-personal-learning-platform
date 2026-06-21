@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '@/utils/error';
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Loading } from '@element-plus/icons-vue';
 import {
@@ -103,10 +103,10 @@ const {
 } = usePagedList<Note>(getNotesEndpoint, getNotesParams, {
   initialPageSize: 12,
   listExtractor: (res) => {
-    return activeTab.value === 'POPULAR' ? res : res.notes || [];
+    return res.notes || [];
   },
   totalExtractor: (res) => {
-    return activeTab.value === 'POPULAR' ? res.length : (res.pagination?.total ?? 0);
+    return res.pagination?.total ?? 0;
   },
   onError: () => {
     ElMessage.error(t('notes.loadFailed'));
@@ -285,16 +285,29 @@ const totalPages = computed(() => Math.ceil(totalNotes.value / pageSize));
 
 const loadNotes = () => runLoadNotes(false);
 
-const handleTabChange = () => {
+watch(activeTab, () => {
   currentPage.value = 1;
+  filterCategory.value = '';
+  filterTag.value = '';
+  loadTagsAndCategories();
   loadNotes();
-};
+});
+
+watch(searchQuery, (newVal) => {
+  if (!newVal) {
+    loadNotes();
+  }
+});
 
 const loadTagsAndCategories = async () => {
   try {
+    const params: Record<string, any> = {};
+    if (activeTab.value !== 'MY') {
+      params.visibility = 'PUBLIC';
+    }
     const [tagsRes, catRes] = await Promise.all([
-      api.get('/api/notes/tags'),
-      api.get('/api/notes/categories'),
+      api.get('/api/notes/tags', { params }),
+      api.get('/api/notes/categories', { params }),
     ]);
     tags.value = tagsRes.data.tags || [];
     categories.value = catRes.data.categories || [];
@@ -413,6 +426,34 @@ const handleTogglePopular = async (note: Note) => {
     if (activeTab.value === 'POPULAR') {
       loadNotes();
     }
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, t('notes.operationFailed')));
+  }
+};
+
+const handleToggleVisibility = async (note: Note, newVisibility: string) => {
+  try {
+    const res = await api.put(`/api/notes/${note.id}`, { visibility: newVisibility });
+    note.visibility = res.data.visibility;
+    ElMessage.success(
+      note.visibility === 'PUBLIC'
+        ? '已公开笔记，所有人可见'
+        : '已设为私密，仅自己可见'
+    );
+
+    // Synced reactive list update
+    const idx = notes.value.findIndex((n) => n.id === note.id);
+    if (idx !== -1) {
+      notes.value[idx].visibility = res.data.visibility;
+    }
+
+    // If we're not on MY tab and note visibility became PRIVATE, remove it from list
+    if (activeTab.value !== 'MY' && note.visibility === 'PRIVATE') {
+      notes.value = notes.value.filter((n) => n.id !== note.id);
+    }
+
+    // Reload categories and tags to update the filter lists immediately!
+    loadTagsAndCategories();
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, t('notes.operationFailed')));
   }
@@ -640,6 +681,36 @@ const handlePageChange = (page: number) => {
   loadNotes();
 };
 
+const dailyQuote = ref('');
+const dailyQuoteGenerated = ref(false);
+const isGeneratingQuote = ref(false);
+
+const fetchDailyQuote = async () => {
+  try {
+    const res = await api.get('/api/notes/daily-quote');
+    dailyQuote.value = res.data.quote || '';
+    dailyQuoteGenerated.value = res.data.generated === true;
+  } catch (err) {
+    console.error('Failed to fetch daily quote:', err);
+  }
+};
+
+const handleGenerateDailyQuote = async () => {
+  if (isGeneratingQuote.value) return;
+  isGeneratingQuote.value = true;
+  try {
+    const res = await api.post('/api/notes/daily-quote/generate');
+    dailyQuote.value = res.data.quote || '';
+    dailyQuoteGenerated.value = res.data.generated === true;
+    ElMessage.success('今日灵感寄语生成成功！');
+  } catch (err) {
+    console.error('Failed to generate daily quote:', err);
+    ElMessage.error('AI生成失败，请稍后重试');
+  } finally {
+    isGeneratingQuote.value = false;
+  }
+};
+
 const isMobile = ref(false);
 
 const checkMobile = () => {
@@ -650,6 +721,7 @@ onMounted(() => {
   loadLocalNotebooks();
   loadNotes();
   loadTagsAndCategories();
+  fetchDailyQuote();
   checkMobile();
   window.addEventListener('resize', checkMobile);
 });
@@ -666,6 +738,17 @@ onUnmounted(() => {
   >
     <!-- Header Section -->
     <PageHeader :title="t('notes.title')" :subtitle="t('notes.subtitle')" :icon="Notebook">
+      <template #center>
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+          <Search />
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="t('notes.searchPlaceholder')"
+            @keyup.enter="loadNotes"
+          />
+        </label>
+      </template>
       <div class="flex items-center gap-2.5 w-full sm:w-auto">
         <button
           type="button"
@@ -703,26 +786,13 @@ onUnmounted(() => {
             ]"
             size="md"
             class="!bg-transparent border-none shrink-0"
-            @change="handleTabChange"
           />
 
           <!-- Right side: Search & Filters -->
           <div
             class="flex flex-wrap flex-1 items-center gap-2 min-w-[280px] justify-start sm:justify-end"
           >
-            <!-- Search Input -->
-            <Input
-              v-model="searchQuery"
-              type="text"
-              :placeholder="t('notes.searchPlaceholder')"
-              :icon="Search"
-              clearable
-              glass
-              class="w-full sm:w-auto sm:flex-1 sm:max-w-xs shrink-0"
-              input-class="!py-1.5 !h-8.5 text-xs sm:text-sm"
-              @keyup.enter="loadNotes"
-              @clear="loadNotes"
-            />
+
 
             <!-- Sort Select -->
             <el-select
@@ -928,11 +998,17 @@ onUnmounted(() => {
                 :total-notes="totalNotes"
                 :filter-tag="filterTag"
                 :filter-category="filterCategory"
+                :daily-quote-prop="dailyQuote"
+                :daily-quote-generated="dailyQuoteGenerated"
+                :is-generating-quote="isGeneratingQuote"
+                :view-mode="viewMode"
                 @click-detail="viewDetail"
                 @like="handleLike"
                 @clone="(note) => cloneDialogRef?.open(note)"
                 @edit="openEditDialog"
                 @delete="handleDelete"
+                @popular-toggle="handleTogglePopular"
+                @generate-daily-quote="handleGenerateDailyQuote"
                 @filter-tag="
                   (t) => {
                     filterTag = t;
@@ -972,6 +1048,7 @@ onUnmounted(() => {
                   @edit="openEditDialog"
                   @delete="handleDelete"
                   @popular-toggle="handleTogglePopular"
+                  @visibility-toggle="handleToggleVisibility"
                   @like="handleLike"
                   @share="openShareDialog"
                   @click-avatar="handleShowUserProfile"
@@ -982,7 +1059,7 @@ onUnmounted(() => {
 
             <!-- Pagination -->
             <div
-              v-if="totalPages > 1 && activeTab !== 'POPULAR'"
+              v-if="totalPages > 1"
               class="flex justify-center mt-12 mb-8"
             >
               <el-pagination

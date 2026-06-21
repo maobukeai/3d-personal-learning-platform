@@ -452,40 +452,41 @@ onMounted(() => {
       :show="isDialogOpen"
       :title="dialogMode === 'create' ? '新建轮播广告图' : '编辑轮播广告图'"
       size="md"
+      glass-card
       @close="isDialogOpen = false"
     >
       <div class="space-y-4">
         <!-- Title -->
         <div class="space-y-1.5">
-          <label class="text-xs font-black text-slate-300">轮播图标题 *</label>
+          <label class="text-xs font-semibold text-[var(--text-secondary)]">轮播图标题 *</label>
           <input
             v-model="form.title"
             type="text"
             placeholder="如：未来之门：赛博朋克城市挑战赛"
-            class="w-full px-3 py-2 rounded-xl border dark:border-white/10 dark:bg-white/5 text-xs outline-none focus:ring-1 focus:ring-accent transition-all text-slate-100"
+            class="w-full px-3 py-2 rounded-xl border border-[var(--border-base)] bg-[var(--bg-app)]/50 text-[var(--text-primary)] text-xs outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all placeholder:text-[var(--text-muted)]/60"
           />
         </div>
 
         <!-- Subtitle -->
         <div class="space-y-1.5">
-          <label class="text-xs font-black text-slate-300">描述副标题</label>
+          <label class="text-xs font-semibold text-[var(--text-secondary)]">描述副标题</label>
           <textarea
             v-model="form.subtitle"
             rows="3"
             placeholder="简要介绍活动或课程详情，控制在80字以内"
-            class="w-full px-3 py-2 rounded-xl border dark:border-white/10 dark:bg-white/5 text-xs outline-none focus:ring-1 focus:ring-accent transition-all text-slate-100 resize-none"
+            class="w-full px-3 py-2 rounded-xl border border-[var(--border-base)] bg-[var(--bg-app)]/50 text-[var(--text-primary)] text-xs outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all placeholder:text-[var(--text-muted)]/60 resize-none"
           ></textarea>
         </div>
 
         <!-- Image Upload -->
         <div class="space-y-1.5">
-          <label class="text-xs font-black text-slate-300"
+          <label class="text-xs font-semibold text-[var(--text-secondary)]"
             >轮播背景图 * (推荐 21:9，最大 5MB)</label
           >
           <div class="flex items-start gap-4">
             <!-- Thumbnail preview -->
             <div
-              class="w-36 aspect-video rounded-xl overflow-hidden border dark:border-white/10 bg-slate-800 flex items-center justify-center relative group shrink-0"
+              class="w-36 aspect-video rounded-xl overflow-hidden border border-[var(--border-base)] bg-[var(--bg-app)]/80 flex items-center justify-center relative group shrink-0"
             >
               <img
                 v-if="form.imageUrl"
@@ -493,7 +494,7 @@ onMounted(() => {
                 class="w-full h-full object-cover"
                 alt="Banner uploading preview"
               />
-              <ImageIcon v-else class="w-6 h-6 text-slate-600" />
+              <ImageIcon v-else class="w-6 h-6 text-[var(--text-muted)] opacity-60" />
               <div
                 v-if="isUploading"
                 class="absolute inset-0 bg-black/60 flex items-center justify-center"
@@ -503,13 +504,14 @@ onMounted(() => {
             </div>
 
             <div class="space-y-2">
-              <button
+              <Button
                 type="button"
-                class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg border dark:border-white/10 text-xs font-bold cursor-pointer transition-colors"
+                variant="secondary"
+                size="sm"
                 @click="triggerFileUpload"
               >
                 选择图片并上传
-              </button>
+              </Button>
               <input
                 ref="fileInputRef"
                 type="file"
@@ -517,7 +519,7 @@ onMounted(() => {
                 accept="image/*"
                 @change="handleImageUpload"
               />
-              <p class="text-[10px] text-slate-500 leading-relaxed">
+              <p class="text-[10px] text-[var(--text-muted)] leading-relaxed">
                 上传的背景图片将被渲染在首屏大卡片中。建议使用横向宽屏背景以获得最佳显示效果。
               </p>
             </div>
@@ -526,33 +528,33 @@ onMounted(() => {
 
         <!-- Link Route -->
         <div class="space-y-1.5">
-          <label class="text-xs font-black text-slate-300 font-mono">跳转路由 (内链) *</label>
+          <label class="text-xs font-semibold text-[var(--text-secondary)] font-mono">跳转路由 (内链) *</label>
           <input
             v-model="form.route"
             type="text"
             placeholder="例如：/discussions 或 /academy/course/1"
-            class="w-full px-3 py-2 rounded-xl border dark:border-white/10 dark:bg-white/5 text-xs outline-none focus:ring-1 focus:ring-accent transition-all text-slate-100 font-mono"
+            class="w-full px-3 py-2 rounded-xl border border-[var(--border-base)] bg-[var(--bg-app)]/50 text-[var(--text-primary)] text-xs outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all placeholder:text-[var(--text-muted)]/60 font-mono"
           />
         </div>
 
         <!-- Tags & colors -->
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-1.5">
-            <label class="text-xs font-black text-slate-300">角标标签</label>
+            <label class="text-xs font-semibold text-[var(--text-secondary)]">角标标签</label>
             <input
               v-model="form.tag"
               type="text"
               placeholder="如：本周挑战、进阶必学"
-              class="w-full px-3 py-2 rounded-xl border dark:border-white/10 dark:bg-white/5 text-xs outline-none focus:ring-1 focus:ring-accent transition-all text-slate-100"
+              class="w-full px-3 py-2 rounded-xl border border-[var(--border-base)] bg-[var(--bg-app)]/50 text-[var(--text-primary)] text-xs outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all placeholder:text-[var(--text-muted)]/60"
             />
           </div>
           <div class="space-y-1.5">
-            <label class="text-xs font-black text-slate-300">标签颜色样式 (CSS 类)</label>
+            <label class="text-xs font-semibold text-[var(--text-secondary)]">标签颜色样式 (CSS 类)</label>
             <input
               v-model="form.tagColor"
               type="text"
               placeholder="如: bg-accent/15 text-accent border-accent/30"
-              class="w-full px-3 py-2 rounded-xl border dark:border-white/10 dark:bg-white/5 text-xs outline-none focus:ring-1 focus:ring-accent transition-all text-slate-100"
+              class="w-full px-3 py-2 rounded-xl border border-[var(--border-base)] bg-[var(--bg-app)]/50 text-[var(--text-primary)] text-xs outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all placeholder:text-[var(--text-muted)]/60"
             />
           </div>
         </div>
@@ -560,30 +562,30 @@ onMounted(() => {
         <!-- Button text and order -->
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-1.5">
-            <label class="text-xs font-black text-slate-300">按钮文字</label>
+            <label class="text-xs font-semibold text-[var(--text-secondary)]">按钮文字</label>
             <input
               v-model="form.buttonText"
               type="text"
               placeholder="默认：立即参与"
-              class="w-full px-3 py-2 rounded-xl border dark:border-white/10 dark:bg-white/5 text-xs outline-none focus:ring-1 focus:ring-accent transition-all text-slate-100"
+              class="w-full px-3 py-2 rounded-xl border border-[var(--border-base)] bg-[var(--bg-app)]/50 text-[var(--text-primary)] text-xs outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all placeholder:text-[var(--text-muted)]/60"
             />
           </div>
           <div class="space-y-1.5">
-            <label class="text-xs font-black text-slate-300">排序值 (从小到大排列)</label>
+            <label class="text-xs font-semibold text-[var(--text-secondary)]">排序值 (从小到大排列)</label>
             <input
               v-model.number="form.order"
               type="number"
               placeholder="数字越小越靠前"
-              class="w-full px-3 py-2 rounded-xl border dark:border-white/10 dark:bg-white/5 text-xs outline-none focus:ring-1 focus:ring-accent transition-all text-slate-100"
+              class="w-full px-3 py-2 rounded-xl border border-[var(--border-base)] bg-[var(--bg-app)]/50 text-[var(--text-primary)] text-xs outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all placeholder:text-[var(--text-muted)]/60"
             />
           </div>
         </div>
 
         <!-- Is Active Toggle -->
-        <div class="flex items-center justify-between py-2 border-t dark:border-white/5 mt-4">
+        <div class="flex items-center justify-between py-2 border-t border-[var(--border-base)] mt-4">
           <div>
-            <span class="text-xs font-bold text-slate-200">启用该轮播</span>
-            <p class="text-[10px] text-slate-500">禁用后，创作者工作台将不会显示此轮播卡片</p>
+            <span class="text-xs font-bold text-[var(--text-primary)]">启用该轮播</span>
+            <p class="text-[10px] text-[var(--text-muted)]">禁用后，创作者工作台将不会显示此轮播卡片</p>
           </div>
           <el-switch v-model="form.isActive" active-color="var(--accent)" />
         </div>

@@ -159,7 +159,7 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" title="GitHub 笔记同步" size="md" @close="visible = false">
+  <Modal :show="visible" title="GitHub 笔记同步" size="md" glass-card @close="visible = false">
     <!-- Custom Header Slot for Premium Branding -->
     <template #header>
       <div class="flex items-center gap-3">

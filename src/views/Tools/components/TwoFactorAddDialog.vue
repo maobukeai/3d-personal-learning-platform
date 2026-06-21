@@ -6,6 +6,7 @@ import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import { generateTOTP } from '@/utils/totp';
 import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -152,7 +153,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Modal :show="visible" title="安全添加 2FA 账号" size="md" @close="visible = false">
+  <Modal :show="visible" title="安全添加 2FA 账号" size="md" glass-card @close="visible = false">
     <div class="space-y-4">
       <!-- Dialog instruction -->
       <div
@@ -285,24 +286,20 @@ onUnmounted(() => {
     </div>
 
     <template #footer>
-      <el-button
-        style="
-          background-color: var(--bg-app);
-          border: 1px solid var(--border-base);
-          color: var(--text-secondary);
-        "
-        class="px-4 py-2 rounded-xl text-xs font-semibold"
+      <Button
+        variant="secondary"
+        size="sm"
         @click="visible = false"
       >
         取消
-      </el-button>
-      <el-button
-        type="primary"
-        class="bg-indigo-600 hover:bg-indigo-500 border-none font-semibold px-5 py-2.5 rounded-xl transition-all"
+      </Button>
+      <Button
+        variant="primary"
+        size="sm"
         @click="submitAddAccount"
       >
         保存账号
-      </el-button>
+      </Button>
     </template>
   </Modal>
 </template>

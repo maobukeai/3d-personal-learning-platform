@@ -2,6 +2,7 @@
 import { onUnmounted, watch } from 'vue';
 import { X } from 'lucide-vue-next';
 import Card from './Card.vue';
+import GlassCard from './GlassCard.vue';
 
 interface Props {
   show: boolean;
@@ -11,6 +12,7 @@ interface Props {
   padding?: 'none' | 'sm' | 'md' | 'lg';
   fullscreen?: boolean;
   zIndex?: number;
+  glassCard?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -20,6 +22,7 @@ const props = withDefaults(defineProps<Props>(), {
   padding: 'lg',
   fullscreen: false,
   zIndex: 1000,
+  glassCard: false,
 });
 
 const emit = defineEmits<{
@@ -63,29 +66,41 @@ onUnmounted(() => {
 
 <template>
   <Teleport to="body">
+    <!-- Frosted Glass Backdrop Overlay -->
     <transition
-      enter-active-class="transition-all duration-300 ease-out"
-      leave-active-class="transition-all duration-200 ease-in"
-      enter-from-class="opacity-0 scale-95"
-      leave-to-class="opacity-0 scale-95"
+      enter-active-class="transition-opacity duration-150 ease-out"
+      leave-active-class="transition-opacity duration-100 ease-in"
+      enter-from-class="opacity-0"
+      leave-to-class="opacity-0"
     >
       <div
         v-if="show"
-        class="fixed inset-0 flex items-center justify-center"
-        :style="{ zIndex: zIndex }"
-        :class="fullscreen ? 'p-0 overflow-hidden' : 'p-4 overflow-y-auto'"
-      >
-        <!-- Frosted Glass Backdrop Overlay -->
-        <div
-          class="fixed inset-0 bg-black/40 backdrop-blur-md dark:bg-black/60 transition-opacity duration-300"
-          @click="handleOutsideClick"
-        ></div>
+        class="fixed inset-0 bg-black/40 backdrop-blur-md dark:bg-black/60"
+        :style="{ zIndex: zIndex - 1 }"
+        @click="handleOutsideClick"
+      ></div>
+    </transition>
 
+    <transition
+      enter-active-class="transition-all duration-150 ease-out"
+      leave-active-class="transition-all duration-100 ease-in"
+      enter-from-class="opacity-0 scale-98"
+      leave-to-class="opacity-0 scale-98"
+    >
+      <div
+        v-if="show"
+        class="fixed inset-0 flex justify-center pointer-events-none"
+        :style="{ zIndex: zIndex }"
+        :class="[
+          fullscreen ? 'p-0 overflow-hidden items-stretch' : 'p-4 overflow-y-auto items-start',
+          fullscreen ? 'pointer-events-auto' : ''
+        ]"
+      >
         <!-- Modal Content Container -->
         <div
-          class="relative z-10 transform transition-all duration-300"
+          class="relative z-10 transform transition-all duration-300 pointer-events-auto"
           :class="[
-            fullscreen ? 'w-screen h-screen max-w-none m-0' : 'w-full',
+            fullscreen ? 'w-screen h-screen max-w-none m-0' : 'w-full my-auto',
             !fullscreen &&
               (size === 'sm'
                 ? 'max-w-md'
@@ -98,16 +113,17 @@ onUnmounted(() => {
                       : 'max-w-lg'),
           ]"
         >
-          <Card
-            glass
+          <component
+            :is="glassCard ? GlassCard : Card"
             :padding="padding"
+            v-bind="glassCard ? {} : { glass: true }"
             class="shadow-[0_25px_60px_rgba(0,0,0,0.35)]"
             :class="fullscreen ? 'rounded-none h-screen w-screen border-none max-w-none' : ''"
           >
             <!-- Header -->
             <div
               v-if="title || $slots.header"
-              class="flex items-center justify-between mb-5 pb-3 border-b border-strong/40"
+              class="premium-card-header flex items-center justify-between mb-5 pb-3 border-b border-strong/40"
             >
               <slot name="header">
                 <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">
@@ -136,7 +152,7 @@ onUnmounted(() => {
             >
               <slot name="footer"></slot>
             </div>
-          </Card>
+          </component>
         </div>
       </div>
     </transition>

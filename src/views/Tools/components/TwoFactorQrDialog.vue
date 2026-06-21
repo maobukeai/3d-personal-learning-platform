@@ -55,7 +55,7 @@ watch(
 </script>
 
 <template>
-  <Modal :show="visible" title="手机扫码导入" size="sm" @close="visible = false">
+  <Modal :show="visible" title="手机扫码导入" size="sm" glass-card @close="visible = false">
     <div class="flex flex-col items-center justify-center p-2 text-center">
       <!-- Big title info -->
       <h4 class="text-base font-bold mb-1" style="color: var(--text-primary)">

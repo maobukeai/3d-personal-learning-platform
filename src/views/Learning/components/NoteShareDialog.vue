@@ -365,7 +365,7 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" size="lg" :z-index="1100" @close="visible = false">
+  <Modal :show="visible" size="lg" :z-index="1100" glass-card @close="visible = false">
     <template #header>
       <div class="flex items-center gap-2.5">
         <div

@@ -737,16 +737,14 @@ watch(viewMode, (newMode) => {
 
         <!-- Center Section (Search) -->
         <div class="flex justify-center xl:flex-1 w-full xl:w-auto">
-          <Input
-            v-model="searchQuery"
-            type="text"
-            placeholder="搜索项目、描述、标签"
-            :icon="Search"
-            clearable
-            glass
-            class="min-w-0 w-full sm:w-72 xl:w-80"
-            input-class="!py-1.5 !h-8 text-xs"
-          />
+          <label class="search-box !min-h-0 !h-8 w-full sm:w-72 xl:w-80 shrink-0">
+            <Search />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="搜索项目、描述、标签"
+            />
+          </label>
         </div>
 
         <!-- Right Section (Actions) -->

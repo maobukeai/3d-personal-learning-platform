@@ -254,16 +254,14 @@ onMounted(() => {
     <!-- Top Header -->
     <PageHeader :title="t('academy.title')" :subtitle="t('academy.subtitle')" :icon="GraduationCap">
       <template #center>
-        <Input
-          v-model="searchQuery"
-          type="text"
-          :placeholder="t('academy.searchPlaceholder')"
-          :icon="Search"
-          clearable
-          glass
-          class="w-full flex-1"
-          input-class="!py-2 !h-9.5 text-xs sm:text-sm"
-        />
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+          <Search />
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="t('academy.searchPlaceholder')"
+          />
+        </label>
       </template>
 
       <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">

@@ -5,6 +5,8 @@ import { Globe, Upload, Loader2, X } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import type { MirrorSource } from '../AdminMirrorView.vue';
+import Button from '@/components/ui/Button.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 const visible = defineModel<boolean>({ default: false });
 
@@ -126,169 +128,196 @@ async function submit() {
 </script>
 
 <template>
-  <div
-    v-if="visible"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-    @click.self="visible = false"
+  <Modal
+    :show="visible"
+    size="md"
+    glass-card
+    @close="visible = false"
   >
-    <div
-      class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-lg mx-4 shadow-2xl max-h-[90vh] overflow-y-auto"
-    >
-      <div
-        class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700"
-      >
-        <h2 class="text-lg font-semibold text-slate-900 dark:text-white">
+    <template #header>
+      <div>
+        <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
           {{ source ? '编辑镜像源' : '添加镜像源' }}
-        </h2>
-        <button
-          type="button"
-          class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          @click="visible = false"
-        >
-          <X class="w-5 h-5" />
-        </button>
+        </h3>
+        <p class="text-xs text-slate-400 mt-1">
+          {{ source ? '调整镜像源网站接入设置及同步规则' : '接入并配置一个新的 3D 资源库镜像同步源' }}
+        </p>
       </div>
+    </template>
 
-      <div class="p-5 space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >名称（英文标识）</label
+    <div class="space-y-4">
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >名称（英文标识）</label
+        >
+        <input
+          v-model="formData.name"
+          type="text"
+          placeholder="例如: zycku"
+          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
+        />
+      </div>
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >显示名称</label
+        >
+        <input
+          v-model="formData.displayName"
+          type="text"
+          placeholder="例如: 资源酷"
+          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
+        />
+      </div>
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >站点图标 (推荐 1:1 比例)</label
+        >
+        <div class="flex items-center gap-4">
+          <div
+            class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700"
           >
-          <input
-            v-model="formData.name"
-            type="text"
-            placeholder="例如: zycku"
-            class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-          />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >显示名称</label
-          >
-          <input
-            v-model="formData.displayName"
-            type="text"
-            placeholder="例如: 资源酷"
-            class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-          />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >站点图标 (推荐 1:1 比例)</label
-          >
-          <div class="flex items-center gap-4">
-            <div
-              class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700"
+            <img
+              v-if="formData.iconUrl"
+              alt=""
+              :src="getAssetUrl(formData.iconUrl)"
+              class="w-full h-full object-cover"
+            />
+            <Globe v-else class="w-6 h-6 text-slate-400" />
+
+            <label
+              class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity"
             >
-              <img
-                v-if="formData.iconUrl"
-                alt=""
-                :src="getAssetUrl(formData.iconUrl)"
-                class="w-full h-full object-cover"
-              />
-              <Globe v-else class="w-6 h-6 text-slate-400" />
-
-              <label
-                class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity"
-              >
-                <Upload v-if="!isUploadingIcon" class="w-5 h-5 text-white" />
-                <Loader2 class="w-5 h-5 text-white animate-spin" />
-                <input type="file" accept="image/*" class="hidden" @change="handleIconUpload" />
-              </label>
-            </div>
-            <div class="flex-1 space-y-1.5">
-              <input
-                v-model="formData.iconUrl"
-                type="text"
-                placeholder="或者输入网络图标 URL"
-                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-              />
-              <p class="text-[10px] text-slate-400 dark:text-slate-500 leading-none">
-                推荐尺寸 128x128px，支持 PNG/JPG/WebP，大小不超过 5MB
-              </p>
-            </div>
+              <Upload v-if="!isUploadingIcon" class="w-5 h-5 text-white" />
+              <Loader2 v-else class="w-5 h-5 text-white animate-spin" />
+              <input type="file" accept="image/*" class="hidden" @change="handleIconUpload" />
+            </label>
+          </div>
+          <div class="flex-1 space-y-1.5">
+            <input
+              v-model="formData.iconUrl"
+              type="text"
+              placeholder="或者输入网络图标 URL"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+            <p class="text-[10px] text-slate-400 dark:text-slate-500 leading-none pl-1">
+              推荐尺寸 128x128px，支持 PNG/JPG/WebP，大小不超过 5MB
+            </p>
           </div>
         </div>
+      </div>
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >网站地址</label
+        >
+        <input
+          v-model="formData.baseUrl"
+          type="text"
+          placeholder="https://www.zycku.com"
+          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
+        />
+      </div>
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >适配器类型</label
+        >
+        <select
+          v-model="formData.adapterType"
+          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
+        >
+          <option v-for="opt in adapterTypes" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </option>
+        </select>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >网站地址</label
-          >
-          <input
-            v-model="formData.baseUrl"
-            type="text"
-            placeholder="https://www.zycku.com"
-            class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-          />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >适配器类型</label
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+            >访问权限</label
           >
           <select
-            v-model="formData.adapterType"
-            class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            v-model="formData.minPlanPriority"
+            class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-primary);
+            "
           >
-            <option v-for="opt in adapterTypes" :key="opt.value" :value="opt.value">
-              {{ opt.label }}
-            </option>
+            <option :value="0">免费版及以上</option>
+            <option :value="1">VIP及以上</option>
+            <option :value="2">SVIP及以上</option>
           </select>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-              >访问权限</label
-            >
-            <select
-              v-model="formData.minPlanPriority"
-              class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-            >
-              <option :value="0">免费版及以上</option>
-              <option :value="1">VIP及以上</option>
-              <option :value="2">SVIP及以上</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-              >同步间隔(秒)</label
-            >
-            <input
-              v-model.number="formData.syncInterval"
-              type="number"
-              min="600"
-              step="600"
-              class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-            />
-          </div>
-        </div>
         <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >描述</label
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+            >同步间隔(秒)</label
           >
-          <textarea
-            v-model="formData.description"
-            rows="2"
-            placeholder="简要描述该镜像源..."
-            class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
-          ></textarea>
+          <input
+            v-model.number="formData.syncInterval"
+            type="number"
+            min="600"
+            step="600"
+            class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-primary);
+            "
+          />
         </div>
       </div>
-
-      <div class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700">
-        <button
-          type="button"
-          class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-          @click="visible = false"
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >描述</label
         >
-          取消
-        </button>
-        <button
-          type="button"
-          class="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors"
-          @click="submit"
-        >
-          {{ source ? '保存' : '创建' }}
-        </button>
+        <textarea
+          v-model="formData.description"
+          rows="2"
+          placeholder="简要描述该镜像源..."
+          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 resize-none"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
+        ></textarea>
       </div>
     </div>
-  </div>
+
+    <template #footer>
+      <div class="flex items-center gap-3">
+        <Button variant="secondary" size="md" @click="visible = false">
+          取消
+        </Button>
+        <Button variant="primary" size="md" @click="submit">
+          {{ source ? '保存' : '创建' }}
+        </Button>
+      </div>
+    </template>
+  </Modal>
 </template>

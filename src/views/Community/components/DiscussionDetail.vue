@@ -21,6 +21,7 @@ import { useAuthStore } from '@/stores/auth';
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 import UserAvatar from '@/components/UserAvatar.vue';
 import type { Discussion, DiscussionComment } from '../DiscussionsView.vue';
+import Modal from '@/components/ui/Modal.vue';
 import { parseTags } from '@/utils/tags';
 
 const props = defineProps<{
@@ -258,8 +259,13 @@ const toggleReplies = (commentId: string) => {
 </script>
 
 <template>
-  <div class="modal-shell">
-    <div class="modal-backdrop" @click="emit('close')"></div>
+  <Modal
+    :show="true"
+    size="xxl"
+    glass-card
+    padding="none"
+    @close="emit('close')"
+  >
     <section class="detail-modal">
       <header class="detail-header">
         <div class="detail-author">
@@ -518,38 +524,17 @@ const toggleReplies = (commentId: string) => {
         </aside>
       </div>
     </section>
-  </div>
+  </Modal>
 </template>
 
 <style scoped>
-.modal-shell {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 14px;
-}
-
-.modal-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.42);
-  backdrop-filter: blur(10px);
-}
-
 .detail-modal {
   position: relative;
   display: flex;
-  width: min(1120px, 100%);
+  width: 100%;
   max-height: min(92vh, 860px);
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
 }
 
 .detail-header {

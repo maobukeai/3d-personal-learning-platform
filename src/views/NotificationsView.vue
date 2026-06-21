@@ -488,7 +488,8 @@ onMounted(() => {
                       <button
                         v-if="n.link"
                         type="button"
-                        class="text-[10px] font-bold text-accent hover:underline flex items-center gap-1"
+                        class="text-[10px] font-bold text-accent hover:underline flex items-center gap-1 cursor-pointer"
+                        @click.stop="handleMarkAsRead(n)"
                       >
                         {{ $t('notifications.process_now') }} <ChevronRight class="w-3 h-3" />
                       </button>

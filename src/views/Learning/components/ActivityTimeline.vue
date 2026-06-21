@@ -3,7 +3,7 @@ import { formatDate } from '@/utils/format';
 import { ref, computed } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Loading } from '@element-plus/icons-vue';
-import { ThumbsUp, MessageSquare, Bookmark, Edit3, Trash2, Flame, BookOpen } from 'lucide-vue-next';
+import { ThumbsUp, MessageSquare, Bookmark, Edit3, Trash2, Flame, BookOpen, Star, Sparkles } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
@@ -43,6 +43,10 @@ const props = defineProps<{
   totalNotes: number;
   filterTag: string;
   filterCategory: string;
+  dailyQuoteProp?: string;
+  dailyQuoteGenerated?: boolean;
+  isGeneratingQuote?: boolean;
+  viewMode?: 'grid' | 'list';
 }>();
 
 const emit = defineEmits<{
@@ -54,6 +58,8 @@ const emit = defineEmits<{
   (e: 'filter-tag', tag: string): void;
   (e: 'filter-category', category: string): void;
   (e: 'click-avatar', userId: string): void;
+  (e: 'popular-toggle', note: Note): void;
+  (e: 'generate-daily-quote'): void;
 }>();
 
 const authStore = useAuthStore();
@@ -130,8 +136,7 @@ const dailyQuotes = [
   '精于工，匠于心；创于想，行于行。保持好奇，不断打磨你的3D视界！',
 ];
 const dailyQuote = computed(() => {
-  const day = new Date().getDate();
-  return dailyQuotes[day % dailyQuotes.length];
+  return props.dailyQuoteProp || '';
 });
 
 const topContributors = computed(() => {
@@ -154,11 +159,18 @@ const topContributors = computed(() => {
 <template>
   <div class="flex flex-col xl:flex-row gap-5 items-start w-full animate-fade-in">
     <!-- Central Timeline Column -->
-    <div class="flex-1 min-w-0 w-full space-y-3.5">
+    <div
+      :class="
+        props.viewMode === 'list'
+          ? 'flex-1 min-w-0 w-full space-y-3.5'
+          : 'flex-1 min-w-0 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4 sm:gap-5'
+      "
+    >
       <div
         v-for="note in props.notes"
         :key="note.id"
         class="bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl p-3 sm:p-3.5 md:p-4 shadow-sm flex flex-col gap-2.5 relative transition-all hover:shadow-md cursor-default animate-fade-in"
+        :class="{ 'h-full': props.viewMode !== 'list' }"
       >
         <!-- Top Author & Info (Inline single row Twitter-style) -->
         <div class="flex items-center justify-between gap-3">
@@ -176,7 +188,7 @@ const topContributors = computed(() => {
               <span class="hover:text-accent transition-colors">{{ note.user.name }}</span>
               <span class="text-[9px] text-[var(--text-muted)] font-normal pointer-events-none"
                 >• {{ formatDate(note.createdAt) }}</span
-              >
+               >
             </div>
           </div>
           <!-- Right Tag -->
@@ -189,7 +201,11 @@ const topContributors = computed(() => {
         </div>
 
         <!-- Title & Markdown content snippet (Line clamp 2 for tight density) -->
-        <div class="cursor-pointer" @click="emit('click-detail', note)">
+        <div
+          class="cursor-pointer"
+          :class="{ 'flex-1': props.viewMode !== 'list' }"
+          @click="emit('click-detail', note)"
+        >
           <h3
             class="text-xs sm:text-sm md:text-base font-extrabold text-[var(--text-primary)] hover:text-accent transition-colors leading-snug"
           >
@@ -244,17 +260,50 @@ const topContributors = computed(() => {
           </div>
 
           <!-- 一键转存 (Clip/Save) button -->
-          <button
-            v-if="note.userId !== authStore.user?.id"
-            type="button"
-            class="flex items-center gap-1 text-[9px] font-black text-accent hover:text-accent-dark hover:bg-accent/5 px-2 py-0.5 rounded-lg transition-all cursor-pointer"
-            @click.stop="emit('clone', note)"
-          >
-            <Bookmark class="w-3 h-3" />
-            <span>一键转存</span>
-          </button>
+          <div v-if="note.userId !== authStore.user?.id" class="flex gap-2 items-center">
+            <button
+              type="button"
+              class="flex items-center gap-1 text-[9px] font-black text-accent hover:text-accent-dark hover:bg-accent/5 px-2 py-0.5 rounded-lg transition-all cursor-pointer"
+              @click.stop="emit('clone', note)"
+            >
+              <Bookmark class="w-3 h-3" />
+              <span>一键转存</span>
+            </button>
 
-          <div v-else class="flex gap-1">
+            <!-- Admin Actions for others' notes -->
+            <div v-if="authStore.user?.role === 'ADMIN'" class="flex gap-1 items-center">
+              <button
+                type="button"
+                class="p-1 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all cursor-pointer hover:scale-110 active:scale-90"
+                :class="{ 'text-amber-500': note.isPopular }"
+                title="置顶/精选"
+                @click.stop="emit('popular-toggle', note)"
+              >
+                <Star class="w-3 h-3" :class="{ 'fill-current': note.isPopular }" />
+              </button>
+              <button
+                type="button"
+                class="p-1 text-red-500 hover:text-red-600 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all cursor-pointer hover:scale-110 active:scale-90"
+                title="删除笔记"
+                @click.stop="emit('delete', note)"
+              >
+                <Trash2 class="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+
+          <div v-else class="flex gap-1 items-center">
+            <!-- Popular toggle for Admin if own note -->
+            <button
+              v-if="authStore.user?.role === 'ADMIN'"
+              type="button"
+              class="p-1 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all cursor-pointer hover:scale-110 active:scale-90"
+              :class="{ 'text-amber-500': note.isPopular }"
+              title="置顶/精选"
+              @click.stop="emit('popular-toggle', note)"
+            >
+              <Star class="w-3.5 h-3.5" :class="{ 'fill-current': note.isPopular }" />
+            </button>
             <button
               type="button"
               class="p-1 text-[var(--text-secondary)] hover:text-accent transition-all cursor-pointer"
@@ -388,9 +437,31 @@ const topContributors = computed(() => {
           <p class="text-[8px] font-black text-accent uppercase tracking-wider mb-1">
             今日灵感寄语
           </p>
-          <p class="text-[10px] text-[var(--text-secondary)] font-bold leading-relaxed italic">
-            “ {{ dailyQuote }} ”
-          </p>
+          <div v-if="props.dailyQuoteGenerated" class="mt-1">
+            <p class="text-[10px] text-[var(--text-secondary)] font-bold leading-relaxed italic">
+              “ {{ dailyQuote }} ”
+            </p>
+          </div>
+          <div v-else class="flex flex-col gap-2 mt-1.5 items-start">
+            <p class="text-[10px] text-[var(--text-muted)] font-medium leading-relaxed italic">
+              今日灵感寄语待生成...
+            </p>
+            <button
+              type="button"
+              class="flex items-center gap-1.5 text-[9px] font-bold text-white bg-gradient-to-r from-accent to-purple-600 hover:from-accent-dark hover:to-purple-700 active:scale-95 px-2.5 py-1 rounded-lg shadow-sm hover:shadow transition-all cursor-pointer select-none disabled:opacity-50 disabled:pointer-events-none"
+              :disabled="props.isGeneratingQuote"
+              @click="emit('generate-daily-quote')"
+            >
+              <template v-if="props.isGeneratingQuote">
+                <Loading class="w-3 h-3 animate-spin" />
+                <span>AI 生成中...</span>
+              </template>
+              <template v-else>
+                <Sparkles class="w-3 h-3" />
+                <span>AI 智能生成</span>
+              </template>
+            </button>
+          </div>
         </div>
       </div>
 

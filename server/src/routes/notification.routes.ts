@@ -6,6 +6,7 @@ const router = Router();
 
 router.use(authenticate);
 
+router.get('/latest-broadcast', notificationController.getLatestBroadcast);
 router.get('/preferences', notificationController.getNotificationPreferences);
 router.put('/preferences', notificationController.updateNotificationPreferences);
 router.get('/', notificationController.getMyNotifications);

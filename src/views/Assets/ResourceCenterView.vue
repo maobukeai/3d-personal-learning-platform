@@ -372,8 +372,8 @@ onUnmounted(() => {
 
 <template>
   <div class="resource-center-page">
-    <header class="page-header">
-      <div class="title-block">
+    <header class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
+      <div class="title-block flex-1 min-w-0">
         <div class="title-icon">
           <FileStack class="icon-sm" />
         </div>
@@ -383,7 +383,19 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="header-actions">
+      <!-- Center: Centered Search Input -->
+      <div class="flex justify-center flex-1 w-full md:w-auto">
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 md:w-80 shrink-0">
+          <Search />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="搜索最近内容、作者或标签"
+          />
+        </label>
+      </div>
+
+      <div class="header-actions flex-1 flex justify-end">
         <button type="button" class="ghost-button" @click="isStatsExpanded = !isStatsExpanded">
           <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
           {{ isStatsExpanded ? '收起指标' : '数据指标' }}
@@ -480,17 +492,7 @@ onUnmounted(() => {
             <Tabs v-model="activeStatus" :options="statusTabOptions" size="sm" />
           </div>
 
-          <div class="toolbar-center">
-            <Input
-              v-model="searchQuery"
-              type="search"
-              placeholder="搜索最近内容、作者或标签"
-              :icon="Search"
-              clearable
-              input-class="!py-1.5 !h-8.5 !rounded-lg"
-              class="w-full max-w-[180px]"
-            />
-          </div>
+
 
           <div class="toolbar-right">
             <select v-model="sortMode" class="sort-select" aria-label="资源排序">
@@ -1195,35 +1197,7 @@ button:disabled {
   border-color: var(--border-strong);
 }
 
-.search-box {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 200px;
-  height: 32px;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: var(--bg-card);
-  color: var(--text-muted);
-  padding: 0 10px;
-  transition: all 0.15s ease;
-}
-
-.search-box:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-subtle);
-}
-
-.search-box input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 12px;
-}
+/* Local .search-box styling removed to use global .search-box style */
 
 .sort-select {
   height: 32px;

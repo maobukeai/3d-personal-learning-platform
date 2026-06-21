@@ -133,7 +133,7 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" fullscreen padding="none" @close="visible = false">
+  <Modal :show="visible" fullscreen padding="none" glass-card @close="visible = false">
     <div class="h-screen flex flex-col bg-[var(--bg-app)] overflow-y-auto custom-scrollbar">
       <header
         class="sticky top-0 z-50 h-14 md:h-16 flex items-center justify-between px-3 md:px-8 bg-[var(--bg-app)]/80 backdrop-blur-md border-b border-[var(--border-base)]"

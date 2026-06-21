@@ -690,6 +690,19 @@ onMounted(() => {
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
       <!-- Reusable PageHeader -->
       <PageHeader :title="pageConfig.title" subtitle="平台管理 · 资源清单" variant="card">
+        <template #center>
+          <!-- Compact Search Box (Centered) -->
+          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+            <Search />
+            <input
+              v-model="searchQuery"
+              type="search"
+              placeholder="搜索关键字或创作者..."
+              @keyup.enter="handleSearch"
+            />
+          </label>
+        </template>
+
         <div class="flex items-center gap-2">
           <UiButton
             variant="secondary"
@@ -772,18 +785,6 @@ onMounted(() => {
               :options="statusFilterOptions"
               variant="solid"
               @change="(val: any) => handleStatusFilterChange(val)"
-            />
-          </div>
-
-          <!-- Center-aligned Search -->
-          <div class="flex flex-1 items-center justify-center max-w-md w-full">
-            <UiInput
-              v-model="searchQuery"
-              :icon="Search"
-              placeholder="搜索关键字或创作者..."
-              :glass="false"
-              class="w-full"
-              @keyup.enter="handleSearch"
             />
           </div>
 
@@ -990,6 +991,7 @@ onMounted(() => {
       :show="detailModalVisible"
       title="资源详情"
       size="md"
+      glass-card
       @close="detailModalVisible = false"
     >
       <template v-if="activeItem">
@@ -1126,6 +1128,7 @@ onMounted(() => {
       :show="isCreateOpen"
       :title="`发布新${pageConfig.label}`"
       size="md"
+      glass-card
       @close="isCreateOpen = false"
     >
       <div class="form-stack">
@@ -1321,6 +1324,7 @@ onMounted(() => {
       :show="isEditOpen"
       :title="`修改${pageConfig.label}`"
       size="md"
+      glass-card
       @close="isEditOpen = false"
     >
       <div class="form-stack">

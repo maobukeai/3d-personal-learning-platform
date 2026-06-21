@@ -26,6 +26,7 @@ import {
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 
 // Account structure definition
 interface EmailAccount {
@@ -970,18 +971,15 @@ const handleSendEmail = async () => {
         </div>
 
         <!-- Search Bar -->
-        <div class="relative">
-          <span
-            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400"
-          >
-            <Search class="w-3.5 h-3.5" />
-          </span>
-          <input
-            v-model="searchQuery"
-            type="text"
-            :placeholder="$t('tools.email.search_placeholder')"
-            class="w-full text-xs pl-8.5 pr-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all duration-200"
-          />
+        <div class="flex justify-center w-full">
+          <label class="search-box !min-h-0 !h-8 w-full shrink-0">
+            <Search />
+            <input
+              v-model="searchQuery"
+              type="text"
+              :placeholder="$t('tools.email.search_placeholder')"
+            />
+          </label>
         </div>
       </div>
 
@@ -1308,6 +1306,7 @@ const handleSendEmail = async () => {
       :show="isImportDialogVisible"
       :title="$t('tools.email.batch_import')"
       size="lg"
+      glass-card
       @close="isImportDialogVisible = false"
     >
       <div class="flex flex-col gap-4 text-left">
@@ -1402,13 +1401,13 @@ example2@hotmail.com----00000000-0000-0000-0000-000000000000----MC...9a"
 
       <template #footer>
         <div class="flex justify-end gap-2">
-          <el-button size="small" @click="isImportDialogVisible = false">取消</el-button>
-          <el-button
-            type="primary"
+          <Button variant="secondary" size="sm" @click="isImportDialogVisible = false">取消</Button>
+          <Button
+            variant="primary"
             :loading="isAccountsLoading"
-            size="small"
+            size="sm"
             @click="handleBatchImport"
-            >{{ $t('tools.email.confirm_parse_btn') }}</el-button
+            >{{ $t('tools.email.confirm_parse_btn') }}</Button
           >
         </div>
       </template>
@@ -1419,6 +1418,7 @@ example2@hotmail.com----00000000-0000-0000-0000-000000000000----MC...9a"
       :show="isAddDialogVisible"
       :title="$t('tools.email.add_single_title')"
       size="md"
+      glass-card
       @close="isAddDialogVisible = false"
     >
       <div class="flex flex-col gap-3.5 text-left">
@@ -1449,7 +1449,7 @@ example2@hotmail.com----00000000-0000-0000-0000-000000000000----MC...9a"
           <input
             v-model="singleAccount.clientId"
             type="text"
-            placeholder="{{ $t('tools.email.client_id_label') }}"
+            :placeholder="$t('tools.email.client_id_label')"
             class="text-xs px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-400 transition-all duration-200"
           />
         </div>
@@ -1520,13 +1520,13 @@ example2@hotmail.com----00000000-0000-0000-0000-000000000000----MC...9a"
 
       <template #footer>
         <div class="flex justify-end gap-2">
-          <el-button size="small" @click="isAddDialogVisible = false">取消</el-button>
-          <el-button
-            type="primary"
+          <Button variant="secondary" size="sm" @click="isAddDialogVisible = false">取消</Button>
+          <Button
+            variant="primary"
             :loading="isAccountsLoading"
-            size="small"
+            size="sm"
             @click="handleAddSingle"
-            >{{ $t('tools.email.save_activate_btn') }}</el-button
+            >{{ $t('tools.email.save_activate_btn') }}</Button
           >
         </div>
       </template>
@@ -1537,6 +1537,7 @@ example2@hotmail.com----00000000-0000-0000-0000-000000000000----MC...9a"
       :show="isEditDialogVisible"
       title="编辑/更新微软邮箱账号"
       size="md"
+      glass-card
       @close="isEditDialogVisible = false"
     >
       <div class="flex flex-col gap-4 text-left">
@@ -1638,13 +1639,13 @@ example2@hotmail.com----00000000-0000-0000-0000-000000000000----MC...9a"
 
       <template #footer>
         <div class="flex justify-end gap-2">
-          <el-button size="small" @click="isEditDialogVisible = false">取消</el-button>
-          <el-button
-            type="primary"
+          <Button variant="secondary" size="sm" @click="isEditDialogVisible = false">取消</Button>
+          <Button
+            variant="primary"
             :loading="isAccountsLoading"
-            size="small"
+            size="sm"
             @click="handleSaveEdit"
-            >保存更改</el-button
+            >保存更改</Button
           >
         </div>
       </template>

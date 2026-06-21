@@ -219,7 +219,7 @@ export const createTask = async (req: AuthRequest, res: Response, next: NextFunc
         title: '新任务指派',
         content: `${req.user?.name || '有人'} 给您指派了新任务: ${task.title}`,
         userId: assigneeId,
-        link: `/tasks?id=${task.id}`,
+        link: `/work?id=${task.id}`,
         category: 'TASK_UPDATE',
       });
     }
@@ -457,7 +457,7 @@ export const batchCreateTasks = async (req: AuthRequest, res: Response, next: Ne
             title: '新任务指派',
             content: `${req.user?.name || '有人'} 给您指派了任务: ${task.title}`,
             userId: task.assigneeId as string,
-            link: `/tasks?id=${task.id}`,
+            link: `/work?id=${task.id}`,
             category: 'TASK_UPDATE',
           }),
         ),
@@ -688,7 +688,7 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
         title: '任务状态更新',
         content: `任务 "${task.title}" 的状态已更新为 ${status}`,
         userId: task.assigneeId,
-        link: `/tasks?id=${task.id}`,
+        link: `/work?id=${task.id}`,
         category: 'TASK_UPDATE',
       });
     } else if (assigneeId && assigneeId !== existingTask.assigneeId && assigneeId !== req.userId) {
@@ -697,7 +697,7 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
         title: '新任务指派',
         content: `${req.user?.name || '有人'} 给您指派了任务: ${task.title}`,
         userId: assigneeId,
-        link: `/tasks?id=${task.id}`,
+        link: `/work?id=${task.id}`,
         category: 'TASK_UPDATE',
       });
     }

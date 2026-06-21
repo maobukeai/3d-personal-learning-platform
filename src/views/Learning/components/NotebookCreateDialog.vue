@@ -37,7 +37,7 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" title="新建笔记本" size="sm" @close="visible = false">
+  <Modal :show="visible" title="新建笔记本" size="sm" glass-card @close="visible = false">
     <div class="space-y-4">
       <div>
         <label

@@ -11,6 +11,7 @@ import {
   type GlobalSearchResults,
 } from '@/services/search.service';
 import { useSystemStore } from '@/stores/system';
+import Modal from '@/components/ui/Modal.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -141,6 +142,9 @@ watch(
   (val) => {
     if (val) {
       window.addEventListener('keydown', handleKeyDown);
+      setTimeout(() => {
+        searchInput.value?.focus();
+      }, 150);
     } else {
       window.removeEventListener('keydown', handleKeyDown);
     }
@@ -153,16 +157,18 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-dialog
-    v-model="isSearchVisible"
-    :title="isMobile ? '' : t('search.title')"
-    :width="isMobile ? '90%' : '600px'"
-    :top="isMobile ? '8vh' : '15vh'"
-    :class="['search-dialog', 'custom-rounded-dialog', isMobile ? 'mobile-search-dialog' : '']"
-    :show-close="isMobile"
-    :fullscreen="false"
-    @opened="() => searchInput?.focus()"
+  <Modal
+    :show="isSearchVisible"
+    :size="isMobile ? 'sm' : 'lg'"
+    glass-card
+    @close="isSearchVisible = false"
   >
+    <template #header>
+      <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">
+        {{ isMobile ? '' : t('search.title') }}
+      </h3>
+    </template>
+
     <div class="relative">
       <el-input
         ref="searchInput"
@@ -391,7 +397,7 @@ onUnmounted(() => {
               :class="
                 isMobile ? 'px-2.5 py-1 text-[11px] rounded-md' : 'px-3 py-1.5 text-xs rounded-lg'
               "
-              class="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-accent/10 hover:text-accent transition-all border border-transparent hover:border-accent/20"
+              class="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-accent/10 hover:text-accent transition-all border border-transparent hover:border-accent/20 bg-transparent cursor-pointer"
               @click="searchQuery = h"
             >
               {{ h }}
@@ -420,7 +426,7 @@ onUnmounted(() => {
               <ImageIcon :class="isMobile ? 'w-4 h-4' : 'w-5 h-5'" />
             </div>
             <div>
-              <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold">
+              <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold text-[var(--text-primary)]">
                 {{ t('search.browseAssets') }}
               </p>
               <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">
@@ -443,7 +449,7 @@ onUnmounted(() => {
               <GraduationCap :class="isMobile ? 'w-4 h-4' : 'w-5 h-5'" />
             </div>
             <div>
-              <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold">
+              <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold text-[var(--text-primary)]">
                 {{ t('search.startLearning') }}
               </p>
               <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">
@@ -457,24 +463,23 @@ onUnmounted(() => {
 
     <template v-if="!isMobile" #footer>
       <div
-        class="flex items-center justify-between text-[10px] text-slate-400 border-t pt-4 mt-2"
-        style="border-color: var(--border-base)"
+        class="flex items-center justify-between text-[10px] text-slate-400 w-full pt-1"
       >
         <div class="flex gap-4">
           <span class="flex items-center gap-1.5"
-            ><kbd class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm"
+            ><kbd class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm border-strong/20"
               >↑↓</kbd
             >
             {{ t('search.select') }}</span
           >
           <span class="flex items-center gap-1.5"
-            ><kbd class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm"
+            ><kbd class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm border-strong/20"
               >Enter</kbd
             >
             {{ t('search.confirm') }}</span
           >
           <span class="flex items-center gap-1.5"
-            ><kbd class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm"
+            ><kbd class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm border-strong/20"
               >esc</kbd
             >
             {{ t('search.close') }}</span
@@ -485,5 +490,5 @@ onUnmounted(() => {
         </div>
       </div>
     </template>
-  </el-dialog>
+  </Modal>
 </template>

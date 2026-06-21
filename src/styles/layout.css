@@ -51,7 +51,6 @@ button {
     animation: none !important;
   }
 
-  .glass-card,
   .glass-sidebar,
   .glass-header {
     backdrop-filter: none !important;

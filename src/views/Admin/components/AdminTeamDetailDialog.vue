@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatDate, formatDateTime } from '@/utils/format';
+import { cleanTeamDescription } from '@/utils/team';
 import { ref, watch, computed } from 'vue';
 import {
   Activity,
@@ -183,7 +184,7 @@ const roleClass = (role: string) => ({
 </script>
 
 <template>
-  <Modal :show="modelValue" size="xl" padding="md" @close="emit('update:modelValue', false)">
+  <Modal :show="modelValue" size="xl" padding="md" glass-card @close="emit('update:modelValue', false)">
     <!-- Header Slot (direct child of Modal) -->
     <template #header>
       <div v-if="team && !isDetailLoading" class="flex items-center gap-3 w-full pr-8">
@@ -195,8 +196,8 @@ const roleClass = (role: string) => ({
           <h2 class="text-base sm:text-lg font-bold truncate text-[var(--text-primary)]">
             {{ team.name }}
           </h2>
-          <p class="text-[11px] sm:text-xs text-[var(--text-secondary)] truncate mt-0.5">
-            {{ team.description || team.category || '暂无团队描述' }}
+          <p class="text-[11px] sm:text-xs text-[var(--text-secondary)] whitespace-normal break-words line-clamp-2 max-w-2xl mt-0.5">
+            {{ cleanTeamDescription(team.description) || team.category || '暂无团队描述' }}
           </p>
           <div class="drawer-pills flex items-center gap-1.5 mt-1.5">
             <span
@@ -311,147 +312,153 @@ const roleClass = (role: string) => ({
         <!-- Scrollable content area -->
         <div class="max-h-[50vh] overflow-y-auto pr-1">
           <!-- Overview Tab -->
-          <section v-if="detailTab === 'overview'" class="space-y-4">
-            <div class="detail-section">
-              <div class="detail-head flex items-center justify-between mb-3">
-                <h3 class="text-sm font-bold text-[var(--text-primary)]">优先处理</h3>
-                <span class="pill text-[10px] font-bold px-1.5 py-0.5 tone-amber">{{
-                  detail?.actionItems?.length || 0
-                }}</span>
+          <section v-if="detailTab === 'overview'" class="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+            <!-- Left Column: Priority items -->
+            <div class="space-y-4">
+              <div class="detail-section">
+                <div class="detail-head flex items-center justify-between mb-3">
+                  <h3 class="text-sm font-bold text-[var(--text-primary)]">优先处理</h3>
+                  <span class="pill text-[10px] font-bold px-1.5 py-0.5 tone-amber">{{
+                    detail?.actionItems?.length || 0
+                  }}</span>
+                </div>
+                <div class="space-y-2">
+                  <article
+                    v-for="item in detail?.actionItems || []"
+                    :key="item.id"
+                    class="action-row flex items-center justify-between p-2.5 border border-base rounded-xl bg-card"
+                  >
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <span
+                        class="severity-dot w-2 h-2 rounded-full shrink-0"
+                        :class="`severity-${item.severity}`"
+                      />
+                      <div class="min-w-0">
+                        <strong class="text-sm font-bold text-[var(--text-primary)] truncate block">{{
+                          item.title
+                        }}</strong>
+                        <small class="text-[11px] text-[var(--text-secondary)] block mt-0.5">
+                          {{ actionItemLabel(item.type) }} · {{ item.project?.title || '团队事项' }}
+                        </small>
+                      </div>
+                    </div>
+                    <UiButton
+                      v-if="item.application"
+                      size="sm"
+                      variant="secondary"
+                      :icon="Check"
+                      @click="
+                        emit('handle-application', { application: item.application, accept: true })
+                      "
+                    >
+                      通过
+                    </UiButton>
+                  </article>
+                  <div v-if="!detail?.actionItems?.length" class="quiet-state inline">
+                    <CheckCircle2 class="w-4 h-4 text-emerald-500" />
+                    <span>暂无高优先级事项</span>
+                  </div>
+                </div>
               </div>
-              <div class="space-y-2">
-                <article
-                  v-for="item in detail?.actionItems || []"
-                  :key="item.id"
-                  class="action-row flex items-center justify-between p-2.5 border border-base rounded-xl bg-card"
-                >
-                  <div class="flex items-center gap-2.5 min-w-0">
-                    <span
-                      class="severity-dot w-2 h-2 rounded-full shrink-0"
-                      :class="`severity-${item.severity}`"
-                    />
-                    <div class="min-w-0">
+            </div>
+
+            <!-- Right Column: Project Health & Recent Resources -->
+            <div class="space-y-4">
+              <div class="detail-section">
+                <div class="detail-head flex items-center justify-between mb-3">
+                  <h3 class="text-sm font-bold text-[var(--text-primary)]">项目健康</h3>
+                  <span class="pill text-[10px] font-bold px-1.5 py-0.5 tone-slate">{{
+                    detail?.projectHealth?.length || 0
+                  }}</span>
+                </div>
+                <div class="space-y-2">
+                  <article
+                    v-for="project in detail?.projectHealth || []"
+                    :key="project.id"
+                    class="project-row flex items-center justify-between p-2.5 border border-base rounded-xl bg-card"
+                  >
+                    <div class="min-w-0 flex-1">
                       <strong class="text-sm font-bold text-[var(--text-primary)] truncate block">{{
-                        item.title
+                        project.title
                       }}</strong>
                       <small class="text-[11px] text-[var(--text-secondary)] block mt-0.5">
-                        {{ actionItemLabel(item.type) }} · {{ item.project?.title || '团队事项' }}
+                        {{ project.membersCount }} 人 · {{ project.tasks.active }} 活跃任务 ·
+                        {{ project.tasks.overdue }} 逾期
                       </small>
                     </div>
-                  </div>
-                  <UiButton
-                    v-if="item.application"
-                    size="sm"
-                    variant="secondary"
-                    :icon="Check"
-                    @click="
-                      emit('handle-application', { application: item.application, accept: true })
-                    "
-                  >
-                    通过
-                  </UiButton>
-                </article>
-                <div v-if="!detail?.actionItems?.length" class="quiet-state inline">
-                  <CheckCircle2 class="w-4 h-4 text-emerald-500" />
-                  <span>暂无高优先级事项</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="detail-section">
-              <div class="detail-head flex items-center justify-between mb-3">
-                <h3 class="text-sm font-bold text-[var(--text-primary)]">项目健康</h3>
-                <span class="pill text-[10px] font-bold px-1.5 py-0.5 tone-slate">{{
-                  detail?.projectHealth?.length || 0
-                }}</span>
-              </div>
-              <div class="space-y-2">
-                <article
-                  v-for="project in detail?.projectHealth || []"
-                  :key="project.id"
-                  class="project-row flex items-center justify-between p-2.5 border border-base rounded-xl bg-card"
-                >
-                  <div class="min-w-0 flex-1">
-                    <strong class="text-sm font-bold text-[var(--text-primary)] truncate block">{{
-                      project.title
-                    }}</strong>
-                    <small class="text-[11px] text-[var(--text-secondary)] block mt-0.5">
-                      {{ project.membersCount }} 人 · {{ project.tasks.active }} 活跃任务 ·
-                      {{ project.tasks.overdue }} 逾期
-                    </small>
-                  </div>
-                  <div class="flex items-center gap-3 shrink-0 ml-4">
-                    <div class="project-progress flex items-center gap-2">
-                      <span class="text-xs font-bold text-[var(--text-secondary)]"
-                        >{{ project.progress }}%</span
+                    <div class="flex items-center gap-3 shrink-0 ml-4">
+                      <div class="project-progress flex items-center gap-2">
+                        <span class="text-xs font-bold text-[var(--text-secondary)]"
+                          >{{ project.progress }}%</span
+                        >
+                        <i
+                          class="w-16 h-1.5 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden block"
+                        >
+                          <b
+                            class="bg-accent h-full rounded-full block"
+                            :style="{ width: `${project.progress}%` }"
+                          />
+                        </i>
+                      </div>
+                      <span
+                        class="pill text-xs px-1.5 py-0.5 font-bold"
+                        :class="riskClass(project.riskLevel)"
                       >
-                      <i
-                        class="w-16 h-1.5 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden block"
-                      >
-                        <b
-                          class="bg-accent h-full rounded-full block"
-                          :style="{ width: `${project.progress}%` }"
-                        />
-                      </i>
+                        {{ project.healthScore }}
+                      </span>
                     </div>
-                    <span
-                      class="pill text-xs px-1.5 py-0.5 font-bold"
-                      :class="riskClass(project.riskLevel)"
-                    >
-                      {{ project.healthScore }}
-                    </span>
+                  </article>
+                  <div v-if="!detail?.projectHealth?.length" class="quiet-state inline">
+                    <Layers class="w-4 h-4 text-slate-400" />
+                    <span>暂无项目</span>
                   </div>
-                </article>
-                <div v-if="!detail?.projectHealth?.length" class="quiet-state inline">
-                  <Layers class="w-4 h-4 text-slate-400" />
-                  <span>暂无项目</span>
                 </div>
               </div>
-            </div>
 
-            <div class="detail-section">
-              <div class="detail-head flex items-center justify-between mb-3">
-                <h3 class="text-sm font-bold text-[var(--text-primary)]">最近资源</h3>
-                <span class="pill text-[10px] font-bold px-1.5 py-0.5 tone-slate">
-                  {{
-                    (detail?.resources?.assets?.length || 0) +
-                    (detail?.resources?.materials?.length || 0) +
-                    (detail?.resources?.showcases?.length || 0)
-                  }}
-                </span>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <article
-                  v-for="resource in [
-                    ...(detail?.resources?.assets || []).slice(0, 3),
-                    ...(detail?.resources?.materials || []).slice(0, 3),
-                    ...(detail?.resources?.showcases || []).slice(0, 3),
-                  ]"
-                  :key="resource.id"
-                  class="resource-row flex items-center gap-2.5 p-2.5 border border-base rounded-xl bg-card"
-                >
-                  <span class="p-1.5 bg-accent-subtle rounded-lg text-accent shrink-0">
-                    <Boxes class="w-4 h-4" />
+              <div class="detail-section">
+                <div class="detail-head flex items-center justify-between mb-3">
+                  <h3 class="text-sm font-bold text-[var(--text-primary)]">最近资源</h3>
+                  <span class="pill text-[10px] font-bold px-1.5 py-0.5 tone-slate">
+                    {{
+                      (detail?.resources?.assets?.length || 0) +
+                      (detail?.resources?.materials?.length || 0) +
+                      (detail?.resources?.showcases?.length || 0)
+                    }}
                   </span>
-                  <span class="min-w-0">
-                    <strong class="text-sm font-bold text-[var(--text-primary)] truncate block">{{
-                      resource.title
-                    }}</strong>
-                    <small class="text-[11px] text-[var(--text-secondary)] block mt-0.5"
-                      >{{ resource.status }} · {{ relativeTime(resource.updatedAt) }}</small
-                    >
-                  </span>
-                </article>
-                <div
-                  v-if="
-                    !detail?.resources?.assets?.length &&
-                    !detail?.resources?.materials?.length &&
-                    !detail?.resources?.showcases?.length
-                  "
-                  class="quiet-state inline col-span-full"
-                >
-                  <Boxes class="w-4 h-4 text-slate-400" />
-                  <span>暂无内容资源</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <article
+                    v-for="resource in [
+                      ...(detail?.resources?.assets || []).slice(0, 3),
+                      ...(detail?.resources?.materials || []).slice(0, 3),
+                      ...(detail?.resources?.showcases || []).slice(0, 3),
+                    ]"
+                    :key="resource.id"
+                    class="resource-row flex items-center gap-2.5 p-2.5 border border-base rounded-xl bg-card"
+                  >
+                    <span class="p-1.5 bg-accent-subtle rounded-lg text-accent shrink-0">
+                      <Boxes class="w-4 h-4" />
+                    </span>
+                    <span class="min-w-0">
+                      <strong class="text-sm font-bold text-[var(--text-primary)] truncate block">{{
+                        resource.title
+                      }}</strong>
+                      <small class="text-[11px] text-[var(--text-secondary)] block mt-0.5"
+                        >{{ resource.status }} · {{ relativeTime(resource.updatedAt) }}</small
+                      >
+                    </span>
+                  </article>
+                  <div
+                    v-if="
+                      !detail?.resources?.assets?.length &&
+                      !detail?.resources?.materials?.length &&
+                      !detail?.resources?.showcases?.length
+                    "
+                    class="quiet-state inline col-span-full"
+                  >
+                    <Boxes class="w-4 h-4 text-slate-400" />
+                    <span>暂无内容资源</span>
+                  </div>
                 </div>
               </div>
             </div>

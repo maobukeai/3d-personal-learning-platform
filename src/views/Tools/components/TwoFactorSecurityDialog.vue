@@ -5,6 +5,7 @@ import { Shield, Clock, ShieldCheck, Download, Upload, Lock, RefreshCw } from 'l
 import api from '@/utils/api';
 import type { TwoFactorAccount } from '@/types';
 import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 
 const visible = defineModel<boolean>({ default: false });
 
@@ -324,7 +325,7 @@ async function submitImport() {
 </script>
 
 <template>
-  <Modal :show="visible" title="2FA 安全中心" size="md" @close="visible = false">
+  <Modal :show="visible" title="2FA 安全中心" size="md" glass-card @close="visible = false">
     <!-- Tab Navigation -->
     <div class="flex border-b mb-4" style="border-color: var(--border-base)">
       <button
@@ -387,15 +388,15 @@ async function submitImport() {
             {{ clockSyncStatus.text }}
           </p>
         </div>
-        <el-button
-          type="primary"
-          class="bg-indigo-600 hover:bg-indigo-500 border-none font-semibold px-4 rounded-lg text-xs"
+        <Button
+          variant="primary"
+          size="sm"
           :loading="isCalibrating"
           @click="checkClockSync"
         >
           <RefreshCw class="h-3 w-3 mr-1" :class="{ 'animate-spin': isCalibrating }" />
           校准时间
-        </el-button>
+        </Button>
       </div>
     </div>
 
@@ -443,15 +444,15 @@ async function submitImport() {
       </div>
 
       <div class="flex justify-end gap-3 pt-2">
-        <el-button
-          type="primary"
-          class="bg-indigo-600 hover:bg-indigo-500 border-none font-semibold w-full py-2 rounded-xl transition-all"
+        <Button
+          variant="primary"
+          full-width
           :loading="isExporting"
           @click="submitExportBackup"
         >
           <Download class="h-3.5 w-3.5 mr-1" />
           开始导出
-        </el-button>
+        </Button>
       </div>
     </div>
 
@@ -498,16 +499,16 @@ async function submitImport() {
       </div>
 
       <div class="flex justify-end gap-3 pt-2">
-        <el-button
-          type="primary"
-          class="bg-emerald-600 hover:bg-emerald-500 border-none font-semibold w-full py-2 rounded-xl transition-all"
+        <Button
+          variant="primary"
+          full-width
           :loading="isImporting"
           :disabled="!tempImportedJson"
           @click="submitImport"
         >
           <ShieldCheck class="h-3.5 w-3.5 mr-1" />
           解密并导入备份
-        </el-button>
+        </Button>
       </div>
     </div>
   </Modal>

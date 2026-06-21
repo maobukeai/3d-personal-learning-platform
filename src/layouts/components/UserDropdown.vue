@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus';
 import { ChevronDown, User as UserIcon, CreditCard, Bell, LogOut } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
+import GlassDropdown from '@/components/ui/GlassDropdown.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -30,36 +31,38 @@ const handleLogout = async () => {
 </script>
 
 <template>
-  <el-dropdown
+  <GlassDropdown
     trigger="click"
     placement="bottom-end"
     popper-class="user-dropdown-popper"
+    menu-class="w-56 p-2"
     @command="handleProfileClick"
   >
-    <button
-      type="button"
-      class="flex items-center gap-2 p-0.5 sm:px-2.5 sm:py-1 rounded-full sm:rounded-lg hover:bg-slate-100/5 dark:hover:bg-white/5 border border-transparent hover:border-slate-200/10 dark:hover:border-white/5 transition-all cursor-pointer outline-none min-w-0"
-    >
-      <UserAvatar :user="authStore.user ?? undefined" size="md" />
-      <div class="flex flex-col text-left leading-tight hidden sm:flex min-w-0">
-        <span
-          class="text-xs font-semibold text-slate-700 dark:text-slate-200 max-w-[150px] truncate"
-        >
-          {{ authStore.user?.name || '未命名用户' }}
-        </span>
-        <div class="mt-0.5 flex items-center">
+    <template #trigger>
+      <button
+        type="button"
+        class="flex items-center gap-2 p-0.5 sm:px-2.5 sm:py-1 rounded-full sm:rounded-lg hover:bg-slate-100/5 dark:hover:bg-white/5 border border-transparent hover:border-slate-200/10 dark:hover:border-white/5 transition-all cursor-pointer outline-none min-w-0"
+      >
+        <UserAvatar :user="authStore.user ?? undefined" size="md" />
+        <div class="flex flex-col text-left leading-tight hidden sm:flex min-w-0">
           <span
-            class="text-[9px] font-bold text-amber-600 dark:text-amber-500 bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/35 dark:border-amber-500/25 rounded-full px-1.5 py-0.2 select-none leading-none scale-90 origin-left"
+            class="text-xs font-semibold text-slate-700 dark:text-slate-200 max-w-[150px] truncate"
           >
-            Lv.{{ authStore.userLevel }}
+            {{ authStore.user?.name || '未命名用户' }}
           </span>
+          <div class="mt-0.5 flex items-center">
+            <span
+              class="text-[9px] font-bold text-amber-600 dark:text-amber-500 bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/35 dark:border-amber-500/25 rounded-full px-1.5 py-0.2 select-none leading-none scale-90 origin-left"
+            >
+              Lv.{{ authStore.userLevel }}
+            </span>
+          </div>
         </div>
-      </div>
-      <ChevronDown class="w-3.5 h-3.5 text-slate-400 shrink-0 hidden sm:block" />
-    </button>
-    <template #dropdown>
-      <el-dropdown-menu class="w-56 p-2 rounded-xl border shadow-lg">
-        <div class="px-3 py-2 border-b mb-1" style="border-color: var(--border-base)">
+        <ChevronDown class="w-3.5 h-3.5 text-slate-400 shrink-0 hidden sm:block" />
+      </button>
+    </template>
+
+    <div class="px-3 py-2 border-b mb-1" style="border-color: var(--border-base)">
           <p class="text-sm font-bold" style="color: var(--text-primary)">
             {{ authStore.user?.name || '未命名用户' }}
           </p>
@@ -100,7 +103,5 @@ const handleLogout = async () => {
             <LogOut class="w-4 h-4" /><span class="font-bold">{{ $t('layout.logout') }}</span>
           </div>
         </el-dropdown-item>
-      </el-dropdown-menu>
-    </template>
-  </el-dropdown>
+  </GlassDropdown>
 </template>

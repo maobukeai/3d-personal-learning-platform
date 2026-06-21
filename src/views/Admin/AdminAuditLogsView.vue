@@ -30,6 +30,7 @@ import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Tabs from '@/components/ui/Tabs.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 interface AuditLog {
   id: string;
@@ -405,7 +406,7 @@ onBeforeUnmount(() => {
         subtitle="追踪后台关键操作、来源、风险动作与操作者行为。"
         variant="card"
       >
-        <template #center>
+        <template #title-badge>
           <div class="flex flex-wrap items-center gap-1.5 ml-2">
             <Badge variant="info">匹配: {{ total }}</Badge>
             <Badge :variant="highRiskCount > 0 ? 'danger' : 'info'"
@@ -418,17 +419,17 @@ onBeforeUnmount(() => {
           </div>
         </template>
 
-        <!-- Compact Search Box -->
-        <label class="search-box !min-h-0 !h-8 w-44 sm:w-60 shrink-0">
-          <Search />
-          <input
-            v-model="searchFilter"
-            type="text"
-            placeholder="搜索描述、模块、动作、IP、操作者..."
-          />
-        </label>
+        <template #center>
+          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+            <Search />
+            <input
+              v-model="searchFilter"
+              type="text"
+              placeholder="搜索描述、 IP、操作者..."
+            />
+          </label>
+        </template>
 
-        <!-- Reusable Buttons -->
         <Button
           variant="secondary"
           size="sm"
@@ -447,7 +448,6 @@ onBeforeUnmount(() => {
         >
           {{ autoRefresh ? '实时中' : '实时' }}
         </Button>
-        <Button variant="secondary" size="sm" :icon="X" @click="resetFilters"> 清空 </Button>
         <Button
           variant="secondary"
           size="sm"
@@ -785,31 +785,43 @@ onBeforeUnmount(() => {
       </div>
     </main>
 
-    <div v-if="selectedLog" class="drawer-shell" @click="selectedLog = null">
-      <aside class="detail-drawer" @click.stop>
-        <header>
+    <!-- Refactored Log Details Modal using Modal, UserAvatar components with Glassmorphism styles -->
+    <Modal
+      :show="!!selectedLog"
+      size="xl"
+      glass-card
+      @close="selectedLog = null"
+    >
+      <template #header>
+        <div v-if="selectedLog" class="flex items-center justify-between w-full pr-8 text-left">
           <div>
-            <span class="status-pill" :class="getModuleTone(selectedLog.module)">
+            <span
+              class="status-pill inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider mb-1"
+              :class="getModuleTone(selectedLog.module)"
+            >
               {{ getModuleLabel(selectedLog.module) }}
             </span>
-            <h2>{{ getActionLabel(selectedLog.action) }}</h2>
-            <p>{{ selectedLog.id }}</p>
+            <h2 class="text-lg font-black text-[var(--text-primary)] leading-tight">
+              {{ getActionLabel(selectedLog.action) }}
+            </h2>
+            <div class="flex items-center gap-1.5 mt-1">
+              <span class="text-[10px] text-slate-400 dark:text-slate-500 font-mono select-all">
+                {{ selectedLog.id }}
+              </span>
+              <button
+                type="button"
+                class="p-1 rounded text-slate-400 hover:text-accent hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                title="复制 ID"
+                @click="copyValue(selectedLog.id, '日志 ID')"
+              >
+                <Copy class="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
-          <div class="drawer-actions">
-            <button
-              type="button"
-              class="icon-button"
-              title="复制 ID"
-              @click="copyValue(selectedLog.id, '日志 ID')"
-            >
-              <Copy />
-            </button>
-            <button type="button" class="icon-button" title="关闭" @click="selectedLog = null">
-              <X />
-            </button>
-          </div>
-        </header>
+        </div>
+      </template>
 
+      <div v-if="selectedLog" class="space-y-4 text-left">
         <div class="detail-grid">
           <div>
             <span>时间</span><b>{{ formatDate(selectedLog.createdAt) }}</b>
@@ -827,23 +839,23 @@ onBeforeUnmount(() => {
 
         <section class="detail-section">
           <h3>操作者</h3>
-          <div class="drawer-user">
+          <div class="drawer-user flex items-center gap-2.5 mt-2">
             <UserAvatar :user="selectedLog.user" size="md" />
             <div>
-              <strong>{{ getActorName(selectedLog.user) }}</strong>
-              <span>{{ selectedLog.user?.email || 'SYSTEM' }}</span>
+              <strong class="block text-sm font-black text-[var(--text-primary)]">{{ getActorName(selectedLog.user) }}</strong>
+              <span class="block text-xs text-[var(--text-secondary)] mt-0.5">{{ selectedLog.user?.email || 'SYSTEM' }}</span>
             </div>
           </div>
         </section>
 
         <section class="detail-section">
           <h3>描述</h3>
-          <p>{{ selectedLog.description || '无' }}</p>
+          <p class="text-sm text-[var(--text-secondary)] mt-1.5">{{ selectedLog.description || '无' }}</p>
         </section>
 
         <section class="detail-section">
           <h3>User Agent</h3>
-          <p class="break-text">{{ selectedLog.userAgent || '无' }}</p>
+          <p class="break-text text-xs text-[var(--text-secondary)] mt-1.5 font-medium leading-relaxed">{{ selectedLog.userAgent || '无' }}</p>
         </section>
 
         <div class="json-grid">
@@ -856,8 +868,8 @@ onBeforeUnmount(() => {
             <pre>{{ prettyJson(selectedLog.newValue) }}</pre>
           </section>
         </div>
-      </aside>
-    </div>
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -1060,7 +1072,6 @@ button:disabled {
   gap: 6px;
 }
 
-.search-box,
 .filter-field,
 .date-field,
 .date-range-container {
@@ -1075,7 +1086,6 @@ button:disabled {
   color: var(--text-secondary);
 }
 
-.search-box input,
 .filter-field input,
 .filter-field select,
 .date-field input,
@@ -1547,54 +1557,7 @@ button:disabled {
   font-weight: 800;
 }
 
-.drawer-shell {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: flex;
-  justify-content: flex-end;
-  background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(4px);
-}
 
-.detail-drawer {
-  width: min(760px, 100%);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  overflow: auto;
-  border-left: 1px solid var(--border-base);
-  background: var(--bg-card);
-  padding: 16px;
-  box-shadow: -18px 0 50px rgba(15, 23, 42, 0.24);
-}
-
-.detail-drawer header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-base);
-}
-
-.detail-drawer h2 {
-  margin-top: 10px;
-  font-size: 20px;
-  font-weight: 950;
-}
-
-.detail-drawer header p {
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-}
-
-.drawer-actions {
-  gap: 8px;
-}
 
 .detail-grid {
   display: grid;

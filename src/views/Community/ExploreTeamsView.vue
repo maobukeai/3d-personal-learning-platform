@@ -333,14 +333,14 @@ onUnmounted(() => {
 
           <!-- Center Section (Search) -->
           <div class="flex justify-center w-full">
-            <Input
-              v-model="searchQuery"
-              type="text"
-              :placeholder="t('teams.searchPlaceholder')"
-              :icon="Search"
-              class="w-full sm:w-64 md:w-80 animate-in fade-in"
-              input-class="!py-1.5 !rounded-xl !text-xs"
-            />
+            <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 md:w-80 shrink-0">
+              <Search />
+              <input
+                v-model="searchQuery"
+                type="text"
+                :placeholder="t('teams.searchPlaceholder')"
+              />
+            </label>
           </div>
 
           <!-- Right Offset Section for balancing -->

@@ -113,6 +113,12 @@ const router = createRouter({
               component: () => import('@/views/Tasks/TaskBoard.vue'),
             },
             {
+              path: 'tasks',
+              redirect: (to) => {
+                return { path: '/work', query: to.query };
+              },
+            },
+            {
               path: 'team-tasks',
               redirect: '/projects',
             },

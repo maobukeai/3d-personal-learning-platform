@@ -5,6 +5,7 @@ import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import type { TwoFactorAccount } from '@/types';
 import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -63,7 +64,7 @@ async function submitEditAccount() {
 </script>
 
 <template>
-  <Modal :show="visible" title="修改 2FA 备注信息" size="md" @close="visible = false">
+  <Modal :show="visible" title="修改 2FA 备注信息" size="md" glass-card @close="visible = false">
     <div class="space-y-4">
       <div class="flex flex-col gap-1.5">
         <label class="text-xs font-bold" style="color: var(--text-secondary)"
@@ -118,24 +119,20 @@ async function submitEditAccount() {
     </div>
 
     <template #footer>
-      <el-button
-        style="
-          background-color: var(--bg-app);
-          border: 1px solid var(--border-base);
-          color: var(--text-secondary);
-        "
-        class="px-4 py-2 rounded-xl text-xs font-semibold"
+      <Button
+        variant="secondary"
+        size="sm"
         @click="visible = false"
       >
         取消
-      </el-button>
-      <el-button
-        type="primary"
-        class="bg-indigo-600 hover:bg-indigo-500 border-none font-semibold px-5 py-2.5 rounded-xl transition-all"
+      </Button>
+      <Button
+        variant="primary"
+        size="sm"
         @click="submitEditAccount"
       >
         保存修改
-      </el-button>
+      </Button>
     </template>
   </Modal>
 </template>

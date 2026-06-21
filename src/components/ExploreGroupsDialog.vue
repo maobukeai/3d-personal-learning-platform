@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus';
 import GroupDetailDialog from '@/components/GroupDetailDialog.vue';
 import api from '@/utils/api';
 import Modal from '@/components/ui/Modal.vue';
+import Input from '@/components/ui/Input.vue';
 import type { Team } from '@/types';
 import { cleanTeamDescription } from '@/utils/team';
 
@@ -75,7 +76,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <Modal :show="visible" size="xl" padding="none" @close="emit('update:visible', false)">
+  <Modal :show="visible" size="xl" padding="none" glass-card @close="emit('update:visible', false)">
     <template #header>
       <div class="flex items-center gap-3">
         <div
@@ -93,15 +94,13 @@ onMounted(() => {
     </template>
 
     <div class="space-y-6 p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-      <div class="relative group">
-        <Search
-          class="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-300 group-focus-within:text-accent transition-all"
-        />
-        <input
+      <div class="mb-4">
+        <Input
           v-model="searchQuery"
           type="text"
           placeholder="搜索小组名称或关键词..."
-          class="pl-14 pr-6 py-4 w-full rounded-2xl border-2 border-slate-100 focus:border-accent focus:ring-4 focus:ring-accent-subtle outline-none transition-all text-base placeholder:text-slate-300"
+          :icon="Search"
+          inputClass="!pl-11 !py-3.5 !rounded-2xl"
         />
       </div>
 

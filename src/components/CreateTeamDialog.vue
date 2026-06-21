@@ -79,7 +79,7 @@ const handleCreate = async () => {
 </script>
 
 <template>
-  <Modal :show="visible" :title="t('team.createTitle')" size="md" @close="handleClose">
+  <Modal :show="visible" :title="t('team.createTitle')" size="md" glass-card @close="handleClose">
     <div class="space-y-4 md:space-y-6 py-2 text-left">
       <Input
         v-model="teamName"

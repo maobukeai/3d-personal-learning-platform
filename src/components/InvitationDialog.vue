@@ -76,6 +76,7 @@ const handleRespond = async (accept: boolean) => {
   <Modal
     :show="visible"
     size="sm"
+    glass-card
     :close-on-outside-click="!processing"
     @close="emit('update:visible', false)"
   >

@@ -7,6 +7,7 @@ import api from '@/utils/api';
 import UserAvatar from './UserAvatar.vue';
 import type { User } from '@/types';
 import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 
 type UserProfile = User & {
   _count?: {
@@ -60,7 +61,7 @@ const startChat = () => {
 </script>
 
 <template>
-  <Modal :show="modelValue" size="sm" padding="none" @close="emit('update:modelValue', false)">
+  <Modal :show="modelValue" size="sm" padding="none" glass-card @close="emit('update:modelValue', false)">
     <!-- Loader -->
     <div v-if="isLoading" class="py-24 text-center">
       <div
@@ -241,14 +242,16 @@ const startChat = () => {
         </div>
 
         <!-- Contact CTA Button -->
-        <button
-          type="button"
-          class="w-full mt-2 py-3.5 rounded-2xl font-black bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs tracking-wider shadow-lg shadow-indigo-600/15 hover:shadow-indigo-600/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer border-none"
+        <Button
+          variant="primary"
+          size="lg"
+          full-width
+          class="mt-2"
+          :icon="MessageSquare"
           @click="startChat"
         >
-          <MessageSquare class="w-4 h-4" />
-          <span>立即联系</span>
-        </button>
+          立即联系
+        </Button>
       </div>
     </template>
   </Modal>

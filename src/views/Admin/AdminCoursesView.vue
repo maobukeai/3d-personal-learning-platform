@@ -376,25 +376,16 @@ onMounted(() => {
       <!-- 奢华顶栏 (PageHeader card variant) -->
       <PageHeader title="学院课程" subtitle="系统课程与课时资源管理" variant="card">
         <template #center>
-          <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full">
-            <Tabs
-              v-model="activeTab"
-              :options="courseTabOptions"
-              size="sm"
-              @update:model-value="handleTabChange"
+          <!-- Compact Search Box (Centered) -->
+          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+            <Search />
+            <input
+              v-model="searchQuery"
+              type="search"
+              :placeholder="$t('admin.search_course_title_or')"
             />
-          </div>
+          </label>
         </template>
-
-        <!-- Compact Search Box -->
-        <label class="search-box !min-h-0 !h-8 w-44 sm:w-60 shrink-0">
-          <Search />
-          <input
-            v-model="searchQuery"
-            type="search"
-            :placeholder="$t('admin.search_course_title_or')"
-          />
-        </label>
 
         <!-- Action Buttons -->
         <Button
@@ -468,6 +459,20 @@ onMounted(() => {
       <!-- Workspace layout: Single Column Workspace -->
       <div class="mt-3 w-full min-w-0">
         <div class="space-y-3 min-w-0">
+          <!-- Main Tab Switcher Card -->
+          <Card padding="sm" class="workbench-toolbar-card">
+            <div class="toolbar-top">
+              <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full">
+                <Tabs
+                  v-model="activeTab"
+                  :options="courseTabOptions"
+                  size="sm"
+                  @update:model-value="handleTabChange"
+                />
+              </div>
+            </div>
+          </Card>
+
           <!-- Workbench Toolbar / Batch Operations Card -->
           <Card v-if="activeTab === 'courses'" padding="sm" class="workbench-toolbar-card">
             <div class="toolbar-top">
@@ -834,34 +839,7 @@ onMounted(() => {
   flex: 0 0 auto;
 }
 
-.search-box {
-  width: min(320px, 28vw);
-  height: 34px;
-  padding: 0 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-muted);
-  background: var(--bg-card);
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-}
 
-.search-box :deep(svg) {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  color: var(--text-muted);
-}
-
-.search-box input {
-  width: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 11px;
-}
 
 .batch-bar {
   margin: 10px 0 0;

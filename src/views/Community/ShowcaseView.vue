@@ -553,16 +553,18 @@ onUnmounted(() => {
 <template>
   <div class="showcase-view">
     <PageHeader title="创意作品集" :icon="MonitorPlay">
+      <template #center>
+        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+          <Search />
+          <input
+            v-model="searchInput"
+            type="text"
+            placeholder="搜索作品、作者、标签..."
+          />
+        </label>
+      </template>
+
       <div class="showcase-header-actions">
-        <Input
-          v-model="searchInput"
-          type="search"
-          placeholder="搜索作品、作者、标签..."
-          :icon="Search"
-          clearable
-          input-class="!py-1.5 !h-8.5 !rounded-lg"
-          class="max-w-[200px] shrink-0"
-        />
         <Button
           variant="outline"
           size="sm"

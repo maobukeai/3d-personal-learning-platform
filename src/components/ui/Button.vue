@@ -38,7 +38,7 @@ const handleClick = (event: MouseEvent) => {
 };
 
 const baseClasses =
-  'inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-200 select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]';
+  'inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-200 select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98] shrink-0';
 
 const variantClasses = computed(() => {
   switch (props.variant) {

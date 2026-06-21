@@ -62,6 +62,7 @@ const emit = defineEmits<{
   (e: 'edit', note: Note): void;
   (e: 'delete', note: Note): void;
   (e: 'popular-toggle', note: Note): void;
+  (e: 'visibility-toggle', note: Note, visibility: string): void;
   (e: 'like', note: Note): void;
   (e: 'share', note: Note): void;
   (e: 'click-avatar', userId: string): void;
@@ -93,15 +94,20 @@ const cleanSummary = computed(() => {
     .trim()
     .slice(0, 120);
 });
+const toggleVisibility = () => {
+  if (props.note.userId !== authStore.user?.id) return;
+  const newVisibility = props.note.visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC';
+  emit('visibility-toggle', props.note, newVisibility);
+};
 </script>
 
 <template>
   <div
-    class="bg-[var(--bg-card)] border rounded-xl p-3 sm:p-4 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex relative overflow-hidden"
+    class="bg-[var(--bg-card)] border rounded-xl p-3 sm:p-4 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex relative"
     :class="[
       isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
       props.isSelected ? 'border-accent ring-1 ring-accent' : 'border-[var(--border-base)]',
-      props.viewMode === 'list'
+      props.viewMode === 'list' && !props.isMobile
         ? 'flex-row items-center gap-4 w-full h-auto py-2.5 sm:py-3.5'
         : 'flex-col h-full',
     ]"
@@ -189,7 +195,7 @@ const cleanSummary = computed(() => {
     <!-- Header Meta Row -->
     <div
       class="flex items-start justify-between gap-1.5 min-w-0"
-      :class="props.viewMode === 'list' ? 'mb-0 shrink-0' : 'mb-3.5'"
+      :class="props.viewMode === 'list' && !props.isMobile ? 'mb-0 shrink-0' : 'mb-3.5'"
     >
       <div class="flex items-center gap-2 min-w-0">
         <span class="md:hidden shrink-0">
@@ -252,12 +258,17 @@ const cleanSummary = computed(() => {
 
         <!-- Custom Visibility Badge -->
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] md:text-[10px] font-bold border transition-colors duration-300"
-          :class="
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] md:text-[10px] font-bold border transition-all duration-300"
+          :class="[
             props.note.visibility === 'PUBLIC'
               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-              : 'bg-slate-500/10 border-slate-500/20 text-slate-500 dark:text-slate-400'
-          "
+              : 'bg-slate-500/10 border-slate-500/20 text-slate-500 dark:text-slate-400',
+            props.note.userId === authStore.user?.id
+              ? 'cursor-pointer hover:bg-emerald-500/20 hover:border-emerald-500/40 select-none'
+              : 'cursor-default'
+          ]"
+          :title="props.note.userId === authStore.user?.id ? '点击切换公开/私密状态' : undefined"
+          @click.stop="toggleVisibility"
         >
           <span
             class="w-1 h-1 rounded-full shrink-0"
@@ -273,7 +284,7 @@ const cleanSummary = computed(() => {
     <!-- Title -->
     <h3
       class="text-xs sm:text-sm md:text-base font-extrabold line-clamp-1 group-hover:text-accent transition-colors duration-300 flex items-center gap-1.5"
-      :class="props.viewMode === 'list' ? 'mb-0 flex-1' : 'mb-1.5 md:mb-2'"
+      :class="props.viewMode === 'list' && !props.isMobile ? 'mb-0 flex-1' : 'mb-1.5 md:mb-2'"
     >
       <FileText
         class="w-3.5 h-3.5 text-[var(--text-muted)] group-hover:text-accent transition-colors shrink-0"
@@ -283,7 +294,7 @@ const cleanSummary = computed(() => {
 
     <!-- Summary Snippet -->
     <p
-      v-if="props.viewMode !== 'list'"
+      v-if="props.viewMode !== 'list' || props.isMobile"
       class="text-[11px] sm:text-xs md:text-sm text-[var(--text-secondary)]/90 line-clamp-2 md:line-clamp-3 mb-3 md:mb-4 flex-1 leading-relaxed"
     >
       {{ cleanSummary }}
@@ -293,7 +304,7 @@ const cleanSummary = computed(() => {
     <div
       v-if="parseTags(props.note.tags).length"
       class="flex flex-wrap gap-1"
-      :class="props.viewMode === 'list' ? 'mb-0 hidden sm:flex' : 'mb-2.5 md:mb-3.5'"
+      :class="props.viewMode === 'list' && !props.isMobile ? 'mb-0 hidden sm:flex' : 'mb-2.5 md:mb-3.5'"
     >
       <span
         v-for="tag in parseTags(props.note.tags).slice(0, props.isMobile ? 1 : 3)"
@@ -306,14 +317,14 @@ const cleanSummary = computed(() => {
 
     <!-- Fading Gradient Divider Line -->
     <div
-      v-if="props.viewMode !== 'list'"
+      v-if="props.viewMode !== 'list' || props.isMobile"
       class="h-[1px] bg-gradient-to-r from-transparent via-[var(--border-base)] to-transparent my-1.5 md:my-2"
     ></div>
 
     <!-- Footer Stats Row -->
     <div
       class="flex items-center justify-between gap-1 shrink-0"
-      :class="props.viewMode === 'list' ? 'mt-0' : 'mt-auto'"
+      :class="props.viewMode === 'list' && !props.isMobile ? 'mt-0' : 'mt-auto'"
     >
       <div
         class="flex items-center gap-2 md:gap-3.5 text-[9px] md:text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider shrink-0"

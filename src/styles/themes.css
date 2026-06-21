@@ -29,9 +29,9 @@ html.theme-glass {
   --accent-subtle: color-mix(in srgb, var(--accent) 12%, rgba(255, 255, 255, 0.8));
 
   /* Glass specifics */
-  --glass-bg: rgba(255, 255, 255, 0.45);
-  --glass-sidebar-bg: rgba(248, 250, 252, 0.42);
-  --glass-border-color: rgba(255, 255, 255, 0.6);
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-sidebar-bg: rgba(248, 250, 252, 0.68);
+  --glass-border-color: rgba(255, 255, 255, 0.65);
   --glass-border: 1px solid var(--glass-border-color);
   --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
@@ -65,9 +65,9 @@ html.dark.theme-glass {
   --accent-subtle: rgba(245, 121, 42, 0.15);
 
   /* Glass specifics */
-  --glass-bg: rgba(20, 24, 33, 0.48);
-  --glass-header-bg: rgba(12, 15, 22, 0.85);
-  --glass-sidebar-bg: rgba(12, 16, 22, 0.52);
+  --glass-bg: rgba(20, 24, 33, 0.75);
+  --glass-header-bg: rgba(12, 15, 22, 0.88);
+  --glass-sidebar-bg: rgba(12, 16, 22, 0.72);
   --glass-border-color: rgba(255, 255, 255, 0.08);
   --glass-border: 1px solid var(--glass-border-color);
   --glass-shadow: 0 10px 26px -22px rgba(0, 0, 0, 0.9);
@@ -75,16 +75,16 @@ html.dark.theme-glass {
 
 /* Glass performance budget values */
 html.theme-glass {
-  --glass-bg: rgba(255, 255, 255, 0.45);
-  --glass-sidebar-bg: rgba(248, 250, 252, 0.42);
-  --glass-border-color: rgba(255, 255, 255, 0.6);
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-sidebar-bg: rgba(248, 250, 252, 0.68);
+  --glass-border-color: rgba(255, 255, 255, 0.65);
   --glass-border: 1px solid var(--glass-border-color);
   --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
 html.dark.theme-glass {
-  --glass-bg: rgba(20, 24, 33, 0.48);
-  --glass-sidebar-bg: rgba(12, 16, 22, 0.52);
+  --glass-bg: rgba(20, 24, 33, 0.75);
+  --glass-sidebar-bg: rgba(12, 16, 22, 0.72);
   --glass-border-color: rgba(255, 255, 255, 0.08);
   --glass-border: 1px solid var(--glass-border-color);
   --glass-shadow: 0 10px 26px -22px rgba(0, 0, 0, 0.9);

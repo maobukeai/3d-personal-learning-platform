@@ -382,9 +382,7 @@ html.theme-glass .el-popper .el-dropdown-menu,
 html.theme-glass .el-popper .el-select-dropdown,
 html.theme-glass .el-popper .el-picker-panel,
 html.theme-glass .workspace-switcher-popper .el-dropdown-menu,
-html.theme-glass .workspace-switcher-popper.el-dropdown-menu,
-html.theme-glass .user-dropdown-popper .el-dropdown-menu,
-html.theme-glass .user-dropdown-popper.el-dropdown-menu {
+html.theme-glass .user-dropdown-popper .el-dropdown-menu {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;

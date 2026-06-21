@@ -27,13 +27,14 @@ const props = defineProps<{
   totalTasksCount: number;
   completionRate: number;
   overdueCount: number;
-  selectedProjectId: string | null;
   projects: Project[];
   viewMode: 'board' | 'list' | 'calendar';
   isAnyFilterActive: boolean;
   teamMembers: any[];
   allTags: string[];
 }>();
+
+const selectedProjectId = defineModel<string | null>('selectedProjectId', { required: true });
 
 const emit = defineEmits<{
   (e: 'clearProjectFilter'): void;
@@ -106,21 +107,53 @@ const toggleSortOrder = () => {
   >
     <!-- Left Section: Search filters & Toggle views -->
     <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
-      <!-- Project Filter Pill -->
-      <div
-        v-if="selectedProjectId"
-        class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent/15 border border-accent/25 text-accent whitespace-nowrap text-[10px] font-bold shrink-0 shadow-sm"
+      <!-- Project Filter Dropdown -->
+      <el-dropdown
+        trigger="click"
+        popper-class="glass-popover"
+        @command="(val: string) => { selectedProjectId = val === 'all' ? null : val; }"
       >
-        <FolderOpen class="w-3.5 h-3.5" />
-        <span>项目: {{ projects.find((p) => p.id === selectedProjectId)?.title || '加载中' }}</span>
         <button
           type="button"
-          class="hover:text-rose-500 transition-colors ml-1 cursor-pointer"
-          @click="emit('clearProjectFilter')"
+          class="px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0 border"
+          :class="
+            selectedProjectId
+              ? 'bg-accent/15 border-accent/25 text-accent shadow-sm'
+              : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-white/10'
+          "
         >
-          <X class="w-3 h-3" />
+          <FolderOpen
+            class="w-3.5 h-3.5 shrink-0"
+            :class="selectedProjectId ? 'text-accent' : 'text-slate-400'"
+          />
+          <span>项目: {{ selectedProjectId === 'unassigned' ? '未指定' : (selectedProjectId ? (projects.find((p) => p.id === selectedProjectId)?.title || '未知项目') : '全部') }}</span>
+          <ChevronDown class="w-3 h-3 opacity-60" />
         </button>
-      </div>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item
+              command="all"
+              :class="{ 'is-active text-accent font-bold': !selectedProjectId }"
+            >
+              全部项目
+            </el-dropdown-item>
+            <el-dropdown-item
+              command="unassigned"
+              :class="{ 'is-active text-accent font-bold': selectedProjectId === 'unassigned' }"
+            >
+              未指定项目
+            </el-dropdown-item>
+            <el-dropdown-item
+              v-for="p in projects"
+              :key="p.id"
+              :command="p.id"
+              :class="{ 'is-active text-accent font-bold': selectedProjectId === p.id }"
+            >
+              {{ p.title }}
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
 
       <!-- Me Mode Toggle -->
       <button

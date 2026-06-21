@@ -151,9 +151,56 @@ const showQuickLinks = computed(
 );
 
 const isRouteActive = (path: string) => {
-  const [basePath, query] = path.split('?');
-  if (query) return route.fullPath === path;
-  return route.path === basePath || route.path.startsWith(`${basePath}/`);
+  const [basePath, queryStr] = path.split('?');
+  
+  // Parse query parameters
+  const query: Record<string, string> = {};
+  if (queryStr) {
+    queryStr.split('&').forEach((pair) => {
+      const [k, v] = pair.split('=');
+      if (k) query[k] = v || '';
+    });
+  }
+
+  // Check if paths match (direct match or subpath)
+  let currentPath = route.path;
+  let matches = false;
+
+  if (currentPath.startsWith('/mirror/resource/') && basePath.startsWith('/mirror/source/')) {
+    // If we are on mirror resource detail page, it belongs to the active source
+    const activeSourceId = workspaceStore.currentWorkspace?.mirrorSourceId;
+    if (activeSourceId && basePath === `/mirror/source/${activeSourceId}`) {
+      matches = true;
+    }
+  } else if (currentPath.startsWith('/manual/resource/') && basePath.startsWith('/manual/station/')) {
+    // If we are on manual resource detail page, it belongs to the active station
+    const activeStationId = workspaceStore.currentWorkspace?.manualStationId;
+    if (activeStationId && basePath === `/manual/station/${activeStationId}`) {
+      matches = true;
+    }
+  } else {
+    matches = currentPath === basePath || (basePath !== '/' && currentPath.startsWith(`${basePath}/`));
+  }
+
+  if (!matches) return false;
+
+  // If the path has a categoryId query, the route must match it exactly
+  if (query.categoryId) {
+    return route.query.categoryId === query.categoryId;
+  }
+
+  // If the path is a station/source home page (e.g. /mirror/source/:id or /manual/station/:id),
+  // it should only be active if there is no categoryId in route query (i.e. viewing "All")
+  if (basePath.includes('/mirror/source/') || basePath.includes('/manual/station/')) {
+    return !route.query.categoryId;
+  }
+
+  // For other query parameters, match them if specified
+  if (queryStr) {
+    return Object.keys(query).every((k) => route.query[k] === query[k]);
+  }
+
+  return true;
 };
 
 const isGroupActive = (group: PreparedSidebarGroup) =>
@@ -234,8 +281,10 @@ watch(
 );
 
 watch(
-  () => route.path,
-  (newPath, oldPath) => {
+  () => route.fullPath,
+  (newFullPath, oldFullPath) => {
+    const newPath = newFullPath.split('?')[0];
+    const oldPath = oldFullPath?.split('?')[0];
     if (oldPath && newPath !== oldPath) {
       preparedGroups.value.forEach((group) => {
         if (isGroupActive(group)) {

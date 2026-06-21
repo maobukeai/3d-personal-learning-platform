@@ -15,7 +15,7 @@ export function formatCloudflareBytes(bytes: number, decimals = 2): string {
 }
 
 export function getQuotaLimitBytes(limitGb: number): number {
-  return limitGb * 1024 * 1024 * 1024;
+  return limitGb * 1000 * 1000 * 1000;
 }
 
 export function getUsagePercentage(usedBytes: number, limitGb: number): number {

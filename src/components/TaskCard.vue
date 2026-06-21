@@ -19,6 +19,7 @@ import {
 import { parseTags } from '@/utils/tags';
 import api from '@/utils/api';
 import { ElMessage } from 'element-plus';
+import UserAvatar from '@/components/UserAvatar.vue';
 
 interface Assignee {
   id: string;
@@ -29,6 +30,16 @@ interface Assignee {
 interface Project {
   id: string;
   title: string;
+}
+
+interface Participant {
+  id: string;
+  userId: string;
+  user: {
+    id: string;
+    name: string;
+    avatarUrl?: string | null;
+  };
 }
 
 interface Task {
@@ -51,6 +62,7 @@ interface Task {
   }[];
   parsedTags?: string[];
   parsedSubtasks?: any[];
+  participants?: Participant[];
 }
 
 interface Subtask {
@@ -447,43 +459,35 @@ const updateDueDate = async (val: any) => {
         </el-dropdown>
       </div>
 
-      <!-- Assignee Avatar with Dropdown -->
-      <div v-if="config.assignee" class="shrink-0 ml-0.5" @click.stop>
-        <el-dropdown trigger="click" @command="updateAssignee">
-          <div
-            class="relative cursor-pointer hover:ring-1 hover:ring-accent rounded-md transition-all"
+      <!-- Assignee Avatar Stack -->
+      <div v-if="config.assignee" class="shrink-0 ml-0.5 flex items-center">
+        <div
+          v-if="task.participants && task.participants.length > 0"
+          class="flex items-center -space-x-1.5"
+        >
+          <UserAvatar
+            v-for="p in task.participants.slice(0, 3)"
+            :key="p.userId"
+            :user="p.user"
+            size="xs"
+            borderless
+            class="ring-2 ring-white dark:ring-slate-900 cursor-pointer hover:z-10 hover:scale-105 transition-all"
+            :title="p.user?.name"
+          />
+          <span
+            v-if="task.participants.length > 3"
+            class="text-[9px] font-black text-slate-400 pl-1"
           >
-            <img
-              v-if="task.assignee"
-              :src="task.assignee.avatarUrl || ''"
-              loading="lazy"
-              class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-md object-cover"
-              :alt="task.assignee.name"
-            />
-            <div
-              v-else
-              class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-md bg-slate-100 dark:bg-white/5 flex items-center justify-center border border-dashed border-slate-300 hover:border-accent"
-              title="指派负责人"
-            >
-              <User class="w-2.5 h-2.5 text-slate-400" />
-            </div>
-          </div>
-          <template #dropdown>
-            <el-dropdown-menu class="max-h-60 overflow-y-auto">
-              <el-dropdown-item command="">清除指派</el-dropdown-item>
-              <el-dropdown-item v-for="m in teamMembers" :key="m.id" :command="m.id">
-                <div class="flex items-center gap-2 py-0.5">
-                  <img
-                    v-if="m.avatarUrl"
-                    :src="m.avatarUrl"
-                    class="w-4 h-4 rounded-full object-cover"
-                  />
-                  <span>{{ m.name }}</span>
-                </div>
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+            +{{ task.participants.length - 3 }}
+          </span>
+        </div>
+        <div
+          v-else
+          class="w-5 h-5 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center border border-dashed border-slate-300 dark:border-white/10"
+          title="未指派负责人"
+        >
+          <User class="w-2.5 h-2.5 text-slate-400" />
+        </div>
       </div>
     </div>
   </div>
@@ -590,30 +594,35 @@ const updateDueDate = async (val: any) => {
         </span>
       </div>
 
-      <!-- Assignee -->
-      <div
-        v-if="task.assignee"
-        class="flex items-center gap-1.5 cursor-pointer group/as"
-        @click.stop="emit('user-click', task.assignee.id)"
-      >
-        <img
-          v-if="task.assignee.avatarUrl"
-          alt=""
-          :src="task.assignee.avatarUrl"
-          loading="lazy"
-          class="w-4 h-4 sm:w-5 sm:h-5 rounded-lg object-cover group-hover/as:ring-2 group-hover/as:ring-accent transition-all"
-        />
+      <!-- Assignee Avatar Stack -->
+      <div v-if="config.assignee" class="shrink-0 flex items-center">
+        <div
+          v-if="task.participants && task.participants.length > 0"
+          class="flex items-center -space-x-1.5"
+        >
+          <UserAvatar
+            v-for="p in task.participants.slice(0, 3)"
+            :key="p.userId"
+            :user="p.user"
+            size="xs"
+            borderless
+            class="ring-2 ring-white dark:ring-slate-900 cursor-pointer hover:z-10 hover:scale-105 transition-all"
+            :title="p.user?.name"
+          />
+          <span
+            v-if="task.participants.length > 3"
+            class="text-[9px] font-black text-slate-400 pl-1"
+          >
+            +{{ task.participants.length - 3 }}
+          </span>
+        </div>
         <div
           v-else
-          class="w-4 h-4 sm:w-5 sm:h-5 rounded-lg bg-accent/10 flex items-center justify-center group-hover/as:bg-accent group-hover/as:text-white transition-all"
+          class="w-5 h-5 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center border border-dashed border-slate-300 dark:border-white/10"
+          title="未指派负责人"
         >
-          <User class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-accent group-hover/as:text-white" />
+          <User class="w-2.5 h-2.5 text-slate-400" />
         </div>
-        <span
-          class="text-[9px] sm:text-[10px] text-slate-400 font-medium group-hover/as:text-accent transition-colors"
-        >
-          {{ task.assignee.name }}
-        </span>
       </div>
 
       <!-- Due Date -->

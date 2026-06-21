@@ -104,7 +104,7 @@ const iconSize = computed(() => {
     />
 
     <!-- Content slot -->
-    <span v-if="$slots.default" class="truncate">
+    <span v-if="$slots.default" class="truncate inline-flex items-center justify-center gap-1.5">
       <slot></slot>
     </span>
 

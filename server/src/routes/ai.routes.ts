@@ -20,5 +20,7 @@ const aiRateLimiter = rateLimit({
 
 // Require authentication for AI writing assistant
 router.post('/write-assist', authenticate, aiRateLimiter, aiController.writeAssist);
+router.post('/optimize-prompt', authenticate, aiRateLimiter, aiController.optimizePrompt);
+router.post('/generate-image', authenticate, aiRateLimiter, aiController.generateImage);
 
 export default router;

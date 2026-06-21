@@ -502,7 +502,7 @@ const createUploadMiddleware = (config: {
                   let uploaded = false;
                   let uploadErrorMsg: string | null = null;
                   for (const config of configs) {
-                    const limitBytes = config.limitGb * 1024 * 1024 * 1024;
+                    const limitBytes = config.limitGb * 1000 * 1000 * 1000;
 
                     // Thread-safe atomic space reservation
                     const updateResult = await prisma.storageConfig.updateMany({

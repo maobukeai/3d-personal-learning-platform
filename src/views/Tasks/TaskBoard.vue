@@ -145,9 +145,21 @@ watch(
   },
 );
 
+watch(selectedProjectId, (newVal) => {
+  const currentQuery = { ...route.query };
+  if (newVal) {
+    if (currentQuery.projectId !== newVal) {
+      router.replace({ query: { ...currentQuery, projectId: newVal } });
+    }
+  } else {
+    if (currentQuery.projectId !== undefined) {
+      router.replace({ query: { ...currentQuery, projectId: undefined } });
+    }
+  }
+});
+
 const clearProjectFilter = () => {
   selectedProjectId.value = null;
-  router.replace({ query: { ...route.query, projectId: undefined } });
 };
 
 const loadViewMode = (): 'board' | 'list' | 'calendar' => {
@@ -404,7 +416,8 @@ const isAnyFilterActive = computed(() => {
     tagFilter.value !== 'all' ||
     subtaskDisplay.value !== 'collapse' ||
     hideCompleted.value ||
-    onlyMyTasks.value
+    onlyMyTasks.value ||
+    selectedProjectId.value !== null
   );
 });
 
@@ -418,6 +431,7 @@ const resetAllFilters = () => {
   subtaskDisplay.value = 'collapse';
   hideCompleted.value = false;
   onlyMyTasks.value = false;
+  selectedProjectId.value = null;
 };
 
 const filteredTasks = computed(() => {
@@ -504,7 +518,11 @@ const filteredTasks = computed(() => {
   }
 
   if (selectedProjectId.value) {
-    filtered = filtered.filter((t) => t.projectId === selectedProjectId.value);
+    if (selectedProjectId.value === 'unassigned') {
+      filtered = filtered.filter((t) => !t.projectId);
+    } else {
+      filtered = filtered.filter((t) => t.projectId === selectedProjectId.value);
+    }
   }
 
   // Apply sorting
@@ -1299,7 +1317,7 @@ onActivated(() => {
       :total-tasks-count="tasks.length"
       :completion-rate="completionRate"
       :overdue-count="overdueCount"
-      :selected-project-id="selectedProjectId"
+      v-model:selected-project-id="selectedProjectId"
       :projects="projects"
       :view-mode="viewMode"
       :is-any-filter-active="isAnyFilterActive"

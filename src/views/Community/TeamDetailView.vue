@@ -13,6 +13,7 @@ import {
   Trash2,
   LogOut,
   Camera,
+  Sparkles,
   Search,
   Plus,
   Clock,
@@ -41,6 +42,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
+import AiImageGeneratorDialog from '@/components/AiImageGeneratorDialog.vue';
 
 const getCategoryLabel = (cat?: string | null) => {
   if (!cat) return '';
@@ -844,6 +846,49 @@ const handleCoverChange = async (event: Event) => {
   }
 };
 
+const aiGeneratorShow = ref(false);
+const aiGeneratorType = ref<'avatar' | 'cover'>('avatar');
+const aiGeneratorTitle = ref('');
+
+const openAiAvatarGenerator = () => {
+  aiGeneratorType.value = 'avatar';
+  aiGeneratorTitle.value = 'AI 生成团队头像';
+  aiGeneratorShow.value = true;
+};
+
+const openAiCoverGenerator = () => {
+  aiGeneratorType.value = 'cover';
+  aiGeneratorTitle.value = 'AI 生成团队封面';
+  aiGeneratorShow.value = true;
+};
+
+const handleAiImageSave = async (file: File) => {
+  const formData = new FormData();
+  if (aiGeneratorType.value === 'avatar') {
+    formData.append('avatar', file);
+    try {
+      const { data } = await api.post(`/api/teams/${teamId.value}/upload-avatar`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      if (team.value) team.value.avatarUrl = data.avatarUrl;
+      ElMessage.success(t('teamDetail.avatarUpdateSuccess'));
+    } catch {
+      ElMessage.error(t('teamDetail.avatarUpdateFailed'));
+    }
+  } else {
+    formData.append('cover', file);
+    try {
+      const { data } = await api.post(`/api/teams/${teamId.value}/upload-cover`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      if (team.value) team.value.coverUrl = data.coverUrl;
+      ElMessage.success(t('teamDetail.coverUpdateSuccess'));
+    } catch {
+      ElMessage.error(t('teamDetail.coverUpdateFailed'));
+    }
+  }
+};
+
 const isDissolveModalOpen = ref(false);
 const dissolveCode = ref('');
 const isDissolving = ref(false);
@@ -1047,11 +1092,56 @@ onUnmounted(() => {
       v-else-if="team"
       class="animate-in fade-in duration-500 w-full max-w-none px-4 sm:px-6 lg:px-8 xl:px-10 py-6 space-y-6"
     >
-      <!-- Top Card (Hero Section - No Cover Image) -->
+      <!-- Top Card (Hero Section with Cover Image) -->
       <div
-        class="glass-card rounded-2xl border border-white/20 dark:border-slate-800/50 shadow-xl bg-white/40 dark:bg-slate-900/30 backdrop-blur-md relative px-6 py-3.5"
+        class="glass-card rounded-2xl border border-white/20 dark:border-slate-800/50 shadow-xl bg-white/40 dark:bg-slate-900/30 backdrop-blur-md relative overflow-hidden"
       >
-        <div class="flex flex-col lg:flex-row items-center gap-4 relative z-20">
+        <!-- Cover Image Banner -->
+        <div class="h-40 sm:h-60 relative overflow-hidden select-none group/cover border-b border-white/10">
+          <img
+            v-if="team.coverUrl"
+            :src="team.coverUrl"
+            class="w-full h-full object-cover object-[center_35%] select-none pointer-events-none"
+            alt="Team Cover"
+          />
+          <div
+            v-else
+            class="absolute inset-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 opacity-80"
+          ></div>
+          <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/40"></div>
+          
+          <!-- Upload and AI generation buttons for Cover (Owner/Admin only) -->
+          <div
+            v-if="isOwnerOrAdmin"
+            class="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover/cover:opacity-100 transition-opacity z-20"
+          >
+            <input
+              ref="coverInput"
+              type="file"
+              class="hidden"
+              accept="image/*"
+              @change="handleCoverChange"
+            />
+            <button
+              type="button"
+              class="flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/75 text-white rounded-lg text-xs backdrop-blur-sm transition-all border border-white/10 cursor-pointer"
+              @click="triggerCoverUpload"
+            >
+              <Camera class="w-3.5 h-3.5" />
+              更换封面
+            </button>
+            <button
+              type="button"
+              class="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent/90 text-white rounded-lg text-xs transition-all border border-white/10 cursor-pointer shadow-md"
+              @click="openAiCoverGenerator"
+            >
+              <Sparkles class="w-3.5 h-3.5" />
+              <span>AI 生成</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="px-6 pb-4 pt-10 lg:pt-12 relative z-10 flex flex-col lg:flex-row items-center gap-4 -mt-10 lg:-mt-12">
           <!-- Team Avatar -->
           <div class="relative group shrink-0">
             <input
@@ -1077,15 +1167,27 @@ onUnmounted(() => {
                 {{ team.name.charAt(0).toUpperCase() }}
               </div>
             </div>
-            <button
+            <div
               v-if="isOwnerOrAdmin"
-              type="button"
-              class="absolute -bottom-1 -right-1 p-1.5 bg-accent text-white rounded-lg shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/10"
-              :title="t('teamDetail.changeAvatar')"
-              @click="triggerAvatarUpload"
+              class="absolute -bottom-1 -right-1 flex items-center gap-1"
             >
-              <Camera class="w-3.5 h-3.5" />
-            </button>
+              <button
+                type="button"
+                class="p-1.5 bg-accent text-white rounded-lg shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/10 cursor-pointer"
+                :title="t('teamDetail.changeAvatar')"
+                @click="triggerAvatarUpload"
+              >
+                <Camera class="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                class="p-1.5 bg-indigo-600 text-white rounded-lg shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/10 cursor-pointer"
+                title="AI 生成头像"
+                @click="openAiAvatarGenerator"
+              >
+                <Sparkles class="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           <!-- Team Text Info -->
@@ -1790,6 +1892,15 @@ onUnmounted(() => {
       v-model="isProfileDialogOpen"
       :user-id="selectedUserId"
       @chat="handleStartChat"
+    />
+
+    <!-- AI Image Generator Dialog -->
+    <AiImageGeneratorDialog
+      :show="aiGeneratorShow"
+      :title="aiGeneratorTitle"
+      :type="aiGeneratorType"
+      @close="aiGeneratorShow = false"
+      @save="handleAiImageSave"
     />
   </div>
 </template>

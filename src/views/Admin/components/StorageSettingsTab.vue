@@ -27,7 +27,6 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import {
-  formatBinaryBytes,
   formatCloudflareBytes,
   getUsagePercentage,
   isOfficialCloudflareUsage,
@@ -1087,7 +1086,7 @@ onMounted(() => {
                 class="flex items-center justify-between text-[8px]"
                 style="color: var(--text-muted)"
               >
-                <span>已用: {{ formatBinaryBytes(config.usedBytes) }}</span>
+                <span>已用: {{ formatCloudflareBytes(config.usedBytes) }}</span>
                 <span>限制: {{ config.limitGb.toFixed(3) }} GB</span>
               </div>
             </div>
@@ -1394,7 +1393,7 @@ onMounted(() => {
                       : 'text-indigo-500',
                   ]"
                 >
-                  {{ formatBinaryBytes(currentStorage?.usedBytes || 0) }} ({{
+                  {{ formatCloudflareBytes(currentStorage?.usedBytes || 0) }} ({{
                     getUsagePercentage(
                       currentStorage?.usedBytes || 0,
                       currentStorage?.limitGb || 9.8,
@@ -1405,15 +1404,11 @@ onMounted(() => {
               <span class="text-slate-300 dark:text-white/10">|</span>
               <span class="flex items-center gap-1">
                 <span>R2 云端实际占用:</span>
-                <span v-if="loadingActualSize" class="text-slate-400">正在计算...</span>
-                <template v-else-if="actualBytes !== null">
-                  <strong class="text-slate-800 dark:text-slate-200">
-                    {{
-                      isOfficialCloudflareUsage(actualUsageSource)
-                        ? formatCloudflareBytes(actualBytes)
-                        : formatBinaryBytes(actualBytes)
-                    }}
-                  </strong>
+                 <span v-if="loadingActualSize" class="text-slate-400">正在计算...</span>
+                 <template v-else-if="actualBytes !== null">
+                   <strong class="text-slate-800 dark:text-slate-200">
+                     {{ formatCloudflareBytes(actualBytes) }}
+                   </strong>
                   <Badge
                     v-if="isOfficialCloudflareUsage(actualUsageSource)"
                     variant="success"
@@ -1637,7 +1632,7 @@ onMounted(() => {
 
                 <!-- Size -->
                 <td class="p-3 font-mono whitespace-nowrap">
-                  <span v-if="item.type === 'file'">{{ formatBinaryBytes(item.size || 0) }}</span>
+                  <span v-if="item.type === 'file'">{{ formatCloudflareBytes(item.size || 0) }}</span>
                   <span v-else class="text-slate-400">-</span>
                 </td>
 

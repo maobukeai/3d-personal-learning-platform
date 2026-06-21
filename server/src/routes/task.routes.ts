@@ -21,6 +21,7 @@ router.post('/', taskController.createTask);
 router.post('/batch', taskController.batchCreateTasks);
 router.put('/:id', taskController.updateTask);
 router.delete('/:id', taskController.deleteTask);
+router.get('/:id/activities', taskController.getTaskActivities);
 
 // Task comments
 router.get('/:taskId/comments', taskCommentController.getTaskComments);

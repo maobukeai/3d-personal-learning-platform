@@ -69,6 +69,7 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
         email: true,
         name: true,
         avatarUrl: true,
+        coverUrl: true,
         bio: true,
         location: true,
         website: true,
@@ -410,6 +411,41 @@ export const uploadAvatar = async (req: AuthRequest, res: Response, next: NextFu
         email: true,
         name: true,
         avatarUrl: true,
+        coverUrl: true,
+        bio: true,
+        location: true,
+        website: true,
+        role: true,
+        twoFactorEnabled: true,
+      },
+    });
+
+    await redisService.invalidateUserCache(req.userId as string);
+    res.json(updatedUser);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadCover = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.file) {
+      return next(new AppError('No file uploaded', 400));
+    }
+
+    const coverUrl =
+      (req.file as any).url ||
+      `${req.protocol}://${req.get('host')}/uploads/covers/${req.file.filename}`;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.userId as string },
+      data: { coverUrl },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatarUrl: true,
+        coverUrl: true,
         bio: true,
         location: true,
         website: true,
@@ -472,6 +508,7 @@ export const getUserProfile = async (req: AuthRequest, res: Response, next: Next
         name: true,
         email: true,
         avatarUrl: true,
+        coverUrl: true,
         bio: true,
         location: true,
         website: true,
@@ -729,6 +766,7 @@ export const exportAccountData = async (req: AuthRequest, res: Response, next: N
           email: true,
           name: true,
           avatarUrl: true,
+          coverUrl: true,
           bio: true,
           location: true,
           website: true,

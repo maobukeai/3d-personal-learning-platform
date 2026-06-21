@@ -2195,3 +2195,214 @@ export async function streamLLMChatWithFailover(
     res.end();
   }
 }
+
+/**
+ * Standard single-turn image generation call.
+ * Uses OpenAI-compatible /images/generations endpoint format.
+ */
+export async function generateImage(
+  prompt: string,
+  overrides?: Partial<AIServiceConfig>,
+  timeoutMs: number = AI_REQUEST_TIMEOUT_MS,
+  size?: string,
+): Promise<{ url?: string; b64_json?: string }> {
+  const settings = await settingsService.getAll();
+  let provider = normalizeProvider(overrides?.AI_PROVIDER ?? settings.AI_PROVIDER);
+  const apiKey = normalizeParam(overrides?.AI_API_KEY ?? settings.AI_API_KEY);
+  const endpoint = normalizeParam(overrides?.AI_API_ENDPOINT ?? settings.AI_API_ENDPOINT);
+  const modelName = resolveModelName(
+    provider,
+    normalizeParam(overrides?.AI_MODEL_NAME ?? settings.AI_MODEL_NAME),
+  );
+
+  let finalSize = size || '1024x1024';
+  const modelLower = modelName.toLowerCase();
+  const isDalle3 = modelLower.includes('dall-e-3') || modelLower.includes('dalle3');
+  const isDalle2 = modelLower.includes('dall-e-2') || modelLower.includes('dalle2') || modelLower === 'dall-e';
+  
+  if (isDalle3) {
+    if (finalSize === '1792x768') {
+      finalSize = '1792x1024'; // DALL-E 3 only supports 1792x1024 for landscape
+    } else if (finalSize !== '1024x1024' && finalSize !== '1024x1792') {
+      finalSize = '1024x1024';
+    }
+  } else if (isDalle2) {
+    finalSize = '1024x1024';
+  }
+
+  const enabled = overrides?.AI_IMPORT_ENABLED ?? settings.AI_IMPORT_ENABLED;
+  if (!enabled && !overrides) {
+    throw new Error('AI 功能未启用，请联系管理员在系统后台开启。');
+  }
+
+  if (!apiKey && provider !== 'OLLAMA') {
+    throw new Error(`提供商 ${provider} 需要配置 API 密钥 (API Key)。`);
+  }
+
+  const baseEndpoint = endpoint || DEFAULT_PROVIDER_ENDPOINTS[provider] || endpoint;
+  const imgUrl = cleanImageEndpointUrl(baseEndpoint);
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (apiKey) {
+    if (provider === 'AZURE') {
+      headers['api-key'] = apiKey;
+    } else if (provider === 'GEMINI') {
+      // Key is appended to query string
+    } else {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+  }
+
+  let finalUrl = imgUrl;
+  if (provider === 'GEMINI' && apiKey) {
+    finalUrl = `${imgUrl}?key=${apiKey}`;
+  }
+
+  const imageBody: any = {
+    model: modelName,
+    prompt: prompt,
+    n: 1,
+    size: finalSize,
+  };
+
+  if (provider === 'AGNES') {
+    imageBody.high_density = true;
+    imageBody.density = 'high';
+    imageBody.quality = 'hd';
+    imageBody.extra_body = {
+      high_density: true,
+      density: 'high',
+      quality: 'hd',
+    };
+  }
+
+  logger.info(
+    `[AI Image Service] Calling image generation: provider=${provider} model=${modelName} url=${maskUrlApiKey(finalUrl)}`
+  );
+
+  try {
+    const response = await aiHttp.post(finalUrl, imageBody, {
+      headers,
+      timeout: timeoutMs,
+    });
+
+    const responseData = response.data;
+    const imgData = responseData.data?.[0];
+    if (!imgData) {
+      throw new Error('未获取到生成的图片数据，请检查生图接口响应格式。');
+    }
+
+    let b64 = imgData.b64_json || null;
+    if (!b64 && imgData.url) {
+      try {
+        const fetched = await fetchExternalImage(imgData.url);
+        if (fetched) {
+          b64 = fetched.data;
+        }
+      } catch (fetchErr) {
+        logger.warn(`[AI Image Service] Failed to fetch generated image to base64:`, fetchErr);
+      }
+    }
+
+    return {
+      url: imgData.url,
+      b64_json: b64,
+    };
+  } catch (error: unknown) {
+    logger.error(`[AI Image Service Error (${provider})]:`, sanitizeAIError(error));
+    throw new Error(toUserFacingAIError(error, provider));
+  }
+}
+
+/**
+ * Generates an image using configured image models with automatic failover support.
+ */
+export async function generateImageWithFailover(
+  prompt: string,
+  modelId?: string,
+  timeoutMs: number = AI_REQUEST_TIMEOUT_MS,
+  size?: string,
+): Promise<{ url?: string; b64_json?: string }> {
+  const settings = await settingsService.getAll();
+
+  let models: AIModelOption[] = [];
+  if (settings.AI_MODEL_OPTIONS) {
+    try {
+      const parsed = JSON.parse(settings.AI_MODEL_OPTIONS);
+      if (Array.isArray(parsed)) {
+        models = parsed as AIModelOption[];
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const isImgGen = (m: AIModelOption) =>
+    m.enabled && isImageGenerationModel(m.modelName || '', m.capabilities, m.endpoint);
+
+  let imageModels = models.filter(isImgGen);
+
+  // If a specific modelId is selected, prioritize it
+  if (modelId) {
+    const selected = models.find((m) => m.id === modelId && m.enabled);
+    if (selected) {
+      imageModels = [selected, ...imageModels.filter((m) => m.id !== modelId)];
+    }
+  }
+
+  const chain = resolveModelKeyChain(imageModels);
+
+  if (chain.length === 0) {
+    // If the global settings is not an image generation model, throw a clear error to instruct configuration.
+    const isGlobalImgGen = isImageGenerationModel(
+      settings.AI_MODEL_NAME || '',
+      undefined,
+      settings.AI_API_ENDPOINT
+    );
+    if (!isGlobalImgGen) {
+      throw new Error('系统尚未配置任何“图像生成”模型（如 DALL-E 3、Flux、Stable Diffusion 等）。请联系管理员在后台 AI 设置中添加具备 draw 或 image 能力的图像生成模型。');
+    }
+    // Fallback to global setting directly
+    return generateImage(prompt, undefined, timeoutMs, size);
+  }
+
+  let lastError: Error | null = null;
+  const failedLabels: string[] = [];
+
+  for (const entry of chain) {
+    const label = `${entry.model.name || entry.model.id || entry.model.modelName}(key#${failedLabels.length + 1})`;
+    const overrides: Partial<AIServiceConfig> = {
+      AI_IMPORT_ENABLED: true,
+      AI_PROVIDER: entry.model.provider,
+      AI_API_KEY: entry.apiKey || settings.AI_API_KEY,
+      AI_API_ENDPOINT: entry.model.endpoint || settings.AI_API_ENDPOINT,
+      AI_MODEL_NAME: entry.model.modelName,
+      capabilities: entry.model.capabilities,
+    };
+    try {
+      if (failedLabels.length > 0) {
+        logger.info(
+          `[AI Image Failover] Retrying image generation with model: ${label} (after ${failedLabels.length} failure(s))`
+        );
+      }
+      const result = await generateImage(prompt, overrides, timeoutMs, size);
+      if (failedLabels.length > 0) {
+        logger.info(`[AI Image Failover] Succeeded with model: ${label}`);
+      }
+      return result;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      failedLabels.push(label);
+      logger.warn(`[AI Image Failover] Model ${label} failed: ${lastError.message}. Trying next...`);
+    }
+  }
+
+  logger.error(
+    `[AI Image Failover] All ${chain.length} model/key combination(s) failed. Tried: ${failedLabels.join(', ')}`
+  );
+  throw lastError ?? new Error('所有生图 AI 模型均不可用，请联系管理员检查配置。');
+}
+

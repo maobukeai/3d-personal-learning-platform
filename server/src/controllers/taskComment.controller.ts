@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import logger from '../utils/logger';
+import { logTaskActivity } from '../services/taskActivity.service';
 
 // Get comments for a task
 export const getTaskComments = async (req: AuthRequest, res: Response) => {
@@ -85,6 +86,14 @@ export const createTaskComment = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    await logTaskActivity({
+      taskId,
+      userId: req.userId as string,
+      action: 'ADD_COMMENT',
+      description: `发表了评论: "${content.trim()}"`,
+      newValue: JSON.stringify({ commentId: comment.id, content: comment.content }),
+    });
+
     res.status(201).json(comment);
   } catch (error) {
     logger.error('Create task comment error:', error);
@@ -113,6 +122,14 @@ export const deleteTaskComment = async (req: AuthRequest, res: Response) => {
 
     await prisma.taskComment.delete({
       where: { id: commentId },
+    });
+
+    await logTaskActivity({
+      taskId,
+      userId: req.userId as string,
+      action: 'DELETE_COMMENT',
+      description: '删除了评论',
+      oldValue: JSON.stringify({ commentId, content: comment.content }),
     });
 
     res.json({ message: '评论删除成功' });

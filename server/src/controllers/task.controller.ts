@@ -8,6 +8,7 @@ import { createNotification, createNotificationBatch } from '../utils/notificati
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
 import logger from '../utils/logger';
 import { TaskStatus } from '../types/task';
+import { logTaskActivity } from '../services/taskActivity.service';
 
 interface BatchCreateTaskInput {
   title?: string;
@@ -156,6 +157,14 @@ export const createTask = async (req: AuthRequest, res: Response, next: NextFunc
       }
     }
 
+    let targetParticipantIds = participantIds || [];
+    let targetAssigneeId = assigneeId || null;
+    if (participantIds && participantIds.length > 0) {
+      targetAssigneeId = participantIds[0];
+    } else if (targetAssigneeId) {
+      targetParticipantIds = [targetAssigneeId];
+    }
+
     const task = await prisma.task.create({
       data: {
         title,
@@ -165,16 +174,16 @@ export const createTask = async (req: AuthRequest, res: Response, next: NextFunc
         tags: tags || null,
         subtasks: subtasks || null,
         dueDate: dueDate ? new Date(dueDate) : null,
-        assigneeId: assigneeId || null,
+        assigneeId: targetAssigneeId,
         projectId: projectId || null,
         userId: req.userId as string,
         teamId: effectiveTeamId,
         timeEstimate: timeEstimate !== undefined ? Number(timeEstimate) : 0,
         timeSpent: timeSpent !== undefined ? Number(timeSpent) : 0,
         participants:
-          participantIds && participantIds.length > 0
+          targetParticipantIds.length > 0
             ? {
-                create: participantIds.map((userId: string) => ({ userId })),
+                create: targetParticipantIds.map((userId: string) => ({ userId })),
               }
             : undefined,
       },
@@ -231,6 +240,14 @@ export const createTask = async (req: AuthRequest, res: Response, next: NextFunc
       description: `Created task: ${task.title}`,
       newValue: task,
       req,
+    });
+
+    await logTaskActivity({
+      taskId: task.id,
+      userId: req.userId as string,
+      action: 'CREATE',
+      description: '创建了任务',
+      newValue: JSON.stringify({ title: task.title }),
     });
 
     if (task.status === TaskStatus.DONE) {
@@ -303,6 +320,13 @@ export const batchCreateTasks = async (req: AuthRequest, res: Response, next: Ne
 
   const normalizedTasks = tasks.map((task) => {
     const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+    let participantIds = Array.isArray(task.participantIds) ? task.participantIds : [];
+    let assigneeId = task.assigneeId || null;
+    if (task.participantIds && task.participantIds.length > 0) {
+      assigneeId = task.participantIds[0] || null;
+    } else if (assigneeId) {
+      participantIds = [assigneeId];
+    }
 
     return {
       title: task.title!.trim(),
@@ -312,9 +336,9 @@ export const batchCreateTasks = async (req: AuthRequest, res: Response, next: Ne
       tags: task.tags || null,
       subtasks: task.subtasks || null,
       dueDate,
-      assigneeId: task.assigneeId || null,
+      assigneeId,
       projectId: task.projectId || null,
-      participantIds: Array.isArray(task.participantIds) ? task.participantIds : [],
+      participantIds,
     };
   });
 
@@ -537,6 +561,9 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
             },
           },
         },
+        participants: {
+          select: { userId: true },
+        },
       },
     });
     if (!existingTask) return res.status(404).json({ error: 'Task not found' });
@@ -611,6 +638,35 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
       }
     }
 
+    let targetAssigneeId = assigneeId !== undefined ? assigneeId || null : existingTask.assigneeId;
+    let targetParticipantIds = participantIds !== undefined ? [...participantIds] : existingTask.participants.map((p) => p.userId);
+
+    if (participantIds !== undefined) {
+      targetAssigneeId = participantIds[0] || null;
+    } else if (assigneeId !== undefined) {
+      if (targetAssigneeId) {
+        if (!targetParticipantIds.includes(targetAssigneeId)) {
+          targetParticipantIds = [targetAssigneeId, ...targetParticipantIds];
+        }
+      }
+    }
+
+    if (status && (status === TaskStatus.IN_PROGRESS || status === TaskStatus.DONE)) {
+      if (!targetAssigneeId) {
+        targetAssigneeId = req.userId;
+        if (!targetParticipantIds.includes(req.userId as string)) {
+          targetParticipantIds = [req.userId as string, ...targetParticipantIds];
+        }
+      }
+    }
+
+    const existingParticipantIds = existingTask.participants.map((p) => p.userId);
+    const participantListChanged =
+      targetParticipantIds.length !== existingParticipantIds.length ||
+      !targetParticipantIds.every((id) => existingParticipantIds.includes(id));
+
+    const dbParticipantIds = participantListChanged ? targetParticipantIds : undefined;
+
     const task = await prisma.task.update({
       where: { id },
       data: {
@@ -621,14 +677,14 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
         tags,
         subtasks: subtasks !== undefined ? subtasks : undefined,
         dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : undefined,
-        assigneeId: assigneeId !== undefined ? assigneeId || null : undefined,
+        assigneeId: targetAssigneeId,
         projectId: projectId !== undefined ? projectId || null : undefined,
         timeEstimate: timeEstimate !== undefined ? Number(timeEstimate) : undefined,
         timeSpent: timeSpent !== undefined ? Number(timeSpent) : undefined,
-        participants: participantIds
+        participants: dbParticipantIds !== undefined
           ? {
               deleteMany: {},
-              create: participantIds.map((userId: string) => ({ userId })),
+              create: dbParticipantIds.map((userId: string) => ({ userId })),
             }
           : undefined,
       },
@@ -711,6 +767,147 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
       newValue: task,
       req,
     });
+
+    if (task.title !== existingTask.title) {
+      await logTaskActivity({
+        taskId: task.id,
+        userId: req.userId as string,
+        action: 'UPDATE_TITLE',
+        description: `修改任务标题为 "${task.title}"`,
+        oldValue: existingTask.title,
+        newValue: task.title,
+      });
+    }
+
+    if (task.description !== existingTask.description) {
+      await logTaskActivity({
+        taskId: task.id,
+        userId: req.userId as string,
+        action: 'UPDATE_DESCRIPTION',
+        description: '修改了任务描述',
+        oldValue: existingTask.description || null,
+        newValue: task.description || null,
+      });
+    }
+
+    if (task.status !== existingTask.status) {
+      const statusMap: Record<string, string> = {
+        TODO: '待办',
+        IN_PROGRESS: '进行中',
+        DONE: '已完成',
+      };
+      await logTaskActivity({
+        taskId: task.id,
+        userId: req.userId as string,
+        action: 'UPDATE_STATUS',
+        description: `将任务状态修改为 "${statusMap[task.status] || task.status}"`,
+        oldValue: existingTask.status,
+        newValue: task.status,
+      });
+    }
+
+    if (task.priority !== existingTask.priority) {
+      const priorityMap: Record<string, string> = {
+        LOW: '低',
+        MEDIUM: '中',
+        HIGH: '高',
+        URGENT: '紧急',
+      };
+      await logTaskActivity({
+        taskId: task.id,
+        userId: req.userId as string,
+        action: 'UPDATE_PRIORITY',
+        description: `将优先级修改为 "${priorityMap[task.priority] || task.priority}"`,
+        oldValue: existingTask.priority,
+        newValue: task.priority,
+      });
+    }
+
+    if (task.assigneeId !== existingTask.assigneeId) {
+      const desc = task.assigneeId
+        ? `将任务指派给 "${task.assignee?.name || '未知用户'}"`
+        : '取消了任务指派';
+      await logTaskActivity({
+        taskId: task.id,
+        userId: req.userId as string,
+        action: 'UPDATE_ASSIGNEE',
+        description: desc,
+        oldValue: existingTask.assigneeId || null,
+        newValue: task.assigneeId || null,
+      });
+    }
+
+    const taskDueDateStr = task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : null;
+    const existingDueDateStr = existingTask.dueDate ? new Date(existingTask.dueDate).toISOString().split('T')[0] : null;
+    if (taskDueDateStr !== existingDueDateStr) {
+      const desc = taskDueDateStr
+        ? `将截止日期修改为 "${taskDueDateStr}"`
+        : '移除了截止日期';
+      await logTaskActivity({
+        taskId: task.id,
+        userId: req.userId as string,
+        action: 'UPDATE_DUE_DATE',
+        description: desc,
+        oldValue: existingDueDateStr,
+        newValue: taskDueDateStr,
+      });
+    }
+
+    if (task.projectId !== existingTask.projectId) {
+      const desc = task.projectId
+        ? `关联了项目 "${task.project?.title || '未知项目'}"`
+        : '取消了关联项目';
+      await logTaskActivity({
+        taskId: task.id,
+        userId: req.userId as string,
+        action: 'UPDATE_PROJECT',
+        description: desc,
+        oldValue: existingTask.projectId || null,
+        newValue: task.projectId || null,
+      });
+    }
+
+    if (task.timeEstimate !== existingTask.timeEstimate) {
+      await logTaskActivity({
+        taskId: task.id,
+        userId: req.userId as string,
+        action: 'UPDATE_TIME_ESTIMATE',
+        description: `将预计工时修改为 ${task.timeEstimate / 60} 小时`,
+        oldValue: String(existingTask.timeEstimate / 60),
+        newValue: String(task.timeEstimate / 60),
+      });
+    }
+
+    if (task.timeSpent !== existingTask.timeSpent) {
+      await logTaskActivity({
+        taskId: task.id,
+        userId: req.userId as string,
+        action: 'UPDATE_TIME_SPENT',
+        description: `将已耗工时修改为 ${task.timeSpent / 60} 小时`,
+        oldValue: String(existingTask.timeSpent / 60),
+        newValue: String(task.timeSpent / 60),
+      });
+    }
+
+    if (task.subtasks !== existingTask.subtasks) {
+      await logTaskActivity({
+        taskId: task.id,
+        userId: req.userId as string,
+        action: 'UPDATE_SUBTASKS',
+        description: '更新了子任务',
+        oldValue: existingTask.subtasks || null,
+        newValue: task.subtasks || null,
+      });
+    }
+
+    if (dbParticipantIds !== undefined) {
+      await logTaskActivity({
+        taskId: task.id,
+        userId: req.userId as string,
+        action: 'UPDATE_PARTICIPANTS',
+        description: '更新了参与人员',
+      });
+    }
 
     const projectIdChanged = task.projectId !== existingTask.projectId;
     const statusChanged = status !== undefined && status !== existingTask.status;
@@ -980,6 +1177,14 @@ export const addTaskDependency = async (req: AuthRequest, res: Response, next: N
       },
     });
 
+    await logTaskActivity({
+      taskId: id,
+      userId: req.userId as string,
+      action: 'ADD_DEPENDENCY',
+      description: `添加了前置依赖任务 "${dependsOn.title}"`,
+      newValue: JSON.stringify({ dependsOnId, title: dependsOn.title }),
+    });
+
     // Return the updated task with full dependencies/dependents
     const updatedTask = await prisma.task.findUnique({
       where: { id },
@@ -1041,6 +1246,9 @@ export const deleteTaskDependency = async (req: AuthRequest, res: Response, next
       return res.status(404).json({ error: 'Dependency not found' });
     }
 
+    const dependsOn = await prisma.task.findUnique({ where: { id: dependsOnId } });
+    const dependsOnTitle = dependsOn ? dependsOn.title : '未知任务';
+
     await prisma.taskDependency.delete({
       where: {
         taskId_dependsOnId: {
@@ -1048,6 +1256,14 @@ export const deleteTaskDependency = async (req: AuthRequest, res: Response, next
           dependsOnId,
         },
       },
+    });
+
+    await logTaskActivity({
+      taskId: id,
+      userId: req.userId as string,
+      action: 'REMOVE_DEPENDENCY',
+      description: `移除了前置依赖任务 "${dependsOnTitle}"`,
+      oldValue: JSON.stringify({ dependsOnId, title: dependsOnTitle }),
     });
 
     // Return updated task
@@ -1104,6 +1320,46 @@ export const uploadImage = async (req: AuthRequest, res: Response, next: NextFun
       (req.file as any).url ||
       `${req.protocol}://${req.get('host')}/uploads/${subFolder}/${req.file.filename}`;
     res.json({ url: attachmentUrl });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getTaskActivities = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const taskId = req.params.id as string;
+  try {
+    const task = await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        teamId: req.workspaceId || null,
+        OR: [
+          { projectId: null },
+          {
+            project: {
+              members: {
+                some: { userId: req.userId as string },
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    if (!task) {
+      return res.status(404).json({ error: '任务不存在或无权访问' });
+    }
+
+    const activities = await prisma.taskActivity.findMany({
+      where: { taskId },
+      include: {
+        user: {
+          select: { id: true, name: true, avatarUrl: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(activities);
   } catch (error) {
     next(error);
   }

@@ -80,19 +80,29 @@ const startChat = () => {
       <!-- Modern Gradient Header Banner -->
       <div class="h-32 relative overflow-hidden select-none">
         <!-- Dynamic Gradient Blobs for background -->
-        <div
-          class="absolute inset-0 bg-gradient-to-r from-violet-600 via-indigo-600 to-rose-500 opacity-90"
-        ></div>
-        <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/30"></div>
+        <img
+          v-if="userProfile.coverUrl"
+          :src="userProfile.coverUrl"
+          class="absolute inset-0 w-full h-full object-cover"
+          alt="User Cover"
+        />
+        <template v-else>
+          <!-- Dynamic Gradient Blobs for background -->
+          <div
+            class="absolute inset-0 bg-gradient-to-r from-violet-600 via-indigo-600 to-rose-500 opacity-90"
+          ></div>
 
-        <!-- Abstract glowing circles -->
-        <div
-          class="absolute -top-12 -left-12 w-32 h-32 bg-sky-400/30 rounded-full blur-2xl animate-pulse"
-        ></div>
-        <div
-          class="absolute -bottom-10 -right-6 w-36 h-36 bg-purple-400/20 rounded-full blur-3xl animate-pulse"
-          style="animation-duration: 4s"
-        ></div>
+          <!-- Abstract glowing circles -->
+          <div
+            class="absolute -top-12 -left-12 w-32 h-32 bg-sky-400/30 rounded-full blur-2xl animate-pulse"
+          ></div>
+          <div
+            class="absolute -bottom-10 -right-6 w-36 h-36 bg-purple-400/20 rounded-full blur-3xl animate-pulse"
+            style="animation-duration: 4s"
+          ></div>
+        </template>
+
+        <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/30"></div>
 
         <!-- Stripe pattern -->
         <div

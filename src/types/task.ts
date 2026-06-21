@@ -79,7 +79,11 @@ export interface Task {
   project?: TaskProject | null;
   team?: Team | null;
   assignee?: UserType | null;
-  participants?: { userId: string }[];
+  participants?: {
+    id: string;
+    userId: string;
+    user: UserType;
+  }[];
   timeEstimate?: number | null;
   timeSpent?: number | null;
   dependencies?: {
@@ -121,4 +125,16 @@ export interface TaskUpdatePayload {
   participantIds: string[];
   timeEstimate?: number;
   timeSpent?: number;
+}
+
+export interface TaskActivity {
+  id: string;
+  taskId: string;
+  userId: string;
+  user: UserType;
+  action: string;
+  description: string;
+  oldValue?: string | null;
+  newValue?: string | null;
+  createdAt: string;
 }

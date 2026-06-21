@@ -2,24 +2,30 @@
 import { computed, ref } from 'vue';
 import { User } from 'lucide-vue-next';
 
-const props = defineProps<{
-  user?: {
-    name?: string | null;
-    email?: string | null;
-    avatarUrl?: string | null;
-    role?: string;
-    subscription?: {
-      plan: {
-        name: string;
-        displayName?: string;
-        badgeColor?: string;
-      };
-      status?: string;
-      interval?: string;
+const props = withDefaults(
+  defineProps<{
+    user?: {
+      name?: string | null;
+      email?: string | null;
+      avatarUrl?: string | null;
+      role?: string;
+      subscription?: {
+        plan: {
+          name: string;
+          displayName?: string;
+          badgeColor?: string;
+        };
+        status?: string;
+        interval?: string;
+      } | null;
     } | null;
-  } | null;
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-}>();
+    size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+    borderless?: boolean;
+  }>(),
+  {
+    borderless: false,
+  }
+);
 
 const imageError = ref(false);
 
@@ -182,96 +188,120 @@ const fallbackBgColor = computed(() => {
       'relative inline-flex shrink-0 items-center justify-center group/avatar',
     ]"
   >
-    <!-- Outer Glow & Neon Frame -->
-    <div
-      :class="[
-        'w-full h-full relative rounded-[1.25rem] transition-all duration-500 flex items-center justify-center',
-        frameConfig.animation !== 'none' ? 'animate-frame-glow' : '',
-      ]"
-      :style="{
-        backgroundColor: frameConfig.innerBorder,
-        boxShadow:
-          frameConfig.glowIntensity > 0
-            ? `0 2px ${8 * frameConfig.glowIntensity}px ${frameConfig.color}${Math.round(
-                frameConfig.glowIntensity * 255,
-              )
-                .toString(16)
-                .padStart(2, '0')}`
-            : 'none',
-        padding: frameConfig.borderWidth,
-        backgroundClip: 'content-box',
-        border: `${frameConfig.borderWidth} solid ${frameConfig.color}`,
-      }"
-    >
-      <!-- Inner Dark Border Container -->
-      <div
-        class="w-full h-full rounded-[1rem] overflow-hidden flex items-center justify-center p-[2px]"
-        :style="{ backgroundColor: frameConfig.innerBorder }"
-      >
+    <!-- Borderless Layout -->
+    <template v-if="borderless">
+      <div class="w-full h-full rounded-full overflow-hidden bg-[var(--bg-card)] relative z-10">
+        <img
+          v-if="user?.avatarUrl && !imageError"
+          :src="user.avatarUrl"
+          class="w-full h-full object-cover transition-transform duration-700 group-hover/avatar:scale-110"
+          :alt="user.name || ''"
+          @error="handleImageError"
+        />
         <div
-          class="w-full h-full rounded-[inherit] overflow-hidden bg-[var(--bg-card)] relative z-10"
+          v-else
+          class="w-full h-full flex items-center justify-center text-white font-bold"
+          :class="[size.text, fallbackBgColor]"
         >
-          <img
-            v-if="user?.avatarUrl && !imageError"
-            :src="user.avatarUrl"
-            class="w-full h-full object-cover transition-transform duration-700 group-hover/avatar:scale-110"
-            :alt="user.name || ''"
-            @error="handleImageError"
-          />
+          <span v-if="initials">{{ initials }}</span>
+          <User v-else :class="size.icon" />
+        </div>
+      </div>
+    </template>
+
+    <!-- Standard Framed Layout -->
+    <template v-else>
+      <!-- Outer Glow & Neon Frame -->
+      <div
+        :class="[
+          'w-full h-full relative rounded-[1.25rem] transition-all duration-500 flex items-center justify-center',
+          frameConfig.animation !== 'none' ? 'animate-frame-glow' : '',
+        ]"
+        :style="{
+          backgroundColor: frameConfig.innerBorder,
+          boxShadow:
+            frameConfig.glowIntensity > 0
+              ? `0 2px ${8 * frameConfig.glowIntensity}px ${frameConfig.color}${Math.round(
+                  frameConfig.glowIntensity * 255,
+                )
+                  .toString(16)
+                  .padStart(2, '0')}`
+              : 'none',
+          padding: frameConfig.borderWidth,
+          backgroundClip: 'content-box',
+          border: `${frameConfig.borderWidth} solid ${frameConfig.color}`,
+        }"
+      >
+        <!-- Inner Dark Border Container -->
+        <div
+          class="w-full h-full rounded-[1rem] overflow-hidden flex items-center justify-center p-[2px]"
+          :style="{ backgroundColor: frameConfig.innerBorder }"
+        >
           <div
-            v-else
-            class="w-full h-full flex items-center justify-center text-white font-bold"
-            :class="[size.text, fallbackBgColor]"
+            class="w-full h-full rounded-[inherit] overflow-hidden bg-[var(--bg-card)] relative z-10"
           >
-            <span v-if="initials">{{ initials }}</span>
-            <User v-else :class="size.icon" />
+            <img
+              v-if="user?.avatarUrl && !imageError"
+              :src="user.avatarUrl"
+              class="w-full h-full object-cover transition-transform duration-700 group-hover/avatar:scale-110"
+              :alt="user.name || ''"
+              @error="handleImageError"
+            />
+            <div
+              v-else
+              class="w-full h-full flex items-center justify-center text-white font-bold"
+              :class="[size.text, fallbackBgColor]"
+            >
+              <span v-if="initials">{{ initials }}</span>
+              <User v-else :class="size.icon" />
+            </div>
           </div>
+        </div>
+
+        <!-- Minimalist Shimmer -->
+        <div
+          v-if="frameConfig.hasShimmer"
+          class="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none z-20"
+        >
+          <div class="minimal-shimmer"></div>
         </div>
       </div>
 
-      <!-- Minimalist Shimmer -->
+      <!-- Tier Crown -->
       <div
-        v-if="frameConfig.hasShimmer"
-        class="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none z-20"
+        v-if="size.crown && frameConfig.tier === 'svip'"
+        class="absolute -top-3 left-1/2 -translate-x-1/2 z-30 text-sm pointer-events-none select-none crown-float"
       >
-        <div class="minimal-shimmer"></div>
+        👑
       </div>
-    </div>
 
-    <!-- Tier Crown -->
-    <div
-      v-if="size.crown && frameConfig.tier === 'svip'"
-      class="absolute -top-3 left-1/2 -translate-x-1/2 z-30 text-sm pointer-events-none select-none crown-float"
-    >
-      👑
-    </div>
-
-    <!-- Pill-shaped Level Badge -->
-    <div
-      v-if="showBadge"
-      :class="[
-        size.badge,
-        'absolute -bottom-1 -right-2 rounded-xl flex items-center justify-center z-30 font-black px-2',
-        'backdrop-blur-md shadow-lg text-white border border-white/20',
-      ]"
-      :style="{
-        background: frameConfig.tier === 'expired' ? '#64748b' : frameConfig.color,
-        minWidth: '28px',
-      }"
-    >
-      <span v-if="frameConfig.badgeIcon" class="text-[0.9em]">{{ frameConfig.badgeIcon }}</span>
-      <span
-        v-if="frameConfig.badgeText"
-        class="uppercase tracking-tight text-[7.5px] whitespace-nowrap"
-        >{{ frameConfig.badgeText }}</span
+      <!-- Pill-shaped Level Badge -->
+      <div
+        v-if="showBadge"
+        :class="[
+          size.badge,
+          'absolute -bottom-1 -right-2 rounded-xl flex items-center justify-center z-30 font-black px-2',
+          'backdrop-blur-md shadow-lg text-white border border-white/20',
+        ]"
+        :style="{
+          background: frameConfig.tier === 'expired' ? '#64748b' : frameConfig.color,
+          minWidth: '28px',
+        }"
       >
-    </div>
+        <span v-if="frameConfig.badgeIcon" class="text-[0.9em]">{{ frameConfig.badgeIcon }}</span>
+        <span
+          v-if="frameConfig.badgeText"
+          class="uppercase tracking-tight text-[7.5px] whitespace-nowrap"
+          >{{ frameConfig.badgeText }}</span
+        >
+      </div>
 
-    <!-- Hover Effect Enhancement -->
-    <div
-      class="absolute inset-[-6px] rounded-[2.5rem] pointer-events-none transition-all duration-500 opacity-0 group-hover/avatar:opacity-100 blur-2xl"
-      :style="{ backgroundColor: frameConfig.color, opacity: '0.2' }"
-    ></div>
+      <!-- Hover Effect Enhancement -->
+      <div
+        class="absolute inset-[-6px] rounded-[2.5rem] pointer-events-none transition-all duration-500 opacity-0 group-hover/avatar:opacity-100 blur-2xl"
+        :style="{ backgroundColor: frameConfig.color, opacity: '0.2' }"
+      ></div>
+    </template>
   </div>
 </template>
 

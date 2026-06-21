@@ -15,6 +15,7 @@ import { useI18n } from 'vue-i18n';
 import Dropdown from '@/components/ui/Dropdown.vue';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
+import UserAvatar from '@/components/UserAvatar.vue';
 
 import { TaskStatus } from '@/types/task';
 import type {
@@ -821,30 +822,37 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                     >
                       <Dropdown align="left" width-class="w-48">
                         <template #trigger>
-                          <span
-                            class="inline-flex items-center gap-0.5 sm:gap-1 max-w-full cursor-pointer hover:text-accent py-0.5 px-0.5 sm:px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-                          >
-                            <template v-if="task.assignee">
-                              <img
-                                v-if="task.assignee.avatarUrl"
-                                alt=""
-                                :src="task.assignee.avatarUrl"
-                                class="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full object-cover shrink-0"
-                              />
-                              <div
-                                v-else
-                                class="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-accent/10 flex items-center justify-center shrink-0"
-                              >
-                                <User class="w-2 h-2 text-accent" />
+                          <span class="inline-flex items-center cursor-pointer max-w-full">
+                            <template v-if="task.participants && task.participants.length > 0">
+                              <div class="flex items-center -space-x-1.5 py-0.5">
+                                <UserAvatar
+                                  v-for="p in task.participants.slice(0, 3)"
+                                  :key="p.userId"
+                                  :user="p.user"
+                                  size="xs"
+                                  borderless
+                                  class="ring-2 ring-white dark:ring-slate-900"
+                                  :title="p.user?.name"
+                                />
+                                <span
+                                  v-if="task.participants.length > 3"
+                                  class="text-[9px] font-black text-slate-400 pl-1"
+                                >
+                                  +{{ task.participants.length - 3 }}
+                                </span>
                               </div>
-                              <span
-                                class="hidden sm:inline text-[10px] text-slate-400 truncate max-w-[60px]"
-                                >{{ task.assignee.name }}</span
-                              >
+                            </template>
+                            <template v-else-if="task.assignee">
+                              <UserAvatar
+                                :user="task.assignee"
+                                size="xs"
+                                borderless
+                                :title="task.assignee.name"
+                              />
                             </template>
                             <span
                               v-else
-                              class="text-slate-400 dark:text-slate-400 text-[8px] sm:text-[10px] font-bold"
+                              class="text-slate-400 dark:text-slate-400 text-[8px] sm:text-[10px] font-bold py-0.5 px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
                               >+ {{ t('tasks.assignee') }}</span
                             >
                           </span>

@@ -14,6 +14,7 @@ export interface User {
   email: string;
   name?: string | null;
   avatarUrl?: string | null;
+  coverUrl?: string | null;
   bio?: string | null;
   location?: string | null;
   website?: string | null;

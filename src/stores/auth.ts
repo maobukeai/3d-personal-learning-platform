@@ -123,6 +123,18 @@ export const useAuthStore = defineStore('auth', {
       preferences.setUser(this.user);
       return response.data;
     },
+    async uploadCover(file: File) {
+      const formData = new FormData();
+      formData.append('cover', file);
+      const response = await api.post('/api/auth/upload-cover', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      this.user = response.data;
+      preferences.setUser(this.user);
+      return response.data;
+    },
     async changePassword(passwordData: ChangePasswordPayload) {
       const response = await api.put('/api/auth/change-password', passwordData);
       return response.data;

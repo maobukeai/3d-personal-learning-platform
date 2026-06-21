@@ -523,6 +523,14 @@ export const createProjectTask = async (req: AuthRequest, res: Response, next: N
       return next(new AppError('Not authorized to create tasks in this project', 403));
     }
 
+    let targetParticipantIds = participantIds || [];
+    let targetAssigneeId = assigneeId || null;
+    if (participantIds && Array.isArray(participantIds) && participantIds.length > 0) {
+      targetAssigneeId = participantIds[0];
+    } else if (targetAssigneeId) {
+      targetParticipantIds = [targetAssigneeId];
+    }
+
     const task = await prisma.task.create({
       data: {
         title,
@@ -530,13 +538,13 @@ export const createProjectTask = async (req: AuthRequest, res: Response, next: N
         status: TaskStatus.TODO,
         dueDate: dueDate ? new Date(dueDate) : null,
         projectId: id,
-        assigneeId: assigneeId || null,
+        assigneeId: targetAssigneeId,
         userId: req.userId as string,
         teamId: req.workspaceId || null,
         participants:
-          participantIds && Array.isArray(participantIds) && participantIds.length > 0
+          targetParticipantIds.length > 0
             ? {
-                create: participantIds.map((userId: string) => ({ userId })),
+                create: targetParticipantIds.map((userId: string) => ({ userId })),
               }
             : undefined,
       },
@@ -625,42 +633,64 @@ export const batchCreateProjectTasks = async (
           dueDate?: string;
           assigneeId?: string;
           participantIds?: string[];
-        }) => ({
-          title: t.title,
-          description: t.description || null,
-          status: TaskStatus.TODO,
-          priority: t.priority || 'MEDIUM',
-          dueDate: t.dueDate ? new Date(t.dueDate) : null,
-          projectId: id,
-          assigneeId: t.assigneeId || null,
-          userId: req.userId as string,
-          teamId: req.workspaceId || null,
-          subtasks: null,
-        }),
+        }) => {
+          let targetParticipantIds = t.participantIds || [];
+          let targetAssigneeId = t.assigneeId || null;
+          if (t.participantIds && t.participantIds.length > 0) {
+            targetAssigneeId = t.participantIds[0] || null;
+          } else if (targetAssigneeId) {
+            targetParticipantIds = [targetAssigneeId];
+          }
+          return {
+            title: t.title,
+            description: t.description || null,
+            status: TaskStatus.TODO,
+            priority: t.priority || 'MEDIUM',
+            dueDate: t.dueDate ? new Date(t.dueDate) : null,
+            projectId: id,
+            assigneeId: targetAssigneeId,
+            userId: req.userId as string,
+            teamId: req.workspaceId || null,
+            subtasks: null,
+            participantIds: targetParticipantIds,
+          };
+        }
       );
 
-    await prisma.task.createMany({ data: tasksData });
-
-    // Fetch the created tasks with relations for the response
-    const createdTasks = await prisma.task.findMany({
-      where: {
-        projectId: id,
-        userId: req.userId as string,
-        status: TaskStatus.TODO,
-      },
-      include: {
-        assignee: { select: { id: true, name: true, avatarUrl: true } },
-        participants: {
-          select: {
-            id: true,
-            userId: true,
-            user: { select: { id: true, name: true, avatarUrl: true } },
+    const createdTasks = await prisma.$transaction(
+      tasksData.map((task) =>
+        prisma.task.create({
+          data: {
+            title: task.title,
+            description: task.description,
+            status: task.status,
+            priority: task.priority,
+            dueDate: task.dueDate,
+            projectId: task.projectId,
+            assigneeId: task.assigneeId,
+            userId: task.userId,
+            teamId: task.teamId,
+            subtasks: task.subtasks,
+            participants:
+              task.participantIds.length > 0
+                ? {
+                    create: task.participantIds.map((userId) => ({ userId })),
+                  }
+                : undefined,
           },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: tasksData.length,
-    });
+          include: {
+            assignee: { select: { id: true, name: true, avatarUrl: true } },
+            participants: {
+              select: {
+                id: true,
+                userId: true,
+                user: { select: { id: true, name: true, avatarUrl: true } },
+              },
+            },
+          },
+        })
+      )
+    );
 
     await recalcProjectProgress(id);
 
@@ -711,7 +741,7 @@ async function recalcProjectProgress(projectId: string) {
 
 export const updateProjectTask = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const taskId = req.params.taskId as string;
-  const { title, description, status, assigneeId, dueDate } = req.body;
+  const { title, description, status, assigneeId, dueDate, participantIds } = req.body;
 
   try {
     // 检查任务是否在当前工作区并且当前用户是项目成员
@@ -728,6 +758,9 @@ export const updateProjectTask = async (req: AuthRequest, res: Response, next: N
             },
           },
         },
+        participants: {
+          select: { userId: true },
+        },
       },
     });
 
@@ -740,14 +773,59 @@ export const updateProjectTask = async (req: AuthRequest, res: Response, next: N
       return next(new AppError('Not authorized to update this task', 403));
     }
 
+    let targetAssigneeId = assigneeId !== undefined ? assigneeId || null : existingTask.assigneeId;
+    let targetParticipantIds = participantIds !== undefined ? [...participantIds] : existingTask.participants.map((p) => p.userId);
+
+    if (participantIds !== undefined) {
+      targetAssigneeId = participantIds[0] || null;
+    } else if (assigneeId !== undefined) {
+      if (targetAssigneeId) {
+        if (!targetParticipantIds.includes(targetAssigneeId)) {
+          targetParticipantIds = [targetAssigneeId, ...targetParticipantIds];
+        }
+      }
+    }
+
+    if (status && (status === TaskStatus.IN_PROGRESS || status === TaskStatus.DONE)) {
+      if (!targetAssigneeId) {
+        targetAssigneeId = req.userId;
+        if (!targetParticipantIds.includes(req.userId as string)) {
+          targetParticipantIds = [req.userId as string, ...targetParticipantIds];
+        }
+      }
+    }
+
+    const existingParticipantIds = existingTask.participants.map((p) => p.userId);
+    const participantListChanged =
+      targetParticipantIds.length !== existingParticipantIds.length ||
+      !targetParticipantIds.every((id) => existingParticipantIds.includes(id));
+
+    const dbParticipantIds = participantListChanged ? targetParticipantIds : undefined;
+
     const task = await prisma.task.update({
       where: { id: taskId },
       data: {
         title,
         description,
         status,
-        assigneeId,
-        dueDate: dueDate ? new Date(dueDate) : null,
+        assigneeId: targetAssigneeId,
+        dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : undefined,
+        participants: dbParticipantIds !== undefined
+          ? {
+              deleteMany: {},
+              create: dbParticipantIds.map((userId: string) => ({ userId })),
+            }
+          : undefined,
+      },
+      include: {
+        assignee: { select: { id: true, name: true, avatarUrl: true } },
+        participants: {
+          select: {
+            id: true,
+            userId: true,
+            user: { select: { id: true, name: true, avatarUrl: true } },
+          },
+        },
       },
     });
 

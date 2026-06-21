@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../utils/error';
-import { AIChatMessage, streamLLMChat } from '../services/ai.service';
+import { AIChatMessage, streamLLMChat, callLLMWithFailover, generateImageWithFailover } from '../services/ai.service';
 import { PROMPT_INJECTION_DEFENSE } from '../config/prompts';
 import { hasPromptInjection } from '../utils/security';
 import { logger } from '../utils/logger';
@@ -82,6 +82,32 @@ const COMMON_OUTPUT_RULES = `
 `;
 
 const normalizeString = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+
+/**
+ * Strips meta-descriptive phrases that can trigger content safety filters on image generation models.
+ * These phrases describe the intended usage context rather than the visual content itself,
+ * and some providers (e.g. Agnes AI) reject prompts containing them.
+ */
+const PROMPT_FILTER_PATTERNS: RegExp[] = [
+  /\bperfect for (a |an )?(personal |team |profile )?avatar\b/gi,
+  /\bsuitable for (a |an )?(personal |team |profile )?avatar\b/gi,
+  /\bdesigned for (a |an )?(personal |team |profile )?avatar\b/gi,
+  /\bfor use as (a |an )?(personal |team |profile )?avatar\b/gi,
+  /\bprofile picture\b/gi,
+  /\bprofile photo\b/gi,
+  /\bfor (a |an )?(personal |team )?profile\b/gi,
+  /\bfor (an? )?avatar use\b/gi,
+];
+
+function sanitizeImagePrompt(prompt: string): string {
+  let cleaned = prompt;
+  for (const pattern of PROMPT_FILTER_PATTERNS) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+  // Collapse repeated commas / whitespace left by removals
+  cleaned = cleaned.replace(/,\s*,/g, ',').replace(/\.\s*,/g, '.').trim().replace(/,\s*$/, '');
+  return cleaned;
+}
 
 const truncate = (value: string, max: number): string => {
   if (value.length <= max) return value;
@@ -242,3 +268,63 @@ export const writeAssist = async (req: AuthRequest, res: Response, next: NextFun
     }
   }
 };
+
+export const optimizePrompt = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const prompt = normalizeString(req.body.prompt);
+  const type = normalizeString(req.body.type) || 'avatar'; // 'avatar' | 'cover'
+  
+  if (!prompt) {
+    return next(new AppError('提示词不能为空', 400));
+  }
+
+  if (hasPromptInjection(prompt)) {
+    return next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
+  }
+
+  try {
+    const avatarHint = 'Centralized portrait composition, single main subject, clean simple background, close-up or bust-shot framing.';
+    const coverHint = 'Wide landscape composition (21:9 aspect), rich scene details, depth of field, cinematic framing.';
+    const systemPrompt = `You are an expert prompt engineer for AI image generation models (Stable Diffusion, DALL-E, Flux, etc.).
+Your task: take the user input (possibly in Chinese or brief English) and expand it into a rich, visually descriptive English prompt.
+Rules:
+- Describe subject appearance, materials, textures, color palette, lighting (e.g. soft rim light, golden hour, studio HDR), mood, and rendering style.
+- Use artistic tags: "octane render", "8k", "photorealistic" or "claymation" etc., as appropriate.
+- Composition hint: ${type === 'avatar' ? avatarHint : coverHint}
+- IMPORTANT: Output ONLY the image prompt itself — pure visual descriptors, no meta sentences like "this image is for", "perfect for an avatar", "suitable as a profile picture", or any usage context. Those phrases cause generation failures.
+- No markdown, no explanations, no preamble.`;
+
+    const optimizedPrompt = await callLLMWithFailover(prompt, systemPrompt);
+    res.json({ optimizedPrompt: optimizedPrompt.trim() });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    next(new AppError(msg, 400, 'AI_OPTIMIZATION_ERROR'));
+  }
+};
+
+export const generateImage = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const prompt = normalizeString(req.body.prompt);
+  const modelId = normalizeString(req.body.modelId) || undefined;
+  const type = normalizeString(req.body.type) || 'avatar'; // 'avatar' | 'cover'
+
+  if (!prompt) {
+    return next(new AppError('提示词不能为空', 400));
+  }
+
+  if (hasPromptInjection(prompt)) {
+    return next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
+  }
+
+  try {
+    const safePrompt = sanitizeImagePrompt(prompt);
+    if (!safePrompt) {
+      return next(new AppError('处理后的提示词为空，请提供更多描述性内容。', 400));
+    }
+    const size = type === 'cover' ? '1792x768' : '1024x1024';
+    const result = await generateImageWithFailover(safePrompt, modelId, undefined, size);
+    res.json(result);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    next(new AppError(msg, 400, 'AI_GENERATION_ERROR'));
+  }
+};
+

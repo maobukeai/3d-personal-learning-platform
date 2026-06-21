@@ -580,7 +580,7 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response, next
         const fileBytes = stats.size;
 
         for (const config of activeConfigs) {
-          const limitBytes = config.limitGb * 1024 * 1024 * 1024;
+          const limitBytes = config.limitGb * 1000 * 1000 * 1000;
           const updateResult = await prisma.storageConfig.updateMany({
             where: {
               id: config.id,

@@ -7,6 +7,7 @@ import {
   Image as ImageIcon,
   Link as LinkIcon,
   RefreshCw,
+  Sparkles,
 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -16,6 +17,7 @@ import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Modal from '@/components/ui/Modal.vue';
+import AiImageGeneratorDialog from '@/components/AiImageGeneratorDialog.vue';
 
 interface Banner {
   id: string;
@@ -39,6 +41,32 @@ const isUploading = ref(false);
 const isDialogOpen = ref(false);
 const dialogMode = ref<'create' | 'edit'>('create');
 const fileInputRef = ref<HTMLInputElement | null>(null);
+
+// AI Image Generation Dialog state
+const aiGeneratorShow = ref(false);
+const aiGeneratorType = ref<'avatar' | 'cover'>('cover');
+const aiGeneratorTitle = ref('AI 生成轮播背景图');
+
+const openAiGenerator = () => {
+  aiGeneratorType.value = 'cover';
+  aiGeneratorTitle.value = 'AI 生成轮播背景图';
+  aiGeneratorShow.value = true;
+};
+
+const handleAiImageSave = async (file: File) => {
+  try {
+    isUploading.value = true;
+    const formData = new FormData();
+    formData.append('banner_image', file);
+    const { data } = await api.post('/api/admin/banners/upload', formData);
+    form.value.imageUrl = data.url;
+    ElMessage.success('背景图片生成并上传成功');
+  } catch (error) {
+    ElMessage.error('背景图片上传失败');
+  } finally {
+    isUploading.value = false;
+  }
+};
 
 // Form state
 const form = ref({
@@ -504,9 +532,21 @@ onMounted(() => {
             </div>
 
             <div class="space-y-2">
-              <Button type="button" variant="secondary" size="sm" @click="triggerFileUpload">
-                选择图片并上传
-              </Button>
+              <div class="flex items-center gap-2">
+                <Button type="button" variant="secondary" size="sm" @click="triggerFileUpload">
+                  选择图片并上传
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  class="bg-gradient-to-r from-violet-600/90 to-indigo-600/90 hover:from-violet-500/95 hover:to-indigo-500/95 text-white font-semibold flex items-center gap-1 shadow-sm transition-all"
+                  @click="openAiGenerator"
+                >
+                  <Sparkles class="w-3.5 h-3.5" />
+                  AI 生成
+                </Button>
+              </div>
               <input
                 ref="fileInputRef"
                 type="file"
@@ -605,6 +645,15 @@ onMounted(() => {
         </div>
       </template>
     </Modal>
+
+    <!-- AI Image Generation Dialog -->
+    <AiImageGeneratorDialog
+      :show="aiGeneratorShow"
+      :title="aiGeneratorTitle"
+      :type="aiGeneratorType"
+      @close="aiGeneratorShow = false"
+      @save="handleAiImageSave"
+    />
   </div>
 </template>
 

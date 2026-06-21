@@ -50,6 +50,7 @@ import {
   sendCodeToNewEmail,
   changeEmail,
   uploadAvatar,
+  uploadCover,
   getStats,
   getWorkbench,
   getLeaderboard,
@@ -267,6 +268,13 @@ router.post(
   upload.single('avatar'),
   validateFileContent,
   uploadAvatar,
+);
+router.post(
+  '/upload-cover',
+  authenticate,
+  upload.single('cover'),
+  validateFileContent,
+  uploadCover,
 );
 router.get('/stats', authenticate, getStats);
 router.get('/workbench', authenticate, getWorkbench);

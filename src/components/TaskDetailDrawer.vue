@@ -18,6 +18,7 @@ import { ElMessage } from 'element-plus';
 import { parseTags } from '@/utils/tags';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
+import type { TaskActivity } from '@/types/task';
 
 interface Member {
   id: string;
@@ -59,6 +60,8 @@ interface Task {
     dependsOn: { id: string; title: string; status: string };
   }[];
   dependents?: { id: string; task: { id: string; title: string; status: string } }[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface Props {
@@ -366,6 +369,22 @@ const fetchComments = async () => {
   }
 };
 
+const activities = ref<TaskActivity[]>([]);
+const isActivitiesLoading = ref(false);
+
+const fetchActivities = async () => {
+  if (!props.task?.id) return;
+  isActivitiesLoading.value = true;
+  try {
+    const response = await api.get(`/api/tasks/${props.task.id}/activities`);
+    activities.value = response.data;
+  } catch (error) {
+    ElMessage.error('获取任务动态失败');
+  } finally {
+    isActivitiesLoading.value = false;
+  }
+};
+
 const tempUploadedImages = ref<string[]>([]);
 
 const handleAddComment = async () => {
@@ -384,6 +403,7 @@ const handleAddComment = async () => {
     newCommentText.value = '';
     tempUploadedImages.value = [];
     ElMessage.success('发表评论成功');
+    fetchActivities();
   } catch (error) {
     ElMessage.error('发表评论失败');
   }
@@ -395,6 +415,7 @@ const handleDeleteComment = async (commentId: string) => {
     await api.delete(`/api/tasks/${props.task.id}/comments/${commentId}`);
     comments.value = comments.value.filter((c) => c.id !== commentId);
     ElMessage.success('评论删除成功');
+    fetchActivities();
   } catch (error) {
     ElMessage.error('删除评论失败');
   }
@@ -863,6 +884,7 @@ watch(
   ([newTaskId, newProjectId, isOpen]) => {
     if (isOpen && newTaskId) {
       fetchComments();
+      fetchActivities();
       if (newProjectId) {
         fetchProjectTasks();
       } else {
@@ -872,6 +894,30 @@ watch(
   },
   { immediate: true },
 );
+
+watch(
+  () => props.task?.updatedAt,
+  (newVal, oldVal) => {
+    if (newVal !== oldVal && props.modelValue && props.task?.id) {
+      fetchActivities();
+    }
+  }
+);
+
+const formatActivityTime = (dateStr: string) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+
+  if (diffMins < 1) return '刚刚';
+  if (diffMins < 60) return `${diffMins}分钟前`;
+  if (diffHours < 24) return `${diffHours}小时前`;
+
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
 </script>
 
 <template>
@@ -1524,7 +1570,7 @@ watch(
 
           <!-- Right Column: Metadata Sidebar -->
           <div
-            class="w-full lg:w-[320px] xl:w-[360px] shrink-0 space-y-5 p-4 md:p-5 bg-slate-500/5 dark:bg-white/[0.02] rounded-2xl border"
+            class="w-full lg:w-[320px] xl:w-[360px] shrink-0 h-fit space-y-5 p-4 md:p-5 bg-slate-500/5 dark:bg-white/[0.02] rounded-2xl border"
             style="border-color: var(--border-base)"
           >
             <h3
@@ -1581,32 +1627,6 @@ watch(
                 </el-select>
               </div>
 
-              <!-- Assignee selector -->
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                  >负责人</label
-                >
-                <el-select
-                  v-model="drawerForm.assigneeId"
-                  clearable
-                  placeholder="未指派"
-                  class="!w-full custom-select-small"
-                  @change="triggerSave"
-                >
-                  <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
-                    <div class="flex items-center gap-2">
-                      <img
-                        v-if="m.avatarUrl"
-                        alt=""
-                        :src="m.avatarUrl"
-                        class="w-4 h-4 rounded-lg object-cover"
-                      />
-                      <span class="text-xs">{{ m.name }}</span>
-                    </div>
-                  </el-option>
-                </el-select>
-              </div>
 
               <!-- Due Date picker -->
               <div>
@@ -1624,7 +1644,7 @@ watch(
               </div>
 
               <!-- Project selector -->
-              <div class="col-span-2">
+              <div>
                 <label
                   class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
                   >关联项目</label
@@ -1681,12 +1701,14 @@ watch(
             <div>
               <label
                 class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                >参与人员</label
+                >负责人</label
               >
               <el-select
                 v-model="drawerForm.participantIds"
                 multiple
-                placeholder="无其他参与人"
+                collapse-tags
+                collapse-tags-tooltip
+                placeholder="未指派"
                 class="!w-full custom-select-small"
                 @change="triggerSave"
               >
@@ -1738,6 +1760,47 @@ watch(
                 >
                   +
                 </button>
+              </div>
+            </div>
+
+            <!-- Task Activities (任务动态) -->
+            <div class="pt-4 border-t space-y-3" style="border-color: var(--border-base)">
+              <h3 class="text-xs font-black uppercase tracking-widest text-slate-400 pb-1 border-b" style="border-color: var(--border-base)">
+                任务动态
+              </h3>
+
+              <div v-if="isActivitiesLoading" class="flex justify-center py-4">
+                <span class="text-xs text-slate-400 animate-pulse">加载动态中...</span>
+              </div>
+              <div v-else-if="activities.length === 0" class="text-center py-4 text-xs text-slate-400/70 border border-dashed border-slate-200/50 dark:border-slate-800 rounded-xl">
+                暂无动态
+              </div>
+              <div v-else class="max-h-[300px] overflow-y-auto pr-1 space-y-3 scrollbar-hide text-xs">
+                <div v-for="act in activities" :key="act.id" class="flex gap-2.5 items-start">
+                  <img
+                    v-if="act.user?.avatarUrl"
+                    :src="act.user.avatarUrl"
+                    alt=""
+                    class="w-5 h-5 rounded-full object-cover shrink-0 mt-0.5 border"
+                    style="border-color: var(--border-base)"
+                  />
+                  <div v-else class="w-5 h-5 rounded-full bg-gradient-to-br from-accent/20 to-indigo-600/20 text-accent dark:text-indigo-400 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5 border" style="border-color: var(--border-base)">
+                    {{ act.user?.name?.substring(0, 1) || '系' }}
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex justify-between items-baseline gap-2">
+                      <span class="font-bold shrink-0" style="color: var(--text-primary)">
+                        {{ act.user?.name || '系统' }}
+                      </span>
+                      <span class="text-[9px] text-slate-400 tracking-tight whitespace-nowrap">
+                        {{ formatActivityTime(act.createdAt) }}
+                      </span>
+                    </div>
+                    <p class="text-slate-500 dark:text-slate-400 leading-normal mt-0.5 break-all">
+                      {{ act.description }}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 

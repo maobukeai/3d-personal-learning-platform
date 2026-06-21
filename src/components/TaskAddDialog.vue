@@ -175,7 +175,7 @@ const handleSubmit = () => {
         ></textarea>
       </div>
 
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
         <div>
           <label
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
@@ -209,31 +209,6 @@ const handleSubmit = () => {
           <label
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
           >
-            负责人
-          </label>
-          <el-select
-            v-model="localNewTask.assigneeId"
-            clearable
-            placeholder="负责人"
-            class="!w-full custom-select"
-          >
-            <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
-              <div class="flex items-center gap-2">
-                <img
-                  v-if="m.avatarUrl"
-                  alt=""
-                  :src="m.avatarUrl"
-                  class="w-5 h-5 rounded-lg object-cover"
-                />
-                <span class="text-xs sm:text-sm">{{ m.name }}</span>
-              </div>
-            </el-option>
-          </el-select>
-        </div>
-        <div>
-          <label
-            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
-          >
             关联项目
           </label>
           <el-select
@@ -252,12 +227,14 @@ const handleSubmit = () => {
           <label
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
           >
-            参与人员
+            负责人
           </label>
           <el-select
             v-model="localNewTask.participantIds"
             multiple
-            placeholder="选择参与人员"
+            collapse-tags
+            collapse-tags-tooltip
+            placeholder="选择负责人"
             class="!w-full custom-select"
           >
             <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">

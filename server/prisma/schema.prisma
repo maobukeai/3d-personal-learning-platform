@@ -16,6 +16,7 @@ model User {
   password                   String
   name                       String?
   avatarUrl                  String?
+  coverUrl                   String?
   bio                        String?
   location                   String?
   website                    String?
@@ -73,6 +74,7 @@ model User {
   teamMemberships  TeamMember[]
   assignedTasks    Task[]            @relation("TaskAssignee")
   taskParticipants TaskParticipant[]
+  taskActivities   TaskActivity[]
   teamApplications TeamApplication[]
 
   // Subscriptions & Billing
@@ -507,6 +509,7 @@ model Task {
   timeSpent    Int               @default(0)
   dependencies TaskDependency[]  @relation("TaskDeps")
   dependents   TaskDependency[]  @relation("TaskBlockedBy")
+  activities   TaskActivity[]
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 
@@ -553,6 +556,22 @@ model TaskDependency {
   @@unique([taskId, dependsOnId])
   @@index([taskId])
   @@index([dependsOnId])
+}
+
+model TaskActivity {
+  id          String   @id @default(uuid())
+  taskId      String
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      String   // e.g., 'CREATE', 'UPDATE_STATUS', 'UPDATE_ASSIGNEE', etc.
+  description String   // Human-readable description
+  oldValue    String?  @db.Text
+  newValue    String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([taskId])
+  @@index([userId])
 }
 
 model TeamApplication {

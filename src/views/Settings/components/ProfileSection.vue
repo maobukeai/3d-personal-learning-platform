@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
-import { Camera, CheckCircle2, Globe, MapPin, RotateCcw, Save, UserRound } from 'lucide-vue-next';
+import { Camera, CheckCircle2, Globe, MapPin, RotateCcw, Save, UserRound, Sparkles } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
 import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
+import AiImageGeneratorDialog from '@/components/AiImageGeneratorDialog.vue';
 
 const authStore = useAuthStore();
 
@@ -121,6 +122,74 @@ const handleAvatarUpload = async (event: Event) => {
     isUploadingAvatar.value = false;
   }
 };
+
+const isUploadingCover = ref(false);
+
+const aiGeneratorShow = ref(false);
+const aiGeneratorType = ref<'avatar' | 'cover'>('avatar');
+const aiGeneratorTitle = ref('');
+
+const openAiAvatarGenerator = () => {
+  aiGeneratorType.value = 'avatar';
+  aiGeneratorTitle.value = 'AI 生成头像';
+  aiGeneratorShow.value = true;
+};
+
+const openAiCoverGenerator = () => {
+  aiGeneratorType.value = 'cover';
+  aiGeneratorTitle.value = 'AI 生成个人封面';
+  aiGeneratorShow.value = true;
+};
+
+const handleAiImageSave = async (file: File) => {
+  if (aiGeneratorType.value === 'avatar') {
+    try {
+      isUploadingAvatar.value = true;
+      await authStore.uploadAvatar(file);
+      ElMessage.success('头像已更新');
+    } catch {
+      ElMessage.error('头像更新失败');
+    } finally {
+      isUploadingAvatar.value = false;
+    }
+  } else {
+    try {
+      isUploadingCover.value = true;
+      await authStore.uploadCover(file);
+      ElMessage.success('个人封面已更新');
+    } catch {
+      ElMessage.error('个人封面更新失败');
+    } finally {
+      isUploadingCover.value = false;
+    }
+  }
+};
+
+const handleCoverUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  target.value = '';
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    ElMessage.warning('请上传图片文件');
+    return;
+  }
+  if (file.size > 4 * 1024 * 1024) {
+    ElMessage.warning('封面文件不能超过 4MB');
+    return;
+  }
+
+  try {
+    isUploadingCover.value = true;
+    await authStore.uploadCover(file);
+    ElMessage.success('个人封面已更新');
+  } catch {
+    ElMessage.error('个人封面上传失败');
+  } finally {
+    isUploadingCover.value = false;
+  }
+};
 </script>
 
 <template>
@@ -139,19 +208,77 @@ const handleAvatarUpload = async (event: Event) => {
           <strong>头像</strong>
           <span>建议上传清晰方形图片，最大 4MB。</span>
         </div>
-        <label class="avatar-control">
-          <UserAvatar :user="authStore.user" size="lg" />
-          <span class="avatar-button">
-            <Camera />
-            {{ isUploadingAvatar ? '上传中' : '更换头像' }}
-          </span>
-          <input
-            type="file"
-            accept="image/*"
+        <div class="flex items-center gap-3">
+          <label class="avatar-control">
+            <UserAvatar :user="authStore.user" size="lg" />
+            <span class="avatar-button">
+              <Camera />
+              {{ isUploadingAvatar ? '上传中' : '更换头像' }}
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              :disabled="isUploadingAvatar"
+              @change="handleAvatarUpload"
+            />
+          </label>
+          <Button
+            type="button"
+            variant="secondary"
+            class="flex items-center gap-1.5 bg-accent/10 hover:bg-accent/20 text-accent font-bold border border-accent/20 cursor-pointer h-[36px] text-xs px-3 rounded-lg"
             :disabled="isUploadingAvatar"
-            @change="handleAvatarUpload"
-          />
-        </label>
+            @click="openAiAvatarGenerator"
+          >
+            <Sparkles class="w-3.5 h-3.5" />
+            AI 生成
+          </Button>
+        </div>
+      </div>
+
+      <div class="setting-row cover-row">
+        <div class="row-copy">
+          <strong>个人封面</strong>
+          <span>用于个人主页和弹窗背景，建议比例 21:9，最大 4MB。</span>
+        </div>
+        <div class="flex items-center gap-4 flex-wrap">
+          <div class="w-40 h-16 rounded-lg overflow-hidden border border-[var(--border-strong)] bg-slate-900/60 relative">
+            <img
+              v-if="authStore.user?.coverUrl"
+              :src="authStore.user.coverUrl"
+              class="w-full h-full object-cover object-[center_35%]"
+              alt="User Cover"
+            />
+            <div
+              v-else
+              class="w-full h-full bg-gradient-to-r from-violet-600 to-rose-500 opacity-80"
+            ></div>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="avatar-control relative">
+              <span class="avatar-button">
+                <Camera />
+                {{ isUploadingCover ? '上传中' : '更换封面' }}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                :disabled="isUploadingCover"
+                @change="handleCoverUpload"
+                class="hidden"
+              />
+            </label>
+            <Button
+              type="button"
+              variant="secondary"
+              class="flex items-center gap-1.5 bg-accent/10 hover:bg-accent/20 text-accent font-bold border border-accent/20 cursor-pointer h-[36px] text-xs px-3 rounded-lg"
+              :disabled="isUploadingCover"
+              @click="openAiCoverGenerator"
+            >
+              <Sparkles class="w-3.5 h-3.5" />
+              AI 生成
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div class="setting-row">
@@ -261,6 +388,15 @@ const handleAvatarUpload = async (event: Event) => {
         保存资料
       </Button>
     </footer>
+
+    <!-- AI Image Generation Dialog -->
+    <AiImageGeneratorDialog
+      :show="aiGeneratorShow"
+      :title="aiGeneratorTitle"
+      :type="aiGeneratorType"
+      @close="aiGeneratorShow = false"
+      @save="handleAiImageSave"
+    />
   </div>
 </template>
 

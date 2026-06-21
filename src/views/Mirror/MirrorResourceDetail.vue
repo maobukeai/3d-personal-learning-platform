@@ -26,8 +26,8 @@ import {
 } from 'lucide-vue-next';
 
 import { useMirrorStore } from '@/stores/mirror';
-
 import { useAuthStore } from '@/stores/auth';
+import { useWorkspaceStore } from '@/stores/workspace';
 
 import SafeHtml from '@/components/SafeHtml.vue';
 
@@ -69,26 +69,25 @@ const route = useRoute();
 const router = useRouter();
 
 const mirrorStore = useMirrorStore();
-
 const authStore = useAuthStore();
+const workspaceStore = useWorkspaceStore();
 
 const resourceId = computed(() => route.params.id as string);
-
 const resource = ref<MirrorResourceDetail | null>(null);
-
 const isLoading = ref(true);
-
 const error = ref<string | null>(null);
 
 async function loadResource() {
   // Check Pinia store cache first for instant visual rendering
-
   const cached = mirrorStore.resources.find((r) => r.id === resourceId.value);
 
   if (cached) {
     resource.value = { ...cached };
-
     isLoading.value = false;
+    if (cached.sourceId) {
+      workspaceStore.setWorkspaceById(`mirror-${cached.sourceId}`);
+      mirrorStore.fetchCategories(cached.sourceId);
+    }
   } else {
     isLoading.value = true;
   }
@@ -104,6 +103,10 @@ async function loadResource() {
       }
     } else {
       resource.value = data;
+      if (data.sourceId) {
+        workspaceStore.setWorkspaceById(`mirror-${data.sourceId}`);
+        mirrorStore.fetchCategories(data.sourceId);
+      }
     }
   } catch (e) {
     if (!resource.value) {

@@ -19,6 +19,7 @@ import {
 } from 'lucide-vue-next';
 import { useManualStore } from '@/stores/manual';
 import { useAuthStore } from '@/stores/auth';
+import { useWorkspaceStore } from '@/stores/workspace';
 import { ElMessage } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import { getPlanName } from '@/utils/plans';
@@ -92,6 +93,7 @@ const route = useRoute();
 const router = useRouter();
 const manualStore = useManualStore();
 const authStore = useAuthStore();
+const workspaceStore = useWorkspaceStore();
 
 const resourceId = computed(() => route.params.id as string);
 const resource = ref<DetailedResource | null>(null);
@@ -103,6 +105,10 @@ async function loadResource() {
   if (cached) {
     resource.value = { ...cached, comments: [], likeCount: 0, hasLiked: false, links: [] };
     isLoading.value = false;
+    if (cached.stationId) {
+      workspaceStore.setWorkspaceById(`manual-${cached.stationId}`);
+      manualStore.fetchCategories(cached.stationId);
+    }
   } else {
     isLoading.value = true;
   }
@@ -116,6 +122,10 @@ async function loadResource() {
       }
     } else {
       resource.value = data;
+      if (data.stationId) {
+        workspaceStore.setWorkspaceById(`manual-${data.stationId}`);
+        manualStore.fetchCategories(data.stationId);
+      }
     }
   } catch (e) {
     const err = e as ApiError;

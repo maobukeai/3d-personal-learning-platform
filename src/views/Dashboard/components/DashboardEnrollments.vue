@@ -162,7 +162,9 @@ onUnmounted(() => {
 <style scoped>
 .spotlight-card {
   position: relative;
-  min-height: 200px;
+  aspect-ratio: 21 / 9;
+  min-height: 180px;
+  max-height: 260px;
   display: flex;
   flex-direction: column;
   justify-content: center;

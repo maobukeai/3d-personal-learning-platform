@@ -67,6 +67,11 @@ interface ProjectTask {
   status: string;
   priority?: string;
   assignee?: ProjectUser | null;
+  participants?: {
+    id: string;
+    userId: string;
+    user: ProjectUser;
+  }[];
 }
 
 interface ProjectInvitation {
@@ -998,19 +1003,39 @@ defineExpose({
                     <td class="px-3.5 py-2">
                       <Dropdown align="left" width-class="w-48">
                         <template #trigger>
-                          <span
-                            class="inline-flex items-center gap-1 cursor-pointer hover:text-accent rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors py-0.5 px-1.5"
-                          >
-                            <template v-if="task.assignee">
-                              <UserAvatar :user="task.assignee" size="xs" />
-                              <span
-                                class="font-bold text-slate-500 truncate max-w-[80px] text-[10px]"
-                                >{{ task.assignee.name || task.assignee.email }}</span
-                              >
+                          <span class="inline-flex items-center cursor-pointer">
+                            <template v-if="task.participants && task.participants.length > 0">
+                              <div class="flex items-center -space-x-1.5 py-0.5">
+                                <UserAvatar
+                                  v-for="p in task.participants.slice(0, 3)"
+                                  :key="p.userId"
+                                  :user="p.user"
+                                  size="xs"
+                                  borderless
+                                  class="ring-2 ring-white dark:ring-slate-900"
+                                  :title="p.user?.name || p.user?.email"
+                                />
+                                <span
+                                  v-if="task.participants.length > 3"
+                                  class="text-[9px] font-black text-slate-400 pl-1"
+                                >
+                                  +{{ task.participants.length - 3 }}
+                                </span>
+                              </div>
                             </template>
-                            <span v-else class="text-slate-400 text-[10px] font-bold">{{
-                              t('tasks.unassigned')
-                            }}</span>
+                            <template v-else-if="task.assignee">
+                              <UserAvatar
+                                :user="task.assignee"
+                                size="xs"
+                                borderless
+                                :title="task.assignee.name || task.assignee.email"
+                              />
+                            </template>
+                            <span
+                              v-else
+                              class="text-slate-400 text-[10px] font-bold py-0.5 px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+                              >{{ t('tasks.unassigned') }}</span
+                            >
                           </span>
                         </template>
                         <template #content>

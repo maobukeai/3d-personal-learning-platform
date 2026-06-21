@@ -530,7 +530,7 @@ export const uploadDirectFile = async (req: AuthRequest, res: Response, next: Ne
     }
 
     // Check capacity limit before uploading (read-only check, no write yet)
-    const limitBytes = raw.limitGb * 1024 * 1024 * 1024;
+    const limitBytes = raw.limitGb * 1000 * 1000 * 1000;
     if (raw.status !== 'ACTIVE' || raw.usedBytes + file.size > limitBytes) {
       if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
       return next(new AppError('云端存储容量已满，无法上传', 400));

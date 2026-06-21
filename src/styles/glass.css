@@ -283,12 +283,19 @@ html.theme-glass .user-dropdown-popper {
   box-shadow: var(--glass-shadow) !important;
 }
 
-@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  html.theme-glass .workspace-switcher-popper,
+  html.theme-glass .user-dropdown-popper {
+    background: var(--glass-bg) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
+  }
+}
+
+@supports (backdrop-filter: blur(1px)) {
   html.theme-glass .workspace-switcher-popper,
   html.theme-glass .user-dropdown-popper {
     background: var(--glass-bg) !important;
     backdrop-filter: blur(10px) saturate(145%) !important;
-    -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
   }
 }
 

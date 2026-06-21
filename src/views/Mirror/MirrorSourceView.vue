@@ -1,3 +1,9 @@
+<script lang="ts">
+export default {
+  name: 'MirrorSourceView',
+};
+</script>
+
 <script setup lang="ts">
 import { formatDate } from '@/utils/format';
 import { parseTags } from '@/utils/tags';
@@ -22,7 +28,6 @@ import { useMirrorStore } from '@/stores/mirror';
 import { useAuthStore } from '@/stores/auth';
 import { getPlanName } from '@/utils/plans';
 import { getAssetUrl } from '@/utils/api';
-import Input from '@/components/ui/Input.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 
 const route = useRoute();
@@ -222,21 +227,30 @@ function handlePageJump() {
     </div>
 
     <div class="flex flex-col sm:flex-row gap-3 mb-6">
-      <Input
-        v-model="mirrorStore.searchQuery"
-        type="text"
-        placeholder="搜索你想要的资源..."
-        :icon="Search"
-        clearable
-        input-class="!py-1.5 !h-8.5 !rounded-lg"
-        class="flex-1"
-        @keyup.enter="doSearch"
-        @clear="doSearch"
-      />
+      <label class="search-box !min-h-0 !h-8.5 flex-1 relative">
+        <Search />
+        <input
+          v-model="mirrorStore.searchQuery"
+          type="text"
+          placeholder="搜索你想要的资源..."
+          @keyup.enter="doSearch"
+        />
+        <button
+          v-if="mirrorStore.searchQuery"
+          type="button"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+          @click="
+            mirrorStore.searchQuery = '';
+            doSearch();
+          "
+        >
+          <X class="w-4 h-4" />
+        </button>
+      </label>
       <div class="flex items-center gap-2">
         <button
           type="button"
-          class="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-white/20 dark:border-white/10 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors font-bold"
+          class="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 !h-8.5 rounded-xl border border-white/20 dark:border-white/10 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors font-bold"
           @click="showFilters = !showFilters"
         >
           <SlidersHorizontal class="w-4 h-4" />

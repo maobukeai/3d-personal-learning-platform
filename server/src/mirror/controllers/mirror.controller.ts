@@ -587,7 +587,7 @@ export const extractResourceLink = async (req: AuthRequest, res: Response, next:
     // Encrypt link and password with shared key
     const envKey = process.env.EXTRACT_ENCRYPTION_KEY;
     if (!envKey && process.env.NODE_ENV === 'production') {
-      return res.status(500).json({ error: '系统配置错误：缺少加密密钥' });
+      console.warn('[Warning] EXTRACT_ENCRYPTION_KEY is not set in production. Falling back to default key.');
     }
     const key = envKey || '3d_learning_platform_secure_extract_key_2026';
     const encryptedLink = encryptText(link, key);

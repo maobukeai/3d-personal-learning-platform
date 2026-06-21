@@ -124,6 +124,7 @@ onUnmounted(() => {
             <div
               v-if="title || $slots.header"
               class="premium-card-header flex items-center justify-between mb-5 pb-3 border-b border-strong/40"
+              :class="padding === 'none' ? 'px-6 pt-5' : ''"
             >
               <slot name="header">
                 <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">

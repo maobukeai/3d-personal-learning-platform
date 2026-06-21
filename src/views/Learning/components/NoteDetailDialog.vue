@@ -170,6 +170,59 @@ const handleScroll = (e: Event) => {
   }
 };
 
+const handleContentClick = (e: MouseEvent) => {
+  const target = e.target as HTMLElement;
+  const link = target.closest('a');
+  if (link) {
+    const href = link.getAttribute('href');
+    if (href && href.startsWith('#')) {
+      e.preventDefault();
+      const targetId = decodeURIComponent(href.slice(1));
+      
+      // 1. Try to find by exact ID inside the scroll container
+      let targetEl = scrollContainer.value?.querySelector(`[id="${targetId}"]`) || 
+                     document.getElementById(targetId);
+      
+      // 2. If not found, try to find case-insensitively or with matching generated slug
+      if (!targetEl) {
+        const headings = scrollContainer.value?.querySelectorAll('h1, h2, h3, h4, h5, h6') || [];
+        const slugify = (str: string) => str.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]/g, '');
+        const targetSlug = slugify(targetId);
+        
+        // First pass: Exact slug match
+        for (const heading of headings) {
+          const headingId = heading.getAttribute('id') || '';
+          const headingText = heading.textContent || '';
+          const headingSlug = slugify(headingText);
+          const idSlug = slugify(headingId);
+          
+          if (headingSlug === targetSlug || idSlug === targetSlug) {
+            targetEl = heading;
+            break;
+          }
+        }
+        
+        // Second pass: Substring match (for cases where TOC omits heading numbers/prefixes)
+        if (!targetEl && targetSlug.length >= 2) {
+          for (const heading of headings) {
+            const headingText = heading.textContent || '';
+            const headingSlug = slugify(headingText);
+            if (headingSlug.includes(targetSlug)) {
+              targetEl = heading;
+              break;
+            }
+          }
+        }
+      }
+      
+      // 3. Scroll to it
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }
+};
+
 const open = async (note: Note) => {
   sessionSummary.value = '';
   isSummarizing.value = false;
@@ -355,23 +408,23 @@ defineExpose({ open });
   <Modal :show="visible" size="xxl" padding="none" glass-card @close="visible = false">
     <div
       v-if="detailNote"
-      class="flex flex-col md:flex-row h-screen md:h-[88vh] overflow-hidden relative rounded-none md:rounded-3xl bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl"
+      class="flex flex-col md:flex-row h-screen md:h-[88vh] overflow-hidden relative bg-transparent"
     >
-      <!-- Global Close Button (Top Right of the entire Dialog Container) -->
-      <button
-        type="button"
-        class="dialog-close-btn absolute top-4 right-4 z-50 flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)]/80 backdrop-blur-xs hover:bg-slate-100 dark:hover:bg-zinc-800 text-[var(--text-secondary)] transition-all active:scale-90 shadow-md cursor-pointer"
-        :title="t('notes.closeReading')"
-        @click="visible = false"
-      >
-        <X class="w-4 h-4" />
-      </button>
+            <!-- Global Close Button (Top Right of the entire Dialog Container) -->
+            <button
+              type="button"
+              class="dialog-close-btn absolute top-4 right-4 z-50 flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)]/80 backdrop-blur-xs hover:bg-slate-100 dark:hover:bg-zinc-800 text-[var(--text-secondary)] transition-all active:scale-90 shadow-md cursor-pointer"
+              :title="t('notes.closeReading')"
+              @click="visible = false"
+            >
+              <X class="w-4 h-4" />
+            </button>
 
-      <!-- Side Dashboard Panel -->
-      <aside
-        class="hidden md:flex w-64 p-5 flex-col shrink-0 border-r relative z-10 select-none bg-slate-50/70 dark:bg-zinc-900/60 backdrop-blur-md"
-        style="border-color: var(--border-base)"
-      >
+            <!-- Side Dashboard Panel -->
+            <aside
+              class="hidden md:flex w-64 p-5 flex-col shrink-0 border-r relative z-10 select-none bg-slate-50/30 dark:bg-white/[0.01] backdrop-blur-md"
+              style="border-color: var(--border-base)"
+            >
         <!-- User Information Dashboard (Clickable) -->
         <div
           class="mb-4 p-3 rounded-2xl border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center gap-3 shadow-xs cursor-pointer hover:border-accent/40 hover:shadow-sm transition-all"
@@ -553,6 +606,7 @@ defineExpose({ open });
         ref="scrollContainer"
         class="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col bg-white/20 dark:bg-zinc-900/20 text-[var(--text-primary)]"
         @scroll="handleScroll"
+        @click="handleContentClick"
       >
         <!-- Floating Reading Progress Indicator -->
         <div class="sticky top-0 left-0 right-0 z-50 h-0.5 bg-slate-100/50 dark:bg-zinc-800/50">
@@ -921,13 +975,13 @@ defineExpose({ open });
           </footer>
         </div>
       </div>
-    </div>
 
-    <UserProfileDialog
-      v-model="isProfileDialogOpen"
-      :user-id="selectedUserId"
-      @chat="handleChatWithMember"
-    />
+      <UserProfileDialog
+        v-model="isProfileDialogOpen"
+        :user-id="selectedUserId"
+        @chat="handleChatWithMember"
+      />
+    </div>
   </Modal>
 </template>
 
@@ -1071,9 +1125,12 @@ defineExpose({ open });
   z-index: 2 !important;
 }
 
-/* Enforce horizontal layout for action buttons in sidebar */
-aside :deep(button > span) {
+/* Enforce horizontal layout for action buttons */
+:deep(button > span) {
+  display: flex !important;
   flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
   gap: 6px !important;
 }
 </style>

@@ -598,6 +598,8 @@ onUnmounted(() => {
                 'PluginsView',
                 'ShowcaseView',
                 'MessagesView',
+                'MirrorSourceView',
+                'ManualStationView',
               ]"
             >
               <component :is="Component" :key="route.path" />

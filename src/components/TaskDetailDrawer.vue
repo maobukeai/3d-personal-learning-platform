@@ -875,7 +875,8 @@ watch(
 </script>
 
 <template>
-  <Transition :name="viewMode === 'drawer' ? 'drawer-slide' : 'modal-fade'">
+  <Teleport to="body">
+    <Transition :name="viewMode === 'drawer' ? 'drawer-slide' : 'modal-fade'">
     <div
       v-if="modelValue && task"
       class="fixed inset-0 z-50 flex transition-all duration-300"
@@ -894,32 +895,43 @@ watch(
 
       <!-- Drawer/Modal Content Container -->
       <div
-        class="task-detail-content relative shadow-2xl flex flex-col overflow-hidden transition-all duration-300 border-[var(--border-base)] bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl"
+        class="task-detail-content relative shadow-2xl flex flex-col overflow-hidden transition-all duration-300"
         :class="[
           viewMode === 'drawer'
-            ? 'w-full sm:w-[85%] md:w-[75%] lg:w-[65%] xl:w-[55%] h-full'
-            : 'w-full max-w-4xl h-[90vh] md:h-[85vh] rounded-2xl border',
+            ? 'w-full sm:w-[85%] md:w-[75%] lg:w-[65%] xl:w-[55%] h-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-[var(--border-base)]'
+            : 'modal-content glass-panel w-full max-w-4xl h-[90vh] md:h-[85vh] rounded-3xl',
         ]"
-        :style="{
-          borderColor: 'var(--border-base)',
-          borderLeftWidth: viewMode === 'drawer' ? '1px' : '0px',
-        }"
+        :style="
+          viewMode === 'drawer'
+            ? {
+                borderColor: 'var(--border-base)',
+                borderLeftWidth: '1px',
+              }
+            : {}
+        "
       >
         <!-- Header -->
         <div
           class="px-6 py-4 border-b flex items-center justify-between shrink-0"
           style="border-color: var(--border-base)"
         >
-          <div class="flex items-center gap-2 text-slate-400">
-            <CheckCircle2 class="w-4 h-4 text-accent" />
-            <span class="text-xs font-bold text-slate-500 dark:text-slate-400">任务详情</span>
+          <div class="flex items-center gap-2">
+            <div class="p-1.5 bg-gradient-to-br from-accent to-indigo-600 rounded-lg text-white">
+              <CheckCircle2 class="w-4 h-4" />
+            </div>
+            <h3
+              class="text-sm font-black tracking-tight"
+              style="color: var(--text-primary)"
+            >
+              任务详情
+            </h3>
             <div
-              class="flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded text-[10px] font-mono font-semibold cursor-pointer hover:bg-slate-200 dark:hover:bg-white/10 transition-all text-slate-600 dark:text-slate-300"
+              class="flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 rounded text-[10px] font-mono font-bold cursor-pointer hover:bg-slate-200 dark:hover:bg-white/10 transition-all text-slate-600 dark:text-slate-300"
               title="点击复制任务ID"
               @click="copyToClipboard(task.id)"
             >
               <span>#{{ task.id.substring(0, 8) }}</span>
-              <Copy class="w-3 h-3 text-slate-400" />
+              <Copy class="w-3.5 h-3.5 text-slate-400" />
             </div>
           </div>
           <div class="flex items-center gap-3">
@@ -942,7 +954,7 @@ watch(
             </button>
             <button
               type="button"
-              class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all cursor-pointer"
+              class="p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
               style="color: var(--text-secondary)"
               @click="handleClose"
             >
@@ -1512,7 +1524,7 @@ watch(
 
           <!-- Right Column: Metadata Sidebar -->
           <div
-            class="w-full lg:w-[320px] xl:w-[360px] shrink-0 space-y-5 p-4 md:p-5 bg-slate-50/50 dark:bg-white/2 rounded-2xl border"
+            class="w-full lg:w-[320px] xl:w-[360px] shrink-0 space-y-5 p-4 md:p-5 bg-slate-500/5 dark:bg-white/[0.02] rounded-2xl border"
             style="border-color: var(--border-base)"
           >
             <h3
@@ -1733,7 +1745,7 @@ watch(
             <div class="pt-4 border-t" style="border-color: var(--border-base)">
               <button
                 type="button"
-                class="w-full py-2.5 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/25 hover:shadow-lg hover:shadow-accent/35 transition-all"
+                class="w-full py-2.5 bg-gradient-to-r from-accent to-indigo-600 hover:from-accent hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-accent/20 hover:shadow-accent/35 active:scale-[0.99] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 @click="handleClose"
               >
                 关闭并保存所有更改
@@ -1743,7 +1755,8 @@ watch(
         </div>
       </div>
     </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 
   <!-- Image Preview Dialog -->
   <el-dialog

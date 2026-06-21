@@ -1,3 +1,9 @@
+<script lang="ts">
+export default {
+  name: 'ManualStationView',
+};
+</script>
+
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -211,21 +217,18 @@ function handlePageJump() {
 
     <!-- Search and filter tools -->
     <div class="flex flex-col sm:flex-row gap-3 mb-6">
-      <div class="flex-1 relative">
-        <Search
-          class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 focus-within:text-cyan-500 transition-colors"
-        />
+      <label class="search-box !min-h-0 !h-8.5 flex-1 relative">
+        <Search />
         <input
           v-model="manualStore.searchQuery"
           type="text"
           placeholder="搜索你想要的资源..."
-          class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all shadow-sm"
           @keyup.enter="doSearch"
         />
         <button
           v-if="manualStore.searchQuery"
           type="button"
-          class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
           @click="
             manualStore.searchQuery = '';
             doSearch();
@@ -233,11 +236,11 @@ function handlePageJump() {
         >
           <X class="w-4 h-4" />
         </button>
-      </div>
+      </label>
       <div class="flex items-center gap-2">
         <button
           type="button"
-          class="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all font-medium shadow-sm"
+          class="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 !h-8.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all font-medium shadow-sm"
           :class="showFilters ? 'border-cyan-500/30 text-cyan-600 dark:text-cyan-400' : ''"
           @click="showFilters = !showFilters"
         >
@@ -246,7 +249,7 @@ function handlePageJump() {
         </button>
         <button
           type="button"
-          class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 bg-white dark:bg-slate-900/50 hover:text-slate-600 dark:hover:text-slate-200 transition-all shadow-sm"
+          class="w-8.5 h-8.5 flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 bg-white dark:bg-slate-900/50 hover:text-slate-600 dark:hover:text-slate-200 transition-all shadow-sm"
           :class="
             viewMode === 'grid'
               ? 'bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20 text-cyan-600 dark:text-cyan-400'
@@ -254,11 +257,11 @@ function handlePageJump() {
           "
           @click="viewMode = 'grid'"
         >
-          <LayoutGrid class="w-4.5 h-4.5" />
+          <LayoutGrid class="w-4 h-4" />
         </button>
         <button
           type="button"
-          class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 bg-white dark:bg-slate-900/50 hover:text-slate-600 dark:hover:text-slate-200 transition-all shadow-sm"
+          class="w-8.5 h-8.5 flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 bg-white dark:bg-slate-900/50 hover:text-slate-600 dark:hover:text-slate-200 transition-all shadow-sm"
           :class="
             viewMode === 'list'
               ? 'bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20 text-cyan-600 dark:text-cyan-400'
@@ -266,7 +269,7 @@ function handlePageJump() {
           "
           @click="viewMode = 'list'"
         >
-          <List class="w-4.5 h-4.5" />
+          <List class="w-4 h-4" />
         </button>
       </div>
     </div>

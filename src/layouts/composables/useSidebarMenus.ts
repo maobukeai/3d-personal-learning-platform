@@ -1,4 +1,4 @@
-import { computed, type Component } from 'vue';
+import { computed, watch, type Component } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -89,6 +89,21 @@ export function useSidebarMenus() {
   const mirrorStore = useMirrorStore();
   const manualStore = useManualStore();
   const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
+
+  // Automatically fetch categories when active workspace changes or initializes
+  watch(
+    () => workspaceStore.activeWorkspaceId,
+    (id) => {
+      if (id?.startsWith('mirror-')) {
+        const sourceId = id.replace('mirror-', '');
+        mirrorStore.fetchCategories(sourceId);
+      } else if (id?.startsWith('manual-')) {
+        const stationId = id.replace('manual-', '');
+        manualStore.fetchCategories(stationId);
+      }
+    },
+    { immediate: true },
+  );
 
   const adminGroups = computed<SidebarMenuGroup[]>(() => [
     {

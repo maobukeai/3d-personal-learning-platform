@@ -331,6 +331,60 @@ const onWindowScroll = () => {
   }
 };
 
+const handleContentClick = (e: MouseEvent) => {
+  const target = e.target as HTMLElement;
+  const link = target.closest('a');
+  if (link) {
+    const href = link.getAttribute('href');
+    if (href && href.startsWith('#')) {
+      e.preventDefault();
+      const targetId = decodeURIComponent(href.slice(1));
+      
+      // 1. Try to find by exact ID
+      let targetEl = document.getElementById(targetId);
+      
+      // 2. If not found, try to find case-insensitively or with matching generated slug
+      if (!targetEl) {
+        const headings = document.querySelectorAll('.modern-markdown-content h1, .modern-markdown-content h2, .modern-markdown-content h3, .modern-markdown-content h4, .modern-markdown-content h5, .modern-markdown-content h6');
+        const slugify = (str: string) => str.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]/g, '');
+        const targetSlug = slugify(targetId);
+        
+        // First pass: Exact slug match
+        for (const heading of headings) {
+          const headingId = heading.getAttribute('id') || '';
+          const headingText = heading.textContent || '';
+          const headingSlug = slugify(headingText);
+          const idSlug = slugify(headingId);
+          
+          if (headingSlug === targetSlug || idSlug === targetSlug) {
+            targetEl = heading as HTMLElement;
+            break;
+          }
+        }
+        
+        // Second pass: Substring match (for cases where TOC omits heading numbers/prefixes)
+        if (!targetEl && targetSlug.length >= 2) {
+          for (const heading of headings) {
+            const headingText = heading.textContent || '';
+            const headingSlug = slugify(headingText);
+            if (headingSlug.includes(targetSlug)) {
+              targetEl = heading as HTMLElement;
+              break;
+            }
+          }
+        }
+      }
+      
+      // 3. Scroll to it
+      if (targetEl) {
+        const yOffset = -70; // 70px offset for sticky header
+        const y = targetEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+    }
+  }
+};
+
 onMounted(async () => {
   if (!systemStore.isInitialized) {
     await systemStore.fetchSettings();
@@ -601,6 +655,7 @@ onUnmounted(() => {
         <div
           class="modern-markdown-content min-h-[350px] markdown-theme-default"
           :style="{ fontSize: fontSize + 'px' }"
+          @click="handleContentClick"
         >
           <MarkdownEditor :model-value="note.content" preview-only />
         </div>
@@ -926,5 +981,14 @@ onUnmounted(() => {
 .modern-markdown-content :deep(.md-code-copy),
 .modern-markdown-content :deep(pre) {
   z-index: 2 !important;
+}
+
+/* Enforce horizontal layout for action buttons */
+:deep(button > span) {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
 }
 </style>

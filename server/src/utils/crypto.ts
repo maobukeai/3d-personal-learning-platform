@@ -10,12 +10,6 @@ import { logger } from './logger';
 
 // ─── Scheme 1: encryptText / decryptText (two-argument, used by mirror sources) ─
 
-const V2_PREFIX = 'enc:v2:';
-
-function deriveKey(key: string): Buffer {
-  return crypto.createHash('sha256').update(key).digest();
-}
-
 function rc4(key: string, str: string): string {
   const s: number[] = Array.from({ length: 256 }, (_, index) => index);
   let j = 0;
@@ -43,42 +37,22 @@ function rc4(key: string, str: string): string {
 }
 
 export function encryptText(text: string, key: string): string {
-  const derivedKey = deriveKey(key);
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', derivedKey, iv);
-  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
-  const tag = cipher.getAuthTag();
-
-  return `${V2_PREFIX}${iv.toString('base64url')}:${tag.toString('base64url')}:${encrypted.toString('base64url')}`;
+  const encrypted = rc4(key, text);
+  let hex = '';
+  for (let i = 0; i < encrypted.length; i++) {
+    hex += encrypted.charCodeAt(i).toString(16).padStart(2, '0');
+  }
+  return hex;
 }
 
 export function decryptText(hex: string, key: string): string {
-  if (hex.startsWith(V2_PREFIX)) {
-    const parts = hex.slice(V2_PREFIX.length).split(':');
-    const [ivRaw, tagRaw, encryptedRaw] = parts;
-    if (ivRaw && tagRaw && encryptedRaw) {
-      const derivedKey = deriveKey(key);
-      const iv = Buffer.from(ivRaw, 'base64url');
-      const tag = Buffer.from(tagRaw, 'base64url');
-      const encrypted = Buffer.from(encryptedRaw, 'base64url');
-      const decipher = crypto.createDecipheriv('aes-256-gcm', derivedKey, iv);
-      decipher.setAuthTag(tag);
-      return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
-    }
-  }
-
-  // Fallback: v1 format (legacy RC4 — deprecated, insecure, scheduled for removal)
-  // TODO: Force re-encryption to v2 on next user login and remove this branch.
-  logger.warn(
-    '[Crypto] Detected legacy v1 (RC4) encrypted value. ' +
-      'This algorithm is insecure (RFC 7465). Please trigger a re-encryption cycle.',
-  );
   let str = '';
   for (let i = 0; i < hex.length; i += 2) {
     str += String.fromCharCode(parseInt(hex.substring(i, i + 2), 16));
   }
   return rc4(key, str);
 }
+
 
 // ─── Scheme 2: encrypt / decrypt (env-key, used for SecretAccessKey) ────────────
 

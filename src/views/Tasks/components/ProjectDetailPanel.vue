@@ -811,7 +811,7 @@ defineExpose({
 <template>
   <Modal
     :show="isDetailDrawerOpen && !!projectDetail"
-    size="xl"
+    size="xxl"
     glass-card
     padding="none"
     @close="isDetailDrawerOpen = false"
@@ -862,7 +862,7 @@ defineExpose({
 
     <div
       v-if="projectDetail"
-      class="overflow-y-auto p-4 md:p-5 scrollbar-hide max-h-[75vh] text-left"
+      class="overflow-y-auto p-4 md:p-5 pb-8 scrollbar-hide max-h-[82vh] text-left"
     >
       <div
         v-if="isDetailLoading"

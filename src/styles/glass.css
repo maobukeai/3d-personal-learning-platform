@@ -273,8 +273,6 @@ html.theme-glass .el-popover {
   -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
   border: var(--glass-border) !important;
   box-shadow: var(--glass-shadow) !important;
-  transform: translateZ(0);
-  will-change: auto !important;
 }
 
 /* Fallback for workspace switcher and user dropdown when backdrop-filter is disabled/not supported */
@@ -283,8 +281,6 @@ html.theme-glass .user-dropdown-popper {
   background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
   border: var(--glass-border) !important;
   box-shadow: var(--glass-shadow) !important;
-  transform: translateZ(0);
-  will-change: auto !important;
 }
 
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {

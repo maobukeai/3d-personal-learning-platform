@@ -434,27 +434,14 @@ onUnmounted(() => {
   flex-direction: column;
   overflow: hidden;
   background:
-    radial-gradient(at 0% 0%, rgba(var(--accent-rgb), 0.04) 0px, transparent 50%),
-    radial-gradient(at 90% 10%, rgba(34, 197, 94, 0.02) 0px, transparent 50%), var(--bg-app);
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-app) 75%, white) 0, var(--bg-app) 180px),
+    var(--bg-app);
   color: var(--text-primary);
   position: relative;
 }
 
-/* Subtly overlay a dot grid background */
-.dashboard-page::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(var(--accent-rgb), 0.05) 1px, transparent 1px);
-  background-size: 24px 24px;
-  pointer-events: none;
-  opacity: 0.5;
-  z-index: 0;
-}
-
-.dark .dashboard-page::before {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-  opacity: 0.7;
+.dark .dashboard-page {
+  background: var(--bg-app);
 }
 
 .dashboard-topbar {

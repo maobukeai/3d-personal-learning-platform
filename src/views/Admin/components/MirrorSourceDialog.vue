@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
-import { Globe, Upload, Loader2, X } from 'lucide-vue-next';
+import { Globe, Upload, Loader2 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import type { MirrorSource } from '../AdminMirrorView.vue';
@@ -128,26 +128,24 @@ async function submit() {
 </script>
 
 <template>
-  <Modal
-    :show="visible"
-    size="md"
-    glass-card
-    @close="visible = false"
-  >
+  <Modal :show="visible" size="md" glass-card @close="visible = false">
     <template #header>
       <div>
         <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
           {{ source ? '编辑镜像源' : '添加镜像源' }}
         </h3>
         <p class="text-xs text-slate-400 mt-1">
-          {{ source ? '调整镜像源网站接入设置及同步规则' : '接入并配置一个新的 3D 资源库镜像同步源' }}
+          {{
+            source ? '调整镜像源网站接入设置及同步规则' : '接入并配置一个新的 3D 资源库镜像同步源'
+          }}
         </p>
       </div>
     </template>
 
     <div class="space-y-4">
       <div>
-        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+        <label
+          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
           >名称（英文标识）</label
         >
         <input
@@ -163,7 +161,8 @@ async function submit() {
         />
       </div>
       <div>
-        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+        <label
+          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
           >显示名称</label
         >
         <input
@@ -179,7 +178,8 @@ async function submit() {
         />
       </div>
       <div>
-        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+        <label
+          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
           >站点图标 (推荐 1:1 比例)</label
         >
         <div class="flex items-center gap-4">
@@ -221,7 +221,8 @@ async function submit() {
         </div>
       </div>
       <div>
-        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+        <label
+          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
           >网站地址</label
         >
         <input
@@ -237,7 +238,8 @@ async function submit() {
         />
       </div>
       <div>
-        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+        <label
+          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
           >适配器类型</label
         >
         <select
@@ -256,7 +258,8 @@ async function submit() {
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
             >访问权限</label
           >
           <select
@@ -274,7 +277,8 @@ async function submit() {
           </select>
         </div>
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
             >同步间隔(秒)</label
           >
           <input
@@ -292,7 +296,8 @@ async function submit() {
         </div>
       </div>
       <div>
-        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+        <label
+          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
           >描述</label
         >
         <textarea
@@ -311,9 +316,7 @@ async function submit() {
 
     <template #footer>
       <div class="flex items-center gap-3">
-        <Button variant="secondary" size="md" @click="visible = false">
-          取消
-        </Button>
+        <Button variant="secondary" size="md" @click="visible = false"> 取消 </Button>
         <Button variant="primary" size="md" @click="submit">
           {{ source ? '保存' : '创建' }}
         </Button>

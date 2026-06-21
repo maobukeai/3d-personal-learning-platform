@@ -119,7 +119,7 @@ export abstract class BaseAdapter {
     if (error instanceof Error) {
       if (error.name === 'AbortError') return false;
       const nonRetryableCodes = ['400', '401', '403', '404', '422'];
-      if (nonRetryableCodes.some(code => error.message?.includes(`HTTP ${code}`))) {
+      if (nonRetryableCodes.some((code) => error.message?.includes(`HTTP ${code}`))) {
         return true;
       }
     }

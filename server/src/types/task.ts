@@ -4,4 +4,4 @@ export const TaskStatus = {
   DONE: 'DONE',
 } as const;
 
-export type TaskStatus = typeof TaskStatus[keyof typeof TaskStatus];
+export type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus];

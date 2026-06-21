@@ -129,9 +129,12 @@ async function submit() {
   >
     <div class="space-y-4">
       <div>
-        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{
-          station ? $t('admin.english_logo_as_the') : $t('admin.english_logo_letters_underscores')
-        }}</label>
+        <label
+          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >{{
+            station ? $t('admin.english_logo_as_the') : $t('admin.english_logo_letters_underscores')
+          }}</label
+        >
         <input
           v-model="formData.name"
           type="text"
@@ -145,7 +148,10 @@ async function submit() {
         />
       </div>
       <div>
-        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{ $t('admin.display_name') }}</label>
+        <label
+          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >{{ $t('admin.display_name') }}</label
+        >
         <input
           v-model="formData.displayName"
           type="text"
@@ -159,7 +165,10 @@ async function submit() {
         />
       </div>
       <div v-if="station">
-        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{ $t('admin.status') }}</label>
+        <label
+          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >{{ $t('admin.status') }}</label
+        >
         <select
           v-model="formData.status"
           class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
@@ -174,9 +183,10 @@ async function submit() {
         </select>
       </div>
       <div>
-        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{
-          $t('admin.membership_restrictions')
-        }}</label>
+        <label
+          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >{{ $t('admin.membership_restrictions') }}</label
+        >
         <select
           v-model="formData.minPlanPriority"
           class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
@@ -193,7 +203,10 @@ async function submit() {
         </select>
       </div>
       <div>
-        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{ $t('admin.site_icon_1_1') }}</label>
+        <label
+          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >{{ $t('admin.site_icon_1_1') }}</label
+        >
         <div class="flex items-center gap-4">
           <div
             class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800"
@@ -233,9 +246,10 @@ async function submit() {
         </div>
       </div>
       <div>
-        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{
-          $t('admin.description_information')
-        }}</label>
+        <label
+          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >{{ $t('admin.description_information') }}</label
+        >
         <textarea
           v-model="formData.description"
           rows="3"
@@ -263,11 +277,7 @@ async function submit() {
         >
           {{ $t('admin.cancel') }}
         </Button>
-        <Button
-          variant="primary"
-          size="md"
-          @click="submit"
-        >
+        <Button variant="primary" size="md" @click="submit">
           {{ station ? $t('admin.save_changes') : $t('admin.create_resource_site') }}
         </Button>
       </div>

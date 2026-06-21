@@ -536,7 +536,10 @@ export class SyncEngine {
 
       // Upload/refresh metadata.json on R2 so other deployments can discover the synchronized state
       await uploadSourceMetadataToR2(sourceId).catch((err) => {
-        logger.error(`[SyncEngine] Failed to upload metadata to R2 after successful full sync:`, err);
+        logger.error(
+          `[SyncEngine] Failed to upload metadata to R2 after successful full sync:`,
+          err,
+        );
       });
 
       progress.estimatedProgress = 100;
@@ -986,7 +989,10 @@ export class SyncEngine {
 
       // Upload/refresh metadata.json on R2 so other deployments can discover the synchronized state
       await uploadSourceMetadataToR2(sourceId).catch((err) => {
-        logger.error(`[SyncEngine] Failed to upload metadata to R2 after successful incremental sync:`, err);
+        logger.error(
+          `[SyncEngine] Failed to upload metadata to R2 after successful incremental sync:`,
+          err,
+        );
       });
 
       progress.estimatedProgress = 100;

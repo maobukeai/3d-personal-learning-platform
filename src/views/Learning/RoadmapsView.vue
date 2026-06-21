@@ -42,7 +42,6 @@ import {
   Gauge,
   Clock,
   Sparkle,
-  Loader2,
   FolderOpen,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -118,15 +117,16 @@ const workspaceStore = useWorkspaceStore();
 if (cachedRoadmaps.value.length > 0) {
   const activeWorkspaceId = workspaceStore.activeWorkspaceId;
   const currentWs = workspaceStore.currentWorkspace;
-  const filtered = activeTab.value === 'system'
-    ? cachedRoadmaps.value.filter((r: Roadmap) => r.creatorId === null && !r.projectId)
-    : cachedRoadmaps.value.filter((r: Roadmap) => {
-        if (r.creatorId === null && !r.projectId) return false;
-        if (r.projectId) {
-          return r.project?.teamId === activeWorkspaceId;
-        }
-        return !currentWs || currentWs.type === 'personal';
-      });
+  const filtered =
+    activeTab.value === 'system'
+      ? cachedRoadmaps.value.filter((r: Roadmap) => r.creatorId === null && !r.projectId)
+      : cachedRoadmaps.value.filter((r: Roadmap) => {
+          if (r.creatorId === null && !r.projectId) return false;
+          if (r.projectId) {
+            return r.project?.teamId === activeWorkspaceId;
+          }
+          return !currentWs || currentWs.type === 'personal';
+        });
   if (filtered.length > 0) {
     selectedRoadmap.value = filtered[0];
   }
@@ -251,7 +251,7 @@ watch(
   () => {
     selectedRoadmap.value = null;
     fetchData();
-  }
+  },
 );
 
 const activeStep = computed(() => {
@@ -1540,12 +1540,7 @@ onMounted(() => {
     </div>
 
     <!-- Create / Edit Custom Roadmap Form Dialog -->
-    <Modal
-      :show="showFormDialog"
-      size="lg"
-      glass-card
-      @close="showFormDialog = false"
-    >
+    <Modal :show="showFormDialog" size="lg" glass-card @close="showFormDialog = false">
       <template #header>
         <div class="flex items-center gap-2">
           <div class="p-1.5 rounded-lg bg-accent text-white">
@@ -1559,9 +1554,10 @@ onMounted(() => {
 
       <div class="space-y-4">
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{
-            t('roadmaps.formTitle')
-          }}</label>
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+            >{{ t('roadmaps.formTitle') }}</label
+          >
           <textarea
             v-model="customRoadmapForm.description"
             rows="2"
@@ -1577,12 +1573,11 @@ onMounted(() => {
 
         <!-- Steps timeline editing list -->
         <div class="space-y-3 pt-2">
-          <div
-            class="flex items-center justify-between border-b border-white/10 pb-2"
-          >
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{
-              t('roadmaps.formStagesLabel', { n: customRoadmapForm.steps.length })
-            }}</label>
+          <div class="flex items-center justify-between border-b border-white/10 pb-2">
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+              >{{ t('roadmaps.formStagesLabel', { n: customRoadmapForm.steps.length }) }}</label
+            >
             <button
               type="button"
               class="text-[10px] font-bold text-accent hover:text-accent-dark flex items-center gap-1 cursor-pointer"
@@ -1724,11 +1719,7 @@ onMounted(() => {
 
       <template #footer>
         <div class="flex items-center gap-3">
-          <Button
-            variant="secondary"
-            size="md"
-            @click="showFormDialog = false"
-          >
+          <Button variant="secondary" size="md" @click="showFormDialog = false">
             {{ t('common.cancel') }}
           </Button>
           <Button

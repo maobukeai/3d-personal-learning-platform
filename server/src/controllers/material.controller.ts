@@ -358,10 +358,14 @@ export const uploadMaterial = async (req: AuthRequest, res: Response, next: Next
 
     const { title, description, category, resolution, tags, isProcedural } = req.body;
 
-    const fileUrl = (materialFile as any).url || `${req.protocol}://${req.get('host')}/uploads/materials/${materialFile.filename}`;
+    const fileUrl =
+      (materialFile as any).url ||
+      `${req.protocol}://${req.get('host')}/uploads/materials/${materialFile.filename}`;
     let previewUrl = null;
     if (previewFile) {
-      previewUrl = (previewFile as any).url || `${req.protocol}://${req.get('host')}/uploads/materials/${previewFile.filename}`;
+      previewUrl =
+        (previewFile as any).url ||
+        `${req.protocol}://${req.get('host')}/uploads/materials/${previewFile.filename}`;
     }
 
     const material = await prisma.material.create({
@@ -465,11 +469,17 @@ export const deleteMaterial = async (req: AuthRequest, res: Response, next: Next
     }
 
     deleteCloudOrLocalFileByUrl(material.fileUrl).catch((err) => {
-      logger.error(`[MaterialController] Failed to delete material file ${material.fileUrl} in background:`, err);
+      logger.error(
+        `[MaterialController] Failed to delete material file ${material.fileUrl} in background:`,
+        err,
+      );
     });
     if (material.previewUrl) {
       deleteCloudOrLocalFileByUrl(material.previewUrl).catch((err) => {
-        logger.error(`[MaterialController] Failed to delete material preview ${material.previewUrl} in background:`, err);
+        logger.error(
+          `[MaterialController] Failed to delete material preview ${material.previewUrl} in background:`,
+          err,
+        );
       });
     }
 

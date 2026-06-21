@@ -22,7 +22,6 @@ import PageHeader from '@/components/PageHeader.vue';
 import CourseCard from '@/components/CourseCard.vue';
 import { useAuthStore } from '@/stores/auth';
 import Tabs from '@/components/ui/Tabs.vue';
-import Input from '@/components/ui/Input.vue';
 
 type CourseSortKey = 'newest' | 'popular' | 'rating';
 
@@ -256,11 +255,7 @@ onMounted(() => {
       <template #center>
         <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
           <Search />
-          <input
-            v-model="searchQuery"
-            type="text"
-            :placeholder="t('academy.searchPlaceholder')"
-          />
+          <input v-model="searchQuery" type="text" :placeholder="t('academy.searchPlaceholder')" />
         </label>
       </template>
 

@@ -91,7 +91,8 @@ const validateSettings = (
     'MICROSOFT_POOL_FAILBACK',
     'AI_IMPORT_ENABLED',
     'FORCE_R2_STORAGE',
-  ];  for (const field of booleanFields) {
+  ];
+  for (const field of booleanFields) {
     if (settingsObj[field] !== undefined) {
       const val = settingsObj[field];
       if (val !== true && val !== false && val !== 'true' && val !== 'false') {
@@ -189,7 +190,14 @@ export const updateSettings = async (req: AuthRequest, res: Response, next: Next
     }
 
     // Ensure array fields are actually arrays before saving
-    const arrayFields = ['ALLOWED_EXTENSIONS', 'ALLOWED_FILE_TYPES', 'MATERIAL_CATEGORIES', 'TEAM_CATEGORIES', 'SHOWCASE_CATEGORIES', 'PLUGIN_CATEGORIES'];
+    const arrayFields = [
+      'ALLOWED_EXTENSIONS',
+      'ALLOWED_FILE_TYPES',
+      'MATERIAL_CATEGORIES',
+      'TEAM_CATEGORIES',
+      'SHOWCASE_CATEGORIES',
+      'PLUGIN_CATEGORIES',
+    ];
     arrayFields.forEach((field) => {
       if (settingsObj[field] !== undefined) {
         if (typeof settingsObj[field] === 'string') {
@@ -338,7 +346,10 @@ const buildOllamaModelsUrl = (endpoint: string) => {
 };
 
 const buildGeminiModelsUrl = (endpoint: string, apiKey: string) => {
-  let base = trimTrailingSlash(endpoint || 'https://gateway.ai.cloudflare.com/v1/15f8013c69ef90d952d7a2945a949e52/gemini-proxy/google-ai-studio');
+  let base = trimTrailingSlash(
+    endpoint ||
+      'https://gateway.ai.cloudflare.com/v1/15f8013c69ef90d952d7a2945a949e52/gemini-proxy/google-ai-studio',
+  );
   base = base
     .replace(/\/chat\/completions$/i, '')
     .replace(/\/v1beta$/i, '')

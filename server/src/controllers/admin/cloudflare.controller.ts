@@ -26,7 +26,10 @@ export const saveConfig = async (req: AuthRequest, res: Response, next: NextFunc
       return next(new AppError('请填写 Cloudflare API Token', 400));
     }
 
-    const saved = await cloudflareAdminService.saveConfig(apiToken?.trim() || existing.apiToken, accountId ?? null);
+    const saved = await cloudflareAdminService.saveConfig(
+      apiToken?.trim() || existing.apiToken,
+      accountId ?? null,
+    );
 
     await auditService.log({
       req,

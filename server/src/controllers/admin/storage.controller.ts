@@ -540,6 +540,7 @@ export const uploadDirectFile = async (req: AuthRequest, res: Response, next: Ne
 
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const sanitizedOriginalName = file.originalname
+      // eslint-disable-next-line no-control-regex
       .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
       .replace(/\s+/g, '_');
     const extName = path.extname(sanitizedOriginalName);

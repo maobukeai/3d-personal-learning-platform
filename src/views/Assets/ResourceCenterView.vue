@@ -32,7 +32,6 @@ import { ElMessage } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
-import Input from '@/components/ui/Input.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import UnifiedCard from '@/components/UnifiedCard.vue';
 import {
@@ -372,7 +371,9 @@ onUnmounted(() => {
 
 <template>
   <div class="resource-center-page">
-    <header class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
+    <header
+      class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0"
+    >
       <div class="title-block flex-1 min-w-0">
         <div class="title-icon">
           <FileStack class="icon-sm" />
@@ -387,11 +388,7 @@ onUnmounted(() => {
       <div class="flex justify-center flex-1 w-full md:w-auto">
         <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 md:w-80 shrink-0">
           <Search />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="搜索最近内容、作者或标签"
-          />
+          <input v-model="searchQuery" type="text" placeholder="搜索最近内容、作者或标签" />
         </label>
       </div>
 
@@ -491,8 +488,6 @@ onUnmounted(() => {
             <Tabs v-model="activeKind" :options="kindTabOptions" size="sm" />
             <Tabs v-model="activeStatus" :options="statusTabOptions" size="sm" />
           </div>
-
-
 
           <div class="toolbar-right">
             <select v-model="sortMode" class="sort-select" aria-label="资源排序">

@@ -1649,7 +1649,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-
 /* Slide fade transition for the help panel */
 .slide-fade-enter-active {
   transition: all 0.4s ease-out;

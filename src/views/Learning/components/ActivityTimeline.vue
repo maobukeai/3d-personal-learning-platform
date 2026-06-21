@@ -3,7 +3,17 @@ import { formatDate } from '@/utils/format';
 import { ref, computed } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Loading } from '@element-plus/icons-vue';
-import { ThumbsUp, MessageSquare, Bookmark, Edit3, Trash2, Flame, BookOpen, Star, Sparkles } from 'lucide-vue-next';
+import {
+  ThumbsUp,
+  MessageSquare,
+  Bookmark,
+  Edit3,
+  Trash2,
+  Flame,
+  BookOpen,
+  Star,
+  Sparkles,
+} from 'lucide-vue-next';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
@@ -188,7 +198,7 @@ const topContributors = computed(() => {
               <span class="hover:text-accent transition-colors">{{ note.user.name }}</span>
               <span class="text-[9px] text-[var(--text-muted)] font-normal pointer-events-none"
                 >• {{ formatDate(note.createdAt) }}</span
-               >
+              >
             </div>
           </div>
           <!-- Right Tag -->

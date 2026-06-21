@@ -61,7 +61,13 @@ const startChat = () => {
 </script>
 
 <template>
-  <Modal :show="modelValue" size="sm" padding="none" glass-card @close="emit('update:modelValue', false)">
+  <Modal
+    :show="modelValue"
+    size="sm"
+    padding="none"
+    glass-card
+    @close="emit('update:modelValue', false)"
+  >
     <!-- Loader -->
     <div v-if="isLoading" class="py-24 text-center">
       <div

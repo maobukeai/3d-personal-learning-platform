@@ -63,45 +63,45 @@ const handleLogout = async () => {
     </template>
 
     <div class="px-3 py-2 border-b mb-1" style="border-color: var(--border-base)">
-          <p class="text-sm font-bold" style="color: var(--text-primary)">
-            {{ authStore.user?.name || '未命名用户' }}
-          </p>
-          <p class="text-[10px]" style="color: var(--text-muted)">
-            {{ authStore.user?.email }}
-          </p>
-        </div>
-        <el-dropdown-item command="profile" class="rounded-lg my-0.5">
-          <div class="flex items-center gap-3 py-1">
-            <UserIcon class="w-4 h-4 text-slate-400" /><span
-              class="font-medium"
-              style="color: var(--text-secondary)"
-              >{{ $t('layout.profile') }}</span
-            >
-          </div>
-        </el-dropdown-item>
-        <el-dropdown-item command="notifications" class="rounded-lg my-0.5">
-          <div class="flex items-center gap-3 py-1">
-            <Bell class="w-4 h-4 text-slate-400" /><span
-              class="font-medium"
-              style="color: var(--text-secondary)"
-              >{{ $t('layout.notifications') }}</span
-            >
-          </div>
-        </el-dropdown-item>
-        <el-dropdown-item command="billing" class="rounded-lg my-0.5">
-          <div class="flex items-center gap-3 py-1">
-            <CreditCard class="w-4 h-4 text-slate-400" /><span
-              class="font-medium"
-              style="color: var(--text-secondary)"
-              >{{ $t('layout.billing') }}</span
-            >
-          </div>
-        </el-dropdown-item>
-        <div class="border-t border-white/8 my-2"></div>
-        <el-dropdown-item command="logout" class="rounded-lg my-0.5 text-rose-500">
-          <div class="flex items-center gap-3 py-1">
-            <LogOut class="w-4 h-4" /><span class="font-bold">{{ $t('layout.logout') }}</span>
-          </div>
-        </el-dropdown-item>
+      <p class="text-sm font-bold" style="color: var(--text-primary)">
+        {{ authStore.user?.name || '未命名用户' }}
+      </p>
+      <p class="text-[10px]" style="color: var(--text-muted)">
+        {{ authStore.user?.email }}
+      </p>
+    </div>
+    <el-dropdown-item command="profile" class="rounded-lg my-0.5">
+      <div class="flex items-center gap-3 py-1">
+        <UserIcon class="w-4 h-4 text-slate-400" /><span
+          class="font-medium"
+          style="color: var(--text-secondary)"
+          >{{ $t('layout.profile') }}</span
+        >
+      </div>
+    </el-dropdown-item>
+    <el-dropdown-item command="notifications" class="rounded-lg my-0.5">
+      <div class="flex items-center gap-3 py-1">
+        <Bell class="w-4 h-4 text-slate-400" /><span
+          class="font-medium"
+          style="color: var(--text-secondary)"
+          >{{ $t('layout.notifications') }}</span
+        >
+      </div>
+    </el-dropdown-item>
+    <el-dropdown-item command="billing" class="rounded-lg my-0.5">
+      <div class="flex items-center gap-3 py-1">
+        <CreditCard class="w-4 h-4 text-slate-400" /><span
+          class="font-medium"
+          style="color: var(--text-secondary)"
+          >{{ $t('layout.billing') }}</span
+        >
+      </div>
+    </el-dropdown-item>
+    <div class="border-t border-white/8 my-2"></div>
+    <el-dropdown-item command="logout" class="rounded-lg my-0.5 text-rose-500">
+      <div class="flex items-center gap-3 py-1">
+        <LogOut class="w-4 h-4" /><span class="font-bold">{{ $t('layout.logout') }}</span>
+      </div>
+    </el-dropdown-item>
   </GlassDropdown>
 </template>

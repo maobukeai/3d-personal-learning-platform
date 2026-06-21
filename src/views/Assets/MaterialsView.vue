@@ -955,7 +955,9 @@ onUnmounted(() => {
 
 <template>
   <div class="materials-page">
-    <header class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
+    <header
+      class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0"
+    >
       <div class="title-block flex-1 min-w-0">
         <div class="title-icon">
           <Layers class="icon-sm" />
@@ -1104,8 +1106,6 @@ onUnmounted(() => {
           <div class="toolbar-left">
             <Tabs v-model="activeTab" :options="libraryTabOptions" size="sm" />
           </div>
-
-
 
           <div class="toolbar-right">
             <button
@@ -1460,107 +1460,111 @@ onUnmounted(() => {
         </div>
       </template>
 
-          <div class="dialog-grid">
-            <div class="dialog-column">
-              <template v-if="!isEditingMaterial">
-                <div class="mb-4 w-full">
-                  <FileDropZone
-                    v-model="materialForm.file"
-                    accept=".zip,.sbsar"
-                    :label="materialForm.file?.name || label('选择材料包', 'Choose Material Pack')"
-                    sublabel="ZIP / SBSAR"
-                    height-class="h-28"
-                    @change="handleFileChange"
-                  />
-                </div>
-
-                <div class="mb-4 w-full">
-                  <FileDropZone
-                    v-model="materialForm.preview"
-                    accept="image/*"
-                    :label="materialForm.preview?.name || label('上传预览图', 'Upload Preview')"
-                    :sublabel="label('方形或 16:10 封面', 'Square or 16:10 cover')"
-                    height-class="h-28"
-                    @change="handlePreviewChange"
-                  />
-                </div>
-              </template>
-
-              <div class="mb-4">
-                <Input
-                  v-model="materialForm.title"
-                  type="text"
-                  :label="label('材料名称', 'Material Name')"
-                  :placeholder="label('磨砂金属 PBR 套装', 'Brushed metal PBR set')"
-                  required
-                />
-              </div>
-
-              <div class="two-col grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <label class="form-field flex flex-col">
-                  <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">
-                    {{ label('分类', 'Category') }}
-                  </span>
-                  <select
-                    v-model="materialForm.category"
-                    class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                  >
-                    <option v-for="category in uploadCategories" :key="category" :value="category">
-                      {{ category }}
-                    </option>
-                  </select>
-                </label>
-                <label class="form-field flex flex-col">
-                  <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">
-                    {{ label('分辨率', 'Resolution') }}
-                  </span>
-                  <select
-                    v-model="materialForm.resolution"
-                    class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                  >
-                    <option
-                      v-for="resolution in resolutionOptions"
-                      :key="resolution"
-                      :value="resolution"
-                    >
-                      {{ resolution }}
-                    </option>
-                  </select>
-                </label>
-              </div>
-
-              <label class="switch-row mb-4">
-                <input v-model="materialForm.isProcedural" type="checkbox" />
-                <span>{{ label('程序化材质 / SBSAR', 'Procedural Material / SBSAR') }}</span>
-              </label>
-
-              <div class="mb-4">
-                <Input
-                  v-model="materialForm.tags"
-                  type="text"
-                  :label="label('标签', 'Tags')"
-                  :placeholder="label('PBR, 金属, 4K, 游戏资产', 'PBR, metal, 4K, game asset')"
-                />
-              </div>
+      <div class="dialog-grid">
+        <div class="dialog-column">
+          <template v-if="!isEditingMaterial">
+            <div class="mb-4 w-full">
+              <FileDropZone
+                v-model="materialForm.file"
+                accept=".zip,.sbsar"
+                :label="materialForm.file?.name || label('选择材料包', 'Choose Material Pack')"
+                sublabel="ZIP / SBSAR"
+                height-class="h-28"
+                @change="handleFileChange"
+              />
             </div>
 
-            <div class="dialog-column">
-              <label class="form-field editor-field">
-                <span>{{ label('材料说明', 'Material Description') }}</span>
-                <MarkdownEditor
-                  v-model="materialForm.description"
-                  :placeholder="
-                    label(
-                      '贴图通道、使用场景、授权或引擎导入注意事项',
-                      'Texture channels, use cases, license, or engine import notes',
-                    )
-                  "
-                  height="330px"
-                  simple
-                />
-              </label>
+            <div class="mb-4 w-full">
+              <FileDropZone
+                v-model="materialForm.preview"
+                accept="image/*"
+                :label="materialForm.preview?.name || label('上传预览图', 'Upload Preview')"
+                :sublabel="label('方形或 16:10 封面', 'Square or 16:10 cover')"
+                height-class="h-28"
+                @change="handlePreviewChange"
+              />
             </div>
+          </template>
+
+          <div class="mb-4">
+            <Input
+              v-model="materialForm.title"
+              type="text"
+              :label="label('材料名称', 'Material Name')"
+              :placeholder="label('磨砂金属 PBR 套装', 'Brushed metal PBR set')"
+              required
+            />
           </div>
+
+          <div class="two-col grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <label class="form-field flex flex-col">
+              <span
+                class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+              >
+                {{ label('分类', 'Category') }}
+              </span>
+              <select
+                v-model="materialForm.category"
+                class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+              >
+                <option v-for="category in uploadCategories" :key="category" :value="category">
+                  {{ category }}
+                </option>
+              </select>
+            </label>
+            <label class="form-field flex flex-col">
+              <span
+                class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+              >
+                {{ label('分辨率', 'Resolution') }}
+              </span>
+              <select
+                v-model="materialForm.resolution"
+                class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+              >
+                <option
+                  v-for="resolution in resolutionOptions"
+                  :key="resolution"
+                  :value="resolution"
+                >
+                  {{ resolution }}
+                </option>
+              </select>
+            </label>
+          </div>
+
+          <label class="switch-row mb-4">
+            <input v-model="materialForm.isProcedural" type="checkbox" />
+            <span>{{ label('程序化材质 / SBSAR', 'Procedural Material / SBSAR') }}</span>
+          </label>
+
+          <div class="mb-4">
+            <Input
+              v-model="materialForm.tags"
+              type="text"
+              :label="label('标签', 'Tags')"
+              :placeholder="label('PBR, 金属, 4K, 游戏资产', 'PBR, metal, 4K, game asset')"
+            />
+          </div>
+        </div>
+
+        <div class="dialog-column">
+          <label class="form-field editor-field">
+            <span>{{ label('材料说明', 'Material Description') }}</span>
+            <MarkdownEditor
+              v-model="materialForm.description"
+              :placeholder="
+                label(
+                  '贴图通道、使用场景、授权或引擎导入注意事项',
+                  'Texture channels, use cases, license, or engine import notes',
+                )
+              "
+              height="330px"
+              simple
+            />
+          </label>
+        </div>
+      </div>
 
       <template #footer>
         <div class="flex justify-end gap-2">
@@ -1574,9 +1578,7 @@ onUnmounted(() => {
             :disabled="!canSubmitMaterial"
             @click="submitMaterial"
           >
-            {{
-              isEditingMaterial ? label('保存', 'Save') : label('提交审核', 'Submit for Review')
-            }}
+            {{ isEditingMaterial ? label('保存', 'Save') : label('提交审核', 'Submit for Review') }}
           </Button>
         </div>
       </template>
@@ -3071,8 +3073,6 @@ button:disabled {
   .mini-list {
     grid-template-columns: 1fr;
   }
-
-
 
   .toolbar-actions,
   .command-actions {

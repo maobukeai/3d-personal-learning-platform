@@ -398,7 +398,9 @@ export const uploadAvatar = async (req: AuthRequest, res: Response, next: NextFu
       return next(new AppError('No file uploaded', 400));
     }
 
-    const avatarUrl = (req.file as any).url || `${req.protocol}://${req.get('host')}/uploads/avatars/${req.file.filename}`;
+    const avatarUrl =
+      (req.file as any).url ||
+      `${req.protocol}://${req.get('host')}/uploads/avatars/${req.file.filename}`;
 
     const updatedUser = await prisma.user.update({
       where: { id: req.userId as string },
@@ -1183,7 +1185,11 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
 
     const [recentTasks, prevTasks] = await Promise.all([
       prisma.task.count({
-        where: { ...taskAccessWhere, status: { not: TaskStatus.DONE }, createdAt: { gte: sevenDaysAgo } },
+        where: {
+          ...taskAccessWhere,
+          status: { not: TaskStatus.DONE },
+          createdAt: { gte: sevenDaysAgo },
+        },
       }),
       prisma.task.count({
         where: {
@@ -1234,7 +1240,9 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
       prisma.lessonProgress.count({
         where: { userId, completed: true, completedAt: { gte: sevenDaysAgo } },
       }),
-      prisma.task.count({ where: { userId, status: TaskStatus.DONE, updatedAt: { gte: sevenDaysAgo } } }),
+      prisma.task.count({
+        where: { userId, status: TaskStatus.DONE, updatedAt: { gte: sevenDaysAgo } },
+      }),
       prisma.showcase.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
     ]);
 
@@ -1811,7 +1819,9 @@ export const getWorkbench = async (req: AuthRequest, res: Response, next: NextFu
 
     const projectHealth = projects.map((project) => {
       const projectTotalTasks = project.tasks.length;
-      const projectDoneTasks = project.tasks.filter((task) => task.status === TaskStatus.DONE).length;
+      const projectDoneTasks = project.tasks.filter(
+        (task) => task.status === TaskStatus.DONE,
+      ).length;
       const projectOverdueTasks = project.tasks.filter(
         (task) => task.status !== TaskStatus.DONE && task.dueDate && task.dueDate < todayStart,
       ).length;

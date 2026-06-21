@@ -240,7 +240,8 @@ const DEFAULT_SETTINGS: SystemSettings = {
       name: 'Gemini 2.5 Flash',
       provider: 'GEMINI',
       modelName: 'gemini-2.5-flash',
-      endpoint: 'https://gateway.ai.cloudflare.com/v1/15f8013c69ef90d952d7a2945a949e52/gemini-proxy/google-ai-studio',
+      endpoint:
+        'https://gateway.ai.cloudflare.com/v1/15f8013c69ef90d952d7a2945a949e52/gemini-proxy/google-ai-studio',
       enabled: true,
       description: 'Google 最新主力大模型，支持多模态，超大上下文',
       capabilities: ['chat', 'multimodal'],
@@ -550,7 +551,9 @@ class SettingsService {
       if (Array.isArray(pluginCatsObj) && pluginCatsObj.includes('Blender 插件')) {
         const newDefaults = DEFAULT_SETTINGS.PLUGIN_CATEGORIES;
         await this.update('PLUGIN_CATEGORIES', newDefaults);
-        logger.info('[Settings Migration] Migrated PLUGIN_CATEGORIES to Blender-specific categories');
+        logger.info(
+          '[Settings Migration] Migrated PLUGIN_CATEGORIES to Blender-specific categories',
+        );
       }
     } catch (e) {
       logger.error('[Settings Migration] Failed to run startup migrations:', e);

@@ -500,7 +500,11 @@ defineExpose({ open });
             :variant="detailNote.isPopular ? 'glass' : 'secondary'"
             size="sm"
             full-width
-            :class="detailNote.isPopular ? '!text-amber-500 !border-amber-500/30 !bg-amber-500/10 hover:!bg-amber-500/15 dark:!bg-amber-500/20' : ''"
+            :class="
+              detailNote.isPopular
+                ? '!text-amber-500 !border-amber-500/30 !bg-amber-500/10 hover:!bg-amber-500/15 dark:!bg-amber-500/20'
+                : ''
+            "
             @click="handleTogglePopular"
           >
             <Star class="w-3.5 h-3.5 mr-1.5" :class="{ 'fill-current': detailNote.isPopular }" />
@@ -515,7 +519,11 @@ defineExpose({ open });
             :variant="detailNote.isLiked ? 'glass' : 'secondary'"
             size="sm"
             full-width
-            :class="detailNote.isLiked ? '!text-rose-500 !border-rose-500/30 !bg-rose-500/10 hover:!bg-rose-500/15 dark:!bg-rose-500/20' : ''"
+            :class="
+              detailNote.isLiked
+                ? '!text-rose-500 !border-rose-500/30 !bg-rose-500/10 hover:!bg-rose-500/15 dark:!bg-rose-500/20'
+                : ''
+            "
             @click="handleLike"
           >
             <Heart class="w-3.5 h-3.5 mr-1.5" :class="{ 'fill-current': detailNote.isLiked }" />
@@ -533,12 +541,7 @@ defineExpose({ open });
             <span>{{ t('notes.shareNote') }}</span>
           </Button>
 
-          <Button
-            variant="secondary"
-            size="sm"
-            full-width
-            @click="handleCopy"
-          >
+          <Button variant="secondary" size="sm" full-width @click="handleCopy">
             <component :is="isCopying ? Check : Copy" class="w-3.5 h-3.5 mr-1.5" />
             <span>{{ isCopying ? t('notes.copied') : t('notes.copyFullText') }}</span>
           </Button>

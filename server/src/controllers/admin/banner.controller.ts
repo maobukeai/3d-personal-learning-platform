@@ -131,7 +131,11 @@ export const uploadBannerImage = async (req: AuthRequest, res: Response, next: N
     }
 
     // Standard URL format: /uploads/banners/filename
-    const fileUrl = (req.file as any).url || (req.file.path.replace(/\\/g, '/').startsWith('/') ? req.file.path.replace(/\\/g, '/') : `/${req.file.path.replace(/\\/g, '/')}`);
+    const fileUrl =
+      (req.file as any).url ||
+      (req.file.path.replace(/\\/g, '/').startsWith('/')
+        ? req.file.path.replace(/\\/g, '/')
+        : `/${req.file.path.replace(/\\/g, '/')}`);
 
     res.status(200).json({ url: fileUrl });
   } catch (error) {

@@ -75,12 +75,7 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal
-    :show="visible"
-    size="md"
-    glass-card
-    @close="visible = false"
-  >
+  <Modal :show="visible" size="md" glass-card @close="visible = false">
     <template #header>
       <h3 class="text-lg font-bold text-[var(--text-primary)]">
         {{ currentCourse ? t('admin.edit_course') : $t('admin.create_new_course') }}
@@ -219,5 +214,4 @@ defineExpose({ open });
   </Modal>
 </template>
 
-<style scoped>
-</style>
+<style scoped></style>

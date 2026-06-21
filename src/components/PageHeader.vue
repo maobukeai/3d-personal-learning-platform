@@ -80,7 +80,9 @@ const hasIcon = computed(() => !!props.icon);
           {{ subtitle }}
         </p>
         <div class="flex items-center gap-2">
-          <h1 class="text-sm sm:text-lg font-bold leading-tight truncate text-[var(--text-primary)]">
+          <h1
+            class="text-sm sm:text-lg font-bold leading-tight truncate text-[var(--text-primary)]"
+          >
             {{ title }}
           </h1>
           <slot name="title-badge" />

@@ -299,7 +299,9 @@ export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFu
 
     const fileUrl = (pluginFile as UploadedFile).url || `/uploads/plugins/${pluginFile.filename}`;
     const fileSizeMb = pluginFile.size / (1024 * 1024);
-    const previewUrl = previewFile ? ((previewFile as UploadedFile).url || `/uploads/plugins/${previewFile.filename}`) : null;
+    const previewUrl = previewFile
+      ? (previewFile as UploadedFile).url || `/uploads/plugins/${previewFile.filename}`
+      : null;
 
     const plugin = await prisma.plugin.create({
       data: {
@@ -354,7 +356,10 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
     updateData.status = 'PENDING';
     updateData.rejectReason = null;
 
-    const plugin = await prisma.plugin.update({ where: { id }, data: updateData as Prisma.PluginUpdateInput });
+    const plugin = await prisma.plugin.update({
+      where: { id },
+      data: updateData as Prisma.PluginUpdateInput,
+    });
     res.json(plugin);
   } catch (err) {
     next(err);
@@ -374,7 +379,10 @@ export const deletePlugin = async (req: AuthRequest, res: Response, next: NextFu
     for (const urlField of [existing.fileUrl, existing.previewUrl]) {
       if (urlField) {
         deleteCloudOrLocalFileByUrl(urlField).catch((err) => {
-          logger.error(`[PluginController] Failed to delete plugin file ${urlField} in background:`, err);
+          logger.error(
+            `[PluginController] Failed to delete plugin file ${urlField} in background:`,
+            err,
+          );
         });
       }
     }

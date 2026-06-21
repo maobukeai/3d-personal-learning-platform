@@ -839,8 +839,6 @@ onMounted(() => {
   flex: 0 0 auto;
 }
 
-
-
 .batch-bar {
   margin: 10px 0 0;
   padding: 9px 10px;

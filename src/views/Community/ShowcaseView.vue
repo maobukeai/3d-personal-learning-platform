@@ -49,7 +49,6 @@ import UnifiedCard from '@/components/UnifiedCard.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import ShowcaseDetail from './components/ShowcaseDetail.vue';
-import Input from '@/components/ui/Input.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import Button from '@/components/ui/Button.vue';
 
@@ -556,11 +555,7 @@ onUnmounted(() => {
       <template #center>
         <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
           <Search />
-          <input
-            v-model="searchInput"
-            type="text"
-            placeholder="搜索作品、作者、标签..."
-          />
+          <input v-model="searchInput" type="text" placeholder="搜索作品、作者、标签..." />
         </label>
       </template>
 

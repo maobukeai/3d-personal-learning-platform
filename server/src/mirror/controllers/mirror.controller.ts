@@ -345,7 +345,11 @@ export const getResourceComments = async (req: AuthRequest, res: Response, next:
   }
 };
 
-export const createResourceComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createResourceComment = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const resourceId = req.params.id as string;
     const { content } = req.body;
@@ -396,7 +400,11 @@ export const createResourceComment = async (req: AuthRequest, res: Response, nex
   }
 };
 
-export const deleteResourceComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteResourceComment = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const commentId = req.params.commentId as string;
     const userId = req.userId;
@@ -491,7 +499,11 @@ export const toggleResourceLike = async (req: AuthRequest, res: Response, next: 
   }
 };
 
-export const getResourceLikeStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getResourceLikeStatus = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const resourceId = req.params.id as string;
     const userId = req.userId;

@@ -15,7 +15,6 @@ import {
   Camera,
   Search,
   Plus,
-  X,
   Clock,
   ClipboardList,
   Activity,
@@ -1332,12 +1331,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Unified Add Member Modal -->
-    <Modal
-      :show="isAddModalOpen"
-      size="md"
-      glass-card
-      @close="isAddModalOpen = false"
-    >
+    <Modal :show="isAddModalOpen" size="md" glass-card @close="isAddModalOpen = false">
       <template #header>
         <div>
           <h3
@@ -1458,12 +1452,7 @@ onUnmounted(() => {
     </Modal>
 
     <!-- Dissolve Team Modal -->
-    <Modal
-      :show="isDissolveModalOpen"
-      size="sm"
-      glass-card
-      @close="isDissolveModalOpen = false"
-    >
+    <Modal :show="isDissolveModalOpen" size="sm" glass-card @close="isDissolveModalOpen = false">
       <template #header>
         <div class="p-3 bg-rose-50 dark:bg-rose-500/10 rounded-2xl text-rose-500 w-fit">
           <Trash2 class="w-6 h-6" />
@@ -1537,12 +1526,7 @@ onUnmounted(() => {
     </Modal>
 
     <!-- Member Workload Portrait Modal -->
-    <Modal
-      :show="isMemberPanelOpen"
-      size="md"
-      glass-card
-      @close="closeMemberPanel"
-    >
+    <Modal :show="isMemberPanelOpen" size="md" glass-card @close="closeMemberPanel">
       <template #header>
         <div class="flex items-center gap-3 min-w-0">
           <UserAvatar v-if="selectedMember" :user="selectedMember.user" size="md" />
@@ -1567,10 +1551,7 @@ onUnmounted(() => {
         <p class="text-xs font-black">正在生成成员画像</p>
       </div>
 
-      <div
-        v-else-if="memberInsight"
-        class="space-y-4 max-h-[60vh] overflow-y-auto pr-1"
-      >
+      <div v-else-if="memberInsight" class="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
         <section
           class="p-3 rounded-xl border animate-in fade-in duration-300"
           style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
@@ -1675,10 +1656,9 @@ onUnmounted(() => {
                 {{ severityLabel(item.severity) }}
               </span>
               <span class="min-w-0 flex-1">
-                <span
-                  class="block text-[11px] font-black truncate text-[var(--text-primary)]"
-                  >{{ item.title }}</span
-                >
+                <span class="block text-[11px] font-black truncate text-[var(--text-primary)]">{{
+                  item.title
+                }}</span>
                 <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">{{
                   item.description
                 }}</span>
@@ -1714,10 +1694,9 @@ onUnmounted(() => {
               @click="navigateInsight(task.targetRoute)"
             >
               <span class="min-w-0 flex-1">
-                <span
-                  class="block text-[11px] font-black truncate text-[var(--text-primary)]"
-                  >{{ task.title }}</span
-                >
+                <span class="block text-[11px] font-black truncate text-[var(--text-primary)]">{{
+                  task.title
+                }}</span>
                 <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">
                   {{ task.project?.title || '独立任务' }} · {{ taskStatusLabel(task.status) }} ·
                   {{ formatDate(task.dueDate || task.updatedAt) }}
@@ -1759,10 +1738,9 @@ onUnmounted(() => {
               @click="navigateInsight(project.targetRoute)"
             >
               <span class="min-w-0 flex-1">
-                <span
-                  class="block text-[11px] font-black truncate text-[var(--text-primary)]"
-                  >{{ project.title }}</span
-                >
+                <span class="block text-[11px] font-black truncate text-[var(--text-primary)]">{{
+                  project.title
+                }}</span>
                 <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">
                   {{ roleLabel(project.role) }} · {{ project.activeTasks }} 进行 ·
                   {{ project.overdueTasks }} 逾期
@@ -1786,7 +1764,7 @@ onUnmounted(() => {
         </section>
       </div>
 
-      <template #footer v-if="memberInsight">
+      <template v-if="memberInsight" #footer>
         <div class="flex items-center gap-3 w-full">
           <Button
             variant="secondary"
@@ -2015,8 +1993,6 @@ onUnmounted(() => {
   font-size: 12px;
   font-weight: 800;
 }
-
-
 
 .role-select :deep(.el-select__wrapper) {
   min-height: 28px;

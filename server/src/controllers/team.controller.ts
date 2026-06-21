@@ -599,7 +599,8 @@ export const getTeamOverview = async (req: AuthRequest, res: Response, next: Nex
         doneTasks: doneTasks.length,
         overdueTasks: overdueTasks.length,
         dueSoonTasks: dueSoonTasks.length,
-        unassignedTasks: tasks.filter((task) => !task.assigneeId && task.status !== TaskStatus.DONE).length,
+        unassignedTasks: tasks.filter((task) => !task.assigneeId && task.status !== TaskStatus.DONE)
+          .length,
         completedThisWeek: doneTasks.filter((task) => task.updatedAt >= lastSevenDays).length,
         averageProjectProgress: projects.length
           ? Math.round(projectProgressTotal / projects.length)
@@ -1426,7 +1427,9 @@ export const uploadTeamAvatar = async (req: AuthRequest, res: Response, next: Ne
       return next(new AppError('Unauthorized', 403));
     }
 
-    const avatarUrl = (req.file as any).url || `${req.protocol}://${req.get('host')}/uploads/avatars/${req.file.filename}`;
+    const avatarUrl =
+      (req.file as any).url ||
+      `${req.protocol}://${req.get('host')}/uploads/avatars/${req.file.filename}`;
 
     const updated = await prisma.team.update({
       where: { id: teamId },
@@ -1470,7 +1473,9 @@ export const uploadTeamCover = async (req: AuthRequest, res: Response, next: Nex
       return next(new AppError('Unauthorized', 403));
     }
 
-    const coverUrl = (req.file as any).url || `${req.protocol}://${req.get('host')}/uploads/covers/${req.file.filename}`;
+    const coverUrl =
+      (req.file as any).url ||
+      `${req.protocol}://${req.get('host')}/uploads/covers/${req.file.filename}`;
 
     const updated = await prisma.team.update({
       where: { id: teamId },

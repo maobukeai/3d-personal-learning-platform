@@ -33,12 +33,17 @@ const paddingClass = computed(() => {
     class="glass-card rounded-2xl relative flex flex-col overflow-hidden border transition-all duration-500 cubic-bezier-card"
     :class="[
       paddingClass,
-      hoverable ? 'hover:-translate-y-1 hover:shadow-card-hover hover:border-strong dark:hover:border-slate-700' : '',
+      hoverable
+        ? 'hover:-translate-y-1 hover:shadow-card-hover hover:border-strong dark:hover:border-slate-700'
+        : '',
       clickable ? 'cursor-pointer select-none active:scale-[0.99]' : '',
     ]"
   >
     <div class="relative z-10 flex-1 flex flex-col">
-      <div v-if="$slots.header" class="premium-card__header mb-3 pb-3 border-b border-white/10 dark:border-white/10">
+      <div
+        v-if="$slots.header"
+        class="premium-card__header mb-3 pb-3 border-b border-white/10 dark:border-white/10"
+      >
         <slot name="header"></slot>
       </div>
 
@@ -46,7 +51,10 @@ const paddingClass = computed(() => {
         <slot></slot>
       </div>
 
-      <div v-if="$slots.footer" class="premium-card__footer mt-3 pt-3 border-t border-white/10 dark:border-white/10">
+      <div
+        v-if="$slots.footer"
+        class="premium-card__footer mt-3 pt-3 border-t border-white/10 dark:border-white/10"
+      >
         <slot name="footer"></slot>
       </div>
     </div>

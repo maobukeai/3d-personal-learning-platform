@@ -651,21 +651,38 @@ onMounted(refreshAll);
               <Sparkles />
               <h3>处理流程</h3>
             </div>
-            <div class="process-timeline relative pl-4 mt-2 before:content-[''] before:absolute before:left-[6px] before:top-2 before:bottom-2 before:w-[2px] before:bg-[var(--border-base)]">
+            <div
+              class="process-timeline relative pl-4 mt-2 before:content-[''] before:absolute before:left-[6px] before:top-2 before:bottom-2 before:w-[2px] before:bg-[var(--border-base)]"
+            >
               <div class="timeline-item relative pb-4">
-                <span class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[8px] font-bold text-[var(--accent)] shrink-0">1</span>
+                <span
+                  class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[8px] font-bold text-[var(--accent)] shrink-0"
+                  >1</span
+                >
                 <h4 class="text-xs font-bold text-[var(--text-primary)] pl-2">提交接收</h4>
-                <p class="text-[11px] text-[var(--text-muted)] mt-1 pl-2">系统记录问题截图、关联链接与工单优先级，并即时推送到后台管理员队列。</p>
+                <p class="text-[11px] text-[var(--text-muted)] mt-1 pl-2">
+                  系统记录问题截图、关联链接与工单优先级，并即时推送到后台管理员队列。
+                </p>
               </div>
               <div class="timeline-item relative pb-4">
-                <span class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[8px] font-bold text-[var(--accent)] shrink-0">2</span>
+                <span
+                  class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[8px] font-bold text-[var(--accent)] shrink-0"
+                  >2</span
+                >
                 <h4 class="text-xs font-bold text-[var(--text-primary)] pl-2">分析与处理</h4>
-                <p class="text-[11px] text-[var(--text-muted)] mt-1 pl-2">管理员根据您填写的重现信息与链接进行分析定位，并更新工单解决进度。</p>
+                <p class="text-[11px] text-[var(--text-muted)] mt-1 pl-2">
+                  管理员根据您填写的重现信息与链接进行分析定位，并更新工单解决进度。
+                </p>
               </div>
               <div class="timeline-item relative">
-                <span class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[8px] font-bold text-[var(--accent)] shrink-0">3</span>
+                <span
+                  class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[8px] font-bold text-[var(--accent)] shrink-0"
+                  >3</span
+                >
                 <h4 class="text-xs font-bold text-[var(--text-primary)] pl-2">确认与回访</h4>
-                <p class="text-[11px] text-[var(--text-muted)] mt-1 pl-2">您将在“我的工单”和通知中心收到反馈，确认已解决后即可自主关闭工单。</p>
+                <p class="text-[11px] text-[var(--text-muted)] mt-1 pl-2">
+                  您将在“我的工单”和通知中心收到反馈，确认已解决后即可自主关闭工单。
+                </p>
               </div>
             </div>
           </Card>
@@ -678,25 +695,47 @@ onMounted(refreshAll);
             <div class="quality-list space-y-2 mt-2">
               <div class="flex items-center justify-between text-xs py-1 border-b border-base/40">
                 <span class="text-[var(--text-secondary)]">标题长度 (≥3字)</span>
-                <span class="font-mono text-[11px]" :class="bugForm.title.trim().length >= 3 ? 'text-emerald-500 font-bold' : 'text-amber-500'">
+                <span
+                  class="font-mono text-[11px]"
+                  :class="
+                    bugForm.title.trim().length >= 3
+                      ? 'text-emerald-500 font-bold'
+                      : 'text-amber-500'
+                  "
+                >
                   {{ bugForm.title.trim().length }}/3
                 </span>
               </div>
               <div class="flex items-center justify-between text-xs py-1 border-b border-base/40">
                 <span class="text-[var(--text-secondary)]">问题描述 (≥15字)</span>
-                <span class="font-mono text-[11px]" :class="bugForm.description.trim().length >= 15 ? 'text-emerald-500 font-bold' : 'text-amber-500'">
+                <span
+                  class="font-mono text-[11px]"
+                  :class="
+                    bugForm.description.trim().length >= 15
+                      ? 'text-emerald-500 font-bold'
+                      : 'text-amber-500'
+                  "
+                >
                   {{ bugForm.description.trim().length }}/15
                 </span>
               </div>
               <div class="flex items-center justify-between text-xs py-1 border-b border-base/40">
                 <span class="text-[var(--text-secondary)]">页面链接关联</span>
-                <Badge :variant="bugForm.pageUrl.trim() ? 'success' : 'warning'" size="sm" class="!px-1.5 !py-0.5 text-[10px]">
+                <Badge
+                  :variant="bugForm.pageUrl.trim() ? 'success' : 'warning'"
+                  size="sm"
+                  class="!px-1.5 !py-0.5 text-[10px]"
+                >
                   {{ bugForm.pageUrl.trim() ? '已关联' : '无链接' }}
                 </Badge>
               </div>
               <div class="flex items-center justify-between text-xs py-1">
                 <span class="text-[var(--text-secondary)]">图片截图附件</span>
-                <Badge :variant="bugForm.attachmentUrl ? 'success' : 'primary'" size="sm" class="!px-1.5 !py-0.5 text-[10px]">
+                <Badge
+                  :variant="bugForm.attachmentUrl ? 'success' : 'primary'"
+                  size="sm"
+                  class="!px-1.5 !py-0.5 text-[10px]"
+                >
                   {{ bugForm.attachmentUrl ? '已上传' : '无附件' }}
                 </Badge>
               </div>
@@ -1468,7 +1507,11 @@ button:disabled {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 70%, white) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--accent) 0%,
+    color-mix(in srgb, var(--accent) 70%, white) 100%
+  );
   box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 

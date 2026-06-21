@@ -18,7 +18,15 @@ export interface QuotaStatus {
  */
 async function getUserPlan(userId: string) {
   const cacheKey = `user_plan:${userId}`;
-  const cached = await redisService.get<{ id: string; name: string; maxAssets: number; maxStorage: number; maxTeams: number; maxProjects: number; priority: number }>(cacheKey);
+  const cached = await redisService.get<{
+    id: string;
+    name: string;
+    maxAssets: number;
+    maxStorage: number;
+    maxTeams: number;
+    maxProjects: number;
+    priority: number;
+  }>(cacheKey);
   if (cached) return cached;
 
   const subscription = await prisma.subscription.findUnique({

@@ -286,20 +286,8 @@ onUnmounted(() => {
     </div>
 
     <template #footer>
-      <Button
-        variant="secondary"
-        size="sm"
-        @click="visible = false"
-      >
-        取消
-      </Button>
-      <Button
-        variant="primary"
-        size="sm"
-        @click="submitAddAccount"
-      >
-        保存账号
-      </Button>
+      <Button variant="secondary" size="sm" @click="visible = false"> 取消 </Button>
+      <Button variant="primary" size="sm" @click="submitAddAccount"> 保存账号 </Button>
     </template>
   </Modal>
 </template>

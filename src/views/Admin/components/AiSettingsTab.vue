@@ -723,8 +723,7 @@ const submitCategoryDialog = () => {
   }
 
   if (categoryDialog.value.mode === 'create') {
-    const key =
-      'custom_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+    const key = 'custom_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
     customCategories.value.push({ key, label: name });
     syncCustomCategoriesToSettings();
     // Expand by default when created
@@ -2650,7 +2649,9 @@ onMounted(() => {
   >
     <div class="space-y-4">
       <div>
-        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+        <label
+          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+        >
           {{ categoryDialogLabel }}
         </label>
         <input
@@ -2668,12 +2669,8 @@ onMounted(() => {
     </div>
     <template #footer>
       <div class="flex items-center gap-3">
-        <Button variant="secondary" size="md" @click="categoryDialog.show = false">
-          取消
-        </Button>
-        <Button variant="primary" size="md" @click="submitCategoryDialog">
-          确定
-        </Button>
+        <Button variant="secondary" size="md" @click="categoryDialog.show = false"> 取消 </Button>
+        <Button variant="primary" size="md" @click="submitCategoryDialog"> 确定 </Button>
       </div>
     </template>
   </Modal>

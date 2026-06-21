@@ -68,7 +68,10 @@ export const useWorkspaceStore = defineStore('workspace', {
     },
     activeTeamId(): string | null {
       const id = this.activeWorkspaceId;
-      return id && id !== 'admin-workspace' ? id : null;
+      if (!id || id === 'admin-workspace' || id.startsWith('mirror-') || id.startsWith('manual-')) {
+        return null;
+      }
+      return id;
     },
   },
   actions: {

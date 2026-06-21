@@ -1543,11 +1543,7 @@ async function handleImportFile(event: Event) {
               >
                 {{ t('tools.googleWarming.cancel_btn') }}
               </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                @click="submitImport"
-              >
+              <Button variant="primary" size="sm" @click="submitImport">
                 {{ t('tools.googleWarming.importConfirm', { count: parsedAccounts.length }) }}
               </Button>
             </div>
@@ -1659,20 +1655,10 @@ async function handleImportFile(event: Event) {
           </div>
 
           <div class="flex justify-end gap-2 pt-2 gw-border-top">
-            <Button
-              variant="secondary"
-              size="sm"
-              @click="isEditDialogVisible = false"
-            >
+            <Button variant="secondary" size="sm" @click="isEditDialogVisible = false">
               {{ t('tools.googleWarming.cancel_btn') }}
             </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              @click="saveAccountEdit"
-            >
-              保存修改
-            </Button>
+            <Button variant="primary" size="sm" @click="saveAccountEdit"> 保存修改 </Button>
           </div>
         </div>
       </Modal>
@@ -1793,18 +1779,10 @@ async function handleImportFile(event: Event) {
               安全提示：请妥善保存您的密码
             </span>
             <div class="flex gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                @click="isPasswordGenVisible = false"
-              >
+              <Button variant="secondary" size="sm" @click="isPasswordGenVisible = false">
                 关闭
               </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                @click="generateDialogPassword"
-              >
+              <Button variant="primary" size="sm" @click="generateDialogPassword">
                 <Sparkles class="w-3.5 h-3.5" />
                 <span>重新生成</span>
               </Button>

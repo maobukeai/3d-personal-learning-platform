@@ -422,11 +422,7 @@ onBeforeUnmount(() => {
         <template #center>
           <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
             <Search />
-            <input
-              v-model="searchFilter"
-              type="text"
-              placeholder="搜索描述、 IP、操作者..."
-            />
+            <input v-model="searchFilter" type="text" placeholder="搜索描述、 IP、操作者..." />
           </label>
         </template>
 
@@ -786,12 +782,7 @@ onBeforeUnmount(() => {
     </main>
 
     <!-- Refactored Log Details Modal using Modal, UserAvatar components with Glassmorphism styles -->
-    <Modal
-      :show="!!selectedLog"
-      size="xl"
-      glass-card
-      @close="selectedLog = null"
-    >
+    <Modal :show="!!selectedLog" size="xl" glass-card @close="selectedLog = null">
       <template #header>
         <div v-if="selectedLog" class="flex items-center justify-between w-full pr-8 text-left">
           <div>
@@ -842,20 +833,30 @@ onBeforeUnmount(() => {
           <div class="drawer-user flex items-center gap-2.5 mt-2">
             <UserAvatar :user="selectedLog.user" size="md" />
             <div>
-              <strong class="block text-sm font-black text-[var(--text-primary)]">{{ getActorName(selectedLog.user) }}</strong>
-              <span class="block text-xs text-[var(--text-secondary)] mt-0.5">{{ selectedLog.user?.email || 'SYSTEM' }}</span>
+              <strong class="block text-sm font-black text-[var(--text-primary)]">{{
+                getActorName(selectedLog.user)
+              }}</strong>
+              <span class="block text-xs text-[var(--text-secondary)] mt-0.5">{{
+                selectedLog.user?.email || 'SYSTEM'
+              }}</span>
             </div>
           </div>
         </section>
 
         <section class="detail-section">
           <h3>描述</h3>
-          <p class="text-sm text-[var(--text-secondary)] mt-1.5">{{ selectedLog.description || '无' }}</p>
+          <p class="text-sm text-[var(--text-secondary)] mt-1.5">
+            {{ selectedLog.description || '无' }}
+          </p>
         </section>
 
         <section class="detail-section">
           <h3>User Agent</h3>
-          <p class="break-text text-xs text-[var(--text-secondary)] mt-1.5 font-medium leading-relaxed">{{ selectedLog.userAgent || '无' }}</p>
+          <p
+            class="break-text text-xs text-[var(--text-secondary)] mt-1.5 font-medium leading-relaxed"
+          >
+            {{ selectedLog.userAgent || '无' }}
+          </p>
         </section>
 
         <div class="json-grid">
@@ -1556,8 +1557,6 @@ button:disabled {
   font-size: 11px;
   font-weight: 800;
 }
-
-
 
 .detail-grid {
   display: grid;

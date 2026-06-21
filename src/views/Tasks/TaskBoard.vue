@@ -41,7 +41,6 @@ import TaskAddDialog from '@/components/TaskAddDialog.vue';
 import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue';
 import TaskFilterBar from '@/components/TaskFilterBar.vue';
 import Tabs from '@/components/ui/Tabs.vue';
-import Input from '@/components/ui/Input.vue';
 import TaskBoardView from './components/TaskBoardView.vue';
 import TaskListView from './components/TaskListView.vue';
 import TaskCalendarView from './components/TaskCalendarView.vue';
@@ -1093,9 +1092,7 @@ onActivated(() => {
 </script>
 
 <template>
-  <div
-    class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
-  >
+  <div class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300">
     <!-- Header -->
     <div
       class="h-auto md:h-13 px-4 sm:px-6 py-3 md:py-0 flex flex-col md:grid md:grid-cols-3 md:items-center shrink-0 border-b transition-colors duration-300 gap-3"
@@ -1151,11 +1148,7 @@ onActivated(() => {
       <div class="flex justify-center w-full md:w-auto">
         <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
           <Search />
-          <input
-            v-model="searchQuery"
-            type="text"
-            :placeholder="t('tasks.searchPlaceholder')"
-          />
+          <input v-model="searchQuery" type="text" :placeholder="t('tasks.searchPlaceholder')" />
         </label>
       </div>
 

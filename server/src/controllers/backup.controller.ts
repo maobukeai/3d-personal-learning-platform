@@ -18,22 +18,33 @@ const getWebDAVConfig = async (userId: string) => {
     where: {
       userId,
       key: {
-        in: ['WEBDAV_URL', 'WEBDAV_USERNAME', 'WEBDAV_PASSWORD', 'WEBDAV_DIR', 'WEBDAV_RETENTION_DAYS'],
+        in: [
+          'WEBDAV_URL',
+          'WEBDAV_USERNAME',
+          'WEBDAV_PASSWORD',
+          'WEBDAV_DIR',
+          'WEBDAV_RETENTION_DAYS',
+        ],
       },
     },
   });
 
-  const configMap = settings.reduce((acc, curr) => {
-    acc[curr.key] = curr.value;
-    return acc;
-  }, {} as Record<string, string>);
+  const configMap = settings.reduce(
+    (acc, curr) => {
+      acc[curr.key] = curr.value;
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
 
   return {
     url: configMap['WEBDAV_URL'] || '',
     username: configMap['WEBDAV_USERNAME'] || '',
     password: configMap['WEBDAV_PASSWORD'] ? decryptSecret(configMap['WEBDAV_PASSWORD']) || '' : '',
     dir: configMap['WEBDAV_DIR'] || '3d-learning-platform-backups',
-    retentionDays: configMap['WEBDAV_RETENTION_DAYS'] ? parseInt(configMap['WEBDAV_RETENTION_DAYS'], 10) : 15,
+    retentionDays: configMap['WEBDAV_RETENTION_DAYS']
+      ? parseInt(configMap['WEBDAV_RETENTION_DAYS'], 10)
+      : 15,
   };
 };
 
@@ -79,7 +90,8 @@ export const saveBackupConfig = async (req: AuthRequest, res: Response, next: Ne
       await upsertSetting('WEBDAV_PASSWORD', encryptSecret(password) || '');
     }
     if (dir !== undefined) await upsertSetting('WEBDAV_DIR', dir);
-    if (retentionDays !== undefined) await upsertSetting('WEBDAV_RETENTION_DAYS', String(retentionDays));
+    if (retentionDays !== undefined)
+      await upsertSetting('WEBDAV_RETENTION_DAYS', String(retentionDays));
 
     res.json({ message: '配置保存成功' });
   } catch (error) {
@@ -215,7 +227,9 @@ export const runBackup = async (req: AuthRequest, res: Response, next: NextFunct
         user2fa: {
           twoFactorEnabled: user?.twoFactorEnabled || false,
           twoFactorSecret: user?.twoFactorSecret ? decryptSecret(user.twoFactorSecret) : null,
-          twoFactorRecoveryCodes: user?.twoFactorRecoveryCodes ? decryptSecret(user.twoFactorRecoveryCodes) : null,
+          twoFactorRecoveryCodes: user?.twoFactorRecoveryCodes
+            ? decryptSecret(user.twoFactorRecoveryCodes)
+            : null,
         },
       };
     }
@@ -367,7 +381,11 @@ export const runBackup = async (req: AuthRequest, res: Response, next: NextFunct
     await prisma.userSetting.upsert({
       where: { userId_key: { userId, key: 'WEBDAV_LAST_BACKUP' } },
       update: { value: `${new Date().toISOString()}|${filename}` },
-      create: { userId, key: 'WEBDAV_LAST_BACKUP', value: `${new Date().toISOString()}|${filename}` },
+      create: {
+        userId,
+        key: 'WEBDAV_LAST_BACKUP',
+        value: `${new Date().toISOString()}|${filename}`,
+      },
     });
 
     res.json({ success: true, filename, message: '备份成功并已上传至云端！' });
@@ -393,7 +411,9 @@ export const listBackups = async (req: AuthRequest, res: Response, next: NextFun
 
     // Filter only files matching cockpit_manual_backup_*.zip
     const filteredFiles = files
-      .filter((file) => file.name.startsWith('cockpit_manual_backup_') && file.name.endsWith('.zip'))
+      .filter(
+        (file) => file.name.startsWith('cockpit_manual_backup_') && file.name.endsWith('.zip'),
+      )
       .map((file) => ({
         name: file.name,
         size: file.size,
@@ -700,7 +720,9 @@ export const restoreBackup = async (req: AuthRequest, res: Response, next: NextF
           where: { id: userId },
           data: {
             twoFactorEnabled: twoFactor.user2fa.twoFactorEnabled,
-            twoFactorSecret: twoFactor.user2fa.twoFactorSecret ? encryptSecret(twoFactor.user2fa.twoFactorSecret) : null,
+            twoFactorSecret: twoFactor.user2fa.twoFactorSecret
+              ? encryptSecret(twoFactor.user2fa.twoFactorSecret)
+              : null,
             twoFactorRecoveryCodes: twoFactor.user2fa.twoFactorRecoveryCodes
               ? encryptSecret(twoFactor.user2fa.twoFactorRecoveryCodes)
               : null,
@@ -724,7 +746,9 @@ export const restoreBackup = async (req: AuthRequest, res: Response, next: NextF
               bucketName: config.bucketName,
               publicUrl: config.publicUrl,
               cloudflareAccountId: config.cloudflareAccountId,
-              cloudflareApiToken: config.cloudflareApiToken ? encrypt(config.cloudflareApiToken) : null,
+              cloudflareApiToken: config.cloudflareApiToken
+                ? encrypt(config.cloudflareApiToken)
+                : null,
               remark: config.remark,
               limitGb: config.limitGb,
               usedBytes: config.usedBytes,
@@ -743,7 +767,9 @@ export const restoreBackup = async (req: AuthRequest, res: Response, next: NextF
               bucketName: config.bucketName,
               publicUrl: config.publicUrl,
               cloudflareAccountId: config.cloudflareAccountId,
-              cloudflareApiToken: config.cloudflareApiToken ? encrypt(config.cloudflareApiToken) : null,
+              cloudflareApiToken: config.cloudflareApiToken
+                ? encrypt(config.cloudflareApiToken)
+                : null,
               remark: config.remark,
               limitGb: config.limitGb,
               usedBytes: config.usedBytes,
@@ -883,12 +909,18 @@ export const restoreBackup = async (req: AuthRequest, res: Response, next: NextF
     await prisma.userSetting.upsert({
       where: { userId_key: { userId, key: 'WEBDAV_LAST_RESTORE' } },
       update: { value: `${new Date().toISOString()}|${filename}` },
-      create: { userId, key: 'WEBDAV_LAST_RESTORE', value: `${new Date().toISOString()}|${filename}` },
+      create: {
+        userId,
+        key: 'WEBDAV_LAST_RESTORE',
+        value: `${new Date().toISOString()}|${filename}`,
+      },
     });
 
     res.json({ success: true, message: '备份数据恢复成功！相关功能配置已更新。' });
   } catch (error: any) {
     logger.error('[Backup] Restore failed:', error.message);
-    res.status(500).json({ error: error.message || '恢复备份失败，请检查云端连接或备份文件完整性' });
+    res
+      .status(500)
+      .json({ error: error.message || '恢复备份失败，请检查云端连接或备份文件完整性' });
   }
 };

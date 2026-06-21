@@ -139,12 +139,7 @@ const riskClass = (user: AdminUser) => ({
 </script>
 
 <template>
-  <Modal
-    :show="modelValue"
-    size="xl"
-    glass-card
-    @close="emit('update:modelValue', false)"
-  >
+  <Modal :show="modelValue" size="xl" glass-card @close="emit('update:modelValue', false)">
     <template #header>
       <div v-if="user" class="drawer-hero text-left">
         <UserAvatar :user="user" size="xl" />
@@ -168,16 +163,15 @@ const riskClass = (user: AdminUser) => ({
 
     <div v-if="user" class="drawer-body text-left">
       <div class="drawer-actions">
-        <Button size="sm" :icon="UserCog" @click="emit('edit', user)">
-          编辑
-        </Button>
-        <Button size="sm" :icon="CreditCard" @click="emit('subscription', user)">
-          订阅
-        </Button>
-        <Button size="sm" :icon="KeyRound" @click="emit('reset-password', user)">
-          密码
-        </Button>
-        <Button variant="danger" size="sm" :icon="TimerReset" @click="emit('revoke-sessions', user)">
+        <Button size="sm" :icon="UserCog" @click="emit('edit', user)"> 编辑 </Button>
+        <Button size="sm" :icon="CreditCard" @click="emit('subscription', user)"> 订阅 </Button>
+        <Button size="sm" :icon="KeyRound" @click="emit('reset-password', user)"> 密码 </Button>
+        <Button
+          variant="danger"
+          size="sm"
+          :icon="TimerReset"
+          @click="emit('revoke-sessions', user)"
+        >
           清退
         </Button>
       </div>

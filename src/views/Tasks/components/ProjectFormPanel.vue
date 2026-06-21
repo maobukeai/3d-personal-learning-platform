@@ -246,10 +246,9 @@ defineExpose({
         </div>
         <div>
           <div class="flex items-center justify-between mb-1">
-            <label
-              class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >{{ t('projects.autoProgressTip') }}</label
-            >
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
+              t('projects.autoProgressTip')
+            }}</label>
             <span class="text-xs font-black text-accent">{{ projectForm.progress }}%</span>
           </div>
           <div class="px-1.5 py-0.5">

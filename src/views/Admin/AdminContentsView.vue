@@ -30,7 +30,6 @@ import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import UiButton from '@/components/ui/Button.vue';
-import UiInput from '@/components/ui/Input.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
 
 type ContentTab = 'assets' | 'materials' | 'showcases' | 'plugins';

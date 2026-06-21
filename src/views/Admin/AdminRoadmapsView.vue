@@ -35,7 +35,6 @@ import { getApiErrorMessage } from '@/utils/error';
 import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
 import { parseMarkdownToPlanJson } from '@/utils/planParser';
 
-
 interface RoadmapStep {
   id?: string;
   title: string;
@@ -86,11 +85,15 @@ const handleAiGenerate = async () => {
   // If there are existing edits, warn the user
   if (editForm.value.title.trim() || editForm.value.steps.some((s) => s.title.trim())) {
     try {
-      await ElMessageBox.confirm('AI 生成路线将会覆盖当前已填写的内容，确定要继续吗？', '确认提示', {
-        confirmButtonText: '确定覆盖',
-        cancelButtonText: '取消',
-        type: 'warning',
-      });
+      await ElMessageBox.confirm(
+        'AI 生成路线将会覆盖当前已填写的内容，确定要继续吗？',
+        '确认提示',
+        {
+          confirmButtonText: '确定覆盖',
+          cancelButtonText: '取消',
+          type: 'warning',
+        },
+      );
     } catch {
       return;
     }
@@ -164,7 +167,7 @@ const handleAiGenerate = async () => {
       },
       (err) => {
         throw err;
-      }
+      },
     );
 
     // Final authoritative parse
@@ -442,11 +445,7 @@ onMounted(() => {
     class="admin-roadmaps-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
-      <PageHeader
-        title="官方学习路线管理"
-        subtitle="定义和维护官方 3D 学习图谱"
-        variant="card"
-      >
+      <PageHeader title="官方学习路线管理" subtitle="定义和维护官方 3D 学习图谱" variant="card">
         <template #title-badge>
           <div class="flex items-center gap-1.5 ml-2">
             <Badge variant="info"> 官方路线: {{ totalRoadmapsCount }} </Badge>
@@ -677,7 +676,10 @@ onMounted(() => {
                           class="absolute -left-[14px] top-1 w-2 h-2 rounded-full bg-indigo-500 ring-2 ring-white dark:ring-slate-900"
                         ></div>
                         <div class="min-w-0 flex-1">
-                          <h4 class="text-[11px] font-bold truncate" style="color: var(--text-primary)">
+                          <h4
+                            class="text-[11px] font-bold truncate"
+                            style="color: var(--text-primary)"
+                          >
                             {{ step.title }}
                           </h4>
                           <p class="text-[8px] text-slate-400 truncate mt-0.2">
@@ -743,7 +745,13 @@ onMounted(() => {
     </main>
 
     <!-- Unified Edit Modal (One-stop Roadmap & Steps Editor) -->
-    <Modal :show="showEditModal" size="xxl" padding="none" glass-card @close="showEditModal = false">
+    <Modal
+      :show="showEditModal"
+      size="xxl"
+      padding="none"
+      glass-card
+      @close="showEditModal = false"
+    >
       <div
         class="w-full p-6 sm:p-8 transition-colors duration-300 flex flex-col max-h-[90vh] overflow-hidden relative"
       >
@@ -794,7 +802,10 @@ onMounted(() => {
               <div
                 class="text-xs font-black text-indigo-500 uppercase tracking-widest flex items-center gap-1.5"
               >
-                <Wand2 class="w-3.5 h-3.5 text-indigo-500" :class="{ 'animate-spin': isAiGenerating }" />
+                <Wand2
+                  class="w-3.5 h-3.5 text-indigo-500"
+                  :class="{ 'animate-spin': isAiGenerating }"
+                />
                 <span>AI 智能生成路线</span>
               </div>
               <p class="text-[10px] text-slate-400 leading-relaxed">

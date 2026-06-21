@@ -57,8 +57,7 @@ const filteredPlans = computed(() => {
   if (!q) return _props.plans;
   return _props.plans.filter(
     (plan) =>
-      plan.name.toLowerCase().includes(q) ||
-      (plan.displayName || '').toLowerCase().includes(q),
+      plan.name.toLowerCase().includes(q) || (plan.displayName || '').toLowerCase().includes(q),
   );
 });
 
@@ -298,19 +297,18 @@ const getPlanIcon = (name: string) => {
     </div>
 
     <!-- Plan Edit/Create Dialog -->
-    <Modal
-      :show="showPlanDialog"
-      size="lg"
-      glass-card
-      @close="showPlanDialog = false"
-    >
+    <Modal :show="showPlanDialog" size="lg" glass-card @close="showPlanDialog = false">
       <template #header>
         <div>
           <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
             {{ editingPlan ? t('admin.edit_plan') : $t('admin.new_plan') }}
           </h3>
           <p class="text-xs text-slate-400 mt-1">
-            {{ editingPlan ? '修改和调整当前订阅方案的计费和配额参数' : '配置一个新的系统订阅和计费方案' }}
+            {{
+              editingPlan
+                ? '修改和调整当前订阅方案的计费和配额参数'
+                : '配置一个新的系统订阅和计费方案'
+            }}
           </p>
         </div>
       </template>
@@ -515,9 +513,7 @@ const getPlanIcon = (name: string) => {
               :placeholder="$t('admin.enter_the_function_description')"
               @keyup.enter="addFeature"
             />
-            <Button variant="primary" size="sm" @click="addFeature">
-              添加
-            </Button>
+            <Button variant="primary" size="sm" @click="addFeature"> 添加 </Button>
           </div>
           <div class="flex flex-wrap gap-2 mt-2">
             <span
@@ -540,9 +536,7 @@ const getPlanIcon = (name: string) => {
 
       <template #footer>
         <div class="flex items-center gap-3">
-          <Button variant="secondary" size="md" @click="showPlanDialog = false">
-            取消
-          </Button>
+          <Button variant="secondary" size="md" @click="showPlanDialog = false"> 取消 </Button>
           <Button variant="primary" size="md" :icon="Save" @click="handleSavePlan">
             {{ editingPlan ? t('admin.save_changes_1') : $t('admin.create_plan') }}
           </Button>

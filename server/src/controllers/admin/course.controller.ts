@@ -522,7 +522,6 @@ export const deleteRoadmapStep = async (req: AuthRequest, res: Response, next: N
   }
 };
 
-
 export const aiGenerateRoadmap = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { prompt } = req.body;
   if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {

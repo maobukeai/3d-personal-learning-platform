@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, watch, computed } from 'vue';
-import { Ticket, Trash2, Copy, Search, X } from 'lucide-vue-next';
+import { Ticket, Trash2, Copy } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getApiErrorMessage } from '@/utils/error';
 import api from '@/utils/api';
@@ -525,12 +525,7 @@ const copyToClipboard = (text: string) => {
     </div>
 
     <!-- Code Generate Dialog -->
-    <Modal
-      :show="showCodeDialog"
-      size="md"
-      glass-card
-      @close="showCodeDialog = false"
-    >
+    <Modal :show="showCodeDialog" size="md" glass-card @close="showCodeDialog = false">
       <template #header>
         <div>
           <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
@@ -584,9 +579,7 @@ const copyToClipboard = (text: string) => {
                     ? 'rgba(var(--color-primary-rgb, 14, 165, 233), 0.15)'
                     : 'transparent',
                 borderColor:
-                  codeForm.durationPreset === preset.value
-                    ? 'var(--accent)'
-                    : 'var(--border-base)',
+                  codeForm.durationPreset === preset.value ? 'var(--accent)' : 'var(--border-base)',
                 color:
                   codeForm.durationPreset === preset.value
                     ? 'var(--accent)'
@@ -711,10 +704,13 @@ const copyToClipboard = (text: string) => {
 
       <template #footer>
         <div class="flex items-center gap-3">
-          <Button variant="secondary" size="md" @click="showCodeDialog = false">
-            取消
-          </Button>
-          <Button variant="primary" size="md" :loading="isGeneratingCodes" @click="handleGenerateCodes">
+          <Button variant="secondary" size="md" @click="showCodeDialog = false"> 取消 </Button>
+          <Button
+            variant="primary"
+            size="md"
+            :loading="isGeneratingCodes"
+            @click="handleGenerateCodes"
+          >
             {{ $t('admin.generate_activation_code') }}
           </Button>
         </div>

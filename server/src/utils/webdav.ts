@@ -21,8 +21,8 @@ export class WebDAVClient {
     this.client = axios.create({
       baseURL: baseUrl,
       headers: {
-        'Authorization': 'Basic ' + Buffer.from(`${username}:${passwordSecret}`).toString('base64'),
-        'Accept': '*/*',
+        Authorization: 'Basic ' + Buffer.from(`${username}:${passwordSecret}`).toString('base64'),
+        Accept: '*/*',
       },
       // Do not throw on 404 for folder existence checks, we handle it manually
       validateStatus: (status) => (status >= 200 && status < 300) || status === 404,
@@ -37,7 +37,7 @@ export class WebDAVClient {
       const response = await this.client.request({
         method: 'PROPFIND',
         url: '',
-        headers: { 'Depth': '0' },
+        headers: { Depth: '0' },
       });
       if (response.status === 401 || response.status === 403) {
         throw new Error('认证失败，请检查账号和应用密码');
@@ -63,22 +63,24 @@ export class WebDAVClient {
       const response = await this.client.request({
         method: 'PROPFIND',
         url: `${encodeURIComponent(this.dir)}/`,
-        headers: { 'Depth': '0' },
+        headers: { Depth: '0' },
       });
 
       if (response.status === 404) {
         logger.info(`[WebDAV] Directory '${this.dir}' not found. Creating...`);
-        
+
         // We will split the directory path in case it is nested
         const parts = this.dir.split('/');
         let currentPath = '';
         for (const part of parts) {
           if (!part) continue;
-          currentPath = currentPath ? `${currentPath}/${encodeURIComponent(part)}` : encodeURIComponent(part);
+          currentPath = currentPath
+            ? `${currentPath}/${encodeURIComponent(part)}`
+            : encodeURIComponent(part);
           const checkSub = await this.client.request({
             method: 'PROPFIND',
             url: `${currentPath}/`,
-            headers: { 'Depth': '0' },
+            headers: { Depth: '0' },
           });
           if (checkSub.status === 404) {
             const mkcolRes = await this.client.request({
@@ -102,7 +104,9 @@ export class WebDAVClient {
    */
   async uploadFile(filename: string, fileBuffer: Buffer): Promise<void> {
     await this.ensureDirExists();
-    const url = this.dir ? `${encodeURIComponent(this.dir)}/${encodeURIComponent(filename)}` : encodeURIComponent(filename);
+    const url = this.dir
+      ? `${encodeURIComponent(this.dir)}/${encodeURIComponent(filename)}`
+      : encodeURIComponent(filename);
     try {
       const response = await this.client.put(url, fileBuffer, {
         headers: {
@@ -122,7 +126,9 @@ export class WebDAVClient {
    * Download file from WebDAV
    */
   async downloadFile(filename: string): Promise<Buffer> {
-    const url = this.dir ? `${encodeURIComponent(this.dir)}/${encodeURIComponent(filename)}` : encodeURIComponent(filename);
+    const url = this.dir
+      ? `${encodeURIComponent(this.dir)}/${encodeURIComponent(filename)}`
+      : encodeURIComponent(filename);
     try {
       const response = await this.client.get(url, {
         responseType: 'arraybuffer',
@@ -141,7 +147,9 @@ export class WebDAVClient {
    * Delete file on WebDAV
    */
   async deleteFile(filename: string): Promise<void> {
-    const url = this.dir ? `${encodeURIComponent(this.dir)}/${encodeURIComponent(filename)}` : encodeURIComponent(filename);
+    const url = this.dir
+      ? `${encodeURIComponent(this.dir)}/${encodeURIComponent(filename)}`
+      : encodeURIComponent(filename);
     try {
       const response = await this.client.delete(url);
       if (response.status === 404) {
@@ -167,7 +175,7 @@ export class WebDAVClient {
       const response = await this.client.request({
         method: 'PROPFIND',
         url,
-        headers: { 'Depth': '1' },
+        headers: { Depth: '1' },
       });
 
       if (response.status === 404) {
@@ -186,17 +194,24 @@ export class WebDAVClient {
         const basename = path.basename(decodedHref);
 
         // Check if it's a directory (collection)
-        const isCollection = $(elem).find('resourcetype, d\\:resourcetype, D\\:resourcetype').find('collection, d\\:collection, D\\:collection').length > 0;
-        
+        const isCollection =
+          $(elem)
+            .find('resourcetype, d\\:resourcetype, D\\:resourcetype')
+            .find('collection, d\\:collection, D\\:collection').length > 0;
+
         // Skip directories and empty file names
         if (isCollection || !basename) {
           return;
         }
 
-        const sizeStr = $(elem).find('getcontentlength, d\\:getcontentlength, D\\:getcontentlength').text();
+        const sizeStr = $(elem)
+          .find('getcontentlength, d\\:getcontentlength, D\\:getcontentlength')
+          .text();
         const size = sizeStr ? parseInt(sizeStr, 10) : 0;
-        
-        const lastModStr = $(elem).find('getlastmodified, d\\:getlastmodified, D\\:getlastmodified').text();
+
+        const lastModStr = $(elem)
+          .find('getlastmodified, d\\:getlastmodified, D\\:getlastmodified')
+          .text();
         const lastModified = lastModStr ? new Date(lastModStr) : new Date();
 
         files.push({

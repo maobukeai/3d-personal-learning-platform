@@ -57,7 +57,10 @@ export const checkMaintenanceMode = async (req: Request, res: Response, next: Ne
     // If the settings service fails (e.g. DB unreachable), don't block the
     // site, but record the failure so silent maintenance-mode bypasses are
     // visible during incident investigation.
-    logger.warn('[MaintenanceMiddleware] Failed to read maintenance mode, allowing request:', error);
+    logger.warn(
+      '[MaintenanceMiddleware] Failed to read maintenance mode, allowing request:',
+      error,
+    );
     next();
   }
 };

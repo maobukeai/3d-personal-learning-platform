@@ -53,7 +53,6 @@ router.get('/ai-chat/history', projectAiController.getAiChatHistory);
 router.delete('/ai-chat/history', projectAiController.clearAiChatHistory);
 router.post('/ai-chat/messages/clean', projectAiController.cleanAiMessages);
 
-
 router.get('/', projectController.getAllProjects);
 router.post('/', projectController.createProject);
 router.post('/import', projectController.importProjectFromText);

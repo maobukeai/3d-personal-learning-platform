@@ -559,23 +559,20 @@ const getStatusLabel = (status: string) => {
     </div>
 
     <!-- Subscription Edit/Create Dialog -->
-    <Modal
-      :show="showSubDialog"
-      size="lg"
-      glass-card
-      @close="showSubDialog = false"
-    >
+    <Modal :show="showSubDialog" size="lg" glass-card @close="showSubDialog = false">
       <template #header>
         <div>
           <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
             {{
-              editingSubscription
-                ? t('admin.edit_subscription')
-                : $t('admin.add_new_subscription')
+              editingSubscription ? t('admin.edit_subscription') : $t('admin.add_new_subscription')
             }}
           </h3>
           <p class="text-xs text-slate-400 mt-1">
-            {{ editingSubscription ? '修改和管理该用户的产品订阅和账期状态' : '为用户手动分配和开通一个新的产品订阅' }}
+            {{
+              editingSubscription
+                ? '修改和管理该用户的产品订阅和账期状态'
+                : '为用户手动分配和开通一个新的产品订阅'
+            }}
           </p>
         </div>
       </template>
@@ -836,9 +833,7 @@ const getStatusLabel = (status: string) => {
             >
               <component :is="subForm.cancelAtPeriodEnd ? Check : X" class="w-4 h-4" />
               <span class="text-xs font-bold">{{
-                subForm.cancelAtPeriodEnd
-                  ? t('admin.will_be_canceled')
-                  : $t('admin.do_not_cancel')
+                subForm.cancelAtPeriodEnd ? t('admin.will_be_canceled') : $t('admin.do_not_cancel')
               }}</span>
             </button>
           </div>
@@ -847,13 +842,9 @@ const getStatusLabel = (status: string) => {
 
       <template #footer>
         <div class="flex items-center gap-3">
-          <Button variant="secondary" size="md" @click="showSubDialog = false">
-            取消
-          </Button>
+          <Button variant="secondary" size="md" @click="showSubDialog = false"> 取消 </Button>
           <Button variant="primary" size="md" :icon="Save" @click="handleSaveSubscription">
-            {{
-              editingSubscription ? t('admin.save_changes_1') : $t('admin.create_subscription')
-            }}
+            {{ editingSubscription ? t('admin.save_changes_1') : $t('admin.create_subscription') }}
           </Button>
         </div>
       </template>

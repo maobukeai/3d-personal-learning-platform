@@ -78,7 +78,9 @@ export const cleanupLeftoverUploads = async (forceAll = false) => {
     }
 
     if (deletedCount > 0) {
-      logger.info(`[Cleanup] Deleted ${deletedCount} leftover mirror import ZIP files from uploads/feedback.`);
+      logger.info(
+        `[Cleanup] Deleted ${deletedCount} leftover mirror import ZIP files from uploads/feedback.`,
+      );
     }
   } catch (err) {
     logger.error('[Cleanup Error] Failed to cleanup leftover upload files:', err);

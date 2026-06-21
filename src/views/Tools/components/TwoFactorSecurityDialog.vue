@@ -388,12 +388,7 @@ async function submitImport() {
             {{ clockSyncStatus.text }}
           </p>
         </div>
-        <Button
-          variant="primary"
-          size="sm"
-          :loading="isCalibrating"
-          @click="checkClockSync"
-        >
+        <Button variant="primary" size="sm" :loading="isCalibrating" @click="checkClockSync">
           <RefreshCw class="h-3 w-3 mr-1" :class="{ 'animate-spin': isCalibrating }" />
           校准时间
         </Button>
@@ -444,12 +439,7 @@ async function submitImport() {
       </div>
 
       <div class="flex justify-end gap-3 pt-2">
-        <Button
-          variant="primary"
-          full-width
-          :loading="isExporting"
-          @click="submitExportBackup"
-        >
+        <Button variant="primary" full-width :loading="isExporting" @click="submitExportBackup">
           <Download class="h-3.5 w-3.5 mr-1" />
           开始导出
         </Button>

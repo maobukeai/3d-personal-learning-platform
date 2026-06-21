@@ -19,7 +19,6 @@ import {
 import { useAuthStore } from '@/stores/auth';
 import { preferences } from '@/utils/preferences';
 
-import Input from '@/components/ui/Input.vue';
 import ProfileSection from './components/ProfileSection.vue';
 import NotificationSection from './components/NotificationSection.vue';
 import SecuritySection from './components/SecuritySection.vue';

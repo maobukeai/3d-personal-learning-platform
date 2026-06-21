@@ -515,11 +515,7 @@ onUnmounted(() => {
               class="search-box !min-h-0 !h-8 w-full md:w-48 lg:w-64 shrink-0"
             >
               <Search />
-              <input
-                v-model="taskSearchQuery"
-                type="text"
-                placeholder="搜索任务..."
-              />
+              <input v-model="taskSearchQuery" type="text" placeholder="搜索任务..." />
             </label>
           </div>
 

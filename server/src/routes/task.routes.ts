@@ -8,7 +8,12 @@ const router = Router();
 
 router.use(authenticate);
 
-router.post('/upload-image', upload.single('task_image'), validateFileContent, taskController.uploadImage);
+router.post(
+  '/upload-image',
+  upload.single('task_image'),
+  validateFileContent,
+  taskController.uploadImage,
+);
 
 router.get('/stats', taskController.getTaskStats);
 router.get('/', taskController.getAllTasks);
@@ -27,4 +32,3 @@ router.post('/:id/dependencies', taskController.addTaskDependency);
 router.delete('/:id/dependencies/:dependsOnId', taskController.deleteTaskDependency);
 
 export default router;
-

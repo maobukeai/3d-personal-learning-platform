@@ -1100,10 +1100,11 @@ export const uploadImage = async (req: AuthRequest, res: Response, next: NextFun
     }
     const parts = req.file.destination ? req.file.destination.split(/[/\\]/) : [];
     const subFolder = parts[parts.length - 1] || 'tasks';
-    const attachmentUrl = (req.file as any).url || `${req.protocol}://${req.get('host')}/uploads/${subFolder}/${req.file.filename}`;
+    const attachmentUrl =
+      (req.file as any).url ||
+      `${req.protocol}://${req.get('host')}/uploads/${subFolder}/${req.file.filename}`;
     res.json({ url: attachmentUrl });
   } catch (error) {
     next(error);
   }
 };
-

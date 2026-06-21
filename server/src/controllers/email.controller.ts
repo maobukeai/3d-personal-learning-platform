@@ -33,7 +33,11 @@ export class EmailController {
    * Bulk imports Microsoft accounts from a raw text payload
    * Format: email----password----client_id----refreshToken (dual-token generic)
    */
-  public static async importAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async importAccounts(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const { importData, proxy, minDelay, maxDelay, dailyLimit } = req.body;
     const userId = req.userId as string;
 
@@ -59,10 +63,10 @@ export class EmailController {
       if (!line) continue;
       const parts = line.split('----').map((part) => part.trim());
 
-      let email = '';
+      let email: string;
       let password = '';
-      let clientId = '';
-      let token = '';
+      let clientId: string;
+      let token: string;
 
       if (parts.length === 2) {
         // Supported format for updating existing accounts: email----new_refresh_token
@@ -185,7 +189,11 @@ export class EmailController {
   /**
    * Fetches all Microsoft email accounts linked to the user
    */
-  public static async getAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async getAccounts(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     try {
       const accounts = await prisma.microsoftEmailAccount.findMany({
@@ -201,7 +209,11 @@ export class EmailController {
   /**
    * Deletes a Microsoft email account
    */
-  public static async deleteAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async deleteAccount(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
 
@@ -228,7 +240,11 @@ export class EmailController {
   /**
    * Triggers a manual connection test to Microsoft Graph API
    */
-  public static async testAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async testAccount(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
 
@@ -256,7 +272,11 @@ export class EmailController {
   /**
    * Fetches the email folders for a specific account
    */
-  public static async getFolders(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async getFolders(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
 
@@ -280,7 +300,11 @@ export class EmailController {
   /**
    * Fetches messages within a specific folder of a Microsoft account
    */
-  public static async getMessages(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async getMessages(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
     const { folderId, limit } = req.query;
@@ -310,7 +334,11 @@ export class EmailController {
   /**
    * Marks a message as read or unread
    */
-  public static async markMessageRead(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async markMessageRead(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
     const messageId = req.params.messageId as string;
@@ -336,7 +364,11 @@ export class EmailController {
   /**
    * Deletes a message from Microsoft Mail server
    */
-  public static async deleteMessage(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async deleteMessage(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
     const messageId = req.params.messageId as string;
@@ -361,7 +393,11 @@ export class EmailController {
   /**
    * Sends an email from a single account, or using a round-robin strategy
    */
-  public static async sendEmail(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async sendEmail(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const { accountId, to, subject, content } = req.body;
 
@@ -460,7 +496,11 @@ export class EmailController {
   /**
    * Updates credentials or configurations of a Microsoft Email Account
    */
-  public static async updateAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async updateAccount(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
     const { password, clientId, refreshToken, proxy, dailyLimit, minDelay, maxDelay } = req.body;

@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue';
 import type { AdminTeam, AdminTeamUser, TeamVisibility } from '../AdminTeamsView.vue';
 import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -82,6 +83,7 @@ const handleSave = () => {
     :show="modelValue"
     :title="mode === 'create' ? '新建团队' : '编辑团队'"
     size="md"
+    glass-card
     @close="emit('update:modelValue', false)"
   >
     <div class="form-stack">
@@ -115,17 +117,10 @@ const handleSave = () => {
       </label>
     </div>
     <template #footer>
-      <button type="button" class="ghost-btn dialog-btn" @click="emit('update:modelValue', false)">
-        取消
-      </button>
-      <button
-        type="button"
-        class="primary-btn dialog-btn"
-        :disabled="isSubmitting"
-        @click="handleSave"
-      >
-        保存
-      </button>
+      <div class="flex items-center gap-3">
+        <Button variant="secondary" @click="emit('update:modelValue', false)">取消</Button>
+        <Button variant="primary" :loading="isSubmitting" @click="handleSave">保存</Button>
+      </div>
     </template>
   </Modal>
 </template>
@@ -134,65 +129,76 @@ const handleSave = () => {
 .form-stack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .form-stack label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-  font-weight: 800;
-  color: #334155;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
 }
 
 .form-stack input,
 .form-stack select,
 .form-stack textarea {
   width: 100%;
-  min-height: 36px;
-  padding: 0 10px;
-  border: 1px solid #dbe5f2;
-  border-radius: 8px;
-  background: #f8fafc;
-  color: #0f172a;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border-base);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
   outline: none;
   font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+/* Specific background adjustment for theme compatibility */
+html:not(.dark) .form-stack input,
+html:not(.dark) .form-stack select,
+html:not(.dark) .form-stack textarea {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.form-stack input:hover,
+.form-stack select:hover,
+.form-stack textarea:hover {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+html:not(.dark) .form-stack input:hover,
+html:not(.dark) .form-stack select:hover,
+html:not(.dark) .form-stack textarea:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.form-stack input:focus,
+.form-stack select:focus,
+.form-stack textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 59, 130, 246), 0.2);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+html:not(.dark) .form-stack input:focus,
+html:not(.dark) .form-stack select:focus,
+html:not(.dark) .form-stack textarea:focus {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .form-stack textarea {
-  padding: 8px 10px;
+  padding: 8px 12px;
   resize: vertical;
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.dialog-btn {
-  min-height: 36px;
-  padding: 0 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.ghost-btn {
-  border: 1px solid #dbe5f2;
-  background: #ffffff;
-  color: #334155;
-}
-
-.primary-btn {
-  background: #7c3aed;
-  color: #ffffff;
-  border: none;
-}
-
-.primary-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  gap: 12px;
 }
 </style>

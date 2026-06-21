@@ -9,6 +9,7 @@ import {
   CreditCard,
   Download,
   Eye,
+  EyeOff,
   Fingerprint,
   KeyRound,
   MonitorSmartphone,
@@ -205,6 +206,7 @@ const pagination = ref<PaginationState>({
 });
 
 const createDialogVisible = ref(false);
+const showPassword = ref(false);
 const createForm = ref({
   name: '',
   email: '',
@@ -1485,61 +1487,93 @@ void consolidatedCards.value;
       :show="createDialogVisible"
       title="新建用户"
       size="md"
+      glass-card
       @close="createDialogVisible = false"
     >
-      <el-form label-position="top">
-        <el-form-item label="姓名">
-          <el-input v-model="createForm.name" placeholder="用户昵称或真实姓名" />
-        </el-form-item>
-        <el-form-item label="邮箱">
-          <el-input v-model="createForm.email" placeholder="user@example.com" />
-        </el-form-item>
-        <el-form-item label="初始密码">
-          <el-input v-model="createForm.password" placeholder="至少 6 位" show-password />
-        </el-form-item>
-        <el-form-item label="角色">
-          <el-select v-model="createForm.role" class="full-width">
-            <el-option label="普通用户" value="USER" />
-            <el-option label="导师" value="INSTRUCTOR" />
-            <el-option label="管理员" value="ADMIN" />
-          </el-select>
-        </el-form-item>
-      </el-form>
+      <div class="form-stack">
+        <label>
+          姓名
+          <input v-model="createForm.name" placeholder="用户昵称或真实姓名" />
+        </label>
+        <label>
+          邮箱
+          <input v-model="createForm.email" placeholder="user@example.com" type="email" />
+        </label>
+        <label>
+          初始密码
+          <div class="relative flex items-center">
+            <input
+              v-model="createForm.password"
+              placeholder="至少 6 位"
+              :type="showPassword ? 'text' : 'password'"
+            />
+            <button
+              type="button"
+              class="absolute right-3 text-slate-400 hover:text-slate-200 transition-colors flex items-center justify-center"
+              @click="showPassword = !showPassword"
+            >
+              <component :is="showPassword ? EyeOff : Eye" class="w-4.5 h-4.5" />
+            </button>
+          </div>
+        </label>
+        <label>
+          角色
+          <select v-model="createForm.role">
+            <option value="USER">普通用户</option>
+            <option value="INSTRUCTOR">导师</option>
+            <option value="ADMIN">管理员</option>
+          </select>
+        </label>
+      </div>
       <template #footer>
-        <el-button @click="createDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="isSubmitting" @click="handleCreateUser">
-          创建
-        </el-button>
+        <div class="flex items-center gap-3">
+          <Button variant="secondary" @click="createDialogVisible = false">取消</Button>
+          <Button variant="primary" :loading="isSubmitting" @click="handleCreateUser">
+            创建
+          </Button>
+        </div>
       </template>
     </Modal>
 
-    <Modal :show="editDialogVisible" title="编辑用户" size="md" @close="editDialogVisible = false">
-      <el-form v-if="editingUser" label-position="top">
-        <el-form-item label="姓名">
-          <el-input v-model="editingUser.name" />
-        </el-form-item>
-        <el-form-item label="邮箱">
-          <el-input v-model="editingUser.email" />
-        </el-form-item>
-        <el-form-item label="角色">
-          <el-select v-model="editingUser.role" class="full-width">
-            <el-option label="普通用户" value="USER" />
-            <el-option label="导师" value="INSTRUCTOR" />
-            <el-option label="管理员" value="ADMIN" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="editingUser.status" class="full-width">
-            <el-option label="正常" value="ACTIVE" />
-            <el-option label="封禁" value="BANNED" />
-          </el-select>
-        </el-form-item>
-      </el-form>
+    <Modal
+      :show="editDialogVisible"
+      title="编辑用户"
+      size="md"
+      glass-card
+      @close="editDialogVisible = false"
+    >
+      <div v-if="editingUser" class="form-stack">
+        <label>
+          姓名
+          <input v-model="editingUser.name" />
+        </label>
+        <label>
+          邮箱
+          <input v-model="editingUser.email" type="email" />
+        </label>
+        <label>
+          角色
+          <select v-model="editingUser.role">
+            <option value="USER">普通用户</option>
+            <option value="INSTRUCTOR">导师</option>
+            <option value="ADMIN">管理员</option>
+          </select>
+        </label>
+        <label>
+          状态
+          <select v-model="editingUser.status">
+            <option value="ACTIVE">正常</option>
+            <option value="BANNED">封禁</option>
+          </select>
+        </label>
+      </div>
       <template #footer>
-        <el-button @click="editDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="isSubmitting" @click="handleUpdateUser">
-          保存
-        </el-button>
+        <div class="flex items-center gap-3">
+          <Button variant="secondary" @click="editDialogVisible = false">取消</Button>
+          <Button variant="primary" :loading="isSubmitting" @click="handleUpdateUser">
+            保存
+          </Button>
+        </div>
       </template>
     </Modal>
 
@@ -1724,8 +1758,6 @@ void consolidatedCards.value;
   align-items: center;
   gap: 5px;
 }
-
-
 
 .batch-bar {
   margin: 10px 0 0;
@@ -1999,5 +2031,81 @@ void consolidatedCards.value;
     flex: 1 1 calc(50% - 4px);
     min-width: 100px;
   }
+}
+
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-stack label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.form-stack input,
+.form-stack select,
+.form-stack textarea {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border-base);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  outline: none;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+/* Specific background adjustment for theme compatibility */
+html:not(.dark) .form-stack input,
+html:not(.dark) .form-stack select,
+html:not(.dark) .form-stack textarea {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.form-stack input:hover,
+.form-stack select:hover,
+.form-stack textarea:hover {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+html:not(.dark) .form-stack input:hover,
+html:not(.dark) .form-stack select:hover,
+html:not(.dark) .form-stack textarea:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.form-stack input:focus,
+.form-stack select:focus,
+.form-stack textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 59, 130, 246), 0.2);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+html:not(.dark) .form-stack input:focus,
+html:not(.dark) .form-stack select:focus,
+html:not(.dark) .form-stack textarea:focus {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.form-stack textarea {
+  padding: 8px 12px;
+  resize: vertical;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 </style>

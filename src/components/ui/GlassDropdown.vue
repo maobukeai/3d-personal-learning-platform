@@ -16,11 +16,7 @@ const finalMenuClass = computed(() => `glass-dropdown-menu ${props.menuClass}`.t
 </script>
 
 <template>
-  <el-dropdown
-    transition="fast-fade"
-    v-bind="$attrs"
-    :popper-class="finalPopperClass"
-  >
+  <el-dropdown transition="fast-fade" v-bind="$attrs" :popper-class="finalPopperClass">
     <slot name="trigger"></slot>
     <template #dropdown>
       <el-dropdown-menu :class="finalMenuClass">

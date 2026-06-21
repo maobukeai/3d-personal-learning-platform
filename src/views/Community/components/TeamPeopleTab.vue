@@ -20,7 +20,6 @@ import {
   List,
 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
-import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
 import Dropdown from '@/components/ui/Dropdown.vue';
 

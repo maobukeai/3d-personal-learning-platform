@@ -259,13 +259,7 @@ const toggleReplies = (commentId: string) => {
 </script>
 
 <template>
-  <Modal
-    :show="true"
-    size="xxl"
-    glass-card
-    padding="none"
-    @close="emit('close')"
-  >
+  <Modal :show="true" size="xxl" glass-card padding="none" @close="emit('close')">
     <section class="detail-modal">
       <header class="detail-header">
         <div class="detail-author">

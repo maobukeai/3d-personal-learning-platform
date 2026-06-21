@@ -184,7 +184,13 @@ const roleClass = (role: string) => ({
 </script>
 
 <template>
-  <Modal :show="modelValue" size="xl" padding="md" glass-card @close="emit('update:modelValue', false)">
+  <Modal
+    :show="modelValue"
+    size="xl"
+    padding="md"
+    glass-card
+    @close="emit('update:modelValue', false)"
+  >
     <!-- Header Slot (direct child of Modal) -->
     <template #header>
       <div v-if="team && !isDetailLoading" class="flex items-center gap-3 w-full pr-8">
@@ -196,7 +202,9 @@ const roleClass = (role: string) => ({
           <h2 class="text-base sm:text-lg font-bold truncate text-[var(--text-primary)]">
             {{ team.name }}
           </h2>
-          <p class="text-[11px] sm:text-xs text-[var(--text-secondary)] whitespace-normal break-words line-clamp-2 max-w-2xl mt-0.5">
+          <p
+            class="text-[11px] sm:text-xs text-[var(--text-secondary)] whitespace-normal break-words line-clamp-2 max-w-2xl mt-0.5"
+          >
             {{ cleanTeamDescription(team.description) || team.category || '暂无团队描述' }}
           </p>
           <div class="drawer-pills flex items-center gap-1.5 mt-1.5">
@@ -312,7 +320,10 @@ const roleClass = (role: string) => ({
         <!-- Scrollable content area -->
         <div class="max-h-[50vh] overflow-y-auto pr-1">
           <!-- Overview Tab -->
-          <section v-if="detailTab === 'overview'" class="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+          <section
+            v-if="detailTab === 'overview'"
+            class="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start"
+          >
             <!-- Left Column: Priority items -->
             <div class="space-y-4">
               <div class="detail-section">
@@ -334,9 +345,10 @@ const roleClass = (role: string) => ({
                         :class="`severity-${item.severity}`"
                       />
                       <div class="min-w-0">
-                        <strong class="text-sm font-bold text-[var(--text-primary)] truncate block">{{
-                          item.title
-                        }}</strong>
+                        <strong
+                          class="text-sm font-bold text-[var(--text-primary)] truncate block"
+                          >{{ item.title }}</strong
+                        >
                         <small class="text-[11px] text-[var(--text-secondary)] block mt-0.5">
                           {{ actionItemLabel(item.type) }} · {{ item.project?.title || '团队事项' }}
                         </small>

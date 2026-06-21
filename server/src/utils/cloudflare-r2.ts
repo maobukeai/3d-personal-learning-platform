@@ -58,7 +58,10 @@ export function getDashboardPayloadBytes(usage: CloudflareR2UsageApiResult): num
   return usage.payloadBytes + usage.infrequentAccessPayloadBytes;
 }
 
-export function getBucketNameCandidates(bucketName: string, jurisdiction?: string | null): string[] {
+export function getBucketNameCandidates(
+  bucketName: string,
+  jurisdiction?: string | null,
+): string[] {
   const candidates = new Set<string>();
   const trimmed = bucketName.trim();
   if (!trimmed) return [];
@@ -76,7 +79,11 @@ export function getBucketNameCandidates(bucketName: string, jurisdiction?: strin
   return Array.from(candidates);
 }
 
-async function postCloudflareGraphql<T>(apiToken: string, query: string, variables: Record<string, unknown>): Promise<T> {
+async function postCloudflareGraphql<T>(
+  apiToken: string,
+  query: string,
+  variables: Record<string, unknown>,
+): Promise<T> {
   const response = await fetch('https://api.cloudflare.com/client/v4/graphql', {
     method: 'POST',
     headers: {
@@ -152,12 +159,16 @@ export async function fetchCloudflareR2BucketUsageFromGraphQL(
   const endDate = new Date().toISOString();
   const startDate = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
 
-  const data = await postCloudflareGraphql<GraphqlStorageResponse>(apiToken, R2_STORAGE_GRAPHQL_QUERY, {
-    accountTag: accountId,
-    bucketName,
-    startDate,
-    endDate,
-  });
+  const data = await postCloudflareGraphql<GraphqlStorageResponse>(
+    apiToken,
+    R2_STORAGE_GRAPHQL_QUERY,
+    {
+      accountTag: accountId,
+      bucketName,
+      startDate,
+      endDate,
+    },
+  );
 
   const max = data.viewer.accounts[0]?.r2StorageAdaptiveGroups[0]?.max;
   if (!max) {
@@ -215,30 +226,37 @@ export async function fetchOfficialBucketUsage(
   bucketName: string,
   apiToken: string,
   jurisdiction?: string | null,
-): Promise<{ usage: CloudflareR2UsageApiResult; source: 'cloudflare-graphql' | 'cloudflare-usage-api'; resolvedBucketName: string }> {
+): Promise<{
+  usage: CloudflareR2UsageApiResult;
+  source: 'cloudflare-graphql' | 'cloudflare-usage-api';
+  resolvedBucketName: string;
+}> {
   const candidates = getBucketNameCandidates(bucketName, jurisdiction);
-  let lastError: Error | null = null;
+  const errors: Error[] = [];
 
   for (const candidate of candidates) {
     try {
       const usage = await fetchCloudflareR2BucketUsageFromGraphQL(accountId, candidate, apiToken);
       return { usage, source: 'cloudflare-graphql', resolvedBucketName: candidate };
     } catch (graphqlError) {
-      lastError = graphqlError instanceof Error ? graphqlError : new Error(String(graphqlError));
+      errors.push(graphqlError instanceof Error ? graphqlError : new Error(String(graphqlError)));
     }
 
     try {
       const usage = await fetchCloudflareR2BucketUsage(accountId, candidate, apiToken);
       return { usage, source: 'cloudflare-usage-api', resolvedBucketName: candidate };
     } catch (usageError) {
-      lastError = usageError instanceof Error ? usageError : new Error(String(usageError));
+      errors.push(usageError instanceof Error ? usageError : new Error(String(usageError)));
     }
   }
 
-  throw lastError || new Error('Unable to fetch official Cloudflare bucket usage');
+  throw errors[errors.length - 1] || new Error('Unable to fetch official Cloudflare bucket usage');
 }
 
-export function resolveCloudflareAccountId(endpoint: string, explicitAccountId?: string | null): string | null {
+export function resolveCloudflareAccountId(
+  endpoint: string,
+  explicitAccountId?: string | null,
+): string | null {
   if (explicitAccountId?.trim()) return explicitAccountId.trim();
   if (process.env.CLOUDFLARE_ACCOUNT_ID?.trim()) return process.env.CLOUDFLARE_ACCOUNT_ID.trim();
   return parseCloudflareAccountIdFromEndpoint(endpoint);
@@ -249,7 +267,8 @@ export function resolveCloudflareApiToken(
   sharedApiTokens: Array<string | null | undefined> = [],
 ): string | null {
   if (explicitApiToken?.trim()) return explicitApiToken.trim();
-  if (process.env.CLOUDFLARE_R2_API_TOKEN?.trim()) return process.env.CLOUDFLARE_R2_API_TOKEN.trim();
+  if (process.env.CLOUDFLARE_R2_API_TOKEN?.trim())
+    return process.env.CLOUDFLARE_R2_API_TOKEN.trim();
 
   for (const token of sharedApiTokens) {
     if (token?.trim()) return token.trim();

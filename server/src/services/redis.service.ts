@@ -63,7 +63,9 @@ class RedisService {
 
     // Capping at 1000 items to prevent unbounded memory growth
     if (this.localCache.size > RedisService.LOCAL_CACHE_MAX_SIZE) {
-      const keysToKeep = Array.from(this.localCache.keys()).slice(-RedisService.LOCAL_CACHE_MAX_SIZE);
+      const keysToKeep = Array.from(this.localCache.keys()).slice(
+        -RedisService.LOCAL_CACHE_MAX_SIZE,
+      );
       const newCache = new Map<string, { value: any; expiresAt: number }>();
       for (const k of keysToKeep) {
         const item = this.localCache.get(k);

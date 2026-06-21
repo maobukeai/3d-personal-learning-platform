@@ -17,7 +17,6 @@ import {
   Grid3X3,
   Layers,
   LayoutList,
-  Loader2,
   PackageCheck,
   Search,
   SlidersHorizontal,
@@ -405,7 +404,9 @@ onUnmounted(() => {
 
 <template>
   <div class="asset-library-page">
-    <header class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
+    <header
+      class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0"
+    >
       <div class="title-block flex-1 min-w-0">
         <div class="title-icon">
           <Box class="icon-sm" />
@@ -548,8 +549,6 @@ onUnmounted(() => {
             </button>
             <Tabs v-model="activeTab" :options="libraryTabOptions" size="sm" />
           </div>
-
-
 
           <div class="toolbar-right">
             <select v-model="sortKey" class="select-field" aria-label="排序方式">
@@ -1789,8 +1788,6 @@ h1 {
   background: var(--bg-hover);
   border-color: var(--border-strong);
 }
-
-
 
 .upload-type-switch {
   display: flex;

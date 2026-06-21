@@ -72,7 +72,9 @@ export const uploadAttachment = async (req: AuthRequest, res: Response, next: Ne
     if (!req.file) {
       return next(new AppError('No file uploaded', 400));
     }
-    const attachmentUrl = (req.file as any).url || `${req.protocol}://${req.get('host')}/uploads/feedback/${req.file.filename}`;
+    const attachmentUrl =
+      (req.file as any).url ||
+      `${req.protocol}://${req.get('host')}/uploads/feedback/${req.file.filename}`;
     res.json({ url: attachmentUrl });
   } catch (error) {
     next(error);

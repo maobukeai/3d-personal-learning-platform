@@ -15,7 +15,6 @@ import {
   Heart,
   Import,
   Layers,
-  Loader2,
   Package,
   Plus,
   Puzzle,
@@ -26,7 +25,6 @@ import {
   Sun,
   Tags,
   Wrench,
-  X,
   Grid3X3,
   LayoutList,
 } from 'lucide-vue-next';
@@ -705,7 +703,9 @@ watch(
 
 <template>
   <div class="plugins-page">
-    <header class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
+    <header
+      class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0"
+    >
       <div class="title-block flex-1 min-w-0">
         <div class="title-icon">
           <Puzzle class="icon-sm" />
@@ -933,8 +933,6 @@ watch(
             </button>
             <Tabs v-model="activeTab" :options="libraryTabOptions" size="sm" />
           </div>
-
-
 
           <div class="toolbar-right">
             <select v-model="sortBy" class="select-field" aria-label="排序方式">
@@ -1185,17 +1183,18 @@ watch(
       </div>
 
       <template #footer>
-        <div class="flex justify-end gap-2 w-full" v-if="selectedPlugin">
+        <div v-if="selectedPlugin" class="flex justify-end gap-2 w-full">
           <Button
             variant="secondary"
             size="sm"
             :class="{ active: isFavorited(selectedPlugin.id) }"
             @click="toggleFavorite(selectedPlugin.id)"
           >
-            <Heart class="icon-sm inline mr-1" :class="{ filled: isFavorited(selectedPlugin.id) }" />
-            {{
-              isFavorited(selectedPlugin.id) ? label('已收藏', 'Saved') : label('收藏', 'Save')
-            }}
+            <Heart
+              class="icon-sm inline mr-1"
+              :class="{ filled: isFavorited(selectedPlugin.id) }"
+            />
+            {{ isFavorited(selectedPlugin.id) ? label('已收藏', 'Saved') : label('收藏', 'Save') }}
           </Button>
           <Button
             variant="primary"
@@ -1203,7 +1202,7 @@ watch(
             :loading="!!downloadingIds[selectedPlugin.id]"
             @click="handleDownload(selectedPlugin)"
           >
-            <Download class="icon-sm inline mr-1" v-if="!downloadingIds[selectedPlugin.id]" />
+            <Download v-if="!downloadingIds[selectedPlugin.id]" class="icon-sm inline mr-1" />
             {{ label('下载插件', 'Download Plugin') }}
           </Button>
         </div>
@@ -1227,139 +1226,140 @@ watch(
         </div>
       </template>
 
-          <div class="upload-grid">
-            <div class="col-span-2">
-              <Input
-                v-model="uploadForm.title"
-                type="text"
-                :label="label('插件名称', 'Plugin Name')"
-                :placeholder="label('给插件起个清晰的名字', 'Give the plugin a clear name')"
-                required
-              />
-            </div>
-            <label class="flex flex-col">
-              <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">
-                {{ label('分类', 'Category') }}
-              </span>
-              <select
-                v-model="uploadForm.category"
-                class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
-              >
-                <option v-for="category in uploadCategories" :key="category" :value="category">
-                  {{ categoryLabel(category) }}
-                </option>
-              </select>
-            </label>
-            <Input
-              v-model="uploadForm.version"
-              type="text"
-              :label="label('版本', 'Version')"
-              placeholder="1.0.0"
-              required
-            />
-            <div class="col-span-2">
-              <Input
-                v-model="uploadForm.compatibility"
-                type="text"
-                :label="label('兼容版本', 'Compatibility')"
-                :placeholder="
-                  label('如 Blender 4.x / Three.js r160+', 'e.g. Blender 4.x / Three.js r160+')
-                "
-              />
-            </div>
-            <div class="col-span-2">
-              <Input
-                v-model="uploadForm.tags"
-                type="text"
-                :label="label('标签', 'Tags')"
-                :placeholder="
-                  label(
-                    '用逗号分隔，如 glTF, 优化, 渲染',
-                    'Comma-separated, e.g. glTF, optimize, render',
-                  )
-                "
-              />
-            </div>
-            <label class="wide flex flex-col col-span-2">
-              <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">
-                {{ label('简介', 'Description') }}
-              </span>
-              <textarea
-                v-model="uploadForm.description"
-                rows="3"
-                class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none"
-                :placeholder="
-                  label(
-                    '介绍插件用途、适用场景和核心能力',
-                    'Describe use cases, scenarios, and core capabilities',
-                  )
-                "
-              ></textarea>
-            </label>
-            <label class="wide flex flex-col col-span-2">
-              <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">
-                {{ label('安装说明', 'Installation Guide') }}
-              </span>
-              <textarea
-                v-model="uploadForm.installGuide"
-                rows="4"
-                class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none"
-                :placeholder="
-                  label(
-                    '写清楚安装步骤、依赖版本和注意事项',
-                    'Include install steps, dependencies, and notes',
-                  )
-                "
-              ></textarea>
-            </label>
-          </div>
+      <div class="upload-grid">
+        <div class="col-span-2">
+          <Input
+            v-model="uploadForm.title"
+            type="text"
+            :label="label('插件名称', 'Plugin Name')"
+            :placeholder="label('给插件起个清晰的名字', 'Give the plugin a clear name')"
+            required
+          />
+        </div>
+        <label class="flex flex-col">
+          <span
+            class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+          >
+            {{ label('分类', 'Category') }}
+          </span>
+          <select
+            v-model="uploadForm.category"
+            class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+          >
+            <option v-for="category in uploadCategories" :key="category" :value="category">
+              {{ categoryLabel(category) }}
+            </option>
+          </select>
+        </label>
+        <Input
+          v-model="uploadForm.version"
+          type="text"
+          :label="label('版本', 'Version')"
+          placeholder="1.0.0"
+          required
+        />
+        <div class="col-span-2">
+          <Input
+            v-model="uploadForm.compatibility"
+            type="text"
+            :label="label('兼容版本', 'Compatibility')"
+            :placeholder="
+              label('如 Blender 4.x / Three.js r160+', 'e.g. Blender 4.x / Three.js r160+')
+            "
+          />
+        </div>
+        <div class="col-span-2">
+          <Input
+            v-model="uploadForm.tags"
+            type="text"
+            :label="label('标签', 'Tags')"
+            :placeholder="
+              label(
+                '用逗号分隔，如 glTF, 优化, 渲染',
+                'Comma-separated, e.g. glTF, optimize, render',
+              )
+            "
+          />
+        </div>
+        <label class="wide flex flex-col col-span-2">
+          <span
+            class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+          >
+            {{ label('简介', 'Description') }}
+          </span>
+          <textarea
+            v-model="uploadForm.description"
+            rows="3"
+            class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none"
+            :placeholder="
+              label(
+                '介绍插件用途、适用场景和核心能力',
+                'Describe use cases, scenarios, and core capabilities',
+              )
+            "
+          ></textarea>
+        </label>
+        <label class="wide flex flex-col col-span-2">
+          <span
+            class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+          >
+            {{ label('安装说明', 'Installation Guide') }}
+          </span>
+          <textarea
+            v-model="uploadForm.installGuide"
+            rows="4"
+            class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none"
+            :placeholder="
+              label(
+                '写清楚安装步骤、依赖版本和注意事项',
+                'Include install steps, dependencies, and notes',
+              )
+            "
+          ></textarea>
+        </label>
+      </div>
 
-          <div class="file-grid">
-            <div class="w-full">
-              <FileDropZone
-                v-model="pluginFile"
-                accept=".zip,.py,.js,.jsx,.ts,.tsx,.blend,.addon,.tgz,.tar,.gz"
-                :label="pluginFile?.name || label('选择插件文件', 'Choose Plugin File')"
-                :sublabel="
-                  pluginFile
-                    ? formatSize(pluginFile.size / 1024 / 1024)
-                    : label(
-                        '支持 ZIP、脚本、插件包等格式',
-                        'Supports ZIP, scripts, and plugin packages',
-                      )
-                "
-                height-class="h-28"
-                @change="handlePluginFileChange"
-              />
-            </div>
+      <div class="file-grid">
+        <div class="w-full">
+          <FileDropZone
+            v-model="pluginFile"
+            accept=".zip,.py,.js,.jsx,.ts,.tsx,.blend,.addon,.tgz,.tar,.gz"
+            :label="pluginFile?.name || label('选择插件文件', 'Choose Plugin File')"
+            :sublabel="
+              pluginFile
+                ? formatSize(pluginFile.size / 1024 / 1024)
+                : label(
+                    '支持 ZIP、脚本、插件包等格式',
+                    'Supports ZIP, scripts, and plugin packages',
+                  )
+            "
+            height-class="h-28"
+            @change="handlePluginFileChange"
+          />
+        </div>
 
-            <div class="w-full">
-              <FileDropZone
-                v-model="previewFile"
-                accept="image/*"
-                :label="previewFile?.name || label('上传预览图', 'Upload Preview')"
-                :sublabel="
-                  previewFile
-                    ? formatSize(previewFile.size / 1024 / 1024)
-                    : label('可选，用于插件卡片封面', 'Optional cover for plugin cards')
-                "
-                height-class="h-28"
-                @change="handlePreviewFileChange"
-              />
-            </div>
-          </div>
+        <div class="w-full">
+          <FileDropZone
+            v-model="previewFile"
+            accept="image/*"
+            :label="previewFile?.name || label('上传预览图', 'Upload Preview')"
+            :sublabel="
+              previewFile
+                ? formatSize(previewFile.size / 1024 / 1024)
+                : label('可选，用于插件卡片封面', 'Optional cover for plugin cards')
+            "
+            height-class="h-28"
+            @change="handlePreviewFileChange"
+          />
+        </div>
+      </div>
 
       <template #footer>
         <div class="flex justify-end gap-2">
           <Button variant="secondary" size="sm" @click="isUploadDialogOpen = false">
             {{ label('取消', 'Cancel') }}
           </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            :loading="isUploading"
-            @click="submitPlugin"
-          >
+          <Button variant="primary" size="sm" :loading="isUploading" @click="submitPlugin">
             {{ label('提交审核', 'Submit for Review') }}
           </Button>
         </div>
@@ -2536,8 +2536,6 @@ p {
   margin-top: auto;
 }
 
-
-
 .detail-hero {
   height: 180px;
   display: grid;
@@ -2614,8 +2612,6 @@ p {
   border-top: 1px solid var(--border-base);
   padding: 10px 16px;
 }
-
-
 
 .upload-grid {
   display: grid;
@@ -2700,8 +2696,6 @@ p {
   color: var(--text-muted);
   font-size: 10px;
 }
-
-
 
 .tone-orange {
   background: linear-gradient(135deg, #f97316, #7c2d12);

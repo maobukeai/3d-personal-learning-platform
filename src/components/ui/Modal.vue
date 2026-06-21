@@ -93,7 +93,7 @@ onUnmounted(() => {
         :style="{ zIndex: zIndex }"
         :class="[
           fullscreen ? 'p-0 overflow-hidden items-stretch' : 'p-4 overflow-y-auto items-start',
-          fullscreen ? 'pointer-events-auto' : ''
+          fullscreen ? 'pointer-events-auto' : '',
         ]"
       >
         <!-- Modal Content Container -->

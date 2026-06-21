@@ -34,6 +34,7 @@ module.exports = [
       "no-console": ["warn", { "allow": ["warn", "error"] }],
       "no-useless-catch": "off",
       "no-undef": "off",
+      "no-redeclare": "off",
       "no-empty": "warn",
       "no-case-declarations": "warn",
       "no-useless-escape": "off",

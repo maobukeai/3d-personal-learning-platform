@@ -21,7 +21,6 @@ import GroupDetailDialog from '@/components/GroupDetailDialog.vue';
 import TeamCard from '@/components/TeamCard.vue';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
-import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
 
 const router = useRouter();

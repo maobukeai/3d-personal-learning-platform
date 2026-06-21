@@ -598,7 +598,11 @@ export const sendBroadcast = async (req: AuthRequest, res: Response, next: NextF
   }
 };
 
-export const toggleBroadcastOffline = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const toggleBroadcastOffline = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const { id } = req.params;
   try {
     const broadcast = await prisma.broadcast.findUnique({
@@ -626,7 +630,9 @@ export const toggleBroadcastOffline = async (req: AuthRequest, res: Response, ne
       userId: req.userId,
       action: AuditAction.UPDATE_SETTINGS,
       module: AuditModule.SETTINGS,
-      description: isCurrentlyOffline ? `重新发布全站广播：${newTitle}` : `下架全站广播：${broadcast.title}`,
+      description: isCurrentlyOffline
+        ? `重新发布全站广播：${newTitle}`
+        : `下架全站广播：${broadcast.title}`,
       newValue: updated,
       oldValue: broadcast,
       req,

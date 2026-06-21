@@ -540,7 +540,9 @@ export const getTeamDetail = async (req: AuthRequest, res: Response, next: NextF
 
     const overdueTasks = tasks.filter(isOverdue);
     const dueSoonTasks = tasks.filter(isDueSoon);
-    const unassignedTasks = tasks.filter((task) => task.status !== TaskStatus.DONE && !task.assigneeId);
+    const unassignedTasks = tasks.filter(
+      (task) => task.status !== TaskStatus.DONE && !task.assigneeId,
+    );
     const doneTasks = tasks.filter((task) => task.status === TaskStatus.DONE);
     const activeTasks = tasks.filter((task) => task.status !== TaskStatus.DONE);
     const completedThisWeek = doneTasks.filter((task) => task.updatedAt >= lastSevenDays);

@@ -426,7 +426,10 @@ onUnmounted(() => {
               <ImageIcon :class="isMobile ? 'w-4 h-4' : 'w-5 h-5'" />
             </div>
             <div>
-              <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold text-[var(--text-primary)]">
+              <p
+                :class="isMobile ? 'text-xs' : 'text-sm'"
+                class="font-bold text-[var(--text-primary)]"
+              >
                 {{ t('search.browseAssets') }}
               </p>
               <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">
@@ -449,7 +452,10 @@ onUnmounted(() => {
               <GraduationCap :class="isMobile ? 'w-4 h-4' : 'w-5 h-5'" />
             </div>
             <div>
-              <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold text-[var(--text-primary)]">
+              <p
+                :class="isMobile ? 'text-xs' : 'text-sm'"
+                class="font-bold text-[var(--text-primary)]"
+              >
                 {{ t('search.startLearning') }}
               </p>
               <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">
@@ -462,24 +468,25 @@ onUnmounted(() => {
     </div>
 
     <template v-if="!isMobile" #footer>
-      <div
-        class="flex items-center justify-between text-[10px] text-slate-400 w-full pt-1"
-      >
+      <div class="flex items-center justify-between text-[10px] text-slate-400 w-full pt-1">
         <div class="flex gap-4">
           <span class="flex items-center gap-1.5"
-            ><kbd class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm border-strong/20"
+            ><kbd
+              class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm border-strong/20"
               >↑↓</kbd
             >
             {{ t('search.select') }}</span
           >
           <span class="flex items-center gap-1.5"
-            ><kbd class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm border-strong/20"
+            ><kbd
+              class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm border-strong/20"
               >Enter</kbd
             >
             {{ t('search.confirm') }}</span
           >
           <span class="flex items-center gap-1.5"
-            ><kbd class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm border-strong/20"
+            ><kbd
+              class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm border-strong/20"
               >esc</kbd
             >
             {{ t('search.close') }}</span

@@ -124,10 +124,12 @@ const parseSubtasks = (subtasksStr: string | null | undefined): Subtask[] => {
 
 const parsedSubtasks = computed((): Subtask[] => {
   if (props.task.parsedSubtasks && Array.isArray(props.task.parsedSubtasks)) {
-    return props.task.parsedSubtasks.map((s: any, idx: number): Subtask => ({
-      ...s,
-      id: s.id || `subtask-legacy-${idx}`,
-    }));
+    return props.task.parsedSubtasks.map(
+      (s: any, idx: number): Subtask => ({
+        ...s,
+        id: s.id || `subtask-legacy-${idx}`,
+      }),
+    );
   }
   return parseSubtasks(props.task.subtasks);
 });

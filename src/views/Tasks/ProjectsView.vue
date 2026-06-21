@@ -22,7 +22,6 @@ import { TaskStatus } from '@/types/task';
 import type { Project, Task, UserType } from '@/types/task';
 import ProjectDetailPanel from './components/ProjectDetailPanel.vue';
 import ProjectFormPanel from './components/ProjectFormPanel.vue';
-import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
 
 // Subcomponents
@@ -739,11 +738,7 @@ watch(viewMode, (newMode) => {
         <div class="flex justify-center xl:flex-1 w-full xl:w-auto">
           <label class="search-box !min-h-0 !h-8 w-full sm:w-72 xl:w-80 shrink-0">
             <Search />
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="搜索项目、描述、标签"
-            />
+            <input v-model="searchQuery" type="text" placeholder="搜索项目、描述、标签" />
           </label>
         </div>
 

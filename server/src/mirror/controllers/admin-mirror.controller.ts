@@ -116,13 +116,15 @@ const readSpreadsheetRows = async (filePath: string): Promise<SpreadsheetRow[]> 
     }
   }
 
+  if (!sheetRows || !Array.isArray(sheetRows)) return [];
   const [headerRow, ...dataRows] = sheetRows;
-  if (!headerRow) return [];
+  if (!headerRow || !Array.isArray(headerRow)) return [];
 
   const headers = headerRow.map((cell) => String(cell ?? '').trim());
 
   const rows: SpreadsheetRow[] = [];
   for (const row of dataRows) {
+    if (!row || !Array.isArray(row)) continue;
     const parsedRow: SpreadsheetRow = {};
     for (let columnIndex = 0; columnIndex < headers.length; columnIndex++) {
       const header = headers[columnIndex];
@@ -628,56 +630,59 @@ export const matchLinks = async (req: AuthRequest, res: Response, next: NextFunc
     let matchedCount = 0;
 
     for (const file of filesArray) {
-      const rawData = await readSpreadsheetRows(file.path);
+      try {
+        const rawData = await readSpreadsheetRows(file.path);
 
-      for (const row of rawData) {
-        const courseName = (row['课程名称'] || row['名称'] || row['课程'] || '').toString().trim();
-        const link = (row['链接'] || row['网盘链接'] || row['提取链接'] || '').toString().trim();
-        const linkPassword = (row['链接密码'] || row['提取码'] || row['密码'] || '')
-          .toString()
-          .trim();
-        const courseNotes = (row['课程备注'] || row['备注'] || '').toString().trim();
+        for (const row of rawData) {
+          const courseName = (row['课程名称'] || row['名称'] || row['课程'] || '')
+            .toString()
+            .trim();
+          const link = (row['链接'] || row['网盘链接'] || row['提取链接'] || '').toString().trim();
+          const linkPassword = (row['链接密码'] || row['提取码'] || row['密码'] || '')
+            .toString()
+            .trim();
+          const courseNotes = (row['课程备注'] || row['备注'] || '').toString().trim();
 
-        if (!courseName && !courseNotes) continue;
+          if (!courseName && !courseNotes) continue;
 
-        totalLinks++;
+          totalLinks++;
 
-        let matchedResource: MirrorResource | null = null;
+          let matchedResource: MirrorResource | null = null;
 
-        // 1. Try matching by externalId extracted from the courseNotes URL
-        if (courseNotes && courseNotes.startsWith('http')) {
-          const match =
-            courseNotes.match(/\/(\d+)\.html/i) ||
-            courseNotes.match(/\/([a-zA-Z0-9_-]+)(?:\.html)?$/i);
-          if (match && match[1]) {
-            const externalId = match[1];
-            matchedResource = resourceByExternalId.get(externalId) ?? null;
+          // 1. Try matching by externalId extracted from the courseNotes URL
+          if (courseNotes && courseNotes.startsWith('http')) {
+            const match =
+              courseNotes.match(/\/(\d+)\.html/i) ||
+              courseNotes.match(/\/([a-zA-Z0-9_-]+)(?:\.html)?$/i);
+            if (match && match[1]) {
+              const externalId = match[1];
+              matchedResource = resourceByExternalId.get(externalId) ?? null;
+            }
           }
-        }
 
-        // 2. If no match by URL, try matching by Title
-        if (!matchedResource && courseName) {
-          const exactMatch = resources.find((r) => r.title === courseName);
-          if (exactMatch) {
-            matchedResource = exactMatch;
-          } else {
-            const cleanName = cleanString(courseName);
-            matchedResource = resourceByCleanTitle.get(cleanName) ?? null;
+          // 2. If no match by URL, try matching by Title
+          if (!matchedResource && courseName) {
+            const exactMatch = resources.find((r) => r.title === courseName);
+            if (exactMatch) {
+              matchedResource = exactMatch;
+            } else {
+              const cleanName = cleanString(courseName);
+              matchedResource = resourceByCleanTitle.get(cleanName) ?? null;
+            }
           }
-        }
 
-        if (matchedResource && link) {
-          const driveName = link.includes('quark.cn')
-            ? '夸克网盘'
-            : link.includes('baidu.com')
-              ? '百度网盘'
-              : link.includes('alipan.com') || link.includes('aliyundrive.com')
-                ? '阿里云盘'
-                : link.includes('123pan.com')
-                  ? '123云盘'
-                  : '资源网盘';
+          if (matchedResource && link) {
+            const driveName = link.includes('quark.cn')
+              ? '夸克网盘'
+              : link.includes('baidu.com')
+                ? '百度网盘'
+                : link.includes('alipan.com') || link.includes('aliyundrive.com')
+                  ? '阿里云盘'
+                  : link.includes('123pan.com')
+                    ? '123云盘'
+                    : '资源网盘';
 
-          const manualLinkHtml = `
+            const manualLinkHtml = `
 <!-- MANUAL_DOWNLOAD_LINK_START -->
 <div class="manual-download-link-container" style="margin-top: 20px; padding: 15px; border: 1px dashed #409eff; border-radius: 8px; background-color: rgba(64, 158, 255, 0.05);">
   <h4 style="margin: 0 0 10px 0; color: #409eff; font-size: 16px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
@@ -698,37 +703,60 @@ export const matchLinks = async (req: AuthRequest, res: Response, next: NextFunc
 </div>
 <!-- MANUAL_DOWNLOAD_LINK_END -->`;
 
-          let currentHtml = matchedResource.contentHtml || '';
-          const manualLinkRegex =
-            /<!-- MANUAL_DOWNLOAD_LINK_START -->[\s\S]*?<!-- MANUAL_DOWNLOAD_LINK_END -->/g;
+            let currentHtml = matchedResource.contentHtml || '';
+            const manualLinkRegex =
+              /<!-- MANUAL_DOWNLOAD_LINK_START -->[\s\S]*?<!-- MANUAL_DOWNLOAD_LINK_END -->/g;
 
-          if (manualLinkRegex.test(currentHtml)) {
-            currentHtml = currentHtml.replace(manualLinkRegex, manualLinkHtml);
-          } else {
-            currentHtml = currentHtml + '\n' + manualLinkHtml;
+            if (currentHtml.includes('<!-- MANUAL_DOWNLOAD_LINK_START -->')) {
+              currentHtml = currentHtml.replace(manualLinkRegex, manualLinkHtml);
+            } else {
+              currentHtml = currentHtml + '\n' + manualLinkHtml;
+            }
+
+            // Update in-memory so subsequent rows/files see the updated HTML and URL
+            matchedResource.contentHtml = currentHtml;
+            matchedResource.contentUrl = link;
+
+            updatesMap.set(matchedResource.id, {
+              contentHtml: currentHtml,
+              contentUrl: link,
+            });
+            matchedCount++;
           }
-
-          // Update in-memory so subsequent rows/files see the updated HTML and URL
-          matchedResource.contentHtml = currentHtml;
-          matchedResource.contentUrl = link;
-
-          updatesMap.set(matchedResource.id, {
-            contentHtml: currentHtml,
-            contentUrl: link,
-          });
-          matchedCount++;
         }
+      } catch (fileError) {
+        logger.error(
+          `[MirrorLinkMatch] Failed to parse Excel file ${file.originalname}:`,
+          fileError,
+        );
+        cleanUpFiles(filesArray);
+        return res.status(400).json({
+          error: `解析文件 "${file.originalname}" 失败，请检查文件格式或是否损坏。错误信息: ${fileError instanceof Error ? fileError.message : String(fileError)}`,
+        });
       }
     }
 
     if (updatesMap.size > 0) {
-      const batchUpdates = Array.from(updatesMap.entries()).map(([id, data]) =>
-        prisma.mirrorResource.update({
-          where: { id },
-          data,
-        }),
-      );
-      await prisma.$transaction(batchUpdates);
+      try {
+        const batchUpdates = Array.from(updatesMap.entries()).map(([id, data]) =>
+          prisma.mirrorResource.update({
+            where: { id },
+            data,
+          }),
+        );
+        // Chunk updates to prevent SQLite lockups and timeout issues
+        const chunkSize = 100;
+        for (let i = 0; i < batchUpdates.length; i += chunkSize) {
+          const chunk = batchUpdates.slice(i, i + chunkSize);
+          await prisma.$transaction(chunk);
+        }
+      } catch (dbError) {
+        logger.error(`[MirrorLinkMatch] Database transaction failed:`, dbError);
+        cleanUpFiles(filesArray);
+        return res.status(500).json({
+          error: `更新数据库失败: ${dbError instanceof Error ? dbError.message : String(dbError)}`,
+        });
+      }
     }
 
     logger.info(
@@ -1654,7 +1682,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     const processFile = async (filename: string) => {
       const tempFilePath = path.join(filesDir, filename);
       const fileBytes = fileSizes.get(filename) || 0;
-      let finalUrl = '';
+      let finalUrl: string;
 
       if (useCloudStorage && activeConfig) {
         // Upload to Cloudflare R2

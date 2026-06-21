@@ -70,7 +70,8 @@ const DEFAULT_PROVIDER_ENDPOINTS: Record<string, string> = {
   DEEPSEEK: 'https://api.deepseek.com/v1',
   OPENAI: 'https://api.openai.com/v1',
   QWEN: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  GEMINI: 'https://gateway.ai.cloudflare.com/v1/15f8013c69ef90d952d7a2945a949e52/gemini-proxy/google-ai-studio',
+  GEMINI:
+    'https://gateway.ai.cloudflare.com/v1/15f8013c69ef90d952d7a2945a949e52/gemini-proxy/google-ai-studio',
   OLLAMA: 'http://localhost:11434/api',
   AGNES: 'https://apihub.agnes-ai.com/v1',
   CUSTOM: '',
@@ -141,24 +142,29 @@ const activePersistentAiRuns = new Map<
 
 // Periodic cleanup: remove stale persistent AI runs that have been active for too long
 // This prevents memory leaks if cleanupPersistentRun() is not called due to exceptions
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, run] of activePersistentAiRuns.entries()) {
-    const age = now - run.startedAt;
-    if (age > PERSISTENT_RUN_MAX_LIFETIME_MS) {
-      if (!run.done) {
-        try {
-          run.cancelled = true;
-          run.controller.abort();
-        } catch {
-          // Ignore abort errors during cleanup
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, run] of activePersistentAiRuns.entries()) {
+      const age = now - run.startedAt;
+      if (age > PERSISTENT_RUN_MAX_LIFETIME_MS) {
+        if (!run.done) {
+          try {
+            run.cancelled = true;
+            run.controller.abort();
+          } catch {
+            // Ignore abort errors during cleanup
+          }
         }
+        activePersistentAiRuns.delete(key);
+        logger.warn(
+          `[AI Service] Cleaned up stale persistent run: ${key} (age: ${Math.round(age / 1000)}s)`,
+        );
       }
-      activePersistentAiRuns.delete(key);
-      logger.warn(`[AI Service] Cleaned up stale persistent run: ${key} (age: ${Math.round(age / 1000)}s)`);
     }
-  }
-}, 10 * 60 * 1000); // Run every 10 minutes
+  },
+  10 * 60 * 1000,
+); // Run every 10 minutes
 
 function createRequestId(): string {
   return `ai_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -191,7 +197,11 @@ export function registerPersistentAiRun(userId: string, runId: string): AbortCon
       const oldRun = activePersistentAiRuns.get(oldestKey);
       if (oldRun && !oldRun.done) {
         oldRun.cancelled = true;
-        try { oldRun.controller.abort(); } catch { /* ignore */ }
+        try {
+          oldRun.controller.abort();
+        } catch {
+          /* ignore */
+        }
       }
       activePersistentAiRuns.delete(oldestKey);
     }
@@ -217,7 +227,6 @@ export function appendPersistentAiRunReasoning(userId: string, runId: string, te
     run.reasoning = (run.reasoning || '') + text;
   }
 }
-
 
 export function getPersistentAiRunStatus(
   userId: string,
@@ -321,7 +330,11 @@ function cleanImageEndpointUrl(url: string | undefined | null): string {
 /**
  * Detects if a model is an image generation model based on its name, capabilities, or endpoint.
  */
-function isImageGenerationModel(modelName: string, capabilities?: string[], endpoint?: string): boolean {
+function isImageGenerationModel(
+  modelName: string,
+  capabilities?: string[],
+  endpoint?: string,
+): boolean {
   // If endpoint already points to /images/generations, it's definitely an image model
   if (endpoint && endpoint.includes('/images/generations')) {
     return true;
@@ -365,19 +378,22 @@ function isImageGenerationModel(modelName: string, capabilities?: string[], endp
 /**
  * Detects if a model is a video generation model based on its name, capabilities, or endpoint.
  */
-function isVideoGenerationModel(modelName: string, capabilities?: string[], endpoint?: string): boolean {
-  if (endpoint && (endpoint.includes('/videos/generations') || endpoint.includes('/video/generations'))) {
+function isVideoGenerationModel(
+  modelName: string,
+  capabilities?: string[],
+  endpoint?: string,
+): boolean {
+  if (
+    endpoint &&
+    (endpoint.includes('/videos/generations') || endpoint.includes('/video/generations'))
+  ) {
     return true;
   }
   if (capabilities && Array.isArray(capabilities)) {
     const list = capabilities.map((c) => c.toLowerCase().trim());
     if (
       list.some(
-        (c) =>
-          c === 'video' ||
-          c === 'video_generation' ||
-          c === 'text-to-video' ||
-          c === 't2v',
+        (c) => c === 'video' || c === 'video_generation' || c === 'text-to-video' || c === 't2v',
       )
     ) {
       return true;
@@ -673,7 +689,6 @@ async function formatAnthropicMessage(role: AIChatRole, content: string) {
   return { role, content: contentArray };
 }
 
-
 type GeminiPart = { text: string } | { inlineData: AIImagePayload };
 
 async function formatGeminiParts(content: string): Promise<GeminiPart[]> {
@@ -868,7 +883,9 @@ async function prepareRequestConfig(
     };
   } else if (provider === 'GEMINI') {
     // 支持原生 googleapis.com 地址和 Cloudflare AI Gateway 等代理地址
-    let geminiBase = (endpoint || 'https://generativelanguage.googleapis.com').trim().replace(/\/+$/, '');
+    let geminiBase = (endpoint || 'https://generativelanguage.googleapis.com')
+      .trim()
+      .replace(/\/+$/, '');
     geminiBase = geminiBase
       .replace(/\/chat\/completions$/i, '')
       .replace(/\/v1beta$/i, '')
@@ -887,7 +904,7 @@ async function prepareRequestConfig(
           return {
             name: t.function.name,
             description: t.function.description,
-            parameters: t.function.parameters
+            parameters: t.function.parameters,
           };
         }
         return t;
@@ -943,10 +960,8 @@ async function prepareRequestConfig(
     }
   } else if (provider === 'AGNES') {
     const urlPath = url ? new URL(url, 'http://base').pathname.toLowerCase() : '';
-    const isAnthropic =
-      urlPath.endsWith('/messages') ||
-      urlPath.includes('/v1/messages');
-    
+    const isAnthropic = urlPath.endsWith('/messages') || urlPath.includes('/v1/messages');
+
     if (isAnthropic) {
       const anthropicMessages = await Promise.all(
         messages.map((m) => formatAnthropicMessage(m.role, m.content)),
@@ -955,7 +970,7 @@ async function prepareRequestConfig(
 
       headers['x-api-key'] = apiKey;
       headers['anthropic-version'] = '2023-06-01';
-      
+
       if (!url.endsWith('/v1/messages') && !url.endsWith('/messages')) {
         let base = cleanBaseUrl(url);
         if (!base.endsWith('/v1')) {
@@ -971,7 +986,7 @@ async function prepareRequestConfig(
             return {
               name: t.function.name,
               description: t.function.description,
-              input_schema: t.function.parameters
+              input_schema: t.function.parameters,
             };
           }
           return t;
@@ -980,9 +995,7 @@ async function prepareRequestConfig(
 
       body = {
         model: modelName,
-        messages: isSingleTurn
-          ? [anthropicUserMsg]
-          : anthropicMessages,
+        messages: isSingleTurn ? [anthropicUserMsg] : anthropicMessages,
         system: finalSystemPrompt,
         temperature,
         max_tokens: maxTokens ?? (stream ? 8192 : 4096),
@@ -1027,7 +1040,7 @@ async function prepareRequestConfig(
       messages.map((m) => formatOpenAiMessage(m.role, m.content)),
     );
     const openAiUserMsg = await formatOpenAiMessage('user', options.promptText || '');
-    
+
     const isJsonMode = isJsonResponseMode(options.responseFormat);
 
     body = {
@@ -1095,8 +1108,8 @@ async function executeLLMRequest(
             type: 'function',
             function: {
               name: tu.name,
-              arguments: JSON.stringify(tu.input || {})
-            }
+              arguments: JSON.stringify(tu.input || {}),
+            },
           }));
           return JSON.stringify({ tool_calls: formattedToolCalls });
         }
@@ -1258,7 +1271,7 @@ export async function streamLLMChat(
 
   let controller: AbortController;
   let persistentRunKey: string | null = null;
-  
+
   if (shouldPersistOnDisconnect && userId) {
     persistentRunKey = getPersistentRunKey(userId, clientRunId);
     const existingRun = activePersistentAiRuns.get(persistentRunKey);
@@ -1326,7 +1339,8 @@ export async function streamLLMChat(
       });
 
       try {
-        const lastUserMsg = messages[messages.length - 1]?.content || '生成一段3D模型旋转的精美视频';
+        const lastUserMsg =
+          messages[messages.length - 1]?.content || '生成一段3D模型旋转的精美视频';
         const cleanPrompt = lastUserMsg.replace(/\[(图片|视频)\]/g, '').trim();
         const videoUrl = cleanVideoEndpointUrl(url, modelName);
 
@@ -1353,7 +1367,7 @@ export async function streamLLMChat(
 
         if (!finalVideoUrl && taskId) {
           logger.info(`[AI Video Generation] Task submitted. Task ID: ${taskId}. Start polling...`);
-          
+
           // Generate fallback task query URLs
           const cleanBase = cleanBaseUrl(videoUrl);
           const taskUrls = [
@@ -1361,7 +1375,7 @@ export async function streamLLMChat(
             `${cleanBase}/videos/tasks/${taskId}`,
             `${cleanBase}/videos/${taskId}`,
             `${cleanBase}/video/${taskId}`,
-            `${cleanBase}/tasks/${taskId}`
+            `${cleanBase}/tasks/${taskId}`,
           ];
 
           let attempts = 0;
@@ -1373,7 +1387,9 @@ export async function streamLLMChat(
           while (attempts < maxAttempts && !pollCompleted && !res.destroyed) {
             attempts++;
             await new Promise((resolve) => setTimeout(resolve, 3000));
-            logger.info(`[AI Video Generation] Polling task ${taskId}, attempt ${attempts}/${maxAttempts}`);
+            logger.info(
+              `[AI Video Generation] Polling task ${taskId}, attempt ${attempts}/${maxAttempts}`,
+            );
 
             try {
               let statusResponse: any = null;
@@ -1407,14 +1423,17 @@ export async function streamLLMChat(
 
               const statusData = statusResponse.data;
               const status = (statusData.status || statusData.data?.status || '').toLowerCase();
-              
+
               sendSSE(res, {
                 reasoning: `视频生成中... 进度: ${status === 'succeeded' ? '100' : status === 'processing' ? '进行中' : '排队中'} (尝试 ${attempts}/${maxAttempts})`,
                 requestId,
               });
 
               if (status === 'succeeded') {
-                finalVideoUrl = statusData.result?.video_url || statusData.data?.result?.video_url || statusData.result?.url;
+                finalVideoUrl =
+                  statusData.result?.video_url ||
+                  statusData.data?.result?.video_url ||
+                  statusData.result?.url;
                 pollCompleted = true;
               } else if (status === 'failed') {
                 throw new Error(statusData.reason || statusData.message || '生成任务失败');
@@ -1564,7 +1583,7 @@ export async function streamLLMChat(
           imageBody.extra_body = {
             high_density: true,
             density: 'high',
-            quality: 'hd'
+            quality: 'hd',
           };
 
           if (inputImage) {
@@ -1588,15 +1607,11 @@ export async function streamLLMChat(
           }
         }
 
-        const response = await aiHttp.post(
-          imgUrl,
-          imageBody,
-          {
-            headers,
-            timeout: AI_STREAM_TIMEOUT_MS,
-            signal: controller.signal,
-          },
-        );
+        const response = await aiHttp.post(imgUrl, imageBody, {
+          headers,
+          timeout: AI_STREAM_TIMEOUT_MS,
+          signal: controller.signal,
+        });
 
         const responseData = response.data;
         const imgData = responseData.data?.[0];
@@ -1606,7 +1621,8 @@ export async function streamLLMChat(
           const urlOrBase64 =
             imgData.url || (imgData.b64_json ? `data:image/png;base64,${imgData.b64_json}` : null);
           if (urlOrBase64) {
-            const displayPrompt = cleanPrompt.substring(0, 80) + (cleanPrompt.length > 80 ? '...' : '');
+            const displayPrompt =
+              cleanPrompt.substring(0, 80) + (cleanPrompt.length > 80 ? '...' : '');
             finalMarkdown = `![${displayPrompt}](${urlOrBase64})`;
           }
         }
@@ -1762,7 +1778,11 @@ export async function streamLLMChat(
     let assistantReasoning = '';
 
     let assistantToolCalls: any[] = [];
-    const appendAssistantChunk = (payload: { text?: string; reasoning?: string; tool_calls?: any[] }) => {
+    const appendAssistantChunk = (payload: {
+      text?: string;
+      reasoning?: string;
+      tool_calls?: any[];
+    }) => {
       if (payload.reasoning) {
         assistantReasoning += payload.reasoning;
         sendSSE(res, { reasoning: payload.reasoning, requestId });
@@ -1826,23 +1846,27 @@ export async function streamLLMChat(
               const reasoning = parsed.delta?.thinking;
               if (reasoning) appendAssistantChunk({ reasoning });
             } else if (parsed.delta?.type === 'input_json_delta') {
-              const toolCallDelta = [{
-                index: parsed.index ?? 0,
-                function: {
-                  arguments: parsed.delta.partial_json
-                }
-              }];
+              const toolCallDelta = [
+                {
+                  index: parsed.index ?? 0,
+                  function: {
+                    arguments: parsed.delta.partial_json,
+                  },
+                },
+              ];
               appendAssistantChunk({ tool_calls: toolCallDelta });
             }
           } else if (parsed.type === 'content_block_start') {
             if (parsed.content_block?.type === 'tool_use') {
-              const toolCallStart = [{
-                index: parsed.index ?? 0,
-                id: parsed.content_block.id,
-                function: {
-                  name: parsed.content_block.name
-                }
-              }];
+              const toolCallStart = [
+                {
+                  index: parsed.index ?? 0,
+                  id: parsed.content_block.id,
+                  function: {
+                    name: parsed.content_block.name,
+                  },
+                },
+              ];
               appendAssistantChunk({ tool_calls: toolCallStart });
             }
           } else {
@@ -2076,9 +2100,7 @@ export async function callLLMWithFailover(
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       failedLabels.push(label);
-      logger.warn(
-        `[AI Failover] Model ${label} failed: ${lastError.message}. Trying next...`,
-      );
+      logger.warn(`[AI Failover] Model ${label} failed: ${lastError.message}. Trying next...`);
     }
   }
 

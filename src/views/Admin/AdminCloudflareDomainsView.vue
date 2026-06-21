@@ -937,8 +937,6 @@ onMounted(async () => {
                 </span>
               </div>
 
-
-
               <div
                 v-if="!hasToken"
                 class="flex-1 grid place-items-center text-xs text-center px-4"
@@ -1060,8 +1058,6 @@ onMounted(async () => {
                 </div>
               </div>
 
-
-
               <div
                 class="flex-1 overflow-auto border rounded-xl"
                 style="border-color: var(--border-base)"
@@ -1182,7 +1178,10 @@ onMounted(async () => {
       <div class="space-y-4">
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">类型</label>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+              >类型</label
+            >
             <select
               v-model="dnsForm.type"
               class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
@@ -1203,7 +1202,10 @@ onMounted(async () => {
             </select>
           </div>
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">TTL</label>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+              >TTL</label
+            >
             <select
               v-model="dnsForm.ttl"
               :disabled="['A', 'AAAA', 'CNAME'].includes(dnsForm.type) && dnsForm.proxied"
@@ -1233,7 +1235,10 @@ onMounted(async () => {
         <template v-if="dnsForm.type === 'SRV'">
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">服务 (Service) *</label>
+              <label
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+                >服务 (Service) *</label
+              >
               <UiInput
                 v-model="dnsForm.srvService"
                 placeholder="例如: _sip"
@@ -1241,7 +1246,10 @@ onMounted(async () => {
               />
             </div>
             <div>
-              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">协议 (Protocol) *</label>
+              <label
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+                >协议 (Protocol) *</label
+              >
               <select
                 v-model="dnsForm.srvProtocol"
                 class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
@@ -1258,14 +1266,20 @@ onMounted(async () => {
             </div>
           </div>
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">名称 (Name/域) *</label>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+              >名称 (Name/域) *</label
+            >
             <UiInput v-model="dnsForm.name" input-class="text-xs font-mono" />
             <div class="mt-1 text-[10px]" style="color: var(--text-muted)">
               解析为: <span class="font-mono font-bold text-accent">{{ namePreview }}</span>
             </div>
           </div>
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">目标 (Target) *</label>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+              >目标 (Target) *</label
+            >
             <UiInput
               v-model="dnsForm.srvTarget"
               placeholder="例如: sipserver.example.com"
@@ -1274,28 +1288,25 @@ onMounted(async () => {
           </div>
           <div class="grid grid-cols-3 gap-3">
             <div>
-              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">优先级 (Priority) *</label>
-              <UiInput
-                v-model.number="dnsForm.priority"
-                type="number"
-                input-class="text-xs"
-              />
+              <label
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+                >优先级 (Priority) *</label
+              >
+              <UiInput v-model.number="dnsForm.priority" type="number" input-class="text-xs" />
             </div>
             <div>
-              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">权重 (Weight) *</label>
-              <UiInput
-                v-model.number="dnsForm.srvWeight"
-                type="number"
-                input-class="text-xs"
-              />
+              <label
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+                >权重 (Weight) *</label
+              >
+              <UiInput v-model.number="dnsForm.srvWeight" type="number" input-class="text-xs" />
             </div>
             <div>
-              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">端口 (Port) *</label>
-              <UiInput
-                v-model.number="dnsForm.srvPort"
-                type="number"
-                input-class="text-xs"
-              />
+              <label
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+                >端口 (Port) *</label
+              >
+              <UiInput v-model.number="dnsForm.srvPort" type="number" input-class="text-xs" />
             </div>
           </div>
         </template>
@@ -1303,7 +1314,10 @@ onMounted(async () => {
         <!-- CAA specific fields -->
         <template v-else-if="dnsForm.type === 'CAA'">
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">名称 (Name) *</label>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+              >名称 (Name) *</label
+            >
             <UiInput v-model="dnsForm.name" input-class="text-xs font-mono" />
             <div class="mt-1 text-[10px]" style="color: var(--text-muted)">
               解析为: <span class="font-mono font-bold text-accent">{{ namePreview }}</span>
@@ -1311,15 +1325,17 @@ onMounted(async () => {
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">标志 (Flags) *</label>
-              <UiInput
-                v-model.number="dnsForm.caaFlags"
-                type="number"
-                input-class="text-xs"
-              />
+              <label
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+                >标志 (Flags) *</label
+              >
+              <UiInput v-model.number="dnsForm.caaFlags" type="number" input-class="text-xs" />
             </div>
             <div>
-              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">标签 (Tag) *</label>
+              <label
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+                >标签 (Tag) *</label
+              >
               <select
                 v-model="dnsForm.caaTag"
                 class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
@@ -1336,7 +1352,10 @@ onMounted(async () => {
             </div>
           </div>
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">值 (Value/CA域名) *</label>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+              >值 (Value/CA域名) *</label
+            >
             <UiInput
               v-model="dnsForm.caaValue"
               placeholder="例如: letsencrypt.org"
@@ -1348,7 +1367,10 @@ onMounted(async () => {
         <!-- Standard DNS record fields (A, AAAA, CNAME, TXT, MX, NS) -->
         <template v-else>
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">名称 (Name) *</label>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+              >名称 (Name) *</label
+            >
             <UiInput v-model="dnsForm.name" input-class="text-xs font-mono" />
             <div class="mt-1 text-[10px]" style="color: var(--text-muted)">
               解析为: <span class="font-mono font-bold text-accent">{{ namePreview }}</span>
@@ -1356,7 +1378,10 @@ onMounted(async () => {
             </div>
           </div>
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{{ contentLabel }} *</label>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+              >{{ contentLabel }} *</label
+            >
             <textarea
               v-if="dnsForm.type === 'TXT'"
               v-model="dnsForm.content"
@@ -1377,12 +1402,11 @@ onMounted(async () => {
             />
           </div>
           <div v-if="dnsForm.type === 'MX'">
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">优先级 (Priority) *</label>
-            <UiInput
-              v-model.number="dnsForm.priority"
-              type="number"
-              input-class="text-xs"
-            />
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+              >优先级 (Priority) *</label
+            >
+            <UiInput v-model.number="dnsForm.priority" type="number" input-class="text-xs" />
           </div>
 
           <!-- Cloudflare Proxy Toggle Card -->

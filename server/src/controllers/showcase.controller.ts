@@ -594,7 +594,9 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
 
     let thumbnailUrl = '';
     if (thumbnailFile) {
-      thumbnailUrl = (thumbnailFile as UploadedFile).url || `${req.protocol}://${req.get('host')}/uploads/showcase/${thumbnailFile.filename}`;
+      thumbnailUrl =
+        (thumbnailFile as UploadedFile).url ||
+        `${req.protocol}://${req.get('host')}/uploads/showcase/${thumbnailFile.filename}`;
     } else if (assetId) {
       const asset = await prisma.asset.findUnique({
         where: { id: assetId as string },
@@ -609,7 +611,9 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
     }
 
     const imageUrls = imageFiles.map(
-      (f) => (f as UploadedFile).url || `${req.protocol}://${req.get('host')}/uploads/showcase/${f.filename}`,
+      (f) =>
+        (f as UploadedFile).url ||
+        `${req.protocol}://${req.get('host')}/uploads/showcase/${f.filename}`,
     );
 
     const showcase = await prisma.showcase.create({
@@ -774,11 +778,15 @@ export const updateShowcase = async (req: AuthRequest, res: Response, next: Next
           logger.error('[ShowcaseController] Failed to delete old thumbnail in background:', err);
         });
       }
-      updateData.thumbnailUrl = (thumbnailFile as UploadedFile).url || `${req.protocol}://${req.get('host')}/uploads/showcase/${thumbnailFile.filename}`;
+      updateData.thumbnailUrl =
+        (thumbnailFile as UploadedFile).url ||
+        `${req.protocol}://${req.get('host')}/uploads/showcase/${thumbnailFile.filename}`;
     }
     if (imageFiles.length > 0) {
       const imageUrls = imageFiles.map(
-        (f) => (f as UploadedFile).url || `${req.protocol}://${req.get('host')}/uploads/showcase/${f.filename}`,
+        (f) =>
+          (f as UploadedFile).url ||
+          `${req.protocol}://${req.get('host')}/uploads/showcase/${f.filename}`,
       );
       const existingImages = parseImages(showcase.images);
       updateData.images = JSON.stringify([...existingImages, ...imageUrls]);
@@ -838,14 +846,20 @@ export const deleteShowcase = async (req: AuthRequest, res: Response, next: Next
     // Delete files (run in background)
     if (showcase.thumbnailUrl) {
       deleteCloudOrLocalFileByUrl(showcase.thumbnailUrl).catch((err) => {
-        logger.error('[ShowcaseController] Failed to delete showcase thumbnail in background:', err);
+        logger.error(
+          '[ShowcaseController] Failed to delete showcase thumbnail in background:',
+          err,
+        );
       });
     }
     if (showcase.images) {
       const images = parseImages(showcase.images);
       for (const url of images) {
         deleteCloudOrLocalFileByUrl(url).catch((err) => {
-          logger.error(`[ShowcaseController] Failed to delete showcase image ${url} in background:`, err);
+          logger.error(
+            `[ShowcaseController] Failed to delete showcase image ${url} in background:`,
+            err,
+          );
         });
       }
     }

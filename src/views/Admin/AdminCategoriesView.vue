@@ -591,9 +591,7 @@ onMounted(() => {
                         <template v-else> 系统预设分类 </template>
                       </td>
                       <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-right">
-                        <div
-                          class="flex items-center justify-end gap-1.5 transition-opacity"
-                        >
+                        <div class="flex items-center justify-end gap-1.5 transition-opacity">
                           <button
                             type="button"
                             class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-accent transition-colors"

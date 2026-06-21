@@ -156,10 +156,7 @@ class ThumbnailLocalizer {
             status: 'ACTIVE',
             assetType: 'MIRROR',
           },
-          orderBy: [
-            { priority: 'desc' },
-            { createdAt: 'desc' },
-          ],
+          orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
         });
 
         if (configs.length === 0) {
@@ -168,10 +165,7 @@ class ThumbnailLocalizer {
               status: 'ACTIVE',
               assetType: 'ALL',
             },
-            orderBy: [
-              { priority: 'desc' },
-              { createdAt: 'desc' },
-            ],
+            orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
           });
         }
 
@@ -309,10 +303,7 @@ class ThumbnailLocalizer {
           status: 'ACTIVE',
           assetType: 'MIRROR',
         },
-        orderBy: [
-          { priority: 'desc' },
-          { createdAt: 'desc' },
-        ],
+        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
       });
 
       if (configs.length === 0) {
@@ -321,10 +312,7 @@ class ThumbnailLocalizer {
             status: 'ACTIVE',
             assetType: 'ALL',
           },
-          orderBy: [
-            { priority: 'desc' },
-            { createdAt: 'desc' },
-          ],
+          orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
         });
       }
 

@@ -284,7 +284,10 @@ const normalizeMaterialItem = (material: any, metricLabel = '收藏'): ResourceF
   kind: 'material',
   title: material.title,
   subtitle: [material.category, material.resolution].filter(Boolean).join(' / ') || '材质',
-  metric: metricLabel === '下载' ? sumNumbers(material.downloads) : sumNumbers(material._count?.favorites),
+  metric:
+    metricLabel === '下载'
+      ? sumNumbers(material.downloads)
+      : sumNumbers(material._count?.favorites),
   metricLabel,
   status: material.status,
   previewUrl: material.previewUrl,

@@ -119,20 +119,8 @@ async function submitEditAccount() {
     </div>
 
     <template #footer>
-      <Button
-        variant="secondary"
-        size="sm"
-        @click="visible = false"
-      >
-        取消
-      </Button>
-      <Button
-        variant="primary"
-        size="sm"
-        @click="submitEditAccount"
-      >
-        保存修改
-      </Button>
+      <Button variant="secondary" size="sm" @click="visible = false"> 取消 </Button>
+      <Button variant="primary" size="sm" @click="submitEditAccount"> 保存修改 </Button>
     </template>
   </Modal>
 </template>

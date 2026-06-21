@@ -265,7 +265,7 @@ const toggleVisibility = () => {
               : 'bg-slate-500/10 border-slate-500/20 text-slate-500 dark:text-slate-400',
             props.note.userId === authStore.user?.id
               ? 'cursor-pointer hover:bg-emerald-500/20 hover:border-emerald-500/40 select-none'
-              : 'cursor-default'
+              : 'cursor-default',
           ]"
           :title="props.note.userId === authStore.user?.id ? '点击切换公开/私密状态' : undefined"
           @click.stop="toggleVisibility"
@@ -304,7 +304,9 @@ const toggleVisibility = () => {
     <div
       v-if="parseTags(props.note.tags).length"
       class="flex flex-wrap gap-1"
-      :class="props.viewMode === 'list' && !props.isMobile ? 'mb-0 hidden sm:flex' : 'mb-2.5 md:mb-3.5'"
+      :class="
+        props.viewMode === 'list' && !props.isMobile ? 'mb-0 hidden sm:flex' : 'mb-2.5 md:mb-3.5'
+      "
     >
       <span
         v-for="tag in parseTags(props.note.tags).slice(0, props.isMobile ? 1 : 3)"

@@ -83,7 +83,11 @@ export const deleteNotification = async (req: AuthRequest, res: Response, next: 
   }
 };
 
-export const getNotificationPreferences = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getNotificationPreferences = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     let prefs = await prisma.notificationPreference.findUnique({
       where: { userId: req.userId as string },
@@ -99,7 +103,11 @@ export const getNotificationPreferences = async (req: AuthRequest, res: Response
   }
 };
 
-export const updateNotificationPreferences = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateNotificationPreferences = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const {
     emailSystemUpdates,
     emailTeamActivity,
@@ -135,7 +143,11 @@ export const updateNotificationPreferences = async (req: AuthRequest, res: Respo
   }
 };
 
-export const deleteAllNotifications = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteAllNotifications = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     await prisma.notification.deleteMany({
       where: { userId: req.userId as string },

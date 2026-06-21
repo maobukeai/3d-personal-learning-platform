@@ -7,7 +7,11 @@ export class TwoFactorController {
   /**
    * Get all 2FA accounts for the logged-in user
    */
-  public static async getAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async getAccounts(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     try {
       const accounts = await prisma.twoFactorAccount.findMany({
@@ -24,7 +28,11 @@ export class TwoFactorController {
   /**
    * Create a new 2FA account record
    */
-  public static async createAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async createAccount(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const { label, email, secret, note, category } = req.body;
 
@@ -40,7 +48,7 @@ export class TwoFactorController {
 
     // Clean base32 secret: remove spaces and equal signs, convert to uppercase
     const cleanSecret = secret.replace(/[\s=]/g, '').toUpperCase();
-    
+
     // Validate base32 format
     const base32Regex = /^[A-Z2-7]+$/;
     if (!base32Regex.test(cleanSecret)) {
@@ -69,7 +77,11 @@ export class TwoFactorController {
   /**
    * Update an existing 2FA account's details
    */
-  public static async updateAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async updateAccount(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
     const { label, email, note, category } = req.body;
@@ -110,7 +122,11 @@ export class TwoFactorController {
   /**
    * Delete a 2FA account record
    */
-  public static async deleteAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async deleteAccount(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
 
@@ -139,7 +155,11 @@ export class TwoFactorController {
   /**
    * Bulk import 2FA accounts
    */
-  public static async importAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async importAccounts(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const { accounts } = req.body;
 

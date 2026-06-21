@@ -791,12 +791,7 @@ onUnmounted(() => {
             <span>{{ authStore.isAuthenticated ? '导入到我的笔记本' : '登录并导入收藏' }}</span>
           </Button>
 
-          <Button
-            variant="secondary"
-            size="sm"
-            full-width
-            @click="handleCopy"
-          >
+          <Button variant="secondary" size="sm" full-width @click="handleCopy">
             <component :is="isCopying ? Check : Copy" class="w-3.5 h-3.5 mr-1" />
             <span>{{ isCopying ? '已复制' : '复制全文' }}</span>
           </Button>

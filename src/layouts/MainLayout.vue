@@ -410,7 +410,9 @@ onUnmounted(() => {
       class="topbar h-12 lg:h-14 flex items-center justify-between px-3 md:px-4 shrink-0 z-30 glass-header"
     >
       <!-- Left: Brand Logo + Brand Name & Workspace Switcher -->
-      <div class="flex items-center gap-2.5 min-w-0 lg:w-auto lg:min-w-[260px] xl:w-auto xl:min-w-[280px] shrink-0">
+      <div
+        class="flex items-center gap-2.5 min-w-0 lg:w-auto lg:min-w-[260px] xl:w-auto xl:min-w-[280px] shrink-0"
+      >
         <button
           type="button"
           class="topbar-icon-btn w-9 h-9 flex items-center justify-center lg:hidden shrink-0 -ml-1"
@@ -479,9 +481,7 @@ onUnmounted(() => {
           @click="handleSearch"
         >
           <Search />
-          <span class="text-xs flex-1 truncate">{{
-            $t('layout.searchPlaceholder')
-          }}</span>
+          <span class="text-xs flex-1 truncate">{{ $t('layout.searchPlaceholder') }}</span>
           <kbd
             class="text-[10px] px-2 py-0.5 rounded border font-mono hidden lg:inline-block"
             style="border-color: var(--border-base); color: var(--text-muted)"
@@ -501,9 +501,7 @@ onUnmounted(() => {
           @click="handleSearch"
         >
           <Search />
-          <span class="text-xs flex-1 truncate">{{
-            $t('layout.searchPlaceholder')
-          }}</span>
+          <span class="text-xs flex-1 truncate">{{ $t('layout.searchPlaceholder') }}</span>
           <kbd
             class="text-[9px] px-1.5 py-0.5 rounded border font-mono hidden xl:inline-block"
             style="border-color: var(--border-base); color: var(--text-muted)"
@@ -585,7 +583,23 @@ onUnmounted(() => {
         </div>
         <RouterView v-slot="{ Component, route }">
           <Transition name="page-fade" mode="out-in">
-            <keep-alive :include="['TaskBoard', 'RoadmapsView']">
+            <keep-alive
+              :include="[
+                'DashboardView',
+                'AcademyView',
+                'ResourceCenterView',
+                'AssetsView',
+                'MyWorksView',
+                'TaskBoard',
+                'DiscussionsView',
+                'RoadmapsView',
+                'ProjectsView',
+                'MaterialsView',
+                'PluginsView',
+                'ShowcaseView',
+                'MessagesView',
+              ]"
+            >
               <component :is="Component" :key="route.path" />
             </keep-alive>
           </Transition>
@@ -663,7 +677,9 @@ onUnmounted(() => {
     >
       <template #header>
         <div class="flex flex-col text-left">
-          <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+          <span
+            class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest"
+          >
             系统公告 / System Announcement
           </span>
         </div>
@@ -671,7 +687,9 @@ onUnmounted(() => {
 
       <div class="flex items-center gap-4 p-1">
         <!-- Megaphone icon with beautiful gradient background box matching WorkspaceSwitcher aesthetics -->
-        <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-tr from-amber-500 via-orange-500 to-rose-500 text-white shadow-md shadow-orange-500/20 shrink-0">
+        <div
+          class="w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-tr from-amber-500 via-orange-500 to-rose-500 text-white shadow-md shadow-orange-500/20 shrink-0"
+        >
           <Megaphone class="w-6 h-6 text-white" />
         </div>
         <div class="flex flex-col text-left min-w-0">
@@ -684,7 +702,9 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="mt-4 bg-subtle/30 border border-base rounded-xl p-4 text-xs sm:text-sm text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed max-h-[300px] overflow-y-auto">
+      <div
+        class="mt-4 bg-subtle/30 border border-base rounded-xl p-4 text-xs sm:text-sm text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed max-h-[300px] overflow-y-auto"
+      >
         {{ latestBroadcast?.content }}
       </div>
 
@@ -698,11 +718,7 @@ onUnmounted(() => {
         >
           立即前往
         </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          @click="showBroadcastPopup = false"
-        >
+        <Button variant="secondary" size="sm" @click="showBroadcastPopup = false">
           我知道了
         </Button>
       </template>
@@ -771,7 +787,6 @@ onUnmounted(() => {
 .fade-leave-to {
   opacity: 0;
 }
-
 
 @media (max-width: 1023px) {
   .mobile-main-content {

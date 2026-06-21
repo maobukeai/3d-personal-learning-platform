@@ -135,16 +135,12 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <Modal
-    :show="modelValue"
-    title="新建学习任务"
-    size="xl"
-    glass-card
-    @close="handleClose"
-  >
+  <Modal :show="modelValue" title="新建学习任务" size="xl" glass-card @close="handleClose">
     <div class="space-y-4">
       <div>
-        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+        <label
+          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+        >
           任务标题
         </label>
         <input
@@ -161,7 +157,9 @@ const handleSubmit = () => {
       </div>
 
       <div>
-        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+        <label
+          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+        >
           详细描述 (可选)
         </label>
         <textarea
@@ -179,7 +177,9 @@ const handleSubmit = () => {
 
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >
             优先级
           </label>
           <el-select v-model="localNewTask.priority" class="!w-full custom-select">
@@ -192,7 +192,9 @@ const handleSubmit = () => {
           </el-select>
         </div>
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >
             截止日期
           </label>
           <el-date-picker
@@ -204,7 +206,9 @@ const handleSubmit = () => {
           />
         </div>
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >
             负责人
           </label>
           <el-select
@@ -227,7 +231,9 @@ const handleSubmit = () => {
           </el-select>
         </div>
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >
             关联项目
           </label>
           <el-select
@@ -243,7 +249,9 @@ const handleSubmit = () => {
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >
             参与人员
           </label>
           <el-select
@@ -268,7 +276,9 @@ const handleSubmit = () => {
 
         <!-- Tags -->
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >
             标签
           </label>
           <div class="flex flex-wrap gap-1.5 mb-2">
@@ -301,11 +311,7 @@ const handleSubmit = () => {
               placeholder="输入标签名"
               @keyup.enter="addTag"
             />
-            <Button
-              variant="secondary"
-              size="sm"
-              @click="addTag"
-            >
+            <Button variant="secondary" size="sm" @click="addTag">
               <Plus class="w-3.5 h-3.5" />
             </Button>
           </div>
@@ -313,18 +319,10 @@ const handleSubmit = () => {
       </div>
 
       <div class="pt-4">
-        <Button
-          variant="primary"
-          size="lg"
-          full-width
-          @click="handleSubmit"
-        >
-          创建任务
-        </Button>
+        <Button variant="primary" size="lg" full-width @click="handleSubmit"> 创建任务 </Button>
       </div>
     </div>
   </Modal>
 </template>
 
-<style scoped>
-</style>
+<style scoped></style>

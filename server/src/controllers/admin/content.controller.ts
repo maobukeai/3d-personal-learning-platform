@@ -449,11 +449,17 @@ export const adminDeleteMaterial = async (req: AuthRequest, res: Response, next:
 
     // Delete files from disk or cloud in background
     deleteCloudOrLocalFileByUrl(material.fileUrl).catch((err) => {
-      logger.error(`[AdminContentController] Failed to delete material file ${material.fileUrl} in background:`, err);
+      logger.error(
+        `[AdminContentController] Failed to delete material file ${material.fileUrl} in background:`,
+        err,
+      );
     });
     if (material.previewUrl) {
       deleteCloudOrLocalFileByUrl(material.previewUrl).catch((err) => {
-        logger.error(`[AdminContentController] Failed to delete material preview ${material.previewUrl} in background:`, err);
+        logger.error(
+          `[AdminContentController] Failed to delete material preview ${material.previewUrl} in background:`,
+          err,
+        );
       });
     }
 
@@ -697,7 +703,10 @@ export const adminDeleteShowcase = async (req: AuthRequest, res: Response, next:
     // Delete files in background
     if (showcase.thumbnailUrl) {
       deleteCloudOrLocalFileByUrl(showcase.thumbnailUrl).catch((err) => {
-        logger.error('[AdminContentController] Failed to delete showcase thumbnail in background:', err);
+        logger.error(
+          '[AdminContentController] Failed to delete showcase thumbnail in background:',
+          err,
+        );
       });
     }
     if (showcase.images) {
@@ -707,13 +716,19 @@ export const adminDeleteShowcase = async (req: AuthRequest, res: Response, next:
         for (const url of images) {
           if (url) {
             deleteCloudOrLocalFileByUrl(url).catch((err) => {
-              logger.error(`[AdminContentController] Failed to delete showcase image ${url} in background:`, err);
+              logger.error(
+                `[AdminContentController] Failed to delete showcase image ${url} in background:`,
+                err,
+              );
             });
           }
         }
       } catch {
         deleteCloudOrLocalFileByUrl(showcase.images).catch((err) => {
-          logger.error(`[AdminContentController] Failed to delete showcase image ${showcase.images} in background:`, err);
+          logger.error(
+            `[AdminContentController] Failed to delete showcase image ${showcase.images} in background:`,
+            err,
+          );
         });
       }
     }

@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import authRoutes from './routes/auth.routes';
 import adminRoutes from './routes/admin.routes';
 import feedbackRoutes from './routes/feedback.routes';
@@ -58,6 +59,7 @@ const parseTrustProxy = (value: string | undefined) => {
 app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
 
 app.use(requestContext);
+app.use(compression());
 
 // Security Middleware
 app.use(
@@ -118,6 +120,8 @@ app.use(csrfProtection);
 app.use(
   '/uploads',
   express.static(path.join(process.cwd(), 'uploads'), {
+    maxAge: '7d', // Enable 7-day browser caching
+    immutable: true, // Asset files do not change once uploaded (they are versioned/hashed if updated)
     setHeaders: (res, filePath) => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
       if (path.extname(filePath).toLowerCase() === '.svg') {

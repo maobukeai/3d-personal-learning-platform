@@ -22,7 +22,6 @@ import UserAvatar from '@/components/UserAvatar.vue';
 import type { Feedback } from '@/types';
 import Modal from '@/components/ui/Modal.vue';
 import UiButton from '@/components/ui/Button.vue';
-import UiInput from '@/components/ui/Input.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Tabs from '@/components/ui/Tabs.vue';
@@ -382,11 +381,7 @@ onMounted(fetchFeedbacks);
           <!-- Compact Search Box (Centered) -->
           <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
             <Search />
-            <input
-              v-model="searchQuery"
-              type="search"
-              placeholder="搜索当前反馈..."
-            />
+            <input v-model="searchQuery" type="search" placeholder="搜索当前反馈..." />
           </label>
         </template>
 

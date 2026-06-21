@@ -200,11 +200,7 @@ defineExpose({
         </p>
 
         <!-- Project Invite Actions -->
-        <div
-          v-if="n.type === 'PROJECT_INVITE'"
-          class="mb-2.5 flex items-center gap-2"
-          @click.stop
-        >
+        <div v-if="n.type === 'PROJECT_INVITE'" class="mb-2.5 flex items-center gap-2" @click.stop>
           <template v-if="respondedInvitations[n.id]">
             <span class="text-[10px] font-bold text-slate-400">
               {{ respondedInvitations[n.id] === 'ACCEPTED' ? '已接受邀请' : '已拒绝邀请' }}

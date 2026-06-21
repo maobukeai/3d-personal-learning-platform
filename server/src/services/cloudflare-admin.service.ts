@@ -39,7 +39,6 @@ export interface CloudflareDnsRecord {
   modifiedOn: string;
 }
 
-
 async function cloudflareRequest<T>(
   apiToken: string,
   path: string,
@@ -295,7 +294,8 @@ class CloudflareAdminService {
           certificate_status?: string;
           verification_status?: string;
         }>(apiToken, `/zones/${zoneId}/ssl/verification`);
-        sslStatus = verification.certificate_status || verification.verification_status || 'unknown';
+        sslStatus =
+          verification.certificate_status || verification.verification_status || 'unknown';
       } catch {
         sslStatus = ssl.value === 'off' ? 'disabled' : 'active';
       }
@@ -316,10 +316,14 @@ class CloudflareAdminService {
 
   async setZonePaused(zoneId: string, paused: boolean) {
     const apiToken = await this.requireToken();
-    return cloudflareRequest<{ id: string; paused: boolean; status: string }>(apiToken, `/zones/${zoneId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ paused }),
-    });
+    return cloudflareRequest<{ id: string; paused: boolean; status: string }>(
+      apiToken,
+      `/zones/${zoneId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ paused }),
+      },
+    );
   }
 }
 

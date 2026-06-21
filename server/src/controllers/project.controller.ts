@@ -617,18 +617,27 @@ export const batchCreateProjectTasks = async (
 
     const tasksData = tasks
       .filter((t: { title?: string }) => t.title)
-      .map((t: { title: string; description?: string; priority?: string; dueDate?: string; assigneeId?: string; participantIds?: string[] }) => ({
-        title: t.title,
-        description: t.description || null,
-        status: TaskStatus.TODO,
-        priority: t.priority || 'MEDIUM',
-        dueDate: t.dueDate ? new Date(t.dueDate) : null,
-        projectId: id,
-        assigneeId: t.assigneeId || null,
-        userId: req.userId as string,
-        teamId: req.workspaceId || null,
-        subtasks: null,
-      }));
+      .map(
+        (t: {
+          title: string;
+          description?: string;
+          priority?: string;
+          dueDate?: string;
+          assigneeId?: string;
+          participantIds?: string[];
+        }) => ({
+          title: t.title,
+          description: t.description || null,
+          status: TaskStatus.TODO,
+          priority: t.priority || 'MEDIUM',
+          dueDate: t.dueDate ? new Date(t.dueDate) : null,
+          projectId: id,
+          assigneeId: t.assigneeId || null,
+          userId: req.userId as string,
+          teamId: req.workspaceId || null,
+          subtasks: null,
+        }),
+      );
 
     await prisma.task.createMany({ data: tasksData });
 

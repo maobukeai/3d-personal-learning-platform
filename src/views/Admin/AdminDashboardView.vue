@@ -150,8 +150,6 @@ const broadcastForm = ref({
   link: '',
 });
 
-
-
 const activeActivityTab = ref<'assets' | 'courses' | 'feedback'>('assets');
 const activeFeedTab = ref<'users' | 'logs'>('users');
 

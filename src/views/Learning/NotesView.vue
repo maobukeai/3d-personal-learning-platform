@@ -33,7 +33,6 @@ import NoteImportGithubDialog from './components/NoteImportGithubDialog.vue';
 import NoteCard from './components/NoteCard.vue';
 import ActivityTimeline from './components/ActivityTimeline.vue';
 import Tabs from '@/components/ui/Tabs.vue';
-import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
 import Checkbox from '@/components/ui/Checkbox.vue';
 import Modal from '@/components/ui/Modal.vue';
@@ -436,9 +435,7 @@ const handleToggleVisibility = async (note: Note, newVisibility: string) => {
     const res = await api.put(`/api/notes/${note.id}`, { visibility: newVisibility });
     note.visibility = res.data.visibility;
     ElMessage.success(
-      note.visibility === 'PUBLIC'
-        ? '已公开笔记，所有人可见'
-        : '已设为私密，仅自己可见'
+      note.visibility === 'PUBLIC' ? '已公开笔记，所有人可见' : '已设为私密，仅自己可见',
     );
 
     // Synced reactive list update
@@ -792,8 +789,6 @@ onUnmounted(() => {
           <div
             class="flex flex-wrap flex-1 items-center gap-2 min-w-[280px] justify-start sm:justify-end"
           >
-
-
             <!-- Sort Select -->
             <el-select
               v-model="sortBy"
@@ -1058,10 +1053,7 @@ onUnmounted(() => {
             </div>
 
             <!-- Pagination -->
-            <div
-              v-if="totalPages > 1"
-              class="flex justify-center mt-12 mb-8"
-            >
+            <div v-if="totalPages > 1" class="flex justify-center mt-12 mb-8">
               <el-pagination
                 :current-page="currentPage"
                 :page-size="pageSize"

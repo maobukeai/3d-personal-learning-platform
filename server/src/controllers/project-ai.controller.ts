@@ -20,7 +20,11 @@ import {
   AIServiceConfig,
 } from '../services/ai.service';
 import { getAIModelById, settingsService } from '../services/settings.service';
-import { parseBaiduNetdiskLink, type BaiduNetdiskParsedData, type BaiduNetdiskDirectory } from '../utils/baiduNetdisk';
+import {
+  parseBaiduNetdiskLink,
+  type BaiduNetdiskParsedData,
+  type BaiduNetdiskDirectory,
+} from '../utils/baiduNetdisk';
 import { hasPromptInjection } from '../utils/security';
 import {
   PROJECT_GENERATION_PROMPT,
@@ -518,8 +522,7 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
     typeof clientRunId === 'string' ? clientRunId.replace(/[^\w:-]/g, '').slice(0, 120) : '';
 
   // '__AUTO__' triggers system-wide automatic failover across all configured models
-  const isAutoMode =
-    typeof modelId === 'string' && modelId.trim() === '__AUTO__';
+  const isAutoMode = typeof modelId === 'string' && modelId.trim() === '__AUTO__';
 
   if (req.userId && safeClientRunId) {
     registerPersistentAiRun(req.userId, safeClientRunId);
@@ -731,21 +734,14 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
   try {
     if (isAutoMode) {
       // Auto mode: use failover engine to automatically select and retry models
-      await streamLLMChatWithFailover(
-        normalizedMessages,
-        systemPrompt,
-        res,
-        next,
-        req.userId,
-        {
-          sessionId: safeSessionId,
-          sessionTitle: safeSessionTitle,
-          mode: safeSessionMode,
-          sources: researchSources,
-          clientRunId: safeClientRunId,
-          continueOnClientDisconnect: Boolean(req.userId && safeClientRunId),
-        },
-      );
+      await streamLLMChatWithFailover(normalizedMessages, systemPrompt, res, next, req.userId, {
+        sessionId: safeSessionId,
+        sessionTitle: safeSessionTitle,
+        mode: safeSessionMode,
+        sources: researchSources,
+        clientRunId: safeClientRunId,
+        continueOnClientDisconnect: Boolean(req.userId && safeClientRunId),
+      });
     } else {
       await streamLLMChat(
         normalizedMessages,
@@ -891,7 +887,6 @@ export const getAiChatRunStatus = async (req: AuthRequest, res: Response, next: 
   }
 };
 
-
 export const clearAiChatHistory = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const userId = req.userId as string;
   const sessionId = req.query.sessionId as string | undefined;
@@ -919,7 +914,6 @@ export const clearAiChatHistory = async (req: AuthRequest, res: Response, next: 
     next(error);
   }
 };
-
 
 export const cleanAiMessages = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const userId = req.userId as string;

@@ -42,7 +42,13 @@ const selectFields = {
   githubId: true,
 } as const;
 
-type SafeUser = NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique<{ where: { id: string }; select: typeof selectFields }>>>>;
+type SafeUser = NonNullable<
+  Awaited<
+    ReturnType<
+      typeof prisma.user.findUnique<{ where: { id: string }; select: typeof selectFields }>
+    >
+  >
+>;
 
 export interface AuthRequest extends Request {
   userId?: string;

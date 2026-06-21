@@ -771,11 +771,7 @@ onUnmounted(() => {
       <div class="flex justify-center lg:flex-1 w-full lg:w-auto relative">
         <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 md:w-80 shrink-0">
           <Search />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="搜索标签、邮箱或备注..."
-          />
+          <input v-model="searchQuery" type="text" placeholder="搜索标签、邮箱或备注..." />
         </label>
         <!-- Floating Filter Result Badge -->
         <transition name="el-fade-in-linear">
@@ -870,7 +866,6 @@ onUnmounted(() => {
     <!-- Filters & Search Toolbar -->
     <div class="flex flex-wrap items-center justify-between gap-2 mb-2 w-full">
       <div class="flex items-center gap-2 w-full sm:w-auto flex-1 sm:flex-initial">
-
         <div class="shrink-0 w-24 sm:w-28">
           <el-select v-model="sortBy" placeholder="排序方式" class="custom-sort-select">
             <el-option label="默认排序" value="pinned_first" />
@@ -1532,11 +1527,7 @@ onUnmounted(() => {
               clearable
               @keyup.enter="createCategory"
             />
-            <Button
-              variant="primary"
-              size="sm"
-              @click="createCategory"
-            >
+            <Button variant="primary" size="sm" @click="createCategory">
               <Plus class="h-3.5 w-3.5 mr-1" />
               创建
             </Button>
@@ -1611,11 +1602,7 @@ onUnmounted(() => {
       </div>
 
       <template #footer>
-        <Button
-          variant="secondary"
-          size="sm"
-          @click="isCategoryManagerVisible = false"
-        >
+        <Button variant="secondary" size="sm" @click="isCategoryManagerVisible = false">
           关闭
         </Button>
       </template>

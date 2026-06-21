@@ -478,7 +478,11 @@ export const getNoteShare = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
-export const createOrUpdateNoteShare = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createOrUpdateNoteShare = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const noteId = req.params.id as string;
   const { expireHours, customText } = req.body;
 
@@ -728,7 +732,9 @@ export const generateDailyQuote = async (req: AuthRequest, res: Response, next: 
       // Use a distinct name to avoid shadowing the outer `res` (Express Response)
       const llmResult = await callLLM(prompt, systemPrompt);
       if (llmResult) {
-        generatedQuote = llmResult.replace(/^["'\u201c\u201d\u2018\u2019]|["'\u201c\u201d\u2018\u2019]$/g, '').trim();
+        generatedQuote = llmResult
+          .replace(/^["'\u201c\u201d\u2018\u2019]|["'\u201c\u201d\u2018\u2019]$/g, '')
+          .trim();
       }
     } catch (llmErr) {
       logger.error('LLM quote generation failed, using fallback:', llmErr);
@@ -746,7 +752,11 @@ export const generateDailyQuote = async (req: AuthRequest, res: Response, next: 
     }
 
     // Cache the new quote (non-blocking)
-    await fs.promises.writeFile(DAILY_QUOTE_CACHE, JSON.stringify({ date: todayStr, quote: generatedQuote }), 'utf8');
+    await fs.promises.writeFile(
+      DAILY_QUOTE_CACHE,
+      JSON.stringify({ date: todayStr, quote: generatedQuote }),
+      'utf8',
+    );
 
     res.json({ quote: generatedQuote, generated: true });
   } catch (error) {

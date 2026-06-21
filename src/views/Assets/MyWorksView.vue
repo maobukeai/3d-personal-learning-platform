@@ -19,7 +19,6 @@ import {
   SendHorizonal,
   ShieldAlert,
   Sparkles,
-  X,
   XCircle,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -586,7 +585,9 @@ onMounted(async () => {
 
 <template>
   <div class="my-works-page">
-    <header class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
+    <header
+      class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0"
+    >
       <div class="title-block flex-1 min-w-0">
         <div class="title-icon">
           <PackageCheck class="icon-sm" />
@@ -601,11 +602,7 @@ onMounted(async () => {
       <div class="flex justify-center flex-1 w-full md:w-auto">
         <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 md:w-80 shrink-0">
           <Search />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="搜索标题、说明、标签或发布位置"
-          />
+          <input v-model="searchQuery" type="text" placeholder="搜索标题、说明、标签或发布位置" />
         </label>
       </div>
 
@@ -737,8 +734,6 @@ onMounted(async () => {
             <Tabs v-model="activeTab" :options="libraryTabOptions" size="sm" />
           </div>
 
-
-
           <div class="toolbar-right">
             <select v-model="sortBy" class="select-field" aria-label="排序方式">
               <option value="newest">最新更新</option>
@@ -796,23 +791,26 @@ onMounted(async () => {
     >
       <template #header>
         <div>
-          <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">编辑作品</h3>
+          <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">
+            编辑作品
+          </h3>
           <p class="text-xs text-[var(--text-muted)] mt-1">保存后会根据内容类型重新提交审核。</p>
         </div>
       </template>
 
-      <div class="edit-grid" v-if="selectedWork">
+      <div v-if="selectedWork" class="edit-grid">
         <div class="col-span-2">
-          <Input
-            v-model="editForm.title"
-            type="text"
-            label="作品名称"
-            required
-          />
+          <Input v-model="editForm.title" type="text" label="作品名称" required />
         </div>
 
-        <label v-if="selectedWork.kind === 'asset'" class="form-field flex flex-col col-span-2 sm:col-span-1">
-          <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">资源分类</span>
+        <label
+          v-if="selectedWork.kind === 'asset'"
+          class="form-field flex flex-col col-span-2 sm:col-span-1"
+        >
+          <span
+            class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+            >资源分类</span
+          >
           <select
             v-model="editForm.categoryId"
             class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
@@ -826,7 +824,10 @@ onMounted(async () => {
 
         <template v-if="selectedWork.kind === 'material'">
           <label class="form-field flex flex-col col-span-2 sm:col-span-1">
-            <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">材料分类</span>
+            <span
+              class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+              >材料分类</span
+            >
             <select
               v-model="editForm.materialCategory"
               class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
@@ -837,7 +838,10 @@ onMounted(async () => {
             </select>
           </label>
           <label class="form-field flex flex-col col-span-2 sm:col-span-1">
-            <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">分辨率</span>
+            <span
+              class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+              >分辨率</span
+            >
             <select
               v-model="editForm.resolution"
               class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
@@ -856,7 +860,10 @@ onMounted(async () => {
 
         <template v-if="selectedWork.kind === 'plugin'">
           <label class="form-field flex flex-col col-span-2 sm:col-span-1">
-            <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">插件分类</span>
+            <span
+              class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+              >插件分类</span
+            >
             <select
               v-model="editForm.pluginCategory"
               class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
@@ -867,24 +874,19 @@ onMounted(async () => {
             </select>
           </label>
           <div class="col-span-2 sm:col-span-1">
-            <Input
-              v-model="editForm.pluginVersion"
-              type="text"
-              label="版本"
-            />
+            <Input v-model="editForm.pluginVersion" type="text" label="版本" />
           </div>
           <div class="col-span-2">
-            <Input
-              v-model="editForm.pluginCompatibility"
-              type="text"
-              label="兼容版本"
-            />
+            <Input v-model="editForm.pluginCompatibility" type="text" label="兼容版本" />
           </div>
         </template>
 
         <template v-if="selectedWork.kind === 'showcase'">
           <label class="form-field flex flex-col col-span-2 sm:col-span-1">
-            <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">展示类型</span>
+            <span
+              class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+              >展示类型</span
+            >
             <select
               v-model="editForm.showcaseType"
               class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
@@ -897,11 +899,7 @@ onMounted(async () => {
             </select>
           </label>
           <div v-if="editForm.showcaseType === 'VIDEO'" class="col-span-2 sm:col-span-1">
-            <Input
-              v-model="editForm.videoUrl"
-              type="text"
-              label="视频链接"
-            />
+            <Input v-model="editForm.videoUrl" type="text" label="视频链接" />
           </div>
         </template>
 
@@ -915,7 +913,10 @@ onMounted(async () => {
         </div>
 
         <label class="form-field wide editor-field col-span-2">
-          <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">作品说明</span>
+          <span
+            class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+            >作品说明</span
+          >
           <MarkdownEditor
             v-model="editForm.description"
             height="280px"
@@ -927,54 +928,38 @@ onMounted(async () => {
 
       <template #footer>
         <div class="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" @click="isEditDialogOpen = false">
-            取消
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            :loading="isSaving"
-            @click="handleSaveEdit"
-          >
+          <Button variant="secondary" size="sm" @click="isEditDialogOpen = false"> 取消 </Button>
+          <Button variant="primary" size="sm" :loading="isSaving" @click="handleSaveEdit">
             保存并提交审核
           </Button>
         </div>
       </template>
     </Modal>
 
-    <Modal
-      :show="isShowcaseDialogOpen"
-      size="lg"
-      glass-card
-      @close="isShowcaseDialogOpen = false"
-    >
+    <Modal :show="isShowcaseDialogOpen" size="lg" glass-card @close="isShowcaseDialogOpen = false">
       <template #header>
         <div>
-          <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">发布到作品展示</h3>
+          <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">
+            发布到作品展示
+          </h3>
           <p class="text-xs text-[var(--text-muted)] mt-1">用已审核资源生成展示作品。</p>
         </div>
       </template>
 
       <div class="space-y-4">
-        <Input
-          v-model="showcaseForm.title"
-          type="text"
-          label="展示标题"
-          required
-        />
+        <Input v-model="showcaseForm.title" type="text" label="展示标题" required />
         <label class="flex flex-col">
-          <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">展示说明</span>
+          <span
+            class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+            >展示说明</span
+          >
           <textarea
             v-model="showcaseForm.description"
             rows="4"
             class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none"
           ></textarea>
         </label>
-        <Input
-          v-model="showcaseForm.tags"
-          type="text"
-          label="标签"
-        />
+        <Input v-model="showcaseForm.tags" type="text" label="标签" />
       </div>
 
       <template #footer>
@@ -982,13 +967,7 @@ onMounted(async () => {
           <Button variant="secondary" size="sm" @click="isShowcaseDialogOpen = false">
             取消
           </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            @click="publishToShowcase"
-          >
-            提交审核
-          </Button>
+          <Button variant="primary" size="sm" @click="publishToShowcase"> 提交审核 </Button>
         </div>
       </template>
     </Modal>
@@ -1875,8 +1854,6 @@ h1 {
   font-size: 14px;
   font-weight: 600;
 }
-
-
 
 /* Skeletons */
 .skeleton {

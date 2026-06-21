@@ -399,12 +399,13 @@ const createUploadMiddleware = (config: {
             }
           }
 
-          // Skip automatic R2 upload interception for direct storage config file uploads
-          // and mirror source import zips, which are processed locally.
+          // Skip automatic R2 upload interception for direct storage config file uploads,
+          // mirror source import zips, and Excel matching link files, which are processed locally.
           if (
             allFiles.length > 0 &&
             !req.originalUrl.includes('/storage-configs/') &&
-            !req.originalUrl.includes('/mirror/sources/import')
+            !req.originalUrl.includes('/mirror/sources/import') &&
+            !req.originalUrl.includes('/match-links')
           ) {
             try {
               // Validate all files content first before uploading to R2

@@ -504,12 +504,7 @@ onMounted(() => {
             </div>
 
             <div class="space-y-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                @click="triggerFileUpload"
-              >
+              <Button type="button" variant="secondary" size="sm" @click="triggerFileUpload">
                 选择图片并上传
               </Button>
               <input
@@ -528,7 +523,9 @@ onMounted(() => {
 
         <!-- Link Route -->
         <div class="space-y-1.5">
-          <label class="text-xs font-semibold text-[var(--text-secondary)] font-mono">跳转路由 (内链) *</label>
+          <label class="text-xs font-semibold text-[var(--text-secondary)] font-mono"
+            >跳转路由 (内链) *</label
+          >
           <input
             v-model="form.route"
             type="text"
@@ -549,7 +546,9 @@ onMounted(() => {
             />
           </div>
           <div class="space-y-1.5">
-            <label class="text-xs font-semibold text-[var(--text-secondary)]">标签颜色样式 (CSS 类)</label>
+            <label class="text-xs font-semibold text-[var(--text-secondary)]"
+              >标签颜色样式 (CSS 类)</label
+            >
             <input
               v-model="form.tagColor"
               type="text"
@@ -571,7 +570,9 @@ onMounted(() => {
             />
           </div>
           <div class="space-y-1.5">
-            <label class="text-xs font-semibold text-[var(--text-secondary)]">排序值 (从小到大排列)</label>
+            <label class="text-xs font-semibold text-[var(--text-secondary)]"
+              >排序值 (从小到大排列)</label
+            >
             <input
               v-model.number="form.order"
               type="number"
@@ -582,10 +583,14 @@ onMounted(() => {
         </div>
 
         <!-- Is Active Toggle -->
-        <div class="flex items-center justify-between py-2 border-t border-[var(--border-base)] mt-4">
+        <div
+          class="flex items-center justify-between py-2 border-t border-[var(--border-base)] mt-4"
+        >
           <div>
             <span class="text-xs font-bold text-[var(--text-primary)]">启用该轮播</span>
-            <p class="text-[10px] text-[var(--text-muted)]">禁用后，创作者工作台将不会显示此轮播卡片</p>
+            <p class="text-[10px] text-[var(--text-muted)]">
+              禁用后，创作者工作台将不会显示此轮播卡片
+            </p>
           </div>
           <el-switch v-model="form.isActive" active-color="var(--accent)" />
         </div>

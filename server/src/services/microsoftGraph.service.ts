@@ -124,7 +124,8 @@ export class MicrosoftGraphService {
       const errorMsg = resolveAxiosErrorMessage(error, 'Unknown error refreshing token');
       logger.error(`MicrosoftGraphService: Refresh failed for ${account.email}:`, errorMsg);
 
-      const isOAuthError = responseStatus !== undefined && responseStatus >= 400 && responseStatus < 500;
+      const isOAuthError =
+        responseStatus !== undefined && responseStatus >= 400 && responseStatus < 500;
 
       if (isOAuthError) {
         // Real credential/OAuth expiration: mark as EXPIRED

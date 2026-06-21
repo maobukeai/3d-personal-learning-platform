@@ -1640,11 +1640,7 @@ example2@hotmail.com----00000000-0000-0000-0000-000000000000----MC...9a"
       <template #footer>
         <div class="flex justify-end gap-2">
           <Button variant="secondary" size="sm" @click="isEditDialogVisible = false">取消</Button>
-          <Button
-            variant="primary"
-            :loading="isAccountsLoading"
-            size="sm"
-            @click="handleSaveEdit"
+          <Button variant="primary" :loading="isAccountsLoading" size="sm" @click="handleSaveEdit"
             >保存更改</Button
           >
         </div>

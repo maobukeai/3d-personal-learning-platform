@@ -26,7 +26,11 @@ export class GoogleWarmingController {
   /**
    * Get all Google warming accounts for the logged-in user
    */
-  public static async getAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async getAccounts(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     try {
       const accounts = await prisma.googleWarmingAccount.findMany({
@@ -43,7 +47,11 @@ export class GoogleWarmingController {
   /**
    * Bulk imports Google accounts
    */
-  public static async importAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async importAccounts(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const { accounts } = req.body;
 
@@ -91,9 +99,10 @@ export class GoogleWarmingController {
       return;
     }
 
-    const countryInstruction = translateCountry !== false
-      ? '- country: The country or region associated with the account (if present). You MUST translate this country/region name into Chinese (e.g., "US" or "United States" -> "美国", "HK" or "Hong Kong" -> "中国香港", "TW" or "Taiwan" -> "中国台湾", "SG" or "Singapore" -> "新加坡", "JP" or "Japan" -> "日本", etc.).'
-      : '- country: The country or region associated with the account (if present).';
+    const countryInstruction =
+      translateCountry !== false
+        ? '- country: The country or region associated with the account (if present). You MUST translate this country/region name into Chinese (e.g., "US" or "United States" -> "美国", "HK" or "Hong Kong" -> "中国香港", "TW" or "Taiwan" -> "中国台湾", "SG" or "Singapore" -> "新加坡", "JP" or "Japan" -> "日本", etc.).'
+        : '- country: The country or region associated with the account (if present).';
 
     const systemPrompt = `You are a professional Google account data parsing assistant.
 Your task is to parse a list of Google accounts from unstructured or semi-structured text.
@@ -126,10 +135,13 @@ If any field is missing or not found, set it to null.`;
     try {
       const responseText = await callLLM(text, systemPrompt);
       let cleaned = responseText.trim();
-      
+
       // Clean potential markdown blocks
       if (cleaned.startsWith('```')) {
-        cleaned = cleaned.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+        cleaned = cleaned
+          .replace(/^```json\s*/i, '')
+          .replace(/```$/, '')
+          .trim();
       }
 
       const parsed = JSON.parse(cleaned);
@@ -147,10 +159,25 @@ If any field is missing or not found, set it to null.`;
   /**
    * Updates a single account details
    */
-  public static async updateAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async updateAccount(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
-    const { email, password, recoveryEmail, twoFASecret, country, note, backupCodes, category, status, currentDay } = req.body;
+    const {
+      email,
+      password,
+      recoveryEmail,
+      twoFASecret,
+      country,
+      note,
+      backupCodes,
+      category,
+      status,
+      currentDay,
+    } = req.body;
 
     try {
       const existing = await prisma.googleWarmingAccount.findFirst({
@@ -166,19 +193,30 @@ If any field is missing or not found, set it to null.`;
         where: { id },
         data: {
           email: email !== undefined ? email.trim() : existing.email,
-          password: password !== undefined
-            ? (encryptSecret(password.trim()) ?? '')
-            : existing.password,
-          recoveryEmail: recoveryEmail !== undefined ? (recoveryEmail ? recoveryEmail.trim() : null) : existing.recoveryEmail,
-          twoFASecret: twoFASecret !== undefined
-            ? (twoFASecret ? encryptSecret(twoFASecret.trim()) : null)
-            : existing.twoFASecret,
+          password:
+            password !== undefined ? (encryptSecret(password.trim()) ?? '') : existing.password,
+          recoveryEmail:
+            recoveryEmail !== undefined
+              ? recoveryEmail
+                ? recoveryEmail.trim()
+                : null
+              : existing.recoveryEmail,
+          twoFASecret:
+            twoFASecret !== undefined
+              ? twoFASecret
+                ? encryptSecret(twoFASecret.trim())
+                : null
+              : existing.twoFASecret,
           country: country !== undefined ? (country ? country.trim() : null) : existing.country,
           note: note !== undefined ? (note ? note.trim() : null) : existing.note,
-          backupCodes: backupCodes !== undefined
-            ? (backupCodes ? encryptSecret(backupCodes.trim()) : null)
-            : existing.backupCodes,
-          category: category !== undefined ? (category ? category.trim() : '未分类') : existing.category,
+          backupCodes:
+            backupCodes !== undefined
+              ? backupCodes
+                ? encryptSecret(backupCodes.trim())
+                : null
+              : existing.backupCodes,
+          category:
+            category !== undefined ? (category ? category.trim() : '未分类') : existing.category,
           status: status !== undefined ? status : existing.status,
           currentDay: currentDay !== undefined ? Number(currentDay) : existing.currentDay,
         },
@@ -194,7 +232,11 @@ If any field is missing or not found, set it to null.`;
   /**
    * Completes the current day's warming task
    */
-  public static async warmAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async warmAccount(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
 
@@ -230,7 +272,11 @@ If any field is missing or not found, set it to null.`;
   /**
    * Deletes a warming account
    */
-  public static async deleteAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async deleteAccount(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
 
@@ -258,7 +304,11 @@ If any field is missing or not found, set it to null.`;
   /**
    * Batch check-in (warm) multiple accounts
    */
-  public static async batchWarmAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async batchWarmAccounts(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const { ids } = req.body;
 
@@ -301,7 +351,11 @@ If any field is missing or not found, set it to null.`;
   /**
    * Batch delete multiple accounts
    */
-  public static async batchDeleteAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async batchDeleteAccounts(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const { ids } = req.body;
 
@@ -325,7 +379,11 @@ If any field is missing or not found, set it to null.`;
   /**
    * Batch update status for multiple accounts
    */
-  public static async batchStatusAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async batchStatusAccounts(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const { ids, status } = req.body;
 
@@ -355,7 +413,11 @@ If any field is missing or not found, set it to null.`;
   /**
    * Batch updates category for multiple accounts
    */
-  public static async batchCategoryAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async batchCategoryAccounts(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const { ids, category } = req.body;
 
@@ -380,7 +442,11 @@ If any field is missing or not found, set it to null.`;
   /**
    * Rename a category for all user's accounts
    */
-  public static async renameCategory(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async renameCategory(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const { oldCategory, newCategory } = req.body;
 
@@ -400,7 +466,9 @@ If any field is missing or not found, set it to null.`;
 
       // 2. Update user settings
       const current = await GoogleWarmingController.getUserCategories(userId);
-      const updated = current.map(c => c === oldCategory ? targetCategory : c).filter(c => c !== '未分类');
+      const updated = current
+        .map((c) => (c === oldCategory ? targetCategory : c))
+        .filter((c) => c !== '未分类');
       await GoogleWarmingController.saveUserCategories(userId, updated);
 
       res.json({ success: true, count: result.count });
@@ -413,7 +481,11 @@ If any field is missing or not found, set it to null.`;
   /**
    * Delete a category (resets accounts to '未分类')
    */
-  public static async deleteCategory(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async deleteCategory(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const { category } = req.body;
 
@@ -431,7 +503,7 @@ If any field is missing or not found, set it to null.`;
 
       // 2. Update user settings
       const current = await GoogleWarmingController.getUserCategories(userId);
-      const updated = current.filter(c => c !== category);
+      const updated = current.filter((c) => c !== category);
       await GoogleWarmingController.saveUserCategories(userId, updated);
 
       res.json({ success: true, count: result.count });
@@ -444,7 +516,11 @@ If any field is missing or not found, set it to null.`;
   /**
    * Get all categories saved in settings + actual database categories
    */
-  public static async getCategories(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async getCategories(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     try {
       const settingsCats = await GoogleWarmingController.getUserCategories(userId);
@@ -452,14 +528,14 @@ If any field is missing or not found, set it to null.`;
       const dbCatsResult = await prisma.googleWarmingAccount.findMany({
         where: { userId },
         select: { category: true },
-        distinct: ['category']
+        distinct: ['category'],
       });
       const dbCats = dbCatsResult
-        .map(a => a.category)
+        .map((a) => a.category)
         .filter((c): c is string => !!c && c !== '未分类');
 
       const merged = Array.from(new Set([...settingsCats, ...dbCats]));
-      
+
       if (merged.length !== settingsCats.length) {
         await GoogleWarmingController.saveUserCategories(userId, merged);
       }
@@ -474,7 +550,11 @@ If any field is missing or not found, set it to null.`;
   /**
    * Add a new category to settings
    */
-  public static async addCategory(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async addCategory(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.userId as string;
     const { category } = req.body;
 
@@ -512,9 +592,9 @@ If any field is missing or not found, set it to null.`;
       where: {
         userId_key: {
           userId,
-          key: 'google_warming_categories'
-        }
-      }
+          key: 'google_warming_categories',
+        },
+      },
     });
     if (!setting) return [];
     try {
@@ -525,22 +605,22 @@ If any field is missing or not found, set it to null.`;
   }
 
   private static async saveUserCategories(userId: string, categories: string[]): Promise<void> {
-    const uniqueCategories = Array.from(new Set(categories.map(c => c.trim()).filter(Boolean)));
+    const uniqueCategories = Array.from(new Set(categories.map((c) => c.trim()).filter(Boolean)));
     await prisma.userSetting.upsert({
       where: {
         userId_key: {
           userId,
-          key: 'google_warming_categories'
-        }
+          key: 'google_warming_categories',
+        },
       },
       update: {
-        value: JSON.stringify(uniqueCategories)
+        value: JSON.stringify(uniqueCategories),
       },
       create: {
         userId,
         key: 'google_warming_categories',
-        value: JSON.stringify(uniqueCategories)
-      }
+        value: JSON.stringify(uniqueCategories),
+      },
     });
   }
 }

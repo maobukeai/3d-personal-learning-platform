@@ -761,7 +761,8 @@ onMounted(() => {
             <label class="flex flex-col">
               <span
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                >插件分类</span>
+                >插件分类</span
+              >
               <select
                 v-model="publishForm.pluginCategory"
                 class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"

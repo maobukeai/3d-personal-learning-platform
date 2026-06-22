@@ -37,35 +37,35 @@ const sizeConfig = {
   xs: {
     container: 'w-5 h-5',
     text: 'text-[8px]',
-    badge: 'px-0.5 py-0.5 text-[5px]',
+    badge: 'px-0.5 py-0.5 text-[9px] scale-[0.5] origin-bottom-right',
     icon: 'w-2.5 h-2.5',
     crown: false,
   },
   sm: {
     container: 'w-6 h-6',
     text: 'text-[10px]',
-    badge: 'px-1 py-0.5 text-[6px]',
+    badge: 'px-1 py-0.5 text-[10px] scale-[0.6] origin-bottom-right',
     icon: 'w-3 h-3',
     crown: false,
   },
   md: {
     container: 'w-10 h-10',
     text: 'text-xs',
-    badge: 'px-1.5 py-0.5 text-[7px]',
+    badge: 'px-1 py-0.5 text-[10px] scale-[0.75] origin-bottom-right',
     icon: 'w-4 h-4',
     crown: false,
   },
   lg: {
     container: 'w-14 h-14',
     text: 'text-sm',
-    badge: 'px-2 py-0.5 text-[9px]',
+    badge: 'px-1.5 py-0.5 text-[11px] scale-[0.85] origin-bottom-right',
     icon: 'w-5 h-5',
     crown: false,
   },
   xl: {
     container: 'w-24 h-24',
     text: 'text-2xl',
-    badge: 'px-3 py-1 text-[11px]',
+    badge: 'px-2.5 py-0.5 text-[12px] scale-100 origin-bottom-right',
     icon: 'w-10 h-10',
     crown: true,
   },
@@ -280,7 +280,7 @@ const fallbackBgColor = computed(() => {
         v-if="showBadge"
         :class="[
           size.badge,
-          'absolute -bottom-1 -right-2 rounded-xl flex items-center justify-center z-30 font-black px-2',
+          'absolute -bottom-1 -right-2 rounded-xl flex items-center justify-center z-30 font-black',
           'backdrop-blur-md shadow-lg text-white border border-white/20',
         ]"
         :style="{
@@ -291,7 +291,7 @@ const fallbackBgColor = computed(() => {
         <span v-if="frameConfig.badgeIcon" class="text-[0.9em]">{{ frameConfig.badgeIcon }}</span>
         <span
           v-if="frameConfig.badgeText"
-          class="uppercase tracking-tight text-[7.5px] whitespace-nowrap"
+          class="uppercase tracking-tight whitespace-nowrap"
           >{{ frameConfig.badgeText }}</span
         >
       </div>

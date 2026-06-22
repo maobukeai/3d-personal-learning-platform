@@ -111,20 +111,39 @@ export async function parseSSEStream(
  */
 export function renderMarkdown(text: string): string {
   if (!text) return '';
-  const html = text
+  let html = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+    .replace(/>/g, '&gt;');
+
+  // 1. Block-level: Headings
+  html = html
+    .replace(/^#### (.+)$/gm, '<h5 class="md-h5">$1</h5>')
     .replace(/^### (.+)$/gm, '<h4 class="md-h4">$1</h4>')
     .replace(/^## (.+)$/gm, '<h3 class="md-h3">$1</h3>')
-    .replace(/^# (.+)$/gm, '<h2 class="md-h2">$1</h2>')
-    .replace(/^- \[ \] (.+)$/gm, '<li class="md-li unchecked"><span class="chk"></span>$1</li>')
-    .replace(/^- \[x\] (.+)$/gm, '<li class="md-li checked"><span class="chk done">✓</span>$1</li>')
-    .replace(/^- (.+)$/gm, '<li class="md-li">$1</li>')
-    .replace(/^\d+\. (.+)$/gm, '<li class="md-li">$1</li>')
-    .replace(/\n/g, '<br/>');
+    .replace(/^# (.+)$/gm, '<h2 class="md-h2">$1</h2>');
+
+  // 2. Block-level: Lists (supporting optional indentation and both '-' and '*')
+  html = html
+    .replace(/^\s*[-*]\s+\[\s*\]\s+(.+)$/gm, '<li class="md-li unchecked"><span class="chk"></span>$1</li>')
+    .replace(/^\s*[-*]\s+\[x\]\s+(.+)$/gm, '<li class="md-li checked"><span class="chk done">✓</span>$1</li>')
+    .replace(/^\s*[-*]\s+(.+)$/gm, '<li class="md-li">$1</li>')
+    .replace(/^\s*\d+\.\s+(.+)$/gm, '<li class="md-li">$1</li>');
+
+  // 3. Inline-level: Bold, Italic, Code
+  html = html
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+
+  // 4. Line breaks and cleanups
+  html = html
+    .replace(/\n/g, '<br/>')
+    .replace(/(<br\s*\/?>){2,}/g, '<br/>')
+    .replace(/(<\/h[2-5]>)\s*<br\s*\/?>/gi, '$1')
+    .replace(/<br\s*\/?>\s*(<h[2-5]>)/gi, '$1')
+    .replace(/(<\/li>)\s*<br\s*\/?>/gi, '$1')
+    .replace(/<br\s*\/?>\s*(<li[^>]*>)/gi, '$1');
+
   return html;
 }

@@ -53,6 +53,7 @@ import api from '@/utils/api';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
 import { formatDateTime as formatDate } from '@/utils/format';
+import { renderMarkdown } from '@/utils/aiHelpers';
 import { fetchUnreadMessageCount } from '@/services/message.service';
 import type { AppNotification } from '@/services/notification.service';
 import { useThemeManager } from './composables/useThemeManager';
@@ -669,10 +670,9 @@ onUnmounted(() => {
     <!-- Floating AI Sprite -->
     <AISprite v-if="renderAiSprite" />
 
-    <!-- Premium Broadcast Modal -->
     <Modal
       :show="showBroadcastPopup"
-      size="md"
+      size="lg"
       glass-card
       :close-on-outside-click="true"
       @close="showBroadcastPopup = false"
@@ -705,9 +705,9 @@ onUnmounted(() => {
       </div>
 
       <div
-        class="mt-4 bg-subtle/30 border border-base rounded-xl p-4 text-xs sm:text-sm text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed max-h-[300px] overflow-y-auto"
+        class="mt-4 bg-subtle/30 border border-base rounded-xl p-4 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed max-h-[500px] overflow-y-auto"
+        v-html="renderMarkdown(latestBroadcast?.content || '')"
       >
-        {{ latestBroadcast?.content }}
       </div>
 
       <template #footer>

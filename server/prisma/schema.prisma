@@ -220,7 +220,7 @@ model Notification {
   id          String     @id @default(uuid())
   type        String // 'REPLY', 'COURSE_UPDATE', 'SYSTEM'
   title       String
-  content     String
+  content     String     @db.LongText
   isRead      Boolean    @default(false)
   userId      String
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -254,7 +254,7 @@ model NotificationPreference {
 model Broadcast {
   id            String         @id @default(uuid())
   title         String
-  content       String
+  content       String         @db.LongText
   link          String?
   notifications Notification[]
   createdAt     DateTime       @default(now())

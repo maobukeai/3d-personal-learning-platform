@@ -13,6 +13,7 @@ import {
   type AppNotification,
 } from '@/services/notification.service';
 import GlassDropdown from '@/components/ui/GlassDropdown.vue';
+import { renderMarkdown } from '@/utils/aiHelpers';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -195,9 +196,11 @@ defineExpose({
         >
           {{ n.title }}
         </p>
-        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-2.5">
-          {{ n.content }}
-        </p>
+        <div
+          class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-2.5"
+          v-html="renderMarkdown(n.content)"
+        >
+        </div>
 
         <!-- Project Invite Actions -->
         <div v-if="n.type === 'PROJECT_INVITE'" class="mb-2.5 flex items-center gap-2" @click.stop>

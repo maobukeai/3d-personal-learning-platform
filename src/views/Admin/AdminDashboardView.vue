@@ -28,10 +28,14 @@ import {
   Video,
   Workflow,
   Zap,
+  Sparkles,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
+import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
+import { preferences } from '@/utils/preferences';
+import { useSystemStore } from '@/stores/system';
 import UserAvatar from '@/components/UserAvatar.vue';
 import type { Asset, User } from '@/types';
 
@@ -136,6 +140,7 @@ interface QuickAction {
 }
 
 const router = useRouter();
+const systemStore = useSystemStore();
 const isLoading = ref(true);
 const dashboard = ref<AdminStatsResponse | null>(null);
 
@@ -149,6 +154,8 @@ const broadcastForm = ref({
   content: '',
   link: '',
 });
+const aiPrompt = ref('');
+const isAiGenerating = ref(false);
 
 const activeActivityTab = ref<'assets' | 'courses' | 'feedback'>('assets');
 const activeFeedTab = ref<'users' | 'logs'>('users');
@@ -437,6 +444,8 @@ watch(showBroadcastModal, (isOpen) => {
   if (isOpen) {
     broadcastTab.value = 'send';
     broadcastForm.value = { title: '', content: '', link: '' };
+    aiPrompt.value = '';
+    isAiGenerating.value = false;
   }
 });
 
@@ -445,6 +454,121 @@ watch(broadcastTab, (newTab) => {
     fetchBroadcastHistory();
   }
 });
+
+const handleAiGenerate = async () => {
+  if (!aiPrompt.value.trim()) {
+    ElMessage.warning('请输入生成公告的需求，例如：本周末系统升级维护');
+    return;
+  }
+
+  isAiGenerating.value = true;
+  broadcastForm.value.title = '';
+  broadcastForm.value.content = '';
+
+  try {
+    const siteContext = [
+      '【本网站实时数据与背景】',
+      `- 网站名称：${systemStore.settings.PLATFORM_NAME || '3D社区-Blender俱乐部'}`,
+      `- 网站副标题：${systemStore.settings.PLATFORM_SUBTITLE || '一起学 Blender，创造无限可能'}`,
+      `- 注册用户总数：${counts.value.users || '暂无'}`,
+      `- 课程总数：${counts.value.courses || '暂无'}`,
+      `- 3D 模型资产总数：${counts.value.assets || '暂无'}`,
+    ].join('\n');
+
+    const fullPrompt = `请根据我的需求为我撰写一封全站广播公告。
+${siteContext}
+
+公告生成需求：${aiPrompt.value.trim()}
+
+写作与格式要求：
+1. 你的第一行输出必须是公告标题，必须且只能使用以下格式：
+【标题：公告标题内容】
+2. 从第二行开始是公告正文内容，请与标题行空一行。
+3. 公告正文内容请字数不限，可以极其详尽、长篇幅地展开叙述所有的升级细则、规则、操作指引或相关背景。
+4. 正文可以使用标准的 Markdown 语法（如加粗 **text**、无序/有序列表、小标题、Emoji 等）来进行排版与强调，以确保内容结构清晰、条理分明、专业大气。`;
+
+    const sId = `broadcast-session-${Date.now()}`;
+    const clientRunId = `run-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+    const response = await fetch('/api/projects/ai-chat', {
+      method: 'POST',
+      headers: createJsonHeaders(),
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: fullPrompt }],
+        modelId: preferences.getAiSpriteModelId() || undefined,
+        context: {
+          path: '/admin',
+          title: systemStore.settings.PLATFORM_NAME || document.title || '管理后台',
+        },
+        sessionId: sId,
+        sessionTitle: '全站公告生成',
+        mode: 'chat',
+        clientRunId,
+      }),
+    });
+
+    if (!response.ok) {
+      const errMsg = await readFetchErrorMessage(response);
+      throw new Error(errMsg);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('流式读取不受支持');
+
+    let fullText = '';
+
+    await parseSSEStream(
+      reader,
+      (payload) => {
+        console.log('AI Announcement chunk:', payload);
+        if (payload.error) {
+          ElMessage.error(`AI 生成错误: ${payload.error}`);
+          return;
+        }
+        if (payload.text) {
+          fullText += payload.text;
+
+          // Robust line-based parsing for real-time streaming
+          const trimmedFullText = fullText.trimStart();
+          const lines = trimmedFullText.split('\n');
+          
+          if (lines.length > 0) {
+            const firstLine = lines[0];
+            if (firstLine.startsWith('【标题：')) {
+              // Strip "【标题：" and optional trailing "】" (only if the line actually ends with "】")
+              let titleVal = firstLine.slice(4);
+              if (titleVal.endsWith('】')) {
+                titleVal = titleVal.slice(0, -1);
+              }
+              broadcastForm.value.title = titleVal.trim();
+              
+              // Content is everything after the first line
+              broadcastForm.value.content = lines.slice(1).join('\n').trimStart();
+            } else {
+              // If it doesn't start with the expected prefix, put everything in content
+              broadcastForm.value.title = '';
+              broadcastForm.value.content = trimmedFullText;
+            }
+          }
+        }
+      },
+      () => {
+        isAiGenerating.value = false;
+        ElMessage.success('公告生成成功！');
+        aiPrompt.value = '';
+      },
+      (err) => {
+        console.error('SSE Stream error:', err);
+        ElMessage.error(err.message || '生成中途发生错误');
+        isAiGenerating.value = false;
+      },
+    );
+  } catch (error: any) {
+    console.error('AI Generate error:', error);
+    ElMessage.error(error.message || 'AI 生成失败，请稍后重试');
+    isAiGenerating.value = false;
+  }
+};
 
 const handleSendBroadcast = async () => {
   if (!broadcastForm.value.title.trim() || !broadcastForm.value.content.trim()) {
@@ -1138,11 +1262,10 @@ onMounted(fetchAdminStats);
       </div>
     </main>
 
-    <!-- Refactored Broadcast Modal using Modal, SegmentedControl and Input components -->
     <Modal
       :show="showBroadcastModal"
       title="全站广播"
-      size="md"
+      size="lg"
       glass-card
       @close="showBroadcastModal = false"
     >
@@ -1161,6 +1284,34 @@ onMounted(fetchAdminStats);
         />
 
         <div v-if="broadcastTab === 'send'" class="space-y-3.5">
+          <!-- AI Generator Assistant -->
+          <div class="p-3.5 rounded-2xl border border-base bg-accent/5 dark:bg-accent/10 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-black text-accent flex items-center gap-1.5 uppercase tracking-wider">
+                <Sparkles class="w-3.5 h-3.5 animate-pulse text-accent" /> AI 辅助生成公告
+              </span>
+              <span class="text-[10px] text-slate-400 dark:text-slate-500">输入大致需求即可一键排版</span>
+            </div>
+            <div class="flex gap-2">
+              <input
+                v-model="aiPrompt"
+                type="text"
+                placeholder="例如：下周六凌晨2-4点进行系统维护，期间无法登录"
+                class="flex-1 px-3 py-2 text-xs rounded-xl border border-base bg-card text-[var(--text-primary)] focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none transition-all"
+                :disabled="isAiGenerating"
+                @keyup.enter="handleAiGenerate"
+              />
+              <Button
+                variant="primary"
+                size="sm"
+                class="shrink-0 text-xs py-2 rounded-xl"
+                :loading="isAiGenerating"
+                @click="handleAiGenerate"
+              >
+                生成
+              </Button>
+            </div>
+          </div>
           <Input
             v-model="broadcastForm.title"
             label="标题"
@@ -1175,7 +1326,7 @@ onMounted(fetchAdminStats);
             <textarea
               v-model="broadcastForm.content"
               class="w-full text-sm font-medium rounded-xl border border-base bg-card text-[var(--text-primary)] focus:border-accent focus:ring-2 focus:ring-accent/20 p-3 outline-none resize-none transition-all duration-300"
-              rows="5"
+              rows="10"
               placeholder="写清楚影响范围、操作指引 and 跳转入口"
             ></textarea>
           </div>

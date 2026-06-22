@@ -4,6 +4,7 @@ import { ElNotification } from 'element-plus';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
 import type { AppNotification } from '@/services/notification.service';
+import { renderMarkdown } from '@/utils/aiHelpers';
 
 type SocketService = (typeof import('@/utils/socket'))['socketService'];
 
@@ -55,9 +56,10 @@ export function useLayoutSocket(options: {
 
     ElNotification({
       title: notification.title,
-      message: notification.content,
+      message: renderMarkdown(notification.content),
+      dangerouslyUseHTMLString: true,
       type: 'info',
-      duration: 5000,
+      duration: 10000,
       position: 'top-right',
       onClick: () => {
         if (notification.link) {

@@ -63,6 +63,45 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+function renderMarkdown(text: string): string {
+  if (!text) return '';
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // 1. Block-level: Headings
+  html = html
+    .replace(/^#### (.+)$/gm, '<h5 style="margin: 10px 0 5px; font-size: 1.0em; font-weight: bold; color: #334155;">$1</h5>')
+    .replace(/^### (.+)$/gm, '<h4 style="margin: 12px 0 6px; font-size: 1.1em; font-weight: bold; color: #1e293b;">$1</h4>')
+    .replace(/^## (.+)$/gm, '<h3 style="margin: 14px 0 8px; font-size: 1.25em; font-weight: bold; color: #0f172a;">$1</h3>')
+    .replace(/^# (.+)$/gm, '<h2 style="margin: 16px 0 10px; font-size: 1.4em; font-weight: bold; color: #020617;">$1</h2>');
+
+  // 2. Block-level: Lists
+  html = html
+    .replace(/^\s*[-*]\s+\[\s*\]\s+(.+)$/gm, '<li style="margin: 4px 0; list-style-type: none;">☐ $1</li>')
+    .replace(/^\s*[-*]\s+\[x\]\s+(.+)$/gm, '<li style="margin: 4px 0; list-style-type: none;">☑ $1</li>')
+    .replace(/^\s*[-*]\s+(.+)$/gm, '<li style="margin: 4px 0;">$1</li>')
+    .replace(/^\s*\d+\.\s+(.+)$/gm, '<li style="margin: 4px 0;">$1</li>');
+
+  // 3. Inline-level: Bold, Italic, Code
+  html = html
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code style="background: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; color: #e11d48;">$1</code>');
+
+  // 4. Line breaks and cleanups
+  html = html
+    .replace(/\n/g, '<br/>')
+    .replace(/(<br\s*\/?>){2,}/g, '<br/>')
+    .replace(/(<\/h[2-5]>)\s*<br\s*\/?>/gi, '$1')
+    .replace(/<br\s*\/?>\s*(<h[2-5]>)/gi, '$1')
+    .replace(/(<\/li>)\s*<br\s*\/?>/gi, '$1')
+    .replace(/<br\s*\/?>\s*(<li[^>]*>)/gi, '$1');
+
+  return html;
+}
+
 function buildAbsoluteLink(link?: string): string {
   const baseUrl = config.FRONTEND_URL.replace(/\/+$/, '');
   if (!link) return baseUrl;
@@ -125,7 +164,7 @@ export async function sendNotificationEmail(params: {
 
   const html = templateBody
     .replace(/\{\{title\}\}/g, escapeHtml(params.title))
-    .replace(/\{\{content\}\}/g, escapeHtml(params.content))
+    .replace(/\{\{content\}\}/g, renderMarkdown(params.content))
     .replace(/\{\{preview\}\}/g, previewHtml)
     .replace(/\{\{link\}\}/g, escapeHtml(actionUrl));
 

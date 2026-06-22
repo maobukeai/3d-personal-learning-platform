@@ -9,8 +9,10 @@ import {
   Mail,
   MessageCircle,
   RotateCcw,
-  Save,
   Send,
+  Users,
+  Sparkles,
+  ShieldAlert,
 } from 'lucide-vue-next';
 import Switch from '@/components/ui/Switch.vue';
 import Button from '@/components/ui/Button.vue';
@@ -38,62 +40,84 @@ const browserPermission = ref(
     : 'unsupported',
 );
 
-const preferenceItems: Array<{
-  key: PreferenceKey;
-  title: string;
-  description: string;
-  channel: string;
-  icon: typeof Mail;
-}> = [
+const pushPreferenceItems = [
   {
-    key: 'emailSystemUpdates',
-    title: '系统更新与公告',
-    description: '平台新功能、维护计划和重要服务通知。',
-    channel: '邮件',
-    icon: Mail,
+    key: 'pushSystemUpdates' as PreferenceKey,
+    title: '系统公告与维护',
+    description: '平台重大功能发布、维护计划与系统服务中断的即时通知。',
+    icon: ShieldAlert,
   },
   {
-    key: 'emailTeamActivity',
-    title: '团队活动通知',
-    description: '团队邀请、任务分配、项目协作进展。',
-    channel: '邮件',
-    icon: Send,
+    key: 'pushTeamActivity' as PreferenceKey,
+    title: '协作与任务动态',
+    description: '被分配新任务、项目状态更新或团队加入邀请的实时推送。',
+    icon: Users,
   },
   {
-    key: 'emailDirectMessages',
-    title: '私信邮件提醒',
-    description: '未打开对应会话时发送邮件提醒，并自动合并短时间连续消息。',
-    channel: '邮件',
-    icon: Mail,
-  },
-  {
-    key: 'emailMarketing',
-    title: '活动与产品资讯',
-    description: '官方活动、会员权益和学习资源推荐。',
-    channel: '邮件',
-    icon: Mail,
-  },
-  {
-    key: 'pushMentions',
-    title: '提及与回复',
-    description: '讨论区、项目评论和作品反馈里的直接互动。',
-    channel: '站内',
+    key: 'pushMentions' as PreferenceKey,
+    title: '互动提及与回复',
+    description: '他人在讨论区或作品展示中发表评论、回复及点赞的即时反馈。',
     icon: MessageCircle,
   },
   {
-    key: 'pushDirectMessages',
-    title: '私信通知',
-    description: '新私信、群聊消息和协作会话提醒。',
-    channel: '站内',
+    key: 'pushDirectMessages' as PreferenceKey,
+    title: '实时私信与群聊',
+    description: '团队成员或好友发来的即时聊天消息与新对话提醒。',
     icon: Bell,
   },
-];
+  {
+    key: 'pushMarketing' as PreferenceKey,
+    title: '活动与学习推荐',
+    description: '官方推荐的精品公开课、平台福利以及活动资讯提醒。',
+    icon: Sparkles,
+  },
+] as const;
 
-const enabledCount = computed(
-  () => preferenceItems.filter((item) => notificationPrefs.value[item.key]).length,
-);
+const emailPreferenceItems = [
+  {
+    key: 'emailSystemUpdates' as PreferenceKey,
+    title: '系统公告邮件',
+    description: '接收平台重磅功能上线、系统维护以及服务保障的重要邮件。',
+    icon: Mail,
+  },
+  {
+    key: 'emailTeamActivity' as PreferenceKey,
+    title: '任务与协作邮件',
+    description: '项目关键里程碑、任务到期提醒及团队动态的周期性邮件。',
+    icon: Mail,
+  },
+  {
+    key: 'emailMentions' as PreferenceKey,
+    title: '互动回复邮件',
+    description: '讨论区及个人作品收到他人点赞、@提及或回复时的实时邮件。',
+    icon: Mail,
+  },
+  {
+    key: 'emailDirectMessages' as PreferenceKey,
+    title: '私信未读邮件',
+    description: '离线或不处于聊天窗口时，自动合并短时间连续私信发送的提醒邮件。',
+    icon: Mail,
+  },
+  {
+    key: 'emailMarketing' as PreferenceKey,
+    title: '活动与推广邮件',
+    description: '订阅会员专属福利、折扣优惠以及最新课程推荐的邮件。',
+    icon: Mail,
+  },
+] as const;
 
-const hasChanges = computed(() => JSON.stringify(notificationPrefs.value) !== savedSnapshot.value);
+const totalItemsCount = pushPreferenceItems.length + emailPreferenceItems.length;
+
+const enabledCount = computed(() => {
+  let count = 0;
+  for (const item of pushPreferenceItems) {
+    if (notificationPrefs.value[item.key]) count++;
+  }
+  for (const item of emailPreferenceItems) {
+    if (notificationPrefs.value[item.key]) count++;
+  }
+  return count;
+});
 
 const browserPermissionLabel = computed(() => {
   if (browserPermission.value === 'granted') return '已授权';
@@ -102,11 +126,28 @@ const browserPermissionLabel = computed(() => {
   return '不支持';
 });
 
-const setPreference = (key: PreferenceKey, value: boolean) => {
-  notificationPrefs.value = {
+const setPreference = async (key: PreferenceKey, value: boolean) => {
+  const updatedPrefs = {
     ...notificationPrefs.value,
     [key]: value,
   };
+  notificationPrefs.value = updatedPrefs;
+  
+  try {
+    isSavingPrefs.value = true;
+    await updateNotificationPreferences(updatedPrefs);
+    savedSnapshot.value = JSON.stringify(updatedPrefs);
+    ElMessage.success('通知偏好已更新');
+  } catch {
+    ElMessage.error('更新通知偏好失败');
+    // Revert local state on failure
+    notificationPrefs.value = {
+      ...notificationPrefs.value,
+      [key]: !value,
+    };
+  } finally {
+    isSavingPrefs.value = false;
+  }
 };
 
 const fetchNotificationPrefs = async () => {
@@ -126,21 +167,19 @@ const fetchNotificationPrefs = async () => {
   }
 };
 
-const saveNotificationPrefs = async () => {
+const resetDefaults = async () => {
   try {
-    isSavingPrefs.value = true;
-    await updateNotificationPreferences(notificationPrefs.value);
-    savedSnapshot.value = JSON.stringify(notificationPrefs.value);
-    ElMessage.success('通知偏好已保存');
+    isLoading.value = true;
+    const defaults = defaultNotificationPreferences();
+    notificationPrefs.value = defaults;
+    await updateNotificationPreferences(defaults);
+    savedSnapshot.value = JSON.stringify(defaults);
+    ElMessage.success('已恢复默认配置');
   } catch {
-    ElMessage.error('保存通知偏好失败');
+    ElMessage.error('恢复默认配置失败');
   } finally {
-    isSavingPrefs.value = false;
+    isLoading.value = false;
   }
-};
-
-const resetDefaults = () => {
-  notificationPrefs.value = defaultNotificationPreferences();
 };
 
 const requestBrowserPermission = async () => {
@@ -167,10 +206,21 @@ onMounted(fetchNotificationPrefs);
     <section class="notification-overview">
       <div>
         <p class="section-kicker">通知策略</p>
-        <h3>{{ enabledCount }}/{{ preferenceItems.length }} 项已启用</h3>
+        <h3>{{ enabledCount }}/{{ totalItemsCount }} 项已启用</h3>
         <span>把重要协作信息留在前台，把低优先级消息降噪。</span>
       </div>
       <div class="overview-actions">
+        <span v-if="isSavingPrefs" class="text-xs text-slate-400 flex items-center gap-1 select-none">
+          <svg class="animate-spin h-3.5 w-3.5 text-indigo-500" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          正在保存...
+        </span>
+        <span v-else class="text-xs text-slate-400 flex items-center gap-1 select-none">
+          <CheckCircle2 class="w-3.5 h-3.5 text-emerald-500" />
+          已自动保存
+        </span>
         <Button
           variant="secondary"
           :icon="ChevronRight"
@@ -179,48 +229,84 @@ onMounted(fetchNotificationPrefs);
         >
           通知中心
         </Button>
-        <Button
-          variant="primary"
-          :disabled="!hasChanges || isSavingPrefs"
-          :loading="isSavingPrefs"
-          :icon="Save"
-          @click="saveNotificationPrefs"
-        >
-          保存偏好
-        </Button>
       </div>
     </section>
 
     <section class="notification-grid">
-      <div class="preference-panel">
-        <div class="panel-title">
-          <span>接收渠道</span>
-          <Button size="sm" variant="secondary" :icon="RotateCcw" @click="resetDefaults">
-            恢复默认
-          </Button>
-        </div>
-
-        <div v-if="isLoading" class="loading-list">
-          <i v-for="item in 5" :key="item"></i>
-        </div>
-
-        <div v-else class="preference-list">
-          <article v-for="item in preferenceItems" :key="item.key" class="preference-row">
-            <div class="row-icon">
-              <component :is="item.icon" />
+      <div class="main-stack">
+        <!-- 站内通知 Panel -->
+        <div class="preference-panel">
+          <div class="panel-header">
+            <div class="header-copy">
+              <span class="category-header">
+                <Bell class="w-4.5 h-4.5 text-indigo-500 mr-1.5" />
+                站内通知 (In-App Push)
+              </span>
+              <span class="category-subheader">实时接收站内动态与即时消息</span>
             </div>
-            <div class="row-copy">
-              <div>
-                <strong>{{ item.title }}</strong>
-                <em>{{ item.channel }}</em>
+            <Button size="sm" variant="secondary" :icon="RotateCcw" @click="resetDefaults">
+              恢复默认
+            </Button>
+          </div>
+
+          <div v-if="isLoading" class="loading-list">
+            <i v-for="item in 5" :key="item"></i>
+          </div>
+
+          <div v-else class="preference-list">
+            <article v-for="item in pushPreferenceItems" :key="item.key" class="preference-row">
+              <div class="row-icon push-icon">
+                <component :is="item.icon" />
               </div>
-              <span>{{ item.description }}</span>
+              <div class="row-copy">
+                <div>
+                  <strong>{{ item.title }}</strong>
+                  <em class="badge-push">站内</em>
+                </div>
+                <span>{{ item.description }}</span>
+              </div>
+              <Switch
+                :model-value="notificationPrefs[item.key]"
+                @update:model-value="(val) => setPreference(item.key, val)"
+              />
+            </article>
+          </div>
+        </div>
+
+        <!-- 站外通知 Panel -->
+        <div class="preference-panel mt-6">
+          <div class="panel-header">
+            <div class="header-copy">
+              <span class="category-header">
+                <Mail class="w-4.5 h-4.5 text-indigo-500 mr-1.5" />
+                站外通知 (Email Alerts)
+              </span>
+              <span class="category-subheader">通过注册邮箱接收未读提醒与更新汇总</span>
             </div>
-            <Switch
-              :model-value="notificationPrefs[item.key]"
-              @update:model-value="(val) => setPreference(item.key, val)"
-            />
-          </article>
+          </div>
+
+          <div v-if="isLoading" class="loading-list">
+            <i v-for="item in 5" :key="item"></i>
+          </div>
+
+          <div v-else class="preference-list">
+            <article v-for="item in emailPreferenceItems" :key="item.key" class="preference-row">
+              <div class="row-icon email-icon">
+                <component :is="item.icon" />
+              </div>
+              <div class="row-copy">
+                <div>
+                  <strong>{{ item.title }}</strong>
+                  <em class="badge-email">邮箱</em>
+                </div>
+                <span>{{ item.description }}</span>
+              </div>
+              <Switch
+                :model-value="notificationPrefs[item.key]"
+                @update:model-value="(val) => setPreference(item.key, val)"
+              />
+            </article>
+          </div>
         </div>
       </div>
 
@@ -367,7 +453,76 @@ button svg {
 .preference-panel,
 .browser-panel,
 .recent-panel {
-  padding: 12px;
+  padding: 16px;
+}
+
+.main-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.mt-6 {
+  margin-top: 24px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-base);
+  padding-bottom: 12px;
+}
+
+.header-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.category-header {
+  display: inline-flex;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.category-subheader {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.badge-push,
+.badge-email {
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.badge-push {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.badge-email {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.push-icon {
+  background: rgba(99, 102, 241, 0.12) !important;
+  color: #6366f1 !important;
+}
+
+.email-icon {
+  background: rgba(16, 185, 129, 0.12) !important;
+  color: #10b981 !important;
 }
 
 .panel-title {

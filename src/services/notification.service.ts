@@ -11,21 +11,29 @@ export interface AppNotification {
 }
 
 export interface NotificationPreferences {
+  pushSystemUpdates: boolean;
+  pushTeamActivity: boolean;
+  pushMentions: boolean;
+  pushDirectMessages: boolean;
+  pushMarketing: boolean;
   emailSystemUpdates: boolean;
   emailTeamActivity: boolean;
   emailDirectMessages: boolean;
+  emailMentions: boolean;
   emailMarketing: boolean;
-  pushMentions: boolean;
-  pushDirectMessages: boolean;
 }
 
 export const defaultNotificationPreferences = (): NotificationPreferences => ({
+  pushSystemUpdates: true,
+  pushTeamActivity: true,
+  pushMentions: true,
+  pushDirectMessages: true,
+  pushMarketing: false,
   emailSystemUpdates: true,
   emailTeamActivity: true,
   emailDirectMessages: true,
+  emailMentions: true,
   emailMarketing: false,
-  pushMentions: true,
-  pushDirectMessages: true,
 });
 
 export const fetchNotifications = async (): Promise<AppNotification[]> => {
@@ -40,12 +48,16 @@ export const markAllNotificationsAsRead = () => api.put('/api/notifications/read
 export const fetchNotificationPreferences = async (): Promise<NotificationPreferences> => {
   const { data } = await api.get('/api/notifications/preferences');
   return {
+    pushSystemUpdates: data.pushSystemUpdates ?? true,
+    pushTeamActivity: data.pushTeamActivity ?? true,
+    pushMentions: data.pushMentions ?? true,
+    pushDirectMessages: data.pushDirectMessages ?? true,
+    pushMarketing: data.pushMarketing ?? false,
     emailSystemUpdates: data.emailSystemUpdates ?? true,
     emailTeamActivity: data.emailTeamActivity ?? true,
     emailDirectMessages: data.emailDirectMessages ?? true,
+    emailMentions: data.emailMentions ?? true,
     emailMarketing: data.emailMarketing ?? false,
-    pushMentions: data.pushMentions ?? true,
-    pushDirectMessages: data.pushDirectMessages ?? true,
   };
 };
 

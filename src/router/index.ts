@@ -139,6 +139,12 @@ const router = createRouter({
               component: () => import('@/views/Tasks/ProjectsView.vue'),
             },
             {
+              path: 'projects/:id',
+              redirect: (to) => {
+                return { path: `/project/${to.params.id}`, query: to.query };
+              },
+            },
+            {
               path: 'project/:id',
               name: 'ProjectDetail',
               component: () => import('@/views/Assets/ProjectDetailView.vue'),

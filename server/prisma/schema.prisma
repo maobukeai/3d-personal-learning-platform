@@ -237,12 +237,16 @@ model NotificationPreference {
   id                  String   @id @default(uuid())
   userId              String   @unique
   user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  emailSystemUpdates  Boolean  @default(true)
-  emailTeamActivity   Boolean  @default(true)
-  emailMarketing      Boolean  @default(false)
+  pushSystemUpdates   Boolean  @default(true)
+  pushTeamActivity    Boolean  @default(true)
   pushMentions        Boolean  @default(true)
   pushDirectMessages  Boolean  @default(true)
+  pushMarketing       Boolean  @default(false)
+  emailSystemUpdates  Boolean  @default(true)
+  emailTeamActivity   Boolean  @default(true)
   emailDirectMessages Boolean  @default(true)
+  emailMentions       Boolean  @default(true)
+  emailMarketing      Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }

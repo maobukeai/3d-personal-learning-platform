@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, type Component } from 'vue';
+import { computed, onMounted, onUnmounted, ref, type Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import { CheckCircle2, Languages, Moon, RotateCcw, Save, Sun, SunMoon } from 'lucide-vue-next';
-import { preferences, type LocalePreference, type ThemePreference } from '@/utils/preferences';
+import {
+  preferences,
+  type LocalePreference,
+  type ThemePreference,
+  type AccentColorModePreference,
+  type AccentColorIntervalPreference,
+} from '@/utils/preferences';
 import { applyAccentColorToDocument, applyThemeToDocument } from '@/composables/useAppearance';
 import { fetchUserSettings, updateUserSettings } from '@/services/account.service';
 import { setLocale } from '@/i18n';
@@ -11,7 +17,12 @@ import Button from '@/components/ui/Button.vue';
 
 const currentTheme = ref<ThemePreference>(preferences.getTheme());
 const currentAccent = ref(preferences.getAccentColor());
+const activeAccentColor = ref(currentAccent.value);
 const currentLanguage = ref<LocalePreference>(preferences.getLanguage());
+
+const currentAccentMode = ref<AccentColorModePreference>(preferences.getAccentColorMode());
+const currentAccentInterval = ref<AccentColorIntervalPreference>(preferences.getAccentColorInterval());
+
 const savedSnapshot = ref('');
 const isLoadingCloud = ref(false);
 const isSaving = ref(false);
@@ -25,6 +36,19 @@ const accentColors = computed(() => [
   { name: label('松绿', 'Pine Green'), value: '#10b981' },
   { name: label('琥珀', 'Amber'), value: '#f59e0b' },
   { name: label('青蓝', 'Cyan'), value: '#0891b2' },
+]);
+
+const modeOptions = computed(() => [
+  { id: 'static' as const, label: label('固定颜色', 'Static') },
+  { id: 'refresh' as const, label: label('刷新随机', 'On Refresh') },
+  { id: 'interval' as const, label: label('定时随机', 'Interval') },
+]);
+
+const intervalOptions = computed(() => [
+  { value: '10s' as const, label: label('10 秒', '10s') },
+  { value: '1m' as const, label: label('1 分钟', '1m') },
+  { value: '5m' as const, label: label('5 分钟', '5m') },
+  { value: '30m' as const, label: label('30 分钟', '30m') },
 ]);
 
 const languageOptions: Array<{ label: string; value: LocalePreference }> = [
@@ -44,7 +68,7 @@ const themeOptions = computed<
   {
     id: 'glass-dark',
     label: label('深色玻璃', 'Dark Glass'),
-    description: label('适合夜间和沉浸学习', 'Best for night and focused study'),
+    description: label('适合夜间 and 沉浸学习', 'Best for night and focused study'),
     icon: Moon,
   },
   {
@@ -60,16 +84,28 @@ const snapshot = computed(() =>
     theme: currentTheme.value,
     accent: currentAccent.value,
     language: currentLanguage.value,
+    accentMode: currentAccentMode.value,
+    accentInterval: currentAccentInterval.value,
   }),
 );
 
 const hasChanges = computed(() => snapshot.value !== savedSnapshot.value);
 
-const currentAccentName = computed(
-  () =>
+const currentAccentName = computed(() => {
+  if (currentAccentMode.value === 'refresh') {
+    return label('刷新随机', 'Random on Refresh');
+  }
+  if (currentAccentMode.value === 'interval') {
+    const duration = currentAccentInterval.value === '10s' ? '10s' : 
+                     currentAccentInterval.value === '1m' ? '1m' :
+                     currentAccentInterval.value === '5m' ? '5m' : '30m';
+    return `${label('定时随机', 'Interval')} (${duration})`;
+  }
+  return (
     accentColors.value.find((item) => item.value === currentAccent.value)?.name ||
-    currentAccent.value,
-);
+    currentAccent.value
+  );
+});
 
 const applyTheme = (theme: ThemePreference) => {
   currentTheme.value = theme;
@@ -80,8 +116,50 @@ const applyTheme = (theme: ThemePreference) => {
 
 const applyAccentColor = (color: string) => {
   currentAccent.value = color;
+  currentAccentMode.value = 'static';
   preferences.setAccentColor(color);
+  preferences.setAccentColorMode('static');
   applyAccentColorToDocument(color);
+
+  window.dispatchEvent(
+    new CustomEvent('accent-settings-changed', {
+      detail: {
+        color: color,
+        mode: 'static',
+        interval: currentAccentInterval.value,
+      },
+    })
+  );
+};
+
+const applyAccentMode = (mode: AccentColorModePreference) => {
+  currentAccentMode.value = mode;
+  preferences.setAccentColorMode(mode);
+
+  window.dispatchEvent(
+    new CustomEvent('accent-settings-changed', {
+      detail: {
+        color: currentAccent.value,
+        mode: mode,
+        interval: currentAccentInterval.value,
+      },
+    })
+  );
+};
+
+const applyAccentInterval = (interval: AccentColorIntervalPreference) => {
+  currentAccentInterval.value = interval;
+  preferences.setAccentColorInterval(interval);
+
+  window.dispatchEvent(
+    new CustomEvent('accent-settings-changed', {
+      detail: {
+        color: currentAccent.value,
+        mode: currentAccentMode.value,
+        interval: interval,
+      },
+    })
+  );
 };
 
 const applyLanguage = (lang: LocalePreference) => {
@@ -93,16 +171,47 @@ const applyLoadedSettings = (settings: Record<string, string>) => {
   const theme = settings.appearanceTheme as ThemePreference | undefined;
   const accent = settings.appearanceAccent;
   const language = settings.appearanceLanguage as LocalePreference | undefined;
+  const accentMode = settings.appearanceAccentMode as AccentColorModePreference | undefined;
+  const accentInterval = settings.appearanceAccentInterval as AccentColorIntervalPreference | undefined;
 
   if (theme === 'glass-light' || theme === 'glass-dark' || theme === 'glass-auto') {
     applyTheme(theme);
   }
-  if (accent && /^#[0-9a-f]{6}$/i.test(accent)) {
-    applyAccentColor(accent);
-  }
   if (language === 'zh-CN' || language === 'en-US') {
     applyLanguage(language);
   }
+
+  if (accent && /^#[0-9a-f]{6}$/i.test(accent)) {
+    currentAccent.value = accent;
+    preferences.setAccentColor(accent);
+  }
+
+  if (accentMode === 'static' || accentMode === 'refresh' || accentMode === 'interval') {
+    currentAccentMode.value = accentMode;
+    preferences.setAccentColorMode(accentMode);
+  } else {
+    currentAccentMode.value = 'static';
+    preferences.setAccentColorMode('static');
+  }
+
+  if (accentInterval === '10s' || accentInterval === '1m' || accentInterval === '5m' || accentInterval === '30m') {
+    currentAccentInterval.value = accentInterval;
+    preferences.setAccentColorInterval(accentInterval);
+  }
+
+  if (currentAccentMode.value === 'static') {
+    applyAccentColorToDocument(currentAccent.value);
+  }
+
+  window.dispatchEvent(
+    new CustomEvent('accent-settings-changed', {
+      detail: {
+        color: currentAccent.value,
+        mode: currentAccentMode.value,
+        interval: currentAccentInterval.value,
+      },
+    })
+  );
 };
 
 const loadCloudSettings = async () => {
@@ -131,6 +240,8 @@ const saveAppearance = async () => {
       { key: 'appearanceTheme', value: currentTheme.value },
       { key: 'appearanceAccent', value: currentAccent.value },
       { key: 'appearanceLanguage', value: currentLanguage.value },
+      { key: 'appearanceAccentMode', value: currentAccentMode.value },
+      { key: 'appearanceAccentInterval', value: currentAccentInterval.value },
     ]);
     savedSnapshot.value = snapshot.value;
     ElMessage.success(label('外观设置已同步', 'Appearance settings synced'));
@@ -144,10 +255,27 @@ const saveAppearance = async () => {
 const resetLocal = () => {
   applyTheme('glass-dark');
   applyAccentColor('#2563eb');
+  applyAccentMode('static');
+  applyAccentInterval('1m');
   applyLanguage('zh-CN');
 };
 
-onMounted(loadCloudSettings);
+const handleAccentColorApplied = (e: Event) => {
+  activeAccentColor.value = (e as CustomEvent<string>).detail;
+};
+
+onMounted(() => {
+  loadCloudSettings();
+  window.addEventListener('accent-color-applied', handleAccentColorApplied);
+  const applied = document.documentElement.style.getPropertyValue('--accent').trim();
+  if (applied) {
+    activeAccentColor.value = applied;
+  }
+});
+
+onUnmounted(() => {
+  window.removeEventListener('accent-color-applied', handleAccentColorApplied);
+});
 </script>
 
 <template>
@@ -216,13 +344,49 @@ onMounted(loadCloudSettings);
             v-for="color in accentColors"
             :key="color.value"
             type="button"
-            :class="{ active: currentAccent === color.value }"
+            :class="{ active: activeAccentColor === color.value }"
             :style="{ '--swatch': color.value }"
             @click="applyAccentColor(color.value)"
           >
             <i></i>
             <span>{{ color.name }}</span>
           </button>
+        </div>
+
+        <div class="auto-switch-section">
+          <div class="panel-title mb-2">
+            <span>{{ label('切换模式', 'Switching Mode') }}</span>
+          </div>
+          <div class="mode-options">
+            <button
+              v-for="mode in modeOptions"
+              :key="mode.id"
+              type="button"
+              class="mode-btn"
+              :class="{ active: currentAccentMode === mode.id }"
+              @click="applyAccentMode(mode.id)"
+            >
+              <span>{{ mode.label }}</span>
+            </button>
+          </div>
+
+          <div v-if="currentAccentMode === 'interval'" class="interval-options-container">
+            <div class="panel-title mb-2 mt-3">
+              <span>{{ label('切换间隔', 'Interval') }}</span>
+            </div>
+            <div class="interval-options">
+              <button
+                v-for="opt in intervalOptions"
+                :key="opt.value"
+                type="button"
+                class="interval-btn"
+                :class="{ active: currentAccentInterval === opt.value }"
+                @click="applyAccentInterval(opt.value)"
+              >
+                <span>{{ opt.label }}</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -437,6 +601,74 @@ button svg {
   height: 20px;
   border-radius: 999px;
   background: var(--swatch);
+}
+
+.auto-switch-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-base);
+}
+
+.mode-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mode-btn {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-app);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.mode-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-app));
+}
+
+.interval-options-container {
+  margin-top: 12px;
+}
+
+.interval-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.interval-btn {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-base);
+  border-radius: 6px;
+  background: var(--bg-app);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.interval-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-app));
 }
 
 .language-options {

@@ -2231,7 +2231,10 @@ export async function generateImage(
   }
 
   const enabled = overrides?.AI_IMPORT_ENABLED ?? settings.AI_IMPORT_ENABLED;
-  if (!enabled && !overrides) {
+  // When overrides is provided (e.g., called internally from generateImageWithFailover),
+  // the caller is responsible for ensuring AI is enabled (overrides.AI_IMPORT_ENABLED = true).
+  // Only enforce the global enabled check for direct external calls (overrides === undefined).
+  if (!enabled && overrides === undefined) {
     throw new Error('AI 功能未启用，请联系管理员在系统后台开启。');
   }
 

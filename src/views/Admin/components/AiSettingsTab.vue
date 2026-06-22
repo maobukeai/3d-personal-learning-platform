@@ -190,7 +190,7 @@ const createAiModelConfig = (provider = 'DEEPSEEK'): AiModelConfig => {
     description: '',
     capabilities: ['chat'],
     temperature: 0.7,
-    maxTokens: 2000,
+    maxTokens: 20000,
     systemPrompt: '',
     showAdvanced: false,
     failoverEnabled: true,
@@ -343,7 +343,9 @@ const cloneAiModel = (model: AiModelConfig) => {
     isDefault: false,
   };
   localAiModelConfigs.value.push(cloned);
-  markAiModelPending(cloned.id);
+  if (isPendingAiModel(model.id)) {
+    markAiModelPending(cloned.id);
+  }
   expandedModelId.value = cloned.id;
   syncAiModelsToSettings();
   ElMessage.success(t('admin.ai_model_cloned'));
@@ -844,6 +846,31 @@ const expandedModelFamilyGroups = ref<string[]>(
   JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]'),
 );
 
+const getCapabilityLabel = (cap: string) => {
+  switch (cap) {
+    case 'chat': return '对话';
+    case 'image': return '画图';
+    case 'video': return '视频';
+    case 'translate': return '翻译';
+    default: return cap;
+  }
+};
+
+const getCapabilityStyle = (cap: string) => {
+  switch (cap) {
+    case 'chat':
+      return 'background: rgba(99, 102, 241, 0.1); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.15);';
+    case 'image':
+      return 'background: rgba(16, 185, 129, 0.1); color: #059669; border: 1px solid rgba(16, 185, 129, 0.15);';
+    case 'video':
+      return 'background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.15);';
+    case 'translate':
+      return 'background: rgba(245, 158, 11, 0.1); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.15);';
+    default:
+      return 'background: rgba(100, 116, 139, 0.1); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.15);';
+  }
+};
+
 const modelFamilyGroups = computed<ModelFamilyGroup[]>(() => {
   const groups = new Map<string, AiModelConfig[]>();
 
@@ -1127,7 +1154,6 @@ const addAiModelToFamily = (group: ModelFamilyGroup) => {
   }
 
   localAiModelConfigs.value.push(model);
-  markAiModelPending(model.id);
   expandedModelId.value = model.id;
   if (group.key && !expandedModelFamilyGroups.value.includes(group.key)) {
     expandedModelFamilyGroups.value.push(group.key);
@@ -1816,7 +1842,7 @@ onMounted(() => {
             <div
               v-for="model in group.models"
               :key="model.id"
-              draggable="true"
+              :draggable="isHandleClicked"
               class="group rounded-xl border overflow-hidden transition-all duration-300 hover:shadow-sm hover:border-slate-300 dark:hover:border-zinc-700"
               :class="{
                 'opacity-50 border-indigo-400 scale-[0.99]':
@@ -1894,6 +1920,17 @@ onMounted(() => {
                       class="px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-500 text-[9px] font-bold"
                       >{{ $t('admin.not_classified') }}</span
                     >
+                    <!-- Capability badges -->
+                    <template v-if="model.capabilities && model.capabilities.length > 0">
+                      <span
+                        v-for="cap in model.capabilities"
+                        :key="cap"
+                        class="px-1.5 py-0.5 rounded text-[9px] font-bold"
+                        :style="getCapabilityStyle(cap)"
+                      >
+                        {{ getCapabilityLabel(cap) }}
+                      </span>
+                    </template>
                     <!-- Key count badge — visible when backup keys are configured -->
                     <span
                       v-if="(model.apiKeys || []).filter(Boolean).length > 0"
@@ -1990,6 +2027,8 @@ onMounted(() => {
                     <input
                       v-model="model.name"
                       type="text"
+                      draggable="false"
+                      @dragstart.stop
                       class="w-full px-3 py-2 rounded-lg border text-xs outline-none transition-colors"
                       style="
                         background-color: var(--bg-app);
@@ -2043,6 +2082,8 @@ onMounted(() => {
                     <input
                       v-model="model.endpoint"
                       type="text"
+                      draggable="false"
+                      @dragstart.stop
                       class="w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none transition-colors"
                       style="
                         background-color: var(--bg-app);
@@ -2068,6 +2109,8 @@ onMounted(() => {
                     <input
                       v-model="model.apiKey"
                       type="password"
+                      draggable="false"
+                      @dragstart.stop
                       class="w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none transition-colors"
                       style="
                         background-color: var(--bg-app);
@@ -2104,6 +2147,8 @@ onMounted(() => {
                         <input
                           :value="(model.apiKeys || [])[keyIdx]"
                           type="password"
+                          draggable="false"
+                          @dragstart.stop
                           class="flex-1 px-3 py-1.5 rounded-lg border text-xs font-mono outline-none transition-colors"
                           style="
                             background-color: var(--bg-app);
@@ -2194,6 +2239,8 @@ onMounted(() => {
                     <textarea
                       v-model="model.modelName"
                       rows="2"
+                      draggable="false"
+                      @dragstart.stop
                       class="w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none transition-colors resize-none"
                       style="
                         background-color: var(--bg-app);
@@ -2238,11 +2285,11 @@ onMounted(() => {
                     v-if="model.showAdvanced"
                     class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 animate-in fade-in duration-200"
                   >
-                    <div class="space-y-1.5">
+                    <div class="space-y-1.5 md:col-span-2">
                       <label class="text-[10px] font-bold text-slate-400"
                         >能力支持 (Capabilities)</label
                       >
-                      <div class="flex items-center gap-3 mt-1">
+                      <div class="flex items-center gap-3 mt-1 flex-wrap">
                         <el-checkbox
                           :model-value="model.capabilities.includes('chat')"
                           label="对话 (Chat)"
@@ -2292,6 +2339,23 @@ onMounted(() => {
                             }
                           "
                         />
+                        <el-checkbox
+                          :model-value="model.capabilities.includes('translate')"
+                          label="翻译 (Translate)"
+                          @change="
+                            (checked: unknown) => {
+                              if (checked) {
+                                if (!model.capabilities.includes('translate'))
+                                  model.capabilities.push('translate');
+                              } else {
+                                model.capabilities = model.capabilities.filter(
+                                  (c) => c !== 'translate',
+                                );
+                              }
+                              syncAiModelsToSettings();
+                            }
+                          "
+                        />
                       </div>
                     </div>
 
@@ -2320,6 +2384,8 @@ onMounted(() => {
                         type="number"
                         min="1"
                         max="32768"
+                        draggable="false"
+                        @dragstart.stop
                         class="w-full px-3 py-2 rounded-lg border text-xs outline-none transition-colors"
                         style="
                           background-color: var(--bg-app);
@@ -2337,6 +2403,8 @@ onMounted(() => {
                       <textarea
                         v-model="model.systemPrompt"
                         rows="3"
+                        draggable="false"
+                        @dragstart.stop
                         class="w-full px-3 py-2 rounded-lg border text-xs outline-none transition-colors resize-none"
                         style="
                           background-color: var(--bg-app);

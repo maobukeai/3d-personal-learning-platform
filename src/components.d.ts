@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AiBioGeneratorDialog: typeof import('./components/AiBioGeneratorDialog.vue')['default']
     AiImageGeneratorDialog: typeof import('./components/AiImageGeneratorDialog.vue')['default']
     AISprite: typeof import('./components/AISprite.vue')['default']
     AssetDetailsDrawer: typeof import('./components/AssetDetailsDrawer.vue')['default']

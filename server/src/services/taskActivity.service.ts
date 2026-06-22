@@ -1,4 +1,5 @@
 import prisma from './prisma';
+import { logger } from '../utils/logger';
 
 export interface LogTaskActivityParams {
   taskId: string;
@@ -22,6 +23,6 @@ export const logTaskActivity = async (params: LogTaskActivityParams) => {
       },
     });
   } catch (error) {
-    console.error('Failed to log task activity:', error);
+    logger.error('Failed to log task activity:', error);
   }
 };

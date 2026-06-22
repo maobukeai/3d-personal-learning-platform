@@ -109,32 +109,44 @@ export const updateNotificationPreferences = async (
   next: NextFunction,
 ) => {
   const {
+    pushSystemUpdates,
+    pushTeamActivity,
+    pushMentions,
+    pushDirectMessages,
+    pushMarketing,
     emailSystemUpdates,
     emailTeamActivity,
     emailDirectMessages,
+    emailMentions,
     emailMarketing,
-    pushMentions,
-    pushDirectMessages,
   } = req.body;
   try {
     const prefs = await prisma.notificationPreference.upsert({
       where: { userId: req.userId as string },
       update: {
+        ...(pushSystemUpdates !== undefined && { pushSystemUpdates }),
+        ...(pushTeamActivity !== undefined && { pushTeamActivity }),
+        ...(pushMentions !== undefined && { pushMentions }),
+        ...(pushDirectMessages !== undefined && { pushDirectMessages }),
+        ...(pushMarketing !== undefined && { pushMarketing }),
         ...(emailSystemUpdates !== undefined && { emailSystemUpdates }),
         ...(emailTeamActivity !== undefined && { emailTeamActivity }),
         ...(emailDirectMessages !== undefined && { emailDirectMessages }),
+        ...(emailMentions !== undefined && { emailMentions }),
         ...(emailMarketing !== undefined && { emailMarketing }),
-        ...(pushMentions !== undefined && { pushMentions }),
-        ...(pushDirectMessages !== undefined && { pushDirectMessages }),
       },
       create: {
         userId: req.userId as string,
+        pushSystemUpdates: pushSystemUpdates ?? true,
+        pushTeamActivity: pushTeamActivity ?? true,
+        pushMentions: pushMentions ?? true,
+        pushDirectMessages: pushDirectMessages ?? true,
+        pushMarketing: pushMarketing ?? false,
         emailSystemUpdates: emailSystemUpdates ?? true,
         emailTeamActivity: emailTeamActivity ?? true,
         emailDirectMessages: emailDirectMessages ?? true,
+        emailMentions: emailMentions ?? true,
         emailMarketing: emailMarketing ?? false,
-        pushMentions: pushMentions ?? true,
-        pushDirectMessages: pushDirectMessages ?? true,
       },
     });
     res.json(prefs);

@@ -15,7 +15,7 @@ interface SmtpConfig {
   user: string;
   pass: string;
   from: string;
-  secure: string;
+  secure: boolean;
 }
 
 interface MicrosoftAccount {
@@ -35,7 +35,7 @@ const props = defineProps<{
     SMTP_PASS: string;
     SMTP_FROM: string;
     SMTP_FROM_NAME: string;
-    SMTP_SECURE: string;
+    SMTP_SECURE: boolean;
     SMTP_CONFIGS: string;
     SMTP_ACTIVE_CONFIG_ID: string;
     SYSTEM_EMAIL_PROVIDER: string;
@@ -108,7 +108,7 @@ const addNewSmtpConfig = async () => {
       user: '',
       pass: '',
       from: '',
-      secure: 'true',
+      secure: true,
     };
 
     smtpConfigs.value.push(newCfg);
@@ -197,7 +197,7 @@ watch(
       activeCfg.user = localSettings.SMTP_USER || '';
       activeCfg.pass = localSettings.SMTP_PASS || '';
       activeCfg.from = localSettings.SMTP_FROM || '';
-      activeCfg.secure = localSettings.SMTP_SECURE || 'true';
+      activeCfg.secure = !!localSettings.SMTP_SECURE;
 
       localSettings.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
     }
@@ -290,7 +290,7 @@ const testSmtp = async () => {
       user: localSettings.SMTP_USER,
       pass: localSettings.SMTP_PASS,
       from: localSettings.SMTP_FROM,
-      secure: localSettings.SMTP_SECURE === 'true',
+      secure: !!localSettings.SMTP_SECURE,
       to: testRecipient,
     });
     ElMessage.success(data.message);
@@ -743,8 +743,8 @@ onMounted(async () => {
         <div class="flex items-center gap-3 pt-4 md:col-span-2">
           <el-switch
             v-model="localSettings.SMTP_SECURE"
-            active-value="true"
-            inactive-value="false"
+            :active-value="true"
+            :inactive-value="false"
             active-color="#6366f1"
           />
           <span class="text-xs font-bold" style="color: var(--text-primary)">{{

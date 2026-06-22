@@ -462,7 +462,7 @@ const updateDueDate = async (val: any) => {
       <!-- Assignee Avatar Stack -->
       <div v-if="config.assignee" class="shrink-0 ml-0.5 flex items-center">
         <div
-          v-if="task.participants && task.participants.length > 0"
+          v-if="task.assigneeId && task.participants && task.participants.length > 0"
           class="flex items-center -space-x-1.5"
         >
           <UserAvatar
@@ -480,6 +480,18 @@ const updateDueDate = async (val: any) => {
           >
             +{{ task.participants.length - 3 }}
           </span>
+        </div>
+        <div
+          v-else-if="task.assigneeId && task.assignee"
+          class="flex items-center"
+        >
+          <UserAvatar
+            :user="task.assignee"
+            size="xs"
+            borderless
+            class="ring-2 ring-white dark:ring-slate-900 cursor-pointer hover:z-10 hover:scale-105 transition-all"
+            :title="task.assignee.name"
+          />
         </div>
         <div
           v-else
@@ -597,7 +609,7 @@ const updateDueDate = async (val: any) => {
       <!-- Assignee Avatar Stack -->
       <div v-if="config.assignee" class="shrink-0 flex items-center">
         <div
-          v-if="task.participants && task.participants.length > 0"
+          v-if="task.assigneeId && task.participants && task.participants.length > 0"
           class="flex items-center -space-x-1.5"
         >
           <UserAvatar
@@ -615,6 +627,18 @@ const updateDueDate = async (val: any) => {
           >
             +{{ task.participants.length - 3 }}
           </span>
+        </div>
+        <div
+          v-else-if="task.assigneeId && task.assignee"
+          class="flex items-center"
+        >
+          <UserAvatar
+            :user="task.assignee"
+            size="xs"
+            borderless
+            class="ring-2 ring-white dark:ring-slate-900 cursor-pointer hover:z-10 hover:scale-105 transition-all"
+            :title="task.assignee.name"
+          />
         </div>
         <div
           v-else

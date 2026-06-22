@@ -1,12 +1,22 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
-import { Camera, CheckCircle2, Globe, MapPin, RotateCcw, Save, UserRound, Sparkles } from 'lucide-vue-next';
+import {
+  Camera,
+  CheckCircle2,
+  Globe,
+  MapPin,
+  RotateCcw,
+  Save,
+  UserRound,
+  Sparkles,
+} from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
 import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
 import AiImageGeneratorDialog from '@/components/AiImageGeneratorDialog.vue';
+import AiBioGeneratorDialog from '@/components/AiBioGeneratorDialog.vue';
 
 const authStore = useAuthStore();
 
@@ -129,6 +139,16 @@ const aiGeneratorShow = ref(false);
 const aiGeneratorType = ref<'avatar' | 'cover'>('avatar');
 const aiGeneratorTitle = ref('');
 
+const aiBioGeneratorShow = ref(false);
+
+const openAiBioGenerator = () => {
+  aiBioGeneratorShow.value = true;
+};
+
+const handleAiBioSave = (bio: string) => {
+  profileForm.value.bio = bio;
+};
+
 const openAiAvatarGenerator = () => {
   aiGeneratorType.value = 'avatar';
   aiGeneratorTitle.value = 'AI 生成头像';
@@ -241,7 +261,9 @@ const handleCoverUpload = async (event: Event) => {
           <span>用于个人主页和弹窗背景，建议比例 21:9，最大 4MB。</span>
         </div>
         <div class="flex items-center gap-4 flex-wrap">
-          <div class="w-40 h-16 rounded-lg overflow-hidden border border-[var(--border-strong)] bg-slate-900/60 relative">
+          <div
+            class="w-40 h-16 rounded-lg overflow-hidden border border-[var(--border-strong)] bg-slate-900/60 relative"
+          >
             <img
               v-if="authStore.user?.coverUrl"
               :src="authStore.user.coverUrl"
@@ -313,7 +335,18 @@ const handleCoverUpload = async (event: Event) => {
 
       <div class="setting-row text-row">
         <label class="row-copy" for="profile-bio">
-          <strong>个人简介</strong>
+          <div class="flex items-center justify-between w-full pr-4">
+            <strong>个人简介</strong>
+            <Button
+              type="button"
+              variant="secondary"
+              class="flex items-center gap-1.5 bg-accent/10 hover:bg-accent/20 text-accent font-bold border border-accent/20 cursor-pointer h-[28px] text-[11px] px-2 rounded-md"
+              @click.stop.prevent="openAiBioGenerator"
+            >
+              <Sparkles class="w-3 h-3" />
+              AI 生成
+            </Button>
+          </div>
           <span>一句话说明你的方向、技能或正在学习的内容。</span>
         </label>
         <div class="field-stack">
@@ -396,6 +429,13 @@ const handleCoverUpload = async (event: Event) => {
       :type="aiGeneratorType"
       @close="aiGeneratorShow = false"
       @save="handleAiImageSave"
+    />
+
+    <!-- AI Bio Generation Dialog -->
+    <AiBioGeneratorDialog
+      :show="aiBioGeneratorShow"
+      @close="aiBioGeneratorShow = false"
+      @save="handleAiBioSave"
     />
   </div>
 </template>

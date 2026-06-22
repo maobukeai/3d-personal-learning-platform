@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   RefreshCw,
   TrendingUp,
+  HardDrive,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRoute, useRouter } from 'vue-router';
@@ -67,9 +68,13 @@ interface BillingTransaction {
 }
 
 interface StorageUsage {
-  usedStorage?: number;
-  maxStorage?: number;
+  usedMB?: number;
+  usedGB?: number;
+  maxStorageGB?: number;
   usagePercent?: number;
+  assetCount?: number;
+  materialCount?: number;
+  showcaseCount?: number;
 }
 
 interface SubscriptionLimits {
@@ -380,6 +385,21 @@ const isRenewalAvailable = (plan?: BillingPlan | null) => {
   return plan.id === mySubscription.value?.plan?.id && mySubscription.value?.status === 'ACTIVE';
 };
 
+const scrollToPlans = () => {
+  const el = document.getElementById('pricing-plans-section');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth' });
+  }
+};
+
+const formatStorageValue = (gb?: number) => {
+  if (gb === undefined || gb === null) return '0 GB';
+  if (gb < 0.1) {
+    return `${(gb * 1024).toFixed(1)} MB`;
+  }
+  return `${gb.toFixed(2)} GB`;
+};
+
 onMounted(() => {
   fetchBillingData();
 
@@ -391,54 +411,35 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col h-full overflow-hidden bg-[var(--bg-app)]">
-    <div
-      class="min-h-[4rem] py-3 px-4 md:px-8 flex flex-col sm:flex-row sm:items-center justify-between shrink-0 border-b border-[var(--border-base)] bg-[var(--bg-card)] gap-2"
-    >
-      <div class="flex items-center gap-3">
-        <div class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-600">
-          <CreditCard class="w-5 h-5" />
-        </div>
-        <h1 class="text-lg md:text-xl font-bold text-[var(--text-primary)]">订阅与账单</h1>
-      </div>
-    </div>
+  <div class="flex-1 flex flex-col h-full overflow-hidden bg-transparent">
+    <!-- Reusable PageHeader component replaces hardcoded header -->
+    <PageHeader title="订阅与账单" :icon="CreditCard" />
 
     <div class="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide">
       <div class="max-w-none space-y-8 md:space-y-10">
-        <!-- Current Status & Storage -->
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-6">
-          <div
-            class="p-4 md:p-8 rounded-2xl md:rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm relative overflow-hidden group"
-          >
-            <div class="relative z-10">
-              <div
-                class="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-8 gap-2 md:gap-4"
-              >
+        
+        <!-- Balanced Current Status, Storage & Redeem Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          <!-- Card 1: Current Plan Status -->
+          <div class="premium-billing-card p-6 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm flex flex-col justify-between relative overflow-hidden group">
+            <div>
+              <div class="flex items-center justify-between mb-4">
                 <div>
-                  <h3
-                    class="text-[8px] md:text-sm font-bold text-[var(--text-secondary)] uppercase tracking-widest"
-                  >
+                  <h3 class="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
                     当前方案
                   </h3>
-                  <div class="flex items-baseline gap-1 mt-1">
-                    <span
-                      class="text-sm md:text-4xl font-black text-[var(--text-primary)] truncate max-w-[80px] md:max-w-none"
-                      >{{
-                        mySubscription?.plan?.displayName || mySubscription?.plan?.name || '免费版'
-                      }}</span
-                    >
-                    <div class="flex flex-wrap gap-1">
-                      <span
-                        v-if="isPaidPlan"
-                        class="px-1 py-0.5 rounded-full text-[6px] md:text-[10px] font-black bg-accent/10 text-accent"
-                      >
-                        {{ mySubscription?.interval === 'YEARLY' ? '年' : '月' }}
-                      </span>
-                    </div>
+                  <div class="flex items-baseline gap-2 mt-1">
+                    <span class="text-2xl font-black text-[var(--text-primary)] truncate max-w-[160px] md:max-w-none">
+                      {{ mySubscription?.plan?.displayName || mySubscription?.plan?.name || '免费版' }}
+                    </span>
+                    <span v-if="isPaidPlan" class="px-2 py-0.5 rounded-full text-[10px] font-black bg-accent/10 text-accent">
+                      {{ mySubscription?.interval === 'YEARLY' ? '年付' : '月付' }}
+                    </span>
                   </div>
                 </div>
                 <div
-                  class="p-2 md:p-4 rounded-xl md:rounded-2xl"
+                  class="p-3 rounded-2xl transition-all duration-300"
                   :style="{
                     backgroundColor: (mySubscription?.plan?.badgeColor || '#3b82f6') + '15',
                     color: mySubscription?.plan?.badgeColor || '#3b82f6',
@@ -446,100 +447,30 @@ onMounted(() => {
                 >
                   <component
                     :is="getPlanIcon(mySubscription?.plan?.name)"
-                    class="w-4 h-4 md:w-8 md:h-8"
+                    class="w-6 h-6"
                   />
                 </div>
               </div>
 
-              <div class="space-y-2 md:space-y-4">
-                <div class="flex items-center justify-between text-[8px] md:text-xs font-bold">
-                  <span class="text-[var(--text-secondary)]">存储</span>
-                  <span class="text-[var(--text-primary)]">{{ storageProgress }}%</span>
+              <div class="space-y-2 mt-4 text-xs text-[var(--text-secondary)]">
+                <div class="flex justify-between items-center">
+                  <span>订阅状态</span>
+                  <span class="font-semibold" :class="isPaidPlan ? 'text-emerald-500' : 'text-[var(--text-muted)]'">
+                    {{ isPaidPlan ? '已激活' : '未激活' }}
+                  </span>
                 </div>
-                <div
-                  class="h-1.5 md:h-3 w-full bg-[var(--bg-app)] rounded-full overflow-hidden p-0.5 border border-[var(--border-base)]"
-                >
-                  <div
-                    class="h-full rounded-full transition-all duration-1000 ease-out"
-                    :class="
-                      storageProgress > 90
-                        ? 'bg-rose-500'
-                        : storageProgress > 70
-                          ? 'bg-amber-500'
-                          : 'bg-accent'
-                    "
-                    :style="{ width: `${storageProgress}%` }"
-                  ></div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-1 md:gap-4 pt-1">
-                  <div
-                    class="flex items-center gap-1 text-[7px] md:text-xs text-[var(--text-secondary)]"
-                  >
-                    <FolderOpen class="w-2 h-2 md:w-3.5 md:h-3.5" />
-                    <span
-                      >项: {{ subscriptionLimits?.currentProjects || 0 }}/{{
-                        subscriptionLimits?.maxProjects === 9999
-                          ? '∞'
-                          : subscriptionLimits?.maxProjects || 5
-                      }}</span
-                    >
-                  </div>
-                  <div
-                    class="flex items-center gap-1 text-[7px] md:text-xs text-[var(--text-secondary)]"
-                  >
-                    <Box class="w-2 h-2 md:w-3.5 md:h-3.5" />
-                    <span
-                      >资: {{ subscriptionLimits?.currentAssets || 0 }}/{{
-                        subscriptionLimits?.maxAssets === 9999
-                          ? '∞'
-                          : subscriptionLimits?.maxAssets || 50
-                      }}</span
-                    >
-                  </div>
+                <div v-if="mySubscription?.endDate" class="flex justify-between items-center">
+                  <span>有效期至</span>
+                  <span class="font-medium text-[var(--text-primary)]">
+                    {{ new Date(mySubscription.endDate).toLocaleDateString() }}
+                  </span>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div
-            class="p-4 md:p-8 rounded-2xl md:rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm flex flex-col justify-between overflow-hidden"
-          >
-            <div class="space-y-2 md:space-y-4">
-              <div class="flex items-center gap-2 md:gap-3 text-violet-500">
-                <KeyRound class="w-4 h-4 md:w-6 md:h-6" />
-                <h3 class="text-[9px] md:text-base font-bold">激活码兑换</h3>
-              </div>
-              <p class="hidden md:block text-xs text-[var(--text-secondary)] leading-relaxed">
-                输入您的激活码，立即激活或延长您的订阅计划。
-              </p>
-              <div class="flex gap-2 mt-2 items-center">
-                <Input
-                  v-model="activationCode"
-                  type="text"
-                  class="flex-1 shrink-0"
-                  input-class="!py-2 !h-9 text-xs"
-                  placeholder="请输入激活码..."
-                  @keyup.enter="handleRedeemCode"
-                />
-                <Button
-                  variant="primary"
-                  size="sm"
-                  :disabled="isRedeeming"
-                  :loading="isRedeeming"
-                  class="shrink-0 rounded-xl"
-                  @click="handleRedeemCode"
-                >
-                  兑换
-                </Button>
-              </div>
-            </div>
-
-            <div v-if="isPaidPlan" class="space-y-2 md:space-y-3 mt-4 md:mt-6">
+            <div v-if="isPaidPlan" class="space-y-3 mt-6 pt-4 border-t border-[var(--border-base)]">
               <div class="flex items-center justify-between">
-                <span class="text-[8px] md:text-xs font-bold text-[var(--text-secondary)]"
-                  >自动续费</span
-                >
+                <span class="text-xs font-bold text-[var(--text-secondary)]">自动续费</span>
                 <Switch
                   :model-value="!!mySubscription?.autoRenew"
                   @update:model-value="handleToggleAutoRenew"
@@ -547,24 +478,135 @@ onMounted(() => {
               </div>
               <button
                 type="button"
-                class="w-full py-1.5 md:py-3 border border-dashed border-rose-200 dark:border-rose-900/30 rounded-lg md:rounded-2xl text-[8px] md:text-xs font-bold text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center gap-1"
+                class="w-full py-2 border border-dashed border-rose-200 dark:border-rose-900/30 rounded-xl text-xs font-bold text-rose-500 hover:bg-rose-500/5 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 @click="openCancelDialog"
               >
                 取消订阅
               </button>
             </div>
-            <button
-              v-else
-              type="button"
-              class="w-full py-2 md:py-4 mt-4 md:mt-6 border border-dashed border-[var(--border-base)] rounded-lg md:rounded-2xl text-[8px] md:text-xs font-bold text-[var(--text-secondary)] hover:border-accent hover:text-accent transition-all flex items-center justify-center gap-1"
-            >
-              <History class="w-3 h-3 md:w-4 md:h-4" /> 账单
-            </button>
+            <div v-else class="mt-6 pt-4 border-t border-[var(--border-base)]">
+              <button
+                type="button"
+                class="w-full py-2.5 bg-accent text-white rounded-xl text-xs font-bold shadow-md shadow-accent/20 hover:shadow-accent/30 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                @click="scrollToPlans"
+              >
+                升级订阅计划
+              </button>
+            </div>
+          </div>
+
+          <!-- Card 2: Storage & Resource Usage -->
+          <div class="premium-billing-card p-6 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm flex flex-col justify-between group">
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3 class="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                    存储与使用量
+                  </h3>
+                  <div class="text-2xl font-black text-[var(--text-primary)] mt-1">
+                    {{ storageProgress }}%
+                  </div>
+                </div>
+                <div class="p-3 bg-amber-500/10 text-amber-500 rounded-2xl">
+                  <HardDrive class="w-6 h-6" />
+                </div>
+              </div>
+
+              <div class="space-y-4">
+                <div class="space-y-1.5">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="text-[var(--text-secondary)]">存储空间</span>
+                    <span class="text-[var(--text-primary)] font-medium">
+                      {{ formatStorageValue(storageUsage?.usedGB) }} / {{ storageUsage?.maxStorageGB || 1 }} GB
+                    </span>
+                  </div>
+                  <div class="h-2 w-full bg-[var(--bg-app)] rounded-full overflow-hidden p-0.5 border border-[var(--border-base)]">
+                    <div
+                      class="h-full rounded-full transition-all duration-1000 ease-out"
+                      :class="
+                        storageProgress > 90
+                          ? 'bg-rose-500'
+                          : storageProgress > 70
+                            ? 'bg-amber-500'
+                            : 'bg-accent'
+                      "
+                      :style="{ width: `${storageProgress}%` }"
+                    ></div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 pt-2">
+                  <div class="flex items-center gap-2 p-2 bg-[var(--bg-app)]/50 rounded-xl border border-[var(--border-base)]">
+                    <FolderOpen class="w-4 h-4 text-blue-500 shrink-0" />
+                    <div class="min-w-0">
+                      <p class="text-[10px] text-[var(--text-secondary)]">协作项目</p>
+                      <p class="text-xs font-bold text-[var(--text-primary)] truncate">
+                        {{ subscriptionLimits?.currentProjects || 0 }} / {{ subscriptionLimits?.maxProjects === 9999 ? '∞' : subscriptionLimits?.maxProjects || 5 }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 p-2 bg-[var(--bg-app)]/50 rounded-xl border border-[var(--border-base)]">
+                    <Box class="w-4 h-4 text-purple-500 shrink-0" />
+                    <div class="min-w-0">
+                      <p class="text-[10px] text-[var(--text-secondary)]">3D 资源数</p>
+                      <p class="text-xs font-bold text-[var(--text-primary)] truncate">
+                        {{ subscriptionLimits?.currentAssets || 0 }} / {{ subscriptionLimits?.maxAssets === 9999 ? '∞' : subscriptionLimits?.maxAssets || 50 }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Activation Code Redemption -->
+          <div class="premium-billing-card p-6 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm flex flex-col justify-between group">
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                    激活码兑换
+                  </h3>
+                  <p class="text-xs text-[var(--text-secondary)] mt-1">
+                    激活或延长您的订阅计划
+                  </p>
+                </div>
+                <div class="p-3 bg-violet-500/10 text-violet-500 rounded-2xl">
+                  <KeyRound class="w-6 h-6" />
+                </div>
+              </div>
+
+              <div class="space-y-3">
+                <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+                  如果您拥有合作渠道提供的激活码，请在下方输入以兑换相应的订阅权益。
+                </p>
+                <div class="flex gap-2 items-center">
+                  <Input
+                    v-model="activationCode"
+                    type="text"
+                    class="flex-1 min-w-0"
+                    input-class="!py-2 !h-9 text-xs"
+                    placeholder="输入激活码..."
+                    @keyup.enter="handleRedeemCode"
+                  />
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    :disabled="isRedeeming"
+                    :loading="isRedeeming"
+                    class="shrink-0 rounded-xl h-9 font-bold"
+                    @click="handleRedeemCode"
+                  >
+                    兑换
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- Pricing Plans -->
-        <div class="space-y-6">
+        <div id="pricing-plans-section" class="space-y-6 scroll-mt-6">
           <div class="text-center space-y-4 px-4">
             <h2 class="text-2xl md:text-3xl font-black text-[var(--text-primary)]">
               选择适合您的方案
@@ -604,60 +646,62 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="grid grid-cols-3 gap-1 md:gap-8 pt-6 -mx-3 md:mx-0">
+          <!-- Responsive grid stacked on mobile, 3 columns on desktop -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 pt-6">
             <div
               v-for="plan in plans"
               :key="plan.id"
-              class="relative p-3 md:p-8 rounded-2xl md:rounded-[2.5rem] border transition-all duration-500 flex flex-col h-full overflow-hidden"
+              class="relative p-6 md:p-8 rounded-3xl border transition-all duration-500 flex flex-col h-full overflow-hidden premium-billing-card"
               :class="[
                 plan.id === mySubscription?.plan?.id && mySubscription?.status === 'ACTIVE'
-                  ? 'border-accent bg-accent/5 ring-1 ring-accent shadow-lg md:shadow-2xl shadow-accent/20'
+                  ? 'border-accent bg-accent/5 ring-1 ring-accent shadow-lg md:shadow-2xl'
                   : 'border-[var(--border-base)] bg-[var(--bg-card)] hover:shadow-xl',
               ]"
             >
               <div
                 v-if="plan.isPopular"
-                class="absolute top-2 right-2 md:top-6 md:right-6 px-1.5 py-0.5 md:px-3 md:py-1 text-white text-[7px] md:text-[10px] font-black rounded-full uppercase tracking-widest"
+                class="absolute top-4 right-4 px-3 py-1 text-white text-[10px] font-black rounded-full uppercase tracking-widest"
                 :class="getPlanBgColor(plan.name)"
               >
                 推荐
               </div>
 
-              <div class="mb-4 md:mb-8">
+              <div class="mb-6 md:mb-8">
                 <div
-                  class="p-1.5 md:p-3 bg-[var(--bg-app)] w-fit rounded-lg md:rounded-2xl mb-2 md:mb-4"
+                  class="p-2.5 md:p-3 bg-[var(--bg-app)] w-fit rounded-2xl mb-4"
                 >
                   <component
                     :is="getPlanIcon(plan.name)"
-                    class="w-4 h-4 md:w-6 md:h-6"
+                    class="w-5 h-5 md:w-6 md:h-6"
                     :class="getPlanColor(plan.name)"
                   />
                 </div>
-                <h3 class="text-[10px] md:text-xl font-black text-[var(--text-primary)] truncate">
+                <h3 class="text-lg md:text-xl font-black text-[var(--text-primary)] truncate">
                   {{ plan.displayName || plan.name }}
                 </h3>
-                <div class="mt-2 md:mt-4 flex items-baseline gap-0.5">
-                  <span class="text-xs md:text-4xl font-black text-[var(--text-primary)]"
+                <div class="mt-4 flex items-baseline gap-1">
+                  <span class="text-3xl md:text-4xl font-black text-[var(--text-primary)]"
                     >￥{{ getDisplayPrice(plan) }}</span
                   >
-                  <span class="text-[8px] md:text-sm font-medium text-[var(--text-secondary)]"
+                  <span class="text-xs md:text-sm font-medium text-[var(--text-secondary)]"
                     >/{{ billingInterval === 'YEARLY' ? '年' : '月' }}</span
                   >
                 </div>
               </div>
 
-              <ul class="space-y-2 md:space-y-4 mb-4 md:mb-10 flex-1">
+              <!-- Complete benefits features listing -->
+              <ul class="space-y-3.5 md:space-y-4 mb-6 md:mb-10 flex-1">
                 <li
-                  v-for="feature in (plan.features || []).slice(0, 4)"
+                  v-for="feature in (plan.features || [])"
                   :key="feature"
-                  class="flex items-start gap-1 md:gap-3"
+                  class="flex items-start gap-2.5"
                 >
                   <div
                     class="p-0.5 bg-emerald-500/10 rounded-full text-emerald-500 shrink-0 mt-0.5"
                   >
-                    <Check class="w-2 h-2 md:w-3 md:h-3" />
+                    <Check class="w-3 h-3" />
                   </div>
-                  <span class="text-[8px] md:text-sm text-[var(--text-secondary)] line-clamp-2">{{
+                  <span class="text-xs md:text-sm text-[var(--text-secondary)]">{{
                     feature
                   }}</span>
                 </li>
@@ -665,22 +709,22 @@ onMounted(() => {
 
               <button
                 type="button"
-                class="w-full py-2 md:py-4 rounded-xl md:rounded-2xl font-bold text-[9px] md:text-sm transition-all flex items-center justify-center gap-1 md:gap-2"
+                class="w-full py-2.5 md:py-4 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer hover:-translate-y-0.5 active:scale-95"
                 :class="[
                   plan.id === mySubscription?.plan?.id && mySubscription?.status === 'ACTIVE'
-                    ? isRenewalAvailable(plan)
-                      ? 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20'
-                      : 'bg-emerald-500 text-white'
+                    ? 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20'
                     : plan.isPopular
-                      ? 'bg-accent text-white shadow-lg shadow-accent/20'
+                      ? 'bg-gradient-to-r from-accent to-blue-600 text-white shadow-lg shadow-accent/25 hover:shadow-accent/40'
                       : 'bg-[var(--bg-app)] text-[var(--text-primary)] border border-[var(--border-base)] hover:border-accent hover:text-accent',
                 ]"
                 @click="handleSubscribe(plan)"
               >
                 {{
                   plan.id === mySubscription?.plan?.id && mySubscription?.status === 'ACTIVE'
-                    ? '当前'
-                    : '升级'
+                    ? '当前方案 (续费)'
+                    : isUpgradeAvailable(plan)
+                      ? '立即升级'
+                      : '选择此方案'
                 }}
               </button>
             </div>
@@ -688,23 +732,24 @@ onMounted(() => {
         </div>
 
         <!-- Plan Comparison Table -->
-        <div class="space-y-4 overflow-hidden">
+        <div class="space-y-4">
           <h2 class="text-lg md:text-xl font-bold text-[var(--text-primary)]">方案对比</h2>
+          <!-- Horizontal scrollability for comparison table on mobile viewports -->
           <div
-            class="rounded-2xl md:rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden"
+            class="rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-x-auto scrollbar-hide shadow-sm"
           >
-            <table class="w-full text-left border-collapse table-fixed md:table-auto">
+            <table class="w-full min-w-[600px] md:min-w-full text-left border-collapse">
               <thead>
                 <tr class="bg-[var(--bg-app)]/50 border-b border-[var(--border-base)]">
                   <th
-                    class="w-[28%] md:w-auto px-2 md:px-8 py-3 md:py-4 text-[8px] md:text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+                    class="w-[28%] md:w-auto px-4 md:px-8 py-3 md:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
                   >
                     功能
                   </th>
                   <th
                     v-for="plan in plans"
                     :key="plan.id"
-                    class="px-1 md:px-8 py-3 md:py-4 text-[8px] md:text-[10px] font-black uppercase tracking-widest text-center"
+                    class="px-4 md:px-8 py-3 md:py-4 text-[10px] font-black uppercase tracking-widest text-center"
                     :class="getPlanColor(plan.name)"
                   >
                     {{ plan.displayName || plan.name }}
@@ -739,14 +784,14 @@ onMounted(() => {
                   class="hover:bg-[var(--bg-app)]/30 transition-colors"
                 >
                   <td
-                    class="px-2 md:px-8 py-3 md:py-4 text-[10px] md:text-sm font-bold text-[var(--text-primary)] truncate"
+                    class="px-4 md:px-8 py-3 md:py-4 text-xs md:text-sm font-bold text-[var(--text-primary)] truncate"
                   >
                     {{ row.label }}
                   </td>
                   <td
                     v-for="(val, idx) in row.values"
                     :key="idx"
-                    class="px-1 md:px-8 py-3 md:py-4 text-[10px] md:text-sm text-center text-[var(--text-secondary)]"
+                    class="px-4 md:px-8 py-3 md:py-4 text-xs md:text-sm text-center text-[var(--text-secondary)]"
                   >
                     {{ val }}
                   </td>
@@ -757,20 +802,20 @@ onMounted(() => {
         </div>
 
         <!-- Billing History -->
-        <div class="space-y-4 overflow-hidden">
+        <div class="space-y-4">
           <div class="flex items-center justify-between">
             <h2 class="text-lg md:text-xl font-bold text-[var(--text-primary)]">账单历史</h2>
             <button
               type="button"
-              class="text-[10px] md:text-xs font-bold text-accent hover:underline flex items-center gap-1"
+              class="text-xs font-bold text-accent hover:underline flex items-center gap-1.5 cursor-pointer"
               @click="handleExportBilling"
             >
-              <Download class="w-3 h-3 md:w-3.5 md:h-3.5" /> 导出
+              <Download class="w-4 h-4" /> 导出账单
             </button>
           </div>
 
           <div
-            class="rounded-2xl md:rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden"
+            class="rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden shadow-sm"
           >
             <!-- Desktop Table (visible from md) -->
             <table class="hidden md:table w-full text-left border-collapse">
@@ -857,11 +902,11 @@ onMounted(() => {
               >
                 <div class="min-w-0 space-y-1">
                   <div class="flex items-center gap-2">
-                    <p class="text-[10px] font-black text-[var(--text-primary)] truncate">
+                    <p class="text-xs font-black text-[var(--text-primary)] truncate">
                       {{ tx.description }}
                     </p>
                     <span
-                      class="px-1.5 py-0.5 rounded-full text-[8px] font-bold shrink-0"
+                      class="px-1.5 py-0.5 rounded-full text-[9px] font-bold shrink-0"
                       :class="
                         tx.status === 'COMPLETED'
                           ? 'bg-emerald-500/10 text-emerald-500'
@@ -871,28 +916,28 @@ onMounted(() => {
                       {{ tx.status === 'COMPLETED' ? '已付' : '待付' }}
                     </span>
                   </div>
-                  <p class="text-[8px] text-[var(--text-muted)]">
+                  <p class="text-[10px] text-[var(--text-muted)]">
                     {{ new Date(tx.createdAt).toLocaleDateString() }}
                   </p>
                 </div>
                 <div class="text-right shrink-0">
-                  <p class="text-xs font-black text-[var(--text-primary)]">￥{{ tx.amount }}</p>
-                  <p class="text-[8px] text-[var(--text-muted)] font-mono">
+                  <p class="text-sm font-black text-[var(--text-primary)]">￥{{ tx.amount }}</p>
+                  <p class="text-[10px] text-[var(--text-muted)] font-mono">
                     {{ tx.invoiceNo?.slice(-6) || '-' }}
                   </p>
                 </div>
               </div>
               <div v-if="transactions.length === 0" class="p-10 text-center opacity-20">
                 <History class="w-8 h-8 mx-auto mb-2" />
-                <p class="text-[10px] font-medium">暂无记录</p>
+                <p class="text-xs font-medium">暂无记录</p>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- FAQ or Support -->
+        <!-- Premium Brand Gradient FAQ Support banner -->
         <div
-          class="p-6 md:p-8 rounded-3xl bg-blue-600 text-white flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 shadow-2xl shadow-blue-600/20"
+          class="p-6 md:p-8 rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-accent text-white flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 shadow-lg shadow-indigo-500/25"
         >
           <div class="space-y-2 text-center md:text-left">
             <h3 class="text-xl font-bold">对订阅有疑问？</h3>
@@ -902,7 +947,7 @@ onMounted(() => {
           </div>
           <button
             type="button"
-            class="w-full md:w-auto px-8 py-4 bg-white text-blue-600 font-bold rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg"
+            class="w-full md:w-auto px-8 py-4 bg-white text-indigo-600 font-bold rounded-2xl hover:scale-105 active:scale-95 duration-200 transition-all shadow-lg cursor-pointer"
             @click="$router.push('/report-bug')"
           >
             联系客户支持
@@ -989,7 +1034,7 @@ onMounted(() => {
           >
             <Shield class="w-4 h-4 text-blue-500 shrink-0" />
             <p class="text-[10px] text-blue-700 dark:text-blue-400 font-bold">
-              您的账户已启用两步验证，取消订阅时需要验证身份
+              您的账号已启用两步验证，取消订阅时需要验证身份
             </p>
           </div>
 
@@ -1149,5 +1194,22 @@ onMounted(() => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* Premium Card hover states and glow adjustments */
+.premium-billing-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-base);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.premium-billing-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-base));
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+.premium-billing-card.border-accent:hover {
+  border-color: var(--accent) !important;
+  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15) !important;
 }
 </style>

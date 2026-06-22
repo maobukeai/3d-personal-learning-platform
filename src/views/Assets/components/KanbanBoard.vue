@@ -237,7 +237,7 @@ const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
                 </div>
 
                 <div
-                  v-if="task.participants && task.participants.length > 0"
+                  v-if="task.assignee && task.participants && task.participants.length > 0"
                   class="flex items-center -space-x-1.5 ml-1"
                 >
                   <UserAvatar

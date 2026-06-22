@@ -41,6 +41,8 @@ export interface SystemSettings {
   DEFAULT_USER_ROLE: string;
   EMAIL_VERIFY_SUBJECT: string;
   EMAIL_VERIFY_BODY: string;
+  EMAIL_NOTIFY_SUBJECT: string;
+  EMAIL_NOTIFY_BODY: string;
   SMTP_CONFIGS: string;
   SMTP_ACTIVE_CONFIG_ID: string;
   AI_IMPORT_ENABLED: boolean;
@@ -201,6 +203,16 @@ const DEFAULT_SETTINGS: SystemSettings = {
   <p>您好，您正在进行邮箱验证，验证码如下：</p>
   <div style="background: #f4f4f4; padding: 15px; font-size: 24px; font-weight: bold; letter-spacing: 5px; text-align: center;">{{code}}</div>
   <p>有效期 10 分钟。如果不是您本人操作，请忽略此邮件。</p>
+</div>`,
+  EMAIL_NOTIFY_SUBJECT: '[3D学习平台] 你有新的通知提醒',
+  EMAIL_NOTIFY_BODY: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #111827; padding: 24px;">
+  <h2 style="margin: 0 0 12px; font-size: 20px; color: #4f46e5;">{{title}}</h2>
+  <p style="margin: 0 0 16px; font-size: 14px; color: #374151;">{{content}}</p>
+  {{preview}}
+  <div style="margin: 24px 0 16px;">
+    <a href="{{link}}" style="display: inline-block; padding: 10px 18px; border-radius: 8px; background: #4f46e5; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px;">立即前往查看</a>
+  </div>
+  <p style="margin-top: 24px; color: #9ca3af; font-size: 11px; border-top: 1px solid #e5e7eb; padding-top: 12px;">如果不想继续收到此类邮件，可以在个人设置的“通知策略”中调整偏好配置。</p>
 </div>`,
   SMTP_CONFIGS: '[]',
   SMTP_ACTIVE_CONFIG_ID: 'default',

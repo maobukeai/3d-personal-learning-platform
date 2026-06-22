@@ -2,12 +2,12 @@ import { ref } from 'vue';
 import { preferences, type LocalePreference, type ThemePreference } from '@/utils/preferences';
 
 export const accentColors = [
-  { name: 'Blue', value: '#2563eb' },
-  { name: 'Teal', value: '#0f766e' },
-  { name: 'Emerald', value: '#059669' },
-  { name: 'Amber', value: '#d97706' },
-  { name: 'Rose', value: '#e11d48' },
-  { name: 'Slate', value: '#475569' },
+  { name: 'Ocean Blue', value: '#2563eb' },
+  { name: 'Violet', value: '#8b5cf6' },
+  { name: 'Rose', value: '#ec4899' },
+  { name: 'Pine Green', value: '#10b981' },
+  { name: 'Amber', value: '#f59e0b' },
+  { name: 'Cyan', value: '#0891b2' },
 ] as const;
 
 export const languageOptions: Array<{ label: string; value: LocalePreference }> = [
@@ -69,6 +69,10 @@ export const applyAccentColorToDocument = (color: string) => {
   root.style.setProperty('--el-color-primary-light-3', `${color}b3`);
   root.style.setProperty('--el-color-primary-light-5', `${color}80`);
   root.style.setProperty('--el-color-primary-light-9', `${color}1a`);
+
+  try {
+    window.dispatchEvent(new CustomEvent('accent-color-applied', { detail: color }));
+  } catch (_e) {}
 };
 
 export const useAppearance = () => {

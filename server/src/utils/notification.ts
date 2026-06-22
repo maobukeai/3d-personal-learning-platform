@@ -3,6 +3,7 @@ import { emitToUser } from '../services/socket.service';
 import { config } from '../config/env';
 import { sendEmail } from './email';
 import { logger } from './logger';
+import { settingsService } from '../services/settings.service';
 
 type NotificationCategory =
   | 'SYSTEM'
@@ -13,12 +14,12 @@ type NotificationCategory =
   | 'TASK_UPDATE';
 
 const categoryToPrefKey: Record<NotificationCategory, string> = {
-  SYSTEM: 'emailSystemUpdates',
-  TEAM_ACTIVITY: 'emailTeamActivity',
-  MARKETING: 'emailMarketing',
+  SYSTEM: 'pushSystemUpdates',
+  TEAM_ACTIVITY: 'pushTeamActivity',
+  MARKETING: 'pushMarketing',
   MENTION: 'pushMentions',
   DIRECT_MESSAGE: 'pushDirectMessages',
-  TASK_UPDATE: 'emailTeamActivity', // Map to team activity for now if no specific preference exists
+  TASK_UPDATE: 'pushTeamActivity',
 };
 
 const categoryToEmailPrefKey: Partial<Record<NotificationCategory, string>> = {
@@ -26,15 +27,17 @@ const categoryToEmailPrefKey: Partial<Record<NotificationCategory, string>> = {
   TEAM_ACTIVITY: 'emailTeamActivity',
   MARKETING: 'emailMarketing',
   DIRECT_MESSAGE: 'emailDirectMessages',
+  MENTION: 'emailMentions',
   TASK_UPDATE: 'emailTeamActivity',
 };
 
 async function getUserPreference(userId: string, category: NotificationCategory): Promise<boolean> {
+  const prefKey = categoryToPrefKey[category];
   const prefs = await prisma.notificationPreference.findUnique({
     where: { userId },
   });
-  if (!prefs) return true;
-  return (prefs as any)[categoryToPrefKey[category]] ?? true;
+  if (!prefs) return prefKey !== 'pushMarketing';
+  return (prefs as any)[prefKey] ?? prefKey !== 'pushMarketing';
 }
 
 async function getUserEmailPreference(
@@ -93,6 +96,10 @@ export async function sendNotificationEmail(params: {
 
   if (!user?.email) return false;
 
+  const settings = await settingsService.getAll();
+  const templateSubject = settings.EMAIL_NOTIFY_SUBJECT || '{{subject}}';
+  const templateBody = settings.EMAIL_NOTIFY_BODY || '';
+
   const actionUrl = buildAbsoluteLink(params.link);
   const preview = normalizePreview(params.preview);
   const text = [
@@ -105,24 +112,25 @@ export async function sendNotificationEmail(params: {
     .filter(Boolean)
     .join('\n\n');
 
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #111827; padding: 24px;">
-      <h2 style="margin: 0 0 12px; font-size: 20px;">${escapeHtml(params.title)}</h2>
-      <p style="margin: 0 0 16px;">${escapeHtml(params.content)}</p>
-      ${
-        preview
-          ? `<div style="margin: 0 0 18px; padding: 12px 14px; border-left: 3px solid #2563eb; background: #f8fafc;">${escapeHtml(
-              preview,
-            )}</div>`
-          : ''
-      }
-      <a href="${escapeHtml(actionUrl)}" style="display: inline-block; padding: 10px 14px; border-radius: 8px; background: #2563eb; color: #ffffff; text-decoration: none; font-weight: 700;">查看消息</a>
-      <p style="margin-top: 18px; color: #6b7280; font-size: 12px;">如果不想继续收到这类邮件，可以在个人设置的通知偏好中关闭。</p>
-    </div>
-  `;
+  const subject = templateSubject
+    .replace(/\{\{subject\}\}/g, params.subject)
+    .replace(/\{\{title\}\}/g, params.title)
+    .replace(/\{\{content\}\}/g, params.content);
+
+  const previewHtml = preview
+    ? `<div style="margin: 0 0 18px; padding: 12px 14px; border-left: 3px solid #4f46e5; background: #f8fafc; color: #4b5563; font-size: 13px;">${escapeHtml(
+        preview,
+      )}</div>`
+    : '';
+
+  const html = templateBody
+    .replace(/\{\{title\}\}/g, escapeHtml(params.title))
+    .replace(/\{\{content\}\}/g, escapeHtml(params.content))
+    .replace(/\{\{preview\}\}/g, previewHtml)
+    .replace(/\{\{link\}\}/g, escapeHtml(actionUrl));
 
   try {
-    await sendEmail(user.email, params.subject, text, html);
+    await sendEmail(user.email, subject, text, html);
     return true;
   } catch (error) {
     logger.error('[Notification Email] Failed to send notification email:', error);
@@ -151,6 +159,24 @@ export async function createNotification(params: {
     data: notificationData,
   });
   emitToUser(params.userId, 'new_notification', notification);
+
+  if (category !== 'DIRECT_MESSAGE') {
+    void (async () => {
+      try {
+        await sendNotificationEmail({
+          userId: params.userId,
+          category,
+          subject: params.title,
+          title: params.title,
+          content: params.content,
+          link: params.link || undefined,
+        });
+      } catch (error) {
+        logger.error(`[Notification Email] Failed to send background email for category ${category}:`, error);
+      }
+    })();
+  }
+
   return notification;
 }
 
@@ -182,6 +208,23 @@ export async function createNotificationBatch(
   for (const item of filtered) {
     const { category: _category, enabled: _enabled, ...notificationData } = item;
     emitToUser(notificationData.userId, 'new_notification', notificationData);
+
+    if (item.category !== 'DIRECT_MESSAGE') {
+      void (async () => {
+        try {
+          await sendNotificationEmail({
+            userId: item.userId,
+            category: item.category,
+            subject: item.title,
+            title: item.title,
+            content: item.content,
+            link: item.link || undefined,
+          });
+        } catch (error) {
+          logger.error(`[Notification Email Batch] Failed to send background email for category ${item.category}:`, error);
+        }
+      })();
+    }
   }
 
   return filtered;

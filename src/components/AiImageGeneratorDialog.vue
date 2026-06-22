@@ -157,10 +157,25 @@ const handleSave = async () => {
 
   try {
     const filename = `${props.type}_ai_${Date.now()}.png`;
-    const response = await fetch(generatedImageUrl.value);
-    const blob = await response.blob();
-    const file = new File([blob], filename, { type: 'image/png' });
-    
+    let blob: Blob;
+
+    if (generatedImageUrl.value.startsWith('data:')) {
+      // Direct base64 → Blob conversion (avoids fetch(data:URL) Safari compatibility issues)
+      const [header, b64] = generatedImageUrl.value.split(',');
+      const mime = header.match(/:(.*?);/)?.[1] || 'image/png';
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      blob = new Blob([bytes], { type: mime });
+    } else {
+      // Remote URL: fetch and convert
+      const response = await fetch(generatedImageUrl.value);
+      blob = await response.blob();
+    }
+
+    const file = new File([blob], filename, { type: blob.type || 'image/png' });
     emit('save', file);
     emit('close');
   } catch (err) {

@@ -229,7 +229,7 @@ export const updateRoadmap = async (req: AuthRequest, res: Response) => {
               title: '学习路线变更通知',
               content: `项目绑定的学习路线「${title}」已进行调整与更新。`,
               userId: uid,
-              link: `/projects/${existing.projectId}`,
+              link: `/project/${existing.projectId}`,
               category: 'TEAM_ACTIVITY' as const,
             })),
           );

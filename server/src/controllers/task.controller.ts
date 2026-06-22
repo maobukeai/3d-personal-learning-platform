@@ -286,7 +286,7 @@ export const createTask = async (req: AuthRequest, res: Response, next: NextFunc
               title: '任务看板变更通知',
               content: `项目看板中新增了任务「${task.title}」。`,
               userId: uid,
-              link: `/projects/${task.projectId}`,
+              link: `/project/${task.projectId}`,
               category: 'TEAM_ACTIVITY' as const,
             })),
           );
@@ -505,7 +505,7 @@ export const batchCreateTasks = async (req: AuthRequest, res: Response, next: Ne
               title: '项目任务批量更新',
               content: `项目看板新增了 ${projectTasks.length} 个任务。`,
               userId,
-              link: `/projects/${projectId}`,
+              link: `/project/${projectId}`,
               category: 'TEAM_ACTIVITY' as const,
             })),
           );
@@ -639,7 +639,10 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
     }
 
     let targetAssigneeId = assigneeId !== undefined ? assigneeId || null : existingTask.assigneeId;
-    let targetParticipantIds = participantIds !== undefined ? [...participantIds] : existingTask.participants.map((p) => p.userId);
+    let targetParticipantIds =
+      participantIds !== undefined
+        ? [...participantIds]
+        : existingTask.participants.map((p) => p.userId);
 
     if (participantIds !== undefined) {
       targetAssigneeId = participantIds[0] || null;
@@ -681,12 +684,13 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
         projectId: projectId !== undefined ? projectId || null : undefined,
         timeEstimate: timeEstimate !== undefined ? Number(timeEstimate) : undefined,
         timeSpent: timeSpent !== undefined ? Number(timeSpent) : undefined,
-        participants: dbParticipantIds !== undefined
-          ? {
-              deleteMany: {},
-              create: dbParticipantIds.map((userId: string) => ({ userId })),
-            }
-          : undefined,
+        participants:
+          dbParticipantIds !== undefined
+            ? {
+                deleteMany: {},
+                create: dbParticipantIds.map((userId: string) => ({ userId })),
+              }
+            : undefined,
       },
       include: {
         assignee: {
@@ -838,11 +842,11 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
     }
 
     const taskDueDateStr = task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : null;
-    const existingDueDateStr = existingTask.dueDate ? new Date(existingTask.dueDate).toISOString().split('T')[0] : null;
+    const existingDueDateStr = existingTask.dueDate
+      ? new Date(existingTask.dueDate).toISOString().split('T')[0]
+      : null;
     if (taskDueDateStr !== existingDueDateStr) {
-      const desc = taskDueDateStr
-        ? `将截止日期修改为 "${taskDueDateStr}"`
-        : '移除了截止日期';
+      const desc = taskDueDateStr ? `将截止日期修改为 "${taskDueDateStr}"` : '移除了截止日期';
       await logTaskActivity({
         taskId: task.id,
         userId: req.userId as string,
@@ -868,24 +872,26 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
     }
 
     if (task.timeEstimate !== existingTask.timeEstimate) {
+      const toHours = (min: number | null) => (min != null ? min / 60 : null);
       await logTaskActivity({
         taskId: task.id,
         userId: req.userId as string,
         action: 'UPDATE_TIME_ESTIMATE',
-        description: `将预计工时修改为 ${task.timeEstimate / 60} 小时`,
-        oldValue: String(existingTask.timeEstimate / 60),
-        newValue: String(task.timeEstimate / 60),
+        description: `将预计工时修改为 ${toHours(task.timeEstimate) ?? '未设置'} 小时`,
+        oldValue: String(toHours(existingTask.timeEstimate) ?? '未设置'),
+        newValue: String(toHours(task.timeEstimate) ?? '未设置'),
       });
     }
 
     if (task.timeSpent !== existingTask.timeSpent) {
+      const toHours = (min: number | null) => (min != null ? min / 60 : null);
       await logTaskActivity({
         taskId: task.id,
         userId: req.userId as string,
         action: 'UPDATE_TIME_SPENT',
-        description: `将已耗工时修改为 ${task.timeSpent / 60} 小时`,
-        oldValue: String(existingTask.timeSpent / 60),
-        newValue: String(task.timeSpent / 60),
+        description: `将已耗工时修改为 ${toHours(task.timeSpent) ?? '未设置'} 小时`,
+        oldValue: String(toHours(existingTask.timeSpent) ?? '未设置'),
+        newValue: String(toHours(task.timeSpent) ?? '未设置'),
       });
     }
 
@@ -964,7 +970,7 @@ export const updateTask = async (req: AuthRequest, res: Response, next: NextFunc
               title: '任务看板变更通知',
               content: `项目看板任务「${task.title}」的${detailMsg}。`,
               userId: uid,
-              link: `/projects/${task.projectId}`,
+              link: `/project/${task.projectId}`,
               category: 'TEAM_ACTIVITY' as const,
             })),
           );
@@ -1052,7 +1058,7 @@ export const deleteTask = async (req: AuthRequest, res: Response, next: NextFunc
               title: '任务看板变更通知',
               content: `项目看板任务「${existingTask.title}」已被删除。`,
               userId: uid,
-              link: `/projects/${existingTask.projectId}`,
+              link: `/project/${existingTask.projectId}`,
               category: 'TEAM_ACTIVITY' as const,
             })),
           );
@@ -1333,7 +1339,7 @@ export const getTaskActivities = async (req: AuthRequest, res: Response, next: N
         id: taskId,
         teamId: req.workspaceId || null,
         OR: [
-          { projectId: null },
+          { projectId: null, userId: req.userId as string },
           {
             project: {
               members: {

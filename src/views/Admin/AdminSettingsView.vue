@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, watch, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   Settings,
@@ -76,13 +76,23 @@ const defaultSettings = {
   SMTP_PASS: '',
   SMTP_FROM: '',
   SMTP_FROM_NAME: '',
-  SMTP_SECURE: 'true',
+  SMTP_SECURE: true,
   SMTP_CONFIGS: '[]',
   SMTP_ACTIVE_CONFIG_ID: 'default',
   SYSTEM_EMAIL_PROVIDER: 'SMTP',
   MICROSOFT_POOL_FAILBACK: true,
   EMAIL_VERIFY_SUBJECT: t('admin.your_email_verification_code'),
   EMAIL_VERIFY_BODY: t('admin.hello_your_verification_code'),
+  EMAIL_NOTIFY_SUBJECT: '[3D学习平台] 你有新的通知提醒',
+  EMAIL_NOTIFY_BODY: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #111827; padding: 24px;">
+  <h2 style="margin: 0 0 12px; font-size: 20px; color: #4f46e5;">{{title}}</h2>
+  <p style="margin: 0 0 16px; font-size: 14px; color: #374151;">{{content}}</p>
+  {{preview}}
+  <div style="margin: 24px 0 16px;">
+    <a href="{{link}}" style="display: inline-block; padding: 10px 18px; border-radius: 8px; background: #4f46e5; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px;">立即前往查看</a>
+  </div>
+  <p style="margin-top: 24px; color: #9ca3af; font-size: 11px; border-top: 1px solid #e5e7eb; padding-top: 12px;">如果不想继续收到此类邮件，可以在个人设置的“通知策略”中调整偏好配置。</p>
+</div>`,
   PLATFORM_NAME: '3D Personal Learning Hub',
   PLATFORM_SUBTITLE: '一起学 Blender，创造无限可能',
   BROWSER_TITLE: '',
@@ -131,7 +141,7 @@ interface SmtpConfig {
   user: string;
   pass: string;
   from: string;
-  secure: string;
+  secure: boolean;
 }
 
 interface AiModelConfig {
@@ -210,7 +220,7 @@ const normalizeSmtpConfigs = (value: unknown): SmtpConfig[] => {
         user: String(config.user || ''),
         pass: String(config.pass || ''),
         from: String(config.from || ''),
-        secure: String(config.secure ?? 'true'),
+        secure: config.secure !== false && config.secure !== 'false',
       };
     })
     .filter((item): item is SmtpConfig => Boolean(item));
@@ -247,7 +257,7 @@ const normalizeAiModels = (value: unknown): AiModelConfig[] => {
         description: typeof model.description === 'string' ? model.description : '',
         capabilities: Array.isArray(model.capabilities) ? model.capabilities.map(String) : ['chat'],
         temperature: typeof model.temperature === 'number' ? model.temperature : 0.7,
-        maxTokens: typeof model.maxTokens === 'number' ? model.maxTokens : 2000,
+        maxTokens: typeof model.maxTokens === 'number' ? model.maxTokens : 20000,
         systemPrompt: typeof model.systemPrompt === 'string' ? model.systemPrompt : '',
         showAdvanced: false,
         customFamilyKey:
@@ -479,20 +489,21 @@ const fetchSettings = async () => {
         user: settings.value.SMTP_USER || '',
         pass: settings.value.SMTP_PASS || '',
         from: settings.value.SMTP_FROM || '',
-        secure: settings.value.SMTP_SECURE || 'true',
+        secure: !!settings.value.SMTP_SECURE,
       };
       smtpConfigs.value = [defaultCfg];
       settings.value.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
       settings.value.SMTP_ACTIVE_CONFIG_ID = 'default';
     }
 
-    originalSettings.value = JSON.parse(JSON.stringify(settings.value));
-    hasUnsavedChanges.value = false;
   } catch (error) {
     console.error('Fetch settings error:', error);
     ElMessage.error(t('admin.failed_to_get_settings'));
   } finally {
     _isLoadingSettings = false;
+    await nextTick();
+    originalSettings.value = JSON.parse(JSON.stringify(settings.value));
+    hasUnsavedChanges.value = false;
     isLoading.value = false;
   }
 };
@@ -564,7 +575,7 @@ const resetToDefaults = async () => {
         user: '',
         pass: '',
         from: '',
-        secure: 'true',
+        secure: true,
       },
     ];
     aiModelConfigs.value = [

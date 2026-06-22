@@ -231,7 +231,7 @@ export const createProject = async (req: AuthRequest, res: Response, next: NextF
             title: '项目邀请',
             content: `你被邀请加入项目「${title}」`,
             userId: inv.inviteeId,
-            link: `/projects/${project.id}?invitationId=${inv.id}`,
+            link: `/project/${project.id}?invitationId=${inv.id}`,
             category: 'TEAM_ACTIVITY' as const,
           })),
         );
@@ -306,7 +306,7 @@ export const updateProject = async (req: AuthRequest, res: Response, next: NextF
             title: '项目变更通知',
             content: `你参与的项目「${updated.title}」有新的更新或内容变更。`,
             userId: uid,
-            link: `/projects/${id}`,
+            link: `/project/${id}`,
             category: 'TEAM_ACTIVITY' as const,
           })),
         );
@@ -429,7 +429,7 @@ export const joinProject = async (req: AuthRequest, res: Response, next: NextFun
           title: '成员加入项目通知',
           content: `用户「${req.user?.name || req.user?.email || '新成员'}」加入了你的项目「${project.title}」。`,
           userId: projectOwner.userId,
-          link: `/projects/${id}`,
+          link: `/project/${id}`,
           category: 'TEAM_ACTIVITY' as const,
         });
       }
@@ -577,7 +577,7 @@ export const createProjectTask = async (req: AuthRequest, res: Response, next: N
             title: '任务看板变更通知',
             content: `项目看板中新增了任务「${task.title}」。`,
             userId: uid,
-            link: `/projects/${id}`,
+            link: `/project/${id}`,
             category: 'TEAM_ACTIVITY' as const,
           })),
         );
@@ -654,7 +654,7 @@ export const batchCreateProjectTasks = async (
             subtasks: null,
             participantIds: targetParticipantIds,
           };
-        }
+        },
       );
 
     const createdTasks = await prisma.$transaction(
@@ -688,8 +688,8 @@ export const batchCreateProjectTasks = async (
               },
             },
           },
-        })
-      )
+        }),
+      ),
     );
 
     await recalcProjectProgress(id);
@@ -709,7 +709,7 @@ export const batchCreateProjectTasks = async (
             title: '任务看板变更通知',
             content: `项目看板中批量添加了 ${createdTasks.length} 个新任务。`,
             userId: uid,
-            link: `/projects/${id}`,
+            link: `/project/${id}`,
             category: 'TEAM_ACTIVITY' as const,
           })),
         );
@@ -774,7 +774,10 @@ export const updateProjectTask = async (req: AuthRequest, res: Response, next: N
     }
 
     let targetAssigneeId = assigneeId !== undefined ? assigneeId || null : existingTask.assigneeId;
-    let targetParticipantIds = participantIds !== undefined ? [...participantIds] : existingTask.participants.map((p) => p.userId);
+    let targetParticipantIds =
+      participantIds !== undefined
+        ? [...participantIds]
+        : existingTask.participants.map((p) => p.userId);
 
     if (participantIds !== undefined) {
       targetAssigneeId = participantIds[0] || null;
@@ -810,12 +813,13 @@ export const updateProjectTask = async (req: AuthRequest, res: Response, next: N
         status,
         assigneeId: targetAssigneeId,
         dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : undefined,
-        participants: dbParticipantIds !== undefined
-          ? {
-              deleteMany: {},
-              create: dbParticipantIds.map((userId: string) => ({ userId })),
-            }
-          : undefined,
+        participants:
+          dbParticipantIds !== undefined
+            ? {
+                deleteMany: {},
+                create: dbParticipantIds.map((userId: string) => ({ userId })),
+              }
+            : undefined,
       },
       include: {
         assignee: { select: { id: true, name: true, avatarUrl: true } },
@@ -851,7 +855,7 @@ export const updateProjectTask = async (req: AuthRequest, res: Response, next: N
               title: '任务看板变更通知',
               content: `项目看板任务「${task.title}」的${detailMsg}。`,
               userId: uid,
-              link: `/projects/${task.projectId}`,
+              link: `/project/${task.projectId}`,
               category: 'TEAM_ACTIVITY' as const,
             })),
           );
@@ -1005,7 +1009,7 @@ export const inviteToProject = async (req: AuthRequest, res: Response, next: Nex
           userId: { in: targetUserIds },
           type: 'PROJECT_INVITE',
           link: {
-            contains: `/projects/${id}`,
+            contains: `/project/${id}`,
           },
         },
       });
@@ -1055,7 +1059,7 @@ export const inviteToProject = async (req: AuthRequest, res: Response, next: Nex
         title: '项目邀请',
         content: `你被邀请加入项目「${project.title}」`,
         userId: inv.inviteeId,
-        link: `/projects/${id}?invitationId=${inv.id}`,
+        link: `/project/${id}?invitationId=${inv.id}`,
         category: 'TEAM_ACTIVITY' as const,
       })),
     );

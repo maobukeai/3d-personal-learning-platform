@@ -1,10 +1,14 @@
 export type ThemePreference = 'glass-light' | 'glass-dark' | 'glass-auto';
 export type LocalePreference = 'zh-CN' | 'en-US';
 export type SidebarMode = 'rail' | 'expanded';
+export type AccentColorModePreference = 'static' | 'refresh' | 'interval';
+export type AccentColorIntervalPreference = '10s' | '1m' | '5m' | '30m';
 
 const storageKeys = {
   activeWorkspaceId: 'activeWorkspaceId',
   accentColor: 'accentColor',
+  accentColorMode: 'accentColorMode',
+  accentColorInterval: 'accentColorInterval',
   deviceToken: 'deviceToken',
   language: 'language',
   lastBaseTheme: 'lastBaseTheme',
@@ -97,6 +101,18 @@ export const preferences = {
 
   getAccentColor: () => getItem(storageKeys.accentColor) || '#2563eb',
   setAccentColor: (color: string) => setItem(storageKeys.accentColor, color),
+
+  getAccentColorMode: (): AccentColorModePreference => {
+    const mode = getItem(storageKeys.accentColorMode);
+    return mode === 'static' || mode === 'refresh' || mode === 'interval' ? mode : 'static';
+  },
+  setAccentColorMode: (mode: AccentColorModePreference) => setItem(storageKeys.accentColorMode, mode),
+
+  getAccentColorInterval: (): AccentColorIntervalPreference => {
+    const interval = getItem(storageKeys.accentColorInterval);
+    return interval === '10s' || interval === '1m' || interval === '5m' || interval === '30m' ? interval : '1m';
+  },
+  setAccentColorInterval: (interval: AccentColorIntervalPreference) => setItem(storageKeys.accentColorInterval, interval),
 
   getLanguage: (): LocalePreference => {
     const language = getItem(storageKeys.language);

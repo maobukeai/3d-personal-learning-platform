@@ -172,6 +172,12 @@ const fetchConversations = async () => {
   }
 };
 
+const joinActiveConversation = () => {
+  if (activeConversation.value) {
+    socketService.emit('join_conversation', activeConversation.value.id);
+  }
+};
+
 const selectConversation = async (conv: Conversation) => {
   if (activeConversation.value && activeConversation.value.id !== conv.id) {
     socketService.emit('leave_conversation', activeConversation.value.id);
@@ -180,7 +186,7 @@ const selectConversation = async (conv: Conversation) => {
   hasMoreMessages.value = false;
   nextCursor.value = null;
   fetchMessages(conv.id);
-  socketService.emit('join_conversation', conv.id);
+  joinActiveConversation();
 
   if (conv.unreadCount && conv.unreadCount > 0) {
     api.patch(`/api/messages/conversations/${conv.id}/read`);
@@ -253,12 +259,21 @@ const handleSendMessage = async (type = 'TEXT', content?: string) => {
   }
 
   try {
-    await api.post('/api/messages/messages', {
+    const response = await api.post('/api/messages/messages', {
       conversationId: activeConversation.value.id,
       content: msgContent,
       type,
       ...(replyToId && { replyToId }),
     });
+
+    const newMessage = response.data;
+    if (activeConversation.value?.id === newMessage.conversationId) {
+      if (!messages.value.some((m) => m.id === newMessage.id)) {
+        messages.value.push(newMessage);
+        chatWindowRef.value?.scrollToBottom();
+      }
+    }
+    updateSidebarWithNewMessage(newMessage);
   } catch {
     ElMessage.error(t('messages.sendFailed'));
   }
@@ -400,10 +415,14 @@ onMounted(() => {
 
   document.addEventListener('click', closeConversationContextMenu);
 
+  socketService.on('connect', joinActiveConversation);
+
   socketService.on('new_message', (message: Message) => {
     if (activeConversation.value?.id === message.conversationId) {
-      messages.value.push(message);
-      chatWindowRef.value?.scrollToBottom();
+      if (!messages.value.some((m) => m.id === message.id)) {
+        messages.value.push(message);
+        chatWindowRef.value?.scrollToBottom();
+      }
       api.patch(`/api/messages/conversations/${message.conversationId}/read`);
     }
     updateSidebarWithNewMessage(message);
@@ -516,6 +535,7 @@ watch(
 );
 
 onUnmounted(() => {
+  socketService.off('connect', joinActiveConversation);
   socketService.off('new_message');
   socketService.off('message_deleted');
   socketService.off('messages_read');

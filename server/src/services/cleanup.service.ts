@@ -87,6 +87,40 @@ export const cleanupLeftoverUploads = async (forceAll = false) => {
   }
 };
 
+export const cleanupMessageFiles = async () => {
+  const messagesDir = path.join(process.cwd(), 'uploads', 'messages');
+  if (!fs.existsSync(messagesDir)) return;
+
+  try {
+    const entries = fs.readdirSync(messagesDir);
+    let deletedCount = 0;
+    const threeDaysAgoMs = 3 * 24 * 60 * 60 * 1000;
+
+    for (const entry of entries) {
+      const fullPath = path.join(messagesDir, entry);
+      const stat = fs.statSync(fullPath);
+
+      if (stat.isFile()) {
+        const ageMs = Date.now() - stat.mtimeMs;
+        if (ageMs > threeDaysAgoMs) {
+          try {
+            fs.unlinkSync(fullPath);
+            deletedCount++;
+          } catch (unlinkErr) {
+            logger.error(`[Cleanup Error] Failed to delete message file ${fullPath}:`, unlinkErr);
+          }
+        }
+      }
+    }
+
+    if (deletedCount > 0) {
+      logger.info(`[Cleanup] Auto-deleted ${deletedCount} message files older than 3 days from uploads/messages.`);
+    }
+  } catch (err) {
+    logger.error('[Cleanup Error] Failed to cleanup message files:', err);
+  }
+};
+
 export const cleanupExpiredData = async (forceAll = false) => {
   const now = new Date();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -166,5 +200,34 @@ export const stopCleanupJob = () => {
     clearInterval(cleanupInterval);
     cleanupInterval = null;
     logger.info('[Cleanup] Background cleanup job stopped.');
+  }
+};
+
+let messageCleanupInterval: NodeJS.Timeout | null = null;
+
+export const startMessageCleanupJob = (intervalMs = 3 * 24 * 60 * 60 * 1000) => {
+  // Run immediately on start
+  cleanupMessageFiles();
+
+  if (messageCleanupInterval) {
+    clearInterval(messageCleanupInterval);
+  }
+
+  messageCleanupInterval = setInterval(() => {
+    cleanupMessageFiles();
+  }, intervalMs);
+
+  if (messageCleanupInterval && typeof messageCleanupInterval.unref === 'function') {
+    messageCleanupInterval.unref();
+  }
+
+  logger.info(`[Cleanup] Background message file cleanup job started (interval: ${intervalMs / 1000}s).`);
+};
+
+export const stopMessageCleanupJob = () => {
+  if (messageCleanupInterval) {
+    clearInterval(messageCleanupInterval);
+    messageCleanupInterval = null;
+    logger.info('[Cleanup] Background message file cleanup job stopped.');
   }
 };

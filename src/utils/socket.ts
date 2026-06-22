@@ -33,6 +33,11 @@ class SocketService {
       timeout: 10000,
     });
 
+    // Bind pre-existing listeners that were registered before socket connection was created
+    this.listeners.forEach((listener) => {
+      this.socket?.on(listener.event, listener.wrapped);
+    });
+
     this.socket.on('connect', () => {
       this.reconnectAttempts = 0;
     });

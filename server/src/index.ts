@@ -5,7 +5,11 @@ import { config } from './config/env';
 import { initSocket } from './services/socket.service';
 import { syncEngine } from './mirror/services/sync-engine.service';
 import { runManualStationMigration } from './manual/services/migration.service';
-import { startCleanupJob } from './services/cleanup.service';
+import {
+  startCleanupJob,
+  startMessageCleanupJob,
+  stopMessageCleanupJob,
+} from './services/cleanup.service';
 import { settingsService } from './services/settings.service';
 import {
   startDirectMessageEmailScheduler,
@@ -23,6 +27,7 @@ initSocket(server);
 
 syncEngine.startScheduler();
 startCleanupJob(); // Clean up expired data hourly
+startMessageCleanupJob(); // Clean up message uploads every 3 days
 startDirectMessageEmailScheduler();
 
 // Configure CORS for all active buckets on startup to prevent cross-origin issues
@@ -77,6 +82,7 @@ const gracefulShutdown = async (signal: string) => {
   try {
     syncEngine.stopScheduler();
     stopDirectMessageEmailScheduler();
+    stopMessageCleanupJob();
 
     server.close(() => {
       logger.info('[Shutdown] HTTP server closed.');

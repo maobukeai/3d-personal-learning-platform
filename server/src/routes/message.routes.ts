@@ -24,6 +24,11 @@ router.post(
   validateFileContent,
   messageController.uploadFile,
 );
+router.post('/presigned-url', messageController.getPresignedUrl);
+router.post('/multipart/initiate', messageController.initiateMultipartUpload);
+router.post('/multipart/presign-parts', messageController.getPresignedUploadPartUrls);
+router.post('/multipart/complete', messageController.completeMultipartUpload);
+router.post('/multipart/abort', messageController.abortMultipartUpload);
 router.post('/messages/:messageId/reactions', messageController.addReaction);
 router.delete('/messages/:messageId/reactions/:emoji', messageController.removeReaction);
 router.post('/translate', messageController.translateMessage);

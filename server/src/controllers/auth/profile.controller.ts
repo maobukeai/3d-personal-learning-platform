@@ -310,7 +310,7 @@ export const forgotPasswordCheck = async (req: AuthRequest, res: Response, next:
   const { email } = req.body;
   try {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (user && user.twoFactorEnabled) {
+    if (user) {
       const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -318,18 +318,32 @@ export const forgotPasswordCheck = async (req: AuthRequest, res: Response, next:
         data: { email, code: resetCode, expiresAt },
       });
 
-      await sendEmail(
-        email,
-        'Password reset verification code',
-        `Your password reset code is ${resetCode}. It expires in 10 minutes.`,
-        `<p>Your password reset code is <strong>${resetCode}</strong>.</p><p>It expires in 10 minutes.</p>`,
-      );
+      const settings = await prisma.systemSetting.findMany();
+      const configData = settings.reduce((acc: any, curr: any) => {
+        acc[curr.key] = curr.value;
+        return acc;
+      }, {});
+
+      const subject = configData.EMAIL_VERIFY_SUBJECT || '您的邮箱验证码';
+      let html =
+        configData.EMAIL_VERIFY_BODY ||
+        `<div style="padding: 20px; font-family: sans-serif;">
+          <h2>验证您的邮箱</h2>
+          <p>您好，您正在进行邮箱验证，验证码如下：</p>
+          <div style="background: #f4f4f4; padding: 15px; font-size: 24px; font-weight: bold; letter-spacing: 5px; text-align: center;">{{code}}</div>
+          <p>有效期 10 分钟。如果不是您本人操作，请忽略此邮件。</p>
+        </div>`;
+
+      html = html.replace('{{code}}', resetCode);
+      const text = `您的验证码是: ${resetCode}。有效期 10 分钟。`;
+
+      await sendEmail(email, subject, text, html);
     }
 
     res.json({
       message:
         'If the account exists and supports password reset, a verification code has been sent.',
-      twoFactorEnabled: true,
+      twoFactorEnabled: user ? user.twoFactorEnabled : false,
       requiresEmailCode: true,
     });
   } catch (error) {
@@ -342,8 +356,8 @@ export const resetPasswordWith2FA = async (req: AuthRequest, res: Response, next
   const { email, resetCode, twoFactorCode, newPassword } = req.body;
   try {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.twoFactorSecret || !user.twoFactorEnabled) {
-      return next(new AppError('无效请求，该账户未启用两步验证', 400));
+    if (!user) {
+      return next(new AppError('用户不存在', 404));
     }
 
     const resetRecord = await prisma.verificationCode.findFirst({
@@ -359,15 +373,24 @@ export const resetPasswordWith2FA = async (req: AuthRequest, res: Response, next
       return next(new AppError('邮箱验证码错误或已过期', 400));
     }
 
-    const isValid = speakeasy.totp.verify({
-      secret: user.twoFactorSecret,
-      encoding: 'base32',
-      token: twoFactorCode,
-      window: 1,
-    });
+    if (user.twoFactorEnabled) {
+      if (!twoFactorCode) {
+        return next(new AppError('请输入 2FA 验证码', 400));
+      }
+      if (!user.twoFactorSecret) {
+        return next(new AppError('未找到 2FA 密钥，请联系管理员', 400));
+      }
 
-    if (!isValid) {
-      return next(new AppError('验证码错误', 400));
+      const isValid = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: 'base32',
+        token: twoFactorCode,
+        window: 1,
+      });
+
+      if (!isValid) {
+        return next(new AppError('2FA 验证码错误', 400));
+      }
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -383,7 +406,9 @@ export const resetPasswordWith2FA = async (req: AuthRequest, res: Response, next
       userId: user.id,
       action: AuditAction.RESET_PASSWORD,
       module: AuditModule.AUTH,
-      description: `用户通过邮箱验证码和 2FA 重置了登录密码: ${user.email}`,
+      description: user.twoFactorEnabled
+        ? `用户通过邮箱验证码和 2FA 重置了登录密码: ${user.email}`
+        : `用户通过邮箱验证码重置了登录密码: ${user.email}`,
       req,
     });
 

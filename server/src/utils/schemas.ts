@@ -35,7 +35,7 @@ export const forgotPasswordCheckSchema = z.object({
 export const resetPasswordWith2FASchema = z.object({
   email: z.string().email('Invalid email format'),
   resetCode: z.string().length(6, 'Email verification code must be 6 digits'),
-  twoFactorCode: z.string().length(6, '2FA code must be 6 digits'),
+  twoFactorCode: z.string().optional().nullable(),
   newPassword: z.string().min(6, 'Password length must be 6-128 characters').max(128),
 });
 

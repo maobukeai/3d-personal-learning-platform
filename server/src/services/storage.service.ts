@@ -9,7 +9,12 @@ import {
   GetObjectCommand,
   PutBucketCorsCommand,
   CopyObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'crypto';
 import fs from 'fs';
 import { logger } from '../utils/logger';
@@ -45,6 +50,8 @@ export interface BucketUsageResult {
   source: 'cloudflare-graphql' | 'cloudflare-usage-api' | 'list-objects';
   warning?: string;
   resolvedBucketName?: string;
+  scannedBytes?: number | null;
+  scannedObjectCount?: number | null;
 }
 
 export class StorageService {
@@ -139,6 +146,102 @@ export class StorageService {
     throw new Error(
       '[StorageService] Unexpected: uploadFile reached end without returning or throwing',
     );
+  }
+
+  /**
+   * Generates a simple presigned upload URL for a key.
+   */
+  public async getPresignedUploadUrl(
+    config: StorageConfigData,
+    key: string,
+    mimetype: string,
+    expiresIn = 3600,
+  ): Promise<string> {
+    const client = this.getS3Client(config);
+    const command = new PutObjectCommand({
+      Bucket: config.bucketName,
+      Key: key,
+      ContentType: mimetype,
+    });
+    return getSignedUrl(client, command, { expiresIn });
+  }
+
+  /**
+   * Initiates a multipart upload and returns the UploadId.
+   */
+  public async initiateMultipartUpload(
+    config: StorageConfigData,
+    key: string,
+    mimetype: string,
+  ): Promise<string> {
+    const client = this.getS3Client(config);
+    const command = new CreateMultipartUploadCommand({
+      Bucket: config.bucketName,
+      Key: key,
+      ContentType: mimetype,
+    });
+    const res = await client.send(command);
+    return res.UploadId!;
+  }
+
+  /**
+   * Generates a presigned upload URL for a specific part in a multipart upload.
+   */
+  public async getPresignedUploadPartUrl(
+    config: StorageConfigData,
+    key: string,
+    uploadId: string,
+    partNumber: number,
+    expiresIn = 3600,
+  ): Promise<string> {
+    const client = this.getS3Client(config);
+    const command = new UploadPartCommand({
+      Bucket: config.bucketName,
+      Key: key,
+      UploadId: uploadId,
+      PartNumber: partNumber,
+    });
+    return getSignedUrl(client, command, { expiresIn });
+  }
+
+  /**
+   * Completes a multipart upload on R2.
+   */
+  public async completeMultipartUpload(
+    config: StorageConfigData,
+    key: string,
+    uploadId: string,
+    parts: { ETag: string; PartNumber: number }[],
+  ): Promise<string> {
+    const client = this.getS3Client(config);
+    const command = new CompleteMultipartUploadCommand({
+      Bucket: config.bucketName,
+      Key: key,
+      UploadId: uploadId,
+      MultipartUpload: {
+        Parts: parts.sort((a, b) => a.PartNumber - b.PartNumber),
+      },
+    });
+    await client.send(command);
+    const publicUrlBase = config.publicUrl.replace(/\/$/, '');
+    return `${publicUrlBase}/${key}`;
+  }
+
+  /**
+   * Aborts an active multipart upload.
+   */
+  public async abortMultipartUpload(
+    config: StorageConfigData,
+    key: string,
+    uploadId: string,
+  ): Promise<void> {
+    const client = this.getS3Client(config);
+    const command = new AbortMultipartUploadCommand({
+      Bucket: config.bucketName,
+      Key: key,
+      UploadId: uploadId,
+    });
+    await client.send(command);
   }
 
   /**
@@ -442,12 +545,32 @@ export class StorageService {
 
   public async getBucketUsage(
     config: StorageConfigData,
-    options?: { sharedApiTokens?: Array<string | null | undefined> },
+    options?: {
+      sharedApiTokens?: Array<string | null | undefined>;
+      scan?: boolean;
+    },
   ): Promise<BucketUsageResult> {
     const apiToken = resolveCloudflareApiToken(config.cloudflareApiToken, options?.sharedApiTokens);
     const accountId = resolveCloudflareAccountId(config.endpoint, config.cloudflareAccountId);
 
-    if (apiToken && accountId) {
+    let listed: { bytes: number; count: number } | null = null;
+
+    // We only perform the real-time S3 listing scan if:
+    // 1. We don't have official Cloudflare API credentials (since S3 listing is our only option).
+    // 2. Or, if the scan flag is explicitly requested (e.g. options?.scan === true).
+    const hasOfficialCredentials = apiToken && accountId;
+    if (!hasOfficialCredentials || options?.scan) {
+      try {
+        listed = await this.sumObjectsByParallelPrefixes(config);
+      } catch (listError) {
+        logger.warn(
+          `[StorageService] S3 list objects failed for bucket ${config.bucketName}:`,
+          listError,
+        );
+      }
+    }
+
+    if (hasOfficialCredentials) {
       try {
         const official = await fetchOfficialBucketUsage(accountId, config.bucketName, apiToken);
         const usage = official.usage;
@@ -462,6 +585,8 @@ export class StorageService {
           uploadCount: usage.uploadCount,
           source: official.source,
           resolvedBucketName: official.resolvedBucketName,
+          scannedBytes: listed ? listed.bytes : null,
+          scannedObjectCount: listed ? listed.count : null,
         };
       } catch (error) {
         logger.warn(
@@ -471,7 +596,18 @@ export class StorageService {
       }
     }
 
-    const listed = await this.sumObjectsByParallelPrefixes(config);
+    // Fallback to S3 scan if official API query failed or is not configured
+    if (!listed) {
+      try {
+        listed = await this.sumObjectsByParallelPrefixes(config);
+      } catch (listError) {
+        logger.warn(
+          `[StorageService] S3 list objects fallback failed for bucket ${config.bucketName}:`,
+          listError,
+        );
+      }
+    }
+
     const warning = !apiToken
       ? '未配置可用的 Cloudflare API Token，当前结果为对象扫描值，通常低于官网 Metrics 中的 Bucket size。请为该账号配置 API Token。'
       : !accountId
@@ -479,14 +615,16 @@ export class StorageService {
         : 'Cloudflare 官方 API 查询失败，当前结果为对象扫描值，可能与官网不一致。请检查 API Token 权限是否覆盖该账号。';
 
     return {
-      totalBytes: listed.bytes,
-      dashboardBytes: listed.bytes,
-      payloadBytes: listed.bytes,
+      totalBytes: listed?.bytes ?? 0,
+      dashboardBytes: listed?.bytes ?? 0,
+      payloadBytes: listed?.bytes ?? 0,
       metadataBytes: 0,
-      objectCount: listed.count,
+      objectCount: listed?.count ?? 0,
       uploadCount: 0,
       source: 'list-objects',
       warning,
+      scannedBytes: listed?.bytes ?? 0,
+      scannedObjectCount: listed?.count ?? 0,
     };
   }
 

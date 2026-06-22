@@ -134,13 +134,16 @@ const createUploadMiddleware = (config: {
       // Check if the upload config consists exclusively of system image fields.
       // If there are any non-image fields (like 'asset', 'material', 'plugin_file'),
       // we must use the larger file size limit from the settings.
+      const isMessageUpload = config.fieldname === 'message_file';
       const hasNonImageField =
         (config.fieldname && !isImageField(config.fieldname)) ||
         (config.fields && config.fields.some((f) => !isImageField(f.name)));
 
       const isSystemImage = !hasNonImageField;
 
-      if (isSystemImage) {
+      if (isMessageUpload) {
+        maxFileSize = 500 * 1024 * 1024; // 500MB limit for chat messages
+      } else if (isSystemImage) {
         maxFileSize = 5 * 1024 * 1024;
       }
 
@@ -160,6 +163,10 @@ const createUploadMiddleware = (config: {
           files: 100,
         },
         fileFilter: (req, file, cb) => {
+          if (file.fieldname === 'message_file') {
+            return cb(null, true);
+          }
+
           const ext = path.extname(file.originalname).toLowerCase();
           let finalAllowedExtensions = allowedExtensions;
 
@@ -245,11 +252,13 @@ const createUploadMiddleware = (config: {
               config.fieldname === 'file' &&
               (req.originalUrl.includes('/mirror/sources/import') ||
                 req.baseUrl.includes('mirror'));
-            const displayLimit = isMirrorImport
-              ? '5GB'
-              : isSystemImage
-                ? '5MB'
-                : `${settings.MAX_FILE_SIZE || 100}MB`;
+            const displayLimit = isMessageUpload
+              ? '500MB'
+              : isMirrorImport
+                ? '5GB'
+                : isSystemImage
+                  ? '5MB'
+                  : `${settings.MAX_FILE_SIZE || 100}MB`;
             logger.error(`[UploadError] LIMIT_FILE_SIZE: file size exceeded (${displayLimit})`);
             return res.status(400).json({ error: `文件大小超过限制 (${displayLimit})` });
           }
@@ -689,6 +698,23 @@ const looksLikeExecutableContent = (buffer: Buffer): boolean => {
 
 export const validateSingleFileContent = async (file: Express.Multer.File) => {
   const ext = path.extname(file.originalname).toLowerCase();
+
+  if (file.fieldname === 'message_file') {
+    // For chat message files, allow all formats, but block PHP files for security
+    if (ext === '.php' || ext === '.php5' || ext === '.phtml') {
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      throw new Error('安全限制：不允许上传 PHP 脚本文件');
+    }
+    // Check looksLikeExecutableContent but only if it's HTML or SVG to prevent HTML-based XSS
+    if (ext === '.html' || ext === '.htm' || ext === '.svg') {
+      const buffer = await fs.promises.readFile(file.path);
+      if (looksLikeExecutableContent(buffer)) {
+        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        throw new Error('安全限制：不允许上传包含脚本的 HTML/SVG 文件');
+      }
+    }
+    return;
+  }
 
   if (model3dExtensions.includes(ext) || documentExtensions.includes(ext)) {
     return;

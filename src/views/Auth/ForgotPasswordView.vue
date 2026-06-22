@@ -19,6 +19,7 @@ const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
 const email = ref('');
 const isLoading = ref(false);
 const step = ref(1); // 1: Email, 2: 2FA & New Password, 3: Success
+const twoFactorEnabled = ref(false);
 
 const forgotForm = ref({
   resetCode: '',
@@ -36,8 +37,9 @@ const handleCheckEmail = async () => {
   isLoading.value = true;
   try {
     const data = await authStore.forgotPasswordCheck(email.value);
-    if (data.twoFactorEnabled) {
-      step.value = 2;
+    twoFactorEnabled.value = !!data.twoFactorEnabled;
+    step.value = 2;
+    if (twoFactorEnabled.value) {
       ElMessage.info(
         label(
           '验证码已发送，请同时输入邮箱验证码和 2FA 验证码',
@@ -45,10 +47,10 @@ const handleCheckEmail = async () => {
         ),
       );
     } else {
-      ElMessage.warning(
+      ElMessage.info(
         label(
-          '该账户未启用两步验证，邮箱验证功能开发中，请联系管理员',
-          'This account has no 2FA. Email-only recovery is not ready; please contact an administrator.',
+          '验证码已发送，请输入邮箱验证码设置新密码',
+          'Code sent. Enter the email code to set your new password.',
         ),
       );
     }
@@ -62,7 +64,7 @@ const handleCheckEmail = async () => {
 const handleResetWith2FA = async () => {
   if (
     !forgotForm.value.resetCode ||
-    !forgotForm.value.twoFactorCode ||
+    (twoFactorEnabled.value && !forgotForm.value.twoFactorCode) ||
     !forgotForm.value.newPassword
   ) {
     ElMessage.warning(label('请填写所有必填项', 'Please complete all required fields'));
@@ -79,7 +81,7 @@ const handleResetWith2FA = async () => {
     await authStore.resetPasswordWith2FA({
       email: email.value,
       resetCode: forgotForm.value.resetCode,
-      twoFactorCode: forgotForm.value.twoFactorCode,
+      twoFactorCode: twoFactorEnabled.value ? forgotForm.value.twoFactorCode : undefined,
       newPassword: forgotForm.value.newPassword,
     });
     step.value = 3;
@@ -178,10 +180,15 @@ const handleResetWith2FA = async () => {
             </h1>
             <p class="text-xs sm:text-sm mb-6 leading-relaxed text-[var(--text-secondary)]">
               {{
-                label(
-                  '请输入身份验证器中的 6 位动态验证码，并设置你的新密码。',
-                  'Enter the 6-digit authenticator code and set your new password.',
-                )
+                twoFactorEnabled
+                  ? label(
+                      '请输入邮箱验证码和身份验证器中的 6 位动态验证码，并设置你的新密码。',
+                      'Enter the email verification code, the 6-digit 2FA code, and set your new password.',
+                    )
+                  : label(
+                      '请输入已发送至你邮箱的 6 位验证码，并设置你的新密码。',
+                      'Enter the 6-digit email code and set your new password.',
+                    )
               }}
             </p>
 
@@ -198,6 +205,7 @@ const handleResetWith2FA = async () => {
               />
 
               <Input
+                v-if="twoFactorEnabled"
                 v-model="forgotForm.twoFactorCode"
                 type="text"
                 maxlength="6"

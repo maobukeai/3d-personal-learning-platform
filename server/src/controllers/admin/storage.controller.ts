@@ -68,6 +68,8 @@ function buildUsageResponse(usage: Awaited<ReturnType<typeof storageService.getB
     warning: usage.warning,
     resolvedBucketName: usage.resolvedBucketName,
     displayUnit: 'decimal' as const,
+    scannedBytes: usage.scannedBytes,
+    scannedObjectCount: usage.scannedObjectCount,
   };
 }
 
@@ -588,12 +590,13 @@ export const uploadDirectFile = async (req: AuthRequest, res: Response, next: Ne
 export const getActualSize = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
+    const scan = req.query.scan === 'true';
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
     if (!raw) return next(new AppError('配置未找到', 404));
 
     const config = buildDecryptedStorageConfig(raw);
     const sharedApiTokens = await getSharedCloudflareApiTokens();
-    const usage = await storageService.getBucketUsage(config, { sharedApiTokens });
+    const usage = await storageService.getBucketUsage(config, { sharedApiTokens, scan });
     res.json(buildUsageResponse(usage));
   } catch (error) {
     next(error);
@@ -603,16 +606,24 @@ export const getActualSize = async (req: AuthRequest, res: Response, next: NextF
 export const syncActualSize = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
+    const { type } = req.body as { type?: 'scanned' | 'official' };
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
     if (!raw) return next(new AppError('配置未找到', 404));
 
     const config = buildDecryptedStorageConfig(raw);
     const sharedApiTokens = await getSharedCloudflareApiTokens();
-    const usage = await storageService.getBucketUsage(config, { sharedApiTokens });
+    const usage = await storageService.getBucketUsage(config, {
+      sharedApiTokens,
+      scan: type === 'scanned',
+    });
+
+    const bytesToSync = type === 'official'
+      ? usage.dashboardBytes
+      : (usage.scannedBytes ?? usage.dashboardBytes);
 
     const updated = await prisma.storageConfig.update({
       where: { id },
-      data: { usedBytes: usage.dashboardBytes },
+      data: { usedBytes: bytesToSync },
     });
 
     await auditService.log({
@@ -620,8 +631,8 @@ export const syncActualSize = async (req: AuthRequest, res: Response, next: Next
       userId: req.userId!,
       module: AuditModule.SETTINGS,
       action: 'SYNC_STORAGE_SIZE',
-      description: `Synchronized storage config ${raw.name} capacity to Cloudflare dashboard payload size: ${usage.dashboardBytes} bytes (${usage.source})`,
-      newValue: { id, usedBytes: usage.dashboardBytes, source: usage.source },
+      description: `Synchronized storage config ${raw.name} capacity to ${type === 'official' ? 'official' : 'scanned'} size: ${bytesToSync} bytes (${usage.source})`,
+      newValue: { id, usedBytes: bytesToSync, source: usage.source, type },
     });
 
     res.json({

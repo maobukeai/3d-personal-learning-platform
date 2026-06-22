@@ -21,12 +21,15 @@ import {
   Smile,
   Send,
   AtSign,
+  Loader2,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
 import SafeHtml from '@/components/SafeHtml.vue';
 import api, { getAssetUrl } from '@/utils/api';
+import axios from 'axios';
+import { downloadFileMultiThreaded } from '@/utils/downloadHelper';
 
 interface UserType {
   id: string;
@@ -93,6 +96,7 @@ const showReactionPicker = ref<string | null>(null);
 const isDragOver = ref(false);
 const dragCounter = ref(0);
 const translations = ref<Record<string, string>>({});
+const translating = ref<Record<string, boolean>>({});
 
 const messagesContainer = ref<HTMLElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -102,6 +106,83 @@ const isRecording = ref(false);
 const recordingDuration = ref(0);
 const currentlyPlaying = ref<string | null>(null);
 const isUploading = ref(false);
+const uploadProgress = ref(0);
+let uploadAbortController: AbortController | null = null;
+
+const uploadSpeed = ref('');
+let activeMultipart: { key: string; uploadId: string } | null = null;
+
+const cancelUpload = async () => {
+  if (uploadAbortController) {
+    uploadAbortController.abort();
+    uploadAbortController = null;
+  }
+  if (activeMultipart) {
+    try {
+      await api.post('/api/messages/multipart/abort', {
+        key: activeMultipart.key,
+        uploadId: activeMultipart.uploadId,
+      });
+    } catch (err) {
+      console.warn('[Upload] Failed to abort multipart upload on cancel:', err);
+    } finally {
+      activeMultipart = null;
+    }
+  }
+  isUploading.value = false;
+  uploadProgress.value = 0;
+  uploadSpeed.value = '';
+};
+
+const isDownloading = ref(false);
+const downloadProgress = ref(0);
+const downloadSpeedStr = ref('');
+let downloadAbortController: AbortController | null = null;
+
+const cancelDownload = () => {
+  if (downloadAbortController) {
+    downloadAbortController.abort();
+    downloadAbortController = null;
+  }
+  isDownloading.value = false;
+  downloadProgress.value = 0;
+  downloadSpeedStr.value = '';
+};
+
+const handleDownloadFile = async (contentUrl: string) => {
+  const resolvedUrl = getAssetUrl(contentUrl);
+  const filename = contentUrl.split('/').pop() || 'download';
+
+  isDownloading.value = true;
+  downloadProgress.value = 0;
+  downloadSpeedStr.value = '';
+  downloadAbortController = new AbortController();
+
+  try {
+    await downloadFileMultiThreaded(
+      resolvedUrl,
+      filename,
+      (percent) => {
+        downloadProgress.value = percent;
+      },
+      (speed) => {
+        downloadSpeedStr.value = speed;
+      },
+      downloadAbortController.signal
+    );
+  } catch (err: any) {
+    if (axios.isCancel(err) || err.name === 'CanceledError' || err.message === 'canceled') {
+      return;
+    }
+    console.warn('[Download] Parallel download error, standard fallback occurred.', err);
+  } finally {
+    isDownloading.value = false;
+    downloadProgress.value = 0;
+    downloadSpeedStr.value = '';
+    downloadAbortController = null;
+  }
+};
+
 let mediaRecorder: MediaRecorder | null = null;
 let audioChunks: Blob[] = [];
 let recordingTimer: ReturnType<typeof setInterval> | null = null;
@@ -176,23 +257,217 @@ const triggerFileUpload = () => {
   fileInput.value?.click();
 };
 
+const uploadFile = async (fileOrBlob: File | Blob, filename: string, mimetype: string) => {
+  uploadProgress.value = 0;
+  isUploading.value = true;
+  uploadSpeed.value = '';
+  activeMultipart = null;
+  uploadAbortController = new AbortController();
+
+  const size = fileOrBlob.size;
+  let lastLoaded = 0;
+  let lastTime = Date.now();
+
+  const updateSpeed = (loaded: number) => {
+    const now = Date.now();
+    const elapsed = (now - lastTime) / 1000;
+    if (elapsed >= 0.5) {
+      const bytesTransferred = loaded - lastLoaded;
+      const speedBytesPerSec = bytesTransferred / elapsed;
+      let speedStr = '';
+      if (speedBytesPerSec > 1024 * 1024) {
+        speedStr = `${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`;
+      } else if (speedBytesPerSec > 1024) {
+        speedStr = `${(speedBytesPerSec / 1024).toFixed(0)} KB/s`;
+      } else {
+        speedStr = `${speedBytesPerSec.toFixed(0)} B/s`;
+      }
+      uploadSpeed.value = speedStr;
+      lastLoaded = loaded;
+      lastTime = now;
+    }
+  };
+
+  try {
+    // If the file is larger than 10MB, use multipart upload
+    if (size >= 10 * 1024 * 1024) {
+      const initRes = await api.post('/api/messages/multipart/initiate', {
+        filename,
+        mimetype,
+        size,
+      });
+
+      if (initRes.data.isDirect) {
+        const { uploadId, key } = initRes.data;
+        activeMultipart = { key, uploadId };
+
+        const chunkSize = 5 * 1024 * 1024;
+        const totalChunks = Math.ceil(size / chunkSize);
+        const partNumbers = Array.from({ length: totalChunks }, (_, i) => i + 1);
+
+        const partsRes = await api.post('/api/messages/multipart/presign-parts', {
+          key,
+          uploadId,
+          partNumbers,
+        });
+
+        const urls = partsRes.data.urls;
+        const loadedParts = new Array(totalChunks).fill(0);
+        const completedParts: { ETag: string; PartNumber: number }[] = [];
+
+        const uploadChunk = async (partNum: number) => {
+          const start = (partNum - 1) * chunkSize;
+          const end = Math.min(start + chunkSize, size);
+          const chunk = fileOrBlob.slice(start, end);
+          const presignedUrl = urls[partNum];
+
+          const res = await axios.put(presignedUrl, chunk, {
+            headers: {
+              'Content-Type': mimetype,
+            },
+            signal: uploadAbortController?.signal,
+            onUploadProgress: (progressEvent) => {
+              loadedParts[partNum - 1] = progressEvent.loaded || 0;
+              const totalLoaded = loadedParts.reduce((sum, val) => sum + val, 0);
+              const percent = Math.min(Math.round((totalLoaded * 100) / size), 99);
+              uploadProgress.value = percent;
+              updateSpeed(totalLoaded);
+            },
+          });
+
+          const etag = res.headers.etag || res.headers.ETag || '';
+          completedParts.push({
+            ETag: etag.replace(/"/g, ''),
+            PartNumber: partNum,
+          });
+        };
+
+        const queue = [...partNumbers];
+        const workers = [];
+        const executeWorker = async () => {
+          while (queue.length > 0) {
+            const partNum = queue.shift();
+            if (partNum !== undefined) {
+              await uploadChunk(partNum);
+            }
+          }
+        };
+
+        for (let w = 0; w < Math.min(3, totalChunks); w++) {
+          workers.push(executeWorker());
+        }
+        await Promise.all(workers);
+
+        const completeRes = await api.post('/api/messages/multipart/complete', {
+          key,
+          uploadId,
+          parts: completedParts,
+        });
+
+        activeMultipart = null;
+        uploadProgress.value = 100;
+        return completeRes.data;
+      }
+    } else {
+      // Simple upload for small files
+      const presignedRes = await api.post('/api/messages/presigned-url', {
+        filename,
+        mimetype,
+        size,
+      });
+
+      if (presignedRes.data.isDirect) {
+        const { uploadUrl, publicUrl } = presignedRes.data;
+
+        await axios.put(uploadUrl, fileOrBlob, {
+          headers: {
+            'Content-Type': mimetype,
+          },
+          signal: uploadAbortController.signal,
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percent = Math.min(Math.round((progressEvent.loaded * 100) / progressEvent.total), 99);
+              uploadProgress.value = percent;
+              updateSpeed(progressEvent.loaded);
+            }
+          },
+        });
+
+        uploadProgress.value = 100;
+        return {
+          url: publicUrl,
+          type: mimetype.startsWith('image/') ? 'IMAGE' : 'FILE',
+        };
+      }
+    }
+
+    // Fallback: Upload to local server
+    const formData = new FormData();
+    formData.append('message_file', fileOrBlob, filename);
+
+    const res = await api.post('/api/messages/upload', formData, {
+      signal: uploadAbortController.signal,
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const percent = Math.min(Math.round((progressEvent.loaded * 100) / progressEvent.total), 99);
+          uploadProgress.value = percent;
+          updateSpeed(progressEvent.loaded);
+        }
+      },
+    });
+
+    uploadProgress.value = 100;
+    return res.data;
+  } catch (error: any) {
+    if (axios.isCancel(error) || error.name === 'CanceledError' || error.message === 'canceled') {
+      if (activeMultipart) {
+        try {
+          await api.post('/api/messages/multipart/abort', {
+            key: activeMultipart.key,
+            uploadId: activeMultipart.uploadId,
+          });
+        } catch (abortErr) {
+          console.warn('[Upload] Failed to abort multipart upload on cancel/error:', abortErr);
+        } finally {
+          activeMultipart = null;
+        }
+      }
+      throw error;
+    }
+    throw error;
+  } finally {
+    isUploading.value = false;
+    uploadProgress.value = 0;
+    uploadSpeed.value = '';
+    uploadAbortController = null;
+  }
+};
+
 const handleFileUpload = async (event: Event) => {
   const input = event.target as HTMLInputElement;
   if (!input.files?.length) return;
 
   const file = input.files[0];
-  const formData = new FormData();
-  formData.append('message_file', file);
+  if (file.size > 500 * 1024 * 1024) {
+    ElMessage.error(
+      authStore.user?.language === 'en'
+        ? 'File size exceeds limit, maximum allowed is 500MB'
+        : '文件大小不能超过 500MB',
+    );
+    input.value = '';
+    return;
+  }
 
-  isUploading.value = true;
   try {
-    const res = await api.post('/api/messages/upload', formData);
-    const { url, type } = res.data;
+    const data = await uploadFile(file, file.name, file.type || 'application/octet-stream');
+    const { url, type } = data;
     handleSendMessage(type, url);
-  } catch {
+  } catch (err: any) {
+    if (axios.isCancel(err) || err.name === 'CanceledError' || err.message === 'canceled') {
+      return;
+    }
     ElMessage.error(t('messages.uploadFailed'));
   } finally {
-    isUploading.value = false;
     input.value = '';
   }
 };
@@ -225,18 +500,24 @@ const handleDrop = async (event: DragEvent) => {
   if (!files?.length) return;
 
   const file = files[0];
-  const formData = new FormData();
-  formData.append('message_file', file);
+  if (file.size > 500 * 1024 * 1024) {
+    ElMessage.error(
+      authStore.user?.language === 'en'
+        ? 'File size exceeds limit, maximum allowed is 500MB'
+        : '文件大小不能超过 500MB',
+    );
+    return;
+  }
 
-  isUploading.value = true;
   try {
-    const res = await api.post('/api/messages/upload', formData);
-    const { url, type } = res.data;
+    const data = await uploadFile(file, file.name, file.type || 'application/octet-stream');
+    const { url, type } = data;
     handleSendMessage(type, url);
-  } catch {
+  } catch (err: any) {
+    if (axios.isCancel(err) || err.name === 'CanceledError' || err.message === 'canceled') {
+      return;
+    }
     ElMessage.error(t('messages.uploadFailed'));
-  } finally {
-    isUploading.value = false;
   }
 };
 
@@ -281,18 +562,15 @@ const startRecording = async () => {
       const audioBlob = new Blob(audioChunks, { type: mimeType || 'audio/wav' });
       if (audioBlob.size < 1000) return;
 
-      const formData = new FormData();
-      formData.append('message_file', audioBlob, `voice_${Date.now()}.${extension}`);
-
-      isUploading.value = true;
       try {
-        const res = await api.post('/api/messages/upload', formData);
-        const { url } = res.data;
+        const data = await uploadFile(audioBlob, `voice_${Date.now()}.${extension}`, mimeType || 'audio/wav');
+        const { url } = data;
         handleSendMessage('VOICE', url);
-      } catch {
+      } catch (err: any) {
+        if (axios.isCancel(err) || err.name === 'CanceledError' || err.message === 'canceled') {
+          return;
+        }
         ElMessage.error(t('messages.uploadFailed'));
-      } finally {
-        isUploading.value = false;
       }
 
       stream.getTracks().forEach((track) => track.stop());
@@ -329,6 +607,7 @@ const handleTranslate = async (message: Message) => {
     return;
   }
 
+  translating.value[message.id] = true;
   try {
     const response = await api.post('/api/messages/translate', {
       content: message.content,
@@ -337,6 +616,65 @@ const handleTranslate = async (message: Message) => {
     translations.value[message.id] = response.data.translation;
   } catch {
     ElMessage.error(t('messages.sendFailed'));
+  } finally {
+    translating.value[message.id] = false;
+  }
+};
+
+const isAllPeerTranslated = computed(() => {
+  const peerTextMessages = props.messages.filter(
+    (msg) => msg.senderId !== authStore.user?.id && msg.type === 'TEXT'
+  );
+  if (peerTextMessages.length === 0) return false;
+  return peerTextMessages.every((msg) => !!translations.value[msg.id]);
+});
+
+const handleTranslateAllPeer = async () => {
+  const peerTextMessages = props.messages.filter(
+    (msg) => msg.senderId !== authStore.user?.id && msg.type === 'TEXT'
+  );
+
+  if (peerTextMessages.length === 0) return;
+
+  const hasUntranslated = peerTextMessages.some((msg) => !translations.value[msg.id]);
+
+  if (hasUntranslated) {
+    const untranslatedMessages = peerTextMessages.filter(
+      (msg) => !translations.value[msg.id] && !translating.value[msg.id]
+    );
+
+    if (untranslatedMessages.length === 0) return;
+
+    // Set all untranslated messages to loading state
+    untranslatedMessages.forEach((msg) => {
+      translating.value[msg.id] = true;
+    });
+
+    try {
+      const response = await api.post('/api/messages/translate', {
+        messages: untranslatedMessages.map((msg) => ({
+          id: msg.id,
+          content: msg.content,
+        })),
+      });
+
+      const results: Array<{ id: string; translation: string }> = response.data.translations || [];
+      results.forEach((item) => {
+        translations.value[item.id] = item.translation;
+      });
+    } catch (err) {
+      console.error('Batch translate error:', err);
+      ElMessage.error(t('messages.sendFailed'));
+    } finally {
+      // Clear loading state
+      untranslatedMessages.forEach((msg) => {
+        translating.value[msg.id] = false;
+      });
+    }
+  } else {
+    peerTextMessages.forEach((msg) => {
+      delete translations.value[msg.id];
+    });
   }
 };
 
@@ -705,9 +1043,10 @@ defineExpose({
         <button
           type="button"
           class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all cursor-pointer"
-          style="color: var(--text-muted)"
+          :class="isAllPeerTranslated ? 'text-accent' : 'text-slate-400'"
+          :style="!isAllPeerTranslated ? 'color: var(--text-muted)' : ''"
           :title="t('messages.translate')"
-          @click="messages.length > 0 && handleTranslate(messages[messages.length - 1])"
+          @click="handleTranslateAllPeer"
         >
           <Languages class="w-4 h-4" />
         </button>
@@ -916,10 +1255,9 @@ defineExpose({
                         {{ msg.content.split('/').pop() }}
                       </p>
                       <a
-                        :href="getAssetUrl(msg.content)"
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        href="#"
                         class="text-[9px] text-accent hover:underline font-bold"
+                        @click.prevent="handleDownloadFile(msg.content)"
                         >{{ t('community.chat.download') }}</a
                       >
                     </div>
@@ -931,14 +1269,16 @@ defineExpose({
 
                 <!-- Translation Display -->
                 <div
-                  v-if="translations[msg.id]"
+                  v-if="translations[msg.id] || translating[msg.id]"
                   class="mt-1.5 pt-1.5 border-t border-white/20 dark:border-slate-800 flex flex-col gap-0.5"
                 >
                   <div class="flex items-center gap-1 text-[8px] font-bold opacity-60">
-                    <Languages class="w-2.5 h-2.5" />
-                    {{ t('messages.translate') }}
+                    <Loader2 v-if="translating[msg.id]" class="w-2.5 h-2.5 animate-spin" />
+                    <Languages v-else class="w-2.5 h-2.5" />
+                    {{ translating[msg.id] ? '正在翻译 / Translating...' : t('messages.translate') }}
                   </div>
-                  <p class="text-[11px] italic opacity-90">{{ translations[msg.id] }}</p>
+                  <p v-if="translations[msg.id]" class="text-[11px] italic opacity-90">{{ translations[msg.id] }}</p>
+                  <p v-else-if="translating[msg.id]" class="text-[11px] italic opacity-40">正在翻译，请稍候...</p>
                 </div>
               </div>
 
@@ -952,9 +1292,11 @@ defineExpose({
                   class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-all cursor-pointer"
                   :class="translations[msg.id] ? 'text-accent' : 'text-slate-400'"
                   :title="t('messages.translate')"
+                  :disabled="translating[msg.id]"
                   @click="handleTranslate(msg)"
                 >
-                  <Languages class="w-3 h-3" />
+                  <Loader2 v-if="translating[msg.id]" class="w-3 h-3 animate-spin text-accent" />
+                  <Languages v-else class="w-3 h-3" />
                 </button>
                 <button
                   type="button"
@@ -1108,6 +1450,70 @@ defineExpose({
       class="p-2.5 sm:p-3 border-t relative shrink-0"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
+      <!-- Uploading Progress overlay -->
+      <div
+        v-if="isUploading && uploadProgress > 0"
+        class="absolute bottom-full mb-3 right-3 left-3 md:left-auto md:w-80 p-3 rounded-xl shadow-lg border z-50 glass-panel backdrop-blur-xl transition-all animate-none"
+        style="border-color: var(--border-base)"
+      >
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-[11px] sm:text-xs font-bold flex items-center gap-1.5" style="color: var(--text-secondary)">
+            <Loader2 class="w-3.5 h-3.5 animate-spin text-accent" />
+            {{ authStore.user?.language === 'en' ? 'Uploading...' : '正在上传文件...' }}
+          </span>
+          <div class="flex items-center gap-2">
+            <span v-if="uploadSpeed" class="text-[11px] sm:text-xs text-slate-400 font-medium font-mono mr-1">{{ uploadSpeed }}</span>
+            <span class="text-[11px] sm:text-xs font-black text-accent">{{ uploadProgress }}%</span>
+            <button
+              type="button"
+              class="p-0.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 hover:text-rose-500 transition-all cursor-pointer flex items-center justify-center shrink-0"
+              title="取消上传 / Cancel upload"
+              @click="cancelUpload"
+            >
+              <X class="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+        <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+          <div
+            class="bg-accent h-1.5 rounded-full transition-all duration-300"
+            :style="{ width: `${uploadProgress}%` }"
+          ></div>
+        </div>
+      </div>
+
+      <!-- Downloading Progress overlay -->
+      <div
+        v-if="isDownloading && downloadProgress > 0"
+        class="absolute bottom-full mb-3 right-3 left-3 md:left-auto md:w-80 p-3 rounded-xl shadow-lg border z-50 glass-panel backdrop-blur-xl transition-all animate-none"
+        style="border-color: var(--border-base)"
+      >
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-[11px] sm:text-xs font-bold flex items-center gap-1.5" style="color: var(--text-secondary)">
+            <Loader2 class="w-3.5 h-3.5 animate-spin text-accent" />
+            {{ authStore.user?.language === 'en' ? 'Downloading...' : '正在下载文件...' }}
+          </span>
+          <div class="flex items-center gap-2">
+            <span v-if="downloadSpeedStr" class="text-[11px] sm:text-xs text-slate-400 font-medium font-mono mr-1">{{ downloadSpeedStr }}</span>
+            <span class="text-[11px] sm:text-xs font-black text-accent">{{ downloadProgress }}%</span>
+            <button
+              type="button"
+              class="p-0.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 hover:text-rose-500 transition-all cursor-pointer flex items-center justify-center shrink-0"
+              title="取消下载 / Cancel download"
+              @click="cancelDownload"
+            >
+              <X class="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+        <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+          <div
+            class="bg-accent h-1.5 rounded-full transition-all duration-300"
+            :style="{ width: `${downloadProgress}%` }"
+          ></div>
+        </div>
+      </div>
+
       <!-- Emoji Picker -->
       <div
         v-if="showEmojiPicker"

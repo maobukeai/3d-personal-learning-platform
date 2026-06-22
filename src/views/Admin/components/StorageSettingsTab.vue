@@ -22,6 +22,7 @@ import {
   Eye,
   EyeOff,
   Pencil,
+  HelpCircle,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
@@ -105,7 +106,10 @@ const actualUsageSource = ref<
 >(null);
 const actualUsageWarning = ref<string | null>(null);
 const actualObjectCount = ref<number | null>(null);
+const scannedBytes = ref<number | null>(null);
+const scannedObjectCount = ref<number | null>(null);
 const loadingActualSize = ref(false);
+const scanningSize = ref(false);
 const syncingSize = ref(false);
 
 // Sync all
@@ -510,6 +514,8 @@ const openFileDrawer = async (config: StorageConfig) => {
   actualUsageSource.value = null;
   actualUsageWarning.value = null;
   actualObjectCount.value = null;
+  scannedBytes.value = null;
+  scannedObjectCount.value = null;
   selectedFileKeys.value = [];
   fileSearchQuery.value = '';
   fileDrawerVisible.value = true;
@@ -533,6 +539,8 @@ const fetchActualSize = async () => {
     actualUsageSource.value = data.source || null;
     actualUsageWarning.value = data.warning || null;
     actualObjectCount.value = data.objectCount ?? null;
+    scannedBytes.value = data.scannedBytes ?? null;
+    scannedObjectCount.value = data.scannedObjectCount ?? null;
   } catch (error) {
     console.error('Failed to fetch actual bucket size:', error);
     actualBytes.value = null;
@@ -541,18 +549,37 @@ const fetchActualSize = async () => {
   }
 };
 
-const syncSize = async () => {
+const runS3Scan = async () => {
+  if (!currentStorage.value) return;
+  scanningSize.value = true;
+  try {
+    const { data } = await api.get(
+      `/api/admin/storage-configs/${currentStorage.value.id}/actual-size?scan=true`,
+    );
+    scannedBytes.value = data.scannedBytes ?? null;
+    scannedObjectCount.value = data.scannedObjectCount ?? null;
+  } catch (error) {
+    console.error('Failed to run S3 scan:', error);
+    ElMessage.error(getApiErrorMessage(error, '计算实时大小失败'));
+  } finally {
+    scanningSize.value = false;
+  }
+};
+
+const syncSize = async (type: 'scanned' | 'official' = 'scanned') => {
   if (!currentStorage.value) return;
   syncingSize.value = true;
   try {
     const { data } = await api.post(
       `/api/admin/storage-configs/${currentStorage.value.id}/sync-size`,
+      { type },
     );
-    actualBytes.value = data.usedBytes;
     if (currentStorage.value) {
       currentStorage.value.usedBytes = data.usedBytes;
     }
-    ElMessage.success('系统已用容量已与 Cloudflare R2 实际占用同步！');
+    ElMessage.success(
+      `系统已用容量已与 Cloudflare R2 ${type === 'official' ? '官方' : '实时扫描'}占用同步！`,
+    );
     fetchConfigs();
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, '同步容量失败'));
@@ -1402,40 +1429,91 @@ onMounted(() => {
                 </strong>
               </span>
               <span class="text-slate-300 dark:text-white/10">|</span>
-              <span class="flex items-center gap-1">
-                <span>R2 云端实际占用:</span>
-                 <span v-if="loadingActualSize" class="text-slate-400">正在计算...</span>
-                 <template v-else-if="actualBytes !== null">
-                   <strong class="text-slate-800 dark:text-slate-200">
-                     {{ formatCloudflareBytes(actualBytes) }}
-                   </strong>
-                  <Badge
-                    v-if="isOfficialCloudflareUsage(actualUsageSource)"
-                    variant="success"
-                    outline
-                    dot
-                  >
-                    官方数据
-                  </Badge>
-                  <Badge v-else variant="warning" outline dot> 估算值 </Badge>
+              <span v-if="loadingActualSize" class="flex items-center gap-1 text-slate-400">
+                <span>R2 容量计算中...</span>
+              </span>
+              <template v-else-if="actualBytes !== null">
+                <!-- Real-time scanned capacity -->
+                <span class="flex items-center gap-1">
+                  <span class="text-slate-500 dark:text-slate-400 text-xs">R2 扫描(实时):</span>
+                  <span v-if="scanningSize" class="text-slate-400 animate-pulse text-xs">正在扫描...</span>
+                  <template v-else-if="scannedBytes !== null">
+                    <strong class="text-slate-800 dark:text-slate-200">
+                      {{ formatCloudflareBytes(scannedBytes) }}
+                    </strong>
+                    <Badge variant="primary" outline dot>实时扫描</Badge>
+                    <span v-if="scannedObjectCount !== null" class="text-[9px] text-slate-400">
+                      ({{ scannedObjectCount }} 对象)
+                    </span>
+                    <el-tooltip
+                      content="通过 S3 API 实时遍历桶内对象得到的大小。推荐以此为准进行容量限制同步。"
+                      placement="top"
+                      effect="dark"
+                    >
+                      <HelpCircle class="w-3.5 h-3.5 text-slate-400 cursor-help inline-block" />
+                    </el-tooltip>
+                    <Button
+                      v-if="scannedBytes !== currentStorage?.usedBytes"
+                      variant="outline"
+                      size="sm"
+                      class="ml-1 scale-90 origin-left"
+                      :loading="syncingSize"
+                      @click="syncSize('scanned')"
+                    >
+                      同步实时
+                    </Button>
+                  </template>
+                  <template v-else>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      class="scale-90 origin-left"
+                      @click="runS3Scan"
+                    >
+                      计算实时大小
+                    </Button>
+                    <el-tooltip
+                      content="实时遍历整个 R2 存储桶文件计算大小。当文件特别多时，可能需要数秒至数十秒。"
+                      placement="top"
+                      effect="dark"
+                    >
+                      <HelpCircle class="w-3.5 h-3.5 text-slate-400 cursor-help inline-block" />
+                    </el-tooltip>
+                  </template>
+                </span>
+
+                <!-- Official metric (if available) -->
+                <span v-if="isOfficialCloudflareUsage(actualUsageSource)" class="text-slate-300 dark:text-white/10">|</span>
+                <span v-if="isOfficialCloudflareUsage(actualUsageSource)" class="flex items-center gap-1">
+                  <span class="text-slate-500 dark:text-slate-400 text-xs">R2 官方(延迟):</span>
+                  <strong class="text-slate-800 dark:text-slate-200">
+                    {{ formatCloudflareBytes(actualBytes) }}
+                  </strong>
+                  <Badge variant="success" outline dot>官方数据</Badge>
                   <span v-if="actualObjectCount !== null" class="text-[9px] text-slate-400">
                     ({{ actualObjectCount }} 对象)
                   </span>
-                </template>
-                <span v-else class="text-slate-400">获取失败</span>
-
-                <Button
-                  v-if="
-                    !isOfficialCloudflareUsage(actualUsageSource) ||
-                    actualBytes !== currentStorage?.usedBytes
-                  "
-                  variant="outline"
-                  size="sm"
-                  :loading="syncingSize"
-                  @click="syncSize"
-                >
-                  同步至系统
-                </Button>
+                  <el-tooltip
+                    content="Cloudflare 官方计量数据，通常有 2-24 小时的统计延迟，且包含多段上传或历史版本。"
+                    placement="top"
+                    effect="dark"
+                  >
+                    <HelpCircle class="w-3.5 h-3.5 text-slate-400 cursor-help inline-block" />
+                  </el-tooltip>
+                  <Button
+                    v-if="actualBytes !== currentStorage?.usedBytes"
+                    variant="outline"
+                    size="sm"
+                    class="ml-1 scale-90 origin-left"
+                    :loading="syncingSize"
+                    @click="syncSize('official')"
+                  >
+                    同步官方
+                  </Button>
+                </span>
+              </template>
+              <span v-else class="text-slate-400 flex items-center gap-1">
+                <span>R2 占用获取失败</span>
               </span>
             </div>
 

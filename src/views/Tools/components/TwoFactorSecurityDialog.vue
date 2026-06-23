@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Shield, Clock, ShieldCheck, Download, Upload, Lock, RefreshCw } from 'lucide-vue-next';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 import type { TwoFactorAccount } from '@/types';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
@@ -70,7 +71,7 @@ async function checkClockSync() {
       clockDrift.value = 0;
     }
   } catch (e) {
-    console.error('Time sync check failed:', e);
+    logError(e, { operation: 'twoFactor.checkClockSync', component: 'TwoFactorSecurityDialog' });
     clockDrift.value = null;
   } finally {
     isCalibrating.value = false;
@@ -178,7 +179,7 @@ async function submitExportBackup() {
       filename = `2fa_accounts_encrypted_${new Date().toISOString().slice(0, 10)}.json`;
       ElMessage.success('已成功生成高强度加密备份');
     } catch (err) {
-      console.error(err);
+      logError(err, { operation: 'twoFactor.encryptBackup', component: 'TwoFactorSecurityDialog' });
       ElMessage.error('加密备份失败');
       isExporting.value = false;
       return;
@@ -317,7 +318,7 @@ async function submitImport() {
     ElMessage.error(
       isFileEncrypted.value ? '解密失败：密码错误或文件损坏' : '导入失败，文件格式有误',
     );
-    console.error(err);
+    logError(err, { operation: 'twoFactor.importBackup', component: 'TwoFactorSecurityDialog' });
   } finally {
     isImporting.value = false;
   }
@@ -326,179 +327,187 @@ async function submitImport() {
 
 <template>
   <Modal :show="visible" title="2FA 安全中心" size="md" glass-card @close="visible = false">
-    <!-- Tab Navigation -->
-    <div class="flex border-b mb-4" style="border-color: var(--border-base)">
-      <button
-        type="button"
-        class="flex-1 pb-2 text-xs font-bold transition-all border-b-2"
-        :class="
-          activeTab === 'calibration'
-            ? 'text-indigo-500 border-indigo-500'
-            : 'text-slate-400 border-transparent hover:text-slate-200'
-        "
-        @click="activeTab = 'calibration'"
-      >
-        时钟校准
-      </button>
-      <button
-        type="button"
-        class="flex-1 pb-2 text-xs font-bold transition-all border-b-2"
-        :class="
-          activeTab === 'export'
-            ? 'text-indigo-500 border-indigo-500'
-            : 'text-slate-400 border-transparent hover:text-slate-200'
-        "
-        @click="activeTab = 'export'"
-      >
-        备份导出
-      </button>
-      <button
-        type="button"
-        class="flex-1 pb-2 text-xs font-bold transition-all border-b-2"
-        :class="
-          activeTab === 'import'
-            ? 'text-indigo-500 border-indigo-500'
-            : 'text-slate-400 border-transparent hover:text-slate-200'
-        "
-        @click="activeTab = 'import'"
-      >
-        备份导入
-      </button>
-    </div>
-
-    <!-- Tab 1: Time Calibration -->
-    <div v-if="activeTab === 'calibration'" class="space-y-4 py-1">
-      <div
-        class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3 flex items-start gap-2"
-      >
-        <Clock class="h-4.5 w-4.5 text-indigo-400 shrink-0 mt-0.5" />
-        <p class="text-xs leading-normal text-slate-300">
-          2FA 基于时间生成动态验证码，如果您的系统本地时间与服务器相差超过 30
-          秒，生成的验证码会失效导致校验失败。
-        </p>
+    <div class="mobile-adaptive">
+      <!-- Tab Navigation -->
+      <div class="flex border-b mb-4" style="border-color: var(--border-base)">
+        <button
+          type="button"
+          class="flex-1 pb-2 text-xs font-bold transition-all border-b-2"
+          :class="
+            activeTab === 'calibration'
+              ? 'text-indigo-500 border-indigo-500'
+              : 'text-slate-400 border-transparent hover:text-slate-200'
+          "
+          @click="activeTab = 'calibration'"
+        >
+          时钟校准
+        </button>
+        <button
+          type="button"
+          class="flex-1 pb-2 text-xs font-bold transition-all border-b-2"
+          :class="
+            activeTab === 'export'
+              ? 'text-indigo-500 border-indigo-500'
+              : 'text-slate-400 border-transparent hover:text-slate-200'
+          "
+          @click="activeTab = 'export'"
+        >
+          备份导出
+        </button>
+        <button
+          type="button"
+          class="flex-1 pb-2 text-xs font-bold transition-all border-b-2"
+          :class="
+            activeTab === 'import'
+              ? 'text-indigo-500 border-indigo-500'
+              : 'text-slate-400 border-transparent hover:text-slate-200'
+          "
+          @click="activeTab = 'import'"
+        >
+          备份导入
+        </button>
       </div>
 
-      <div
-        class="flex items-center justify-between p-3 rounded-xl border"
-        style="background-color: var(--bg-app); border-color: var(--border-base)"
-      >
-        <div>
-          <p class="text-xs text-slate-400">本地时间状态</p>
-          <p class="text-sm font-bold mt-1" :class="clockSyncStatus.color">
-            {{ clockSyncStatus.text }}
-          </p>
-        </div>
-        <Button variant="primary" size="sm" :loading="isCalibrating" @click="checkClockSync">
-          <RefreshCw class="h-3 w-3 mr-1" :class="{ 'animate-spin': isCalibrating }" />
-          校准时间
-        </Button>
-      </div>
-    </div>
-
-    <!-- Tab 2: Export Backup -->
-    <div v-if="activeTab === 'export'" class="space-y-4 py-1">
-      <div
-        class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3.5 flex items-start gap-2"
-      >
-        <Shield class="h-5 w-5 text-indigo-400 shrink-0 mt-0.5" />
-        <p class="text-xs leading-normal text-slate-300">
-          导出您的 2FA 账户数据。为了数据安全，强烈建议启用密码加密，防止密钥在本地或传输中泄漏。
-        </p>
-      </div>
-
-      <div
-        class="flex items-center justify-between border-b pb-3"
-        style="border-color: var(--border-base)"
-      >
-        <span class="text-xs font-bold text-slate-300">启用密码加密</span>
-        <el-switch v-model="exportForm.encrypt" active-color="#6366f1" />
-      </div>
-
-      <div v-if="exportForm.encrypt" class="space-y-3">
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold text-slate-400">设置加密密码</label>
-          <el-input
-            v-model="exportForm.password"
-            type="password"
-            show-password
-            placeholder="请输入加密密码"
-            class="custom-dialog-input"
-          />
-        </div>
-
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold text-slate-400">确认加密密码</label>
-          <el-input
-            v-model="exportForm.confirmPassword"
-            type="password"
-            show-password
-            placeholder="请再次输入密码"
-            class="custom-dialog-input"
-          />
-        </div>
-      </div>
-
-      <div class="flex justify-end gap-3 pt-2">
-        <Button variant="primary" full-width :loading="isExporting" @click="submitExportBackup">
-          <Download class="h-3.5 w-3.5 mr-1" />
-          开始导出
-        </Button>
-      </div>
-    </div>
-
-    <!-- Tab 3: Import Backup -->
-    <div v-if="activeTab === 'import'" class="space-y-4 py-1">
-      <input ref="fileInput" type="file" accept=".json" class="hidden" @change="handleImportFile" />
-
-      <div
-        class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3 flex items-start gap-2"
-      >
-        <Upload class="h-4.5 w-4.5 text-indigo-400 shrink-0 mt-0.5" />
-        <p class="text-xs leading-normal text-slate-300">
-          从备份的 JSON 文件导入 2FA 账户数据，系统会自动还原所有账号、分组及备注。
-        </p>
-      </div>
-
-      <div
-        class="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 hover:border-indigo-500/60 rounded-xl p-5 cursor-pointer bg-slate-900/10 transition-colors"
-        @click="triggerFileInput"
-      >
-        <Upload class="h-8 w-8 text-slate-500 mb-2" />
-        <p class="text-xs text-slate-400">{{ importedFileName || '点击选择 JSON 备份文件' }}</p>
-      </div>
-
-      <div v-if="isFileEncrypted" class="space-y-3">
+      <!-- Tab 1: Time Calibration -->
+      <div v-if="activeTab === 'calibration'" class="space-y-4 py-1">
         <div
-          class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2"
+          class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3 flex items-start gap-2"
         >
-          <Lock class="h-4.5 w-4.5 text-amber-400 shrink-0 mt-0.5" />
+          <Clock class="h-4.5 w-4.5 text-indigo-400 shrink-0 mt-0.5" />
           <p class="text-xs leading-normal text-slate-300">
-            该备份文件已被高强度密码加密保护。请输入密码以解密数据。
+            2FA 基于时间生成动态验证码，如果您的系统本地时间与服务器相差超过 30
+            秒，生成的验证码会失效导致校验失败。
           </p>
         </div>
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold text-slate-400">解密密码</label>
-          <el-input
-            v-model="decryptPassword"
-            type="password"
-            show-password
-            placeholder="请输入备份文件密码"
-            class="custom-dialog-input"
-          />
+
+        <div
+          class="flex items-center justify-between p-3 rounded-xl border"
+          style="background-color: var(--bg-app); border-color: var(--border-base)"
+        >
+          <div>
+            <p class="text-xs text-slate-400">本地时间状态</p>
+            <p class="text-sm font-bold mt-1" :class="clockSyncStatus.color">
+              {{ clockSyncStatus.text }}
+            </p>
+          </div>
+          <Button variant="primary" size="sm" :loading="isCalibrating" @click="checkClockSync">
+            <RefreshCw class="h-3 w-3 mr-1" :class="{ 'animate-spin': isCalibrating }" />
+            校准时间
+          </Button>
         </div>
       </div>
 
-      <div class="flex justify-end gap-3 pt-2">
-        <Button
-          variant="primary"
-          full-width
-          :loading="isImporting"
-          :disabled="!tempImportedJson"
-          @click="submitImport"
+      <!-- Tab 2: Export Backup -->
+      <div v-if="activeTab === 'export'" class="space-y-4 py-1">
+        <div
+          class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3.5 flex items-start gap-2"
         >
-          <ShieldCheck class="h-3.5 w-3.5 mr-1" />
-          解密并导入备份
-        </Button>
+          <Shield class="h-5 w-5 text-indigo-400 shrink-0 mt-0.5" />
+          <p class="text-xs leading-normal text-slate-300">
+            导出您的 2FA 账户数据。为了数据安全，强烈建议启用密码加密，防止密钥在本地或传输中泄漏。
+          </p>
+        </div>
+
+        <div
+          class="flex items-center justify-between border-b pb-3"
+          style="border-color: var(--border-base)"
+        >
+          <span class="text-xs font-bold text-slate-300">启用密码加密</span>
+          <el-switch v-model="exportForm.encrypt" active-color="#6366f1" />
+        </div>
+
+        <div v-if="exportForm.encrypt" class="space-y-3">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-bold text-slate-400">设置加密密码</label>
+            <el-input
+              v-model="exportForm.password"
+              type="password"
+              show-password
+              placeholder="请输入加密密码"
+              class="custom-dialog-input"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-bold text-slate-400">确认加密密码</label>
+            <el-input
+              v-model="exportForm.confirmPassword"
+              type="password"
+              show-password
+              placeholder="请再次输入密码"
+              class="custom-dialog-input"
+            />
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <Button variant="primary" full-width :loading="isExporting" @click="submitExportBackup">
+            <Download class="h-3.5 w-3.5 mr-1" />
+            开始导出
+          </Button>
+        </div>
+      </div>
+
+      <!-- Tab 3: Import Backup -->
+      <div v-if="activeTab === 'import'" class="space-y-4 py-1">
+        <input
+          ref="fileInput"
+          type="file"
+          accept=".json"
+          class="hidden"
+          @change="handleImportFile"
+        />
+
+        <div
+          class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3 flex items-start gap-2"
+        >
+          <Upload class="h-4.5 w-4.5 text-indigo-400 shrink-0 mt-0.5" />
+          <p class="text-xs leading-normal text-slate-300">
+            从备份的 JSON 文件导入 2FA 账户数据，系统会自动还原所有账号、分组及备注。
+          </p>
+        </div>
+
+        <div
+          class="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 hover:border-indigo-500/60 rounded-xl p-5 cursor-pointer bg-slate-900/10 transition-colors"
+          @click="triggerFileInput"
+        >
+          <Upload class="h-8 w-8 text-slate-500 mb-2" />
+          <p class="text-xs text-slate-400">{{ importedFileName || '点击选择 JSON 备份文件' }}</p>
+        </div>
+
+        <div v-if="isFileEncrypted" class="space-y-3">
+          <div
+            class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2"
+          >
+            <Lock class="h-4.5 w-4.5 text-amber-400 shrink-0 mt-0.5" />
+            <p class="text-xs leading-normal text-slate-300">
+              该备份文件已被高强度密码加密保护。请输入密码以解密数据。
+            </p>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-bold text-slate-400">解密密码</label>
+            <el-input
+              v-model="decryptPassword"
+              type="password"
+              show-password
+              placeholder="请输入备份文件密码"
+              class="custom-dialog-input"
+            />
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <Button
+            variant="primary"
+            full-width
+            :loading="isImporting"
+            :disabled="!tempImportedJson"
+            @click="submitImport"
+          >
+            <ShieldCheck class="h-3.5 w-3.5 mr-1" />
+            解密并导入备份
+          </Button>
+        </div>
       </div>
     </div>
   </Modal>

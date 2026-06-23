@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { formatDate } from '@/utils/format';
-import { BarChart3, LayoutGrid, List, Search, SlidersHorizontal } from 'lucide-vue-next';
+import {
+  BarChart3,
+  LayoutGrid,
+  List,
+  Search,
+  SlidersHorizontal,
+  Layers,
+  AlertTriangle,
+  CalendarClock,
+  Users,
+} from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import Dropdown from '@/components/ui/Dropdown.vue';
@@ -58,8 +68,6 @@ const statusOptions = [
   { value: 'COMPLETED', label: '已完成' },
 ] as const;
 
-import { Layers, AlertTriangle, CalendarClock, Users } from 'lucide-vue-next';
-
 const focusTabsOptions = [
   { value: 'all', label: '全部项目', icon: Layers },
   { value: 'attention', label: '需要关注', icon: AlertTriangle },
@@ -70,15 +78,15 @@ const focusTabsOptions = [
 
 <template>
   <div
-    class="rounded-2xl border overflow-hidden shadow-sm"
+    class="mobile-adaptive rounded-2xl border overflow-hidden shadow-sm"
     style="background-color: var(--bg-card); border-color: var(--border-base)"
   >
     <div
-      class="py-1.5 px-3 sm:py-2 sm:px-4 border-b flex flex-col xl:flex-row xl:items-center justify-start gap-4 xl:gap-8"
+      class="mobile-row py-1.5 px-3 sm:py-2 sm:px-4 border-b flex flex-col xl:flex-row xl:items-center justify-start gap-4 xl:gap-8"
       style="border-color: var(--border-base)"
     >
       <!-- Left Area: Title + Quick Filters -->
-      <div class="flex flex-col md:flex-row md:items-center gap-3 xl:gap-5 min-w-0">
+      <div class="mobile-row flex flex-col md:flex-row md:items-center gap-3 xl:gap-5 min-w-0">
         <!-- Title -->
         <div class="flex items-center gap-2 min-w-0 shrink-0">
           <BarChart3 class="w-4 h-4 text-accent shrink-0" />
@@ -94,7 +102,7 @@ const focusTabsOptions = [
         <div class="hidden md:block w-px h-3.5 bg-slate-200 dark:bg-slate-700 shrink-0"></div>
 
         <!-- Quick Filters -->
-        <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+        <div class="mobile-row flex items-center gap-2 overflow-x-auto scrollbar-hide">
           <Tabs
             v-model="focusFilter"
             :options="focusTabsOptions"
@@ -105,7 +113,7 @@ const focusTabsOptions = [
       </div>
 
       <!-- Right Area: Status Tabs & View Toggle -->
-      <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide shrink-0">
+      <div class="mobile-row flex items-center gap-2 overflow-x-auto scrollbar-hide shrink-0">
         <Tabs
           v-model="statusFilter"
           :options="statusOptions"
@@ -297,7 +305,7 @@ const focusTabsOptions = [
         </div>
       </div>
 
-      <div v-else class="overflow-x-auto scrollbar-hide">
+      <div v-else class="mobile-table overflow-x-auto scrollbar-hide">
         <table class="w-full min-w-[900px] text-left border-collapse">
           <thead>
             <tr

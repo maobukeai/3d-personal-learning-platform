@@ -5,7 +5,7 @@ import { ref } from 'vue';
 import { Layers, Edit3, Trash2 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
-import ManualCategoryDialog from './ManualCategoryDialog.vue';
+import CategoryFormDialog from './CategoryFormDialog.vue';
 
 interface ManualCategory {
   id: string;
@@ -14,11 +14,6 @@ interface ManualCategory {
   order?: number;
   parentId?: string | null;
 }
-
-type ManualCategoryDialogExpose = {
-  openCreate: () => void;
-  openEdit: (category: ManualCategory) => void;
-};
 
 const props = defineProps<{
   stationId: string;
@@ -30,7 +25,7 @@ const emit = defineEmits<{
   (e: 'refresh'): void;
 }>();
 
-const manualCategoryDialogRef = ref<ManualCategoryDialogExpose | null>(null);
+const manualCategoryDialogRef = ref<InstanceType<typeof CategoryFormDialog> | null>(null);
 
 function getParentCategoryName(cat: ManualCategory) {
   if (!cat.parentId) return '-';
@@ -74,7 +69,7 @@ defineExpose({
       <p class="text-xs text-slate-400">{{ $t('admin.this_resource_site_has') }}</p>
     </div>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3 mobile-grid">
       <div
         v-for="cat in props.categories"
         :key="cat.id"
@@ -123,11 +118,12 @@ defineExpose({
     </div>
 
     <!-- Unified category dialog -->
-    <ManualCategoryDialog
+    <CategoryFormDialog
       ref="manualCategoryDialogRef"
+      mode="manual"
       :station-id="props.stationId"
       :categories="props.categories"
-      @refresh="emit('refresh')"
+      @saved="emit('refresh')"
     />
   </div>
 </template>

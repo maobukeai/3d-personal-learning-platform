@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { Search, Plus, Users, X } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 import { ElMessage } from 'element-plus';
 import type { User } from '@/types';
 import Modal from '@/components/ui/Modal.vue';
@@ -43,7 +44,7 @@ const fetchPublicUsers = async () => {
     const response = await api.get('/api/auth/users/public');
     publicUsers.value = response.data;
   } catch (error) {
-    console.error('Fetch users error:', error);
+    logError(error, { operation: 'chat.fetchPublicUsers', component: 'GroupChatDialog' });
     ElMessage.error(t('community.teamDetail.fetchFailed'));
   } finally {
     isLoadingUsers.value = false;
@@ -99,6 +100,7 @@ const handleClose = () => {
     :show="modelValue"
     :title="t('community.chat.groupChat') || '发起群聊'"
     size="sm"
+    class="mobile-adaptive"
     @close="handleClose"
   >
     <div class="space-y-4">

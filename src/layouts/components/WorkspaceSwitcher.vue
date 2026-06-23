@@ -81,7 +81,7 @@ const handleQuickSettings = (ws: Workspace) => {
     trigger="click"
     placement="bottom-start"
     popper-class="workspace-switcher-popper"
-    menu-class="w-72 p-2"
+    menu-class="w-72 max-w-[calc(100vw-16px)] p-2"
   >
     <template #trigger>
       <div

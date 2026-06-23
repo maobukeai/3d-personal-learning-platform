@@ -31,6 +31,7 @@ import gsap from 'gsap';
 import { Info, RefreshCw, Layers } from 'lucide-vue-next';
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getAssetUrl } from '@/utils/api';
+import { logError } from '@/utils/error';
 
 type ViewMode = 'solid' | 'wireframe' | 'solid+wireframe';
 type ModelHotspot = {
@@ -405,11 +406,12 @@ const disposeMaterial = (material: Material) => {
   if (material === clayMaterial) return;
 
   // Depth地毯式排查材质身上所有挂载的 Texture
-  Object.keys(material).forEach((key) => {
-    const value = (material as any)[key];
-    if (value && typeof value === 'object' && value.isTexture) {
+  const matRecord = material as unknown as Record<string, unknown>;
+  Object.keys(matRecord).forEach((key) => {
+    const value = matRecord[key];
+    if (value && typeof value === 'object' && (value as { isTexture?: boolean }).isTexture) {
       try {
-        value.dispose(); // 显式强制将纹理踢出 GPU 显存
+        (value as { dispose?: () => void }).dispose?.(); // 显式强制将纹理踢出 GPU 显存
       } catch {
         // Safe warning
       }
@@ -493,7 +495,7 @@ const loadModel = async (url: string) => {
   };
 
   const onError = (err: unknown) => {
-    console.error('Error loading model:', err);
+    logError(err, { operation: 'model.load', component: 'ModelViewer' });
     error.value = `无法加载 ${ext.toUpperCase()} 模型`;
     isLoading.value = false;
     addPlaceholder();
@@ -731,12 +733,24 @@ const calculateStats = (model: Object3D, animCount: number = 0) => {
         if (!material) return;
         materialIds.add(material.uuid);
 
-        Object.keys(material).forEach((key) => {
-          const value = (material as any)[key];
-          if (value && typeof value === 'object' && value.isTexture && value.image) {
-            const width = value.image.width || value.image.videoWidth || 0;
-            const height = value.image.height || value.image.videoHeight || 0;
-            maxTextureRes = Math.max(maxTextureRes, width, height);
+        const matRecord = material as unknown as Record<string, unknown>;
+        Object.keys(matRecord).forEach((key) => {
+          const value = matRecord[key];
+          if (value && typeof value === 'object') {
+            const textureLike = value as {
+              isTexture?: boolean;
+              image?: {
+                width?: number;
+                videoWidth?: number;
+                height?: number;
+                videoHeight?: number;
+              };
+            };
+            if (textureLike.isTexture && textureLike.image) {
+              const width = textureLike.image.width || textureLike.image.videoWidth || 0;
+              const height = textureLike.image.height || textureLike.image.videoHeight || 0;
+              maxTextureRes = Math.max(maxTextureRes, width, height);
+            }
           }
         });
       });

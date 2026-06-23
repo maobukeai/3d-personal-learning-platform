@@ -148,7 +148,7 @@ defineExpose({ open });
           />
         </div>
 
-        <div class="flex items-center gap-2 md:gap-3 min-w-0">
+        <div class="mobile-row flex items-center gap-2 md:gap-3 min-w-0">
           <SegmentedControl v-model="previewMode" :options="modeOptions" size="sm" />
 
           <el-dropdown trigger="click" class="lg:hidden">

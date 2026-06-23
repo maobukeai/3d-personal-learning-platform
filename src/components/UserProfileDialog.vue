@@ -34,7 +34,7 @@ const fetchProfile = async () => {
   try {
     const response = await api.get(`/api/auth/users/${props.userId}`);
     userProfile.value = response.data;
-  } catch (_error) {
+  } catch {
     ElMessage.error('获取用户信息失败');
     emit('update:modelValue', false);
   } finally {

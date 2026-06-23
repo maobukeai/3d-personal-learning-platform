@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
+import { logError } from '@/utils/error';
 
 const MainLayout = () => import('@/layouts/MainLayout.vue');
 
@@ -366,7 +367,7 @@ router.beforeEach(async (to) => {
     try {
       await systemStore.fetchSettings();
     } catch (e) {
-      console.error('Router: System initialization failed', e);
+      logError(e, { operation: 'router.system.init', component: 'Router' });
     }
   }
 
@@ -436,7 +437,7 @@ router.isReady().then(() => {
         () => import('@/views/Settings/SettingsView.vue'),
       ];
       prefetchList.forEach((load) => {
-        load().catch((err) => console.debug('Prefetch failed:', err));
+        load().catch(() => {});
       });
     });
   }

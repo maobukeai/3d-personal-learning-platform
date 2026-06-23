@@ -11,6 +11,7 @@ import {
   type GlobalSearchResults,
 } from '@/services/search.service';
 import { useSystemStore } from '@/stores/system';
+import { logError } from '@/utils/error';
 import Modal from '@/components/ui/Modal.vue';
 
 const props = defineProps<{
@@ -81,7 +82,7 @@ const performSearch = async (query: string) => {
     searchResults.value = results;
     selectedResultIndex.value = -1;
   } catch (error) {
-    console.error('Search error:', error);
+    logError(error, { operation: 'layout.globalSearch', component: 'GlobalSearchDialog' });
   } finally {
     if (searchId === activeSearchId) {
       isSearching.value = false;

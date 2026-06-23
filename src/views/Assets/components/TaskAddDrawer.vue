@@ -52,7 +52,7 @@ const handleCreateTask = async () => {
     visible.value = false;
     emit('saved');
     ElMessage.success('任务已分配');
-  } catch (_error) {
+  } catch {
     ElMessage.error('分配任务失败');
   }
 };
@@ -62,7 +62,7 @@ defineExpose({ open });
 
 <template>
   <Modal :show="visible" title="分配新任务" size="md" @close="visible = false">
-    <div class="space-y-6 p-1 text-left">
+    <div class="space-y-6 p-1 text-left mobile-adaptive">
       <div>
         <label
           class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"

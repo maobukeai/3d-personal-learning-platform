@@ -49,10 +49,12 @@ const getSignalClass = (level: SignalLevel) => {
 </script>
 
 <template>
-  <section class="grid gap-3 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.55fr)]">
+  <section
+    class="mobile-adaptive grid gap-3 grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.55fr)]"
+  >
     <div class="space-y-3">
       <div class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <LineChart class="h-4 w-4 text-sky-500" />
             <span>调用趋势</span>
@@ -80,9 +82,9 @@ const getSignalClass = (level: SignalLevel) => {
         </div>
       </div>
 
-      <div class="grid gap-3 lg:grid-cols-2">
+      <div class="grid gap-3 grid-cols-1 lg:grid-cols-2">
         <div class="tool-panel">
-          <div class="panel-head">
+          <div class="panel-head mobile-row">
             <div class="panel-title">
               <Layers class="h-4 w-4 text-emerald-500" />
               <span>平台分布</span>
@@ -118,7 +120,7 @@ const getSignalClass = (level: SignalLevel) => {
         </div>
 
         <div class="tool-panel">
-          <div class="panel-head">
+          <div class="panel-head mobile-row">
             <div class="panel-title">
               <Target class="h-4 w-4 text-rose-500" />
               <span>高频接入</span>
@@ -162,7 +164,7 @@ const getSignalClass = (level: SignalLevel) => {
 
     <aside class="space-y-3">
       <div class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <Gauge class="h-4 w-4 text-amber-500" />
             <span>质量信号</span>
@@ -190,7 +192,7 @@ const getSignalClass = (level: SignalLevel) => {
       </div>
 
       <div class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <ClipboardCheck class="h-4 w-4 text-emerald-500" />
             <span>下一步动作</span>
@@ -205,7 +207,7 @@ const getSignalClass = (level: SignalLevel) => {
       </div>
 
       <div class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <AlertTriangle class="h-4 w-4 text-rose-500" />
             <span>最近异常</span>

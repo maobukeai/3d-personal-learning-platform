@@ -4,7 +4,7 @@ import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { Mail, Lock, Chrome, Github, ArrowRight } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
-import { useI18n } from 'vue-i18n';
+import { useLabel } from '@/utils/i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import api, { getAssetUrl } from '@/utils/api';
@@ -17,8 +17,7 @@ import Checkbox from '@/components/ui/Checkbox.vue';
 const router = useRouter();
 const authStore = useAuthStore();
 const systemStore = useSystemStore();
-const { locale } = useI18n();
-const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
+const label = useLabel();
 const isLoading = ref(false);
 const is2FARequired = ref(false);
 const tempUserId = ref('');
@@ -54,7 +53,7 @@ onMounted(async () => {
       await authStore.fetchMe();
       ElMessage.success(label('社交登录成功！', 'Social login successful'));
       router.replace('/dashboard');
-    } catch (_err) {
+    } catch {
       ElMessage.error(label('获取用户信息失败', 'Failed to load user profile'));
       router.replace({ query: {} });
     } finally {
@@ -145,7 +144,7 @@ const handle2FAVerify = async () => {
 
 <template>
   <div
-    class="auth-shell min-h-screen flex items-center justify-center font-sans overflow-hidden relative p-6 bg-[var(--bg-app)]"
+    class="auth-shell mobile-adaptive min-h-screen flex items-center justify-center font-sans overflow-hidden relative p-6 bg-[var(--bg-app)]"
   >
     <!-- Abstract blurred background elements for premium organic depth -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">

@@ -129,7 +129,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     ref="containerRef"
-    class="relative items-center p-0.5 rounded-lg bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/30 select-none overflow-hidden shrink-0"
+    class="relative items-center p-0.5 rounded-lg bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/30 select-none overflow-x-auto scrollbar-hide shrink-0"
     :class="fullWidth ? 'flex w-full' : 'inline-flex'"
   >
     <!-- Sliding pill background -->

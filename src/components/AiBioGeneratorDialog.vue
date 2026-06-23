@@ -4,6 +4,7 @@ import { Sparkles, Wand2, X, Check, AlertCircle, Plus } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
+import { logError } from '@/utils/error';
 import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
 
 interface Props {
@@ -176,16 +177,17 @@ const handleGenerateBio = async () => {
         ElMessage.success('个人简介生成成功！');
       },
       (err) => {
-        console.error('SSE Stream error:', err);
+        logError(err, { operation: 'ai.sseStream', component: 'AiBioGeneratorDialog' });
         errorMsg.value = err.message || '生成中途发生错误';
         ElMessage.error(errorMsg.value);
         isGenerating.value = false;
       },
     );
-  } catch (err: any) {
-    console.error('Generate bio error:', err);
-    errorMsg.value = err.message || '生成失败';
-    ElMessage.error(errorMsg.value);
+  } catch (err) {
+    logError(err, { operation: 'ai.generateBio', component: 'AiBioGeneratorDialog' });
+    const message = err instanceof Error ? err.message : '生成失败';
+    errorMsg.value = message;
+    ElMessage.error(message);
     isGenerating.value = false;
   }
 };
@@ -203,8 +205,9 @@ const handleSave = () => {
     :show="show"
     :title="title"
     size="lg"
-    @close="emit('close')"
+    glass-card
     class="ai-bio-generator-modal"
+    @close="emit('close')"
   >
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-1">
       <!-- Input Panel -->
@@ -407,7 +410,7 @@ const handleSave = () => {
 
     <!-- Footer buttons -->
     <template #footer>
-      <Button variant="secondary" @click="emit('close')" :disabled="isGenerating"> 取消 </Button>
+      <Button variant="secondary" :disabled="isGenerating" @click="emit('close')"> 取消 </Button>
       <Button
         variant="primary"
         class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold border-none"

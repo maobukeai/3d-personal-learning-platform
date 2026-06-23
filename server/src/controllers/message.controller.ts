@@ -11,6 +11,7 @@ import { callLLM, callLLMWithFailover } from '../services/ai.service';
 import { settingsService, AIModelOption } from '../services/settings.service';
 import { storageService } from '../services/storage.service';
 import { buildDecryptedStorageConfig } from '../utils/crypto';
+import { getActiveStorageConfig } from '../mirror/services/metadata.helper';
 
 type ConversationParticipant = {
   id: string;
@@ -820,19 +821,11 @@ Your task is to translate a list of chat messages between Chinese and English:
   }
 };
 
-const getActiveStorage = async () => {
-  const raw = await prisma.storageConfig.findFirst({
-    where: {
-      status: 'ACTIVE',
-      assetType: 'ALL',
-    },
-    orderBy: [
-      { priority: 'desc' },
-      { createdAt: 'desc' },
-    ],
-  });
-  return raw;
-};
+// NOTE: usedBytes in storageConfig is NOT automatically updated when files are uploaded
+// via presigned URLs (direct S3/R2 upload), because the server has no upload-complete
+// callback. The admin can sync usage manually via the Storage Settings panel.
+// getActiveStorageConfig('ALL') is the shared helper from metadata.helper.
+const getActiveStorage = () => getActiveStorageConfig('ALL');
 
 export const getPresignedUrl = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { filename, mimetype, size } = req.body;

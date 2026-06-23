@@ -58,3 +58,94 @@ export function getApiErrorStatus(error: unknown): number | undefined {
   }
   return undefined;
 }
+
+/** Context attached to an error report */
+export interface ErrorContext {
+  [key: string]: unknown;
+}
+
+/** Optional reporter configuration */
+interface ErrorReporterConfig {
+  endpoint?: string;
+  enabled?: boolean;
+  sampleRate?: number;
+}
+
+let reporterConfig: ErrorReporterConfig = {
+  endpoint: import.meta.env.VITE_ERROR_REPORT_ENDPOINT,
+  enabled: import.meta.env.PROD,
+  sampleRate: 1,
+};
+
+/**
+ * Configures the global error reporter.
+ */
+export function configureErrorReporter(config: ErrorReporterConfig): void {
+  reporterConfig = { ...reporterConfig, ...config };
+}
+
+function buildReportPayload(error: unknown, context?: ErrorContext): object {
+  return {
+    message: getApiErrorMessage(error, 'Unknown error'),
+    status: getApiErrorStatus(error),
+    context,
+    url: typeof window !== 'undefined' ? window.location.href : undefined,
+    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+async function sendReport(payload: object): Promise<void> {
+  if (!reporterConfig.enabled || !reporterConfig.endpoint) return;
+  if (reporterConfig.sampleRate !== undefined && Math.random() > reporterConfig.sampleRate) return;
+
+  try {
+    await fetch(reporterConfig.endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    });
+  } catch {
+    // Silently ignore reporting failures to avoid loops
+  }
+}
+
+/**
+ * Logs an error in a centralized way.
+ * In development, prints to the console. In production, optionally reports to a remote endpoint.
+ *
+ * @param error - The error to log
+ * @param context - Additional context to include in the report
+ */
+export function logError(error: unknown, context?: ErrorContext): void {
+  if (import.meta.env.DEV) {
+    console.error('[Error]', error, context);
+  }
+  void sendReport(buildReportPayload(error, context));
+}
+
+/**
+ * Wraps an async function with centralized error logging.
+ * The wrapped function returns `undefined` on failure unless `rethrow` is true.
+ *
+ * @param fn - The async function to wrap
+ * @param context - Context attached to logged errors
+ * @param options - Options such as `rethrow`
+ * @returns A wrapped function
+ */
+export function withErrorHandling<TArgs extends unknown[], TResult>(
+  fn: (...args: TArgs) => Promise<TResult>,
+  context?: ErrorContext,
+  options: { rethrow?: boolean } = {},
+): (...args: TArgs) => Promise<TResult | undefined> {
+  return async (...args: TArgs) => {
+    try {
+      return await fn(...args);
+    } catch (error) {
+      logError(error, context);
+      if (options.rethrow) throw error;
+      return undefined;
+    }
+  };
+}

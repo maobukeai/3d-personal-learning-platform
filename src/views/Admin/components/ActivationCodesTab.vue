@@ -561,7 +561,7 @@ const copyToClipboard = (text: string) => {
           <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
             $t('admin.card_type_duration')
           }}</label>
-          <div class="grid grid-cols-5 gap-2">
+          <div class="grid grid-cols-5 gap-2 mobile-grid">
             <button
               v-for="preset in [
                 { label: $t('admin.monthly_card'), value: '30' },

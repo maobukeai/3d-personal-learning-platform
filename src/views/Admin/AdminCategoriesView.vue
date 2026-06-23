@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getApiErrorMessage } from '@/utils/error';
+import { getApiErrorMessage, logError } from '@/utils/error';
 import { ref, onMounted, computed } from 'vue';
 import {
   Plus,
@@ -70,7 +70,7 @@ const fetchAssetCategories = async () => {
     const { data } = await api.get('/api/admin/asset-categories');
     assetCategories.value = data;
   } catch (error) {
-    console.error('Fetch asset categories error:', error);
+    logError(error, { operation: 'admin.fetchAssetCategories', component: 'AdminCategoriesView' });
   }
 };
 
@@ -79,7 +79,7 @@ const fetchCourseCategories = async () => {
     const { data } = await api.get('/api/admin/course-categories');
     courseCategories.value = data;
   } catch (error) {
-    console.error('Fetch course categories error:', error);
+    logError(error, { operation: 'admin.fetchCourseCategories', component: 'AdminCategoriesView' });
   }
 };
 
@@ -126,7 +126,10 @@ const fetchSettingsCategories = async () => {
       pluginCategories.value = [];
     }
   } catch (error) {
-    console.error('Fetch settings categories error:', error);
+    logError(error, {
+      operation: 'admin.fetchSettingsCategories',
+      component: 'AdminCategoriesView',
+    });
   }
 };
 
@@ -329,7 +332,7 @@ const handleSaveCategory = async () => {
       ElMessage.success('系统设置更新成功');
       fetchSettingsCategories();
       showModal.value = false;
-    } catch (_error) {
+    } catch {
       ElMessage.error('保存失败');
     }
   }
@@ -364,7 +367,7 @@ const handleDeleteCategory = async (category: Category | string) => {
       } else {
         fetchCourseCategories();
       }
-    } catch (_error) {
+    } catch {
       /* cancel */
     }
   } else {
@@ -399,7 +402,7 @@ const handleDeleteCategory = async (category: Category | string) => {
       });
       ElMessage.success('分类已移除');
       fetchSettingsCategories();
-    } catch (_error) {
+    } catch {
       /* cancel */
     }
   }
@@ -412,7 +415,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="admin-categories-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
+    class="admin-categories-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)] mobile-adaptive"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
       <!-- 平台分类管理 (PageHeader card variant) -->
@@ -447,7 +450,7 @@ onMounted(() => {
       </PageHeader>
 
       <!-- KPI Metrics Grid -->
-      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mobile-grid">
         <Card
           v-for="card in consolidatedCards"
           :key="card.label"
@@ -497,8 +500,8 @@ onMounted(() => {
         <div class="space-y-3 min-w-0">
           <!-- Workbench Toolbar / Batch Operations Card -->
           <Card padding="sm" class="workbench-toolbar-card">
-            <div class="toolbar-top">
-              <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full">
+            <div class="toolbar-top mobile-row">
+              <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full mobile-row">
                 <!-- Preset Type Tabs -->
                 <Tabs v-model="activeTab" :options="categoryTabOptions" size="sm" />
               </div>

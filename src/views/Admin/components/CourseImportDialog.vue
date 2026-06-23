@@ -108,7 +108,7 @@ defineExpose({ open });
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
             $t('admin.course_or_project_link')
           }}</label>
-          <div class="flex gap-2">
+          <div class="flex gap-2 mobile-row">
             <input
               v-model="externalUrl"
               type="text"

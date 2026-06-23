@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { BarChart3, ListTodo, ArrowRight } from 'lucide-vue-next';
+import type { Component } from 'vue';
 import type { FocusFilter, InsightActionItem, InsightOperationalLane } from '../types';
 
 defineProps<{
@@ -10,7 +11,7 @@ defineProps<{
     label: string;
     value: string | number;
     caption: string;
-    icon: any;
+    icon: Component;
     colorClass: string;
     barClass: string;
     progress: number;
@@ -49,11 +50,11 @@ const activateOperationalLane = (lane: InsightOperationalLane) => {
 
 <template>
   <div
-    class="compact-ops-bar rounded-xl border p-2.5"
+    class="mobile-adaptive compact-ops-bar rounded-xl border p-2.5"
     style="background-color: var(--bg-card); border-color: var(--border-base)"
   >
     <div
-      class="grid grid-cols-1 lg:grid-cols-[220px_1fr_320px] 2xl:grid-cols-[240px_1fr_360px] gap-2.5 items-stretch"
+      class="overview-grid grid grid-cols-1 lg:grid-cols-[220px_1fr_320px] 2xl:grid-cols-[240px_1fr_360px] gap-2.5 items-stretch"
     >
       <!-- Left Health Score Card -->
       <div
@@ -62,7 +63,7 @@ const activateOperationalLane = (lane: InsightOperationalLane) => {
         <div
           class="absolute -right-8 -top-8 w-24 h-24 rounded-full bg-emerald-500/10 blur-xl group-hover:scale-125 transition-all duration-500"
         ></div>
-        <div class="flex items-center justify-between gap-2 z-10">
+        <div class="mobile-row flex items-center justify-between gap-2 z-10">
           <div class="flex items-center gap-1 min-w-0">
             <div class="p-0.5 bg-emerald-500/20 rounded">
               <BarChart3 class="w-3 h-3 text-emerald-500 shrink-0" />
@@ -125,7 +126,7 @@ const activateOperationalLane = (lane: InsightOperationalLane) => {
           "
           @click="focusFilter = metric.filter"
         >
-          <div class="flex items-center justify-between gap-2 w-full">
+          <div class="mobile-row flex items-center justify-between gap-2 w-full">
             <span class="text-[9.5px] font-black text-slate-400 truncate">{{ metric.label }}</span>
             <div class="p-0.5 rounded bg-white dark:bg-slate-900 shadow-sm shrink-0">
               <component :is="metric.icon" class="w-3 h-3 shrink-0" :class="metric.colorClass" />
@@ -146,7 +147,7 @@ const activateOperationalLane = (lane: InsightOperationalLane) => {
       <div
         class="rounded-xl bg-slate-50/60 dark:bg-white/5 border border-slate-100 dark:border-white/5 p-2.5 flex flex-col justify-between"
       >
-        <div class="flex items-center justify-between gap-2 mb-1.5">
+        <div class="mobile-row flex items-center justify-between gap-2 mb-1.5">
           <div class="flex items-center gap-1 min-w-0">
             <div class="p-0.5 bg-amber-500/10 rounded">
               <ListTodo class="w-3 h-3 text-amber-500 shrink-0" />
@@ -225,3 +226,11 @@ const activateOperationalLane = (lane: InsightOperationalLane) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+@media (max-width: 767px) {
+  .overview-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+</style>

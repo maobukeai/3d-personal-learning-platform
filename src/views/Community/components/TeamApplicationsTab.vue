@@ -40,7 +40,7 @@ const t = (key: string, ...args: unknown[]) => {
 </script>
 
 <template>
-  <div class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+  <div class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 mobile-adaptive">
     <div>
       <h2 class="text-2xl font-black mb-1" style="color: var(--text-primary)">
         {{ t('teamDetail.applicationsReview') }}
@@ -63,7 +63,7 @@ const t = (key: string, ...args: unknown[]) => {
       <div
         v-for="app in pendingApplications"
         :key="app.id"
-        class="flex items-center gap-6 p-6 bg-white dark:bg-slate-900 rounded-2xl border transition-all hover:shadow-lg"
+        class="flex items-center gap-6 p-6 bg-white dark:bg-slate-900 rounded-2xl border transition-all hover:shadow-lg mobile-row"
         style="border-color: var(--border-base)"
       >
         <UserAvatar :user="app.user" size="lg" />
@@ -81,20 +81,20 @@ const t = (key: string, ...args: unknown[]) => {
             }}
           </p>
         </div>
-        <div class="flex items-center gap-3 shrink-0">
+        <div class="flex items-center gap-2 sm:gap-3 shrink-0">
           <button
             type="button"
-            class="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-white/5 text-slate-500 rounded-xl font-bold text-sm hover:bg-rose-50 hover:text-rose-600 transition-all border-none cursor-pointer"
+            class="app-action-btn flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-slate-100 dark:bg-white/5 text-slate-500 rounded-xl font-bold text-xs sm:text-sm hover:bg-rose-50 hover:text-rose-600 transition-all border-none cursor-pointer"
             @click="emit('respond-application', app.id, false, app.user.name)"
           >
-            <XCircle class="w-4 h-4" /> {{ t('teamDetail.reject') }}
+            <XCircle class="w-3.5 h-3.5 sm:w-4 sm:h-4" /> {{ t('teamDetail.reject') }}
           </button>
           <button
             type="button"
-            class="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-white rounded-xl font-bold text-sm hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 border-none cursor-pointer"
+            class="app-action-btn flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-emerald-500 text-white rounded-xl font-bold text-xs sm:text-sm hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 border-none cursor-pointer"
             @click="emit('respond-application', app.id, true, app.user.name)"
           >
-            <CheckCheck class="w-4 h-4" /> {{ t('teamDetail.approve') }}
+            <CheckCheck class="w-3.5 h-3.5 sm:w-4 sm:h-4" /> {{ t('teamDetail.approve') }}
           </button>
         </div>
       </div>

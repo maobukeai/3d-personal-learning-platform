@@ -72,7 +72,7 @@ export const applyAccentColorToDocument = (color: string) => {
 
   try {
     window.dispatchEvent(new CustomEvent('accent-color-applied', { detail: color }));
-  } catch (_e) {}
+  } catch {}
 };
 
 export const useAppearance = () => {

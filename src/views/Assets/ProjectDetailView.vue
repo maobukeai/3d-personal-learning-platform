@@ -21,15 +21,15 @@ import {
   ArrowRight,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
-import { getApiErrorMessage } from '@/utils/error';
+import { getApiErrorMessage, logError } from '@/utils/error';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import api, { getAssetUrl } from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
-import type { Project, ProjectMember, Task, User, Roadmap, RoadmapStep } from '@/types';
+import type { Project, ProjectMember, Task, User, Roadmap, RoadmapStep, Course } from '@/types';
 
 // Subcomponents
 import ProjectSidebar from './components/ProjectSidebar.vue';
-import InviteMembersDialog from './components/InviteMembersDialog.vue';
+import InviteMembersDialog from '@/components/InviteMembersDialog.vue';
 import TaskAddDrawer from './components/TaskAddDrawer.vue';
 import TaskEditDrawer from './components/TaskEditDrawer.vue';
 import KanbanBoard from './components/KanbanBoard.vue';
@@ -48,7 +48,9 @@ const isProfileDialogOpen = ref(false);
 const selectedUserId = ref<string | null>(null);
 
 // Dialogue/Drawer References
-const inviteDialogRef = ref<InstanceType<typeof InviteMembersDialog> | null>(null);
+const isInviteDialogOpen = ref(false);
+const teamMembersForInvite = ref<User[]>([]);
+const isInviteLoading = ref(false);
 const taskAddDrawerRef = ref<InstanceType<typeof TaskAddDrawer> | null>(null);
 const taskEditDrawerRef = ref<InstanceType<typeof TaskEditDrawer> | null>(null);
 
@@ -64,7 +66,7 @@ const handleStartChat = async (user: User) => {
       isGroup: false,
     });
     router.push('/messages');
-  } catch (_error) {
+  } catch {
     ElMessage.error('创建对话失败');
   }
 };
@@ -73,7 +75,11 @@ const taskSearchQuery = ref('');
 const taskDateFilter = ref('all'); // 'all', 'overdue', 'today', 'week'
 const taskAssigneeFilter = ref('all'); // 'all', 'me'
 const taskSortBy = ref<'natural' | 'createdAt_asc' | 'createdAt_desc'>(
-  (localStorage.getItem('project_task_sort_by') as any) || 'natural',
+  (localStorage.getItem('project_task_sort_by') as
+    | 'natural'
+    | 'createdAt_asc'
+    | 'createdAt_desc'
+    | null) || 'natural',
 );
 
 watch(taskSortBy, (newVal) => {
@@ -85,7 +91,7 @@ const fetchProject = async () => {
   try {
     const response = await api.get(`/api/projects/${projectId.value}`);
     project.value = response.data;
-  } catch (_error) {
+  } catch {
     ElMessage.error('获取项目详情失败');
     router.push('/projects');
   } finally {
@@ -104,6 +110,37 @@ const existingMemberIds = computed(() => {
   if (!project.value?.members) return [];
   return project.value.members.map((member) => member.userId);
 });
+
+const openInviteDialog = async () => {
+  isInviteDialogOpen.value = true;
+  const teamId = project.value?.teamId;
+  if (!teamId) return;
+
+  isInviteLoading.value = true;
+  try {
+    const response = await api.get(`/api/teams/${teamId}/members`);
+    const members = (response.data || []) as { user: User }[];
+    const allMembers = members.map((m) => m.user);
+    const filterSet = new Set(existingMemberIds.value);
+    teamMembersForInvite.value = allMembers.filter((m) => !filterSet.has(m.id));
+  } catch {
+    // silently fail
+  } finally {
+    isInviteLoading.value = false;
+  }
+};
+
+const handleInviteSubmit = async (userIds: string[]) => {
+  if (!userIds.length) return;
+  try {
+    await api.post(`/api/projects/${projectId.value}/invite`, { userIds });
+    ElMessage.success(`已发送 ${userIds.length} 份邀请`);
+    isInviteDialogOpen.value = false;
+    await fetchProject();
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '邀请失败'));
+  }
+};
 
 const handleJoin = async () => {
   try {
@@ -142,7 +179,7 @@ const projectTabs = computed(() => {
 
 // Roadmap state and logic
 const myProgress = ref<{ roadmapStepId: string; completed: boolean }[]>([]);
-const allCourses = ref<any[]>([]);
+const allCourses = ref<Course[]>([]);
 const activeStepId = ref<string | null>(null);
 
 const fetchMyProgress = async () => {
@@ -150,7 +187,7 @@ const fetchMyProgress = async () => {
     const response = await api.get('/api/roadmaps/my-progress');
     myProgress.value = response.data;
   } catch (e) {
-    console.error('Failed to fetch progress:', e);
+    logError(e, { operation: 'project.fetchProgress', component: 'ProjectDetailView' });
   }
 };
 
@@ -159,7 +196,7 @@ const fetchAllCourses = async () => {
     const response = await api.get('/api/courses');
     allCourses.value = response.data;
   } catch (e) {
-    console.error('Failed to fetch courses:', e);
+    logError(e, { operation: 'project.fetchCourses', component: 'ProjectDetailView' });
   }
 };
 
@@ -200,7 +237,7 @@ const toggleStep = async (stepId: string) => {
       myProgress.value.push({ roadmapStepId: stepId, completed: !isCompleted });
     }
     ElMessage.success(!isCompleted ? '恭喜完成该阶段！' : '已重置阶段进度');
-  } catch (_error) {
+  } catch {
     ElMessage.error('更新进度失败');
   }
 };
@@ -238,7 +275,7 @@ const loadCheckedSubTasks = () => {
       checkedSubTasks.value = JSON.parse(saved);
     }
   } catch (e) {
-    console.error('Failed to load subtask progress:', e);
+    logError(e, { operation: 'project.loadSubtasks', component: 'ProjectDetailView' });
   }
 };
 
@@ -247,7 +284,7 @@ const toggleSubTask = (taskId: string) => {
   try {
     localStorage.setItem('learning_path_subtasks', JSON.stringify(checkedSubTasks.value));
   } catch (e) {
-    console.error('Failed to save subtask progress:', e);
+    logError(e, { operation: 'project.saveSubtasks', component: 'ProjectDetailView' });
   }
 };
 
@@ -307,11 +344,12 @@ const getSubTasksForStep = (step: RoadmapStep): { id: string; text: string }[] =
     try {
       const parsed = typeof step.subtasks === 'string' ? JSON.parse(step.subtasks) : step.subtasks;
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((item: any, index: number) => {
+        return parsed.map((item, index): { id: string; text: string } => {
           if (item && typeof item === 'object') {
+            const obj = item as { id?: string; text?: string };
             return {
-              id: item.id || `${step.id}_custom_s${index}`,
-              text: item.text || '',
+              id: obj.id || `${step.id}_custom_s${index}`,
+              text: obj.text || '',
             };
           }
           return {
@@ -321,7 +359,7 @@ const getSubTasksForStep = (step: RoadmapStep): { id: string; text: string }[] =
         });
       }
     } catch (e) {
-      console.error('Failed to parse step subtasks:', e);
+      logError(e, { operation: 'project.parseSubtasks', component: 'ProjectDetailView' });
     }
   }
   return [];
@@ -442,7 +480,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans relative"
+    class="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans relative mobile-adaptive"
   >
     <!-- Global Loading -->
     <div
@@ -461,7 +499,7 @@ onUnmounted(() => {
         :is-member="isMember"
         :is-mobile="isMobile && activeTab !== 'settings'"
         @join="handleJoin"
-        @invite="inviteDialogRef?.open()"
+        @invite="openInviteDialog()"
         @open-profile="openUserProfile"
       />
 
@@ -472,7 +510,7 @@ onUnmounted(() => {
       >
         <!-- Top Navigation -->
         <header
-          class="h-auto md:h-20 px-3 md:px-10 py-2.5 md:py-0 flex flex-col md:flex-row md:items-center justify-between border-b bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl shrink-0 gap-2 md:gap-0"
+          class="h-auto md:h-20 px-3 md:px-10 py-2.5 md:py-0 flex flex-col md:flex-row md:items-center justify-between border-b bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl shrink-0 gap-2 md:gap-0 mobile-row"
           style="border-color: var(--border-base)"
         >
           <!-- Segmented Control + Mobile New Button -->
@@ -535,7 +573,7 @@ onUnmounted(() => {
         <!-- Project Kanban Filter Bar -->
         <div
           v-if="activeTab === 'tasks'"
-          class="px-3 md:px-10 py-2.5 md:py-3 border-b flex items-center gap-3 md:gap-6 overflow-x-auto scrollbar-hide shrink-0"
+          class="px-3 md:px-10 py-2.5 md:py-3 border-b flex items-center gap-3 md:gap-6 overflow-x-auto scrollbar-hide shrink-0 mobile-row"
           style="border-color: var(--border-base)"
         >
           <div class="flex items-center gap-1.5 md:gap-2 shrink-0">
@@ -1148,11 +1186,10 @@ onUnmounted(() => {
 
     <!-- Drawer/Dialog Components -->
     <InviteMembersDialog
-      ref="inviteDialogRef"
-      :project-id="projectId"
-      :team-id="project?.teamId || ''"
-      :existing-member-ids="existingMemberIds"
-      @invited="fetchProject"
+      v-model:visible="isInviteDialogOpen"
+      :loading="isInviteLoading"
+      :users="teamMembersForInvite"
+      @submit="handleInviteSubmit"
     />
 
     <TaskAddDrawer

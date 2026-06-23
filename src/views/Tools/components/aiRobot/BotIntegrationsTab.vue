@@ -132,7 +132,7 @@ const copyText = async (value: string, label = '内容') => {
   try {
     await navigator.clipboard.writeText(value);
     ElMessage.success(`${label}已复制`);
-  } catch (_error) {
+  } catch {
     ElMessage.warning('当前浏览器不支持自动复制');
   }
 };
@@ -156,9 +156,9 @@ const messageStatusCount = (status: string) =>
 </script>
 
 <template>
-  <section class="grid gap-3 xl:grid-cols-[18rem_minmax(0,1fr)]">
+  <section class="mobile-adaptive grid gap-3 grid-cols-1 xl:grid-cols-[18rem_minmax(0,1fr)]">
     <aside class="tool-panel min-h-[26rem]">
-      <div class="panel-head">
+      <div class="panel-head mobile-row">
         <div class="panel-title">
           <MessageSquare class="h-4 w-4 text-slate-500" />
           <span>接入列表</span>
@@ -250,7 +250,7 @@ const messageStatusCount = (status: string) =>
               {{ selectedModelLabel }} · 最近使用：{{ formatDate(selectedIntegration.lastUsedAt) }}
             </p>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
+          <div class="mobile-row flex flex-wrap items-center gap-2">
             <button
               type="button"
               class="secondary-btn"
@@ -289,7 +289,7 @@ const messageStatusCount = (status: string) =>
           </div>
         </div>
 
-        <div class="grid gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div class="grid gap-3 grid-cols-1 p-3 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div class="space-y-3">
             <div>
               <label class="field-label">回调地址</label>

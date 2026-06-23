@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, type Component } from 'vue';
 import { Loader2 } from 'lucide-vue-next';
 
 interface Props {
@@ -8,7 +8,7 @@ interface Props {
   loading?: boolean;
   disabled?: boolean;
   type?: 'button' | 'submit' | 'reset';
-  icon?: any;
+  icon?: Component | null;
   iconPosition?: 'left' | 'right';
   fullWidth?: boolean;
 }

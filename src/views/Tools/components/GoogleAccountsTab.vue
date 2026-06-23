@@ -244,7 +244,7 @@ const copyText = (text?: string) => {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-6 items-start w-full">
+  <div class="mobile-adaptive grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-6 items-start w-full">
     <!-- Sidebar: Categories -->
     <div
       class="lg:col-span-3 gw-card !p-2 sm:!p-3 flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-stretch justify-between lg:justify-start gap-2.5 max-h-[800px] w-full"
@@ -269,7 +269,7 @@ const copyText = (text?: string) => {
       </div>
 
       <div
-        class="flex lg:flex-col flex-row overflow-x-auto lg:overflow-x-visible no-scrollbar lg:overflow-y-auto gap-1.5 flex-1 w-full pb-0.5 lg:pb-0 select-none"
+        class="flex flex-wrap sm:flex-nowrap lg:flex-col flex-row overflow-x-auto lg:overflow-x-visible no-scrollbar lg:overflow-y-auto gap-1.5 flex-1 w-full pb-0.5 lg:pb-0 select-none"
       >
         <button
           v-for="cat in categoriesList"
@@ -312,10 +312,13 @@ const copyText = (text?: string) => {
     <!-- Main Account Table -->
     <div class="lg:col-span-9 gw-card !p-3 sm:!p-4 flex flex-col gap-3 min-h-[500px]">
       <!-- Actions & Search -->
-      <div class="flex flex-wrap gap-2 items-center justify-between min-h-[32px]">
+      <div class="mobile-row flex flex-wrap gap-2 items-center justify-between min-h-[32px]">
         <!-- Batch Actions (visible only when selectedAccountIds.length > 0) -->
         <transition name="el-zoom-in-top">
-          <div v-if="selectedAccountIds.length > 0" class="flex flex-wrap gap-1.5 items-center">
+          <div
+            v-if="selectedAccountIds.length > 0"
+            class="mobile-row flex flex-wrap gap-1.5 items-center"
+          >
             <span class="text-[11px] text-slate-500 dark:text-slate-400 mr-1"
               >已选择 {{ selectedAccountIds.length }} 个:</span
             >
@@ -386,7 +389,7 @@ const copyText = (text?: string) => {
           v-loading="isLoading"
           :data="filteredAndCategorizedAccounts"
           style="width: 100%"
-          class="custom-el-table !text-xs"
+          class="custom-el-table mobile-table !text-xs"
           @selection-change="handleSelectionChange"
         >
           <el-table-column type="selection" width="45" align="center" />
@@ -657,7 +660,7 @@ const copyText = (text?: string) => {
       </div>
 
       <div
-        class="border rounded-xl overflow-hidden max-h-[300px] overflow-y-auto"
+        class="mobile-table border rounded-xl overflow-hidden max-h-[300px] overflow-y-auto"
         style="border-color: var(--border-base)"
       >
         <table class="w-full text-xs text-left">

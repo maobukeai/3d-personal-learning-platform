@@ -138,13 +138,6 @@ const handleDeleteComment = async (note: Note, commentId: string) => {
   }
 };
 
-const dailyQuotes = [
-  '学而不思则罔，思而不学则殆。记录每一次心得，都是成长的印记。',
-  '成功的秘诀在于持之以恒的积累。每一篇笔记都是通往精通的阶梯。',
-  '将复杂的知识写下来、讲出来，这是最顶级的学习方法——费曼学习法。',
-  '智能的本质不在于获取多少现成答案，而在于探索未知的过程。—— 爱因斯坦',
-  '精于工，匠于心；创于想，行于行。保持好奇，不断打磨你的3D视界！',
-];
 const dailyQuote = computed(() => {
   return props.dailyQuoteProp || '';
 });

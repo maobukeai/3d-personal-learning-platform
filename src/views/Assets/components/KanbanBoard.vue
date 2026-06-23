@@ -38,7 +38,7 @@ const updateTaskStatus = async (task: Task, newStatus: Task['status']) => {
       status: newStatus,
     });
     emit('refresh');
-  } catch (_error) {
+  } catch {
     task.status = originalStatus;
     ElMessage.error('更新状态失败');
   }
@@ -140,7 +140,9 @@ const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
 
 <template>
   <div class="absolute inset-0 p-3 md:p-8 overflow-y-auto md:overflow-x-auto">
-    <div class="flex flex-col md:flex-row gap-4 md:gap-8 md:h-full pb-4 items-stretch md:min-w-max">
+    <div
+      class="flex flex-col md:flex-row gap-4 md:gap-8 md:h-full pb-4 items-stretch md:min-w-max mobile-adaptive"
+    >
       <!-- Columns -->
       <div
         v-for="col in [

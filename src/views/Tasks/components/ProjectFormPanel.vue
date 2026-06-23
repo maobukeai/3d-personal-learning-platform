@@ -166,7 +166,7 @@ defineExpose({
     glass-card
     @close="isDrawerOpen = false"
   >
-    <div class="space-y-3.5 text-left max-h-[65vh] overflow-y-auto pr-1">
+    <div class="mobile-adaptive space-y-3.5 text-left max-h-[65vh] overflow-y-auto pr-1">
       <div>
         <label
           class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
@@ -193,7 +193,7 @@ defineExpose({
           :placeholder="t('projects.visionPlaceholder')"
         ></textarea>
       </div>
-      <div class="grid grid-cols-2 gap-3">
+      <div class="form-grid-2 grid grid-cols-2 gap-3">
         <div>
           <label
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1 text-left"
@@ -262,7 +262,7 @@ defineExpose({
           </div>
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-3">
+      <div class="form-grid-2 grid grid-cols-2 gap-3">
         <div>
           <label
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1 text-left"
@@ -493,5 +493,11 @@ defineExpose({
 .custom-number-compact :deep(.el-input__wrapper.is-focus) {
   border-color: var(--accent) !important;
   box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
+}
+
+@media (max-width: 767px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
 }
 </style>

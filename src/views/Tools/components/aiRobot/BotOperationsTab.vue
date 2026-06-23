@@ -57,7 +57,7 @@ const getSignalClass = (level: SignalLevel) => {
 </script>
 
 <template>
-  <section class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
+  <section class="mobile-adaptive grid gap-3 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_22rem]">
     <div class="space-y-3">
       <div class="tool-panel p-3">
         <div class="grid gap-3 md:grid-cols-4">
@@ -81,7 +81,7 @@ const getSignalClass = (level: SignalLevel) => {
       </div>
 
       <div class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <ClipboardList class="h-4 w-4 text-sky-500" />
             <span>运营动作队列</span>
@@ -150,7 +150,7 @@ const getSignalClass = (level: SignalLevel) => {
 
     <aside class="space-y-3">
       <div class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <Gauge class="h-4 w-4 text-amber-500" />
             <span>质量泳道</span>
@@ -178,7 +178,7 @@ const getSignalClass = (level: SignalLevel) => {
       </div>
 
       <div class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <Database class="h-4 w-4 text-emerald-500" />
             <span>知识沉淀</span>

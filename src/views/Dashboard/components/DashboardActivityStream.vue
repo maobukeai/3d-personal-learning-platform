@@ -31,7 +31,7 @@ const emit = defineEmits<{
           v-for="feed in unifiedFeed"
           :key="feed.id"
           type="button"
-          class="feed-row"
+          class="feed-row mobile-row"
           @click="emit('navigate', feed.route)"
         >
           <span class="feed-visual">

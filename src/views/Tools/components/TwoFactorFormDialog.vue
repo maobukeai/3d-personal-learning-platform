@@ -1,0 +1,331 @@
+<script setup lang="ts">
+import { ref, computed, watch, onUnmounted } from 'vue';
+import { ElMessage } from 'element-plus';
+import { Sparkles, Clock } from 'lucide-vue-next';
+import api from '@/utils/api';
+import { getApiErrorMessage } from '@/utils/error';
+import { generateTOTP } from '@/utils/totp';
+import { validateBase32 } from '@/utils/validators';
+import Modal from '@/components/ui/Modal.vue';
+import Button from '@/components/ui/Button.vue';
+import type { TwoFactorAccount } from '@/types';
+
+const props = defineProps<{
+  modelValue: boolean;
+  allCategories: string[];
+  account: TwoFactorAccount | null;
+}>();
+
+const emit = defineEmits<{
+  (e: 'update:modelValue', val: boolean): void;
+  (e: 'saved'): void;
+}>();
+
+const visible = computed({
+  get: () => props.modelValue,
+  set: (val) => emit('update:modelValue', val),
+});
+
+const isEdit = computed(() => !!props.account);
+
+const form = ref({
+  id: '',
+  label: '',
+  email: '',
+  secret: '',
+  note: '',
+  category: '',
+});
+
+const secretPreview = ref<string>('------');
+const secretTimeLeft = ref<number>(0);
+const secretValidationError = ref<string>('');
+
+function getSecretStrength(secret: string): { label: string; color: string; percent: number } {
+  const clean = secret.replace(/[\s=]/g, '');
+  if (!clean) return { label: '无', color: '#94a3b8', percent: 0 };
+  if (clean.length < 16) return { label: '弱', color: '#ef4444', percent: 33 };
+  if (clean.length === 16) return { label: '中 (标准)', color: '#eab308', percent: 66 };
+  return { label: '强 (高安全)', color: '#10b981', percent: 100 };
+}
+
+async function checkFormSecret() {
+  const secretInput = form.value.secret.trim();
+  if (!secretInput) {
+    secretPreview.value = '------';
+    secretTimeLeft.value = 0;
+    secretValidationError.value = '';
+    return;
+  }
+
+  if (!validateBase32(secretInput)) {
+    secretValidationError.value = '无效的密钥格式（只允许 A-Z 和 2-7 的 Base32 编码字符）';
+    secretPreview.value = '------';
+    secretTimeLeft.value = 0;
+    return;
+  }
+
+  secretValidationError.value = '';
+  try {
+    const cleanSecret = secretInput.replace(/[\s=]/g, '').toUpperCase();
+    const preview = await generateTOTP(cleanSecret);
+    secretPreview.value = preview.code;
+    secretTimeLeft.value = preview.timeLeft;
+  } catch {
+    secretPreview.value = '------';
+    secretTimeLeft.value = 0;
+  }
+}
+
+async function handleSubmit() {
+  if (!form.value.label.trim()) {
+    ElMessage.warning(isEdit.value ? '名称不能为空' : '请输入账号名称/标签');
+    return;
+  }
+  if (!isEdit.value) {
+    if (!form.value.secret.trim()) {
+      ElMessage.warning('请输入2FA密钥');
+      return;
+    }
+    if (secretValidationError.value) {
+      ElMessage.warning('2FA密钥格式有误，请修改后提交');
+      return;
+    }
+  }
+
+  try {
+    if (isEdit.value) {
+      await api.put(`/api/two-factor/accounts/${form.value.id}`, {
+        id: form.value.id,
+        label: form.value.label,
+        email: form.value.email,
+        note: form.value.note,
+        category: form.value.category,
+      });
+      ElMessage.success('2FA记录更新成功');
+    } else {
+      await api.post('/api/two-factor/accounts', form.value);
+      ElMessage.success('2FA账号保存成功');
+    }
+    visible.value = false;
+    emit('saved');
+    resetForm();
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, isEdit.value ? '更新2FA记录失败' : '保存2FA账号失败'));
+  }
+}
+
+function resetForm() {
+  form.value = {
+    id: '',
+    label: '',
+    email: '',
+    secret: '',
+    note: '',
+    category: '',
+  };
+  secretPreview.value = '------';
+  secretTimeLeft.value = 0;
+  secretValidationError.value = '';
+}
+
+let previewTimer: NodeJS.Timeout | null = null;
+
+function startPreviewTimer() {
+  stopPreviewTimer();
+  previewTimer = setInterval(async () => {
+    if (visible.value && !isEdit.value && form.value.secret && !secretValidationError.value) {
+      try {
+        const preview = await generateTOTP(form.value.secret);
+        secretPreview.value = preview.code;
+        secretTimeLeft.value = preview.timeLeft;
+      } catch {
+        secretPreview.value = '------';
+        secretTimeLeft.value = 0;
+      }
+    }
+  }, 1000);
+}
+
+function stopPreviewTimer() {
+  if (previewTimer) {
+    clearInterval(previewTimer);
+    previewTimer = null;
+  }
+}
+
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    if (newVal) {
+      if (props.account) {
+        form.value = {
+          id: props.account.id,
+          label: props.account.label,
+          email: props.account.email || '',
+          secret: '',
+          note: props.account.note || '',
+          category: props.account.category || '',
+        };
+      } else {
+        resetForm();
+        startPreviewTimer();
+      }
+    } else {
+      stopPreviewTimer();
+      resetForm();
+    }
+  },
+);
+
+onUnmounted(() => {
+  stopPreviewTimer();
+});
+</script>
+
+<template>
+  <Modal
+    :show="visible"
+    :title="isEdit ? '修改 2FA 备注信息' : '安全添加 2FA 账号'"
+    size="md"
+    glass-card
+    @close="visible = false"
+  >
+    <div class="mobile-adaptive space-y-4 text-left">
+      <!-- Add mode instructions -->
+      <div
+        v-if="!isEdit"
+        class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3.5 flex items-start gap-2.5 mb-2"
+      >
+        <Sparkles class="h-5 w-5 text-indigo-400 mt-0.5 shrink-0" />
+        <p class="text-xs leading-normal" style="color: var(--text-secondary)">
+          请输入您的 2FA
+          密钥。系统会在输入框下方即时生成验证码预览。添加成功后，将能够生成对应的手机端扫码图像。
+        </p>
+      </div>
+
+      <!-- Form fields -->
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-bold" style="color: var(--text-secondary)"
+          >账号名称 / 标签 *</label
+        >
+        <el-input
+          v-model="form.label"
+          placeholder="如: Github, Google, ChatGPT"
+          class="custom-dialog-input"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-bold" style="color: var(--text-secondary)"
+          >账号邮箱 / 用户名</label
+        >
+        <el-input
+          v-model="form.email"
+          placeholder="如: user@example.com (可选)"
+          class="custom-dialog-input"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <div class="flex justify-between items-center">
+          <label class="text-xs font-bold" style="color: var(--text-secondary)">分类 / 分组</label>
+          <span class="text-[9px] text-slate-500">用于分类过滤</span>
+        </div>
+        <el-select
+          v-model="form.category"
+          placeholder="点击选择分组，或输入新分组名称"
+          class="custom-dialog-input w-full"
+          filterable
+          allow-create
+          clearable
+          default-first-option
+        >
+          <el-option v-for="cat in allCategories" :key="cat" :label="cat" :value="cat" />
+        </el-select>
+      </div>
+
+      <!-- Secret and Preview fields (Add mode only) -->
+      <div v-if="!isEdit" class="flex flex-col gap-1.5">
+        <label class="text-xs font-bold" style="color: var(--text-secondary)"
+          >2FA 密匙 (Base32 Key) *</label
+        >
+        <el-input
+          v-model="form.secret"
+          placeholder="支持包含空格，如: JBSW Y3DP EHPK 3PXP"
+          class="custom-dialog-input"
+          @input="checkFormSecret"
+        />
+        <span v-if="secretValidationError" class="text-[10px] text-rose-400 font-bold px-1 mt-0.5">
+          {{ secretValidationError }}
+        </span>
+        <!-- Strength Indicator -->
+        <div v-if="form.secret && !secretValidationError" class="flex items-center gap-2 px-1 mt-1">
+          <span class="text-[10px] text-slate-400">密钥强度:</span>
+          <div class="h-1 w-20 bg-slate-800 rounded-full overflow-hidden flex">
+            <div
+              class="h-full transition-all duration-300"
+              :style="{
+                width: `${getSecretStrength(form.secret).percent}%`,
+                backgroundColor: getSecretStrength(form.secret).color,
+              }"
+            ></div>
+          </div>
+          <span
+            class="text-[10px] font-bold"
+            :style="{ color: getSecretStrength(form.secret).color }"
+          >
+            {{ getSecretStrength(form.secret).label }}
+          </span>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-bold" style="color: var(--text-secondary)">备注说明</label>
+        <el-input
+          v-model="form.note"
+          type="textarea"
+          :rows="isEdit ? 3 : 2"
+          placeholder="如: 此处用于保存第三方网站认证备份密钥... (可选)"
+          class="custom-dialog-input"
+        />
+      </div>
+
+      <!-- Live Preview Code Block in Add mode -->
+      <div
+        v-if="!isEdit && form.secret && !secretValidationError"
+        class="rounded-xl p-3.5 flex items-center justify-between border"
+        style="background-color: var(--bg-app); border-color: var(--border-base)"
+      >
+        <div class="flex flex-col">
+          <span
+            class="text-[10px] font-bold uppercase tracking-widest"
+            style="color: var(--text-muted)"
+            >密钥格式正常 • 动态码预览</span
+          >
+          <span class="text-2xl font-black font-mono text-indigo-400 tracking-wider mt-0.5">
+            {{ secretPreview.slice(0, 3) + ' ' + secretPreview.slice(3) }}
+          </span>
+        </div>
+        <div
+          class="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-lg border"
+          style="
+            color: var(--text-secondary);
+            background-color: var(--bg-card);
+            border-color: var(--border-base);
+          "
+        >
+          <Clock class="h-3.5 w-3.5 text-indigo-400" />
+          更新倒计时: {{ secretTimeLeft }}秒
+        </div>
+      </div>
+    </div>
+
+    <template #footer>
+      <Button variant="secondary" size="sm" @click="visible = false"> 取消 </Button>
+      <Button variant="primary" size="sm" @click="handleSubmit">
+        {{ isEdit ? '保存修改' : '保存账号' }}
+      </Button>
+    </template>
+  </Modal>
+</template>

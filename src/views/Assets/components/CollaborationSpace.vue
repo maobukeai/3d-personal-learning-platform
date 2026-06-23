@@ -174,7 +174,7 @@ const handleSendComment = async () => {
     await api.post(`/api/projects/${props.projectId}/discussions`, payload);
     resetComposer();
     emit('refresh');
-  } catch (_error) {
+  } catch {
     ElMessage.error('发表留言失败');
   } finally {
     isSendingComment.value = false;
@@ -246,7 +246,7 @@ const getReactionCount = (reactions: DiscussionReaction[] | undefined, emoji: st
 </script>
 
 <template>
-  <div class="absolute inset-0 flex flex-col bg-white dark:bg-slate-950">
+  <div class="absolute inset-0 flex flex-col bg-white dark:bg-slate-950 mobile-adaptive">
     <template v-if="props.isMember">
       <div ref="chatScroll" class="flex-1 overflow-y-auto p-10 space-y-8 scrollbar-hide">
         <div

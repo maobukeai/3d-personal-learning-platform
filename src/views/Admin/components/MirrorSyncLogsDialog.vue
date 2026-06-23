@@ -21,7 +21,7 @@ async function loadLogs() {
   try {
     const res = await api.get(`/api/admin/mirror/sources/${props.source.id}/sync-logs?limit=30`);
     syncLogs.value = res.data;
-  } catch (_e) {
+  } catch {
     ElMessage.error('加载日志失败');
   } finally {
     isLoadingLogs.value = false;
@@ -57,7 +57,7 @@ function formatDuration(seconds: number | null) {
       class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-2xl mx-4 shadow-2xl max-h-[80vh] flex flex-col"
     >
       <div
-        class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700"
+        class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700 mobile-row"
       >
         <h2 class="text-lg font-semibold text-slate-900 dark:text-white">
           同步日志 - {{ source?.displayName }}

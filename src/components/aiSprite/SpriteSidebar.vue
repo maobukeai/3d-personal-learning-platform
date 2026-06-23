@@ -13,7 +13,7 @@ interface ChatSession {
   createdAt: string;
 }
 
-const props = defineProps<{
+defineProps<{
   isMobile: boolean;
   showMobileSidebar: boolean;
   currentSessionId: string;

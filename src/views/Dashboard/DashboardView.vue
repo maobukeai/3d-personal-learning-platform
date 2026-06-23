@@ -21,6 +21,7 @@ import DashboardEnrollments from './components/DashboardEnrollments.vue';
 import DashboardLeaderboard from './components/DashboardLeaderboard.vue';
 import DashboardActivityStream from './components/DashboardActivityStream.vue';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 import { formatRelativeTime as formatTime, formatDate } from '@/utils/format';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
@@ -202,7 +203,7 @@ async function completeTask(task: DashboardTask) {
     );
     await fetchDashboardData();
   } catch (error) {
-    console.error('Complete task failed:', error);
+    logError(error, { operation: 'dashboard.completeTask', component: 'DashboardView' });
   } finally {
     const finalNext = new Set(completingTaskIds.value);
     finalNext.delete(task.id);
@@ -242,7 +243,7 @@ async function fetchDashboardData() {
     ] = await Promise.all([
       api.get<DashboardStatsResponse>('/api/auth/stats', { params: { date } }).catch(() => null),
       api.get<WorkbenchData>('/api/auth/workbench').catch((error) => {
-        console.error('Fetch workbench data error:', error);
+        logError(error, { operation: 'dashboard.fetchWorkbench', component: 'DashboardView' });
         workbenchError.value = '工作台数据暂时不可用';
         return null;
       }),
@@ -278,7 +279,7 @@ async function fetchDashboardData() {
 
     lastUpdatedAt.value = new Date();
   } catch (error) {
-    console.error('Fetch dashboard data error:', error);
+    logError(error, { operation: 'dashboard.fetchData', component: 'DashboardView' });
   } finally {
     isLoading.value = false;
   }
@@ -294,7 +295,7 @@ async function fetchActiveBanners() {
     const { data } = await api.get<ActiveBanner[]>('/api/banners');
     activeBanners.value = data;
   } catch (error) {
-    console.error('Failed to fetch active banners:', error);
+    logError(error, { operation: 'dashboard.fetchBanners', component: 'DashboardView' });
   }
 }
 
@@ -345,7 +346,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="topbar-actions">
+      <div class="topbar-actions mobile-row">
         <el-date-picker
           v-model="selectedDate"
           type="date"

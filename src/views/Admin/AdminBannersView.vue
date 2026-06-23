@@ -61,7 +61,7 @@ const handleAiImageSave = async (file: File) => {
     const { data } = await api.post('/api/admin/banners/upload', formData);
     form.value.imageUrl = data.url;
     ElMessage.success('背景图片生成并上传成功');
-  } catch (error) {
+  } catch {
     ElMessage.error('背景图片上传失败');
   } finally {
     isUploading.value = false;
@@ -101,7 +101,7 @@ const fetchBanners = async () => {
     const { data } = await api.get('/api/admin/banners');
     banners.value = data;
     fetchManagementInsights(true);
-  } catch (error) {
+  } catch {
     ElMessage.error('获取轮播图列表失败');
   } finally {
     isLoading.value = false;
@@ -151,7 +151,7 @@ const handleImageUpload = async (event: Event) => {
     const { data } = await api.post('/api/admin/banners/upload', formData);
     form.value.imageUrl = data.url;
     ElMessage.success('图片上传成功');
-  } catch (error) {
+  } catch {
     ElMessage.error('图片上传失败');
   } finally {
     isUploading.value = false;
@@ -165,7 +165,7 @@ const handleToggleStatus = async (banner: Banner) => {
     await api.put(`/api/admin/banners/${banner.id}`, { isActive: nextStatus });
     banner.isActive = nextStatus;
     ElMessage.success(nextStatus ? '轮播图已启用' : '轮播图已禁用');
-  } catch (error) {
+  } catch {
     ElMessage.error('更新状态失败');
   }
 };
@@ -189,7 +189,7 @@ const saveBanner = async () => {
     }
     isDialogOpen.value = false;
     fetchBanners();
-  } catch (error) {
+  } catch {
     ElMessage.error(dialogMode.value === 'create' ? '创建轮播图失败' : '更新轮播图失败');
   } finally {
     isSaving.value = false;
@@ -211,7 +211,7 @@ const handleDeleteBanner = async (id: string) => {
     await api.delete(`/api/admin/banners/${id}`);
     ElMessage.success('删除成功');
     fetchBanners();
-  } catch (error) {
+  } catch {
     ElMessage.error('删除轮播图失败');
   }
 };
@@ -271,7 +271,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="admin-banners-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
+    class="admin-banners-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)] mobile-adaptive"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
       <!-- Page Header -->
@@ -302,7 +302,7 @@ onMounted(() => {
       </PageHeader>
 
       <!-- KPI Metrics Grid -->
-      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mobile-grid">
         <Card
           v-for="card in consolidatedCards"
           :key="card.label"
@@ -366,7 +366,7 @@ onMounted(() => {
                   --el-table-tr-bg-color: transparent;
                   --el-table-header-bg-color: transparent;
                 "
-                class="custom-el-table"
+                class="custom-el-table mobile-table"
               >
                 <el-table-column label="预览" width="160">
                   <template #default="{ row }">
@@ -575,7 +575,7 @@ onMounted(() => {
         </div>
 
         <!-- Tags & colors -->
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-4 mobile-grid">
           <div class="space-y-1.5">
             <label class="text-xs font-semibold text-[var(--text-secondary)]">角标标签</label>
             <input
@@ -599,7 +599,7 @@ onMounted(() => {
         </div>
 
         <!-- Button text and order -->
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-4 mobile-grid">
           <div class="space-y-1.5">
             <label class="text-xs font-semibold text-[var(--text-secondary)]">按钮文字</label>
             <input

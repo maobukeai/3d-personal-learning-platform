@@ -1,78 +1,31 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
-import { ref, reactive, watch, computed, onMounted, type Component } from 'vue';
-import {
-  Cpu,
-  Sparkles,
-  Database,
-  Globe,
-  Cloud,
-  Settings,
-  Plus,
-  Download,
-  Upload,
-  Edit3,
-  Sliders,
-  GripVertical,
-  RefreshCw,
-} from 'lucide-vue-next';
+import { ref, reactive, watch, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
-import { getApiErrorMessage } from '@/utils/error';
-import Modal from '@/components/ui/Modal.vue';
-import Button from '@/components/ui/Button.vue';
+import { getApiErrorMessage, logError } from '@/utils/error';
 import {
   PENDING_MODEL_FAMILY_KEY,
   inferModelFamilyKey,
   parseModelNameLines,
-  titleCaseModelFamily,
 } from '@/utils/aiModelFamilies';
-
-interface AiModelConfig {
-  id: string;
-  name: string;
-  provider: string;
-  modelName: string;
-  endpoint: string;
-  apiKey: string;
-  apiKeys?: string[];
-  enabled: boolean;
-  isDefault: boolean;
-  description: string;
-  capabilities: string[];
-  temperature?: number;
-  maxTokens?: number;
-  systemPrompt?: string;
-  showAdvanced?: boolean;
-  customFamilyKey?: string;
-  customFamilyLabel?: string;
-  failoverEnabled?: boolean;
-  priority?: number;
-}
-
-interface AiModelCategory {
-  key: string;
-  label: string;
-}
-
-interface AiProviderModelOption {
-  id: string;
-  name?: string;
-  ownedBy?: string;
-}
-
-interface ModelFamilyGroup {
-  key: string;
-  label: string;
-  provider: string;
-  providerLabel: string;
-  models: AiModelConfig[];
-  enabledCount: number;
-  defaultModel?: AiModelConfig;
-  endpointLabel: string;
-  meta: { color: string; bg: string; border: string; label: string; lucideIcon: Component };
-}
+import { useAiSettingsMeta } from './AiSettingsTab.meta';
+import type {
+  AiModelConfig,
+  AiModelCategory,
+  AiProviderModelOption,
+  ModelFamilyGroup,
+  CategoryDialogState,
+} from './AiSettingsTab.types';
+import AiSettingsHeader from './AiSettingsHeader.vue';
+import AiModelPoolToolbar from './AiModelPoolToolbar.vue';
+import AiBatchActionBar from './AiBatchActionBar.vue';
+import AiModelFamilyGroups from './AiModelFamilyGroups.vue';
+import AiDisabledGroups from './AiDisabledGroups.vue';
+import AiModelPoolFooter from './AiModelPoolFooter.vue';
+import AiModelFetchModal from './AiModelFetchModal.vue';
+import CategoryFormDialog from './CategoryFormDialog.vue';
 
 const props = defineProps<{
   settings: Record<string, unknown>;
@@ -81,18 +34,21 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: 'update:settings', val: Record<string, unknown>): void;
-  (e: 'update:aiModelConfigs', val: AiModelConfig[]): void;
-  (e: 'update:pendingModelFamilyIds', val: string[]): void;
+  'update:settings': [Record<string, unknown>];
+  'update:aiModelConfigs': [AiModelConfig[]];
+  'update:pendingModelFamilyIds': [string[]];
 }>();
 
-const localSettings = reactive({ ...props.settings }) as Record<string, any>;
+const localSettings = reactive({ ...props.settings }) as Record<string, unknown>;
+const aiImportEnabled = computed<boolean>({
+  get: () => !!localSettings.AI_IMPORT_ENABLED,
+  set: (value) => {
+    localSettings.AI_IMPORT_ENABLED = value;
+  },
+});
 const localAiModelConfigs = ref<AiModelConfig[]>([]);
 const localPendingModelFamilyIds = ref<string[]>([]);
 
-// Snapshot-based watchers: compare serialized values instead of deep-traversing
-// the entire object on every nested mutation. This avoids the O(n) deep walk
-// that Vue performs on each tick for `{ deep: true }`.
 const propsSettingsSnapshot = computed(() => JSON.stringify(props.settings));
 const localSettingsSnapshot = computed(() => JSON.stringify(localSettings));
 const propsAiModelConfigsSnapshot = computed(() => JSON.stringify(props.aiModelConfigs));
@@ -139,41 +95,8 @@ watch(localPendingSnapshot, () => {
   emit('update:pendingModelFamilyIds', localPendingModelFamilyIds.value);
 });
 
-const aiProviderDefaults: Record<string, { endpoint: string; model: string; name: string }> = {
-  AGNES: {
-    endpoint: 'https://apihub.agnes-ai.com/v1',
-    model: 'agnes-2.0-flash',
-    name: 'Agnes 2.0 Flash',
-  },
-  DEEPSEEK: {
-    endpoint: 'https://api.deepseek.com/v1',
-    model: 'deepseek-chat',
-    name: 'DeepSeek Chat',
-  },
-  OPENAI: {
-    endpoint: 'https://api.openai.com/v1',
-    model: 'gpt-4o-mini',
-    name: 'OpenAI GPT-4o mini',
-  },
-  OLLAMA: { endpoint: 'http://localhost:11434/api', model: 'llama3', name: 'Ollama Llama3' },
-  QWEN: {
-    endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    model: 'qwen-plus',
-    name: 'Qwen Plus',
-  },
-  GEMINI: {
-    endpoint: 'https://generativelanguage.googleapis.com',
-    model: 'gemini-1.5-flash',
-    name: 'Gemini Flash',
-  },
-  AZURE: {
-    endpoint:
-      'https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2023-05-15',
-    model: 'gpt-4o',
-    name: 'Azure OpenAI',
-  },
-  CUSTOM: { endpoint: '', model: '', name: t('admin.custom_model') },
-};
+const { aiProviderDefaults, getProviderMeta, getModelFamilyMeta, normalizeCustomCategories } =
+  useAiSettingsMeta();
 
 const createAiModelConfig = (provider = 'DEEPSEEK'): AiModelConfig => {
   const defaults = aiProviderDefaults[provider] || aiProviderDefaults.DEEPSEEK;
@@ -213,7 +136,6 @@ const syncAiModelsToSettings = () => {
   if (persistableModels.length > 0 && !persistableModels.some((model) => model.isDefault)) {
     persistableModels[0].isDefault = true;
   }
-  // Auto-assign priority based on list order so failover engine respects admin drag ordering
   persistableModels.forEach((model, idx) => {
     model.priority = idx;
   });
@@ -246,8 +168,6 @@ const addAiModel = (provider = 'CUSTOM') => {
   }
   syncAiModelsToSettings();
 };
-
-const getProviderMeta = (provider: string) => providerMeta[provider] || providerMeta.CUSTOM;
 
 const expandModelNameLines = (
   model: AiModelConfig,
@@ -371,7 +291,7 @@ const removeAiModel = async (id: string) => {
     }
     syncAiModelsToSettings();
     ElMessage.success(t('admin.model_deleted_successfully'));
-  } catch (_e) {}
+  } catch {}
 };
 
 const isTestingAi = ref(false);
@@ -386,16 +306,6 @@ const fetchedModelSearch = ref('');
 const selectedFetchedModelIds = ref<string[]>([]);
 const batchSelectedModelIds = ref<string[]>([]);
 const batchTargetFamilyKey = ref('');
-
-const filteredFetchedModelOptions = computed(() => {
-  const keyword = fetchedModelSearch.value.trim().toLowerCase();
-  if (!keyword) return fetchedModelOptions.value;
-  return fetchedModelOptions.value.filter((model) =>
-    [model.id, model.name, model.ownedBy]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(keyword)),
-  );
-});
 
 const toggleModelExpand = (id: string) => {
   expandedModelId.value = expandedModelId.value === id ? null : id;
@@ -478,166 +388,10 @@ const handleDragEnd = () => {
   isGroupHandleClicked.value = false;
 };
 
-const providerMeta: Record<
-  string,
-  { color: string; bg: string; border: string; label: string; lucideIcon: Component }
-> = {
-  AGNES: {
-    color: '#8b5cf6',
-    bg: 'rgba(139,92,246,0.08)',
-    border: 'rgba(139,92,246,0.25)',
-    label: 'Agnes',
-    lucideIcon: Cpu,
-  },
-  DEEPSEEK: {
-    color: '#2563eb',
-    bg: 'rgba(37,99,235,0.08)',
-    border: 'rgba(37,99,235,0.25)',
-    label: 'DeepSeek',
-    lucideIcon: Cpu,
-  },
-  OPENAI: {
-    color: '#10a37f',
-    bg: 'rgba(16,163,127,0.08)',
-    border: 'rgba(16,163,127,0.25)',
-    label: 'OpenAI',
-    lucideIcon: Sparkles,
-  },
-  OLLAMA: {
-    color: '#7c3aed',
-    bg: 'rgba(124,58,237,0.08)',
-    border: 'rgba(124,58,237,0.25)',
-    label: 'Ollama',
-    lucideIcon: Database,
-  },
-  QWEN: {
-    color: '#ea580c',
-    bg: 'rgba(234,88,12,0.08)',
-    border: 'rgba(234,88,12,0.25)',
-    label: 'Qwen',
-    lucideIcon: Globe,
-  },
-  GEMINI: {
-    color: '#db2777',
-    bg: 'rgba(219,39,119,0.08)',
-    border: 'rgba(219,39,119,0.25)',
-    label: 'Gemini',
-    lucideIcon: Sparkles,
-  },
-  AZURE: {
-    color: '#0284c7',
-    bg: 'rgba(2,132,199,0.08)',
-    border: 'rgba(2,132,199,0.25)',
-    label: 'Azure',
-    lucideIcon: Cloud,
-  },
-  CUSTOM: {
-    color: '#64748b',
-    bg: 'rgba(100,116,139,0.08)',
-    border: 'rgba(100,116,139,0.25)',
-    label: 'Custom',
-    lucideIcon: Settings,
-  },
-};
-
-const modelFamilyMeta: Record<
-  string,
-  { color: string; bg: string; border: string; label: string; lucideIcon: Component }
-> = {
-  [PENDING_MODEL_FAMILY_KEY]: {
-    color: '#64748b',
-    bg: 'rgba(100,116,139,0.08)',
-    border: 'rgba(100,116,139,0.25)',
-    label: t('admin.ai_pending_configuration'),
-    lucideIcon: Sliders,
-  },
-  agnes: {
-    color: '#0891b2',
-    bg: 'rgba(8,145,178,0.08)',
-    border: 'rgba(8,145,178,0.25)',
-    label: 'Agnes',
-    lucideIcon: Sparkles,
-  },
-  gemini: providerMeta.GEMINI,
-  deepseek: providerMeta.DEEPSEEK,
-  qwen: providerMeta.QWEN,
-  openai: providerMeta.OPENAI,
-  gpt: providerMeta.OPENAI,
-  skywork: {
-    color: '#4f46e5',
-    bg: 'rgba(79,70,229,0.08)',
-    border: 'rgba(79,70,229,0.25)',
-    label: 'Skywork',
-    lucideIcon: Cpu,
-  },
-  llama: {
-    color: '#7c3aed',
-    bg: 'rgba(124,58,237,0.08)',
-    border: 'rgba(124,58,237,0.25)',
-    label: 'Llama',
-    lucideIcon: Database,
-  },
-  claude: {
-    color: '#d97706',
-    bg: 'rgba(217,119,6,0.08)',
-    border: 'rgba(217,119,6,0.25)',
-    label: 'Claude',
-    lucideIcon: Sparkles,
-  },
-  mistral: {
-    color: '#dc2626',
-    bg: 'rgba(220,38,38,0.08)',
-    border: 'rgba(220,38,38,0.25)',
-    label: 'Mistral',
-    lucideIcon: Cpu,
-  },
-  gemma: {
-    color: '#db2777',
-    bg: 'rgba(219,39,119,0.08)',
-    border: 'rgba(219,39,119,0.25)',
-    label: 'Gemma',
-    lucideIcon: Sparkles,
-  },
-};
-
-const modelFamilyPalette = [
-  { color: '#0f766e', bg: 'rgba(15,118,110,0.08)', border: 'rgba(15,118,110,0.25)' },
-  { color: '#4338ca', bg: 'rgba(67,56,202,0.08)', border: 'rgba(67,56,202,0.25)' },
-  { color: '#be123c', bg: 'rgba(190,18,60,0.08)', border: 'rgba(190,18,60,0.25)' },
-  { color: '#9333ea', bg: 'rgba(147,51,234,0.08)', border: 'rgba(147,51,234,0.25)' },
-  { color: '#ca8a04', bg: 'rgba(202,138,4,0.08)', border: 'rgba(202,138,4,0.25)' },
-];
-
 const getDominantProvider = (models: AiModelConfig[]) => {
   const counts = new Map<string, number>();
   models.forEach((model) => counts.set(model.provider, (counts.get(model.provider) || 0) + 1));
   return Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || 'CUSTOM';
-};
-
-const normalizeCustomCategories = (value: unknown): AiModelCategory[] => {
-  let raw = value;
-  if (typeof raw === 'string') {
-    if (!raw.trim()) return [];
-    try {
-      raw = JSON.parse(raw);
-    } catch {
-      return [];
-    }
-  }
-  if (!Array.isArray(raw)) return [];
-
-  const seenKeys = new Set<string>();
-  return raw
-    .map((item): AiModelCategory | null => {
-      if (!item || typeof item !== 'object') return null;
-      const category = item as Record<string, unknown>;
-      const key = String(category.key || '').trim();
-      const label = String(category.label || '').trim();
-      if (!key || !label || seenKeys.has(key)) return null;
-      seenKeys.add(key);
-      return { key, label };
-    })
-    .filter((item): item is AiModelCategory => Boolean(item));
 };
 
 const customCategories = ref<AiModelCategory[]>([]);
@@ -675,7 +429,6 @@ const restoreCustomCategories = () => {
   syncCustomCategoriesToSettings();
 };
 
-// Initialize categories when settings or modelConfigs load
 watch(
   () => localSettings.AI_MODEL_CUSTOM_CATEGORIES,
   () => {
@@ -684,9 +437,9 @@ watch(
   { immediate: true },
 );
 
-const categoryDialog = ref({
+const categoryDialog = ref<CategoryDialogState>({
   show: false,
-  mode: 'create' as 'create' | 'rename',
+  mode: 'create',
   groupKey: '',
   name: '',
 });
@@ -728,7 +481,6 @@ const submitCategoryDialog = () => {
     const key = 'custom_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
     customCategories.value.push({ key, label: name });
     syncCustomCategoriesToSettings();
-    // Expand by default when created
     if (!expandedModelFamilyGroups.value.includes(key)) {
       expandedModelFamilyGroups.value.push(key);
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(expandedModelFamilyGroups.value));
@@ -743,7 +495,6 @@ const submitCategoryDialog = () => {
       customCategories.value.push({ key: groupKey, label: name });
     }
 
-    // Update any models currently referencing this category to sync label
     localAiModelConfigs.value.forEach((model) => {
       if (model.customFamilyKey === groupKey) {
         model.customFamilyLabel = name;
@@ -757,47 +508,7 @@ const submitCategoryDialog = () => {
   categoryDialog.value.show = false;
 };
 
-const deleteCustomCategory = async (group: AiModelCategory) => {
-  try {
-    await ElMessageBox.confirm(
-      `确定要删除自定义分类 "${group.label}" 吗？该分类下的模型将自动恢复为系统分类。`,
-      '删除自定义分类',
-      {
-        confirmButtonText: '确定删除',
-        cancelButtonText: '取消',
-        type: 'warning',
-      },
-    );
-    // Remove custom classification from models in this category
-    localAiModelConfigs.value.forEach((model) => {
-      if (model.customFamilyKey === group.key) {
-        delete model.customFamilyKey;
-        delete model.customFamilyLabel;
-        markAiModelPending(model.id);
-      }
-    });
-    // Remove from customCategories list
-    customCategories.value = customCategories.value.filter((c) => c.key !== group.key);
-    syncAiModelsToSettings();
-    ElMessage.success('自定义分类删除成功');
-  } catch (_e) {
-    // User canceled
-  }
-};
-
-const getModelFamilyMeta = (key: string, customLabel?: string) => {
-  if (modelFamilyMeta[key]) return modelFamilyMeta[key];
-  const hash = Array.from(key).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  const palette = modelFamilyPalette[hash % modelFamilyPalette.length];
-  return {
-    ...palette,
-    label: customLabel || titleCaseModelFamily(key) || 'Custom',
-    lucideIcon: Cpu,
-  };
-};
-
 const disabledGroupKeys = ref<string[]>([]);
-const isUnenabledGroupCollapsed = ref(true);
 
 const restoreDisabledGroups = () => {
   const stored = localStorage.getItem('ai_model_disabled_groups');
@@ -846,35 +557,22 @@ const expandedModelFamilyGroups = ref<string[]>(
   JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]'),
 );
 
-const getCapabilityLabel = (cap: string) => {
-  switch (cap) {
-    case 'chat': return '对话';
-    case 'image': return '画图';
-    case 'video': return '视频';
-    case 'translate': return '翻译';
-    default: return cap;
-  }
-};
+const isModelFamilyGroupCollapsed = (key: string) => !expandedModelFamilyGroups.value.includes(key);
 
-const getCapabilityStyle = (cap: string) => {
-  switch (cap) {
-    case 'chat':
-      return 'background: rgba(99, 102, 241, 0.1); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.15);';
-    case 'image':
-      return 'background: rgba(16, 185, 129, 0.1); color: #059669; border: 1px solid rgba(16, 185, 129, 0.15);';
-    case 'video':
-      return 'background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.15);';
-    case 'translate':
-      return 'background: rgba(245, 158, 11, 0.1); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.15);';
-    default:
-      return 'background: rgba(100, 116, 139, 0.1); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.15);';
+const toggleModelFamilyGroup = (key: string) => {
+  if (expandedModelFamilyGroups.value.includes(key)) {
+    expandedModelFamilyGroups.value = expandedModelFamilyGroups.value.filter(
+      (item) => item !== key,
+    );
+  } else {
+    expandedModelFamilyGroups.value.push(key);
   }
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(expandedModelFamilyGroups.value));
 };
 
 const modelFamilyGroups = computed<ModelFamilyGroup[]>(() => {
   const groups = new Map<string, AiModelConfig[]>();
 
-  // Ensure any empty custom categories are included
   customCategories.value.forEach((cat) => {
     groups.set(cat.key, []);
   });
@@ -935,19 +633,6 @@ const disabledModelFamilyGroups = computed(() => {
   return modelFamilyGroups.value.filter((group) => disabledGroupKeys.value.includes(group.key));
 });
 
-const isModelFamilyGroupCollapsed = (key: string) => !expandedModelFamilyGroups.value.includes(key);
-
-const toggleModelFamilyGroup = (key: string) => {
-  if (expandedModelFamilyGroups.value.includes(key)) {
-    expandedModelFamilyGroups.value = expandedModelFamilyGroups.value.filter(
-      (item) => item !== key,
-    );
-  } else {
-    expandedModelFamilyGroups.value.push(key);
-  }
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(expandedModelFamilyGroups.value));
-};
-
 const selectedAiModels = computed(() => {
   const selectedIds = new Set(batchSelectedModelIds.value);
   return localAiModelConfigs.value.filter((model) => selectedIds.has(model.id));
@@ -966,9 +651,6 @@ const isAllAiModelsSelected = computed(
     localAiModelConfigs.value.length > 0 &&
     batchSelectedModelIds.value.length === localAiModelConfigs.value.length,
 );
-
-const getGroupSelectedCount = (group: ModelFamilyGroup) =>
-  group.models.filter((model) => batchSelectedModelIds.value.includes(model.id)).length;
 
 const selectAllAiModels = () => {
   batchSelectedModelIds.value = localAiModelConfigs.value.map((model) => model.id);
@@ -1119,7 +801,7 @@ const batchDeleteAiModels = async () => {
     normalizeDefaultModelAfterBatch();
     syncAiModelsToSettings();
     ElMessage.success('已批量删除模型');
-  } catch (_error) {
+  } catch {
     // User canceled
   }
 };
@@ -1169,32 +851,27 @@ const handleDropOnGroup = (event: DragEvent, group: ModelFamilyGroup) => {
 
     const list = [...localAiModelConfigs.value];
 
-    // Find all models belonging to sourceGroup
     const sourceModels = list.filter((m) => {
       const fk = inferModelFamilyKey(m, { isPending: isPendingAiModel(m.id) });
       return fk === sourceGroupKey;
     });
 
-    if (sourceModels.length === 0) return; // No models to move
+    if (sourceModels.length === 0) return;
 
-    // Filter out source models from the list
     const remainingList = list.filter((m) => {
       const fk = inferModelFamilyKey(m, { isPending: isPendingAiModel(m.id) });
       return fk !== sourceGroupKey;
     });
 
-    // Find target insertion index (first model of targetGroup in the remaining list)
     let insertIndex = remainingList.findIndex((m) => {
       const fk = inferModelFamilyKey(m, { isPending: isPendingAiModel(m.id) });
       return fk === group.key;
     });
 
     if (insertIndex === -1) {
-      // If targetGroup has no models, append to the end
       insertIndex = remainingList.length;
     }
 
-    // Insert source models at insertIndex
     remainingList.splice(insertIndex, 0, ...sourceModels);
 
     localAiModelConfigs.value = remainingList;
@@ -1219,7 +896,6 @@ const handleDropOnGroup = (event: DragEvent, group: ModelFamilyGroup) => {
         );
       }
 
-      // Re-position the model in the flat list near the end of that group's models
       const groupModels = group.models.filter((m) => m.id !== draggedItem.id);
       let targetIndex = list.length;
       if (groupModels.length > 0) {
@@ -1276,7 +952,7 @@ const testAi = async (model?: AiModelConfig) => {
       ElMessage.error(t('admin.the_test_failed_and'));
     }
   } catch (error: unknown) {
-    console.error('Test AI error:', error);
+    logError(error, { operation: 'admin.testAi', component: 'AiSettingsTab' });
     ElMessage.error(getApiErrorMessage(error, t('admin.ai_connection_test_failed')));
   } finally {
     isTestingAi.value = false;
@@ -1322,7 +998,7 @@ const fetchAiModels = async (model: AiModelConfig) => {
     );
     modelFetchDialogVisible.value = true;
   } catch (error: unknown) {
-    console.error('Fetch AI models error:', error);
+    logError(error, { operation: 'admin.fetchAiModels', component: 'AiSettingsTab' });
     ElMessage.error(getApiErrorMessage(error, '获取模型列表失败'));
   } finally {
     isFetchingAiModels.value = false;
@@ -1348,14 +1024,6 @@ const applyFetchedModels = () => {
   ElMessage.success(`已选择 ${selectedFetchedModelIds.value.length} 个模型`);
 };
 
-const importAiFileInputRef = ref<HTMLInputElement | null>(null);
-
-const triggerAiImport = () => {
-  if (importAiFileInputRef.value) {
-    importAiFileInputRef.value.click();
-  }
-};
-
 const importAiSettingsFile = async (event: Event) => {
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
@@ -1374,7 +1042,7 @@ const importAiSettingsFile = async (event: Event) => {
       }
     }
   } catch (error) {
-    console.error('Import AI settings error:', error);
+    logError(error, { operation: 'admin.importAiSettings', component: 'AiSettingsTab' });
     ElMessage.error('导入失败，请确保文件是有效的 JSON 格式');
   } finally {
     target.value = '';
@@ -1400,9 +1068,41 @@ const exportAiSettings = () => {
     URL.revokeObjectURL(url);
     ElMessage.success('导出配置成功');
   } catch (error) {
-    console.error('Export AI settings error:', error);
+    logError(error, { operation: 'admin.exportAiSettings', component: 'AiSettingsTab' });
     ElMessage.error('导出配置失败');
   }
+};
+
+const handleUpdateModel = (id: string, patch: Partial<AiModelConfig>) => {
+  const model = localAiModelConfigs.value.find((m) => m.id === id);
+  if (!model) return;
+  Object.assign(model, patch);
+  syncAiModelsToSettings();
+};
+
+const handleSetDefault = (model: AiModelConfig) => {
+  localAiModelConfigs.value.forEach((m) => (m.isDefault = false));
+  model.isDefault = true;
+  syncAiModelsToSettings();
+};
+
+const handleModelNameBlur = (model: AiModelConfig) => {
+  if (!isPendingAiModel(model.id)) {
+    expandModelNameLines(model);
+  } else {
+    syncAiModelsToSettings();
+  }
+};
+
+const handleAddBackupKey = (model: AiModelConfig) => {
+  if (!model.apiKeys) model.apiKeys = [];
+  model.apiKeys.push('');
+  syncAiModelsToSettings();
+};
+
+const handleRemoveBackupKey = (model: AiModelConfig, index: number) => {
+  model.apiKeys = (model.apiKeys || []).filter((_, i) => i !== index);
+  syncAiModelsToSettings();
 };
 
 onMounted(() => {
@@ -1413,1333 +1113,109 @@ onMounted(() => {
 
 <template>
   <div class="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
-    <!-- Header Card -->
-    <div
-      class="relative overflow-hidden rounded-3xl border p-6"
-      style="
-        background: linear-gradient(135deg, var(--bg-card) 0%, rgba(99, 102, 241, 0.04) 100%);
-        border-color: var(--border-base);
-      "
-    >
-      <div class="relative flex items-start justify-between gap-4">
-        <div class="flex items-start gap-4">
-          <div
-            class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-            style="
-              background: linear-gradient(135deg, #6366f1, #8b5cf6);
-              box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-            "
-          >
-            <Cpu class="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h2 class="text-base font-black mb-1" style="color: var(--text-primary)">
-              {{ $t('admin.ai_intelligent_assistance_system') }}
-            </h2>
-            <p class="text-xs leading-relaxed max-w-lg" style="color: var(--text-secondary)">
-              启用后，用户可以使用 AI 一键生成项目、AI 写作助手等智能功能。API Key
-              仅保存在服务端，不会暴露给前台用户。
-            </p>
-          </div>
-        </div>
-        <div class="flex-shrink-0">
-          <div class="flex flex-col items-center gap-1.5">
-            <el-switch
-              v-model="localSettings.AI_IMPORT_ENABLED"
-              inline-prompt
-              :active-text="$t('admin.opened')"
-              :inactive-text="$t('admin.closed')"
-              style="--el-switch-on-color: #6366f1; --el-switch-off-color: #94a3b8"
-            />
-            <span
-              class="text-[10px] font-bold px-2 py-0.5 rounded-full"
-              :style="
-                localSettings.AI_IMPORT_ENABLED
-                  ? 'background: rgba(99,102,241,0.12); color: #6366f1;'
-                  : 'background: var(--bg-app); color: var(--text-muted);'
-              "
-              >{{
-                localSettings.AI_IMPORT_ENABLED
-                  ? $t('admin.function_activated')
-                  : $t('admin.feature_not_enabled')
-              }}</span
-            >
-          </div>
-        </div>
-      </div>
+    <AiSettingsHeader v-model:enabled="aiImportEnabled" />
 
-      <div
-        v-if="localSettings.AI_IMPORT_ENABLED"
-        class="mt-4 pt-4 border-t flex flex-wrap gap-2"
-        style="border-color: var(--border-base)"
-      >
-        <span
-          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold"
-          style="background: rgba(99, 102, 241, 0.1); color: #6366f1"
-          >{{ $t('admin.one_click_generation_of') }}</span
-        >
-        <span
-          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold"
-          style="background: rgba(99, 102, 241, 0.1); color: #6366f1"
-          >{{ $t('admin.ai_writing_assistant') }}</span
-        >
-        <span
-          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold"
-          style="background: rgba(99, 102, 241, 0.1); color: #6366f1"
-          >{{ $t('admin.model_thinking_flow_display') }}</span
-        >
-        <span
-          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold"
-          style="background: rgba(99, 102, 241, 0.1); color: #6366f1"
-          >{{ $t('admin.real_time_streaming_output') }}</span
-        >
-      </div>
-    </div>
-
-    <!-- Models Panel -->
     <div v-if="localSettings.AI_IMPORT_ENABLED" class="space-y-4">
-      <!-- Header -->
-      <div class="flex items-center justify-between mb-2">
-        <div>
-          <h3 class="text-sm font-black" style="color: var(--text-primary)">
-            {{ $t('admin.model_pool_configuration') }}
-          </h3>
-          <p class="text-[11px] mt-0.5" style="color: var(--text-muted)">
-            {{
-              $t('admin.ai_models_status_count', {
-                total: localAiModelConfigs.length,
-                enabled: localAiModelConfigs.filter((m) => m.enabled).length,
-              })
-            }}
-          </p>
-        </div>
-        <div class="flex items-center gap-2">
-          <input
-            ref="importAiFileInputRef"
-            type="file"
-            accept=".json"
-            class="hidden"
-            @change="importAiSettingsFile"
-          />
-          <button
-            type="button"
-            class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer shrink-0"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            title="一键导出所有 AI 相关配置"
-            @click="exportAiSettings"
-          >
-            <Download class="w-3.5 h-3.5" />
-            <span>导出AI配置</span>
-          </button>
-          <button
-            type="button"
-            class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer shrink-0"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            title="一键从文件导入 AI 配置"
-            @click="triggerAiImport"
-          >
-            <Upload class="w-3.5 h-3.5" />
-            <span>导入AI配置</span>
-          </button>
-          <button
-            type="button"
-            class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer shrink-0"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="addCustomCategory()"
-          >
-            <Plus class="w-3.5 h-3.5" />
-            <span>新建自定义分类</span>
-          </button>
-          <button
-            type="button"
-            class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shrink-0"
-            style="
-              background: linear-gradient(135deg, #6366f1, #8b5cf6);
-              color: white;
-              box-shadow: 0 2px 12px rgba(99, 102, 241, 0.35);
-            "
-            @click="addAiModel()"
-          >
-            <Plus class="w-3.5 h-3.5" />
-            <span>{{ $t('admin.add_model') }}</span>
-          </button>
-        </div>
-      </div>
+      <AiModelPoolToolbar
+        :total="localAiModelConfigs.length"
+        :enabled="localAiModelConfigs.filter((m) => m.enabled).length"
+        @add-model="addAiModel()"
+        @add-category="addCustomCategory"
+        @export-config="exportAiSettings"
+        @import-file="importAiSettingsFile"
+      />
 
-      <!-- Batch Action Bar (Single-line, shown only when models are selected) -->
-      <transition name="el-zoom-in-top">
-        <div
-          v-if="selectedAiModels.length > 0"
-          class="flex items-center justify-between p-2.5 rounded-xl border text-xs gap-3"
-          style="border-color: rgba(99, 102, 241, 0.25); background: rgba(99, 102, 241, 0.04)"
-        >
-          <!-- Left Side: Selection Count & Master Select All Checkbox -->
-          <div class="flex items-center gap-3">
-            <el-checkbox
-              :model-value="isAllAiModelsSelected"
-              :indeterminate="selectedAiModels.length > 0 && !isAllAiModelsSelected"
-              class="shrink-0"
-              @change="
-                (val: unknown) => {
-                  if (val) {
-                    selectAllAiModels();
-                  } else {
-                    clearSelectedAiModels();
-                  }
-                }
-              "
-            />
-            <span class="font-bold shrink-0" style="color: var(--text-primary)">
-              已选择 <span style="color: #6366f1">{{ selectedAiModels.length }}</span> /
-              {{ localAiModelConfigs.length }} 个模型
-            </span>
-          </div>
+      <AiBatchActionBar
+        :selected-count="selectedAiModels.length"
+        :total="localAiModelConfigs.length"
+        :is-all-selected="isAllAiModelsSelected"
+        :indeterminate="selectedAiModels.length > 0 && !isAllAiModelsSelected"
+        :families="selectableBatchFamilies"
+        @select-all="selectAllAiModels"
+        @clear="clearSelectedAiModels"
+        @enable="batchSetAiModelsEnabled(true)"
+        @disable="batchSetAiModelsEnabled(false)"
+        @move="handleBatchMoveSelect"
+        @delete="batchDeleteAiModels"
+      />
 
-          <!-- Right Side: Action Buttons -->
-          <div class="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              class="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer shrink-0"
-              style="border-color: var(--border-base); color: var(--text-secondary)"
-              @click="clearSelectedAiModels()"
-            >
-              取消
-            </button>
-            <div class="h-3.5 w-[1px] shrink-0" style="background-color: var(--border-base)"></div>
-            <button
-              type="button"
-              class="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 cursor-pointer shrink-0"
-              style="
-                border-color: rgba(16, 185, 129, 0.25);
-                color: #059669;
-                background: rgba(16, 185, 129, 0.05);
-              "
-              @click="batchSetAiModelsEnabled(true)"
-            >
-              启用
-            </button>
-            <button
-              type="button"
-              class="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 cursor-pointer shrink-0"
-              style="
-                border-color: rgba(100, 116, 139, 0.25);
-                color: var(--text-secondary);
-                background: rgba(100, 116, 139, 0.05);
-              "
-              @click="batchSetAiModelsEnabled(false)"
-            >
-              禁用
-            </button>
-            <el-select
-              :model-value="batchTargetFamilyKey"
-              size="small"
-              placeholder="移动到分类..."
-              class="w-36 shrink-0"
-              @change="handleBatchMoveSelect"
-            >
-              <el-option
-                v-for="family in selectableBatchFamilies"
-                :key="family.key"
-                :label="`${family.label} (${family.count})`"
-                :value="family.key"
-              />
-            </el-select>
-            <button
-              type="button"
-              class="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 cursor-pointer shrink-0"
-              style="
-                border-color: rgba(244, 63, 94, 0.25);
-                color: #e11d48;
-                background: rgba(244, 63, 94, 0.05);
-              "
-              @click="batchDeleteAiModels"
-            >
-              删除
-            </button>
-          </div>
-        </div>
-      </transition>
+      <AiModelFamilyGroups
+        :groups="enabledModelFamilyGroups"
+        :configs="localAiModelConfigs"
+        :disabled-group-keys="disabledGroupKeys"
+        :expanded-groups="expandedModelFamilyGroups"
+        :expanded-model-id="expandedModelId"
+        :selected-ids="batchSelectedModelIds"
+        :selection-active="selectedAiModels.length > 0"
+        :pending-ids="localPendingModelFamilyIds"
+        :is-testing-ai="isTestingAi"
+        :testing-ai-model-id="testingAiModelId"
+        :is-fetching-ai-models="isFetchingAiModels"
+        :fetching-ai-models-model-id="fetchingAiModelsModelId"
+        :is-handle-clicked="isHandleClicked"
+        :is-group-handle-clicked="isGroupHandleClicked"
+        :dragged-group-key="draggedGroupKey"
+        :drag-index="dragIndex"
+        @toggle-collapse="toggleModelFamilyGroup"
+        @rename-group="renameModelFamilyGroup"
+        @toggle-group-enabled="toggleGroupEnabled"
+        @add-model-to-family="addAiModelToFamily"
+        @toggle-group-selection="toggleGroupModelSelection"
+        @group-dragstart="handleGroupDragStart"
+        @group-dragend="handleGroupDragEnd"
+        @group-mousedown="handleGroupMouseDown"
+        @drop-on-group="handleDropOnGroup"
+        @card-expand="toggleModelExpand"
+        @card-dragstart="handleDragStart"
+        @card-drop="handleDrop"
+        @card-dragend="handleDragEnd"
+        @card-mouse-down="handleMouseDown"
+        @toggle-selection="toggleAiModelSelection"
+        @update:model="handleUpdateModel"
+        @set-default="handleSetDefault"
+        @clone="cloneAiModel"
+        @confirm-family="confirmAiModelFamily"
+        @remove="removeAiModel($event.id)"
+        @test="testAi"
+        @fetch-models="fetchAiModels"
+        @model-name-blur="handleModelNameBlur"
+        @add-backup-key="handleAddBackupKey"
+        @remove-backup-key="handleRemoveBackupKey"
+      />
 
-      <!-- Model Family Groups -->
-      <div v-if="enabledModelFamilyGroups.length > 0" class="space-y-4">
-        <section
-          v-for="group in enabledModelFamilyGroups"
-          :key="group.key"
-          :draggable="isGroupHandleClicked"
-          class="rounded-2xl border overflow-hidden transition-all duration-300"
-          :class="{
-            'opacity-50 border-indigo-400 scale-[0.99]': draggedGroupKey === group.key,
-          }"
-          :style="`border-color: ${group.meta.border}; background: var(--bg-card);`"
-          @dragstart="handleGroupDragStart($event, group.key)"
-          @dragend="handleGroupDragEnd"
-          @dragover.prevent
-          @drop="handleDropOnGroup($event, group)"
-        >
-          <header
-            class="px-4 py-4 border-b"
-            style="border-color: var(--border-base); background: var(--bg-app)"
-          >
-            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div
-                class="flex items-start gap-3 min-w-0 cursor-pointer select-none"
-                @click="toggleModelFamilyGroup(group.key)"
-              >
-                <!-- Group Drag handle -->
-                <div
-                  class="flex items-center justify-center p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors duration-150 cursor-grab active:cursor-grabbing flex-shrink-0 mt-3"
-                  title="拖动调整分组排序"
-                  @mousedown="handleGroupMouseDown"
-                  @click.stop
-                >
-                  <GripVertical class="w-3.5 h-3.5 text-slate-400" />
-                </div>
-
-                <div
-                  class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
-                  :style="`background: ${group.meta.bg}; border: 1px solid ${group.meta.border}; color: ${group.meta.color};`"
-                >
-                  <component :is="group.meta.lucideIcon" class="w-5 h-5" />
-                </div>
-                <div class="min-w-0">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <h4
-                      class="text-sm font-black flex items-center gap-1.5"
-                      style="color: var(--text-primary)"
-                    >
-                      <span>{{ group.label }}</span>
-                      <button
-                        type="button"
-                        class="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 text-slate-400 hover:text-[#6366f1] transition-colors duration-150 cursor-pointer flex items-center justify-center"
-                        title="重命名分组"
-                        @click.stop="renameModelFamilyGroup(group.key, group.label)"
-                      >
-                        <Edit3 class="w-3 h-3" />
-                      </button>
-                    </h4>
-                    <span
-                      class="px-2 py-0.5 rounded-lg text-[10px] font-bold"
-                      :style="`background: ${group.meta.bg}; color: ${group.meta.color};`"
-                      >{{ $t('admin.ai_model_count', { count: group.models.length }) }}</span
-                    >
-                    <span
-                      class="px-2 py-0.5 rounded-lg text-[10px] font-bold"
-                      style="background: rgba(99, 102, 241, 0.1); color: #6366f1"
-                      >{{ $t('admin.ai_model_enabled_count', { count: group.enabledCount }) }}</span
-                    >
-                    <span
-                      class="px-2 py-0.5 rounded-lg text-[10px] font-bold"
-                      style="
-                        background: var(--bg-card);
-                        color: var(--text-muted);
-                        border: 1px solid var(--border-base);
-                      "
-                      >{{ group.providerLabel }}</span
-                    >
-                  </div>
-                  <div
-                    class="flex flex-wrap items-center gap-3 mt-1.5 text-[10px]"
-                    style="color: var(--text-muted)"
-                  >
-                    <span class="font-mono truncate max-w-[360px]">{{ group.endpointLabel }}</span>
-                    <span
-                      v-if="group.defaultModel"
-                      class="font-bold text-amber-600 dark:text-amber-400"
-                      >{{
-                        $t('admin.ai_default_model_named', {
-                          name: group.defaultModel.name || group.defaultModel.modelName,
-                        })
-                      }}</span
-                    >
-                    <span v-else>{{ $t('admin.ai_no_default_model') }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  :disabled="group.models.length === 0"
-                  class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all duration-200 disabled:opacity-50"
-                  :style="
-                    getGroupSelectedCount(group) > 0
-                      ? 'border-color: rgba(99, 102, 241, 0.3); color: #6366f1; background: rgba(99, 102, 241, 0.02);'
-                      : 'border-color: var(--border-base); color: var(--text-secondary); background: var(--bg-card);'
-                  "
-                  @click.stop="toggleGroupModelSelection(group)"
-                >
-                  <span>{{
-                    getGroupSelectedCount(group) === group.models.length && group.models.length > 0
-                      ? '取消本组'
-                      : '选择本组'
-                  }}</span>
-                  <span
-                    v-if="getGroupSelectedCount(group) > 0"
-                    class="px-1.5 py-0.5 rounded-md text-[10px]"
-                    style="background: rgba(99, 102, 241, 0.1); color: #6366f1"
-                    >{{ getGroupSelectedCount(group) }}</span
-                  >
-                </button>
-                <button
-                  type="button"
-                  class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all duration-200"
-                  :style="`border-color: ${group.meta.border}; color: ${group.meta.color}; background: ${group.meta.bg};`"
-                  @click="addAiModelToFamily(group)"
-                >
-                  <Plus class="w-3.5 h-3.5" />
-                  <span>{{ $t('admin.ai_add_family_model', { family: group.label }) }}</span>
-                </button>
-                <el-switch
-                  :model-value="!disabledGroupKeys.includes(group.key)"
-                  inline-prompt
-                  active-text="启用"
-                  inactive-text="禁用"
-                  style="--el-switch-on-color: #10b981; --el-switch-off-color: #94a3b8"
-                  class="mr-2"
-                  @change="
-                    (val: boolean | string | number) => toggleGroupEnabled(group.key, Boolean(val))
-                  "
-                  @click.stop
-                />
-                <button
-                  type="button"
-                  class="w-8 h-8 rounded-xl flex items-center justify-center border transition-all duration-200"
-                  style="
-                    border-color: var(--border-base);
-                    color: var(--text-muted);
-                    background: var(--bg-card);
-                  "
-                  :title="
-                    isModelFamilyGroupCollapsed(group.key)
-                      ? $t('admin.expand_group')
-                      : $t('admin.collapse_group')
-                  "
-                  @click="toggleModelFamilyGroup(group.key)"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    class="w-4 h-4 transition-transform"
-                    :class="isModelFamilyGroupCollapsed(group.key) ? '-rotate-90' : ''"
-                  >
-                    <path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </header>
-
-          <div v-show="!isModelFamilyGroupCollapsed(group.key)" class="space-y-2 p-3">
-            <div
-              v-if="group.models.length === 0"
-              class="text-center py-8 border border-dashed rounded-xl text-xs text-slate-400 select-none"
-              style="border-color: var(--border-base)"
-            >
-              拖拽模型到此处以分类
-            </div>
-            <div
-              v-for="model in group.models"
-              :key="model.id"
-              :draggable="isHandleClicked"
-              class="group rounded-xl border overflow-hidden transition-all duration-300 hover:shadow-sm hover:border-slate-300 dark:hover:border-zinc-700"
-              :class="{
-                'opacity-50 border-indigo-400 scale-[0.99]':
-                  dragIndex === localAiModelConfigs.findIndex((item) => item.id === model.id),
-              }"
-              :style="
-                isAiModelSelected(model.id)
-                  ? 'border-color: rgba(99, 102, 241, 0.5); background-color: rgba(99, 102, 241, 0.03);'
-                  : model.isDefault
-                    ? 'border-color: rgba(99, 102, 241, 0.4); background-color: var(--bg-card);'
-                    : 'border-color: var(--border-base); background-color: var(--bg-card);'
-              "
-              @dragstart="
-                handleDragStart(
-                  $event,
-                  localAiModelConfigs.findIndex((item) => item.id === model.id),
-                )
-              "
-              @dragover.prevent
-              @drop="
-                handleDrop(
-                  $event,
-                  localAiModelConfigs.findIndex((item) => item.id === model.id),
-                )
-              "
-              @dragend="handleDragEnd"
-            >
-              <!-- Card Header -->
-              <div
-                class="flex items-center gap-3 px-4 py-3.5 cursor-pointer select-none transition-colors duration-200"
-                :style="expandedModelId === model.id ? 'background: var(--bg-app);' : ''"
-                @click="toggleModelExpand(model.id)"
-              >
-                <!-- Drag handle -->
-                <div
-                  class="flex items-center justify-center p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors duration-150 cursor-grab active:cursor-grabbing flex-shrink-0"
-                  :title="$t('admin.drag_and_drop_to')"
-                  @mousedown="handleMouseDown"
-                  @click.stop
-                >
-                  <GripVertical class="w-3.5 h-3.5 text-slate-400" />
-                </div>
-
-                <el-checkbox
-                  :model-value="isAiModelSelected(model.id)"
-                  class="shrink-0 transition-opacity duration-200"
-                  :class="
-                    isAiModelSelected(model.id) || selectedAiModels.length > 0
-                      ? 'opacity-100'
-                      : 'opacity-0 group-hover:opacity-100'
-                  "
-                  @change="toggleAiModelSelection(model.id, $event)"
-                  @click.stop
-                />
-
-                <span
-                  class="w-6 h-6 rounded-lg flex items-center justify-center text-xs shrink-0 font-bold"
-                  :style="`background: ${group.meta.bg}; color: ${group.meta.color};`"
-                >
-                  <component :is="getProviderMeta(model.provider).lucideIcon" class="w-3.5 h-3.5" />
-                </span>
-
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-xs font-bold truncate" style="color: var(--text-primary)">{{
-                      model.name || model.modelName
-                    }}</span>
-                    <span
-                      v-if="model.isDefault"
-                      class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[9px] font-bold"
-                      >{{ $t('admin.default_model') }}</span
-                    >
-                    <span
-                      v-if="isPendingAiModel(model.id)"
-                      class="px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-500 text-[9px] font-bold"
-                      >{{ $t('admin.not_classified') }}</span
-                    >
-                    <!-- Capability badges -->
-                    <template v-if="model.capabilities && model.capabilities.length > 0">
-                      <span
-                        v-for="cap in model.capabilities"
-                        :key="cap"
-                        class="px-1.5 py-0.5 rounded text-[9px] font-bold"
-                        :style="getCapabilityStyle(cap)"
-                      >
-                        {{ getCapabilityLabel(cap) }}
-                      </span>
-                    </template>
-                    <!-- Key count badge — visible when backup keys are configured -->
-                    <span
-                      v-if="(model.apiKeys || []).filter(Boolean).length > 0"
-                      class="px-1.5 py-0.5 rounded text-[9px] font-bold"
-                      style="background: rgba(16, 185, 129, 0.1); color: #059669"
-                      :title="`共 ${1 + (model.apiKeys || []).filter(Boolean).length} 个密钥，主密钥失效时自动轮换`"
-                      >{{ 1 + (model.apiKeys || []).filter(Boolean).length }} 个密钥</span
-                    >
-                    <!-- Failover disabled indicator -->
-                    <span
-                      v-if="model.failoverEnabled === false"
-                      class="px-1.5 py-0.5 rounded text-[9px] font-bold"
-                      style="background: rgba(100, 116, 139, 0.1); color: #64748b"
-                      title="此模型不参与自动故障转移"
-                      >故障转移已关闭</span
-                    >
-                  </div>
-                  <div
-                    class="flex items-center gap-3 mt-1 text-[9px]"
-                    style="color: var(--text-muted)"
-                  >
-                    <span class="font-mono truncate max-w-[200px]">{{ model.modelName }}</span>
-                    <span>{{ getProviderMeta(model.provider).label }}</span>
-                  </div>
-                </div>
-
-                <div class="flex items-center gap-1.5 shrink-0" @click.stop>
-                  <el-switch
-                    v-model="model.enabled"
-                    size="small"
-                    style="--el-switch-on-color: #10b981; --el-switch-off-color: #e2e8f0"
-                    @change="syncAiModelsToSettings"
-                  />
-                  <el-dropdown trigger="click" size="small">
-                    <button
-                      type="button"
-                      class="w-6 h-6 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center text-slate-400 transition-colors border-none bg-transparent cursor-pointer"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        class="w-3.5 h-3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.5"
-                      >
-                        <circle cx="12" cy="12" r="1" />
-                        <circle cx="12" cy="5" r="1" />
-                        <circle cx="12" cy="19" r="1" />
-                      </svg>
-                    </button>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item
-                          :disabled="!model.enabled"
-                          @click="
-                            () => {
-                              localAiModelConfigs.forEach((m) => (m.isDefault = false));
-                              model.isDefault = true;
-                              syncAiModelsToSettings();
-                            }
-                          "
-                        >
-                          设为默认模型
-                        </el-dropdown-item>
-                        <el-dropdown-item @click="cloneAiModel(model)"> 复制模型 </el-dropdown-item>
-                        <el-dropdown-item
-                          v-if="isPendingAiModel(model.id)"
-                          @click="confirmAiModelFamily(model)"
-                        >
-                          确认分类
-                        </el-dropdown-item>
-                        <el-dropdown-item
-                          class="!text-rose-500 hover:!bg-rose-50 dark:hover:!bg-rose-950/20"
-                          @click="removeAiModel(model.id)"
-                        >
-                          删除模型
-                        </el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
-                </div>
-              </div>
-
-              <!-- Card Expanded Details -->
-              <div
-                v-if="expandedModelId === model.id"
-                class="px-5 py-4 border-t space-y-4"
-                style="border-color: var(--border-base); background: var(--bg-card-expanded)"
-                @click.stop
-              >
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div class="space-y-1.5">
-                    <label class="text-[10px] font-bold text-slate-400">模型自定义名称</label>
-                    <input
-                      v-model="model.name"
-                      type="text"
-                      draggable="false"
-                      @dragstart.stop
-                      class="w-full px-3 py-2 rounded-lg border text-xs outline-none transition-colors"
-                      style="
-                        background-color: var(--bg-app);
-                        border-color: var(--border-base);
-                        color: var(--text-primary);
-                      "
-                      @change="syncAiModelsToSettings"
-                    />
-                  </div>
-
-                  <div class="space-y-1.5">
-                    <label class="text-[10px] font-bold text-slate-400">服务商/模型池</label>
-                    <el-select
-                      v-model="model.provider"
-                      size="default"
-                      class="w-full"
-                      @change="
-                        () => {
-                          const defaults = aiProviderDefaults[model.provider];
-                          if (defaults) {
-                            model.endpoint = defaults.endpoint;
-                            if (defaults.model) model.modelName = defaults.model;
-                          }
-                          syncAiModelsToSettings();
-                        }
-                      "
-                    >
-                      <el-option
-                        v-for="(metaData, key) in providerMeta"
-                        :key="key"
-                        :label="metaData.label"
-                        :value="key"
-                      />
-                    </el-select>
-                  </div>
-
-                  <div class="space-y-1.5 md:col-span-2">
-                    <div class="flex items-center justify-between">
-                      <label class="text-[10px] font-bold text-slate-400"
-                        >API Endpoint (请求端点)</label
-                      >
-                      <button
-                        v-if="model.provider === 'OLLAMA'"
-                        type="button"
-                        class="text-[9px] text-[#6366f1] hover:underline bg-transparent border-none cursor-pointer"
-                        @click="model.endpoint = 'http://localhost:11434/v1'"
-                      >
-                        使用 Ollama /v1 兼容格式
-                      </button>
-                    </div>
-                    <input
-                      v-model="model.endpoint"
-                      type="text"
-                      draggable="false"
-                      @dragstart.stop
-                      class="w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none transition-colors"
-                      style="
-                        background-color: var(--bg-app);
-                        border-color: var(--border-base);
-                        color: var(--text-primary);
-                      "
-                      @change="syncAiModelsToSettings"
-                    />
-                  </div>
-
-                  <div class="space-y-1.5 md:col-span-2">
-                    <div class="flex items-center justify-between">
-                      <label class="text-[10px] font-bold text-slate-400 flex items-center gap-1.5"
-                        >API Key (主密钥)</label
-                      >
-                      <span
-                        v-if="(model.apiKeys || []).filter(Boolean).length > 0"
-                        class="px-2 py-0.5 rounded-full text-[9px] font-bold"
-                        style="background: rgba(16, 185, 129, 0.1); color: #059669"
-                        >+{{ (model.apiKeys || []).filter(Boolean).length }} 个备用密钥</span
-                      >
-                    </div>
-                    <input
-                      v-model="model.apiKey"
-                      type="password"
-                      draggable="false"
-                      @dragstart.stop
-                      class="w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none transition-colors"
-                      style="
-                        background-color: var(--bg-app);
-                        border-color: var(--border-base);
-                        color: var(--text-primary);
-                      "
-                      placeholder="主 API Key（必填）"
-                      @change="syncAiModelsToSettings"
-                    />
-
-                    <!-- Backup Keys -->
-                    <div class="mt-2 space-y-1.5">
-                      <label class="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                        <svg
-                          viewBox="0 0 24 24"
-                          class="w-3 h-3"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2.5"
-                        >
-                          <path
-                            d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg>
-                        备用密钥（自动故障转移轮换，主密钥失效时依次尝试）
-                      </label>
-                      <div
-                        v-for="(_, keyIdx) in model.apiKeys || []"
-                        :key="keyIdx"
-                        class="flex items-center gap-2"
-                      >
-                        <input
-                          :value="(model.apiKeys || [])[keyIdx]"
-                          type="password"
-                          draggable="false"
-                          @dragstart.stop
-                          class="flex-1 px-3 py-1.5 rounded-lg border text-xs font-mono outline-none transition-colors"
-                          style="
-                            background-color: var(--bg-app);
-                            border-color: var(--border-base);
-                            color: var(--text-primary);
-                          "
-                          :placeholder="`备用密钥 ${keyIdx + 1}`"
-                          @input="
-                            (e: Event) => {
-                              if (!model.apiKeys) model.apiKeys = [];
-                              model.apiKeys[keyIdx] = (e.target as HTMLInputElement).value;
-                              syncAiModelsToSettings();
-                            }
-                          "
-                        />
-                        <button
-                          type="button"
-                          class="w-6 h-6 rounded flex items-center justify-center text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors flex-shrink-0"
-                          title="删除此备用密钥"
-                          @click="
-                            () => {
-                              model.apiKeys = (model.apiKeys || []).filter((_, i) => i !== keyIdx);
-                              syncAiModelsToSettings();
-                            }
-                          "
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            class="w-3 h-3"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2.5"
-                          >
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
-                          </svg>
-                        </button>
-                      </div>
-                      <button
-                        type="button"
-                        class="flex items-center gap-1 text-[10px] font-semibold transition-colors cursor-pointer bg-transparent border-none"
-                        style="color: #6366f1"
-                        @click="
-                          () => {
-                            if (!model.apiKeys) model.apiKeys = [];
-                            model.apiKeys.push('');
-                            syncAiModelsToSettings();
-                          }
-                        "
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          class="w-3 h-3"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2.5"
-                        >
-                          <line x1="12" y1="5" x2="12" y2="19" />
-                          <line x1="5" y1="12" x2="19" y2="12" />
-                        </svg>
-                        添加备用密钥
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="space-y-1.5 md:col-span-2">
-                    <div class="flex items-center justify-between">
-                      <label class="text-[10px] font-bold text-slate-400"
-                        >模型标识符 ID (每行一个表示支持批量部署)</label
-                      >
-                      <button
-                        type="button"
-                        :disabled="isFetchingAiModels"
-                        class="flex items-center gap-1 text-[9px] text-[#6366f1] hover:underline disabled:opacity-50 bg-transparent border-none cursor-pointer"
-                        @click="fetchAiModels(model)"
-                      >
-                        <RefreshCw
-                          class="w-2.5 h-2.5"
-                          :class="
-                            isFetchingAiModels && fetchingAiModelsModelId === model.id
-                              ? 'animate-spin'
-                              : ''
-                          "
-                        />
-                        <span>在线拉取模型列表</span>
-                      </button>
-                    </div>
-                    <textarea
-                      v-model="model.modelName"
-                      rows="2"
-                      draggable="false"
-                      @dragstart.stop
-                      class="w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none transition-colors resize-none"
-                      style="
-                        background-color: var(--bg-app);
-                        border-color: var(--border-base);
-                        color: var(--text-primary);
-                      "
-                      placeholder="gpt-4o-mini"
-                      @blur="
-                        () => {
-                          if (!isPendingAiModel(model.id)) {
-                            expandModelNameLines(model);
-                          } else {
-                            syncAiModelsToSettings();
-                          }
-                        }
-                      "
-                    ></textarea>
-                  </div>
-                </div>
-
-                <!-- Advanced Options -->
-                <div class="border-t pt-3" style="border-color: var(--border-base)">
-                  <button
-                    type="button"
-                    class="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-slate-600 transition-colors bg-transparent border-none cursor-pointer"
-                    @click="model.showAdvanced = !model.showAdvanced"
-                  >
-                    <span>高级配置参数</span>
-                    <svg
-                      viewBox="0 0 24 24"
-                      class="w-3 h-3 transition-transform"
-                      :class="model.showAdvanced ? 'rotate-180' : ''"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                    >
-                      <path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                  </button>
-
-                  <div
-                    v-if="model.showAdvanced"
-                    class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 animate-in fade-in duration-200"
-                  >
-                    <div class="space-y-1.5 md:col-span-2">
-                      <label class="text-[10px] font-bold text-slate-400"
-                        >能力支持 (Capabilities)</label
-                      >
-                      <div class="flex items-center gap-3 mt-1 flex-wrap">
-                        <el-checkbox
-                          :model-value="model.capabilities.includes('chat')"
-                          label="对话 (Chat)"
-                          @change="
-                            (checked: unknown) => {
-                              if (checked) {
-                                if (!model.capabilities.includes('chat'))
-                                  model.capabilities.push('chat');
-                              } else {
-                                model.capabilities = model.capabilities.filter((c) => c !== 'chat');
-                              }
-                              syncAiModelsToSettings();
-                            }
-                          "
-                        />
-                        <el-checkbox
-                          :model-value="model.capabilities.includes('image')"
-                          label="画图 (Image)"
-                          @change="
-                            (checked: unknown) => {
-                              if (checked) {
-                                if (!model.capabilities.includes('image'))
-                                  model.capabilities.push('image');
-                              } else {
-                                model.capabilities = model.capabilities.filter(
-                                  (c) => c !== 'image',
-                                );
-                              }
-                              syncAiModelsToSettings();
-                            }
-                          "
-                        />
-                        <el-checkbox
-                          :model-value="model.capabilities.includes('video')"
-                          label="视频 (Video)"
-                          @change="
-                            (checked: unknown) => {
-                              if (checked) {
-                                if (!model.capabilities.includes('video'))
-                                  model.capabilities.push('video');
-                              } else {
-                                model.capabilities = model.capabilities.filter(
-                                  (c) => c !== 'video',
-                                );
-                              }
-                              syncAiModelsToSettings();
-                            }
-                          "
-                        />
-                        <el-checkbox
-                          :model-value="model.capabilities.includes('translate')"
-                          label="翻译 (Translate)"
-                          @change="
-                            (checked: unknown) => {
-                              if (checked) {
-                                if (!model.capabilities.includes('translate'))
-                                  model.capabilities.push('translate');
-                              } else {
-                                model.capabilities = model.capabilities.filter(
-                                  (c) => c !== 'translate',
-                                );
-                              }
-                              syncAiModelsToSettings();
-                            }
-                          "
-                        />
-                      </div>
-                    </div>
-
-                    <div class="space-y-1.5">
-                      <div class="flex items-center justify-between">
-                        <label class="text-[10px] font-bold text-slate-400"
-                          >Temperature: {{ model.temperature }}</label
-                        >
-                      </div>
-                      <el-slider
-                        v-model="model.temperature"
-                        :min="0"
-                        :max="2"
-                        :step="0.1"
-                        class="w-full"
-                        @change="syncAiModelsToSettings"
-                      />
-                    </div>
-
-                    <div class="space-y-1.5">
-                      <label class="text-[10px] font-bold text-slate-400"
-                        >最大回复 Tokens (Max Tokens)</label
-                      >
-                      <input
-                        v-model.number="model.maxTokens"
-                        type="number"
-                        min="1"
-                        max="32768"
-                        draggable="false"
-                        @dragstart.stop
-                        class="w-full px-3 py-2 rounded-lg border text-xs outline-none transition-colors"
-                        style="
-                          background-color: var(--bg-app);
-                          border-color: var(--border-base);
-                          color: var(--text-primary);
-                        "
-                        @change="syncAiModelsToSettings"
-                      />
-                    </div>
-
-                    <div class="space-y-1.5 md:col-span-2">
-                      <label class="text-[10px] font-bold text-slate-400"
-                        >系统引导词提示 (System Prompt)</label
-                      >
-                      <textarea
-                        v-model="model.systemPrompt"
-                        rows="3"
-                        draggable="false"
-                        @dragstart.stop
-                        class="w-full px-3 py-2 rounded-lg border text-xs outline-none transition-colors resize-none"
-                        style="
-                          background-color: var(--bg-app);
-                          border-color: var(--border-base);
-                          color: var(--text-primary);
-                        "
-                        placeholder="引导AI的系统 Prompt 提示词"
-                        @change="syncAiModelsToSettings"
-                      ></textarea>
-                    </div>
-
-                    <!-- Failover Settings -->
-                    <div
-                      class="md:col-span-2 flex items-center justify-between p-3 rounded-xl border"
-                      style="border-color: var(--border-base); background: var(--bg-app)"
-                    >
-                      <div>
-                        <div class="text-[10px] font-bold" style="color: var(--text-primary)">
-                          参与自动故障转移
-                        </div>
-                        <div class="text-[9px] mt-0.5" style="color: var(--text-muted)">
-                          开启后，主密钥或模型失败时系统将自动切换至此模型/其他密钥
-                        </div>
-                      </div>
-                      <el-switch
-                        :model-value="model.failoverEnabled !== false"
-                        size="small"
-                        style="--el-switch-on-color: #6366f1; --el-switch-off-color: #94a3b8"
-                        @change="
-                          (val: boolean | string | number) => {
-                            model.failoverEnabled = Boolean(val);
-                            syncAiModelsToSettings();
-                          }
-                        "
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Card Actions -->
-                <div
-                  class="flex items-center justify-between border-t pt-3"
-                  style="border-color: var(--border-base)"
-                >
-                  <button
-                    type="button"
-                    :disabled="isTestingAi"
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 disabled:opacity-50 cursor-pointer"
-                    style="
-                      border-color: rgba(99, 102, 241, 0.3);
-                      color: #6366f1;
-                      background: rgba(99, 102, 241, 0.03);
-                    "
-                    @click="testAi(model)"
-                  >
-                    <RefreshCw
-                      class="w-3 h-3"
-                      :class="isTestingAi && testingAiModelId === model.id ? 'animate-spin' : ''"
-                    />
-                    <span>{{
-                      isTestingAi && testingAiModelId === model.id ? '正在测试...' : '测试此连接'
-                    }}</span>
-                  </button>
-
-                  <div class="flex items-center gap-2">
-                    <button
-                      v-if="isPendingAiModel(model.id)"
-                      type="button"
-                      class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer"
-                      style="
-                        background: linear-gradient(135deg, #10b981, #059669);
-                        color: white;
-                        box-shadow: 0 2px 10px rgba(16, 185, 129, 0.2);
-                      "
-                      @click="confirmAiModelFamily(model)"
-                    >
-                      确认分类
-                    </button>
-                    <button
-                      type="button"
-                      class="px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer"
-                      style="border-color: var(--border-base); color: var(--text-secondary)"
-                      @click="cloneAiModel(model)"
-                    >
-                      复制
-                    </button>
-                    <button
-                      type="button"
-                      class="px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 cursor-pointer"
-                      style="border-color: rgba(244, 63, 94, 0.2)"
-                      @click="removeAiModel(model.id)"
-                    >
-                      删除
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <!-- Disabled Model Family Groups (Folded section at the bottom) -->
-      <div
-        v-if="disabledModelFamilyGroups.length > 0"
-        class="pt-4 border-t"
-        style="border-color: var(--border-base)"
-      >
-        <button
-          type="button"
-          class="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors bg-transparent border-none cursor-pointer"
-          @click="isUnenabledGroupCollapsed = !isUnenabledGroupCollapsed"
-        >
-          <span>已禁用的模型分组 ({{ disabledModelFamilyGroups.length }})</span>
-          <svg
-            viewBox="0 0 24 24"
-            class="w-3.5 h-3.5 transition-transform"
-            :class="isUnenabledGroupCollapsed ? '' : 'rotate-180'"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-          >
-            <path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-
-        <div
-          v-if="!isUnenabledGroupCollapsed"
-          class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 animate-in fade-in duration-200"
-        >
-          <div
-            v-for="group in disabledModelFamilyGroups"
-            :key="group.key"
-            class="flex items-center justify-between p-3 rounded-xl border text-xs"
-            style="border-color: var(--border-base); background: var(--bg-card)"
-          >
-            <div class="flex items-center gap-3 min-w-0">
-              <span
-                class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 opacity-60"
-                :style="`background: ${group.meta.bg}; color: ${group.meta.color};`"
-              >
-                <component :is="group.meta.lucideIcon" class="w-4 h-4" />
-              </span>
-              <div class="min-w-0">
-                <p class="font-bold truncate" style="color: var(--text-primary)">
-                  {{ group.label }}
-                </p>
-                <p class="text-[10px]" style="color: var(--text-muted)">
-                  共 {{ group.models.length }} 个模型
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              class="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 cursor-pointer"
-              style="
-                border-color: rgba(16, 185, 129, 0.25);
-                color: #059669;
-                background: rgba(16, 185, 129, 0.05);
-              "
-              @click="toggleGroupEnabled(group.key, true)"
-            >
-              重新启用
-            </button>
-          </div>
-        </div>
-      </div>
+      <AiDisabledGroups
+        :groups="disabledModelFamilyGroups"
+        @enable-group="(key: string) => toggleGroupEnabled(key, true)"
+      />
     </div>
 
-    <!-- Bottom Actions for AI Config -->
-    <div
+    <AiModelPoolFooter
       v-if="localSettings.AI_IMPORT_ENABLED"
-      class="flex flex-col sm:flex-row items-center justify-between p-4 rounded-2xl border gap-4"
-      style="border-color: rgba(99, 102, 241, 0.2); background: rgba(99, 102, 241, 0.02)"
-    >
-      <p class="text-[10px] hidden sm:block" style="color: var(--text-muted)">
-        {{ $t('admin.please_test_connectivity_before') }}
-      </p>
-      <button
-        type="button"
-        :disabled="isTestingAi"
-        class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-200 disabled:opacity-50 cursor-pointer"
-        style="
-          border-color: rgba(99, 102, 241, 0.3);
-          color: #6366f1;
-          background: rgba(99, 102, 241, 0.06);
-        "
-        @click="
-          testAi(localAiModelConfigs.find((model) => model.isDefault) || localAiModelConfigs[0])
-        "
-      >
-        <RefreshCw
-          class="w-3.5 h-3.5"
-          :class="isTestingAi && testingAiModelId === '__legacy__' ? 'animate-spin' : ''"
-        />
-        <span>{{
-          isTestingAi && testingAiModelId === '__legacy__'
-            ? $t('admin.testing')
-            : $t('admin.test_default_model_connections')
-        }}</span>
-      </button>
-    </div>
+      :is-testing-ai="isTestingAi"
+      :testing-ai-model-id="testingAiModelId"
+      @test="testAi(localAiModelConfigs.find((model) => model.isDefault) || localAiModelConfigs[0])"
+    />
   </div>
 
-  <Modal
+  <AiModelFetchModal
     :show="modelFetchDialogVisible"
-    title="选择可用模型"
-    size="lg"
+    :target-name="modelFetchTarget?.name || modelFetchTarget?.provider || 'AI Model'"
+    :total="fetchedModelOptions.length"
+    :search="fetchedModelSearch"
+    :options="fetchedModelOptions"
+    :selected-ids="selectedFetchedModelIds"
     @close="modelFetchDialogVisible = false"
-  >
-    <div class="space-y-3">
-      <div class="flex items-center justify-between gap-3">
-        <div class="min-w-0">
-          <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
-            {{ modelFetchTarget?.name || modelFetchTarget?.provider || 'AI Model' }}
-          </p>
-          <p class="text-[11px] truncate" style="color: var(--text-muted)">
-            {{ fetchedModelOptions.length }} 个可用模型
-          </p>
-        </div>
-        <input
-          v-model="fetchedModelSearch"
-          type="text"
-          placeholder="搜索模型"
-          class="w-56 px-3 py-2 rounded-xl border text-xs outline-none transition-colors"
-          style="
-            background-color: var(--bg-app);
-            border-color: var(--border-base);
-            color: var(--text-primary);
-          "
-        />
-      </div>
+    @update:search="(val: string) => (fetchedModelSearch = val)"
+    @update:selected-ids="(val: string[]) => (selectedFetchedModelIds = val)"
+    @apply="applyFetchedModels"
+  />
 
-      <div
-        class="max-h-[420px] overflow-y-auto rounded-xl border"
-        style="border-color: var(--border-base); background: var(--bg-app)"
-      >
-        <el-checkbox-group v-model="selectedFetchedModelIds" class="block">
-          <div
-            v-for="option in filteredFetchedModelOptions"
-            :key="option.id"
-            class="flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 transition-colors hover:bg-white/60 dark:hover:bg-white/5"
-            style="border-color: var(--border-base)"
-          >
-            <el-checkbox :value="option.id" />
-            <span class="min-w-0 flex-1">
-              <span
-                class="block text-xs font-bold font-mono truncate"
-                style="color: var(--text-primary)"
-                >{{ option.id }}</span
-              >
-              <span
-                v-if="option.name || option.ownedBy"
-                class="block text-[10px] truncate"
-                style="color: var(--text-muted)"
-              >
-                {{ [option.name, option.ownedBy].filter(Boolean).join(' / ') }}
-              </span>
-            </span>
-          </div>
-        </el-checkbox-group>
-
-        <div
-          v-if="filteredFetchedModelOptions.length === 0"
-          class="py-10 text-center text-xs"
-          style="color: var(--text-muted)"
-        >
-          未找到匹配模型
-        </div>
-      </div>
-    </div>
-
-    <template #footer>
-      <div class="flex items-center justify-between gap-3">
-        <span class="text-[11px]" style="color: var(--text-muted)">
-          已选择 {{ selectedFetchedModelIds.length }} 个
-        </span>
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            class="px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="modelFetchDialogVisible = false"
-          >
-            取消
-          </button>
-          <button
-            type="button"
-            class="px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer"
-            style="
-              background: linear-gradient(135deg, #6366f1, #8b5cf6);
-              color: white;
-              box-shadow: 0 2px 12px rgba(99, 102, 241, 0.25);
-            "
-            @click="applyFetchedModels"
-          >
-            应用选择
-          </button>
-        </div>
-      </div>
-    </template>
-  </Modal>
-
-  <Modal
-    :show="categoryDialog.show"
+  <CategoryFormDialog
+    v-model:show="categoryDialog.show"
+    v-model:name="categoryDialog.name"
+    mode="ai"
     :title="categoryDialogTitle"
-    size="sm"
-    glass-card
-    @close="categoryDialog.show = false"
-  >
-    <div class="space-y-4">
-      <div>
-        <label
-          class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
-        >
-          {{ categoryDialogLabel }}
-        </label>
-        <input
-          v-model="categoryDialog.name"
-          type="text"
-          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
-          style="
-            background-color: var(--bg-app);
-            border-color: var(--border-base);
-            color: var(--text-primary);
-          "
-          @keyup.enter="submitCategoryDialog"
-        />
-      </div>
-    </div>
-    <template #footer>
-      <div class="flex items-center gap-3">
-        <Button variant="secondary" size="md" @click="categoryDialog.show = false"> 取消 </Button>
-        <Button variant="primary" size="md" @click="submitCategoryDialog"> 确定 </Button>
-      </div>
-    </template>
-  </Modal>
+    :label="categoryDialogLabel"
+    @submit="submitCategoryDialog"
+  />
 </template>

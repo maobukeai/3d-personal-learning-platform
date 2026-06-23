@@ -403,7 +403,7 @@ function openQuickAction(action: QuickAction) {
           padding="none"
           @click="emit('navigate', metric.route)"
         >
-          <div class="flex items-center justify-between w-full h-full min-w-0 gap-3">
+          <div class="mobile-row flex items-center justify-between w-full h-full min-w-0 gap-3">
             <div class="flex items-center gap-3 min-w-0">
               <span class="metric-icon flex items-center justify-center rounded-lg w-9 h-9"
                 ><component :is="metric.icon" class="h-4.5 w-4.5"
@@ -464,7 +464,7 @@ function openQuickAction(action: QuickAction) {
               <div
                 v-for="task in visibleTasks"
                 :key="task.id"
-                class="task-row"
+                class="task-row mobile-row"
                 :class="[
                   task.priority === 'URGENT' || task.priority === 'HIGH'
                     ? 'border-l-[3px] border-l-red-500'
@@ -491,7 +491,7 @@ function openQuickAction(action: QuickAction) {
                   />
                 </span>
                 <span class="task-main">
-                  <strong class="text-sm font-bold text-slate-800 dark:text-slate-100">{{
+                  <strong class="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{{
                     task.title
                   }}</strong>
                   <small class="text-xs text-slate-400 font-medium">
@@ -554,7 +554,7 @@ function openQuickAction(action: QuickAction) {
                 v-for="project in projectHealth"
                 :key="project.id"
                 type="button"
-                class="project-row"
+                class="project-row mobile-row"
                 :class="getHealthClass(project.healthScore)"
                 @click="emit('navigate', `/project/${project.id}`)"
               >
@@ -565,7 +565,7 @@ function openQuickAction(action: QuickAction) {
                 >
                 <span class="project-body">
                   <span class="project-title">
-                    <strong class="text-sm font-bold text-slate-800 dark:text-slate-100">{{
+                    <strong class="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{{
                       project.title
                     }}</strong>
                     <small class="text-xs text-slate-400 font-medium"
@@ -1596,6 +1596,15 @@ function openQuickAction(action: QuickAction) {
 
   .ops-workbench-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  /* Override the global content-surface grid compaction so dashboard stacks vertically */
+  .dashboard-grid-layout.dashboard-grid-layout,
+  .work-grid.work-grid,
+  .ops-workbench-grid.ops-workbench-grid {
+    grid-template-columns: 1fr !important;
   }
 }
 </style>

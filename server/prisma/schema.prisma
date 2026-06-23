@@ -118,7 +118,7 @@ model Conversation {
 
 model Message {
   id             String            @id @default(uuid())
-  content        String
+  content        String            @db.Text
   type           String            @default("TEXT")
   senderId       String
   sender         User              @relation(fields: [senderId], references: [id], onDelete: Cascade)

@@ -116,15 +116,6 @@ const filteredFeedbacks = computed(() => {
   });
 });
 
-const stats = computed(() => ({
-  total: feedbacks.value.length,
-  open: feedbacks.value.filter((item) => item.status === 'OPEN').length,
-  processing: feedbacks.value.filter((item) => item.status === 'IN_PROGRESS').length,
-  resolved: feedbacks.value.filter((item) => item.status === 'RESOLVED').length,
-  high: feedbacks.value.filter((item) => item.priority === 'HIGH' && item.status !== 'CLOSED')
-    .length,
-}));
-
 const resolvedRate = computed(() => {
   if (feedbacks.value.length === 0) return 100;
   const resolvedCount = feedbacks.value.filter(
@@ -373,7 +364,7 @@ onMounted(fetchFeedbacks);
 
 <template>
   <div
-    class="admin-feedback-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
+    class="admin-feedback-page mobile-adaptive flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
       <PageHeader title="用户反馈" subtitle="用户与团队" variant="card">
@@ -396,7 +387,7 @@ onMounted(fetchFeedbacks);
         </UiButton>
       </PageHeader>
       <!-- KPI Metrics Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mobile-grid">
         <Card
           v-for="card in consolidatedCards"
           :key="card.label"
@@ -444,10 +435,10 @@ onMounted(fetchFeedbacks);
       <!-- Filters & Search Toolbar -->
       <Card padding="sm">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="flex items-center gap-3 overflow-x-auto scrollbar-hide shrink-0">
+          <div class="flex items-center gap-3 overflow-x-auto scrollbar-hide shrink-0 mobile-row">
             <Tabs v-model="statusFilter" :options="statusTabs" variant="solid" />
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 mobile-row">
             <el-select v-model="priorityFilter" size="small" style="width: 120px">
               <el-option
                 v-for="item in priorityOptions"
@@ -471,12 +462,12 @@ onMounted(fetchFeedbacks);
       <!-- Batch operations bar -->
       <div
         v-if="selectedIds.length"
-        class="batch-bar flex items-center justify-between gap-3 p-2 px-3 border border-slate-100 dark:border-white/5 bg-white/40 dark:bg-white/5 backdrop-blur-sm rounded-lg"
+        class="batch-bar flex items-center justify-between gap-3 p-2 px-3 border border-slate-100 dark:border-white/5 bg-white/40 dark:bg-white/5 backdrop-blur-sm rounded-lg mobile-row"
       >
         <span class="text-xs font-semibold text-[var(--text-secondary)]"
           >已选择 {{ selectedIds.length }} 条反馈</span
         >
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 mobile-row">
           <UiButton variant="secondary" size="sm" @click="batchUpdateStatus('IN_PROGRESS')"
             >标记处理中</UiButton
           >
@@ -499,7 +490,7 @@ onMounted(fetchFeedbacks);
         <el-table
           v-loading="isLoading"
           :data="filteredFeedbacks"
-          class="user-table w-full flex-1"
+          class="user-table w-full flex-1 mobile-table"
           row-class-name="table-row"
           @row-click="openDetail"
         >
@@ -682,7 +673,7 @@ onMounted(fetchFeedbacks);
           <small>{{ formatDate(activeFeedback.repliedAt) }}</small>
         </section>
 
-        <div class="drawer-actions">
+        <div class="drawer-actions mobile-row">
           <UiButton
             variant="secondary"
             :icon="MessageSquare"
@@ -841,11 +832,6 @@ onMounted(fetchFeedbacks);
   flex-wrap: wrap;
 }
 
-.form-stack {
-  display: grid;
-  gap: 14px;
-}
-
 .feedback-preview {
   padding: 12px;
   border-radius: 8px;
@@ -857,24 +843,6 @@ onMounted(fetchFeedbacks);
   color: var(--text-muted);
   font-size: 13px;
   line-height: 1.6;
-}
-
-.form-stack label {
-  display: grid;
-  gap: 7px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.form-stack textarea,
-.form-stack select {
-  min-height: 40px;
-  padding: 10px 11px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
-  resize: vertical;
 }
 
 .dialog-btn {

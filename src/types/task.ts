@@ -95,7 +95,11 @@ export interface Task {
   createdAt?: string;
   updatedAt?: string;
   parsedTags?: string[];
-  parsedSubtasks?: any[];
+  parsedSubtasks?: Subtask[];
+  // Runtime-only fields used when subtasks are flattened into the task list/board
+  isSubtask?: boolean;
+  parentId?: string | null;
+  subtaskIndex?: number;
 }
 
 export interface ActiveColumn {

@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { formatDateTime as formatDate } from '@/utils/format';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   AlertTriangle,
   BarChart3,
   Clock3,
-  Copy,
   Download,
   Eye,
   FileSearch,
@@ -23,6 +21,7 @@ import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import UserAvatar from '@/components/UserAvatar.vue';
 import type { User } from '@/types';
+import { useAuditLogHelpers, AUDIT_MODULES } from '@/composables/useAuditLogHelpers';
 
 // UI components
 import PageHeader from '@/components/PageHeader.vue';
@@ -30,20 +29,7 @@ import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Tabs from '@/components/ui/Tabs.vue';
-import Modal from '@/components/ui/Modal.vue';
-
-interface AuditLog {
-  id: string;
-  module: string;
-  action: string;
-  description?: string | null;
-  oldValue?: string | null;
-  newValue?: string | null;
-  ipAddress?: string | null;
-  userAgent?: string | null;
-  createdAt: string;
-  user?: User | null;
-}
+import AuditLogDetailModal, { type AuditLog } from './components/AuditLogDetailModal.vue';
 
 interface AuditSummaryItem {
   module?: string;
@@ -58,8 +44,6 @@ interface AuditInsights {
   trend: Array<{ date: string; total: number; high: number; medium: number; low: number }>;
   windowDays?: number | null;
 }
-
-type AuditSeverity = 'high' | 'medium' | 'low';
 
 const defaultInsights = (): AuditInsights => ({
   severity: { high: 0, medium: 0, low: 0 },
@@ -77,6 +61,12 @@ const pageSize = ref(50);
 const isLoading = ref(true);
 const isExporting = ref(false);
 const selectedLog = ref<AuditLog | null>(null);
+const detailModalVisible = computed({
+  get: () => !!selectedLog.value,
+  set: (val) => {
+    if (!val) selectedLog.value = null;
+  },
+});
 const tableRowClassName = ({ row }: { row: AuditLog }) => {
   return selectedLog.value?.id === row.id ? 'selected-row' : '';
 };
@@ -96,21 +86,18 @@ const summary = ref<{ modules: AuditSummaryItem[]; actions: AuditSummaryItem[] }
 });
 const insights = ref<AuditInsights>(defaultInsights());
 
-const modules = [
-  { label: '全部模块', value: '' },
-  { label: '系统设置', value: 'SETTINGS', tone: 'tone-settings' },
-  { label: '用户', value: 'USER', tone: 'tone-user' },
-  { label: '团队', value: 'TEAM', tone: 'tone-team' },
-  { label: '课程', value: 'COURSE', tone: 'tone-course' },
-  { label: '资产', value: 'ASSET', tone: 'tone-asset' },
-  { label: '材质', value: 'MATERIAL', tone: 'tone-material' },
-  { label: '作品', value: 'SHOWCASE', tone: 'tone-showcase' },
-  { label: '插件', value: 'PLUGIN', tone: 'tone-plugin' },
-  { label: '反馈', value: 'FEEDBACK', tone: 'tone-feedback' },
-  { label: '登录认证', value: 'AUTH', tone: 'tone-auth' },
-  { label: '项目', value: 'PROJECT', tone: 'tone-project' },
-  { label: '任务', value: 'TASK', tone: 'tone-task' },
-];
+const {
+  getActionLabel,
+  getModuleLabel,
+  getModuleTone,
+  getSeverity,
+  getSeverityLabel,
+  getAgentLabel,
+  getActorName,
+  formatShortDate,
+  formatRelative,
+  formatDay,
+} = useAuditLogHelpers();
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 let liveTimer: ReturnType<typeof setInterval> | null = null;
@@ -136,13 +123,6 @@ const activeFilters = computed(() => {
     dateTo.value,
   ];
   return filters.filter(Boolean).length;
-});
-
-const visibleRange = computed(() => {
-  if (total.value === 0) return '0';
-  const start = (currentPage.value - 1) * pageSize.value + 1;
-  const end = Math.min(currentPage.value * pageSize.value, total.value);
-  return `${start}-${end}`;
 });
 
 const highRiskCount = computed(() => insights.value.severity.high || 0);
@@ -214,33 +194,6 @@ const exportCsv = async () => {
   }
 };
 
-const resetFilters = () => {
-  moduleFilter.value = '';
-  actionFilter.value = '';
-  searchFilter.value = '';
-  userIdFilter.value = '';
-  dateFrom.value = '';
-  dateTo.value = '';
-  currentPage.value = 1;
-  fetchLogs();
-};
-
-const setPage = (page: number) => {
-  const nextPage = Math.min(Math.max(page, 1), totalPages.value);
-  if (nextPage === currentPage.value) return;
-  currentPage.value = nextPage;
-  fetchLogs();
-};
-
-const copyValue = async (value: string, label = '内容') => {
-  try {
-    await navigator.clipboard.writeText(value);
-    ElMessage.success(`${label}已复制`);
-  } catch {
-    ElMessage.warning('当前浏览器不允许复制');
-  }
-};
-
 const toggleAutoRefresh = () => {
   autoRefresh.value = !autoRefresh.value;
 };
@@ -273,110 +226,6 @@ const selectActor = (actor: { userId?: string | null }) => {
   userIdFilter.value = userIdFilter.value === actor.userId ? '' : actor.userId;
 };
 
-const formatShortDate = (date: string) => {
-  return new Date(date).toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
-const formatDay = (date: string) => {
-  return new Date(date).toLocaleDateString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-  });
-};
-
-const formatRelative = (date: string) => {
-  const diffSeconds = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 1000));
-  if (diffSeconds < 60) return `${diffSeconds} 秒前`;
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  if (diffMinutes < 60) return `${diffMinutes} 分钟前`;
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours} 小时前`;
-  return `${Math.floor(diffHours / 24)} 天前`;
-};
-
-const getActionLabel = (action: string) => {
-  const labels: Record<string, string> = {
-    LOGIN: '登录',
-    LOGOUT: '退出',
-    UPDATE_SETTINGS: '更新设置',
-    CREATE_USER: '创建用户',
-    UPDATE_USER: '更新用户',
-    DELETE_USER: '删除用户',
-    RESET_PASSWORD: '重置密码',
-    REVOKE_SESSIONS: '撤销会话',
-    CREATE_ASSET: '创建资产',
-    UPDATE_ASSET: '更新资产',
-    APPROVE_ASSET: '通过资产',
-    REJECT_ASSET: '驳回资产',
-    DELETE_ASSET: '删除资产',
-    CREATE_COURSE: '创建课程',
-    UPDATE_COURSE: '更新课程',
-    DELETE_COURSE: '删除课程',
-    CREATE_MATERIAL: '创建材质',
-    UPDATE_MATERIAL: '更新材质',
-    DELETE_MATERIAL: '删除材质',
-    APPROVE_MATERIAL: '通过材质',
-    REJECT_MATERIAL: '驳回材质',
-    APPROVE_SHOWCASE: '通过作品',
-    REJECT_SHOWCASE: '驳回作品',
-    UPDATE_SHOWCASE: '更新作品',
-    DELETE_SHOWCASE: '删除作品',
-    APPROVE_PLUGIN: '通过插件',
-    REJECT_PLUGIN: '驳回插件',
-    UPDATE_PLUGIN: '更新插件',
-    DELETE_PLUGIN: '删除插件',
-    UPDATE_FEEDBACK: '更新反馈',
-    DELETE_FEEDBACK: '删除反馈',
-  };
-  return labels[action] || action;
-};
-
-const getModuleLabel = (module: string) => {
-  return modules.find((item) => item.value === module)?.label || module || '未知模块';
-};
-
-const getModuleTone = (module: string) => {
-  return modules.find((item) => item.value === module)?.tone || 'tone-default';
-};
-
-const getSeverity = (action: string): AuditSeverity => {
-  if (/DELETE|RESET_PASSWORD|REVOKE|BAN|CLEANUP|REJECT/.test(action)) return 'high';
-  if (/UPDATE_SETTINGS|BATCH|APPROVE|CREATE_USER|UPDATE_USER/.test(action)) return 'medium';
-  return 'low';
-};
-
-const getSeverityLabel = (action: string) => {
-  const severity = getSeverity(action);
-  if (severity === 'high') return '高';
-  if (severity === 'medium') return '中';
-  return '低';
-};
-
-const getAgentLabel = (userAgent?: string | null) => {
-  if (!userAgent) return '未知设备';
-  if (/Edg/i.test(userAgent)) return 'Microsoft Edge';
-  if (/Chrome/i.test(userAgent)) return 'Chrome';
-  if (/Firefox/i.test(userAgent)) return 'Firefox';
-  if (/Safari/i.test(userAgent)) return 'Safari';
-  return userAgent.split(' ')[0] || '未知设备';
-};
-
-const getActorName = (user?: User | null) => user?.name || user?.email || 'System';
-
-const prettyJson = (value?: string | null) => {
-  if (!value) return '无';
-  try {
-    return JSON.stringify(JSON.parse(value), null, 2);
-  } catch {
-    return value;
-  }
-};
-
 watch([moduleFilter, actionFilter, searchFilter, userIdFilter, dateFrom, dateTo, pageSize], () => {
   if (searchTimer) clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
@@ -399,7 +248,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="audit-console flex flex-1 min-h-0 flex-col overflow-hidden">
+  <div class="audit-console flex flex-1 min-h-0 flex-col overflow-hidden mobile-adaptive">
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
       <PageHeader
         title="审计日志"
@@ -469,7 +318,7 @@ onBeforeUnmount(() => {
           <label class="filter-field">
             <Filter />
             <select v-model="moduleFilter">
-              <option v-for="item in modules" :key="item.value" :value="item.value">
+              <option v-for="item in AUDIT_MODULES" :key="item.value" :value="item.value">
                 {{ item.label }}
               </option>
             </select>
@@ -549,7 +398,7 @@ onBeforeUnmount(() => {
             <el-table
               v-loading="isLoading"
               :data="logs"
-              class="user-table w-full"
+              class="user-table w-full mobile-table"
               :row-class-name="tableRowClassName"
               row-key="id"
               @row-click="(row) => (selectedLog = row)"
@@ -653,7 +502,7 @@ onBeforeUnmount(() => {
 
           <!-- Pagination wrap -->
           <div
-            class="pagination-wrap mt-4 flex items-center justify-between p-3 border-t border-slate-100 dark:border-white/5 bg-white/40 dark:bg-transparent"
+            class="pagination-wrap mt-4 flex items-center justify-between p-3 border-t border-slate-100 dark:border-white/5 bg-white/40 dark:bg-transparent mobile-row"
           >
             <el-pagination
               v-model:current-page="currentPage"
@@ -782,95 +631,7 @@ onBeforeUnmount(() => {
     </main>
 
     <!-- Refactored Log Details Modal using Modal, UserAvatar components with Glassmorphism styles -->
-    <Modal :show="!!selectedLog" size="xl" glass-card @close="selectedLog = null">
-      <template #header>
-        <div v-if="selectedLog" class="flex items-center justify-between w-full pr-8 text-left">
-          <div>
-            <span
-              class="status-pill inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider mb-1"
-              :class="getModuleTone(selectedLog.module)"
-            >
-              {{ getModuleLabel(selectedLog.module) }}
-            </span>
-            <h2 class="text-lg font-black text-[var(--text-primary)] leading-tight">
-              {{ getActionLabel(selectedLog.action) }}
-            </h2>
-            <div class="flex items-center gap-1.5 mt-1">
-              <span class="text-[10px] text-slate-400 dark:text-slate-500 font-mono select-all">
-                {{ selectedLog.id }}
-              </span>
-              <button
-                type="button"
-                class="p-1 rounded text-slate-400 hover:text-accent hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                title="复制 ID"
-                @click="copyValue(selectedLog.id, '日志 ID')"
-              >
-                <Copy class="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <div v-if="selectedLog" class="space-y-4 text-left">
-        <div class="detail-grid">
-          <div>
-            <span>时间</span><b>{{ formatDate(selectedLog.createdAt) }}</b>
-          </div>
-          <div>
-            <span>风险等级</span><b>{{ getSeverityLabel(selectedLog.action) }}风险</b>
-          </div>
-          <div>
-            <span>IP</span><b>{{ selectedLog.ipAddress || '-' }}</b>
-          </div>
-          <div>
-            <span>设备</span><b>{{ getAgentLabel(selectedLog.userAgent) }}</b>
-          </div>
-        </div>
-
-        <section class="detail-section">
-          <h3>操作者</h3>
-          <div class="drawer-user flex items-center gap-2.5 mt-2">
-            <UserAvatar :user="selectedLog.user" size="md" />
-            <div>
-              <strong class="block text-sm font-black text-[var(--text-primary)]">{{
-                getActorName(selectedLog.user)
-              }}</strong>
-              <span class="block text-xs text-[var(--text-secondary)] mt-0.5">{{
-                selectedLog.user?.email || 'SYSTEM'
-              }}</span>
-            </div>
-          </div>
-        </section>
-
-        <section class="detail-section">
-          <h3>描述</h3>
-          <p class="text-sm text-[var(--text-secondary)] mt-1.5">
-            {{ selectedLog.description || '无' }}
-          </p>
-        </section>
-
-        <section class="detail-section">
-          <h3>User Agent</h3>
-          <p
-            class="break-text text-xs text-[var(--text-secondary)] mt-1.5 font-medium leading-relaxed"
-          >
-            {{ selectedLog.userAgent || '无' }}
-          </p>
-        </section>
-
-        <div class="json-grid">
-          <section class="detail-section">
-            <h3>旧值</h3>
-            <pre>{{ prettyJson(selectedLog.oldValue) }}</pre>
-          </section>
-          <section class="detail-section">
-            <h3>新值</h3>
-            <pre>{{ prettyJson(selectedLog.newValue) }}</pre>
-          </section>
-        </div>
-      </div>
-    </Modal>
+    <AuditLogDetailModal v-model="detailModalVisible" :log="selectedLog" />
   </div>
 </template>
 
@@ -1558,80 +1319,6 @@ button:disabled {
   font-weight: 800;
 }
 
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.detail-grid div,
-.detail-section {
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
-  padding: 10px;
-}
-
-.detail-grid span,
-.detail-section h3 {
-  display: block;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 950;
-}
-
-.detail-grid b,
-.detail-section p {
-  margin-top: 5px;
-  display: block;
-  color: var(--text-primary);
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.drawer-user {
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.drawer-user strong,
-.drawer-user span {
-  display: block;
-}
-
-.drawer-user strong {
-  font-size: 13px;
-  font-weight: 950;
-}
-
-.drawer-user span {
-  margin-top: 2px;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.break-text {
-  word-break: break-word;
-}
-
-.json-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.detail-section pre {
-  max-height: 340px;
-  margin: 8px 0 0;
-  overflow: auto;
-  border-radius: 8px;
-  background: #111827;
-  padding: 10px;
-  color: #dbeafe;
-  font-size: 11px;
-  line-height: 1.6;
-}
-
 .spinning {
   animation: spin 0.9s linear infinite;
 }
@@ -1667,8 +1354,6 @@ button:disabled {
 
   .filter-grid,
   .advanced-filters-grid,
-  .detail-grid,
-  .json-grid,
   .insights-panel {
     grid-template-columns: 1fr;
   }

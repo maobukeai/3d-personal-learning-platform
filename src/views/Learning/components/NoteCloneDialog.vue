@@ -73,7 +73,7 @@ defineExpose({ open });
 
 <template>
   <Modal :show="visible" title="一键转存笔记" size="sm" glass-card @close="visible = false">
-    <div v-if="cloningNote" class="space-y-4">
+    <div v-if="cloningNote" class="mobile-adaptive space-y-4">
       <div class="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-[var(--border-base)]">
         <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-1">
           转存作品
@@ -103,7 +103,7 @@ defineExpose({ open });
       </div>
     </div>
     <template #footer>
-      <div class="flex justify-end gap-2">
+      <div class="mobile-row flex justify-end gap-2">
         <Button variant="secondary" size="sm" @click="visible = false">取消</Button>
         <Button
           variant="primary"

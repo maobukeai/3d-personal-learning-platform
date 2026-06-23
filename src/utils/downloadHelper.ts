@@ -13,29 +13,52 @@ export async function downloadFileMultiThreaded(
   filename: string,
   onProgress?: (percent: number) => void,
   onSpeed?: (speed: string) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
   try {
-    // 1. Perform HEAD request to query content length and accept ranges
-    // Some endpoints may require CORS settings to expose Content-Length.
+    // 1. Perform HEAD request to query content length and range support.
+    // Some endpoints may require CORS settings to expose Content-Length and Accept-Ranges.
     const headRes = await axios.head(url, { signal });
     const contentLength = headRes.headers['content-length'];
+    const acceptRanges = headRes.headers['accept-ranges'];
 
-    if (!contentLength) {
+    // If content-length is unknown or server explicitly refuses range requests, fall back
+    if (!contentLength || acceptRanges === 'none') {
       triggerBrowserDownload(url, filename);
       if (onProgress) onProgress(100);
       return;
     }
 
-    const totalSize = parseInt(contentLength, 10);
-    // If the file is small (e.g., < 5MB), download it in a single standard request to optimize overhead
+    const totalSize = parseInt(String(contentLength), 10);
+    // If the file is small (e.g., < 5MB), download it in a single standard request to avoid overhead
     if (totalSize < 5 * 1024 * 1024) {
       triggerBrowserDownload(url, filename);
       if (onProgress) onProgress(100);
       return;
     }
 
-    // 2. Set up parallel range request download (4 chunks in parallel)
+    // 2. Probe a 1-byte range request to verify the server actually returns 206.
+    // This catches cases where CORS or CDN silently downgrades range requests to 200.
+    try {
+      const probeRes = await axios.get(url, {
+        headers: { Range: 'bytes=0-0' },
+        responseType: 'arraybuffer',
+        signal,
+      });
+      if (probeRes.status !== 206) {
+        // Server responded 200 instead of 206 — range requests are not truly supported
+        triggerBrowserDownload(url, filename);
+        if (onProgress) onProgress(100);
+        return;
+      }
+    } catch {
+      // Probe failed (e.g., CORS blocks Range header) — fall back gracefully
+      triggerBrowserDownload(url, filename);
+      if (onProgress) onProgress(100);
+      return;
+    }
+
+    // 3. Set up parallel range request download (4 chunks in parallel)
     const threads = 4;
     const chunkSize = Math.ceil(totalSize / threads);
     const promises: Promise<ArrayBuffer>[] = [];
@@ -57,7 +80,7 @@ export async function downloadFileMultiThreaded(
       if (elapsed >= 0.5) {
         const bytesTransferred = totalLoaded - lastLoaded;
         const speedBytesPerSec = bytesTransferred / elapsed;
-        let speedStr = '';
+        let speedStr: string;
         if (speedBytesPerSec > 1024 * 1024) {
           speedStr = `${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`;
         } else if (speedBytesPerSec > 1024) {
@@ -77,17 +100,19 @@ export async function downloadFileMultiThreaded(
       const start = i * chunkSize;
       const end = Math.min(start + chunkSize - 1, totalSize - 1);
 
-      const promise = axios.get(url, {
-        responseType: 'arraybuffer',
-        headers: {
-          Range: `bytes=${start}-${end}`,
-        },
-        signal,
-        onDownloadProgress: (progressEvent) => {
-          loadedBytes[i] = progressEvent.loaded || 0;
-          updateProgress();
-        },
-      }).then((res) => res.data);
+      const promise = axios
+        .get(url, {
+          responseType: 'arraybuffer',
+          headers: {
+            Range: `bytes=${start}-${end}`,
+          },
+          signal,
+          onDownloadProgress: (progressEvent) => {
+            loadedBytes[i] = progressEvent.loaded || 0;
+            updateProgress();
+          },
+        })
+        .then((res) => res.data);
 
       promises.push(promise);
     }
@@ -95,11 +120,11 @@ export async function downloadFileMultiThreaded(
     // Wait for all range requests to resolve
     const chunks = await Promise.all(promises);
 
-    // 3. Reassemble the file chunks into a single Blob
+    // 4. Reassemble the file chunks into a single Blob
     const blob = new Blob(chunks);
     const blobUrl = URL.createObjectURL(blob);
 
-    // 4. Trigger download of the local blob
+    // 5. Trigger download of the local blob
     triggerBrowserDownload(blobUrl, filename);
 
     // Revoke blob URL after 1 minute to free up memory
@@ -107,10 +132,16 @@ export async function downloadFileMultiThreaded(
       URL.revokeObjectURL(blobUrl);
     }, 60000);
   } catch (error) {
-    if (axios.isCancel(error) || (error as any).name === 'CanceledError' || (error as any).message === 'canceled') {
+    if (
+      axios.isCancel(error) ||
+      (error instanceof Error && (error.name === 'CanceledError' || error.message === 'canceled'))
+    ) {
       throw error;
     }
-    console.warn('[DownloadHelper] Parallel range download failed. Falling back to browser standard download:', error);
+    console.warn(
+      '[DownloadHelper] Parallel range download failed. Falling back to browser standard download:',
+      error,
+    );
     triggerBrowserDownload(url, filename);
     if (onProgress) onProgress(100);
   }
@@ -123,12 +154,12 @@ function triggerBrowserDownload(url: string, filename: string): void {
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
-  
+
   // For cross-origin URLs, set target="_blank" if download attribute isn't supported/respected
   if (url.startsWith('http') && !url.includes(window.location.host)) {
     link.target = '_blank';
   }
-  
+
   link.style.display = 'none';
   document.body.appendChild(link);
   link.click();

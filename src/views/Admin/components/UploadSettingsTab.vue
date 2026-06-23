@@ -5,7 +5,7 @@ import { ref, reactive, watch } from 'vue';
 import { Upload, FileText, Trash2, AlertTriangle, RefreshCw } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
-import { getApiErrorMessage } from '@/utils/error';
+import { getApiErrorMessage, logError } from '@/utils/error';
 
 const props = defineProps<{
   settings: {
@@ -74,7 +74,7 @@ const handleCleanupStorage = async () => {
     );
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Cleanup storage error:', error);
+      logError(error, { operation: 'admin.cleanupStorage', component: 'UploadSettingsTab' });
       ElMessage.error(getApiErrorMessage(error, t('admin.failed_to_clear_storage')));
     }
   } finally {

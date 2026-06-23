@@ -203,6 +203,7 @@ html.dark.theme-glass {
   background-color: rgba(0, 0, 0, 0.45) !important;
 }
 .el-dialog {
+  --el-dialog-width: 480px;
   background-color: var(--bg-card) !important;
   backdrop-filter: none;
   border: 1px solid var(--border-base) !important;
@@ -546,4 +547,3 @@ html.theme-glass .el-notification {
   width: 24px !important;
   height: 24px !important;
 }
-

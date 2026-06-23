@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getApiErrorMessage } from '@/utils/error';
+import { getApiErrorMessage, logError } from '@/utils/error';
 import { formatDateTime as formatDate } from '@/utils/format';
 import { parseTags } from '@/utils/tags';
 
@@ -143,7 +143,7 @@ async function fetchComments() {
 
     comments.value = res.data;
   } catch (e) {
-    console.error('加载评论失败', e);
+    logError(e, { operation: 'mirror.fetchComments', component: 'MirrorResourceDetail' });
   }
 }
 
@@ -153,7 +153,7 @@ async function fetchLikeStatus() {
 
     likeStatus.value = res.data;
   } catch (e) {
-    console.error('加载点赞状态失败', e);
+    logError(e, { operation: 'mirror.fetchLikeStatus', component: 'MirrorResourceDetail' });
   }
 }
 
@@ -346,9 +346,9 @@ watch(resourceId, () => {
 
 <template>
   <div
-    class="mirror-resource-detail h-full overflow-y-auto p-4 md:p-6 w-full max-w-[1400px] mx-auto scrollbar-hide"
+    class="mirror-resource-detail mobile-adaptive h-full overflow-y-auto p-4 md:p-6 w-full max-w-[1400px] mx-auto scrollbar-hide"
   >
-    <div class="flex items-center gap-3 mb-6">
+    <div class="flex items-center gap-3 mb-6 mobile-row">
       <button
         type="button"
         class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
@@ -385,12 +385,12 @@ watch(resourceId, () => {
 
       <div
         v-if="!authStore.isAuthenticated"
-        class="mb-6 p-4 rounded-xl bg-blue-50/50 dark:bg-blue-500/5 border border-blue-200/50 dark:border-blue-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        class="mb-6 p-4 rounded-xl bg-blue-50/50 dark:bg-blue-500/5 border border-blue-200/50 dark:border-blue-500/10 flex flex-row items-center justify-between gap-4 mobile-row"
       >
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 mobile-row">
           <AlertCircle class="w-5 h-5 text-blue-500 shrink-0" />
 
-          <div class="text-sm text-blue-800 dark:text-blue-200 font-medium">
+          <div class="text-sm text-blue-800 dark:text-blue-200 font-medium truncate">
             您当前以游客身份浏览。如需提取该镜像源的下载链接，请登录您的账号。
           </div>
         </div>
@@ -406,12 +406,12 @@ watch(resourceId, () => {
 
       <div
         v-else-if="resource.hasAccess === false"
-        class="mb-6 p-4 rounded-xl bg-amber-50/50 dark:bg-amber-500/5 border border-amber-200/50 dark:border-amber-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        class="mb-6 p-4 rounded-xl bg-amber-50/50 dark:bg-amber-500/5 border border-amber-200/50 dark:border-amber-500/10 flex flex-row items-center justify-between gap-4 mobile-row"
       >
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 mobile-row">
           <Lock class="w-5 h-5 text-amber-500 shrink-0" />
 
-          <div class="text-sm text-amber-800 dark:text-amber-200 font-medium">
+          <div class="text-sm text-amber-800 dark:text-amber-200 font-medium truncate">
             会员权限不足。提取该资源需要更高的会员权限（需要级别:
             {{ getPlanName(resource.requiredPlan ?? 0) }}，您当前的级别:
             {{ getPlanName(resource.currentPlan ?? 0) || '普通用户' }}）。
@@ -449,60 +449,65 @@ watch(resourceId, () => {
             <div class="p-6">
               <div class="flex items-start gap-3 mb-4">
                 <div class="flex-1">
-                  <div class="flex items-center gap-2 mb-2">
+                  <div class="flex items-center gap-2 mb-2 mobile-row">
                     <span
                       v-if="resource.category"
-                      class="px-2 py-0.5 text-xs rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-500"
+                      class="px-2 py-0.5 text-xs rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-500 truncate"
                     >
                       {{ resource.category.name }}
                     </span>
 
                     <span
-                      class="px-2 py-0.5 text-xs rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500"
+                      class="px-2 py-0.5 text-xs rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 truncate"
                     >
                       {{ resource.resourceType }}
                     </span>
                   </div>
 
-                  <h1 class="text-xl font-bold text-slate-900 dark:text-white">
+                  <h1 class="text-xl font-bold text-slate-900 dark:text-white truncate">
                     {{ resource.title }}
                   </h1>
                 </div>
               </div>
 
-              <div class="flex flex-wrap items-center gap-4 text-sm text-slate-400 mb-6">
-                <span class="flex items-center gap-1.5">
-                  <Globe class="w-4 h-4" />
+              <div
+                class="flex flex-nowrap items-center gap-4 text-sm text-slate-400 mb-6 mobile-row"
+              >
+                <span class="flex items-center gap-1.5 truncate">
+                  <Globe class="w-4 h-4 shrink-0" />
 
                   {{ resource.source?.displayName || resource.source?.name }}
                 </span>
 
-                <span v-if="resource.publishedAt" class="flex items-center gap-1.5">
-                  <Calendar class="w-4 h-4" />
+                <span v-if="resource.publishedAt" class="flex items-center gap-1.5 truncate">
+                  <Calendar class="w-4 h-4 shrink-0" />
 
                   {{ formatDate(resource.publishedAt) }}
                 </span>
 
-                <span class="flex items-center gap-1.5">
-                  <Clock class="w-4 h-4" />
+                <span class="flex items-center gap-1.5 truncate">
+                  <Clock class="w-4 h-4 shrink-0" />
 
                   同步于 {{ formatDate(resource.syncedAt) }}
                 </span>
 
-                <span class="flex items-center gap-1.5">
-                  <Eye class="w-4 h-4" />
+                <span class="flex items-center gap-1.5 truncate">
+                  <Eye class="w-4 h-4 shrink-0" />
 
                   {{ resource.viewCount }} 次浏览
                 </span>
               </div>
 
-              <div v-if="parseTags(resource.tags).length > 0" class="flex flex-wrap gap-1.5 mb-6">
+              <div
+                v-if="parseTags(resource.tags).length > 0"
+                class="flex flex-wrap gap-1.5 mb-6 mobile-row"
+              >
                 <span
                   v-for="tag in parseTags(resource.tags)"
                   :key="tag"
-                  class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                  class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 truncate"
                 >
-                  <Tag class="w-3 h-3" />
+                  <Tag class="w-3 h-3 shrink-0" />
 
                   {{ tag }}
                 </span>
@@ -515,9 +520,9 @@ watch(resourceId, () => {
                   class="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl p-5 shadow-sm"
                 >
                   <h3
-                    class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white mb-4 border-b border-slate-100 dark:border-slate-800 pb-3"
+                    class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white mb-4 border-b border-slate-100 dark:border-slate-800 pb-3 mobile-row"
                   >
-                    <Link2 class="w-4 h-4 text-blue-500" />
+                    <Link2 class="w-4 h-4 text-blue-500 shrink-0" />
 
                     提取资源链接
                   </h3>
@@ -536,21 +541,21 @@ watch(resourceId, () => {
                         :key="idx"
                         class="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex flex-col gap-2"
                       >
-                        <div class="flex items-center justify-between">
-                          <div class="flex items-center gap-2">
+                        <div class="flex items-center justify-between mobile-row">
+                          <div class="flex items-center gap-2 mobile-row">
                             <div
-                              class="w-2 h-2 rounded-full"
+                              class="w-2 h-2 rounded-full shrink-0"
                               :class="getLinkTypeColor(link.type)"
                             ></div>
 
                             <span
-                              class="text-sm font-semibold text-slate-700 dark:text-slate-200"
+                              class="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate"
                               >{{ link.name }}</span
                             >
                           </div>
 
                           <span
-                            class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-400"
+                            class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-400 shrink-0"
                           >
                             {{ link.type }}
                           </span>
@@ -610,9 +615,9 @@ watch(resourceId, () => {
                 <!-- Like Status for Mobile -->
 
                 <div
-                  class="mt-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-xl p-4 flex items-center justify-between"
+                  class="mt-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-xl p-4 flex items-center justify-between mobile-row"
                 >
-                  <span class="text-xs text-slate-500 font-medium">
+                  <span class="text-xs text-slate-500 font-medium truncate">
                     {{ likeStatus.count }} 人觉得很棒
                   </span>
 
@@ -673,14 +678,14 @@ watch(resourceId, () => {
 
             <!-- Write Comment -->
 
-            <div class="flex gap-3">
+            <div class="flex gap-3 mobile-row">
               <div
                 class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-bold shrink-0"
               >
                 {{ authStore.user?.name?.[0]?.toUpperCase() || 'U' }}
               </div>
 
-              <div class="flex-1 space-y-3">
+              <div class="flex-1 space-y-3 min-w-0">
                 <textarea
                   v-model="newCommentText"
                   placeholder="写下你的看法，与大家一起讨论..."
@@ -710,7 +715,11 @@ watch(resourceId, () => {
             </div>
 
             <div v-else class="space-y-4 divide-y divide-slate-100 dark:divide-slate-800">
-              <div v-for="comment in comments" :key="comment.id" class="flex gap-3 pt-4 first:pt-0">
+              <div
+                v-for="comment in comments"
+                :key="comment.id"
+                class="flex gap-3 pt-4 first:pt-0 mobile-row"
+              >
                 <div
                   class="w-8 h-8 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0"
                 >
@@ -730,12 +739,12 @@ watch(resourceId, () => {
                 </div>
 
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold text-slate-700 dark:text-slate-200">{{
+                  <div class="flex items-center justify-between mb-1 mobile-row">
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{{
                       comment.user?.name
                     }}</span>
 
-                    <span class="text-[10px] text-slate-400">{{
+                    <span class="text-[10px] text-slate-400 truncate">{{
                       formatDate(comment.createdAt)
                     }}</span>
                   </div>
@@ -927,15 +936,17 @@ watch(resourceId, () => {
           >
             <!-- Header -->
             <div
-              class="flex items-center justify-between shrink-0 pb-4 border-b"
+              class="flex items-center justify-between shrink-0 pb-4 border-b mobile-row"
               style="border-color: var(--border-base)"
             >
-              <div class="flex items-center gap-2">
-                <div class="p-1.5 bg-gradient-to-br from-accent to-indigo-600 rounded-lg text-white">
+              <div class="flex items-center gap-2 mobile-row">
+                <div
+                  class="p-1.5 bg-gradient-to-br from-accent to-indigo-600 rounded-lg text-white shrink-0"
+                >
                   <Link2 class="w-4 h-4" />
                 </div>
                 <h3
-                  class="text-md sm:text-lg font-black tracking-tight"
+                  class="text-md sm:text-lg font-black tracking-tight truncate"
                   style="color: var(--text-primary)"
                 >
                   提取网盘资源
@@ -956,22 +967,22 @@ watch(resourceId, () => {
             <div class="space-y-4">
               <!-- Drive Info Card -->
               <div
-                class="p-4 bg-slate-50/50 dark:bg-white/[0.01] border rounded-2xl flex items-center justify-between"
+                class="p-4 bg-slate-50/50 dark:bg-white/[0.01] border rounded-2xl flex items-center justify-between mobile-row"
                 style="border-color: var(--border-base)"
               >
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 mobile-row">
                   <div
                     class="w-2.5 h-2.5 rounded-full animate-pulse shrink-0"
                     :class="getLinkTypeColor(activeLink.type)"
                   ></div>
 
-                  <div>
-                    <div class="text-sm font-bold" style="color: var(--text-primary)">
+                  <div class="min-w-0">
+                    <div class="text-sm font-bold truncate" style="color: var(--text-primary)">
                       {{ activeLink.name }}
                     </div>
 
                     <div
-                      class="text-[10px] uppercase mt-0.5 font-black tracking-wider"
+                      class="text-[10px] uppercase mt-0.5 font-black tracking-wider truncate"
                       style="color: var(--text-secondary)"
                     >
                       {{ activeLink.type }} 资源
@@ -986,7 +997,7 @@ watch(resourceId, () => {
                   >下载链接</label
                 >
 
-                <div class="flex gap-2">
+                <div class="flex gap-2 mobile-row">
                   <input
                     type="text"
                     readonly
@@ -997,7 +1008,7 @@ watch(resourceId, () => {
 
                   <button
                     type="button"
-                    class="px-4 py-2.5 rounded-xl border font-bold text-xs cursor-pointer text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all active:scale-[0.98]"
+                    class="px-4 py-2.5 rounded-xl border font-bold text-xs cursor-pointer text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all active:scale-[0.98] shrink-0"
                     style="border-color: var(--border-base)"
                     @click="
                       copyToClipboard(activeLink.url);
@@ -1015,7 +1026,7 @@ watch(resourceId, () => {
                   >提取密码 / 访问码</label
                 >
 
-                <div class="flex gap-2">
+                <div class="flex gap-2 mobile-row">
                   <input
                     type="text"
                     readonly
@@ -1026,7 +1037,7 @@ watch(resourceId, () => {
 
                   <button
                     type="button"
-                    class="px-4 py-2.5 rounded-xl border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 font-bold text-xs cursor-pointer transition-all active:scale-[0.98]"
+                    class="px-4 py-2.5 rounded-xl border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 font-bold text-xs cursor-pointer transition-all active:scale-[0.98] shrink-0"
                     @click="copyToClipboard(activeLink.code)"
                   >
                     复制密码
@@ -1037,7 +1048,7 @@ watch(resourceId, () => {
 
             <!-- Footer -->
             <div
-              class="flex gap-3 pt-4 border-t"
+              class="flex gap-3 pt-4 border-t mobile-row"
               style="border-color: var(--border-base)"
             >
               <button
@@ -1056,7 +1067,7 @@ watch(resourceId, () => {
                 class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-accent to-indigo-600 hover:from-accent hover:to-indigo-500 text-white text-xs font-bold text-center flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-accent/20 hover:shadow-accent/35 active:scale-[0.99]"
                 @click="showLinkDialog = false"
               >
-                <ExternalLink class="w-3.5 h-3.5" />
+                <ExternalLink class="w-3.5 h-3.5 shrink-0" />
                 立即跳转网盘
               </a>
             </div>

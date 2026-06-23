@@ -280,10 +280,10 @@ watch(resourceId, () => {
 
 <template>
   <div
-    class="manual-resource-detail h-full overflow-y-auto p-4 md:p-6 w-full max-w-[1400px] mx-auto scrollbar-hide"
+    class="manual-resource-detail mobile-adaptive h-full overflow-y-auto p-4 md:p-6 w-full max-w-[1400px] mx-auto scrollbar-hide"
   >
     <!-- Back breadcrumb -->
-    <div class="flex items-center gap-3 mb-6">
+    <div class="flex items-center gap-3 mb-6 mobile-row">
       <button
         type="button"
         class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors shadow-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
@@ -325,11 +325,11 @@ watch(resourceId, () => {
       <!-- Unauthenticated Alert -->
       <div
         v-if="!authStore.isAuthenticated"
-        class="mb-6 p-4.5 rounded-2xl bg-cyan-500/5 dark:bg-cyan-500/5 border border-cyan-500/10 dark:border-cyan-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm backdrop-blur-sm"
+        class="mb-6 p-4.5 rounded-2xl bg-cyan-500/5 dark:bg-cyan-500/5 border border-cyan-500/10 dark:border-cyan-500/20 flex flex-row items-center justify-between gap-4 shadow-sm backdrop-blur-sm mobile-row"
       >
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 mobile-row">
           <AlertCircle class="w-5 h-5 text-cyan-500 shrink-0" />
-          <div class="text-xs sm:text-sm text-cyan-800 dark:text-cyan-300 font-bold">
+          <div class="text-xs sm:text-sm text-cyan-800 dark:text-cyan-300 font-bold truncate">
             您当前以访客身份浏览。如需获取/提取该手动资产的网盘下载链接，请登录账号。
           </div>
         </div>
@@ -345,15 +345,15 @@ watch(resourceId, () => {
       <!-- Insufficient Permissions Alert -->
       <div
         v-else-if="resource.hasAccess === false"
-        class="mb-6 p-4.5 rounded-2xl bg-amber-500/5 dark:bg-amber-500/5 border border-amber-500/10 dark:border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm backdrop-blur-sm"
+        class="mb-6 p-4.5 rounded-2xl bg-amber-500/5 dark:bg-amber-500/5 border border-amber-500/10 dark:border-amber-500/20 flex flex-row items-center justify-between gap-4 shadow-sm backdrop-blur-sm mobile-row"
       >
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 mobile-row">
           <Lock class="w-5 h-5 text-amber-500 shrink-0 animate-pulse" />
-          <div>
-            <div class="text-xs sm:text-sm text-amber-800 dark:text-amber-300 font-bold">
+          <div class="min-w-0">
+            <div class="text-xs sm:text-sm text-amber-800 dark:text-amber-300 font-bold truncate">
               会员获取权限不足
             </div>
-            <div class="text-slate-400 text-xs mt-0.5">
+            <div class="text-slate-400 text-xs mt-0.5 truncate">
               该资源需要高级别计划（需要:
               {{ getPlanName(resource.minPlanPriority || 0) || '专业版' }}，您当前:
               {{
@@ -395,15 +395,15 @@ watch(resourceId, () => {
             <div class="p-6">
               <div class="flex items-start gap-3 mb-4">
                 <div class="flex-1">
-                  <div class="flex items-center gap-2 mb-2">
+                  <div class="flex items-center gap-2 mb-2 mobile-row">
                     <span
                       v-if="resource.category"
-                      class="px-2.5 py-0.5 text-[10px] rounded-lg bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-black tracking-wide"
+                      class="px-2.5 py-0.5 text-[10px] rounded-lg bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-black tracking-wide truncate"
                     >
                       {{ resource.category.name }}
                     </span>
                     <span
-                      class="px-2.5 py-0.5 text-[10px] rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wide"
+                      class="px-2.5 py-0.5 text-[10px] rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wide truncate"
                     >
                       {{
                         resource.resourceType === 'MODEL'
@@ -415,7 +415,7 @@ watch(resourceId, () => {
                     </span>
                   </div>
                   <h1
-                    class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight"
+                    class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate"
                   >
                     {{ resource.title }}
                   </h1>
@@ -424,30 +424,33 @@ watch(resourceId, () => {
 
               <!-- Extra Meta Info -->
               <div
-                class="flex flex-wrap items-center gap-4 text-xs text-slate-400 dark:text-slate-500 mb-6 border-b border-slate-100 dark:border-slate-800/80 pb-5"
+                class="flex flex-nowrap items-center gap-4 text-xs text-slate-400 dark:text-slate-500 mb-6 border-b border-slate-100 dark:border-slate-800/80 pb-5 mobile-row"
               >
-                <span class="flex items-center gap-1.5 font-semibold text-slate-500">
-                  <BookOpen class="w-4 h-4 text-cyan-500" />
+                <span class="flex items-center gap-1.5 font-semibold text-slate-500 truncate">
+                  <BookOpen class="w-4 h-4 text-cyan-500 shrink-0" />
                   手动发布
                 </span>
-                <span class="flex items-center gap-1.5">
-                  <Calendar class="w-4 h-4 text-slate-300" />
+                <span class="flex items-center gap-1.5 truncate">
+                  <Calendar class="w-4 h-4 text-slate-300 shrink-0" />
                   发布于 {{ formatDate(resource.createdAt) }}
                 </span>
-                <span class="flex items-center gap-1.5">
-                  <Eye class="w-4 h-4 text-slate-300" />
+                <span class="flex items-center gap-1.5 truncate">
+                  <Eye class="w-4 h-4 text-slate-300 shrink-0" />
                   {{ resource.viewCount }} 次浏览
                 </span>
               </div>
 
               <!-- Tag badges -->
-              <div v-if="parseTags(resource.tags).length > 0" class="flex flex-wrap gap-2 mb-6">
+              <div
+                v-if="parseTags(resource.tags).length > 0"
+                class="flex flex-wrap gap-2 mb-6 mobile-row"
+              >
                 <span
                   v-for="tag in parseTags(resource.tags)"
                   :key="tag"
-                  class="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-800/50 text-slate-600 dark:text-slate-400 font-medium"
+                  class="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-800/50 text-slate-600 dark:text-slate-400 font-medium truncate"
                 >
-                  <Tag class="w-3.5 h-3.5 text-slate-300" />
+                  <Tag class="w-3.5 h-3.5 text-slate-300 shrink-0" />
                   {{ tag }}
                 </span>
               </div>
@@ -458,9 +461,9 @@ watch(resourceId, () => {
                   class="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5"
                 >
                   <h3
-                    class="flex items-center gap-2 text-sm font-black text-slate-800 dark:text-slate-200 mb-4 border-b border-slate-100 dark:border-slate-800 pb-3 uppercase tracking-wider"
+                    class="flex items-center gap-2 text-sm font-black text-slate-800 dark:text-slate-200 mb-4 border-b border-slate-100 dark:border-slate-800 pb-3 uppercase tracking-wider mobile-row"
                   >
-                    <Link2 class="w-4 h-4 text-cyan-500" />
+                    <Link2 class="w-4 h-4 text-cyan-500 shrink-0" />
                     安全网盘通道
                   </h3>
 
@@ -477,18 +480,19 @@ watch(resourceId, () => {
                         :key="idx"
                         class="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 flex flex-col gap-2 shadow-sm"
                       >
-                        <div class="flex items-center justify-between">
-                          <div class="flex items-center gap-2">
+                        <div class="flex items-center justify-between mobile-row">
+                          <div class="flex items-center gap-2 mobile-row">
                             <div
-                              class="w-2.5 h-2.5 rounded-full"
+                              class="w-2.5 h-2.5 rounded-full shrink-0"
                               :class="getLinkTypeColor(link.type)"
                             ></div>
-                            <span class="text-xs font-bold text-slate-700 dark:text-slate-200">{{
-                              link.name
-                            }}</span>
+                            <span
+                              class="text-xs font-bold text-slate-700 dark:text-slate-200 truncate"
+                              >{{ link.name }}</span
+                            >
                           </div>
                           <span
-                            class="text-[9px] uppercase font-black px-1.5 py-0.5 rounded bg-slate-50 dark:bg-slate-800 text-slate-400"
+                            class="text-[9px] uppercase font-black px-1.5 py-0.5 rounded bg-slate-50 dark:bg-slate-800 text-slate-400 shrink-0"
                           >
                             {{ link.type }}
                           </span>
@@ -532,9 +536,9 @@ watch(resourceId, () => {
 
                 <!-- Like Box Mobile -->
                 <div
-                  class="mt-4 bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 flex items-center justify-between"
+                  class="mt-4 bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 flex items-center justify-between mobile-row"
                 >
-                  <span class="text-xs text-slate-400 font-semibold">
+                  <span class="text-xs text-slate-400 font-semibold truncate">
                     {{ resource.likeCount }} 人觉得这个资源很赞
                   </span>
                   <button
@@ -591,13 +595,13 @@ watch(resourceId, () => {
             </h3>
 
             <!-- Post comment -->
-            <div class="flex gap-3">
+            <div class="flex gap-3 mobile-row">
               <div
                 class="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 flex items-center justify-center text-white text-xs font-black shrink-0 shadow-md"
               >
                 {{ authStore.user?.name?.[0]?.toUpperCase() || 'U' }}
               </div>
-              <div class="flex-1 space-y-3">
+              <div class="flex-1 space-y-3 min-w-0">
                 <textarea
                   v-model="newCommentText"
                   placeholder="说点什么吧，优质的讨论能帮助到更多的同学..."
@@ -630,7 +634,7 @@ watch(resourceId, () => {
               <div
                 v-for="comment in resource.comments"
                 :key="comment.id"
-                class="flex gap-3 pt-4 first:pt-0"
+                class="flex gap-3 pt-4 first:pt-0 mobile-row"
               >
                 <div
                   class="w-8 h-8 rounded-full overflow-hidden bg-slate-50 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 shrink-0"
@@ -651,11 +655,11 @@ watch(resourceId, () => {
                 </div>
 
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold text-slate-700 dark:text-slate-200">{{
+                  <div class="flex items-center justify-between mb-1 mobile-row">
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{{
                       comment.user?.name
                     }}</span>
-                    <span class="text-[10px] text-slate-400 dark:text-slate-500">{{
+                    <span class="text-[10px] text-slate-400 dark:text-slate-500 truncate">{{
                       formatDate(comment.createdAt)
                     }}</span>
                   </div>
@@ -788,11 +792,11 @@ watch(resourceId, () => {
           class="glass-dialog rounded-2xl w-full max-w-md mx-4 shadow-2xl overflow-hidden border border-white/10 bg-slate-900 text-white animate-in fade-in zoom-in-95 duration-200"
         >
           <!-- Header -->
-          <div class="flex items-center justify-between p-5 border-b border-white/5">
+          <div class="flex items-center justify-between p-5 border-b border-white/5 mobile-row">
             <h2
-              class="text-sm font-black flex items-center gap-2 text-cyan-400 uppercase tracking-wider"
+              class="text-sm font-black flex items-center gap-2 text-cyan-400 uppercase tracking-wider mobile-row"
             >
-              <Link2 class="w-5 h-5 text-cyan-400" />
+              <Link2 class="w-5 h-5 text-cyan-400 shrink-0" />
               已为您提取网盘下载地址
             </h2>
             <button
@@ -808,16 +812,16 @@ watch(resourceId, () => {
           <div class="p-5 space-y-5 bg-slate-950/40">
             <!-- Drive Badge Card -->
             <div
-              class="p-4 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between"
+              class="p-4 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between mobile-row"
             >
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-3 mobile-row">
                 <div
                   class="w-2.5 h-2.5 rounded-full animate-ping shrink-0"
                   :class="getLinkTypeColor(activeLink.type)"
                 ></div>
-                <div>
-                  <div class="text-xs font-bold text-slate-100">{{ activeLink.name }}</div>
-                  <div class="text-[10px] text-slate-400 uppercase mt-0.5 font-bold">
+                <div class="min-w-0">
+                  <div class="text-xs font-bold text-slate-100 truncate">{{ activeLink.name }}</div>
+                  <div class="text-[10px] text-slate-400 uppercase mt-0.5 font-bold truncate">
                     {{ activeLink.type }} 高速下载通道已激活
                   </div>
                 </div>
@@ -829,7 +833,7 @@ watch(resourceId, () => {
               <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide"
                 >提取地址 / 下载链接</label
               >
-              <div class="flex gap-2">
+              <div class="flex gap-2 mobile-row">
                 <input
                   type="text"
                   readonly
@@ -855,7 +859,7 @@ watch(resourceId, () => {
           </div>
 
           <!-- Footer -->
-          <div class="flex gap-3 p-5 border-t border-white/5 bg-slate-950/70">
+          <div class="flex gap-3 p-5 border-t border-white/5 bg-slate-950/70 mobile-row">
             <button
               type="button"
               class="flex-1 py-2.5 rounded-xl border border-white/10 hover:border-white/20 text-xs text-slate-300 hover:text-white hover:bg-white/5 font-bold transition-all cursor-pointer"
@@ -870,7 +874,7 @@ watch(resourceId, () => {
               class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-600 hover:to-emerald-600 text-white text-xs font-black text-center flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-cyan-500/20"
               @click="showLinkDialog = false"
             >
-              <ExternalLink class="w-3.5 h-3.5" />
+              <ExternalLink class="w-3.5 h-3.5 shrink-0" />
               跳转网盘下载
             </a>
           </div>

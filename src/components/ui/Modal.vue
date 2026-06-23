@@ -22,7 +22,7 @@ const props = withDefaults(defineProps<Props>(), {
   padding: 'lg',
   fullscreen: false,
   zIndex: 1000,
-  glassCard: false,
+  glassCard: true,
 });
 
 const emit = defineEmits<{
@@ -75,7 +75,7 @@ onUnmounted(() => {
     >
       <div
         v-if="show"
-        class="fixed inset-0 bg-black/40 backdrop-blur-md dark:bg-black/60"
+        class="fixed inset-0 bg-black/40 backdrop-blur-md dark:bg-black/60 modal-backdrop-overlay"
         :style="{ zIndex: zIndex - 1 }"
         @click="handleOutsideClick"
       ></div>
@@ -92,7 +92,9 @@ onUnmounted(() => {
         class="fixed inset-0 flex justify-center pointer-events-none"
         :style="{ zIndex: zIndex }"
         :class="[
-          fullscreen ? 'p-0 overflow-hidden items-stretch' : 'p-4 overflow-y-auto items-start',
+          fullscreen
+            ? 'p-0 overflow-hidden items-stretch'
+            : 'p-3 sm:p-4 overflow-y-auto items-start',
           fullscreen ? 'pointer-events-auto' : '',
         ]"
       >
@@ -159,3 +161,10 @@ onUnmounted(() => {
     </transition>
   </Teleport>
 </template>
+
+<style scoped>
+.modal-backdrop-overlay {
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+</style>

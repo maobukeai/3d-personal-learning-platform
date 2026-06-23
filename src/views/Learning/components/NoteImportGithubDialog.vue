@@ -3,6 +3,7 @@ import { ref, reactive } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Github, KeyRound, GitBranch, FolderOpen, Eye, Loader2 } from 'lucide-vue-next';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import Modal from '@/components/ui/Modal.vue';
@@ -57,7 +58,7 @@ const open = () => {
       form.category = parsed.category || '';
       form.visibility = parsed.visibility || 'PRIVATE';
     } catch (e) {
-      console.error('Failed to parse saved github config', e);
+      logError(e, { operation: 'notes.parseGithubConfig', component: 'NoteImportGithubDialog' });
       resetForm();
     }
   } else {
@@ -105,15 +106,19 @@ const checkGithubRepo = async () => {
 
     await axios.get(`https://api.github.com/repos/${owner}/${repo}`, { headers });
     ElMessage.success(t('notes.githubImport.repoValid'));
-  } catch (err: any) {
-    console.error('Validation error:', err);
-    const status = err.response?.status;
-    if (status === 404) {
-      ElMessage.error(t('notes.githubImport.repoNotFound'));
-    } else if (status === 401) {
-      ElMessage.error(t('notes.githubImport.unauthorized'));
+  } catch (err: unknown) {
+    logError(err, { operation: 'notes.validateGithubRepo', component: 'NoteImportGithubDialog' });
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      if (status === 404) {
+        ElMessage.error(t('notes.githubImport.repoNotFound'));
+      } else if (status === 401) {
+        ElMessage.error(t('notes.githubImport.unauthorized'));
+      } else {
+        ElMessage.error(err.response?.data?.message || t('notes.githubImport.connectFailed'));
+      }
     } else {
-      ElMessage.error(err.response?.data?.message || t('notes.githubImport.connectFailed'));
+      ElMessage.error(t('notes.githubImport.connectFailed'));
     }
   } finally {
     isCheckingRepo.value = false;
@@ -144,8 +149,10 @@ const handleImport = async () => {
     });
     emit('imported');
     visible.value = false;
-  } catch (error: any) {
-    const errorMsg = error.response?.data?.error || t('notes.githubImport.importFailed');
+  } catch (error: unknown) {
+    const errorMsg =
+      (axios.isAxiosError(error) && error.response?.data?.error) ||
+      t('notes.githubImport.importFailed');
     ElMessage.error({
       message: errorMsg,
       duration: 5000,
@@ -162,7 +169,7 @@ defineExpose({ open });
   <Modal :show="visible" title="GitHub 笔记同步" size="md" glass-card @close="visible = false">
     <!-- Custom Header Slot for Premium Branding -->
     <template #header>
-      <div class="flex items-center gap-3">
+      <div class="mobile-row flex items-center gap-3">
         <div
           class="w-9 h-9 rounded-xl bg-blue-500/10 dark:bg-blue-400/10 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0"
         >
@@ -179,7 +186,7 @@ defineExpose({ open });
       </div>
     </template>
 
-    <div class="relative space-y-4">
+    <div class="mobile-adaptive relative space-y-4">
       <!-- Loading Overlay -->
       <div
         v-if="isImporting"
@@ -199,7 +206,7 @@ defineExpose({ open });
       <!-- Inputs -->
       <div class="space-y-4">
         <div class="space-y-1.5">
-          <div class="flex items-center justify-between">
+          <div class="mobile-row flex items-center justify-between">
             <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5">
               {{ t('notes.githubImport.repoUrlLabel') }} <span class="text-rose-500">*</span>
             </label>
@@ -232,7 +239,7 @@ defineExpose({ open });
           />
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="mobile-grid grid grid-cols-2 gap-4">
           <div class="space-y-1.5">
             <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5">
               {{ t('notes.githubImport.branchLabel') }}
@@ -255,7 +262,7 @@ defineExpose({ open });
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="mobile-grid grid grid-cols-2 gap-4">
           <div class="space-y-1.5">
             <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5">
               {{ t('notes.githubImport.defaultNotebookLabel') }}
@@ -277,7 +284,7 @@ defineExpose({ open });
               {{ t('notes.githubImport.visibilityLabel') }}
             </label>
             <div
-              class="flex p-0.5 bg-slate-100 dark:bg-zinc-800 rounded-lg border border-[var(--border-base)] w-full"
+              class="mobile-row flex p-0.5 bg-slate-100 dark:bg-zinc-800 rounded-lg border border-[var(--border-base)] w-full"
             >
               <button
                 type="button"
@@ -310,7 +317,7 @@ defineExpose({ open });
     </div>
 
     <template #footer>
-      <div class="flex justify-between items-center w-full">
+      <div class="mobile-row flex justify-between items-center w-full">
         <!-- Left: Save Config Button -->
         <Button variant="secondary" size="sm" :disabled="isImporting" @click="handleSaveConfig">
           {{ t('notes.githubImport.saveConfig') }}

@@ -71,7 +71,7 @@ const showGithubPassword = ref(false);
 
         <div
           v-if="localSettings.OAUTH_GOOGLE_ENABLED"
-          class="grid grid-cols-1 gap-6 animate-in fade-in duration-300"
+          class="grid grid-cols-1 gap-6 animate-in fade-in duration-300 mobile-grid"
         >
           <div class="space-y-2">
             <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
@@ -154,7 +154,7 @@ const showGithubPassword = ref(false);
 
         <div
           v-if="localSettings.OAUTH_GITHUB_ENABLED"
-          class="grid grid-cols-1 gap-6 animate-in fade-in duration-300"
+          class="grid grid-cols-1 gap-6 animate-in fade-in duration-300 mobile-grid"
         >
           <div class="space-y-2">
             <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"

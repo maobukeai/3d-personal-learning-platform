@@ -34,7 +34,7 @@ import type {
   AdminTeamUser,
   TeamApplication,
   TeamInvitation,
-} from '../AdminTeamsView.vue';
+} from './adminTeamsTypes';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -193,7 +193,7 @@ const roleClass = (role: string) => ({
   >
     <!-- Header Slot (direct child of Modal) -->
     <template #header>
-      <div v-if="team && !isDetailLoading" class="flex items-center gap-3 w-full pr-8">
+      <div v-if="team && !isDetailLoading" class="flex items-center gap-3 w-full pr-8 mobile-row">
         <div class="team-avatar large shrink-0">
           <img v-if="team.avatarUrl" :src="team.avatarUrl" alt="" />
           <Briefcase v-else />
@@ -245,7 +245,7 @@ const roleClass = (role: string) => ({
 
       <div v-else-if="team" class="space-y-4">
         <!-- Actions Toolbar -->
-        <div class="flex items-center gap-2 mb-4">
+        <div class="flex items-center gap-2 mb-4 mobile-row">
           <UiButton size="sm" variant="secondary" :icon="Edit3" @click="emit('edit', team)"
             >编辑</UiButton
           >
@@ -258,7 +258,7 @@ const roleClass = (role: string) => ({
         </div>
 
         <!-- Scoreboard KPI Grid -->
-        <section class="grid grid-cols-2 sm:grid-cols-6 gap-2 mb-5">
+        <section class="grid grid-cols-2 sm:grid-cols-6 gap-2 mb-5 mobile-grid">
           <div
             class="score-hero border rounded-xl p-3 flex flex-col items-center justify-center text-center transition-all duration-300 shadow-sm"
             :class="scoreClass(detail?.counts?.healthScore || team.metrics?.healthScore)"
@@ -322,7 +322,7 @@ const roleClass = (role: string) => ({
           <!-- Overview Tab -->
           <section
             v-if="detailTab === 'overview'"
-            class="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start"
+            class="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start mobile-grid"
           >
             <!-- Left Column: Priority items -->
             <div class="space-y-4">
@@ -438,7 +438,7 @@ const roleClass = (role: string) => ({
                     }}
                   </span>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mobile-grid">
                   <article
                     v-for="resource in [
                       ...(detail?.resources?.assets || []).slice(0, 3),

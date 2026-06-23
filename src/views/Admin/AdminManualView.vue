@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, onMounted, computed } from 'vue';
+import { isAxiosError } from 'axios';
 import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
@@ -19,7 +20,7 @@ import {
   RefreshCw,
 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
-import { getApiErrorMessage } from '@/utils/error';
+import { logError } from '@/utils/error';
 import { fetchManagementInsights } from './adminManagementInsights';
 import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';
@@ -29,8 +30,6 @@ import Tabs from '@/components/ui/Tabs.vue';
 import ManualStationDialog from './components/ManualStationDialog.vue';
 import StationResourcesTab from './components/StationResourcesTab.vue';
 import StationCategoriesTab from './components/StationCategoriesTab.vue';
-
-const previewMode = ref<'edit' | 'live' | 'preview'>('edit');
 
 export interface ManualStation {
   id: string;
@@ -45,21 +44,6 @@ export interface ManualStation {
   _count?: { resources: number; categories: number };
 }
 
-interface ManualResource {
-  id: string;
-  title: string;
-  description: string | null;
-  thumbnailUrl: string | null;
-  contentUrl: string | null;
-  contentHtml: string | null;
-  tags: string | null;
-  resourceType: string;
-  viewCount: number;
-  categoryId: string | null;
-  category: { name: string } | null;
-  createdAt: string;
-}
-
 interface ManualCategory {
   id: string;
   name: string;
@@ -67,13 +51,6 @@ interface ManualCategory {
   order?: number;
   parentId?: string | null;
 }
-
-type ResourceQueryParams = {
-  page: number;
-  pageSize: number;
-  categoryId?: string;
-  search?: string;
-};
 
 const route = useRoute();
 const stations = ref<ManualStation[]>([]);
@@ -84,40 +61,7 @@ const editingStation = ref<ManualStation | null>(null);
 // Resource management state
 const expandedStationId = ref<string | null>(null);
 const expandedTab = ref<'resources' | 'categories'>('resources');
-const resourceList = ref<ManualResource[]>([]);
-const resourceTotal = ref(0);
-const resourcePage = ref(1);
-const resourcePageSize = ref(20);
-const resourceTotalPages = ref(0);
-const resourceSearch = ref('');
-const resourceCategoryFilter = ref<string | null>(null);
-const isLoadingResources = ref(false);
 const stationCategories = ref<ManualCategory[]>([]);
-const showResourceDialog = ref(false);
-const isEditingResource = ref(false);
-const editingResource = ref<ManualResource | null>(null);
-const resourceForm = ref({
-  title: '',
-  description: '',
-  thumbnailUrl: '',
-  contentUrl: '',
-  tags: '',
-  contentHtml: '',
-  resourceType: 'COURSE',
-  categoryId: '',
-});
-
-// Category management state
-const showCategoryDialog = ref(false);
-const isEditingCategory = ref(false);
-const editingCategory = ref<ManualCategory | null>(null);
-const categoryForm = ref({
-  name: '',
-  slug: '',
-  order: 0,
-  parentId: null as string | null,
-  childIds: [] as string[],
-});
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   ACTIVE: {
@@ -143,73 +87,12 @@ async function fetchStations() {
     const res = await api.get('/api/manual/stations');
     stations.value = res.data;
     fetchManagementInsights(true);
-  } catch (e: unknown) {
+  } catch {
     ElMessage.error('加载资源站失败');
   } finally {
     isLoading.value = false;
   }
 }
-
-const isUploadingThumbnail = ref(false);
-const handleThumbnailUpload = async (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  const file = target.files?.[0];
-  if (!file) return;
-
-  if (file.size > 5 * 1024 * 1024) {
-    return ElMessage.warning(t('admin.preview_image_size_cannot'));
-  }
-
-  try {
-    isUploadingThumbnail.value = true;
-    const formDataObj = new FormData();
-    formDataObj.append('manual_image', file);
-    const { data } = await api.post('/api/admin/manual/upload', formDataObj);
-    resourceForm.value.thumbnailUrl = data.url;
-    ElMessage.success(t('admin.preview_image_uploaded_successfully'));
-  } catch (error: unknown) {
-    console.error('Thumbnail upload error:', error);
-    ElMessage.error(getApiErrorMessage(error, t('admin.preview_upload_failed')));
-  } finally {
-    isUploadingThumbnail.value = false;
-    target.value = '';
-  }
-};
-
-// Real-time netdisk brand analysis
-const parsedNetdisk = computed(() => {
-  const url = resourceForm.value.contentUrl || '';
-  if (!url) return null;
-
-  if (url.includes('quark.cn')) {
-    return {
-      name: t('admin.quark_network_disk'),
-      color: 'text-teal-500 bg-teal-50 dark:bg-teal-500/10 border-teal-200 dark:border-teal-800/30',
-    };
-  } else if (url.includes('baidu.com')) {
-    return {
-      name: t('admin.baidu_skydisk'),
-      color: 'text-blue-500 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-800/30',
-    };
-  } else if (url.includes('alipan.com') || url.includes('aliyundrive.com')) {
-    return {
-      name: t('admin.alibaba_cloud_disk'),
-      color:
-        'text-orange-500 bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-800/30',
-    };
-  } else if (url.includes('123pan.com')) {
-    return {
-      name: t('admin.123_cloud_disk'),
-      color:
-        'text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-800/30',
-    };
-  }
-  return {
-    name: t('admin.universal_link'),
-    color:
-      'text-slate-500 bg-slate-50 dark:bg-slate-500/10 border-slate-200 dark:border-slate-800/30',
-  };
-});
 
 const statusFilter = ref<'ALL' | 'ACTIVE' | 'DISABLED'>('ALL');
 const stationSearchQuery = ref('');
@@ -294,8 +177,16 @@ const filteredStations = computed(() => {
   });
 });
 
-const stationResourcesTabRef = ref<any>(null);
-const stationCategoriesTabRef = ref<any>(null);
+interface StationResourcesTabRef {
+  openCreateResource: () => void;
+}
+
+interface StationCategoriesTabRef {
+  openCreateCategory: () => void;
+}
+
+const stationResourcesTabRef = ref<StationResourcesTabRef | null>(null);
+const stationCategoriesTabRef = ref<StationCategoriesTabRef | null>(null);
 
 async function handleExpandStation(stationId: string) {
   if (expandedStationId.value === stationId) {
@@ -313,7 +204,7 @@ async function fetchStationCategories(stationId: string) {
     const res = await api.get(`/api/manual/stations/${stationId}/categories`);
     stationCategories.value = res.data;
   } catch (e) {
-    console.error(e);
+    logError(e, { operation: 'admin.fetchStationCategories', component: 'AdminManualView' });
   }
 }
 
@@ -339,9 +230,9 @@ async function deleteStation(station: ManualStation) {
       expandedStationId.value = null;
     }
     await fetchStations();
-  } catch (e: any) {
+  } catch (e) {
     if (e !== 'cancel') {
-      ElMessage.error(e.response?.data?.error || '删除失败');
+      ElMessage.error(isAxiosError(e) ? e.response?.data?.error || '删除失败' : '删除失败');
     }
   }
 }
@@ -400,7 +291,7 @@ onMounted(async () => {
 
 <template>
   <div
-    class="admin-manual-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
+    class="admin-manual-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)] mobile-adaptive"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
       <!-- Page Header -->
@@ -439,7 +330,7 @@ onMounted(async () => {
       </PageHeader>
 
       <!-- KPI Metrics Grid -->
-      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mobile-grid">
         <Card
           v-for="card in consolidatedCards"
           :key="card.label"
@@ -490,7 +381,7 @@ onMounted(async () => {
           <!-- Toolbar Card -->
           <Card padding="sm" class="workbench-toolbar-card">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full">
+              <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full mobile-row">
                 <Tabs v-model="statusFilter" :options="tabOptions" size="sm" />
               </div>
 

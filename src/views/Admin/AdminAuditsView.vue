@@ -22,7 +22,7 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
-import { getApiErrorMessage } from '@/utils/error';
+import { getApiErrorMessage, logError } from '@/utils/error';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { fetchManagementInsights } from './adminManagementInsights';
@@ -31,8 +31,9 @@ import Tabs from '@/components/ui/Tabs.vue';
 import UiButton from '@/components/ui/Button.vue';
 import UiInput from '@/components/ui/Input.vue';
 import Card from '@/components/ui/Card.vue';
-import Badge from '@/components/ui/Badge.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import AdminStatCards from './components/AdminStatCards.vue';
+import AdminContentStatusBadge from './components/AdminContentStatusBadge.vue';
 
 type AuditTab = 'assets' | 'materials' | 'showcases' | 'plugins';
 type AuditStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -299,7 +300,7 @@ const fetchAllForStats = async () => {
     const response = await api.get<AuditItem[]>(pageConfig.value.apiPath);
     allItems.value = response.data;
   } catch (error) {
-    console.error('Fetch audit stats error:', error);
+    logError(error, { operation: 'admin.fetchAuditStats', component: 'AdminAuditsView' });
   }
 };
 
@@ -308,7 +309,7 @@ const fetchAssetCategories = async () => {
     const response = await api.get<{ id: string; name: string }[]>('/api/admin/asset-categories');
     assetCategories.value = response.data;
   } catch (error) {
-    console.error('Fetch asset categories error:', error);
+    logError(error, { operation: 'admin.fetchAssetCategories', component: 'AdminAuditsView' });
   }
 };
 
@@ -436,21 +437,6 @@ const setPage = (page: number) => {
   currentPage.value = nextPage;
   fetchItems();
 };
-
-const statusLabel = (status: string) => {
-  const map: Record<string, string> = {
-    PENDING: '待审核',
-    APPROVED: '已通过',
-    REJECTED: '已打回',
-  };
-  return map[status] || status;
-};
-
-const statusClass = (status: string) => ({
-  'tone-amber': status === 'PENDING',
-  'tone-green': status === 'APPROVED',
-  'tone-red': status === 'REJECTED',
-});
 
 const mediaUrl = (item: AuditItem) =>
   item.thumbnailUrl ||
@@ -676,7 +662,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="admin-audits-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
+    class="admin-audits-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)] mobile-adaptive"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
       <PageHeader :title="pageConfig.title" subtitle="内容审核" variant="card">
@@ -702,53 +688,12 @@ onBeforeUnmount(() => {
         </UiButton>
       </PageHeader>
       <!-- KPI Metrics Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card
-          v-for="card in consolidatedCards"
-          :key="card.label"
-          hoverable
-          glow
-          class="group !p-2 px-2.5"
-        >
-          <div class="flex items-center justify-between w-full gap-3">
-            <div class="flex items-center gap-2 min-w-0">
-              <span
-                class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-slate-100/10"
-                :class="card.color"
-              >
-                <component :is="card.icon" class="h-3.5 w-3.5" />
-              </span>
-              <div class="min-w-0">
-                <p
-                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
-                >
-                  {{ card.label }}
-                </p>
-                <p
-                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
-                  :title="card.hint"
-                >
-                  {{ card.hint }}
-                </p>
-              </div>
-            </div>
-
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="text-base font-black text-[var(--text-primary)] leading-none">
-                {{ card.value }}
-              </span>
-              <Badge :variant="card.health.variant">
-                {{ card.health.label }}
-              </Badge>
-            </div>
-          </div>
-        </Card>
-      </div>
+      <AdminStatCards :cards="consolidatedCards" />
 
       <!-- Filters & Search Toolbar -->
       <Card padding="sm">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="flex items-center gap-3 overflow-x-auto scrollbar-hide shrink-0">
+          <div class="flex items-center gap-3 overflow-x-auto scrollbar-hide shrink-0 mobile-row">
             <!-- Resource Type Tabs -->
             <Tabs v-model="activeTab" :options="moderationTabOptions" variant="solid" />
             <!-- Status Tabs -->
@@ -778,7 +723,7 @@ onBeforeUnmount(() => {
       <!-- Batch operations bar -->
       <div
         v-if="selectedIds.length"
-        class="batch-bar flex items-center justify-between gap-3 p-2 px-3 border border-slate-100 dark:border-white/5 bg-white/40 dark:bg-white/5 backdrop-blur-sm rounded-lg"
+        class="batch-bar flex items-center justify-between gap-3 p-2 px-3 border border-slate-100 dark:border-white/5 bg-white/40 dark:bg-white/5 backdrop-blur-sm rounded-lg mobile-row"
       >
         <span class="text-xs font-semibold text-[var(--text-secondary)]">
           已选择 {{ selectedIds.length }} 条记录
@@ -798,7 +743,7 @@ onBeforeUnmount(() => {
         <el-table
           v-loading="isLoading"
           :data="filteredItems"
-          class="user-table w-full flex-1"
+          class="user-table w-full flex-1 mobile-table"
           row-class-name="table-row"
           @row-click="openDetail"
         >
@@ -871,12 +816,7 @@ onBeforeUnmount(() => {
 
           <el-table-column label="状态" width="120">
             <template #default="{ row }">
-              <span
-                class="pill text-xs px-2 py-0.5 font-bold rounded-full"
-                :class="statusClass(row.status)"
-              >
-                {{ statusLabel(row.status) }}
-              </span>
+              <AdminContentStatusBadge :status="row.status" />
             </template>
           </el-table-column>
 
@@ -980,12 +920,7 @@ onBeforeUnmount(() => {
         <!-- Header -->
         <div class="flex items-start justify-between">
           <div class="min-w-0">
-            <span
-              class="pill text-xs px-2 py-0.5 font-bold rounded-full inline-block"
-              :class="statusClass(activeItem.status)"
-            >
-              {{ statusLabel(activeItem.status) }}
-            </span>
+            <AdminContentStatusBadge :status="activeItem.status" />
             <h2 class="text-xl font-bold mt-2 text-[var(--text-primary)] break-words">
               {{ activeItem.title }}
             </h2>
@@ -1076,7 +1011,7 @@ onBeforeUnmount(() => {
 
         <!-- Drawer Actions -->
         <div
-          class="drawer-actions pt-4 mt-auto border-t border-slate-100 dark:border-white/5 flex flex-wrap gap-2"
+          class="drawer-actions pt-4 mt-auto border-t border-slate-100 dark:border-white/5 flex flex-wrap gap-2 mobile-row"
         >
           <a
             v-if="mediaUrl(activeItem)"
@@ -1288,38 +1223,6 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
   min-width: 0;
-}
-
-.form-stack {
-  display: grid;
-  gap: 14px;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.form-stack label {
-  display: grid;
-  gap: 7px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.form-stack input,
-.form-stack textarea,
-.form-stack select {
-  min-height: 40px;
-  padding: 10px 11px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
-  resize: vertical;
-  color: var(--text-primary);
-  outline: none;
 }
 
 .reason-templates {

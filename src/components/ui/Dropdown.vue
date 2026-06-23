@@ -11,8 +11,13 @@ withDefaults(defineProps<Props>(), {
   widthClass: 'w-48',
 });
 
+interface DropdownRef {
+  handleClose: () => void;
+  handleOpen: () => void;
+}
+
 const isOpen = ref(false);
-const dropdownRef = ref<any>(null);
+const dropdownRef = ref<DropdownRef | null>(null);
 
 const toggle = () => {
   if (dropdownRef.value) {
@@ -46,7 +51,7 @@ defineExpose({ toggle, close, isOpen });
     </div>
     <template #dropdown>
       <el-dropdown-menu
-        class="!p-1.5 !rounded-2xl !shadow-lg !border !border-slate-200 dark:!border-slate-700 glass-panel !overflow-hidden"
+        class="!p-1.5 !rounded-2xl !shadow-lg !border !border-slate-200 dark:!border-slate-700 glass-panel !overflow-hidden max-w-[calc(100vw-16px)]"
         :class="widthClass"
       >
         <div class="flex flex-col gap-0.5 outline-none" @click="close">

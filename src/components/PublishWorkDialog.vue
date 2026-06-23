@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getApiErrorMessage } from '@/utils/error';
+import { getApiErrorMessage, logError } from '@/utils/error';
 import { computed, ref, onMounted, watch, defineAsyncComponent } from 'vue';
 import { Box, UploadCloud, Image, Film, FileText, File, Puzzle, Check } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
@@ -152,8 +152,8 @@ const fetchMyApprovedAssets = async () => {
     myApprovedAssets.value = (response.data as ApprovedAsset[]).filter(
       (asset) => asset.status === 'APPROVED',
     );
-  } catch (_error) {
-    console.error('Failed to fetch my assets');
+  } catch (error) {
+    logError(error, { operation: 'publish.fetchMyAssets', component: 'PublishWorkDialog' });
   }
 };
 
@@ -161,8 +161,8 @@ const fetchCategories = async () => {
   try {
     const response = await api.get('/api/assets/categories');
     assetCategories.value = response.data;
-  } catch (_error) {
-    console.error('Failed to fetch categories');
+  } catch (error) {
+    logError(error, { operation: 'publish.fetchCategories', component: 'PublishWorkDialog' });
   }
 };
 

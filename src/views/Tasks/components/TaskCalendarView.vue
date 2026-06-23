@@ -15,6 +15,7 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
+import { getApiErrorMessage } from '@/utils/error';
 import type { Task, UserType } from '@/types/task';
 
 interface Props {
@@ -193,9 +194,8 @@ const onDropToDate = async (event: DragEvent, targetDate: Date) => {
     ElMessage.success(`截止时间已变更为: ${scheduledDate.toLocaleDateString()}`);
     emit('refresh', response.data);
     emit('refresh-stats');
-  } catch (error: any) {
-    const errorMsg = error.response?.data?.error || '无法修改任务截止日期';
-    ElMessage.error(errorMsg);
+  } catch (error: unknown) {
+    ElMessage.error(getApiErrorMessage(error, '无法修改任务截止日期'));
   } finally {
     draggedTaskId.value = null;
   }
@@ -211,9 +211,8 @@ const onDropToSidebar = async (event: DragEvent) => {
     ElMessage.success(`已移出计划并清除截止日期`);
     emit('refresh', response.data);
     emit('refresh-stats');
-  } catch (error: any) {
-    const errorMsg = error.response?.data?.error || '无法取消计划任务';
-    ElMessage.error(errorMsg);
+  } catch (error: unknown) {
+    ElMessage.error(getApiErrorMessage(error, '无法取消计划任务'));
   } finally {
     draggedTaskId.value = null;
   }
@@ -221,12 +220,12 @@ const onDropToSidebar = async (event: DragEvent) => {
 </script>
 
 <template>
-  <div class="flex-1 flex gap-4 p-1 sm:p-4 overflow-hidden h-full">
+  <div class="mobile-adaptive calendar-root flex-1 flex gap-4 p-1 sm:p-4 overflow-hidden h-full">
     <!-- Left Column: Calendar Main View -->
-    <div class="flex-1 flex flex-col min-w-0 h-full">
+    <div class="calendar-main flex-1 flex flex-col min-w-0 h-full">
       <!-- Calendar Header controls -->
       <div
-        class="flex items-center justify-between px-3 py-2 border rounded-t-xl shrink-0"
+        class="mobile-row flex items-center justify-between px-3 py-2 border rounded-t-xl shrink-0"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <div class="flex items-center gap-2">
@@ -274,7 +273,7 @@ const onDropToSidebar = async (event: DragEvent) => {
 
       <!-- Weekday Header labels -->
       <div
-        class="grid grid-cols-7 border-x border-b py-2 text-center text-[10px] font-black uppercase tracking-wider shrink-0"
+        class="calendar-grid grid grid-cols-7 border-x border-b py-2 text-center text-[10px] font-black uppercase tracking-wider shrink-0"
         style="
           background-color: var(--bg-card);
           border-color: var(--border-base);
@@ -288,7 +287,7 @@ const onDropToSidebar = async (event: DragEvent) => {
 
       <!-- Grid Container -->
       <div
-        class="flex-1 grid grid-cols-7 grid-rows-6 border-l border-b overflow-hidden relative rounded-b-xl min-h-0"
+        class="calendar-grid flex-1 grid grid-cols-7 grid-rows-6 border-l border-b overflow-hidden relative rounded-b-xl min-h-0"
         style="border-color: var(--border-base)"
       >
         <div
@@ -364,7 +363,7 @@ const onDropToSidebar = async (event: DragEvent) => {
     <!-- Right Column: Unscheduled Tasks Sidebar -->
     <div
       v-show="isSidebarOpen"
-      class="w-64 border rounded-xl flex flex-col overflow-hidden shrink-0 transition-all duration-300"
+      class="calendar-sidebar w-64 border rounded-xl flex flex-col overflow-hidden shrink-0 transition-all duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
       @dragover="onDragOver"
       @drop="onDropToSidebar"
@@ -442,5 +441,24 @@ const onDropToSidebar = async (event: DragEvent) => {
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@media (max-width: 767px) {
+  .calendar-root {
+    flex-direction: column;
+    overflow-y: auto;
+    height: auto;
+  }
+  .calendar-main {
+    min-height: 360px;
+  }
+  .calendar-sidebar {
+    width: 100% !important;
+    margin-top: 12px;
+    min-height: 200px;
+  }
+  .calendar-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+  }
 }
 </style>

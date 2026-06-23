@@ -47,16 +47,16 @@ const copyText = async (value: string, label = '内容') => {
   try {
     await navigator.clipboard.writeText(value);
     ElMessage.success(`${label}已复制`);
-  } catch (_error) {
+  } catch {
     ElMessage.warning('当前浏览器不支持自动复制');
   }
 };
 </script>
 
 <template>
-  <section class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_21rem]">
+  <section class="mobile-adaptive grid gap-3 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_21rem]">
     <div class="tool-panel">
-      <div class="panel-head">
+      <div class="panel-head mobile-row">
         <div class="panel-title">
           <PlayCircle class="h-4 w-4 text-sky-500" />
           <span>沙盒模拟</span>
@@ -140,7 +140,7 @@ const copyText = async (value: string, label = '内容') => {
 
     <aside class="space-y-3">
       <div class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <Gauge class="h-4 w-4 text-amber-500" />
             <span>模拟质量</span>
@@ -173,7 +173,7 @@ const copyText = async (value: string, label = '内容') => {
       </div>
 
       <div class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <FileJson class="h-4 w-4 text-rose-500" />
             <span>回调负载预览</span>

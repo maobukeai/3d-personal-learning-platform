@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button.vue';
 import { useSystemStore } from '@/stores/system';
 import { ElMessage } from 'element-plus';
 import { createJsonHeaders, readFetchErrorMessage } from '@/utils/aiHelpers';
+import { logError } from '@/utils/error';
 import { TEAM_CORE_VALUES_SEPARATOR } from '@/utils/team';
 
 interface EditForm {
@@ -199,7 +200,7 @@ const handleAiGenerateDescription = async () => {
       ElMessage.success('AI 已成功为您策划了小组介绍与核心价值！');
     }
   } catch (err: unknown) {
-    console.error(err);
+    logError(err, { operation: 'team.aiGenerateDescription', component: 'TeamSettingsTab' });
     ElMessage.error((err instanceof Error ? err.message : null) || 'AI 策划失败，请尝试手动填写');
   } finally {
     isGenerating.value = false;
@@ -208,7 +209,9 @@ const handleAiGenerateDescription = async () => {
 </script>
 
 <template>
-  <div class="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
+  <div
+    class="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full mobile-adaptive"
+  >
     <!-- Basic Profile Section -->
     <div class="space-y-4 text-left">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -240,7 +243,7 @@ const handleAiGenerateDescription = async () => {
           input-class="!px-5 !py-3.5 !rounded-2xl"
         />
         <div class="space-y-2">
-          <div class="flex items-center justify-between ml-1">
+          <div class="flex items-center justify-between ml-1 mobile-row">
             <label
               class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest"
               >{{ t('teamDetail.teamDescLabel') }}</label

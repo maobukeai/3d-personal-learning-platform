@@ -92,7 +92,7 @@ const fetchStationResources = async () => {
     resourceList.value = res.data.resources;
     resourceTotal.value = res.data.total;
     resourceTotalPages.value = res.data.totalPages;
-  } catch (_e) {
+  } catch {
     ElMessage.error(t('admin.failed_to_pull_resources'));
   } finally {
     isLoadingResources.value = false;

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   Cloud,
@@ -15,6 +14,7 @@ import {
   RotateCcw,
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
+import { isAxiosError } from 'axios';
 import {
   fetchBackupConfig,
   saveBackupConfig,
@@ -25,13 +25,20 @@ import {
   deleteBackup,
   type RemoteBackupFile,
 } from '@/services/backup.service';
+import { useLabel } from '@/utils/i18n';
 import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
 
 const authStore = useAuthStore();
-const { locale } = useI18n();
+const label = useLabel();
 
-const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
+const getBackupErrorMessage = (error: unknown, fallback: string): string => {
+  if (isAxiosError(error)) {
+    return error.response?.data?.error || error.message || fallback;
+  }
+  if (error instanceof Error) return error.message || fallback;
+  return fallback;
+};
 
 // State
 const url = ref('');
@@ -96,10 +103,10 @@ const loadData = async () => {
 
     // Load backup files list
     await refreshBackupsList();
-  } catch (error: any) {
+  } catch (error) {
     ElMessage.error(
       label('加载备份配置失败: ', 'Failed to load backup config: ') +
-        (error.response?.data?.error || error.message),
+        getBackupErrorMessage(error, ''),
     );
   } finally {
     isLoadingList.value = false;
@@ -129,10 +136,13 @@ const refreshBackupsList = async () => {
       lastRestoreTime.value = null;
       lastRestoreFile.value = null;
     }
-  } catch (error: any) {
+  } catch (error) {
     // If not configured, it returns empty list silently, but if configured and fails, show error
     if (url.value) {
-      console.warn('Failed to load remote backups list:', error.message);
+      console.warn(
+        'Failed to load remote backups list:',
+        getBackupErrorMessage(error, 'Unknown error'),
+      );
     }
   } finally {
     isLoadingList.value = false;
@@ -156,10 +166,9 @@ const handleSaveConfig = async () => {
     password.value = '';
     ElMessage.success(label('同步配置已保存', 'Sync configuration saved'));
     await refreshBackupsList();
-  } catch (error: any) {
+  } catch (error) {
     ElMessage.error(
-      label('保存配置失败: ', 'Failed to save config: ') +
-        (error.response?.data?.error || error.message),
+      label('保存配置失败: ', 'Failed to save config: ') + getBackupErrorMessage(error, ''),
     );
   } finally {
     isSaving.value = false;
@@ -185,10 +194,9 @@ const handleTestConfig = async () => {
 
     // Automatically save config if test passes
     await handleSaveConfig();
-  } catch (error: any) {
+  } catch (error) {
     ElMessage.error(
-      label('连接测试失败: ', 'Connection test failed: ') +
-        (error.response?.data?.error || error.message),
+      label('连接测试失败: ', 'Connection test failed: ') + getBackupErrorMessage(error, ''),
     );
   } finally {
     isTesting.value = false;
@@ -220,10 +228,8 @@ const handleRunBackup = async () => {
     await runBackup(finalCategories);
     ElMessage.success(label('备份打包并上传成功！', 'Backup packaged and uploaded successfully!'));
     await refreshBackupsList();
-  } catch (error: any) {
-    ElMessage.error(
-      label('备份失败: ', 'Backup failed: ') + (error.response?.data?.error || error.message),
-    );
+  } catch (error) {
+    ElMessage.error(label('备份失败: ', 'Backup failed: ') + getBackupErrorMessage(error, ''));
   } finally {
     isBackingUp.value = false;
   }
@@ -289,11 +295,10 @@ const handleRestore = async () => {
 
     ElMessage.success(label('备份数据已成功恢复！', 'Backup data successfully restored!'));
     await refreshBackupsList();
-  } catch (error: any) {
+  } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error(
-        label('恢复备份失败: ', 'Failed to restore backup: ') +
-          (error.response?.data?.error || error.message),
+        label('恢复备份失败: ', 'Failed to restore backup: ') + getBackupErrorMessage(error, ''),
       );
     }
   } finally {
@@ -322,11 +327,9 @@ const handleDeleteBackup = async (filename: string) => {
     await deleteBackup(filename);
     ElMessage.success(label('备份已从云端删除', 'Backup deleted from cloud'));
     await refreshBackupsList();
-  } catch (error: any) {
+  } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(
-        label('删除失败: ', 'Failed to delete: ') + (error.response?.data?.error || error.message),
-      );
+      ElMessage.error(label('删除失败: ', 'Failed to delete: ') + getBackupErrorMessage(error, ''));
     }
   } finally {
     isDeleting.value[filename] = false;
@@ -350,7 +353,7 @@ const formatDate = (dateStr: string) => {
 </script>
 
 <template>
-  <div class="backup-section">
+  <div class="backup-section mobile-adaptive">
     <!-- WebDAV Sync Configuration Card -->
     <section class="settings-card glass-panel">
       <div class="card-header">
@@ -480,7 +483,7 @@ const formatDate = (dateStr: string) => {
         </p>
       </div>
 
-      <div class="actions-bar">
+      <div class="actions-bar mobile-row">
         <Button
           variant="secondary"
           :loading="isTesting"
@@ -637,7 +640,7 @@ const formatDate = (dateStr: string) => {
         </div>
       </div>
 
-      <div class="actions-bar">
+      <div class="actions-bar mobile-row">
         <Button
           variant="primary"
           :loading="isBackingUp"
@@ -652,7 +655,7 @@ const formatDate = (dateStr: string) => {
 
     <!-- Remote Backups List -->
     <section class="settings-card glass-panel">
-      <div class="card-header list-header">
+      <div class="card-header list-header mobile-row">
         <div>
           <div class="header-title">
             <Cloud class="text-blue" />
@@ -686,7 +689,7 @@ const formatDate = (dateStr: string) => {
           </p>
         </div>
 
-        <div v-else class="table-wrapper">
+        <div class="table-wrapper mobile-table">
           <table class="backups-table">
             <thead>
               <tr>
@@ -703,7 +706,7 @@ const formatDate = (dateStr: string) => {
                 </td>
                 <td>{{ formatBytes(file.size) }}</td>
                 <td>{{ formatDate(file.lastModified) }}</td>
-                <td class="actions-cell">
+                <td class="actions-cell mobile-row">
                   <Button
                     variant="primary"
                     size="sm"
@@ -833,7 +836,7 @@ const formatDate = (dateStr: string) => {
           </div>
         </div>
 
-        <div class="modal-footer">
+        <div class="modal-footer mobile-row">
           <Button variant="secondary" @click="showRestoreDialog = false">
             {{ label('取消', 'Cancel') }}
           </Button>
@@ -1273,6 +1276,33 @@ const formatDate = (dateStr: string) => {
   .checkbox-grid,
   .checkbox-grid.compact {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .table-wrapper.mobile-table {
+    overflow-x: hidden;
+  }
+
+  .mobile-table .backups-table {
+    font-size: 10px;
+  }
+
+  .mobile-table .backups-table th,
+  .mobile-table .backups-table td {
+    padding: 4px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .actions-cell {
+    gap: 4px;
+  }
+
+  .modal-card {
+    max-width: calc(100vw - 16px);
+    padding: 16px;
   }
 }
 </style>

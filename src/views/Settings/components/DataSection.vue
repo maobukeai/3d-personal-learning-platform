@@ -124,12 +124,12 @@ const handleDeleteAccount = async () => {
 </script>
 
 <template>
-  <div class="data-section">
-    <section class="data-overview">
-      <div>
+  <div class="data-section mobile-adaptive">
+    <section class="data-overview mobile-row">
+      <div class="min-w-0">
         <p class="section-kicker">数据与风险</p>
-        <h3>导出可追溯，注销需校验</h3>
-        <span>账号级数据操作走后端接口，并保留明确的确认流程。</span>
+        <h3 class="truncate">导出可追溯，注销需校验</h3>
+        <span class="truncate">账号级数据操作走后端接口，并保留明确的确认流程。</span>
       </div>
       <Button
         variant="primary"
@@ -147,7 +147,7 @@ const handleDeleteAccount = async () => {
         <span>最近导出摘要</span>
         <FileJson />
       </div>
-      <div class="export-grid">
+      <div class="export-grid mobile-grid">
         <article v-for="item in exportSummary" :key="item.label">
           <span>{{ item.label }}</span>
           <strong>{{ item.value }}</strong>
@@ -162,12 +162,12 @@ const handleDeleteAccount = async () => {
     </section>
 
     <section class="danger-panel">
-      <div class="danger-heading">
-        <div>
+      <div class="danger-heading mobile-row">
+        <div class="min-w-0">
           <ShieldAlert />
           <span>
-            <strong>危险区域</strong>
-            <small>永久删除账号和相关数据</small>
+            <strong class="truncate">危险区域</strong>
+            <small class="truncate">永久删除账号和相关数据</small>
           </span>
         </div>
         <em>{{ requires2FA ? '2FA 校验' : '密码校验' }}</em>
@@ -474,14 +474,8 @@ button svg,
 }
 
 @media (max-width: 900px) {
-  .data-overview,
   .danger-body {
     grid-template-columns: 1fr;
-  }
-
-  .data-overview {
-    align-items: flex-start;
-    flex-direction: column;
   }
 
   .export-grid {
@@ -492,11 +486,6 @@ button svg,
 @media (max-width: 560px) {
   .export-grid {
     grid-template-columns: 1fr;
-  }
-
-  .primary-action {
-    justify-content: center;
-    width: 100%;
   }
 }
 </style>

@@ -23,8 +23,10 @@ const props = withDefaults(
     borderless?: boolean;
   }>(),
   {
+    user: null,
+    size: 'md',
     borderless: false,
-  }
+  },
 );
 
 const imageError = ref(false);
@@ -289,11 +291,9 @@ const fallbackBgColor = computed(() => {
         }"
       >
         <span v-if="frameConfig.badgeIcon" class="text-[0.9em]">{{ frameConfig.badgeIcon }}</span>
-        <span
-          v-if="frameConfig.badgeText"
-          class="uppercase tracking-tight whitespace-nowrap"
-          >{{ frameConfig.badgeText }}</span
-        >
+        <span v-if="frameConfig.badgeText" class="uppercase tracking-tight whitespace-nowrap">{{
+          frameConfig.badgeText
+        }}</span>
       </div>
 
       <!-- Hover Effect Enhancement -->

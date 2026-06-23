@@ -21,20 +21,21 @@ import {
   RefreshCw,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
 import type { Category, Course } from '@/types';
 
 // Subcomponents
 import CourseEditDialog from './components/CourseEditDialog.vue';
-import CategoryEditDialog from './components/CategoryEditDialog.vue';
+import CategoryFormDialog from './components/CategoryFormDialog.vue';
 import CourseImportDialog from './components/CourseImportDialog.vue';
 import LessonEditDialog from './components/LessonEditDialog.vue';
 import { fetchManagementInsights } from './adminManagementInsights';
 import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';
 import Tabs from '@/components/ui/Tabs.vue';
-import Badge from '@/components/ui/Badge.vue';
+import AdminStatCards from './components/AdminStatCards.vue';
 
 const router = useRouter();
 
@@ -45,7 +46,7 @@ const activeTab = ref<'courses' | 'categories'>('courses');
 
 // Subcomponent References
 const courseEditDialogRef = ref<InstanceType<typeof CourseEditDialog> | null>(null);
-const categoryEditDialogRef = ref<InstanceType<typeof CategoryEditDialog> | null>(null);
+const categoryEditDialogRef = ref<InstanceType<typeof CategoryFormDialog> | null>(null);
 const courseImportDialogRef = ref<InstanceType<typeof CourseImportDialog> | null>(null);
 const lessonEditDialogRef = ref<InstanceType<typeof LessonEditDialog> | null>(null);
 
@@ -63,11 +64,6 @@ const handleTabChange = (tab: string | number | null) => {
 const searchQuery = ref('');
 const sortBy = ref<'newest' | 'enrollments' | 'rating'>('newest');
 const statusFilter = ref<'ALL' | 'PUBLISHED' | 'DRAFT'>('ALL');
-const setStatusFilter = (key: string) => {
-  if (key === 'ALL' || key === 'PUBLISHED' || key === 'DRAFT') {
-    statusFilter.value = key;
-  }
-};
 
 const courseStats = computed(() => {
   const total = courses.value.length;
@@ -77,13 +73,6 @@ const courseStats = computed(() => {
   const totalLessons = courses.value.reduce((sum, c) => sum + (c.lessons?.length || 0), 0);
   return { total, published, draft, totalEnrollments, totalLessons };
 });
-
-const getBadgeVariant = (label: string) => {
-  if (label === '正常' || label === '稳定') return 'success';
-  if (label === '关注') return 'warning';
-  if (label === '高压') return 'danger';
-  return 'primary';
-};
 
 const courseTabOptions = [
   { label: '课程列表', value: 'courses' },
@@ -102,7 +91,7 @@ const consolidatedCards = computed(() => {
   return [
     {
       label: '课程规模',
-      value: stats.total,
+      value: stats.total.toLocaleString(),
       hint: `${stats.published} 已发布 · ${stats.draft} 草稿`,
       icon: BookOpen,
       color: 'text-indigo-600 bg-indigo-500/10 border-indigo-500/20',
@@ -110,7 +99,7 @@ const consolidatedCards = computed(() => {
     },
     {
       label: '教学总课时',
-      value: stats.totalLessons,
+      value: stats.totalLessons.toLocaleString(),
       hint: `平均 ${avgLessons} 节/课`,
       icon: Clock,
       color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
@@ -118,7 +107,7 @@ const consolidatedCards = computed(() => {
     },
     {
       label: '累计学习人次',
-      value: stats.totalEnrollments,
+      value: stats.totalEnrollments.toLocaleString(),
       hint: `全站学习总量`,
       icon: Users,
       color: 'text-purple-600 bg-purple-500/10 border-purple-500/20',
@@ -126,7 +115,7 @@ const consolidatedCards = computed(() => {
     },
     {
       label: '分类规模',
-      value: categories.value.length,
+      value: categories.value.length.toLocaleString(),
       hint: `已建立课程分类`,
       icon: FolderTree,
       color: 'text-sky-600 bg-sky-500/10 border-sky-500/20',
@@ -162,7 +151,7 @@ const fetchCourses = async () => {
     );
     fetchManagementInsights(true);
   } catch (error) {
-    console.error('Fetch courses error:', error);
+    logError(error, { operation: 'admin.fetchCourses', component: 'AdminCoursesView' });
   } finally {
     isLoading.value = false;
   }
@@ -173,7 +162,7 @@ const fetchCategories = async () => {
     const { data } = await api.get('/api/admin/course-categories');
     categories.value = data;
   } catch (error) {
-    console.error('Fetch categories error:', error);
+    logError(error, { operation: 'admin.fetchCourseCategories', component: 'AdminCoursesView' });
   }
 };
 
@@ -249,7 +238,7 @@ const batchUpdateCourseStatus = async (status: 'PUBLISHED' | 'DRAFT') => {
     ElMessage.success(status === 'PUBLISHED' ? '已批量发布课程' : '已批量转为草稿');
     clearCourseSelection();
     await fetchCourses();
-  } catch (error) {
+  } catch {
     ElMessage.error('批量更新课程状态失败');
   }
 };
@@ -281,7 +270,7 @@ const batchDeleteCourses = async () => {
     ElMessage.success('已批量删除课程');
     clearCourseSelection();
     await fetchCourses();
-  } catch (error) {
+  } catch {
     ElMessage.error('批量删除课程失败');
   }
 };
@@ -302,7 +291,7 @@ const handleDeleteCategory = async (id: string) => {
     ElMessage.success(t('admin.category_deleted'));
     fetchCategories();
     fetchCourses();
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('admin.failed_to_delete_category'));
   }
 };
@@ -322,7 +311,7 @@ const handleDeleteCourse = async (id: string) => {
     await api.delete(`/api/admin/courses/${id}`);
     ElMessage.success(t('admin.course_deleted'));
     fetchCourses();
-  } catch (error) {
+  } catch {
     ElMessage.error(t('admin.failed_to_delete_course'));
   }
 };
@@ -337,7 +326,7 @@ const toggleCourseStatus = async (course: Course) => {
         ? t('admin.course_published')
         : t('admin.course_has_been_converted'),
     );
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('admin.update_status_failed'));
   }
 };
@@ -357,7 +346,7 @@ const handleDeleteLesson = async (id: string) => {
     await api.delete(`/api/admin/courses/lessons/${id}`);
     ElMessage.success(t('admin.class_has_been_deleted'));
     fetchCourses();
-  } catch (error) {
+  } catch {
     ElMessage.error(t('admin.failed_to_delete_class'));
   }
 };
@@ -370,7 +359,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="admin-courses-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
+    class="admin-courses-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)] mobile-adaptive"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
       <!-- 奢华顶栏 (PageHeader card variant) -->
@@ -411,58 +400,15 @@ onMounted(() => {
       </PageHeader>
 
       <!-- KPI Metrics Grid -->
-      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-        <Card
-          v-for="card in consolidatedCards"
-          :key="card.label"
-          hoverable
-          glow
-          class="group !p-2 px-2.5"
-        >
-          <div class="flex items-center justify-between w-full gap-3">
-            <!-- Left: Icon & Info -->
-            <div class="flex items-center gap-2.5 min-w-0">
-              <span
-                class="panel-icon border border-base rounded-lg p-1.5 transition-transform group-hover:scale-105 shrink-0"
-                :class="card.color"
-              >
-                <component :is="card.icon" class="h-3.5 w-3.5" />
-              </span>
-              <div class="min-w-0">
-                <p
-                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
-                >
-                  {{ card.label }}
-                </p>
-                <p
-                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
-                  :title="card.hint"
-                >
-                  {{ card.hint }}
-                </p>
-              </div>
-            </div>
-
-            <!-- Right: Metric & Health Badge -->
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="text-base font-black text-[var(--text-primary)] leading-none">
-                {{ card.value.toLocaleString() }}
-              </span>
-              <Badge :variant="getBadgeVariant(card.health.label)">
-                {{ card.health.label }}
-              </Badge>
-            </div>
-          </div>
-        </Card>
-      </section>
+      <AdminStatCards :cards="consolidatedCards" />
 
       <!-- Workspace layout: Single Column Workspace -->
       <div class="mt-3 w-full min-w-0">
         <div class="space-y-3 min-w-0">
           <!-- Main Tab Switcher Card -->
           <Card padding="sm" class="workbench-toolbar-card">
-            <div class="toolbar-top">
-              <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full">
+            <div class="toolbar-top mobile-row">
+              <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full mobile-row">
                 <Tabs
                   v-model="activeTab"
                   :options="courseTabOptions"
@@ -475,9 +421,9 @@ onMounted(() => {
 
           <!-- Workbench Toolbar / Batch Operations Card -->
           <Card v-if="activeTab === 'courses'" padding="sm" class="workbench-toolbar-card">
-            <div class="toolbar-top">
+            <div class="toolbar-top mobile-row">
               <div
-                class="flex items-center gap-3 overflow-x-auto scrollbar-hide shrink-0 max-w-full"
+                class="flex items-center gap-3 overflow-x-auto scrollbar-hide shrink-0 max-w-full mobile-row"
               >
                 <!-- Checkbox to Select All -->
                 <label
@@ -498,7 +444,7 @@ onMounted(() => {
                 <Tabs v-model="statusFilter" :options="presetTabOptions" size="sm" />
               </div>
 
-              <div class="toolbar-actions">
+              <div class="toolbar-actions mobile-row">
                 <div class="text-[10px] font-bold text-slate-400 shrink-0">排序:</div>
                 <el-select v-model="sortBy" size="small" style="width: 100px">
                   <el-option value="newest" :label="$t('admin.latest_creation')" />
@@ -515,11 +461,11 @@ onMounted(() => {
             </div>
 
             <!-- Batch Operations Toolbar -->
-            <div v-if="selectedCourseCount" class="batch-bar">
+            <div v-if="selectedCourseCount" class="batch-bar mobile-row">
               <div>
                 已选 <strong>{{ selectedCourseCount }}</strong> 门课程
               </div>
-              <div class="batch-actions">
+              <div class="batch-actions mobile-row">
                 <el-button size="small" @click="batchUpdateCourseStatus('PUBLISHED')">
                   批量发布
                 </el-button>
@@ -740,7 +686,7 @@ onMounted(() => {
 
             <!-- Categories List -->
             <template v-else>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mobile-grid">
                 <div
                   v-for="cat in categories"
                   :key="cat.id"
@@ -795,8 +741,9 @@ onMounted(() => {
     <!-- Modals Subcomponents -->
     <CourseEditDialog ref="courseEditDialogRef" :categories="categories" @saved="fetchCourses" />
 
-    <CategoryEditDialog
+    <CategoryFormDialog
       ref="categoryEditDialogRef"
+      mode="course"
       :categories-count="categories.length"
       @saved="
         () => {

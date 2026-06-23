@@ -1,6 +1,29 @@
 import { io, Socket } from 'socket.io-client';
+import { logError } from '@/utils/error';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// In development, we use same-origin connection to leverage Vite dev server proxy.
+// In production, we default to same-origin connection (as Nginx proxies /socket.io),
+// but allow overriding via VITE_SOCKET_URL or fallback to VITE_API_URL if needed.
+const getSocketUrl = () => {
+  if (import.meta.env.VITE_SOCKET_URL) {
+    return import.meta.env.VITE_SOCKET_URL;
+  }
+  if (import.meta.env.DEV) {
+    return '';
+  }
+  const apiUrl = import.meta.env.VITE_API_URL || '';
+  if (
+    !apiUrl ||
+    apiUrl.startsWith('/') ||
+    apiUrl.includes('localhost') ||
+    apiUrl.includes('127.0.0.1')
+  ) {
+    return '';
+  }
+  return apiUrl;
+};
+
+const SOCKET_URL = getSocketUrl();
 
 type SocketCallback<TArgs extends unknown[] = unknown[]> = (...args: TArgs) => void;
 type StoredListener = {
@@ -48,10 +71,14 @@ class SocketService {
       }
     });
 
-    this.socket.on('connect_error', () => {
+    this.socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
       this.reconnectAttempts++;
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        console.error('Socket: 达到最大重连次数，停止重连');
+        logError(new Error(`Socket: 达到最大重连次数，停止重连. Error: ${error.message}`), {
+          operation: 'socket.maxReconnect',
+          component: 'SocketService',
+        });
         this.disconnect();
       }
     });

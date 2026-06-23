@@ -5,7 +5,7 @@ import { ref, reactive, onMounted, watch, computed } from 'vue';
 import { Mail, Settings, Sparkles, Shield, Eye, EyeOff } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
-import { getApiErrorMessage } from '@/utils/error';
+import { getApiErrorMessage, logError } from '@/utils/error';
 
 interface SmtpConfig {
   id: string;
@@ -117,7 +117,7 @@ const addNewSmtpConfig = async () => {
     // Auto select the new configuration
     selectSmtpConfig(newId);
     ElMessage.success(t('admin.scheme_name_has_been', { name: name }));
-  } catch (_error) {
+  } catch {
     // User canceled
   }
 };
@@ -142,7 +142,7 @@ const renameSmtpConfig = async () => {
     activeCfg.name = name;
     localSettings.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
     ElMessage.success(t('admin.scheme_renamed_successfully'));
-  } catch (_error) {
+  } catch {
     // User canceled
   }
 };
@@ -239,7 +239,7 @@ const fetchMicrosoftAccounts = async () => {
     const { data } = await api.get('/api/email/accounts');
     microsoftAccounts.value = data;
   } catch (error) {
-    console.error('Failed to fetch Microsoft email accounts:', error);
+    logError(error, { operation: 'admin.fetchMicrosoftAccounts', component: 'SmtpSettingsTab' });
   } finally {
     isLoadingAccounts.value = false;
   }
@@ -296,7 +296,7 @@ const testSmtp = async () => {
     ElMessage.success(data.message);
   } catch (error) {
     if (error === 'cancel') return;
-    console.error('Test SMTP error:', error);
+    logError(error, { operation: 'admin.testSmtp', component: 'SmtpSettingsTab' });
     ElMessage.error(getApiErrorMessage(error, t('admin.smtp_test_failed')));
   } finally {
     isTestingSmtp.value = false;
@@ -320,7 +320,7 @@ onMounted(async () => {
         <h2 class="text-sm font-bold" style="color: var(--text-primary)">系统发信模式选择</h2>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mobile-grid">
         <!-- Option 1: SMTP -->
         <div
           class="p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-between gap-4"
@@ -427,7 +427,7 @@ onMounted(async () => {
       </div>
 
       <!-- Pool Stats Grid -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mobile-grid">
         <div
           class="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-slate-800 flex flex-col justify-between"
         >
@@ -634,7 +634,7 @@ onMounted(async () => {
         </button>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mobile-grid">
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
             $t('admin.server_address')

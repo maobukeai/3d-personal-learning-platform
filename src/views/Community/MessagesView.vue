@@ -5,9 +5,11 @@ import { Trash2, Users } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 import { useAuthStore } from '@/stores/auth';
 import { socketService } from '@/utils/socket';
 import { useRoute } from 'vue-router';
+import type { ChatUser, ChatMessage, ChatConversation } from './components/chatTypes';
 
 // Subcomponents
 import ChatSidebar from './components/ChatSidebar.vue';
@@ -21,41 +23,10 @@ const { t } = useI18n();
 const authStore = useAuthStore();
 const route = useRoute();
 
-interface ChatUser {
-  id: string;
-  name: string;
-  avatarUrl?: string | null;
-  email?: string;
-  role?: string;
-}
-
-interface Message {
-  id: string;
-  conversationId: string;
-  senderId: string;
-  content: string;
-  type: string;
-  fileSize?: number;
-  createdAt: string;
-  replyToId?: string;
-  readBy?: { userId: string }[];
-  reactions?: { id: string; emoji: string; userId: string }[];
-}
-
-interface Conversation {
-  id: string;
-  name?: string;
-  isGroup: boolean;
-  unreadCount?: number;
-  updatedAt: string;
-  participants?: ChatUser[];
-  messages: Message[];
-}
-
 const searchQuery = ref('');
-const conversations = ref<Conversation[]>([]);
-const messages = ref<Message[]>([]);
-const activeConversation = ref<Conversation | null>(null);
+const conversations = ref<ChatConversation[]>([]);
+const messages = ref<ChatMessage[]>([]);
+const activeConversation = ref<ChatConversation | null>(null);
 const isLoadingConversations = ref(false);
 const isLoadingMessages = ref(false);
 
@@ -135,7 +106,7 @@ const conversationContextMenu = ref<{
   visible: boolean;
   x: number;
   y: number;
-  conversation: Conversation | null;
+  conversation: ChatConversation | null;
 }>({
   visible: false,
   x: 0,
@@ -151,7 +122,7 @@ const fetchConversations = async () => {
   isLoadingConversations.value = true;
   try {
     const response = await api.get('/api/messages/conversations');
-    const seen = new Map<string, Conversation>();
+    const seen = new Map<string, ChatConversation>();
     for (const conv of response.data) {
       if (seen.has(conv.id)) continue;
       seen.set(conv.id, conv);
@@ -166,7 +137,7 @@ const fetchConversations = async () => {
       selectConversation(requestedConversation || conversations.value[0]);
     }
   } catch (error) {
-    console.error('Fetch conversations error:', error);
+    logError(error, { operation: 'fetchConversations', view: 'MessagesView' });
   } finally {
     isLoadingConversations.value = false;
   }
@@ -178,7 +149,7 @@ const joinActiveConversation = () => {
   }
 };
 
-const selectConversation = async (conv: Conversation) => {
+const selectConversation = async (conv: ChatConversation) => {
   if (activeConversation.value && activeConversation.value.id !== conv.id) {
     socketService.emit('leave_conversation', activeConversation.value.id);
   }
@@ -186,7 +157,8 @@ const selectConversation = async (conv: Conversation) => {
   hasMoreMessages.value = false;
   nextCursor.value = null;
   fetchMessages(conv.id);
-  joinActiveConversation();
+  // Directly use conv.id to avoid reading shared state after async boundaries
+  socketService.emit('join_conversation', conv.id);
 
   if (conv.unreadCount && conv.unreadCount > 0) {
     api.patch(`/api/messages/conversations/${conv.id}/read`);
@@ -228,7 +200,7 @@ const fetchMessages = async (id: string, cursor?: string) => {
       chatWindowRef.value?.scrollToBottom();
     }
   } catch (error) {
-    console.error('Fetch messages error:', error);
+    logError(error, { operation: 'fetchMessages', view: 'MessagesView' });
   } finally {
     isLoadingMessages.value = false;
     isLoadingOlderMessages.value = false;
@@ -342,7 +314,7 @@ const leaveGroupChat = async () => {
   }
 };
 
-const deleteConversation = async (conv: Conversation) => {
+const deleteConversation = async (conv: ChatConversation) => {
   try {
     await ElMessageBox.confirm(
       t('messages.deleteConversationConfirm'),
@@ -372,7 +344,7 @@ const deleteConversation = async (conv: Conversation) => {
   if (conv.id) swipeOffset.value[conv.id] = 0;
 };
 
-const handleConversationContextMenu = (event: MouseEvent, conv: Conversation) => {
+const handleConversationContextMenu = (event: MouseEvent, conv: ChatConversation) => {
   event.preventDefault();
   event.stopPropagation();
   conversationContextMenu.value = {
@@ -387,7 +359,7 @@ const closeConversationContextMenu = () => {
   conversationContextMenu.value.visible = false;
 };
 
-const updateSidebarWithNewMessage = (message: Message) => {
+const updateSidebarWithNewMessage = (message: ChatMessage) => {
   const convIndex = conversations.value.findIndex((c) => c.id === message.conversationId);
   if (convIndex !== -1) {
     const conv = conversations.value[convIndex];
@@ -402,11 +374,123 @@ const updateSidebarWithNewMessage = (message: Message) => {
   } else {
     fetchConversations().then(() => {
       const total = conversations.value.reduce(
-        (acc: number, c: Conversation) => acc + (c.unreadCount || 0),
+        (acc: number, c: ChatConversation) => acc + (c.unreadCount || 0),
         0,
       );
       authStore.setUnreadMessagesCount(total);
     });
+  }
+};
+
+const handleNewMessageSocket = (message: ChatMessage) => {
+  if (activeConversation.value?.id === message.conversationId) {
+    if (!messages.value.some((m) => m.id === message.id)) {
+      messages.value.push(message);
+      chatWindowRef.value?.scrollToBottom();
+    }
+    api.patch(`/api/messages/conversations/${message.conversationId}/read`);
+  }
+  updateSidebarWithNewMessage(message);
+};
+
+const handleMessageReceivedSocket = ({
+  conversationId,
+  message,
+}: {
+  conversationId: string;
+  message: ChatMessage;
+}) => {
+  if (activeConversation.value?.id !== conversationId) {
+    updateSidebarWithNewMessage(message);
+  }
+};
+
+const handleMessageDeletedSocket = ({
+  messageId,
+  conversationId,
+}: {
+  messageId: string;
+  conversationId: string;
+}) => {
+  if (activeConversation.value?.id === conversationId) {
+    messages.value = messages.value.filter((m) => m.id !== messageId);
+  }
+  const conv = conversations.value.find((c) => c.id === conversationId);
+  if (conv && conv.messages?.[0]?.id === messageId) {
+    fetchConversations();
+  }
+};
+
+const handleMessagesReadSocket = ({
+  conversationId,
+  messageIds,
+  userId,
+}: {
+  conversationId: string;
+  messageIds: string[];
+  userId: string;
+}) => {
+  if (activeConversation.value?.id === conversationId && userId !== authStore.user?.id) {
+    messages.value = messages.value.map((m) => {
+      if (messageIds.includes(m.id)) {
+        return {
+          ...m,
+          readBy: [...(m.readBy || []), { userId }],
+        };
+      }
+      return m;
+    });
+  }
+};
+
+const handleMessageReactionSocket = ({
+  messageId,
+  reaction,
+}: {
+  messageId: string;
+  reaction: { id: string; emoji: string; userId: string };
+}) => {
+  const msg = messages.value.find((m) => m.id === messageId);
+  if (msg) {
+    if (!msg.reactions) msg.reactions = [];
+    const exists = msg.reactions.find((r) => r.id === reaction.id);
+    if (!exists) msg.reactions.push(reaction);
+  }
+};
+
+const handleMessageReactionRemovedSocket = ({
+  messageId,
+  userId,
+  emoji,
+}: {
+  messageId: string;
+  userId: string;
+  emoji: string;
+}) => {
+  const msg = messages.value.find((m) => m.id === messageId);
+  if (msg && msg.reactions) {
+    msg.reactions = msg.reactions.filter((r) => !(r.emoji === emoji && r.userId === userId));
+  }
+};
+
+const handleConversationUpdatedSocket = (updatedConv: ChatConversation) => {
+  if (activeConversation.value?.id === updatedConv.id) {
+    activeConversation.value = { ...activeConversation.value, ...updatedConv };
+  }
+  const idx = conversations.value.findIndex((c) => c.id === updatedConv.id);
+  if (idx !== -1) {
+    conversations.value[idx] = { ...conversations.value[idx], ...updatedConv };
+  }
+};
+
+const handleConversationRemovedSocket = ({ conversationId }: { conversationId: string }) => {
+  conversations.value = conversations.value.filter((c) => c.id !== conversationId);
+  if (activeConversation.value?.id === conversationId) {
+    activeConversation.value = null;
+    isInfoPanelOpen.value = false;
+    if (conversations.value.length > 0) {
+      selectConversation(conversations.value[0]);
+    }
   }
 };
 
@@ -416,113 +500,14 @@ onMounted(() => {
   document.addEventListener('click', closeConversationContextMenu);
 
   socketService.on('connect', joinActiveConversation);
-
-  socketService.on('new_message', (message: Message) => {
-    if (activeConversation.value?.id === message.conversationId) {
-      if (!messages.value.some((m) => m.id === message.id)) {
-        messages.value.push(message);
-        chatWindowRef.value?.scrollToBottom();
-      }
-      api.patch(`/api/messages/conversations/${message.conversationId}/read`);
-    }
-    updateSidebarWithNewMessage(message);
-  });
-
-  socketService.on(
-    'message_received',
-    ({ conversationId, message }: { conversationId: string; message: Message }) => {
-      if (activeConversation.value?.id !== conversationId) {
-        updateSidebarWithNewMessage(message);
-      }
-    },
-  );
-
-  socketService.on(
-    'message_deleted',
-    ({ messageId, conversationId }: { messageId: string; conversationId: string }) => {
-      if (activeConversation.value?.id === conversationId) {
-        messages.value = messages.value.filter((m) => m.id !== messageId);
-      }
-      const conv = conversations.value.find((c) => c.id === conversationId);
-      if (conv && conv.messages[0]?.id === messageId) {
-        fetchConversations();
-      }
-    },
-  );
-
-  socketService.on(
-    'messages_read',
-    ({
-      conversationId,
-      messageIds,
-      userId,
-    }: {
-      conversationId: string;
-      messageIds: string[];
-      userId: string;
-    }) => {
-      if (activeConversation.value?.id === conversationId && userId !== authStore.user?.id) {
-        messages.value = messages.value.map((m) => {
-          if (messageIds.includes(m.id)) {
-            return {
-              ...m,
-              readBy: [...(m.readBy || []), { userId }],
-            };
-          }
-          return m;
-        });
-      }
-    },
-  );
-
-  socketService.on(
-    'message_reaction',
-    ({
-      messageId,
-      reaction,
-    }: {
-      messageId: string;
-      reaction: { id: string; emoji: string; userId: string };
-    }) => {
-      const msg = messages.value.find((m) => m.id === messageId);
-      if (msg) {
-        if (!msg.reactions) msg.reactions = [];
-        const exists = msg.reactions.find((r) => r.id === reaction.id);
-        if (!exists) msg.reactions.push(reaction);
-      }
-    },
-  );
-
-  socketService.on(
-    'message_reaction_removed',
-    ({ messageId, userId, emoji }: { messageId: string; userId: string; emoji: string }) => {
-      const msg = messages.value.find((m) => m.id === messageId);
-      if (msg && msg.reactions) {
-        msg.reactions = msg.reactions.filter((r) => !(r.emoji === emoji && r.userId === userId));
-      }
-    },
-  );
-
-  socketService.on('conversation_updated', (updatedConv: Conversation) => {
-    if (activeConversation.value?.id === updatedConv.id) {
-      activeConversation.value = { ...activeConversation.value, ...updatedConv };
-    }
-    const idx = conversations.value.findIndex((c) => c.id === updatedConv.id);
-    if (idx !== -1) {
-      conversations.value[idx] = { ...conversations.value[idx], ...updatedConv };
-    }
-  });
-
-  socketService.on('conversation_removed', ({ conversationId }: { conversationId: string }) => {
-    conversations.value = conversations.value.filter((c) => c.id !== conversationId);
-    if (activeConversation.value?.id === conversationId) {
-      activeConversation.value = null;
-      isInfoPanelOpen.value = false;
-      if (conversations.value.length > 0) {
-        selectConversation(conversations.value[0]);
-      }
-    }
-  });
+  socketService.on('new_message', handleNewMessageSocket);
+  socketService.on('message_received', handleMessageReceivedSocket);
+  socketService.on('message_deleted', handleMessageDeletedSocket);
+  socketService.on('messages_read', handleMessagesReadSocket);
+  socketService.on('message_reaction', handleMessageReactionSocket);
+  socketService.on('message_reaction_removed', handleMessageReactionRemovedSocket);
+  socketService.on('conversation_updated', handleConversationUpdatedSocket);
+  socketService.on('conversation_removed', handleConversationRemovedSocket);
 });
 
 watch(
@@ -536,14 +521,14 @@ watch(
 
 onUnmounted(() => {
   socketService.off('connect', joinActiveConversation);
-  socketService.off('new_message');
-  socketService.off('message_deleted');
-  socketService.off('messages_read');
-  socketService.off('message_reaction');
-  socketService.off('message_reaction_removed');
-  socketService.off('message_received');
-  socketService.off('conversation_updated');
-  socketService.off('conversation_removed');
+  socketService.off('new_message', handleNewMessageSocket);
+  socketService.off('message_received', handleMessageReceivedSocket);
+  socketService.off('message_deleted', handleMessageDeletedSocket);
+  socketService.off('messages_read', handleMessagesReadSocket);
+  socketService.off('message_reaction', handleMessageReactionSocket);
+  socketService.off('message_reaction_removed', handleMessageReactionRemovedSocket);
+  socketService.off('conversation_updated', handleConversationUpdatedSocket);
+  socketService.off('conversation_removed', handleConversationRemovedSocket);
   document.removeEventListener('click', closeConversationContextMenu);
   if (activeConversation.value) {
     socketService.emit('leave_conversation', activeConversation.value.id);
@@ -553,7 +538,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="flex-1 flex h-full overflow-hidden relative"
+    class="flex-1 flex h-full overflow-hidden relative mobile-adaptive"
     style="background-color: var(--bg-app)"
     @click="
       chatWindowRef?.closeContextMenu();
@@ -613,7 +598,7 @@ onUnmounted(() => {
       <p class="text-xs max-w-xs mx-auto mb-6" style="color: var(--text-secondary)">
         {{ t('messages.startNewChatDesc') }}
       </p>
-      <div class="flex gap-3 justify-center">
+      <div class="flex gap-3 justify-center mobile-row">
         <Button
           variant="primary"
           size="sm"

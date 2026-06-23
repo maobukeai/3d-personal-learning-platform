@@ -22,6 +22,11 @@ interface GroupDetailTeam {
   };
 }
 
+interface TeamCoreValue {
+  title: string;
+  desc: string;
+}
+
 const props = defineProps<{
   visible: boolean;
   group: GroupDetailTeam | null;
@@ -106,7 +111,7 @@ const coreValues = computed(() => {
       'hover:border-blue-500/30 hover:shadow-[0_0_15px_rgba(59,130,246,0.08)] hover:bg-blue-500/[0.02]',
       'hover:border-emerald-500/30 hover:shadow-[0_0_15px_rgba(16,185,129,0.08)] hover:bg-emerald-500/[0.02]',
     ];
-    return parsedData.value.customValues.map((v: any, index: number) => ({
+    return parsedData.value.customValues.map((v: TeamCoreValue, index: number) => ({
       title: v.title,
       desc: v.desc,
       icon: icons[index % icons.length],
@@ -306,7 +311,7 @@ const memberCount = computed(() => {
 
           <!-- Sticky Footer Action -->
           <div
-            class="pt-4 flex items-center justify-between mt-auto bg-transparent outline-none"
+            class="pt-4 flex flex-wrap items-center justify-between gap-2 mt-auto bg-transparent outline-none"
             style="
               border-top: 1px solid var(--border-base) !important;
               border-left: none !important;

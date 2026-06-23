@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } fr
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
+import { logError } from '@/utils/error';
 import {
   Menu,
   ExternalLink,
@@ -69,7 +70,7 @@ const { t } = useI18n();
 const { menuGroups, mobileNavItems } = useSidebarMenus();
 const { currentTheme, initTheme, cleanupTheme } = useThemeManager();
 
-const latestBroadcast = ref<any>(null);
+const latestBroadcast = ref<AppNotification | null>(null);
 const showBroadcastPopup = ref(false);
 
 const fetchLatestBroadcast = async () => {
@@ -81,7 +82,7 @@ const fetchLatestBroadcast = async () => {
       showBroadcastPopup.value = true;
     }
   } catch (error) {
-    console.error('Fetch latest broadcast error:', error);
+    logError(error, { operation: 'layout.fetchLatestBroadcast', component: 'MainLayout' });
   }
 };
 
@@ -237,7 +238,7 @@ const fetchUnreadMessagesCount = async () => {
   try {
     authStore.setUnreadMessagesCount(await fetchUnreadMessageCount());
   } catch (error) {
-    console.error('Fetch unread messages count error:', error);
+    logError(error, { operation: 'layout.fetchUnreadMessages', component: 'MainLayout' });
   }
 };
 
@@ -582,7 +583,7 @@ onUnmounted(() => {
             >{{ $t('layout.goToDisable') }}</RouterLink
           >
         </div>
-        <RouterView v-slot="{ Component, route }">
+        <RouterView v-slot="{ Component, route: routeSlot }">
           <Transition name="page-fade" mode="out-in">
             <keep-alive
               :include="[
@@ -603,7 +604,7 @@ onUnmounted(() => {
                 'ManualStationView',
               ]"
             >
-              <component :is="Component" :key="route.path" />
+              <component :is="Component" :key="routeSlot.path" />
             </keep-alive>
           </Transition>
         </RouterView>
@@ -699,16 +700,17 @@ onUnmounted(() => {
             {{ latestBroadcast?.title }}
           </span>
           <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
-            发布时间: {{ latestBroadcast ? formatDate(latestBroadcast.createdAt) : '' }}
+            发布时间: {{ latestBroadcast ? formatDate(String(latestBroadcast.createdAt)) : '' }}
           </span>
         </div>
       </div>
 
+      <!-- eslint-disable vue/no-v-html -->
       <div
         class="mt-4 bg-subtle/30 border border-base rounded-xl p-4 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed max-h-[500px] overflow-y-auto"
         v-html="renderMarkdown(latestBroadcast?.content || '')"
-      >
-      </div>
+      ></div>
+      <!-- eslint-enable vue/no-v-html -->
 
       <template #footer>
         <Button

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, type Component, onMounted, onUnmounted } from 'vue';
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import {
   CheckCircle2,
   Copy,
@@ -15,10 +15,13 @@ import {
   Plus,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
-import { parseTags } from '@/utils/tags';
+import { parseTags, getTagClass } from '@/utils/tags';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
+import { isAxiosError } from 'axios';
 import { useAuthStore } from '@/stores/auth';
-import type { TaskActivity } from '@/types/task';
+import type { Task, TaskUpdatePayload, TaskActivity, Subtask as BaseSubtask } from '@/types/task';
+import Modal from '@/components/ui/Modal.vue';
 
 interface Member {
   id: string;
@@ -36,32 +39,6 @@ interface PriorityOption {
   label: string;
   color: string;
   textColor: string;
-  icon?: Component;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  description?: string | null;
-  status: string;
-  priority?: string;
-  tags?: string | null;
-  subtasks?: string | null;
-  dueDate?: string | null;
-  assigneeId?: string | null;
-  projectId?: string | null;
-  teamId?: string | null;
-  participants?: { userId: string }[];
-  timeEstimate?: number | null;
-  timeSpent?: number | null;
-  dependencies?: {
-    id: string;
-    dependsOnId: string;
-    dependsOn: { id: string; title: string; status: string };
-  }[];
-  dependents?: { id: string; task: { id: string; title: string; status: string } }[];
-  createdAt?: string;
-  updatedAt?: string;
 }
 
 interface Props {
@@ -77,22 +54,6 @@ interface Props {
 
 const props = defineProps<Props>();
 
-export interface TaskUpdatePayload {
-  title: string;
-  description: string;
-  status: string;
-  priority: string;
-  dueDate: string | null;
-  assigneeId: string | null;
-  projectId: string | null;
-  teamId: string | null;
-  tags: string | null;
-  subtasks: string;
-  participantIds: string[];
-  timeEstimate?: number;
-  timeSpent?: number;
-}
-
 interface SubtaskComment {
   id: string;
   content: string;
@@ -102,11 +63,18 @@ interface SubtaskComment {
   createdAt: string;
 }
 
-interface Subtask {
+interface TaskComment {
   id: string;
-  text: string;
-  done: boolean;
-  assigneeId?: string | null;
+  content: string;
+  userId: string;
+  createdAt: string;
+  user: {
+    name?: string | null;
+    avatarUrl?: string | null;
+  };
+}
+
+interface Subtask extends BaseSubtask {
   description?: string;
   comments?: SubtaskComment[];
 }
@@ -188,7 +156,7 @@ const isImageUrl = (url: string): boolean => {
     if (format && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(format.toLowerCase())) {
       return true;
     }
-  } catch (e) {
+  } catch {
     const lower = clean.toLowerCase();
     return (
       lower.endsWith('.png') ||
@@ -213,7 +181,7 @@ const parseSubtasks = (subtasksStr: string | null | undefined): Subtask[] => {
       }));
     }
     return [];
-  } catch (_e) {
+  } catch {
     return [];
   }
 };
@@ -236,7 +204,7 @@ watch(
         assigneeId: newTask.assigneeId || '',
         projectId: newTask.projectId || '',
         teamId: newTask.teamId || '',
-        participantIds: newTask.participants ? newTask.participants.map((p) => p.userId) : [],
+        participantIds: newTask.participants?.map((p) => p.userId) || [],
         timeEstimateHours: newTask.timeEstimate ? newTask.timeEstimate / 60 : 0,
         timeSpentHours: newTask.timeSpent ? newTask.timeSpent / 60 : 0,
       };
@@ -314,11 +282,6 @@ const removeSubtask = (index: number) => {
   triggerSave();
 };
 
-const updateSubtaskText = (index: number, text: string) => {
-  drawerSubtasks.value[index].text = text;
-  triggerSave();
-};
-
 const drawerAddTag = () => {
   const tag = detailDrawerTagInput.value.trim();
   if (tag && !drawerForm.value.tags.includes(tag)) {
@@ -333,26 +296,9 @@ const drawerRemoveTag = (tag: string) => {
   triggerSave();
 };
 
-const tagColorMap: Record<string, string> = {
-  设计: 'bg-pink-500/10 text-pink-500',
-  开发: 'bg-blue-500/10 text-blue-500',
-  学习: 'bg-emerald-500/10 text-emerald-500',
-  '3D': 'bg-violet-500/10 text-violet-500',
-  建模: 'bg-cyan-500/10 text-cyan-500',
-  渲染: 'bg-amber-500/10 text-amber-500',
-  动画: 'bg-rose-500/10 text-rose-500',
-  研究: 'bg-indigo-500/10 text-indigo-500',
-  文档: 'bg-teal-500/10 text-teal-500',
-  优化: 'bg-lime-500/10 text-lime-500',
-};
-
-const defaultTagClass = 'bg-slate-500/10 text-slate-500';
-
-const getTagClass = (tag: string) => tagColorMap[tag] || defaultTagClass;
-
 // Comments logic
 const authStore = useAuthStore();
-const comments = ref<any[]>([]);
+const comments = ref<TaskComment[]>([]);
 const newCommentText = ref('');
 const isCommentsLoading = ref(false);
 
@@ -362,7 +308,7 @@ const fetchComments = async () => {
   try {
     const response = await api.get(`/api/tasks/${props.task.id}/comments`);
     comments.value = response.data;
-  } catch (error) {
+  } catch {
     ElMessage.error('获取评论失败');
   } finally {
     isCommentsLoading.value = false;
@@ -378,7 +324,7 @@ const fetchActivities = async () => {
   try {
     const response = await api.get(`/api/tasks/${props.task.id}/activities`);
     activities.value = response.data;
-  } catch (error) {
+  } catch {
     ElMessage.error('获取任务动态失败');
   } finally {
     isActivitiesLoading.value = false;
@@ -404,7 +350,7 @@ const handleAddComment = async () => {
     tempUploadedImages.value = [];
     ElMessage.success('发表评论成功');
     fetchActivities();
-  } catch (error) {
+  } catch {
     ElMessage.error('发表评论失败');
   }
 };
@@ -416,7 +362,7 @@ const handleDeleteComment = async (commentId: string) => {
     comments.value = comments.value.filter((c) => c.id !== commentId);
     ElMessage.success('评论删除成功');
     fetchActivities();
-  } catch (error) {
+  } catch {
     ElMessage.error('删除评论失败');
   }
 };
@@ -450,7 +396,7 @@ const handlePasteComment = async (event: ClipboardEvent) => {
           const imageUrl = response.data.url;
           tempUploadedImages.value.push(imageUrl);
           ElMessage.success('图片上传成功');
-        } catch (error) {
+        } catch {
           ElMessage.error('图片上传失败');
         }
       }
@@ -488,11 +434,6 @@ const previewImageUrl = ref('');
 const openImageModal = (url: string) => {
   previewImageUrl.value = url;
   isImagePreviewOpen.value = true;
-};
-
-const closeImageModal = () => {
-  isImagePreviewOpen.value = false;
-  previewImageUrl.value = '';
 };
 
 // Subtask detail view states & methods
@@ -640,7 +581,7 @@ const handlePasteSubtaskComment = async (event: ClipboardEvent) => {
           const imageUrl = response.data.url;
           tempUploadedSubtaskImages.value.push(imageUrl);
           ElMessage.success('图片上传成功');
-        } catch (error) {
+        } catch {
           ElMessage.error('图片上传失败');
         }
       }
@@ -745,7 +686,7 @@ const handlePasteMainDescription = async (event: ClipboardEvent) => {
           const imageUrl = response.data.url;
           tempDescriptionImages.value.push(imageUrl);
           ElMessage.success('图片上传成功');
-        } catch (error) {
+        } catch {
           ElMessage.error('图片上传失败');
         }
       }
@@ -790,7 +731,7 @@ const handlePasteSubtaskDescription = async (event: ClipboardEvent) => {
           const imageUrl = response.data.url;
           tempSubtaskDescriptionImages.value.push(imageUrl);
           ElMessage.success('图片上传成功');
-        } catch (error) {
+        } catch {
           ElMessage.error('图片上传失败');
         }
       }
@@ -807,7 +748,7 @@ const handlePasteSubtaskDescription = async (event: ClipboardEvent) => {
 };
 
 // Dependency management logic
-const projectTasks = ref<any[]>([]);
+const projectTasks = ref<Task[]>([]);
 const selectedDepTaskId = ref('');
 const isDependencyLoading = ref(false);
 
@@ -822,7 +763,7 @@ const fetchProjectTasks = async () => {
     });
     projectTasks.value = response.data;
   } catch (error) {
-    console.error('Failed to fetch project tasks for dependencies:', error);
+    logError(error, { operation: 'task.fetchProjectTasks', component: 'TaskDetailDrawer' });
   }
 };
 
@@ -836,8 +777,10 @@ const addDependency = async () => {
     emit('save', response.data);
     selectedDepTaskId.value = '';
     ElMessage.success('成功添加前置任务依赖');
-  } catch (error: any) {
-    const msg = error.response?.data?.error || '添加依赖失败';
+  } catch (error) {
+    const msg = isAxiosError(error)
+      ? error.response?.data?.error || '添加依赖失败'
+      : '添加依赖失败';
     ElMessage.error(msg);
   } finally {
     isDependencyLoading.value = false;
@@ -851,8 +794,10 @@ const deleteDependency = async (dependsOnId: string) => {
     const response = await api.delete(`/api/tasks/${props.task.id}/dependencies/${dependsOnId}`);
     emit('save', response.data);
     ElMessage.success('成功移除前置任务依赖');
-  } catch (error: any) {
-    const msg = error.response?.data?.error || '移除依赖失败';
+  } catch (error) {
+    const msg = isAxiosError(error)
+      ? error.response?.data?.error || '移除依赖失败'
+      : '移除依赖失败';
     ElMessage.error(msg);
   } finally {
     isDependencyLoading.value = false;
@@ -901,7 +846,7 @@ watch(
     if (newVal !== oldVal && props.modelValue && props.task?.id) {
       fetchActivities();
     }
-  }
+  },
 );
 
 const formatActivityTime = (dateStr: string) => {
@@ -916,934 +861,952 @@ const formatActivityTime = (dateStr: string) => {
   if (diffMins < 60) return `${diffMins}分钟前`;
   if (diffHours < 24) return `${diffHours}小时前`;
 
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 </script>
 
 <template>
   <Teleport to="body">
     <Transition :name="viewMode === 'drawer' ? 'drawer-slide' : 'modal-fade'">
-    <div
-      v-if="modelValue && task"
-      class="fixed inset-0 z-50 flex transition-all duration-300"
-      :class="
-        viewMode === 'drawer'
-          ? 'justify-end'
-          : 'items-center justify-center p-3 sm:p-6 bg-black/40 backdrop-blur-md'
-      "
-    >
-      <!-- Backdrop -->
       <div
-        class="absolute inset-0 cursor-pointer"
-        :class="viewMode === 'drawer' ? 'bg-black/40 backdrop-blur-md' : ''"
-        @click="handleClose"
-      ></div>
-
-      <!-- Drawer/Modal Content Container -->
-      <div
-        class="task-detail-content relative shadow-2xl flex flex-col overflow-hidden transition-all duration-300"
-        :class="[
+        v-if="modelValue && task"
+        class="fixed inset-0 z-50 flex transition-all duration-300"
+        :class="
           viewMode === 'drawer'
-            ? 'w-full sm:w-[85%] md:w-[75%] lg:w-[65%] xl:w-[55%] h-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-[var(--border-base)]'
-            : 'modal-content glass-panel w-full max-w-4xl h-[90vh] md:h-[85vh] rounded-3xl',
-        ]"
-        :style="
-          viewMode === 'drawer'
-            ? {
-                borderColor: 'var(--border-base)',
-                borderLeftWidth: '1px',
-              }
-            : {}
+            ? 'justify-end'
+            : 'items-center justify-center p-3 sm:p-6 bg-black/40 backdrop-blur-md'
         "
       >
-        <!-- Header -->
+        <!-- Backdrop -->
         <div
-          class="px-6 py-4 border-b flex items-center justify-between shrink-0"
-          style="border-color: var(--border-base)"
-        >
-          <div class="flex items-center gap-2">
-            <div class="p-1.5 bg-gradient-to-br from-accent to-indigo-600 rounded-lg text-white">
-              <CheckCircle2 class="w-4 h-4" />
-            </div>
-            <h3
-              class="text-sm font-black tracking-tight"
-              style="color: var(--text-primary)"
-            >
-              任务详情
-            </h3>
-            <div
-              class="flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 rounded text-[10px] font-mono font-bold cursor-pointer hover:bg-slate-200 dark:hover:bg-white/10 transition-all text-slate-600 dark:text-slate-300"
-              title="点击复制任务ID"
-              @click="copyToClipboard(task.id)"
-            >
-              <span>#{{ task.id.substring(0, 8) }}</span>
-              <Copy class="w-3.5 h-3.5 text-slate-400" />
-            </div>
-          </div>
-          <div class="flex items-center gap-3">
-            <!-- View Mode Toggle (Drawer vs Modal) -->
-            <button
-              type="button"
-              class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer"
-              :title="viewMode === 'drawer' ? '切换为弹窗模式' : '切换为抽屉模式'"
-              @click="toggleDetailViewMode"
-            >
-              <component :is="viewMode === 'drawer' ? Maximize2 : Minimize2" class="w-4.5 h-4.5" />
-            </button>
+          class="absolute inset-0 cursor-pointer"
+          :class="viewMode === 'drawer' ? 'bg-black/40 backdrop-blur-md' : ''"
+          @click="handleClose"
+        ></div>
 
-            <button
-              type="button"
-              class="px-3 py-1.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-xl text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all flex items-center gap-1 cursor-pointer"
-              @click="handleDelete"
-            >
-              <Trash2 class="w-3.5 h-3.5" /> 删除任务
-            </button>
-            <button
-              type="button"
-              class="p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
-              style="color: var(--text-secondary)"
-              @click="handleClose"
-            >
-              <X class="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        <!-- Content Body -->
+        <!-- Drawer/Modal Content Container -->
         <div
-          class="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col lg:flex-row gap-6 md:gap-8 scrollbar-hide"
+          class="task-detail-content relative shadow-2xl flex flex-col overflow-hidden transition-all duration-300"
+          :class="[
+            viewMode === 'drawer'
+              ? 'w-full sm:w-[85%] md:w-[75%] lg:w-[65%] xl:w-[55%] h-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-[var(--border-base)]'
+              : 'modal-content glass-panel w-full max-w-4xl h-[90vh] md:h-[85vh] rounded-3xl',
+          ]"
+          :style="
+            viewMode === 'drawer'
+              ? {
+                  borderColor: 'var(--border-base)',
+                  borderLeftWidth: '1px',
+                }
+              : {}
+          "
         >
-          <!-- Left Column: Title, Description, Subtasks Checklist -->
-          <div class="flex-1 space-y-6 min-w-0">
-            <!-- Title Input -->
-            <div>
-              <label
-                class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                >任务标题</label
+          <!-- Header -->
+          <div
+            class="px-6 py-4 border-b flex items-center justify-between shrink-0"
+            style="border-color: var(--border-base)"
+          >
+            <div class="flex items-center gap-2">
+              <div class="p-1.5 bg-gradient-to-br from-accent to-indigo-600 rounded-lg text-white">
+                <CheckCircle2 class="w-4 h-4" />
+              </div>
+              <h3 class="text-sm font-black tracking-tight" style="color: var(--text-primary)">
+                任务详情
+              </h3>
+              <div
+                class="flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 rounded text-[10px] font-mono font-bold cursor-pointer hover:bg-slate-200 dark:hover:bg-white/10 transition-all text-slate-600 dark:text-slate-300"
+                title="点击复制任务ID"
+                @click="copyToClipboard(task.id)"
               >
-              <input
-                v-model="drawerForm.title"
-                type="text"
-                class="w-full text-xl sm:text-2xl font-black bg-transparent border-b border-transparent focus:border-accent/30 focus:outline-none py-1.5 transition-all text-primary"
-                placeholder="未命名任务"
-                style="color: var(--text-primary)"
-                @blur="triggerSave"
-              />
+                <span>#{{ task.id.substring(0, 8) }}</span>
+                <Copy class="w-3.5 h-3.5 text-slate-400" />
+              </div>
             </div>
+            <div class="flex items-center gap-3">
+              <!-- View Mode Toggle (Drawer vs Modal) -->
+              <button
+                type="button"
+                class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer"
+                :title="viewMode === 'drawer' ? '切换为弹窗模式' : '切换为抽屉模式'"
+                @click="toggleDetailViewMode"
+              >
+                <component
+                  :is="viewMode === 'drawer' ? Maximize2 : Minimize2"
+                  class="w-4.5 h-4.5"
+                />
+              </button>
 
-            <!-- Dependency Blocker Warning Banner -->
-            <div
-              v-if="isBlockedByDependencies"
-              class="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-2xl flex items-start gap-2.5"
-            >
-              <span class="text-rose-500 text-sm mt-0.5">⚠️</span>
+              <button
+                type="button"
+                class="px-3 py-1.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-xl text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all flex items-center gap-1 cursor-pointer"
+                @click="handleDelete"
+              >
+                <Trash2 class="w-3.5 h-3.5" /> 删除任务
+              </button>
+              <button
+                type="button"
+                class="p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                style="color: var(--text-secondary)"
+                @click="handleClose"
+              >
+                <X class="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Content Body -->
+          <div
+            class="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col lg:flex-row gap-6 md:gap-8 scrollbar-hide"
+          >
+            <!-- Left Column: Title, Description, Subtasks Checklist -->
+            <div class="flex-1 space-y-6 min-w-0">
+              <!-- Title Input -->
               <div>
-                <h4 class="text-xs font-bold text-rose-700 dark:text-rose-400">
-                  此任务目前被以下前置任务阻塞：
-                </h4>
-                <div class="flex flex-wrap gap-1.5 mt-2">
-                  <span
-                    v-for="dep in unfinishedDependencies"
-                    :key="dep.id"
-                    class="px-2 py-0.5 bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 text-[10px] font-bold rounded-lg"
-                  >
-                    {{ dep.title }}
-                  </span>
+                <label
+                  class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
+                  >任务标题</label
+                >
+                <input
+                  v-model="drawerForm.title"
+                  type="text"
+                  class="w-full text-xl sm:text-2xl font-black bg-transparent border-b border-transparent focus:border-accent/30 focus:outline-none py-1.5 transition-all text-primary"
+                  placeholder="未命名任务"
+                  style="color: var(--text-primary)"
+                  @blur="triggerSave"
+                />
+              </div>
+
+              <!-- Dependency Blocker Warning Banner -->
+              <div
+                v-if="isBlockedByDependencies"
+                class="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-2xl flex items-start gap-2.5"
+              >
+                <span class="text-rose-500 text-sm mt-0.5">⚠️</span>
+                <div>
+                  <h4 class="text-xs font-bold text-rose-700 dark:text-rose-400">
+                    此任务目前被以下前置任务阻塞：
+                  </h4>
+                  <div class="flex flex-wrap gap-1.5 mt-2">
+                    <span
+                      v-for="dep in unfinishedDependencies"
+                      :key="dep.id"
+                      class="px-2 py-0.5 bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 text-[10px] font-bold rounded-lg"
+                    >
+                      {{ dep.title }}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Description Textarea -->
-            <div>
-              <div class="flex items-center justify-between mb-2">
-                <label
-                  class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"
-                >
-                  <span class="w-1.5 h-1.5 rounded-full bg-accent"></span> 详细描述
-                </label>
-                <button
-                  v-if="!isEditingDescription"
-                  type="button"
-                  class="text-[10px] font-bold text-accent hover:underline cursor-pointer"
-                  @click="startEditingDescription"
-                >
-                  编辑描述
-                </button>
-              </div>
-
-              <!-- Plain Editor Mode -->
-              <div v-if="isEditingDescription" class="space-y-2">
-                <textarea
-                  v-model="drawerForm.description"
-                  placeholder="输入任务描述、参考资料或笔记... (支持粘贴图片)"
-                  class="w-full min-h-[160px] p-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs focus:outline-none focus:border-accent/40 focus:border-solid transition-all resize-y"
-                  style="color: var(--text-primary)"
-                  @paste="handlePasteMainDescription"
-                ></textarea>
-
-                <!-- Image Previews during Editing -->
-                <div
-                  v-if="tempDescriptionImages.length > 0"
-                  class="flex flex-wrap gap-2 p-2 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl"
-                >
-                  <div
-                    v-for="(img, idx) in tempDescriptionImages"
-                    :key="img"
-                    class="relative group w-20 h-20 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden"
+              <!-- Description Textarea -->
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <label
+                    class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"
                   >
-                    <img
-                      :src="img"
-                      class="w-full h-full object-cover cursor-zoom-in"
-                      @click="openImageModal(img)"
-                    />
+                    <span class="w-1.5 h-1.5 rounded-full bg-accent"></span> 详细描述
+                  </label>
+                  <button
+                    v-if="!isEditingDescription"
+                    type="button"
+                    class="text-[10px] font-bold text-accent hover:underline cursor-pointer"
+                    @click="startEditingDescription"
+                  >
+                    编辑描述
+                  </button>
+                </div>
+
+                <!-- Plain Editor Mode -->
+                <div v-if="isEditingDescription" class="space-y-2">
+                  <textarea
+                    v-model="drawerForm.description"
+                    placeholder="输入任务描述、参考资料或笔记... (支持粘贴图片)"
+                    class="w-full min-h-[160px] p-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs focus:outline-none focus:border-accent/40 focus:border-solid transition-all resize-y"
+                    style="color: var(--text-primary)"
+                    @paste="handlePasteMainDescription"
+                  ></textarea>
+
+                  <!-- Image Previews during Editing -->
+                  <div
+                    v-if="tempDescriptionImages.length > 0"
+                    class="flex flex-wrap gap-2 p-2 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl"
+                  >
+                    <div
+                      v-for="(img, idx) in tempDescriptionImages"
+                      :key="img"
+                      class="relative group w-20 h-20 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden"
+                    >
+                      <img
+                        :src="img"
+                        class="w-full h-full object-cover cursor-zoom-in"
+                        @click="openImageModal(img)"
+                      />
+                      <button
+                        type="button"
+                        class="absolute top-1 right-1 p-1 bg-black/55 hover:bg-rose-600 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center"
+                        @click="tempDescriptionImages.splice(idx, 1)"
+                      >
+                        <X class="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="flex justify-end gap-2">
                     <button
                       type="button"
-                      class="absolute top-1 right-1 p-1 bg-black/55 hover:bg-rose-600 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center"
-                      @click="tempDescriptionImages.splice(idx, 1)"
+                      class="px-3 py-1.5 bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl hover:opacity-80 transition-all cursor-pointer"
+                      @click="cancelEditingDescription"
                     >
-                      <X class="w-3 h-3" />
+                      取消
+                    </button>
+                    <button
+                      type="button"
+                      class="px-3 py-1.5 bg-accent text-white text-xs font-bold rounded-xl hover:opacity-85 transition-all cursor-pointer"
+                      @click="saveDescription"
+                    >
+                      保存描述
                     </button>
                   </div>
                 </div>
 
-                <div class="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    class="px-3 py-1.5 bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl hover:opacity-80 transition-all cursor-pointer"
-                    @click="cancelEditingDescription"
-                  >
-                    取消
-                  </button>
-                  <button
-                    type="button"
-                    class="px-3 py-1.5 bg-accent text-white text-xs font-bold rounded-xl hover:opacity-85 transition-all cursor-pointer"
-                    @click="saveDescription"
-                  >
-                    保存描述
-                  </button>
-                </div>
-              </div>
-
-              <!-- Preview Mode (Click to Edit) -->
-              <div
-                v-else
-                class="px-4 py-3 bg-slate-50 dark:bg-white/2 border border-slate-200 dark:border-white/5 rounded-2xl min-h-[120px] cursor-pointer hover:bg-slate-100/50 dark:hover:bg-white/5 transition-all group/desc relative"
-                @click="startEditingDescription"
-              >
-                <div
-                  v-if="!drawerForm.description"
-                  class="text-xs text-slate-400 dark:text-slate-500 italic py-4 text-center select-none"
-                >
-                  + 点击添加详细描述、参考资料或笔记...
-                </div>
+                <!-- Preview Mode (Click to Edit) -->
                 <div
                   v-else
-                  class="text-xs leading-relaxed whitespace-pre-wrap text-slate-600 dark:text-slate-300 space-y-2"
+                  class="px-4 py-3 bg-slate-50 dark:bg-white/2 border border-slate-200 dark:border-white/5 rounded-2xl min-h-[120px] cursor-pointer hover:bg-slate-100/50 dark:hover:bg-white/5 transition-all group/desc relative"
+                  @click="startEditingDescription"
                 >
-                  <p>{{ parseCommentContent(drawerForm.description).text }}</p>
                   <div
-                    v-if="parseCommentContent(drawerForm.description).images.length > 0"
-                    class="flex flex-wrap gap-2 pt-1"
+                    v-if="!drawerForm.description"
+                    class="text-xs text-slate-400 dark:text-slate-500 italic py-4 text-center select-none"
                   >
-                    <img
-                      v-for="img in parseCommentContent(drawerForm.description).images"
-                      :key="img"
-                      :src="img"
-                      class="max-w-full max-h-[300px] rounded-lg border object-contain cursor-zoom-in hover:opacity-90 transition-opacity"
-                      style="border-color: var(--border-base)"
-                      @click.stop="openImageModal(img)"
-                    />
+                    + 点击添加详细描述、参考资料或笔记...
                   </div>
-                </div>
-                <div
-                  class="absolute right-3 top-3 opacity-0 group-hover/desc:opacity-100 text-[10px] text-accent font-bold transition-all bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow border"
-                  style="border-color: var(--border-base)"
-                >
-                  点击编辑
-                </div>
-              </div>
-            </div>
-
-            <!-- Subtasks Checklist Section -->
-            <div class="pt-4 border-t" style="border-color: var(--border-base)">
-              <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center gap-2">
-                  <CheckSquare class="w-4 h-4 text-accent" />
-                  <h3 class="text-sm font-bold" style="color: var(--text-primary)">子任务清单</h3>
-                  <span v-if="drawerSubtasks.length > 0" class="text-xs text-slate-400 font-bold">
-                    ({{ drawerSubtasks.filter((s) => s.done).length }}/{{ drawerSubtasks.length }})
-                  </span>
-                </div>
-              </div>
-
-              <!-- Subtask Progress Bar -->
-              <div
-                v-if="drawerSubtasks.length > 0"
-                class="w-full bg-slate-100 dark:bg-white/10 h-1.5 rounded-full mb-4 overflow-hidden"
-              >
-                <div
-                  class="bg-accent h-full transition-all duration-300"
-                  :style="{
-                    width: `${(drawerSubtasks.filter((s) => s.done).length / drawerSubtasks.length) * 100}%`,
-                  }"
-                ></div>
-              </div>
-
-              <!-- Checklist Items -->
-              <div class="space-y-2 mb-4">
-                <div
-                  v-for="(sub, index) in drawerSubtasks"
-                  :key="sub.id"
-                  class="flex items-center gap-3 group/sub p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-                >
-                  <!-- Toggle Checkbox -->
-                  <button
-                    type="button"
-                    class="w-4 h-4 rounded-md border flex items-center justify-center transition-colors shrink-0"
-                    :class="
-                      sub.done
-                        ? 'bg-emerald-500 border-emerald-500 text-white'
-                        : 'border-slate-300 dark:border-slate-600 hover:border-accent'
-                    "
-                    @click="toggleSubtask(sub)"
-                  >
-                    <CheckCircle2 v-if="sub.done" class="w-3.5 h-3.5" />
-                  </button>
-
-                  <!-- Clickable Subtask Text -->
                   <div
-                    class="flex-1 text-xs transition-all font-medium cursor-pointer hover:text-accent hover:underline py-1 truncate"
-                    :class="
-                      sub.done
-                        ? 'line-through text-slate-400 dark:text-slate-500'
-                        : 'text-slate-700 dark:text-slate-200'
-                    "
-                    @click="openSubtaskDetail(sub, index)"
+                    v-else
+                    class="text-xs leading-relaxed whitespace-pre-wrap text-slate-600 dark:text-slate-300 space-y-2"
                   >
-                    {{ sub.text }}
-                  </div>
-
-                  <!-- Subtask Info Badges (Assignee + Comments) -->
-                  <div class="flex items-center gap-2 shrink-0">
-                    <!-- Assignee Avatar -->
-                    <template v-if="sub.assigneeId && getMemberById(sub.assigneeId)">
-                      <el-tooltip
-                        :content="getMemberById(sub.assigneeId)?.name"
-                        placement="top"
-                        :show-after="500"
-                      >
-                        <img
-                          v-if="getMemberById(sub.assigneeId)?.avatarUrl"
-                          :src="getMemberById(sub.assigneeId)?.avatarUrl || undefined"
-                          class="w-4.5 h-4.5 rounded-full object-cover border border-slate-200 dark:border-slate-700"
-                        />
-                        <div
-                          v-else
-                          class="w-4.5 h-4.5 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-[8px]"
-                        >
-                          {{ getMemberById(sub.assigneeId)?.name?.[0] || 'U' }}
-                        </div>
-                      </el-tooltip>
-                    </template>
-
-                    <!-- Comments count badge -->
+                    <p>{{ parseCommentContent(drawerForm.description).text }}</p>
                     <div
-                      v-if="sub.comments && sub.comments.length > 0"
-                      class="flex items-center gap-0.5 text-[10px] text-slate-400"
-                      title="子任务评论数"
+                      v-if="parseCommentContent(drawerForm.description).images.length > 0"
+                      class="flex flex-wrap gap-2 pt-1"
                     >
-                      <MessageSquare class="w-3 h-3 text-slate-400" />
-                      <span>{{ sub.comments.length }}</span>
+                      <img
+                        v-for="img in parseCommentContent(drawerForm.description).images"
+                        :key="img"
+                        :src="img"
+                        class="max-w-full max-h-[300px] rounded-lg border object-contain cursor-zoom-in hover:opacity-90 transition-opacity"
+                        style="border-color: var(--border-base)"
+                        @click.stop="openImageModal(img)"
+                      />
                     </div>
                   </div>
-
-                  <!-- Subtask Details / Comment button -->
-                  <button
-                    type="button"
-                    class="opacity-0 group-hover/sub:opacity-100 p-1 text-slate-400 hover:text-accent rounded transition-opacity cursor-pointer"
-                    @click="openSubtaskDetail(sub, index)"
+                  <div
+                    class="absolute right-3 top-3 opacity-0 group-hover/desc:opacity-100 text-[10px] text-accent font-bold transition-all bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow border"
+                    style="border-color: var(--border-base)"
                   >
-                    <MessageSquare class="w-3.5 h-3.5" />
-                  </button>
-
-                  <!-- Delete Button -->
-                  <button
-                    type="button"
-                    class="opacity-0 group-hover/sub:opacity-100 p-1 text-slate-400 hover:text-rose-500 rounded transition-opacity cursor-pointer"
-                    @click="removeSubtask(index)"
-                  >
-                    <Trash2 class="w-3.5 h-3.5" />
-                  </button>
+                    点击编辑
+                  </div>
                 </div>
               </div>
 
-              <!-- Add Subtask Form -->
-              <div class="flex gap-2">
-                <input
-                  v-model="newSubtaskText"
-                  type="text"
-                  placeholder="+ 添加子任务..."
-                  class="flex-1 px-4 py-2 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:border-accent/40 focus:border-solid transition-all"
-                  style="color: var(--text-primary)"
-                  @keyup.enter="addSubtask"
-                />
-                <button
-                  type="button"
-                  class="px-3 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:opacity-85 transition-all"
-                  @click="addSubtask"
-                >
-                  添加
-                </button>
-              </div>
-            </div>
-
-            <!-- Dependencies Section -->
-            <div class="pt-6 border-t" style="border-color: var(--border-base)">
-              <div class="flex items-center gap-2 mb-4">
-                <Link2 class="w-4 h-4 text-accent" />
-                <h3 class="text-sm font-bold" style="color: var(--text-primary)">任务依赖关系</h3>
-              </div>
-
-              <div class="space-y-4">
-                <!-- Dependencies List (Waiting on) -->
-                <div>
-                  <h4 class="text-xs font-bold text-slate-400 dark:text-slate-500 mb-2">
-                    前置依赖 (等待以下任务完成)
-                  </h4>
-                  <div
-                    v-if="!task.dependencies || task.dependencies.length === 0"
-                    class="text-xs text-slate-400 dark:text-slate-500 bg-slate-50/50 dark:bg-white/2 p-3 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center"
-                  >
-                    暂无前置依赖任务
+              <!-- Subtasks Checklist Section -->
+              <div class="pt-4 border-t" style="border-color: var(--border-base)">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <CheckSquare class="w-4 h-4 text-accent" />
+                    <h3 class="text-sm font-bold" style="color: var(--text-primary)">子任务清单</h3>
+                    <span v-if="drawerSubtasks.length > 0" class="text-xs text-slate-400 font-bold">
+                      ({{ drawerSubtasks.filter((s) => s.done).length }}/{{
+                        drawerSubtasks.length
+                      }})
+                    </span>
                   </div>
-                  <div v-else class="space-y-1.5">
-                    <div
-                      v-for="dep in task.dependencies"
-                      :key="dep.id"
-                      class="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5"
+                </div>
+
+                <!-- Subtask Progress Bar -->
+                <div
+                  v-if="drawerSubtasks.length > 0"
+                  class="w-full bg-slate-100 dark:bg-white/10 h-1.5 rounded-full mb-4 overflow-hidden"
+                >
+                  <div
+                    class="bg-accent h-full transition-all duration-300"
+                    :style="{
+                      width: `${(drawerSubtasks.filter((s) => s.done).length / drawerSubtasks.length) * 100}%`,
+                    }"
+                  ></div>
+                </div>
+
+                <!-- Checklist Items -->
+                <div class="space-y-2 mb-4">
+                  <div
+                    v-for="(sub, index) in drawerSubtasks"
+                    :key="sub.id"
+                    class="flex items-center gap-3 group/sub p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                  >
+                    <!-- Toggle Checkbox -->
+                    <button
+                      type="button"
+                      class="w-4 h-4 rounded-md border flex items-center justify-center transition-colors shrink-0"
+                      :class="
+                        sub.done
+                          ? 'bg-emerald-500 border-emerald-500 text-white'
+                          : 'border-slate-300 dark:border-slate-600 hover:border-accent'
+                      "
+                      @click="toggleSubtask(sub)"
                     >
-                      <div class="flex items-center gap-2 min-w-0">
-                        <span
-                          class="w-1.5 h-1.5 rounded-full shrink-0"
-                          :class="
-                            dep.dependsOn?.status === 'DONE' ? 'bg-emerald-500' : 'bg-amber-500'
-                          "
-                        ></span>
-                        <span
-                          class="text-xs font-medium truncate"
-                          :style="{ color: 'var(--text-primary)' }"
-                          >{{ dep.dependsOn?.title }}</span
+                      <CheckCircle2 v-if="sub.done" class="w-3.5 h-3.5" />
+                    </button>
+
+                    <!-- Clickable Subtask Text -->
+                    <div
+                      class="flex-1 text-xs transition-all font-medium cursor-pointer hover:text-accent hover:underline py-1 truncate"
+                      :class="
+                        sub.done
+                          ? 'line-through text-slate-400 dark:text-slate-500'
+                          : 'text-slate-700 dark:text-slate-200'
+                      "
+                      @click="openSubtaskDetail(sub, index)"
+                    >
+                      {{ sub.text }}
+                    </div>
+
+                    <!-- Subtask Info Badges (Assignee + Comments) -->
+                    <div class="flex items-center gap-2 shrink-0">
+                      <!-- Assignee Avatar -->
+                      <template v-if="sub.assigneeId && getMemberById(sub.assigneeId)">
+                        <el-tooltip
+                          :content="getMemberById(sub.assigneeId)?.name"
+                          placement="top"
+                          :show-after="500"
                         >
-                        <span
-                          class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0"
-                          :class="
-                            dep.dependsOn?.status === 'DONE'
-                              ? 'bg-emerald-500/10 text-emerald-500'
-                              : dep.dependsOn?.status === 'IN_PROGRESS'
-                                ? 'bg-blue-500/10 text-blue-500'
-                                : 'bg-slate-500/10 text-slate-500'
-                          "
-                        >
-                          {{
-                            dep.dependsOn?.status === 'DONE'
-                              ? '已完成'
-                              : dep.dependsOn?.status === 'IN_PROGRESS'
-                                ? '进行中'
-                                : '待办'
-                          }}
-                        </span>
+                          <img
+                            v-if="getMemberById(sub.assigneeId)?.avatarUrl"
+                            :src="getMemberById(sub.assigneeId)?.avatarUrl || undefined"
+                            class="w-4.5 h-4.5 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                          />
+                          <div
+                            v-else
+                            class="w-4.5 h-4.5 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-[8px]"
+                          >
+                            {{ getMemberById(sub.assigneeId)?.name?.[0] || 'U' }}
+                          </div>
+                        </el-tooltip>
+                      </template>
+
+                      <!-- Comments count badge -->
+                      <div
+                        v-if="sub.comments && sub.comments.length > 0"
+                        class="flex items-center gap-0.5 text-[10px] text-slate-400"
+                        title="子任务评论数"
+                      >
+                        <MessageSquare class="w-3 h-3 text-slate-400" />
+                        <span>{{ sub.comments.length }}</span>
                       </div>
-                      <button
-                        type="button"
-                        class="p-1 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
-                        @click="deleteDependency(dep.dependsOnId)"
-                      >
-                        <Trash2 class="w-3.5 h-3.5" />
-                      </button>
                     </div>
-                  </div>
-                </div>
 
-                <!-- Dependents List (Blocking) -->
-                <div v-if="task.dependents && task.dependents.length > 0">
-                  <h4 class="text-xs font-bold text-slate-400 dark:text-slate-500 mb-2">
-                    后置依赖 (正在阻塞以下任务)
-                  </h4>
-                  <div class="space-y-1.5">
-                    <div
-                      v-for="dep in task.dependents"
-                      :key="dep.id"
-                      class="flex items-center gap-2 p-2.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 min-w-0"
+                    <!-- Subtask Details / Comment button -->
+                    <button
+                      type="button"
+                      class="opacity-0 group-hover/sub:opacity-100 p-1 text-slate-400 hover:text-accent rounded transition-opacity cursor-pointer"
+                      @click="openSubtaskDetail(sub, index)"
                     >
-                      <span class="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
-                      <span
-                        class="text-xs font-medium truncate"
-                        :style="{ color: 'var(--text-primary)' }"
-                        >{{ dep.task?.title }}</span
-                      >
-                      <span
-                        class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0"
-                        :class="
-                          dep.task?.status === 'DONE'
-                            ? 'bg-emerald-500/10 text-emerald-500'
-                            : dep.task?.status === 'IN_PROGRESS'
-                              ? 'bg-blue-500/10 text-blue-500'
-                              : 'bg-slate-500/10 text-slate-500'
-                        "
-                      >
-                        {{
-                          dep.task?.status === 'DONE'
-                            ? '已完成'
-                            : dep.task?.status === 'IN_PROGRESS'
-                              ? '进行中'
-                              : '待办'
-                        }}
-                      </span>
-                    </div>
+                      <MessageSquare class="w-3.5 h-3.5" />
+                    </button>
+
+                    <!-- Delete Button -->
+                    <button
+                      type="button"
+                      class="opacity-0 group-hover/sub:opacity-100 p-1 text-slate-400 hover:text-rose-500 rounded transition-opacity cursor-pointer"
+                      @click="removeSubtask(index)"
+                    >
+                      <Trash2 class="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
 
-                <!-- Add Dependency Control -->
-                <div v-if="task.projectId" class="flex items-center gap-2">
-                  <el-select
-                    v-model="selectedDepTaskId"
-                    filterable
-                    placeholder="添加前置任务依赖..."
-                    class="flex-1 custom-select-small"
-                    :loading="isDependencyLoading"
-                  >
-                    <el-option
-                      v-for="t in availableTasksForDependency"
-                      :key="t.id"
-                      :label="t.title"
-                      :value="t.id"
-                    />
-                  </el-select>
+                <!-- Add Subtask Form -->
+                <div class="flex gap-2">
+                  <input
+                    v-model="newSubtaskText"
+                    type="text"
+                    placeholder="+ 添加子任务..."
+                    class="flex-1 px-4 py-2 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:border-accent/40 focus:border-solid transition-all"
+                    style="color: var(--text-primary)"
+                    @keyup.enter="addSubtask"
+                  />
                   <button
                     type="button"
-                    class="px-3.5 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:opacity-85 transition-all flex items-center gap-1 shrink-0 cursor-pointer"
-                    :disabled="!selectedDepTaskId || isDependencyLoading"
-                    @click="addDependency"
+                    class="px-3 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:opacity-85 transition-all"
+                    @click="addSubtask"
                   >
-                    <Plus class="w-3.5 h-3.5" /> 添加
+                    添加
                   </button>
                 </div>
               </div>
-            </div>
 
-            <!-- Comments Section -->
-            <div class="pt-6 border-t" style="border-color: var(--border-base)">
-              <div class="flex items-center gap-2 mb-4">
-                <MessageSquare class="w-4 h-4 text-accent" />
-                <h3 class="text-sm font-bold" style="color: var(--text-primary)">评论讨论区</h3>
-                <span v-if="comments.length > 0" class="text-xs text-slate-400 font-bold">
-                  ({{ comments.length }})
-                </span>
-              </div>
+              <!-- Dependencies Section -->
+              <div class="pt-6 border-t" style="border-color: var(--border-base)">
+                <div class="flex items-center gap-2 mb-4">
+                  <Link2 class="w-4 h-4 text-accent" />
+                  <h3 class="text-sm font-bold" style="color: var(--text-primary)">任务依赖关系</h3>
+                </div>
 
-              <!-- Comment List -->
-              <div class="space-y-4 mb-4 max-h-[300px] overflow-y-auto pr-1 scrollbar-hide">
-                <div v-if="isCommentsLoading" class="text-center py-4 text-xs text-slate-400">
-                  加载评论中...
-                </div>
-                <div
-                  v-else-if="comments.length === 0"
-                  class="text-center py-4 text-xs text-slate-400 dark:text-slate-500"
-                >
-                  暂无讨论，发表第一条评论吧！
-                </div>
-                <div
-                  v-for="comment in comments"
-                  v-else
-                  :key="comment.id"
-                  class="flex gap-3 group/comment p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-                >
-                  <!-- Avatar -->
-                  <div class="shrink-0">
-                    <img
-                      v-if="comment.user?.avatarUrl"
-                      :src="comment.user.avatarUrl"
-                      class="w-7 h-7 rounded-full object-cover"
-                      alt=""
-                    />
+                <div class="space-y-4">
+                  <!-- Dependencies List (Waiting on) -->
+                  <div>
+                    <h4 class="text-xs font-bold text-slate-400 dark:text-slate-500 mb-2">
+                      前置依赖 (等待以下任务完成)
+                    </h4>
                     <div
-                      v-else
-                      class="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-xs"
+                      v-if="!task.dependencies || task.dependencies.length === 0"
+                      class="text-xs text-slate-400 dark:text-slate-500 bg-slate-50/50 dark:bg-white/2 p-3 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center"
                     >
-                      {{ comment.user?.name?.[0] || 'U' }}
+                      暂无前置依赖任务
                     </div>
-                  </div>
-
-                  <!-- Content -->
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between gap-2 mb-1">
-                      <span class="text-xs font-bold" style="color: var(--text-primary)">
-                        {{ comment.user?.name || '未知用户' }}
-                      </span>
-                      <div class="flex items-center gap-2">
-                        <span class="text-[10px] text-slate-400">
-                          {{ new Date(comment.createdAt).toLocaleString() }}
-                        </span>
-                        <!-- Delete Action -->
+                    <div v-else class="space-y-1.5">
+                      <div
+                        v-for="dep in task.dependencies"
+                        :key="dep.id"
+                        class="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5"
+                      >
+                        <div class="flex items-center gap-2 min-w-0">
+                          <span
+                            class="w-1.5 h-1.5 rounded-full shrink-0"
+                            :class="
+                              dep.dependsOn?.status === 'DONE' ? 'bg-emerald-500' : 'bg-amber-500'
+                            "
+                          ></span>
+                          <span
+                            class="text-xs font-medium truncate"
+                            :style="{ color: 'var(--text-primary)' }"
+                            >{{ dep.dependsOn?.title }}</span
+                          >
+                          <span
+                            class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0"
+                            :class="
+                              dep.dependsOn?.status === 'DONE'
+                                ? 'bg-emerald-500/10 text-emerald-500'
+                                : dep.dependsOn?.status === 'IN_PROGRESS'
+                                  ? 'bg-blue-500/10 text-blue-500'
+                                  : 'bg-slate-500/10 text-slate-500'
+                            "
+                          >
+                            {{
+                              dep.dependsOn?.status === 'DONE'
+                                ? '已完成'
+                                : dep.dependsOn?.status === 'IN_PROGRESS'
+                                  ? '进行中'
+                                  : '待办'
+                            }}
+                          </span>
+                        </div>
                         <button
-                          v-if="
-                            comment.userId === authStore.user?.id ||
-                            authStore.user?.role === 'ADMIN'
-                          "
                           type="button"
-                          class="opacity-0 group-hover/comment:opacity-100 p-0.5 text-slate-400 hover:text-rose-500 rounded transition-opacity"
-                          @click="handleDeleteComment(comment.id)"
+                          class="p-1 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                          @click="deleteDependency(dep.dependsOnId)"
                         >
                           <Trash2 class="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
+                  </div>
+
+                  <!-- Dependents List (Blocking) -->
+                  <div v-if="task.dependents && task.dependents.length > 0">
+                    <h4 class="text-xs font-bold text-slate-400 dark:text-slate-500 mb-2">
+                      后置依赖 (正在阻塞以下任务)
+                    </h4>
                     <div class="space-y-1.5">
-                      <p
-                        v-if="parseCommentContent(comment.content).text"
-                        class="text-xs whitespace-pre-wrap leading-relaxed text-slate-600 dark:text-slate-300"
-                      >
-                        {{ parseCommentContent(comment.content).text }}
-                      </p>
                       <div
-                        v-if="parseCommentContent(comment.content).images.length > 0"
-                        class="flex flex-wrap gap-2 pt-1"
+                        v-for="dep in task.dependents"
+                        :key="dep.id"
+                        class="flex items-center gap-2 p-2.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 min-w-0"
                       >
-                        <img
-                          v-for="img in parseCommentContent(comment.content).images"
-                          :key="img"
-                          :src="img"
-                          class="max-w-[200px] max-h-[150px] rounded-lg border object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
-                          style="border-color: var(--border-base)"
-                          @click="openImageModal(img)"
-                        />
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
+                        <span
+                          class="text-xs font-medium truncate"
+                          :style="{ color: 'var(--text-primary)' }"
+                          >{{ dep.task?.title }}</span
+                        >
+                        <span
+                          class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0"
+                          :class="
+                            dep.task?.status === 'DONE'
+                              ? 'bg-emerald-500/10 text-emerald-500'
+                              : dep.task?.status === 'IN_PROGRESS'
+                                ? 'bg-blue-500/10 text-blue-500'
+                                : 'bg-slate-500/10 text-slate-500'
+                          "
+                        >
+                          {{
+                            dep.task?.status === 'DONE'
+                              ? '已完成'
+                              : dep.task?.status === 'IN_PROGRESS'
+                                ? '进行中'
+                                : '待办'
+                          }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Add Dependency Control -->
+                  <div v-if="task.projectId" class="flex items-center gap-2">
+                    <el-select
+                      v-model="selectedDepTaskId"
+                      filterable
+                      placeholder="添加前置任务依赖..."
+                      class="flex-1 custom-select-small"
+                      :loading="isDependencyLoading"
+                    >
+                      <el-option
+                        v-for="t in availableTasksForDependency"
+                        :key="t.id"
+                        :label="t.title"
+                        :value="t.id"
+                      />
+                    </el-select>
+                    <button
+                      type="button"
+                      class="px-3.5 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:opacity-85 transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+                      :disabled="!selectedDepTaskId || isDependencyLoading"
+                      @click="addDependency"
+                    >
+                      <Plus class="w-3.5 h-3.5" /> 添加
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Comments Section -->
+              <div class="pt-6 border-t" style="border-color: var(--border-base)">
+                <div class="flex items-center gap-2 mb-4">
+                  <MessageSquare class="w-4 h-4 text-accent" />
+                  <h3 class="text-sm font-bold" style="color: var(--text-primary)">评论讨论区</h3>
+                  <span v-if="comments.length > 0" class="text-xs text-slate-400 font-bold">
+                    ({{ comments.length }})
+                  </span>
+                </div>
+
+                <!-- Comment List -->
+                <div class="space-y-4 mb-4 max-h-[300px] overflow-y-auto pr-1 scrollbar-hide">
+                  <div v-if="isCommentsLoading" class="text-center py-4 text-xs text-slate-400">
+                    加载评论中...
+                  </div>
+                  <div
+                    v-else-if="comments.length === 0"
+                    class="text-center py-4 text-xs text-slate-400 dark:text-slate-500"
+                  >
+                    暂无讨论，发表第一条评论吧！
+                  </div>
+                  <div
+                    v-for="comment in comments"
+                    v-else
+                    :key="comment.id"
+                    class="flex gap-3 group/comment p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                  >
+                    <!-- Avatar -->
+                    <div class="shrink-0">
+                      <img
+                        v-if="comment.user?.avatarUrl"
+                        :src="comment.user.avatarUrl"
+                        class="w-7 h-7 rounded-full object-cover"
+                        alt=""
+                      />
+                      <div
+                        v-else
+                        class="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-xs"
+                      >
+                        {{ comment.user?.name?.[0] || 'U' }}
+                      </div>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center justify-between gap-2 mb-1">
+                        <span class="text-xs font-bold" style="color: var(--text-primary)">
+                          {{ comment.user?.name || '未知用户' }}
+                        </span>
+                        <div class="flex items-center gap-2">
+                          <span class="text-[10px] text-slate-400">
+                            {{ new Date(comment.createdAt).toLocaleString() }}
+                          </span>
+                          <!-- Delete Action -->
+                          <button
+                            v-if="
+                              comment.userId === authStore.user?.id ||
+                              authStore.user?.role === 'ADMIN'
+                            "
+                            type="button"
+                            class="opacity-0 group-hover/comment:opacity-100 p-0.5 text-slate-400 hover:text-rose-500 rounded transition-opacity"
+                            @click="handleDeleteComment(comment.id)"
+                          >
+                            <Trash2 class="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div class="space-y-1.5">
+                        <p
+                          v-if="parseCommentContent(comment.content).text"
+                          class="text-xs whitespace-pre-wrap leading-relaxed text-slate-600 dark:text-slate-300"
+                        >
+                          {{ parseCommentContent(comment.content).text }}
+                        </p>
+                        <div
+                          v-if="parseCommentContent(comment.content).images.length > 0"
+                          class="flex flex-wrap gap-2 pt-1"
+                        >
+                          <img
+                            v-for="img in parseCommentContent(comment.content).images"
+                            :key="img"
+                            :src="img"
+                            class="max-w-[200px] max-h-[150px] rounded-lg border object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
+                            style="border-color: var(--border-base)"
+                            @click="openImageModal(img)"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <!-- Comment Input -->
-              <div class="space-y-2">
-                <!-- Pasted Image Preview List -->
-                <div
-                  v-if="tempUploadedImages.length > 0"
-                  class="flex flex-wrap gap-2 p-2 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl"
-                >
+                <!-- Comment Input -->
+                <div class="space-y-2">
+                  <!-- Pasted Image Preview List -->
                   <div
-                    v-for="(url, idx) in tempUploadedImages"
-                    :key="url"
-                    class="relative group w-16 h-16 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden"
+                    v-if="tempUploadedImages.length > 0"
+                    class="flex flex-wrap gap-2 p-2 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl"
                   >
-                    <img :src="url" class="w-full h-full object-cover" />
+                    <div
+                      v-for="(url, idx) in tempUploadedImages"
+                      :key="url"
+                      class="relative group w-16 h-16 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden"
+                    >
+                      <img :src="url" class="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        class="absolute top-1 right-1 p-0.5 bg-black/55 hover:bg-rose-600 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center"
+                        @click="tempUploadedImages.splice(idx, 1)"
+                      >
+                        <X class="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="flex gap-2 items-end">
+                    <textarea
+                      v-model="newCommentText"
+                      rows="2"
+                      placeholder="输入评论或反馈，按 Enter 发送... (支持粘贴图片)"
+                      class="flex-1 px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:border-accent/40 focus:border-solid transition-all resize-none"
+                      style="color: var(--text-primary)"
+                      @keyup.enter.exact.prevent="handleAddComment"
+                      @paste="handlePasteComment"
+                    ></textarea>
                     <button
                       type="button"
-                      class="absolute top-1 right-1 p-0.5 bg-black/55 hover:bg-rose-600 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center"
-                      @click="tempUploadedImages.splice(idx, 1)"
+                      class="p-2.5 bg-accent hover:opacity-85 text-white rounded-xl transition-all flex items-center justify-center shrink-0 cursor-pointer"
+                      @click="handleAddComment"
                     >
-                      <X class="w-3 h-3" />
+                      <Send class="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
-
-                <div class="flex gap-2 items-end">
-                  <textarea
-                    v-model="newCommentText"
-                    rows="2"
-                    placeholder="输入评论或反馈，按 Enter 发送... (支持粘贴图片)"
-                    class="flex-1 px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:border-accent/40 focus:border-solid transition-all resize-none"
-                    style="color: var(--text-primary)"
-                    @keyup.enter.exact.prevent="handleAddComment"
-                    @paste="handlePasteComment"
-                  ></textarea>
-                  <button
-                    type="button"
-                    class="p-2.5 bg-accent hover:opacity-85 text-white rounded-xl transition-all flex items-center justify-center shrink-0 cursor-pointer"
-                    @click="handleAddComment"
-                  >
-                    <Send class="w-3.5 h-3.5" />
-                  </button>
-                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Right Column: Metadata Sidebar -->
-          <div
-            class="w-full lg:w-[320px] xl:w-[360px] shrink-0 h-fit space-y-5 p-4 md:p-5 bg-slate-500/5 dark:bg-white/[0.02] rounded-2xl border"
-            style="border-color: var(--border-base)"
-          >
-            <h3
-              class="text-xs font-black uppercase tracking-widest text-slate-400 mb-2 pb-2 border-b"
+            <!-- Right Column: Metadata Sidebar -->
+            <div
+              class="w-full lg:w-[320px] xl:w-[360px] shrink-0 h-fit space-y-5 p-4 md:p-5 bg-slate-500/5 dark:bg-white/[0.02] rounded-2xl border"
               style="border-color: var(--border-base)"
             >
-              任务属性
-            </h3>
+              <h3
+                class="text-xs font-black uppercase tracking-widest text-slate-400 mb-2 pb-2 border-b"
+                style="border-color: var(--border-base)"
+              >
+                任务属性
+              </h3>
 
-            <!-- Grid container for compact metadata -->
-            <div class="grid grid-cols-2 gap-x-4 gap-y-3.5">
-              <!-- Status selector -->
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                  >当前状态</label
-                >
-                <el-select
-                  v-model="drawerForm.status"
-                  class="!w-full custom-select-small"
-                  @change="triggerSave"
-                >
-                  <el-option
-                    v-for="c in statusColumns"
-                    :key="c.id"
-                    :label="c.title"
-                    :value="c.id"
+              <!-- Grid container for compact metadata -->
+              <div class="grid grid-cols-2 gap-x-4 gap-y-3.5">
+                <!-- Status selector -->
+                <div>
+                  <label
+                    class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
+                    >当前状态</label
+                  >
+                  <el-select
+                    v-model="drawerForm.status"
+                    class="!w-full custom-select-small"
+                    @change="triggerSave"
+                  >
+                    <el-option
+                      v-for="c in statusColumns"
+                      :key="c.id"
+                      :label="c.title"
+                      :value="c.id"
+                    />
+                  </el-select>
+                </div>
+
+                <!-- Priority selector -->
+                <div>
+                  <label
+                    class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
+                    >优先级</label
+                  >
+                  <el-select
+                    v-model="drawerForm.priority"
+                    class="!w-full custom-select-small"
+                    @change="triggerSave"
+                  >
+                    <el-option
+                      v-for="p in priorityOptions"
+                      :key="p.id"
+                      :label="p.label"
+                      :value="p.id"
+                    >
+                      <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 rounded-full" :class="p.color"></div>
+                        <span class="text-xs">{{ p.label }}</span>
+                      </div>
+                    </el-option>
+                  </el-select>
+                </div>
+
+                <!-- Due Date picker -->
+                <div>
+                  <label
+                    class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
+                    >截止日期</label
+                  >
+                  <el-date-picker
+                    v-model="drawerForm.dueDate"
+                    type="date"
+                    placeholder="无截止日期"
+                    class="!w-full custom-date-picker-small"
+                    @change="triggerSave"
                   />
-                </el-select>
+                </div>
+
+                <!-- Project selector -->
+                <div>
+                  <label
+                    class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
+                    >关联项目</label
+                  >
+                  <el-select
+                    v-model="drawerForm.projectId"
+                    clearable
+                    placeholder="未关联"
+                    class="!w-full custom-select-small"
+                    @change="triggerSave"
+                  >
+                    <el-option v-for="p in projects" :key="p.id" :label="p.title" :value="p.id" />
+                  </el-select>
+                </div>
+
+                <!-- 预计工时 (小时) -->
+                <div>
+                  <label
+                    class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"
+                  >
+                    <Clock class="w-3 h-3 text-slate-400" /> 预计工时 (时)
+                  </label>
+                  <el-input-number
+                    v-model="drawerForm.timeEstimateHours"
+                    :min="0"
+                    :precision="1"
+                    :step="0.5"
+                    placeholder="0.0"
+                    class="!w-full custom-input-number-small"
+                    @change="triggerSave"
+                  />
+                </div>
+
+                <!-- 已耗工时 (小时) -->
+                <div>
+                  <label
+                    class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"
+                  >
+                    <Clock class="w-3 h-3 text-slate-400" /> 已耗工时 (时)
+                  </label>
+                  <el-input-number
+                    v-model="drawerForm.timeSpentHours"
+                    :min="0"
+                    :precision="1"
+                    :step="0.5"
+                    placeholder="0.0"
+                    class="!w-full custom-input-number-small"
+                    @change="triggerSave"
+                  />
+                </div>
               </div>
 
-              <!-- Priority selector -->
+              <!-- Co-participants selector -->
               <div>
                 <label
                   class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                  >优先级</label
+                  >负责人</label
                 >
                 <el-select
-                  v-model="drawerForm.priority"
+                  v-model="drawerForm.participantIds"
+                  multiple
+                  collapse-tags
+                  collapse-tags-tooltip
+                  placeholder="未指派"
                   class="!w-full custom-select-small"
                   @change="triggerSave"
                 >
-                  <el-option
-                    v-for="p in priorityOptions"
-                    :key="p.id"
-                    :label="p.label"
-                    :value="p.id"
-                  >
+                  <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
                     <div class="flex items-center gap-2">
-                      <div class="w-2 h-2 rounded-full" :class="p.color"></div>
-                      <span class="text-xs">{{ p.label }}</span>
+                      <img
+                        v-if="m.avatarUrl"
+                        alt=""
+                        :src="m.avatarUrl"
+                        class="w-4 h-4 rounded-lg object-cover"
+                      />
+                      <span class="text-xs">{{ m.name }}</span>
                     </div>
                   </el-option>
                 </el-select>
               </div>
 
-
-              <!-- Due Date picker -->
+              <!-- Tags selector / edit -->
               <div>
                 <label
                   class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                  >截止日期</label
+                  >标签</label
                 >
-                <el-date-picker
-                  v-model="drawerForm.dueDate"
-                  type="date"
-                  placeholder="无截止日期"
-                  class="!w-full custom-date-picker-small"
-                  @change="triggerSave"
-                />
-              </div>
-
-              <!-- Project selector -->
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                  >关联项目</label
-                >
-                <el-select
-                  v-model="drawerForm.projectId"
-                  clearable
-                  placeholder="未关联"
-                  class="!w-full custom-select-small"
-                  @change="triggerSave"
-                >
-                  <el-option v-for="p in projects" :key="p.id" :label="p.title" :value="p.id" />
-                </el-select>
-              </div>
-
-              <!-- 预计工时 (小时) -->
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"
-                >
-                  <Clock class="w-3 h-3 text-slate-400" /> 预计工时 (时)
-                </label>
-                <el-input-number
-                  v-model="drawerForm.timeEstimateHours"
-                  :min="0"
-                  :precision="1"
-                  :step="0.5"
-                  placeholder="0.0"
-                  class="!w-full custom-input-number-small"
-                  @change="triggerSave"
-                />
-              </div>
-
-              <!-- 已耗工时 (小时) -->
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"
-                >
-                  <Clock class="w-3 h-3 text-slate-400" /> 已耗工时 (时)
-                </label>
-                <el-input-number
-                  v-model="drawerForm.timeSpentHours"
-                  :min="0"
-                  :precision="1"
-                  :step="0.5"
-                  placeholder="0.0"
-                  class="!w-full custom-input-number-small"
-                  @change="triggerSave"
-                />
-              </div>
-            </div>
-
-            <!-- Co-participants selector -->
-            <div>
-              <label
-                class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                >负责人</label
-              >
-              <el-select
-                v-model="drawerForm.participantIds"
-                multiple
-                collapse-tags
-                collapse-tags-tooltip
-                placeholder="未指派"
-                class="!w-full custom-select-small"
-                @change="triggerSave"
-              >
-                <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
-                  <div class="flex items-center gap-2">
-                    <img
-                      v-if="m.avatarUrl"
-                      alt=""
-                      :src="m.avatarUrl"
-                      class="w-4 h-4 rounded-lg object-cover"
-                    />
-                    <span class="text-xs">{{ m.name }}</span>
-                  </div>
-                </el-option>
-              </el-select>
-            </div>
-
-            <!-- Tags selector / edit -->
-            <div>
-              <label
-                class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                >标签</label
-              >
-              <div class="flex flex-wrap gap-1 mb-2">
-                <span
-                  v-for="tag in drawerForm.tags"
-                  :key="tag"
-                  class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-[8px] font-bold"
-                  :class="getTagClass(tag)"
-                >
-                  # {{ tag }}
-                  <button type="button" @click="drawerRemoveTag(tag)">
-                    <X class="w-2 h-2 hover:opacity-75" />
-                  </button>
-                </span>
-              </div>
-              <div class="flex gap-1.5">
-                <input
-                  v-model="detailDrawerTagInput"
-                  type="text"
-                  placeholder="新建标签..."
-                  class="flex-1 px-2.5 py-1 bg-slate-100 dark:bg-white/5 border-none rounded-lg text-[10px] focus:outline-none"
-                  @keyup.enter="drawerAddTag"
-                />
-                <button
-                  type="button"
-                  class="p-1 bg-slate-100 dark:bg-white/5 hover:text-accent rounded-lg text-xs"
-                  @click="drawerAddTag"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            <!-- Task Activities (任务动态) -->
-            <div class="pt-4 border-t space-y-3" style="border-color: var(--border-base)">
-              <h3 class="text-xs font-black uppercase tracking-widest text-slate-400 pb-1 border-b" style="border-color: var(--border-base)">
-                任务动态
-              </h3>
-
-              <div v-if="isActivitiesLoading" class="flex justify-center py-4">
-                <span class="text-xs text-slate-400 animate-pulse">加载动态中...</span>
-              </div>
-              <div v-else-if="activities.length === 0" class="text-center py-4 text-xs text-slate-400/70 border border-dashed border-slate-200/50 dark:border-slate-800 rounded-xl">
-                暂无动态
-              </div>
-              <div v-else class="max-h-[300px] overflow-y-auto pr-1 space-y-3 scrollbar-hide text-xs">
-                <div v-for="act in activities" :key="act.id" class="flex gap-2.5 items-start">
-                  <img
-                    v-if="act.user?.avatarUrl"
-                    :src="act.user.avatarUrl"
-                    alt=""
-                    class="w-5 h-5 rounded-full object-cover shrink-0 mt-0.5 border"
-                    style="border-color: var(--border-base)"
+                <div class="flex flex-wrap gap-1 mb-2">
+                  <span
+                    v-for="tag in drawerForm.tags"
+                    :key="tag"
+                    class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-[8px] font-bold"
+                    :class="getTagClass(tag)"
+                  >
+                    # {{ tag }}
+                    <button type="button" @click="drawerRemoveTag(tag)">
+                      <X class="w-2 h-2 hover:opacity-75" />
+                    </button>
+                  </span>
+                </div>
+                <div class="flex gap-1.5">
+                  <input
+                    v-model="detailDrawerTagInput"
+                    type="text"
+                    placeholder="新建标签..."
+                    class="flex-1 px-2.5 py-1 bg-slate-100 dark:bg-white/5 border-none rounded-lg text-[10px] focus:outline-none"
+                    @keyup.enter="drawerAddTag"
                   />
-                  <div v-else class="w-5 h-5 rounded-full bg-gradient-to-br from-accent/20 to-indigo-600/20 text-accent dark:text-indigo-400 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5 border" style="border-color: var(--border-base)">
-                    {{ act.user?.name?.substring(0, 1) || '系' }}
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-baseline gap-2">
-                      <span class="font-bold shrink-0" style="color: var(--text-primary)">
-                        {{ act.user?.name || '系统' }}
-                      </span>
-                      <span class="text-[9px] text-slate-400 tracking-tight whitespace-nowrap">
-                        {{ formatActivityTime(act.createdAt) }}
-                      </span>
+                  <button
+                    type="button"
+                    class="p-1 bg-slate-100 dark:bg-white/5 hover:text-accent rounded-lg text-xs"
+                    @click="drawerAddTag"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <!-- Task Activities (任务动态) -->
+              <div class="pt-4 border-t space-y-3" style="border-color: var(--border-base)">
+                <h3
+                  class="text-xs font-black uppercase tracking-widest text-slate-400 pb-1 border-b"
+                  style="border-color: var(--border-base)"
+                >
+                  任务动态
+                </h3>
+
+                <div v-if="isActivitiesLoading" class="flex justify-center py-4">
+                  <span class="text-xs text-slate-400 animate-pulse">加载动态中...</span>
+                </div>
+                <div
+                  v-else-if="activities.length === 0"
+                  class="text-center py-4 text-xs text-slate-400/70 border border-dashed border-slate-200/50 dark:border-slate-800 rounded-xl"
+                >
+                  暂无动态
+                </div>
+                <div
+                  v-else
+                  class="max-h-[300px] overflow-y-auto pr-1 space-y-3 scrollbar-hide text-xs"
+                >
+                  <div v-for="act in activities" :key="act.id" class="flex gap-2.5 items-start">
+                    <img
+                      v-if="act.user?.avatarUrl"
+                      :src="act.user.avatarUrl"
+                      alt=""
+                      class="w-5 h-5 rounded-full object-cover shrink-0 mt-0.5 border"
+                      style="border-color: var(--border-base)"
+                    />
+                    <div
+                      v-else
+                      class="w-5 h-5 rounded-full bg-gradient-to-br from-accent/20 to-indigo-600/20 text-accent dark:text-indigo-400 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5 border"
+                      style="border-color: var(--border-base)"
+                    >
+                      {{ act.user?.name?.substring(0, 1) || '系' }}
                     </div>
-                    <p class="text-slate-500 dark:text-slate-400 leading-normal mt-0.5 break-all">
-                      {{ act.description }}
-                    </p>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex justify-between items-baseline gap-2">
+                        <span class="font-bold shrink-0" style="color: var(--text-primary)">
+                          {{ act.user?.name || '系统' }}
+                        </span>
+                        <span class="text-[9px] text-slate-400 tracking-tight whitespace-nowrap">
+                          {{ formatActivityTime(act.createdAt) }}
+                        </span>
+                      </div>
+                      <p class="text-slate-500 dark:text-slate-400 leading-normal mt-0.5 break-all">
+                        {{ act.description }}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Final Manual Save Feedback -->
-            <div class="pt-4 border-t" style="border-color: var(--border-base)">
-              <button
-                type="button"
-                class="w-full py-2.5 bg-gradient-to-r from-accent to-indigo-600 hover:from-accent hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-accent/20 hover:shadow-accent/35 active:scale-[0.99] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                @click="handleClose"
-              >
-                关闭并保存所有更改
-              </button>
+              <!-- Final Manual Save Feedback -->
+              <div class="pt-4 border-t" style="border-color: var(--border-base)">
+                <button
+                  type="button"
+                  class="w-full py-2.5 bg-gradient-to-r from-accent to-indigo-600 hover:from-accent hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-accent/20 hover:shadow-accent/35 active:scale-[0.99] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  @click="handleClose"
+                >
+                  关闭并保存所有更改
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
     </Transition>
   </Teleport>
 
   <!-- Image Preview Dialog -->
-  <el-dialog
-    v-model="isImagePreviewOpen"
-    :show-close="true"
-    align-center
-    width="fit-content"
-    style="background: transparent; box-shadow: none"
+  <Modal
+    :show="isImagePreviewOpen"
+    size="xl"
+    padding="none"
+    @close="isImagePreviewOpen = false"
   >
-    <img
-      v-if="previewImageUrl"
-      :src="previewImageUrl"
-      class="max-w-[85vw] max-h-[80vh] rounded-xl object-contain border"
-      style="border-color: var(--border-base)"
-    />
-  </el-dialog>
+    <div class="flex items-center justify-center p-2">
+      <img
+        v-if="previewImageUrl"
+        :src="previewImageUrl"
+        class="max-w-full max-h-[80vh] rounded-xl object-contain"
+      />
+    </div>
+  </Modal>
 
   <!-- Subtask Detail Modal -->
-  <el-dialog
-    v-model="isSubtaskDetailOpen"
-    :title="'子任务详情'"
-    width="500px"
-    align-center
-    class="custom-subtask-dialog"
+  <Modal
+    :show="isSubtaskDetailOpen"
+    title="子任务详情"
+    size="md"
+    @close="handleCancelSubtaskEdit"
   >
     <div v-if="editingSubtask" class="space-y-4 py-2 text-left">
       <!-- Title -->
@@ -2097,12 +2060,12 @@ const formatActivityTime = (dateStr: string) => {
       </div>
     </div>
     <template #footer>
-      <div class="flex justify-end gap-2 pt-2 border-t" style="border-color: var(--border-base)">
+      <div class="flex justify-end gap-2 pt-2 border-t w-full" style="border-color: var(--border-base)">
         <el-button size="small" @click="handleCancelSubtaskEdit">取消</el-button>
         <el-button type="primary" size="small" @click="handleSaveSubtaskAndClose">确定</el-button>
       </div>
     </template>
-  </el-dialog>
+  </Modal>
 </template>
 
 <style scoped>

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import api from '@/utils/api';
 import { preferences } from '@/utils/preferences';
 import { socketService } from '@/utils/socket';
+import { logError } from '@/utils/error';
 import type { User } from '@/types';
 
 interface LoginCredentials {
@@ -99,7 +100,7 @@ export const useAuthStore = defineStore('auth', {
         const response = await api.get('/api/auth/me');
         this.user = response.data;
         preferences.setUser(this.user);
-      } catch (_error) {
+      } catch {
         if (this.user) {
           this.logout();
         }
@@ -214,7 +215,7 @@ export const useAuthStore = defineStore('auth', {
     async logout() {
       socketService.disconnect();
       api.post('/api/auth/logout').catch((err) => {
-        console.error('Logout request failed:', err);
+        logError(err, { operation: 'auth.logout', component: 'authStore' });
       });
 
       // Reset workspace store (Pinia handles cross-store circular references)

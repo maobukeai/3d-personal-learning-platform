@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { getApiErrorMessage } from '@/utils/error';
 import {
   ref,
   reactive,
@@ -8,14 +7,12 @@ import {
   onUnmounted,
   defineAsyncComponent,
   nextTick,
+  type ComponentPublicInstance,
 } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { NormalToolbar } from 'md-editor-v3';
 import type { ToolbarNames } from 'md-editor-v3';
 import 'md-editor-v3/lib/style.css';
-const MdEditor = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdEditor));
-const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
-import { useI18n } from 'vue-i18n';
-import api, { getAssetUrl } from '@/utils/api';
 import { ElMessage } from 'element-plus';
 import {
   Sparkles,
@@ -36,7 +33,12 @@ import {
   FileText,
   ShieldCheck,
 } from 'lucide-vue-next';
+import api, { getAssetUrl } from '@/utils/api';
+import { getApiErrorMessage } from '@/utils/error';
 import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
+
+const MdEditor = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdEditor));
+const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
 
 const { locale } = useI18n();
 
@@ -80,7 +82,7 @@ const text = computed({
 // Refs
 // ────────────────────────────────────────────────────────────────
 const editorId = ref(`md-editor-${Math.random().toString(36).substring(2, 11)}`);
-const editorRef = ref<any>(null);
+const editorRef = ref<ComponentPublicInstance | null>(null);
 const chatInputRef = ref<HTMLTextAreaElement | null>(null);
 const messagesEnd = ref<HTMLElement | null>(null);
 
@@ -672,15 +674,16 @@ const runGeneration = async (promptOverride?: string) => {
         activeId.value = null;
       },
     );
-  } catch (error: any) {
-    if (error.name === 'AbortError') return;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return;
+    const message = error instanceof Error ? error.message : 'AI 生成失败，请重试';
     const msg = messages.find((m) => m.id === assistId);
     if (msg) {
       msg.isStreaming = false;
-      msg.error = error.message || '生成失败';
+      msg.error = message;
       msg.content = msg.content || '生成失败，请重试';
     }
-    ElMessage.error(error.message || 'AI 生成失败，请重试');
+    ElMessage.error(message);
     isGenerating.value = false;
     abortCtrl.value = null;
     activeId.value = null;
@@ -1317,40 +1320,6 @@ onUnmounted(() => {
 /* ── Editor ─────────────────────────────────────── */
 .mdw__editor {
   width: 100%;
-}
-.mdw__ai-launcher {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  z-index: 8;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 9px;
-  border: 1px solid rgba(var(--accent-rgb), 0.28);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
-  color: var(--accent);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 800;
-  transition:
-    transform 0.15s,
-    background 0.15s,
-    border-color 0.15s;
-}
-.mdw__ai-launcher:hover {
-  transform: translateY(-1px);
-  background: var(--accent-subtle);
-  border-color: rgba(var(--accent-rgb), 0.45);
-}
-.mdw__ai-launcher--on {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
 }
 
 .mdw .md-editor {

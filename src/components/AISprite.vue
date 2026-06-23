@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 import { ElMessage } from 'element-plus';
 import SpriteSidebar from './aiSprite/SpriteSidebar.vue';
 import SpriteChatArea from './aiSprite/SpriteChatArea.vue';
@@ -81,7 +82,7 @@ const fetchUsageLimit = async () => {
       usageError.value = response.data?.message || '获取额度数据失败，请重试';
     }
   } catch (error: unknown) {
-    console.error('[AI Usage] Failed to fetch AI usage:', error);
+    logError(error, { operation: 'ai.fetchUsage', component: 'AISprite' });
     const err = error as { response?: { data?: { message?: string } }; message?: string };
     const apiError =
       err?.response?.data?.message || err?.message || '请求发送失败，请检查网络或刷新重试';
@@ -338,7 +339,7 @@ const deleteSession = async (sessionId: string) => {
         params: { sessionId },
       });
     } catch (error: unknown) {
-      console.error('Failed to delete AI chat session on server:', error);
+      logError(error, { operation: 'ai.deleteSession', component: 'AISprite' });
       messages.value = originalMessages;
       ElMessage.error('删除会话失败，请稍后重试');
       return;
@@ -459,7 +460,7 @@ const formatHistoryTime = (value: string) => {
     }
     return date.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
   } catch (error) {
-    console.error('Failed to format history time:', error);
+    logError(error, { operation: 'ai.formatHistoryTime', component: 'AISprite' });
     return '';
   }
 };
@@ -658,7 +659,7 @@ const loadHistory = async () => {
   } catch (error: unknown) {
     const err = error as { response?: { status?: number } };
     if (err?.response?.status !== 401) {
-      console.error('Failed to fetch AI chat history from server:', error);
+      logError(error, { operation: 'ai.fetchHistory', component: 'AISprite' });
     }
     loadGuestHistory();
   }
@@ -835,7 +836,7 @@ const pollPendingRun = (sessionId: string, runId: string, assistantMsgId: string
         // Schedule next poll if not completed
         pendingRunPollers[sessionId] = setTimeout(poll, 500) as ReturnType<typeof setInterval>;
       }
-    } catch (err: unknown) {
+    } catch {
       consecutiveErrors++;
       if (consecutiveErrors >= 5) {
         const msgObj = messages.value.find((m) => m.id === assistantMsgId);
@@ -988,7 +989,7 @@ const uploadAndAppendImage = async (file: File) => {
     });
     await scrollToBottom();
   } catch (error) {
-    console.error('Failed to upload image:', error);
+    logError(error, { operation: 'ai.uploadImage', component: 'AISprite' });
     showUploadError(error instanceof Error ? error.message : '图片上传失败');
   }
 };
@@ -1131,7 +1132,7 @@ const handleStop = (sId: string = currentSessionId.value) => {
     try {
       activeAbortControllers[sId]!.abort();
     } catch (error) {
-      console.error('Failed to abort fetch for session:', sId, error);
+      logError(error, { operation: 'ai.abortFetch', sessionId: sId, component: 'AISprite' });
     }
     activeAbortControllers[sId] = null;
   }
@@ -1139,7 +1140,7 @@ const handleStop = (sId: string = currentSessionId.value) => {
     try {
       activeReaders[sId]!.cancel();
     } catch (error) {
-      console.error('Failed to cancel active reader for session:', sId, error);
+      logError(error, { operation: 'ai.cancelReader', sessionId: sId, component: 'AISprite' });
     }
     activeReaders[sId] = null;
   }
@@ -1355,7 +1356,7 @@ const handleSend = async () => {
   } catch (error: unknown) {
     const err = error as Error & { response?: { status?: number } };
     if (err.name !== 'AbortError') {
-      console.error('AI streaming chat error in session:', sId, error);
+      logError(error, { operation: 'ai.streamingChat', sessionId: sId, component: 'AISprite' });
     }
     isGeneratingMap.value[sId] = false;
     flushTypewriterQueue(assistantMessage.id, sId);
@@ -1401,7 +1402,7 @@ const clearHistory = async () => {
     try {
       await api.delete('/api/projects/ai-chat/history');
     } catch (error) {
-      console.error('Failed to clear AI chat history on server:', error);
+      logError(error, { operation: 'ai.clearHistory', component: 'AISprite' });
     }
   } else {
     saveHistory();
@@ -1434,7 +1435,7 @@ const regenerateResponse = async () => {
         inclusive: true,
       });
     } catch (error) {
-      console.error('Failed to clean messages on server for regeneration:', error);
+      logError(error, { operation: 'ai.cleanMessagesRegenerate', component: 'AISprite' });
       return;
     }
   }
@@ -1464,7 +1465,7 @@ const editMessage = async (messageId: string, newContent: string) => {
         inclusive: true,
       });
     } catch (error) {
-      console.error('Failed to clean messages on server:', error);
+      logError(error, { operation: 'ai.cleanMessagesEdit', component: 'AISprite' });
       return;
     }
   }
@@ -1513,7 +1514,7 @@ const copyMessage = (text: string, id: string) => {
       }, 1800);
     })
     .catch((error) => {
-      console.error('Failed to copy message:', error);
+      logError(error, { operation: 'ai.copyMessage', component: 'AISprite' });
     });
 };
 

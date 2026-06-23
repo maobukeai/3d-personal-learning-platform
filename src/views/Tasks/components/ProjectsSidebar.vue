@@ -14,6 +14,7 @@ import {
 import UserAvatar from '@/components/UserAvatar.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import type { Project, Task, UserType } from '@/types/task';
+import { isTaskOverdue } from '@/utils/taskDisplay';
 import type {
   FocusFilter,
   InsightRecommendedAssignee,
@@ -143,10 +144,6 @@ const quickSeedTemplates: SeedTemplate[] = [
   },
 ] as const;
 
-const isOverdue = (task: Task) => {
-  return task.status !== 'DONE' && !!task.dueDate && new Date(task.dueDate).getTime() < Date.now();
-};
-
 const activityDotClass = (type: string) => {
   if (type === 'TASK') return 'bg-amber-500';
   if (type === 'DISCUSSION') return 'bg-sky-500';
@@ -157,11 +154,11 @@ const activityDotClass = (type: string) => {
 
 <template>
   <div
-    class="rounded-xl border p-3 sm:p-3.5 bg-card shadow-sm space-y-3.5"
+    class="mobile-adaptive rounded-xl border p-3 sm:p-3.5 bg-card shadow-sm space-y-3.5"
     style="background-color: var(--bg-card); border-color: var(--border-base)"
   >
     <!-- Tab Navigation Header -->
-    <div class="border-b pb-1.5 flex" style="border-color: var(--border-base)">
+    <div class="mobile-row border-b pb-1.5 flex" style="border-color: var(--border-base)">
       <Tabs
         v-model="activeSidebarTab"
         :options="sidebarTabs"
@@ -427,12 +424,12 @@ const activityDotClass = (type: string) => {
               <div
                 class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                 :class="
-                  isOverdue(task)
+                  isTaskOverdue(task)
                     ? 'bg-rose-500/10 text-rose-500'
                     : 'bg-amber-500/10 text-amber-500'
                 "
               >
-                <AlertTriangle v-if="isOverdue(task)" class="w-3.5 h-3.5" />
+                <AlertTriangle v-if="isTaskOverdue(task)" class="w-3.5 h-3.5" />
                 <Clock3 v-else class="w-3.5 h-3.5" />
               </div>
               <div class="min-w-0 flex-1">
@@ -516,7 +513,7 @@ const activityDotClass = (type: string) => {
               v-for="item in activityItems.slice(0, 6)"
               :key="item.id"
               type="button"
-              class="w-full grid grid-cols-[8px_minmax(0,1fr)_auto] items-center gap-2.5 bg-transparent border-none p-1 text-left cursor-pointer hover:bg-slate-100/50 dark:hover:bg-white/3 rounded transition-colors"
+              class="activity-grid w-full grid grid-cols-[8px_minmax(0,1fr)_auto] items-center gap-2.5 bg-transparent border-none p-1 text-left cursor-pointer hover:bg-slate-100/50 dark:hover:bg-white/3 rounded transition-colors"
               @click="emit('navigate-insight', item.targetRoute)"
             >
               <span
@@ -551,5 +548,11 @@ const activityDotClass = (type: string) => {
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@media (max-width: 767px) {
+  .activity-grid {
+    grid-template-columns: 8px minmax(0, 1fr) auto !important;
+  }
 }
 </style>

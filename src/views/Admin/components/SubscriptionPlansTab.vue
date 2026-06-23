@@ -212,7 +212,7 @@ const getPlanIcon = (name: string) => {
                 >
               </div>
               <div
-                class="flex flex-nowrap items-center gap-x-1.5 xs:gap-x-2 mt-2 text-[9px] xs:text-[10px] sm:text-xs text-[var(--text-secondary)] overflow-x-auto scrollbar-hide min-w-0"
+                class="flex flex-nowrap items-center gap-x-1.5 xs:gap-x-2 mt-2 text-[9px] xs:text-[10px] sm:text-xs text-[var(--text-secondary)] overflow-x-auto scrollbar-hide min-w-0 mobile-row"
               >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><DollarSign class="w-3 h-3 shrink-0" />月付 ￥{{ plan.price
@@ -283,7 +283,7 @@ const getPlanIcon = (name: string) => {
           v-if="plan.features && plan.features.length > 0"
           class="mt-4 pt-4 border-t border-[var(--border-base)]"
         >
-          <div class="flex flex-nowrap gap-1.5 overflow-x-auto scrollbar-hide">
+          <div class="flex flex-nowrap gap-1.5 overflow-x-auto scrollbar-hide mobile-row">
             <span
               v-for="(feature, idx) in plan.features"
               :key="idx"
@@ -314,7 +314,7 @@ const getPlanIcon = (name: string) => {
       </template>
 
       <div class="space-y-6">
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-4 mobile-grid">
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
               $t('admin.program_logo_english')
@@ -349,7 +349,7 @@ const getPlanIcon = (name: string) => {
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-4 mobile-grid">
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
               $t('admin.monthly_payment_price')
@@ -383,7 +383,7 @@ const getPlanIcon = (name: string) => {
           </div>
         </div>
 
-        <div class="grid grid-cols-4 gap-4">
+        <div class="grid grid-cols-4 gap-4 mobile-grid">
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
               $t('admin.storage_gb')
@@ -446,7 +446,7 @@ const getPlanIcon = (name: string) => {
           </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-3 gap-4 mobile-grid">
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
               $t('admin.sort_priority')

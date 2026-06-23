@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 export { formatCompactNumber } from '@/utils/format';
 
 export type AdminInsightIssue = {
@@ -336,7 +337,10 @@ export async function fetchManagementInsights(force = false) {
       return data;
     })
     .catch((error) => {
-      console.error('Fetch management insights error:', error);
+      logError(error, {
+        operation: 'admin.fetchManagementInsights',
+        component: 'adminManagementInsights',
+      });
       managementInsightsError.value = '后台运营洞察加载失败';
       return null;
     })

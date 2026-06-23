@@ -1,31 +1,18 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import {
-  CreditCard,
-  Check,
-  Zap,
-  Crown,
-  History,
-  ArrowUpRight,
-  Download,
-  FolderOpen,
-  Box,
-  Shield,
-  KeyRound,
-  AlertTriangle,
-  RefreshCw,
-  TrendingUp,
-  HardDrive,
-} from 'lucide-vue-next';
+import { CreditCard } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import { getApiErrorMessage } from '@/utils/error';
-import Input from '@/components/ui/Input.vue';
-import Switch from '@/components/ui/Switch.vue';
-import Button from '@/components/ui/Button.vue';
-import Modal from '@/components/ui/Modal.vue';
+import PageHeader from '@/components/PageHeader.vue';
+import BillingOverview from './components/BillingOverview.vue';
+import PricingPlans from './components/PricingPlans.vue';
+import PlanComparisonTable from './components/PlanComparisonTable.vue';
+import BillingHistory from './components/BillingHistory.vue';
+import CancelSubscriptionDialog from './components/CancelSubscriptionDialog.vue';
+import UpgradeSubscriptionDialog from './components/UpgradeSubscriptionDialog.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -122,7 +109,7 @@ const fetchBillingData = async () => {
     selectedPlanId.value =
       subRes.data.plan?.id || plans.value.find((p) => p.name === 'FREE')?.id || '';
     billingInterval.value = subRes.data.interval || 'MONTHLY';
-  } catch (_error) {
+  } catch {
     ElMessage.error('获取账单数据失败');
   } finally {
     isLoading.value = false;
@@ -133,7 +120,7 @@ const checkCancel2FA = async () => {
   try {
     const res = await api.get('/api/subscriptions/cancel-requires-2fa');
     cancelRequires2FA.value = res.data.requires2FA;
-  } catch (_error) {
+  } catch {
     cancelRequires2FA.value = false;
   }
 };
@@ -335,69 +322,16 @@ const handleExportBilling = () => {
   ElMessage.success('账单已导出');
 };
 
-const getPlanIcon = (name?: string | null) => {
-  if (name === 'VIP') return Zap;
-  if (name === 'SVIP') return Crown;
-  return CreditCard;
-};
-
-const getPlanColor = (name?: string | null) => {
-  if (name === 'VIP') return 'text-violet-500';
-  if (name === 'SVIP') return 'text-amber-500';
-  return 'text-blue-500';
-};
-
-const getPlanBgColor = (name?: string | null) => {
-  if (name === 'VIP') return 'bg-violet-500';
-  if (name === 'SVIP') return 'bg-amber-500';
-  return 'bg-blue-500';
-};
-
 const storageProgress = computed(() => {
   if (!storageUsage.value) return 0;
   return storageUsage.value.usagePercent || 0;
 });
-
-const isPaidPlan = computed(() => {
-  return mySubscription.value?.plan?.name !== 'FREE' && mySubscription.value?.status === 'ACTIVE';
-});
-
-const getDisplayPrice = (plan?: BillingPlan | null) => {
-  if (!plan) return 0;
-  if (billingInterval.value === 'YEARLY' && plan.yearlyPrice) {
-    return plan.yearlyPrice;
-  }
-  return plan.price;
-};
-
-const isUpgradeAvailable = (plan?: BillingPlan | null) => {
-  if (!plan) return false;
-  const currentPriority = mySubscription.value?.plan?.priority || 0;
-  return (
-    plan.priority > currentPriority &&
-    mySubscription.value?.status === 'ACTIVE' &&
-    mySubscription.value?.plan?.name !== 'FREE'
-  );
-};
-
-const isRenewalAvailable = (plan?: BillingPlan | null) => {
-  if (!plan) return false;
-  return plan.id === mySubscription.value?.plan?.id && mySubscription.value?.status === 'ACTIVE';
-};
 
 const scrollToPlans = () => {
   const el = document.getElementById('pricing-plans-section');
   if (el) {
     el.scrollIntoView({ behavior: 'smooth' });
   }
-};
-
-const formatStorageValue = (gb?: number) => {
-  if (gb === undefined || gb === null) return '0 GB';
-  if (gb < 0.1) {
-    return `${(gb * 1024).toFixed(1)} MB`;
-  }
-  return `${gb.toFixed(2)} GB`;
 };
 
 onMounted(() => {
@@ -411,531 +345,35 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col h-full overflow-hidden bg-transparent">
-    <!-- Reusable PageHeader component replaces hardcoded header -->
+  <div class="mobile-adaptive flex-1 flex flex-col h-full overflow-hidden bg-transparent">
     <PageHeader title="订阅与账单" :icon="CreditCard" />
 
     <div class="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide">
       <div class="max-w-none space-y-8 md:space-y-10">
-        
-        <!-- Balanced Current Status, Storage & Redeem Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          <!-- Card 1: Current Plan Status -->
-          <div class="premium-billing-card p-6 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm flex flex-col justify-between relative overflow-hidden group">
-            <div>
-              <div class="flex items-center justify-between mb-4">
-                <div>
-                  <h3 class="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                    当前方案
-                  </h3>
-                  <div class="flex items-baseline gap-2 mt-1">
-                    <span class="text-2xl font-black text-[var(--text-primary)] truncate max-w-[160px] md:max-w-none">
-                      {{ mySubscription?.plan?.displayName || mySubscription?.plan?.name || '免费版' }}
-                    </span>
-                    <span v-if="isPaidPlan" class="px-2 py-0.5 rounded-full text-[10px] font-black bg-accent/10 text-accent">
-                      {{ mySubscription?.interval === 'YEARLY' ? '年付' : '月付' }}
-                    </span>
-                  </div>
-                </div>
-                <div
-                  class="p-3 rounded-2xl transition-all duration-300"
-                  :style="{
-                    backgroundColor: (mySubscription?.plan?.badgeColor || '#3b82f6') + '15',
-                    color: mySubscription?.plan?.badgeColor || '#3b82f6',
-                  }"
-                >
-                  <component
-                    :is="getPlanIcon(mySubscription?.plan?.name)"
-                    class="w-6 h-6"
-                  />
-                </div>
-              </div>
+        <BillingOverview
+          v-model:activation-code="activationCode"
+          :my-subscription="mySubscription"
+          :storage-usage="storageUsage"
+          :subscription-limits="subscriptionLimits"
+          :storage-progress="storageProgress"
+          :is-redeeming="isRedeeming"
+          @redeem="handleRedeemCode"
+          @cancel-subscription="openCancelDialog"
+          @scroll-to-plans="scrollToPlans"
+          @toggle-auto-renew="handleToggleAutoRenew"
+        />
 
-              <div class="space-y-2 mt-4 text-xs text-[var(--text-secondary)]">
-                <div class="flex justify-between items-center">
-                  <span>订阅状态</span>
-                  <span class="font-semibold" :class="isPaidPlan ? 'text-emerald-500' : 'text-[var(--text-muted)]'">
-                    {{ isPaidPlan ? '已激活' : '未激活' }}
-                  </span>
-                </div>
-                <div v-if="mySubscription?.endDate" class="flex justify-between items-center">
-                  <span>有效期至</span>
-                  <span class="font-medium text-[var(--text-primary)]">
-                    {{ new Date(mySubscription.endDate).toLocaleDateString() }}
-                  </span>
-                </div>
-              </div>
-            </div>
+        <PricingPlans
+          v-model:billing-interval="billingInterval"
+          :plans="plans"
+          :my-subscription="mySubscription"
+          @subscribe="handleSubscribe"
+        />
 
-            <div v-if="isPaidPlan" class="space-y-3 mt-6 pt-4 border-t border-[var(--border-base)]">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-[var(--text-secondary)]">自动续费</span>
-                <Switch
-                  :model-value="!!mySubscription?.autoRenew"
-                  @update:model-value="handleToggleAutoRenew"
-                />
-              </div>
-              <button
-                type="button"
-                class="w-full py-2 border border-dashed border-rose-200 dark:border-rose-900/30 rounded-xl text-xs font-bold text-rose-500 hover:bg-rose-500/5 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                @click="openCancelDialog"
-              >
-                取消订阅
-              </button>
-            </div>
-            <div v-else class="mt-6 pt-4 border-t border-[var(--border-base)]">
-              <button
-                type="button"
-                class="w-full py-2.5 bg-accent text-white rounded-xl text-xs font-bold shadow-md shadow-accent/20 hover:shadow-accent/30 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                @click="scrollToPlans"
-              >
-                升级订阅计划
-              </button>
-            </div>
-          </div>
+        <PlanComparisonTable :plans="plans" />
 
-          <!-- Card 2: Storage & Resource Usage -->
-          <div class="premium-billing-card p-6 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm flex flex-col justify-between group">
-            <div>
-              <div class="flex items-center justify-between mb-4">
-                <div>
-                  <h3 class="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                    存储与使用量
-                  </h3>
-                  <div class="text-2xl font-black text-[var(--text-primary)] mt-1">
-                    {{ storageProgress }}%
-                  </div>
-                </div>
-                <div class="p-3 bg-amber-500/10 text-amber-500 rounded-2xl">
-                  <HardDrive class="w-6 h-6" />
-                </div>
-              </div>
+        <BillingHistory :transactions="transactions" @export="handleExportBilling" />
 
-              <div class="space-y-4">
-                <div class="space-y-1.5">
-                  <div class="flex items-center justify-between text-xs">
-                    <span class="text-[var(--text-secondary)]">存储空间</span>
-                    <span class="text-[var(--text-primary)] font-medium">
-                      {{ formatStorageValue(storageUsage?.usedGB) }} / {{ storageUsage?.maxStorageGB || 1 }} GB
-                    </span>
-                  </div>
-                  <div class="h-2 w-full bg-[var(--bg-app)] rounded-full overflow-hidden p-0.5 border border-[var(--border-base)]">
-                    <div
-                      class="h-full rounded-full transition-all duration-1000 ease-out"
-                      :class="
-                        storageProgress > 90
-                          ? 'bg-rose-500'
-                          : storageProgress > 70
-                            ? 'bg-amber-500'
-                            : 'bg-accent'
-                      "
-                      :style="{ width: `${storageProgress}%` }"
-                    ></div>
-                  </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4 pt-2">
-                  <div class="flex items-center gap-2 p-2 bg-[var(--bg-app)]/50 rounded-xl border border-[var(--border-base)]">
-                    <FolderOpen class="w-4 h-4 text-blue-500 shrink-0" />
-                    <div class="min-w-0">
-                      <p class="text-[10px] text-[var(--text-secondary)]">协作项目</p>
-                      <p class="text-xs font-bold text-[var(--text-primary)] truncate">
-                        {{ subscriptionLimits?.currentProjects || 0 }} / {{ subscriptionLimits?.maxProjects === 9999 ? '∞' : subscriptionLimits?.maxProjects || 5 }}
-                      </p>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-2 p-2 bg-[var(--bg-app)]/50 rounded-xl border border-[var(--border-base)]">
-                    <Box class="w-4 h-4 text-purple-500 shrink-0" />
-                    <div class="min-w-0">
-                      <p class="text-[10px] text-[var(--text-secondary)]">3D 资源数</p>
-                      <p class="text-xs font-bold text-[var(--text-primary)] truncate">
-                        {{ subscriptionLimits?.currentAssets || 0 }} / {{ subscriptionLimits?.maxAssets === 9999 ? '∞' : subscriptionLimits?.maxAssets || 50 }}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 3: Activation Code Redemption -->
-          <div class="premium-billing-card p-6 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm flex flex-col justify-between group">
-            <div class="space-y-4">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h3 class="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                    激活码兑换
-                  </h3>
-                  <p class="text-xs text-[var(--text-secondary)] mt-1">
-                    激活或延长您的订阅计划
-                  </p>
-                </div>
-                <div class="p-3 bg-violet-500/10 text-violet-500 rounded-2xl">
-                  <KeyRound class="w-6 h-6" />
-                </div>
-              </div>
-
-              <div class="space-y-3">
-                <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-                  如果您拥有合作渠道提供的激活码，请在下方输入以兑换相应的订阅权益。
-                </p>
-                <div class="flex gap-2 items-center">
-                  <Input
-                    v-model="activationCode"
-                    type="text"
-                    class="flex-1 min-w-0"
-                    input-class="!py-2 !h-9 text-xs"
-                    placeholder="输入激活码..."
-                    @keyup.enter="handleRedeemCode"
-                  />
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    :disabled="isRedeeming"
-                    :loading="isRedeeming"
-                    class="shrink-0 rounded-xl h-9 font-bold"
-                    @click="handleRedeemCode"
-                  >
-                    兑换
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Pricing Plans -->
-        <div id="pricing-plans-section" class="space-y-6 scroll-mt-6">
-          <div class="text-center space-y-4 px-4">
-            <h2 class="text-2xl md:text-3xl font-black text-[var(--text-primary)]">
-              选择适合您的方案
-            </h2>
-            <p class="text-sm text-[var(--text-secondary)]">
-              解锁更多 3D 资产、高级材质和无限协作空间
-            </p>
-
-            <div class="flex items-center justify-center gap-3 pt-2">
-              <span
-                class="text-sm font-bold"
-                :class="
-                  billingInterval === 'MONTHLY'
-                    ? 'text-[var(--text-primary)]'
-                    : 'text-[var(--text-muted)]'
-                "
-                >月付</span
-              >
-              <Switch
-                :model-value="billingInterval === 'YEARLY'"
-                @update:model-value="(val) => (billingInterval = val ? 'YEARLY' : 'MONTHLY')"
-              />
-              <span
-                class="text-sm font-bold"
-                :class="
-                  billingInterval === 'YEARLY'
-                    ? 'text-[var(--text-primary)]'
-                    : 'text-[var(--text-muted)]'
-                "
-                >年付</span
-              >
-              <span
-                v-if="billingInterval === 'YEARLY'"
-                class="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[10px] font-black rounded-full"
-                >省20%</span
-              >
-            </div>
-          </div>
-
-          <!-- Responsive grid stacked on mobile, 3 columns on desktop -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 pt-6">
-            <div
-              v-for="plan in plans"
-              :key="plan.id"
-              class="relative p-6 md:p-8 rounded-3xl border transition-all duration-500 flex flex-col h-full overflow-hidden premium-billing-card"
-              :class="[
-                plan.id === mySubscription?.plan?.id && mySubscription?.status === 'ACTIVE'
-                  ? 'border-accent bg-accent/5 ring-1 ring-accent shadow-lg md:shadow-2xl'
-                  : 'border-[var(--border-base)] bg-[var(--bg-card)] hover:shadow-xl',
-              ]"
-            >
-              <div
-                v-if="plan.isPopular"
-                class="absolute top-4 right-4 px-3 py-1 text-white text-[10px] font-black rounded-full uppercase tracking-widest"
-                :class="getPlanBgColor(plan.name)"
-              >
-                推荐
-              </div>
-
-              <div class="mb-6 md:mb-8">
-                <div
-                  class="p-2.5 md:p-3 bg-[var(--bg-app)] w-fit rounded-2xl mb-4"
-                >
-                  <component
-                    :is="getPlanIcon(plan.name)"
-                    class="w-5 h-5 md:w-6 md:h-6"
-                    :class="getPlanColor(plan.name)"
-                  />
-                </div>
-                <h3 class="text-lg md:text-xl font-black text-[var(--text-primary)] truncate">
-                  {{ plan.displayName || plan.name }}
-                </h3>
-                <div class="mt-4 flex items-baseline gap-1">
-                  <span class="text-3xl md:text-4xl font-black text-[var(--text-primary)]"
-                    >￥{{ getDisplayPrice(plan) }}</span
-                  >
-                  <span class="text-xs md:text-sm font-medium text-[var(--text-secondary)]"
-                    >/{{ billingInterval === 'YEARLY' ? '年' : '月' }}</span
-                  >
-                </div>
-              </div>
-
-              <!-- Complete benefits features listing -->
-              <ul class="space-y-3.5 md:space-y-4 mb-6 md:mb-10 flex-1">
-                <li
-                  v-for="feature in (plan.features || [])"
-                  :key="feature"
-                  class="flex items-start gap-2.5"
-                >
-                  <div
-                    class="p-0.5 bg-emerald-500/10 rounded-full text-emerald-500 shrink-0 mt-0.5"
-                  >
-                    <Check class="w-3 h-3" />
-                  </div>
-                  <span class="text-xs md:text-sm text-[var(--text-secondary)]">{{
-                    feature
-                  }}</span>
-                </li>
-              </ul>
-
-              <button
-                type="button"
-                class="w-full py-2.5 md:py-4 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer hover:-translate-y-0.5 active:scale-95"
-                :class="[
-                  plan.id === mySubscription?.plan?.id && mySubscription?.status === 'ACTIVE'
-                    ? 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20'
-                    : plan.isPopular
-                      ? 'bg-gradient-to-r from-accent to-blue-600 text-white shadow-lg shadow-accent/25 hover:shadow-accent/40'
-                      : 'bg-[var(--bg-app)] text-[var(--text-primary)] border border-[var(--border-base)] hover:border-accent hover:text-accent',
-                ]"
-                @click="handleSubscribe(plan)"
-              >
-                {{
-                  plan.id === mySubscription?.plan?.id && mySubscription?.status === 'ACTIVE'
-                    ? '当前方案 (续费)'
-                    : isUpgradeAvailable(plan)
-                      ? '立即升级'
-                      : '选择此方案'
-                }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Plan Comparison Table -->
-        <div class="space-y-4">
-          <h2 class="text-lg md:text-xl font-bold text-[var(--text-primary)]">方案对比</h2>
-          <!-- Horizontal scrollability for comparison table on mobile viewports -->
-          <div
-            class="rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-x-auto scrollbar-hide shadow-sm"
-          >
-            <table class="w-full min-w-[600px] md:min-w-full text-left border-collapse">
-              <thead>
-                <tr class="bg-[var(--bg-app)]/50 border-b border-[var(--border-base)]">
-                  <th
-                    class="w-[28%] md:w-auto px-4 md:px-8 py-3 md:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
-                  >
-                    功能
-                  </th>
-                  <th
-                    v-for="plan in plans"
-                    :key="plan.id"
-                    class="px-4 md:px-8 py-3 md:py-4 text-[10px] font-black uppercase tracking-widest text-center"
-                    :class="getPlanColor(plan.name)"
-                  >
-                    {{ plan.displayName || plan.name }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-[var(--border-base)]">
-                <tr
-                  v-for="row in [
-                    {
-                      label: '存储空间',
-                      values: plans.map((p: BillingPlan) =>
-                        p.maxStorage >= 9999 ? '∞' : `${p.maxStorage}G`,
-                      ),
-                    },
-                    {
-                      label: '协作团队',
-                      values: plans.map((p: BillingPlan) =>
-                        p.maxTeams >= 999 ? '∞' : `${p.maxTeams}个`,
-                      ),
-                    },
-                    {
-                      label: '项目/资产',
-                      values: plans.map(
-                        (p: BillingPlan) =>
-                          `${p.maxProjects >= 9999 ? '∞' : p.maxProjects}/${p.maxAssets >= 9999 ? '∞' : p.maxAssets}`,
-                      ),
-                    },
-                    { label: '支持/渲染', values: ['社区/标', '1对1/优', '专属/独'] },
-                  ]"
-                  :key="row.label"
-                  class="hover:bg-[var(--bg-app)]/30 transition-colors"
-                >
-                  <td
-                    class="px-4 md:px-8 py-3 md:py-4 text-xs md:text-sm font-bold text-[var(--text-primary)] truncate"
-                  >
-                    {{ row.label }}
-                  </td>
-                  <td
-                    v-for="(val, idx) in row.values"
-                    :key="idx"
-                    class="px-4 md:px-8 py-3 md:py-4 text-xs md:text-sm text-center text-[var(--text-secondary)]"
-                  >
-                    {{ val }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Billing History -->
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg md:text-xl font-bold text-[var(--text-primary)]">账单历史</h2>
-            <button
-              type="button"
-              class="text-xs font-bold text-accent hover:underline flex items-center gap-1.5 cursor-pointer"
-              @click="handleExportBilling"
-            >
-              <Download class="w-4 h-4" /> 导出账单
-            </button>
-          </div>
-
-          <div
-            class="rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden shadow-sm"
-          >
-            <!-- Desktop Table (visible from md) -->
-            <table class="hidden md:table w-full text-left border-collapse">
-              <thead>
-                <tr class="bg-[var(--bg-app)]/50 border-b border-[var(--border-base)]">
-                  <th
-                    class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
-                  >
-                    日期
-                  </th>
-                  <th
-                    class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
-                  >
-                    项目描述
-                  </th>
-                  <th
-                    class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
-                  >
-                    金额
-                  </th>
-                  <th
-                    class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
-                  >
-                    状态
-                  </th>
-                  <th
-                    class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
-                  >
-                    发票号
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-[var(--border-base)]">
-                <tr
-                  v-for="tx in transactions"
-                  :key="tx.id"
-                  class="hover:bg-[var(--bg-app)]/30 transition-colors"
-                >
-                  <td class="px-8 py-5 text-sm font-medium text-[var(--text-primary)]">
-                    {{ new Date(tx.createdAt).toLocaleDateString() }}
-                  </td>
-                  <td class="px-8 py-5">
-                    <p class="text-sm font-bold text-[var(--text-primary)]">{{ tx.description }}</p>
-                    <p class="text-[10px] text-[var(--text-muted)] mt-0.5">
-                      {{ tx.paymentMethod || '-' }}
-                    </p>
-                  </td>
-                  <td class="px-8 py-5 text-sm font-black text-[var(--text-primary)]">
-                    ￥{{ tx.amount }}
-                  </td>
-                  <td class="px-8 py-5">
-                    <span
-                      class="px-2 py-0.5 rounded-full text-[10px] font-bold"
-                      :class="
-                        tx.status === 'COMPLETED'
-                          ? 'bg-emerald-500/10 text-emerald-500'
-                          : tx.status === 'PENDING'
-                            ? 'bg-amber-500/10 text-amber-500'
-                            : 'bg-rose-500/10 text-rose-500'
-                      "
-                    >
-                      {{
-                        tx.status === 'COMPLETED'
-                          ? '已支付'
-                          : tx.status === 'PENDING'
-                            ? '处理中'
-                            : '失败'
-                      }}
-                    </span>
-                  </td>
-                  <td class="px-8 py-5 text-xs text-[var(--text-muted)] font-mono">
-                    {{ tx.invoiceNo || '-' }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-
-            <!-- Mobile List (visible below md) -->
-            <div class="md:hidden divide-y divide-[var(--border-base)]">
-              <div
-                v-for="tx in transactions"
-                :key="tx.id"
-                class="p-4 flex items-center justify-between gap-4 bg-[var(--bg-card)]"
-              >
-                <div class="min-w-0 space-y-1">
-                  <div class="flex items-center gap-2">
-                    <p class="text-xs font-black text-[var(--text-primary)] truncate">
-                      {{ tx.description }}
-                    </p>
-                    <span
-                      class="px-1.5 py-0.5 rounded-full text-[9px] font-bold shrink-0"
-                      :class="
-                        tx.status === 'COMPLETED'
-                          ? 'bg-emerald-500/10 text-emerald-500'
-                          : 'bg-amber-500/10 text-amber-500'
-                      "
-                    >
-                      {{ tx.status === 'COMPLETED' ? '已付' : '待付' }}
-                    </span>
-                  </div>
-                  <p class="text-[10px] text-[var(--text-muted)]">
-                    {{ new Date(tx.createdAt).toLocaleDateString() }}
-                  </p>
-                </div>
-                <div class="text-right shrink-0">
-                  <p class="text-sm font-black text-[var(--text-primary)]">￥{{ tx.amount }}</p>
-                  <p class="text-[10px] text-[var(--text-muted)] font-mono">
-                    {{ tx.invoiceNo?.slice(-6) || '-' }}
-                  </p>
-                </div>
-              </div>
-              <div v-if="transactions.length === 0" class="p-10 text-center opacity-20">
-                <History class="w-8 h-8 mx-auto mb-2" />
-                <p class="text-xs font-medium">暂无记录</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Premium Brand Gradient FAQ Support banner -->
         <div
           class="p-6 md:p-8 rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-accent text-white flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 shadow-lg shadow-indigo-500/25"
         >
@@ -956,225 +394,25 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Cancel Subscription Dialog -->
-    <Modal :show="showCancelDialog" title="取消订阅" @close="showCancelDialog = false">
-      <!-- Step 1: Confirm cancel type -->
-      <template v-if="cancelStep === 'confirm'">
-        <div class="space-y-6">
-          <div
-            class="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-200 dark:border-amber-900/20"
-          >
-            <div class="flex items-start gap-3">
-              <AlertTriangle class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-              <div>
-                <p class="text-xs font-bold text-amber-800 dark:text-amber-400">
-                  取消后您将失去以下权益
-                </p>
-                <ul class="mt-2 space-y-1">
-                  <li
-                    v-for="(feature, idx) in (mySubscription?.plan?.features || []).slice(0, 3)"
-                    :key="idx"
-                    class="text-[10px] text-amber-700 dark:text-amber-500"
-                  >
-                    • {{ feature }}
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
+    <CancelSubscriptionDialog
+      v-model:show="showCancelDialog"
+      v-model:cancel-type="cancelType"
+      v-model:two-factor-code="twoFactorCode"
+      v-model:cancel-step="cancelStep"
+      :my-subscription="mySubscription"
+      :cancel-requires2-f-a="cancelRequires2FA"
+      :is-verifying2-f-a="isVerifying2FA"
+      @cancel="handleCancelSubscription"
+      @cancel-with2-f-a="handleCancelWith2FA"
+    />
 
-          <div class="space-y-3">
-            <label
-              class="flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all"
-              :class="
-                cancelType === 'end_of_period'
-                  ? 'border-accent bg-accent/5'
-                  : 'border-[var(--border-base)] hover:border-accent/50'
-              "
-            >
-              <input
-                v-model="cancelType"
-                type="radio"
-                value="end_of_period"
-                class="accent-[var(--accent)]"
-              />
-              <div>
-                <p class="text-sm font-bold text-[var(--text-primary)]">周期结束后取消</p>
-                <p class="text-[10px] text-[var(--text-secondary)]">
-                  继续享受权益至
-                  {{
-                    mySubscription?.endDate
-                      ? new Date(mySubscription.endDate).toLocaleDateString()
-                      : '当前周期结束'
-                  }}
-                </p>
-              </div>
-            </label>
-            <label
-              class="flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all"
-              :class="
-                cancelType === 'immediate'
-                  ? 'border-rose-500 bg-rose-500/5'
-                  : 'border-[var(--border-base)] hover:border-rose-300'
-              "
-            >
-              <input v-model="cancelType" type="radio" value="immediate" class="accent-rose-500" />
-              <div>
-                <p class="text-sm font-bold text-[var(--text-primary)]">立即取消</p>
-                <p class="text-[10px] text-[var(--text-secondary)]">
-                  立即降级为免费版，剩余时间不退款
-                </p>
-              </div>
-            </label>
-          </div>
-
-          <div
-            v-if="cancelRequires2FA"
-            class="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-200 dark:border-blue-900/20 flex items-center gap-2"
-          >
-            <Shield class="w-4 h-4 text-blue-500 shrink-0" />
-            <p class="text-[10px] text-blue-700 dark:text-blue-400 font-bold">
-              您的账号已启用两步验证，取消订阅时需要验证身份
-            </p>
-          </div>
-
-          <div class="flex gap-3">
-            <Button variant="secondary" full-width @click="showCancelDialog = false">
-              继续使用
-            </Button>
-            <Button variant="danger" full-width @click="handleCancelSubscription">
-              {{ cancelRequires2FA ? '下一步' : '确认取消' }}
-            </Button>
-          </div>
-        </div>
-      </template>
-
-      <!-- Step 2: 2FA Verification -->
-      <template v-if="cancelStep === '2fa'">
-        <div class="space-y-6">
-          <div class="text-center space-y-4 py-4">
-            <div
-              class="w-16 h-16 mx-auto bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center"
-            >
-              <KeyRound class="w-8 h-8 text-blue-500" />
-            </div>
-            <p class="text-sm text-[var(--text-secondary)]">请输入您的两步验证码以确认取消订阅</p>
-            <p class="text-[10px] text-[var(--text-muted)]">打开您的身份验证器应用获取6位验证码</p>
-          </div>
-
-          <Input
-            v-model="twoFactorCode"
-            type="text"
-            maxlength="6"
-            placeholder="输入6位验证码"
-            input-class="text-center text-2xl font-mono font-bold tracking-[0.5em]"
-            @keyup.enter="handleCancelWith2FA"
-          />
-
-          <div class="flex gap-3">
-            <Button variant="secondary" full-width @click="cancelStep = 'confirm'"> 返回 </Button>
-            <Button
-              variant="danger"
-              full-width
-              :disabled="isVerifying2FA || twoFactorCode.length < 6"
-              :loading="isVerifying2FA"
-              @click="handleCancelWith2FA"
-            >
-              确认取消
-            </Button>
-          </div>
-        </div>
-      </template>
-    </Modal>
-
-    <!-- Upgrade/Renewal Dialog -->
-    <Modal
-      :show="showUpgradeDialog"
-      :title="isUpgradeAvailable(upgradePlan) ? '升级订阅' : '续费订阅'"
-      @close="showUpgradeDialog = false"
-    >
-      <div v-if="upgradePlan" class="space-y-6">
-        <div class="flex items-center gap-4 p-4 rounded-2xl bg-[var(--bg-app)]">
-          <div class="p-3 rounded-xl" :class="getPlanBgColor(upgradePlan.name)">
-            <component :is="getPlanIcon(upgradePlan.name)" class="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <p class="font-bold text-[var(--text-primary)]">
-              {{ upgradePlan.displayName || upgradePlan.name }}
-            </p>
-            <p class="text-xs text-[var(--text-secondary)]">
-              ￥{{ getDisplayPrice(upgradePlan) }}/{{ billingInterval === 'YEARLY' ? '年' : '月' }}
-            </p>
-          </div>
-        </div>
-
-        <div
-          v-if="isUpgradeAvailable(upgradePlan)"
-          class="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-200 dark:border-emerald-900/20"
-        >
-          <div class="flex items-start gap-3">
-            <TrendingUp class="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-            <div>
-              <p class="text-xs font-bold text-emerald-800 dark:text-emerald-400">升级优惠</p>
-              <p class="text-[10px] text-emerald-700 dark:text-emerald-500 mt-1">
-                从 {{ mySubscription?.plan?.displayName || mySubscription?.plan?.name }} 升级至
-                {{ upgradePlan.displayName || upgradePlan.name }}
-              </p>
-              <p class="text-[10px] text-emerald-700 dark:text-emerald-500">
-                原计划剩余价值将自动抵扣，仅需支付差价
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-else
-          class="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-200 dark:border-blue-900/20"
-        >
-          <div class="flex items-start gap-3">
-            <RefreshCw class="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-            <div>
-              <p class="text-xs font-bold text-blue-800 dark:text-blue-400">续费说明</p>
-              <p class="text-[10px] text-blue-700 dark:text-blue-500 mt-1">
-                续费将从当前日期开始新的订阅周期
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <ul class="space-y-2">
-          <li
-            v-for="feature in (upgradePlan.features || []).slice(0, 4)"
-            :key="feature"
-            class="flex items-start gap-2"
-          >
-            <div class="p-0.5 bg-emerald-500/10 rounded-full text-emerald-500 shrink-0 mt-0.5">
-              <Check class="w-2.5 h-2.5" />
-            </div>
-            <span class="text-xs text-[var(--text-secondary)]">{{ feature }}</span>
-          </li>
-          <li
-            v-if="(upgradePlan.features || []).length > 4"
-            class="text-[10px] text-[var(--text-muted)] pl-5"
-          >
-            还有 {{ (upgradePlan.features || []).length - 4 }} 项权益...
-          </li>
-        </ul>
-
-        <div class="flex gap-3">
-          <Button variant="secondary" full-width @click="showUpgradeDialog = false"> 取消 </Button>
-          <Button
-            variant="primary"
-            full-width
-            :icon="ArrowUpRight"
-            icon-position="right"
-            @click="handleConfirmUpgrade"
-          >
-            {{ isUpgradeAvailable(upgradePlan) ? '确认升级' : '确认续费' }}
-          </Button>
-        </div>
-      </div>
-    </Modal>
+    <UpgradeSubscriptionDialog
+      v-model:show="showUpgradeDialog"
+      :upgrade-plan="upgradePlan"
+      :my-subscription="mySubscription"
+      :billing-interval="billingInterval"
+      @confirm="handleConfirmUpgrade"
+    />
   </div>
 </template>
 
@@ -1211,5 +449,19 @@ onMounted(() => {
 .premium-billing-card.border-accent:hover {
   border-color: var(--accent) !important;
   box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15) !important;
+}
+
+@media (max-width: 767px) {
+  .mobile-table table {
+    font-size: 10px;
+  }
+
+  .mobile-table th,
+  .mobile-table td {
+    padding: 3px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 </style>

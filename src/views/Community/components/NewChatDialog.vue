@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { Search, Plus, User as UserIcon } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 import { ElMessage } from 'element-plus';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
@@ -45,7 +46,7 @@ const fetchPublicUsers = async () => {
       name: user.name || user.email,
     }));
   } catch (error) {
-    console.error('Fetch users error:', error);
+    logError(error, { operation: 'chat.fetchPublicUsers', component: 'NewChatDialog' });
     ElMessage.error(t('community.teamDetail.fetchFailed'));
   } finally {
     isLoadingUsers.value = false;
@@ -75,6 +76,7 @@ const handleClose = () => {
     :show="modelValue"
     :title="t('messages.startNewChat') || '发起新聊天'"
     size="sm"
+    class="mobile-adaptive"
     @close="handleClose"
   >
     <div class="space-y-4">

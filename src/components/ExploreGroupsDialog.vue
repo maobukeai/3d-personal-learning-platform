@@ -4,6 +4,7 @@ import { Search, Users, ArrowRight, Loader2 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import GroupDetailDialog from '@/components/GroupDetailDialog.vue';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import type { Team } from '@/types';
@@ -35,7 +36,7 @@ const fetchPublicTeams = async () => {
     });
     publicTeams.value = response.data;
   } catch (error) {
-    console.error('Fetch public teams error:', error);
+    logError(error, { operation: 'teams.fetchPublic', component: 'ExploreGroupsDialog' });
     ElMessage.error('获取小组失败');
   } finally {
     isLoading.value = false;

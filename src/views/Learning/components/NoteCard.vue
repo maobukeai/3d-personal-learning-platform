@@ -194,7 +194,7 @@ const toggleVisibility = () => {
 
     <!-- Header Meta Row -->
     <div
-      class="flex items-start justify-between gap-1.5 min-w-0"
+      class="mobile-row flex items-start justify-between gap-1.5 min-w-0"
       :class="props.viewMode === 'list' && !props.isMobile ? 'mb-0 shrink-0' : 'mb-3.5'"
     >
       <div class="flex items-center gap-2 min-w-0">
@@ -325,7 +325,7 @@ const toggleVisibility = () => {
 
     <!-- Footer Stats Row -->
     <div
-      class="flex items-center justify-between gap-1 shrink-0"
+      class="mobile-row flex items-center justify-between gap-1 shrink-0"
       :class="props.viewMode === 'list' && !props.isMobile ? 'mt-0' : 'mt-auto'"
     >
       <div

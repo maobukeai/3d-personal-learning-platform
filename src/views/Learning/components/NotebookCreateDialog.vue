@@ -38,7 +38,7 @@ defineExpose({ open });
 
 <template>
   <Modal :show="visible" title="新建笔记本" size="sm" glass-card @close="visible = false">
-    <div class="space-y-4">
+    <div class="mobile-adaptive space-y-4">
       <div>
         <label
           class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2 block"
@@ -52,7 +52,7 @@ defineExpose({ open });
       </div>
     </div>
     <template #footer>
-      <div class="flex justify-end gap-2">
+      <div class="mobile-row flex justify-end gap-2">
         <Button variant="secondary" size="sm" @click="visible = false">取消</Button>
         <Button variant="primary" size="sm" class="font-bold" @click="handleCreate">创建</Button>
       </div>

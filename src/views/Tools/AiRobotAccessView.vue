@@ -2,30 +2,8 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import {
-  Activity,
-  BarChart3,
-  BookOpen,
-  Bot,
-  Brain,
-  ClipboardCheck,
-  ClipboardList,
-  Database,
-  ExternalLink,
-  Gauge,
-  Lock,
-  PlayCircle,
-  Plus,
-  RefreshCw,
-  Save,
-  ShieldCheck,
-  Sparkles,
-  Wand2,
-  Zap,
-} from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
-import Modal from '@/components/ui/Modal.vue';
 import type {
   AiBotAnalytics,
   AiBotDiagnostics,
@@ -56,6 +34,9 @@ import BotEvolutionTab from './components/aiRobot/BotEvolutionTab.vue';
 import BotPlaygroundTab from './components/aiRobot/BotPlaygroundTab.vue';
 import BotTemplatesTab from './components/aiRobot/BotTemplatesTab.vue';
 import BotDiagnosticsTab from './components/aiRobot/BotDiagnosticsTab.vue';
+import AiWorkbenchHeader from './components/aiRobot/AiWorkbenchHeader.vue';
+import BotIntegrationDialog from './components/aiRobot/BotIntegrationDialog.vue';
+import BotKnowledgeDialog from './components/aiRobot/BotKnowledgeDialog.vue';
 
 interface PromptOptimizationForm {
   mission: string;
@@ -68,13 +49,6 @@ interface PromptOptimizationForm {
 }
 
 const router = useRouter();
-
-const platformOptions = [
-  { value: 'WEWORK', label: '企业微信', tone: 'emerald' },
-  { value: 'DINGTALK', label: '钉钉', tone: 'sky' },
-  { value: 'FEISHU', label: '飞书', tone: 'rose' },
-  { value: 'CUSTOM', label: '通用 Webhook', tone: 'amber' },
-];
 
 const AI_BOT_RESPONSE_MODE = {
   BACKGROUND_WEBHOOK: 'BACKGROUND_WEBHOOK',
@@ -90,62 +64,6 @@ const AI_BOT_MESSAGE_STATUS = {
   WEBHOOK_FAILED: 'WEBHOOK_FAILED',
   IGNORED: 'IGNORED',
 } as const;
-
-const rangeOptions = [
-  { label: '7 天', value: 7 },
-  { label: '14 天', value: 14 },
-  { label: '30 天', value: 30 },
-];
-
-const responseModeOptions = [
-  {
-    value: AI_BOT_RESPONSE_MODE.BACKGROUND_WEBHOOK,
-    label: '后台运行',
-    description: '外部平台立即收到入队结果，网站后台继续生成并通过 Webhook 推送。',
-  },
-  {
-    value: AI_BOT_RESPONSE_MODE.CALLBACK_AND_WEBHOOK,
-    label: '同步响应',
-    description: '回调请求等待 AI 完成后再返回，同时可推送外发 Webhook。',
-  },
-  {
-    value: AI_BOT_RESPONSE_MODE.CALLBACK_ONLY,
-    label: '仅回调',
-    description: '只把 AI 回复放在本次回调响应中，不主动推送外发 Webhook。',
-  },
-];
-
-const knowledgeTypeOptions = [
-  { value: 'FAQ', label: 'FAQ' },
-  { value: 'DOC', label: '文档' },
-  { value: 'URL', label: '外链' },
-  { value: 'POLICY', label: '规则' },
-  { value: 'PROJECT', label: '项目' },
-  { value: 'SUPPORT', label: '客服' },
-] as const;
-
-const knowledgeStatusOptions = [
-  { value: 'ACTIVE', label: '启用' },
-  { value: 'DRAFT', label: '草稿' },
-  { value: 'PAUSED', label: '暂停' },
-] as const;
-
-const knowledgeVisibilityOptions = [
-  { value: 'PRIVATE', label: '仅自己' },
-  { value: 'TEAM', label: '团队' },
-  { value: 'PUBLIC', label: '公开' },
-] as const;
-
-const tabs: Array<{ key: TabKey; label: string; icon: typeof Bot }> = [
-  { key: 'overview', label: '运营总览', icon: BarChart3 },
-  { key: 'operations', label: '运营动作', icon: ClipboardList },
-  { key: 'integrations', label: '接入编排', icon: Bot },
-  { key: 'knowledge', label: '知识库', icon: BookOpen },
-  { key: 'evolution', label: '智能体进化', icon: Brain },
-  { key: 'playground', label: '沙盒模拟', icon: PlayCircle },
-  { key: 'templates', label: '模板工厂', icon: Wand2 },
-  { key: 'diagnostics', label: '健康诊断', icon: ClipboardCheck },
-];
 
 const scenarioOptions = [
   {
@@ -337,32 +255,6 @@ const canCreateMore = computed(() => {
     entitlement.value.integrationCount < entitlement.value.maxIntegrations
   );
 });
-
-const dailyUsagePercent = computed(() => {
-  if (!entitlement.value || entitlement.value.dailyMessages <= 0) return 0;
-  return Math.min(
-    100,
-    Math.round((entitlement.value.dailyMessageCount / entitlement.value.dailyMessages) * 100),
-  );
-});
-
-const failedMessageCount = computed(
-  () =>
-    (messageSummary.value[AI_BOT_MESSAGE_STATUS.ERROR] || 0) +
-    (messageSummary.value[AI_BOT_MESSAGE_STATUS.WEBHOOK_FAILED] || 0),
-);
-
-const workbenchPulse = computed(() => {
-  if (isLocked.value) return { label: '权限锁定', className: 'pulse-warn' };
-  if (failedMessageCount.value > 0)
-    return { label: `${failedMessageCount.value} 个异常`, className: 'pulse-danger' };
-  if ((analytics.value?.summary.activeIntegrationCount || 0) > 0)
-    return { label: '运行中', className: 'pulse-good' };
-  return { label: '待接入', className: 'pulse-muted' };
-});
-
-const responseModeDescription = (mode?: string | null) =>
-  responseModeOptions.find((option) => option.value === mode)?.description || '';
 
 const resetForm = () => {
   form.value = {
@@ -1292,168 +1184,31 @@ onUnmounted(stopAutoRefresh);
 
 <template>
   <div
-    class="ai-workbench min-h-full bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100"
+    class="ai-workbench mobile-adaptive min-h-full bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100"
   >
-    <header
-      class="top-shell sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95"
-    >
-      <div class="flex w-full flex-col gap-3 px-4 py-3 md:px-5">
-        <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div class="min-w-0">
-            <div class="flex items-center gap-3">
-              <div class="brand-mark">
-                <Sparkles class="h-5 w-5" />
-              </div>
-              <div class="min-w-0">
-                <h1 class="truncate text-lg font-black text-slate-950 dark:text-white">
-                  AI 运营与机器人中枢
-                </h1>
-                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  多平台接入、知识库、发布手册、沙盒模拟、提示词编排和调用分析
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="pulse-pill" :class="workbenchPulse.className">
-              <Activity class="h-3.5 w-3.5" />
-              <span>{{ workbenchPulse.label }}</span>
-            </span>
-            <div class="range-switch">
-              <button
-                v-for="option in rangeOptions"
-                :key="option.value"
-                type="button"
-                :class="{ active: analyticsRange === option.value }"
-                @click="
-                  analyticsRange = option.value;
-                  fetchAnalytics();
-                  fetchOperations();
-                  fetchEvolutionInsights();
-                "
-              >
-                {{ option.label }}
-              </button>
-            </div>
-            <button
-              type="button"
-              class="secondary-btn compact-btn"
-              :class="{ active: autoRefresh }"
-              @click="toggleAutoRefresh"
-            >
-              <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': autoRefresh }" />
-              <span>{{ autoRefresh ? '自动刷新' : '自动' }}</span>
-            </button>
-            <el-tooltip content="刷新工作台" placement="top">
-              <button type="button" class="icon-btn" @click="refreshWorkbench">
-                <RefreshCw
-                  class="h-4 w-4"
-                  :class="{ 'animate-spin': isLoading || isAnalyticsLoading }"
-                />
-              </button>
-            </el-tooltip>
-            <button
-              type="button"
-              class="primary-btn"
-              :disabled="!canCreateMore"
-              @click="openCreateDialog"
-            >
-              <Plus class="h-4 w-4" />
-              <span>新增接入</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2 lg:grid-cols-6">
-          <div class="metric-block">
-            <div class="metric-icon metric-slate"><Gauge class="h-4 w-4" /></div>
-            <div>
-              <p class="metric-label">自动化评分</p>
-              <p class="metric-value">{{ analytics?.summary.automationScore ?? 0 }}%</p>
-            </div>
-          </div>
-          <div class="metric-block">
-            <div class="metric-icon metric-emerald"><ShieldCheck class="h-4 w-4" /></div>
-            <div>
-              <p class="metric-label">当前会员</p>
-              <p class="metric-value">{{ entitlement?.currentPlanName || '加载中' }}</p>
-            </div>
-          </div>
-          <div class="metric-block">
-            <div class="metric-icon metric-sky"><Bot class="h-4 w-4" /></div>
-            <div>
-              <p class="metric-label">接入数量</p>
-              <p class="metric-value">
-                {{ entitlement?.integrationCount || 0 }}/{{ entitlement?.maxIntegrations || 0 }}
-              </p>
-            </div>
-          </div>
-          <div class="metric-block">
-            <div class="metric-icon metric-amber"><Activity class="h-4 w-4" /></div>
-            <div class="min-w-0 flex-1">
-              <p class="metric-label">今日调用</p>
-              <p class="metric-value">
-                {{ entitlement?.dailyMessageCount || 0 }}/{{ entitlement?.dailyMessages || 0 }}
-              </p>
-              <div class="progress-track mt-2">
-                <div
-                  class="progress-fill progress-amber"
-                  :style="{ width: dailyUsagePercent + '%' }"
-                ></div>
-              </div>
-            </div>
-          </div>
-          <div class="metric-block">
-            <div class="metric-icon metric-rose"><Zap class="h-4 w-4" /></div>
-            <div>
-              <p class="metric-label">成功率</p>
-              <p class="metric-value">{{ analytics?.summary.successRate ?? 100 }}%</p>
-            </div>
-          </div>
-          <div class="metric-block">
-            <div class="metric-icon metric-slate"><Database class="h-4 w-4" /></div>
-            <div>
-              <p class="metric-label">知识源</p>
-              <p class="metric-value">
-                {{ analytics?.summary.activeKnowledgeSourceCount ?? 0 }}/{{
-                  analytics?.summary.knowledgeSourceCount ?? 0
-                }}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="isLocked" class="lock-band">
-          <div class="flex items-center gap-3">
-            <Lock class="h-5 w-5 text-amber-600 dark:text-amber-300" />
-            <div>
-              <p class="text-sm font-bold text-slate-900 dark:text-white">会员权限不足</p>
-              <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                AI 机器人接入从 {{ entitlement?.requiredPlanName || 'VIP' }} 会员开始开放。
-              </p>
-            </div>
-          </div>
-          <button type="button" class="secondary-btn" @click="goBilling">
-            <ExternalLink class="h-4 w-4" />
-            <span>查看会员</span>
-          </button>
-        </div>
-
-        <nav class="tab-rail">
-          <button
-            v-for="tab in tabs"
-            :key="tab.key"
-            type="button"
-            :class="{ active: activeTab === tab.key }"
-            @click="activeTab = tab.key"
-          >
-            <component :is="tab.icon" class="h-4 w-4" />
-            <span>{{ tab.label }}</span>
-          </button>
-        </nav>
-      </div>
-    </header>
+    <AiWorkbenchHeader
+      :analytics="analytics"
+      :entitlement="entitlement"
+      :message-summary="messageSummary"
+      :active-tab="activeTab"
+      :analytics-range="analyticsRange"
+      :auto-refresh="autoRefresh"
+      :is-loading="isLoading"
+      :is-analytics-loading="isAnalyticsLoading"
+      :is-locked="isLocked"
+      :can-create-more="canCreateMore"
+      @refresh="refreshWorkbench"
+      @toggle-auto-refresh="toggleAutoRefresh"
+      @change-range="
+        analyticsRange = $event;
+        fetchAnalytics();
+        fetchOperations();
+        fetchEvolutionInsights();
+      "
+      @create-click="openCreateDialog"
+      @change-tab="activeTab = $event as TabKey"
+      @go-billing="goBilling"
+    />
 
     <main class="w-full px-4 py-3 md:px-5">
       <BotOverviewTab
@@ -1577,263 +1332,29 @@ onUnmounted(stopAutoRefresh);
       />
     </main>
 
-    <Modal
-      :show="isKnowledgeDialogVisible"
-      :title="isKnowledgeEditing ? '编辑知识源' : '添加知识源'"
-      size="lg"
+    <BotKnowledgeDialog
+      v-model:show="isKnowledgeDialogVisible"
+      v-model:knowledge-form="knowledgeForm"
+      :is-knowledge-editing="isKnowledgeEditing"
+      :is-knowledge-saving="isKnowledgeSaving"
+      @save="saveKnowledgeSource"
       @close="isKnowledgeDialogVisible = false"
-    >
-      <div class="space-y-4 text-left">
-        <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem_9rem]">
-          <div>
-            <label class="field-label">标题</label>
-            <input
-              v-model="knowledgeForm.title"
-              class="form-input"
-              placeholder="例如：素材上传失败排查 FAQ"
-            />
-          </div>
-          <div>
-            <label class="field-label">类型</label>
-            <select v-model="knowledgeForm.sourceType" class="form-input">
-              <option
-                v-for="option in knowledgeTypeOptions"
-                :key="option.value"
-                :value="option.value"
-              >
-                {{ option.label }}
-              </option>
-            </select>
-          </div>
-          <div>
-            <label class="field-label">状态</label>
-            <select v-model="knowledgeForm.status" class="form-input">
-              <option
-                v-for="option in knowledgeStatusOptions"
-                :key="option.value"
-                :value="option.value"
-              >
-                {{ option.label }}
-              </option>
-            </select>
-          </div>
-        </div>
+    />
 
-        <div class="grid gap-3 md:grid-cols-[9rem_8rem_minmax(0,1fr)]">
-          <div>
-            <label class="field-label">可见范围</label>
-            <select v-model="knowledgeForm.visibility" class="form-input">
-              <option
-                v-for="option in knowledgeVisibilityOptions"
-                :key="option.value"
-                :value="option.value"
-              >
-                {{ option.label }}
-              </option>
-            </select>
-          </div>
-          <div>
-            <label class="field-label">优先级</label>
-            <input
-              v-model.number="knowledgeForm.priority"
-              type="number"
-              min="0"
-              max="100"
-              class="form-input"
-            />
-          </div>
-          <div>
-            <label class="field-label">标签</label>
-            <input v-model="knowledgeForm.tags" class="form-input" placeholder="上传, GLB, 排查" />
-          </div>
-        </div>
-
-        <div>
-          <label class="field-label">来源链接</label>
-          <input v-model="knowledgeForm.url" class="form-input" placeholder="https://... 可选" />
-        </div>
-
-        <div>
-          <label class="field-label">知识内容</label>
-          <textarea
-            v-model="knowledgeForm.content"
-            class="form-textarea min-h-[16rem]"
-            placeholder="写入 FAQ、业务规则、审核标准、项目说明或客服口径。启用后机器人生成回复会参考这些内容。"
-          ></textarea>
-        </div>
-      </div>
-
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <el-button @click="isKnowledgeDialogVisible = false">取消</el-button>
-          <el-button type="primary" :loading="isKnowledgeSaving" @click="saveKnowledgeSource">
-            <span class="inline-flex items-center gap-1.5">
-              <Save class="h-4 w-4" />
-              保存知识源
-            </span>
-          </el-button>
-        </div>
-      </template>
-    </Modal>
-
-    <Modal
-      :show="isDialogVisible"
-      :title="isEditing ? '配置机器人接入' : '新增机器人接入'"
-      size="lg"
+    <BotIntegrationDialog
+      v-model:show="isDialogVisible"
+      v-model:form="form"
+      :is-editing="isEditing"
+      :editing-id="editingId"
+      :is-saving="isSaving"
+      :model-options="modelOptions"
+      :form-selected-model="formSelectedModel"
+      :is-locked="isLocked"
+      :entitlement="entitlement"
+      :can-create-more="canCreateMore"
+      @save="saveIntegration"
       @close="isDialogVisible = false"
-    >
-      <div class="space-y-4 text-left">
-        <div class="grid gap-3 md:grid-cols-2">
-          <div>
-            <label class="field-label">名称</label>
-            <input v-model="form.name" class="form-input" placeholder="例如：设计部 AI 助手" />
-          </div>
-          <div>
-            <label class="field-label">平台</label>
-            <select v-model="form.platform" class="form-input">
-              <option v-for="option in platformOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid gap-3 md:grid-cols-2">
-          <div>
-            <label class="field-label">外发 Webhook</label>
-            <input
-              v-model="form.webhookUrl"
-              class="form-input"
-              :placeholder="isEditing ? '留空保持不变' : 'https://...'"
-            />
-          </div>
-          <div>
-            <label class="field-label">签名密钥</label>
-            <input
-              v-model="form.secret"
-              type="password"
-              class="form-input"
-              :placeholder="isEditing ? '留空保持不变' : '可选'"
-            />
-          </div>
-        </div>
-
-        <div
-          v-if="isEditing"
-          class="flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900"
-        >
-          <label
-            class="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-300"
-          >
-            <input
-              v-model="form.clearWebhookUrl"
-              type="checkbox"
-              class="rounded border-slate-300 text-slate-900"
-            />
-            清空 Webhook
-          </label>
-          <label
-            class="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-300"
-          >
-            <input
-              v-model="form.clearSecret"
-              type="checkbox"
-              class="rounded border-slate-300 text-slate-900"
-            />
-            清空密钥
-          </label>
-        </div>
-
-        <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_8rem_9rem]">
-          <div>
-            <label class="field-label">AI 模型</label>
-            <select v-model="form.aiModelId" class="form-input">
-              <option value="">跟随系统默认</option>
-              <option v-for="model in modelOptions" :key="model.id" :value="model.id">
-                {{ model.name }} · {{ model.provider }}/{{ model.modelName }}
-              </option>
-            </select>
-            <p
-              v-if="formSelectedModel"
-              class="mt-1 truncate text-[11px] font-semibold text-slate-400"
-            >
-              {{ formSelectedModel.provider }} · {{ formSelectedModel.modelName }}
-            </p>
-          </div>
-          <div>
-            <label class="field-label">温度</label>
-            <input
-              v-model.number="form.aiTemperature"
-              type="number"
-              min="0"
-              max="2"
-              step="0.1"
-              class="form-input"
-              placeholder="默认"
-            />
-          </div>
-          <div>
-            <label class="field-label">最大输出</label>
-            <input
-              v-model.number="form.aiMaxTokens"
-              type="number"
-              min="256"
-              max="32768"
-              step="256"
-              class="form-input"
-              placeholder="默认"
-            />
-          </div>
-        </div>
-
-        <div class="grid gap-3 md:grid-cols-[10rem_minmax(0,1fr)]">
-          <div>
-            <label class="field-label">状态</label>
-            <select v-model="form.status" class="form-input">
-              <option value="ACTIVE">启用</option>
-              <option value="PAUSED">暂停</option>
-            </select>
-          </div>
-          <div>
-            <label class="field-label">触发关键词</label>
-            <input v-model="form.triggerKeywords" class="form-input" placeholder="@AI, 帮我, /ai" />
-          </div>
-        </div>
-
-        <div>
-          <label class="field-label">处理模式</label>
-          <select v-model="form.responseMode" class="form-input">
-            <option v-for="option in responseModeOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <p class="mt-1 text-[11px] font-semibold text-slate-400">
-            {{ responseModeDescription(form.responseMode) }}
-          </p>
-        </div>
-
-        <div>
-          <label class="field-label">系统提示词</label>
-          <textarea
-            v-model="form.systemPrompt"
-            class="form-textarea min-h-[11rem]"
-            placeholder="定义机器人身份、回复风格、业务边界"
-          ></textarea>
-        </div>
-      </div>
-
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <el-button @click="isDialogVisible = false">取消</el-button>
-          <el-button type="primary" :loading="isSaving" @click="saveIntegration">
-            <span class="inline-flex items-center gap-1.5">
-              <Save class="h-4 w-4" />
-              保存
-            </span>
-          </el-button>
-        </div>
-      </template>
-    </Modal>
+    />
   </div>
 </template>
 

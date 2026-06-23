@@ -4,11 +4,7 @@ import { ref, computed, type Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import {
-  Users,
   ShieldCheck,
-  UserCog,
-  Briefcase,
-  AlertTriangle,
   Clock,
   Circle,
   Crown,
@@ -249,37 +245,6 @@ const filteredRows = computed(() => {
   return list;
 });
 
-const filters = [
-  { value: 'all', label: '全部', icon: Users },
-  { value: 'admins', label: '管理组', icon: ShieldCheck },
-  { value: 'members', label: '成员', icon: UserCog },
-  { value: 'busy', label: '高负载', icon: Briefcase },
-  { value: 'risk', label: '有风险', icon: AlertTriangle },
-  { value: 'pending', label: '待处理', icon: Clock },
-] as const;
-
-const filterCount = (val: MemberFilter) => {
-  if (val === 'all') return props.memberRows.length;
-  if (val === 'admins') return props.memberRows.filter((row) => row.role !== 'MEMBER').length;
-  if (val === 'members') return props.memberRows.filter((row) => row.role === 'MEMBER').length;
-  if (val === 'busy') {
-    return props.memberRows.filter(
-      (row) => (props.capacityByUserId.get(row.userId)?.capacityScore ?? 0) >= 80,
-    ).length;
-  }
-  if (val === 'risk') {
-    return props.memberRows.filter(
-      (row) =>
-        row.metrics.overdueTasks > 0 ||
-        (props.capacityByUserId.get(row.userId)?.capacityScore ?? 0) >= 90,
-    ).length;
-  }
-  if (val === 'pending') {
-    return visiblePendingItems.value.length;
-  }
-  return 0;
-};
-
 // Formatting helpers
 const memberNameStr = (member: MemberRow) => {
   return member.user.name || member.user.email || '未命名';
@@ -314,7 +279,7 @@ const capacityClass = (score?: number) => {
 </script>
 
 <template>
-  <div class="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+  <div class="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500 mobile-adaptive">
     <!-- Header & Actions -->
     <div
       class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2"
@@ -410,7 +375,7 @@ const capacityClass = (score?: number) => {
       <div
         v-for="item in visiblePendingItems"
         :key="item.id"
-        class="flex items-center justify-between p-4 bg-white/40 dark:bg-slate-900/20 border border-white/20 dark:border-slate-800/50 rounded-xl"
+        class="flex items-center justify-between p-4 bg-white/40 dark:bg-slate-900/20 border border-white/20 dark:border-slate-800/50 rounded-xl mobile-row"
       >
         <div class="flex items-center gap-3">
           <div
@@ -635,8 +600,8 @@ const capacityClass = (score?: number) => {
       </div>
 
       <!-- List (Table) View of Members -->
-      <div v-else class="overflow-x-auto scrollbar-hide">
-        <table class="member-table">
+      <div v-else class="overflow-x-auto scrollbar-hide member-table-wrap">
+        <table class="member-table mobile-table">
           <thead>
             <tr>
               <th>成员</th>
@@ -661,7 +626,7 @@ const capacityClass = (score?: number) => {
                   <div class="min-w-0 text-left">
                     <button
                       type="button"
-                      class="block text-xs font-black truncate bg-transparent border-none p-0 cursor-pointer hover:text-accent max-w-[190px] text-left outline-none"
+                      class="block text-xs font-black truncate bg-transparent border-none p-0 cursor-pointer hover:text-accent max-w-full md:max-w-[190px] text-left outline-none"
                       style="color: var(--text-primary)"
                       @click="
                         team.type === 'TEAM'
@@ -671,7 +636,7 @@ const capacityClass = (score?: number) => {
                     >
                       {{ memberNameStr(member) }}
                     </button>
-                    <p class="text-[10px] text-slate-400 truncate max-w-[210px]">
+                    <p class="text-[10px] text-slate-400 truncate max-w-full md:max-w-[210px]">
                       {{ member.user.email }}
                     </p>
                   </div>
@@ -724,7 +689,7 @@ const capacityClass = (score?: number) => {
                 </div>
               </td>
               <td v-if="team.type === 'TEAM'">
-                <div class="w-36 text-left">
+                <div class="w-full md:w-36 text-left">
                   <div class="flex justify-between text-[10px] font-black mb-1">
                     <span class="text-slate-400">进行 {{ member.metrics.activeTasks }}</span>
                     <span
@@ -869,6 +834,21 @@ const capacityClass = (score?: number) => {
 @media (max-width: 1024px) {
   .member-table {
     min-width: 720px;
+  }
+}
+
+@media (max-width: 767px) {
+  .member-table-wrap {
+    overflow-x: hidden;
+  }
+  .member-table {
+    min-width: 100%;
+    table-layout: fixed;
+    width: 100%;
+  }
+  .member-table th,
+  .member-table td {
+    word-break: break-word;
   }
 }
 

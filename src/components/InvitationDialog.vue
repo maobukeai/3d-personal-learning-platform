@@ -36,7 +36,7 @@ const fetchInvitation = async () => {
       ElMessage.warning('该邀请已失效或不存在');
       emit('update:visible', false);
     }
-  } catch (_error) {
+  } catch {
     ElMessage.error('获取邀请详情失败');
     emit('update:visible', false);
   } finally {

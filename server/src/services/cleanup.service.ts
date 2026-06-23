@@ -99,9 +99,21 @@ export const cleanupMessageFiles = async () => {
     for (const entry of entries) {
       const fullPath = path.join(messagesDir, entry);
       const stat = fs.statSync(fullPath);
+      const ageMs = Date.now() - stat.mtimeMs;
 
-      if (stat.isFile()) {
-        const ageMs = Date.now() - stat.mtimeMs;
+      if (stat.isDirectory()) {
+        // Presigned-upload path: messages/{uniqueSuffix}/{filename}
+        // Delete the entire subfolder when it is older than 3 days
+        if (ageMs > threeDaysAgoMs) {
+          try {
+            fs.rmSync(fullPath, { recursive: true, force: true });
+            deletedCount++;
+          } catch (rmErr) {
+            logger.error(`[Cleanup Error] Failed to delete message directory ${fullPath}:`, rmErr);
+          }
+        }
+      } else if (stat.isFile()) {
+        // Fallback: flat files uploaded via the local-server path
         if (ageMs > threeDaysAgoMs) {
           try {
             fs.unlinkSync(fullPath);
@@ -114,7 +126,7 @@ export const cleanupMessageFiles = async () => {
     }
 
     if (deletedCount > 0) {
-      logger.info(`[Cleanup] Auto-deleted ${deletedCount} message files older than 3 days from uploads/messages.`);
+      logger.info(`[Cleanup] Auto-deleted ${deletedCount} message entries older than 3 days from uploads/messages.`);
     }
   } catch (err) {
     logger.error('[Cleanup Error] Failed to cleanup message files:', err);

@@ -97,7 +97,7 @@ const fetchCourse = async () => {
   try {
     const { data } = await api.get(`/api/courses/${courseId}`);
     course.value = data;
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('academy.loadCourseFailed'));
     router.push('/academy');
   } finally {
@@ -266,12 +266,12 @@ onMounted(fetchCourse);
 
 <template>
   <div
-    class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
+    class="mobile-adaptive flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
     <!-- Top Nav -->
     <div
-      class="h-14 px-4 sm:px-6 md:px-8 flex items-center gap-4 shrink-0 border-b transition-colors duration-300"
+      class="mobile-row h-14 px-4 sm:px-6 md:px-8 flex items-center gap-4 shrink-0 border-b transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <button
@@ -374,7 +374,7 @@ onMounted(fetchCourse);
         <!-- Stats Bar Card -->
         <div class="max-w-none px-3 sm:px-4.5 md:px-6 mt-3">
           <div
-            class="px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border flex flex-row flex-nowrap items-center gap-2 sm:gap-5 justify-between sm:justify-start transition-colors duration-300 overflow-x-auto scrollbar-hide text-[10px] sm:text-xs"
+            class="mobile-row px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border flex flex-row flex-nowrap items-center gap-2 sm:gap-5 justify-between sm:justify-start transition-colors duration-300 overflow-x-auto scrollbar-hide text-[10px] sm:text-xs"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
             <div class="flex items-center gap-1 shrink-0">
@@ -591,7 +591,7 @@ onMounted(fetchCourse);
                   class="p-4 rounded-xl border"
                   style="background-color: var(--bg-card); border-color: var(--border-base)"
                 >
-                  <div class="flex gap-6 items-center">
+                  <div class="mobile-row flex gap-6 items-center">
                     <div class="text-center px-2">
                       <div class="text-4xl font-black" style="color: var(--text-primary)">
                         {{ course.avgRating || '-' }}

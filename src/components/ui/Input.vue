@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, type Component } from 'vue';
 import { Eye, EyeOff, X } from 'lucide-vue-next';
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
   placeholder?: string;
   disabled?: boolean;
   error?: string;
-  icon?: any;
+  icon?: Component | null;
   iconPosition?: 'left' | 'right';
   clearable?: boolean;
   glass?: boolean;

@@ -17,6 +17,7 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 
 interface NotificationItem {
   id: string;
@@ -43,7 +44,7 @@ const fetchNotifications = async () => {
     const response = await api.get(`/api/notifications${type ? `?type=${type}` : ''}`);
     notifications.value = response.data.notifications || [];
   } catch (error) {
-    console.error('Fetch notifications error:', error);
+    logError(error, { operation: 'notifications.fetch', component: 'NotificationsView' });
     ElMessage.error(t('notifications.fetch_failed'));
   } finally {
     isLoading.value = false;
@@ -113,7 +114,10 @@ const handleProjectInvitation = async (notification: NotificationItem, accept: b
       notification.isRead = true;
     }
   } catch (error) {
-    console.error('Handle project invitation error:', error);
+    logError(error, {
+      operation: 'notifications.handleInvitation',
+      component: 'NotificationsView',
+    });
     ElMessage.error(
       accept
         ? t('notifications.invitation_accept_failed')
@@ -130,7 +134,7 @@ const handleMarkAsRead = async (notification: NotificationItem) => {
       await api.put(`/api/notifications/${notification.id}/read`);
       notification.isRead = true;
     } catch (error) {
-      console.error('Mark as read error:', error);
+      logError(error, { operation: 'notifications.markRead', component: 'NotificationsView' });
     }
   }
 
@@ -165,7 +169,7 @@ const handleDeleteAll = async () => {
     ElMessage.success(t('notifications.clear_all_success'));
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Delete all error:', error);
+      logError(error, { operation: 'notifications.deleteAll', component: 'NotificationsView' });
       ElMessage.error(t('notifications.mark_all_failed'));
     }
   }
@@ -211,9 +215,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col h-full overflow-hidden bg-slate-50/50 dark:bg-black/20">
+  <div
+    class="mobile-adaptive flex-1 flex flex-col h-full overflow-hidden bg-slate-50/50 dark:bg-black/20"
+  >
     <div
-      class="min-h-[3.5rem] md:min-h-[4rem] py-2 md:py-3 px-4 md:px-8 flex items-center justify-between shrink-0 border-b backdrop-blur-md bg-white/40 dark:bg-slate-900/40 sticky top-0 z-20 gap-4"
+      class="min-h-[3.5rem] md:min-h-[4rem] py-2 md:py-3 px-4 md:px-8 flex items-center justify-between mobile-row shrink-0 border-b backdrop-blur-md bg-white/40 dark:bg-slate-900/40 sticky top-0 z-20 gap-4"
       style="border-color: var(--border-base)"
     >
       <div class="flex items-center gap-2 md:gap-4 min-w-0">
@@ -482,7 +488,7 @@ onMounted(() => {
                   >
                     {{ n.content }}
                   </p>
-                  <div class="flex items-center gap-4">
+                  <div class="flex items-center gap-4 mobile-row">
                     <!-- Standard Notification Actions -->
                     <template v-if="n.type !== 'PROJECT_INVITE'">
                       <button
@@ -515,7 +521,7 @@ onMounted(() => {
                             : t('notifications.invitation_reject_success')
                         }}
                       </div>
-                      <div v-else class="flex items-center gap-2" @click.stop>
+                      <div v-else class="flex items-center gap-2 mobile-row" @click.stop>
                         <button
                           type="button"
                           :disabled="processingInvitations[n.id]"

@@ -9,7 +9,6 @@ import {
   Mail,
   MessageCircle,
   RotateCcw,
-  Send,
   Users,
   Sparkles,
   ShieldAlert,
@@ -132,7 +131,7 @@ const setPreference = async (key: PreferenceKey, value: boolean) => {
     [key]: value,
   };
   notificationPrefs.value = updatedPrefs;
-  
+
   try {
     isSavingPrefs.value = true;
     await updateNotificationPreferences(updatedPrefs);
@@ -202,18 +201,32 @@ onMounted(fetchNotificationPrefs);
 </script>
 
 <template>
-  <div class="notification-section">
+  <div class="notification-section mobile-adaptive">
     <section class="notification-overview">
       <div>
         <p class="section-kicker">通知策略</p>
         <h3>{{ enabledCount }}/{{ totalItemsCount }} 项已启用</h3>
         <span>把重要协作信息留在前台，把低优先级消息降噪。</span>
       </div>
-      <div class="overview-actions">
-        <span v-if="isSavingPrefs" class="text-xs text-slate-400 flex items-center gap-1 select-none">
+      <div class="overview-actions mobile-row">
+        <span
+          v-if="isSavingPrefs"
+          class="text-xs text-slate-400 flex items-center gap-1 select-none truncate"
+        >
           <svg class="animate-spin h-3.5 w-3.5 text-indigo-500" viewBox="0 0 24 24" fill="none">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
           </svg>
           正在保存...
         </span>
@@ -236,7 +249,7 @@ onMounted(fetchNotificationPrefs);
       <div class="main-stack">
         <!-- 站内通知 Panel -->
         <div class="preference-panel">
-          <div class="panel-header">
+          <div class="panel-header mobile-row">
             <div class="header-copy">
               <span class="category-header">
                 <Bell class="w-4.5 h-4.5 text-indigo-500 mr-1.5" />
@@ -259,8 +272,8 @@ onMounted(fetchNotificationPrefs);
                 <component :is="item.icon" />
               </div>
               <div class="row-copy">
-                <div>
-                  <strong>{{ item.title }}</strong>
+                <div class="mobile-row">
+                  <strong class="truncate">{{ item.title }}</strong>
                   <em class="badge-push">站内</em>
                 </div>
                 <span>{{ item.description }}</span>
@@ -275,7 +288,7 @@ onMounted(fetchNotificationPrefs);
 
         <!-- 站外通知 Panel -->
         <div class="preference-panel mt-6">
-          <div class="panel-header">
+          <div class="panel-header mobile-row">
             <div class="header-copy">
               <span class="category-header">
                 <Mail class="w-4.5 h-4.5 text-indigo-500 mr-1.5" />
@@ -295,8 +308,8 @@ onMounted(fetchNotificationPrefs);
                 <component :is="item.icon" />
               </div>
               <div class="row-copy">
-                <div>
-                  <strong>{{ item.title }}</strong>
+                <div class="mobile-row">
+                  <strong class="truncate">{{ item.title }}</strong>
                   <em class="badge-email">邮箱</em>
                 </div>
                 <span>{{ item.description }}</span>
@@ -717,13 +730,6 @@ button svg {
 
 @media (max-width: 620px) {
   .overview-actions {
-    width: 100%;
-    flex-direction: column;
-  }
-
-  .primary-action,
-  .secondary-action {
-    justify-content: center;
     width: 100%;
   }
 }

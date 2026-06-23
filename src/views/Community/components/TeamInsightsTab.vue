@@ -188,7 +188,7 @@ const activityDotClass = (type: string) => {
 </script>
 
 <template>
-  <div class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+  <div class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 mobile-adaptive">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Left Panel: Health Gauge & Capacity -->
       <div class="space-y-6">
@@ -246,7 +246,7 @@ const activityDotClass = (type: string) => {
         <!-- Capacity Load List -->
         <Card hoverable>
           <template #header>
-            <div class="flex items-center justify-between w-full">
+            <div class="flex items-center justify-between w-full mobile-row">
               <h3
                 class="text-xs font-black uppercase tracking-wider"
                 style="color: var(--text-primary)"
@@ -325,7 +325,7 @@ const activityDotClass = (type: string) => {
               class="p-3 bg-rose-500/5 border border-rose-500/15 rounded-xl flex flex-col justify-between text-left"
             >
               <div>
-                <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center justify-between mb-2 mobile-row">
                   <strong class="text-xs font-black text-rose-500 truncate">{{
                     proj.title
                   }}</strong>

@@ -2,6 +2,8 @@
  * TOTP (RFC 6238) dynamic verification code generator using Web Crypto API.
  */
 
+import { logError } from '@/utils/error';
+
 export function decodeBase32(secret: string): Uint8Array {
   const base32chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   const cleanSecret = secret.replace(/[\s=]/g, '').toUpperCase();
@@ -45,7 +47,7 @@ export async function generateTOTP(secret: string): Promise<{ code: string; time
 
     const cryptoKey = await window.crypto.subtle.importKey(
       'raw',
-      keyBytes as any,
+      keyBytes as BufferSource,
       { name: 'HMAC', hash: { name: 'SHA-1' } },
       false,
       ['sign'],
@@ -65,7 +67,7 @@ export async function generateTOTP(secret: string): Promise<{ code: string; time
     const codeStr = (codeInt % 1000000).toString().padStart(6, '0');
     return { code: codeStr, timeLeft };
   } catch (err) {
-    console.error('Failed to generate TOTP:', err);
+    logError(err, { operation: 'totp.generate', component: 'totp' });
     return { code: '------', timeLeft: 0 };
   }
 }

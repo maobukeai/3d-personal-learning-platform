@@ -7,6 +7,91 @@ import { storageService } from '../services/storage.service';
 import { buildDecryptedStorageConfig } from '../utils/crypto';
 
 /**
+ * Helper to parse prisma schema and extract fields of type String/Json
+ * that match upload resource naming patterns.
+ */
+function parsePrismaSchema(schemaContent: string): Record<string, string[]> | null {
+  try {
+    const modelBlocks = schemaContent.match(/model\s+\w+\s*\{[\s\S]*?\}/g) || [];
+    const fieldsMap: Record<string, string[]> = {};
+
+    for (const block of modelBlocks) {
+      const nameMatch = block.match(/model\s+(\w+)/);
+      if (!nameMatch || !nameMatch[1]) continue;
+      const modelName = nameMatch[1];
+      const camelModelName = modelName.charAt(0).toLowerCase() + modelName.slice(1);
+      
+      const fields: string[] = [];
+      const lines = block.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('@@')) continue;
+
+        const parts = trimmed.split(/\s+/);
+        if (parts.length < 2) continue;
+
+        const fieldName = parts[0];
+        const fieldType = parts[1];
+        if (!fieldName || !fieldType) continue;
+
+        // We only care about String or Json fields
+        const isStringOrJson = fieldType.startsWith('String') || fieldType.startsWith('Json');
+        if (!isStringOrJson) continue;
+
+        const fieldLower = fieldName.toLowerCase();
+        
+        const matchesPattern = 
+          // Direct file/URL fields
+          fieldLower.endsWith('url') ||
+          fieldLower.endsWith('thumbnail') ||
+          fieldLower.endsWith('image') ||
+          fieldLower.endsWith('video') ||
+          fieldLower.endsWith('file') ||
+          fieldLower.endsWith('avatar') ||
+          fieldLower.endsWith('cover') ||
+          fieldLower.endsWith('icon') ||
+          fieldLower.endsWith('attachment') ||
+          fieldLower.endsWith('logo') ||
+          fieldLower.endsWith('favicon') ||
+          fieldLower.endsWith('preview') ||
+          fieldLower.endsWith('path') ||
+          fieldLower.endsWith('key') ||
+          fieldLower === 'images' ||
+          fieldLower === 'files' ||
+          // Value fields in settings
+          fieldLower === 'value' ||
+          // Content fields containing Markdown/HTML/JSON that may embed upload URLs
+          fieldLower === 'content' ||
+          fieldLower === 'contenthtml' ||
+          fieldLower === 'description' ||
+          fieldLower === 'summary' ||
+          fieldLower === 'body' ||
+          fieldLower === 'message' ||
+          fieldLower === 'text' ||
+          fieldLower === 'detail' ||
+          fieldLower === 'guide' ||
+          fieldLower.endsWith('guide') ||
+          fieldLower.endsWith('description') ||
+          fieldLower.endsWith('content');
+
+        if (matchesPattern) {
+          fields.push(fieldName);
+        }
+      }
+
+      if (fields.length > 0) {
+        fieldsMap[camelModelName] = fields;
+      }
+    }
+
+    return fieldsMap;
+  } catch (err) {
+    logger.error('[CleanupEngine] Error in parsePrismaSchema:', err);
+    return null;
+  }
+}
+
+/**
  * Storage Cleanup Engine
  * Scans upload directories and removes files that are no longer referenced in the database.
  */
@@ -20,52 +105,9 @@ export async function cleanupOrphanedFiles() {
   };
 
   try {
-    // 1. Collect all valid file paths from DB
-    const [
-      assets,
-      materials,
-      showcases,
-      users,
-      manualResources,
-      mirrorResources,
-      manualStations,
-      mirrorSources,
-      teams,
-      courses,
-      lessons,
-      discussions,
-      comments,
-      feedbacks,
-      messages,
-      projectDiscussions,
-      aiMessages,
-      settings,
-    ] = await Promise.all([
-      prisma.asset.findMany({ select: { url: true, thumbnail: true } }),
-      prisma.material.findMany({ select: { fileUrl: true, previewUrl: true } }),
-      prisma.showcase.findMany({ select: { thumbnailUrl: true, images: true } }),
-      prisma.user.findMany({ select: { avatarUrl: true } }),
-      prisma.manualResource.findMany({ select: { thumbnailUrl: true, contentHtml: true } }),
-      prisma.mirrorResource.findMany({ select: { thumbnailUrl: true, contentHtml: true } }),
-      prisma.manualStation.findMany({ select: { iconUrl: true } }),
-      prisma.mirrorSource.findMany({ select: { id: true, iconUrl: true } }),
-      prisma.team.findMany({ select: { avatarUrl: true, coverUrl: true } }),
-      prisma.course.findMany({ select: { thumbnail: true } }),
-      prisma.lesson.findMany({ select: { videoUrl: true } }),
-      prisma.discussion.findMany({ select: { images: true, content: true } }),
-      prisma.comment.findMany({ select: { content: true } }),
-      prisma.feedback.findMany({ select: { attachmentUrl: true } }),
-      prisma.message.findMany({ select: { content: true } }),
-      prisma.projectDiscussion.findMany({ select: { fileUrl: true, images: true, content: true } }),
-      prisma.aiMessage.findMany({ select: { content: true } }),
-      prisma.systemSetting.findMany({
-        where: { key: { in: ['PLATFORM_LOGO_URL', 'PLATFORM_FAVICON_URL'] } },
-      }),
-    ]);
-
     const validPaths = new Set<string>();
     const validDbStrings = new Set<string>();
-    const activeMirrorSourceIds = new Set<string>(mirrorSources.map((s) => s.id));
+    const activeMirrorSourceIds = new Set<string>();
 
     const addPath = (url: string | null | undefined) => {
       if (!url) return;
@@ -123,105 +165,124 @@ export async function cleanupOrphanedFiles() {
       return urls;
     };
 
-    assets.forEach((a) => {
-      addPath(a.url);
-      addPath(a.thumbnail);
-    });
-    materials.forEach((m) => {
-      addPath(m.fileUrl);
-      addPath(m.previewUrl);
-    });
-    showcases.forEach((s) => {
-      addPath(s.thumbnailUrl);
-      if (s.images) {
-        try {
-          const imgs = JSON.parse(s.images);
-          if (Array.isArray(imgs)) imgs.forEach(addPath);
-        } catch (_err) {
-          if (typeof s.images === 'string') addPath(s.images);
+    // Fallback fields mapping in case schema file cannot be parsed
+    const FALLBACK_FIELDS: Record<string, string[]> = {
+      asset: ['url', 'thumbnail'],
+      material: ['fileUrl', 'previewUrl'],
+      showcase: ['thumbnailUrl', 'images', 'videoUrl'],
+      user: ['avatarUrl', 'coverUrl'],
+      conversation: ['avatarUrl'],
+      manualResource: ['thumbnailUrl', 'contentHtml', 'contentUrl'],
+      mirrorResource: ['thumbnailUrl', 'contentHtml', 'contentUrl'],
+      manualStation: ['iconUrl'],
+      mirrorSource: ['id', 'iconUrl'],
+      team: ['avatarUrl', 'coverUrl'],
+      course: ['thumbnail'],
+      lesson: ['videoUrl', 'content'],
+      discussion: ['images', 'content'],
+      comment: ['content'],
+      feedback: ['attachmentUrl'],
+      message: ['content'],
+      projectDiscussion: ['fileUrl', 'images', 'content'],
+      aiMessage: ['content'],
+      systemSetting: ['value'],
+      userSetting: ['value'],
+      task: ['description'],
+      taskComment: ['content'],
+      showcaseComment: ['content'],
+      courseNote: ['content'],
+      note: ['content'],
+      noteComment: ['content'],
+      banner: ['imageUrl'],
+      assetVersion: ['url', 'thumbnail'],
+      plugin: ['fileUrl', 'previewUrl', 'installGuide'],
+    };
+
+    // Dynamically parse the schema to find all referencing fields
+    let fieldsMap = FALLBACK_FIELDS;
+    const schemaPath = path.resolve(__dirname, '../../prisma/schema.prisma');
+    if (fs.existsSync(schemaPath)) {
+      try {
+        const schemaContent = fs.readFileSync(schemaPath, 'utf8');
+        const parsed = parsePrismaSchema(schemaContent);
+        if (parsed && Object.keys(parsed).length > 0) {
+          fieldsMap = parsed;
+          logger.info(`[CleanupEngine] Dynamically loaded ${Object.keys(fieldsMap).length} models from prisma schema.`);
         }
+      } catch (schemaErr) {
+        logger.error('[CleanupEngine] Failed to dynamically parse schema, using fallback:', schemaErr);
       }
-    });
-    users.forEach((u) => addPath(u.avatarUrl));
+    } else {
+      logger.warn(`[CleanupEngine] schema.prisma not found at ${schemaPath}, using fallback fields.`);
+    }
 
-    // Add manual resources & stations
-    manualResources.forEach((mr) => {
-      addPath(mr.thumbnailUrl);
-      extractUploadUrls(mr.contentHtml).forEach(addPath);
-    });
-    manualStations.forEach((ms) => {
-      addPath(ms.iconUrl);
-    });
-
-    // Add mirror resources & sources
-    mirrorResources.forEach((mr) => {
-      addPath(mr.thumbnailUrl);
-      extractUploadUrls(mr.contentHtml).forEach(addPath);
-    });
-    mirrorSources.forEach((ms) => {
-      addPath(ms.iconUrl);
-    });
-
-    // Add teams
-    teams.forEach((t) => {
-      addPath(t.avatarUrl);
-      addPath(t.coverUrl);
-    });
-
-    // Add courses & lessons
-    courses.forEach((c) => addPath(c.thumbnail));
-    lessons.forEach((l) => addPath(l.videoUrl));
-
-    // Add discussions & comments
-    discussions.forEach((d) => {
-      if (d.images) {
-        try {
-          const imgs = JSON.parse(d.images);
-          if (Array.isArray(imgs)) imgs.forEach(addPath);
-        } catch (_err) {
-          if (typeof d.images === 'string') addPath(d.images);
+    // Query each model and extract paths
+    await Promise.all(
+      Object.entries(fieldsMap).map(async ([modelName, fields]) => {
+        const delegate = (prisma as any)[modelName];
+        if (!delegate || typeof delegate.findMany !== 'function') {
+          return;
         }
-      }
-      extractUploadUrls(d.content).forEach(addPath);
-    });
-    comments.forEach((c) => {
-      extractUploadUrls(c.content).forEach(addPath);
-    });
 
-    // Add feedbacks
-    feedbacks.forEach((f) => addPath(f.attachmentUrl));
-
-    // Add messages
-    messages.forEach((msg) => {
-      if (msg.content.startsWith('/uploads/messages/') || msg.content.startsWith('http')) {
-        addPath(msg.content);
-      }
-      extractUploadUrls(msg.content).forEach(addPath);
-    });
-
-    // Add project discussions
-    projectDiscussions.forEach((pd) => {
-      addPath(pd.fileUrl);
-      if (pd.images) {
-        try {
-          const imgs = JSON.parse(pd.images);
-          if (Array.isArray(imgs)) imgs.forEach(addPath);
-        } catch (_err) {
-          if (typeof pd.images === 'string') addPath(pd.images);
+        // Build select object
+        const selectObj: Record<string, boolean> = {};
+        for (const field of fields) {
+          selectObj[field] = true;
         }
-      }
-      extractUploadUrls(pd.content).forEach(addPath);
-    });
 
-    // Add AI chat images embedded as Markdown image URLs.
-    aiMessages.forEach((msg) => {
-      extractUploadUrls(msg.content).forEach(addPath);
-    });
+        // Always query 'id' for mirrorSource to build activeMirrorSourceIds
+        if (modelName === 'mirrorSource') {
+          selectObj['id'] = true;
+        }
 
-    // Add settings
-    settings.forEach((s) => {
-      addPath(s.value);
-    });
+        try {
+          const records = await delegate.findMany({ select: selectObj });
+          for (const record of records) {
+            // Special handling for mirrorSource ID
+            if (modelName === 'mirrorSource' && record.id) {
+              activeMirrorSourceIds.add(record.id);
+            }
+
+            for (const field of fields) {
+              const val = record[field];
+              if (!val) continue;
+
+              if (typeof val === 'string') {
+                const trimmed = val.trim();
+                // Check if it's a JSON array
+                if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                  try {
+                    const parsedArray = JSON.parse(trimmed);
+                    if (Array.isArray(parsedArray)) {
+                      parsedArray.forEach((item) => {
+                        if (typeof item === 'string') {
+                          addPath(item);
+                        }
+                      });
+                      continue;
+                    }
+                  } catch (_) {
+                    // Not a valid JSON array, process as normal string
+                  }
+                }
+
+                // Add as direct path/URL
+                addPath(val);
+                // Extract embedded URLs (for Markdown/HTML text)
+                extractUploadUrls(val).forEach(addPath);
+              } else if (typeof val === 'object') {
+                try {
+                  const str = JSON.stringify(val);
+                  extractUploadUrls(str).forEach(addPath);
+                } catch (_) {}
+              }
+            }
+          }
+        } catch (queryErr) {
+          logger.error(`[CleanupEngine] Failed to query model ${modelName}:`, queryErr);
+        }
+      })
+    );
 
     // 1.5. Clean up S3 / Cloudflare R2 Storage Buckets
     logger.info('[CleanupEngine] Scanning active Cloudflare R2 configurations for cleanup...');
@@ -333,21 +394,26 @@ export async function cleanupOrphanedFiles() {
     );
     await Promise.all(workers);
 
-    // 2. Scan upload directories (now including manual, mirror, branding, discussions, feedback, and messages)
-    const uploadDirs = [
-      'assets',
-      'materials',
-      'showcase',
-      'avatars',
-      'manual',
-      'mirror',
-      'branding',
-      'discussions',
-      'feedback',
-      'messages',
-      'ai',
-    ];
-    const baseDir = path.join(__dirname, '../../uploads');
+    // 2. Scan upload directories dynamically by reading all subdirectories of uploads/
+    const baseDir = path.resolve(__dirname, '../../uploads');
+    const uploadDirs: string[] = [];
+
+    if (fs.existsSync(baseDir)) {
+      try {
+        const entries = fs.readdirSync(baseDir);
+        for (const entry of entries) {
+          const fullPath = path.join(baseDir, entry);
+          if (fs.statSync(fullPath).isDirectory()) {
+            // Exclude temporary backups or system/hidden directories
+            if (entry !== 'temp_backups' && !entry.startsWith('.')) {
+              uploadDirs.push(entry);
+            }
+          }
+        }
+      } catch (dirErr) {
+        logger.error('[CleanupEngine] Failed to read uploads directory:', dirErr);
+      }
+    }
 
     for (const dir of uploadDirs) {
       const fullDir = path.join(baseDir, dir);

@@ -75,7 +75,7 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
         </h2>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mobile-grid">
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
             $t('admin.platform_display_name')

@@ -5,6 +5,7 @@ import { ref, defineAsyncComponent } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Plus, Trash2, Edit2, Box, Info, Layers, Camera, Sun, Palette } from 'lucide-vue-next';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 import Modal from '@/components/ui/Modal.vue';
 
 const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.vue'));
@@ -175,7 +176,7 @@ const handleSaveLesson = async () => {
     visible.value = false;
     emit('saved');
   } catch (error) {
-    console.error('Save lesson error:', error);
+    logError(error, { operation: 'admin.saveLesson', component: 'LessonEditDialog' });
     ElMessage.error(t('admin.failed_to_save_lesson'));
   }
 };
@@ -264,7 +265,7 @@ defineExpose({ open });
         {{ currentLesson ? t('admin.edit_lesson') : $t('admin.create_new_class_hours') }}
       </h3>
       <div class="space-y-4">
-        <div class="grid grid-cols-4 gap-4">
+        <div class="grid grid-cols-4 gap-4 mobile-grid">
           <div class="col-span-2">
             <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
               $t('admin.lesson_title')
@@ -316,7 +317,7 @@ defineExpose({ open });
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
             $t('admin.video_link')
           }}</label>
-          <div class="flex gap-2">
+          <div class="flex gap-2 mobile-row">
             <input
               v-model="lessonForm.videoUrl"
               type="text"

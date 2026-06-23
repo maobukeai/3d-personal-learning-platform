@@ -1,286 +1,50 @@
 <script setup lang="ts">
-import { formatDate } from '@/utils/format';
-import { getApiErrorMessage, getApiErrorStatus } from '@/utils/error';
+import { getApiErrorMessage, getApiErrorStatus, logError } from '@/utils/error';
 import { cleanTeamDescription } from '@/utils/team';
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
   Users,
   Settings,
-  UserPlus,
-  Mail,
-  Trash2,
-  LogOut,
-  Camera,
-  Sparkles,
-  Search,
-  Plus,
-  Clock,
   ClipboardList,
   Activity,
   AlertTriangle,
-  ArrowRight,
   Ban,
-  BarChart3,
   Circle,
   ClipboardCheck,
   Briefcase,
-  Globe,
 } from 'lucide-vue-next';
 import SegmentedControl from '@/components/ui/SegmentedControl.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import SafeHtml from '@/components/SafeHtml.vue';
-import UserAvatar from '@/components/UserAvatar.vue';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import TeamPeopleTab from './components/TeamPeopleTab.vue';
 import TeamInsightsTab from './components/TeamInsightsTab.vue';
 import TeamApplicationsTab from './components/TeamApplicationsTab.vue';
 import TeamSettingsTab from './components/TeamSettingsTab.vue';
+import TeamDetailHeader from './components/TeamDetailHeader.vue';
+import TeamDetailSidebar from './components/TeamDetailSidebar.vue';
+import TeamDetailSkeleton from './components/TeamDetailSkeleton.vue';
+import TeamAddMemberModal from './components/TeamAddMemberModal.vue';
+import TeamDissolveModal from './components/TeamDissolveModal.vue';
+import TeamMemberWorkbenchModal from './components/TeamMemberWorkbenchModal.vue';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
-import Modal from '@/components/ui/Modal.vue';
-import Button from '@/components/ui/Button.vue';
 import AiImageGeneratorDialog from '@/components/AiImageGeneratorDialog.vue';
+import type {
+  DetailedTeam,
+  DetailedMember,
+  TeamOverview,
+  TeamCollaborationInsights,
+  MemberRow,
+  MemberMetrics,
+  OpsKpi,
+  InsightMemberCapacity,
+  TeamUser,
+} from './components/teamDetailTypes';
 
-const getCategoryLabel = (cat?: string | null) => {
-  if (!cat) return '';
-  const mapping: Record<string, string> = {
-    modeling: '建模',
-    rendering: '渲染',
-    animation: '动画',
-    materials: '材质',
-    gameEngine: '游戏引擎',
-  };
-  return mapping[cat] || cat;
-};
-
-interface TeamUser {
-  id: string;
-  name: string;
-  avatarUrl?: string | null;
-  email?: string;
-  role?: string;
-}
-
-interface DetailedMember {
-  id: string;
-  userId: string;
-  role: 'OWNER' | 'ADMIN' | 'MEMBER';
-  user: TeamUser;
-  joinedAt?: string;
-}
-
-interface DetailedInvitation {
-  id: string;
-  inviteeEmail: string;
-  role: string;
-  createdAt: string;
-}
-
-interface DetailedApplication {
-  id: string;
-  userId: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  user: TeamUser;
-  createdAt: string;
-  message?: string | null;
-}
-
-interface DetailedTeam {
-  id: string;
-  name: string;
-  description?: string | null;
-  avatarUrl?: string | null;
-  coverUrl?: string | null;
-  type: 'PERSONAL' | 'TEAM';
-  visibility: 'PUBLIC' | 'PRIVATE';
-  category?: string | null;
-  ownerId: string;
-  createdAt?: string;
-  members: DetailedMember[];
-  invitations?: DetailedInvitation[];
-  applications?: DetailedApplication[];
-}
-
-type TeamRole = 'OWNER' | 'ADMIN' | 'MEMBER';
-type MemberFilter = 'all' | 'admins' | 'members' | 'busy' | 'risk' | 'pending';
-type RecommendationSeverity = 'critical' | 'high' | 'medium' | 'low';
-
-interface MemberMetrics {
-  projects: number;
-  assignedTasks: number;
-  activeTasks: number;
-  doneTasks: number;
-  dueSoonTasks: number;
-  overdueTasks: number;
-  recentlyCompleted: number;
-  completionRate: number;
-  lastTaskAt?: string | null;
-}
-
-interface OverviewMember {
-  userId: string;
-  role: TeamRole;
-  metrics: MemberMetrics;
-}
-
-interface TeamOverview {
-  currentUserRole: TeamRole | 'ADMIN' | null;
-  capabilities: {
-    canManage: boolean;
-    canInvite: boolean;
-    canUpdateRoles: boolean;
-    canRemoveMembers: boolean;
-    canLeave: boolean;
-  };
-  counts: {
-    members: number;
-    admins: number;
-    pendingInvitations: number;
-    pendingApplications: number;
-    projects: number;
-    activeProjects: number;
-    tasks: number;
-    overdueTasks: number;
-    dueSoonTasks: number;
-    completedThisWeek: number;
-  };
-  members: OverviewMember[];
-  invitations: DetailedInvitation[];
-  applications: DetailedApplication[];
-}
-
-interface InsightUser {
-  id: string;
-  name?: string | null;
-  email?: string | null;
-  avatarUrl?: string | null;
-}
-
-interface InsightActionItem {
-  id: string;
-  type: string;
-  severity: 'critical' | 'high' | 'medium';
-  title: string;
-  description: string;
-  dueDate?: string | null;
-  projectId?: string | null;
-  assignee?: InsightUser | null;
-  targetRoute: string;
-}
-
-interface InsightActivityItem {
-  id: string;
-  type: string;
-  title: string;
-  description: string;
-  actor?: InsightUser | null;
-  createdAt: string;
-  targetRoute: string;
-}
-
-interface InsightProjectHealth {
-  id: string;
-  title: string;
-  healthScore: number;
-  riskLevel: 'HIGH' | 'MEDIUM' | 'LOW';
-  reasons: string[];
-}
-
-interface InsightMemberCapacity {
-  userId: string;
-  focus: string;
-  capacityScore: number;
-  activeTasks: number;
-  overdueTasks: number;
-  completedThisWeek: number;
-}
-
-interface TeamCollaborationInsights {
-  summary: {
-    healthScore: number;
-    completedThisWeek: number;
-    overdueTasks: number;
-    dueSoonTasks: number;
-    unassignedTasks: number;
-    highRiskProjects: number;
-    pendingApplications: number;
-  };
-  projectHealth: InsightProjectHealth[];
-  memberCapacity: InsightMemberCapacity[];
-  actionItems: InsightActionItem[];
-  activity: InsightActivityItem[];
-}
-
-interface MemberRow extends DetailedMember {
-  metrics: MemberMetrics;
-}
-
-interface MemberInsightTask {
-  id: string;
-  title: string;
-  status: string;
-  priority: string;
-  dueDate?: string | null;
-  updatedAt: string;
-  project?: {
-    id: string;
-    title: string;
-    color?: string | null;
-  } | null;
-  targetRoute: string;
-}
-
-interface MemberInsightProject {
-  id: string;
-  title: string;
-  progress: number;
-  status: string;
-  dueDate?: string | null;
-  role: string;
-  taskCount: number;
-  projectTaskCount: number;
-  activeTasks: number;
-  overdueTasks: number;
-  completionRate: number;
-  updatedAt: string;
-  targetRoute: string;
-}
-
-interface MemberInsightDetail {
-  member: DetailedMember;
-  stats: {
-    projects: number;
-    assignedTasks: number;
-    createdTasks: number;
-    activeTasks: number;
-    doneTasks: number;
-    overdueTasks: number;
-    dueSoonTasks: number;
-    completedThisWeek: number;
-    completionRate: number;
-    capacityScore: number;
-    lastActiveAt?: string | null;
-  };
-  tasks: {
-    active: MemberInsightTask[];
-    overdue: MemberInsightTask[];
-    dueSoon: MemberInsightTask[];
-    recent: MemberInsightTask[];
-  };
-  projects: MemberInsightProject[];
-  recommendations: {
-    id: string;
-    severity: RecommendationSeverity;
-    title: string;
-    description: string;
-    targetRoute: string;
-  }[];
-}
-
-const { t: i18nT, locale } = useI18n();
+const { t: i18nT } = useI18n();
 const t = (key: string, ...args: unknown[]) => {
   const prefixes = ['showcase.', 'teams.', 'members.', 'teamDetail.', 'discussions.', 'chat.'];
   if (prefixes.some((p) => key.startsWith(p))) {
@@ -330,8 +94,6 @@ const lastSyncedAt = ref<Date | null>(null);
 
 const selectedPanelUserId = ref<string | null>(null);
 const isMemberPanelOpen = ref(false);
-const isMemberInsightLoading = ref(false);
-const memberInsight = ref<MemberInsightDetail | null>(null);
 
 const openUserProfile = (userId: string) => {
   selectedUserId.value = userId;
@@ -370,7 +132,7 @@ const fetchTeamDetail = async (options: { silent?: boolean } = {}) => {
     }
     lastSyncedAt.value = new Date();
   } catch (error) {
-    console.error('Fetch team detail error:', error);
+    logError(error, { operation: 'fetchTeamDetail', view: 'TeamDetailView' });
     if (getApiErrorStatus(error) === 403) {
       ElMessage.error(t('teamDetail.noPermission'));
     } else {
@@ -454,9 +216,6 @@ const pendingTotal = computed(
   () => pendingInvitationsList.value.length + pendingApplicationsList.value.length,
 );
 const insightSummary = computed(() => insights.value?.summary || null);
-const healthScore = computed(() => insightSummary.value?.healthScore ?? 100);
-const actionItems = computed(() => insights.value?.actionItems || []);
-const activityItems = computed(() => insights.value?.activity || []);
 const highRiskProjects = computed(
   () => insights.value?.projectHealth.filter((project) => project.riskLevel !== 'LOW') || [],
 );
@@ -487,19 +246,7 @@ const teamOverviewStats = computed(() => {
   };
 });
 
-const healthLabel = computed(() => {
-  if (healthScore.value >= 82) return '健康';
-  if (healthScore.value >= 64) return '观察';
-  return '高风险';
-});
-
-const healthToneClass = computed(() => {
-  if (healthScore.value >= 82) return 'tone-emerald';
-  if (healthScore.value >= 64) return 'tone-amber';
-  return 'tone-rose';
-});
-
-const opsKpis = computed(() => [
+const opsKpis = computed<OpsKpi[]>(() => [
   {
     key: 'members',
     label: '成员',
@@ -552,57 +299,14 @@ const opsKpis = computed(() => [
   },
 ]);
 
-const selectedMember = computed(() => {
-  const uid = selectedPanelUserId.value;
-  if (!uid) return null;
-  return team.value?.members.find((m) => m.userId === uid) || null;
-});
-
-const selectedMemberCapacity = computed(() => {
-  const uid = selectedPanelUserId.value;
-  if (!uid) return null;
-  return capacityByUserId.value.get(uid) || null;
-});
-
-const drawerTasks = computed(() => {
-  if (!memberInsight.value) return [];
-  if (memberInsight.value.tasks.overdue.length > 0) return memberInsight.value.tasks.overdue;
-  if (memberInsight.value.tasks.active.length > 0) return memberInsight.value.tasks.active;
-  return memberInsight.value.tasks.recent;
-});
-
-const drawerTaskTitle = computed(() => {
-  if (!memberInsight.value) return '任务流';
-  if (memberInsight.value.tasks.overdue.length > 0) return '逾期任务';
-  if (memberInsight.value.tasks.active.length > 0) return '进行中任务';
-  return '最近完成任务';
-});
-
 const closeMemberPanel = () => {
   isMemberPanelOpen.value = false;
   selectedPanelUserId.value = null;
-  memberInsight.value = null;
 };
 
 const openMemberWorkbench = (userId: string) => {
   selectedPanelUserId.value = userId;
   isMemberPanelOpen.value = true;
-  void fetchMemberInsight(userId);
-};
-
-const fetchMemberInsight = async (userId: string) => {
-  isMemberInsightLoading.value = true;
-  memberInsight.value = null;
-  try {
-    const response = await api.get(`/api/teams/${teamId.value}/members/${userId}/insight`);
-    if (selectedPanelUserId.value === userId) {
-      memberInsight.value = response.data;
-    }
-  } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '获取画像失败'));
-  } finally {
-    isMemberInsightLoading.value = false;
-  }
 };
 
 const handleManualRefresh = async () => {
@@ -676,62 +380,6 @@ const handleRespondApplication = async (
 
 // Add Member Modal
 const isAddModalOpen = ref(false);
-const userSearchQuery = ref('');
-const searchResults = ref<TeamUser[]>([]);
-const isSearchingUsers = ref(false);
-const inviteEmailInput = ref('');
-
-const searchUsers = async () => {
-  if (!userSearchQuery.value) {
-    searchResults.value = [];
-    return;
-  }
-  isSearchingUsers.value = true;
-  try {
-    const { data } = await api.get(`/api/auth/users/public?search=${userSearchQuery.value}`);
-    searchResults.value = data;
-  } catch (error) {
-    console.error('Search users error:', error);
-  } finally {
-    isSearchingUsers.value = false;
-  }
-};
-
-let _searchTimer: ReturnType<typeof setTimeout> | null = null;
-watch(userSearchQuery, () => {
-  if (_searchTimer) clearTimeout(_searchTimer);
-  _searchTimer = setTimeout(searchUsers, 300);
-});
-
-const handleAddUser = async (user: TeamUser) => {
-  try {
-    await api.post('/api/teams/invite', {
-      teamId: teamId.value,
-      inviteeEmail: user.email,
-    });
-    ElMessage.success(t('teamDetail.inviteSent', { name: user.name }));
-    isAddModalOpen.value = false;
-    fetchTeamDetail();
-  } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, t('teamDetail.inviteFailed')));
-  }
-};
-
-const handleSendInvite = async () => {
-  if (!inviteEmailInput.value) return;
-  try {
-    await api.post('/api/teams/invite', {
-      teamId: teamId.value,
-      inviteeEmail: inviteEmailInput.value,
-    });
-    ElMessage.success(t('teamDetail.inviteSent', { name: inviteEmailInput.value }));
-    inviteEmailInput.value = '';
-    isAddModalOpen.value = false;
-    fetchTeamDetail();
-  } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, t('teamDetail.inviteFailed')));
-  }
-};
 
 // Team Settings
 const editForm = ref({
@@ -741,7 +389,6 @@ const editForm = ref({
   visibility: 'PUBLIC',
   category: '',
 });
-const categories = ['建模', '渲染', '动画', '材质', '游戏引擎'];
 const isSaving = ref(false);
 
 const handleUpdateTeam = async () => {
@@ -794,17 +441,6 @@ const handleApplyFromDetail = async () => {
       ElMessage.error(getApiErrorMessage(error, t('teamDetail.applyFailed')));
     }
   }
-};
-
-const avatarInput = ref<HTMLInputElement | null>(null);
-const coverInput = ref<HTMLInputElement | null>(null);
-
-const triggerAvatarUpload = () => {
-  avatarInput.value?.click();
-};
-
-const triggerCoverUpload = () => {
-  coverInput.value?.click();
 };
 
 const handleAvatarChange = async (event: Event) => {
@@ -890,150 +526,21 @@ const handleAiImageSave = async (file: File) => {
 };
 
 const isDissolveModalOpen = ref(false);
-const dissolveCode = ref('');
-const isDissolving = ref(false);
-const dissolveCountdown = ref(0);
-let dissolveTimer: ReturnType<typeof setInterval> | null = null;
 
-const startDissolveCountdown = () => {
-  dissolveCountdown.value = 60;
-  dissolveTimer = setInterval(() => {
-    if (dissolveCountdown.value > 0) {
-      dissolveCountdown.value--;
-    } else {
-      if (dissolveTimer) clearInterval(dissolveTimer);
-    }
-  }, 1000);
-};
-
-const sendDissolveCode = async () => {
-  if (dissolveCountdown.value > 0) return;
-  try {
-    await api.post('/api/auth/email/send-code');
-    ElMessage.success(t('teamDetail.verifyCodeSent'));
-    startDissolveCountdown();
-  } catch {
-    ElMessage.error(t('teamDetail.inviteFailed'));
-  }
-};
-
-const handleDeleteTeam = async () => {
-  dissolveCode.value = '';
+const handleDeleteTeam = () => {
   isDissolveModalOpen.value = true;
 };
 
-watch(isDissolveModalOpen, (isOpen) => {
-  if (!isOpen) {
-    dissolveCode.value = '';
-    if (dissolveTimer) clearInterval(dissolveTimer);
-    dissolveCountdown.value = 0;
-  }
-});
-
-const confirmDeleteTeam = async () => {
-  if (!dissolveCode.value) {
-    return ElMessage.warning(t('teamDetail.enterCodeWarning'));
-  }
-  try {
-    isDissolving.value = true;
-    await api.delete(`/api/teams/${teamId.value}`, {
-      data: { code: dissolveCode.value },
-    });
-    ElMessage.success(t('teamDetail.dissolveSuccess'));
-    isDissolveModalOpen.value = false;
-    await workspaceStore.fetchWorkspaces();
-    router.push('/dashboard');
-  } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, t('teamDetail.dissolveFailed')));
-  } finally {
-    isDissolving.value = false;
-  }
-};
-
-// Formatting helpers (Members details)
-const memberNameStr = (member: MemberRow) => {
-  return member.user.name || member.user.email || '未命名';
-};
-
-const progressWidthStr = (activeTasks: number) => {
-  return `${Math.min(100, activeTasks * 16)}%`;
-};
-
-const capacityLabel = (userId: string) => {
-  return capacityByUserId.value.get(userId)?.focus || '稳定推进';
-};
-
-const roleLabel = (role?: string) => {
-  if (role === 'OWNER') return '所有者';
-  if (role === 'ADMIN') return '管理员';
-  return '成员';
-};
-
-const roleBadgeClass = (role?: string) => {
-  if (role === 'OWNER') return 'bg-amber-500/10 text-amber-500 border border-amber-500/25';
-  if (role === 'ADMIN') return 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/25';
-  return 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-white/10';
+const handleDissolved = async () => {
+  isDissolveModalOpen.value = false;
+  await workspaceStore.fetchWorkspaces();
+  router.push('/dashboard');
 };
 
 const navigateInsight = (targetRoute?: string) => {
   if (targetRoute) {
     router.push(targetRoute);
   }
-};
-
-const severityClass = (severity: InsightActionItem['severity'] | RecommendationSeverity) => {
-  if (severity === 'critical') return 'bg-rose-500/10 text-rose-500';
-  if (severity === 'high') return 'bg-orange-500/10 text-orange-500';
-  return 'bg-amber-500/10 text-amber-500';
-};
-
-const severityLabel = (severity: InsightActionItem['severity'] | RecommendationSeverity) => {
-  if (severity === 'critical') return '紧急';
-  if (severity === 'high') return '高';
-  return '中';
-};
-
-const capacityClass = (score?: number) => {
-  if (score === undefined || score < 60) return 'bg-emerald-500/10 text-emerald-500';
-  if (score < 80) return 'bg-sky-500/10 text-sky-500';
-  if (score < 90) return 'bg-amber-500/10 text-amber-500';
-  return 'bg-rose-500/10 text-rose-500';
-};
-
-const priorityClass = (p?: string) => {
-  if (p === 'HIGH') return 'bg-rose-500/10 text-rose-500';
-  if (p === 'MEDIUM') return 'bg-amber-500/10 text-amber-500';
-  return 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400';
-};
-
-const taskStatusLabel = (status?: string) => {
-  if (status === 'TODO') return '待办';
-  if (status === 'IN_PROGRESS') return '进行中';
-  if (status === 'DONE') return '已完成';
-  return '未指派';
-};
-
-const progressWidth = (percent: number) => {
-  return `${Math.min(100, Math.max(0, percent))}%`;
-};
-
-const handleChatWithUser = async (user: TeamUser) => {
-  try {
-    await api.post('/api/messages/conversations', {
-      participantIds: [user.id],
-      isGroup: false,
-    });
-    router.push('/messages');
-  } catch {
-    ElMessage.error('会话创建失败');
-  }
-};
-
-const activityDotClass = (type: string) => {
-  if (type.startsWith('task')) return 'bg-accent';
-  if (type.startsWith('project')) return 'bg-emerald-500';
-  if (type.startsWith('team')) return 'bg-purple-500';
-  return 'bg-slate-400';
 };
 
 onMounted(() => {
@@ -1073,208 +580,33 @@ watch(
   },
   { immediate: true },
 );
-
-onUnmounted(() => {
-  if (dissolveTimer) clearInterval(dissolveTimer);
-  if (_searchTimer) clearTimeout(_searchTimer);
-});
 </script>
 
 <template>
-  <div class="flex-1 overflow-y-auto scrollbar-hide" style="background-color: var(--bg-app)">
-    <div v-if="isLoading && !team" class="h-full flex items-center justify-center">
-      <div
-        class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"
-      ></div>
-    </div>
+  <div
+    class="flex-1 overflow-y-auto scrollbar-hide mobile-adaptive"
+    style="background-color: var(--bg-app)"
+  >
+    <TeamDetailSkeleton v-if="isLoading && !team" />
 
     <div
       v-else-if="team"
       class="animate-in fade-in duration-500 w-full max-w-none px-4 sm:px-6 lg:px-8 xl:px-10 py-6 space-y-6"
     >
-      <!-- Top Card (Hero Section with Cover Image) -->
-      <div
-        class="glass-card rounded-2xl border border-white/20 dark:border-slate-800/50 shadow-xl bg-white/40 dark:bg-slate-900/30 backdrop-blur-md relative overflow-hidden"
-      >
-        <!-- Cover Image Banner -->
-        <div class="h-40 sm:h-60 relative overflow-hidden select-none group/cover border-b border-white/10">
-          <img
-            v-if="team.coverUrl"
-            :src="team.coverUrl"
-            class="w-full h-full object-cover object-[center_35%] select-none pointer-events-none"
-            alt="Team Cover"
-          />
-          <div
-            v-else
-            class="absolute inset-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 opacity-80"
-          ></div>
-          <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/40"></div>
-          
-          <!-- Upload and AI generation buttons for Cover (Owner/Admin only) -->
-          <div
-            v-if="isOwnerOrAdmin"
-            class="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover/cover:opacity-100 transition-opacity z-20"
-          >
-            <input
-              ref="coverInput"
-              type="file"
-              class="hidden"
-              accept="image/*"
-              @change="handleCoverChange"
-            />
-            <button
-              type="button"
-              class="flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/75 text-white rounded-lg text-xs backdrop-blur-sm transition-all border border-white/10 cursor-pointer"
-              @click="triggerCoverUpload"
-            >
-              <Camera class="w-3.5 h-3.5" />
-              更换封面
-            </button>
-            <button
-              type="button"
-              class="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent/90 text-white rounded-lg text-xs transition-all border border-white/10 cursor-pointer shadow-md"
-              @click="openAiCoverGenerator"
-            >
-              <Sparkles class="w-3.5 h-3.5" />
-              <span>AI 生成</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="px-6 pb-4 pt-10 lg:pt-12 relative z-10 flex flex-col lg:flex-row items-center gap-4 -mt-10 lg:-mt-12">
-          <!-- Team Avatar -->
-          <div class="relative group shrink-0">
-            <input
-              ref="avatarInput"
-              type="file"
-              class="hidden"
-              accept="image/*"
-              @change="handleAvatarChange"
-            />
-            <div
-              class="w-16 h-16 lg:w-20 lg:h-20 rounded-xl overflow-hidden shadow-md border-2 border-white dark:border-slate-900 bg-white dark:bg-slate-800 transition-transform group-hover:scale-105 duration-500"
-            >
-              <img
-                v-if="team.avatarUrl"
-                alt=""
-                :src="team.avatarUrl"
-                class="w-full h-full object-cover"
-              />
-              <div
-                v-else
-                class="w-full h-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white text-xl lg:text-3xl font-black"
-              >
-                {{ team.name.charAt(0).toUpperCase() }}
-              </div>
-            </div>
-            <div
-              v-if="isOwnerOrAdmin"
-              class="absolute -bottom-1 -right-1 flex items-center gap-1"
-            >
-              <button
-                type="button"
-                class="p-1.5 bg-accent text-white rounded-lg shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/10 cursor-pointer"
-                :title="t('teamDetail.changeAvatar')"
-                @click="triggerAvatarUpload"
-              >
-                <Camera class="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                class="p-1.5 bg-indigo-600 text-white rounded-lg shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/10 cursor-pointer"
-                title="AI 生成头像"
-                @click="openAiAvatarGenerator"
-              >
-                <Sparkles class="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          <!-- Team Text Info -->
-          <div class="flex-1 text-center lg:text-left pt-1">
-            <div
-              class="flex flex-col lg:flex-row lg:items-center gap-2 mb-1 justify-center lg:justify-start"
-            >
-              <h1
-                class="text-xl lg:text-2xl font-black tracking-tight"
-                style="color: var(--text-primary)"
-              >
-                {{ team.name }}
-              </h1>
-              <div class="flex items-center gap-1.5 justify-center">
-                <div
-                  class="px-2 py-0.5 bg-accent/10 text-accent text-[9px] sm:text-xs font-black rounded-md uppercase tracking-wider border border-accent/20"
-                >
-                  {{ t('teamDetail.spaceLabel') }}
-                </div>
-                <div
-                  v-if="team.visibility"
-                  class="px-2 py-0.5 rounded text-[9px] font-bold border"
-                  :class="
-                    team.visibility === 'PUBLIC'
-                      ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                      : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                  "
-                >
-                  {{ team.visibility === 'PUBLIC' ? '公开' : '私有' }}
-                </div>
-              </div>
-            </div>
-
-            <div
-              class="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-xs font-bold text-slate-500 dark:text-slate-400 mt-1"
-            >
-              <div class="flex items-center gap-1.5">
-                <Users class="w-4 h-4 text-slate-400" />
-                <span>{{ team.members.length }} {{ t('teams.members') }}</span>
-              </div>
-              <div v-if="team.invitations?.length" class="flex items-center gap-1.5">
-                <Clock class="w-4 h-4 text-slate-400" />
-                <span>{{ team.invitations.length }} {{ t('teamDetail.pendingBadge') }}</span>
-              </div>
-              <div v-if="team.category" class="flex items-center gap-1.5">
-                <Globe class="w-4 h-4 text-slate-400" />
-                <span>{{ getCategoryLabel(team.category) }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Action Buttons -->
-          <div
-            class="flex flex-row flex-wrap justify-center items-center gap-2 w-full lg:w-auto shrink-0"
-          >
-            <template v-if="canManageTeam">
-              <button
-                type="button"
-                class="flex items-center justify-center gap-1.5 px-4 py-2 bg-accent hover:bg-accent/95 text-white rounded-lg font-bold text-xs shadow-md shadow-accent/20 hover:scale-[1.03] active:scale-95 transition-all cursor-pointer border-none"
-                @click="isAddModalOpen = true"
-              >
-                <UserPlus class="w-4 h-4" />
-                {{ t('teamDetail.manageMembers') }}
-              </button>
-            </template>
-            <template v-if="!isMember && team?.visibility === 'PUBLIC'">
-              <button
-                type="button"
-                class="flex items-center justify-center gap-1.5 px-5 py-2.5 bg-accent hover:bg-accent/95 text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-[1.03] active:scale-95 transition-all cursor-pointer border-none"
-                @click="handleApplyFromDetail"
-              >
-                <UserPlus class="w-4 h-4" />
-                {{ t('teams.applyJoin') }}
-              </button>
-            </template>
-            <button
-              v-if="canLeaveTeam"
-              type="button"
-              class="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/20 border border-rose-200/50 dark:border-rose-500/20 rounded-xl font-bold text-xs transition-all cursor-pointer"
-              @click="handleLeaveTeam"
-            >
-              <LogOut class="w-4 h-4" />
-              {{ t('teamDetail.leaveBtn') }}
-            </button>
-          </div>
-        </div>
-      </div>
+      <TeamDetailHeader
+        :team="team"
+        :is-owner-or-admin="isOwnerOrAdmin"
+        :can-manage-team="canManageTeam"
+        :can-leave-team="canLeaveTeam"
+        :is-member="isMember"
+        @avatar-change="handleAvatarChange"
+        @cover-change="handleCoverChange"
+        @open-ai-avatar-generator="openAiAvatarGenerator"
+        @open-ai-cover-generator="openAiCoverGenerator"
+        @add-member="isAddModalOpen = true"
+        @apply-join="handleApplyFromDetail"
+        @leave-team="handleLeaveTeam"
+      />
 
       <!-- Two Column Layout Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
@@ -1282,7 +614,7 @@ onUnmounted(() => {
         <div class="lg:col-span-3 space-y-3.5">
           <!-- Segmented Tab Bar -->
           <div
-            class="flex items-center justify-between border-b pb-2"
+            class="flex items-center justify-between border-b pb-2 mobile-row"
             style="border-color: var(--border-base)"
           >
             <SegmentedControl v-model="activeTab" :options="tabOptions" size="sm" />
@@ -1334,559 +666,46 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Sidebar Content (Right, 1 col) -->
-        <div class="lg:col-span-1 space-y-6 text-left">
-          <!-- Space Info Card -->
-          <div
-            class="glass-card p-5 rounded-2xl border border-white/20 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/30 backdrop-blur-md shadow-lg space-y-4"
-          >
-            <h3
-              class="text-xs font-black uppercase tracking-widest text-slate-400 border-b pb-2"
-              style="border-color: var(--border-base)"
-            >
-              空间信息
-            </h3>
-            <div class="space-y-3.5">
-              <div>
-                <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider"
-                  >空间介绍</span
-                >
-                <p
-                  class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium mt-1"
-                >
-                  {{ parsedDescription || '暂无空间描述信息。' }}
-                </p>
-              </div>
-              <div
-                class="grid grid-cols-2 gap-4 pt-2 border-t"
-                style="border-color: var(--border-base)"
-              >
-                <div>
-                  <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider"
-                    >空间类别</span
-                  >
-                  <span class="text-xs font-bold text-slate-700 dark:text-slate-200 mt-1 block">
-                    {{ getCategoryLabel(team.category) || '未分类' }}
-                  </span>
-                </div>
-                <div>
-                  <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider"
-                    >空间属性</span
-                  >
-                  <span class="text-xs font-bold text-slate-700 dark:text-slate-200 mt-1 block">
-                    {{ team.type === 'PERSONAL' ? '个人空间' : '协作空间' }}
-                  </span>
-                </div>
-              </div>
-              <div class="pt-3 border-t" style="border-color: var(--border-base)">
-                <div class="flex items-center justify-between text-[11px] font-bold text-slate-500">
-                  <span>创建时间</span>
-                  <span>{{ formatDate(team.createdAt) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Space Statistics KPIs (TEAM type only) -->
-          <div
-            v-if="team.type === 'TEAM'"
-            class="glass-card p-5 rounded-2xl border border-white/20 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/30 backdrop-blur-md shadow-lg space-y-4"
-          >
-            <h3
-              class="text-xs font-black uppercase tracking-widest text-slate-400 border-b pb-2"
-              style="border-color: var(--border-base)"
-            >
-              运行指标
-            </h3>
-            <div class="grid grid-cols-1 gap-2.5">
-              <div
-                v-for="kpi in opsKpis"
-                :key="kpi.key"
-                class="flex items-center justify-between p-3 bg-white/20 dark:bg-slate-950/20 border border-white/10 dark:border-slate-800/50 rounded-xl hover:-translate-y-0.5 transition-all duration-200"
-              >
-                <div class="flex items-center gap-2.5 min-w-0">
-                  <div
-                    class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                    :class="kpi.tone"
-                  >
-                    <component :is="kpi.icon" class="w-4 h-4" />
-                  </div>
-                  <div class="min-w-0">
-                    <span class="block text-[10px] font-black text-slate-400 leading-none">{{
-                      kpi.label
-                    }}</span>
-                    <span class="block text-[9px] font-bold text-slate-500 mt-1.5 leading-none">{{
-                      kpi.helper
-                    }}</span>
-                  </div>
-                </div>
-                <strong
-                  class="text-sm font-black tracking-tight text-slate-800 dark:text-slate-100"
-                >
-                  {{ kpi.value }}
-                </strong>
-              </div>
-            </div>
-          </div>
-        </div>
+        <TeamDetailSidebar
+          :team="team"
+          :parsed-description="parsedDescription"
+          :ops-kpis="opsKpis"
+        />
       </div>
     </div>
 
-    <!-- Unified Add Member Modal -->
-    <Modal :show="isAddModalOpen" size="md" glass-card @close="isAddModalOpen = false">
-      <template #header>
-        <div>
-          <h3
-            class="text-xl md:text-2xl font-black tracking-tight"
-            style="color: var(--text-primary)"
-          >
-            {{ t('teamDetail.addMemberTitle') }}
-          </h3>
-          <p class="text-xs text-[var(--text-secondary)] opacity-75 font-semibold mt-1">
-            {{ t('teamDetail.addMemberSubtitle') }}
-          </p>
-        </div>
-      </template>
+    <TeamAddMemberModal
+      :show="isAddModalOpen"
+      :team-id="teamId"
+      @close="isAddModalOpen = false"
+      @added="
+        () => {
+          isAddModalOpen = false;
+          fetchTeamDetail();
+        }
+      "
+    />
 
-      <div class="space-y-6">
-        <!-- Search Users -->
-        <div class="space-y-3">
-          <label
-            class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1"
-          >
-            {{ t('teamDetail.internalSearchLabel') }}
-          </label>
-          <div class="relative group">
-            <Search
-              class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-accent transition-colors"
-            />
-            <input
-              v-model="userSearchQuery"
-              type="text"
-              :placeholder="t('teamDetail.searchUserPlaceholder')"
-              class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80 rounded-xl text-sm focus:border-accent dark:focus:border-accent focus:bg-white dark:focus:bg-slate-950 outline-none transition-all duration-300 shadow-2xs focus:shadow-md focus:shadow-accent/5"
-              style="color: var(--text-primary)"
-            />
-          </div>
+    <TeamDissolveModal
+      :show="isDissolveModalOpen"
+      :team-id="teamId"
+      :team-name="team?.name"
+      :two-factor-enabled="!!authStore.user?.twoFactorEnabled"
+      @close="isDissolveModalOpen = false"
+      @dissolved="handleDissolved"
+    />
 
-          <!-- Search Results -->
-          <div
-            v-if="searchResults.length > 0"
-            class="max-h-56 overflow-y-auto space-y-2 p-1 bg-slate-50/50 dark:bg-slate-950/30 rounded-xl scrollbar-hide border border-slate-100 dark:border-slate-800/40"
-          >
-            <div
-              v-for="user in searchResults"
-              :key="user.id"
-              class="flex items-center justify-between p-3 bg-white/70 dark:bg-slate-900/40 rounded-lg border border-slate-100/80 dark:border-slate-800/40 hover:border-accent/50 dark:hover:border-accent/50 hover:bg-white dark:hover:bg-slate-900 hover:shadow-xs transition-all duration-300 group"
-            >
-              <div class="flex items-center gap-3">
-                <UserAvatar :user="user" size="md" />
-                <div>
-                  <p class="text-sm font-bold" style="color: var(--text-primary)">
-                    {{ user.name }}
-                  </p>
-                  <p class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                    {{ user.email }}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                class="p-2 bg-accent/15 hover:bg-accent text-accent hover:text-white rounded-lg transition-all duration-300 shadow-sm active:scale-90"
-                @click="handleAddUser(user)"
-              >
-                <Plus class="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-          <div
-            v-else-if="userSearchQuery && !isSearchingUsers"
-            class="text-center py-4 text-slate-400 dark:text-slate-500 text-xs italic font-medium"
-          >
-            {{ t('teamDetail.noUsersFound') }}
-          </div>
-        </div>
-
-        <!-- Divider -->
-        <div class="relative flex items-center justify-center my-2">
-          <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-slate-100 dark:border-slate-800/80"></div>
-          </div>
-          <span
-            class="relative px-4 bg-white/90 dark:bg-slate-900/90 rounded-full text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] backdrop-blur-md"
-          >
-            {{ t('teamDetail.orLabel') }}
-          </span>
-        </div>
-
-        <!-- Email Invite -->
-        <div class="space-y-3">
-          <label
-            class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1"
-          >
-            {{ t('teamDetail.emailInviteLabel') }}
-          </label>
-          <div class="flex gap-3">
-            <div class="relative flex-1 group">
-              <Mail
-                class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-accent transition-colors"
-              />
-              <input
-                v-model="inviteEmailInput"
-                type="email"
-                placeholder="example@email.com"
-                class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80 rounded-xl text-sm focus:border-accent dark:focus:border-accent focus:bg-white dark:focus:bg-slate-950 outline-none transition-all duration-300 shadow-2xs focus:shadow-md focus:shadow-accent/5"
-                style="color: var(--text-primary)"
-              />
-            </div>
-            <Button
-              variant="primary"
-              size="lg"
-              :disabled="!inviteEmailInput"
-              class="shrink-0"
-              @click="handleSendInvite"
-            >
-              {{ t('teamDetail.sendBtn') }}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </Modal>
-
-    <!-- Dissolve Team Modal -->
-    <Modal :show="isDissolveModalOpen" size="sm" glass-card @close="isDissolveModalOpen = false">
-      <template #header>
-        <div class="p-3 bg-rose-50 dark:bg-rose-500/10 rounded-2xl text-rose-500 w-fit">
-          <Trash2 class="w-6 h-6" />
-        </div>
-      </template>
-
-      <div class="space-y-6">
-        <div>
-          <h3 class="text-2xl font-black text-rose-600">
-            {{ t('teamDetail.dissolveConfirmTitle') }}
-          </h3>
-          <SafeHtml
-            class="text-xs text-slate-400 font-medium mt-1 leading-relaxed"
-            tag="p"
-            :html="t('teamDetail.dissolveWarning', { name: team?.name })"
-          />
-        </div>
-
-        <div class="space-y-4">
-          <div v-if="authStore.user?.twoFactorEnabled" class="space-y-2">
-            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{{
-              t('teamDetail.twoFactorLabel')
-            }}</label>
-            <input
-              v-model="dissolveCode"
-              type="text"
-              maxlength="6"
-              placeholder="000000"
-              class="w-full px-6 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-center text-2xl font-black tracking-[0.5em] focus:ring-4 focus:ring-rose-500/10 outline-none transition-all"
-              style="color: var(--text-primary)"
-            />
-          </div>
-          <div v-else class="space-y-2">
-            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{{
-              t('teamDetail.emailCodeLabel')
-            }}</label>
-            <div class="flex gap-3">
-              <input
-                v-model="dissolveCode"
-                type="text"
-                maxlength="6"
-                placeholder="000000"
-                class="flex-1 px-6 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-center text-xl font-black tracking-[0.2em] focus:ring-4 focus:ring-rose-500/10 outline-none transition-all"
-                style="color: var(--text-primary)"
-              />
-              <Button
-                variant="secondary"
-                size="lg"
-                :disabled="dissolveCountdown > 0"
-                class="!rounded-2xl shrink-0"
-                @click="sendDissolveCode"
-              >
-                {{ dissolveCountdown > 0 ? `${dissolveCountdown}s` : t('teamDetail.getCodeBtn') }}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <Button
-          variant="danger"
-          size="lg"
-          full-width
-          :disabled="isDissolving || dissolveCode.length !== 6"
-          :loading="isDissolving"
-          :icon="Trash2"
-          @click="confirmDeleteTeam"
-        >
-          {{ t('teamDetail.confirmDissolveBtn') }}
-        </Button>
-      </div>
-    </Modal>
-
-    <!-- Member Workload Portrait Modal -->
-    <Modal :show="isMemberPanelOpen" size="md" glass-card @close="closeMemberPanel">
-      <template #header>
-        <div class="flex items-center gap-3 min-w-0">
-          <UserAvatar v-if="selectedMember" :user="selectedMember.user" size="md" />
-          <div class="min-w-0 text-left">
-            <p class="text-sm font-black truncate text-[var(--text-primary)]">
-              {{ selectedMember?.user.name || memberInsight?.member.user.name || '未命名成员' }}
-            </p>
-            <p class="text-[10px] font-bold text-slate-400 truncate">
-              {{ selectedMember?.user.email || memberInsight?.member.user.email || '成员画像' }}
-            </p>
-          </div>
-        </div>
-      </template>
-
-      <div
-        v-if="isMemberInsightLoading"
-        class="py-12 flex flex-col items-center justify-center text-slate-400"
-      >
-        <div
-          class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin mb-3"
-        ></div>
-        <p class="text-xs font-black">正在生成成员画像</p>
-      </div>
-
-      <div v-else-if="memberInsight" class="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-        <section
-          class="p-3 rounded-xl border animate-in fade-in duration-300"
-          style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
-        >
-          <div class="flex justify-between items-center">
-            <div class="text-left">
-              <p class="text-[10px] font-black text-slate-400 leading-none">容量分</p>
-              <strong
-                class="text-3xl font-black mt-1 block leading-none text-[var(--text-primary)]"
-              >
-                {{ memberInsight.stats.capacityScore }}
-              </strong>
-            </div>
-            <span
-              class="px-2.5 py-1 rounded-md text-[10px] font-black"
-              :class="capacityClass(memberInsight.stats.capacityScore)"
-            >
-              {{ selectedMemberCapacity?.focus || '工作节奏' }}
-            </span>
-          </div>
-          <div class="grid grid-cols-4 gap-2 mt-3 text-center">
-            <div
-              class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
-              style="border-color: var(--border-base)"
-            >
-              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                >项目</span
-              >
-              <strong
-                class="block text-base font-black mt-1 leading-none text-[var(--text-primary)]"
-                >{{ memberInsight.stats.projects }}</strong
-              >
-            </div>
-            <div
-              class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
-              style="border-color: var(--border-base)"
-            >
-              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                >进行</span
-              >
-              <strong
-                class="block text-base font-black mt-1 leading-none text-[var(--text-primary)]"
-                >{{ memberInsight.stats.activeTasks }}</strong
-              >
-            </div>
-            <div
-              class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
-              style="border-color: var(--border-base)"
-            >
-              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                >逾期</span
-              >
-              <strong
-                class="block text-base font-black mt-1 leading-none text-[var(--text-primary)]"
-                >{{ memberInsight.stats.overdueTasks }}</strong
-              >
-            </div>
-            <div
-              class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
-              style="border-color: var(--border-base)"
-            >
-              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                >完成率</span
-              >
-              <strong
-                class="block text-base font-black mt-1 leading-none text-[var(--text-primary)]"
-                >{{ memberInsight.stats.completionRate }}%</strong
-              >
-            </div>
-          </div>
-        </section>
-
-        <section
-          class="p-3 rounded-xl border text-left"
-          style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
-        >
-          <div
-            class="flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200"
-          >
-            <ClipboardCheck class="w-4 h-4 text-amber-500" />
-            <span>建议动作</span>
-          </div>
-          <div
-            v-if="memberInsight.recommendations.length === 0"
-            class="text-center py-4 text-slate-400 text-xs italic"
-          >
-            无特别建议动作
-          </div>
-          <div v-else class="space-y-2">
-            <button
-              v-for="item in memberInsight.recommendations"
-              :key="item.id"
-              type="button"
-              class="hover:bg-accent/5 p-2 bg-white/5 rounded-lg border flex items-center gap-2 w-full text-left cursor-pointer"
-              style="border-color: var(--border-base)"
-              @click="navigateInsight(item.targetRoute)"
-            >
-              <span
-                class="px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0"
-                :class="severityClass(item.severity)"
-              >
-                {{ severityLabel(item.severity) }}
-              </span>
-              <span class="min-w-0 flex-1">
-                <span class="block text-[11px] font-black truncate text-[var(--text-primary)]">{{
-                  item.title
-                }}</span>
-                <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">{{
-                  item.description
-                }}</span>
-              </span>
-              <ArrowRight class="w-3.5 h-3.5 text-slate-300 shrink-0" />
-            </button>
-          </div>
-        </section>
-
-        <section
-          class="p-3 rounded-xl border text-left"
-          style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
-        >
-          <div
-            class="flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200"
-          >
-            <Briefcase class="w-4 h-4 text-accent" />
-            <span>{{ drawerTaskTitle }}</span>
-          </div>
-          <div
-            v-if="drawerTasks.length === 0"
-            class="text-center py-4 text-slate-400 text-xs italic"
-          >
-            暂无任务记录
-          </div>
-          <div v-else class="space-y-2">
-            <button
-              v-for="task in drawerTasks"
-              :key="task.id"
-              type="button"
-              class="hover:bg-accent/5 p-2 bg-white/5 rounded-lg border flex items-center justify-between w-full text-left cursor-pointer"
-              style="border-color: var(--border-base)"
-              @click="navigateInsight(task.targetRoute)"
-            >
-              <span class="min-w-0 flex-1">
-                <span class="block text-[11px] font-black truncate text-[var(--text-primary)]">{{
-                  task.title
-                }}</span>
-                <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">
-                  {{ task.project?.title || '独立任务' }} · {{ taskStatusLabel(task.status) }} ·
-                  {{ formatDate(task.dueDate || task.updatedAt) }}
-                </span>
-              </span>
-              <span
-                class="px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0 ml-2"
-                :class="priorityClass(task.priority)"
-              >
-                {{ task.priority || 'NONE' }}
-              </span>
-            </button>
-          </div>
-        </section>
-
-        <section
-          class="p-3 rounded-xl border text-left"
-          style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
-        >
-          <div
-            class="flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200"
-          >
-            <BarChart3 class="w-4 h-4 text-emerald-500" />
-            <span>参与项目</span>
-          </div>
-          <div
-            v-if="memberInsight.projects.length === 0"
-            class="text-center py-4 text-slate-400 text-xs italic"
-          >
-            暂未参与项目
-          </div>
-          <div v-else class="space-y-2">
-            <button
-              v-for="project in memberInsight.projects.slice(0, 6)"
-              :key="project.id"
-              type="button"
-              class="hover:bg-accent/5 p-2 bg-white/5 rounded-lg border flex items-center justify-between w-full text-left cursor-pointer"
-              style="border-color: var(--border-base)"
-              @click="navigateInsight(project.targetRoute)"
-            >
-              <span class="min-w-0 flex-1">
-                <span class="block text-[11px] font-black truncate text-[var(--text-primary)]">{{
-                  project.title
-                }}</span>
-                <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">
-                  {{ roleLabel(project.role) }} · {{ project.activeTasks }} 进行 ·
-                  {{ project.overdueTasks }} 逾期
-                </span>
-              </span>
-              <span class="w-14 shrink-0 ml-2">
-                <span class="block text-right text-[9px] font-black text-slate-400"
-                  >{{ project.progress }}%</span
-                >
-                <span
-                  class="block h-1 mt-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"
-                >
-                  <span
-                    class="block h-full rounded-full bg-accent"
-                    :style="{ width: progressWidth(project.progress) }"
-                  ></span>
-                </span>
-              </span>
-            </button>
-          </div>
-        </section>
-      </div>
-
-      <template v-if="memberInsight" #footer>
-        <div class="flex items-center gap-3 w-full">
-          <Button
-            variant="secondary"
-            class="flex-1"
-            size="md"
-            @click="openUserProfile(memberInsight.member.userId)"
-          >
-            查看资料
-          </Button>
-          <Button
-            variant="primary"
-            class="flex-1"
-            size="md"
-            @click="handleChatWithUser(memberInsight.member.user)"
-          >
-            发起私聊
-          </Button>
-        </div>
-      </template>
-    </Modal>
+    <TeamMemberWorkbenchModal
+      :show="isMemberPanelOpen"
+      :team-id="teamId"
+      :user-id="selectedPanelUserId"
+      :members="team?.members || []"
+      :capacity-by-user-id="capacityByUserId"
+      @close="closeMemberPanel"
+      @navigate="navigateInsight"
+      @view-profile="openUserProfile"
+      @chat="handleStartChat"
+    />
 
     <UserProfileDialog
       v-model="isProfileDialogOpen"
@@ -1914,7 +733,6 @@ onUnmounted(() => {
   scrollbar-width: none;
 }
 
-/* Animations */
 .animate-in {
   animation: animate-in 0.5s ease-out;
 }
@@ -1930,193 +748,9 @@ onUnmounted(() => {
   }
 }
 
-/* Consolidated Styles from Members Dashboard */
-.rail-card {
-  border: 1px solid var(--border-base);
-  background: var(--bg-card);
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.rail-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 12px;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.kpi-tile {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--border-base);
-  border-radius: 12px;
-  background: var(--bg-card);
-  text-align: left;
-}
-
-.tone-sky {
-  background: rgb(14 165 233 / 0.1);
-  color: rgb(2 132 199);
-}
-
-.tone-purple {
-  background: rgb(168 85 247 / 0.1);
-  color: rgb(147 51 234);
-}
-
-.tone-emerald {
-  background: rgb(16 185 129 / 0.1);
-  color: rgb(5 150 105);
-}
-
-.tone-rose {
-  background: rgb(244 63 94 / 0.1);
-  color: rgb(225 29 72);
-}
-
-.tone-amber {
-  background: rgb(245 158 11 / 0.12);
-  color: rgb(217 119 6);
-}
-
-.tone-slate {
-  background: rgb(100 116 139 / 0.1);
-  color: rgb(71 85 105);
-}
-
-.action-row,
-.rail-member,
-.risk-project,
-.activity-row,
-.drawer-action,
-.drawer-task,
-.drawer-project {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  border: 0;
-  border-radius: 8px;
-  background: rgb(148 163 184 / 0.08);
-  padding: 8px;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.18s ease;
-}
-
-.action-row:hover,
-.rail-member:hover,
-.risk-project:hover,
-.activity-row:hover,
-.drawer-action:hover,
-.drawer-task:hover,
-.drawer-project:hover {
-  background: rgb(99 102 241 / 0.08);
-}
-
-.filter-chip {
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: rgb(148 163 184 / 0.08);
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 900;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.filter-chip b {
-  min-width: 17px;
-  height: 17px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: rgb(148 163 184 / 0.14);
-  font-size: 9px;
-}
-
-.filter-chip.is-active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: white;
-  box-shadow: 0 8px 18px rgb(99 102 241 / 0.18);
-}
-
-.filter-chip.is-active b {
-  background: rgb(255 255 255 / 0.22);
-}
-
-.member-table {
-  width: 100%;
-  min-width: 820px;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.member-table th {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border-base);
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.member-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border-base);
-  vertical-align: middle;
-}
-
-.member-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-.member-table tbody tr:hover {
-  background: rgb(148 163 184 / 0.07);
-}
-
-.activity-row {
-  display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) auto;
-}
-
-.compact-empty {
-  padding: 24px 8px;
-  text-align: center;
-  color: rgb(148 163 184);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.role-select :deep(.el-select__wrapper) {
-  min-height: 28px;
-  height: 28px;
-  width: 90px;
-  border-radius: 8px;
-  box-shadow: 0 0 0 1px var(--border-base) inset;
-  background: var(--bg-app);
-}
-
-@media (max-width: 1024px) {
-  .member-table {
-    min-width: 720px;
+@media (max-width: 767px) {
+  .grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

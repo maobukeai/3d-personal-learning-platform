@@ -1,50 +1,35 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import {
   CheckCircle2,
   Clock3,
-  Download,
-  Edit3,
   Eye,
   EyeOff,
-  FileArchive,
   Grid3X3,
   Heart,
   Layers,
   LayoutList,
-  Loader2,
-  PackageCheck,
   Search,
   ShieldCheck,
-  SlidersHorizontal,
-  Sparkles,
-  Tags,
-  Trash2,
   UploadCloud,
-  X,
   XCircle,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
-import { getApiErrorMessage } from '@/utils/error';
+import { getApiErrorMessage, logError } from '@/utils/error';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
-import UserAvatar from '@/components/UserAvatar.vue';
-import FileDropZone from '@/components/FileDropZone.vue';
-import Input from '@/components/ui/Input.vue';
-import Modal from '@/components/ui/Modal.vue';
-import Tabs from '@/components/ui/Tabs.vue';
-import UnifiedCard from '@/components/UnifiedCard.vue';
-import {
-  formatCompactNumber,
-  formatDate,
-  formatFileSize,
-  formatRelativeTime,
-  parseTags,
-  resolvePreviewUrl,
-} from './resourceUtils';
+import { formatCompactNumber, formatFileSize, parseTags, resolvePreviewUrl } from './resourceUtils';
+import MaterialFiltersPanel from './components/MaterialFiltersPanel.vue';
+import MaterialControlToolbar from './components/MaterialControlToolbar.vue';
+import MaterialSignalsRow from './components/MaterialSignalsRow.vue';
+import MaterialStateBar from './components/MaterialStateBar.vue';
+import MaterialsGrid from './components/MaterialsGrid.vue';
+import MaterialDetailPanel from './components/MaterialDetailPanel.vue';
+import MaterialFormDialog from './components/MaterialFormDialog.vue';
+import { useLabel } from '@/utils/i18n';
 
 type ViewMode = 'grid' | 'list';
 type SortMode = 'latest' | 'popular' | 'favorited' | 'largest' | 'smallest';
@@ -119,8 +104,6 @@ interface MaterialInsights {
   latest: MaterialItem[];
 }
 
-const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
-
 const CATEGORY_ALL = 'all';
 const defaultCategories = ['金属', '木纹', '石材', '织物', '程序化', '玻璃', '其他'];
 const resolutionOptions = ['2K', '4K', '8K', '矢量', '程序化'];
@@ -129,7 +112,7 @@ const authStore = useAuthStore();
 const systemStore = useSystemStore();
 const route = useRoute();
 const { locale } = useI18n();
-const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
+const label = useLabel();
 const categoryLabel = (name: string) => {
   const map: Record<string, string> = {
     金属: 'Metal',
@@ -211,7 +194,7 @@ const statCards = computed(() => [
       `${insights.value?.summary.myPending || 0} 待审 / ${insights.value?.summary.myApproved || 0} 通过`,
       `${insights.value?.summary.myPending || 0} pending / ${insights.value?.summary.myApproved || 0} approved`,
     ),
-    icon: PackageCheck,
+    icon: UploadCloud,
     tone: 'blue',
   },
   {
@@ -252,8 +235,8 @@ const libraryTabOptions = computed(() => {
 });
 
 const viewModeOptions = computed(() => [
-  { value: 'grid', icon: Grid3X3 },
-  { value: 'list', icon: LayoutList },
+  { value: 'grid' as ViewMode, icon: Grid3X3 },
+  { value: 'list' as ViewMode, icon: LayoutList },
 ]);
 
 const categoryOptions = computed(() => {
@@ -486,7 +469,7 @@ async function fetchMyMaterials() {
     const { data } = await api.get('/api/materials/my');
     myMaterials.value = data || [];
   } catch (error) {
-    console.error('Failed to fetch my materials:', error);
+    logError(error, { operation: 'fetchMyMaterials', view: 'MaterialsView' });
   }
 }
 
@@ -495,7 +478,7 @@ async function fetchInsights() {
     const { data } = await api.get('/api/materials/insights');
     insights.value = data;
   } catch (error) {
-    console.error('Failed to fetch material insights:', error);
+    logError(error, { operation: 'fetchMaterialInsights', view: 'MaterialsView' });
   }
 }
 
@@ -540,20 +523,6 @@ function openEditDialog(material: NormalizedMaterial) {
 function closeMaterialDialog() {
   isUploadDialogOpen.value = false;
   editingMaterial.value = null;
-}
-
-function handleFileChange(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  materialForm.value.file = file;
-  if (!materialForm.value.title.trim()) {
-    materialForm.value.title = file.name.replace(/\.[^.]+$/, '');
-  }
-}
-
-function handlePreviewChange(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0];
-  if (file) materialForm.value.preview = file;
 }
 
 async function submitMaterial() {
@@ -623,7 +592,7 @@ async function openDetail(material: MaterialItem | NormalizedMaterial) {
     const { data } = await api.get(`/api/materials/${material.id}`);
     selectedMaterial.value = normalizeMaterial(data);
   } catch (error) {
-    console.error('Failed to fetch material detail:', error);
+    logError(error, { operation: 'fetchMaterialDetail', view: 'MaterialsView' });
   } finally {
     isLoadingDetail.value = false;
   }
@@ -811,26 +780,21 @@ async function deleteMaterial(material: NormalizedMaterial) {
       },
     );
 
-    // 备份当前状态以备失败恢复
     const oldMaterials = [...materials.value];
     const oldMyMaterials = [...myMaterials.value];
 
-    // 乐观更新：立刻在前端移除被删除材质
     materials.value = materials.value.filter((x) => x.id !== material.id);
     myMaterials.value = myMaterials.value.filter((x) => x.id !== material.id);
 
-    // 立刻提示已删除，关闭详情面板
     ElMessage.success(label('材料已删除', 'Material deleted'));
     closeDetail();
 
-    // 后台异步执行请求并在成功后静默拉取更新，失败后恢复界面
     api
       .delete(`/api/materials/${material.id}`)
       .then(() => {
         refreshWorkspace(true);
       })
       .catch((error) => {
-        // 恢复数据
         materials.value = oldMaterials;
         myMaterials.value = oldMyMaterials;
         ElMessage.error(getApiErrorMessage(error, label('删除失败', 'Delete failed')));
@@ -954,7 +918,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="materials-page">
+  <div class="materials-page mobile-adaptive">
     <header
       class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0"
     >
@@ -975,7 +939,6 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Center: Centered Search Input -->
       <div class="flex justify-center flex-1 w-full md:w-auto">
         <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 md:w-80 shrink-0">
           <Search />
@@ -987,7 +950,7 @@ onUnmounted(() => {
         </label>
       </div>
 
-      <div class="header-actions flex-1 flex justify-end">
+      <div class="header-actions flex-1 flex justify-end mobile-row">
         <button
           type="button"
           class="ghost-button icon-text"
@@ -1022,567 +985,106 @@ onUnmounted(() => {
     </div>
 
     <div class="workspace-shell">
-      <aside class="filter-panel" :class="{ open: isFilterOpen }">
-        <div class="panel-section">
-          <div class="section-title">
-            <Layers class="icon-sm" />
-            {{ label('分类', 'Categories') }}
-          </div>
-          <Tabs
-            v-model="activeCategory"
-            :options="categoryTabOptions"
-            direction="vertical"
-            size="sm"
-          />
-        </div>
-
-        <div class="panel-section">
-          <div class="section-title">
-            <PackageCheck class="icon-sm" />
-            {{ label('分辨率', 'Resolution') }}
-          </div>
-          <Tabs
-            v-model="selectedResolution"
-            :options="resolutionTabOptions"
-            direction="vertical"
-            size="sm"
-          />
-        </div>
-
-        <div class="panel-section">
-          <div class="section-title">
-            <Tags class="icon-sm" />
-            {{ label('类型', 'Type') }}
-          </div>
-          <Tabs
-            v-model="selectedProcedural"
-            :options="proceduralTabOptions"
-            direction="vertical"
-            size="sm"
-          />
-        </div>
-
-        <div v-if="insights?.hotTags?.length" class="panel-section">
-          <div class="section-title">
-            <Tags class="icon-sm" />
-            {{ label('热标签', 'Hot Tags') }}
-          </div>
-          <div class="tag-cloud">
-            <button
-              type="button"
-              :class="{ active: selectedTag === 'all' }"
-              @click="selectedTag = 'all'"
-            >
-              {{ label('全部', 'All') }}
-            </button>
-            <button
-              v-for="tag in insights.hotTags"
-              :key="tag.label"
-              type="button"
-              :class="{ active: selectedTag === tag.label }"
-              @click="selectedTag = tag.label"
-            >
-              {{ tag.label }}
-            </button>
-          </div>
-        </div>
-
-        <div v-if="activeTab === 'mine'" class="panel-section">
-          <div class="section-title">
-            <SlidersHorizontal class="icon-sm" />
-            {{ label('状态', 'Status') }}
-          </div>
-          <Tabs
-            v-model="myStatusFilter"
-            :options="statusTabOptions"
-            direction="vertical"
-            size="sm"
-          />
-        </div>
-      </aside>
+      <MaterialFiltersPanel
+        :is-open="isFilterOpen"
+        :active-tab="activeTab"
+        :active-category="activeCategory"
+        :selected-resolution="selectedResolution"
+        :selected-tag="selectedTag"
+        :selected-procedural="selectedProcedural"
+        :my-status-filter="myStatusFilter"
+        :category-options="categoryTabOptions"
+        :resolution-options="resolutionTabOptions"
+        :procedural-options="proceduralTabOptions"
+        :status-options="statusTabOptions"
+        :hot-tags="insights?.hotTags || []"
+        @update:category="activeCategory = $event"
+        @update:resolution="selectedResolution = $event"
+        @update:tag="selectedTag = $event"
+        @update:procedural="selectedProcedural = $event"
+        @update:status="myStatusFilter = $event"
+      />
 
       <main class="content-panel">
-        <section class="control-bar">
-          <div class="toolbar-left">
-            <Tabs v-model="activeTab" :options="libraryTabOptions" size="sm" />
-          </div>
+        <MaterialControlToolbar
+          v-model:active-tab="activeTab"
+          v-model:sort-by="sortBy"
+          v-model:view-mode="viewMode"
+          :library-tab-options="libraryTabOptions"
+          :view-mode-options="viewModeOptions"
+          :is-filter-open="isFilterOpen"
+          @toggle-filter="isFilterOpen = !isFilterOpen"
+        />
 
-          <div class="toolbar-right">
-            <button
-              type="button"
-              class="icon-button mobile-filter"
-              @click="isFilterOpen = !isFilterOpen"
-            >
-              <SlidersHorizontal class="icon-sm" />
-            </button>
-            <select v-model="sortBy" class="select-field" aria-label="排序方式">
-              <option value="latest">{{ label('最新', 'Newest') }}</option>
-              <option value="popular">{{ label('下载', 'Downloads') }}</option>
-              <option value="favorited">{{ label('收藏', 'Favorites') }}</option>
-              <option value="largest">{{ label('体积大', 'Largest') }}</option>
-              <option value="smallest">{{ label('体积小', 'Smallest') }}</option>
-            </select>
-            <Tabs v-model="viewMode" :options="viewModeOptions" size="sm" />
-          </div>
-        </section>
+        <MaterialSignalsRow
+          v-show="isStatsExpanded"
+          :top-downloads="insights?.topDownloads || []"
+          :latest-uploads="insights?.latest || []"
+          @open-detail="openDetail"
+        />
 
-        <section v-show="isStatsExpanded" class="signal-row">
-          <div class="signal-panel">
-            <header>
-              <Download class="icon-sm" />
-              <span>{{ label('热门下载', 'Top Downloads') }}</span>
-            </header>
-            <div class="mini-list">
-              <button
-                v-for="material in insights?.topDownloads?.slice(0, 3) || []"
-                :key="material.id"
-                type="button"
-                class="mini-material"
-                @click="openDetail(material)"
-              >
-                <img
-                  :src="resolvePreviewUrl(material.previewUrl, 'STL')"
-                  :alt="material.title || ''"
-                />
-                <span>{{ material.title }}</span>
-                <strong>{{ formatCompactNumber(material.downloads) }}</strong>
-              </button>
-            </div>
-          </div>
-
-          <div class="signal-panel">
-            <header>
-              <Clock3 class="icon-sm" />
-              <span>{{ label('最近上传', 'Recent Uploads') }}</span>
-            </header>
-            <div class="mini-list">
-              <button
-                v-for="material in insights?.latest?.slice(0, 3) || []"
-                :key="material.id"
-                type="button"
-                class="mini-material"
-                @click="openDetail(material)"
-              >
-                <img
-                  :src="resolvePreviewUrl(material.previewUrl, 'STL')"
-                  :alt="material.title || ''"
-                />
-                <span>{{ material.title }}</span>
-                <small>{{ formatRelativeTime(material.createdAt) }}</small>
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <section v-if="activeFilterLabels.length || selectedIds.length" class="state-bar">
-          <button
-            type="button"
-            class="select-all"
-            :class="{ active: allVisibleSelected }"
-            @click="toggleSelectAllVisible"
-          >
-            {{
-              allVisibleSelected
-                ? label('取消全选', 'Clear Selection')
-                : label('选择当前页', 'Select Page')
-            }}
-          </button>
-
-          <div class="active-filters">
-            <button
-              v-for="filter in activeFilterLabels"
-              :key="filter.key"
-              type="button"
-              @click="clearFilter(filter.key)"
-            >
-              {{ filter.label }}
-              <X class="icon-xs" />
-            </button>
-            <button
-              v-if="activeFilterLabels.length > 1"
-              type="button"
-              class="clear-filter"
-              @click="resetFilters"
-            >
-              {{ label('清空', 'Clear') }}
-            </button>
-          </div>
-
-          <div v-if="selectedIds.length" class="bulk-actions">
-            <span>{{ selectedIds.length }} {{ label('项', 'selected') }}</span>
-            <button
-              type="button"
-              class="ghost-button compact-button"
-              :disabled="isBulkBusy"
-              @click="bulkFavorite(true)"
-            >
-              <Heart class="icon-sm" />
-              {{ label('收藏', 'Favorite') }}
-            </button>
-            <button
-              v-if="activeTab === 'favorites'"
-              type="button"
-              class="ghost-button compact-button"
-              :disabled="isBulkBusy"
-              @click="bulkFavorite(false)"
-            >
-              <X class="icon-sm" />
-              {{ label('移出', 'Remove') }}
-            </button>
-            <button type="button" class="primary-button compact-button" @click="downloadSelected">
-              <Download class="icon-sm" />
-              {{ label('下载', 'Download') }}
-            </button>
-          </div>
-        </section>
+        <MaterialStateBar
+          :active-filter-labels="activeFilterLabels"
+          :selected-count="selectedIds.length"
+          :all-visible-selected="allVisibleSelected"
+          :is-bulk-busy="isBulkBusy"
+          :active-tab="activeTab"
+          @clear-filter="clearFilter"
+          @reset-filters="resetFilters"
+          @toggle-select-all="toggleSelectAllVisible"
+          @bulk-favorite="bulkFavorite"
+          @download-selected="downloadSelected"
+        />
 
         <section class="workbench" :class="{ 'with-detail': selectedMaterial }">
-          <main class="asset-area">
-            <div v-if="isLoading" class="material-grid" :class="viewMode">
-              <article v-for="index in 12" :key="index" class="material-card skeleton-card">
-                <div class="skeleton preview"></div>
-                <div class="skeleton line wide"></div>
-                <div class="skeleton line"></div>
-              </article>
-            </div>
+          <MaterialsGrid
+            :is-loading="isLoading"
+            :view-mode="viewMode"
+            :materials="visibleMaterials"
+            :selected-ids="selectedIds"
+            :active-tab="activeTab"
+            :empty-title="emptyState.title"
+            :empty-body="emptyState.body"
+            @open-detail="openDetail"
+            @toggle-select="toggleSelect"
+            @toggle-favorite="toggleFavorite"
+            @download="handleDownload"
+            @create="openCreateDialog"
+          />
 
-            <div v-else-if="visibleMaterials.length" class="material-grid" :class="viewMode">
-              <UnifiedCard
-                v-for="material in visibleMaterials"
-                :key="material.id"
-                :item="material"
-                kind="material"
-                :view-mode="viewMode"
-                :is-selected="selectedIdSet.has(material.id)"
-                :is-favorited="material.isFavorited"
-                :active-tab="activeTab"
-                @click="openDetail(material)"
-                @select="(item, event) => toggleSelect(material.id, event)"
-                @like="(item, event) => toggleFavorite(material, event)"
-                @download="(item, event) => handleDownload(material, event)"
-              />
-            </div>
-
-            <div v-else class="empty-state">
-              <Sparkles class="empty-icon" />
-              <h2>{{ emptyState.title }}</h2>
-              <p>{{ emptyState.body }}</p>
-              <button type="button" class="primary-button icon-text" @click="openCreateDialog">
-                <UploadCloud class="icon-sm" />
-                {{ label('上传材质', 'Upload Material') }}
-              </button>
-            </div>
-          </main>
-
-          <aside v-if="selectedMaterial" class="detail-drawer">
-            <button type="button" class="close-button" @click="closeDetail">
-              <X class="icon-sm" />
-            </button>
-
-            <div v-if="isLoadingDetail" class="drawer-loading">
-              <Loader2 class="spinning" />
-            </div>
-
-            <template v-else>
-              <div class="drawer-preview">
-                <img :src="selectedMaterial.preview" :alt="selectedMaterial.title" />
-                <div class="drawer-badges">
-                  <span>{{ selectedMaterial.category }}</span>
-                  <span>{{ selectedMaterial.resolution }}</span>
-                  <span v-if="selectedMaterial.isProcedural">{{
-                    label('程序化', 'Procedural')
-                  }}</span>
-                </div>
-              </div>
-
-              <div class="drawer-body">
-                <div class="drawer-title">
-                  <h2>{{ selectedMaterial.title }}</h2>
-                  <span
-                    class="status-pill"
-                    :data-tone="getStatusMeta(selectedMaterial.status).tone"
-                  >
-                    <component :is="getStatusMeta(selectedMaterial.status).icon" class="icon-xs" />
-                    {{ getStatusMeta(selectedMaterial.status).label }}
-                  </span>
-                </div>
-                <p>
-                  {{
-                    selectedMaterial.description ||
-                    label('作者暂未填写材料说明。', 'No material description yet.')
-                  }}
-                </p>
-
-                <dl class="detail-grid">
-                  <div>
-                    <dt>{{ label('体积', 'Size') }}</dt>
-                    <dd>{{ formatFileSize(selectedMaterial.fileSize) }}</dd>
-                  </div>
-                  <div>
-                    <dt>{{ label('下载', 'Downloads') }}</dt>
-                    <dd>{{ formatCompactNumber(selectedMaterial.downloads) }}</dd>
-                  </div>
-                  <div>
-                    <dt>{{ label('收藏', 'Favorites') }}</dt>
-                    <dd>{{ formatCompactNumber(selectedMaterial.favorites) }}</dd>
-                  </div>
-                  <div>
-                    <dt>{{ label('上传', 'Uploaded') }}</dt>
-                    <dd>{{ formatDate(selectedMaterial.createdAt) }}</dd>
-                  </div>
-                </dl>
-
-                <div v-if="selectedMaterial.rejectReason" class="reject-note">
-                  <strong>{{ label('驳回原因', 'Rejection Reason') }}</strong>
-                  <span>{{ selectedMaterial.rejectReason }}</span>
-                </div>
-
-                <div class="tag-row detail-tags">
-                  <span v-for="tag in selectedMaterial.tags" :key="tag">#{{ tag }}</span>
-                </div>
-
-                <div v-if="selectedMaterial.user" class="author-row">
-                  <UserAvatar :user="selectedMaterial.user" size="sm" />
-                  <div>
-                    <strong>{{
-                      selectedMaterial.user.name ||
-                      selectedMaterial.user.email ||
-                      label('创作者', 'Creator')
-                    }}</strong>
-                    <span>{{ label('材料贡献者', 'Material Contributor') }}</span>
-                  </div>
-                </div>
-
-                <div v-if="normalizedMyMaterials.length" class="my-submissions">
-                  <header>
-                    <FileArchive class="icon-sm" />
-                    <span>{{ label('我的最近提交', 'My Recent Uploads') }}</span>
-                  </header>
-                  <button
-                    v-for="material in normalizedMyMaterials"
-                    :key="material.id"
-                    type="button"
-                    class="submission-item"
-                    @click="openDetail(material)"
-                  >
-                    <span>{{ material.title }}</span>
-                    <small :data-tone="getStatusMeta(material.status).tone">{{
-                      getStatusMeta(material.status).label
-                    }}</small>
-                  </button>
-                </div>
-              </div>
-
-              <footer class="drawer-actions">
-                <button
-                  type="button"
-                  class="ghost-button icon-text"
-                  :class="{ active: selectedMaterial.isFavorited }"
-                  @click="toggleFavorite(selectedMaterial)"
-                >
-                  <Heart class="icon-sm" :class="{ filled: selectedMaterial.isFavorited }" />
-                  {{
-                    selectedMaterial.isFavorited
-                      ? label('已收藏', 'Favorited')
-                      : label('收藏', 'Favorite')
-                  }}
-                </button>
-                <button
-                  type="button"
-                  class="primary-button icon-text"
-                  :disabled="!canDownloadMaterial(selectedMaterial)"
-                  @click="handleDownload(selectedMaterial)"
-                >
-                  <Download class="icon-sm" />
-                  {{ label('下载', 'Download') }}
-                </button>
-                <button
-                  v-if="canEditMaterial(selectedMaterial)"
-                  type="button"
-                  class="ghost-button square-action"
-                  @click="openEditDialog(selectedMaterial)"
-                >
-                  <Edit3 class="icon-sm" />
-                </button>
-                <button
-                  v-if="canEditMaterial(selectedMaterial)"
-                  type="button"
-                  class="danger-button square-action"
-                  @click="deleteMaterial(selectedMaterial)"
-                >
-                  <Trash2 class="icon-sm" />
-                </button>
-              </footer>
-
-              <div v-if="isAdmin && selectedMaterial.status === 'PENDING'" class="review-actions">
-                <button
-                  type="button"
-                  class="approve-button"
-                  :disabled="isSavingReview"
-                  @click="reviewMaterial(selectedMaterial, 'APPROVED')"
-                >
-                  <CheckCircle2 class="icon-sm" />
-                  {{ label('通过', 'Approve') }}
-                </button>
-                <button
-                  type="button"
-                  class="reject-button"
-                  :disabled="isSavingReview"
-                  @click="reviewMaterial(selectedMaterial, 'REJECTED')"
-                >
-                  <XCircle class="icon-sm" />
-                  {{ label('驳回', 'Reject') }}
-                </button>
-              </div>
-            </template>
-          </aside>
+          <MaterialDetailPanel
+            v-if="selectedMaterial"
+            :material="selectedMaterial"
+            :loading="isLoadingDetail"
+            :my-materials="normalizedMyMaterials"
+            :is-admin="isAdmin"
+            :can-edit="canEditMaterial(selectedMaterial)"
+            :can-download="canDownloadMaterial(selectedMaterial)"
+            :is-saving-review="isSavingReview"
+            @close="closeDetail"
+            @favorite="toggleFavorite(selectedMaterial)"
+            @download="handleDownload(selectedMaterial)"
+            @edit="openEditDialog"
+            @select="openDetail"
+            @delete="deleteMaterial(selectedMaterial)"
+            @review-approved="reviewMaterial(selectedMaterial, 'APPROVED')"
+            @review-rejected="reviewMaterial(selectedMaterial, 'REJECTED')"
+          />
         </section>
       </main>
     </div>
 
-    <Modal :show="isUploadDialogOpen" size="xxl" glass-card @close="closeMaterialDialog">
-      <template #header>
-        <div>
-          <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">
-            {{
-              isEditingMaterial
-                ? label('编辑材料', 'Edit Material')
-                : label('上传材质', 'Upload Material')
-            }}
-          </h3>
-          <p class="text-xs text-[var(--text-muted)] mt-1">
-            {{
-              isEditingMaterial
-                ? label('保存后将重新进入审核流程', 'Saving will send it back to review')
-                : label('提交贴图包或 SBSAR 文件', 'Submit texture packs or SBSAR files')
-            }}
-          </p>
-        </div>
-      </template>
-
-      <div class="dialog-grid">
-        <div class="dialog-column">
-          <template v-if="!isEditingMaterial">
-            <div class="mb-4 w-full">
-              <FileDropZone
-                v-model="materialForm.file"
-                accept=".zip,.sbsar"
-                :label="materialForm.file?.name || label('选择材料包', 'Choose Material Pack')"
-                sublabel="ZIP / SBSAR"
-                height-class="h-28"
-                @change="handleFileChange"
-              />
-            </div>
-
-            <div class="mb-4 w-full">
-              <FileDropZone
-                v-model="materialForm.preview"
-                accept="image/*"
-                :label="materialForm.preview?.name || label('上传预览图', 'Upload Preview')"
-                :sublabel="label('方形或 16:10 封面', 'Square or 16:10 cover')"
-                height-class="h-28"
-                @change="handlePreviewChange"
-              />
-            </div>
-          </template>
-
-          <div class="mb-4">
-            <Input
-              v-model="materialForm.title"
-              type="text"
-              :label="label('材料名称', 'Material Name')"
-              :placeholder="label('磨砂金属 PBR 套装', 'Brushed metal PBR set')"
-              required
-            />
-          </div>
-
-          <div class="two-col grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <label class="form-field flex flex-col">
-              <span
-                class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
-              >
-                {{ label('分类', 'Category') }}
-              </span>
-              <select
-                v-model="materialForm.category"
-                class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
-              >
-                <option v-for="category in uploadCategories" :key="category" :value="category">
-                  {{ category }}
-                </option>
-              </select>
-            </label>
-            <label class="form-field flex flex-col">
-              <span
-                class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
-              >
-                {{ label('分辨率', 'Resolution') }}
-              </span>
-              <select
-                v-model="materialForm.resolution"
-                class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
-              >
-                <option
-                  v-for="resolution in resolutionOptions"
-                  :key="resolution"
-                  :value="resolution"
-                >
-                  {{ resolution }}
-                </option>
-              </select>
-            </label>
-          </div>
-
-          <label class="switch-row mb-4">
-            <input v-model="materialForm.isProcedural" type="checkbox" />
-            <span>{{ label('程序化材质 / SBSAR', 'Procedural Material / SBSAR') }}</span>
-          </label>
-
-          <div class="mb-4">
-            <Input
-              v-model="materialForm.tags"
-              type="text"
-              :label="label('标签', 'Tags')"
-              :placeholder="label('PBR, 金属, 4K, 游戏资产', 'PBR, metal, 4K, game asset')"
-            />
-          </div>
-        </div>
-
-        <div class="dialog-column">
-          <label class="form-field editor-field">
-            <span>{{ label('材料说明', 'Material Description') }}</span>
-            <MarkdownEditor
-              v-model="materialForm.description"
-              :placeholder="
-                label(
-                  '贴图通道、使用场景、授权或引擎导入注意事项',
-                  'Texture channels, use cases, license, or engine import notes',
-                )
-              "
-              height="330px"
-              simple
-            />
-          </label>
-        </div>
-      </div>
-
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" @click="closeMaterialDialog">
-            {{ label('取消', 'Cancel') }}
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            :loading="isUploading"
-            :disabled="!canSubmitMaterial"
-            @click="submitMaterial"
-          >
-            {{ isEditingMaterial ? label('保存', 'Save') : label('提交审核', 'Submit for Review') }}
-          </Button>
-        </div>
-      </template>
-    </Modal>
+    <MaterialFormDialog
+      v-model="materialForm"
+      :is-editing="isEditingMaterial"
+      :is-open="isUploadDialogOpen"
+      :categories="uploadCategories"
+      :resolution-options="resolutionOptions"
+      :is-uploading="isUploading"
+      :can-submit="canSubmitMaterial"
+      @submit="submitMaterial"
+      @close="closeMaterialDialog"
+    />
   </div>
 </template>
 
@@ -1618,29 +1120,9 @@ button:disabled {
   opacity: 0.55;
 }
 
-/* Flex alignments */
 .page-header,
 .title-block,
-.command-actions,
-.control-bar,
-.toolbar-actions,
-.view-switch,
-.chip-row,
-.state-bar,
-.active-filters,
-.bulk-actions,
-.card-footer,
-.metric-row,
-.drawer-actions,
-.review-actions,
-.two-col,
-.author-row,
-.material-dialog header,
-.material-dialog footer,
-.signal-panel header,
-.my-submissions header,
-.title-line,
-.drawer-title {
+.header-actions {
   display: flex;
   align-items: center;
 }
@@ -1684,17 +1166,10 @@ button:disabled {
   line-height: 1.2;
 }
 
-.material-dialog header p,
-.empty-state p {
-  margin-top: 1px;
-  overflow: hidden;
-  color: var(--text-muted);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.header-actions {
+  gap: 8px;
 }
 
-/* Metric Strip (KPIs) */
 .metric-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1749,7 +1224,7 @@ button:disabled {
 }
 
 .metric-tile small {
-  display: none; /* Hide verbose details in compact layout */
+  display: none;
 }
 
 .metric-tile[data-tone='amber'] {
@@ -1765,22 +1240,8 @@ button:disabled {
   --tone-color: #0f766e;
 }
 
-.command-actions,
-.toolbar-actions,
-.view-switch,
-.bulk-actions,
-.drawer-actions,
-.review-actions,
-.material-dialog footer {
-  gap: 8px;
-}
-
-/* Base Buttons */
 .primary-button,
-.ghost-button,
-.danger-button,
-.approve-button,
-.reject-button {
+.ghost-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1809,75 +1270,14 @@ button:disabled {
   transform: translateY(-0.5px);
 }
 
-.ghost-button,
-.icon-button {
+.ghost-button {
   background: var(--bg-card);
   color: var(--text-primary);
 }
 
-.ghost-button:hover,
-.icon-button:hover {
+.ghost-button:hover {
   background: var(--bg-hover);
   border-color: var(--border-strong);
-}
-
-.ghost-button.active {
-  border-color: rgba(225, 29, 72, 0.25);
-  background: rgba(225, 29, 72, 0.05);
-  color: #e11d48;
-}
-
-.danger-button {
-  border-color: rgba(220, 38, 38, 0.25);
-  background: rgba(220, 38, 38, 0.05);
-  color: #dc2626;
-}
-
-.danger-button:hover {
-  background: rgba(220, 38, 38, 0.1);
-  border-color: #dc2626;
-}
-
-.approve-button {
-  border-color: rgba(5, 150, 105, 0.25);
-  background: rgba(5, 150, 105, 0.05);
-  color: #047857;
-}
-
-.approve-button:hover {
-  background: rgba(5, 150, 105, 0.1);
-  border-color: #059669;
-}
-
-.reject-button {
-  border-color: rgba(220, 38, 38, 0.25);
-  background: rgba(220, 38, 38, 0.05);
-  color: #dc2626;
-}
-
-.reject-button:hover {
-  background: rgba(220, 38, 38, 0.1);
-  border-color: #dc2626;
-}
-
-.compact-button {
-  height: 28px;
-  padding: 0 10px;
-}
-
-.square-action,
-.icon-button {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  padding: 0;
-}
-
-.icon-md {
-  width: 18px;
-  height: 18px;
 }
 
 .icon-sm {
@@ -1885,152 +1285,6 @@ button:disabled {
   height: 14px;
 }
 
-.icon-xs {
-  width: 11px;
-  height: 11px;
-}
-
-/* Control Bar (Toolbar) */
-.control-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  background: var(--bg-card);
-  padding: 8px 16px;
-  border-radius: 12px;
-  border: 1px solid var(--border-base);
-  backdrop-filter: blur(12px);
-  flex-wrap: nowrap;
-}
-
-.toolbar-left {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 12px;
-}
-
-.toolbar-center {
-  flex: 0 0 auto;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.toolbar-right {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.tab-switch {
-  display: flex;
-  gap: 2px;
-  background: var(--bg-hover);
-  padding: 2px;
-  border-radius: 6px;
-  border: 1px solid var(--border-base);
-}
-
-.tab-switch button {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: 500;
-  border-radius: 4px;
-  transition: all 0.15s ease;
-}
-
-.tab-switch button:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.4);
-}
-
-.dark .tab-switch button:hover {
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.tab-switch button.active {
-  background: var(--bg-card);
-  color: #d97706;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  font-weight: 600;
-}
-
-.tab-switch strong {
-  margin-left: 2px;
-  color: var(--text-muted);
-  font-size: 10px;
-}
-
-.tab-switch button.active strong {
-  color: #d97706;
-}
-
-/* Local .search-box styling removed to use global .search-box style */
-
-.select-field {
-  width: 96px;
-  height: 32px;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: var(--bg-card);
-  padding: 0 8px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.select-field:hover {
-  border-color: var(--border-strong);
-}
-
-.select-field:focus {
-  border-color: #d97706;
-  outline: 0;
-}
-
-.view-switch {
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: var(--bg-card);
-  padding: 2px;
-}
-
-.view-switch button {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.view-switch button.active {
-  background: #d97706;
-  color: #fff;
-}
-
-.mobile-filter {
-  display: none;
-}
-
-/* Sidebar Layout & Vertical Filters */
 .workspace-shell {
   flex: 1;
   min-height: 0;
@@ -2040,38 +1294,6 @@ button:disabled {
   margin-top: 12px;
 }
 
-.filter-panel {
-  align-self: start;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  padding: 10px;
-  box-shadow: var(--shadow-card);
-}
-
-.panel-section {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-  color: var(--text-primary);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.section-title svg {
-  color: var(--accent);
-}
-
 .content-panel {
   min-width: 0;
   display: flex;
@@ -2079,219 +1301,6 @@ button:disabled {
   gap: 12px;
 }
 
-@media (max-width: 980px) {
-  .workspace-shell {
-    grid-template-columns: 1fr;
-  }
-  .filter-panel {
-    display: none;
-  }
-  .filter-panel.open {
-    display: flex;
-    position: fixed;
-    top: 50px;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 100;
-    border-radius: 0;
-    border: 0;
-    background: var(--bg-card);
-    overflow: auto;
-  }
-}
-
-.tag-strip button.active,
-.select-all.active {
-  border-color: transparent;
-  background: rgba(217, 119, 6, 0.1);
-  color: #d97706;
-  font-weight: 600;
-}
-
-.filter-chip.active strong {
-  color: #d97706;
-}
-
-/* Signal Row (Data Panel inside stats block) */
-.signal-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(260px, 1.2fr);
-  gap: 10px;
-}
-
-.signal-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  padding: 10px;
-  box-shadow: var(--shadow-card);
-}
-
-.mini-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-/* Remove Borders on Sidebar list items */
-.mini-material,
-.submission-item {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  padding: 5px 8px;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.mini-list > button:not(:last-child),
-.my-submissions > button:not(:last-child) {
-  border-bottom: 1px dashed var(--border-base);
-  border-radius: 6px 6px 0 0;
-}
-
-.mini-material:hover,
-.submission-item:hover {
-  background: var(--bg-hover);
-}
-
-.mini-material {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
-  gap: 8px;
-}
-
-.mini-material img {
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  object-fit: cover;
-}
-
-.mini-material span,
-.mini-material strong,
-.mini-material small {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mini-material span {
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-.mini-material strong {
-  color: #d97706;
-  font-weight: 600;
-  text-align: right;
-}
-
-.mini-material small {
-  color: var(--text-muted);
-  text-align: right;
-}
-
-.tag-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.tag-cloud button {
-  height: 24px;
-  border: 0;
-  border-radius: 9999px;
-  background: var(--bg-app);
-  color: var(--text-secondary);
-  padding: 0 10px;
-  font-size: 10px;
-  font-weight: 500;
-  transition: all 0.15s ease;
-  cursor: pointer;
-}
-
-.tag-cloud button:hover {
-  background: var(--bg-active);
-  color: var(--accent);
-  transform: translateY(-0.5px);
-}
-
-.tag-cloud button.active {
-  background: var(--accent-subtle);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-/* State bar */
-.state-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  height: 32px;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: var(--bg-card);
-  padding: 0 10px;
-}
-
-.select-all,
-.active-filters button {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 24px;
-  background: var(--bg-app);
-  color: var(--text-secondary);
-  padding: 0 8px;
-  font-size: 10px;
-  font-weight: 500;
-  border: 1px solid var(--border-base);
-}
-
-.select-all:hover,
-.active-filters button:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-strong);
-}
-
-.active-filters {
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  gap: 4px;
-  min-width: 0;
-}
-
-.active-filters .clear-filter {
-  color: #d97706;
-  font-weight: 600;
-}
-
-.bulk-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.bulk-actions > span {
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 500;
-}
-
-/* Workbench Layout */
 .workbench {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -2304,721 +1313,8 @@ button:disabled {
   align-items: start;
 }
 
-.asset-area {
-  min-width: 0;
-}
-
-/* Grid columns and card sizing */
-.material-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
-  min-height: 200px;
-}
-
-.material-grid.list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* Material Cards */
-.material-card {
-  overflow: hidden;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-card);
-  transition: all 0.18s ease;
-  cursor: pointer;
-}
-
-.material-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(217, 119, 6, 0.45);
-  box-shadow: 0 8px 24px rgba(217, 119, 6, 0.08);
-}
-
-.material-card.selected {
-  border-color: #d97706;
-  box-shadow: 0 0 0 1px #d97706;
-}
-
-.material-card.inactive {
-  opacity: 0.8;
-}
-
-.material-grid.list .material-card {
-  display: grid;
-  grid-template-columns: 100px minmax(0, 1fr);
-}
-
-.material-preview {
-  position: relative;
-  aspect-ratio: 4 / 3;
-  overflow: hidden;
-  background: #172033;
-}
-
-.material-grid.list .material-preview {
-  aspect-ratio: auto;
-  min-height: 80px;
-}
-
-.material-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  transition: transform 0.2s ease;
-}
-
-.material-card:hover .material-preview img {
-  transform: scale(1.03);
-}
-
-.select-dot,
-.favorite-button {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.9);
-  color: #475569;
-  border: 1px solid var(--border-base);
-}
-
-.select-dot {
-  left: 6px;
-  top: 6px;
-}
-
-.favorite-button {
-  right: 6px;
-  top: 6px;
-}
-
-.select-dot.active {
-  border-color: transparent;
-  background: #d97706;
-  color: #fff;
-}
-
-.favorite-button.active,
-.filled {
-  color: #e11d48;
-  fill: #e11d48;
-}
-
-.badge-row,
-.drawer-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-}
-
-.badge-row {
-  position: absolute;
-  left: 6px;
-  bottom: 6px;
-}
-
-.badge-row span,
-.drawer-badges span {
-  border-radius: 4px;
-  background: rgba(15, 23, 42, 0.75);
-  color: #fff;
-  padding: 2px 5px;
-  font-size: 9px;
-  font-weight: 600;
-}
-
-.material-body {
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.title-line,
-.drawer-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.material-body h2,
-.drawer-title h2 {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-weight: 600;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.material-body h2 {
-  font-size: 13px;
-}
-
-.material-body p {
-  min-height: 28px;
-  margin-top: 2px;
-  color: var(--text-secondary);
-  font-size: 10px;
-  line-height: 1.4;
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.meta-row,
-.tag-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 4px;
-}
-
-.meta-row span,
-.tag-row span {
-  border-radius: 4px;
-  background: var(--bg-app);
-  color: var(--text-secondary);
-  padding: 1px 5px;
-  font-size: 9px;
-  font-weight: 500;
-}
-
-.status-pill {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 3px;
-  border-radius: 999px;
-  padding: 1px 6px;
-  font-size: 9px;
-  font-weight: 600;
-}
-
-.status-pill[data-tone='success'],
-.submission-item small[data-tone='success'] {
-  background: rgba(5, 150, 105, 0.1);
-  color: #047857;
-}
-
-.status-pill[data-tone='warning'],
-.submission-item small[data-tone='warning'] {
-  background: rgba(217, 119, 6, 0.1);
-  color: #b45309;
-}
-
-.status-pill[data-tone='danger'],
-.submission-item small[data-tone='danger'] {
-  background: rgba(220, 38, 38, 0.1);
-  color: #dc2626;
-}
-
-.card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-  margin-top: auto;
-  padding-top: 6px;
-  border-top: 1px solid var(--border-base);
-}
-
-.metric-row {
-  display: flex;
-  gap: 6px;
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 500;
-}
-
-.metric-row span {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.download-button {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  border-color: transparent;
-  background: rgba(217, 119, 6, 0.08);
-  color: #d97706;
-  padding: 0;
-  transition: all 0.15s ease;
-}
-
-.download-button:hover:not(:disabled) {
-  background: rgba(217, 119, 6, 0.15);
-  transform: translateY(-0.5px);
-}
-
-/* Detail Drawer */
-.detail-drawer {
-  position: sticky;
-  top: 10px;
-  overflow: hidden;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-card);
-}
-
-.close-button {
-  position: absolute;
-  right: 10px;
-  top: 10px;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.9);
-  color: #475569;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.close-button:hover {
-  background: #fff;
-  border-color: var(--border-strong);
-}
-
-.drawer-loading {
-  display: grid;
-  place-items: center;
-  min-height: 380px;
-  color: #d97706;
-}
-
-.drawer-preview {
-  position: relative;
-  height: 180px;
-  overflow: hidden;
-  background: #172033;
-}
-
-.drawer-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.drawer-badges {
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
-}
-
-.drawer-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-}
-
-.drawer-title h2 {
-  font-size: 16px;
-}
-
-.drawer-body > p {
-  color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-  margin: 0;
-}
-
-.detail-grid div,
-.reject-note,
-.author-row,
-.my-submissions {
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: var(--bg-hover);
-}
-
-.detail-grid div {
-  padding: 6px;
-}
-
-.detail-grid dt {
-  color: var(--text-muted);
-  font-size: 9px;
-  font-weight: 500;
-}
-
-.detail-grid dd {
-  margin: 2px 0 0;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 11px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.reject-note {
-  display: grid;
-  gap: 3px;
-  padding: 8px;
-}
-
-.reject-note strong {
-  color: #dc2626;
-  font-size: 10px;
-}
-
-.reject-note span {
-  color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.detail-tags {
-  margin-top: 0;
-}
-
-.author-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-}
-
-.author-row strong,
-.author-row span {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.author-row strong {
-  color: var(--text-primary);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.author-row span {
-  color: var(--text-muted);
-  font-size: 9px;
-  font-weight: 500;
-}
-
-.my-submissions {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px;
-}
-
-.submission-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  height: 28px;
-  padding: 0 4px;
-  font-size: 11px;
-}
-
-.submission-item span {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.submission-item small {
-  flex: 0 0 auto;
-  border-radius: 999px;
-  padding: 1px 5px;
-  font-size: 9px;
-  font-weight: 600;
-}
-
-.drawer-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  border-top: 1px solid var(--border-base);
-  padding: 10px 12px;
-}
-
-.review-actions {
-  display: flex;
-  gap: 6px;
-  border-top: 1px solid var(--border-base);
-  padding: 0 12px 12px;
-}
-
-/* Empty State */
-.empty-state {
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 8px;
-  min-height: 260px;
-  border: 1px dashed var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  text-align: center;
-}
-
-.empty-state h2 {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.empty-icon {
-  width: 32px;
-  height: 32px;
-  color: #d97706;
-  opacity: 0.55;
-}
-
-/* Modals */
-.modal-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-}
-
-.modal-backdrop {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  background: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(6px);
-}
-
-.material-dialog {
-  position: relative;
-  z-index: 1;
-  width: min(920px, 100%);
-  max-height: min(86vh, 760px);
-  overflow: auto;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  background: var(--bg-card);
-  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
-  padding: 16px;
-}
-
-.material-dialog header,
-.material-dialog footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.material-dialog header {
-  margin-bottom: 12px;
-}
-
-.material-dialog h2 {
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.dialog-grid {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.86fr) minmax(0, 1.14fr);
-  gap: 12px;
-}
-
-.dialog-column {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-}
-
-.drop-zone {
-  position: relative;
-  display: grid;
-  place-items: center;
-  gap: 4px;
-  min-height: 100px;
-  border: 1px dashed var(--border-base);
-  border-radius: 6px;
-  background: var(--bg-app);
-  text-align: center;
-}
-
-.drop-zone.compact {
-  min-height: 76px;
-}
-
-.drop-zone input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.drop-icon {
-  width: 22px;
-  height: 22px;
-  color: #d97706;
-}
-
-.drop-zone strong {
-  max-width: 90%;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 11px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.drop-zone span {
-  color: var(--text-muted);
-  font-size: 9px;
-  font-weight: 500;
-}
-
-.form-field,
-.switch-row {
-  display: grid;
-  gap: 4px;
-}
-
-.form-field > span,
-.switch-row span {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.form-field input,
-.form-field select {
-  height: 32px;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: var(--bg-app);
-  padding: 0 10px;
-  font-size: 12px;
-}
-
-.two-col {
-  display: flex;
-  align-items: end;
-  gap: 8px;
-}
-
-.two-col > * {
-  flex: 1;
-}
-
-.switch-row {
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: var(--bg-app);
-  padding: 8px;
-}
-
-.editor-field :deep(.markdown-editor) {
-  min-width: 0;
-}
-
-.material-dialog footer {
-  margin-top: 12px;
-  justify-content: flex-end;
-}
-
-.skeleton {
-  border-radius: 6px;
-  background: linear-gradient(
-    90deg,
-    rgba(148, 163, 184, 0.1),
-    rgba(148, 163, 184, 0.2),
-    rgba(148, 163, 184, 0.1)
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.2s infinite;
-}
-
-.skeleton-card {
-  padding: 10px;
-}
-
-.skeleton.preview {
-  aspect-ratio: 4 / 3;
-}
-
-.skeleton.line {
-  width: 60%;
-  height: 10px;
-  margin-top: 10px;
-}
-
-.skeleton.line.wide {
-  width: 80%;
-}
-
-.spinning {
-  animation: spin 0.8s linear infinite;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.18s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes shimmer {
-  to {
-    background-position: -200% 0;
-  }
-}
-
-@media (max-width: 1040px) {
-  .filter-deck {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .signal-row {
+@media (max-width: 980px) {
+  .workspace-shell {
     grid-template-columns: 1fr;
   }
 }
@@ -3027,11 +1323,6 @@ button:disabled {
   .workbench.with-detail {
     grid-template-columns: 1fr;
   }
-
-  .detail-drawer {
-    position: relative;
-    top: 0;
-  }
 }
 
 @media (max-width: 860px) {
@@ -3039,90 +1330,14 @@ button:disabled {
     padding: 12px;
   }
 
-  .command-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-
-  .control-bar {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .toolbar-left,
-  .toolbar-right {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    width: 100%;
-  }
-
-  .toolbar-center {
-    width: 100%;
-  }
-
-  .toolbar-center :deep(.ui-input-wrapper) {
-    max-width: none;
-    width: 100%;
-  }
-
-  .tab-switch,
-  .metric-strip,
-  .mini-list {
-    grid-template-columns: 1fr;
-  }
-
-  .toolbar-actions,
-  .command-actions {
-    justify-content: stretch;
-    width: 100%;
-  }
-
-  .toolbar-actions > *,
-  .command-actions > * {
-    flex: 1;
-  }
-
-  .mobile-filter {
-    display: grid;
-    flex: 0 0 32px;
-  }
-
-  .filter-deck {
-    display: none;
-    grid-template-columns: 1fr;
-  }
-
-  .filter-deck.open {
-    display: grid;
-  }
-
-  .state-bar,
-  .bulk-actions,
-  .two-col {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .material-grid.list .material-card {
-    grid-template-columns: 1fr;
-  }
-
-  .dialog-grid,
-  .detail-grid {
-    grid-template-columns: 1fr;
+  .metric-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 560px) {
-  .material-grid.grid {
+  .metric-strip {
     grid-template-columns: 1fr;
-  }
-
-  .page-title p {
-    white-space: normal;
   }
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, type Component } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -18,6 +18,7 @@ import {
   Target,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 import PageHeader from '@/components/PageHeader.vue';
 import CourseCard from '@/components/CourseCard.vue';
 import { useAuthStore } from '@/stores/auth';
@@ -137,7 +138,7 @@ const fetchData = async () => {
       myEnrollments.value = [];
     }
   } catch (error) {
-    console.error('Fetch data error:', error);
+    logError(error, { operation: 'academy.fetchData', component: 'AcademyView' });
   } finally {
     isLoading.value = false;
   }
@@ -219,7 +220,7 @@ const activeCategory = computed(() => {
 });
 
 const categoryTabsOptions = computed(() => {
-  const options: Array<{ label: string; value: string | null; icon?: any }> = [
+  const options: Array<{ label: string; value: string | null; icon?: Component }> = [
     { label: t('academy.allCourses'), value: null },
     { label: t('academy.myCourses'), value: 'mine', icon: BookOpen },
     { label: t('academy.myBookmarks'), value: 'bookmarked', icon: Bookmark },
@@ -247,7 +248,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
+    class="mobile-adaptive flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
     <!-- Top Header -->
@@ -292,7 +293,7 @@ onMounted(() => {
 
     <!-- Filters & Categories Bar -->
     <div
-      class="px-3 sm:px-4.5 lg:px-5 py-1.5 sm:py-2 border-b flex flex-wrap items-center justify-between gap-3 transition-colors duration-300"
+      class="mobile-row px-3 sm:px-4.5 lg:px-5 py-1.5 sm:py-2 border-b flex flex-wrap items-center justify-between gap-3 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <!-- Category Tabs -->
@@ -332,7 +333,7 @@ onMounted(() => {
               </h2>
             </div>
             <!-- Stats Container: Fixed 5 columns -->
-            <div class="grid grid-cols-5 gap-1 sm:gap-2.5">
+            <div class="stats-grid grid grid-cols-5 gap-1 sm:gap-2.5">
               <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
                 <div
                   class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1"
@@ -561,5 +562,11 @@ onMounted(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

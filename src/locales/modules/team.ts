@@ -1,0 +1,31 @@
+export const teamZh = {
+  createTitle: '创建新团队',
+  name: '团队名称',
+  namePlaceholder: '例如：3D 建模进阶小组',
+  description: '团队描述',
+  descriptionPlaceholder: '简要介绍一下你的团队...',
+  category: '团队分类',
+  categoryPlaceholder: '选择团队分类',
+  type: '团队类型',
+  public: '公开',
+  private: '私有',
+  createSuccess: '团队创建成功！',
+  createFailed: '创建团队失败',
+  nameRequired: '请输入团队名称',
+};
+
+export const teamEn = {
+  createTitle: 'Create New Team',
+  name: 'Team Name',
+  namePlaceholder: 'e.g. 3D Modeling Advanced Group',
+  description: 'Team Description',
+  descriptionPlaceholder: 'Briefly introduce your team...',
+  category: 'Team Category',
+  categoryPlaceholder: 'Select Team Category',
+  type: 'Team Type',
+  public: 'Public',
+  private: 'Private',
+  createSuccess: 'Team created successfully!',
+  createFailed: 'Failed to create team',
+  nameRequired: 'Please enter team name',
+};

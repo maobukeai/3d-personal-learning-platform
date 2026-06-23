@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatDate } from '@/utils/format';
+import { logError } from '@/utils/error';
 import { computed, defineAsyncComponent } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useI18n } from 'vue-i18n';
@@ -39,7 +40,7 @@ const parsedFormats = computed(() => {
       ? JSON.parse(asset.value.formats)
       : asset.value.formats;
   } catch (e) {
-    console.error('Failed to parse asset formats:', e);
+    logError(e, { operation: 'asset.parseFormats', component: 'AssetDetailsDrawer' });
     return [];
   }
 });

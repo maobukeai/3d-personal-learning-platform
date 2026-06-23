@@ -37,6 +37,7 @@ import {
   FolderCog,
   Globe2,
 } from 'lucide-vue-next';
+import { useLabel } from '@/utils/i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useMirrorStore, type MirrorCategory } from '@/stores/mirror';
@@ -82,13 +83,13 @@ export function getCategoryIcon(name: string) {
 }
 
 export function useSidebarMenus() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const route = useRoute();
   const authStore = useAuthStore();
   const workspaceStore = useWorkspaceStore();
   const mirrorStore = useMirrorStore();
   const manualStore = useManualStore();
-  const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
+  const label = useLabel();
 
   // Automatically fetch categories when active workspace changes or initializes
   watch(

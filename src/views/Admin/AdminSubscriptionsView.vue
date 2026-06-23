@@ -82,7 +82,7 @@ const fetchData = async () => {
     subscriptions.value = subsRes.data;
     activationCodes.value = Array.isArray(codesRes.data) ? codesRes.data : codesRes.data.data;
     fetchManagementInsights(true);
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('admin.failed_to_get_data'));
   } finally {
     isLoading.value = false;
@@ -93,7 +93,7 @@ const fetchUsers = async () => {
   try {
     const res = await api.get('/api/admin/users', { params: { page: 1, limit: 200 } });
     users.value = Array.isArray(res.data) ? res.data : res.data.data;
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('admin.failed_to_get_user'));
   }
 };
@@ -203,7 +203,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="admin-subscriptions-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
+    class="admin-subscriptions-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)] mobile-adaptive"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
       <!-- Page Header -->
@@ -238,7 +238,7 @@ onMounted(() => {
       </PageHeader>
 
       <!-- KPI Metrics Grid -->
-      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mobile-grid">
         <Card
           v-for="card in consolidatedCards"
           :key="card.label"

@@ -38,7 +38,7 @@ const openMemberProfile = (member: ProjectMember) => {
 <template>
   <aside
     v-if="!props.isMobile"
-    class="w-full lg:w-96 bg-white dark:bg-slate-900 border-r flex flex-col shrink-0 transition-colors z-10 shadow-[5px_0_30px_rgba(0,0,0,0.02)] overflow-y-auto"
+    class="w-full lg:w-96 bg-white dark:bg-slate-900 border-r flex flex-col shrink-0 transition-colors z-10 shadow-[5px_0_30px_rgba(0,0,0,0.02)] overflow-y-auto mobile-adaptive"
     style="border-color: var(--border-base)"
   >
     <!-- Back & Title -->

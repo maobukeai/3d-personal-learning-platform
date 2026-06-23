@@ -6,8 +6,9 @@ import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import TaskCard from '@/components/TaskCard.vue';
 import api from '@/utils/api';
+import { getApiErrorMessage } from '@/utils/error';
 import { useWorkspaceStore } from '@/stores/workspace';
-import type { ActiveColumn, Task } from '@/types/task';
+import type { ActiveColumn, Task, UserType } from '@/types/task';
 
 interface Props {
   tasksByGroup: Record<string, Task[]>;
@@ -21,7 +22,7 @@ interface Props {
     subtasks: boolean;
     description: boolean;
   };
-  teamMembers: any[];
+  teamMembers: UserType[];
 }
 
 const props = defineProps<Props>();
@@ -32,7 +33,12 @@ const emit = defineEmits<{
   (e: 'open-add-dialog', colId: string): void;
   (e: 'open-detail', task: Task): void;
   (e: 'open-profile', userId: string): void;
-  (e: 'update-subtask', parentId: string, subtaskIndex: number, fields: Record<string, any>): void;
+  (
+    e: 'update-subtask',
+    parentId: string,
+    subtaskIndex: number,
+    fields: Record<string, unknown>,
+  ): void;
   (e: 'drag-subtask', parentId: string, subtaskIndex: number, columnId: string): void;
 }>();
 
@@ -49,8 +55,8 @@ interface DragChangeEvent {
 const onDragChange = async (event: DragChangeEvent, columnId: string) => {
   if (event.added) {
     const task = event.added.element;
-    if ((task as any).isSubtask && (task as any).parentId) {
-      emit('drag-subtask', (task as any).parentId, (task as any).subtaskIndex, columnId);
+    if (task.isSubtask && task.parentId) {
+      emit('drag-subtask', task.parentId, task.subtaskIndex ?? 0, columnId);
       return;
     }
     try {
@@ -64,7 +70,7 @@ const onDragChange = async (event: DragChangeEvent, columnId: string) => {
         assigneeId: task.assigneeId,
         projectId: task.projectId,
         subtasks: task.subtasks,
-        participantIds: task.participants ? task.participants.map((p: any) => p.userId) : [],
+        participantIds: task.participants ? task.participants.map((p) => p.userId) : [],
       };
 
       if (props.groupBy === 'status') {
@@ -119,9 +125,8 @@ const onDragChange = async (event: DragChangeEvent, columnId: string) => {
       }
       emit('refresh-stats');
       emit('refresh', res.data);
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.error || t('tasks.updateFailed');
-      ElMessage.error(errorMsg);
+    } catch (error: unknown) {
+      ElMessage.error(getApiErrorMessage(error, t('tasks.updateFailed')));
       emit('refresh');
     }
   }
@@ -169,8 +174,8 @@ const openUserProfile = (userId: string) => {
 </script>
 
 <template>
-  <div class="flex-1 overflow-hidden p-1 sm:p-4">
-    <div class="md:gap-4 gap-1 sm:gap-2.5 h-full flex w-full">
+  <div class="mobile-adaptive flex-1 overflow-hidden p-1 sm:p-4">
+    <div class="mobile-row md:gap-4 gap-1 sm:gap-2.5 h-full flex w-full">
       <div
         v-for="col in activeColumns"
         :key="col.id"

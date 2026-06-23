@@ -109,7 +109,7 @@ onMounted(() => {
 <template>
   <div
     ref="containerRef"
-    class="relative p-0.5 rounded-xl glass-panel border border-white/20 dark:border-white/10 select-none overflow-hidden"
+    class="relative p-0.5 rounded-xl glass-panel border border-white/20 dark:border-white/10 select-none overflow-x-auto scrollbar-hide"
     :class="
       direction === 'vertical'
         ? 'flex flex-col gap-0.5 w-full'

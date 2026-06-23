@@ -6,6 +6,7 @@ import { ElMessage } from 'element-plus';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 import {
   fetchNotifications as fetchNotificationsRequest,
   markAllNotificationsAsRead,
@@ -35,7 +36,7 @@ const fetchNotifications = async () => {
       workspaceStore.fetchAdminStats();
     }
   } catch (error) {
-    console.error('Fetch notifications error:', error);
+    logError(error, { operation: 'notifications.fetch', component: 'NotificationCenter' });
   }
 };
 
@@ -77,7 +78,7 @@ const handleProjectInvitation = async (notification: AppNotification, accept: bo
       const n = notifications.value.find((notif) => notif.id === notification.id);
       if (n) n.isRead = true;
     }
-  } catch (error) {
+  } catch {
     ElMessage.error(accept ? '接受邀请失败' : '拒绝邀请失败');
   } finally {
     processingInvitations.value[notification.id] = false;
@@ -92,7 +93,10 @@ const handleMarkAsRead = async (notification: AppNotification) => {
         const n = notifications.value.find((notif) => notif.id === notification.id);
         if (n) n.isRead = true;
       } catch (error) {
-        console.error('Mark as read error:', error);
+        logError(error, {
+          operation: 'notifications.markReadInvite',
+          component: 'NotificationCenter',
+        });
       }
     }
     return;
@@ -104,7 +108,7 @@ const handleMarkAsRead = async (notification: AppNotification) => {
       const n = notifications.value.find((notif) => notif.id === notification.id);
       if (n) n.isRead = true;
     } catch (error) {
-      console.error('Mark as read error:', error);
+      logError(error, { operation: 'notifications.markRead', component: 'NotificationCenter' });
     }
   }
 
@@ -131,7 +135,7 @@ const handleMarkAllRead = async () => {
     notifications.value.forEach((n) => (n.isRead = true));
     ElMessage.success('已全部标记为已读');
   } catch (error) {
-    console.error('Mark all read error:', error);
+    logError(error, { operation: 'notifications.markAllRead', component: 'NotificationCenter' });
   }
 };
 
@@ -148,7 +152,7 @@ defineExpose({
     trigger="click"
     placement="bottom-end"
     popper-class="notification-glass"
-    menu-class="w-[420px] p-0 overflow-hidden"
+    menu-class="w-[calc(100vw-32px)] sm:w-[420px] max-w-[420px] p-0 overflow-hidden"
   >
     <template #trigger>
       <button
@@ -196,11 +200,12 @@ defineExpose({
         >
           {{ n.title }}
         </p>
+        <!-- eslint-disable vue/no-v-html -->
         <div
           class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-2.5"
           v-html="renderMarkdown(n.content)"
-        >
-        </div>
+        ></div>
+        <!-- eslint-enable vue/no-v-html -->
 
         <!-- Project Invite Actions -->
         <div v-if="n.type === 'PROJECT_INVITE'" class="mb-2.5 flex items-center gap-2" @click.stop>

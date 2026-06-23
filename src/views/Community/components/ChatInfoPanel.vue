@@ -5,23 +5,9 @@ import { X, Users, LogOut, Image as ImageIcon, Paperclip, Download } from 'lucid
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
 import { getAssetUrl } from '@/utils/api';
+import type { ChatConversation, ChatUser } from './chatTypes';
 
 type InfoTab = 'info' | 'photos' | 'files';
-
-interface Participant {
-  id: string;
-  name?: string | null;
-  email?: string | null;
-  avatarUrl?: string | null;
-}
-
-interface Conversation {
-  id: string;
-  name?: string | null;
-  avatarUrl?: string | null;
-  isGroup?: boolean;
-  participants?: Participant[];
-}
 
 interface SharedMedia {
   id: string;
@@ -32,7 +18,7 @@ interface SharedMedia {
 
 const _props = defineProps<{
   modelValue: boolean;
-  activeConversation: Conversation | null;
+  activeConversation: ChatConversation | null;
   sharedPhotos: SharedMedia[];
   sharedFiles: SharedMedia[];
 }>();
@@ -48,16 +34,16 @@ const authStore = useAuthStore();
 const infoTab = ref<InfoTab>('info');
 const infoTabs: InfoTab[] = ['info', 'photos', 'files'];
 
-const getOtherParticipant = (conv: Conversation | null) => {
+const getOtherParticipant = (conv: ChatConversation | null) => {
   if (!conv) return null;
   return conv.participants?.find((p) => p.id !== authStore.user?.id) || conv.participants?.[0];
 };
 
-const isParticipantOnline = (participant?: Participant | null) => {
+const isParticipantOnline = (participant?: ChatUser | null) => {
   return participant?.id ? authStore.isUserOnline(participant.id) : false;
 };
 
-const openParticipantProfile = (participant?: Participant | null) => {
+const openParticipantProfile = (participant?: ChatUser | null) => {
   if (participant?.id) {
     emit('open-profile', participant.id);
   }
@@ -87,7 +73,7 @@ const openLink = (url: string) => {
 <template>
   <div
     v-if="modelValue && activeConversation"
-    class="absolute right-0 top-0 bottom-0 w-full md:w-80 md:relative border-l flex flex-col shrink-0 overflow-hidden z-30 shadow-2xl md:shadow-none"
+    class="absolute right-0 top-0 bottom-0 w-full md:w-80 md:relative border-l flex flex-col shrink-0 overflow-hidden z-30 shadow-2xl md:shadow-none mobile-adaptive"
     style="background-color: var(--bg-card); border-color: var(--border-base)"
   >
     <div
@@ -107,7 +93,7 @@ const openLink = (url: string) => {
     </div>
 
     <!-- Tabs Header -->
-    <div class="flex p-0.5 gap-0.5 mx-3 mt-3 rounded-lg bg-[var(--bg-app)] shrink-0">
+    <div class="flex p-0.5 gap-0.5 mx-3 mt-3 rounded-lg bg-[var(--bg-app)] shrink-0 mobile-row">
       <button
         v-for="tab in infoTabs"
         :key="tab"
@@ -149,10 +135,13 @@ const openLink = (url: string) => {
             />
             <Users v-else class="w-6 h-6 text-indigo-500" />
           </div>
-          <h3 class="text-sm sm:text-base font-bold mb-0.5" style="color: var(--text-primary)">
+          <h3
+            class="text-sm sm:text-base font-bold mb-0.5 truncate px-2"
+            style="color: var(--text-primary)"
+          >
             {{ activeConversation.name || t('community.chat.unnamedGroup') }}
           </h3>
-          <p class="text-[11px]" style="color: var(--text-muted)">
+          <p class="text-[11px] truncate px-2" style="color: var(--text-muted)">
             {{ t('community.chat.groupChat') }} · {{ activeConversation.participants?.length || 0 }}
             {{ t('messages.groupParticipants') }}
           </p>
@@ -166,7 +155,7 @@ const openLink = (url: string) => {
             class="mx-auto mb-2"
           />
           <h3
-            class="text-sm sm:text-base font-bold mb-0.5 cursor-pointer hover:text-accent transition-colors"
+            class="text-sm sm:text-base font-bold mb-0.5 cursor-pointer hover:text-accent transition-colors truncate px-2"
             style="color: var(--text-primary)"
             @click="openParticipantProfile(getOtherParticipant(activeConversation))"
           >

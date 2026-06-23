@@ -2,7 +2,6 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
-  X,
   FolderOpen,
   RotateCcw,
   EyeOff,
@@ -19,18 +18,18 @@ import {
   SortAsc,
   CheckSquare,
 } from 'lucide-vue-next';
-import type { Project } from '@/types/task';
+import type { Project, UserType } from '@/types/task';
 
 const { t } = useI18n();
 
-const props = defineProps<{
+defineProps<{
   totalTasksCount: number;
   completionRate: number;
   overdueCount: number;
   projects: Project[];
   viewMode: 'board' | 'list' | 'calendar';
   isAnyFilterActive: boolean;
-  teamMembers: any[];
+  teamMembers: UserType[];
   allTags: string[];
 }>();
 
@@ -53,7 +52,7 @@ const sortBy = defineModel<'natural' | 'createdAt_asc' | 'createdAt_desc'>('sort
 const sortOrder = defineModel<'asc' | 'desc'>('sortOrder', { required: true });
 const hideCompleted = defineModel<boolean>('hideCompleted', { required: true });
 const onlyMyTasks = defineModel<boolean>('onlyMyTasks', { required: true });
-const visibleColumns = defineModel<Record<string, boolean>>('visibleColumns', { required: true });
+defineModel<Record<string, boolean>>('visibleColumns', { required: true });
 const assigneeFilter = defineModel<string>('assigneeFilter', { required: true });
 const tagFilter = defineModel<string>('tagFilter', { required: true });
 const subtaskDisplay = defineModel<'collapse' | 'expand' | 'separate'>('subtaskDisplay', {
@@ -111,7 +110,11 @@ const toggleSortOrder = () => {
       <el-dropdown
         trigger="click"
         popper-class="glass-popover"
-        @command="(val: string) => { selectedProjectId = val === 'all' ? null : val; }"
+        @command="
+          (val: string) => {
+            selectedProjectId = val === 'all' ? null : val;
+          }
+        "
       >
         <button
           type="button"
@@ -126,7 +129,16 @@ const toggleSortOrder = () => {
             class="w-3.5 h-3.5 shrink-0"
             :class="selectedProjectId ? 'text-accent' : 'text-slate-400'"
           />
-          <span>项目: {{ selectedProjectId === 'unassigned' ? '未指定' : (selectedProjectId ? (projects.find((p) => p.id === selectedProjectId)?.title || '未知项目') : '全部') }}</span>
+          <span
+            >项目:
+            {{
+              selectedProjectId === 'unassigned'
+                ? '未指定'
+                : selectedProjectId
+                  ? projects.find((p) => p.id === selectedProjectId)?.title || '未知项目'
+                  : '全部'
+            }}</span
+          >
           <ChevronDown class="w-3 h-3 opacity-60" />
         </button>
         <template #dropdown>

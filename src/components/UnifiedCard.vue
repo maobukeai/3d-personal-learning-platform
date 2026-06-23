@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatFileSize, formatRelativeTime } from '@/utils/format';
+import { parseTags } from '@/utils/tags';
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 import {
   Trash2,
   SendHorizonal,
@@ -20,9 +20,9 @@ import {
   Sparkles,
 } from 'lucide-vue-next';
 import { getAssetUrl } from '@/utils/api';
+import { useLabel } from '@/utils/i18n';
 
-const { locale } = useI18n();
-const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
+const label = useLabel();
 
 interface CardItem {
   id?: string | number;
@@ -37,9 +37,13 @@ interface CardItem {
   size?: number | string | null;
   fileSize?: number | string | null;
   sizeMb?: number | string | null;
-  tags?: string | unknown[] | null;
+  tags?: string | string[] | null;
   categoryName?: string | null;
-  category?: string | Record<string, any> | null;
+  category?:
+    | string
+    | Record<string, unknown>
+    | { name?: string | null; label?: string | null }
+    | null;
   format?: string | null;
   resolution?: string | null;
   version?: string | null;
@@ -109,20 +113,7 @@ const getStatusMeta = (status?: string) => {
 };
 
 // Extracted tags
-const tagsList = computed(() => {
-  const tags = props.item?.tags;
-  if (!tags) return [];
-  if (Array.isArray(tags)) return tags.slice(0, 3) as string[];
-  try {
-    const parsed = JSON.parse(tags);
-    if (Array.isArray(parsed)) return parsed.slice(0, 3) as string[];
-  } catch {}
-  return String(tags)
-    .split(/[，,]/)
-    .map((t) => t.trim())
-    .filter(Boolean)
-    .slice(0, 3);
-});
+const tagsList = computed(() => parseTags(props.item?.tags).slice(0, 3));
 
 // Normalized properties depending on kind
 const title = computed(() => props.item?.title || props.item?.name || '---');

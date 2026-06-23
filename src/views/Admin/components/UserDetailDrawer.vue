@@ -19,7 +19,7 @@ import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
 import type { AdminUser } from '../UsersView.vue';
 
-const props = defineProps<{
+defineProps<{
   modelValue: boolean;
   user: AdminUser | null;
 }>();
@@ -162,7 +162,7 @@ const riskClass = (user: AdminUser) => ({
     </template>
 
     <div v-if="user" class="drawer-body text-left">
-      <div class="drawer-actions">
+      <div class="drawer-actions mobile-row">
         <Button size="sm" :icon="UserCog" @click="emit('edit', user)"> 编辑 </Button>
         <Button size="sm" :icon="CreditCard" @click="emit('subscription', user)"> 订阅 </Button>
         <Button size="sm" :icon="KeyRound" @click="emit('reset-password', user)"> 密码 </Button>
@@ -176,7 +176,7 @@ const riskClass = (user: AdminUser) => ({
         </Button>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-2">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-2 mobile-grid">
         <!-- Left Column -->
         <div class="flex flex-col gap-6">
           <section class="detail-section">
@@ -302,7 +302,7 @@ const riskClass = (user: AdminUser) => ({
         </div>
       </div>
 
-      <div class="drawer-danger">
+      <div class="drawer-danger mobile-row">
         <Button variant="secondary" size="sm" :icon="Ban" @click="emit('toggle-status', user)">
           {{ user.status === 'BANNED' ? '恢复账号' : '封禁账号' }}
         </Button>

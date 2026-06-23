@@ -19,7 +19,7 @@ import {
   Database,
 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
-import { getApiErrorMessage } from '@/utils/error';
+import { getApiErrorMessage, logError } from '@/utils/error';
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 import Modal from '@/components/ui/Modal.vue';
 
@@ -93,7 +93,10 @@ const handleThumbnailUpload = async (event: Event) => {
     resourceForm.value.thumbnailUrl = data.url;
     ElMessage.success(t('admin.preview_image_uploaded_successfully'));
   } catch (error) {
-    console.error('Thumbnail upload error:', error);
+    logError(error, {
+      operation: 'admin.uploadManualThumbnail',
+      component: 'ManualResourceDialog',
+    });
     ElMessage.error(getApiErrorMessage(error, t('admin.preview_upload_failed')));
   } finally {
     isUploadingThumbnail.value = false;

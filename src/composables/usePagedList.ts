@@ -11,7 +11,7 @@ export interface UsePagedListOptions<T, R> {
   onError?: (err: unknown) => void;
 }
 
-export function usePagedList<T = unknown, R = any>(
+export function usePagedList<T = unknown, R = unknown>(
   endpoint: string | Ref<string> | (() => string),
   paramsRef?:
     | Ref<Record<string, unknown>>

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useI18n } from 'vue-i18n';
 import type { Component } from 'vue';
 import { ElMessage } from 'element-plus';
 import {
@@ -26,6 +25,7 @@ import AppearanceSection from './components/AppearanceSection.vue';
 import TeamsSection from './components/TeamsSection.vue';
 import DataSection from './components/DataSection.vue';
 import BackupSection from './components/BackupSection.vue';
+import { useLabel } from '@/utils/i18n';
 
 type SectionId =
   | 'profile'
@@ -51,7 +51,6 @@ interface SettingsSection {
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
-const { locale } = useI18n();
 
 const getInitialSection = (): SectionId => {
   const tab = route.query.tab;
@@ -77,7 +76,7 @@ const getInitialSection = (): SectionId => {
 const activeSection = ref<SectionId>(getInitialSection());
 const searchTerm = ref('');
 const isRefreshing = ref(false);
-const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
+const label = useLabel();
 
 const profileCompletion = computed(() => {
   const user = authStore.user;
@@ -236,7 +235,7 @@ watch(filteredSections, (next) => {
 </script>
 
 <template>
-  <div class="settings-workbench">
+  <div class="settings-workbench mobile-adaptive">
     <aside class="section-rail">
       <div class="rail-title">
         <p class="eyebrow">{{ label('系统设置', 'System Settings') }}</p>
@@ -291,7 +290,7 @@ watch(filteredSections, (next) => {
     </aside>
 
     <main class="settings-main">
-      <header v-if="activeSectionMeta" class="content-toolbar">
+      <header v-if="activeSectionMeta" class="content-toolbar mobile-row">
         <div class="content-title">
           <div class="title-icon" :class="`tone-${activeSectionMeta.tone}`">
             <component :is="activeSectionMeta.icon" />
@@ -303,7 +302,7 @@ watch(filteredSections, (next) => {
           </div>
         </div>
 
-        <div class="toolbar-actions">
+        <div class="toolbar-actions mobile-row">
           <span class="section-status" :class="`tone-${activeSectionMeta.tone}`">
             {{ activeSectionMeta.metric }}
           </span>
@@ -740,19 +739,6 @@ h2 {
 
   .section-list {
     grid-template-columns: 1fr;
-  }
-
-  .content-toolbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .toolbar-actions {
-    width: 100%;
-  }
-
-  .section-status {
-    margin-right: auto;
   }
 }
 </style>

@@ -194,26 +194,9 @@ export interface ProjectMember {
 }
 
 import { TaskStatus } from './task';
+import type { Task } from './task';
 export { TaskStatus };
-
-export interface Task {
-  id: string;
-  title: string;
-  description?: string | null;
-  status: TaskStatus;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-  tags?: string | null;
-  dueDate?: string | null;
-  userId: string;
-  assigneeId?: string | null;
-  assignee?: User | null;
-  teamId?: string | null;
-  projectId?: string | null;
-  project?: Project | null;
-  participants?: { userId: string; user?: User | null }[];
-  createdAt: string;
-  updatedAt: string;
-}
+export type { Task };
 
 export interface Showcase {
   id: string;
@@ -239,13 +222,17 @@ export interface Showcase {
   updatedAt: string;
 }
 
+export type FeedbackType = 'Bug' | 'Feature' | 'UI' | 'Other';
+export type FeedbackPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type FeedbackStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+
 export interface Feedback {
   id: string;
-  type: 'Bug' | 'Feature' | 'UI' | 'Other';
+  type: FeedbackType;
   title: string;
   description: string;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH';
-  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+  priority: FeedbackPriority;
+  status: FeedbackStatus;
   attachmentUrl?: string | null;
   adminReply?: string | null;
   repliedAt?: string | null;

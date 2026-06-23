@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineAsyncComponent, nextTick, ref } from 'vue';
+import { defineAsyncComponent, nextTick, ref, type Component } from 'vue';
 import {
   Sparkles,
   Plus,
@@ -116,7 +116,7 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 
 const providerMeta: Record<
   string,
-  { color: string; bg: string; border: string; label: string; lucideIcon: any }
+  { color: string; bg: string; border: string; label: string; lucideIcon: Component }
 > = {
   AGNES: {
     color: '#8b5cf6',

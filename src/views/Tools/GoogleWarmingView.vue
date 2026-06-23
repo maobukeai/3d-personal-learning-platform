@@ -2,28 +2,17 @@
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import {
-  Shield,
-  Plus,
-  Trash2,
-  Calendar,
-  Sparkles,
-  RefreshCw,
-  Copy,
-  Download,
-  Upload,
-  Key,
-  Search,
-  FileText,
-} from 'lucide-vue-next';
 import api from '@/utils/api';
-import { getApiErrorMessage } from '@/utils/error';
-import Modal from '@/components/ui/Modal.vue';
-import Button from '@/components/ui/Button.vue';
+import { getApiErrorMessage, logError } from '@/utils/error';
 
 // Subcomponents
 import GoogleWarmingConsoleTab from './components/GoogleWarmingConsoleTab.vue';
 import GoogleAccountsTab from './components/GoogleAccountsTab.vue';
+import GoogleWarmingHeader from './components/GoogleWarmingHeader.vue';
+import GoogleWarmingAccountList from './components/GoogleWarmingAccountList.vue';
+import GoogleWarmingImportDialog from './components/GoogleWarmingImportDialog.vue';
+import GoogleWarmingEditDialog from './components/GoogleWarmingEditDialog.vue';
+import GoogleWarmingPasswordGenDialog from './components/GoogleWarmingPasswordGenDialog.vue';
 
 interface GoogleAccount {
   id: string;
@@ -46,30 +35,10 @@ const accounts = ref<GoogleAccount[]>([]);
 const selectedAccountId = ref<string>('');
 const isLoading = ref<boolean>(false);
 const isImporting = ref<boolean>(false);
-const isAiParsing = ref<boolean>(false);
 const testMode = ref<boolean>(true); // Dev test mode: allows consecutive check-ins
 const activeMobileView = ref<'list' | 'detail'>('list');
 
-// Import form state
-const importText = ref<string>('');
-const parsedAccounts = ref<Array<Partial<GoogleAccount>>>([]);
-const importDefaultCategory = ref<string>('未分类');
-const autoTranslateCountry = ref<boolean>(true);
-
-// Watch default category change to update parsed accounts in preview in real-time
-watch(importDefaultCategory, (newVal) => {
-  if (newVal && parsedAccounts.value.length > 0) {
-    parsedAccounts.value.forEach((acc) => {
-      acc.category = newVal;
-    });
-  }
-});
-
 const openImportDialog = () => {
-  importText.value = '';
-  parsedAccounts.value = [];
-  importDefaultCategory.value = '未分类';
-  autoTranslateCountry.value = true;
   isImporting.value = true;
 };
 
@@ -107,7 +76,7 @@ const fetchCategories = async () => {
       categoriesListBackend.value = res.data.categories;
     }
   } catch (e: unknown) {
-    console.error('获取分类列表失败:', e);
+    logError(e, { operation: 'fetchCategories', view: 'GoogleWarmingView' });
   }
 };
 
@@ -176,25 +145,6 @@ const filteredAccounts = computed(() => {
     return matchQuery && matchStatus;
   });
 });
-
-// Batch selection helpers (Warming workspace list)
-const isAllSelected = computed(() => {
-  const ids = filteredAccounts.value.map((a) => a.id);
-  return ids.length > 0 && ids.every((id) => selectedAccountIds.value.includes(id));
-});
-
-const toggleSelectAll = () => {
-  const ids = filteredAccounts.value.map((a) => a.id);
-  if (isAllSelected.value) {
-    selectedAccountIds.value = selectedAccountIds.value.filter((id) => !ids.includes(id));
-  } else {
-    ids.forEach((id) => {
-      if (!selectedAccountIds.value.includes(id)) {
-        selectedAccountIds.value.push(id);
-      }
-    });
-  }
-};
 
 // Batch Action handlers
 const handleBatchWarm = async (customIds?: string[]) => {
@@ -311,133 +261,16 @@ const handleBatchCommand = (cmd: string) => {
   }
 };
 
-// Client-side auto-delimiter parse
-const handleStandardParse = () => {
-  if (!importText.value.trim()) {
-    ElMessage.warning(t('tools.email.import_warning_empty'));
-    return;
-  }
-
-  const lines = importText.value
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-  const tempParsed: Array<Partial<GoogleAccount>> = [];
-  const delimiters = ['----', '|', '\t', ',', ';'];
-
-  let bestDelimiter = '----';
-  let maxParts = 0;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Find best delimiter for the first few lines
-    if (i < 5) {
-      for (const d of delimiters) {
-        const parts = line.split(d);
-        if (parts.length > maxParts) {
-          maxParts = parts.length;
-          bestDelimiter = d;
-        }
-      }
-    }
-
-    const parts = line.split(bestDelimiter).map((p) => p.trim());
-    if (parts.length < 2) continue;
-
-    const email = parts[0] || '';
-    const password = parts[1] || '';
-    const recoveryEmail = parts[2] || '';
-    const twoFASecret = parts[3] || '';
-    const country = parts[4] || '';
-    let backupCodes = '';
-    let note = '';
-    let parsedCategory = '未分类';
-
-    if (parts.length >= 8) {
-      backupCodes = parts[5] || '';
-      parsedCategory = parts[6] || '未分类';
-      note = parts[7] || '';
-    } else if (parts.length === 7) {
-      backupCodes = parts[5] || '';
-      note = parts[6] || '';
-    } else if (parts.length === 6) {
-      note = parts[5] || '';
-    }
-
-    tempParsed.push({
-      email,
-      password,
-      recoveryEmail,
-      twoFASecret,
-      country,
-      backupCodes,
-      category:
-        importDefaultCategory.value && importDefaultCategory.value !== '未分类'
-          ? importDefaultCategory.value
-          : parsedCategory,
-      note,
-      status: 'warming',
-      currentDay: 1,
-    });
-  }
-
-  if (tempParsed.length === 0) {
-    ElMessage.error('快速解析失败，请检查分隔符');
-  } else {
-    parsedAccounts.value = tempParsed;
-    ElMessage.success(
-      `成功解析出 ${tempParsed.length} 个账号 (使用分隔符: "${bestDelimiter === '\t' ? '\\t' : bestDelimiter}")`,
-    );
-  }
-};
-
-// AI-based parsing
-const handleAiParse = async () => {
-  if (!importText.value.trim()) {
-    ElMessage.warning(t('tools.email.import_warning_empty'));
-    return;
-  }
-
-  isAiParsing.value = true;
-  try {
-    const res = await api.post('/api/google-warming/accounts/ai-parse', {
-      text: importText.value,
-      translateCountry: autoTranslateCountry.value,
-    });
-    if (res.data && res.data.success && Array.isArray(res.data.accounts)) {
-      parsedAccounts.value = res.data.accounts.map((acc: Partial<GoogleAccount>) => ({
-        ...acc,
-        category:
-          importDefaultCategory.value && importDefaultCategory.value !== '未分类'
-            ? importDefaultCategory.value
-            : acc.category || '未分类',
-        status: acc.status || 'warming',
-        currentDay: 1,
-      }));
-      ElMessage.success(`AI 智能解析成功，提取出 ${parsedAccounts.value.length} 个账号`);
-    } else {
-      throw new Error('AI 返回数据异常');
-    }
-  } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, 'AI 解析失败，请重试或使用快速解析'));
-  } finally {
-    isAiParsing.value = false;
-  }
-};
-
 // Submit bulk imports
-const submitImport = async () => {
-  if (parsedAccounts.value.length === 0) return;
+const submitImport = async (accountsToImport: Array<Partial<GoogleAccount>>) => {
+  if (accountsToImport.length === 0) return;
 
   try {
     const res = await api.post('/api/google-warming/accounts/import', {
-      accounts: parsedAccounts.value,
+      accounts: accountsToImport,
     });
     if (res.data && res.data.success) {
       ElMessage.success(`导入成功，共录入 ${res.data.count} 个谷歌账号`);
-      parsedAccounts.value = [];
-      importText.value = '';
       isImporting.value = false;
       await fetchAccounts();
       if (accounts.value.length > 0) {
@@ -638,28 +471,6 @@ const saveCountryInline = async (country: string) => {
   }
 };
 
-const getStatusLabel = (status: string) => {
-  switch (status) {
-    case 'completed':
-      return t('tools.googleWarming.statusCompleted');
-    case 'paused':
-      return t('tools.googleWarming.statusPaused');
-    default:
-      return t('tools.googleWarming.statusWarming');
-  }
-};
-
-const getStatusBadgeClass = (status: string) => {
-  switch (status) {
-    case 'completed':
-      return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-    case 'paused':
-      return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
-    default:
-      return 'bg-sky-500/10 text-sky-400 border border-sky-500/20';
-  }
-};
-
 // --- 2FA / TOTP Generator Logic ---
 function decodeBase32(secret: string): Uint8Array {
   const base32chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -704,7 +515,7 @@ async function generateTOTP(secret: string): Promise<{ code: string; timeLeft: n
 
     const cryptoKey = await window.crypto.subtle.importKey(
       'raw',
-      keyBytes as any,
+      keyBytes as BufferSource,
       { name: 'HMAC', hash: { name: 'SHA-1' } },
       false,
       ['sign'],
@@ -726,7 +537,7 @@ async function generateTOTP(secret: string): Promise<{ code: string; timeLeft: n
 
     return { code, timeLeft };
   } catch (error) {
-    console.error('Failed to generate TOTP:', error);
+    logError(error, { operation: 'generateTOTP', view: 'GoogleWarmingView' });
     return { code: 'ERR!', timeLeft: 0 };
   }
 }
@@ -743,7 +554,7 @@ const updateAllListTotps = async () => {
       try {
         const result = await generateTOTP(acc.twoFASecret);
         listTotpCodes.value[acc.id] = result;
-      } catch (e) {
+      } catch {
         listTotpCodes.value[acc.id] = { code: 'ERR!', timeLeft: 0 };
       }
     }
@@ -793,18 +604,6 @@ onUnmounted(() => {
   stopTotpTimer();
 });
 
-const copyText = (text: string, message: string = '已复制到剪贴板') => {
-  if (!text) return;
-  navigator.clipboard
-    .writeText(text)
-    .then(() => {
-      ElMessage.success(message);
-    })
-    .catch(() => {
-      ElMessage.error('复制失败');
-    });
-};
-
 // ── Password Generator ────────────────────────────────────────────────────────
 const generateRandomPassword = (targetRef: Partial<GoogleAccount>) => {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+';
@@ -831,74 +630,11 @@ const generateRandomPassword = (targetRef: Partial<GoogleAccount>) => {
   ElMessage.success('已自动生成并填充复杂密码！');
 };
 
-// ── Password Generator Dialog States ──────────────────────────────────────────
 const isPasswordGenVisible = ref(false);
-const passGenLength = ref(16);
-const passGenUpper = ref(true);
-const passGenLower = ref(true);
-const passGenNumbers = ref(true);
-const passGenSymbols = ref(false);
-const passGenResult = ref('');
-
-const generateDialogPassword = () => {
-  const poolLower = 'abcdefghijklmnopqrstuvwxyz';
-  const poolUpper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const poolDigit = '0123456789';
-  const poolSymbol = '!@#$%^&*()_+~[]{}:;.,?';
-
-  let allowedPool = '';
-  let guaranteed: string[] = [];
-
-  if (passGenLower.value) {
-    allowedPool += poolLower;
-    guaranteed.push(poolLower[Math.floor(Math.random() * poolLower.length)]);
-  }
-  if (passGenUpper.value) {
-    allowedPool += poolUpper;
-    guaranteed.push(poolUpper[Math.floor(Math.random() * poolUpper.length)]);
-  }
-  if (passGenNumbers.value) {
-    allowedPool += poolDigit;
-    guaranteed.push(poolDigit[Math.floor(Math.random() * poolDigit.length)]);
-  }
-  if (passGenSymbols.value) {
-    allowedPool += poolSymbol;
-    guaranteed.push(poolSymbol[Math.floor(Math.random() * poolSymbol.length)]);
-  }
-
-  if (allowedPool.length === 0) {
-    passGenLower.value = true;
-    passGenUpper.value = true;
-    passGenNumbers.value = true;
-    allowedPool = poolLower + poolUpper + poolDigit;
-    guaranteed.push(poolLower[Math.floor(Math.random() * poolLower.length)]);
-    guaranteed.push(poolUpper[Math.floor(Math.random() * poolUpper.length)]);
-    guaranteed.push(poolDigit[Math.floor(Math.random() * poolDigit.length)]);
-  }
-
-  let password = guaranteed.join('');
-  const remainingLength = passGenLength.value - password.length;
-
-  for (let i = 0; i < remainingLength; i++) {
-    password += allowedPool[Math.floor(Math.random() * allowedPool.length)];
-  }
-
-  passGenResult.value = password
-    .split('')
-    .sort(() => 0.5 - Math.random())
-    .join('');
-};
 
 const openPasswordGenerator = () => {
   isPasswordGenVisible.value = true;
-  generateDialogPassword();
 };
-
-watch([passGenLength, passGenUpper, passGenLower, passGenNumbers, passGenSymbols], () => {
-  if (isPasswordGenVisible.value) {
-    generateDialogPassword();
-  }
-});
 
 // ── Export / Import ──────────────────────────────────────────────────────────
 const fileInputRef = ref<HTMLInputElement | null>(null);
@@ -1013,334 +749,44 @@ async function handleImportFile(event: Event) {
 </script>
 
 <template>
-  <div class="gw-page">
+  <div class="gw-page mobile-adaptive">
     <div class="w-full space-y-3">
-      <!-- Top header (compact) -->
-      <div
-        class="gw-header !py-2 !mb-2 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 border-b border-slate-200 dark:border-slate-800/80"
-      >
-        <div class="flex flex-col gap-0.5">
-          <div class="flex flex-wrap items-center gap-2">
-            <h1 class="gw-title !text-sm sm:!text-base font-bold">
-              {{ t('tools.googleWarming.title') }}
-            </h1>
-            <span class="hidden sm:inline text-slate-300 dark:text-slate-700">|</span>
-            <p class="hidden sm:inline text-[10.5px] text-slate-500 max-w-md line-clamp-1">
-              {{ t('tools.googleWarming.description') }}
-            </p>
-          </div>
-        </div>
+      <GoogleWarmingHeader
+        v-model:active-tab="activeTab"
+        v-model:test-mode="testMode"
+        @export="handleExportAccounts"
+        @import-trigger="triggerImportFile"
+        @password-gen="openPasswordGenerator"
+        @add-account="openImportDialog"
+      />
 
-        <div
-          class="flex items-center justify-between sm:justify-end gap-1.5 w-full md:w-auto shrink-0 flex-wrap"
-        >
-          <!-- Dev Test Mode toggle -->
-          <label
-            class="flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/40 text-[10px] font-semibold text-slate-600 dark:text-slate-300 cursor-pointer select-none"
-          >
-            <input
-              v-model="testMode"
-              type="checkbox"
-              class="w-3 h-3 rounded accent-violet-500 cursor-pointer"
-            />
-            <span>测试打卡</span>
-          </label>
-
-          <div class="flex items-center gap-1.5">
-            <!-- Export -->
-            <button
-              class="flex items-center gap-1 px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700/50 text-[11px] font-semibold hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 transition-all text-slate-600 dark:text-slate-300 cursor-pointer"
-              title="导出全部账号为 JSON（包含密码、辅助邮箱、地区、状态等完整信息）"
-              @click="handleExportAccounts"
-            >
-              <Download class="w-3.5 h-3.5" />
-              <span>导出</span>
-            </button>
-
-            <!-- Import -->
-            <button
-              class="flex items-center gap-1 px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700/50 text-[11px] font-semibold hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 transition-all text-slate-600 dark:text-slate-300 cursor-pointer"
-              title="从 JSON 备份文件导入，完整还原所有字段"
-              @click="triggerImportFile"
-            >
-              <Upload class="w-3.5 h-3.5" />
-              <span>导入</span>
-            </button>
-            <input
-              ref="fileInputRef"
-              type="file"
-              accept=".json"
-              class="hidden"
-              @change="handleImportFile"
-            />
-
-            <!-- Password Generator -->
-            <button
-              class="flex items-center gap-1 px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700/50 text-[11px] font-semibold hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 transition-all text-slate-600 dark:text-slate-300 cursor-pointer"
-              title="生成随机复杂密码"
-              @click="openPasswordGenerator"
-            >
-              <Key class="w-3.5 h-3.5" />
-              <span>密码生成</span>
-            </button>
-
-            <!-- Add account -->
-            <button
-              class="bg-violet-600 hover:bg-violet-500 border-none font-semibold px-2.5 py-1.5 rounded transition-all flex items-center gap-0.5 cursor-pointer text-[11px] text-white"
-              @click="openImportDialog"
-            >
-              <Plus class="w-3.5 h-3.5" />
-              <span>{{ t('tools.googleWarming.addAccount') }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab Switcher -->
-      <div class="flex border-b border-slate-200 dark:border-slate-800/80 mb-2 gap-1">
-        <button
-          :class="[
-            'px-3 py-1.5 border-b-2 font-medium text-xs transition-all cursor-pointer flex items-center gap-1.5',
-            activeTab === 'warming'
-              ? 'border-violet-500 text-violet-600 dark:text-violet-400'
-              : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
-          ]"
-          @click="activeTab = 'warming'"
-        >
-          <Calendar class="w-3.5 h-3.5" />
-          <span>{{ t('tools.googleWarming.tabWarmingWorkspace') }}</span>
-        </button>
-        <button
-          :class="[
-            'px-3 py-1.5 border-b-2 font-medium text-xs transition-all cursor-pointer flex items-center gap-1.5',
-            activeTab === 'manage'
-              ? 'border-violet-500 text-violet-600 dark:text-violet-400'
-              : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
-          ]"
-          @click="activeTab = 'manage'"
-        >
-          <Shield class="w-3.5 h-3.5" />
-          <span>{{ t('tools.googleWarming.tabAccountManage') }}</span>
-        </button>
-      </div>
+      <input
+        ref="fileInputRef"
+        type="file"
+        accept=".json"
+        class="hidden"
+        @change="handleImportFile"
+      />
 
       <!-- Tab 1: Interactive Warming Workspace -->
       <div
         v-if="activeTab === 'warming'"
         class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-start"
       >
-        <!-- Left Account List -->
-        <div
-          :class="[
-            'lg:col-span-4 xl:col-span-3 gw-card !p-3 flex flex-col gap-2 max-h-[800px] w-full',
-            activeMobileView === 'list' ? 'flex' : 'hidden lg:flex',
-          ]"
-        >
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold" style="color: var(--text-primary)"
-              >{{ t('tools.googleWarming.accountsList') }}
-              <span class="text-slate-500 font-normal">({{ accounts.length }})</span></span
-            >
-            <button class="gw-icon-btn cursor-pointer !p-1" @click="fetchAccounts">
-              <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-            </button>
-          </div>
-
-          <div class="flex justify-center w-full">
-            <label class="search-box !min-h-0 !h-8 w-full shrink-0">
-              <Search />
-              <input
-                v-model="searchQuery"
-                type="text"
-                :placeholder="t('tools.googleWarming.searchPlaceholder')"
-              />
-            </label>
-          </div>
-
-          <div class="flex gap-0.5 p-0.5 rounded-lg text-[11px]" style="background: var(--bg-app)">
-            <button
-              v-for="status in ['all', 'warming', 'paused', 'completed']"
-              :key="status"
-              :class="[
-                'flex-1 py-1 rounded-md font-medium transition-all text-center cursor-pointer',
-                statusFilter === status
-                  ? 'bg-violet-600 text-white shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200',
-              ]"
-              @click="statusFilter = status as 'all' | 'warming' | 'completed' | 'paused'"
-            >
-              {{ status === 'all' ? t('tools.googleWarming.statusAll') : getStatusLabel(status) }}
-            </button>
-          </div>
-
-          <div
-            v-if="filteredAccounts.length > 0"
-            class="flex items-center justify-between text-[11px]"
-          >
-            <label
-              class="flex items-center gap-1.5 cursor-pointer text-slate-500 dark:text-slate-400 select-none"
-            >
-              <input
-                type="checkbox"
-                :checked="isAllSelected"
-                class="w-3 h-3 rounded accent-violet-500"
-                @change="toggleSelectAll"
-              />
-              <span>全选 ({{ selectedAccountIds.length }})</span>
-            </label>
-            <el-dropdown
-              trigger="click"
-              :disabled="selectedAccountIds.length === 0"
-              @command="handleBatchCommand"
-            >
-              <button
-                :disabled="selectedAccountIds.length === 0"
-                :class="[
-                  'px-2 py-1 rounded border font-medium transition-all flex items-center gap-1 text-[10px] cursor-pointer',
-                  selectedAccountIds.length > 0
-                    ? 'bg-violet-600/10 border-violet-500/30 text-violet-700 dark:text-violet-400 hover:bg-violet-600/20'
-                    : 'border-slate-200 dark:border-slate-800 text-slate-500 cursor-not-allowed',
-                ]"
-              >
-                {{ t('tools.googleWarming.batchActions') }}
-              </button>
-              <template #dropdown>
-                <el-dropdown-menu class="dark:bg-slate-900 border-none">
-                  <el-dropdown-item
-                    command="warm"
-                    class="text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    >一键打卡</el-dropdown-item
-                  >
-                  <el-dropdown-item
-                    command="status-warming"
-                    class="text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    >设为 养号中</el-dropdown-item
-                  >
-                  <el-dropdown-item
-                    command="status-paused"
-                    class="text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    >设为 已暂停</el-dropdown-item
-                  >
-                  <el-dropdown-item
-                    command="status-completed"
-                    class="text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    >设为 已毕业</el-dropdown-item
-                  >
-                  <el-dropdown-item
-                    command="delete"
-                    divided
-                    class="text-red-600 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    >批量删除</el-dropdown-item
-                  >
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-
-          <div
-            v-if="filteredAccounts.length === 0"
-            class="py-6 text-center flex flex-col items-center justify-center gap-2"
-          >
-            <FileText class="w-8 h-8 gw-icon-muted" />
-            <p class="gw-muted-text text-xs max-w-[180px]">
-              {{
-                searchQuery || statusFilter !== 'all'
-                  ? '未找到符合条件的账号'
-                  : t('tools.googleWarming.noAccounts')
-              }}
-            </p>
-          </div>
-
-          <div v-else class="flex flex-col gap-1.5 overflow-y-auto pr-1">
-            <div
-              v-for="acc in filteredAccounts"
-              :key="acc.id"
-              :class="[
-                'gw-account-item group/item',
-                selectedAccountId === acc.id ? 'gw-account-item--active' : '',
-              ]"
-              @click="selectAccount(acc.id)"
-            >
-              <div class="flex items-center gap-2">
-                <input
-                  v-model="selectedAccountIds"
-                  type="checkbox"
-                  :value="acc.id"
-                  class="w-3.5 h-3.5 rounded accent-violet-500 cursor-pointer shrink-0"
-                  @click.stop
-                />
-                <span
-                  class="text-[12px] font-semibold flex-1 truncate"
-                  style="color: var(--text-primary)"
-                  :title="acc.email"
-                  >{{ acc.email }}</span
-                >
-                <span
-                  :class="[
-                    'text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0',
-                    getStatusBadgeClass(acc.status),
-                  ]"
-                >
-                  {{ getStatusLabel(acc.status) }}
-                </span>
-              </div>
-
-              <div class="flex items-center gap-2 pl-5">
-                <span
-                  v-if="acc.note"
-                  class="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0"
-                  style="
-                    background: var(--bg-app);
-                    color: var(--text-muted);
-                    border: 1px solid var(--border-base);
-                  "
-                  >{{ acc.note }}</span
-                >
-                <span class="text-[10px] shrink-0" style="color: var(--text-muted)"
-                  >第 {{ acc.currentDay }} 天</span
-                >
-                <div class="flex-1"></div>
-                <span
-                  v-if="acc.twoFASecret && listTotpCodes[acc.id]"
-                  class="flex items-center gap-1 shrink-0"
-                >
-                  <span
-                    class="font-mono text-[11px] text-violet-600 dark:text-violet-400 font-bold tracking-widest"
-                    >{{ listTotpCodes[acc.id].code.slice(0, 3) }}
-                    {{ listTotpCodes[acc.id].code.slice(3) }}</span
-                  >
-                  <span class="text-[9px] font-mono" style="color: var(--text-muted)"
-                    >{{ listTotpCodes[acc.id].timeLeft }}s</span
-                  >
-                  <button
-                    class="opacity-0 group-hover/item:opacity-100 hover:text-violet-600 dark:hover:text-violet-400 p-0.5 transition-all text-slate-500 dark:text-slate-400 cursor-pointer"
-                    title="复制验证码"
-                    @click.stop="copyText(listTotpCodes[acc.id].code, '验证码已复制')"
-                  >
-                    <Copy class="w-2.5 h-2.5" />
-                  </button>
-                </span>
-              </div>
-
-              <div class="flex items-center gap-2 pl-5">
-                <div
-                  class="flex-1 h-1 rounded-full overflow-hidden"
-                  style="background: var(--border-base)"
-                >
-                  <div
-                    class="bg-gradient-to-r from-violet-500 to-indigo-500 h-full rounded-full transition-all duration-500"
-                    :style="{ width: `${(acc.currentDay / 14) * 100}%` }"
-                  ></div>
-                </div>
-                <span
-                  class="text-[9px] font-mono shrink-0 w-6 text-right"
-                  style="color: var(--text-muted)"
-                  >{{ Math.round((acc.currentDay / 14) * 100) }}%</span
-                >
-              </div>
-            </div>
-          </div>
-        </div>
+        <GoogleWarmingAccountList
+          v-model:selected-account-ids="selectedAccountIds"
+          v-model:search-query="searchQuery"
+          v-model:status-filter="statusFilter"
+          :class="[activeMobileView === 'list' ? 'flex' : 'hidden lg:flex']"
+          :accounts="accounts"
+          :filtered-accounts="filteredAccounts"
+          :selected-account-id="selectedAccountId"
+          :is-loading="isLoading"
+          :list-totp-codes="listTotpCodes"
+          @select="selectAccount"
+          @refresh="fetchAccounts"
+          @batch-command="handleBatchCommand"
+        />
 
         <!-- Right Tracking Console Panel -->
         <GoogleWarmingConsoleTab
@@ -1378,418 +824,20 @@ async function handleImportFile(event: Event) {
         />
       </div>
 
-      <!-- Bulk Import dialog -->
-      <Modal
-        :show="isImporting"
-        :title="t('tools.googleWarming.bulkImport')"
-        size="lg"
-        glass-card
-        @close="isImporting = false"
-      >
-        <div class="space-y-4">
-          <div class="gw-import-hint">
-            {{ t('tools.googleWarming.importPlaceholder') }}
-          </div>
+      <GoogleWarmingImportDialog
+        v-model:show="isImporting"
+        :categories-list="categoriesList"
+        @submit="submitImport"
+      />
 
-          <textarea
-            v-model="importText"
-            rows="6"
-            placeholder="粘贴账号数据，每行一个..."
-            class="gw-textarea"
-          ></textarea>
+      <GoogleWarmingEditDialog
+        v-model:show="isEditDialogVisible"
+        v-model:account="editingAccount"
+        @save="saveAccountEdit"
+        @generate-password="generateRandomPassword"
+      />
 
-          <div
-            class="flex flex-wrap items-center justify-between gap-4 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800"
-          >
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
-                {{ t('tools.googleWarming.importDefaultCategory') }}:
-              </span>
-              <el-select
-                v-model="importDefaultCategory"
-                filterable
-                allow-create
-                default-first-option
-                :placeholder="t('tools.googleWarming.defaultCategoryPlaceholder')"
-                size="small"
-                style="width: 160px"
-              >
-                <el-option
-                  v-for="cat in categoriesList.filter((c) => c !== 'all')"
-                  :key="cat"
-                  :label="cat === '未分类' ? '未分类 (无分类)' : cat"
-                  :value="cat"
-                />
-              </el-select>
-              <span class="text-[11px] text-slate-400 dark:text-slate-500">
-                {{ t('tools.googleWarming.realtimeApplyTip') }}
-              </span>
-            </div>
-
-            <div class="flex items-center">
-              <el-checkbox v-model="autoTranslateCountry" size="small">
-                {{ t('tools.googleWarming.autoTranslateCountry') }}
-              </el-checkbox>
-            </div>
-          </div>
-
-          <div class="flex justify-between items-center gap-3">
-            <div class="flex items-center gap-2">
-              <button class="gw-btn-secondary text-xs cursor-pointer" @click="handleStandardParse">
-                {{ t('tools.googleWarming.standardParseBtn') }}
-              </button>
-              <button
-                :disabled="isAiParsing"
-                class="flex items-center gap-1.5 bg-gradient-to-r from-violet-600/10 to-indigo-600/10 dark:from-violet-600/30 dark:to-indigo-600/30 hover:from-violet-600/20 hover:to-indigo-600/20 dark:hover:from-violet-600/50 dark:hover:to-indigo-600/50 text-violet-700 dark:text-violet-400 text-xs px-3.5 py-2 rounded-lg border border-violet-500/30 dark:border-violet-500/20 transition-all cursor-pointer"
-                @click="handleAiParse"
-              >
-                <Sparkles class="w-3.5 h-3.5" :class="{ 'animate-pulse': isAiParsing }" />
-                {{ t('tools.googleWarming.aiParseBtn') }}
-              </button>
-            </div>
-
-            <span
-              v-if="isAiParsing"
-              class="gw-muted-text text-xs flex items-center gap-1.5 animate-pulse"
-            >
-              <RefreshCw class="w-3.5 h-3.5 animate-spin" />
-              AI 正在努力识别和解析格式，请稍候...
-            </span>
-          </div>
-
-          <!-- Preview Table -->
-          <div v-if="parsedAccounts.length > 0" class="space-y-3 pt-3 gw-border-top">
-            <h4 class="gw-label-bold flex items-center justify-between">
-              <span>解析预览 ({{ parsedAccounts.length }} 个账号)</span>
-              <span class="gw-muted-text text-xs font-normal"
-                >双击或直接修改单元格可以校正错误数据</span
-              >
-            </h4>
-
-            <div class="overflow-x-auto gw-table-wrapper">
-              <table class="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr class="gw-table-head">
-                    <th class="p-3">邮箱</th>
-                    <th class="p-3">密码</th>
-                    <th class="p-3">辅助邮箱</th>
-                    <th class="p-3">2FA密钥</th>
-                    <th class="p-3">国家</th>
-                    <th class="p-3">备用密码</th>
-                    <th class="p-3">分类</th>
-                    <th class="p-3">状态</th>
-                    <th class="p-3">备注</th>
-                    <th class="p-3 text-right">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(acc, idx) in parsedAccounts" :key="idx" class="gw-table-row">
-                    <td class="p-2"><input v-model="acc.email" class="gw-table-input" /></td>
-                    <td class="p-2"><input v-model="acc.password" class="gw-table-input" /></td>
-                    <td class="p-2">
-                      <input v-model="acc.recoveryEmail" class="gw-table-input" />
-                    </td>
-                    <td class="p-2"><input v-model="acc.twoFASecret" class="gw-table-input" /></td>
-                    <td class="p-2"><input v-model="acc.country" class="gw-table-input" /></td>
-                    <td class="p-2">
-                      <input
-                        v-model="acc.backupCodes"
-                        class="gw-table-input"
-                        placeholder="备用密码"
-                      />
-                    </td>
-                    <td class="p-2">
-                      <input v-model="acc.category" class="gw-table-input" placeholder="未分类" />
-                    </td>
-                    <td class="p-2">
-                      <select
-                        v-model="acc.status"
-                        class="gw-table-input cursor-pointer"
-                        style="
-                          background: var(--bg-app);
-                          border: 1px solid var(--border-base);
-                          border-radius: 4px;
-                          padding: 2px 4px;
-                          font-size: 11px;
-                        "
-                      >
-                        <option value="warming">养号中</option>
-                        <option value="completed">已毕业</option>
-                        <option value="paused">已暂停</option>
-                      </select>
-                    </td>
-                    <td class="p-2"><input v-model="acc.note" class="gw-table-input" /></td>
-                    <td class="p-2 text-right">
-                      <button
-                        class="text-red-400 hover:text-red-300 p-1 transition-colors cursor-pointer"
-                        @click="parsedAccounts.splice(idx, 1)"
-                      >
-                        <Trash2 class="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div class="flex justify-end gap-3 pt-3">
-              <Button
-                variant="secondary"
-                size="sm"
-                @click="
-                  isImporting = false;
-                  parsedAccounts = [];
-                "
-              >
-                {{ t('tools.googleWarming.cancel_btn') }}
-              </Button>
-              <Button variant="primary" size="sm" @click="submitImport">
-                {{ t('tools.googleWarming.importConfirm', { count: parsedAccounts.length }) }}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Modal>
-
-      <!-- Edit details dialog -->
-      <Modal
-        :show="isEditDialogVisible"
-        :title="t('tools.googleWarming.editAccountTitle')"
-        size="md"
-        glass-card
-        @close="isEditDialogVisible = false"
-      >
-        <div class="space-y-2.5">
-          <div class="gw-field !gap-1">
-            <label class="gw-field-label !text-[10px]">邮箱账号</label>
-            <input v-model="editingAccount.email" type="text" class="gw-input !py-1.5 !text-xs" />
-          </div>
-
-          <div class="grid grid-cols-2 gap-2.5">
-            <div class="gw-field !gap-1">
-              <div class="flex items-center justify-between w-full">
-                <label class="gw-field-label !text-[10px]">密码</label>
-                <button
-                  type="button"
-                  class="text-[9px] text-violet-600 dark:text-violet-400 hover:text-violet-500 font-semibold cursor-pointer border-none bg-transparent"
-                  @click="generateRandomPassword(editingAccount)"
-                >
-                  一键生成复杂密码
-                </button>
-              </div>
-              <input
-                v-model="editingAccount.password"
-                type="text"
-                class="gw-input !py-1.5 !text-xs"
-              />
-            </div>
-            <div class="gw-field !gap-1">
-              <label class="gw-field-label !text-[10px]">辅助邮箱</label>
-              <input
-                v-model="editingAccount.recoveryEmail"
-                type="text"
-                class="gw-input !py-1.5 !text-xs"
-              />
-            </div>
-          </div>
-
-          <div class="gw-field !gap-1">
-            <label class="gw-field-label !text-[10px]">2FA 密钥</label>
-            <input
-              v-model="editingAccount.twoFASecret"
-              type="text"
-              class="gw-input !py-1.5 !text-xs font-mono"
-            />
-          </div>
-
-          <div class="gw-field !gap-1">
-            <label class="gw-field-label !text-[10px]">备用密码 (空格分隔的8位验证码)</label>
-            <input
-              v-model="editingAccount.backupCodes"
-              type="text"
-              class="gw-input !py-1.5 !text-xs font-mono"
-              placeholder="例如: 3191 6344 6829 7625..."
-            />
-          </div>
-
-          <div class="grid grid-cols-2 gap-2.5">
-            <div class="gw-field !gap-1">
-              <label class="gw-field-label !text-[10px]">国家地区</label>
-              <input
-                v-model="editingAccount.country"
-                type="text"
-                class="gw-input !py-1.5 !text-xs"
-              />
-            </div>
-            <div class="gw-field !gap-1">
-              <label class="gw-field-label !text-[10px]">当前天数</label>
-              <input
-                v-model.number="editingAccount.currentDay"
-                type="number"
-                min="1"
-                max="14"
-                class="gw-input !py-1.5 !text-xs"
-              />
-            </div>
-            <div class="gw-field !gap-1">
-              <label class="gw-field-label !text-[10px]">分类</label>
-              <input
-                v-model="editingAccount.category"
-                type="text"
-                placeholder="例如: GCP, AdSense"
-                class="gw-input !py-1.5 !text-xs"
-              />
-            </div>
-            <div class="gw-field !gap-1">
-              <label class="gw-field-label !text-[10px]">状态</label>
-              <select v-model="editingAccount.status" class="gw-input !py-1.5 !text-xs">
-                <option value="warming">养号中</option>
-                <option value="completed">已毕业</option>
-                <option value="paused">已暂停</option>
-              </select>
-            </div>
-            <div class="gw-field col-span-2 !gap-1">
-              <label class="gw-field-label !text-[10px]">备注/描述</label>
-              <input v-model="editingAccount.note" type="text" class="gw-input !py-1.5 !text-xs" />
-            </div>
-          </div>
-
-          <div class="flex justify-end gap-2 pt-2 gw-border-top">
-            <Button variant="secondary" size="sm" @click="isEditDialogVisible = false">
-              {{ t('tools.googleWarming.cancel_btn') }}
-            </Button>
-            <Button variant="primary" size="sm" @click="saveAccountEdit"> 保存修改 </Button>
-          </div>
-        </div>
-      </Modal>
-
-      <!-- Password Generator Dialog -->
-      <Modal
-        :show="isPasswordGenVisible"
-        title="密码生成器"
-        size="md"
-        glass-card
-        @close="isPasswordGenVisible = false"
-      >
-        <div class="space-y-4">
-          <div
-            class="flex items-center gap-2 p-3 rounded-xl border relative group"
-            style="border-color: var(--border-base); background: var(--bg-app)"
-          >
-            <input
-              type="text"
-              readonly
-              :value="passGenResult"
-              class="w-full bg-transparent border-none outline-none font-mono text-base font-semibold tracking-wider text-violet-600 dark:text-violet-400 select-all pr-12"
-            />
-            <div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-              <button
-                class="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-all cursor-pointer"
-                title="复制密码"
-                @click="copyText(passGenResult, '密码已复制')"
-              >
-                <Copy class="w-4 h-4" />
-              </button>
-              <button
-                class="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-all cursor-pointer"
-                title="重新生成"
-                @click="generateDialogPassword"
-              >
-                <RefreshCw class="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          <div class="space-y-3.5">
-            <div class="space-y-1.5">
-              <div class="flex items-center justify-between text-xs font-semibold">
-                <span class="text-slate-600 dark:text-slate-300"
-                  >密码长度 ({{ passGenLength }}位)</span
-                >
-              </div>
-              <div class="flex items-center gap-3">
-                <input
-                  v-model.number="passGenLength"
-                  type="range"
-                  min="6"
-                  max="32"
-                  class="flex-1 accent-violet-600 dark:accent-violet-500 cursor-pointer h-1.5 rounded-lg bg-slate-200 dark:bg-slate-800"
-                />
-                <span
-                  class="font-mono text-xs font-bold w-6 text-right text-slate-700 dark:text-slate-300"
-                  >{{ passGenLength }}</span
-                >
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 text-xs font-medium">
-              <label
-                class="flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-slate-500/5 transition-all cursor-pointer"
-                style="border-color: var(--border-base)"
-              >
-                <input
-                  v-model="passGenLower"
-                  type="checkbox"
-                  class="w-3.5 h-3.5 rounded accent-violet-500 cursor-pointer"
-                />
-                <span style="color: var(--text-primary)">小写字母 (a-z)</span>
-              </label>
-
-              <label
-                class="flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-slate-500/5 transition-all cursor-pointer"
-                style="border-color: var(--border-base)"
-              >
-                <input
-                  v-model="passGenUpper"
-                  type="checkbox"
-                  class="w-3.5 h-3.5 rounded accent-violet-500 cursor-pointer"
-                />
-                <span style="color: var(--text-primary)">大写字母 (A-Z)</span>
-              </label>
-
-              <label
-                class="flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-slate-500/5 transition-all cursor-pointer"
-                style="border-color: var(--border-base)"
-              >
-                <input
-                  v-model="passGenNumbers"
-                  type="checkbox"
-                  class="w-3.5 h-3.5 rounded accent-violet-500 cursor-pointer"
-                />
-                <span style="color: var(--text-primary)">数字字符 (0-9)</span>
-              </label>
-
-              <label
-                class="flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-slate-500/5 transition-all cursor-pointer"
-                style="border-color: var(--border-base)"
-              >
-                <input
-                  v-model="passGenSymbols"
-                  type="checkbox"
-                  class="w-3.5 h-3.5 rounded accent-violet-500 cursor-pointer"
-                />
-                <span style="color: var(--text-primary)">特殊符号 (!@#$)</span>
-              </label>
-            </div>
-          </div>
-        </div>
-        <template #footer>
-          <div class="flex justify-between items-center w-full pt-1.5">
-            <span class="text-[10px] text-slate-400 dark:text-slate-500">
-              安全提示：请妥善保存您的密码
-            </span>
-            <div class="flex gap-2">
-              <Button variant="secondary" size="sm" @click="isPasswordGenVisible = false">
-                关闭
-              </Button>
-              <Button variant="primary" size="sm" @click="generateDialogPassword">
-                <Sparkles class="w-3.5 h-3.5" />
-                <span>重新生成</span>
-              </Button>
-            </div>
-          </div>
-        </template>
-      </Modal>
+      <GoogleWarmingPasswordGenDialog v-model:show="isPasswordGenVisible" />
     </div>
   </div>
 </template>

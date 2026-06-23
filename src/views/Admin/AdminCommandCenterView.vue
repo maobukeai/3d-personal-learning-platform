@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { formatDateTime } from '@/utils/format';
-import { computed, onMounted, ref, type Component } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   Activity,
@@ -22,7 +22,6 @@ import {
   getHealthLabel,
   isLoadingManagementInsights,
   managementInsights,
-  managementInsightsError,
 } from './adminManagementInsights';
 
 // UI components
@@ -61,52 +60,6 @@ const watchQueue = computed(
 const riskMix = computed(
   () => commandCenter.value?.riskMix || { critical: 0, warning: 0, info: 0 },
 );
-
-const statusSentence = computed(() => {
-  if (!overview.value) return managementInsightsError.value || '正在加载后台运营数据';
-  if (urgentQueue.value) return `${urgentQueue.value} 个高优先队列需要处理`;
-  if (overview.value.issueCount) return `${overview.value.issueCount} 个运营信号需要复核`;
-  return '后台运营状态稳定';
-});
-
-const kpiCards = computed<
-  Array<{
-    label: string;
-    value: number;
-    sub: string;
-    icon: Component;
-    color: string;
-    route?: string;
-  }>
->(() => [
-  {
-    label: '待办队列',
-    value: totalQueue.value,
-    sub: `${urgentQueue.value} 个高优先`,
-    icon: Workflow,
-    color: urgentQueue.value
-      ? 'text-rose-600 bg-rose-500/10 border-rose-500/20'
-      : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
-    route: '/admin/audits',
-  },
-  {
-    label: 'SLA 负载',
-    value: command.value?.workloadTotal || 0,
-    sub: '跨模块待处理',
-    icon: Clock,
-    color: watchQueue.value
-      ? 'text-amber-600 bg-amber-500/10 border-amber-500/20'
-      : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
-  },
-  {
-    label: '有效权益',
-    value: overview.value?.activeEntitlements || 0,
-    sub: '当前订阅用户',
-    icon: ShieldCheck,
-    color: 'text-violet-600 bg-violet-500/10 border-violet-500/20',
-    route: '/admin/subscriptions',
-  },
-]);
 
 const getBadgeVariant = (status: string) => {
   if (status === 'healthy') return 'success';
@@ -179,7 +132,7 @@ void Gauge;
 </script>
 
 <template>
-  <div class="admin-command-center flex flex-1 min-h-0 flex-col overflow-hidden">
+  <div class="admin-command-center mobile-adaptive flex flex-1 min-h-0 flex-col overflow-hidden">
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
       <div class="space-y-3">
         <!-- Reusable PageHeader component -->
@@ -232,7 +185,9 @@ void Gauge;
           </Button>
         </PageHeader>
         <!-- Overview Grid (5-Column Flat Layout) -->
-        <section class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+        <section
+          class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mobile-grid"
+        >
           <!-- Card 1: System Health -->
           <Card
             hoverable
@@ -576,7 +531,9 @@ void Gauge;
                   >
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mt-1.5">
+                <div
+                  class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mt-1.5 mobile-grid"
+                >
                   <Card
                     v-for="item in commandCenter?.sla || []"
                     :key="item.key"
@@ -687,7 +644,7 @@ void Gauge;
                 </div>
               </div>
 
-              <div class="grid grid-cols-4 gap-1.5 mt-2.5 text-center">
+              <div class="grid grid-cols-4 gap-1.5 mt-2.5 text-center mobile-grid">
                 <span
                   class="inline-flex items-center justify-center gap-1.5 text-[9px] font-bold text-[var(--text-secondary)]"
                 >
@@ -741,7 +698,7 @@ void Gauge;
                   <span>运行环境关键开关与状态。</span>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2 mt-1.5">
+                <div class="grid grid-cols-2 gap-2 mt-1.5 mobile-grid">
                   <button
                     v-for="signal in commandCenter?.systemSignals || []"
                     :key="signal.key"
@@ -962,6 +919,19 @@ void Gauge;
 @media (max-width: 768px) {
   .overview-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .trend-chart {
+    grid-template-columns: repeat(7, minmax(14px, 1fr));
+    gap: 0.25rem;
+    height: 110px;
+    padding: 0.4rem 0.35rem 0.25rem;
+  }
+
+  .trend-bars {
+    gap: 1px;
   }
 }
 </style>

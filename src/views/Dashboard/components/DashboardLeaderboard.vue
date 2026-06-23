@@ -23,7 +23,7 @@ defineProps<{
 
     <div class="flex flex-col min-h-0 flex-1">
       <div v-if="leaderboardTop.length" class="dashboard-panel-list flex-1">
-        <div v-for="member in leaderboardTop" :key="member.id" class="leader-row">
+        <div v-for="member in leaderboardTop" :key="member.id" class="leader-row mobile-row">
           <Badge
             :variant="member.rank <= 3 ? 'warning' : 'primary'"
             :outline="member.rank > 3"

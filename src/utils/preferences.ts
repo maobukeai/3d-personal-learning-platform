@@ -106,13 +106,17 @@ export const preferences = {
     const mode = getItem(storageKeys.accentColorMode);
     return mode === 'static' || mode === 'refresh' || mode === 'interval' ? mode : 'static';
   },
-  setAccentColorMode: (mode: AccentColorModePreference) => setItem(storageKeys.accentColorMode, mode),
+  setAccentColorMode: (mode: AccentColorModePreference) =>
+    setItem(storageKeys.accentColorMode, mode),
 
   getAccentColorInterval: (): AccentColorIntervalPreference => {
     const interval = getItem(storageKeys.accentColorInterval);
-    return interval === '10s' || interval === '1m' || interval === '5m' || interval === '30m' ? interval : '1m';
+    return interval === '10s' || interval === '1m' || interval === '5m' || interval === '30m'
+      ? interval
+      : '1m';
   },
-  setAccentColorInterval: (interval: AccentColorIntervalPreference) => setItem(storageKeys.accentColorInterval, interval),
+  setAccentColorInterval: (interval: AccentColorIntervalPreference) =>
+    setItem(storageKeys.accentColorInterval, interval),
 
   getLanguage: (): LocalePreference => {
     const language = getItem(storageKeys.language);

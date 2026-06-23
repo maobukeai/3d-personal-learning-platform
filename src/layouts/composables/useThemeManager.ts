@@ -1,6 +1,10 @@
 import { ref } from 'vue';
 import { preferences, type ThemePreference } from '@/utils/preferences';
-import { applyAccentColorToDocument, applyThemeToDocument, accentColors } from '@/composables/useAppearance';
+import {
+  applyAccentColorToDocument,
+  applyThemeToDocument,
+  accentColors,
+} from '@/composables/useAppearance';
 
 export function useThemeManager() {
   const currentTheme = ref<ThemePreference>(preferences.getTheme());
@@ -43,7 +47,9 @@ export function useThemeManager() {
     if (list.length <= 1) return;
 
     // Get current applied color to make sure the next one is different
-    const applied = document.documentElement.style.getPropertyValue('--accent').trim() || preferences.getAccentColor();
+    const applied =
+      document.documentElement.style.getPropertyValue('--accent').trim() ||
+      preferences.getAccentColor();
     const candidates = list.filter((val) => val.toLowerCase() !== applied.toLowerCase());
     const fallbackList = candidates.length > 0 ? candidates : list;
     const randomColor = fallbackList[Math.floor(Math.random() * fallbackList.length)];

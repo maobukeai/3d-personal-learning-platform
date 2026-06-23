@@ -13,6 +13,7 @@ import {
   QrCode,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 import QRCode from 'qrcode';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
@@ -33,6 +34,12 @@ interface ShareConfig {
   expiresAt: string | null;
   customText: string | null;
   createdAt: string;
+}
+
+interface SharePayload {
+  expireHours?: number | null;
+  expiresAt?: string;
+  customText?: string | null;
 }
 
 const visible = ref(false);
@@ -73,7 +80,7 @@ const generateQrCode = async () => {
       },
     });
   } catch (err) {
-    console.error('生成二维码失败', err);
+    logError(err, { operation: 'notes.generateQrCode', component: 'NoteShareDialog' });
     qrCodeDataUrl.value = '';
   }
 };
@@ -231,7 +238,7 @@ const downloadQrCode = () => {
       link.click();
       ElMessage.success('分享二维码卡片已成功保存到本地！');
     } catch (err) {
-      console.error(err);
+      logError(err, { operation: 'notes.saveShareCard', component: 'NoteShareDialog' });
       ElMessage.error('保存二维码卡片失败');
     } finally {
       renderingCard.value = false;
@@ -276,7 +283,7 @@ const open = async (targetNote: Note) => {
       await generateQrCode();
     }
   } catch (error) {
-    console.error('获取分享配置失败', error);
+    logError(error, { operation: 'notes.fetchShareConfig', component: 'NoteShareDialog' });
   } finally {
     loading.value = false;
   }
@@ -286,7 +293,7 @@ const handleCreateOrUpdate = async () => {
   if (!note.value) return;
   saving.value = true;
   try {
-    let payload: any = {};
+    let payload: SharePayload = {};
     if (durationType.value === '1h') payload.expireHours = 1;
     else if (durationType.value === '1d') payload.expireHours = 24;
     else if (durationType.value === '7d') payload.expireHours = 168;
@@ -317,7 +324,7 @@ const handleCreateOrUpdate = async () => {
     } else {
       ElMessage.error('创建失败');
     }
-  } catch (_e) {
+  } catch {
     ElMessage.error('更新分享链接失败');
   } finally {
     saving.value = false;
@@ -367,7 +374,7 @@ defineExpose({ open });
 <template>
   <Modal :show="visible" size="lg" :z-index="1100" glass-card @close="visible = false">
     <template #header>
-      <div class="flex items-center gap-2.5">
+      <div class="mobile-row flex items-center gap-2.5">
         <div
           class="p-2 bg-[var(--bg-subtle)] text-[var(--text-secondary)] border border-[var(--border-base)] rounded-lg"
         >
@@ -384,13 +391,13 @@ defineExpose({ open });
       </div>
     </template>
 
-    <div v-loading="loading" class="grid grid-cols-1 md:grid-cols-12 gap-5 py-0.5">
+    <div v-loading="loading" class="mobile-adaptive grid grid-cols-1 md:grid-cols-12 gap-5 py-0.5">
       <!-- Left Column: Settings (7 cols) -->
       <div class="md:col-span-7 space-y-4">
         <!-- Note Summary Box -->
         <div
           v-if="note"
-          class="p-3 bg-slate-50/40 dark:bg-zinc-900/10 rounded-xl border border-[var(--border-base)] flex items-start gap-3 transition-all duration-300"
+          class="mobile-row p-3 bg-slate-50/40 dark:bg-zinc-900/10 rounded-xl border border-[var(--border-base)] flex items-start gap-3 transition-all duration-300"
         >
           <div
             class="p-2 bg-[var(--bg-subtle)] text-[var(--text-secondary)] border border-[var(--border-base)] rounded-lg shrink-0 flex items-center justify-center"
@@ -421,7 +428,7 @@ defineExpose({ open });
             >
               <Clock class="w-3.5 h-3.5 text-[var(--text-secondary)]" /> 设置链接有效时长
             </label>
-            <div class="grid grid-cols-3 gap-1.5">
+            <div class="mobile-grid grid grid-cols-3 gap-1.5">
               <button
                 v-for="opt in [
                   { val: 'permanent', label: '永久有效' },
@@ -467,7 +474,7 @@ defineExpose({ open });
 
           <!-- Custom Share Text Toggle & Field -->
           <div class="space-y-2 pt-2.5 border-t border-[var(--border-base)]">
-            <div class="flex items-center justify-between">
+            <div class="mobile-row flex items-center justify-between">
               <label
                 class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1"
               >
@@ -492,7 +499,7 @@ defineExpose({ open });
 
                 <!-- Shortcut templates -->
                 <div
-                  class="flex items-center gap-1 pt-0.5 overflow-x-auto whitespace-nowrap shortcut-list"
+                  class="mobile-row flex items-center gap-1 pt-0.5 overflow-x-auto whitespace-nowrap shortcut-list"
                 >
                   <span class="text-xs text-[var(--text-muted)] select-none flex-shrink-0"
                     >快捷留言:</span
@@ -521,7 +528,7 @@ defineExpose({ open });
               class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest block ml-1"
               >分享链接</label
             >
-            <div class="relative flex items-center">
+            <div class="mobile-row relative flex items-center">
               <input
                 :value="shareUrl"
                 readonly
@@ -559,7 +566,7 @@ defineExpose({ open });
       >
         <!-- Card Top Section (Stylized Note Info) -->
         <div class="space-y-2 text-left">
-          <div class="flex items-center justify-between">
+          <div class="mobile-row flex items-center justify-between">
             <span
               class="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1"
             >
@@ -646,7 +653,7 @@ defineExpose({ open });
 
     <!-- Footer buttons -->
     <template #footer>
-      <div class="flex justify-between items-center gap-2 w-full">
+      <div class="mobile-row flex justify-between items-center gap-2 w-full">
         <div>
           <Button
             v-if="shareConfig"

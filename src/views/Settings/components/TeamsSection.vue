@@ -62,14 +62,14 @@ onMounted(fetchMyTeams);
 </script>
 
 <template>
-  <div class="teams-section">
+  <div class="teams-section mobile-adaptive">
     <section class="teams-overview">
       <div>
         <p class="section-kicker">团队空间</p>
         <h3>{{ myTeams.length }} 个空间 · {{ totalMembers }} 名成员</h3>
         <span>快速查看你创建或加入的协作空间，进入任务、项目和成员管理。</span>
       </div>
-      <div class="overview-actions">
+      <div class="overview-actions mobile-row">
         <Button
           variant="secondary"
           :icon="ExternalLink"
@@ -106,7 +106,7 @@ onMounted(fetchMyTeams);
     </section>
 
     <section class="team-workbench">
-      <div class="team-toolbar">
+      <div class="team-toolbar mobile-row">
         <Input
           v-model="searchTerm"
           type="search"
@@ -513,34 +513,10 @@ a svg {
   }
 }
 
-@media (max-width: 860px) {
-  .teams-overview,
-  .team-toolbar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .team-search {
-    width: 100%;
-  }
-}
-
 @media (max-width: 620px) {
-  .overview-actions,
   .team-metrics,
   .quick-grid {
     grid-template-columns: 1fr;
-  }
-
-  .overview-actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .primary-action,
-  .secondary-action {
-    justify-content: center;
-    width: 100%;
   }
 
   .filter-tabs {

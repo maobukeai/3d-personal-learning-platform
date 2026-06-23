@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 
 /**
  * Shared query params used by both manual stations and mirror sources.
@@ -66,7 +67,11 @@ export function createResourceStationStore<TStation, TCategory, TResource>(
         const res = await api.get(`${apiBaseUrl}/${entitiesPath}`);
         stations.value = res.data;
       } catch (e) {
-        console.error(`Failed to fetch ${label}:`, e);
+        logError(e, {
+          operation: 'resourceStation.fetchStations',
+          stationType: label,
+          component: 'createResourceStationStore',
+        });
         stations.value = [];
       } finally {
         isLoadingStations.value = false;
@@ -78,7 +83,11 @@ export function createResourceStationStore<TStation, TCategory, TResource>(
         const res = await api.get(`${apiBaseUrl}/${entitiesPath}/${stationId}`);
         currentStation.value = res.data;
       } catch (e) {
-        console.error(`Failed to fetch ${label.slice(0, -1)}:`, e);
+        logError(e, {
+          operation: 'resourceStation.fetchStation',
+          stationType: label,
+          component: 'createResourceStationStore',
+        });
         currentStation.value = null;
       }
     }
@@ -89,7 +98,11 @@ export function createResourceStationStore<TStation, TCategory, TResource>(
         const res = await api.get(`${apiBaseUrl}/${entitiesPath}/${stationId}/categories`);
         categories.value = res.data;
       } catch (e) {
-        console.error('Failed to fetch categories:', e);
+        logError(e, {
+          operation: 'resourceStation.fetchCategories',
+          stationType: label,
+          component: 'createResourceStationStore',
+        });
         categories.value = [];
       } finally {
         isLoadingCategories.value = false;
@@ -124,7 +137,11 @@ export function createResourceStationStore<TStation, TCategory, TResource>(
         totalPages.value = res.data.totalPages;
         currentPage.value = res.data.page;
       } catch (e) {
-        console.error('Failed to fetch resources:', e);
+        logError(e, {
+          operation: 'resourceStation.fetchResources',
+          stationType: label,
+          component: 'createResourceStationStore',
+        });
         resources.value = [];
       } finally {
         isLoadingResources.value = false;
@@ -136,7 +153,11 @@ export function createResourceStationStore<TStation, TCategory, TResource>(
         const res = await api.get(`${apiBaseUrl}/resources/${resourceId}`);
         return res.data;
       } catch (e) {
-        console.error('Failed to fetch resource:', e);
+        logError(e, {
+          operation: 'resourceStation.fetchResource',
+          stationType: label,
+          component: 'createResourceStationStore',
+        });
         return null;
       }
     }

@@ -345,18 +345,18 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="security-section">
-    <section class="security-overview">
-      <div>
+  <div class="security-section mobile-adaptive">
+    <section class="security-overview mobile-row">
+      <div class="min-w-0">
         <p class="section-kicker">账号安全</p>
-        <h3>{{ securityScore }}% 安全评分</h3>
-        <span>{{
+        <h3 class="truncate">{{ securityScore }}% 安全评分</h3>
+        <span class="truncate">{{
           authStore.user?.twoFactorEnabled
             ? '双重验证已保护你的登录流程。'
             : '建议开启双重验证并定期更新密码。'
         }}</span>
       </div>
-      <div class="check-strip">
+      <div class="check-strip mobile-row">
         <span v-for="item in securityChecks" :key="item.label" :class="{ done: item.done }">
           <CheckCircle2 />
           {{ item.label }}
@@ -366,11 +366,11 @@ onUnmounted(() => {
 
     <section class="security-grid">
       <div class="security-panel">
-        <div class="panel-title">
+        <div class="panel-title mobile-row">
           <span>邮箱地址</span>
           <Mail />
         </div>
-        <p class="current-email">当前邮箱：{{ authStore.user?.email }}</p>
+        <p class="current-email truncate">当前邮箱：{{ authStore.user?.email }}</p>
 
         <div v-if="emailChangeForm.step === 1" class="form-stack">
           <Input
@@ -401,7 +401,7 @@ onUnmounted(() => {
             placeholder="000000"
             input-class="text-center font-bold tracking-widest text-lg"
           />
-          <div class="inline-actions">
+          <div class="inline-actions mobile-row">
             <Button variant="secondary" @click="emailChangeForm.step = 1"> 返回 </Button>
             <Button
               variant="primary"
@@ -416,7 +416,7 @@ onUnmounted(() => {
       </div>
 
       <div class="security-panel">
-        <div class="panel-title">
+        <div class="panel-title mobile-row">
           <span>登录密码</span>
           <Lock />
         </div>
@@ -459,13 +459,13 @@ onUnmounted(() => {
     </section>
 
     <section class="security-panel two-factor-panel">
-      <div class="two-factor-head">
-        <div>
-          <div class="panel-title">
+      <div class="two-factor-head mobile-row">
+        <div class="min-w-0">
+          <div class="panel-title mobile-row">
             <span>双重验证</span>
             <Fingerprint />
           </div>
-          <p>
+          <p class="truncate">
             {{
               authStore.user?.twoFactorEnabled
                 ? '登录时需要动态验证码或恢复码。'
@@ -532,7 +532,7 @@ onUnmounted(() => {
                 placeholder="000000"
               />
             </div>
-            <div class="inline-actions">
+            <div class="inline-actions mobile-row">
               <Button variant="secondary" @click="show2FASetup = false"> 取消 </Button>
               <Button
                 variant="primary"
@@ -626,7 +626,7 @@ onUnmounted(() => {
     </section>
 
     <section class="security-panel">
-      <div class="panel-title">
+      <div class="panel-title mobile-row">
         <span>受信设备</span>
         <Button
           size="sm"
@@ -791,14 +791,12 @@ h3 {
   margin: 0 0 10px;
 }
 
-.form-stack,
 .device-list,
 .device-skeletons {
   display: grid;
   gap: 9px;
 }
 
-.form-stack label,
 .disable-box label {
   display: grid;
   gap: 7px;

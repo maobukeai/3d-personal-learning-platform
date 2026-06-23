@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, watch, ref, onMounted, nextTick, type CSSProperties } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import {
   Box,
@@ -18,6 +17,7 @@ import { useWorkspaceStore } from '@/stores/workspace';
 import { preferences, type SidebarMode } from '@/utils/preferences';
 import type { SidebarMenuGroup, SidebarMenuItem } from '../composables/useSidebarMenus';
 import { useSidebarPreferences } from '../composables/useSidebarPreferences';
+import { useLabel } from '@/utils/i18n';
 
 interface PreparedSidebarItem extends SidebarMenuItem {
   tooltip: string;
@@ -38,7 +38,6 @@ const emit = defineEmits<{
 }>();
 
 const route = useRoute();
-const { locale } = useI18n();
 const authStore = useAuthStore();
 const workspaceStore = useWorkspaceStore();
 
@@ -61,7 +60,7 @@ const {
   isAuthenticated: computed(() => authStore.isAuthenticated),
 });
 
-const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
+const label = useLabel();
 
 const quickLinks = computed(() => [
   {
@@ -152,7 +151,7 @@ const showQuickLinks = computed(
 
 const isRouteActive = (path: string) => {
   const [basePath, queryStr] = path.split('?');
-  
+
   // Parse query parameters
   const query: Record<string, string> = {};
   if (queryStr) {
@@ -172,14 +171,18 @@ const isRouteActive = (path: string) => {
     if (activeSourceId && basePath === `/mirror/source/${activeSourceId}`) {
       matches = true;
     }
-  } else if (currentPath.startsWith('/manual/resource/') && basePath.startsWith('/manual/station/')) {
+  } else if (
+    currentPath.startsWith('/manual/resource/') &&
+    basePath.startsWith('/manual/station/')
+  ) {
     // If we are on manual resource detail page, it belongs to the active station
     const activeStationId = workspaceStore.currentWorkspace?.manualStationId;
     if (activeStationId && basePath === `/manual/station/${activeStationId}`) {
       matches = true;
     }
   } else {
-    matches = currentPath === basePath || (basePath !== '/' && currentPath.startsWith(`${basePath}/`));
+    matches =
+      currentPath === basePath || (basePath !== '/' && currentPath.startsWith(`${basePath}/`));
   }
 
   if (!matches) return false;

@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { X, Plus } from 'lucide-vue-next';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
+import { getTagClass } from '@/utils/tags';
 
 interface Member {
   id: string;
@@ -106,23 +107,6 @@ const addTag = () => {
 const removeTag = (tag: string) => {
   localNewTask.value.tags = localNewTask.value.tags.filter((t) => t !== tag);
 };
-
-const tagColorMap: Record<string, string> = {
-  设计: 'bg-pink-500/10 text-pink-500',
-  开发: 'bg-blue-500/10 text-blue-500',
-  学习: 'bg-emerald-500/10 text-emerald-500',
-  '3D': 'bg-violet-500/10 text-violet-500',
-  建模: 'bg-cyan-500/10 text-cyan-500',
-  渲染: 'bg-amber-500/10 text-amber-500',
-  动画: 'bg-rose-500/10 text-rose-500',
-  研究: 'bg-indigo-500/10 text-indigo-500',
-  文档: 'bg-teal-500/10 text-teal-500',
-  优化: 'bg-lime-500/10 text-lime-500',
-};
-
-const defaultTagClass = 'bg-slate-500/10 text-slate-500';
-
-const getTagClass = (tag: string) => tagColorMap[tag] || defaultTagClass;
 
 const handleClose = () => {
   emit('update:modelValue', false);

@@ -111,10 +111,7 @@ export async function parseSSEStream(
  */
 export function renderMarkdown(text: string): string {
   if (!text) return '';
-  let html = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
   // 1. Block-level: Headings
   html = html
@@ -125,8 +122,14 @@ export function renderMarkdown(text: string): string {
 
   // 2. Block-level: Lists (supporting optional indentation and both '-' and '*')
   html = html
-    .replace(/^\s*[-*]\s+\[\s*\]\s+(.+)$/gm, '<li class="md-li unchecked"><span class="chk"></span>$1</li>')
-    .replace(/^\s*[-*]\s+\[x\]\s+(.+)$/gm, '<li class="md-li checked"><span class="chk done">✓</span>$1</li>')
+    .replace(
+      /^\s*[-*]\s+\[\s*\]\s+(.+)$/gm,
+      '<li class="md-li unchecked"><span class="chk"></span>$1</li>',
+    )
+    .replace(
+      /^\s*[-*]\s+\[x\]\s+(.+)$/gm,
+      '<li class="md-li checked"><span class="chk done">✓</span>$1</li>',
+    )
     .replace(/^\s*[-*]\s+(.+)$/gm, '<li class="md-li">$1</li>')
     .replace(/^\s*\d+\.\s+(.+)$/gm, '<li class="md-li">$1</li>');
 

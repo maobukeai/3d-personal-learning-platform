@@ -434,24 +434,22 @@ html.dark.theme-glass .text-slate-400 {
 
 /* Ensure the body has the base canvas with premium mesh gradient blobs for glass themes */
 html.theme-glass body {
-  background: 
+  background:
     radial-gradient(at 0% 20%, rgba(245, 121, 42, 0.15) 0px, transparent 50%),
     radial-gradient(at 90% 10%, rgba(59, 130, 246, 0.18) 0px, transparent 50%),
     radial-gradient(at 0% 80%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
-    radial-gradient(at 70% 80%, rgba(34, 197, 94, 0.1) 0px, transparent 50%),
-    var(--bg-app) !important;
+    radial-gradient(at 70% 80%, rgba(34, 197, 94, 0.1) 0px, transparent 50%), var(--bg-app) !important;
   background-attachment: fixed !important;
   background-size: cover !important;
 }
 
 html.theme-glass.dark body,
 html.dark.theme-glass body {
-  background: 
+  background:
     radial-gradient(at 0% 20%, rgba(245, 121, 42, 0.15) 0px, transparent 50%),
     radial-gradient(at 90% 10%, rgba(37, 99, 235, 0.22) 0px, transparent 50%),
     radial-gradient(at 0% 80%, rgba(124, 58, 237, 0.15) 0px, transparent 50%),
-    radial-gradient(at 70% 80%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
-    var(--bg-app) !important;
+    radial-gradient(at 70% 80%, rgba(16, 185, 129, 0.1) 0px, transparent 50%), var(--bg-app) !important;
   background-attachment: fixed !important;
   background-size: cover !important;
 }
@@ -602,14 +600,7 @@ html.theme-glass input[type='number'],
 html.theme-glass textarea,
 html.theme-glass .notification-item:hover,
 html.theme-glass .el-overlay,
-html.theme-glass .el-overlay-dialog,
-html.theme-glass .backdrop-blur,
-html.theme-glass .backdrop-blur-sm,
-html.theme-glass .backdrop-blur-md,
-html.theme-glass .backdrop-blur-lg,
-html.theme-glass .backdrop-blur-xl,
-html.theme-glass .backdrop-blur-2xl,
-html.theme-glass .backdrop-blur-3xl {
+html.theme-glass .el-overlay-dialog {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -833,4 +824,73 @@ div[class*='backdrop-blur-'] {
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   perspective: 1000px;
+}
+
+/* ============================================================
+   Premium Glassmorphic Popper and Option Style Unification
+   ============================================================ */
+html.theme-glass .el-popper,
+html.theme-glass .el-select__popper,
+html.theme-glass .el-dropdown__popper {
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+}
+
+html.theme-glass.dark .el-popper,
+html.theme-glass.dark .el-select__popper,
+html.theme-glass.dark .el-dropdown__popper {
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Style select dropdown list container */
+html.theme-glass .el-select-dropdown__wrap {
+  padding: 4px !important;
+}
+
+/* Style select options in glass mode */
+html.theme-glass .el-select-dropdown__item {
+  color: var(--text-secondary) !important;
+  font-size: 13px !important;
+  font-weight: 550 !important;
+  border-radius: 8px !important;
+  padding: 0 12px !important;
+  height: 34px !important;
+  line-height: 34px !important;
+  margin: 2px 4px !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+html.theme-glass .el-select-dropdown__item.hover,
+html.theme-glass .el-select-dropdown__item:hover {
+  background-color: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+html.theme-glass .el-select-dropdown__item.is-selected {
+  background-color: var(--bg-active) !important;
+  color: var(--accent) !important;
+  font-weight: 700 !important;
+}
+
+/* Style dropdown items in glass mode */
+html.theme-glass .el-dropdown-menu__item {
+  color: var(--text-secondary) !important;
+  font-size: 13px !important;
+  font-weight: 550 !important;
+  border-radius: 8px !important;
+  padding: 6px 12px !important;
+  margin: 2px 4px !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+html.theme-glass .el-dropdown-menu__item:hover,
+html.theme-glass .el-dropdown-menu__item:focus {
+  background-color: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+html.theme-glass .el-dropdown-menu__item.is-disabled {
+  opacity: 0.4 !important;
+  background-color: transparent !important;
 }

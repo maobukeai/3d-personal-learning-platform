@@ -4,7 +4,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { Mail, ArrowLeft, ArrowRight, CheckCircle2, Lock, Shield } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
-import { useI18n } from 'vue-i18n';
+import { useLabel } from '@/utils/i18n';
 import { useAuthStore } from '@/stores/auth';
 
 import Card from '@/components/ui/Card.vue';
@@ -13,8 +13,7 @@ import Input from '@/components/ui/Input.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
-const { locale } = useI18n();
-const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
+const label = useLabel();
 
 const email = ref('');
 const isLoading = ref(false);
@@ -101,7 +100,7 @@ const handleResetWith2FA = async () => {
 
 <template>
   <div
-    class="auth-shell min-h-screen flex font-sans items-center justify-center p-6 relative overflow-hidden bg-[var(--bg-app)]"
+    class="auth-shell mobile-adaptive min-h-screen flex font-sans items-center justify-center p-6 relative overflow-hidden bg-[var(--bg-app)]"
   >
     <!-- Abstract blurred background elements for premium organic depth -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">

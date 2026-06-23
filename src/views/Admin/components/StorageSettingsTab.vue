@@ -1,79 +1,23 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import {
-  Cloud,
-  Plus,
-  Trash2,
-  Edit2,
-  Database,
-  AlertCircle,
-  ExternalLink,
-  RefreshCw,
-  Play,
-  Check,
-  Folder,
-  FolderOpen,
-  Search,
-  Copy,
-  Download,
-  Upload as UploadIcon,
-  FileText,
-  Eye,
-  EyeOff,
-  Pencil,
-  HelpCircle,
-} from 'lucide-vue-next';
+import { AlertCircle } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
-import { getApiErrorMessage } from '@/utils/error';
-import {
-  formatCloudflareBytes,
-  getUsagePercentage,
-  isOfficialCloudflareUsage,
-} from '@/utils/storageBytes';
-import Button from '@/components/ui/Button.vue';
-import Input from '@/components/ui/Input.vue';
-import Switch from '@/components/ui/Switch.vue';
-import Checkbox from '@/components/ui/Checkbox.vue';
-import Badge from '@/components/ui/Badge.vue';
-import Skeleton from '@/components/ui/Skeleton.vue';
+import { getApiErrorMessage, logError } from '@/utils/error';
+import StorageHeader from './StorageHeader.vue';
+import StorageStrategy from './StorageStrategy.vue';
+import StorageConfigList from './StorageConfigList.vue';
+import StorageConfigDialog from './StorageConfigDialog.vue';
+import StorageFileExplorer from './StorageFileExplorer.vue';
+import type {
+  StorageConfig,
+  AdminSetting,
+  StorageConfigForm,
+  AssetTypeOption,
+} from './StorageSettingsTab.types';
 
 const { t } = useI18n();
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface StorageConfig {
-  id: string;
-  name: string;
-  provider: string;
-  endpoint: string;
-  accessKeyId: string;
-  secretAccessKey: string;
-  cloudflareApiToken?: string;
-  hasSecretAccessKey?: boolean;
-  hasCloudflareApiToken?: boolean;
-  remark?: string;
-  bucketName: string;
-  publicUrl: string;
-  limitGb: number;
-  usedBytes: number;
-  assetType: string;
-  priority: number;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  isMasked?: boolean;
-}
-
-interface ExplorerItem {
-  type: 'file' | 'folder';
-  name: string;
-  key: string;
-  size?: number;
-  lastModified?: string;
-  url?: string;
-}
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -83,61 +27,21 @@ const dialogVisible = ref(false);
 const submitting = ref(false);
 const testingConnection = ref(false);
 
-// File Explorer state
 const fileDrawerVisible = ref(false);
 const currentStorage = ref<StorageConfig | null>(null);
-const fileItems = ref<ExplorerItem[]>([]);
-const currentPath = ref('');
-const loadingFiles = ref(false);
-const fileSearchQuery = ref('');
-const fileInput = ref<HTMLInputElement | null>(null);
-const uploadingFile = ref(false);
 
-// Pagination
-const folderHasMore = ref(false);
-const folderContinuationToken = ref<string | undefined>(undefined);
-const loadingMoreFiles = ref(false);
-const searchTruncated = ref(false);
-
-// Actual size
-const actualBytes = ref<number | null>(null);
-const actualUsageSource = ref<
-  'cloudflare-graphql' | 'cloudflare-usage-api' | 'list-objects' | null
->(null);
-const actualUsageWarning = ref<string | null>(null);
-const actualObjectCount = ref<number | null>(null);
-const scannedBytes = ref<number | null>(null);
-const scannedObjectCount = ref<number | null>(null);
-const loadingActualSize = ref(false);
-const scanningSize = ref(false);
-const syncingSize = ref(false);
-
-// Sync all
 const syncingAll = ref(false);
 
-// Bulk delete
-const selectedFileKeys = ref<string[]>([]);
-const deletingSelected = ref(false);
-
-// Rename dialog
-const renameDialogVisible = ref(false);
-const renameTarget = ref<ExplorerItem | null>(null);
-const renameNewName = ref('');
-const renamingFile = ref(false);
-
-// Force R2 storage
 const forceR2Storage = ref(true);
 const loadingForceR2 = ref(false);
 
-// Cleanup
 const isCleaning = ref(false);
 
-// Import/Export
 const importFileInput = ref<HTMLInputElement | null>(null);
 
 // ─── Form ─────────────────────────────────────────────────────────────────────
 
-const initialForm = {
+const initialForm: StorageConfigForm = {
   id: '',
   name: '',
   provider: 'CLOUDFLARE_R2',
@@ -155,10 +59,10 @@ const initialForm = {
   status: 'ACTIVE',
 };
 
-const form = ref({ ...initialForm });
+const form = ref<StorageConfigForm>({ ...initialForm });
 const isEdit = ref(false);
 
-const assetTypes = [
+const assetTypes: AssetTypeOption[] = [
   { label: '全部文件 (ALL)', value: 'ALL' },
   { label: '3D模型 (ASSET)', value: 'ASSET' },
   { label: '材质贴图 (MATERIAL)', value: 'MATERIAL' },
@@ -173,7 +77,7 @@ const fetchConfigs = async () => {
   loading.value = true;
   try {
     const { data } = await api.get('/api/admin/storage-configs');
-    configs.value = data.map((item: any) => ({ ...item, isMasked: true }));
+    configs.value = (data as StorageConfig[]).map((item) => ({ ...item, isMasked: true }));
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, '获取云存储配置失败'));
   } finally {
@@ -190,14 +94,21 @@ const openAddDialog = () => {
 const openEditDialog = (config: StorageConfig) => {
   form.value = {
     ...config,
-    // Secrets are no longer returned by the API; clear them so the user can
-    // optionally enter a new value. Leaving them blank keeps the stored secret.
     secretAccessKey: '',
     cloudflareApiToken: '',
     remark: config.remark || '',
   };
   isEdit.value = true;
   dialogVisible.value = true;
+};
+
+const openFileDrawer = (config: StorageConfig) => {
+  currentStorage.value = config;
+  fileDrawerVisible.value = true;
+};
+
+const toggleConfigMask = (config: StorageConfig) => {
+  config.isMasked = !config.isMasked;
 };
 
 const testConnection = async () => {
@@ -235,8 +146,6 @@ const testConnection = async () => {
 };
 
 const submitForm = async () => {
-  // In create mode all connection fields are required; in edit mode the
-  // secret fields are optional (leaving them blank keeps the stored value).
   if (
     !form.value.name ||
     !form.value.endpoint ||
@@ -252,8 +161,6 @@ const submitForm = async () => {
   submitting.value = true;
   try {
     if (isEdit.value) {
-      // Build payload omitting blank secret fields so the backend preserves
-      // the previously stored encrypted values.
       const payload: Record<string, unknown> = { ...form.value };
       if (!form.value.secretAccessKey) delete payload.secretAccessKey;
       if (!form.value.cloudflareApiToken) delete payload.cloudflareApiToken;
@@ -272,10 +179,10 @@ const submitForm = async () => {
   }
 };
 
-const deleteConfig = async (id: string, name: string) => {
+const deleteConfig = async (config: StorageConfig) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除存储配置 "${name}" 吗？此操作将使关联的文件无法再上传到该空间。`,
+      `确定要删除存储配置 "${config.name}" 吗？此操作将使关联的文件无法再上传到该空间。`,
       '删除确认',
       {
         confirmButtonText: '确定删除',
@@ -285,7 +192,7 @@ const deleteConfig = async (id: string, name: string) => {
       },
     );
 
-    await api.delete(`/api/admin/storage-configs/${id}`);
+    await api.delete(`/api/admin/storage-configs/${config.id}`);
     ElMessage.success('配置已成功删除');
     fetchConfigs();
   } catch (error) {
@@ -306,37 +213,6 @@ const toggleStatus = async (config: StorageConfig) => {
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, '修改状态失败'));
   }
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const getAssetTypeLabel = (value: string) => {
-  const matched = assetTypes.find((t) => t.value === value);
-  return matched ? matched.label.split(' ')[0] : value;
-};
-
-const copyToClipboard = async (text: string) => {
-  try {
-    await navigator.clipboard.writeText(text);
-    ElMessage.success('已复制到剪贴板');
-  } catch {
-    ElMessage.error('复制失败，请手动复制');
-  }
-};
-
-const copyFileUrl = async (url?: string) => {
-  if (!url) return;
-  try {
-    await navigator.clipboard.writeText(url);
-    ElMessage.success('公开 URL 已复制');
-  } catch {
-    ElMessage.error('复制失败，请手动复制');
-  }
-};
-
-const isImage = (key: string) => {
-  const ext = key.split('.').pop()?.toLowerCase();
-  return ext && ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'ico'].includes(ext);
 };
 
 // ─── Sync All Sizes ───────────────────────────────────────────────────────────
@@ -362,7 +238,7 @@ const fetchForceR2Setting = async () => {
     const { data } = await api.get('/api/admin/settings');
     if (data) {
       if (Array.isArray(data)) {
-        const item = data.find((s: any) => s.key === 'FORCE_R2_STORAGE');
+        const item = (data as AdminSetting[]).find((s) => s.key === 'FORCE_R2_STORAGE');
         if (item) {
           forceR2Storage.value = item.value === 'true' || item.value === true;
         }
@@ -374,7 +250,7 @@ const fetchForceR2Setting = async () => {
       }
     }
   } catch (error) {
-    console.error('Failed to fetch force R2 setting:', error);
+    logError(error, { operation: 'fetchForceR2Setting', component: 'StorageSettingsTab' });
   }
 };
 
@@ -491,8 +367,8 @@ const handleImportFile = async (event: Event) => {
 
       ElMessage.success(data.message || '导入配置成功');
       fetchConfigs();
-    } catch (err: any) {
-      ElMessage.error(err.message || '导入配置失败，文件格式不合法');
+    } catch (err) {
+      ElMessage.error(err instanceof Error ? err.message : '导入配置失败，文件格式不合法');
     } finally {
       target.value = '';
     }
@@ -504,346 +380,6 @@ const handleImportFile = async (event: Event) => {
   };
 
   reader.readAsText(file);
-};
-
-// ─── File Explorer ────────────────────────────────────────────────────────────
-
-const openFileDrawer = async (config: StorageConfig) => {
-  currentStorage.value = config;
-  actualBytes.value = null;
-  actualUsageSource.value = null;
-  actualUsageWarning.value = null;
-  actualObjectCount.value = null;
-  scannedBytes.value = null;
-  scannedObjectCount.value = null;
-  selectedFileKeys.value = [];
-  fileSearchQuery.value = '';
-  fileDrawerVisible.value = true;
-
-  if (currentPath.value === '') {
-    fetchBucketFiles();
-  } else {
-    currentPath.value = '';
-  }
-  fetchActualSize();
-};
-
-const fetchActualSize = async () => {
-  if (!currentStorage.value) return;
-  loadingActualSize.value = true;
-  try {
-    const { data } = await api.get(
-      `/api/admin/storage-configs/${currentStorage.value.id}/actual-size`,
-    );
-    actualBytes.value = data.actualSize;
-    actualUsageSource.value = data.source || null;
-    actualUsageWarning.value = data.warning || null;
-    actualObjectCount.value = data.objectCount ?? null;
-    scannedBytes.value = data.scannedBytes ?? null;
-    scannedObjectCount.value = data.scannedObjectCount ?? null;
-  } catch (error) {
-    console.error('Failed to fetch actual bucket size:', error);
-    actualBytes.value = null;
-  } finally {
-    loadingActualSize.value = false;
-  }
-};
-
-const runS3Scan = async () => {
-  if (!currentStorage.value) return;
-  scanningSize.value = true;
-  try {
-    const { data } = await api.get(
-      `/api/admin/storage-configs/${currentStorage.value.id}/actual-size?scan=true`,
-    );
-    scannedBytes.value = data.scannedBytes ?? null;
-    scannedObjectCount.value = data.scannedObjectCount ?? null;
-  } catch (error) {
-    console.error('Failed to run S3 scan:', error);
-    ElMessage.error(getApiErrorMessage(error, '计算实时大小失败'));
-  } finally {
-    scanningSize.value = false;
-  }
-};
-
-const syncSize = async (type: 'scanned' | 'official' = 'scanned') => {
-  if (!currentStorage.value) return;
-  syncingSize.value = true;
-  try {
-    const { data } = await api.post(
-      `/api/admin/storage-configs/${currentStorage.value.id}/sync-size`,
-      { type },
-    );
-    if (currentStorage.value) {
-      currentStorage.value.usedBytes = data.usedBytes;
-    }
-    ElMessage.success(
-      `系统已用容量已与 Cloudflare R2 ${type === 'official' ? '官方' : '实时扫描'}占用同步！`,
-    );
-    fetchConfigs();
-  } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '同步容量失败'));
-  } finally {
-    syncingSize.value = false;
-  }
-};
-
-let fileSearchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-const fetchBucketFiles = async (
-  opts: { append?: boolean; search?: string; continuationToken?: string } = {},
-) => {
-  if (!currentStorage.value) return;
-
-  if (!opts.append) {
-    loadingFiles.value = true;
-  } else {
-    loadingMoreFiles.value = true;
-  }
-
-  try {
-    const params: Record<string, string> = {
-      prefix: currentPath.value,
-    };
-
-    const searchQuery = opts.search !== undefined ? opts.search : fileSearchQuery.value.trim();
-    if (searchQuery) {
-      params.search = searchQuery;
-    }
-    if (opts.continuationToken) {
-      params.continuationToken = opts.continuationToken;
-    }
-
-    const { data } = await api.get(`/api/admin/storage-configs/${currentStorage.value.id}/files`, {
-      params,
-    });
-
-    const newItems: ExplorerItem[] = (data.items || []).map((item: any) => ({
-      type: item.type || 'file',
-      name: item.name || item.key,
-      key: item.key,
-      size: item.size,
-      lastModified: item.lastModified,
-      url: item.url,
-    }));
-
-    if (opts.append) {
-      fileItems.value = [...fileItems.value, ...newItems];
-    } else {
-      fileItems.value = newItems;
-    }
-
-    searchTruncated.value = data.truncated || false;
-
-    if (data.search) {
-      folderHasMore.value = false;
-      folderContinuationToken.value = undefined;
-    } else {
-      folderHasMore.value = !!data.truncated;
-      folderContinuationToken.value = data.nextContinuationToken || undefined;
-    }
-  } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '获取存储桶文件列表失败'));
-  } finally {
-    loadingFiles.value = false;
-    loadingMoreFiles.value = false;
-  }
-};
-
-const loadMoreFolderItems = () => {
-  if (folderContinuationToken.value) {
-    fetchBucketFiles({ append: true, continuationToken: folderContinuationToken.value });
-  }
-};
-
-// Watch path changes
-watch(currentPath, () => {
-  selectedFileKeys.value = [];
-  fileSearchQuery.value = '';
-  fetchBucketFiles();
-});
-
-// Debounced search
-watch(fileSearchQuery, (val) => {
-  if (fileSearchDebounceTimer) clearTimeout(fileSearchDebounceTimer);
-  fileSearchDebounceTimer = setTimeout(() => {
-    selectedFileKeys.value = [];
-    fetchBucketFiles({ search: val.trim() });
-  }, 350);
-});
-
-const goBack = () => {
-  const parts = currentPath.value.split('/').filter(Boolean);
-  if (parts.length <= 1) {
-    currentPath.value = '';
-  } else {
-    currentPath.value = parts.slice(0, -1).join('/') + '/';
-  }
-};
-
-const navigateToBreadcrumb = (index: number) => {
-  const parts = currentPath.value.split('/').filter(Boolean);
-  const targetParts = parts.slice(0, index + 1);
-  currentPath.value = targetParts.join('/') + '/';
-};
-
-// ─── File Actions ─────────────────────────────────────────────────────────────
-
-const deleteFile = async (key: string) => {
-  if (!currentStorage.value) return;
-  try {
-    await ElMessageBox.confirm(
-      `确定要从存储桶中永久删除文件 "${key}" 吗？该操作不可撤销。`,
-      '删除确认',
-      {
-        confirmButtonText: '确定删除',
-        cancelButtonText: '取消',
-        type: 'warning',
-        confirmButtonClass: 'el-button--danger',
-      },
-    );
-
-    await api.delete(`/api/admin/storage-configs/${currentStorage.value.id}/files`, {
-      data: { key },
-    });
-
-    ElMessage.success('文件删除成功！');
-    fetchBucketFiles();
-    fetchConfigs();
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(error, '删除文件失败'));
-    }
-  }
-};
-
-const triggerFileInput = () => {
-  if (fileInput.value) fileInput.value.click();
-};
-
-const handleFileUpload = async (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  const file = target.files?.[0];
-  if (!file || !currentStorage.value) return;
-
-  uploadingFile.value = true;
-  const formData = new FormData();
-  formData.append('file', file);
-  if (currentPath.value) {
-    formData.append('prefix', currentPath.value);
-  }
-
-  try {
-    await api.post(`/api/admin/storage-configs/${currentStorage.value.id}/files`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    ElMessage.success(
-      currentPath.value ? `文件已上传到 ${currentPath.value}` : '文件直接上传成功！',
-    );
-    fetchBucketFiles();
-    fetchConfigs();
-  } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '文件上传失败'));
-  } finally {
-    uploadingFile.value = false;
-    if (target) target.value = '';
-  }
-};
-
-// ─── Bulk Delete ──────────────────────────────────────────────────────────────
-
-const toggleFileSelection = (key: string) => {
-  const idx = selectedFileKeys.value.indexOf(key);
-  if (idx >= 0) {
-    selectedFileKeys.value.splice(idx, 1);
-  } else {
-    selectedFileKeys.value.push(key);
-  }
-};
-
-const toggleSelectAll = () => {
-  const fileKeys = fileItems.value.filter((i) => i.type === 'file').map((i) => i.key);
-  if (selectedFileKeys.value.length === fileKeys.length) {
-    selectedFileKeys.value = [];
-  } else {
-    selectedFileKeys.value = [...fileKeys];
-  }
-};
-
-const deleteSelectedFiles = async () => {
-  if (!currentStorage.value || selectedFileKeys.value.length === 0) return;
-  try {
-    await ElMessageBox.confirm(
-      `确定要批量删除 ${selectedFileKeys.value.length} 个文件吗？该操作不可撤销。`,
-      '批量删除确认',
-      {
-        confirmButtonText: '确定删除',
-        cancelButtonText: '取消',
-        type: 'warning',
-        confirmButtonClass: 'el-button--danger',
-      },
-    );
-
-    deletingSelected.value = true;
-    await api.post(`/api/admin/storage-configs/${currentStorage.value.id}/files/bulk-delete`, {
-      keys: selectedFileKeys.value,
-    });
-
-    ElMessage.success(`成功删除 ${selectedFileKeys.value.length} 个文件`);
-    selectedFileKeys.value = [];
-    fetchBucketFiles();
-    fetchConfigs();
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(error, '批量删除失败'));
-    }
-  } finally {
-    deletingSelected.value = false;
-  }
-};
-
-// ─── Rename ───────────────────────────────────────────────────────────────────
-
-const openRenameDialog = (item: ExplorerItem) => {
-  renameTarget.value = item;
-  renameNewName.value = item.name;
-  renameDialogVisible.value = true;
-};
-
-const submitRename = async () => {
-  if (!currentStorage.value || !renameTarget.value) return;
-  const oldKey = renameTarget.value.key;
-  const newName = renameNewName.value.trim();
-  if (!newName) {
-    ElMessage.warning('新文件名不能为空');
-    return;
-  }
-
-  // Build new key: replace the last segment of the key path
-  const lastSlash = oldKey.lastIndexOf('/');
-  const newKey = lastSlash >= 0 ? oldKey.substring(0, lastSlash + 1) + newName : newName;
-
-  if (newKey === oldKey) {
-    renameDialogVisible.value = false;
-    return;
-  }
-
-  renamingFile.value = true;
-  try {
-    await api.patch(`/api/admin/storage-configs/${currentStorage.value.id}/files/rename`, {
-      oldKey,
-      newKey,
-    });
-    ElMessage.success('文件重命名成功');
-    renameDialogVisible.value = false;
-    fetchBucketFiles();
-  } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '重命名失败'));
-  } finally {
-    renamingFile.value = false;
-  }
 };
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
@@ -860,88 +396,21 @@ onMounted(() => {
       class="p-3 sm:p-5 rounded-2xl border transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
-        <div class="flex items-center gap-2.5">
-          <Cloud class="w-4.5 h-4.5 text-indigo-500 animate-pulse" />
-          <div>
-            <h2 class="text-base font-bold" style="color: var(--text-primary)">
-              云存储管理 (Cloudflare R2)
-            </h2>
-            <p class="text-[9px] mt-0.5" style="color: var(--text-muted)">
-              配置多个 Cloudflare R2
-              账号与存储桶，并按资源类型（材质、模型、插件）分配限额。点击卡片右下角的文件夹可管理文件。
-            </p>
-          </div>
-        </div>
+      <StorageHeader
+        :syncing-all="syncingAll"
+        :is-cleaning="isCleaning"
+        @sync-all="syncAllSizes"
+        @cleanup="handleCleanupStorage"
+        @import="triggerImport"
+        @export="handleExport"
+        @add="openAddDialog"
+      />
 
-        <div class="flex items-center gap-2 w-fit flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            :loading="syncingAll"
-            :icon="RefreshCw"
-            @click="syncAllSizes"
-          >
-            {{ syncingAll ? '同步中...' : '一键同步全部 R2 容量' }}
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            :loading="isCleaning"
-            :icon="RefreshCw"
-            @click="handleCleanupStorage"
-          >
-            {{ isCleaning ? '正在清理...' : '一键扫描与清理' }}
-          </Button>
-
-          <Button variant="outline" size="sm" :icon="UploadIcon" @click="triggerImport">
-            导入配置
-          </Button>
-
-          <Button variant="outline" size="sm" :icon="Download" @click="handleExport">
-            导出配置
-          </Button>
-
-          <Button variant="primary" size="sm" :icon="Plus" @click="openAddDialog">
-            添加 R2 账号
-          </Button>
-
-          <input
-            ref="importFileInput"
-            type="file"
-            accept=".json"
-            class="hidden"
-            @change="handleImportFile"
-          />
-        </div>
-      </div>
-
-      <!-- Storage Strategy Control -->
-      <div
-        class="mb-4 p-4 rounded-xl border flex items-center justify-between transition-colors duration-300"
-        style="background-color: var(--bg-hover); border-color: var(--border-base)"
-      >
-        <div class="flex items-center gap-3">
-          <div class="p-2 bg-indigo-500/10 rounded-lg shrink-0">
-            <Database class="w-4 h-4 text-indigo-500" />
-          </div>
-          <div>
-            <h3 class="text-xs font-bold" style="color: var(--text-primary)">
-              强制全站云端存储 (Force Cloud Storage)
-            </h3>
-            <p class="text-[9px] mt-0.5" style="color: var(--text-muted)">
-              启用后，全站所有资源数据默认储存至 Cloudflare R2
-              云端。若没有配置可用的云存储账号，用户上传文件时将提示"暂时维护中"并禁止上传。
-            </p>
-          </div>
-        </div>
-        <Switch
-          :model-value="forceR2Storage"
-          :disabled="loadingForceR2"
-          @change="handleForceR2Change"
-        />
-      </div>
+      <StorageStrategy
+        v-model="forceR2Storage"
+        :loading="loadingForceR2"
+        @update:model-value="handleForceR2Change"
+      />
 
       <!-- Warning Alert -->
       <div
@@ -957,856 +426,41 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Loading State -->
-      <div v-if="loading" class="flex flex-col items-center justify-center py-20 gap-3">
-        <Skeleton width="32px" height="32px" circle />
-        <Skeleton width="120px" height="12px" />
-      </div>
+      <StorageConfigList
+        :configs="configs"
+        :loading="loading"
+        :asset-types="assetTypes"
+        @edit="openEditDialog"
+        @delete="deleteConfig"
+        @toggle-status="toggleStatus"
+        @open-explorer="openFileDrawer"
+        @toggle-mask="toggleConfigMask"
+      />
 
-      <!-- Empty State -->
-      <div
-        v-else-if="configs.length === 0"
-        class="flex flex-col items-center justify-center py-16 px-4 border border-dashed rounded-2xl text-center"
-        style="border-color: var(--border-base)"
-      >
-        <Database class="w-10 h-10 text-slate-300 dark:text-white/10 mb-3" />
-        <span class="text-xs font-bold" style="color: var(--text-secondary)"
-          >暂未配置云存储账号</span
-        >
-        <p class="text-[10px] mt-1 max-w-xs" style="color: var(--text-muted)">
-          所有上传的资源文件目前将保存在服务器本地磁盘。强烈建议配置至少一个 Cloudflare R2
-          云端存储账号。
-        </p>
-      </div>
-
-      <!-- Config Cards List -->
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        <div
-          v-for="config in configs"
-          :key="config.id"
-          class="group p-3 rounded-lg border transition-all duration-300 relative overflow-hidden flex flex-col justify-between"
-          :class="[
-            config.status === 'ACTIVE'
-              ? 'hover:shadow-md hover:-translate-y-0.5'
-              : 'opacity-70 grayscale',
-          ]"
-          style="background-color: var(--bg-app); border-color: var(--border-base)"
-        >
-          <!-- Progress highlight bar on top -->
-          <div
-            class="absolute top-0 left-0 h-0.5 transition-all duration-300"
-            :class="[
-              getUsagePercentage(config.usedBytes, config.limitGb) >= 95
-                ? 'bg-rose-500 shadow-sm shadow-rose-500/20'
-                : 'bg-indigo-500 shadow-sm shadow-indigo-500/20',
-            ]"
-            :style="{ width: getUsagePercentage(config.usedBytes, config.limitGb) + '%' }"
-          ></div>
-
-          <div>
-            <!-- Header: Title and Type -->
-            <div class="flex items-start justify-between mb-1.5">
-              <div class="space-y-0.5 max-w-[70%]">
-                <div class="flex items-center gap-1.5">
-                  <span
-                    class="font-bold text-xs truncate"
-                    style="color: var(--text-primary)"
-                    :title="config.name"
-                    >{{ config.name }}</span
-                  >
-                  <Switch
-                    :model-value="config.status === 'ACTIVE'"
-                    @change="toggleStatus(config)"
-                  />
-                </div>
-                <div
-                  class="flex items-center gap-1 text-[9px] truncate"
-                  style="color: var(--text-muted)"
-                >
-                  <Database class="w-2.5 h-2.5 shrink-0" />
-                  <span class="truncate" :title="config.bucketName"
-                    >桶: {{ config.bucketName }}</span
-                  >
-                </div>
-                <div
-                  v-if="config.remark"
-                  class="text-[9px] font-bold text-indigo-500/80 truncate mt-0.5"
-                  :title="config.remark"
-                >
-                  备注: {{ config.remark }}
-                </div>
-              </div>
-
-              <Badge variant="primary" outline>
-                {{ getAssetTypeLabel(config.assetType) }}
-              </Badge>
-            </div>
-
-            <!-- Endpoint Detail -->
-            <div
-              class="space-y-0.5 text-[9px] mb-1.5 font-mono p-1.5 rounded-md relative group/endpoint pr-6"
-              style="background-color: var(--bg-card); color: var(--text-secondary)"
-            >
-              <div class="truncate">
-                终端:
-                <span
-                  :class="{
-                    'blur-[3.5px] select-none pointer-events-none transition-all duration-300':
-                      config.isMasked !== false,
-                  }"
-                  >{{ config.endpoint }}</span
-                >
-              </div>
-              <div class="truncate flex items-center gap-1">
-                <span>域名: </span>
-                <span
-                  :class="{
-                    'blur-[3.5px] select-none pointer-events-none transition-all duration-300':
-                      config.isMasked !== false,
-                  }"
-                  >{{ config.publicUrl }}</span
-                >
-                <a :href="config.publicUrl" target="_blank" class="hover:text-indigo-500 shrink-0">
-                  <ExternalLink class="w-2 h-2 inline" />
-                </a>
-              </div>
-
-              <!-- Mask Toggle Button -->
-              <button
-                type="button"
-                class="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                :title="config.isMasked !== false ? '显示明文' : '马赛克隐藏'"
-                @click="config.isMasked = !config.isMasked"
-              >
-                <EyeOff v-if="config.isMasked !== false" class="w-3 h-3" />
-                <Eye v-else class="w-3 h-3" />
-              </button>
-            </div>
-
-            <!-- Capacity Info -->
-            <div class="space-y-0.5 mb-2">
-              <div class="flex items-center justify-between text-[9px]">
-                <span style="color: var(--text-muted)">容量配额使用率</span>
-                <span class="font-bold font-mono" style="color: var(--text-primary)">
-                  {{ getUsagePercentage(config.usedBytes, config.limitGb) }}%
-                </span>
-              </div>
-
-              <!-- Custom designed CSS progress bar -->
-              <div
-                class="w-full h-1 rounded-full overflow-hidden"
-                style="background-color: var(--bg-card)"
-              >
-                <div
-                  class="h-full rounded-full transition-all duration-500"
-                  :class="[
-                    getUsagePercentage(config.usedBytes, config.limitGb) >= 95
-                      ? 'bg-gradient-to-r from-red-500 to-rose-600'
-                      : 'bg-gradient-to-r from-indigo-500 to-purple-600',
-                  ]"
-                  :style="{ width: getUsagePercentage(config.usedBytes, config.limitGb) + '%' }"
-                ></div>
-              </div>
-
-              <!-- Numerical detail precise to decimals -->
-              <div
-                class="flex items-center justify-between text-[8px]"
-                style="color: var(--text-muted)"
-              >
-                <span>已用: {{ formatCloudflareBytes(config.usedBytes) }}</span>
-                <span>限制: {{ config.limitGb.toFixed(3) }} GB</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Bottom: Action Buttons -->
-          <div
-            class="flex items-center justify-between pt-1.5 border-t"
-            style="border-color: var(--border-base)"
-          >
-            <div class="text-[8px]" style="color: var(--text-muted)">
-              优先级:
-              <span class="font-bold text-slate-800 dark:text-slate-200"
-                >#{{ config.priority }}</span
-              >
-            </div>
-
-            <div class="flex items-center gap-1.5">
-              <Button
-                variant="link"
-                size="sm"
-                :icon="FolderOpen"
-                title="浏览/管理文件"
-                @click="openFileDrawer(config)"
-              />
-              <Button
-                variant="link"
-                size="sm"
-                :icon="Edit2"
-                title="编辑配置"
-                @click="openEditDialog(config)"
-              />
-              <Button
-                variant="danger"
-                size="sm"
-                :icon="Trash2"
-                title="删除配置"
-                @click="deleteConfig(config.id, config.name)"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      <input
+        ref="importFileInput"
+        type="file"
+        accept=".json"
+        class="hidden"
+        @change="handleImportFile"
+      />
     </section>
 
-    <!-- Add/Edit Storage Config Dialog -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="isEdit ? '编辑云端存储配置' : '添加云端存储配置'"
-      width="920px"
-      align-center
-      destroy-on-close
-      class="rounded-3xl"
-    >
-      <div class="space-y-4 py-1">
-        <!-- Section: Basic Information -->
-        <div class="border-b pb-3" style="border-color: var(--border-base)">
-          <h3 class="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-2">基本信息</h3>
-          <div class="grid grid-cols-4 gap-3">
-            <div>
-              <Input
-                v-model="form.name"
-                label="配置别名"
-                placeholder="例如：材质仓 R2"
-                input-class="!py-2.5"
-                required
-              />
-            </div>
-            <div>
-              <Input
-                v-model="form.remark"
-                label="账号备注"
-                placeholder="例如：开发环境 / 主账号"
-                input-class="!py-2.5"
-              />
-            </div>
-            <div>
-              <label
-                class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
-              >
-                应用类型 <span class="text-red-500">*</span>
-              </label>
-              <div class="relative">
-                <select
-                  v-model="form.assetType"
-                  class="w-full px-4 py-2.5 rounded-xl border focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none transition-all text-sm appearance-none cursor-pointer"
-                  style="
-                    background-color: var(--bg-card);
-                    border-color: var(--border-base);
-                    color: var(--text-primary);
-                  "
-                >
-                  <option v-for="type in assetTypes" :key="type.value" :value="type.value">
-                    {{ type.label }}
-                  </option>
-                </select>
-                <div
-                  class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
-                >
-                  ▼
-                </div>
-              </div>
-            </div>
-            <div>
-              <label
-                class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
-                >提供商</label
-              >
-              <select
-                v-model="form.provider"
-                disabled
-                class="w-full px-4 py-2.5 rounded-xl border outline-none text-sm opacity-60 cursor-not-allowed"
-                style="
-                  background-color: var(--bg-card);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              >
-                <option value="CLOUDFLARE_R2">Cloudflare R2</option>
-              </select>
-            </div>
-          </div>
-        </div>
+    <StorageConfigDialog
+      v-model:visible="dialogVisible"
+      v-model:form="form"
+      :is-edit="isEdit"
+      :asset-types="assetTypes"
+      :submitting="submitting"
+      :testing-connection="testingConnection"
+      @submit="submitForm"
+      @test-connection="testConnection"
+    />
 
-        <!-- Section: Credentials -->
-        <div class="border-b pb-3" style="border-color: var(--border-base)">
-          <h3 class="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-2">连接凭证</h3>
-          <div class="grid grid-cols-4 gap-3">
-            <div class="col-span-2">
-              <Input
-                v-model="form.endpoint"
-                label="终端节点 (Endpoint URL)"
-                placeholder="https://<account_id>.r2.cloudflarestorage.com"
-                input-class="!py-2.5 font-mono text-xs"
-                required
-              />
-            </div>
-            <div>
-              <Input
-                v-model="form.accessKeyId"
-                label="Access Key ID"
-                placeholder="R2 存取密钥 ID"
-                input-class="!py-2.5 font-mono text-xs"
-                required
-              />
-            </div>
-            <div>
-              <Input
-                v-model="form.secretAccessKey"
-                label="Secret Access Key"
-                :placeholder="isEdit ? '留空则不修改已保存的密钥' : 'R2 机密存取密钥'"
-                input-class="!py-2.5 font-mono text-xs"
-                :required="!isEdit"
-              />
-            </div>
-            <div class="col-span-4">
-              <Input
-                v-model="form.cloudflareApiToken"
-                label="Cloudflare API Token（可选，推荐）"
-                placeholder="此 Cloudflare 账号的 R2 只读 API Token"
-                input-class="!py-2.5 font-mono text-xs"
-              />
-              <p class="text-[9px] leading-relaxed mt-1" style="color: var(--text-secondary)">
-                配置 Token 后可直接读取 Cloudflare Metrics 接口，展示与官网一致的物理占用。
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section: Bucket & Storage Config -->
-        <div>
-          <h3 class="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-2">
-            Bucket & 存储属性
-          </h3>
-          <div class="grid grid-cols-3 gap-3">
-            <div>
-              <Input
-                v-model="form.bucketName"
-                label="存储桶名称"
-                placeholder="例如: materials-bucket"
-                input-class="!py-2.5"
-                required
-              />
-            </div>
-            <div>
-              <Input
-                v-model="form.publicUrl"
-                label="公共访问域名 (Public URL)"
-                placeholder="https://pub-xxxx.r2.dev 或自定义域名"
-                input-class="!py-2.5 font-mono text-xs"
-                required
-              />
-            </div>
-            <div>
-              <Input
-                v-model.number="form.priority"
-                type="number"
-                label="匹配优先级"
-                input-class="!py-2.5"
-              />
-            </div>
-            <div>
-              <Input
-                v-model.number="form.limitGb"
-                type="number"
-                label="配额限制 (GB)"
-                input-class="!py-2.5"
-                required
-              />
-            </div>
-            <div>
-              <Input
-                v-model.number="form.usedBytes"
-                type="number"
-                label="已用存储空间 (Bytes)"
-                input-class="!py-2.5"
-                required
-              />
-            </div>
-            <div class="flex items-center pl-2 pt-5">
-              <Checkbox
-                :model-value="form.status === 'ACTIVE'"
-                @change="(val: boolean) => (form.status = val ? 'ACTIVE' : 'INACTIVE')"
-              >
-                启用此云存储账号
-              </Checkbox>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <template #footer>
-        <div class="flex justify-between items-center w-full">
-          <Button
-            variant="secondary"
-            size="sm"
-            :loading="testingConnection"
-            :icon="testingConnection ? undefined : Play"
-            @click="testConnection"
-          >
-            测试连接
-          </Button>
-
-          <div class="flex items-center gap-2">
-            <Button variant="outline" size="sm" @click="dialogVisible = false"> 取消 </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              :loading="submitting"
-              :icon="submitting ? undefined : Check"
-              @click="submitForm"
-            >
-              保存配置
-            </Button>
-          </div>
-        </div>
-      </template>
-    </el-dialog>
-
-    <!-- Cloudflare R2 Bucket File Explorer Drawer -->
-    <el-drawer
+    <StorageFileExplorer
       v-model="fileDrawerVisible"
-      :title="`云存储资源浏览器: ${currentStorage?.name || ''}`"
-      size="800px"
-      destroy-on-close
-    >
-      <!-- Hidden file input for uploading files -->
-      <input ref="fileInput" type="file" class="hidden" @change="handleFileUpload" />
-
-      <div class="space-y-6 h-full flex flex-col justify-between">
-        <div class="space-y-4 shrink-0">
-          <!-- Bucket Stats & Upload Header -->
-          <div
-            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-2xl"
-            style="background-color: var(--bg-card)"
-          >
-            <div
-              class="text-xs flex flex-wrap items-center gap-x-2.5 gap-y-1.5"
-              style="color: var(--text-secondary)"
-            >
-              <span
-                >桶名称:
-                <strong style="color: var(--text-primary)">{{
-                  currentStorage?.bucketName
-                }}</strong></span
-              >
-              <span class="text-slate-300 dark:text-white/10">|</span>
-              <span
-                >限制大小:
-                <strong style="color: var(--text-primary)"
-                  >{{ currentStorage?.limitGb.toFixed(2) }} GB</strong
-                ></span
-              >
-              <span class="text-slate-300 dark:text-white/10">|</span>
-              <span class="flex items-center gap-1">
-                <span>当前容量使用:</span>
-                <strong
-                  :class="[
-                    getUsagePercentage(
-                      currentStorage?.usedBytes || 0,
-                      currentStorage?.limitGb || 9.8,
-                    ) >= 95
-                      ? 'text-rose-500'
-                      : 'text-indigo-500',
-                  ]"
-                >
-                  {{ formatCloudflareBytes(currentStorage?.usedBytes || 0) }} ({{
-                    getUsagePercentage(
-                      currentStorage?.usedBytes || 0,
-                      currentStorage?.limitGb || 9.8,
-                    )
-                  }}%)
-                </strong>
-              </span>
-              <span class="text-slate-300 dark:text-white/10">|</span>
-              <span v-if="loadingActualSize" class="flex items-center gap-1 text-slate-400">
-                <span>R2 容量计算中...</span>
-              </span>
-              <template v-else-if="actualBytes !== null">
-                <!-- Real-time scanned capacity -->
-                <span class="flex items-center gap-1">
-                  <span class="text-slate-500 dark:text-slate-400 text-xs">R2 扫描(实时):</span>
-                  <span v-if="scanningSize" class="text-slate-400 animate-pulse text-xs">正在扫描...</span>
-                  <template v-else-if="scannedBytes !== null">
-                    <strong class="text-slate-800 dark:text-slate-200">
-                      {{ formatCloudflareBytes(scannedBytes) }}
-                    </strong>
-                    <Badge variant="primary" outline dot>实时扫描</Badge>
-                    <span v-if="scannedObjectCount !== null" class="text-[9px] text-slate-400">
-                      ({{ scannedObjectCount }} 对象)
-                    </span>
-                    <el-tooltip
-                      content="通过 S3 API 实时遍历桶内对象得到的大小。推荐以此为准进行容量限制同步。"
-                      placement="top"
-                      effect="dark"
-                    >
-                      <HelpCircle class="w-3.5 h-3.5 text-slate-400 cursor-help inline-block" />
-                    </el-tooltip>
-                    <Button
-                      v-if="scannedBytes !== currentStorage?.usedBytes"
-                      variant="outline"
-                      size="sm"
-                      class="ml-1 scale-90 origin-left"
-                      :loading="syncingSize"
-                      @click="syncSize('scanned')"
-                    >
-                      同步实时
-                    </Button>
-                  </template>
-                  <template v-else>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="scale-90 origin-left"
-                      @click="runS3Scan"
-                    >
-                      计算实时大小
-                    </Button>
-                    <el-tooltip
-                      content="实时遍历整个 R2 存储桶文件计算大小。当文件特别多时，可能需要数秒至数十秒。"
-                      placement="top"
-                      effect="dark"
-                    >
-                      <HelpCircle class="w-3.5 h-3.5 text-slate-400 cursor-help inline-block" />
-                    </el-tooltip>
-                  </template>
-                </span>
-
-                <!-- Official metric (if available) -->
-                <span v-if="isOfficialCloudflareUsage(actualUsageSource)" class="text-slate-300 dark:text-white/10">|</span>
-                <span v-if="isOfficialCloudflareUsage(actualUsageSource)" class="flex items-center gap-1">
-                  <span class="text-slate-500 dark:text-slate-400 text-xs">R2 官方(延迟):</span>
-                  <strong class="text-slate-800 dark:text-slate-200">
-                    {{ formatCloudflareBytes(actualBytes) }}
-                  </strong>
-                  <Badge variant="success" outline dot>官方数据</Badge>
-                  <span v-if="actualObjectCount !== null" class="text-[9px] text-slate-400">
-                    ({{ actualObjectCount }} 对象)
-                  </span>
-                  <el-tooltip
-                    content="Cloudflare 官方计量数据，通常有 2-24 小时的统计延迟，且包含多段上传或历史版本。"
-                    placement="top"
-                    effect="dark"
-                  >
-                    <HelpCircle class="w-3.5 h-3.5 text-slate-400 cursor-help inline-block" />
-                  </el-tooltip>
-                  <Button
-                    v-if="actualBytes !== currentStorage?.usedBytes"
-                    variant="outline"
-                    size="sm"
-                    class="ml-1 scale-90 origin-left"
-                    :loading="syncingSize"
-                    @click="syncSize('official')"
-                  >
-                    同步官方
-                  </Button>
-                </span>
-              </template>
-              <span v-else class="text-slate-400 flex items-center gap-1">
-                <span>R2 占用获取失败</span>
-              </span>
-            </div>
-
-            <div class="flex items-center gap-2">
-              <Button
-                variant="primary"
-                size="sm"
-                :loading="uploadingFile"
-                :icon="uploadingFile ? undefined : UploadIcon"
-                @click="triggerFileInput"
-              >
-                {{ currentPath ? '上传到当前目录' : '上传文件' }}
-              </Button>
-              <Button
-                v-if="selectedFileKeys.length > 0"
-                variant="danger"
-                size="sm"
-                :loading="deletingSelected"
-                :icon="Trash2"
-                @click="deleteSelectedFiles"
-              >
-                删除选中 ({{ selectedFileKeys.length }})
-              </Button>
-            </div>
-          </div>
-
-          <!-- Search filter bar -->
-          <Input v-model="fileSearchQuery" placeholder="按文件名或键路径筛选..." :icon="Search" />
-
-          <!-- Breadcrumbs -->
-          <div
-            v-if="!fileSearchQuery.trim()"
-            class="flex flex-wrap items-center gap-1.5 text-[11px] font-mono py-1.5 px-3 rounded-lg border"
-            style="
-              background-color: var(--bg-card);
-              border-color: var(--border-base);
-              color: var(--text-secondary);
-            "
-          >
-            <button
-              type="button"
-              class="hover:text-indigo-500 font-bold cursor-pointer"
-              @click="currentPath = ''"
-            >
-              Root
-            </button>
-            <template v-for="(part, index) in currentPath.split('/').filter(Boolean)" :key="index">
-              <span class="text-slate-400 dark:text-white/20">/</span>
-              <button
-                type="button"
-                class="hover:text-indigo-500 font-bold cursor-pointer"
-                @click="navigateToBreadcrumb(index)"
-              >
-                {{ part }}
-              </button>
-            </template>
-          </div>
-
-          <!-- Search truncated warning -->
-          <div
-            v-if="searchTruncated && fileSearchQuery.trim()"
-            class="text-[10px] text-amber-500 flex items-center gap-1"
-          >
-            <AlertCircle class="w-3 h-3" />
-            搜索结果过多，仅显示前 300 条。请使用更精确的关键词缩小范围。
-          </div>
-        </div>
-
-        <!-- Scrollable Files List Table -->
-        <div
-          class="grow overflow-y-auto min-h-[300px] border rounded-2xl"
-          style="border-color: var(--border-base)"
-        >
-          <div v-if="loadingFiles" class="flex flex-col items-center justify-center py-24 gap-3">
-            <RefreshCw class="w-8 h-8 animate-spin text-accent" />
-            <span class="text-xs font-bold text-[var(--text-secondary)]"
-              >正在加载文件，请稍候...</span
-            >
-          </div>
-
-          <div
-            v-else-if="fileItems.length === 0 && !currentPath"
-            class="flex flex-col items-center justify-center py-20 px-4 text-center"
-          >
-            <Database class="w-8 h-8 text-slate-300 dark:text-white/10 mb-2" />
-            <span class="text-xs font-bold" style="color: var(--text-secondary)"
-              >没有找到相关文件</span
-            >
-            <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
-              该存储桶目前可能为空，或者没有匹配当前搜索词的文件。
-            </p>
-          </div>
-
-          <table v-else class="w-full text-left border-collapse text-[11px]">
-            <thead>
-              <tr
-                class="border-b"
-                style="
-                  border-color: var(--border-base);
-                  background-color: var(--bg-card);
-                  color: var(--text-secondary);
-                "
-              >
-                <th class="p-3 font-bold w-8">
-                  <Checkbox
-                    :model-value="
-                      selectedFileKeys.length > 0 &&
-                      selectedFileKeys.length === fileItems.filter((i) => i.type === 'file').length
-                    "
-                    @change="toggleSelectAll"
-                  />
-                </th>
-                <th class="p-3 font-bold">文件路径 / 键 (Key)</th>
-                <th class="p-3 font-bold w-20">文件大小</th>
-                <th class="p-3 font-bold w-28">修改时间</th>
-                <th class="p-3 font-bold w-28 text-right">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- Go Back Row -->
-              <tr
-                v-if="currentPath && !fileSearchQuery.trim()"
-                class="border-b hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                style="border-color: var(--border-base); color: var(--text-secondary)"
-                @click="goBack"
-              >
-                <td class="p-3"></td>
-                <td colspan="4" class="p-3 font-mono">
-                  <div class="flex items-center gap-2">
-                    <FolderOpen class="w-4 h-4 text-indigo-400" />
-                    <span class="font-bold">.. (返回上一级)</span>
-                  </div>
-                </td>
-              </tr>
-
-              <!-- Items List -->
-              <tr
-                v-for="item in fileItems"
-                :key="item.key"
-                class="border-b hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-                :class="{
-                  'cursor-pointer': item.type === 'folder',
-                  'bg-indigo-500/5': item.type === 'file' && selectedFileKeys.includes(item.key),
-                }"
-                style="border-color: var(--border-base); color: var(--text-primary)"
-                @click="item.type === 'folder' ? (currentPath = item.key) : null"
-              >
-                <!-- Checkbox -->
-                <td class="p-3" @click.stop>
-                  <Checkbox
-                    v-if="item.type === 'file'"
-                    :model-value="selectedFileKeys.includes(item.key)"
-                    @change="toggleFileSelection(item.key)"
-                  />
-                </td>
-
-                <!-- Key/Name and Icon -->
-                <td class="p-3 font-mono break-all max-w-xs">
-                  <div class="flex items-center gap-2">
-                    <!-- Icon based on type -->
-                    <div class="shrink-0">
-                      <Folder
-                        v-if="item.type === 'folder'"
-                        class="w-4 h-4 text-amber-400 shrink-0"
-                      />
-                      <div
-                        v-else-if="isImage(item.key)"
-                        class="w-6 h-6 rounded overflow-hidden border bg-slate-100 flex items-center justify-center shrink-0"
-                      >
-                        <img :src="item.url" class="object-cover w-full h-full" />
-                      </div>
-                      <FileText v-else class="w-4 h-4 text-indigo-400 shrink-0" />
-                    </div>
-
-                    <span
-                      v-if="item.type === 'folder'"
-                      class="truncate font-bold"
-                      :title="item.name"
-                      >{{ item.name }}/</span
-                    >
-                    <span v-else class="truncate" :title="item.name">{{ item.name }}</span>
-
-                    <button
-                      v-if="item.type === 'file'"
-                      type="button"
-                      class="text-slate-400 hover:text-indigo-500 cursor-pointer p-0.5 rounded transition-colors shrink-0"
-                      title="复制资源相对路径"
-                      @click.stop="copyToClipboard(item.key)"
-                    >
-                      <Copy class="w-3 h-3" />
-                    </button>
-                  </div>
-                </td>
-
-                <!-- Size -->
-                <td class="p-3 font-mono whitespace-nowrap">
-                  <span v-if="item.type === 'file'">{{ formatCloudflareBytes(item.size || 0) }}</span>
-                  <span v-else class="text-slate-400">-</span>
-                </td>
-
-                <!-- Last Modified -->
-                <td class="p-3 whitespace-nowrap" style="color: var(--text-muted)">
-                  <span v-if="item.type === 'file' && item.lastModified">
-                    {{ new Date(item.lastModified).toLocaleString() }}
-                  </span>
-                  <span v-else class="text-slate-400">-</span>
-                </td>
-
-                <!-- Actions -->
-                <td class="p-3 text-right whitespace-nowrap" @click.stop>
-                  <template v-if="item.type === 'file'">
-                    <button
-                      type="button"
-                      class="p-1 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 rounded transition-colors cursor-pointer"
-                      title="复制公开 URL"
-                      @click="copyFileUrl(item.url)"
-                    >
-                      <ExternalLink class="w-3.5 h-3.5" />
-                    </button>
-                    <a
-                      :href="item.url"
-                      target="_blank"
-                      class="inline-block p-1 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 rounded transition-colors cursor-pointer"
-                      title="新窗口打开/下载"
-                    >
-                      <Download class="w-3.5 h-3.5" />
-                    </a>
-                    <button
-                      type="button"
-                      class="p-1 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 rounded transition-colors cursor-pointer"
-                      title="重命名"
-                      @click="openRenameDialog(item)"
-                    >
-                      <Pencil class="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      class="p-1 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-rose-500 rounded transition-colors cursor-pointer"
-                      title="永久物理删除"
-                      @click="deleteFile(item.key)"
-                    >
-                      <Trash2 class="w-3.5 h-3.5" />
-                    </button>
-                  </template>
-                  <template v-else>
-                    <button
-                      type="button"
-                      class="p-1 hover:bg-slate-100 dark:hover:bg-white/10 text-indigo-500 rounded transition-colors cursor-pointer text-[10px] font-bold"
-                      @click="currentPath = item.key"
-                    >
-                      打开
-                    </button>
-                  </template>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <!-- Load More -->
-          <div
-            v-if="folderHasMore && !fileSearchQuery.trim()"
-            class="p-3 border-t text-center"
-            style="border-color: var(--border-base)"
-          >
-            <Button
-              variant="outline"
-              size="sm"
-              :loading="loadingMoreFiles"
-              @click="loadMoreFolderItems"
-            >
-              {{ loadingMoreFiles ? '加载中...' : '加载更多' }}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </el-drawer>
-
-    <!-- Rename File Dialog -->
-    <el-dialog v-model="renameDialogVisible" title="重命名文件" width="420px" destroy-on-close>
-      <div class="space-y-3">
-        <p class="text-[11px] break-all" style="color: var(--text-muted)">
-          当前 Key: {{ renameTarget?.key }}
-        </p>
-        <Input v-model="renameNewName" placeholder="新文件名" />
-      </div>
-      <template #footer>
-        <div class="flex items-center gap-2 justify-end">
-          <Button variant="outline" size="sm" @click="renameDialogVisible = false"> 取消 </Button>
-          <Button variant="primary" size="sm" :loading="renamingFile" @click="submitRename">
-            {{ renamingFile ? '保存中...' : '确认重命名' }}
-          </Button>
-        </div>
-      </template>
-    </el-dialog>
+      :current-storage="currentStorage"
+      @refresh="fetchConfigs"
+    />
   </div>
 </template>

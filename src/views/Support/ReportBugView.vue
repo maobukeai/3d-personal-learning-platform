@@ -1,44 +1,29 @@
 <script setup lang="ts">
-import { formatDateTime as formatDate } from '@/utils/format';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   AlertCircle,
-  ArrowUpRight,
   Bug,
   CheckCircle2,
-  ChevronRight,
   CircleDashed,
-  FileImage,
-  Filter,
   History,
-  Image as ImageIcon,
   Inbox,
-  Loader2,
-  MessageSquare,
   Plus,
   RefreshCw,
-  RotateCcw,
-  Search,
-  Send,
-  Sparkles,
-  X,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import Modal from '@/components/ui/Modal.vue';
 import UiButton from '@/components/ui/Button.vue';
-import UiInput from '@/components/ui/Input.vue';
-import { getApiErrorMessage } from '@/utils/error';
-import type { Feedback } from '@/types';
+import { getApiErrorMessage, logError } from '@/utils/error';
+import type { Feedback, FeedbackType, FeedbackPriority, FeedbackStatus } from '@/types';
 import PageHeader from '@/components/PageHeader.vue';
-import Card from '@/components/ui/Card.vue';
-import Tabs from '@/components/ui/Tabs.vue';
 import Badge from '@/components/ui/Badge.vue';
-
-type FeedbackType = Feedback['type'];
-type FeedbackPriority = Feedback['priority'];
-type FeedbackStatus = Feedback['status'];
+import BugReportForm, { type BugFormData } from './components/BugReportForm.vue';
+import BugHistoryPanel from './components/BugHistoryPanel.vue';
+import BugStatsCards, { type BugStatCard } from './components/BugStatsCards.vue';
+import BugWorkbenchToolbar from './components/BugWorkbenchToolbar.vue';
+import BugAssistPanel from './components/BugAssistPanel.vue';
 type TabKey = 'submit' | 'history';
 type AnyFilter<T extends string> = 'ALL' | T;
 
@@ -59,7 +44,6 @@ interface FeedbackStats {
 const route = useRoute();
 const router = useRouter();
 
-const fileInput = ref<HTMLInputElement | null>(null);
 const activeTab = ref<TabKey>('submit');
 const feedbacks = ref<Feedback[]>([]);
 const activeFeedback = ref<Feedback | null>(null);
@@ -89,7 +73,7 @@ const stats = ref<FeedbackStats>({
   byPriority: {},
 });
 
-const bugForm = ref({
+const bugForm = ref<BugFormData>({
   type: 'Bug' as FeedbackType,
   title: '',
   description: '',
@@ -130,43 +114,13 @@ const resolutionRate = computed(() =>
     : 0,
 );
 
-const filteredFeedbacks = computed(() => {
-  const keyword = searchQuery.value.trim().toLowerCase();
-  return feedbacks.value.filter((item) => {
-    const matchesStatus = statusFilter.value === 'ALL' || item.status === statusFilter.value;
-    const matchesType = typeFilter.value === 'ALL' || item.type === typeFilter.value;
-    const matchesPriority =
-      priorityFilter.value === 'ALL' || item.priority === priorityFilter.value;
-    const matchesSearch =
-      !keyword ||
-      item.title.toLowerCase().includes(keyword) ||
-      item.description.toLowerCase().includes(keyword);
-
-    return matchesStatus && matchesType && matchesPriority && matchesSearch;
-  });
-});
-
 const latestActivityText = computed(() => {
   const latest = stats.value.latest;
   if (!latest) return '暂无工单动态';
   return `${statusLabel(latest.status)} · ${formatRelativeDate(latest.updatedAt)}`;
 });
 
-const getBadgeVariant = (label: string) => {
-  if (
-    label === '全部' ||
-    label === '正常' ||
-    label === '稳定' ||
-    label === '高效' ||
-    label === '无'
-  )
-    return 'success';
-  if (label === '关注' || label === '积压') return 'warning';
-  if (label === '紧急') return 'danger';
-  return 'primary';
-};
-
-const consolidatedCards = computed(() => {
+const consolidatedCards = computed<BugStatCard[]>(() => {
   return [
     {
       label: '全部工单',
@@ -236,33 +190,6 @@ const statusLabel = (status: string) => {
   return map[status] || status;
 };
 
-const typeLabel = (type: string) => typeOptions.find((item) => item.value === type)?.label || type;
-const priorityLabel = (priority: string) =>
-  priorityOptions.find((item) => item.value === priority)?.label || priority;
-
-const statusTone = (status: string) => ({
-  'tone-red': status === 'OPEN',
-  'tone-amber': status === 'IN_PROGRESS',
-  'tone-green': status === 'RESOLVED',
-  'tone-slate': status === 'CLOSED',
-});
-
-const priorityTone = (priority: string) => ({
-  'tone-green': priority === 'LOW',
-  'tone-amber': priority === 'MEDIUM',
-  'tone-red': priority === 'HIGH',
-});
-
-const progressPercent = (status: string) => {
-  const map: Record<string, number> = {
-    OPEN: 25,
-    IN_PROGRESS: 55,
-    RESOLVED: 82,
-    CLOSED: 100,
-  };
-  return map[status] || 20;
-};
-
 const formatRelativeDate = (value?: string | null) => {
   if (!value) return '无记录';
   const diff = Date.now() - new Date(value).getTime();
@@ -272,8 +199,6 @@ const formatRelativeDate = (value?: string | null) => {
   if (hours < 24) return `${hours} 小时前`;
   return `${Math.floor(hours / 24)} 天前`;
 };
-
-const ticketNo = (id?: string) => (id ? `#${id.slice(0, 8).toUpperCase()}` : '#NEW');
 
 const buildDescription = () => {
   const sections = [
@@ -293,7 +218,7 @@ const refreshStats = async () => {
     const response = await api.get<FeedbackStats>('/api/feedback/stats');
     stats.value = response.data;
   } catch (error) {
-    console.error('Fetch feedback stats failed:', error);
+    logError(error, { operation: 'feedback.fetchStats', component: 'ReportBugView' });
   }
 };
 
@@ -338,8 +263,6 @@ const setTab = (tab: TabKey) => {
   activeTab.value = tab;
   router.replace({ query: { ...route.query, tab } });
 };
-
-const triggerFileInput = () => fileInput.value?.click();
 
 const handleFileUpload = async (event: Event) => {
   const target = event.target as HTMLInputElement;
@@ -463,7 +386,7 @@ onMounted(refreshAll);
 </script>
 
 <template>
-  <div class="support-workbench flex flex-1 min-h-0 flex-col overflow-hidden">
+  <div class="support-workbench mobile-adaptive flex flex-1 min-h-0 flex-col overflow-hidden">
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide w-full">
       <PageHeader title="问题反馈" subtitle="支持中心" variant="card">
         <template #center>
@@ -486,447 +409,59 @@ onMounted(refreshAll);
         >
       </PageHeader>
 
-      <!-- Top KPI metrics grid (Horizontal compact) -->
-      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-        <Card
-          v-for="card in consolidatedCards"
-          :key="card.label"
-          hoverable
-          glow
-          class="group !p-2 px-2.5"
-        >
-          <div class="flex items-center justify-between w-full gap-3">
-            <!-- Left: Icon & Info -->
-            <div class="flex items-center gap-2.5 min-w-0">
-              <span
-                class="panel-icon border border-base rounded-lg p-1.5 transition-transform group-hover:scale-105 shrink-0"
-                :class="card.color"
-              >
-                <component :is="card.icon" class="h-3.5 w-3.5" />
-              </span>
-              <div class="min-w-0">
-                <p
-                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
-                >
-                  {{ card.label }}
-                </p>
-                <p
-                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
-                  :title="card.hint"
-                >
-                  {{ card.hint }}
-                </p>
-              </div>
-            </div>
+      <BugStatsCards :cards="consolidatedCards" />
 
-            <!-- Right: Metric & Health Badge -->
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="text-base font-black text-[var(--text-primary)] leading-none">
-                {{ card.value }}
-              </span>
-              <Badge :variant="getBadgeVariant(card.health.label)">
-                {{ card.health.label }}
-              </Badge>
-            </div>
-          </div>
-        </Card>
-      </section>
-
-      <!-- Workbench Toolbar -->
-      <Card padding="sm" class="workbench-toolbar-card">
-        <div class="toolbar-top flex items-center justify-between">
-          <div class="overflow-x-auto scrollbar-hide shrink-0 max-w-full">
-            <Tabs v-model="activeTab" :options="tabOptions" size="sm" />
-          </div>
-        </div>
-      </Card>
+      <BugWorkbenchToolbar
+        :active-tab="activeTab"
+        :tab-options="tabOptions"
+        @update:active-tab="setTab"
+      />
 
       <div v-if="activeTab === 'submit'" class="submit-layout">
-        <Card class="form-panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Ticket {{ ticketNo() }}</p>
-              <h2>描述问题</h2>
-            </div>
-            <span class="status-pill tone-amber">草稿</span>
-          </div>
+        <BugReportForm
+          v-model="bugForm"
+          :preview-url="previewUrl"
+          :is-uploading="isUploading"
+          :is-submitting="isSubmitting"
+          :type-options="typeOptions"
+          :priority-options="priorityOptions"
+          @submit="handleSubmit"
+          @reset="resetForm"
+          @file-change="handleFileUpload"
+          @remove-attachment="removeAttachment"
+        />
 
-          <div class="compact-grid">
-            <div class="form-group">
-              <label class="form-label">反馈类型</label>
-              <div class="relative w-full">
-                <select v-model="bugForm.type" class="custom-select">
-                  <option v-for="item in typeOptions" :key="item.value" :value="item.value">
-                    {{ item.label }} · {{ item.hint }}
-                  </option>
-                </select>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">优先级</label>
-              <div class="relative w-full">
-                <select v-model="bugForm.priority" class="custom-select">
-                  <option v-for="item in priorityOptions" :key="item.value" :value="item.value">
-                    {{ item.label }} · {{ item.hint }}
-                  </option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <UiInput
-            v-model="bugForm.title"
-            label="工单标题"
-            placeholder="例如：学习路线页面保存后步骤顺序错乱"
-            :glass="false"
-          />
-
-          <div class="form-group">
-            <label class="form-label">问题描述</label>
-            <textarea
-              v-model="bugForm.description"
-              class="custom-textarea"
-              rows="6"
-              maxlength="1500"
-              placeholder="请详细描述问题发生的页面、具体现象，或者在此处附带复现步骤、期望与实际结果，方便管理员快速定位。"
-            ></textarea>
-          </div>
-
-          <div class="compact-grid">
-            <UiInput
-              v-model="bugForm.impact"
-              label="影响范围"
-              placeholder="例如：影响团队任务提交 / 仅自己可见"
-              :glass="false"
-            />
-            <UiInput
-              v-model="bugForm.pageUrl"
-              label="页面链接"
-              placeholder="https://..."
-              :glass="false"
-            />
-          </div>
-
-          <div class="upload-row">
-            <input
-              ref="fileInput"
-              type="file"
-              class="hidden-input"
-              accept="image/*"
-              @change="handleFileUpload"
-            />
-            <button v-if="!previewUrl" type="button" class="upload-box" @click="triggerFileInput">
-              <Loader2 v-if="isUploading" class="spinning" />
-              <FileImage v-else />
-              <span>{{ isUploading ? '上传中...' : '上传截图' }}</span>
-              <small>PNG / JPG / WebP，最大 5MB</small>
-            </button>
-            <div v-else class="attachment-preview">
-              <img :src="previewUrl" alt="" />
-              <div>
-                <strong>截图已附加</strong>
-                <span>管理员可直接预览定位问题</span>
-              </div>
-              <button type="button" class="icon-btn danger" @click="removeAttachment"><X /></button>
-            </div>
-          </div>
-
-          <div class="form-actions">
-            <UiButton variant="secondary" :icon="RotateCcw" @click="resetForm">重置</UiButton>
-            <UiButton
-              variant="primary"
-              :icon="Send"
-              :disabled="isSubmitting"
-              :loading="isSubmitting"
-              @click="handleSubmit"
-            >
-              {{ isSubmitting ? '提交中' : '提交工单' }}
-            </UiButton>
-          </div>
-        </Card>
-
-        <aside class="assist-panel">
-          <Card>
-            <div class="side-title">
-              <Sparkles />
-              <h3>处理流程</h3>
-            </div>
-            <div
-              class="process-timeline relative pl-4 mt-2 before:content-[''] before:absolute before:left-[6px] before:top-2 before:bottom-2 before:w-[2px] before:bg-[var(--border-base)]"
-            >
-              <div class="timeline-item relative pb-4">
-                <span
-                  class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[8px] font-bold text-[var(--accent)] shrink-0"
-                  >1</span
-                >
-                <h4 class="text-xs font-bold text-[var(--text-primary)] pl-2">提交接收</h4>
-                <p class="text-[11px] text-[var(--text-muted)] mt-1 pl-2">
-                  系统记录问题截图、关联链接与工单优先级，并即时推送到后台管理员队列。
-                </p>
-              </div>
-              <div class="timeline-item relative pb-4">
-                <span
-                  class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[8px] font-bold text-[var(--accent)] shrink-0"
-                  >2</span
-                >
-                <h4 class="text-xs font-bold text-[var(--text-primary)] pl-2">分析与处理</h4>
-                <p class="text-[11px] text-[var(--text-muted)] mt-1 pl-2">
-                  管理员根据您填写的重现信息与链接进行分析定位，并更新工单解决进度。
-                </p>
-              </div>
-              <div class="timeline-item relative">
-                <span
-                  class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[8px] font-bold text-[var(--accent)] shrink-0"
-                  >3</span
-                >
-                <h4 class="text-xs font-bold text-[var(--text-primary)] pl-2">确认与回访</h4>
-                <p class="text-[11px] text-[var(--text-muted)] mt-1 pl-2">
-                  您将在“我的工单”和通知中心收到反馈，确认已解决后即可自主关闭工单。
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          <Card>
-            <div class="side-title">
-              <Filter />
-              <h3>提交质量</h3>
-            </div>
-            <div class="quality-list space-y-2 mt-2">
-              <div class="flex items-center justify-between text-xs py-1 border-b border-base/40">
-                <span class="text-[var(--text-secondary)]">标题长度 (≥3字)</span>
-                <span
-                  class="font-mono text-[11px]"
-                  :class="
-                    bugForm.title.trim().length >= 3
-                      ? 'text-emerald-500 font-bold'
-                      : 'text-amber-500'
-                  "
-                >
-                  {{ bugForm.title.trim().length }}/3
-                </span>
-              </div>
-              <div class="flex items-center justify-between text-xs py-1 border-b border-base/40">
-                <span class="text-[var(--text-secondary)]">问题描述 (≥15字)</span>
-                <span
-                  class="font-mono text-[11px]"
-                  :class="
-                    bugForm.description.trim().length >= 15
-                      ? 'text-emerald-500 font-bold'
-                      : 'text-amber-500'
-                  "
-                >
-                  {{ bugForm.description.trim().length }}/15
-                </span>
-              </div>
-              <div class="flex items-center justify-between text-xs py-1 border-b border-base/40">
-                <span class="text-[var(--text-secondary)]">页面链接关联</span>
-                <Badge
-                  :variant="bugForm.pageUrl.trim() ? 'success' : 'warning'"
-                  size="sm"
-                  class="!px-1.5 !py-0.5 text-[10px]"
-                >
-                  {{ bugForm.pageUrl.trim() ? '已关联' : '无链接' }}
-                </Badge>
-              </div>
-              <div class="flex items-center justify-between text-xs py-1">
-                <span class="text-[var(--text-secondary)]">图片截图附件</span>
-                <Badge
-                  :variant="bugForm.attachmentUrl ? 'success' : 'primary'"
-                  size="sm"
-                  class="!px-1.5 !py-0.5 text-[10px]"
-                >
-                  {{ bugForm.attachmentUrl ? '已上传' : '无附件' }}
-                </Badge>
-              </div>
-            </div>
-          </Card>
-
-          <Card class="mini-feed">
-            <div class="side-title">
-              <MessageSquare />
-              <h3>最近工单</h3>
-            </div>
-            <button
-              v-for="item in feedbacks.slice(0, 4)"
-              :key="item.id"
-              type="button"
-              class="mini-ticket"
-              @click="
-                setTab('history');
-                selectFeedback(item);
-              "
-            >
-              <span>{{ ticketNo(item.id) }}</span>
-              <strong>{{ item.title }}</strong>
-              <small
-                >{{ statusLabel(item.status) }} · {{ formatRelativeDate(item.updatedAt) }}</small
-              >
-            </button>
-            <div v-if="feedbacks.length === 0" class="empty-mini">还没有历史反馈</div>
-          </Card>
-        </aside>
+        <BugAssistPanel
+          :feedbacks="feedbacks"
+          :title="bugForm.title"
+          :description="bugForm.description"
+          :page-url="bugForm.pageUrl"
+          :attachment-url="bugForm.attachmentUrl"
+          @select="
+            setTab('history');
+            selectFeedback($event);
+          "
+        />
       </div>
 
-      <div v-else class="history-layout">
-        <Card class="ticket-list-panel !p-0">
-          <div class="toolbar">
-            <UiInput
-              v-model="searchQuery"
-              :icon="Search"
-              placeholder="搜索标题或描述"
-              :glass="false"
-              class="min-w-[200px]"
-            />
-            <select v-model="statusFilter" class="custom-select toolbar-select">
-              <option v-for="item in statusOptions" :key="item.value" :value="item.value">
-                {{ item.label }}
-              </option>
-            </select>
-            <select v-model="typeFilter" class="custom-select toolbar-select">
-              <option value="ALL">全部类型</option>
-              <option v-for="item in typeOptions" :key="item.value" :value="item.value">
-                {{ item.label }}
-              </option>
-            </select>
-            <select v-model="priorityFilter" class="custom-select toolbar-select">
-              <option value="ALL">全部优先级</option>
-              <option v-for="item in priorityOptions" :key="item.value" :value="item.value">
-                {{ item.label }}
-              </option>
-            </select>
-          </div>
-
-          <div v-if="isLoadingHistory" class="loading-state">
-            <Loader2 class="spinning" />
-            正在同步工单
-          </div>
-
-          <div v-else-if="filteredFeedbacks.length === 0" class="empty-state">
-            <Inbox />
-            <strong>没有匹配的工单</strong>
-            <span>调整筛选条件，或新建一个反馈工单。</span>
-            <UiButton variant="primary" :icon="Plus" @click="setTab('submit')">新建工单</UiButton>
-          </div>
-
-          <div v-else class="ticket-list">
-            <button
-              v-for="item in filteredFeedbacks"
-              :key="item.id"
-              type="button"
-              class="ticket-row"
-              :class="{ selected: activeFeedback?.id === item.id }"
-              @click="selectFeedback(item)"
-            >
-              <div class="row-main">
-                <span class="ticket-id">{{ ticketNo(item.id) }}</span>
-                <strong>{{ item.title }}</strong>
-                <small>{{ typeLabel(item.type) }} · {{ formatDate(item.updatedAt) }}</small>
-              </div>
-              <div class="row-meta">
-                <span class="status-pill" :class="statusTone(item.status)">{{
-                  statusLabel(item.status)
-                }}</span>
-                <span class="status-pill" :class="priorityTone(item.priority)"
-                  >P{{ priorityLabel(item.priority) }}</span
-                >
-              </div>
-              <ChevronRight />
-            </button>
-          </div>
-        </Card>
-
-        <Card class="detail-panel">
-          <div v-if="!activeFeedback" class="empty-state detail-empty">
-            <MessageSquare />
-            <strong>选择一个工单</strong>
-            <span>右侧会显示状态进度、官方回复和附件。</span>
-          </div>
-
-          <template v-else>
-            <div class="detail-head">
-              <div>
-                <p class="eyebrow">{{ ticketNo(activeFeedback.id) }}</p>
-                <h2>{{ activeFeedback.title }}</h2>
-              </div>
-              <span class="status-pill" :class="statusTone(activeFeedback.status)">
-                {{ statusLabel(activeFeedback.status) }}
-              </span>
-            </div>
-
-            <div class="progress-track">
-              <span :style="{ width: `${progressPercent(activeFeedback.status)}%` }"></span>
-            </div>
-
-            <div class="detail-meta">
-              <div>
-                <span>类型</span>
-                <strong>{{ typeLabel(activeFeedback.type) }}</strong>
-              </div>
-              <div>
-                <span>优先级</span>
-                <strong>{{ priorityLabel(activeFeedback.priority) }}</strong>
-              </div>
-              <div>
-                <span>提交</span>
-                <strong>{{ formatDate(activeFeedback.createdAt) }}</strong>
-              </div>
-              <div>
-                <span>更新</span>
-                <strong>{{ formatDate(activeFeedback.updatedAt) }}</strong>
-              </div>
-            </div>
-
-            <div v-if="isLoadingDetail" class="inline-loading">
-              <Loader2 class="spinning" />
-              正在刷新详情
-            </div>
-
-            <section class="detail-section">
-              <h3>反馈内容</h3>
-              <p>{{ activeFeedback.description }}</p>
-            </section>
-
-            <section v-if="activeFeedback.adminReply" class="detail-section official-reply">
-              <div class="reply-head">
-                <h3>官方回复</h3>
-                <span>{{ formatDate(activeFeedback.repliedAt) }}</span>
-              </div>
-              <p>{{ activeFeedback.adminReply }}</p>
-            </section>
-
-            <UiButton
-              v-if="activeFeedback.attachmentUrl"
-              variant="secondary"
-              :icon="ImageIcon"
-              @click="openPreview(activeFeedback.attachmentUrl)"
-            >
-              查看附件截图
-              <ArrowUpRight />
-            </UiButton>
-
-            <div class="detail-actions">
-              <UiButton
-                v-if="activeFeedback.status !== 'CLOSED'"
-                variant="secondary"
-                :icon="CheckCircle2"
-                @click="updateMyStatus(activeFeedback, 'CLOSED')"
-              >
-                我已确认，关闭
-              </UiButton>
-              <UiButton
-                v-else
-                variant="secondary"
-                :icon="RotateCcw"
-                @click="updateMyStatus(activeFeedback, 'OPEN')"
-              >
-                重新打开
-              </UiButton>
-              <UiButton variant="primary" :icon="Plus" @click="setTab('submit')">继续反馈</UiButton>
-            </div>
-          </template>
-        </Card>
-      </div>
+      <BugHistoryPanel
+        v-else
+        v-model:search-query="searchQuery"
+        v-model:status-filter="statusFilter"
+        v-model:type-filter="typeFilter"
+        v-model:priority-filter="priorityFilter"
+        :feedbacks="feedbacks"
+        :active-feedback="activeFeedback"
+        :is-loading-history="isLoadingHistory"
+        :is-loading-detail="isLoadingDetail"
+        :status-options="statusOptions"
+        :type-options="typeOptions"
+        :priority-options="priorityOptions"
+        @select="selectFeedback"
+        @update-status="updateMyStatus"
+        @preview="openPreview"
+        @continue="setTab('submit')"
+      />
     </main>
 
     <Modal
@@ -941,7 +476,7 @@ onMounted(refreshAll);
 </template>
 
 <style scoped>
-.support-workbench {
+:deep(.support-workbench) {
   height: 100%;
   min-height: 0;
   display: flex;
@@ -951,75 +486,75 @@ onMounted(refreshAll);
   color: var(--text-primary);
 }
 
-.form-actions,
-.detail-actions,
-.side-title,
-.attachment-preview,
-.attachment-link,
-.inline-loading {
+:deep(.form-actions),
+:deep(.detail-actions),
+:deep(.side-title),
+:deep(.attachment-preview),
+:deep(.attachment-link),
+:deep(.inline-loading) {
   display: flex;
   align-items: center;
 }
 
-.title-icon svg,
-button svg {
+:deep(.title-icon svg),
+:deep(button svg) {
   width: 16px;
   height: 16px;
 }
 
-h1,
-h2,
-h3,
-p {
+:deep(h1),
+:deep(h2),
+:deep(h3),
+:deep(p) {
   margin: 0;
 }
 
-h1 {
+:deep(h1) {
   font-size: 20px;
   font-weight: 900;
 }
 
-h2 {
+:deep(h2) {
   font-size: 17px;
   font-weight: 900;
 }
 
-.eyebrow {
+:deep(.eyebrow) {
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0;
 }
 
-button,
-input,
-select,
-textarea {
+:deep(button),
+:deep(input),
+:deep(select),
+:deep(textarea) {
   font: inherit;
 }
 
-button {
+:deep(button) {
   border: 0;
   cursor: pointer;
 }
 
-button:disabled {
+:deep(button:disabled) {
   cursor: not-allowed;
   opacity: 0.58;
 }
 
-.form-actions {
+:deep(.form-actions) {
   gap: 8px;
   margin-top: 12px;
 }
 
-.detail-actions {
+:deep(.detail-actions) {
   gap: 8px;
 }
 
-.primary-btn,
-.ghost-btn,
-.icon-btn {
+:deep(.primary-btn),
+:deep(.ghost-btn),
+:deep(.icon-btn) {
   min-height: 34px;
   display: inline-flex;
   align-items: center;
@@ -1031,80 +566,80 @@ button:disabled {
   font-weight: 900;
 }
 
-.primary-btn {
+:deep(.primary-btn) {
   background: var(--accent);
   color: white;
 }
 
-.ghost-btn {
+:deep(.ghost-btn) {
   border: 1px solid var(--border-base);
   background: var(--bg-elevated);
   color: var(--text-secondary);
 }
 
-.icon-btn {
+:deep(.icon-btn) {
   width: 32px;
   padding: 0;
   background: var(--bg-app);
   color: var(--text-muted);
 }
 
-.icon-btn.danger {
+:deep(.icon-btn.danger) {
   color: #dc2626;
 }
 
-.detail-meta span,
-.mini-ticket span,
-.ticket-id {
+:deep(.detail-meta span),
+:deep(.mini-ticket span),
+:deep(.ticket-id) {
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 900;
 }
 
-.submit-layout,
-.history-layout {
+:deep(.submit-layout),
+:deep(.history-layout) {
   display: grid;
   gap: 12px;
 }
 
-.submit-layout {
+:deep(.submit-layout) {
   grid-template-columns: minmax(0, 1fr) 330px;
 }
 
-.history-layout {
+:deep(.history-layout) {
   grid-template-columns: minmax(420px, 0.92fr) minmax(360px, 1fr);
 }
 
-.form-panel {
+:deep(.form-panel) {
   display: grid;
   gap: 16px;
   padding: 20px;
   padding-bottom: 28px;
 }
 
-.panel-head,
-.detail-head,
-.reply-head {
+:deep(.panel-head),
+:deep(.detail-head),
+:deep(.reply-head) {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
 
-.compact-grid {
+:deep(.compact-grid) {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
 /* Premium standard labels and inputs */
-.form-group {
+:deep(.form-group) {
   display: flex;
   flex-direction: column;
   text-align: left;
 }
 
-.form-label {
+:deep(.form-label) {
   display: block;
   font-size: 11px;
   font-weight: 700;
@@ -1116,12 +651,12 @@ button:disabled {
   transition: color 0.2s ease;
 }
 
-.form-group:focus-within .form-label {
+:deep(.form-group:focus-within .form-label) {
   color: var(--accent);
 }
 
-.custom-select,
-.custom-textarea {
+:deep(.custom-select),
+:deep(.custom-textarea) {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--border-base);
@@ -1134,7 +669,7 @@ button:disabled {
   transition: all 0.3s ease;
 }
 
-.custom-select {
+:deep(.custom-select) {
   height: 48px;
   padding: 0 16px;
   appearance: none;
@@ -1146,20 +681,20 @@ button:disabled {
   cursor: pointer;
 }
 
-.custom-select:focus,
-.custom-textarea:focus {
+:deep(.custom-select:focus),
+:deep(.custom-textarea:focus) {
   border-color: var(--accent);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
-.custom-textarea {
+:deep(.custom-textarea) {
   padding: 14px 16px;
   line-height: 1.6;
   resize: vertical;
   min-height: 140px;
 }
 
-.toolbar-select {
+:deep(.toolbar-select) {
   height: 38px;
   min-width: 112px;
   width: auto;
@@ -1170,16 +705,16 @@ button:disabled {
   background-size: 12px;
 }
 
-.hidden-input {
+:deep(.hidden-input) {
   display: none;
 }
 
-.upload-row {
+:deep(.upload-row) {
   display: grid;
 }
 
-.upload-box,
-.attachment-preview {
+:deep(.upload-box),
+:deep(.attachment-preview) {
   min-height: 80px;
   border: 1.5px dashed var(--border-base);
   border-radius: 12px;
@@ -1187,7 +722,7 @@ button:disabled {
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.upload-box {
+:deep(.upload-box) {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1198,34 +733,34 @@ button:disabled {
   cursor: pointer;
 }
 
-.upload-box:hover {
+:deep(.upload-box:hover) {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 4%, var(--bg-card));
   color: var(--text-primary);
 }
 
-.upload-box svg {
+:deep(.upload-box svg) {
   width: 22px;
   height: 22px;
   color: var(--accent);
   transition: transform 0.3s ease;
 }
 
-.upload-box:hover svg {
+:deep(.upload-box:hover svg) {
   transform: translateY(-2px);
 }
 
-.upload-box span {
+:deep(.upload-box span) {
   font-size: 12px;
   font-weight: 700;
 }
 
-.upload-box small {
+:deep(.upload-box small) {
   color: var(--text-muted);
   font-size: 10px;
 }
 
-.attachment-preview {
+:deep(.attachment-preview) {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -1234,7 +769,7 @@ button:disabled {
   border-color: var(--border-base);
 }
 
-.attachment-preview img {
+:deep(.attachment-preview img) {
   width: 56px;
   height: 56px;
   border-radius: 8px;
@@ -1242,66 +777,66 @@ button:disabled {
   border: 1px solid var(--border-base);
 }
 
-.attachment-preview div {
+:deep(.attachment-preview div) {
   min-width: 0;
   flex: 1;
 }
 
-.attachment-preview strong,
-.attachment-preview span {
+:deep(.attachment-preview strong),
+:deep(.attachment-preview span) {
   display: block;
 }
 
-.attachment-preview strong {
+:deep(.attachment-preview strong) {
   font-size: 13px;
 }
 
-.attachment-preview span {
+:deep(.attachment-preview span) {
   color: var(--text-muted);
   font-size: 11px;
 }
 
-.assist-panel {
+:deep(.assist-panel) {
   display: grid;
   align-content: start;
   gap: 12px;
   padding: 0;
 }
 
-.side-title {
+:deep(.side-title) {
   gap: 7px;
   margin-bottom: 10px;
 }
 
-.side-title svg {
+:deep(.side-title svg) {
   width: 15px;
   height: 15px;
   color: var(--accent);
 }
 
-.side-title h3 {
+:deep(.side-title h3) {
   font-size: 13px;
   font-weight: 900;
 }
 
 /* Process Timeline styling */
-.process-timeline {
+:deep(.process-timeline) {
   margin-top: 8px;
 }
 
-.timeline-item {
+:deep(.timeline-item) {
   position: relative;
   text-align: left;
 }
 
-.timeline-item h4 {
+:deep(.timeline-item h4) {
   margin: 0;
   font-size: 12px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
-.timeline-item p {
+:deep(.timeline-item p) {
   margin: 0;
   font-size: 11px;
   line-height: 1.5;
@@ -1309,23 +844,23 @@ button:disabled {
 }
 
 /* Quality Checklist styling */
-.quality-list {
+:deep(.quality-list) {
   display: flex;
   flex-direction: column;
 }
 
-.quality-list div {
+:deep(.quality-list div) {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.mini-feed {
+:deep(.mini-feed) {
   display: grid;
   gap: 7px;
 }
 
-.mini-ticket {
+:deep(.mini-ticket) {
   display: grid;
   gap: 4px;
   padding: 12px;
@@ -1337,32 +872,32 @@ button:disabled {
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.mini-ticket:hover {
+:deep(.mini-ticket:hover) {
   transform: translateY(-2px);
   border-color: var(--accent);
   box-shadow: var(--shadow-card-hover);
   background: color-mix(in srgb, var(--accent) 3%, var(--bg-card));
 }
 
-.mini-ticket strong {
+:deep(.mini-ticket strong) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
 }
 
-.mini-ticket small,
-.empty-mini {
+:deep(.mini-ticket small),
+:deep(.empty-mini) {
   color: var(--text-muted);
   font-size: 11px;
 }
 
-.ticket-list-panel {
+:deep(.ticket-list-panel) {
   display: flex;
   flex-direction: column;
 }
 
-.toolbar {
+:deep(.toolbar) {
   display: flex;
   gap: 8px;
   padding: 10px;
@@ -1370,7 +905,7 @@ button:disabled {
   flex-wrap: wrap;
 }
 
-.search-box {
+:deep(.search-box) {
   min-width: 250px;
   flex: 1;
   display: flex;
@@ -1383,13 +918,13 @@ button:disabled {
   background: var(--bg-app);
 }
 
-.search-box svg {
+:deep(.search-box svg) {
   width: 15px;
   height: 15px;
   color: var(--text-muted);
 }
 
-.search-box input {
+:deep(.search-box input) {
   height: auto;
   padding: 0;
   border: 0;
@@ -1397,13 +932,13 @@ button:disabled {
   box-shadow: none;
 }
 
-.ticket-list {
+:deep(.ticket-list) {
   flex: 1;
   min-height: 0;
   overflow: auto;
 }
 
-.ticket-row {
+:deep(.ticket-row) {
   width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto 18px;
@@ -1417,31 +952,31 @@ button:disabled {
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.ticket-row:hover,
-.ticket-row.selected {
+:deep(.ticket-row:hover),
+:deep(.ticket-row.selected) {
   background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
 
-.ticket-row > svg {
+:deep(.ticket-row > svg) {
   width: 15px;
   height: 15px;
   color: var(--text-muted);
 }
 
-.row-main {
+:deep(.row-main) {
   min-width: 0;
   display: grid;
   gap: 3px;
 }
 
-.row-main strong {
+:deep(.row-main strong) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13px;
 }
 
-.row-main small {
+:deep(.row-main small) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1449,14 +984,14 @@ button:disabled {
   font-size: 11px;
 }
 
-.row-meta {
+:deep(.row-meta) {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
-.status-pill {
+:deep(.status-pill) {
   min-height: 24px;
   display: inline-flex;
   align-items: center;
@@ -1467,43 +1002,43 @@ button:disabled {
   white-space: nowrap;
 }
 
-.tone-green {
+:deep(.tone-green) {
   color: #047857;
   background: rgba(16, 185, 129, 0.12);
 }
 
-.tone-red {
+:deep(.tone-red) {
   color: #dc2626;
   background: rgba(239, 68, 68, 0.12);
 }
 
-.tone-amber {
+:deep(.tone-amber) {
   color: #b45309;
   background: rgba(245, 158, 11, 0.14);
 }
 
-.tone-slate {
+:deep(.tone-slate) {
   color: var(--text-secondary);
   background: var(--bg-app);
 }
 
-.detail-panel {
+:deep(.detail-panel) {
   padding: 14px;
 }
 
-.detail-head h2 {
+:deep(.detail-head h2) {
   margin-top: 3px;
 }
 
 /* Premium progress bar */
-.progress-track {
+:deep(.progress-track) {
   height: 6px;
   margin: 16px 0;
   border-radius: 999px;
   background: var(--border-base);
 }
 
-.progress-track span {
+:deep(.progress-track span) {
   display: block;
   height: 100%;
   border-radius: inherit;
@@ -1515,14 +1050,14 @@ button:disabled {
   box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
-.detail-meta {
+:deep(.detail-meta) {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 12px;
 }
 
-.detail-meta div {
+:deep(.detail-meta div) {
   min-width: 0;
   padding: 9px;
   border: 1px solid var(--border-base);
@@ -1530,7 +1065,7 @@ button:disabled {
   background: var(--bg-elevated);
 }
 
-.detail-meta strong {
+:deep(.detail-meta strong) {
   display: block;
   margin-top: 4px;
   overflow: hidden;
@@ -1539,7 +1074,7 @@ button:disabled {
   font-size: 12px;
 }
 
-.inline-loading {
+:deep(.inline-loading) {
   gap: 7px;
   margin-bottom: 10px;
   color: var(--text-muted);
@@ -1547,7 +1082,7 @@ button:disabled {
   font-weight: 900;
 }
 
-.detail-section {
+:deep(.detail-section) {
   margin-top: 10px;
   padding: 12px;
   border: 1px solid var(--border-base);
@@ -1555,30 +1090,30 @@ button:disabled {
   background: var(--bg-elevated);
 }
 
-.detail-section h3 {
+:deep(.detail-section h3) {
   margin-bottom: 8px;
   font-size: 13px;
   font-weight: 900;
 }
 
-.detail-section p {
+:deep(.detail-section p) {
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.7;
   white-space: pre-wrap;
 }
 
-.official-reply {
+:deep(.official-reply) {
   border-color: color-mix(in srgb, var(--accent) 28%, var(--border-base));
 }
 
-.reply-head span {
+:deep(.reply-head span) {
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 900;
 }
 
-.attachment-link {
+:deep(.attachment-link) {
   width: 100%;
   min-height: 38px;
   justify-content: center;
@@ -1591,14 +1126,14 @@ button:disabled {
   font-weight: 900;
 }
 
-.detail-actions {
+:deep(.detail-actions) {
   margin-top: 12px;
   justify-content: flex-end;
   flex-wrap: wrap;
 }
 
-.loading-state,
-.empty-state {
+:deep(.loading-state),
+:deep(.empty-state) {
   min-height: 240px;
   display: flex;
   flex-direction: column;
@@ -1609,38 +1144,38 @@ button:disabled {
   text-align: center;
 }
 
-.loading-state svg,
-.empty-state svg {
+:deep(.loading-state svg),
+:deep(.empty-state svg) {
   width: 28px;
   height: 28px;
   color: var(--accent);
 }
 
-.empty-state strong {
+:deep(.empty-state strong) {
   color: var(--text-primary);
   font-size: 14px;
 }
 
-.empty-state span {
+:deep(.empty-state span) {
   max-width: 280px;
   font-size: 12px;
 }
 
-.detail-empty {
+:deep(.detail-empty) {
   height: 100%;
 }
 
-.spinning {
+:deep(.spinning) {
   animation: spin 0.9s linear infinite;
 }
 
 @keyframes spin {
-  to {
+  :deep(to) {
     transform: rotate(360deg);
   }
 }
 
-.preview-image {
+:deep(.preview-image) {
   display: block;
   width: 100%;
   max-height: 72vh;
@@ -1649,40 +1184,40 @@ button:disabled {
 }
 
 @media (max-width: 1180px) {
-  .submit-layout,
-  .history-layout {
+  :deep(.submit-layout),
+  :deep(.history-layout) {
     grid-template-columns: 1fr;
     overflow: auto;
   }
 
-  .assist-panel,
-  .detail-panel {
+  :deep(.assist-panel),
+  :deep(.detail-panel) {
     min-height: 360px;
   }
 }
 
 @media (max-width: 720px) {
-  .panel-head,
-  .detail-head {
+  :deep(.panel-head:not(.mobile-row)),
+  :deep(.detail-head:not(.mobile-row)) {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .form-actions button,
-  .detail-actions button {
+  :deep(.form-actions button),
+  :deep(.detail-actions button) {
     flex: 1;
   }
 
-  .compact-grid,
-  .detail-meta {
+  :deep(.compact-grid),
+  :deep(.detail-meta) {
     grid-template-columns: 1fr;
   }
 
-  .ticket-row {
+  :deep(.ticket-row) {
     grid-template-columns: 1fr;
   }
 
-  .row-meta {
+  :deep(.row-meta) {
     justify-content: flex-start;
   }
 }

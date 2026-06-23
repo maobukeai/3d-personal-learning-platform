@@ -104,6 +104,11 @@ export default defineConfig(({ mode }) => {
           target: apiTarget,
           changeOrigin: true,
         },
+        '/socket.io': {
+          target: apiTarget,
+          ws: true,
+          changeOrigin: true,
+        },
       },
     },
     resolve: {

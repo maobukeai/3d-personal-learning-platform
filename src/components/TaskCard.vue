@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { TaskStatus } from '@/types';
+import type { Task as BaseTask, Subtask, UserType } from '@/types/task';
 import {
   Calendar,
   User,
@@ -8,67 +9,25 @@ import {
   CheckCircle2,
   Trash2,
   FolderOpen,
-  Flame,
-  ArrowDown,
-  ArrowUp,
-  Minus,
-  HelpCircle,
   CheckSquare,
   Clock,
 } from 'lucide-vue-next';
-import { parseTags } from '@/utils/tags';
+import { parseTags, getTagClass } from '@/utils/tags';
+import {
+  getPriorityOption,
+  getPriorityColorClass,
+  getPriorityBadgeClass,
+  formatDueDate,
+  isOverdue,
+} from '@/utils/taskDisplay';
 import api from '@/utils/api';
 import { ElMessage } from 'element-plus';
 import UserAvatar from '@/components/UserAvatar.vue';
 
-interface Assignee {
-  id: string;
-  name: string;
-  avatarUrl?: string | null;
-}
-
-interface Project {
-  id: string;
-  title: string;
-}
-
-interface Participant {
-  id: string;
-  userId: string;
-  user: {
-    id: string;
-    name: string;
-    avatarUrl?: string | null;
-  };
-}
-
-interface Task {
-  id: string;
-  title: string;
-  description?: string | null;
-  priority?: string;
-  tags?: string | null;
-  subtasks?: string | null;
-  dueDate?: string | null;
-  status: string;
-  assignee?: Assignee | null;
-  project?: Project | null;
-  timeEstimate?: number | null;
-  timeSpent?: number | null;
-  dependencies?: {
-    id: string;
-    dependsOnId: string;
-    dependsOn: { id: string; title: string; status: string };
-  }[];
-  parsedTags?: string[];
-  parsedSubtasks?: any[];
-  participants?: Participant[];
-}
-
-interface Subtask {
-  id?: string;
-  text?: string;
-  done?: boolean;
+interface Task extends BaseTask {
+  isSubtask?: boolean;
+  parentId?: string | null;
+  subtaskIndex?: number;
 }
 
 interface CardConfig {
@@ -85,7 +44,7 @@ interface Props {
   task: Task;
   layout?: 'board' | 'list';
   config?: CardConfig;
-  teamMembers?: Assignee[];
+  teamMembers?: UserType[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -123,13 +82,13 @@ const parseSubtasks = (subtasksStr: string | null | undefined): Subtask[] => {
   try {
     const parsed = JSON.parse(subtasksStr);
     if (Array.isArray(parsed)) {
-      return parsed.map((s, idx) => ({
+      return (parsed as Subtask[]).map((s, idx) => ({
         ...s,
         id: s.id || `subtask-legacy-${idx}`,
       }));
     }
     return [];
-  } catch (_e) {
+  } catch {
     return [];
   }
 };
@@ -137,7 +96,7 @@ const parseSubtasks = (subtasksStr: string | null | undefined): Subtask[] => {
 const parsedSubtasks = computed((): Subtask[] => {
   if (props.task.parsedSubtasks && Array.isArray(props.task.parsedSubtasks)) {
     return props.task.parsedSubtasks.map(
-      (s: any, idx: number): Subtask => ({
+      (s, idx): Subtask => ({
         ...s,
         id: s.id || `subtask-legacy-${idx}`,
       }),
@@ -160,61 +119,18 @@ const emit = defineEmits<{
   (e: 'user-click', userId: string): void;
   (e: 'refresh', updatedTask?: Task): void;
   (e: 'refresh-stats'): void;
-  (e: 'update-subtask', parentId: string, subtaskIndex: number, fields: Record<string, any>): void;
+  (
+    e: 'update-subtask',
+    parentId: string,
+    subtaskIndex: number,
+    fields: Record<string, unknown>,
+  ): void;
 }>();
 
-const getPriorityConfig = (priority?: string) => {
-  switch (priority) {
-    case 'URGENT':
-      return { label: '紧急', color: 'bg-rose-500', textColor: 'text-rose-500', icon: Flame };
-    case 'HIGH':
-      return { label: '高', color: 'bg-orange-500', textColor: 'text-orange-500', icon: ArrowUp };
-    case 'MEDIUM':
-      return { label: '中', color: 'bg-amber-500', textColor: 'text-amber-500', icon: Minus };
-    case 'LOW':
-      return { label: '低', color: 'bg-blue-500', textColor: 'text-blue-500', icon: ArrowDown };
-    default:
-      return { label: '无', color: 'bg-slate-400', textColor: 'text-slate-400', icon: HelpCircle };
-  }
-};
-
-const getTagClass = (tag: string) => {
-  const hash = tag.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const colors = [
-    'bg-blue-500/10 text-blue-500',
-    'bg-purple-500/10 text-purple-500',
-    'bg-pink-500/10 text-pink-500',
-    'bg-indigo-500/10 text-indigo-500',
-    'bg-teal-500/10 text-teal-500',
-  ];
-  return colors[hash % colors.length];
-};
-
-const formatDueDate = (dateStr: string | null | undefined) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  const now = new Date();
-  const dDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const diffMs = dDate.getTime() - nowDate.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) return `逾期 ${Math.abs(diffDays)} 天`;
-  if (diffDays === 0) return '今天截止';
-  if (diffDays === 1) return '明天截止';
-  if (diffDays <= 7) return `${diffDays} 天后截止`;
-  return d.toLocaleDateString();
-};
-
-const isOverdue = (dateStr: string | null | undefined, status: string) => {
-  if (!dateStr || status === 'DONE') return false;
-  return new Date(dateStr) < new Date();
-};
-
 const updatePriority = async (priority: string) => {
-  if ((props.task as any).isSubtask && (props.task as any).parentId) {
+  if (props.task.isSubtask && props.task.parentId) {
     try {
-      const res = await api.put(`/api/tasks/${(props.task as any).parentId}`, { priority });
+      const res = await api.put(`/api/tasks/${props.task.parentId}`, { priority });
       ElMessage.success('优先级已更新');
       emit('refresh', res.data);
       emit('refresh-stats');
@@ -233,28 +149,11 @@ const updatePriority = async (priority: string) => {
   }
 };
 
-const updateAssignee = async (assigneeId: string | null) => {
-  if ((props.task as any).isSubtask && (props.task as any).parentId) {
-    emit('update-subtask', (props.task as any).parentId, (props.task as any).subtaskIndex, {
-      assigneeId,
-    });
-    return;
-  }
-  try {
-    const res = await api.put(`/api/tasks/${props.task.id}`, { assigneeId: assigneeId || null });
-    ElMessage.success('负责人已更新');
-    emit('refresh', res.data);
-    emit('refresh-stats');
-  } catch {
-    ElMessage.error('更新负责人失败');
-  }
-};
-
-const updateDueDate = async (val: any) => {
-  if ((props.task as any).isSubtask && (props.task as any).parentId) {
+const updateDueDate = async (val: string | Date | null | undefined) => {
+  if (props.task.isSubtask && props.task.parentId) {
     try {
       const dueDateVal = val ? new Date(val).toISOString() : null;
-      const res = await api.put(`/api/tasks/${(props.task as any).parentId}`, {
+      const res = await api.put(`/api/tasks/${props.task.parentId}`, {
         dueDate: dueDateVal,
       });
       ElMessage.success('截止日期已更新');
@@ -291,7 +190,7 @@ const updateDueDate = async (val: any) => {
         <div
           v-if="task.priority && task.priority !== 'NONE'"
           class="shrink-0 w-1 h-1 sm:w-2 sm:h-2 rounded-full mt-1.5 sm:mt-1"
-          :class="getPriorityConfig(task.priority).color"
+          :class="getPriorityColorClass(task.priority)"
         ></div>
         <span
           v-if="isBlocked"
@@ -305,7 +204,7 @@ const updateDueDate = async (val: any) => {
           style="color: var(--text-primary)"
         >
           <span
-            v-if="(task as any).isSubtask"
+            v-if="task.isSubtask"
             class="shrink-0 inline-flex items-center px-1.5 py-0.2 rounded text-[7px] font-black bg-purple-500/10 text-purple-500 border border-purple-500/20 uppercase tracking-wider scale-90 mr-1 select-none"
           >
             子任务
@@ -435,17 +334,13 @@ const updateDueDate = async (val: any) => {
         >
           <span
             class="inline-flex items-center gap-0.5 px-0.5 sm:px-1 py-0.5 rounded text-[7px] sm:text-[8px] font-bold shrink-0 cursor-pointer hover:opacity-85"
-            :class="
-              getPriorityConfig(task.priority).color +
-              '/10 ' +
-              getPriorityConfig(task.priority).textColor
-            "
+            :class="getPriorityBadgeClass(task.priority)"
           >
             <component
-              :is="getPriorityConfig(task.priority).icon"
+              :is="getPriorityOption(task.priority).icon"
               class="w-1.5 h-1.5 sm:w-2 sm:h-2"
             />
-            <span>{{ getPriorityConfig(task.priority).label }}</span>
+            <span>{{ getPriorityOption(task.priority).label }}</span>
           </span>
           <template #dropdown>
             <el-dropdown-menu>
@@ -481,10 +376,7 @@ const updateDueDate = async (val: any) => {
             +{{ task.participants.length - 3 }}
           </span>
         </div>
-        <div
-          v-else-if="task.assigneeId && task.assignee"
-          class="flex items-center"
-        >
+        <div v-else-if="task.assigneeId && task.assignee" class="flex items-center">
           <UserAvatar
             :user="task.assignee"
             size="xs"
@@ -516,7 +408,7 @@ const updateDueDate = async (val: any) => {
       <!-- Priority Dot -->
       <div
         class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0"
-        :class="getPriorityConfig(task.priority).color"
+        :class="getPriorityColorClass(task.priority)"
       ></div>
 
       <!-- Status Badge -->
@@ -552,7 +444,7 @@ const updateDueDate = async (val: any) => {
         style="color: var(--text-primary)"
       >
         <span
-          v-if="(task as any).isSubtask"
+          v-if="task.isSubtask"
           class="shrink-0 inline-flex items-center px-1.5 py-0.2 rounded text-[7px] font-black bg-purple-500/10 text-purple-500 border border-purple-500/20 uppercase tracking-wider scale-90 mr-1 select-none"
         >
           子任务
@@ -628,10 +520,7 @@ const updateDueDate = async (val: any) => {
             +{{ task.participants.length - 3 }}
           </span>
         </div>
-        <div
-          v-else-if="task.assigneeId && task.assignee"
-          class="flex items-center"
-        >
+        <div v-else-if="task.assigneeId && task.assignee" class="flex items-center">
           <UserAvatar
             :user="task.assignee"
             size="xs"

@@ -2,6 +2,7 @@
 import { onErrorCaptured, ref } from 'vue';
 import { RouterView } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { logError } from '@/utils/error';
 
 const { t } = useI18n();
 
@@ -9,7 +10,7 @@ const hasError = ref(false);
 const errorMessage = ref('');
 
 onErrorCaptured((err: Error, _instance, _info) => {
-  console.error('[Global Error]', err);
+  logError(err, { operation: 'app.globalError', component: 'App' });
   hasError.value = true;
   errorMessage.value = err.message || '发生了未知错误';
   return false;

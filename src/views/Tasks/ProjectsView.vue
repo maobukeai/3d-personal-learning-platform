@@ -20,6 +20,7 @@ import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { TaskStatus } from '@/types/task';
 import type { Project, Task, UserType } from '@/types/task';
+import { isTaskOverdue } from '@/utils/taskDisplay';
 import ProjectDetailPanel from './components/ProjectDetailPanel.vue';
 import ProjectFormPanel from './components/ProjectFormPanel.vue';
 import Button from '@/components/ui/Button.vue';
@@ -91,14 +92,6 @@ const projectTaskMap = computed(() => {
 
 const nowTime = () => Date.now();
 
-const isOverdue = (task: Task) => {
-  return (
-    task.status !== TaskStatus.DONE &&
-    !!task.dueDate &&
-    new Date(task.dueDate).getTime() < nowTime()
-  );
-};
-
 const isDueSoon = (task: Task) => {
   if (task.status === TaskStatus.DONE || !task.dueDate) return false;
   const dueTime = new Date(task.dueDate).getTime();
@@ -108,7 +101,7 @@ const isDueSoon = (task: Task) => {
 const getProjectTaskStats = (projectId: string) => {
   const list = projectTaskMap.value.get(projectId) || [];
   const done = list.filter((task) => task.status === TaskStatus.DONE).length;
-  const overdue = list.filter(isOverdue).length;
+  const overdue = list.filter((task) => isTaskOverdue(task)).length;
   const dueSoon = list.filter(isDueSoon).length;
   const unassigned = list.filter(
     (task) => task.status !== TaskStatus.DONE && !task.assigneeId,
@@ -166,7 +159,7 @@ const projectStats = computed(() => {
 const taskStats = computed(() => {
   const total = tasks.value.length;
   const done = tasks.value.filter((task) => task.status === 'DONE').length;
-  const overdue = tasks.value.filter(isOverdue).length;
+  const overdue = tasks.value.filter((task) => isTaskOverdue(task)).length;
   const dueSoon = tasks.value.filter(isDueSoon).length;
   const unassigned = tasks.value.filter(
     (task) => task.status !== 'DONE' && !task.assigneeId,
@@ -229,7 +222,7 @@ const dueSoonTasks = computed(() => {
 });
 
 const overdueTasks = computed(() => {
-  const source = overview.value?.tasks.overdue || tasks.value.filter(isOverdue);
+  const source = overview.value?.tasks.overdue || tasks.value.filter((task) => isTaskOverdue(task));
   return source.slice(0, 6);
 });
 
@@ -264,7 +257,7 @@ const allWorkloadRows = computed(() => {
         assigned: assigned.length,
         active,
         done,
-        overdue: assigned.filter(isOverdue).length,
+        overdue: assigned.filter((task) => isTaskOverdue(task)).length,
         rate: assigned.length ? Math.round((done / assigned.length) * 100) : 0,
       };
     })
@@ -542,7 +535,19 @@ const createQuickTask = async () => {
   }
 };
 
-const createSeedTasks = async (template: { label: string; hint: string; tasks: any[] }) => {
+interface SeedTaskTemplate {
+  title: string;
+  priority: string;
+  days: number;
+}
+
+interface SeedTemplate {
+  label: string;
+  hint: string;
+  tasks: SeedTaskTemplate[];
+}
+
+const createSeedTasks = async (template: SeedTemplate) => {
   if (!quickTaskProjectId.value) {
     ElMessage.warning('先选择一个项目，再生成任务包');
     return;
@@ -710,14 +715,16 @@ watch(viewMode, (newMode) => {
 
 <template>
   <div
-    class="team-projects flex-1 flex flex-col h-full overflow-hidden"
+    class="mobile-adaptive team-projects flex-1 flex flex-col h-full overflow-hidden"
     style="background-color: var(--bg-app)"
   >
     <div
-      class="shrink-0 border-b px-4 sm:px-6 py-3 xl:py-0 xl:h-14 flex items-center"
+      class="mobile-row shrink-0 border-b px-4 sm:px-6 py-3 xl:py-0 xl:h-14 flex items-center"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between w-full">
+      <div
+        class="mobile-row flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between w-full"
+      >
         <!-- Left Section -->
         <div class="flex items-center gap-2.5 min-w-0 xl:flex-1">
           <div class="p-1.5 bg-accent/10 rounded-lg border border-accent/15 shrink-0">
@@ -744,7 +751,7 @@ watch(viewMode, (newMode) => {
 
         <!-- Right Section (Actions) -->
         <div class="flex items-center gap-2 justify-start sm:justify-end xl:flex-1">
-          <div class="flex items-center gap-2 shrink-0">
+          <div class="mobile-row flex items-center gap-2 shrink-0">
             <Button
               variant="secondary"
               size="sm"

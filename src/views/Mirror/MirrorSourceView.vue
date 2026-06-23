@@ -165,23 +165,23 @@ function handlePageJump() {
 
 <template>
   <div
-    class="mirror-source-view h-full overflow-y-auto p-3 md:p-6 w-full max-w-[1800px] mx-auto scrollbar-hide"
+    class="mirror-source-view h-full overflow-y-auto p-3 md:p-6 w-full max-w-[1800px] mx-auto scrollbar-hide mobile-adaptive"
   >
     <!-- Header banner -->
     <div
-      class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent p-4 md:p-5 rounded-2xl border border-blue-500/10 backdrop-blur-sm shadow-sm"
+      class="flex flex-row items-center justify-between gap-4 mb-6 bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent p-4 md:p-5 rounded-2xl border border-blue-500/10 backdrop-blur-sm shadow-sm mobile-row"
     >
-      <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 flex-1 min-w-0">
+      <div class="flex flex-row items-center gap-3 md:gap-4 flex-1 min-w-0 mobile-row">
         <!-- Title and Icon Badge -->
-        <div class="flex items-center gap-2.5 shrink-0">
+        <div class="flex items-center gap-2.5 shrink-0 mobile-row">
           <span class="p-1.5 rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400">
-            <Sparkles class="w-4.5 h-4.5 animate-pulse" />
+            <Sparkles class="w-4.5 h-4.5 animate-pulse shrink-0" />
           </span>
-          <h1 class="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+          <h1 class="text-xl font-black text-slate-900 dark:text-white tracking-tight truncate">
             {{ pageTitle }}
           </h1>
           <span
-            class="px-2 py-0.5 text-[10px] font-black rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 uppercase tracking-wider"
+            class="px-2 py-0.5 text-[10px] font-black rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 uppercase tracking-wider shrink-0"
           >
             镜像资源站
           </span>
@@ -204,7 +204,7 @@ function handlePageJump() {
         <span class="hidden md:inline text-slate-200 dark:text-slate-800">|</span>
 
         <!-- Resource Stats -->
-        <p class="text-xs text-slate-400 shrink-0 font-medium">
+        <p class="text-xs text-slate-400 min-w-0 font-medium truncate">
           当前包含共计
           <span class="text-blue-500 font-black">{{ mirrorStore.totalResources }}</span>
           个精心挑选的资源
@@ -214,7 +214,7 @@ function handlePageJump() {
       <!-- Right Access Badge -->
       <div
         v-if="hasAccess === false"
-        class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold shrink-0"
+        class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold shrink-0 mobile-row"
       >
         <Shield class="w-4 h-4 shrink-0 animate-pulse" />
         <div class="flex items-center gap-1.5">
@@ -226,7 +226,7 @@ function handlePageJump() {
       </div>
     </div>
 
-    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+    <div class="flex flex-col sm:flex-row gap-3 mb-6 mobile-row">
       <label class="search-box !min-h-0 !h-8.5 flex-1 relative">
         <Search />
         <input
@@ -247,7 +247,7 @@ function handlePageJump() {
           <X class="w-4 h-4" />
         </button>
       </label>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 mobile-row">
         <button
           type="button"
           class="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 !h-8.5 rounded-xl border border-white/20 dark:border-white/10 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors font-bold"
@@ -262,7 +262,7 @@ function handlePageJump() {
 
     <div
       v-if="showFilters"
-      class="flex items-center gap-3 mb-4 p-2 rounded-2xl glass-panel border border-white/10"
+      class="flex items-center gap-3 mb-4 p-2 rounded-2xl glass-panel border border-white/10 mobile-row"
     >
       <span class="text-xs text-[var(--text-secondary)] ml-2 font-bold">排序：</span>
       <Tabs
@@ -391,7 +391,10 @@ function handlePageJump() {
           </div>
         </div>
 
-        <div v-if="mirrorStore.totalPages > 1" class="flex items-center justify-center gap-2 mt-8">
+        <div
+          v-if="mirrorStore.totalPages > 1"
+          class="flex items-center justify-center gap-2 mt-8 mobile-row"
+        >
           <button
             type="button"
             class="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-colors"
@@ -414,9 +417,9 @@ function handlePageJump() {
 
           <!-- Quick Page Jump -->
           <div
-            class="flex items-center gap-1.5 ml-2 border-l border-slate-200 dark:border-slate-700 pl-4"
+            class="flex items-center gap-1.5 ml-2 border-l border-slate-200 dark:border-slate-700 pl-4 mobile-row"
           >
-            <span class="text-xs text-slate-400">跳至</span>
+            <span class="text-xs text-slate-400 truncate">跳至</span>
             <input
               v-model="jumpPageInput"
               type="text"
@@ -424,7 +427,7 @@ function handlePageJump() {
               @keyup.enter="handlePageJump"
               @blur="handlePageJump"
             />
-            <span class="text-xs text-slate-400">页</span>
+            <span class="text-xs text-slate-400 truncate">页</span>
           </div>
         </div>
       </div>

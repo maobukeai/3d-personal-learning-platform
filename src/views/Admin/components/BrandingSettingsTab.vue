@@ -5,6 +5,7 @@ import { ref, reactive, watch } from 'vue';
 import { Palette, Image, Upload, RefreshCw, Sparkles } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
+import { logError } from '@/utils/error';
 
 const props = defineProps<{
   settings: {
@@ -58,7 +59,7 @@ const handleLogoUpload = async (event: Event) => {
     localSettings.PLATFORM_LOGO_URL = data.url;
     ElMessage.success(t('admin.logo_uploaded_successfully_click'));
   } catch (error) {
-    console.error('Logo upload error:', error);
+    logError(error, { operation: 'admin.uploadLogo', component: 'BrandingSettingsTab' });
     ElMessage.error(t('admin.logo_upload_failed'));
   } finally {
     isUploadingLogo.value = false;
@@ -83,7 +84,7 @@ const handleFaviconUpload = async (event: Event) => {
     localSettings.PLATFORM_FAVICON_URL = data.url;
     ElMessage.success(t('admin.favicon_uploaded_successfully_click'));
   } catch (error) {
-    console.error('Favicon upload error:', error);
+    logError(error, { operation: 'admin.uploadFavicon', component: 'BrandingSettingsTab' });
     ElMessage.error(t('admin.favicon_upload_failed'));
   } finally {
     isUploadingFavicon.value = false;

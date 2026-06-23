@@ -8,7 +8,7 @@ import api from '@/utils/api';
 import UserAvatar from '@/components/UserAvatar.vue';
 import type { ProjectMember, Task } from '@/types';
 
-interface EditableTask extends Task {
+interface EditableTask extends Omit<Task, 'participants'> {
   participants?: Array<{ userId: string }>;
 }
 
@@ -55,7 +55,7 @@ const handleUpdateTask = async () => {
     visible.value = false;
     emit('saved');
     ElMessage.success('任务已更新');
-  } catch (_error) {
+  } catch {
     ElMessage.error('更新失败');
   }
 };
@@ -82,7 +82,7 @@ defineExpose({ open });
 
 <template>
   <Modal :show="visible" title="编辑任务" size="md" @close="visible = false">
-    <div class="space-y-6 p-1 text-left">
+    <div class="space-y-6 p-1 text-left mobile-adaptive">
       <div>
         <label
           class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"

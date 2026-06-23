@@ -78,11 +78,14 @@ onUnmounted(() => {
           {{ activeSlide.tag }}
         </Badge>
         <h1
-          class="text-xl sm:text-2xl font-extrabold tracking-tight leading-tight max-w-[90%] mb-1.5 text-white"
+          class="text-xl sm:text-2xl font-extrabold tracking-tight leading-tight max-w-[90%] mb-1.5 text-white truncate"
         >
           {{ activeSlide.title }}
         </h1>
-        <p v-if="activeSlide.subtitle" class="text-xs text-white/80 max-w-[85%] mb-3 font-medium">
+        <p
+          v-if="activeSlide.subtitle"
+          class="text-xs text-white/80 max-w-[85%] mb-3 font-medium truncate"
+        >
           {{ activeSlide.subtitle }}
         </p>
         <Button
@@ -110,11 +113,11 @@ onUnmounted(() => {
       <div class="spotlight-content">
         <Badge variant="blender" dot class="mb-1 w-fit self-start">正在学习</Badge>
         <h1
-          class="text-xl sm:text-2xl font-extrabold tracking-tight leading-tight max-w-[90%] mb-1.5 text-white"
+          class="text-xl sm:text-2xl font-extrabold tracking-tight leading-tight max-w-[90%] mb-1.5 text-white truncate"
         >
           {{ activeEnrollment.course.title }}
         </h1>
-        <p class="text-xs text-white/80 max-w-[85%] mb-3 font-medium">
+        <p class="text-xs text-white/80 max-w-[85%] mb-3 font-medium truncate">
           当前已完成 {{ activeEnrollment.progress }}% · 剩余 {{ remainingLessons }} 节课程。
         </p>
         <Button

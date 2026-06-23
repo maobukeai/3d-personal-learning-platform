@@ -4,38 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { Search, Users, Plus, Hash, Trash2, MessageSquare } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
-
-interface ChatUser {
-  id: string;
-  name: string;
-  email?: string;
-  avatarUrl?: string | null;
-}
-
-interface ChatMessage {
-  id: string;
-  conversationId: string;
-  senderId: string;
-  type: string;
-  content: string;
-  createdAt: string;
-  fileSize?: number;
-  replyToId?: string;
-  readBy?: { userId: string }[];
-  reactions?: { id: string; emoji: string; userId: string }[];
-  sender?: ChatUser | null;
-}
-
-interface ChatConversation {
-  id: string;
-  name?: string;
-  isGroup: boolean;
-  avatarUrl?: string | null;
-  participants?: ChatUser[];
-  messages: ChatMessage[];
-  updatedAt: string;
-  unreadCount?: number;
-}
+import type { ChatConversation } from './chatTypes';
 
 const props = defineProps<{
   conversations: ChatConversation[];
@@ -111,7 +80,7 @@ const filteredConversations = computed(() => {
 
 <template>
   <div
-    class="w-full lg:w-80 border-r flex flex-col shrink-0 transition-all duration-300 z-20"
+    class="w-full lg:w-80 border-r flex flex-col shrink-0 transition-all duration-300 z-20 mobile-adaptive"
     :class="activeConversation ? 'hidden lg:flex' : 'flex'"
     style="background-color: var(--bg-card); border-color: var(--border-base)"
   >
@@ -139,7 +108,7 @@ const filteredConversations = computed(() => {
           </button>
         </div>
       </div>
-      <div class="flex justify-center w-full">
+      <div class="flex justify-center w-full mobile-row">
         <label class="search-box !min-h-0 !h-8 w-full shrink-0">
           <Search />
           <input
@@ -242,10 +211,12 @@ const filteredConversations = computed(() => {
                 </span>
                 <span class="text-[8px] font-medium shrink-0" style="color: var(--text-muted)">
                   {{
-                    new Date(conv.updatedAt).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })
+                    conv.updatedAt
+                      ? new Date(conv.updatedAt).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : ''
                   }}
                 </span>
               </div>

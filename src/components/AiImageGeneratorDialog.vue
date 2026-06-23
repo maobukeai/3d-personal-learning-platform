@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { Sparkles, Wand2, RefreshCw, X, Check, AlertCircle } from 'lucide-vue-next';
+import { Sparkles, Wand2, Check, AlertCircle } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { useSystemStore } from '@/stores/system';
+import type { AiModelFamilyCandidate } from '@/utils/aiModelFamilies';
+
+interface AiImageModelOption extends AiModelFamilyCandidate {
+  endpoint?: string;
+  capabilities?: string[];
+}
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
 import api from '@/utils/api';
-import { getApiErrorMessage } from '@/utils/error';
+import { getApiErrorMessage, logError } from '@/utils/error';
 
 interface Props {
   show: boolean;
@@ -36,18 +42,24 @@ const errorMsg = ref('');
 // Filter available image models from system settings
 const imageModels = computed(() => {
   const options = systemStore.settings.AI_MODEL_OPTIONS || [];
-  
-  const isImageModel = (m: any) => {
+
+  const isImageModel = (m: AiImageModelOption) => {
     const name = (m.modelName || '').toLowerCase();
     const endpoint = (m.endpoint || '').toLowerCase();
-    
+
     if (endpoint.includes('/images/generations')) return true;
-    
+
     const caps = m.capabilities || [];
-    if (caps.some((c: string) => ['draw', 'image', 'image_generation', 'paint', 'txt2img', 't2i'].includes(c.toLowerCase().trim()))) {
+    if (
+      caps.some((c: string) =>
+        ['draw', 'image', 'image_generation', 'paint', 'txt2img', 't2i'].includes(
+          c.toLowerCase().trim(),
+        ),
+      )
+    ) {
       return true;
     }
-    
+
     return (
       name.includes('flux') ||
       name.includes('stable-diffusion') ||
@@ -67,7 +79,7 @@ const imageModels = computed(() => {
     );
   };
 
-  return options.filter(m => m.enabled && isImageModel(m));
+  return options.filter((m) => m.enabled && isImageModel(m));
 });
 
 // Watch show prop to reset state on open
@@ -82,13 +94,13 @@ watch(
       isOptimizing.value = false;
       // Select default model if available
       if (imageModels.value.length > 0) {
-        const def = imageModels.value.find(m => m.isDefault);
+        const def = imageModels.value.find((m) => m.isDefault);
         selectedModelId.value = def ? def.id : imageModels.value[0].id;
       } else {
         selectedModelId.value = '';
       }
     }
-  }
+  },
 );
 
 // Optimize prompt using text LLM
@@ -110,7 +122,7 @@ const handleOptimizePrompt = async () => {
       ElMessage.success('提示词优化成功！');
     }
   } catch (err) {
-    console.error('Optimize prompt error:', err);
+    logError(err, { operation: 'ai.optimizePrompt', component: 'AiImageGeneratorDialog' });
     ElMessage.error(getApiErrorMessage(err, '优化提示词失败'));
   } finally {
     isOptimizing.value = false;
@@ -128,7 +140,7 @@ const handleGenerateImage = async () => {
     isGenerating.value = true;
     errorMsg.value = '';
     generatedImageUrl.value = '';
-    
+
     const { data } = await api.post('/api/ai/generate-image', {
       prompt: prompt.value,
       modelId: selectedModelId.value || undefined,
@@ -143,7 +155,7 @@ const handleGenerateImage = async () => {
       throw new Error('未获取到生成的图片数据，请重试。');
     }
   } catch (err) {
-    console.error('Generate image error:', err);
+    logError(err, { operation: 'ai.generateImage', component: 'AiImageGeneratorDialog' });
     errorMsg.value = getApiErrorMessage(err, '生成图片失败');
     ElMessage.error(errorMsg.value);
   } finally {
@@ -179,7 +191,7 @@ const handleSave = async () => {
     emit('save', file);
     emit('close');
   } catch (err) {
-    console.error('Convert image error:', err);
+    logError(err, { operation: 'ai.convertImage', component: 'AiImageGeneratorDialog' });
     ElMessage.error('图片保存失败，请尝试重新生成。');
   }
 };
@@ -190,33 +202,35 @@ const handleSave = async () => {
     :show="show"
     :title="title"
     size="lg"
-    @close="emit('close')"
+    glass-card
     class="ai-image-generator-modal"
+    @close="emit('close')"
   >
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-1">
       <!-- Input Panel -->
       <div class="flex flex-col gap-4">
         <!-- Model Selection -->
-        <div v-if="imageModels.length > 0" class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold text-[var(--text-secondary)]">选择生图 AI 模型</label>
-          <select
+        <div v-if="imageModels.length > 0" class="flex flex-col gap-1.5 text-left">
+          <label class="text-xs font-bold text-[var(--text-secondary)] ml-1">选择生图 AI 模型</label>
+          <el-select
             v-model="selectedModelId"
-            class="w-full bg-[var(--bg-app)] border border-[var(--border-base)] text-[var(--text-primary)] rounded-lg px-3 py-2 text-sm outline-none focus:border-accent"
+            class="w-full custom-dialog-input"
+            placeholder="选择 AI 模型"
           >
-            <option 
-              v-for="m in imageModels" 
-              :key="m.id" 
+            <el-option
+              v-for="m in imageModels"
+              :key="m.id"
+              :label="`${m.name} (${m.provider})`"
               :value="m.id"
-              class="bg-[var(--bg-card)] text-[var(--text-primary)]"
-            >
-              {{ m.name }} ({{ m.provider }})
-            </option>
-          </select>
+            />
+          </el-select>
         </div>
 
         <!-- Prompt Textarea -->
         <div class="flex flex-col gap-1.5 flex-1 min-h-[160px]">
-          <label class="text-xs font-bold text-[var(--text-secondary)] flex justify-between items-center">
+          <label
+            class="text-xs font-bold text-[var(--text-secondary)] flex justify-between items-center"
+          >
             <span>输入画面描述 (中英文皆可)</span>
             <span class="text-[10px] text-[var(--text-muted)]">建议使用英文描述以获得最佳效果</span>
           </label>
@@ -228,7 +242,7 @@ const handleSave = async () => {
               class="w-full flex-1 bg-[var(--bg-app)] border border-[var(--border-base)] text-[var(--text-primary)] rounded-lg p-3 text-sm outline-none focus:border-accent resize-none placeholder-[var(--text-muted)]"
               :disabled="isGenerating || isOptimizing"
             ></textarea>
-            
+
             <!-- Optimize Button inside Textarea overlay -->
             <button
               v-if="prompt.trim()"
@@ -256,9 +270,14 @@ const handleSave = async () => {
       </div>
 
       <!-- Preview Panel -->
-      <div class="flex flex-col items-center justify-center border border-dashed border-slate-800 rounded-xl bg-slate-950/40 p-4 min-h-[300px] relative overflow-hidden">
+      <div
+        class="flex flex-col items-center justify-center border border-dashed border-slate-800 rounded-xl bg-slate-950/40 p-4 min-h-[300px] relative overflow-hidden"
+      >
         <!-- Result image -->
-        <div v-if="generatedImageUrl" class="w-full h-full flex flex-col items-center justify-center gap-4 animate-in fade-in zoom-in-95 duration-300">
+        <div
+          v-if="generatedImageUrl"
+          class="w-full h-full flex flex-col items-center justify-center gap-4 animate-in fade-in zoom-in-95 duration-300"
+        >
           <div
             class="overflow-hidden rounded-xl border border-slate-800 shadow-2xl relative bg-slate-900 group"
             :class="props.type === 'avatar' ? 'w-48 h-48 rounded-full' : 'w-full aspect-[21/9]'"
@@ -274,7 +293,9 @@ const handleSave = async () => {
 
         <!-- Loading spinner -->
         <div v-else-if="isGenerating" class="flex flex-col items-center gap-4 text-center">
-          <div class="w-12 h-12 rounded-full border-4 border-indigo-600/20 border-t-indigo-500 animate-spin"></div>
+          <div
+            class="w-12 h-12 rounded-full border-4 border-indigo-600/20 border-t-indigo-500 animate-spin"
+          ></div>
           <div class="space-y-1">
             <p class="text-sm font-bold text-slate-200">AI 正在努力创作中...</p>
             <p class="text-xs text-slate-500">大约需要 5 - 15 秒，请稍候</p>
@@ -295,7 +316,10 @@ const handleSave = async () => {
         </div>
 
         <!-- Error state -->
-        <div v-if="errorMsg" class="absolute bottom-4 left-4 right-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs px-3 py-2.5 rounded-lg flex items-start gap-2 animate-in slide-in-from-bottom-2 duration-300">
+        <div
+          v-if="errorMsg"
+          class="absolute bottom-4 left-4 right-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs px-3 py-2.5 rounded-lg flex items-start gap-2 animate-in slide-in-from-bottom-2 duration-300"
+        >
           <AlertCircle class="w-4 h-4 shrink-0 mt-0.5" />
           <span>{{ errorMsg }}</span>
         </div>
@@ -304,11 +328,7 @@ const handleSave = async () => {
 
     <!-- Footer buttons -->
     <template #footer>
-      <Button
-        variant="secondary"
-        @click="emit('close')"
-        :disabled="isGenerating || isOptimizing"
-      >
+      <Button variant="secondary" :disabled="isGenerating || isOptimizing" @click="emit('close')">
         取消
       </Button>
       <Button
@@ -326,7 +346,8 @@ const handleSave = async () => {
 
 <style scoped>
 /* Focus borders */
-textarea:focus, select:focus {
+textarea:focus,
+select:focus {
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
 }
 </style>

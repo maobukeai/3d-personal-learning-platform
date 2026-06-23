@@ -84,7 +84,7 @@ const handleChatWithMember = async (member: User) => {
     });
     visible.value = false; // Close detail modal
     router.push('/messages');
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('notes.startChatFailed'));
   }
 };
@@ -178,30 +178,31 @@ const handleContentClick = (e: MouseEvent) => {
     if (href && href.startsWith('#')) {
       e.preventDefault();
       const targetId = decodeURIComponent(href.slice(1));
-      
+
       // 1. Try to find by exact ID inside the scroll container
-      let targetEl = scrollContainer.value?.querySelector(`[id="${targetId}"]`) || 
-                     document.getElementById(targetId);
-      
+      let targetEl =
+        scrollContainer.value?.querySelector(`[id="${targetId}"]`) ||
+        document.getElementById(targetId);
+
       // 2. If not found, try to find case-insensitively or with matching generated slug
       if (!targetEl) {
         const headings = scrollContainer.value?.querySelectorAll('h1, h2, h3, h4, h5, h6') || [];
         const slugify = (str: string) => str.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]/g, '');
         const targetSlug = slugify(targetId);
-        
+
         // First pass: Exact slug match
         for (const heading of headings) {
           const headingId = heading.getAttribute('id') || '';
           const headingText = heading.textContent || '';
           const headingSlug = slugify(headingText);
           const idSlug = slugify(headingId);
-          
+
           if (headingSlug === targetSlug || idSlug === targetSlug) {
             targetEl = heading;
             break;
           }
         }
-        
+
         // Second pass: Substring match (for cases where TOC omits heading numbers/prefixes)
         if (!targetEl && targetSlug.length >= 2) {
           for (const heading of headings) {
@@ -214,7 +215,7 @@ const handleContentClick = (e: MouseEvent) => {
           }
         }
       }
-      
+
       // 3. Scroll to it
       if (targetEl) {
         targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -408,23 +409,23 @@ defineExpose({ open });
   <Modal :show="visible" size="xxl" padding="none" glass-card @close="visible = false">
     <div
       v-if="detailNote"
-      class="flex flex-col md:flex-row h-screen md:h-[88vh] overflow-hidden relative bg-transparent"
+      class="mobile-adaptive flex flex-col md:flex-row h-screen md:h-[88vh] overflow-hidden relative bg-transparent"
     >
-            <!-- Global Close Button (Top Right of the entire Dialog Container) -->
-            <button
-              type="button"
-              class="dialog-close-btn absolute top-4 right-4 z-50 flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)]/80 backdrop-blur-xs hover:bg-slate-100 dark:hover:bg-zinc-800 text-[var(--text-secondary)] transition-all active:scale-90 shadow-md cursor-pointer"
-              :title="t('notes.closeReading')"
-              @click="visible = false"
-            >
-              <X class="w-4 h-4" />
-            </button>
+      <!-- Global Close Button (Top Right of the entire Dialog Container) -->
+      <button
+        type="button"
+        class="dialog-close-btn absolute top-4 right-4 z-50 flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)]/80 backdrop-blur-xs hover:bg-slate-100 dark:hover:bg-zinc-800 text-[var(--text-secondary)] transition-all active:scale-90 shadow-md cursor-pointer"
+        :title="t('notes.closeReading')"
+        @click="visible = false"
+      >
+        <X class="w-4 h-4" />
+      </button>
 
-            <!-- Side Dashboard Panel -->
-            <aside
-              class="hidden md:flex w-64 p-5 flex-col shrink-0 border-r relative z-10 select-none bg-slate-50/30 dark:bg-white/[0.01] backdrop-blur-md"
-              style="border-color: var(--border-base)"
-            >
+      <!-- Side Dashboard Panel -->
+      <aside
+        class="hidden md:flex w-64 p-5 flex-col shrink-0 border-r relative z-10 select-none bg-slate-50/30 dark:bg-white/[0.01] backdrop-blur-md"
+        style="border-color: var(--border-base)"
+      >
         <!-- User Information Dashboard (Clickable) -->
         <div
           class="mb-4 p-3 rounded-2xl border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center gap-3 shadow-xs cursor-pointer hover:border-accent/40 hover:shadow-sm transition-all"
@@ -623,7 +624,7 @@ defineExpose({ open });
           <div>
             <!-- Mobile Author Info Header (Visible only on mobile) -->
             <div
-              class="md:hidden flex items-center justify-between border-b pb-3 mb-4 border-[var(--border-base)]"
+              class="mobile-row md:hidden flex items-center justify-between border-b pb-3 mb-4 border-[var(--border-base)]"
             >
               <div
                 class="flex items-center gap-2.5 min-w-0 cursor-pointer"
@@ -663,7 +664,7 @@ defineExpose({ open });
               class="border-b border-dashed pb-2 mb-3 sm:pb-3 sm:mb-3 border-[var(--border-base)]"
             >
               <h1
-                class="text-xl sm:text-2xl md:text-3xl font-black leading-tight tracking-tight mb-2.5"
+                class="text-xl sm:text-2xl md:text-3xl font-black leading-tight tracking-tight mb-2.5 truncate"
               >
                 {{ detailNote.title }}
               </h1>
@@ -672,7 +673,7 @@ defineExpose({ open });
               <div
                 class="rounded-xl p-2.5 text-xs leading-relaxed border bg-slate-50/40 dark:bg-zinc-900/10 border-[var(--border-base)] text-[var(--text-secondary)]"
               >
-                <div class="flex items-center justify-between">
+                <div class="mobile-row flex items-center justify-between">
                   <div
                     class="flex items-center gap-1.5 text-[10px] font-bold text-[var(--text-primary)]"
                   >
@@ -741,7 +742,7 @@ defineExpose({ open });
             >
               <!-- Personalized typography font size -->
               <div
-                class="flex items-center justify-between text-[11px] pb-1.5 border-b border-[var(--border-base)]"
+                class="mobile-row flex items-center justify-between text-[11px] pb-1.5 border-b border-[var(--border-base)]"
               >
                 <span class="font-bold text-[var(--text-secondary)]">{{
                   t('notes.fontSizeAdjust')
@@ -770,7 +771,7 @@ defineExpose({ open });
               </div>
 
               <!-- Action buttons -->
-              <div class="flex flex-wrap gap-1.5">
+              <div class="mobile-row flex flex-wrap gap-1.5">
                 <button
                   v-if="authStore.user?.role === 'ADMIN' && detailNote.visibility === 'PUBLIC'"
                   type="button"
@@ -848,7 +849,7 @@ defineExpose({ open });
           <div
             class="mt-8 pt-6 sm:mt-12 sm:pt-8 border-t border-[var(--border-base)] space-y-4 sm:space-y-6"
           >
-            <div class="flex items-center justify-between">
+            <div class="mobile-row flex items-center justify-between">
               <h3
                 class="text-sm font-bold flex items-center gap-2"
                 style="color: var(--text-primary)"

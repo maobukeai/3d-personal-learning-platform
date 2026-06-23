@@ -66,7 +66,7 @@ const handleSaveCourse = async () => {
     }
     visible.value = false;
     emit('saved');
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('admin.failed_to_save_course'));
   }
 };
@@ -99,7 +99,7 @@ defineExpose({ open });
           "
         />
       </div>
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-2 gap-4 mobile-grid">
         <div>
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
             $t('admin.course_classification')

@@ -35,7 +35,7 @@ const handleLogout = async () => {
     trigger="click"
     placement="bottom-end"
     popper-class="user-dropdown-popper"
-    menu-class="w-56 p-2"
+    menu-class="w-56 max-w-[calc(100vw-16px)] p-2"
     @command="handleProfileClick"
   >
     <template #trigger>

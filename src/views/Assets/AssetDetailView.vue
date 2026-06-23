@@ -3,17 +3,11 @@ import { formatDateTime as formatDate } from '@/utils/format';
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
-  AlertTriangle,
   Box,
-  Calendar,
   Camera,
-  CheckCircle2,
-  ChevronDown,
   ChevronLeft,
   Cuboid,
-  Download,
   ExternalLink,
-  Eye,
   Gauge,
   GitCompare,
   Grid2X2,
@@ -23,129 +17,36 @@ import {
   Layers3,
   Maximize2,
   MessageSquare,
-  MoreHorizontal,
   Move3D,
-  PackageCheck,
-  Plus,
   RefreshCw,
   Ruler,
   Settings,
-  Share2,
-  ShieldCheck,
-  Smartphone,
-  Star,
-  Trash2,
-  UploadCloud,
-  User,
   Wand2,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 import { getDefaultThumbnailUrl } from '@/utils/defaultThumbnail';
-import type { Asset } from '@/types';
 import UiButton from '@/components/ui/Button.vue';
-
-type ViewMode = 'solid' | 'wireframe' | 'solid+wireframe';
-type CameraPresetKey = 'iso' | 'front' | 'side' | 'top';
-type PanelId =
-  | 'overview'
-  | 'preview'
-  | 'textures'
-  | 'usage'
-  | 'versions'
-  | 'compare'
-  | 'performance'
-  | 'comments';
-
-type ModelViewerExpose = {
-  setViewMode?: (mode: ViewMode) => void;
-  toggleClayMode?: () => void;
-  isClayMode?: boolean;
-  resetCamera?: () => void;
-  takeScreenshot?: (download?: boolean) => string | null;
-  toggleFullscreen?: () => void;
-  getCameraState?: () => {
-    position: { x: number; y: number; z: number };
-    target: { x: number; y: number; z: number };
-  } | null;
-  flyTo?: (
-    position: { x: number; y: number; z: number },
-    target: { x: number; y: number; z: number },
-  ) => void;
-};
-
-type ModelStats = {
-  vertices?: number;
-  faces?: number;
-  materials?: number;
-  animations?: number;
-  dimensions?: string;
-  maxTextureRes?: number;
-};
-
-type PerformanceTone = 'pass' | 'notice' | 'warning' | 'danger';
-
-type PerformanceReport = {
-  score: number;
-  level: PerformanceTone;
-  mobileRisk: 'safe' | 'low' | 'medium' | 'high';
-  summary: string;
-  metrics: {
-    faces: number;
-    vertices: number;
-    materials: number;
-    size: number;
-    maxTextureRes: number;
-    animations: number;
-    hasAnimations: boolean;
-    dimensions: string;
-  };
-  risks: Array<{
-    metric: string;
-    label: string;
-    value: number;
-    unit: string;
-    tone: PerformanceTone;
-    message: string;
-    recommendation: string;
-  }>;
-};
-
-type AssetDetail = Asset & {
-  formats?: string[] | string | null;
-  maxTextureRes?: number | null;
-  performanceReport?: PerformanceReport | null;
-};
-
-type AssetVersion = {
-  id: string;
-  version: string;
-  url: string;
-  size: number;
-  vertices: number | null;
-  faces: number | null;
-  materials: number | null;
-  dimensions: string | null;
-  maxTextureRes: number | null;
-  changeLog: string | null;
-  createdAt: string;
-  user?: { name: string; avatarUrl: string | null };
-  performanceReport?: PerformanceReport | null;
-  comparison?: Record<string, { current: number; previous: number; delta: number }> | null;
-};
-
-type AssetAnnotation = {
-  id: string;
-  content: string;
-  x: number;
-  y: number;
-  z: number;
-  cameraPos: string | null;
-  cameraTarget: string | null;
-  createdAt: string;
-  userId: string;
-  user?: { name: string; avatarUrl: string | null };
-};
+import AssetDetailHeader from './components/AssetDetailHeader.vue';
+import AssetMetadataPanel from './components/AssetMetadataPanel.vue';
+import AssetDetailActions from './components/AssetDetailActions.vue';
+import AssetPerformancePanel from './components/AssetPerformancePanel.vue';
+import AssetVersionsPanel from './components/AssetVersionsPanel.vue';
+import AssetPreviewGallery from './components/AssetPreviewGallery.vue';
+import AssetCommentsPanel from './components/AssetCommentsPanel.vue';
+import type {
+  AssetAnnotation,
+  AssetDetail,
+  AssetVersion,
+  CameraPresetKey,
+  ModelStats,
+  ModelViewerExpose,
+  PanelId,
+  PerformanceReport,
+  PerformanceTone,
+  ViewMode,
+} from './components/types';
 
 const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.vue'));
 
@@ -218,7 +119,7 @@ const fetchAnnotations = async () => {
     const response = await api.get(`/api/assets/${assetId}/annotations`);
     annotations.value = response.data || [];
   } catch (error) {
-    console.error('Failed to fetch annotations:', error);
+    logError(error, { operation: 'asset.fetchAnnotations', component: 'AssetDetailView' });
   }
 };
 
@@ -227,7 +128,7 @@ const fetchCurrentUser = async () => {
     const response = await api.get('/api/auth/me');
     currentUserId.value = response.data?.id || response.data?.user?.id || '';
   } catch (error) {
-    console.error('Failed to fetch current user:', error);
+    logError(error, { operation: 'asset.fetchCurrentUser', component: 'AssetDetailView' });
   }
 };
 
@@ -261,9 +162,9 @@ const parsedFormats = computed<string[]>(() => {
 
 const reviewStatus = computed(() => {
   const status = asset.value?.status;
-  if (status === 'APPROVED') return { label: '已通过', tone: 'success' };
-  if (status === 'REJECTED') return { label: '已拒绝', tone: 'danger' };
-  return { label: '待审核', tone: 'warning' };
+  if (status === 'APPROVED') return { label: '已通过', tone: 'success' as const };
+  if (status === 'REJECTED') return { label: '已拒绝', tone: 'danger' as const };
+  return { label: '待审核', tone: 'warning' as const };
 });
 
 const buildLocalPerformanceReport = (): PerformanceReport => {
@@ -573,13 +474,6 @@ const formatDelta = (value: number, unit = '') => {
   return `${sign}${formatNumber(value)}`;
 };
 
-const riskToneText = (tone: PerformanceTone) => {
-  if (tone === 'danger') return '高风险';
-  if (tone === 'warning') return '需优化';
-  if (tone === 'notice') return '关注';
-  return '通过';
-};
-
 const goBack = () => {
   router.back();
 };
@@ -592,7 +486,7 @@ const handleDownload = async () => {
       asset.value.downloads = response.data.downloads;
     }
   } catch (error) {
-    console.error('Failed to record download:', error);
+    logError(error, { operation: 'asset.recordDownload', component: 'AssetDetailView' });
   }
   window.open(asset.value.url, '_blank', 'noopener,noreferrer');
 };
@@ -614,7 +508,7 @@ const handleFavorite = async () => {
       asset.value.likes = response.data.likes;
     }
     ElMessage.success('已加入收藏夹');
-  } catch (_error) {
+  } catch {
     ElMessage.error('收藏失败');
   }
 };
@@ -776,7 +670,7 @@ const clickAnnotation = (annotation: AssetAnnotation) => {
       JSON.parse(annotation.cameraTarget),
     );
   } catch (error) {
-    console.error('Failed to parse annotation camera state:', error);
+    logError(error, { operation: 'asset.parseAnnotationCamera', component: 'AssetDetailView' });
   }
 };
 
@@ -807,8 +701,12 @@ const uploadNewVersion = async () => {
     if (input) input.value = '';
     ElMessage.success('新版本已上传，后台正在解析模型数据');
     fetchTimer = setTimeout(fetchAsset, 1500);
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '版本上传失败');
+  } catch (error) {
+    ElMessage.error(
+      (error && typeof error === 'object' && 'response' in error
+        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        : undefined) || '版本上传失败',
+    );
   } finally {
     isUploadingVersion.value = false;
   }
@@ -820,39 +718,18 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="asset-detail-page">
+  <div class="asset-detail-page mobile-adaptive">
     <main class="detail-main">
       <UiButton variant="link" :icon="ChevronLeft" @click="goBack">返回资源库</UiButton>
 
-      <header class="detail-header">
-        <div class="title-block">
-          <div class="title-row">
-            <h1>{{ asset?.title || '模型详情' }}</h1>
-            <span class="review-pill" :data-tone="reviewStatus.tone">{{ reviewStatus.label }}</span>
-          </div>
-          <div class="meta-row">
-            <span class="tag-pill">3D模型</span>
-            <span><User class="h-4 w-4" />{{ asset?.user?.name || '未知用户' }}</span>
-            <span
-              ><ShieldCheck class="h-4 w-4" />{{
-                asset?.user?.role === 'ADMIN' ? '系统管理员' : '创作者'
-              }}</span
-            >
-            <span><Calendar class="h-4 w-4" />{{ formatDate(asset?.createdAt) }}</span>
-            <span><Eye class="h-4 w-4" />{{ viewCount }}</span>
-          </div>
-        </div>
-
-        <div class="header-actions">
-          <UiButton variant="secondary" :icon="Star" @click="handleFavorite">
-            收藏 {{ favoriteCount }}
-          </UiButton>
-          <UiButton variant="secondary" :icon="Share2" @click="handleShare">分享</UiButton>
-          <button type="button" class="icon-button" @click="ElMessage.info('更多操作入口已保留')">
-            <MoreHorizontal class="h-4 w-4" />
-          </button>
-        </div>
-      </header>
+      <AssetDetailHeader
+        :asset="asset"
+        :review-status="reviewStatus"
+        :favorite-count="favoriteCount"
+        :view-count="viewCount"
+        @favorite="handleFavorite"
+        @share="handleShare"
+      />
 
       <section class="viewer-shell">
         <div class="viewport-grid-overlay" aria-hidden="true"></div>
@@ -861,7 +738,7 @@ onUnmounted(() => {
           <span>正在加载资产...</span>
         </div>
 
-        <div class="viewer-statusbar">
+        <div class="viewer-statusbar mobile-row">
           <div>
             <span class="viewer-kicker">MODEL WORKBENCH</span>
             <strong>{{ displayFormat }} 模型工作台</strong>
@@ -869,7 +746,7 @@ onUnmounted(() => {
           <span class="viewer-dimension">{{ modelStats?.dimensions || '等待尺寸解析' }}</span>
         </div>
 
-        <div class="top-viewer-tools">
+        <div class="top-viewer-tools mobile-row">
           <button
             type="button"
             title="实体模式"
@@ -950,7 +827,7 @@ onUnmounted(() => {
           </a>
         </div>
 
-        <div class="bottom-viewer-tools">
+        <div class="bottom-viewer-tools mobile-row">
           <button type="button" title="重置视角" @click="resetCamera">
             <RefreshCw class="h-4 w-4" />
           </button>
@@ -980,7 +857,7 @@ onUnmounted(() => {
           </article>
         </div>
 
-        <div class="format-dock">
+        <div class="format-dock mobile-row">
           <span>包含格式</span>
           <strong v-for="format in parsedFormats.slice(0, 5)" :key="format">{{ format }}</strong>
           <strong v-if="parsedFormats.length > 5">+{{ parsedFormats.length - 5 }}</strong>
@@ -1005,19 +882,14 @@ onUnmounted(() => {
         <div v-if="activePanel === 'overview'" class="overview-panel">
           <h2>资源概览</h2>
           <p>{{ asset?.description || '该资源暂未填写说明。' }}</p>
-          <div class="overview-stats">
+          <div class="overview-stats mobile-row">
             <span>分类：{{ asset?.category?.name || '未分类' }}</span>
             <span>作者：{{ asset?.user?.name || '未知用户' }}</span>
             <span>格式：{{ parsedFormats.join(' / ') || displayFormat }}</span>
           </div>
         </div>
 
-        <div v-if="activePanel === 'preview'" class="preview-panel">
-          <article v-for="item in previewItems" :key="item.id">
-            <img :src="item.url" :alt="item.label" />
-            <strong>{{ item.label }}</strong>
-          </article>
-        </div>
+        <AssetPreviewGallery v-if="activePanel === 'preview'" :preview-items="previewItems" />
 
         <div v-if="activePanel === 'textures'" class="texture-panel">
           <article v-for="name in ['BaseColor', 'Normal', 'Roughness', 'Metallic']" :key="name">
@@ -1040,46 +912,17 @@ onUnmounted(() => {
           </p>
         </div>
 
-        <div v-if="activePanel === 'versions'" class="versions-panel">
-          <div class="version-upload">
-            <input
-              id="version-file-input"
-              type="file"
-              accept=".glb,.gltf,.fbx,.obj,.stl"
-              @change="handleVersionFileChange"
-            />
-            <textarea
-              v-model="newVersionChangeLog"
-              rows="2"
-              placeholder="记录本次修改内容"
-            ></textarea>
-            <UiButton
-              variant="primary"
-              :icon="UploadCloud"
-              :disabled="isUploadingVersion"
-              :loading="isUploadingVersion"
-              @click="uploadNewVersion"
-            >
-              {{ isUploadingVersion ? '上传中...' : '发布新版本' }}
-            </UiButton>
-          </div>
-          <article v-for="version in versions" :key="version.id" class="version-card">
-            <div>
-              <strong>{{ version.version }}</strong>
-              <span>{{ formatDate(version.createdAt) }}</span>
-            </div>
-            <div class="version-metrics">
-              <span>{{ formatMetricValue(version.faces || 0) }} 面</span>
-              <span>{{ formatMetricValue(version.maxTextureRes || 0, 'px') }}</span>
-              <span>{{ formatMetricValue(version.size || 0, 'MB') }}</span>
-            </div>
-            <p>{{ version.changeLog || '初始版本提交' }}</p>
-          </article>
-          <div v-if="versions.length === 0" class="empty-panel">暂无版本记录</div>
-        </div>
+        <AssetVersionsPanel
+          v-if="activePanel === 'versions'"
+          v-model:new-version-change-log="newVersionChangeLog"
+          :versions="versions"
+          :is-uploading-version="isUploadingVersion"
+          @file-change="handleVersionFileChange"
+          @upload="uploadNewVersion"
+        />
 
         <div v-if="activePanel === 'compare'" class="compare-panel">
-          <div class="compare-toolbar">
+          <div class="compare-toolbar mobile-row">
             <label>
               <span>版本 A</span>
               <select v-model="compareBaseId">
@@ -1129,158 +972,49 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div v-if="activePanel === 'performance'" class="performance-panel">
-          <div class="performance-hero" :data-tone="activePerformanceReport.level">
-            <Gauge class="h-7 w-7" />
-            <div>
-              <strong>{{ activePerformanceReport.score }}</strong>
-              <span>{{ activePerformanceReport.summary }}</span>
-            </div>
-            <small>{{ mobileRiskLabel }}</small>
-          </div>
+        <AssetPerformancePanel
+          v-if="activePanel === 'performance'"
+          :active-performance-report="activePerformanceReport"
+          :mobile-risk-label="mobileRiskLabel"
+        />
 
-          <div class="risk-grid">
-            <article
-              v-for="risk in activePerformanceReport.risks"
-              :key="risk.metric"
-              :data-tone="risk.tone"
-            >
-              <div>
-                <CheckCircle2 v-if="risk.tone === 'pass'" class="h-4 w-4" />
-                <AlertTriangle v-else class="h-4 w-4" />
-                <strong>{{ risk.label }}</strong>
-                <span>{{ riskToneText(risk.tone) }}</span>
-              </div>
-              <b>{{ formatMetricValue(risk.value, risk.unit) }}</b>
-              <p>{{ risk.message }}</p>
-              <small>{{ risk.recommendation }}</small>
-            </article>
-          </div>
-        </div>
-
-        <div v-if="activePanel === 'comments'" class="comments-panel">
-          <div class="comment-tip" :data-disabled="!canAnnotate">
-            <MessageSquare class="h-5 w-5" />
-            <span>
-              {{
-                canAnnotate
-                  ? '点击模型表面可添加空间评论，评论会绑定当前视角。'
-                  : '你可以查看批注；新增批注需要团队、所有者或管理员权限。'
-              }}
-            </span>
-          </div>
-          <div v-if="isAddingAnnotation && annotationCoords" class="comment-editor">
-            <span
-              >X {{ annotationCoords.x.toFixed(2) }} · Y {{ annotationCoords.y.toFixed(2) }} · Z
-              {{ annotationCoords.z.toFixed(2) }}</span
-            >
-            <textarea v-model="newAnnotationText" rows="3" placeholder="输入评论内容"></textarea>
-            <UiButton variant="primary" :icon="Plus" @click="saveAnnotation">保存评论</UiButton>
-          </div>
-          <article
-            v-for="annotation in annotations"
-            :key="annotation.id"
-            class="comment-card"
-            @click="clickAnnotation(annotation)"
-          >
-            <div>
-              <strong>{{ annotation.user?.name || '团队成员' }}</strong>
-              <span>{{ formatDate(annotation.createdAt) }}</span>
-            </div>
-            <p>{{ annotation.content }}</p>
-            <button
-              v-if="annotation.userId === currentUserId || asset?.userId === currentUserId"
-              type="button"
-              @click.stop="deleteAnnotation(annotation.id)"
-            >
-              <Trash2 class="h-4 w-4" />
-            </button>
-          </article>
-          <div v-if="annotations.length === 0" class="empty-panel">暂无评论</div>
-        </div>
+        <AssetCommentsPanel
+          v-if="activePanel === 'comments'"
+          v-model:new-annotation-text="newAnnotationText"
+          :annotations="annotations"
+          :can-annotate="canAnnotate"
+          :is-adding-annotation="isAddingAnnotation"
+          :annotation-coords="annotationCoords"
+          :current-user-id="currentUserId"
+          :asset-user-id="asset?.userId || ''"
+          @save="saveAnnotation"
+          @delete="deleteAnnotation"
+          @click="clickAnnotation"
+        />
       </section>
     </main>
 
     <aside class="detail-aside">
-      <section class="side-card identity-card">
-        <span>MODEL INSPECTOR</span>
-        <h2>{{ displayFormat }} / {{ assetSize }}</h2>
-        <p>
-          {{ asset?.description || '暂无模型说明，可在模型档案中补充拓扑、贴图、授权和使用场景。' }}
-        </p>
-        <div>
-          <strong>{{ reviewStatus.label }}</strong>
-          <strong>{{ parsedFormats.length || 1 }} 种格式</strong>
-        </div>
-      </section>
+      <AssetMetadataPanel
+        :asset="asset"
+        :display-format="displayFormat"
+        :asset-size="assetSize"
+        :parsed-formats="parsedFormats"
+        :review-status="reviewStatus"
+        :view-count="viewCount"
+        :favorite-count="favoriteCount"
+        :download-count="downloadCount"
+        :annotation-count="annotations.length"
+        :file-info="fileInfo"
+        :model-info-rows="modelInfoRows"
+        :active-performance-report="activePerformanceReport"
+        :performance-tone-label="performanceToneLabel"
+        :mobile-risk-label="mobileRiskLabel"
+        :tags="tags"
+        @view-performance="activePanel = 'performance'"
+      />
 
-      <section class="side-card summary-card">
-        <h2>概览</h2>
-        <div class="summary-grid">
-          <div>
-            <Eye class="h-4 w-4" /><strong>{{ viewCount }}</strong
-            ><span>浏览</span>
-          </div>
-          <div>
-            <Star class="h-4 w-4" /><strong>{{ favoriteCount }}</strong
-            ><span>收藏</span>
-          </div>
-          <div>
-            <Download class="h-4 w-4" /><strong>{{ downloadCount }}</strong
-            ><span>下载</span>
-          </div>
-          <div>
-            <MessageSquare class="h-4 w-4" /><strong>{{ annotations.length }}</strong
-            ><span>评论</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="side-card">
-        <h2>文件信息</h2>
-        <div class="file-grid">
-          <div v-for="item in fileInfo" :key="item.label">
-            <span>{{ item.label }}</span>
-            <strong>{{ item.value }}</strong>
-          </div>
-        </div>
-      </section>
-
-      <section class="side-card">
-        <h2>模型信息</h2>
-        <div class="model-rows">
-          <div v-for="item in modelInfoRows" :key="item.label">
-            <span><component :is="item.icon" class="h-4 w-4" />{{ item.label }}</span>
-            <strong>{{ item.value }}</strong>
-          </div>
-        </div>
-      </section>
-
-      <section class="side-card performance-card" :data-tone="activePerformanceReport.level">
-        <h2>性能检测</h2>
-        <div class="score-ring">
-          <strong>{{ activePerformanceReport.score }}</strong>
-          <span>{{ performanceToneLabel }}</span>
-        </div>
-        <p><Smartphone class="h-4 w-4" />{{ mobileRiskLabel }}</p>
-        <UiButton variant="secondary" :icon="Gauge" @click="activePanel = 'performance'">
-          查看检测报告
-        </UiButton>
-      </section>
-
-      <section class="side-card tags-card">
-        <h2>标签</h2>
-        <div>
-          <span v-for="tag in tags" :key="tag">{{ tag }}</span>
-          <button type="button"><Plus class="h-3.5 w-3.5" /></button>
-        </div>
-      </section>
-
-      <UiButton variant="primary" :icon="Download" @click="handleDownload">下载资源</UiButton>
-      <UiButton variant="secondary" :icon="PackageCheck" @click="openInBlender">
-        在 Blender 中打开
-        <ChevronDown class="h-4 w-4" />
-      </UiButton>
+      <AssetDetailActions @download="handleDownload" @open-in-blender="openInBlender" />
     </aside>
   </div>
 </template>
@@ -1305,113 +1039,11 @@ onUnmounted(() => {
   scrollbar-width: thin;
 }
 
-.back-link,
-.meta-row,
-.meta-row span,
-.header-actions,
-.soft-button,
-.icon-button,
 .top-viewer-tools,
 .bottom-viewer-tools,
-.panel-grid button,
-.model-rows div,
-.download-button,
-.blender-button {
+.panel-grid button {
   display: flex;
   align-items: center;
-}
-
-.back-link {
-  gap: 6px;
-  border: 0;
-  background: transparent;
-  color: #73809c;
-  padding: 0;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.detail-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  margin: 18px 0 14px;
-}
-
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.title-row h1 {
-  margin: 0;
-  color: #111b34;
-  font-size: 26px;
-  line-height: 1.2;
-}
-
-.review-pill,
-.tag-pill {
-  border-radius: 999px;
-  padding: 4px 9px;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.review-pill[data-tone='success'] {
-  color: #11a36a;
-  background: #e8fbf1;
-}
-.review-pill[data-tone='warning'] {
-  color: #d17a00;
-  background: #fff4dd;
-}
-.review-pill[data-tone='danger'] {
-  color: #dc2626;
-  background: #fee2e2;
-}
-.tag-pill {
-  color: #6757ff;
-  background: #f0efff;
-}
-
-.meta-row {
-  flex-wrap: wrap;
-  gap: 18px;
-  margin-top: 12px;
-  color: #68758f;
-  font-size: 13px;
-}
-
-.meta-row span {
-  gap: 6px;
-}
-
-.header-actions {
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.soft-button,
-.icon-button {
-  gap: 7px;
-  height: 36px;
-  border: 1px solid #e5eaf5;
-  border-radius: 8px;
-  background: #fff;
-  color: #40506e;
-  padding: 0 13px;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.icon-button {
-  width: 36px;
-  justify-content: center;
-  padding: 0;
 }
 
 .viewer-shell {
@@ -1784,7 +1416,6 @@ onUnmounted(() => {
 }
 
 .overview-stats,
-.preview-panel,
 .texture-panel {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1793,39 +1424,11 @@ onUnmounted(() => {
 }
 
 .overview-stats span,
-.texture-panel article,
-.version-card,
-.comment-card,
-.comment-tip,
-.comment-editor,
-.version-upload {
+.texture-panel article {
   border: 1px solid #e8edf6;
   border-radius: 8px;
   background: #f8faff;
   padding: 12px;
-}
-
-.preview-panel {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.preview-panel article {
-  overflow: hidden;
-  border: 1px solid #e8edf6;
-  border-radius: 8px;
-  background: #f8faff;
-}
-
-.preview-panel img {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-}
-
-.preview-panel strong {
-  display: block;
-  padding: 10px;
-  font-size: 13px;
 }
 
 .texture-panel article {
@@ -1838,126 +1441,13 @@ onUnmounted(() => {
   color: #192640;
 }
 
-.version-upload,
-.comment-editor {
-  display: grid;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.version-upload input,
-.version-upload textarea,
-.comment-editor textarea {
-  width: 100%;
-  border: 1px solid #e2e8f2;
-  border-radius: 8px;
-  background: #fff;
-  padding: 10px 12px;
-  outline: 0;
-  resize: vertical;
-}
-
-.version-upload button,
-.comment-editor button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  height: 36px;
-  border: 0;
-  border-radius: 8px;
-  background: #6757ff;
-  color: #fff;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.version-card,
-.comment-card {
-  position: relative;
-  margin-top: 10px;
-}
-
-.version-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-}
-
-.version-metrics {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 7px;
-}
-
-.version-metrics span {
-  margin: 0;
-  border-radius: 7px;
-  background: #eef3fb;
-  padding: 4px 7px;
-  color: #53617c;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.version-card strong,
-.comment-card strong {
-  color: #192640;
-}
-
-.version-card span,
-.comment-card span,
-.comment-editor span {
-  display: block;
-  margin-top: 4px;
-  color: #7b879d;
-  font-size: 12px;
-}
-
-.version-card p,
-.comment-card p {
-  color: #65718b;
-  font-size: 13px;
-  line-height: 1.7;
-}
-
-.comment-card {
-  cursor: pointer;
-}
-
-.comment-card button {
-  position: absolute;
-  right: 10px;
-  top: 10px;
-  border: 0;
-  background: transparent;
-  color: #ef4444;
-  cursor: pointer;
-}
-
-.comment-tip {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #6757ff;
-  background: #fbfaff;
-}
-
-.comment-tip[data-disabled='true'] {
-  color: #64748b;
-  background: #f8fafc;
-}
-
-.compare-panel,
-.performance-panel {
+.compare-panel {
   display: grid;
   gap: 14px;
 }
 
 .compare-toolbar,
-.compare-summary,
-.risk-grid {
+.compare-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
@@ -1982,8 +1472,7 @@ onUnmounted(() => {
   outline: 0;
 }
 
-.compare-summary article,
-.risk-grid article {
+.compare-summary article {
   border: 1px solid #e8edf6;
   border-radius: 8px;
   background: #f8faff;
@@ -2065,374 +1554,10 @@ onUnmounted(() => {
   background: #fee2e2;
 }
 
-.performance-hero {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-  border: 1px solid #dbe7ff;
-  border-radius: 8px;
-  background: #f7fbff;
-  padding: 16px;
-  color: #2563eb;
-}
-
-.performance-hero[data-tone='warning'] {
-  border-color: #ffe2a9;
-  background: #fffaf0;
-  color: #c27000;
-}
-.performance-hero[data-tone='danger'] {
-  border-color: #fecaca;
-  background: #fff7f7;
-  color: #dc2626;
-}
-.performance-hero[data-tone='pass'] {
-  border-color: #bbf7d0;
-  background: #f4fff8;
-  color: #0f9f6e;
-}
-
-.performance-hero strong {
-  display: block;
-  color: #17213a;
-  font-size: 28px;
-  line-height: 1;
-}
-
-.performance-hero span,
-.performance-hero small {
-  color: #53617c;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.risk-grid article {
-  display: grid;
-  gap: 10px;
-}
-
-.risk-grid article > div {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.risk-grid article strong {
-  color: #17213a;
-  font-size: 14px;
-}
-
-.risk-grid article span {
-  margin-left: auto;
-  border-radius: 7px;
-  background: #eef3fb;
-  padding: 4px 7px;
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.risk-grid article[data-tone='pass'] span {
-  color: #0f9f6e;
-  background: #e8fbf1;
-}
-.risk-grid article[data-tone='notice'] span {
-  color: #2563eb;
-  background: #eaf2ff;
-}
-.risk-grid article[data-tone='warning'] span {
-  color: #c27000;
-  background: #fff4dd;
-}
-.risk-grid article[data-tone='danger'] span {
-  color: #dc2626;
-  background: #fee2e2;
-}
-
-.risk-grid b {
-  color: #17213a;
-  font-size: 20px;
-}
-
-.risk-grid p,
-.risk-grid small {
-  margin: 0;
-  color: #65718b;
-  font-size: 12px;
-  line-height: 1.7;
-}
-
-.empty-panel {
-  display: grid;
-  place-items: center;
-  min-height: 120px;
-  color: #7b879d;
-  font-size: 13px;
-}
-
 .detail-aside {
   display: grid;
   align-content: start;
   gap: 12px;
-}
-
-.side-card {
-  border: 1px solid #e6ebf5;
-  border-radius: 8px;
-  background: #fff;
-  padding: 16px;
-}
-
-.identity-card {
-  display: grid;
-  gap: 11px;
-  overflow: hidden;
-  border-color: #263244;
-  background:
-    radial-gradient(circle at 88% 8%, rgba(245, 121, 42, 0.22), transparent 34%),
-    linear-gradient(145deg, #17202d, #0c1118);
-  color: #eef4fb;
-}
-
-.identity-card > span {
-  color: #93c5fd;
-  font-size: 10px;
-  font-weight: 900;
-}
-
-.side-card.identity-card h2 {
-  margin: 0;
-  color: #ffffff;
-  font-size: 18px;
-}
-
-.identity-card p {
-  display: -webkit-box;
-  overflow: hidden;
-  margin: 0;
-  color: #b9c5d4;
-  font-size: 12px;
-  line-height: 1.7;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-
-.identity-card div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-
-.identity-card strong {
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #f8fafc;
-  padding: 5px 8px;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.side-card h2 {
-  margin: 0 0 14px;
-  color: #17213a;
-  font-size: 15px;
-}
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.summary-grid div {
-  display: grid;
-  place-items: center;
-  gap: 8px;
-  min-height: 72px;
-  border-right: 1px solid #edf1f7;
-}
-
-.summary-grid div:last-child {
-  border-right: 0;
-}
-
-.summary-grid svg:nth-child(1) {
-  color: #6757ff;
-}
-
-.summary-grid strong {
-  color: #17213a;
-  font-size: 18px;
-}
-
-.summary-grid span {
-  color: #78849b;
-  font-size: 11px;
-}
-
-.file-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.file-grid div {
-  min-height: 64px;
-  border-radius: 8px;
-  background: #f8faff;
-  padding: 12px;
-}
-
-.file-grid span,
-.model-rows span {
-  color: #65718b;
-  font-size: 12px;
-}
-
-.file-grid strong {
-  display: block;
-  margin-top: 7px;
-  color: #17213a;
-  font-size: 13px;
-}
-
-.model-rows {
-  display: grid;
-  gap: 10px;
-}
-
-.model-rows div {
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.model-rows span {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: #6757ff;
-}
-
-.model-rows strong {
-  color: #17213a;
-  font-size: 12px;
-  text-align: right;
-}
-
-.performance-card {
-  display: grid;
-  gap: 12px;
-}
-
-.score-ring {
-  display: grid;
-  place-items: center;
-  width: 86px;
-  height: 86px;
-  border: 7px solid #dbe7ff;
-  border-radius: 50%;
-  background: #f7fbff;
-}
-
-.performance-card[data-tone='pass'] .score-ring {
-  border-color: #bbf7d0;
-  background: #f4fff8;
-}
-.performance-card[data-tone='warning'] .score-ring {
-  border-color: #ffe2a9;
-  background: #fffaf0;
-}
-.performance-card[data-tone='danger'] .score-ring {
-  border-color: #fecaca;
-  background: #fff7f7;
-}
-
-.score-ring strong {
-  color: #17213a;
-  font-size: 24px;
-  line-height: 1;
-}
-
-.score-ring span {
-  color: #65718b;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.performance-card p,
-.performance-card button {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.performance-card p {
-  margin: 0;
-  color: #53617c;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.performance-card button {
-  justify-content: center;
-  height: 34px;
-  border: 1px solid #e2e8f2;
-  border-radius: 8px;
-  background: #fff;
-  color: #17213a;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.tags-card div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.tags-card span,
-.tags-card button {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  border: 0;
-  border-radius: 7px;
-  background: #f3f5fa;
-  color: #4d5b74;
-  padding: 0 10px;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.tags-card button {
-  width: 28px;
-  justify-content: center;
-  padding: 0;
-  cursor: pointer;
-}
-
-.download-button,
-.blender-button {
-  justify-content: center;
-  gap: 8px;
-  height: 42px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.download-button {
-  border: 0;
-  background: #6757ff;
-  color: #fff;
-}
-
-.blender-button {
-  border: 1px solid #e6ebf5;
-  background: #fff;
-  color: #17213a;
 }
 
 @keyframes spin {
@@ -2459,10 +1584,6 @@ onUnmounted(() => {
 @media (max-width: 760px) {
   .asset-detail-page {
     padding: 12px;
-  }
-
-  .detail-header {
-    flex-direction: column;
   }
 
   .viewer-shell {
@@ -2504,11 +1625,9 @@ onUnmounted(() => {
   .panel-grid,
   .detail-aside,
   .overview-stats,
-  .preview-panel,
   .texture-panel,
   .compare-toolbar,
-  .compare-summary,
-  .risk-grid {
+  .compare-summary {
     grid-template-columns: 1fr;
   }
 
@@ -2516,10 +1635,6 @@ onUnmounted(() => {
     grid-template-columns: 1fr;
     gap: 6px;
     padding: 10px 12px;
-  }
-
-  .performance-hero {
-    grid-template-columns: 1fr;
   }
 }
 </style>

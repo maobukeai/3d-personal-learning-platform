@@ -339,29 +339,31 @@ const handleContentClick = (e: MouseEvent) => {
     if (href && href.startsWith('#')) {
       e.preventDefault();
       const targetId = decodeURIComponent(href.slice(1));
-      
+
       // 1. Try to find by exact ID
       let targetEl = document.getElementById(targetId);
-      
+
       // 2. If not found, try to find case-insensitively or with matching generated slug
       if (!targetEl) {
-        const headings = document.querySelectorAll('.modern-markdown-content h1, .modern-markdown-content h2, .modern-markdown-content h3, .modern-markdown-content h4, .modern-markdown-content h5, .modern-markdown-content h6');
+        const headings = document.querySelectorAll(
+          '.modern-markdown-content h1, .modern-markdown-content h2, .modern-markdown-content h3, .modern-markdown-content h4, .modern-markdown-content h5, .modern-markdown-content h6',
+        );
         const slugify = (str: string) => str.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]/g, '');
         const targetSlug = slugify(targetId);
-        
+
         // First pass: Exact slug match
         for (const heading of headings) {
           const headingId = heading.getAttribute('id') || '';
           const headingText = heading.textContent || '';
           const headingSlug = slugify(headingText);
           const idSlug = slugify(headingId);
-          
+
           if (headingSlug === targetSlug || idSlug === targetSlug) {
             targetEl = heading as HTMLElement;
             break;
           }
         }
-        
+
         // Second pass: Substring match (for cases where TOC omits heading numbers/prefixes)
         if (!targetEl && targetSlug.length >= 2) {
           for (const heading of headings) {
@@ -374,7 +376,7 @@ const handleContentClick = (e: MouseEvent) => {
           }
         }
       }
-      
+
       // 3. Scroll to it
       if (targetEl) {
         const yOffset = -70; // 70px offset for sticky header
@@ -409,7 +411,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="min-h-screen flex flex-col font-sans antialiased bg-[var(--bg-app)] text-[var(--text-primary)]"
+    class="mobile-adaptive min-h-screen flex flex-col font-sans antialiased bg-[var(--bg-app)] text-[var(--text-primary)]"
   >
     <!-- Sticky Top Reading Progress -->
     <div class="fixed top-0 left-0 right-0 z-[110] h-0.5 bg-transparent">
@@ -421,7 +423,7 @@ onUnmounted(() => {
 
     <!-- Clean Minimalist Header -->
     <header
-      class="sticky top-0 z-[100] backdrop-blur-md px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between border-b shadow-xs transition-colors bg-[var(--bg-card)]/80 border-[var(--border-base)]"
+      class="mobile-row sticky top-0 z-[100] backdrop-blur-md px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between border-b shadow-xs transition-colors bg-[var(--bg-card)]/80 border-[var(--border-base)]"
     >
       <div class="flex items-center gap-2 cursor-pointer select-none" @click="goHome">
         <div
@@ -579,7 +581,7 @@ onUnmounted(() => {
 
         <!-- Author Information Info card -->
         <div
-          class="flex items-center justify-between border-b pb-2.5 mb-3.5 border-[var(--border-base)]"
+          class="mobile-row flex items-center justify-between border-b pb-2.5 mb-3.5 border-[var(--border-base)]"
         >
           <div class="flex items-center gap-2.5 min-w-0">
             <UserAvatar :user="note.user" size="md" class="shrink-0 border-2 border-accent/10" />
@@ -801,7 +803,7 @@ onUnmounted(() => {
           <div class="h-[1px] bg-[var(--border-base)]" />
 
           <!-- Typo controls -->
-          <div class="flex items-center justify-between text-xs">
+          <div class="mobile-row flex items-center justify-between text-xs">
             <span class="text-xs font-semibold">正文字号</span>
             <div
               class="flex items-center gap-1 bg-slate-50 dark:bg-zinc-800/40 rounded-lg p-0.5 border border-[var(--border-base)]"

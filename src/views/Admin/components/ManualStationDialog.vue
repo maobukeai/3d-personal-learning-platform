@@ -4,10 +4,9 @@ import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import { Database, Upload, Loader2 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
-import { getApiErrorMessage } from '@/utils/error';
+import { getApiErrorMessage, logError } from '@/utils/error';
 import type { ManualStation } from '../AdminManualView.vue';
-import Modal from '@/components/ui/Modal.vue';
-import Button from '@/components/ui/Button.vue';
+import FormDialog from '@/components/FormDialog.vue';
 
 const { t } = useI18n();
 
@@ -78,7 +77,7 @@ const handleIconUpload = async (event: Event) => {
     formData.value.iconUrl = data.url;
     ElMessage.success(t('admin.icon_uploaded_successfully'));
   } catch (error: unknown) {
-    console.error('Icon upload error:', error);
+    logError(error, { operation: 'admin.uploadManualIcon', component: 'ManualStationDialog' });
     ElMessage.error(getApiErrorMessage(error, t('admin.icon_upload_failed')));
   } finally {
     isUploadingIcon.value = false;
@@ -115,17 +114,18 @@ async function submit() {
 </script>
 
 <template>
-  <Modal
-    :show="visible"
+  <FormDialog
+    :visible="visible"
     :title="station ? $t('admin.edit_manual_resource_site') : $t('admin.create_a_manual_resource')"
-    size="md"
-    glass-card
-    @close="
+    :confirm-text="station ? $t('admin.save_changes') : $t('admin.create_resource_site')"
+    @update:visible="visible = $event"
+    @cancel="
       () => {
         visible = false;
         resetForm();
       }
     "
+    @submit="submit"
   >
     <div class="space-y-4">
       <div>
@@ -207,7 +207,7 @@ async function submit() {
           class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
           >{{ $t('admin.site_icon_1_1') }}</label
         >
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-4 mobile-row">
           <div
             class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800"
           >
@@ -263,24 +263,5 @@ async function submit() {
         ></textarea>
       </div>
     </div>
-    <template #footer>
-      <div class="flex items-center gap-3">
-        <Button
-          variant="secondary"
-          size="md"
-          @click="
-            () => {
-              visible = false;
-              resetForm();
-            }
-          "
-        >
-          {{ $t('admin.cancel') }}
-        </Button>
-        <Button variant="primary" size="md" @click="submit">
-          {{ station ? $t('admin.save_changes') : $t('admin.create_resource_site') }}
-        </Button>
-      </div>
-    </template>
-  </Modal>
+  </FormDialog>
 </template>

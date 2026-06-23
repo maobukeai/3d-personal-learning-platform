@@ -686,7 +686,7 @@ onMounted(() => {
       </div>
 
       <!-- KPI Metrics Grid (Hidden in compact mode) -->
-      <div v-if="!compact" class="grid grid-cols-2 md:grid-cols-4 gap-2 flex-1 min-w-0">
+      <div v-if="!compact" class="grid grid-cols-2 md:grid-cols-4 gap-2 flex-1 min-w-0 mobile-grid">
         <template v-if="!managementInsights">
           <div
             v-for="i in 4"

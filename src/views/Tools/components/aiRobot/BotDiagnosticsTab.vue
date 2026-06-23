@@ -46,9 +46,9 @@ const statusText = (status: string) => {
 </script>
 
 <template>
-  <section class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_21rem]">
+  <section class="mobile-adaptive grid gap-3 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_21rem]">
     <div class="tool-panel">
-      <div class="panel-head">
+      <div class="panel-head mobile-row">
         <div class="panel-title">
           <ClipboardCheck class="h-4 w-4 text-emerald-500" />
           <span>健康诊断</span>
@@ -107,7 +107,7 @@ const statusText = (status: string) => {
 
     <aside class="space-y-3">
       <div class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <Target class="h-4 w-4 text-amber-500" />
             <span>修复队列</span>
@@ -127,7 +127,7 @@ const statusText = (status: string) => {
       </div>
 
       <div class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <AlertTriangle class="h-4 w-4 text-rose-500" />
             <span>诊断异常</span>

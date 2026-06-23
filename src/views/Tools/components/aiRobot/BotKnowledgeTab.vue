@@ -102,22 +102,22 @@ const copyText = async (value: string, label = '内容') => {
   try {
     await navigator.clipboard.writeText(value);
     ElMessage.success(`${label}已复制`);
-  } catch (_error) {
+  } catch {
     ElMessage.warning('当前浏览器不支持自动复制');
   }
 };
 </script>
 
 <template>
-  <section class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_24rem]">
+  <section class="mobile-adaptive grid gap-3 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_24rem]">
     <div class="space-y-3">
       <div class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <BookOpen class="h-4 w-4 text-emerald-500" />
             <span>知识库</span>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
+          <div class="mobile-row flex flex-wrap items-center gap-2">
             <span class="count-pill">{{ selectedIntegration?.name || '未选择接入' }}</span>
             <button
               type="button"
@@ -257,7 +257,7 @@ const copyText = async (value: string, label = '内容') => {
 
     <aside class="space-y-3">
       <div class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <Rocket class="h-4 w-4 text-rose-500" />
             <span>发布手册</span>
@@ -296,7 +296,7 @@ const copyText = async (value: string, label = '内容') => {
       </div>
 
       <div v-if="runbook" class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <ClipboardCheck class="h-4 w-4 text-emerald-500" />
             <span>灰度步骤</span>
@@ -317,7 +317,7 @@ const copyText = async (value: string, label = '内容') => {
       </div>
 
       <div v-if="runbook" class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <FileText class="h-4 w-4 text-sky-500" />
             <span>命令样例</span>
@@ -343,7 +343,7 @@ const copyText = async (value: string, label = '内容') => {
       </div>
 
       <div v-if="runbook" class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <ClipboardList class="h-4 w-4 text-amber-500" />
             <span>测试矩阵</span>
@@ -364,7 +364,7 @@ const copyText = async (value: string, label = '内容') => {
       </div>
 
       <div v-if="runbook" class="tool-panel">
-        <div class="panel-head">
+        <div class="panel-head mobile-row">
           <div class="panel-title">
             <ShieldCheck class="h-4 w-4 text-emerald-500" />
             <span>安全护栏</span>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getApiErrorMessage } from '@/utils/error';
+import { getApiErrorMessage, logError } from '@/utils/error';
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Loading } from '@element-plus/icons-vue';
@@ -79,7 +79,7 @@ const getNotesEndpoint = () => {
 };
 
 const getNotesParams = () => {
-  const params: Record<string, any> = {
+  const params: Record<string, unknown> = {
     sort: sortBy.value,
   };
   if (activeTab.value === 'MY') {
@@ -99,18 +99,22 @@ const {
   page: currentPage,
   total: totalNotes,
   fetchData: runLoadNotes,
-} = usePagedList<Note>(getNotesEndpoint, getNotesParams, {
-  initialPageSize: 12,
-  listExtractor: (res) => {
-    return res.notes || [];
+} = usePagedList<Note, { notes: Note[]; pagination: { total: number } }>(
+  getNotesEndpoint,
+  getNotesParams,
+  {
+    initialPageSize: 12,
+    listExtractor: (res) => {
+      return res.notes || [];
+    },
+    totalExtractor: (res) => {
+      return res.pagination?.total ?? 0;
+    },
+    onError: () => {
+      ElMessage.error(t('notes.loadFailed'));
+    },
   },
-  totalExtractor: (res) => {
-    return res.pagination?.total ?? 0;
-  },
-  onError: () => {
-    ElMessage.error(t('notes.loadFailed'));
-  },
-});
+);
 
 // Sidebar & Notebook state
 const localNotebooks = ref<string[]>([]);
@@ -131,14 +135,14 @@ const handleShowUserProfile = (userId: string) => {
   isProfileDialogOpen.value = true;
 };
 
-const handleChatWithMember = async (member: any) => {
+const handleChatWithMember = async (member: { id: string }) => {
   try {
     await api.post('/api/messages/conversations', {
       participantIds: [member.id],
       isGroup: false,
     });
     router.push('/messages');
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('notes.startChatFailed'));
   }
 };
@@ -154,7 +158,7 @@ const loadLocalNotebooks = () => {
       localNotebooks.value = [];
     }
   } catch (e) {
-    console.error('Failed to load local notebooks', e);
+    logError(e, { operation: 'loadLocalNotebooks', view: 'NotesView' });
   }
 };
 
@@ -164,7 +168,7 @@ const saveLocalNotebooks = () => {
   try {
     localStorage.setItem(`my_custom_notebooks_${userId}`, JSON.stringify(localNotebooks.value));
   } catch (e) {
-    console.error('Failed to save local notebooks', e);
+    logError(e, { operation: 'saveLocalNotebooks', view: 'NotesView' });
   }
 };
 
@@ -228,55 +232,12 @@ const selectNotebook = (notebookName: string) => {
 
 // Drag and drop notebook management
 const draggedNote = ref<Note | null>(null);
-const draggedNotebook = ref<string | null>(null);
 
 const handleDragStart = (event: DragEvent, note: Note) => {
   draggedNote.value = note;
   if (event.dataTransfer) {
     event.dataTransfer.setData('text/plain', note.id);
     event.dataTransfer.effectAllowed = 'move';
-  }
-};
-
-const handleDrop = async (event: DragEvent, targetNotebookName: string) => {
-  event.preventDefault();
-  draggedNotebook.value = null;
-  if (!draggedNote.value) return;
-
-  const noteId = draggedNote.value.id;
-  let categoryToSend = targetNotebookName;
-  if (targetNotebookName === 'ALL') {
-    draggedNote.value = null;
-    return;
-  } else if (targetNotebookName === 'UNCATEGORIZED') {
-    categoryToSend = '';
-  }
-
-  try {
-    const payload = {
-      category: categoryToSend || null,
-    };
-    await api.put(`/api/notes/${noteId}`, payload);
-    ElMessage.success(
-      t('notes.moveSuccess', {
-        name:
-          targetNotebookName === 'UNCATEGORIZED' ? t('notes.uncategorized') : targetNotebookName,
-      }),
-    );
-
-    // Optimistic local update
-    const idx = notes.value.findIndex((n) => n.id === noteId);
-    if (idx !== -1) {
-      notes.value[idx].category = categoryToSend || undefined;
-    }
-
-    // Refresh categories & list
-    await loadTagsAndCategories();
-    await loadNotes();
-  } catch {
-    ElMessage.error(t('notes.moveNotebookFailed'));
-  } finally {
-    draggedNote.value = null;
   }
 };
 
@@ -300,7 +261,7 @@ watch(searchQuery, (newVal) => {
 
 const loadTagsAndCategories = async () => {
   try {
-    const params: Record<string, any> = {};
+    const params: Record<string, unknown> = {};
     if (activeTab.value !== 'MY') {
       params.visibility = 'PUBLIC';
     }
@@ -490,7 +451,7 @@ const toggleNoteSelection = (note: Note) => {
   }
 };
 
-const handleSelectAll = (checked: any) => {
+const handleSelectAll = (checked: boolean) => {
   if (checked) {
     selectedNoteIds.value = notes.value
       .filter((n) => n.userId === authStore.user?.id || authStore.user?.role === 'ADMIN')
@@ -525,14 +486,14 @@ const handleBatchDelete = async () => {
 
       await loadTagsAndCategories();
       await loadNotes();
-    } catch (err) {
+    } catch {
       ElMessage.error(t('notes.batchDeleteFailed'));
     } finally {
       loading.value = false;
     }
   } catch (err) {
     if (err !== 'cancel') {
-      console.error(err);
+      logError(err, { operation: 'confirmBatchDelete', view: 'NotesView' });
     }
   }
 };
@@ -560,116 +521,10 @@ const confirmBatchMove = async () => {
 
     await loadTagsAndCategories();
     await loadNotes();
-  } catch (err) {
+  } catch {
     ElMessage.error(t('notes.batchMoveFailed'));
   } finally {
     loading.value = false;
-  }
-};
-
-// ── Custom Notebooks/Folders rename & delete logic ─────────
-const handleRenameNotebook = async (oldName: string) => {
-  try {
-    const { value: newName } = await ElMessageBox.prompt(
-      t('notes.renamePrompt', { name: oldName }),
-      t('notes.renameTitle'),
-      {
-        confirmButtonText: t('common.confirm'),
-        cancelButtonText: t('common.cancel'),
-        inputValue: oldName,
-        inputPattern: /\S+/,
-        inputErrorMessage: t('notes.nameNotEmpty'),
-      },
-    );
-
-    const trimmedName = newName.trim();
-    if (!trimmedName || trimmedName === oldName) return;
-
-    if (localNotebooks.value.includes(trimmedName)) {
-      ElMessage.warning(t('notes.notebookExists'));
-      return;
-    }
-
-    // 1. Rename locally
-    const idx = localNotebooks.value.indexOf(oldName);
-    if (idx !== -1) {
-      localNotebooks.value[idx] = trimmedName;
-      saveLocalNotebooks();
-    }
-
-    // 2. Rename notes on server
-    const notesToUpdate = notes.value.filter(
-      (n) => n.category === oldName && n.userId === authStore.user?.id,
-    );
-    if (notesToUpdate.length > 0) {
-      loading.value = true;
-      try {
-        await Promise.all(
-          notesToUpdate.map((note) => api.put(`/api/notes/${note.id}`, { category: trimmedName })),
-        );
-      } catch (err) {
-        ElMessage.error(t('notes.moveSomeNotesFailed'));
-      } finally {
-        loading.value = false;
-      }
-    }
-
-    if (filterCategory.value === oldName) {
-      filterCategory.value = trimmedName;
-    }
-
-    ElMessage.success(t('notes.notebookRenameSuccess', { name: trimmedName }));
-    await loadTagsAndCategories();
-    await loadNotes();
-  } catch (err) {
-    if (err !== 'cancel') {
-      console.error(err);
-    }
-  }
-};
-
-const handleDeleteNotebook = async (name: string) => {
-  try {
-    await ElMessageBox.confirm(
-      t('notes.deleteNotebookConfirm', { name }),
-      t('notes.deleteNotebookTitle'),
-      {
-        confirmButtonText: t('common.confirm'),
-        cancelButtonText: t('common.cancel'),
-        type: 'warning',
-      },
-    );
-
-    localNotebooks.value = localNotebooks.value.filter((n) => n !== name);
-    saveLocalNotebooks();
-
-    const notesToUpdate = notes.value.filter(
-      (n) => n.category === name && n.userId === authStore.user?.id,
-    );
-    if (notesToUpdate.length > 0) {
-      loading.value = true;
-      try {
-        await Promise.all(
-          notesToUpdate.map((note) => api.put(`/api/notes/${note.id}`, { category: null })),
-        );
-      } catch (err) {
-        ElMessage.error(t('notes.moveToUncategorizedFailed'));
-      } finally {
-        loading.value = false;
-      }
-    }
-
-    if (filterCategory.value === name) {
-      filterCategory.value = '';
-    }
-
-    ElMessage.success(t('notes.notebookDeleteSuccess', { name }));
-    await loadTagsAndCategories();
-    await loadNotes();
-  } catch (err) {
-    if (err !== 'cancel') {
-      console.error(err);
-    }
   }
 };
 
@@ -688,7 +543,7 @@ const fetchDailyQuote = async () => {
     dailyQuote.value = res.data.quote || '';
     dailyQuoteGenerated.value = res.data.generated === true;
   } catch (err) {
-    console.error('Failed to fetch daily quote:', err);
+    logError(err, { operation: 'fetchDailyQuote', view: 'NotesView' });
   }
 };
 
@@ -701,7 +556,7 @@ const handleGenerateDailyQuote = async () => {
     dailyQuoteGenerated.value = res.data.generated === true;
     ElMessage.success('今日灵感寄语生成成功！');
   } catch (err) {
-    console.error('Failed to generate daily quote:', err);
+    logError(err, { operation: 'generateDailyQuote', view: 'NotesView' });
     ElMessage.error('AI生成失败，请稍后重试');
   } finally {
     isGeneratingQuote.value = false;
@@ -730,7 +585,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
+    class="mobile-adaptive flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
     <!-- Header Section -->
@@ -772,7 +627,7 @@ onUnmounted(() => {
     >
       <div class="max-w-none">
         <div
-          class="flex flex-wrap items-center gap-3 mb-3 md:mb-4 bg-white/40 dark:bg-slate-900/20 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200/40 dark:border-slate-800/40"
+          class="mobile-row flex flex-wrap items-center gap-3 mb-3 md:mb-4 bg-white/40 dark:bg-slate-900/20 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200/40 dark:border-slate-800/40"
         >
           <Tabs
             v-model="activeTab"
@@ -787,7 +642,7 @@ onUnmounted(() => {
 
           <!-- Right side: Search & Filters -->
           <div
-            class="flex flex-wrap flex-1 items-center gap-2 min-w-[280px] justify-start sm:justify-end"
+            class="flex flex-wrap flex-1 items-center gap-2 min-w-0 md:min-w-[280px] justify-start sm:justify-end"
           >
             <!-- Sort Select -->
             <el-select
@@ -915,7 +770,7 @@ onUnmounted(() => {
             <!-- Batch Management Action Bar -->
             <div
               v-if="isSelectionMode && activeTab === 'MY'"
-              class="flex items-center justify-between p-3 rounded-2xl border border-accent/20 bg-accent/5 backdrop-blur-xs text-xs font-bold mb-3"
+              class="mobile-row flex items-center justify-between p-3 rounded-2xl border border-accent/20 bg-accent/5 backdrop-blur-xs text-xs font-bold mb-3"
             >
               <div class="flex items-center gap-3">
                 <Checkbox

@@ -80,7 +80,7 @@ const parsedTags = computed(() => {
     return Array.isArray(parsed)
       ? parsed.filter((tag): tag is string => typeof tag === 'string')
       : [];
-  } catch (_e) {
+  } catch {
     return [];
   }
 });
@@ -91,7 +91,7 @@ const parsedImages = computed(() => {
     return Array.isArray(parsed)
       ? parsed.filter((img): img is string => typeof img === 'string')
       : [];
-  } catch (_e) {
+  } catch {
     return [];
   }
 });

@@ -5,6 +5,7 @@ import {
 } from '@/utils/format';
 import { ref, computed, watch, defineAsyncComponent } from 'vue';
 import type { Component } from 'vue';
+import { logError } from '@/utils/error';
 import {
   X,
   Edit3,
@@ -31,42 +32,8 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
-import type { Asset } from '@/types';
 import { parseTags } from '@/utils/tags';
-
-type ShowcaseType = 'IMAGE' | 'VIDEO' | 'MODEL' | 'TEXT' | 'OTHER';
-type ShowcaseStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
-
-interface ShowcaseUser {
-  id: string;
-  name?: string | null;
-  avatar?: string;
-  avatarUrl?: string | null;
-  role?: string;
-  email?: string;
-  bio?: string | null;
-}
-
-interface ShowcaseItem {
-  id: string;
-  title: string;
-  description?: string | null;
-  thumbnailUrl?: string | null;
-  images?: string | null;
-  type: ShowcaseType;
-  views: number;
-  likesCount: number;
-  commentsCount: number;
-  user: ShowcaseUser;
-  createdAt: string;
-  isLiked?: boolean;
-  isVideo?: boolean;
-  videoUrl?: string | null;
-  tags?: string | null;
-  asset?: Asset | null;
-  assetId?: string | null;
-  status?: ShowcaseStatus;
-}
+import type { ShowcaseItem, ShowcaseType, ShowcaseUser } from './showcaseTypes';
 
 interface CommentItem {
   id: string;
@@ -233,8 +200,8 @@ const fetchComments = async (showcaseId: string) => {
   try {
     const response = await api.get(`/api/showcase/${showcaseId}/comments`);
     comments.value = response.data;
-  } catch {
-    console.error('Failed to fetch showcase comments');
+  } catch (error) {
+    logError(error, { operation: 'showcase.fetchComments', component: 'ShowcaseDetail' });
   } finally {
     commentsLoading.value = false;
   }
@@ -319,7 +286,7 @@ const saveDetail = async () => {
     ElMessage.success(
       response.data.status === 'PENDING' ? '已保存，等待审核通过后进入全站' : '作品已更新',
     );
-  } catch (_error) {
+  } catch {
     ElMessage.error('保存失败，请稍后重试');
   } finally {
     isSavingDetail.value = false;
@@ -340,7 +307,7 @@ const deleteDetail = async () => {
     emit('refresh-list');
     closeDetail();
     ElMessage.success('作品已删除');
-  } catch (_error) {
+  } catch {
   } finally {
     isDeletingDetail.value = false;
   }
@@ -418,7 +385,7 @@ const deleteComment = async (comment: CommentItem) => {
     emit('update:item', updated);
     emit('refresh-list');
     ElMessage.success('评论已删除');
-  } catch (_error) {}
+  } catch {}
 };
 
 const openDetail = (target: ShowcaseItem) => {
@@ -440,7 +407,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
       isGroup: false,
     });
     ElMessage.success('会话已创建');
-  } catch (_error) {
+  } catch {
     ElMessage.error('发起会话失败');
   }
 };
@@ -448,7 +415,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
 
 <template>
   <Transition name="detail-fade">
-    <div v-if="isOpen" class="detail-layer">
+    <div v-if="isOpen" class="detail-layer mobile-adaptive">
       <div class="detail-backdrop" @click="closeDetail"></div>
       <aside class="detail-drawer">
         <header class="detail-header">
@@ -456,7 +423,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
             <span>作品详情</span>
             <strong v-if="item">{{ item.title }}</strong>
           </div>
-          <div class="detail-header-actions">
+          <div class="detail-header-actions mobile-row">
             <button
               v-if="item && canManageDetail && !isEditingDetail"
               type="button"
@@ -529,7 +496,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
             </section>
 
             <section class="detail-info-panel">
-              <div class="detail-title-row">
+              <div class="detail-title-row mobile-row">
                 <span :class="['detail-type', getTypeClass(item.type)]">
                   {{ getTypeLabel(item.type) }}
                 </span>
@@ -544,7 +511,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
                   <input v-model="editForm.title" type="text" placeholder="作品标题" />
                 </label>
 
-                <div class="detail-edit-types">
+                <div class="detail-edit-types mobile-row">
                   <button
                     v-for="opt in typeOptions"
                     :key="opt.value"
@@ -572,7 +539,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
                   <MarkdownEditor v-model="editForm.description" height="240px" simple />
                 </label>
 
-                <div class="detail-file-row">
+                <div class="detail-file-row mobile-row">
                   <label>
                     <span>替换封面</span>
                     <input type="file" accept="image/*" @change="handleEditThumbnailChange" />
@@ -587,7 +554,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
                   </label>
                 </div>
 
-                <div class="detail-edit-actions">
+                <div class="detail-edit-actions mobile-row">
                   <button
                     type="button"
                     class="primary"
@@ -606,7 +573,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
               <template v-else>
                 <h1>{{ item.title }}</h1>
 
-                <div class="detail-author">
+                <div class="detail-author mobile-row">
                   <UserAvatar :user="item.user" size="md" />
                   <button
                     type="button"
@@ -638,7 +605,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
                   </button>
                 </div>
 
-                <div class="detail-actions">
+                <div class="detail-actions mobile-row">
                   <button type="button" :class="{ liked: item.isLiked }" @click="toggleLike(item)">
                     <Heart class="w-4 h-4" :class="{ 'fill-current': item.isLiked }" />
                     {{ formatNumber(item.likesCount) }}
@@ -684,7 +651,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
                   <RefreshCw class="w-4 h-4 animate-spin" />
                   正在匹配相关作品
                 </div>
-                <div v-else-if="similarShowcases.length" class="similar-strip">
+                <div v-else-if="similarShowcases.length" class="similar-strip mobile-row">
                   <h3>相关作品</h3>
                   <button
                     v-for="simItem in similarShowcases"
@@ -710,7 +677,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
               <span>{{ formatNumber(item.commentsCount) }} 条评论</span>
             </header>
 
-            <div class="comment-composer">
+            <div class="comment-composer mobile-row">
               <UserAvatar :user="authStore.user" size="sm" />
               <input
                 v-model="newComment"

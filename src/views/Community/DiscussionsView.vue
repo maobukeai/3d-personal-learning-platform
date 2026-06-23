@@ -1,55 +1,42 @@
 <script setup lang="ts">
-import {
-  formatRelativeTime as formatTime,
-  formatCompactNumber as formatNumber,
-} from '@/utils/format';
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { formatCompactNumber as formatNumber } from '@/utils/format';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   BarChart3,
-  CheckCircle2,
   Clock,
-  Edit3,
   Eye,
   Flame,
   Heart,
-  Image as ImageIcon,
   Inbox,
   Layers,
   MessageCircle,
   MessageSquare,
   Pin,
-  Plus,
-  RefreshCw,
-  Search,
-  Send,
   Sparkles,
-  Tag,
   UserRound,
-  Users,
-  X,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 import { useAuthStore } from '@/stores/auth';
-const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
-import UserAvatar from '@/components/UserAvatar.vue';
-import PageHeader from '@/components/PageHeader.vue';
-import DiscussionCard from '@/components/DiscussionCard.vue';
 import DiscussionDetail from './components/DiscussionDetail.vue';
-import Input from '@/components/ui/Input.vue';
-import Button from '@/components/ui/Button.vue';
-import Modal from '@/components/ui/Modal.vue';
+import DiscussionHeader from './components/DiscussionHeader.vue';
+import DiscussionStatsPanel from './components/DiscussionStatsPanel.vue';
+import DiscussionComposerCard from './components/DiscussionComposerCard.vue';
+import DiscussionFilterBar from './components/DiscussionFilterBar.vue';
+import DiscussionListPanel from './components/DiscussionListPanel.vue';
+import DiscussionSidebar from './components/DiscussionSidebar.vue';
+import DiscussionCreateModal from './components/DiscussionCreateModal.vue';
 import { parseTags } from '@/utils/tags';
 
 const authStore = useAuthStore();
-const { t, locale } = useI18n();
-const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
+const { t } = useI18n();
 
 const currentUserId = computed(() => authStore.user?.id);
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN');
 
-type DiscussionFilter = 'all' | 'mine' | 'unanswered' | 'pinned';
+export type DiscussionFilter = 'all' | 'mine' | 'unanswered' | 'pinned';
 
 export interface DiscussionUser {
   id: string;
@@ -93,7 +80,7 @@ export interface Discussion {
   _count: DiscussionCounts;
 }
 
-interface DiscussionCardActionTarget {
+export interface DiscussionCardActionTarget {
   id: string;
   isLiked?: boolean;
   isPinned?: boolean;
@@ -102,19 +89,19 @@ interface DiscussionCardActionTarget {
   };
 }
 
-interface TagInsight {
+export interface TagInsight {
   name: string;
   count: number;
 }
 
-interface ContributorInsight {
+export interface ContributorInsight {
   user: DiscussionUser;
   discussions: number;
   comments: number;
   likesReceived: number;
 }
 
-interface RecentCommentInsight {
+export interface RecentCommentInsight {
   id: string;
   content: string;
   createdAt: string;
@@ -122,7 +109,7 @@ interface RecentCommentInsight {
   discussion: Pick<Discussion, 'id' | 'title'>;
 }
 
-interface DiscussionInsights {
+export interface DiscussionInsights {
   totals: {
     discussions: number;
     comments: number;
@@ -367,7 +354,7 @@ const fetchDiscussions = async () => {
     discussions.value = response.data.discussions;
     pagination.value = response.data.pagination;
   } catch (error) {
-    console.error('Fetch discussions error:', error);
+    logError(error, { operation: 'fetchDiscussions', view: 'DiscussionsView' });
     ElMessage.error(t('common.error'));
   } finally {
     isLoading.value = false;
@@ -380,7 +367,7 @@ const fetchInsights = async () => {
     const response = await api.get('/api/discussions/insights');
     insights.value = response.data;
   } catch (error) {
-    console.error('Fetch discussion insights error:', error);
+    logError(error, { operation: 'fetchDiscussionInsights', view: 'DiscussionsView' });
   } finally {
     isInsightsLoading.value = false;
   }
@@ -487,7 +474,7 @@ const handleCreateDiscussion = async () => {
     showCreateModal.value = false;
     resetDraft();
     await refreshAll();
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('community.discussions.postFailed'));
   }
 };
@@ -506,7 +493,7 @@ const openDiscussion = async (id: string) => {
         isLiked: response.data.isLiked,
       };
     }
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('common.error'));
   }
 };
@@ -527,7 +514,7 @@ const toggleLikeDiscussion = async (discussion: DiscussionCardActionTarget, even
       selectedDiscussion.value._count.likes = discussion._count.likes;
     }
     fetchInsights();
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('community.discussions.likeFailed'));
   }
 };
@@ -543,7 +530,7 @@ const togglePinDiscussion = async (discussion: DiscussionCardActionTarget, event
         : t('community.discussions.unpinSuccess'),
     );
     await refreshAll();
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('community.discussions.likeFailed'));
   }
 };
@@ -584,285 +571,57 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="discussion-page">
-    <PageHeader
+  <div class="discussion-page mobile-adaptive">
+    <DiscussionHeader
+      v-model:search-query="searchQuery"
       :title="t('community.discussions.title')"
       :subtitle="listSummary"
-      :icon="MessageSquare"
-    >
-      <template #center>
-        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
-          <Search />
-          <input
-            v-model="searchQuery"
-            type="text"
-            :placeholder="t('community.discussions.searchPlaceholder')"
-          />
-        </label>
-      </template>
-
-      <div class="discussion-header-actions">
-        <Button
-          variant="outline"
-          size="sm"
-          class="!w-8 !h-8 !p-0 !rounded-lg shrink-0"
-          :title="t('community.discussions.refresh')"
-          @click="refreshAll"
-        >
-          <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': isLoading || isInsightsLoading }" />
-        </Button>
-        <Button
-          variant="primary"
-          size="sm"
-          :icon="Edit3"
-          class="!h-8 !rounded-lg shrink-0 font-bold"
-          @click="showCreateModal = true"
-        >
-          {{ t('community.discussions.newPost') }}
-        </Button>
-      </div>
-    </PageHeader>
+      :is-loading="isLoading"
+      :is-insights-loading="isInsightsLoading"
+      @refresh="refreshAll"
+      @create="showCreateModal = true"
+    />
 
     <main class="discussion-board">
       <section class="discussion-feed">
-        <!-- Stats Premium Grid -->
-        <div class="stats-row">
-          <div
-            v-for="metric in metricCards"
-            :key="metric.label"
-            class="stat-card-premium"
-            :class="`stat-card-premium--${metric.tone}`"
-          >
-            <div class="stat-icon-wrapper">
-              <component :is="metric.icon" class="h-4 w-4" />
-            </div>
-            <div class="stat-info">
-              <span class="stat-label">{{ metric.label }}</span>
-              <strong class="stat-value">{{ metric.value }}</strong>
-            </div>
-          </div>
-        </div>
-
-        <!-- Composer Card Premium -->
-        <div class="composer-card-premium">
-          <UserAvatar :user="authStore.user" size="md" />
-          <button type="button" class="composer-trigger-premium" @click="showCreateModal = true">
-            <span>{{
-              label(
-                '分享你的 3D 学习心得，在此发布新讨论...',
-                'Share your 3D learning insights, start a new discussion...',
-              )
-            }}</span>
-            <div class="composer-btn-inner">
-              <Edit3 class="h-3.5 w-3.5" />
-              <span>{{ t('community.discussions.newPost') }}</span>
-            </div>
-          </button>
-        </div>
-
-        <div class="control-panel">
-          <div class="filter-tabs">
-            <button
-              v-for="filter in filterOptions"
-              :key="filter.value"
-              type="button"
-              :class="{ 'is-active': activeFilter === filter.value }"
-              @click="activeFilter = filter.value"
-            >
-              <component :is="filter.icon" class="h-3.5 w-3.5" />
-              <span>{{ filter.label }}</span>
-              <b v-if="filter.count !== undefined">{{ formatNumber(filter.count) }}</b>
-            </button>
-          </div>
-
-          <div class="sort-strip">
-            <span>{{ selectedSortLabel }}</span>
-            <button
-              v-for="option in sortOptions"
-              :key="option.value"
-              type="button"
-              :class="{ 'is-active': sortBy === option.value }"
-              :title="option.label"
-              @click="sortBy = option.value"
-            >
-              <component :is="option.icon" class="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-
-        <div v-if="hasActiveFilters" class="active-filter-line">
-          <div>
-            <CheckCircle2 class="h-3.5 w-3.5" />
-            <span v-if="selectedTag">{{
-              t('community.discussions.selectedTag', { tag: selectedTag })
-            }}</span>
-            <span v-else>{{ t('community.discussions.filteredView') }}</span>
-          </div>
-          <button type="button" @click="clearFilters">
-            {{ t('community.discussions.clearFilters') }}
-          </button>
-        </div>
-
-        <div v-if="isLoading" class="loading-list">
-          <div v-for="idx in 4" :key="idx" class="skeleton-card">
-            <span></span>
-            <div>
-              <i></i>
-              <i></i>
-              <i></i>
-            </div>
-          </div>
-        </div>
-
-        <div v-else-if="discussions.length > 0" class="discussion-list">
-          <DiscussionCard
-            v-for="discussion in discussions"
-            :key="discussion.id"
-            :discussion="discussion"
-            :current-user-id="currentUserId"
-            :is-admin="isAdmin"
-            @click="openDiscussion"
-            @like="toggleLikeDiscussion"
-            @pin="togglePinDiscussion"
-            @delete="deleteDiscussion"
-            @tag="setTag"
-          />
-        </div>
-
-        <div v-else class="empty-state">
-          <MessageSquare class="h-12 w-12" />
-          <strong>{{ t('community.discussions.emptyTitle') }}</strong>
-          <p>{{ t('community.discussions.emptySubtitle') }}</p>
-          <Button
-            variant="primary"
-            size="md"
-            :icon="Edit3"
-            class="hover:scale-105 transition-transform"
-            @click="showCreateModal = true"
-          >
-            {{ t('community.discussions.newPost') }}
-          </Button>
-        </div>
-
-        <div v-if="pagination.totalPages > 1" class="pagination-row">
-          <el-pagination
-            v-model:current-page="pagination.page"
-            :page-size="pagination.limit"
-            :total="pagination.total"
-            layout="prev, pager, next"
-            background
-            @current-change="handlePageChange"
-          />
-        </div>
+        <DiscussionStatsPanel :metrics="metricCards" />
+        <DiscussionComposerCard :user="authStore.user" @click="showCreateModal = true" />
+        <DiscussionFilterBar
+          v-model:active-filter="activeFilter"
+          v-model:sort-by="sortBy"
+          :filters="filterOptions"
+          :sort-options="sortOptions"
+          :selected-sort-label="selectedSortLabel"
+          :selected-tag="selectedTag"
+          :has-active-filters="hasActiveFilters"
+          @clear="clearFilters"
+        />
+        <DiscussionListPanel
+          :discussions="discussions"
+          :is-loading="isLoading"
+          :current-user-id="currentUserId"
+          :is-admin="isAdmin"
+          :pagination="pagination"
+          @open="openDiscussion"
+          @like="toggleLikeDiscussion"
+          @pin="togglePinDiscussion"
+          @delete="deleteDiscussion"
+          @tag="setTag"
+          @page-change="handlePageChange"
+          @create="showCreateModal = true"
+        />
       </section>
 
-      <aside class="discussion-side">
-        <section class="side-panel side-panel--health">
-          <div class="health-header">
-            <BarChart3 class="h-3.5 w-3.5 text-accent" />
-            <span>{{ t('community.discussions.communityHealth') }}</span>
-          </div>
-          <div class="health-stats">
-            <div class="health-stat-item">
-              <strong>{{
-                formatNumber(insights?.totals.activeAuthors || topContributors.length)
-              }}</strong>
-              <span>{{ t('community.discussions.activeAuthors') }}</span>
-            </div>
-            <div v-if="insights?.totals.unanswered !== undefined" class="health-stat-item">
-              <strong>{{ formatNumber(insights?.totals.unanswered) }}</strong>
-              <span>{{ label('等回复', 'Unanswered') }}</span>
-            </div>
-          </div>
-        </section>
-
-        <section class="side-panel">
-          <header>
-            <h2><Tag class="h-4 w-4" /> {{ t('community.discussions.popularTags') }}</h2>
-          </header>
-          <div v-if="tagInsights.length > 0" class="tag-cloud">
-            <button
-              v-for="tagItem in tagInsights.slice(0, 18)"
-              :key="tagItem.name"
-              type="button"
-              :class="{ 'is-active': selectedTag === tagItem.name }"
-              @click="setTag(tagItem.name)"
-            >
-              <span>#{{ tagItem.name }}</span>
-              <b>{{ tagItem.count }}</b>
-            </button>
-          </div>
-          <p v-else class="muted-line">{{ t('community.discussions.noTagsYet') }}</p>
-        </section>
-
-        <section class="side-panel">
-          <header>
-            <h2><Flame class="h-4 w-4" /> {{ t('community.discussions.hotPosts') }}</h2>
-          </header>
-          <div v-if="hotDiscussions.length > 0" class="rank-list">
-            <button
-              v-for="(item, index) in hotDiscussions"
-              :key="item.id"
-              type="button"
-              @click="openDiscussion(item.id)"
-            >
-              <b :class="`rank-index--${index + 1}`">{{ index + 1 }}</b>
-              <span>{{ item.title }}</span>
-              <small
-                >{{ formatNumber(item.viewCount) }} {{ t('community.discussions.views') }}</small
-              >
-            </button>
-          </div>
-          <p v-else class="muted-line">{{ t('community.discussions.noHotPosts') }}</p>
-        </section>
-
-        <section class="side-panel">
-          <header>
-            <h2><Users class="h-4 w-4" /> {{ t('community.discussions.activeCreators') }}</h2>
-          </header>
-          <div v-if="topContributors.length > 0" class="creator-list">
-            <div v-for="creator in topContributors" :key="creator.user.id">
-              <UserAvatar :user="creator.user" size="xs" />
-              <div>
-                <strong>{{
-                  creator.user.name || t('community.discussions.anonymousCreator')
-                }}</strong>
-                <span>
-                  {{
-                    t('community.discussions.creatorStats', {
-                      posts: creator.discussions,
-                      comments: creator.comments,
-                    })
-                  }}
-                </span>
-              </div>
-              <b>{{ formatNumber(creator.likesReceived) }}</b>
-            </div>
-          </div>
-          <p v-else class="muted-line">{{ t('community.discussions.noCreatorsYet') }}</p>
-        </section>
-
-        <section class="side-panel">
-          <header>
-            <h2>
-              <MessageCircle class="h-4 w-4" /> {{ t('community.discussions.recentActivity') }}
-            </h2>
-          </header>
-          <div v-if="recentComments.length > 0" class="activity-list">
-            <button
-              v-for="activity in recentComments"
-              :key="activity.id"
-              type="button"
-              @click="openDiscussion(activity.discussion.id)"
-            >
-              <span>{{ activity.user.name || t('community.discussions.anonymous') }}</span>
-              <strong>{{ activity.discussion.title }}</strong>
-              <small>{{ formatTime(activity.createdAt) }}</small>
-            </button>
-          </div>
-          <p v-else class="muted-line">{{ t('community.discussions.noActivityYet') }}</p>
-        </section>
-      </aside>
+      <DiscussionSidebar
+        :insights="insights"
+        :tag-insights="tagInsights"
+        :selected-tag="selectedTag"
+        :hot-discussions="hotDiscussions"
+        :top-contributors="topContributors"
+        :recent-comments="recentComments"
+        @tag-click="setTag"
+        @open-discussion="openDiscussion"
+      />
     </main>
 
     <Transition name="fade">
@@ -877,132 +636,22 @@ onBeforeUnmount(() => {
       />
     </Transition>
 
-    <Modal
-      :show="showCreateModal"
-      :title="t('community.discussions.newPost')"
-      size="xl"
-      @close="showCreateModal = false"
-    >
-      <div class="create-grid text-left">
-        <section class="create-main">
-          <Input
-            v-model="postForm.title"
-            type="text"
-            :label="t('community.discussions.postTitleLabel')"
-            :placeholder="t('community.discussions.titlePlaceholder')"
-            input-class="!py-2.5 !rounded-lg"
-          />
-
-          <div class="space-y-2 mt-4 text-left">
-            <label class="text-[11px] font-black text-slate-400 uppercase tracking-wider ml-1">
-              {{ t('community.discussions.postContentLabel') }}
-            </label>
-            <MarkdownEditor
-              v-model="postForm.content"
-              height="380px"
-              :placeholder="t('community.discussions.editorPlaceholder')"
-            />
-          </div>
-        </section>
-
-        <aside class="create-side">
-          <section>
-            <h3
-              class="flex items-center gap-1 text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2"
-            >
-              <Sparkles class="h-4 w-4 text-accent" /> {{ t('community.discussions.quickDraft') }}
-            </h3>
-            <div class="template-list flex flex-wrap gap-1.5">
-              <Button
-                v-for="template in starterPrompts"
-                :key="template.label"
-                variant="outline"
-                size="sm"
-                class="!py-1 !px-2.5 !text-[10px] !h-auto !rounded-lg font-bold"
-                @click="applyTemplate(template)"
-              >
-                {{ template.label }}
-              </Button>
-            </div>
-          </section>
-
-          <section class="mt-4">
-            <h3
-              class="flex items-center gap-1 text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2"
-            >
-              <Tag class="h-4 w-4 text-accent" /> {{ t('community.discussions.postTagsLabel') }}
-            </h3>
-            <Input
-              v-model="postForm.tags"
-              type="text"
-              :placeholder="t('community.discussions.tagsPlaceholder')"
-              input-class="!py-2 !rounded-lg !text-xs"
-            />
-            <div v-if="tagInsights.length > 0" class="draft-tags flex flex-wrap gap-1.5 mt-2">
-              <Button
-                v-for="tagItem in tagInsights.slice(0, 10)"
-                :key="tagItem.name"
-                variant="secondary"
-                size="sm"
-                class="!py-0.5 !px-2 !text-[9px] !h-auto !rounded-md !bg-slate-100 dark:!bg-white/5 font-bold"
-                @click="addTagToDraft(tagItem.name)"
-              >
-                #{{ tagItem.name }}
-              </Button>
-            </div>
-          </section>
-
-          <section class="mt-4">
-            <h3
-              class="flex items-center gap-1 text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2"
-            >
-              <ImageIcon class="h-4 w-4 text-accent" />
-              {{ t('community.discussions.postImagesLabel') }}
-            </h3>
-            <div class="image-uploader">
-              <div v-for="(image, index) in imagePreviews" :key="`${image}-${index}`">
-                <img :src="image" alt="" />
-                <button type="button" @click="removeImage(index)">
-                  <X class="h-3 w-3" />
-                </button>
-              </div>
-              <label v-if="imagePreviews.length < 5" class="cursor-pointer">
-                <Plus class="h-4 w-4" />
-                <span>{{ t('community.discussions.uploadImage') }}</span>
-                <input type="file" accept="image/*" multiple @change="handleImageSelect" />
-              </label>
-            </div>
-          </section>
-
-          <section
-            class="draft-preview mt-4 p-3 rounded-xl border border-dashed border-base bg-white/20 dark:bg-white/5"
-          >
-            <h3
-              class="flex items-center gap-1 text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2"
-            >
-              <Eye class="h-4 w-4 text-accent" /> {{ t('community.discussions.preview') }}
-            </h3>
-            <strong class="block text-xs font-bold mb-1 truncate text-primary">{{
-              postForm.title || t('community.discussions.titlePlaceholder')
-            }}</strong>
-            <p class="text-[10px] text-secondary line-clamp-3 leading-relaxed">
-              {{ postForm.content || t('community.discussions.emptyContent') }}
-            </p>
-          </section>
-        </aside>
-      </div>
-
-      <template #footer>
-        <div class="flex items-center justify-end gap-3 w-full">
-          <Button variant="outline" size="sm" @click="resetDraft">
-            {{ t('community.discussions.resetDraft') }}
-          </Button>
-          <Button variant="primary" size="sm" :icon="Send" @click="handleCreateDiscussion">
-            {{ t('community.discussions.postSubmit') }}
-          </Button>
-        </div>
-      </template>
-    </Modal>
+    <DiscussionCreateModal
+      v-model:show="showCreateModal"
+      v-model:title="postForm.title"
+      v-model:content="postForm.content"
+      v-model:tags="postForm.tags"
+      :selected-images="selectedImages"
+      :image-previews="imagePreviews"
+      :tag-insights="tagInsights"
+      :starter-prompts="starterPrompts"
+      @submit="handleCreateDiscussion"
+      @reset="resetDraft"
+      @apply-template="applyTemplate"
+      @add-tag="addTagToDraft"
+      @image-select="handleImageSelect"
+      @remove-image="removeImage"
+    />
   </div>
 </template>
 
@@ -1015,85 +664,6 @@ onBeforeUnmount(() => {
   background: transparent !important;
 }
 
-.discussion-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-}
-
-.discussion-search {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: min(320px, 42vw);
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: var(--bg-app);
-  color: var(--text-muted);
-}
-
-.discussion-search input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 12px;
-}
-
-.primary-action,
-.ghost-action,
-.icon-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 32px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  transition: all 0.15s ease;
-}
-
-.primary-action {
-  padding: 0 12px;
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #fff;
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.15);
-}
-
-.primary-action:hover {
-  transform: translateY(-0.5px);
-}
-
-.primary-action:disabled,
-.comment-composer button:disabled,
-.reply-box button:disabled {
-  cursor: not-allowed;
-  opacity: 0.48;
-}
-
-.ghost-action,
-.icon-action {
-  border: 1px solid var(--border-base);
-  background: var(--bg-card);
-  color: var(--text-secondary);
-}
-
-.ghost-action {
-  padding: 0 10px;
-}
-
-.icon-action {
-  width: 32px;
-  flex: 0 0 auto;
-}
-
 .discussion-board {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
@@ -1104,719 +674,23 @@ onBeforeUnmount(() => {
   padding: 12px;
 }
 
-.discussion-feed,
-.discussion-side {
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.discussion-feed::-webkit-scrollbar,
-.discussion-side::-webkit-scrollbar,
-.comments-scroll::-webkit-scrollbar {
-  display: none;
+@media (max-width: 767px) {
+  .discussion-board {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
 }
 
 .discussion-feed {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.discussion-side {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* Stats row & premium cards */
-.stats-row {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-@media (max-width: 640px) {
-  .stats-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.stat-card-premium {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-base);
-  border-radius: 12px;
-  box-shadow: var(--shadow-card);
-  transition: all 0.2s ease;
-}
-
-.stat-card-premium:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card-hover);
-}
-
-.stat-icon-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-}
-
-.stat-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.stat-label {
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.stat-value {
-  color: var(--text-primary);
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.stat-card-premium--blue .stat-icon-wrapper {
-  background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
-}
-.stat-card-premium--blue:hover {
-  border-color: rgba(37, 99, 235, 0.3);
-}
-
-.stat-card-premium--teal .stat-icon-wrapper {
-  background: rgba(15, 118, 110, 0.1);
-  color: #0f766e;
-}
-.stat-card-premium--teal:hover {
-  border-color: rgba(15, 118, 110, 0.3);
-}
-
-.stat-card-premium--rose .stat-icon-wrapper {
-  background: rgba(225, 29, 72, 0.1);
-  color: #e11d48;
-}
-.stat-card-premium--rose:hover {
-  border-color: rgba(225, 29, 72, 0.3);
-}
-
-.stat-card-premium--amber .stat-icon-wrapper {
-  background: rgba(180, 83, 9, 0.1);
-  color: #b45309;
-}
-.stat-card-premium--amber:hover {
-  border-color: rgba(180, 83, 9, 0.3);
-}
-
-/* Composer premium styling */
-.composer-card-premium {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-base);
-  border-radius: 12px;
-  box-shadow: var(--shadow-card);
-}
-
-.composer-trigger-premium {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex: 1;
-  min-width: 0;
-  height: 38px;
-  padding: 0 14px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 500;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.composer-trigger-premium:hover {
-  border-color: rgba(37, 99, 235, 0.3);
-  background: rgba(37, 99, 235, 0.05);
-  color: var(--text-secondary);
-}
-
-.composer-trigger-premium span {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.composer-btn-inner {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 6px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  transition: all 0.15s ease;
-}
-
-.composer-trigger-premium:hover .composer-btn-inner {
-  transform: translateY(-0.5px);
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
-}
-
-.control-panel,
-.active-filter-line {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-}
-
-.control-panel {
-  padding: 6px;
-  background: var(--bg-hover);
-}
-
-.filter-tabs,
-.sort-strip {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-}
-
-.filter-tabs {
-  overflow-x: auto;
+  min-height: 0;
+  overflow-y: auto;
   scrollbar-width: none;
 }
 
-.filter-tabs::-webkit-scrollbar {
+.discussion-feed::-webkit-scrollbar {
   display: none;
-}
-
-.filter-tabs button,
-.sort-strip button,
-.active-filter-line button,
-.tag-cloud button,
-.draft-tags button,
-.template-list button,
-.detail-tags button {
-  background: var(--bg-app);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.filter-tabs button {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 8px;
-  border-radius: 6px;
-  border: 0;
-  background: transparent;
-  white-space: nowrap;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.filter-tabs button b {
-  color: var(--text-muted);
-  font-size: 9px;
-  margin-left: 2px;
-}
-
-.filter-tabs button.is-active {
-  background: var(--accent-subtle);
-  color: var(--accent);
-}
-
-.filter-tabs button.is-active b {
-  color: var(--accent);
-}
-
-.sort-strip {
-  flex: 0 0 auto;
-}
-
-.sort-strip span {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 500;
-  margin-right: 4px;
-}
-
-.sort-strip button,
-.modal-actions button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-}
-
-.sort-strip button.is-active {
-  background: var(--accent);
-  color: #fff;
-}
-
-.active-filter-line {
-  min-height: 32px;
-  padding: 0 10px;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.active-filter-line div {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.active-filter-line button {
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 4px;
-  border: 1px solid var(--border-base);
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.discussion-list,
-.loading-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.skeleton-card {
-  display: flex;
-  gap: 12px;
-  height: 136px;
-  padding: 14px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-}
-
-.skeleton-card span,
-.skeleton-card i {
-  display: block;
-  border-radius: 7px;
-  background: linear-gradient(
-    90deg,
-    var(--bg-app),
-    color-mix(in srgb, var(--border-base) 70%, var(--bg-card)),
-    var(--bg-app)
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.3s infinite linear;
-}
-
-.skeleton-card span {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-}
-
-.skeleton-card div {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.skeleton-card i {
-  height: 14px;
-}
-
-.skeleton-card i:nth-child(1) {
-  width: 36%;
-}
-.skeleton-card i:nth-child(2) {
-  width: 82%;
-}
-.skeleton-card i:nth-child(3) {
-  width: 56%;
-}
-
-@keyframes shimmer {
-  to {
-    background-position: -200% 0;
-  }
-}
-
-.empty-state {
-  display: flex;
-  flex: 1;
-  min-height: 280px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: 1px dashed var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  color: var(--text-muted);
-  text-align: center;
-}
-
-.empty-state strong {
-  color: var(--text-primary);
-  font-size: 14px;
-}
-
-.empty-state p {
-  margin: 0 0 4px;
-  font-size: 11px;
-}
-
-.pagination-row {
-  display: flex;
-  justify-content: center;
-  padding: 8px 0 12px;
-}
-
-/* Sidebar Panels - Clean borderless rows */
-.side-panel {
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  padding: 10px;
-  box-shadow: var(--shadow-card);
-}
-
-.side-panel header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.side-panel h2,
-.create-side h3 {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.side-panel--health {
-  background:
-    linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(20, 184, 166, 0.03)), var(--bg-card);
-  padding: 12px;
-}
-
-.health-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 10px;
-  color: var(--text-primary);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.health-stats {
-  display: flex;
-  gap: 16px;
-}
-
-.health-stat-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.health-stat-item strong {
-  color: var(--text-primary);
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.1;
-}
-
-.health-stat-item span {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 500;
-}
-
-.tag-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.tag-cloud button {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 24px;
-  max-width: 130px;
-  padding: 0 8px;
-  border-radius: 9999px;
-  border: 0;
-  font-size: 10px;
-  font-weight: 500;
-}
-
-.tag-cloud button span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tag-cloud button b {
-  color: var(--text-muted);
-  font-size: 9px;
-  margin-left: 2px;
-}
-
-/* Sidebar lists borderless & dashed */
-.rank-list,
-.creator-list,
-.activity-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.rank-list button,
-.creator-list > div,
-.activity-list button {
-  display: grid;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: var(--text-primary);
-  cursor: pointer;
-  text-align: left;
-  padding: 6px 4px;
-  border-bottom: 1px dashed var(--border-base);
-  transition: all 0.15s ease;
-}
-
-.rank-list button:hover,
-.creator-list > div:hover,
-.activity-list button:hover {
-  background: var(--bg-hover);
-  border-radius: 4px;
-}
-
-.rank-list button:last-child,
-.creator-list > div:last-child,
-.activity-list button:last-child {
-  border-bottom: 0;
-}
-
-.rank-list button {
-  grid-template-columns: 20px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 6px;
-}
-
-.rank-list b {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.rank-list b.rank-index--1 {
-  background: #f59e0b;
-  color: #fff;
-}
-.rank-list b.rank-index--2 {
-  background: #94a3b8;
-  color: #fff;
-}
-.rank-list b.rank-index--3 {
-  background: #a16207;
-  color: #fff;
-}
-.rank-list b:not(.rank-index--1):not(.rank-index--2):not(.rank-index--3) {
-  background: var(--bg-app);
-  color: var(--text-muted);
-}
-
-.rank-list span,
-.activity-list strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.rank-list small,
-.activity-list small,
-.creator-list span,
-.muted-line {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 500;
-}
-
-.creator-list > div {
-  grid-template-columns: 24px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-}
-
-.creator-list strong {
-  display: block;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 11px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.creator-list b {
-  color: #e11d48;
-  font-size: 10px;
-}
-
-.activity-list button {
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px 6px;
-  padding: 6px;
-  background: transparent;
-}
-
-.activity-list span {
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.activity-list strong {
-  grid-column: 1 / -1;
-}
-
-.muted-line {
-  margin: 0;
-  line-height: 1.5;
-}
-
-.modal-shell {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 14px;
-}
-
-.modal-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.42);
-  backdrop-filter: blur(10px);
-}
-
-.create-modal {
-  position: relative;
-  display: flex;
-  width: min(1120px, 100%);
-  max-height: min(92vh, 860px);
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
-}
-
-.create-header,
-.create-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border-base);
-}
-
-.create-header h2 {
-  display: block;
-  color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 950;
-}
-
-.create-header p {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 750;
-}
-
-.create-header > button {
-  border: 1px solid var(--border-base);
-  background: var(--bg-app);
-  color: var(--text-secondary);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-}
-
-.create-main input,
-.create-side input {
-  width: 100%;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  outline: 0;
-  background: var(--bg-card);
-  color: var(--text-primary);
-  font-size: 12px;
 }
 </style>

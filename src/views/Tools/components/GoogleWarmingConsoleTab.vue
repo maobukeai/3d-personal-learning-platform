@@ -439,8 +439,8 @@ ${selectedReasonsList.map((r) => `- ${r}`).join('\n')}
         appealAbortCtrl = null;
       },
     );
-  } catch (e: any) {
-    if (e.name !== 'AbortError') {
+  } catch (e: unknown) {
+    if (e instanceof Error && e.name !== 'AbortError') {
       ElMessage.error(e.message || 'AI 生成失败，请重试');
     }
     isGeneratingAppeal.value = false;
@@ -494,7 +494,7 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
 </script>
 
 <template>
-  <div class="lg:col-span-8 xl:col-span-9 space-y-4 lg:space-y-6 w-full">
+  <div class="mobile-adaptive lg:col-span-8 xl:col-span-9 space-y-4 lg:space-y-6 w-full">
     <div v-if="!selectedAccount" class="gw-card gw-empty-state !p-4 lg:!p-6">
       <button
         class="lg:hidden flex items-center gap-1 text-xs font-semibold text-violet-700 dark:text-violet-400 py-1.5 px-3 rounded-lg border border-violet-500/30 dark:border-violet-500/20 bg-violet-500/10 dark:bg-violet-500/5 mb-4 cursor-pointer"

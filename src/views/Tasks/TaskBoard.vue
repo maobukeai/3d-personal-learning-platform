@@ -1,11 +1,11 @@
 <script lang="ts">
 import { ref } from 'vue';
-import type { Task } from '@/types/task';
+import type { Task, UserType, Project, Team } from '@/types/task';
 const cachedTasksByTeam = ref<Record<string, Task[]>>({});
-const cachedStatsByTeam = ref<Record<string, any>>({});
-const cachedTeamMembersByTeam = ref<Record<string, any[]>>({});
-const cachedProjectsByTeam = ref<Record<string, any[]>>({});
-const cachedTeams = ref<any[]>([]);
+const cachedStatsByTeam = ref<Record<string, unknown>>({});
+const cachedTeamMembersByTeam = ref<Record<string, UserType[]>>({});
+const cachedProjectsByTeam = ref<Record<string, Project[]>>({});
+const cachedTeams = ref<Team[]>([]);
 
 export default {
   name: 'TaskBoard',
@@ -17,40 +17,26 @@ import { getApiErrorMessage } from '@/utils/error';
 import { computed, watch, onActivated } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import {
-  Plus,
-  Search,
-  CheckCircle2,
-  AlertCircle,
-  LayoutGrid,
-  List,
-  Flame,
-  ArrowUp,
-  Minus,
-  ArrowDown,
-  FolderPlus,
-  TrendingUp,
-  BarChart3,
-  RotateCcw,
-  SlidersHorizontal,
-  Calendar,
-} from 'lucide-vue-next';
+import { Flame, ArrowUp, Minus, ArrowDown } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import TaskAddDialog from '@/components/TaskAddDialog.vue';
 import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue';
 import TaskFilterBar from '@/components/TaskFilterBar.vue';
-import Tabs from '@/components/ui/Tabs.vue';
 import TaskBoardView from './components/TaskBoardView.vue';
 import TaskListView from './components/TaskListView.vue';
 import TaskCalendarView from './components/TaskCalendarView.vue';
+import TaskBoardHeader from './components/TaskBoardHeader.vue';
+import TaskBoardSkeleton from './components/TaskBoardSkeleton.vue';
+import TaskBoardEmptyState from './components/TaskBoardEmptyState.vue';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useAuthStore } from '@/stores/auth';
 import { getTaskDayIndex, getTaskTime } from '@/utils/taskSort';
+import { isTaskOverdue } from '@/utils/taskDisplay';
 
 import { TaskStatus } from '@/types/task';
-import type { UserType, Team, Project, TaskUpdatePayload } from '@/types/task';
+import type { TaskUpdatePayload, Subtask } from '@/types/task';
 
 const { t } = useI18n();
 const workspaceStore = useWorkspaceStore();
@@ -98,7 +84,8 @@ const customDate = ref('');
 const hideCompleted = ref(false);
 const onlyMyTasks = ref(false);
 const sortBy = ref<'natural' | 'createdAt_asc' | 'createdAt_desc'>(
-  (localStorage.getItem('task_sort_by') as any) || 'natural',
+  (localStorage.getItem('task_sort_by') as 'natural' | 'createdAt_asc' | 'createdAt_desc' | null) ||
+    'natural',
 );
 const sortOrder = ref<'asc' | 'desc'>('asc');
 
@@ -565,7 +552,7 @@ const processedTasks = computed(() => {
     list.forEach((t) => {
       flattened.push(t);
       if (t.parsedSubtasks && Array.isArray(t.parsedSubtasks)) {
-        t.parsedSubtasks.forEach((sub: any, index: number) => {
+        t.parsedSubtasks.forEach((sub, index: number) => {
           flattened.push({
             id: `${t.id}_sub_${index}`,
             title: sub.text,
@@ -585,7 +572,7 @@ const processedTasks = computed(() => {
             assignee: sub.assigneeId
               ? teamMembers.value.find((m) => m.id === sub.assigneeId)
               : null,
-          } as unknown as Task);
+          });
         });
       }
     });
@@ -726,10 +713,7 @@ const completionRate = computed(() => {
 });
 
 const overdueCount = computed(() => {
-  const now = new Date();
-  return tasks.value.filter(
-    (t) => t.dueDate && new Date(t.dueDate) < now && t.status !== TaskStatus.DONE,
-  ).length;
+  return tasks.value.filter((t) => isTaskOverdue(t)).length;
 });
 
 const fetchTasks = async () => {
@@ -911,9 +895,9 @@ const deleteTask = (task: Task) => {
 const openDetailDrawer = (task: Task, subtaskId?: string) => {
   let targetTask = task;
   let targetSubtaskId = subtaskId || null;
-  const isSub = ((task as any).isSubtask && (task as any).parentId) || !!subtaskId;
-  if ((task as any).isSubtask && (task as any).parentId) {
-    const parent = tasks.value.find((t) => t.id === (task as any).parentId);
+  const isSub = (task.isSubtask && task.parentId) || !!subtaskId;
+  if (task.isSubtask && task.parentId) {
+    const parent = tasks.value.find((t) => t.id === task.parentId);
     if (parent) {
       targetTask = parent;
       targetSubtaskId = task.id;
@@ -969,9 +953,8 @@ const autoSaveTask = async (payload: TaskUpdatePayload | Task) => {
     }
     cachedTasksByTeam.value[tid] = [...tasks.value];
     fetchStats();
-  } catch (error: any) {
-    const errorMsg = error.response?.data?.error || '保存任务失败';
-    ElMessage.error(errorMsg);
+  } catch (error: unknown) {
+    ElMessage.error(getApiErrorMessage(error, '保存任务失败'));
     fetchTasks();
   }
 };
@@ -979,13 +962,13 @@ const autoSaveTask = async (payload: TaskUpdatePayload | Task) => {
 const handleUpdateSubtask = async (
   parentId: string,
   subtaskIndex: number,
-  fields: Record<string, any>,
+  fields: Record<string, unknown>,
 ) => {
   const parent = tasks.value.find((t) => t.id === parentId);
   if (!parent) return;
   const tid = workspaceStore.activeTeamId || 'personal';
   try {
-    let subtasksList: any[] = [];
+    let subtasksList: Subtask[] = [];
     if (parent.subtasks) {
       subtasksList = JSON.parse(parent.subtasks);
     }
@@ -993,7 +976,7 @@ const handleUpdateSubtask = async (
       subtasksList[subtaskIndex] = {
         ...subtasksList[subtaskIndex],
         ...fields,
-      };
+      } as Subtask;
     }
     const response = await api.put(`/api/tasks/${parentId}`, {
       subtasks: JSON.stringify(subtasksList),
@@ -1019,7 +1002,7 @@ const handleSubtaskDrag = async (parentId: string, subtaskIndex: number, columnI
   if (!parent) return;
   const tid = workspaceStore.activeTeamId || 'personal';
   try {
-    let subtasksList: any[] = [];
+    let subtasksList: Subtask[] = [];
     if (parent.subtasks) {
       subtasksList = JSON.parse(parent.subtasks);
     }
@@ -1110,196 +1093,22 @@ onActivated(() => {
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300">
-    <!-- Header -->
-    <div
-      class="h-auto md:h-13 px-4 sm:px-6 py-3 md:py-0 flex flex-col md:grid md:grid-cols-3 md:items-center shrink-0 border-b transition-colors duration-300 gap-3"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <!-- Left: Title & Stats -->
-      <div class="flex items-center justify-between w-full md:w-auto md:justify-start gap-3">
-        <div class="flex items-center gap-2">
-          <div class="p-1.5 bg-accent/10 rounded-lg">
-            <CheckCircle2 class="w-4.5 h-4.5 text-accent" />
-          </div>
-          <h1
-            class="text-base md:text-lg font-bold whitespace-nowrap"
-            style="color: var(--text-primary)"
-          >
-            {{ t('tasks.board') }}
-          </h1>
-        </div>
-
-        <!-- Inline stats badges -->
-        <div class="hidden lg:flex items-center gap-1.5 shrink-0">
-          <div
-            class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap"
-          >
-            <TrendingUp class="w-2.5 h-2.5" />
-            <span>{{ completionRate }}% {{ t('tasks.done') }}</span>
-          </div>
-          <div
-            v-if="overdueCount > 0"
-            class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-500/10 text-[9px] font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap"
-          >
-            <AlertCircle class="w-2.5 h-2.5" />
-            <span>{{ overdueCount }} {{ t('tasks.overdue') }}</span>
-          </div>
-          <div
-            class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/5 text-[9px] font-bold text-slate-500 whitespace-nowrap"
-          >
-            <BarChart3 class="w-2.5 h-2.5" />
-            <span>{{ tasks.length }} {{ t('tasks.total') }}</span>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          class="md:hidden p-2 bg-accent text-white rounded-lg shadow-lg shadow-accent/20 hover:shadow-none transition-all flex items-center justify-center shrink-0"
-          @click="openAddDialog('TODO')"
-        >
-          <Plus class="w-4 h-4" />
-        </button>
-      </div>
-
-      <!-- Center: Search Input -->
-      <div class="flex justify-center w-full md:w-auto">
-        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
-          <Search />
-          <input v-model="searchQuery" type="text" :placeholder="t('tasks.searchPlaceholder')" />
-        </label>
-      </div>
-
-      <!-- Right: Action Controls -->
-      <div class="flex items-center justify-end gap-2 sm:gap-2.5 w-full md:w-auto">
-        <Tabs
-          v-model="viewMode"
-          :options="[
-            { value: 'board', icon: LayoutGrid },
-            { value: 'list', icon: List },
-            { value: 'calendar', icon: Calendar },
-          ]"
-          size="sm"
-          class="!bg-transparent border-none shrink-0"
-        />
-
-        <el-popover
-          v-if="viewMode === 'board'"
-          placement="bottom-end"
-          :width="180"
-          trigger="click"
-          popper-class="glass-popover"
-        >
-          <template #reference>
-            <button
-              type="button"
-              class="px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all flex items-center gap-1 cursor-pointer shrink-0 animate-spin-hover"
-            >
-              <SlidersHorizontal class="w-3.5 h-3.5 text-slate-500" />
-              <span>卡片设置</span>
-            </button>
-          </template>
-          <div class="p-1 space-y-2.5">
-            <div
-              class="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-1"
-            >
-              看板卡片显示属性
-            </div>
-            <label
-              v-for="(val, field) in cardSettings"
-              :key="field"
-              class="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300 select-none hover:text-accent transition-colors"
-            >
-              <input
-                type="checkbox"
-                :checked="val"
-                class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
-                @change="toggleCardSetting(String(field))"
-              />
-              <span>{{
-                field === 'assignee'
-                  ? '负责人头像'
-                  : field === 'dueDate'
-                    ? '截止日期'
-                    : field === 'priority'
-                      ? '优先级标签'
-                      : field === 'project'
-                        ? '关联项目名称'
-                        : field === 'subtasks'
-                          ? '子任务进度'
-                          : field === 'timeTracking'
-                            ? '工时进度'
-                            : '任务简短描述'
-              }}</span>
-            </label>
-          </div>
-        </el-popover>
-
-        <el-popover
-          v-if="viewMode === 'list'"
-          placement="bottom-end"
-          :width="180"
-          trigger="click"
-          popper-class="glass-popover"
-        >
-          <template #reference>
-            <button
-              type="button"
-              class="px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all flex items-center gap-1 cursor-pointer shrink-0 animate-spin-hover"
-            >
-              <SlidersHorizontal class="w-3.5 h-3.5 text-slate-500" />
-              <span>卡片设置</span>
-            </button>
-          </template>
-          <div class="p-1 space-y-2.5">
-            <div
-              class="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-1"
-            >
-              列表卡片显示属性
-            </div>
-            <label
-              v-for="(val, field) in visibleColumns"
-              :key="field"
-              class="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300 select-none hover:text-accent transition-colors"
-            >
-              <input
-                type="checkbox"
-                :checked="val"
-                class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
-                @change="toggleColumnVisibility(String(field))"
-              />
-              <span>{{
-                field === 'status'
-                  ? t('tasks.statusLabel')
-                  : field === 'project'
-                    ? t('tasks.associatedProject')
-                    : field === 'assignee'
-                      ? t('tasks.assignee')
-                      : field === 'dueDate'
-                        ? t('tasks.dueDate')
-                        : t('tasks.priority')
-              }}</span>
-            </label>
-          </div>
-        </el-popover>
-
-        <button
-          type="button"
-          class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all"
-          @click="router.push({ path: '/projects', query: { openCreate: 'true' } })"
-        >
-          <FolderPlus class="w-3.5 h-3.5 text-slate-500" /> {{ t('tasks.newProject') }}
-        </button>
-
-        <button
-          type="button"
-          class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-xs font-bold hover:shadow-lg hover:shadow-accent/20 transition-all"
-          @click="openAddDialog('TODO')"
-        >
-          <Plus class="w-3.5 h-3.5" /> {{ t('tasks.newTask') }}
-        </button>
-      </div>
-    </div>
+  <div
+    class="mobile-adaptive flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
+  >
+    <TaskBoardHeader
+      v-model:search-query="searchQuery"
+      v-model:view-mode="viewMode"
+      :card-settings="cardSettings"
+      :visible-columns="visibleColumns"
+      :completion-rate="completionRate"
+      :overdue-count="overdueCount"
+      :tasks-count="tasks.length"
+      @toggle-card-setting="toggleCardSetting"
+      @toggle-column-visibility="toggleColumnVisibility"
+      @new-task="openAddDialog('TODO')"
+      @new-project="router.push({ path: '/projects', query: { openCreate: 'true' } })"
+    />
 
     <TaskFilterBar
       v-model:date-filter="dateFilter"
@@ -1314,10 +1123,10 @@ onActivated(() => {
       v-model:assignee-filter="assigneeFilter"
       v-model:tag-filter="tagFilter"
       v-model:subtask-display="subtaskDisplay"
+      v-model:selected-project-id="selectedProjectId"
       :total-tasks-count="tasks.length"
       :completion-rate="completionRate"
       :overdue-count="overdueCount"
-      v-model:selected-project-id="selectedProjectId"
       :projects="projects"
       :view-mode="viewMode"
       :is-any-filter-active="isAnyFilterActive"
@@ -1327,42 +1136,7 @@ onActivated(() => {
       @reset-all-filters="resetAllFilters"
     />
 
-    <!-- Loading Skeleton -->
-    <div v-if="isLoading" class="flex-1 p-1 sm:p-4 space-y-4 overflow-hidden">
-      <!-- Board Skeleton -->
-      <div v-if="viewMode === 'board'" class="flex gap-4 h-full">
-        <div
-          v-for="i in 3"
-          :key="i"
-          class="flex-1 bg-card rounded-2xl border p-4 space-y-3 animate-pulse h-full"
-          style="background-color: var(--bg-card); border-color: var(--border-base)"
-        >
-          <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-4"></div>
-          <div
-            v-for="j in 3"
-            :key="j"
-            class="h-24 bg-slate-100 dark:bg-slate-800/40 rounded-xl border p-3 space-y-2"
-            style="border-color: var(--border-base)"
-          >
-            <div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
-            <div class="h-2 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div>
-            <div class="flex justify-between items-center pt-2">
-              <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-8"></div>
-              <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-4"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- List/Calendar Skeleton -->
-      <div v-else class="space-y-3 animate-pulse">
-        <div
-          v-for="i in 6"
-          :key="i"
-          class="h-12 bg-slate-100 dark:bg-slate-800 rounded-xl border"
-          style="background-color: var(--bg-card); border-color: var(--border-base)"
-        ></div>
-      </div>
-    </div>
+    <TaskBoardSkeleton v-if="isLoading" :view-mode="viewMode" />
 
     <!-- Board View -->
     <TaskBoardView
@@ -1408,51 +1182,17 @@ onActivated(() => {
       @open-detail="openDetailDrawer"
     />
 
-    <!-- Global Empty State -->
-    <div
+    <TaskBoardEmptyState
       v-if="!isLoading && tasks.length === 0"
-      class="task-empty-state py-20 flex flex-col items-center justify-center bg-card rounded-2xl border"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <div
-        class="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-4"
-      >
-        <CheckCircle2 class="w-8 h-8 text-slate-300 dark:text-slate-600" />
-      </div>
-      <p class="text-sm font-bold text-slate-400 mb-1">{{ t('tasks.noTasks') }}</p>
-      <p class="text-xs text-slate-400 mb-4">{{ t('tasks.clickNewTaskTip') }}</p>
-      <button
-        type="button"
-        class="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:shadow-lg hover:shadow-accent/20 transition-all"
-        @click="openAddDialog('TODO')"
-      >
-        <Plus class="w-4 h-4" /> {{ t('tasks.newTask') }}
-      </button>
-    </div>
+      type="no-tasks"
+      @add-task="openAddDialog('TODO')"
+    />
 
-    <!-- Filtered Empty State -->
-    <div
+    <TaskBoardEmptyState
       v-if="!isLoading && tasks.length > 0 && filteredTasks.length === 0"
-      class="task-empty-state py-20 flex flex-col items-center justify-center bg-card rounded-2xl border text-center"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <div
-        class="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-4"
-      >
-        <SlidersHorizontal class="w-8 h-8 text-slate-300 dark:text-slate-600" />
-      </div>
-      <p class="text-sm font-bold text-slate-400 mb-1">{{ t('tasks.noMatchingTasks') }}</p>
-      <p class="text-xs text-slate-400 mb-4">
-        {{ t('tasks.noMatchingTasksTip') }}
-      </p>
-      <button
-        type="button"
-        class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-200 dark:hover:bg-white/10 transition-all cursor-pointer mx-auto"
-        @click="resetAllFilters"
-      >
-        <RotateCcw class="w-3.5 h-3.5" /> {{ t('tasks.resetAllFilters') }}
-      </button>
-    </div>
+      type="no-matching"
+      @reset-filters="resetAllFilters"
+    />
 
     <!-- ClickUp-Style Double-Column Detail Drawer -->
     <TaskDetailDrawer
@@ -1492,154 +1232,7 @@ onActivated(() => {
   </div>
 </template>
 
-<style scoped>
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-.drawer-slide-enter-active,
-.drawer-slide-leave-active {
-  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.drawer-slide-enter-from,
-.drawer-slide-leave-to {
-  opacity: 0;
-}
-.drawer-slide-enter-active .task-detail-content {
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.drawer-slide-leave-active .task-detail-content {
-  transition: transform 0.25s ease-in;
-}
-.drawer-slide-enter-from .task-detail-content {
-  transform: translateX(100%);
-}
-.drawer-slide-leave-to .task-detail-content {
-  transform: translateX(100%);
-}
-
-.modal-fade-enter-active,
-.modal-fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-.modal-fade-enter-from,
-.modal-fade-leave-to {
-  opacity: 0;
-}
-.modal-fade-enter-active .task-detail-content {
-  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.modal-fade-leave-active .task-detail-content {
-  transition: transform 0.2s ease-in;
-}
-.modal-fade-enter-from .task-detail-content {
-  transform: scale(0.95) translateY(12px);
-}
-.modal-fade-leave-to .task-detail-content {
-  transform: scale(0.97) translateY(8px);
-}
-.custom-date-picker :deep(.el-input__wrapper) {
-  border-radius: 1.25rem !important;
-  padding: 0.75rem 1rem !important;
-  background-color: var(--bg-app) !important;
-  box-shadow: none !important;
-  border: 1px solid var(--border-base) !important;
-}
-.custom-select :deep(.el-input__wrapper) {
-  border-radius: 1.25rem !important;
-  padding: 0.5rem 1rem !important;
-  background-color: var(--bg-app) !important;
-  box-shadow: none !important;
-  border: 1px solid var(--border-base) !important;
-}
-.custom-date-picker-small :deep(.el-input__wrapper) {
-  border-radius: 0.75rem !important;
-  padding: 0 0.5rem !important;
-  background-color: var(--bg-app) !important;
-  box-shadow: none !important;
-  border: 1px solid var(--border-base) !important;
-  height: 32px !important;
-}
-.custom-date-picker-small :deep(.el-input__inner) {
-  font-size: 11px !important;
-  font-weight: 600 !important;
-}
-.custom-select-small :deep(.el-input__wrapper),
-.custom-select-small :deep(.el-select__wrapper) {
-  border-radius: 0.75rem !important;
-  padding: 0 0.5rem !important;
-  background-color: var(--bg-app) !important;
-  box-shadow: none !important;
-  border: 1px solid var(--border-base) !important;
-  height: 32px !important;
-}
-.custom-select-small :deep(.el-input__inner),
-.custom-select-small :deep(.el-select__placeholder) {
-  font-size: 11px !important;
-  font-weight: 600 !important;
-}
-
-@media (max-width: 767px) {
-  .task-filter-bar {
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.45rem 0.75rem;
-  }
-
-  .task-filter-bar button {
-    min-height: 1.75rem;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.625rem;
-    line-height: 0.875rem;
-  }
-
-  .task-filter-bar input,
-  .task-filter-bar :deep(.el-input__wrapper),
-  .task-filter-bar :deep(.el-select__wrapper) {
-    min-height: 2rem;
-  }
-
-  .task-empty-state {
-    margin: 0 0.75rem 0.75rem;
-    padding: 1.5rem 0.75rem !important;
-    border-radius: 12px;
-  }
-
-  .task-empty-state > div:first-child {
-    width: 2.75rem;
-    height: 2.75rem;
-    margin-bottom: 0.75rem;
-  }
-}
-</style>
-
 <style>
-.custom-date-popper {
-  border-radius: 1.5rem !important;
-  overflow: hidden !important;
-  box-shadow:
-    0 20px 25px -5px rgb(0 0 0 / 0.1),
-    0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
-  border: 1px solid var(--border-base) !important;
-}
-.custom-date-popper .el-picker-panel {
-  border-radius: 1.5rem !important;
-  border: none !important;
-}
-.custom-date-popper .el-popper__arrow::before {
-  border: 1px solid var(--border-base) !important;
-}
 @keyframes spin-once {
   from {
     transform: rotate(0deg);

@@ -155,23 +155,25 @@ function handlePageJump() {
 
 <template>
   <div
-    class="manual-station-view h-full overflow-y-auto p-4 md:p-6 w-full max-w-[1800px] mx-auto scrollbar-hide"
+    class="manual-station-view mobile-adaptive h-full overflow-y-auto p-4 md:p-6 w-full max-w-[1800px] mx-auto scrollbar-hide"
   >
     <!-- Header banner -->
     <div
       class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 bg-gradient-to-r from-cyan-500/10 via-emerald-500/5 to-transparent p-4 md:p-5 rounded-2xl border border-cyan-500/10 backdrop-blur-sm shadow-sm"
     >
-      <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 flex-1 min-w-0">
+      <div
+        class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 flex-1 min-w-0 mobile-row"
+      >
         <!-- Title and Icon Badge -->
-        <div class="flex items-center gap-2.5 shrink-0">
+        <div class="flex items-center gap-2.5 shrink-0 mobile-row">
           <span class="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-600 dark:text-cyan-400">
-            <BookOpen class="w-4.5 h-4.5" />
+            <BookOpen class="w-4.5 h-4.5 shrink-0" />
           </span>
-          <h1 class="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+          <h1 class="text-xl font-black text-slate-900 dark:text-white tracking-tight truncate">
             {{ pageTitle }}
           </h1>
           <span
-            class="px-2 py-0.5 text-[10px] font-black rounded bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 uppercase tracking-wider"
+            class="px-2 py-0.5 text-[10px] font-black rounded bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 uppercase tracking-wider shrink-0"
           >
             手动资产站
           </span>
@@ -193,7 +195,7 @@ function handlePageJump() {
         <span class="hidden md:inline text-slate-200 dark:text-slate-800">|</span>
 
         <!-- Resource Stats -->
-        <p class="text-xs text-slate-400 shrink-0 font-medium">
+        <p class="text-xs text-slate-400 min-w-0 font-medium truncate">
           当前包含共计
           <span class="text-cyan-500 font-black">{{ manualStore.totalResources }}</span>
           个精心挑选的资源
@@ -203,7 +205,7 @@ function handlePageJump() {
       <!-- Right Access Badge -->
       <div
         v-if="hasAccess === false"
-        class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold shrink-0"
+        class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold shrink-0 mobile-row"
       >
         <Shield class="w-4 h-4 shrink-0 animate-pulse" />
         <div class="flex items-center gap-1.5">
@@ -216,7 +218,7 @@ function handlePageJump() {
     </div>
 
     <!-- Search and filter tools -->
-    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+    <div class="flex flex-col sm:flex-row gap-3 mb-6 mobile-row">
       <label class="search-box !min-h-0 !h-8.5 flex-1 relative">
         <Search />
         <input
@@ -237,7 +239,7 @@ function handlePageJump() {
           <X class="w-4 h-4" />
         </button>
       </label>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 mobile-row">
         <button
           type="button"
           class="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 !h-8.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all font-medium shadow-sm"
@@ -277,9 +279,9 @@ function handlePageJump() {
     <!-- Active sorting indicators -->
     <div
       v-if="showFilters"
-      class="flex items-center gap-2 mb-6 p-4 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-100 dark:border-slate-800/50"
+      class="flex items-center gap-2 mb-6 p-4 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-100 dark:border-slate-800/50 mobile-row"
     >
-      <span class="text-xs text-slate-400 font-bold">排序选项：</span>
+      <span class="text-xs text-slate-400 font-bold truncate">排序选项：</span>
       <button
         v-for="opt in [
           { label: '最新发布', value: 'newest' },
@@ -454,22 +456,22 @@ function handlePageJump() {
         <!-- Pagination -->
         <div
           v-if="manualStore.totalPages > 1"
-          class="flex flex-wrap items-center justify-center gap-3 mt-10 p-4 bg-white dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/50 rounded-2xl shadow-sm"
+          class="flex flex-wrap items-center justify-center gap-3 mt-10 p-4 bg-white dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/50 rounded-2xl shadow-sm mobile-row"
         >
           <button
             type="button"
-            class="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-all cursor-pointer"
+            class="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-all cursor-pointer shrink-0"
             :disabled="manualStore.currentPage <= 1"
             @click="goToPage(manualStore.currentPage - 1)"
           >
             <ChevronLeft class="w-4 h-4" />
           </button>
-          <span class="text-xs font-bold text-slate-500 px-2 dark:text-slate-400">
+          <span class="text-xs font-bold text-slate-500 px-2 dark:text-slate-400 truncate">
             第 {{ manualStore.currentPage }} 页 / 共 {{ manualStore.totalPages }} 页
           </span>
           <button
             type="button"
-            class="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-all cursor-pointer mr-2"
+            class="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-all cursor-pointer mr-2 shrink-0"
             :disabled="manualStore.currentPage >= manualStore.totalPages"
             @click="goToPage(manualStore.currentPage + 1)"
           >
@@ -478,9 +480,9 @@ function handlePageJump() {
 
           <!-- Quick Jump -->
           <div
-            class="flex items-center gap-1.5 ml-2 border-l border-slate-200 dark:border-slate-800 pl-4"
+            class="flex items-center gap-1.5 ml-2 border-l border-slate-200 dark:border-slate-800 pl-4 mobile-row"
           >
-            <span class="text-xs text-slate-400">跳转至</span>
+            <span class="text-xs text-slate-400 truncate">跳转至</span>
             <input
               v-model="jumpPageInput"
               type="text"
@@ -488,7 +490,7 @@ function handlePageJump() {
               @keyup.enter="handlePageJump"
               @blur="handlePageJump"
             />
-            <span class="text-xs text-slate-400">页</span>
+            <span class="text-xs text-slate-400 truncate">页</span>
           </div>
         </div>
       </div>

@@ -79,16 +79,16 @@ const getDiagnosticClass = (status: string) => {
 </script>
 
 <template>
-  <section class="space-y-3">
-    <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_25rem]">
+  <section class="mobile-adaptive space-y-3">
+    <div class="grid gap-3 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_25rem]">
       <div class="space-y-3">
         <div class="tool-panel">
-          <div class="panel-head">
+          <div class="panel-head mobile-row">
             <div class="panel-title">
               <Brain class="h-4 w-4 text-sky-500" />
               <span>智能体进化洞察</span>
             </div>
-            <div class="flex flex-wrap items-center gap-2">
+            <div class="mobile-row flex flex-wrap items-center gap-2">
               <span class="count-pill">{{ selectedIntegration?.name || '未选择接入' }}</span>
               <button
                 type="button"
@@ -140,7 +140,7 @@ const getDiagnosticClass = (status: string) => {
 
             <div class="grid gap-3 lg:grid-cols-2">
               <div class="tool-panel">
-                <div class="panel-head">
+                <div class="panel-head mobile-row">
                   <div class="panel-title">
                     <Target class="h-4 w-4 text-rose-500" />
                     <span>意图聚类</span>
@@ -184,7 +184,7 @@ const getDiagnosticClass = (status: string) => {
               </div>
 
               <div class="tool-panel">
-                <div class="panel-head">
+                <div class="panel-head mobile-row">
                   <div class="panel-title">
                     <AlertTriangle class="h-4 w-4 text-amber-500" />
                     <span>风险与缺口</span>
@@ -224,7 +224,7 @@ const getDiagnosticClass = (status: string) => {
             </div>
 
             <div class="tool-panel">
-              <div class="panel-head">
+              <div class="panel-head mobile-row">
                 <div class="panel-title">
                   <ListChecks class="h-4 w-4 text-emerald-500" />
                   <span>下一轮进化建议</span>
@@ -260,7 +260,7 @@ const getDiagnosticClass = (status: string) => {
         </div>
 
         <div class="tool-panel">
-          <div class="panel-head">
+          <div class="panel-head mobile-row">
             <div class="panel-title">
               <FlaskConical class="h-4 w-4 text-rose-500" />
               <span>批量评测实验室</span>
@@ -397,7 +397,7 @@ const getDiagnosticClass = (status: string) => {
 
       <aside class="space-y-3">
         <div class="tool-panel">
-          <div class="panel-head">
+          <div class="panel-head mobile-row">
             <div class="panel-title">
               <Wand2 class="h-4 w-4 text-amber-500" />
               <span>提示词优化器</span>
@@ -460,7 +460,7 @@ const getDiagnosticClass = (status: string) => {
         </div>
 
         <div v-if="promptOptimization" class="tool-panel">
-          <div class="panel-head">
+          <div class="panel-head mobile-row">
             <div class="panel-title">
               <Sparkles class="h-4 w-4 text-sky-500" />
               <span>优化结果</span>

@@ -21,6 +21,7 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
+import { logError } from '@/utils/error';
 
 const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.vue'));
 
@@ -145,7 +146,7 @@ const fetchCourseData = async () => {
         currentLessonIndex.value = Math.max(0, lastIncompleteIndex);
       }
     }
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('academy.loadCourseFailed'));
     router.push('/academy');
   } finally {
@@ -159,7 +160,7 @@ const fetchNotes = async () => {
     const { data } = await api.get(`/api/courses/lessons/${currentLesson.value.id}/notes`);
     notes.value = data as CourseNote[];
   } catch (error) {
-    console.error('Fetch notes error:', error);
+    logError(error, { operation: 'academy.fetchNotes', component: 'AcademyPlayerView' });
   }
 };
 
@@ -181,7 +182,7 @@ const toggleLessonComplete = async () => {
       showCompletionModal.value = true;
     }
   } catch (error) {
-    console.error('Toggle complete error:', error);
+    logError(error, { operation: 'academy.toggleComplete', component: 'AcademyPlayerView' });
   } finally {
     isTogglingComplete.value = false;
   }
@@ -197,7 +198,7 @@ const handleSaveNote = async () => {
     });
     notes.value.unshift(data as CourseNote);
     newNoteContent.value = '';
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('academy.saveNoteFailed'));
   } finally {
     isSavingNote.value = false;
@@ -208,7 +209,7 @@ const handleDeleteNote = async (noteId: string) => {
   try {
     await api.delete(`/api/courses/notes/${noteId}`);
     notes.value = notes.value.filter((n) => n.id !== noteId);
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('academy.deleteNoteFailed'));
   }
 };
@@ -327,14 +328,14 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="flex h-full overflow-hidden transition-colors duration-300"
+    class="mobile-adaptive flex h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app); color: var(--text-primary)"
   >
     <!-- Main Player Area -->
     <div class="flex-1 flex flex-col relative overflow-hidden">
       <!-- Player Top Nav -->
       <div
-        class="h-12 flex items-center justify-between px-3 sm:px-4.5 border-b backdrop-blur-md z-20 transition-colors duration-300"
+        class="mobile-row h-12 flex items-center justify-between px-3 sm:px-4.5 border-b backdrop-blur-md z-20 transition-colors duration-300"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <div class="flex items-center gap-2.5">
@@ -522,7 +523,7 @@ onUnmounted(() => {
 
       <!-- Player Bottom Controls -->
       <div
-        class="px-3 sm:px-6 py-2.5 flex items-center justify-between border-t flex-nowrap overflow-x-auto scrollbar-hide gap-2 transition-colors duration-300"
+        class="mobile-row px-3 sm:px-6 py-2.5 flex items-center justify-between border-t flex-nowrap overflow-x-auto scrollbar-hide gap-2 transition-colors duration-300"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <div class="flex items-center gap-1.5 shrink-0">
@@ -652,7 +653,7 @@ onUnmounted(() => {
       >
         <!-- Sidebar Header -->
         <div
-          class="h-12 flex items-center justify-between px-4 border-b shrink-0 transition-colors duration-300"
+          class="mobile-row h-12 flex items-center justify-between px-4 border-b shrink-0 transition-colors duration-300"
           style="border-color: var(--border-base)"
         >
           <div class="flex items-center gap-2">
@@ -692,7 +693,7 @@ onUnmounted(() => {
 
         <!-- Sidebar Tabs for mobile & quick switching -->
         <div
-          class="flex border-b shrink-0 transition-colors duration-300"
+          class="mobile-row flex border-b shrink-0 transition-colors duration-300"
           style="border-color: var(--border-base); background-color: var(--bg-card)"
         >
           <button

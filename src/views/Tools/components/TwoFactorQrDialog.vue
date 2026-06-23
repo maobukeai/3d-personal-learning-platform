@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Info } from 'lucide-vue-next';
 import QRCode from 'qrcode';
+import { logError } from '@/utils/error';
 import type { TwoFactorAccount } from '@/types';
 import Modal from '@/components/ui/Modal.vue';
 
@@ -43,7 +44,7 @@ watch(
           },
         });
       } catch (err) {
-        console.error('Failed to generate QR Code:', err);
+        logError(err, { operation: 'twoFactor.generateQrCode', component: 'TwoFactorQrDialog' });
         ElMessage.error('生成二维码失败');
         qrCodeDataUrl.value = '';
       }
@@ -56,7 +57,7 @@ watch(
 
 <template>
   <Modal :show="visible" title="手机扫码导入" size="sm" glass-card @close="visible = false">
-    <div class="flex flex-col items-center justify-center p-2 text-center">
+    <div class="mobile-adaptive flex flex-col items-center justify-center p-2 text-center">
       <!-- Big title info -->
       <h4 class="text-base font-bold mb-1" style="color: var(--text-primary)">
         {{ account?.label }}

@@ -1,42 +1,32 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import {
-  Layers,
-  Plus,
-  Trash2,
-  Users,
-  X,
-  FolderOpen,
-  CheckCircle2,
-  Flame,
-  ArrowUp,
-  Minus,
-  ArrowDown,
-  Lock,
-  Zap,
-  Sparkle,
-  Gauge,
-  TrendingUp,
-  Clock,
-  ListTodo,
-  GraduationCap,
-  BookOpen,
-  ArrowRight,
-} from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import api, { getAssetUrl } from '@/utils/api';
-import type { Roadmap, RoadmapStep } from '@/types';
-import { getApiErrorMessage } from '@/utils/error';
+import api from '@/utils/api';
+import type { Course } from '@/types';
+import { getApiErrorMessage, logError } from '@/utils/error';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import UserAvatar from '@/components/UserAvatar.vue';
-import Button from '@/components/ui/Button.vue';
 import Modal from '@/components/ui/Modal.vue';
 import SegmentedControl from '@/components/ui/SegmentedControl.vue';
 import { getTaskDayIndex, getTaskTime } from '@/utils/taskSort';
-import Dropdown from '@/components/ui/Dropdown.vue';
+import ProjectDetailHeader from './project-detail/ProjectDetailHeader.vue';
+import ProjectDetailSkeleton from './project-detail/ProjectDetailSkeleton.vue';
+import ProjectDetailTaskPanel from './project-detail/ProjectDetailTaskPanel.vue';
+import ProjectDetailRoadmapPanel from './project-detail/ProjectDetailRoadmapPanel.vue';
+import ProjectDetailDescription from './project-detail/ProjectDetailDescription.vue';
+import ProjectMetaCard from './project-detail/ProjectMetaCard.vue';
+import ProjectMembersPanel from './project-detail/ProjectMembersPanel.vue';
+import BatchCreateTasksDialog from './project-detail/BatchCreateTasksDialog.vue';
+import InviteMembersDialog from '@/components/InviteMembersDialog.vue';
+import ImagePreviewDialog from './project-detail/ImagePreviewDialog.vue';
+import type {
+  ProjectUser,
+  ProjectDetail,
+  ProjectTask,
+  BatchTaskPayload,
+} from './project-detail/types';
 
 const { t } = useI18n();
 const workspaceStore = useWorkspaceStore();
@@ -47,54 +37,6 @@ const emit = defineEmits<{
   (e: 'refresh-list'): void;
 }>();
 
-interface ProjectUser {
-  id: string;
-  name?: string;
-  email?: string;
-  avatarUrl?: string | null;
-}
-
-interface ProjectMember {
-  id?: string;
-  userId: string;
-  role: string;
-  user: ProjectUser;
-}
-
-interface ProjectTask {
-  id: string;
-  title: string;
-  status: string;
-  priority?: string;
-  assignee?: ProjectUser | null;
-  participants?: {
-    id: string;
-    userId: string;
-    user: ProjectUser;
-  }[];
-}
-
-interface ProjectInvitation {
-  id: string;
-  invitee: ProjectUser;
-  createdAt?: string;
-}
-
-interface ProjectDetail {
-  id: string;
-  teamId?: string;
-  title: string;
-  description?: string | null;
-  visibility?: string;
-  color?: string;
-  dueDate?: string | null;
-  progress: number;
-  tasks: ProjectTask[];
-  members: ProjectMember[];
-  invitations?: ProjectInvitation[];
-  roadmap?: Roadmap | null;
-}
-
 interface TeamMemberResponse {
   user: ProjectUser;
 }
@@ -104,49 +46,10 @@ const activeProjectId = ref<string | null>(null);
 const projectDetail = ref<ProjectDetail | null>(null);
 const isDetailLoading = ref(false);
 
-// Batch task state
 const isBatchDialogOpen = ref(false);
-const batchTaskText = ref('');
-const batchAssigneeId = ref('');
-const batchPriority = ref('MEDIUM');
-const batchDueDate = ref('');
-const quickTaskTitle = ref('');
 
-// Invite members state
 const isDetailInviteDialogOpen = ref(false);
-const detailInviteUserIds = ref<string[]>([]);
 const teamMembers = ref<ProjectUser[]>([]);
-
-const priorityOptions = computed(() => [
-  {
-    id: 'URGENT',
-    label: t('tasks.urgent'),
-    color: 'bg-red-500',
-    textColor: 'text-red-500',
-    icon: Flame,
-  },
-  {
-    id: 'HIGH',
-    label: t('tasks.high'),
-    color: 'bg-orange-500',
-    textColor: 'text-orange-500',
-    icon: ArrowUp,
-  },
-  {
-    id: 'MEDIUM',
-    label: t('tasks.medium'),
-    color: 'bg-amber-500',
-    textColor: 'text-amber-500',
-    icon: Minus,
-  },
-  {
-    id: 'LOW',
-    label: t('tasks.low'),
-    color: 'bg-slate-400',
-    textColor: 'text-slate-400',
-    icon: ArrowDown,
-  },
-]);
 
 const fetchTeamMembers = async (teamId?: string) => {
   try {
@@ -177,14 +80,6 @@ const availableMembersForDetailInvite = computed(() => {
   return teamMembers.value.filter((m) => !existingUserIds.has(m.id));
 });
 
-const parsedBatchTasks = computed(() => {
-  if (!batchTaskText.value.trim()) return [];
-  return batchTaskText.value
-    .split('\n')
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-});
-
 const sortedTasks = computed(() => {
   if (!projectDetail.value?.tasks) return [];
 
@@ -198,7 +93,6 @@ const sortedTasks = computed(() => {
   });
 });
 
-// Project Description Edit, Preview & Clipboard Paste states
 const isEditingProjectDescription = ref(false);
 const tempProjectDescription = ref('');
 const tempProjectDescriptionImages = ref<string[]>([]);
@@ -234,7 +128,7 @@ const saveProjectDescription = async () => {
     ElMessage.success('更新项目描述成功');
     isEditingProjectDescription.value = false;
     emit('refresh-list');
-  } catch (error) {
+  } catch {
     ElMessage.error('更新项目描述失败');
   }
 };
@@ -303,7 +197,7 @@ const isImageUrl = (url: string): boolean => {
     if (format && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(format.toLowerCase())) {
       return true;
     }
-  } catch (e) {
+  } catch {
     const lower = clean.toLowerCase();
     return (
       lower.endsWith('.png') ||
@@ -346,7 +240,7 @@ const handlePasteProjectDescription = async (event: ClipboardEvent) => {
           const imageUrl = response.data.url;
           tempProjectDescriptionImages.value.push(imageUrl);
           ElMessage.success('图片上传成功');
-        } catch (error) {
+        } catch {
           ElMessage.error('图片上传失败');
         }
       }
@@ -431,20 +325,19 @@ const handleDeleteTask = (taskId: string) => {
 };
 
 const openInviteDetailDialog = () => {
-  detailInviteUserIds.value = [];
   if (projectDetail.value) {
     fetchTeamMembers(projectDetail.value.teamId);
   }
   isDetailInviteDialogOpen.value = true;
 };
 
-const handleSendDetailInvite = async () => {
-  if (!projectDetail.value || detailInviteUserIds.value.length === 0) return;
+const handleSendDetailInvite = async (userIds: string[]) => {
+  if (!projectDetail.value || userIds.length === 0) return;
   try {
     await api.post(`/api/projects/${projectDetail.value.id}/invite`, {
-      userIds: detailInviteUserIds.value,
+      userIds,
     });
-    ElMessage.success(t('projects.invitationSent', { count: detailInviteUserIds.value.length }));
+    ElMessage.success(t('projects.invitationSent', { count: userIds.length }));
     isDetailInviteDialogOpen.value = false;
     fetchProjectDetail(projectDetail.value.id);
   } catch {
@@ -464,14 +357,13 @@ const handleJoinProjectDetail = async () => {
   }
 };
 
-const handleQuickAddTask = async () => {
-  if (!quickTaskTitle.value.trim() || !activeProjectId.value) return;
+const handleQuickAddTask = async (title: string) => {
+  if (!title.trim() || !activeProjectId.value) return;
   try {
     await api.post(`/api/projects/${activeProjectId.value}/tasks`, {
-      title: quickTaskTitle.value.trim(),
+      title: title.trim(),
       teamId: workspaceStore.activeTeamId,
     });
-    quickTaskTitle.value = '';
     ElMessage.success(t('tasks.addSuccess'));
     await fetchProjectDetail(activeProjectId.value);
     emit('refresh-list');
@@ -480,29 +372,15 @@ const handleQuickAddTask = async () => {
   }
 };
 
-const handleBatchCreateTasks = async () => {
-  if (!batchTaskText.value.trim() || !activeProjectId.value) return;
-  const lines = batchTaskText.value
-    .split('\n')
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-  if (lines.length === 0) return;
-
-  const payloadTasks = lines.map((title) => ({
-    title,
-    priority: batchPriority.value,
-    dueDate: batchDueDate.value || null,
-    assigneeId: batchAssigneeId.value || null,
-  }));
+const handleBatchCreateTasks = async (payload: { tasks: BatchTaskPayload[] }) => {
+  if (!activeProjectId.value || payload.tasks.length === 0) return;
 
   try {
-    await api.post(`/api/projects/${activeProjectId.value}/tasks/batch`, { tasks: payloadTasks });
-    ElMessage.success(t('tasks.batchCreateSuccess', { count: lines.length }));
+    await api.post(`/api/projects/${activeProjectId.value}/tasks/batch`, {
+      tasks: payload.tasks,
+    });
+    ElMessage.success(t('tasks.batchCreateSuccess', { count: payload.tasks.length }));
     isBatchDialogOpen.value = false;
-    batchTaskText.value = '';
-    batchAssigneeId.value = '';
-    batchDueDate.value = '';
-    batchPriority.value = 'MEDIUM';
     await fetchProjectDetail(activeProjectId.value);
     emit('refresh-list');
   } catch {
@@ -514,9 +392,13 @@ const navigateToTaskBoard = (projectId: string) => {
   router.push({ name: 'TaskBoard', query: { projectId } });
 };
 
+const navigateToCourse = (courseId: string) => {
+  router.push({ name: 'CourseDetail', params: { id: courseId } });
+};
+
 const activeLeftTab = ref<'tasks' | 'roadmap'>('tasks');
 const myProgress = ref<{ roadmapStepId: string; completed: boolean }[]>([]);
-const allCourses = ref<any[]>([]);
+const allCourses = ref<Course[]>([]);
 const activeStepId = ref<string | null>(null);
 
 const fetchMyProgress = async () => {
@@ -524,7 +406,7 @@ const fetchMyProgress = async () => {
     const response = await api.get('/api/roadmaps/my-progress');
     myProgress.value = response.data;
   } catch (e) {
-    console.error('Failed to fetch progress:', e);
+    logError(e, { operation: 'fetchMyProgress', component: 'ProjectDetailPanel' });
   }
 };
 
@@ -533,7 +415,7 @@ const fetchAllCourses = async () => {
     const response = await api.get('/api/courses');
     allCourses.value = response.data;
   } catch (e) {
-    console.error('Failed to fetch courses:', e);
+    logError(e, { operation: 'fetchAllCourses', component: 'ProjectDetailPanel' });
   }
 };
 
@@ -547,22 +429,8 @@ watch(
   { immediate: true },
 );
 
-const activeStep = computed(() => {
-  if (!projectDetail.value?.roadmap?.steps || projectDetail.value.roadmap.steps.length === 0)
-    return null;
-  return (
-    projectDetail.value.roadmap.steps.find((s) => s.id === activeStepId.value) ||
-    projectDetail.value.roadmap.steps[0] ||
-    null
-  );
-});
-
-const isStepCompleted = (stepId: string) => {
-  return myProgress.value.some((p) => p.roadmapStepId === stepId && p.completed);
-};
-
 const toggleStep = async (stepId: string) => {
-  const isCompleted = isStepCompleted(stepId);
+  const isCompleted = myProgress.value.some((p) => p.roadmapStepId === stepId && p.completed);
   try {
     await api.post('/api/roadmaps/step-progress', {
       stepId,
@@ -575,225 +443,9 @@ const toggleStep = async (stepId: string) => {
       myProgress.value.push({ roadmapStepId: stepId, completed: !isCompleted });
     }
     ElMessage.success(!isCompleted ? t('projects.stepCompleted') : t('projects.stepReset'));
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('projects.updateProgressFailed'));
   }
-};
-
-const calculateRoadmapProgress = (roadmap: Roadmap) => {
-  if (!roadmap || !roadmap.steps || roadmap.steps.length === 0) return 0;
-  const completedCount = roadmap.steps.filter((s) => isStepCompleted(s.id)).length;
-  return Math.round((completedCount / roadmap.steps.length) * 100);
-};
-
-const isStepLocked = (_step: RoadmapStep, index: number) => {
-  if (index === 0) return false;
-  if (!projectDetail.value?.roadmap) return false;
-  const prevStep = projectDetail.value.roadmap.steps[index - 1];
-  return prevStep && !isStepCompleted(prevStep.id);
-};
-
-const getStepStatus = (step: RoadmapStep, index: number) => {
-  if (isStepCompleted(step.id)) return 'completed';
-  if (isStepLocked(step, index)) return 'locked';
-  if (
-    index === 0 ||
-    (projectDetail.value?.roadmap &&
-      isStepCompleted(projectDetail.value.roadmap.steps[index - 1]?.id))
-  )
-    return 'current';
-  return 'upcoming';
-};
-
-const checkedSubTasks = ref<Record<string, boolean>>({});
-
-const loadCheckedSubTasks = () => {
-  try {
-    const saved = localStorage.getItem('learning_path_subtasks');
-    if (saved) {
-      checkedSubTasks.value = JSON.parse(saved);
-    }
-  } catch (e) {
-    console.error('Failed to load subtask progress:', e);
-  }
-};
-
-const toggleSubTask = (taskId: string) => {
-  checkedSubTasks.value[taskId] = !checkedSubTasks.value[taskId];
-  try {
-    localStorage.setItem('learning_path_subtasks', JSON.stringify(checkedSubTasks.value));
-  } catch (e) {
-    console.error('Failed to save subtask progress:', e);
-  }
-};
-
-const getRelatedCourses = (step: RoadmapStep) => {
-  if (!step || !allCourses.value || allCourses.value.length === 0) return [];
-  const title = step.title.toLowerCase();
-  const desc = (step.description || '').toLowerCase();
-
-  return allCourses.value
-    .filter((course) => {
-      const courseTitle = course.title.toLowerCase();
-      const courseDesc = (course.description || '').toLowerCase();
-
-      const keywords = [
-        'three.js',
-        'threejs',
-        'blender',
-        'shader',
-        'webgl',
-        '3d',
-        'modeling',
-        '渲染',
-        '建模',
-        '材质',
-        '动画',
-        '贴图',
-        '灯光',
-        '拓扑',
-        '材质',
-        '骨骼',
-        '动力学',
-      ];
-      for (const kw of keywords) {
-        if (
-          (title.includes(kw) || desc.includes(kw)) &&
-          (courseTitle.includes(kw) || courseDesc.includes(kw))
-        ) {
-          return true;
-        }
-      }
-
-      const words = title.split(/[\s,.\-得的要与及和了与]/).filter((w: string) => w.length > 1);
-      for (const w of words) {
-        if (courseTitle.includes(w)) {
-          return true;
-        }
-      }
-      return false;
-    })
-    .slice(0, 2);
-};
-
-const getSubTasksForStep = (step: RoadmapStep): { id: string; text: string }[] => {
-  if (!step) return [];
-
-  if (step.subtasks) {
-    try {
-      const parsed = typeof step.subtasks === 'string' ? JSON.parse(step.subtasks) : step.subtasks;
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((item: any, index: number) => {
-          if (item && typeof item === 'object') {
-            return {
-              id: item.id || `${step.id}_custom_s${index}`,
-              text: item.text || '',
-            };
-          }
-          return {
-            id: `${step.id}_custom_s${index}`,
-            text: String(item),
-          };
-        });
-      }
-    } catch (e) {
-      console.error('Failed to parse step subtasks:', e);
-    }
-  }
-  return [];
-};
-
-const getMetricsForStep = (step: RoadmapStep, index: number) => {
-  if (!step) return { difficulty: 50, practical: 50, duration: 20 };
-  const title = step.title.toLowerCase();
-
-  let difficulty = 35 + index * 12;
-  let practical = 55 + index * 5;
-  let duration = 6 + index * 6;
-
-  if (
-    title.includes('shader') ||
-    title.includes('着色器') ||
-    title.includes('glsl') ||
-    title.includes('渲染引擎') ||
-    title.includes('webgl') ||
-    title.includes('图形学') ||
-    title.includes('渲染')
-  ) {
-    difficulty += 25;
-    practical += 15;
-    duration += 12;
-  } else if (
-    title.includes('blender') ||
-    title.includes('建模') ||
-    title.includes('雕刻') ||
-    title.includes('拓扑') ||
-    title.includes('材质') ||
-    title.includes('贴图') ||
-    title.includes('pbr') ||
-    title.includes('灯光')
-  ) {
-    difficulty += 10;
-    practical += 28;
-    duration += 8;
-  } else if (
-    title.includes('three.js') ||
-    title.includes('threejs') ||
-    title.includes('交互') ||
-    title.includes('动画') ||
-    title.includes('控制') ||
-    title.includes('代码')
-  ) {
-    difficulty += 8;
-    practical += 18;
-    duration += 6;
-  }
-
-  if (
-    title.includes('入门') ||
-    title.includes('基础') ||
-    title.includes('概念') ||
-    title.includes('起步') ||
-    title.includes('介绍') ||
-    title.includes('理论')
-  ) {
-    difficulty = Math.max(difficulty - 22, 15);
-    practical = Math.max(practical - 15, 20);
-    duration = Math.max(duration - 5, 3);
-  }
-  if (
-    title.includes('高级') ||
-    title.includes('精通') ||
-    title.includes('进阶') ||
-    title.includes('核心') ||
-    title.includes('深入') ||
-    title.includes('深度')
-  ) {
-    difficulty += 15;
-    practical += 10;
-    duration += 8;
-  }
-
-  const subTasks = getSubTasksForStep(step);
-  duration += subTasks.length * 1.5;
-  practical += subTasks.length * 3;
-
-  const relatedCourses = getRelatedCourses(step);
-  if (relatedCourses.length > 0) {
-    practical = Math.min(practical + relatedCourses.length * 8, 98);
-    duration = Math.min(duration + relatedCourses.length * 6, 120);
-
-    const hasAdvanced = relatedCourses.some((c) => c.difficulty === 'ADVANCED');
-    if (hasAdvanced) {
-      difficulty = Math.min(difficulty + 15, 98);
-    }
-  }
-
-  return {
-    difficulty: Math.min(Math.max(Math.round(difficulty), 15), 98),
-    practical: Math.min(Math.max(Math.round(practical), 20), 98),
-    duration: Math.min(Math.max(Math.round(duration), 2), 160),
-  };
 };
 
 watch(
@@ -802,7 +454,6 @@ watch(
     if (open) {
       fetchMyProgress();
       fetchAllCourses();
-      loadCheckedSubTasks();
     }
   },
 );
@@ -822,70 +473,26 @@ defineExpose({
     @close="isDetailDrawerOpen = false"
   >
     <template #header>
-      <div v-if="projectDetail" class="flex items-center justify-between w-full pr-6">
-        <!-- Title Info -->
-        <div class="flex items-center gap-3">
-          <div
-            class="w-10 h-10 rounded-xl flex items-center justify-center text-white text-base font-black shadow-md shrink-0"
-            :class="projectDetail?.color"
-          >
-            {{ projectDetail?.title?.substring(0, 1) }}
-          </div>
-          <div class="text-left">
-            <h3 class="text-lg font-black tracking-tight" style="color: var(--text-primary)">
-              {{ projectDetail?.title }}
-            </h3>
-            <p class="text-[10px] font-bold text-slate-400">{{ t('projects.detailSubtitle') }}</p>
-          </div>
-        </div>
-        <!-- Actions -->
-        <div class="flex items-center gap-2">
-          <!-- Join Project Button for non-members on PUBLIC projects -->
-          <Button
-            v-if="!isDetailMember && projectDetail?.visibility === 'PUBLIC'"
-            variant="primary"
-            size="sm"
-            :icon="Plus"
-            class="!bg-emerald-500 hover:!bg-emerald-600 !text-white !border-transparent !h-8 !text-xs"
-            @click="handleJoinProjectDetail"
-          >
-            {{ t('projects.joinProject') }}
-          </Button>
-
-          <Button
-            variant="secondary"
-            size="sm"
-            :icon="FolderOpen"
-            class="!h-8 !text-xs"
-            @click="navigateToTaskBoard(projectDetail?.id)"
-          >
-            {{ t('projects.viewInBoard') }}
-          </Button>
-        </div>
-      </div>
+      <ProjectDetailHeader
+        v-if="projectDetail"
+        :project="projectDetail"
+        :is-member="isDetailMember"
+        @join-project="handleJoinProjectDetail"
+        @view-in-board="navigateToTaskBoard"
+      />
     </template>
 
     <div
       v-if="projectDetail"
-      class="overflow-y-auto p-4 md:p-5 pb-8 scrollbar-hide max-h-[82vh] text-left"
+      class="mobile-adaptive overflow-y-auto p-4 md:p-5 pb-8 scrollbar-hide max-h-[82vh] text-left"
     >
-      <div
-        v-if="isDetailLoading"
-        class="flex flex-col items-center justify-center py-20 opacity-50"
-      >
-        <div
-          class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4"
-        ></div>
-        <p class="text-xs font-bold text-slate-400">{{ t('projects.loadingDetails') }}</p>
-      </div>
+      <ProjectDetailSkeleton v-if="isDetailLoading" />
 
       <div
         v-else-if="projectDetail"
         class="space-y-6 md:space-y-0 md:grid md:grid-cols-3 md:gap-6 p-1"
       >
-        <!-- Left Column: Tasks / Roadmap (col-span-2) -->
         <div class="md:col-span-2 space-y-4">
-          <!-- Tab Header Switcher if project has roadmap -->
           <SegmentedControl
             v-if="projectDetail.roadmap"
             v-model="activeLeftTab"
@@ -897,1141 +504,68 @@ defineExpose({
             class="max-w-xs"
           />
 
-          <!-- Tasks Tab Content -->
-          <div v-if="activeLeftTab === 'tasks'" class="space-y-4">
-            <div class="flex items-center justify-between">
-              <h4
-                class="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"
-              >
-                <Layers class="w-4 h-4" /> {{ t('projects.projectTasks') }} ({{
-                  sortedTasks.length
-                }})
-              </h4>
-              <div class="flex gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  :icon="Plus"
-                  class="!h-7 !text-[10px] !px-2"
-                  @click="isBatchDialogOpen = true"
-                >
-                  {{ t('projects.batchAdd') }}
-                </Button>
-              </div>
-            </div>
+          <ProjectDetailTaskPanel
+            v-if="activeLeftTab === 'tasks'"
+            :tasks="sortedTasks"
+            :team-members="teamMembers"
+            @quick-add="handleQuickAddTask"
+            @batch-open="isBatchDialogOpen = true"
+            @update-status="handleUpdateTaskStatus"
+            @change-assignee="handleAssigneeChange"
+            @delete-task="handleDeleteTask"
+          />
 
-            <!-- Quick task title input -->
-            <div class="relative flex items-center">
-              <input
-                v-model="quickTaskTitle"
-                type="text"
-                :placeholder="t('projects.quickTaskPlaceholder')"
-                class="w-full pl-4 pr-12 py-2 bg-slate-50 dark:bg-slate-800/30 border rounded-xl text-xs focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-bold"
-                style="border-color: var(--border-base); color: var(--text-primary)"
-                @keydown.enter="handleQuickAddTask"
-              />
-              <button
-                type="button"
-                class="absolute right-1.5 p-1.5 bg-accent text-white rounded-lg hover:scale-105 transition-all border-none cursor-pointer"
-                @click="handleQuickAddTask"
-              >
-                <Plus class="w-3 h-3 text-white" />
-              </button>
-            </div>
-
-            <!-- Tasks Table -->
-            <div
-              v-if="sortedTasks.length === 0"
-              class="py-12 flex flex-col items-center justify-center border-2 border-dashed rounded-2xl opacity-40 animate-in fade-in"
-              style="border-color: var(--border-base)"
-            >
-              <CheckCircle2 class="w-8 h-8 text-slate-300 mb-2" />
-              <p class="text-xs font-bold text-slate-400">{{ t('projects.noTasksLinked') }}</p>
-            </div>
-            <div
-              v-else
-              class="border rounded-xl overflow-hidden"
-              style="border-color: var(--border-base)"
-            >
-              <table class="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr
-                    class="bg-slate-50/50 dark:bg-slate-800/50 border-b"
-                    style="border-color: var(--border-base)"
-                  >
-                    <th
-                      class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px]"
-                    >
-                      {{ t('tasks.taskName') }}
-                    </th>
-                    <th
-                      class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px] w-36"
-                    >
-                      {{ t('tasks.assignee') }}
-                    </th>
-                    <th
-                      class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px] w-24"
-                    >
-                      {{ t('tasks.priority') }}
-                    </th>
-                    <th
-                      class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px] w-32"
-                    >
-                      {{ t('tasks.statusLabel') }}
-                    </th>
-                    <th
-                      class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px] text-right w-16"
-                    >
-                      {{ t('common.actions') }}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="task in sortedTasks"
-                    :key="task.id"
-                    class="border-b last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/20"
-                    style="border-color: var(--border-base)"
-                  >
-                    <td
-                      class="px-3.5 py-2 font-bold truncate max-w-[200px]"
-                      :title="task.title"
-                      style="color: var(--text-primary)"
-                    >
-                      {{ task.title }}
-                    </td>
-                    <td class="px-3.5 py-2">
-                      <Dropdown align="left" width-class="w-48">
-                        <template #trigger>
-                          <span class="inline-flex items-center cursor-pointer">
-                            <template v-if="task.participants && task.participants.length > 0">
-                              <div class="flex items-center -space-x-1.5 py-0.5">
-                                <UserAvatar
-                                  v-for="p in task.participants.slice(0, 3)"
-                                  :key="p.userId"
-                                  :user="p.user"
-                                  size="xs"
-                                  borderless
-                                  class="ring-2 ring-white dark:ring-slate-900"
-                                  :title="p.user?.name || p.user?.email"
-                                />
-                                <span
-                                  v-if="task.participants.length > 3"
-                                  class="text-[9px] font-black text-slate-400 pl-1"
-                                >
-                                  +{{ task.participants.length - 3 }}
-                                </span>
-                              </div>
-                            </template>
-                            <template v-else-if="task.assignee">
-                              <UserAvatar
-                                :user="task.assignee"
-                                size="xs"
-                                borderless
-                                :title="task.assignee.name || task.assignee.email"
-                              />
-                            </template>
-                            <span
-                              v-else
-                              class="text-slate-400 text-[10px] font-bold py-0.5 px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-                              >{{ t('tasks.unassigned') }}</span
-                            >
-                          </span>
-                        </template>
-                        <template #content>
-                          <button
-                            type="button"
-                            class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs text-rose-500 hover:bg-rose-500/10 border-none bg-transparent cursor-pointer transition-colors"
-                            @click="handleAssigneeChange(task, null)"
-                          >
-                            {{ t('tasks.clearAssignee') }}
-                          </button>
-                          <div class="h-[1px] my-1 bg-slate-100 dark:bg-white/10"></div>
-                          <button
-                            v-for="m in teamMembers"
-                            :key="m.id"
-                            type="button"
-                            class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-slate-100 dark:hover:bg-white/5 text-[var(--text-primary)] border-none bg-transparent cursor-pointer transition-colors flex items-center gap-2"
-                            @click="handleAssigneeChange(task, m.id)"
-                          >
-                            <img
-                              v-if="m.avatarUrl"
-                              alt=""
-                              :src="m.avatarUrl"
-                              class="w-5 h-5 rounded-lg object-cover"
-                            />
-                            <span>{{ m.name }}</span>
-                          </button>
-                        </template>
-                      </Dropdown>
-                    </td>
-                    <td class="px-3.5 py-2">
-                      <span
-                        class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase tracking-wider"
-                        :class="
-                          task.priority === 'URGENT'
-                            ? 'bg-red-500/10 text-red-500'
-                            : task.priority === 'HIGH'
-                              ? 'bg-orange-500/10 text-orange-500'
-                              : task.priority === 'MEDIUM'
-                                ? 'bg-amber-500/10 text-amber-500'
-                                : 'bg-slate-400/10 text-slate-500'
-                        "
-                      >
-                        {{
-                          task.priority === 'URGENT'
-                            ? t('tasks.urgent')
-                            : task.priority === 'HIGH'
-                              ? t('tasks.high')
-                              : task.priority === 'MEDIUM'
-                                ? t('tasks.medium')
-                                : t('tasks.low')
-                        }}
-                      </span>
-                    </td>
-                    <td class="px-3.5 py-2">
-                      <el-select
-                        v-model="task.status"
-                        size="small"
-                        class="!w-24 custom-select-small"
-                        @change="(val: string) => handleUpdateTaskStatus(task, val)"
-                      >
-                        <el-option :label="t('tasks.todo')" value="TODO" />
-                        <el-option :label="t('tasks.inProgress')" value="IN_PROGRESS" />
-                        <el-option :label="t('tasks.done')" value="DONE" />
-                      </el-select>
-                    </td>
-                    <td class="px-3.5 py-2 text-right">
-                      <button
-                        type="button"
-                        class="p-1 hover:text-rose-500 text-slate-400 rounded-lg hover:bg-rose-500/10 transition-all cursor-pointer bg-transparent border-none"
-                        @click="handleDeleteTask(task.id)"
-                      >
-                        <Trash2 class="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Roadmap View -->
-          <div v-else-if="activeLeftTab === 'roadmap' && projectDetail.roadmap" class="space-y-6">
-            <!-- Roadmap Header card -->
-            <div
-              class="p-4 rounded-2xl border border-slate-200/50 dark:border-white/5 bg-white/50 dark:bg-slate-900/40 backdrop-blur-md relative overflow-hidden"
-            >
-              <div
-                class="absolute -right-10 -top-10 w-36 h-36 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-3xl"
-              ></div>
-              <div
-                class="absolute -left-10 -bottom-10 w-36 h-36 bg-accent/5 dark:bg-accent/10 rounded-full blur-3xl"
-              ></div>
-
-              <div
-                class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10"
-              >
-                <div class="space-y-1 min-w-0 text-left">
-                  <div class="flex items-center gap-2">
-                    <h2
-                      class="text-sm sm:text-base font-black text-slate-800 dark:text-slate-100 truncate"
-                    >
-                      {{ projectDetail.roadmap.title }}
-                    </h2>
-                  </div>
-                  <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                    {{ projectDetail.roadmap.description || t('projects.roadmapTip') }}
-                  </p>
-                </div>
-
-                <!-- Progress -->
-                <div
-                  class="flex items-center gap-2.5 shrink-0 self-start sm:self-center bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 p-1.5 px-2.5 rounded-xl"
-                >
-                  <div class="flex flex-col items-end">
-                    <span class="text-[8px] font-black uppercase text-slate-400 tracking-wider">{{
-                      t('projects.roadmapProgress')
-                    }}</span>
-                    <span class="text-xs font-black text-emerald-500"
-                      >{{ calculateRoadmapProgress(projectDetail.roadmap) }}%</span
-                    >
-                  </div>
-                  <div
-                    class="w-16 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden"
-                  >
-                    <div
-                      class="h-full bg-gradient-to-r from-accent to-emerald-500 rounded-full transition-all duration-700"
-                      :style="{ width: calculateRoadmapProgress(projectDetail.roadmap) + '%' }"
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Stacking timeline + companion vertically for drawer -->
-            <div class="space-y-5">
-              <!-- Timeline -->
-              <div class="relative pl-[25px] sm:pl-10 space-y-3.5 py-1 text-left">
-                <div
-                  class="absolute left-[11px] sm:left-[19px] top-5 bottom-5 w-0.5 rounded-full bg-slate-200 dark:bg-slate-800"
-                ></div>
-
-                <div
-                  v-for="(step, index) in projectDetail.roadmap.steps"
-                  :key="step.id"
-                  class="relative cursor-pointer transition-all duration-300"
-                  @click="activeStepId = step.id"
-                >
-                  <!-- Progress glowing line -->
-                  <div
-                    v-if="
-                      index < projectDetail.roadmap.steps.length - 1 && isStepCompleted(step.id)
-                    "
-                    class="absolute left-[-13px] sm:left-[-21px] top-5 bottom-[-18px] w-0.5 bg-emerald-500 z-0 opacity-80"
-                  ></div>
-
-                  <!-- Node icon -->
-                  <div
-                    class="absolute -left-[25px] sm:-left-[41px] top-0.5 w-6.5 h-6.5 sm:w-8 sm:h-8 rounded-lg sm:rounded-2xl flex items-center justify-center z-10 border-2 border-white dark:border-slate-900 transition-all duration-300"
-                    :class="{
-                      'bg-emerald-500 text-white shadow-md shadow-emerald-500/20 scale-105 ring-4 ring-emerald-500/10':
-                        getStepStatus(step, index) === 'completed',
-                      'bg-accent text-white shadow-md shadow-accent/20 animate-pulse ring-4 ring-accent/10':
-                        getStepStatus(step, index) === 'current',
-                      'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600':
-                        getStepStatus(step, index) === 'locked',
-                      'bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-700':
-                        getStepStatus(step, index) === 'upcoming',
-                    }"
-                  >
-                    <CheckCircle2
-                      v-if="getStepStatus(step, index) === 'completed'"
-                      class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5"
-                    />
-                    <Lock
-                      v-else-if="getStepStatus(step, index) === 'locked'"
-                      class="w-3 h-3 sm:w-3.5 sm:h-3.5"
-                    />
-                    <Zap
-                      v-else-if="getStepStatus(step, index) === 'current'"
-                      class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5"
-                    />
-                    <span v-else class="text-xs font-black">{{ index + 1 }}</span>
-                  </div>
-
-                  <!-- Card -->
-                  <div
-                    class="p-3 sm:p-4 rounded-xl border transition-all duration-300 relative group overflow-hidden"
-                    :class="{
-                      'bg-emerald-500/[0.01] dark:bg-emerald-500/[0.02] border-emerald-500/20':
-                        getStepStatus(step, index) === 'completed' && activeStepId !== step.id,
-                      'bg-accent/[0.02] border-accent/25 shadow-md shadow-accent/5 ring-1 ring-accent/5':
-                        getStepStatus(step, index) === 'current' && activeStepId !== step.id,
-                      'bg-slate-50/20 dark:bg-white/[0.005] border-slate-200/40 dark:border-white/5 opacity-55':
-                        getStepStatus(step, index) === 'locked' && activeStepId !== step.id,
-                      'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800':
-                        getStepStatus(step, index) === 'upcoming' && activeStepId !== step.id,
-                      'border-accent ring-2 ring-accent/20 bg-accent/[0.04] dark:bg-accent/[0.03] shadow-lg -translate-y-0.5':
-                        activeStepId === step.id,
-                    }"
-                  >
-                    <div class="flex items-start justify-between gap-4">
-                      <div class="space-y-0.5 flex-1 min-w-0">
-                        <div class="flex items-center gap-1.5">
-                          <span
-                            class="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.2 rounded"
-                            :class="{
-                              'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400':
-                                getStepStatus(step, index) === 'completed',
-                              'bg-accent/10 text-accent': getStepStatus(step, index) === 'current',
-                              'bg-slate-100 dark:bg-white/5 text-slate-400':
-                                getStepStatus(step, index) === 'locked',
-                              'bg-slate-100 dark:bg-white/5 text-slate-500':
-                                getStepStatus(step, index) === 'upcoming',
-                            }"
-                          >
-                            {{ t('projects.stage', { num: index + 1 }) }}
-                          </span>
-                          <span
-                            v-if="activeStepId === step.id"
-                            class="text-[8px] font-black text-accent bg-accent/10 px-1.5 py-0.2 rounded flex items-center gap-0.5"
-                          >
-                            <Sparkle class="w-2.5 h-2.5" /> {{ t('projects.exploring') }}
-                          </span>
-                        </div>
-                        <h3
-                          class="text-xs sm:text-sm font-bold truncate transition-colors"
-                          :class="{
-                            'text-emerald-600 dark:text-emerald-400':
-                              getStepStatus(step, index) === 'completed',
-                            'text-accent': getStepStatus(step, index) === 'current',
-                            'text-slate-400 dark:text-slate-500':
-                              getStepStatus(step, index) === 'locked',
-                            'text-slate-800 dark:text-slate-100':
-                              getStepStatus(step, index) === 'upcoming',
-                          }"
-                        >
-                          {{ step.title }}
-                        </h3>
-                      </div>
-                      <div class="flex items-center gap-1 shrink-0 self-center">
-                        <div
-                          v-if="isStepCompleted(step.id)"
-                          class="w-4 h-4 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center"
-                        >
-                          <CheckCircle2 class="w-3 h-3" />
-                        </div>
-                        <ArrowRight
-                          class="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Companion Companion Detail Box -->
-              <div
-                v-if="activeStep"
-                class="p-4 sm:p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-900/50 backdrop-blur-md space-y-4 shadow-xl relative overflow-hidden text-left"
-              >
-                <div
-                  class="absolute -right-12 -top-12 w-24 h-24 bg-accent/5 rounded-full blur-2xl"
-                ></div>
-
-                <div
-                  class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5 relative z-10"
-                >
-                  <div class="flex items-center gap-1.5">
-                    <div
-                      class="w-7 h-7 rounded-lg bg-accent text-white flex items-center justify-center shrink-0"
-                    >
-                      <Gauge class="w-4 h-4" />
-                    </div>
-                    <div class="space-y-0.5">
-                      <h4 class="text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                        {{ t('projects.explorerAnalyzer') }}
-                      </h4>
-                      <p class="text-[11px] font-bold text-slate-700 dark:text-slate-200">
-                        {{ t('projects.stageDetailFocus') }}
-                      </p>
-                    </div>
-                  </div>
-                  <span
-                    class="text-[10px] font-bold text-accent bg-accent/10 px-1.5 py-0.2 rounded-full shrink-0"
-                  >
-                    {{
-                      t('projects.stage', {
-                        num: projectDetail.roadmap.steps.indexOf(activeStep) + 1,
-                      })
-                    }}
-                  </span>
-                </div>
-
-                <!-- Title & Desc -->
-                <div class="space-y-1.5 relative z-10">
-                  <h3 class="text-sm font-black text-slate-800 dark:text-slate-100 leading-tight">
-                    {{ activeStep.title }}
-                  </h3>
-                  <p
-                    class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-white/[0.01] p-2.5 rounded-xl border border-slate-100 dark:border-slate-800"
-                  >
-                    {{ activeStep.description || t('projects.customStepTip') }}
-                  </p>
-                </div>
-
-                <!-- Toggle Step Completion -->
-                <div class="pt-0.5 relative z-10">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    :icon="CheckCircle2"
-                    class="w-full !h-9 text-xs"
-                    :class="
-                      isStepCompleted(activeStep.id)
-                        ? '!bg-emerald-500 hover:!bg-emerald-600 hover:!shadow-emerald-500/20'
-                        : ''
-                    "
-                    @click="toggleStep(activeStep.id)"
-                  >
-                    {{
-                      isStepCompleted(activeStep.id)
-                        ? t('projects.stepCompletedReset')
-                        : t('projects.stepCompleteTarget')
-                    }}
-                  </Button>
-                </div>
-
-                <!-- Attributes -->
-                <div
-                  class="space-y-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 relative z-10"
-                >
-                  <div
-                    class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5"
-                  >
-                    <TrendingUp class="w-3 h-3 text-accent" />
-                    <span>{{ t('projects.skillsAssessment') }}</span>
-                  </div>
-
-                  <div class="space-y-1.5">
-                    <div>
-                      <div
-                        class="flex items-center justify-between text-[9px] text-slate-500 mb-0.5"
-                      >
-                        <span>{{ t('projects.skillDifficulty') }}</span>
-                        <span class="font-bold text-slate-700 dark:text-slate-300">
-                          {{
-                            getMetricsForStep(
-                              activeStep,
-                              projectDetail.roadmap.steps.indexOf(activeStep),
-                            ).difficulty
-                          }}%
-                        </span>
-                      </div>
-                      <div class="h-1 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
-                        <div
-                          class="h-full bg-rose-500 transition-all duration-500"
-                          :style="{
-                            width:
-                              getMetricsForStep(
-                                activeStep,
-                                projectDetail.roadmap.steps.indexOf(activeStep),
-                              ).difficulty + '%',
-                          }"
-                        ></div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div
-                        class="flex items-center justify-between text-[9px] text-slate-500 mb-0.5"
-                      >
-                        <span>{{ t('projects.practicalWeight') }}</span>
-                        <span class="font-bold text-slate-700 dark:text-slate-300">
-                          {{
-                            getMetricsForStep(
-                              activeStep,
-                              projectDetail.roadmap.steps.indexOf(activeStep),
-                            ).practical
-                          }}%
-                        </span>
-                      </div>
-                      <div class="h-1 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
-                        <div
-                          class="h-full bg-purple-500 transition-all duration-500"
-                          :style="{
-                            width:
-                              getMetricsForStep(
-                                activeStep,
-                                projectDetail.roadmap.steps.indexOf(activeStep),
-                              ).practical + '%',
-                          }"
-                        ></div>
-                      </div>
-                    </div>
-
-                    <div class="flex items-center justify-between text-[11px] pt-0.5">
-                      <span class="text-slate-500 flex items-center gap-1">
-                        <Clock class="w-3 h-3 text-slate-400" />
-                        {{ t('projects.estimatedStudyTime') }}
-                      </span>
-                      <span class="font-black text-slate-700 dark:text-slate-200">
-                        {{
-                          getMetricsForStep(
-                            activeStep,
-                            projectDetail.roadmap.steps.indexOf(activeStep),
-                          ).duration
-                        }}
-                        <span class="text-[9px] font-normal text-slate-400">{{
-                          t('projects.hours')
-                        }}</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Checklist -->
-                <div
-                  v-if="getSubTasksForStep(activeStep).length > 0"
-                  class="space-y-1.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 relative z-10"
-                >
-                  <div
-                    class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                  >
-                    <ListTodo class="w-3 h-3 text-accent" />
-                    <span>{{ t('projects.skillsChecklist') }}</span>
-                  </div>
-
-                  <div
-                    class="space-y-1.5 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800"
-                  >
-                    <div
-                      v-for="subtask in getSubTasksForStep(activeStep)"
-                      :key="subtask.id"
-                      class="flex items-start gap-2 group/item cursor-pointer"
-                      @click="toggleSubTask(subtask.id)"
-                    >
-                      <div
-                        class="w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors mt-0.5"
-                        :class="
-                          checkedSubTasks[subtask.id]
-                            ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/10'
-                            : 'border-slate-300 dark:border-slate-600 group-hover/item:border-accent bg-white dark:bg-slate-800'
-                        "
-                      >
-                        <CheckCircle2
-                          v-if="checkedSubTasks[subtask.id]"
-                          class="w-2.5 h-2.5 text-white"
-                        />
-                      </div>
-                      <span
-                        class="text-xs transition-all duration-300"
-                        :class="
-                          checkedSubTasks[subtask.id]
-                            ? 'text-slate-400 dark:text-slate-500 line-through'
-                            : 'text-slate-600 dark:text-slate-300 group-hover/item:text-slate-800 dark:group-hover/item:text-slate-100'
-                        "
-                      >
-                        {{ subtask.text }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Courses -->
-                <div
-                  v-if="getRelatedCourses(activeStep).length > 0"
-                  class="space-y-2 pt-2.5 border-t border-slate-100 dark:border-slate-800 relative z-10"
-                >
-                  <div
-                    class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                  >
-                    <GraduationCap class="w-3 h-3 text-accent" />
-                    <span>{{ t('projects.recommendedCourses') }}</span>
-                  </div>
-
-                  <div class="space-y-2">
-                    <div
-                      v-for="course in getRelatedCourses(activeStep)"
-                      :key="course.id"
-                      class="flex gap-2 p-2 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-500/[0.01] hover:border-accent/40 dark:hover:border-accent/40 hover:bg-white dark:hover:bg-slate-900/50 transition-all cursor-pointer group/card"
-                      @click="router.push({ name: 'CourseDetail', params: { id: course.id } })"
-                    >
-                      <div
-                        class="w-14 h-9 rounded bg-slate-100 dark:bg-slate-800 shrink-0 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden"
-                      >
-                        <img
-                          v-if="course.thumbnail"
-                          alt=""
-                          :src="getAssetUrl(course.thumbnail)"
-                          class="w-full h-full object-cover group-hover/card:scale-105 transition-transform"
-                        />
-                        <BookOpen v-else class="w-3 h-3 text-slate-400 mx-auto my-3" />
-                      </div>
-                      <div class="min-w-0 flex-1 flex flex-col justify-between">
-                        <h4
-                          class="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate group-hover/card:text-accent transition-colors leading-snug"
-                        >
-                          {{ course.title }}
-                        </h4>
-                        <div class="flex items-center justify-between text-[8px] text-slate-400">
-                          <span
-                            class="px-1 py-0.2 bg-slate-100 dark:bg-slate-800 rounded text-[8px]"
-                          >
-                            {{
-                              course.difficulty === 'BEGINNER'
-                                ? t('common.difficulty.beginner')
-                                : course.difficulty === 'INTERMEDIATE'
-                                  ? t('common.difficulty.intermediate')
-                                  : t('common.difficulty.advanced')
-                            }}
-                          </span>
-                          <span
-                            class="text-accent flex items-center gap-0.5 font-bold group-hover/card:translate-x-0.5 transition-transform text-[8px]"
-                          >
-                            {{ t('projects.goMaster') }} <ArrowRight class="w-2 h-2" />
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ProjectDetailRoadmapPanel
+            v-else-if="activeLeftTab === 'roadmap' && projectDetail.roadmap"
+            :roadmap="projectDetail.roadmap"
+            :active-step-id="activeStepId"
+            :my-progress="myProgress"
+            :all-courses="allCourses"
+            @update:active-step-id="activeStepId = $event"
+            @toggle-step="toggleStep"
+            @navigate-to-course="navigateToCourse"
+          />
         </div>
 
-        <!-- Right Column: Sidebar (col-span-1) -->
         <div class="space-y-4 md:space-y-5">
-          <!-- Project Vision (Description) -->
-          <div>
-            <div class="flex items-center justify-between mb-1.5 ml-1">
-              <h4 class="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                {{ t('projects.projectVision') }}
-              </h4>
-              <button
-                v-if="!isEditingProjectDescription"
-                type="button"
-                class="text-[10px] font-bold text-accent hover:underline cursor-pointer"
-                @click="startEditingProjectDescription"
-              >
-                编辑描述
-              </button>
-            </div>
+          <ProjectDetailDescription
+            :description="projectDetail.description"
+            :is-editing="isEditingProjectDescription"
+            :temp-text="tempProjectDescription"
+            :temp-images="tempProjectDescriptionImages"
+            @start-edit="startEditingProjectDescription"
+            @save="saveProjectDescription"
+            @cancel="cancelEditingProjectDescription"
+            @update:temp-text="tempProjectDescription = $event"
+            @update:temp-images="tempProjectDescriptionImages = $event"
+            @paste="handlePasteProjectDescription"
+            @open-image="openImageModal"
+          />
 
-            <!-- Edit Mode -->
-            <div v-if="isEditingProjectDescription" class="space-y-2">
-              <textarea
-                v-model="tempProjectDescription"
-                placeholder="输入项目描述... (支持粘贴图片)"
-                rows="4"
-                class="w-full p-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:border-accent/45 transition-all resize-y"
-                style="color: var(--text-primary)"
-                @paste="handlePasteProjectDescription"
-              ></textarea>
+          <ProjectMetaCard :due-date="projectDetail.dueDate" :progress="projectDetail.progress" />
 
-              <!-- Image Previews during Editing -->
-              <div
-                v-if="tempProjectDescriptionImages.length > 0"
-                class="flex flex-wrap gap-1.5 p-1.5 bg-slate-50/50 dark:bg-white/2 border border-dashed border-slate-200 dark:border-slate-700 rounded-lg"
-              >
-                <div
-                  v-for="(img, idx) in tempProjectDescriptionImages"
-                  :key="img"
-                  class="relative group w-12 h-12 rounded border border-slate-200 dark:border-slate-700 overflow-hidden"
-                >
-                  <img
-                    :src="img"
-                    class="w-full h-full object-cover cursor-zoom-in"
-                    @click="openImageModal(img)"
-                  />
-                  <button
-                    type="button"
-                    class="absolute top-0.5 right-0.5 p-0.5 bg-black/55 hover:bg-rose-600 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center"
-                    @click="tempProjectDescriptionImages.splice(idx, 1)"
-                  >
-                    <X class="w-2.5 h-2.5" />
-                  </button>
-                </div>
-              </div>
-
-              <div class="flex justify-end gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  class="!py-1 !px-2.5 !h-7 !text-[10px]"
-                  @click="cancelEditingProjectDescription"
-                >
-                  取消
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  class="!py-1 !px-2.5 !h-7 !text-[10px]"
-                  @click="saveProjectDescription"
-                >
-                  保存
-                </Button>
-              </div>
-            </div>
-
-            <!-- Preview Mode -->
-            <div
-              v-else
-              class="p-3 bg-slate-50 dark:bg-slate-800/20 rounded-xl border text-left cursor-pointer hover:bg-slate-100/30 dark:hover:bg-slate-800/30 transition-all"
-              style="border-color: var(--border-base)"
-              @click="startEditingProjectDescription"
-            >
-              <div
-                v-if="!projectDetail.description"
-                class="text-xs text-slate-400 dark:text-slate-500 italic py-2 text-center select-none"
-              >
-                + 点击添加详细项目愿景...
-              </div>
-              <div
-                v-else
-                class="text-xs leading-relaxed whitespace-pre-wrap text-slate-600 dark:text-slate-300 space-y-2"
-              >
-                <p>{{ parseCommentContent(projectDetail.description).text }}</p>
-                <div
-                  v-if="parseCommentContent(projectDetail.description).images.length > 0"
-                  class="flex flex-wrap gap-2 pt-1"
-                >
-                  <img
-                    v-for="img in parseCommentContent(projectDetail.description).images"
-                    :key="img"
-                    :src="img"
-                    class="max-w-full max-h-[150px] rounded-lg border object-contain cursor-zoom-in hover:opacity-90 transition-opacity"
-                    style="border-color: var(--border-base)"
-                    @click.stop="openImageModal(img)"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Project Meta (Deadline & Progress) -->
-          <div class="grid grid-cols-2 gap-3">
-            <div
-              class="p-3 bg-slate-50 dark:bg-slate-800/30 rounded-xl border text-left"
-              style="border-color: var(--border-base)"
-            >
-              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                {{ t('tasks.dueDate') }}
-              </div>
-              <span class="text-xs font-bold" style="color: var(--text-primary)">
-                {{
-                  projectDetail.dueDate
-                    ? new Date(projectDetail.dueDate).toLocaleDateString()
-                    : t('common.notSet')
-                }}
-              </span>
-            </div>
-            <div
-              class="p-3 bg-slate-50 dark:bg-slate-800/30 rounded-xl border text-left"
-              style="border-color: var(--border-base)"
-            >
-              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                {{ t('projects.projectProgress') }}
-              </div>
-              <div class="flex items-center gap-2">
-                <div
-                  class="flex-1 h-1.5 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700"
-                >
-                  <div
-                    class="h-full rounded-full bg-accent transition-all duration-500"
-                    :style="{ width: projectDetail.progress + '%' }"
-                  ></div>
-                </div>
-                <span class="text-[10px] font-black text-accent"
-                  >{{ projectDetail.progress }}%</span
-                >
-              </div>
-            </div>
-          </div>
-
-          <!-- Members Section -->
-          <div class="space-y-2.5">
-            <div class="flex items-center justify-between">
-              <h4
-                class="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5"
-              >
-                <Users class="w-3.5 h-3.5" /> {{ t('projects.members') }} ({{
-                  projectDetail.members.length
-                }})
-              </h4>
-              <Button
-                v-if="isDetailOwner"
-                variant="secondary"
-                size="sm"
-                :icon="Plus"
-                class="!py-0.5 !px-2 !h-6 !text-[10px]"
-                @click="openInviteDetailDialog"
-              >
-                {{ t('projects.invite') }}
-              </Button>
-            </div>
-            <div class="flex flex-wrap gap-1.5">
-              <div
-                v-for="m in projectDetail.members"
-                :key="m.userId"
-                class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg"
-              >
-                <UserAvatar :user="m.user" size="xs" />
-                <span class="text-[11px] font-bold" style="color: var(--text-primary)">{{
-                  m.user.name || m.user.email
-                }}</span>
-                <span
-                  class="text-[7px] px-1 py-0.1 bg-slate-200 dark:bg-slate-700 text-slate-400 rounded uppercase font-black tracking-wider"
-                  >{{ m.role }}</span
-                >
-              </div>
-            </div>
-
-            <!-- Pending Invitations -->
-            <div
-              v-if="projectDetail.invitations && projectDetail.invitations.length > 0"
-              class="pt-1.5 space-y-1.5 text-left"
-            >
-              <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                {{ t('projects.sentInvitationsPending') }}
-              </div>
-              <div class="flex flex-wrap gap-1.5">
-                <div
-                  v-for="inv in projectDetail.invitations"
-                  :key="inv.id"
-                  class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 dark:bg-slate-800/40 border border-dashed rounded-lg"
-                  style="border-color: var(--border-base)"
-                >
-                  <UserAvatar :user="inv.invitee" size="xs" />
-                  <span class="text-[11px] font-bold text-slate-400">{{
-                    inv.invitee.name || inv.invitee.email
-                  }}</span>
-                  <span
-                    class="text-[7px] px-1 py-0.1 bg-amber-500/10 text-amber-500 rounded uppercase font-black tracking-wider"
-                    >PENDING</span
-                  >
-                </div>
-              </div>
-            </div>
-          </div>
+          <ProjectMembersPanel
+            :members="projectDetail.members"
+            :invitations="projectDetail.invitations"
+            :is-owner="isDetailOwner"
+            @invite="openInviteDetailDialog"
+          />
         </div>
       </div>
     </div>
   </Modal>
 
-  <!-- Batch Create Tasks Dialog -->
-  <Modal :show="isBatchDialogOpen" size="md" glass-card @close="isBatchDialogOpen = false">
-    <template #header>
-      <h3 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary)">
-        {{ t('projects.batchAddTask') }}
-      </h3>
-    </template>
+  <BatchCreateTasksDialog
+    v-model:show="isBatchDialogOpen"
+    :team-members="teamMembers"
+    @submit="handleBatchCreateTasks"
+  />
 
-    <div class="space-y-4 text-left">
-      <div>
-        <label
-          class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400"
-          >{{ t('projects.batchTaskTitleList') }}</label
-        >
-        <textarea
-          v-model="batchTaskText"
-          rows="6"
-          class="w-full px-4 py-2.5 sm:py-3 bg-slate-100 dark:bg-white/5 border-none rounded-xl sm:rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed"
-          style="color: var(--text-primary)"
-          :placeholder="t('projects.batchTaskPlaceholder')"
-        ></textarea>
-      </div>
+  <InviteMembersDialog
+    v-model:visible="isDetailInviteDialogOpen"
+    :users="availableMembersForDetailInvite"
+    @submit="handleSendDetailInvite"
+  />
 
-      <!-- Tasks Preview -->
-      <div v-if="parsedBatchTasks.length > 0" class="space-y-1.5 sm:space-y-2">
-        <label class="block text-[10px] sm:text-xs font-bold uppercase text-slate-400 ml-1">{{
-          t('projects.batchTaskPreview', { count: parsedBatchTasks.length })
-        }}</label>
-        <div
-          class="max-h-24 overflow-y-auto border rounded-xl p-2.5 space-y-1 bg-slate-50 dark:bg-slate-800/10 scrollbar-hide"
-          style="border-color: var(--border-base)"
-        >
-          <div
-            v-for="(tTask, index) in parsedBatchTasks"
-            :key="index"
-            class="flex items-center justify-between text-[11px] font-bold py-0.5 border-b last:border-0"
-            style="border-color: var(--border-base)"
-          >
-            <span class="truncate flex-1 pr-4" style="color: var(--text-primary)">
-              {{ index + 1 }}. {{ tTask }}
-            </span>
-            <span
-              class="px-1 py-0.2 bg-accent/10 text-accent rounded text-[7px] uppercase font-black tracking-wider shrink-0"
-              >{{ t('projects.toBeCreated') }}</span
-            >
-          </div>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-3 sm:gap-4">
-        <div>
-          <label
-            class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
-            >{{ t('projects.batchAssignee') }}</label
-          >
-          <el-select
-            v-model="batchAssigneeId"
-            clearable
-            :placeholder="t('projects.selectAssignee')"
-            class="!w-full custom-select"
-          >
-            <el-option
-              v-for="m in teamMembers"
-              :key="m.id"
-              :label="m.name || m.email"
-              :value="m.id"
-            >
-              <div class="flex items-center gap-2">
-                <UserAvatar :user="m" size="sm" />
-                <span class="text-xs sm:text-sm">{{ m.name || m.email }}</span>
-              </div>
-            </el-option>
-          </el-select>
-        </div>
-        <div>
-          <label
-            class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
-            >{{ t('projects.batchPriority') }}</label
-          >
-          <el-select v-model="batchPriority" class="!w-full custom-select">
-            <el-option v-for="p in priorityOptions" :key="p.id" :label="p.label" :value="p.id">
-              <div class="flex items-center gap-2">
-                <div class="w-2 h-2 rounded-full" :class="p.color"></div>
-                <span class="text-xs sm:text-sm font-bold">{{ p.label }}</span>
-              </div>
-            </el-option>
-          </el-select>
-        </div>
-      </div>
-
-      <div>
-        <label
-          class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
-          >{{ t('projects.batchDueDate') }}</label
-        >
-        <el-date-picker
-          v-model="batchDueDate"
-          type="date"
-          :placeholder="t('tasks.dueDate')"
-          class="!w-full !rounded-2xl custom-date-picker"
-          popper-class="custom-date-popper"
-        />
-      </div>
-    </div>
-
-    <template #footer>
-      <Button type="button" variant="primary" size="lg" full-width @click="handleBatchCreateTasks">
-        {{ t('projects.batchCreateButton') }}
-      </Button>
-    </template>
-  </Modal>
-
-  <!-- Invite Project Members Dialog -->
-  <Modal
-    :show="isDetailInviteDialogOpen"
-    size="sm"
-    glass-card
-    @close="isDetailInviteDialogOpen = false"
-  >
-    <template #header>
-      <h3 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary)">
-        {{ t('projects.inviteMembersTitle') }}
-      </h3>
-    </template>
-
-    <div class="space-y-4 text-left">
-      <div v-if="availableMembersForDetailInvite.length > 0">
-        <label
-          class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400"
-          >{{ t('projects.selectTeamMembers') }}</label
-        >
-        <el-select
-          v-model="detailInviteUserIds"
-          multiple
-          :placeholder="t('projects.selectMember')"
-          class="!w-full custom-select"
-        >
-          <el-option
-            v-for="m in availableMembersForDetailInvite"
-            :key="m.id"
-            :label="m.name || m.email"
-            :value="m.id"
-          >
-            <div class="flex items-center gap-3">
-              <UserAvatar :user="m" size="sm" />
-              <span class="font-bold text-xs sm:text-sm">{{ m.name || m.email }}</span>
-            </div>
-          </el-option>
-        </el-select>
-      </div>
-      <div v-else class="text-center py-6 text-slate-400 text-xs font-bold">
-        {{ t('projects.noOtherMembersToInvite') }}
-      </div>
-    </div>
-
-    <template #footer>
-      <Button
-        variant="secondary"
-        class="text-xs sm:text-sm"
-        @click="isDetailInviteDialogOpen = false"
-      >
-        {{ t('common.cancel') }}
-      </Button>
-      <Button
-        variant="primary"
-        class="text-xs sm:text-sm"
-        :disabled="detailInviteUserIds.length === 0"
-        @click="handleSendDetailInvite"
-      >
-        {{ t('projects.sendInvite') }}
-      </Button>
-    </template>
-  </Modal>
-
-  <!-- Image Preview Dialog -->
-  <el-dialog
-    v-model="isImagePreviewOpen"
-    :show-close="true"
-    align-center
-    width="fit-content"
-    style="background: transparent; box-shadow: none"
-  >
-    <img
-      v-if="previewImageUrl"
-      :src="previewImageUrl"
-      class="max-w-[85vw] max-h-[80vh] rounded-xl object-contain border"
-      style="border-color: var(--border-base)"
-    />
-  </el-dialog>
+  <ImagePreviewDialog v-model:show="isImagePreviewOpen" :image-url="previewImageUrl" />
 </template>
-
-<style scoped>
-.custom-select :deep(.el-select__wrapper),
-.custom-select :deep(.el-input__wrapper) {
-  border-radius: 0.75rem !important;
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: none !important;
-  transition: all 0.2s ease !important;
-}
-.dark .custom-select :deep(.el-select__wrapper),
-.dark .custom-select :deep(.el-input__wrapper) {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.custom-select :deep(.el-select__wrapper.is-focused),
-.custom-select :deep(.el-input__wrapper.is-focus) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
-}
-
-.custom-select-small :deep(.el-select__wrapper),
-.custom-select-small :deep(.el-input__wrapper) {
-  border-radius: 0.5rem !important;
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(6px) !important;
-  -webkit-backdrop-filter: blur(6px) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: none !important;
-  transition: all 0.2s ease !important;
-  height: 28px !important;
-}
-.dark .custom-select-small :deep(.el-select__wrapper),
-.dark .custom-select-small :deep(.el-input__wrapper) {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.custom-select-small :deep(.el-select__wrapper.is-focused),
-.custom-select-small :deep(.el-input__wrapper.is-focus) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.15) !important;
-}
-
-.custom-date-picker :deep(.el-input__wrapper) {
-  border-radius: 0.75rem !important;
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: none !important;
-  transition: all 0.2s ease !important;
-  height: 38px !important;
-}
-.dark .custom-date-picker :deep(.el-input__wrapper) {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.custom-date-picker :deep(.el-input__wrapper.is-focus) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
-}
-</style>

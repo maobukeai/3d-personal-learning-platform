@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, type Component } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import { CheckCircle2, Languages, Moon, RotateCcw, Save, Sun, SunMoon } from 'lucide-vue-next';
 import {
@@ -10,6 +9,7 @@ import {
   type AccentColorModePreference,
   type AccentColorIntervalPreference,
 } from '@/utils/preferences';
+import { useLabel } from '@/utils/i18n';
 import { applyAccentColorToDocument, applyThemeToDocument } from '@/composables/useAppearance';
 import { fetchUserSettings, updateUserSettings } from '@/services/account.service';
 import { setLocale } from '@/i18n';
@@ -21,13 +21,14 @@ const activeAccentColor = ref(currentAccent.value);
 const currentLanguage = ref<LocalePreference>(preferences.getLanguage());
 
 const currentAccentMode = ref<AccentColorModePreference>(preferences.getAccentColorMode());
-const currentAccentInterval = ref<AccentColorIntervalPreference>(preferences.getAccentColorInterval());
+const currentAccentInterval = ref<AccentColorIntervalPreference>(
+  preferences.getAccentColorInterval(),
+);
 
 const savedSnapshot = ref('');
 const isLoadingCloud = ref(false);
 const isSaving = ref(false);
-const { locale } = useI18n();
-const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
+const label = useLabel();
 
 const accentColors = computed(() => [
   { name: label('海蓝', 'Ocean Blue'), value: '#2563eb' },
@@ -96,9 +97,14 @@ const currentAccentName = computed(() => {
     return label('刷新随机', 'Random on Refresh');
   }
   if (currentAccentMode.value === 'interval') {
-    const duration = currentAccentInterval.value === '10s' ? '10s' : 
-                     currentAccentInterval.value === '1m' ? '1m' :
-                     currentAccentInterval.value === '5m' ? '5m' : '30m';
+    const duration =
+      currentAccentInterval.value === '10s'
+        ? '10s'
+        : currentAccentInterval.value === '1m'
+          ? '1m'
+          : currentAccentInterval.value === '5m'
+            ? '5m'
+            : '30m';
     return `${label('定时随机', 'Interval')} (${duration})`;
   }
   return (
@@ -128,7 +134,7 @@ const applyAccentColor = (color: string) => {
         mode: 'static',
         interval: currentAccentInterval.value,
       },
-    })
+    }),
   );
 };
 
@@ -143,7 +149,7 @@ const applyAccentMode = (mode: AccentColorModePreference) => {
         mode: mode,
         interval: currentAccentInterval.value,
       },
-    })
+    }),
   );
 };
 
@@ -158,7 +164,7 @@ const applyAccentInterval = (interval: AccentColorIntervalPreference) => {
         mode: currentAccentMode.value,
         interval: interval,
       },
-    })
+    }),
   );
 };
 
@@ -172,7 +178,9 @@ const applyLoadedSettings = (settings: Record<string, string>) => {
   const accent = settings.appearanceAccent;
   const language = settings.appearanceLanguage as LocalePreference | undefined;
   const accentMode = settings.appearanceAccentMode as AccentColorModePreference | undefined;
-  const accentInterval = settings.appearanceAccentInterval as AccentColorIntervalPreference | undefined;
+  const accentInterval = settings.appearanceAccentInterval as
+    | AccentColorIntervalPreference
+    | undefined;
 
   if (theme === 'glass-light' || theme === 'glass-dark' || theme === 'glass-auto') {
     applyTheme(theme);
@@ -194,7 +202,12 @@ const applyLoadedSettings = (settings: Record<string, string>) => {
     preferences.setAccentColorMode('static');
   }
 
-  if (accentInterval === '10s' || accentInterval === '1m' || accentInterval === '5m' || accentInterval === '30m') {
+  if (
+    accentInterval === '10s' ||
+    accentInterval === '1m' ||
+    accentInterval === '5m' ||
+    accentInterval === '30m'
+  ) {
     currentAccentInterval.value = accentInterval;
     preferences.setAccentColorInterval(accentInterval);
   }
@@ -210,7 +223,7 @@ const applyLoadedSettings = (settings: Record<string, string>) => {
         mode: currentAccentMode.value,
         interval: currentAccentInterval.value,
       },
-    })
+    }),
   );
 };
 
@@ -279,11 +292,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="appearance-section">
+  <div class="appearance-section mobile-adaptive">
     <section class="appearance-overview">
       <div>
         <p class="section-kicker">{{ label('外观语言', 'Appearance') }}</p>
-        <h3>
+        <h3 class="truncate">
           {{ currentAccentName }} ·
           {{ currentLanguage === 'zh-CN' ? label('简体中文', 'Chinese') : 'English' }}
         </h3>
@@ -296,7 +309,7 @@ onUnmounted(() => {
               )
         }}</span>
       </div>
-      <div class="overview-actions">
+      <div class="overview-actions mobile-row">
         <Button variant="secondary" :icon="RotateCcw" @click="resetLocal">
           {{ label('重置', 'Reset') }}
         </Button>
@@ -314,9 +327,11 @@ onUnmounted(() => {
 
     <section class="appearance-grid">
       <div class="theme-panel">
-        <div class="panel-title">
+        <div class="panel-title mobile-row">
           <span>{{ label('主题模式', 'Theme Mode') }}</span>
-          <strong>{{ themeOptions.find((item) => item.id === currentTheme)?.label }}</strong>
+          <strong class="truncate">{{
+            themeOptions.find((item) => item.id === currentTheme)?.label
+          }}</strong>
         </div>
         <div class="theme-options">
           <button
@@ -335,9 +350,9 @@ onUnmounted(() => {
       </div>
 
       <div class="accent-panel">
-        <div class="panel-title">
+        <div class="panel-title mobile-row">
           <span>{{ label('强调色', 'Accent Color') }}</span>
-          <strong>{{ currentAccentName }}</strong>
+          <strong class="truncate">{{ currentAccentName }}</strong>
         </div>
         <div class="accent-grid">
           <button
@@ -354,7 +369,7 @@ onUnmounted(() => {
         </div>
 
         <div class="auto-switch-section">
-          <div class="panel-title mb-2">
+          <div class="panel-title mb-2 mobile-row">
             <span>{{ label('切换模式', 'Switching Mode') }}</span>
           </div>
           <div class="mode-options">
@@ -371,7 +386,7 @@ onUnmounted(() => {
           </div>
 
           <div v-if="currentAccentMode === 'interval'" class="interval-options-container">
-            <div class="panel-title mb-2 mt-3">
+            <div class="panel-title mb-2 mt-3 mobile-row">
               <span>{{ label('切换间隔', 'Interval') }}</span>
             </div>
             <div class="interval-options">
@@ -391,7 +406,7 @@ onUnmounted(() => {
       </div>
 
       <div class="language-panel">
-        <div class="panel-title">
+        <div class="panel-title mobile-row">
           <span>{{ label('语言偏好', 'Language') }}</span>
           <Languages />
         </div>
@@ -708,7 +723,6 @@ button svg {
 }
 
 @media (max-width: 620px) {
-  .overview-actions,
   .language-options,
   .accent-grid {
     grid-template-columns: 1fr;
@@ -716,8 +730,7 @@ button svg {
   }
 
   .overview-actions {
-    align-items: stretch;
-    flex-direction: column;
+    width: 100%;
   }
 
   .primary-action,

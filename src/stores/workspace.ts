@@ -7,6 +7,7 @@ import {
   fetchMirrorSources,
   fetchTeams,
 } from '@/services/workspace.service';
+import { logError } from '@/utils/error';
 import type { Asset } from '@/types';
 
 export interface Workspace {
@@ -104,7 +105,7 @@ export const useWorkspaceStore = defineStore('workspace', {
             this.fetchAdminStats();
           }
         } catch (error) {
-          console.error('Fetch workspaces error:', error);
+          logError(error, { operation: 'workspace.fetchWorkspaces', component: 'workspaceStore' });
         }
       }
 
@@ -122,7 +123,7 @@ export const useWorkspaceStore = defineStore('workspace', {
             avatarUrl: ms.iconUrl,
           });
         }
-      } catch (_e) {
+      } catch {
         // Mirror sources not available, skip
       }
 
@@ -140,7 +141,7 @@ export const useWorkspaceStore = defineStore('workspace', {
             avatarUrl: ms.iconUrl,
           });
         }
-      } catch (_e) {
+      } catch {
         // Manual stations not available, skip
       }
 
@@ -169,7 +170,7 @@ export const useWorkspaceStore = defineStore('workspace', {
           pendingShowcases: counts.pendingShowcases || 0,
           pendingPlugins: counts.pendingPlugins || 0,
         };
-      } catch (_error) {
+      } catch {
         // Silently fail if not admin or error
       }
     },

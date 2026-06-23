@@ -2,74 +2,34 @@
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
-  ChevronLeft,
-  Users,
-  Hash,
-  Search,
-  Mic,
-  Languages,
-  Info,
-  Reply,
-  X,
-  Play,
-  Pause,
-  Paperclip,
   Check,
   CheckCheck,
+  Loader2,
+  Paperclip,
+  Pause,
+  Play,
+  Reply,
   SmilePlus,
   Trash2,
-  Smile,
-  Send,
+  X,
   AtSign,
-  Loader2,
+  Languages,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
 import SafeHtml from '@/components/SafeHtml.vue';
 import api, { getAssetUrl } from '@/utils/api';
+import { logError } from '@/utils/error';
 import axios from 'axios';
 import { downloadFileMultiThreaded } from '@/utils/downloadHelper';
-
-interface UserType {
-  id: string;
-  name?: string;
-  avatarUrl?: string | null;
-  email?: string;
-  role?: string;
-  language?: string;
-}
-
-interface Conversation {
-  id: string;
-  name?: string;
-  isGroup: boolean;
-  avatarUrl?: string | null;
-  participants?: UserType[];
-}
-
-interface MessageReaction {
-  id: string;
-  emoji: string;
-  userId: string;
-  user?: UserType;
-}
-
-interface Message {
-  id: string;
-  senderId: string;
-  sender?: UserType;
-  type: string;
-  content: string;
-  createdAt: string;
-  replyTo?: Message | null;
-  reactions?: MessageReaction[];
-  readBy?: Array<{ userId: string; readAt?: string }>;
-}
+import type { ChatConversation, ChatMessage, MessageReaction } from './chatTypes';
+import ChatWindowHeader from './ChatWindowHeader.vue';
+import ChatInputArea from './ChatInputArea.vue';
 
 const props = defineProps<{
-  activeConversation: Conversation;
-  messages: Message[];
+  activeConversation: ChatConversation;
+  messages: ChatMessage[];
   isLoadingMessages: boolean;
   isLoadingOlderMessages: boolean;
   hasMoreMessages: boolean;
@@ -88,10 +48,21 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const authStore = useAuthStore();
 
+const isCancelError = (err: unknown): boolean => {
+  if (axios.isCancel(err)) return true;
+  if (err instanceof Error && err.name === 'CanceledError') return true;
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as { message?: string }).message === 'canceled'
+  )
+    return true;
+  return false;
+};
+
 const newMessage = ref('');
 const messageSearchQuery = ref('');
-const replyToMessage = ref<Message | null>(null);
-const showEmojiPicker = ref(false);
+const replyToMessage = ref<ChatMessage | null>(null);
 const showReactionPicker = ref<string | null>(null);
 const isDragOver = ref(false);
 const dragCounter = ref(0);
@@ -99,9 +70,7 @@ const translations = ref<Record<string, string>>({});
 const translating = ref<Record<string, boolean>>({});
 
 const messagesContainer = ref<HTMLElement | null>(null);
-const fileInput = ref<HTMLInputElement | null>(null);
 
-// Voice recording state
 const isRecording = ref(false);
 const recordingDuration = ref(0);
 const currentlyPlaying = ref<string | null>(null);
@@ -111,6 +80,39 @@ let uploadAbortController: AbortController | null = null;
 
 const uploadSpeed = ref('');
 let activeMultipart: { key: string; uploadId: string } | null = null;
+
+const isDownloading = ref(false);
+const downloadProgress = ref(0);
+const downloadSpeedStr = ref('');
+let downloadAbortController: AbortController | null = null;
+
+const reactionEmojis = ['👍', '❤️', '😂', '😮', '😢', '🎉', '🔥', '👀'];
+
+const contextMenu = ref<{
+  visible: boolean;
+  x: number;
+  y: number;
+  messageId: string;
+  message: ChatMessage | null;
+}>({
+  visible: false,
+  x: 0,
+  y: 0,
+  messageId: '',
+  message: null,
+});
+
+const isMessageRead = (msg: ChatMessage) => {
+  return !!msg.readBy && msg.readBy.length > 0;
+};
+
+const filteredMessages = computed(() => {
+  if (!messageSearchQuery.value.trim()) return props.messages;
+  const query = messageSearchQuery.value.toLowerCase();
+  return props.messages.filter(
+    (m) => m.type === 'TEXT' && m.content && m.content.toLowerCase().includes(query),
+  );
+});
 
 const cancelUpload = async () => {
   if (uploadAbortController) {
@@ -133,11 +135,6 @@ const cancelUpload = async () => {
   uploadProgress.value = 0;
   uploadSpeed.value = '';
 };
-
-const isDownloading = ref(false);
-const downloadProgress = ref(0);
-const downloadSpeedStr = ref('');
-let downloadAbortController: AbortController | null = null;
 
 const cancelDownload = () => {
   if (downloadAbortController) {
@@ -168,10 +165,10 @@ const handleDownloadFile = async (contentUrl: string) => {
       (speed) => {
         downloadSpeedStr.value = speed;
       },
-      downloadAbortController.signal
+      downloadAbortController.signal,
     );
-  } catch (err: any) {
-    if (axios.isCancel(err) || err.name === 'CanceledError' || err.message === 'canceled') {
+  } catch (err: unknown) {
+    if (isCancelError(err)) {
       return;
     }
     console.warn('[Download] Parallel download error, standard fallback occurred.', err);
@@ -186,76 +183,6 @@ const handleDownloadFile = async (contentUrl: string) => {
 let mediaRecorder: MediaRecorder | null = null;
 let audioChunks: Blob[] = [];
 let recordingTimer: ReturnType<typeof setInterval> | null = null;
-
-const commonEmojis = [
-  '😊',
-  '😂',
-  '🤣',
-  '😍',
-  '😒',
-  '👌',
-  '😘',
-  '👍',
-  '🙌',
-  '🎉',
-  '🔥',
-  '✨',
-  '💻',
-  '🎨',
-  '🚀',
-  '⭐',
-];
-const reactionEmojis = ['👍', '❤️', '😂', '😮', '😢', '🎉', '🔥', '👀'];
-
-const contextMenu = ref<{
-  visible: boolean;
-  x: number;
-  y: number;
-  messageId: string;
-  message: Message | null;
-}>({
-  visible: false,
-  x: 0,
-  y: 0,
-  messageId: '',
-  message: null,
-});
-
-const getOtherParticipant = (conv: Conversation | null) => {
-  if (!conv) return null;
-  return (
-    conv.participants?.find((p) => p.id !== authStore.user?.id) || conv.participants?.[0] || null
-  );
-};
-
-const getConversationName = (conv: Conversation | null) => {
-  if (!conv) return '';
-  if (conv.isGroup) return conv.name || t('community.chat.unnamedGroup');
-  const other = getOtherParticipant(conv);
-  return other?.name || other?.email || t('community.chat.unknownUser');
-};
-
-const isMessageRead = (msg: Message) => {
-  if (!props.activeConversation) return false;
-  return !!msg.readBy && msg.readBy.length > 0;
-};
-
-const filteredMessages = computed(() => {
-  if (!messageSearchQuery.value.trim()) return props.messages;
-  const query = messageSearchQuery.value.toLowerCase();
-  return props.messages.filter(
-    (m) => m.type === 'TEXT' && m.content && m.content.toLowerCase().includes(query),
-  );
-});
-
-const addEmoji = (emoji: string) => {
-  newMessage.value += emoji;
-  showEmojiPicker.value = false;
-};
-
-const triggerFileUpload = () => {
-  fileInput.value?.click();
-};
 
 const uploadFile = async (fileOrBlob: File | Blob, filename: string, mimetype: string) => {
   uploadProgress.value = 0;
@@ -274,7 +201,7 @@ const uploadFile = async (fileOrBlob: File | Blob, filename: string, mimetype: s
     if (elapsed >= 0.5) {
       const bytesTransferred = loaded - lastLoaded;
       const speedBytesPerSec = bytesTransferred / elapsed;
-      let speedStr = '';
+      let speedStr: string;
       if (speedBytesPerSec > 1024 * 1024) {
         speedStr = `${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`;
       } else if (speedBytesPerSec > 1024) {
@@ -289,7 +216,6 @@ const uploadFile = async (fileOrBlob: File | Blob, filename: string, mimetype: s
   };
 
   try {
-    // If the file is larger than 10MB, use multipart upload
     if (size >= 10 * 1024 * 1024) {
       const initRes = await api.post('/api/messages/multipart/initiate', {
         filename,
@@ -343,7 +269,7 @@ const uploadFile = async (fileOrBlob: File | Blob, filename: string, mimetype: s
         };
 
         const queue = [...partNumbers];
-        const workers = [];
+        const workers: Promise<void>[] = [];
         const executeWorker = async () => {
           while (queue.length > 0) {
             const partNum = queue.shift();
@@ -369,7 +295,6 @@ const uploadFile = async (fileOrBlob: File | Blob, filename: string, mimetype: s
         return completeRes.data;
       }
     } else {
-      // Simple upload for small files
       const presignedRes = await api.post('/api/messages/presigned-url', {
         filename,
         mimetype,
@@ -386,7 +311,10 @@ const uploadFile = async (fileOrBlob: File | Blob, filename: string, mimetype: s
           signal: uploadAbortController.signal,
           onUploadProgress: (progressEvent) => {
             if (progressEvent.total) {
-              const percent = Math.min(Math.round((progressEvent.loaded * 100) / progressEvent.total), 99);
+              const percent = Math.min(
+                Math.round((progressEvent.loaded * 100) / progressEvent.total),
+                99,
+              );
               uploadProgress.value = percent;
               updateSpeed(progressEvent.loaded);
             }
@@ -401,7 +329,6 @@ const uploadFile = async (fileOrBlob: File | Blob, filename: string, mimetype: s
       }
     }
 
-    // Fallback: Upload to local server
     const formData = new FormData();
     formData.append('message_file', fileOrBlob, filename);
 
@@ -409,7 +336,10 @@ const uploadFile = async (fileOrBlob: File | Blob, filename: string, mimetype: s
       signal: uploadAbortController.signal,
       onUploadProgress: (progressEvent) => {
         if (progressEvent.total) {
-          const percent = Math.min(Math.round((progressEvent.loaded * 100) / progressEvent.total), 99);
+          const percent = Math.min(
+            Math.round((progressEvent.loaded * 100) / progressEvent.total),
+            99,
+          );
           uploadProgress.value = percent;
           updateSpeed(progressEvent.loaded);
         }
@@ -418,8 +348,8 @@ const uploadFile = async (fileOrBlob: File | Blob, filename: string, mimetype: s
 
     uploadProgress.value = 100;
     return res.data;
-  } catch (error: any) {
-    if (axios.isCancel(error) || error.name === 'CanceledError' || error.message === 'canceled') {
+  } catch (error: unknown) {
+    if (isCancelError(error)) {
       if (activeMultipart) {
         try {
           await api.post('/api/messages/multipart/abort', {
@@ -437,9 +367,11 @@ const uploadFile = async (fileOrBlob: File | Blob, filename: string, mimetype: s
     throw error;
   } finally {
     isUploading.value = false;
+    uploadAbortController = null;
+    // Hold 100% briefly so the user can see the completed state before the progress bar clears
+    await new Promise((resolve) => setTimeout(resolve, 600));
     uploadProgress.value = 0;
     uploadSpeed.value = '';
-    uploadAbortController = null;
   }
 };
 
@@ -462,8 +394,8 @@ const handleFileUpload = async (event: Event) => {
     const data = await uploadFile(file, file.name, file.type || 'application/octet-stream');
     const { url, type } = data;
     handleSendMessage(type, url);
-  } catch (err: any) {
-    if (axios.isCancel(err) || err.name === 'CanceledError' || err.message === 'canceled') {
+  } catch (err: unknown) {
+    if (isCancelError(err)) {
       return;
     }
     ElMessage.error(t('messages.uploadFailed'));
@@ -513,8 +445,8 @@ const handleDrop = async (event: DragEvent) => {
     const data = await uploadFile(file, file.name, file.type || 'application/octet-stream');
     const { url, type } = data;
     handleSendMessage(type, url);
-  } catch (err: any) {
-    if (axios.isCancel(err) || err.name === 'CanceledError' || err.message === 'canceled') {
+  } catch (err: unknown) {
+    if (isCancelError(err)) {
       return;
     }
     ElMessage.error(t('messages.uploadFailed'));
@@ -563,11 +495,15 @@ const startRecording = async () => {
       if (audioBlob.size < 1000) return;
 
       try {
-        const data = await uploadFile(audioBlob, `voice_${Date.now()}.${extension}`, mimeType || 'audio/wav');
+        const data = await uploadFile(
+          audioBlob,
+          `voice_${Date.now()}.${extension}`,
+          mimeType || 'audio/wav',
+        );
         const { url } = data;
         handleSendMessage('VOICE', url);
-      } catch (err: any) {
-        if (axios.isCancel(err) || err.name === 'CanceledError' || err.message === 'canceled') {
+      } catch (err: unknown) {
+        if (isCancelError(err)) {
           return;
         }
         ElMessage.error(t('messages.uploadFailed'));
@@ -595,13 +531,7 @@ const stopRecording = () => {
   }
 };
 
-const formatDuration = (seconds: number) => {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
-
-const handleTranslate = async (message: Message) => {
+const handleTranslate = async (message: ChatMessage) => {
   if (translations.value[message.id]) {
     delete translations.value[message.id];
     return;
@@ -611,7 +541,6 @@ const handleTranslate = async (message: Message) => {
   try {
     const response = await api.post('/api/messages/translate', {
       content: message.content,
-      targetLang: authStore.user?.language || 'zh',
     });
     translations.value[message.id] = response.data.translation;
   } catch {
@@ -623,7 +552,7 @@ const handleTranslate = async (message: Message) => {
 
 const isAllPeerTranslated = computed(() => {
   const peerTextMessages = props.messages.filter(
-    (msg) => msg.senderId !== authStore.user?.id && msg.type === 'TEXT'
+    (msg) => msg.senderId !== authStore.user?.id && msg.type === 'TEXT',
   );
   if (peerTextMessages.length === 0) return false;
   return peerTextMessages.every((msg) => !!translations.value[msg.id]);
@@ -631,7 +560,7 @@ const isAllPeerTranslated = computed(() => {
 
 const handleTranslateAllPeer = async () => {
   const peerTextMessages = props.messages.filter(
-    (msg) => msg.senderId !== authStore.user?.id && msg.type === 'TEXT'
+    (msg) => msg.senderId !== authStore.user?.id && msg.type === 'TEXT',
   );
 
   if (peerTextMessages.length === 0) return;
@@ -640,12 +569,11 @@ const handleTranslateAllPeer = async () => {
 
   if (hasUntranslated) {
     const untranslatedMessages = peerTextMessages.filter(
-      (msg) => !translations.value[msg.id] && !translating.value[msg.id]
+      (msg) => !translations.value[msg.id] && !translating.value[msg.id],
     );
 
     if (untranslatedMessages.length === 0) return;
 
-    // Set all untranslated messages to loading state
     untranslatedMessages.forEach((msg) => {
       translating.value[msg.id] = true;
     });
@@ -663,10 +591,9 @@ const handleTranslateAllPeer = async () => {
         translations.value[item.id] = item.translation;
       });
     } catch (err) {
-      console.error('Batch translate error:', err);
+      logError(err, { operation: 'chat.batchTranslate', component: 'ChatWindow' });
       ElMessage.error(t('messages.sendFailed'));
     } finally {
-      // Clear loading state
       untranslatedMessages.forEach((msg) => {
         translating.value[msg.id] = false;
       });
@@ -721,14 +648,14 @@ const formatDateSeparator = (date: string | Date) => {
   });
 };
 
-const shouldShowDateSeparator = (currentMsg: Message, previousMsg: Message | null) => {
+const shouldShowDateSeparator = (currentMsg: ChatMessage, previousMsg: ChatMessage | null) => {
   if (!previousMsg) return true;
   const currentDate = new Date(currentMsg.createdAt).toDateString();
   const previousDate = new Date(previousMsg.createdAt).toDateString();
   return currentDate !== previousDate;
 };
 
-const shouldShowSenderAvatar = (currentMsg: Message, previousMsg: Message | null) => {
+const shouldShowSenderAvatar = (currentMsg: ChatMessage, previousMsg: ChatMessage | null) => {
   if (currentMsg.senderId === authStore.user?.id) return false;
   if (!previousMsg) return true;
   if (previousMsg.senderId !== currentMsg.senderId) return true;
@@ -737,7 +664,7 @@ const shouldShowSenderAvatar = (currentMsg: Message, previousMsg: Message | null
   return timeDiff > 5 * 60 * 1000;
 };
 
-const shouldShowTimestamp = (currentMsg: Message, nextMsg: Message | null) => {
+const shouldShowTimestamp = (currentMsg: ChatMessage, nextMsg: ChatMessage | null) => {
   if (!nextMsg) return true;
   if (nextMsg.senderId !== currentMsg.senderId) return true;
   const timeDiff = new Date(nextMsg.createdAt).getTime() - new Date(currentMsg.createdAt).getTime();
@@ -780,7 +707,7 @@ const getGroupedReactions = (reactions: MessageReaction[] | undefined) => {
   return Object.values(groups);
 };
 
-const setReplyTo = (msg: Message) => {
+const setReplyTo = (msg: ChatMessage) => {
   replyToMessage.value = msg;
   contextMenu.value.visible = false;
 };
@@ -831,7 +758,7 @@ const handleDeleteMessage = async (messageId: string) => {
   }
 };
 
-const handleContextMenu = (event: MouseEvent, msg: Message) => {
+const handleContextMenu = (event: MouseEvent, msg: ChatMessage) => {
   event.preventDefault();
   event.stopPropagation();
   contextMenu.value = {
@@ -871,12 +798,9 @@ const scrollToBottom = () => {
   });
 };
 
-// Only react to the array length / last message identity instead of deep
-// traversing every nested property of every message on each tick.
 watch(
   () => [props.messages.length, props.messages[props.messages.length - 1]?.id],
   () => {
-    // If we loaded newer messages, scroll down
     if (!props.isLoadingOlderMessages) {
       scrollToBottom();
     }
@@ -890,6 +814,9 @@ onUnmounted(() => {
   if (recordingTimer) {
     clearInterval(recordingTimer);
   }
+  // Cancel any in-progress upload or download to avoid state updates on unmounted component
+  cancelUpload();
+  cancelDownload();
 });
 
 defineExpose({
@@ -900,7 +827,7 @@ defineExpose({
 
 <template>
   <div
-    class="flex-1 flex flex-col relative transition-all duration-300 z-10"
+    class="flex-1 flex flex-col relative transition-all duration-300 z-10 mobile-adaptive"
     :class="activeConversation ? 'flex' : 'hidden lg:flex'"
     style="background-color: var(--bg-app)"
     @dragenter="handleDragEnter"
@@ -920,148 +847,20 @@ defineExpose({
       </div>
     </div>
 
-    <!-- Chat Header -->
-    <div
-      class="h-13 border-b px-4 flex items-center justify-between shrink-0 animate-none"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <div class="flex items-center gap-2 md:gap-2.5">
-        <!-- Mobile Back Button -->
-        <button
-          type="button"
-          class="lg:hidden p-1.5 -ml-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full transition-all text-slate-500 cursor-pointer"
-          @click="emit('back')"
-        >
-          <ChevronLeft class="w-5 h-5" />
-        </button>
-
-        <template v-if="activeConversation.isGroup">
-          <div
-            class="w-6 h-6 rounded-full flex items-center justify-center bg-indigo-500/10 shrink-0"
-          >
-            <img
-              v-if="activeConversation.avatarUrl"
-              alt=""
-              :src="activeConversation.avatarUrl"
-              class="w-6 h-6 rounded-full object-cover"
-            />
-            <Users v-else class="w-3.5 h-3.5 text-indigo-500" />
-          </div>
-        </template>
-        <template v-else>
-          <UserAvatar
-            :user="getOtherParticipant(activeConversation)"
-            size="sm"
-            class="cursor-pointer hover:ring-2 hover:ring-accent transition-all"
-            @click="
-              getOtherParticipant(activeConversation)?.id &&
-              emit('open-profile', getOtherParticipant(activeConversation)!.id)
-            "
-          />
-        </template>
-        <div>
-          <p class="text-xs font-bold flex items-center gap-1" style="color: var(--text-primary)">
-            <Hash v-if="activeConversation.isGroup" class="w-3 h-3 text-indigo-400" />
-            {{ getConversationName(activeConversation) }}
-            <span
-              v-if="activeConversation.isGroup"
-              class="text-[9px] font-medium text-slate-400 ml-1"
-              >{{ activeConversation.participants?.length || 0
-              }}{{ t('messages.groupParticipants') }}</span
-            >
-          </p>
-          <p
-            v-if="!activeConversation.isGroup"
-            class="text-[9px] font-bold flex items-center gap-1"
-            :class="
-              authStore.isUserOnline(getOtherParticipant(activeConversation)?.id || '')
-                ? 'text-emerald-500'
-                : 'text-slate-400'
-            "
-          >
-            <span
-              class="w-1.5 h-1.5 rounded-full animate-none"
-              :class="
-                authStore.isUserOnline(getOtherParticipant(activeConversation)?.id || '')
-                  ? 'bg-emerald-500'
-                  : 'bg-slate-300'
-              "
-            ></span>
-            {{
-              authStore.isUserOnline(getOtherParticipant(activeConversation)?.id || '')
-                ? t('messages.online')
-                : t('messages.offline')
-            }}
-          </p>
-        </div>
-      </div>
-
-      <div class="flex items-center gap-1 md:gap-2">
-        <el-popover
-          placement="bottom-end"
-          :width="280"
-          trigger="click"
-          popper-class="!glass-panel !backdrop-blur-xl !rounded-2xl !p-3 !border-strong/10 shadow-[0_12px_30px_rgba(0,0,0,0.15)]"
-        >
-          <template #reference>
-            <button
-              type="button"
-              class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all text-slate-400 sm:mr-2 cursor-pointer"
-            >
-              <Search class="w-4 h-4" />
-            </button>
-          </template>
-          <div class="relative">
-            <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              v-model="messageSearchQuery"
-              type="text"
-              :placeholder="t('messages.searchMessages')"
-              class="w-full pl-9 pr-3.5 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs focus:ring-2 focus:ring-accent/20 outline-none transition-all"
-              style="color: var(--text-primary)"
-            />
-          </div>
-        </el-popover>
-        <button
-          type="button"
-          class="hidden sm:block p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all cursor-pointer"
-          :class="
-            isRecording
-              ? 'text-rose-500 animate-pulse bg-rose-50 dark:bg-rose-900/20'
-              : 'text-slate-400'
-          "
-          :title="t('messages.voiceMessage')"
-          @click="isRecording ? stopRecording() : startRecording()"
-        >
-          <Mic class="w-4 h-4" />
-        </button>
-        <span
-          v-if="isRecording"
-          class="hidden sm:inline text-[10px] font-black text-rose-500 animate-pulse"
-          >{{ formatDuration(recordingDuration) }}</span
-        >
-        <button
-          type="button"
-          class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all cursor-pointer"
-          :class="isAllPeerTranslated ? 'text-accent' : 'text-slate-400'"
-          :style="!isAllPeerTranslated ? 'color: var(--text-muted)' : ''"
-          :title="t('messages.translate')"
-          @click="handleTranslateAllPeer"
-        >
-          <Languages class="w-4 h-4" />
-        </button>
-        <div class="w-px h-4 mx-1 sm:mx-2" style="background-color: var(--border-base)"></div>
-        <button
-          type="button"
-          class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all cursor-pointer"
-          :class="isInfoPanelOpen ? 'text-accent' : ''"
-          :style="!isInfoPanelOpen ? 'color: var(--text-muted)' : ''"
-          @click="emit('toggle-info-panel')"
-        >
-          <Info class="w-4 h-4" />
-        </button>
-      </div>
-    </div>
+    <ChatWindowHeader
+      v-model:search-query="messageSearchQuery"
+      :active-conversation="activeConversation"
+      :is-info-panel-open="isInfoPanelOpen"
+      :is-recording="isRecording"
+      :recording-duration="recordingDuration"
+      :is-all-peer-translated="isAllPeerTranslated"
+      @back="emit('back')"
+      @toggle-info-panel="emit('toggle-info-panel')"
+      @start-recording="startRecording"
+      @stop-recording="stopRecording"
+      @translate-all-peer="handleTranslateAllPeer"
+      @open-profile="emit('open-profile', $event)"
+    />
 
     <!-- Messages Area -->
     <div
@@ -1275,10 +1074,16 @@ defineExpose({
                   <div class="flex items-center gap-1 text-[8px] font-bold opacity-60">
                     <Loader2 v-if="translating[msg.id]" class="w-2.5 h-2.5 animate-spin" />
                     <Languages v-else class="w-2.5 h-2.5" />
-                    {{ translating[msg.id] ? '正在翻译 / Translating...' : t('messages.translate') }}
+                    {{
+                      translating[msg.id] ? '正在翻译 / Translating...' : t('messages.translate')
+                    }}
                   </div>
-                  <p v-if="translations[msg.id]" class="text-[11px] italic opacity-90">{{ translations[msg.id] }}</p>
-                  <p v-else-if="translating[msg.id]" class="text-[11px] italic opacity-40">正在翻译，请稍候...</p>
+                  <p v-if="translations[msg.id]" class="text-[11px] italic opacity-90">
+                    {{ translations[msg.id] }}
+                  </p>
+                  <p v-else-if="translating[msg.id]" class="text-[11px] italic opacity-40">
+                    正在翻译，请稍候...
+                  </p>
                 </div>
               </div>
 
@@ -1415,185 +1220,26 @@ defineExpose({
       </div>
     </div>
 
-    <!-- Reply Bar -->
-    <div
-      v-if="replyToMessage"
-      class="px-4 py-1.5 border-t flex items-center gap-2.5 animate-none shrink-0"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <Reply class="w-3.5 h-3.5 text-accent shrink-0" />
-      <div class="flex-1 min-w-0">
-        <p class="text-[9px] font-bold text-accent">
-          {{ replyToMessage.sender?.name || t('community.chat.unknownUser') }}
-        </p>
-        <p class="text-[11px] truncate" style="color: var(--text-secondary)">
-          {{
-            replyToMessage.type === 'IMAGE'
-              ? '[' + t('community.chat.photosTab') + ']'
-              : replyToMessage.type === 'FILE'
-                ? '[' + t('community.chat.filesTab') + ']'
-                : replyToMessage.content
-          }}
-        </p>
-      </div>
-      <button
-        type="button"
-        class="p-0.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-all cursor-pointer"
-        @click="cancelReply"
-      >
-        <X class="w-3 h-3" style="color: var(--text-muted)" />
-      </button>
-    </div>
-
-    <!-- Input Area -->
-    <div
-      class="p-2.5 sm:p-3 border-t relative shrink-0"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <!-- Uploading Progress overlay -->
-      <div
-        v-if="isUploading && uploadProgress > 0"
-        class="absolute bottom-full mb-3 right-3 left-3 md:left-auto md:w-80 p-3 rounded-xl shadow-lg border z-50 glass-panel backdrop-blur-xl transition-all animate-none"
-        style="border-color: var(--border-base)"
-      >
-        <div class="flex items-center justify-between mb-1.5">
-          <span class="text-[11px] sm:text-xs font-bold flex items-center gap-1.5" style="color: var(--text-secondary)">
-            <Loader2 class="w-3.5 h-3.5 animate-spin text-accent" />
-            {{ authStore.user?.language === 'en' ? 'Uploading...' : '正在上传文件...' }}
-          </span>
-          <div class="flex items-center gap-2">
-            <span v-if="uploadSpeed" class="text-[11px] sm:text-xs text-slate-400 font-medium font-mono mr-1">{{ uploadSpeed }}</span>
-            <span class="text-[11px] sm:text-xs font-black text-accent">{{ uploadProgress }}%</span>
-            <button
-              type="button"
-              class="p-0.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 hover:text-rose-500 transition-all cursor-pointer flex items-center justify-center shrink-0"
-              title="取消上传 / Cancel upload"
-              @click="cancelUpload"
-            >
-              <X class="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-        <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-          <div
-            class="bg-accent h-1.5 rounded-full transition-all duration-300"
-            :style="{ width: `${uploadProgress}%` }"
-          ></div>
-        </div>
-      </div>
-
-      <!-- Downloading Progress overlay -->
-      <div
-        v-if="isDownloading && downloadProgress > 0"
-        class="absolute bottom-full mb-3 right-3 left-3 md:left-auto md:w-80 p-3 rounded-xl shadow-lg border z-50 glass-panel backdrop-blur-xl transition-all animate-none"
-        style="border-color: var(--border-base)"
-      >
-        <div class="flex items-center justify-between mb-1.5">
-          <span class="text-[11px] sm:text-xs font-bold flex items-center gap-1.5" style="color: var(--text-secondary)">
-            <Loader2 class="w-3.5 h-3.5 animate-spin text-accent" />
-            {{ authStore.user?.language === 'en' ? 'Downloading...' : '正在下载文件...' }}
-          </span>
-          <div class="flex items-center gap-2">
-            <span v-if="downloadSpeedStr" class="text-[11px] sm:text-xs text-slate-400 font-medium font-mono mr-1">{{ downloadSpeedStr }}</span>
-            <span class="text-[11px] sm:text-xs font-black text-accent">{{ downloadProgress }}%</span>
-            <button
-              type="button"
-              class="p-0.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 hover:text-rose-500 transition-all cursor-pointer flex items-center justify-center shrink-0"
-              title="取消下载 / Cancel download"
-              @click="cancelDownload"
-            >
-              <X class="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-        <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-          <div
-            class="bg-accent h-1.5 rounded-full transition-all duration-300"
-            :style="{ width: `${downloadProgress}%` }"
-          ></div>
-        </div>
-      </div>
-
-      <!-- Emoji Picker -->
-      <div
-        v-if="showEmojiPicker"
-        class="absolute bottom-full mb-2 left-2 right-2 md:left-3 md:right-auto p-2 rounded-xl shadow-xl border z-50 grid grid-cols-8 md:grid-cols-4 gap-1 sm:gap-1.5 max-w-[calc(100%-1rem)] md:w-72"
-        style="background-color: var(--bg-card); border-color: var(--border-base)"
-      >
-        <button
-          v-for="emoji in commonEmojis"
-          :key="emoji"
-          type="button"
-          class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-base sm:text-lg hover:bg-accent-subtle rounded-md sm:rounded-lg transition-all cursor-pointer"
-          @click="addEmoji(emoji)"
-        >
-          {{ emoji }}
-        </button>
-      </div>
-
-      <div
-        class="flex items-end gap-1 sm:gap-2 p-1 sm:p-1.5 rounded-xl focus-within:ring-2 focus-within:ring-accent/20 transition-all border"
-        :class="isDragOver ? 'border-accent ring-2 ring-accent/20' : ''"
-        style="background-color: var(--bg-app); border-color: var(--border-base)"
-      >
-        <div class="flex items-center gap-0.5 sm:gap-1 shrink-0">
-          <button
-            type="button"
-            class="p-1 hover:text-accent transition-colors cursor-pointer"
-            :class="showEmojiPicker ? 'text-accent' : ''"
-            style="color: var(--text-muted)"
-            @click="showEmojiPicker = !showEmojiPicker"
-          >
-            <Smile class="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            class="p-1 hover:text-accent transition-colors cursor-pointer"
-            style="color: var(--text-muted)"
-            @click="triggerFileUpload"
-          >
-            <Paperclip class="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            class="p-1 hover:text-accent transition-colors cursor-pointer"
-            :class="isRecording ? 'text-rose-500 animate-pulse' : 'text-slate-400'"
-            @click="isRecording ? stopRecording() : startRecording()"
-          >
-            <Mic class="w-4 h-4" />
-          </button>
-          <span
-            v-if="isRecording"
-            class="text-[9px] font-black text-rose-500 animate-pulse ml-0.5"
-            >{{ formatDuration(recordingDuration) }}</span
-          >
-        </div>
-
-        <input ref="fileInput" type="file" class="hidden" @change="handleFileUpload" />
-
-        <textarea
-          v-model="newMessage"
-          :placeholder="t('sidebar.messages') + '...'"
-          rows="1"
-          class="flex-1 bg-transparent border-none focus:ring-0 text-xs sm:text-sm py-1.5 resize-none max-h-32 scrollbar-hide focus:outline-none"
-          style="color: var(--text-primary)"
-          @keydown.enter.prevent="handleSendMessage('TEXT')"
-        ></textarea>
-
-        <button
-          type="button"
-          :disabled="!newMessage.trim() || isUploading"
-          class="p-2 bg-accent text-white rounded-lg hover:bg-accent transition-all shadow-md shadow-accent/20 disabled:opacity-50 flex items-center justify-center min-w-[32px] h-8 w-8 shrink-0 cursor-pointer"
-          @click="handleSendMessage('TEXT')"
-        >
-          <div
-            v-if="isUploading"
-            class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
-          ></div>
-          <Send v-else class="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </div>
+    <ChatInputArea
+      v-model="newMessage"
+      :reply-to-message="replyToMessage"
+      :is-uploading="isUploading"
+      :upload-progress="uploadProgress"
+      :upload-speed="uploadSpeed"
+      :is-downloading="isDownloading"
+      :download-progress="downloadProgress"
+      :download-speed="downloadSpeedStr"
+      :is-recording="isRecording"
+      :recording-duration="recordingDuration"
+      :is-drag-over="isDragOver"
+      @send="handleSendMessage"
+      @file-upload="handleFileUpload"
+      @cancel-upload="cancelUpload"
+      @cancel-download="cancelDownload"
+      @start-recording="startRecording"
+      @stop-recording="stopRecording"
+      @cancel-reply="cancelReply"
+    />
 
     <!-- Context Menu -->
     <div

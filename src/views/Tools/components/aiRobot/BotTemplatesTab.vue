@@ -40,14 +40,14 @@ const copyText = async (value: string, label = '内容') => {
   try {
     await navigator.clipboard.writeText(value);
     ElMessage.success(`${label}已复制`);
-  } catch (_error) {
+  } catch {
     ElMessage.warning('当前浏览器不支持自动复制');
   }
 };
 </script>
 
 <template>
-  <section class="space-y-3">
+  <section class="mobile-adaptive space-y-3">
     <div class="tool-panel p-3">
       <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div class="panel-title">

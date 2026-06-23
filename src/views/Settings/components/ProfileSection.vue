@@ -213,7 +213,7 @@ const handleCoverUpload = async (event: Event) => {
 </script>
 
 <template>
-  <div class="profile-section">
+  <div class="profile-section mobile-adaptive">
     <section class="settings-group">
       <header class="group-header">
         <div>
@@ -228,7 +228,7 @@ const handleCoverUpload = async (event: Event) => {
           <strong>头像</strong>
           <span>建议上传清晰方形图片，最大 4MB。</span>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 mobile-row">
           <label class="avatar-control">
             <UserAvatar :user="authStore.user" size="lg" />
             <span class="avatar-button">
@@ -260,9 +260,9 @@ const handleCoverUpload = async (event: Event) => {
           <strong>个人封面</strong>
           <span>用于个人主页和弹窗背景，建议比例 21:9，最大 4MB。</span>
         </div>
-        <div class="flex items-center gap-4 flex-wrap">
+        <div class="flex items-center gap-4 mobile-row">
           <div
-            class="w-40 h-16 rounded-lg overflow-hidden border border-[var(--border-strong)] bg-slate-900/60 relative"
+            class="w-40 h-16 max-w-full rounded-lg overflow-hidden border border-[var(--border-strong)] bg-slate-900/60 relative shrink-0"
           >
             <img
               v-if="authStore.user?.coverUrl"
@@ -275,7 +275,7 @@ const handleCoverUpload = async (event: Event) => {
               class="w-full h-full bg-gradient-to-r from-violet-600 to-rose-500 opacity-80"
             ></div>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 mobile-row">
             <label class="avatar-control relative">
               <span class="avatar-button">
                 <Camera />
@@ -285,8 +285,8 @@ const handleCoverUpload = async (event: Event) => {
                 type="file"
                 accept="image/*"
                 :disabled="isUploadingCover"
-                @change="handleCoverUpload"
                 class="hidden"
+                @change="handleCoverUpload"
               />
             </label>
             <Button
@@ -335,8 +335,8 @@ const handleCoverUpload = async (event: Event) => {
 
       <div class="setting-row text-row">
         <label class="row-copy" for="profile-bio">
-          <div class="flex items-center justify-between w-full pr-4">
-            <strong>个人简介</strong>
+          <div class="flex items-center justify-between w-full pr-4 mobile-row">
+            <strong class="truncate">个人简介</strong>
             <Button
               type="button"
               variant="secondary"
@@ -402,7 +402,7 @@ const handleCoverUpload = async (event: Event) => {
       </div>
     </section>
 
-    <footer class="settings-actions">
+    <footer class="settings-actions mobile-row">
       <Button
         variant="secondary"
         :disabled="!hasChanges || isSaving"

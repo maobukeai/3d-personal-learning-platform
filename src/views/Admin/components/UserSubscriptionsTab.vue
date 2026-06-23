@@ -668,7 +668,7 @@ const getStatusLabel = (status: string) => {
           <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
             $t('admin.subscription_plan')
           }}</label>
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-3 gap-3 mobile-grid">
             <button
               v-for="plan in plans"
               :key="plan.id"
@@ -699,7 +699,7 @@ const getStatusLabel = (status: string) => {
         </div>
 
         <!-- Status & Interval -->
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-4 mobile-grid">
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
               $t('admin.subscription_status')
@@ -739,7 +739,7 @@ const getStatusLabel = (status: string) => {
         </div>
 
         <!-- Dates -->
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-4 mobile-grid">
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
               $t('admin.start_date')
@@ -795,7 +795,7 @@ const getStatusLabel = (status: string) => {
         </div>
 
         <!-- Toggles -->
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-4 mobile-grid">
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
               $t('admin.automatic_renewal_1')

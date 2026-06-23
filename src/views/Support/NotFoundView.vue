@@ -7,7 +7,7 @@ const router = useRouter();
 
 <template>
   <div
-    class="min-h-screen flex items-center justify-center p-6 relative overflow-hidden"
+    class="mobile-adaptive min-h-screen flex items-center justify-center p-6 relative overflow-hidden"
     style="background-color: var(--bg-app)"
   >
     <!-- Decorative background elements -->

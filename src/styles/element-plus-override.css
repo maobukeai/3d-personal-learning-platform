@@ -1,0 +1,73 @@
+/* Custom Input Visual Styles for Element Plus */
+.custom-search-input .el-input__wrapper {
+  background-color: var(--bg-card) !important;
+  box-shadow: 0 0 0 1px var(--border-base) inset !important;
+  border-radius: 0.75rem !important; /* rounded-xl */
+}
+
+.custom-search-input .el-input__inner {
+  color: var(--text-primary) !important;
+}
+
+.custom-search-input .el-input__wrapper.is-focus {
+  box-shadow:
+    0 0 0 1px var(--accent, #6366f1) inset,
+    0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+}
+
+.custom-dialog-input .el-input__wrapper,
+.custom-dialog-input .el-textarea__inner {
+  background-color: var(--bg-app) !important;
+  box-shadow: 0 0 0 1px var(--border-base) inset !important;
+  border-radius: 0.75rem !important;
+  color: var(--text-primary) !important;
+}
+
+.custom-dialog-input .el-input__inner,
+.custom-dialog-input .el-textarea__inner {
+  color: var(--text-primary) !important;
+}
+
+.custom-dialog-input .el-input__wrapper.is-focus,
+.custom-dialog-input .el-textarea__inner:focus {
+  box-shadow:
+    0 0 0 1px var(--accent, #6366f1) inset,
+    0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+}
+
+/* Custom styling for sort dropdown */
+.custom-sort-select .el-input__wrapper {
+  background-color: var(--bg-card) !important;
+  box-shadow: 0 0 0 1px var(--border-base) inset !important;
+  border-radius: 0.75rem !important; /* rounded-xl */
+}
+
+.custom-sort-select .el-input__inner {
+  color: var(--text-primary) !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+}
+
+.custom-sort-select .el-input__wrapper.is-focus {
+  box-shadow:
+    0 0 0 1px var(--accent, #6366f1) inset,
+    0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+}
+
+/* Dark theme for el-select inside dialogs */
+.custom-dialog-input.el-select .el-input__wrapper,
+.custom-dialog-input.w-full.el-select .el-input__wrapper {
+  background-color: var(--bg-app) !important;
+  box-shadow: 0 0 0 1px var(--border-base) inset !important;
+  border-radius: 0.75rem !important;
+}
+
+.custom-dialog-input.el-select .el-input__inner {
+  color: var(--text-primary) !important;
+}
+
+.custom-dialog-input.el-select .el-input__wrapper.is-focus {
+  box-shadow:
+    0 0 0 1px var(--accent, #6366f1) inset,
+    0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+}

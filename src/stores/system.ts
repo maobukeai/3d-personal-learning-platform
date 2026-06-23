@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import api, { getAssetUrl } from '@/utils/api';
+import { logError } from '@/utils/error';
 
 interface SystemSettings {
   PLATFORM_NAME: string;
@@ -107,11 +108,11 @@ export const useSystemStore = defineStore('system', {
         }
         try {
           localStorage.setItem('platform_favicon', faviconUrl);
-        } catch (_e) {}
+        } catch {}
       } else {
         try {
           localStorage.removeItem('platform_favicon');
-        } catch (_e) {}
+        } catch {}
       }
 
       // Update meta description
@@ -144,7 +145,7 @@ export const useSystemStore = defineStore('system', {
             try {
               const parsed = JSON.parse(val);
               return Array.isArray(parsed) ? parsed : fallback;
-            } catch (_e) {
+            } catch {
               return fallback;
             }
           };
@@ -252,7 +253,7 @@ export const useSystemStore = defineStore('system', {
             AI_MODEL_OPTIONS: safeParseModels(data.AI_MODEL_OPTIONS),
           };
         } catch (error) {
-          console.error('Failed to fetch system settings:', error);
+          logError(error, { operation: 'system.fetchSettings', component: 'systemStore' });
         } finally {
           this.isInitialized = true;
           this.updateBrowserBranding();

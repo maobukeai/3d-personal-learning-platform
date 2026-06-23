@@ -3,7 +3,7 @@ import { ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Globe, Upload, Loader2 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
-import { getApiErrorMessage } from '@/utils/error';
+import { getApiErrorMessage, logError } from '@/utils/error';
 import type { MirrorSource } from '../AdminMirrorView.vue';
 import Button from '@/components/ui/Button.vue';
 import Modal from '@/components/ui/Modal.vue';
@@ -90,7 +90,7 @@ const handleIconUpload = async (event: Event) => {
     formData.value.iconUrl = data.url;
     ElMessage.success('图标上传成功');
   } catch (error: unknown) {
-    console.error('Icon upload error:', error);
+    logError(error, { operation: 'admin.uploadMirrorIcon', component: 'MirrorSourceDialog' });
     ElMessage.error(getApiErrorMessage(error, '图标上传失败'));
   } finally {
     isUploadingIcon.value = false;
@@ -182,7 +182,7 @@ async function submit() {
           class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
           >站点图标 (推荐 1:1 比例)</label
         >
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-4 mobile-row">
           <div
             class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700"
           >
@@ -256,7 +256,7 @@ async function submit() {
           </option>
         </select>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mobile-grid">
         <div>
           <label
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"

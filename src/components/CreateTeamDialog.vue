@@ -70,7 +70,7 @@ const handleCreate = async () => {
     teamName.value = '';
     teamDescription.value = '';
     teamType.value = 'public';
-  } catch (_error) {
+  } catch {
     ElMessage.error(t('team.createFailed'));
   } finally {
     loading.value = false;

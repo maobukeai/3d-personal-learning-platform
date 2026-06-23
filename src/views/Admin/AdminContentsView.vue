@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { formatDateTime as formatDate } from '@/utils/format';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, type Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   AlertTriangle,
@@ -22,15 +22,16 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
-import { getApiErrorMessage } from '@/utils/error';
-import { useWorkspaceStore } from '@/stores/workspace';
+import { getApiErrorMessage, logError } from '@/utils/error';
 import Modal from '@/components/ui/Modal.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import Card from '@/components/ui/Card.vue';
-import Badge from '@/components/ui/Badge.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import UiButton from '@/components/ui/Button.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
+import AdminStatCards from './components/AdminStatCards.vue';
+import AdminContentStatusBadge from './components/AdminContentStatusBadge.vue';
+import ContentDetailModal from './components/ContentDetailModal.vue';
 
 type ContentTab = 'assets' | 'materials' | 'showcases' | 'plugins';
 type ContentStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -43,7 +44,7 @@ interface ContentUser {
   avatarUrl?: string | null;
 }
 
-interface ContentItem {
+export interface ContentItem {
   id: string;
   title: string;
   description?: string | null;
@@ -73,17 +74,25 @@ interface ContentItem {
   user?: ContentUser;
 }
 
-interface PageConfig {
+export interface PageConfig {
   label: string;
   title: string;
   apiPath: string;
-  icon: any;
+  icon: Component;
   emptyLabel: string;
+}
+
+interface PaginatedContentResponse {
+  items?: ContentItem[];
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  pages?: number;
+  stats?: Record<string, unknown>;
 }
 
 const route = useRoute();
 const router = useRouter();
-const workspaceStore = useWorkspaceStore();
 
 const getValidTab = (value: unknown): ContentTab => {
   if (value === 'assets' || value === 'materials' || value === 'showcases' || value === 'plugins') {
@@ -213,7 +222,10 @@ const fetchItems = async (silent = false) => {
       search: searchQuery.value.trim() || undefined,
       status: statusFilter.value !== 'ALL' ? statusFilter.value : undefined,
     };
-    const response = await api.get<any>(pageConfig.value.apiPath, { params });
+    const response = await api.get<PaginatedContentResponse | ContentItem[]>(
+      pageConfig.value.apiPath,
+      { params },
+    );
     if (Array.isArray(response.data)) {
       items.value = response.data;
       totalItems.value = response.data.length;
@@ -225,7 +237,7 @@ const fetchItems = async (silent = false) => {
       currentPage.value = response.data.page || currentPage.value;
       pageSize.value = response.data.pageSize || pageSize.value;
       totalPages.value = Math.max(response.data.pages || 1, 1);
-      queueStats.value = response.data.stats || null;
+      queueStats.value = (response.data.stats as unknown as ContentStats | null) || null;
     }
     if (items.value.length > 0) {
       if (!activeItem.value || !items.value.some((i) => i.id === activeItem.value?.id)) {
@@ -250,7 +262,7 @@ const fetchAssetCategories = async () => {
     const response = await api.get<{ id: string; name: string }[]>('/api/admin/asset-categories');
     assetCategories.value = response.data;
   } catch (error) {
-    console.error('Fetch asset categories error:', error);
+    logError(error, { operation: 'admin.fetchAssetCategories', component: 'AdminContentsView' });
   }
 };
 
@@ -279,45 +291,15 @@ const setPage = (page: number) => {
   fetchItems();
 };
 
-// Actions
-const selectItem = (item: ContentItem) => {
-  activeItem.value = item;
-};
-
 const mediaUrl = (item: ContentItem) => {
   return item.thumbnail || item.thumbnailUrl || item.previewUrl || '';
 };
-
-const statusLabel = (status: string) => {
-  switch (status) {
-    case 'APPROVED':
-      return '已通过';
-    case 'REJECTED':
-      return '已打回';
-    case 'PENDING':
-    default:
-      return '待审核';
-  }
-};
-
-const statusClass = (status: string) => ({
-  'tone-amber': status === 'PENDING',
-  'tone-green': status === 'APPROVED',
-  'tone-red': status === 'REJECTED',
-});
 
 const itemKind = (item: ContentItem) => {
   if (activeTab.value === 'assets') return item.type || 'GLB';
   if (activeTab.value === 'materials') return item.resolution || '程序化';
   if (activeTab.value === 'showcases') return item.type === 'VIDEO' ? '视频作品' : '图文作品';
   return '应用扩展';
-};
-
-const metricLine = (item: ContentItem) => {
-  const views = item.views ?? 0;
-  const likes = item.likes ?? 0;
-  const downloads = item.downloads ?? 0;
-  return `浏览 ${views} · 点赞 ${likes} · 下载 ${downloads}`;
 };
 
 const stats = computed(() => {
@@ -396,21 +378,9 @@ const formatSize = (bytes?: number | null) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-const statusBadgeVariant = (status: ContentStatus) => {
-  switch (status) {
-    case 'APPROVED':
-      return 'success';
-    case 'REJECTED':
-      return 'danger';
-    case 'PENDING':
-    default:
-      return 'warning';
-  }
-};
-
 const handleQuickApprove = async (item: ContentItem) => {
   try {
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       title: item.title,
       description: item.description,
       status: 'APPROVED' as ContentStatus,
@@ -445,7 +415,7 @@ const handleQuickReject = (item: ContentItem) => {
   })
     .then(async ({ value }) => {
       try {
-        const payload: Record<string, any> = {
+        const payload: Record<string, unknown> = {
           title: item.title,
           description: item.description,
           status: 'REJECTED' as ContentStatus,
@@ -608,7 +578,7 @@ const handleUpdate = async () => {
   }
   isSaving.value = true;
   try {
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       title: editForm.value.title.trim(),
       description: editForm.value.description,
       status: editForm.value.status,
@@ -684,7 +654,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="admin-contents-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
+    class="admin-contents-page mobile-adaptive flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
       <!-- Reusable PageHeader -->
@@ -702,7 +672,7 @@ onMounted(() => {
           </label>
         </template>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 mobile-row">
           <UiButton
             variant="secondary"
             size="sm"
@@ -719,56 +689,15 @@ onMounted(() => {
       </PageHeader>
 
       <!-- KPI Metrics Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card
-          v-for="card in consolidatedCards"
-          :key="card.label"
-          hoverable
-          glow
-          class="group !p-2 px-2.5"
-        >
-          <div class="flex items-center justify-between w-full gap-3">
-            <!-- Left: Icon & Info -->
-            <div class="flex items-center gap-2.5 min-w-0">
-              <span
-                class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-slate-100/10"
-                :class="card.color"
-              >
-                <component :is="card.icon" class="h-3.5 w-3.5" />
-              </span>
-              <div class="min-w-0">
-                <p
-                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
-                >
-                  {{ card.label }}
-                </p>
-                <p
-                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
-                  :title="card.hint"
-                >
-                  {{ card.hint }}
-                </p>
-              </div>
-            </div>
-
-            <!-- Right: Metric & Health Badge -->
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="text-base font-black text-[var(--text-primary)] leading-none">
-                {{ card.value }}
-              </span>
-              <Badge :variant="card.health.variant">
-                {{ card.health.label }}
-              </Badge>
-            </div>
-          </div>
-        </Card>
-      </div>
+      <AdminStatCards :cards="consolidatedCards" />
 
       <!-- Filters & Search Toolbar -->
       <Card padding="sm">
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <!-- Tabs for activeTab and statusFilter -->
-          <div class="flex flex-wrap items-center gap-3 overflow-x-auto scrollbar-hide shrink-0">
+          <div
+            class="flex flex-wrap items-center gap-3 overflow-x-auto scrollbar-hide shrink-0 mobile-row"
+          >
             <!-- Resource Categories Tab -->
             <Tabs
               v-slot="{}"
@@ -815,7 +744,7 @@ onMounted(() => {
         <el-table
           v-loading="isLoading"
           :data="items"
-          class="user-table"
+          class="user-table mobile-table"
           row-key="id"
           @row-click="openDetail"
         >
@@ -892,9 +821,7 @@ onMounted(() => {
           <!-- Status badge -->
           <el-table-column label="状态" width="100" align="center">
             <template #default="{ row }">
-              <Badge :variant="statusBadgeVariant(row.status)">
-                {{ statusLabel(row.status) }}
-              </Badge>
+              <AdminContentStatusBadge :status="row.status" />
             </template>
           </el-table-column>
 
@@ -969,7 +896,7 @@ onMounted(() => {
         </el-table>
 
         <!-- Pagination Wrap -->
-        <div class="pagination-wrap">
+        <div class="pagination-wrap mobile-row">
           <span class="text-xs text-[var(--text-secondary)]"
             >当前显示 {{ items.length }} 条，共 {{ totalItems }} 条</span
           >
@@ -986,141 +913,14 @@ onMounted(() => {
     </main>
 
     <!-- Details Modal -->
-    <Modal
-      :show="detailModalVisible"
-      title="资源详情"
-      size="md"
-      glass-card
-      @close="detailModalVisible = false"
-    >
-      <template v-if="activeItem">
-        <div class="flex flex-col gap-4 text-left">
-          <!-- Media Preview -->
-          <div
-            class="w-full aspect-video rounded-xl border border-base overflow-hidden flex items-center justify-center bg-[var(--bg-app)] relative group/modal-media"
-          >
-            <img
-              v-if="mediaUrl(activeItem)"
-              :src="mediaUrl(activeItem)"
-              class="w-full h-full object-cover"
-            />
-            <component :is="pageConfig.icon" v-else class="w-12 h-12 text-[var(--text-muted)]" />
-          </div>
-
-          <!-- Basic Info -->
-          <div>
-            <div class="flex items-center gap-2 mb-2">
-              <Badge :variant="statusBadgeVariant(activeItem.status)">
-                {{ statusLabel(activeItem.status) }}
-              </Badge>
-              <span class="text-xs text-[var(--text-muted)]">{{
-                formatDate(activeItem.createdAt)
-              }}</span>
-            </div>
-            <h3 class="text-lg font-black text-[var(--text-primary)] leading-tight mb-2">
-              {{ activeItem.title }}
-            </h3>
-            <p
-              class="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar"
-            >
-              {{ activeItem.description || '暂无描述信息' }}
-            </p>
-          </div>
-
-          <!-- Details Grid -->
-          <div class="border-t border-base pt-3 space-y-2">
-            <h4 class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
-              资产元数据
-            </h4>
-
-            <div
-              class="grid grid-cols-2 gap-3 text-xs bg-[var(--bg-app)] p-3 rounded-xl border border-base"
-            >
-              <div>
-                <span class="text-[var(--text-muted)] block mb-0.5">作者</span>
-                <span class="font-bold text-[var(--text-primary)]">
-                  {{ activeItem.user?.name || activeItem.user?.email || '匿名创作者' }}
-                </span>
-              </div>
-              <div>
-                <span class="text-[var(--text-muted)] block mb-0.5">类型/类别</span>
-                <span class="font-bold text-[var(--text-primary)]">{{ itemKind(activeItem) }}</span>
-              </div>
-              <div class="col-span-2 border-t border-strong pt-2 mt-1">
-                <span class="text-[var(--text-muted)] block mb-0.5">指标数据</span>
-                <span class="font-bold text-[var(--text-primary)]">{{
-                  metricLine(activeItem)
-                }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Extra details e.g., Tags, Reject Reason -->
-          <div v-if="activeItem.tags" class="border-t border-base pt-3">
-            <h4 class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">
-              标签
-            </h4>
-            <div class="flex flex-wrap gap-1.5">
-              <Badge v-for="tag in activeItem.tags.split(',')" :key="tag" variant="info" outline>
-                {{ tag.trim() }}
-              </Badge>
-            </div>
-          </div>
-
-          <div
-            v-if="activeItem.rejectReason"
-            class="border-t border-base pt-3 bg-red-500/5 p-3 rounded-xl border border-red-500/10"
-          >
-            <h4
-              class="text-xs font-bold text-red-500 uppercase tracking-wider mb-1 flex items-center gap-1"
-            >
-              <AlertTriangle class="w-3.5 h-3.5" /> 退回理由
-            </h4>
-            <p class="text-xs text-red-600 dark:text-red-400 font-medium leading-normal">
-              {{ activeItem.rejectReason }}
-            </p>
-          </div>
-        </div>
-      </template>
-      <div
-        v-else
-        class="flex flex-col items-center justify-center py-12 text-[var(--text-muted)] gap-2"
-      >
-        <Inbox class="w-8 h-8" />
-        <span class="text-sm font-semibold">未选中资源</span>
-      </div>
-
-      <template v-if="activeItem" #footer>
-        <div class="flex w-full gap-2 justify-end">
-          <UiButton
-            variant="secondary"
-            :icon="Edit3"
-            @click="
-              () => {
-                detailModalVisible = false;
-                openEdit(activeItem!);
-              }
-            "
-          >
-            编辑资源
-          </UiButton>
-          <UiButton
-            variant="secondary"
-            class="danger-action"
-            :icon="Trash2"
-            @click="
-              () => {
-                detailModalVisible = false;
-                handleDelete(activeItem!);
-              }
-            "
-          >
-            彻底删除
-          </UiButton>
-          <UiButton variant="secondary" @click="detailModalVisible = false"> 关闭 </UiButton>
-        </div>
-      </template>
-    </Modal>
+    <ContentDetailModal
+      v-model="detailModalVisible"
+      :item="activeItem"
+      :active-tab="activeTab"
+      :page-config="pageConfig"
+      @edit="openEdit"
+      @delete="handleDelete"
+    />
 
     <!-- Create Modal -->
     <Modal
@@ -1457,50 +1257,6 @@ onMounted(() => {
 }
 
 /* Modal Form Styles */
-.form-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  text-align: left;
-}
-
-.form-stack label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 900;
-  color: var(--text-secondary);
-}
-
-.form-stack input,
-.form-stack textarea,
-.form-stack select {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  background: var(--bg-card);
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 500;
-  outline: 0;
-  transition: all 0.2s;
-}
-
-.form-stack input:focus,
-.form-stack textarea:focus,
-.form-stack select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 15%, transparent);
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
 
 .file-uploader-box {
   border: 1px dashed var(--border-strong);

@@ -16,6 +16,8 @@ import {
   FolderTree,
   MonitorPlay,
   Megaphone,
+  Sun,
+  Moon,
 } from 'lucide-vue-next';
 
 // AISprite is heavy (pulls in md-editor-v3 styles & three.js deps) and not
@@ -59,6 +61,7 @@ import { fetchUnreadMessageCount } from '@/services/message.service';
 import type { AppNotification } from '@/services/notification.service';
 import { useThemeManager } from './composables/useThemeManager';
 import Tabs from '@/components/ui/Tabs.vue';
+import { preferences } from '@/utils/preferences';
 
 const route = useRoute();
 const router = useRouter();
@@ -68,7 +71,14 @@ const workspaceStore = useWorkspaceStore();
 const { t } = useI18n();
 
 const { menuGroups, mobileNavItems } = useSidebarMenus();
-const { currentTheme, initTheme, cleanupTheme } = useThemeManager();
+const { currentTheme, isDark, applyTheme, initTheme, cleanupTheme } = useThemeManager();
+
+const toggleTheme = () => {
+  const nextTheme = isDark.value ? 'glass-light' : 'glass-dark';
+  preferences.setTheme(nextTheme);
+  applyTheme(nextTheme);
+  window.dispatchEvent(new CustomEvent('theme-changed', { detail: nextTheme }));
+};
 
 const latestBroadcast = ref<AppNotification | null>(null);
 const showBroadcastPopup = ref(false);
@@ -519,6 +529,17 @@ onUnmounted(() => {
           @click="handleSearch"
         >
           <Search class="w-4.5 h-4.5" style="color: var(--text-muted)" />
+        </button>
+
+        <!-- Theme Toggle Button -->
+        <button
+          type="button"
+          class="topbar-icon-btn w-9 h-9 flex items-center justify-center cursor-pointer transition-colors"
+          :title="isDark ? '切换到浅色主题' : '切换到深色主题'"
+          @click="toggleTheme"
+        >
+          <Sun v-if="isDark" class="w-4.5 h-4.5" style="color: var(--text-muted)" />
+          <Moon v-else class="w-4.5 h-4.5" style="color: var(--text-muted)" />
         </button>
 
         <!-- Notification Bell Center Dropdown -->

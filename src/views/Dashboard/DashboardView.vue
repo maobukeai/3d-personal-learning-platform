@@ -16,6 +16,7 @@ import {
 } from 'lucide-vue-next';
 import ProjectImportDialog from './components/ProjectImportDialog.vue';
 import DashboardWorkbench from './components/DashboardWorkbench.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';
 import DashboardEnrollments from './components/DashboardEnrollments.vue';
 import DashboardLeaderboard from './components/DashboardLeaderboard.vue';
@@ -337,56 +338,50 @@ onUnmounted(() => {
 
 <template>
   <div class="dashboard-page">
-    <header class="dashboard-topbar">
-      <div class="topbar-title">
-        <span class="topbar-icon"><Gauge class="h-4 w-4" /></span>
-        <div class="min-w-0">
-          <p class="topbar-greeting">{{ greeting }}，{{ authStore.user?.name || '创作者' }}</p>
-          <p class="topbar-subtitle">{{ currentDateLabel }} · {{ lastUpdatedText }}</p>
-        </div>
-      </div>
-
-      <div class="topbar-actions mobile-row">
-        <el-date-picker
-          v-model="selectedDate"
-          type="date"
-          class="dashboard-date-picker"
-          placeholder="选择日期"
-          :clearable="false"
-          :disabled-date="disabledDate"
-          popper-class="custom-date-popper"
-        />
-        <Button
-          :loading="isLoading"
-          aria-label="刷新"
-          variant="secondary"
-          size="md"
-          class="w-9.5 p-0"
-          :icon="RefreshCw"
-          @click="refreshAll"
-        />
-        <Button
-          v-if="canCreateProject"
-          variant="primary"
-          size="md"
-          :icon="Brain"
-          class="flex-1 min-w-[140px] md:flex-initial"
-          @click="openImportDialog('ai_assistant')"
-        >
-          AI 规划
-        </Button>
-        <Button
-          v-if="canCreateProject"
-          variant="secondary"
-          size="md"
-          :icon="FileText"
-          class="flex-1 min-w-[140px] md:flex-initial"
-          @click="openImportDialog('traditional')"
-        >
-          文本导入
-        </Button>
-      </div>
-    </header>
+    <PageHeader
+      :title="`${greeting}，${authStore.user?.name || '创作者'}`"
+      :subtitle="`${currentDateLabel} · ${lastUpdatedText}`"
+      :icon="Gauge"
+    >
+      <el-date-picker
+        v-model="selectedDate"
+        type="date"
+        class="dashboard-date-picker"
+        placeholder="选择日期"
+        :clearable="false"
+        :disabled-date="disabledDate"
+        popper-class="custom-date-popper"
+      />
+      <Button
+        :loading="isLoading"
+        aria-label="刷新"
+        variant="secondary"
+        size="md"
+        class="w-9.5 p-0"
+        :icon="RefreshCw"
+        @click="refreshAll"
+      />
+      <Button
+        v-if="canCreateProject"
+        variant="primary"
+        size="md"
+        :icon="Brain"
+        class="flex-1 min-w-[140px] md:flex-initial"
+        @click="openImportDialog('ai_assistant')"
+      >
+        AI 规划
+      </Button>
+      <Button
+        v-if="canCreateProject"
+        variant="secondary"
+        size="md"
+        :icon="FileText"
+        class="flex-1 min-w-[140px] md:flex-initial"
+        @click="openImportDialog('traditional')"
+      >
+        文本导入
+      </Button>
+    </PageHeader>
 
     <main class="dashboard-scroll">
       <DashboardWorkbench
@@ -438,63 +433,6 @@ onUnmounted(() => {
   position: relative;
 }
 
-.dashboard-topbar {
-  display: flex;
-  min-height: 56px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid var(--border-base);
-  background: color-mix(in srgb, var(--bg-card) 95%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: 10px 20px;
-  z-index: 20;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-}
-
-.topbar-title,
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  gap: 12px;
-}
-
-.topbar-icon {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  width: 36px;
-  height: 36px;
-  background: var(--accent-subtle);
-  color: var(--accent);
-  border: 1px solid rgba(var(--accent-rgb), 0.1);
-}
-
-.topbar-greeting {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
-  font-weight: 800;
-  margin: 0;
-  color: var(--text-primary);
-}
-
-.topbar-subtitle {
-  overflow: hidden;
-  color: var(--text-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  font-weight: 500;
-  margin: 2px 0 0;
-}
-
 .dashboard-date-picker {
   width: 142px;
 }
@@ -524,19 +462,6 @@ onUnmounted(() => {
 }
 
 @media (max-width: 720px) {
-  .dashboard-topbar {
-    align-items: stretch;
-    flex-direction: column;
-    padding: 12px 14px;
-    gap: 12px;
-  }
-
-  .topbar-actions {
-    width: 100%;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
   .dashboard-date-picker {
     flex: 1;
     min-width: 130px;

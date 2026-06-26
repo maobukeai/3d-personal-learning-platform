@@ -1,5 +1,6 @@
 import { logger } from '../../utils/logger';
 import prisma from '../../services/prisma';
+import { gbToBytes } from '../../utils/quota';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -174,7 +175,7 @@ class ThumbnailLocalizer {
           const fileBytes = stats.size;
 
           for (const config of configs) {
-            const limitBytes = config.limitGb * 1000 * 1000 * 1000;
+            const limitBytes = gbToBytes(config.limitGb);
             const updateResult = await prisma.storageConfig.updateMany({
               where: {
                 id: config.id,
@@ -321,7 +322,7 @@ class ThumbnailLocalizer {
         const fileBytes = stats.size;
 
         for (const config of configs) {
-          const limitBytes = config.limitGb * 1000 * 1000 * 1000;
+          const limitBytes = gbToBytes(config.limitGb);
           const updateResult = await prisma.storageConfig.updateMany({
             where: {
               id: config.id,

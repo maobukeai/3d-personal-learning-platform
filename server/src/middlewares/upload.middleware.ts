@@ -9,6 +9,7 @@ import { storageService } from '../services/storage.service';
 import { decryptSecretIfNeeded } from '../utils/crypto';
 import { UploadedFile } from '../types/upload';
 import { optimizeImage } from '../utils/image';
+import { gbToBytes } from '../utils/quota';
 
 const getStorageTypeForField = (file: Express.Multer.File, req: Request): string => {
   const fieldname = file.fieldname;
@@ -64,6 +65,7 @@ const FIELD_TO_DIR: Record<string, string> = {
   files: './uploads/feedback',
   message_file: './uploads/messages',
   asset: './uploads/assets',
+  package: './uploads/assets',
   material: './uploads/materials',
   preview: './uploads/materials',
   thumbnail: './uploads/assets',
@@ -171,11 +173,31 @@ const createUploadMiddleware = (config: {
           let finalAllowedExtensions = allowedExtensions;
 
           if (isImageField(file.fieldname)) {
-            finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'];
+            if (
+              file.fieldname === 'images' &&
+              (req.originalUrl.includes('/showcase') || req.baseUrl.includes('showcase'))
+            ) {
+              finalAllowedExtensions = [
+                '.png',
+                '.jpg',
+                '.jpeg',
+                '.gif',
+                '.webp',
+                '.svg',
+                '.ico',
+                '.mp4',
+                '.webm',
+                '.mov',
+                '.ogg',
+              ];
+            } else {
+              finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'];
+            }
           } else if (
             file.fieldname === 'file' ||
             file.fieldname === 'excel' ||
-            file.fieldname === 'files'
+            file.fieldname === 'files' ||
+            file.fieldname === 'package'
           ) {
             finalAllowedExtensions = [...allowedExtensions, '.xlsx', '.xls', '.zip'];
           } else if (file.fieldname === 'plugin_file') {
@@ -365,7 +387,7 @@ const createUploadMiddleware = (config: {
 
                 // Optimize if it is a standard image field OR a general file field carrying an image
                 const shouldOptimize =
-                  isImageField(file.fieldname) ||
+                  (isImageField(file.fieldname) && isImageExtension) ||
                   (['message_file', 'attachment', 'file', 'files'].includes(file.fieldname) &&
                     isImageExtension);
 
@@ -511,7 +533,7 @@ const createUploadMiddleware = (config: {
                   let uploaded = false;
                   let uploadErrorMsg: string | null = null;
                   for (const config of configs) {
-                    const limitBytes = config.limitGb * 1000 * 1000 * 1000;
+                    const limitBytes = gbToBytes(config.limitGb);
 
                     // Thread-safe atomic space reservation
                     const updateResult = await prisma.storageConfig.updateMany({
@@ -551,10 +573,13 @@ const createUploadMiddleware = (config: {
                         (file as UploadedFile).r2ConfigId = config.id;
 
                         // Delete local file immediately unless it's a 3D asset file (.glb or .gltf)
-                        // that needs background processing in asset controller.
+                        // or a resource package/plugin ZIP file that needs parsing in controllers.
                         const ext = path.extname(file.originalname).toLowerCase();
                         const is3DAsset =
-                          file.fieldname === 'asset' && (ext === '.glb' || ext === '.gltf');
+                          (file.fieldname === 'asset' && (ext === '.glb' || ext === '.gltf')) ||
+                          (file.fieldname === 'package' && ext === '.zip') ||
+                          (file.fieldname === 'material' && ext === '.zip') ||
+                          (file.fieldname === 'plugin_file' && ext === '.zip');
 
                         if (!is3DAsset && fs.existsSync(file.path)) {
                           fs.unlinkSync(file.path);
@@ -716,7 +741,11 @@ export const validateSingleFileContent = async (file: Express.Multer.File) => {
     return;
   }
 
-  if (model3dExtensions.includes(ext) || documentExtensions.includes(ext)) {
+  if (
+    model3dExtensions.includes(ext) ||
+    documentExtensions.includes(ext) ||
+    (file.fieldname === 'plugin_file' && ['.js', '.ts', '.py', '.lua', '.mjs'].includes(ext))
+  ) {
     return;
   }
 

@@ -240,12 +240,12 @@ const handleDeleteAccount = async () => {
 }
 
 .data-overview {
-  min-height: 82px;
+  min-height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px;
+  padding: 10px 14px;
 }
 
 .section-kicker,
@@ -256,7 +256,7 @@ const handleDeleteAccount = async () => {
 .danger-heading small,
 .delete-form span {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 .section-kicker,
@@ -267,14 +267,14 @@ const handleDeleteAccount = async () => {
 }
 
 h3 {
-  margin: 2px 0 4px;
-  font-size: 20px;
+  margin: 1px 0 2px;
+  font-size: 18px;
   font-weight: 900;
 }
 
 .primary-action,
 .danger-action {
-  height: 38px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -282,7 +282,7 @@ h3 {
   padding: 0 12px;
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 900;
 }
 
@@ -300,20 +300,20 @@ h3 {
 
 button svg,
 .panel-title svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
 }
 
 .export-panel,
 .danger-panel {
-  padding: 12px;
+  padding: 10px 12px;
 }
 
 .panel-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .export-grid {
@@ -323,16 +323,16 @@ button svg,
 }
 
 .export-grid article {
-  min-height: 62px;
+  min-height: 52px;
   display: grid;
   gap: 4px;
   border-radius: 8px;
-  padding: 10px;
+  padding: 8px 10px;
   background: var(--bg-app);
 }
 
 .export-grid strong {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 900;
 }
 

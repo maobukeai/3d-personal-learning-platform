@@ -125,8 +125,8 @@ export const testBackupConfig = async (req: AuthRequest, res: Response, next: Ne
     await client.checkConnection();
 
     res.json({ success: true, message: 'WebDAV 服务连接成功！' });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message || 'WebDAV 连接测试失败' });
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -150,8 +150,8 @@ const cleanupOldBackups = async (client: WebDAVClient, retentionDays: number) =>
         }
       }
     }
-  } catch (err: any) {
-    logger.warn('[Backup Cleanup] Error during remote file cleanup:', err.message);
+  } catch (err) {
+    logger.warn('[Backup Cleanup] Error during remote file cleanup:', err instanceof Error ? err.message : err);
   }
 };
 
@@ -389,9 +389,8 @@ export const runBackup = async (req: AuthRequest, res: Response, next: NextFunct
     });
 
     res.json({ success: true, filename, message: '备份成功并已上传至云端！' });
-  } catch (error: any) {
-    logger.error('[Backup] Backup failed:', error.message);
-    res.status(500).json({ error: error.message || '备份失败，请检查 WebDAV 配置或网络状况' });
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -436,9 +435,8 @@ export const listBackups = async (req: AuthRequest, res: Response, next: NextFun
       lastBackup: lastBackupSetting?.value || null,
       lastRestore: lastRestoreSetting?.value || null,
     });
-  } catch (error: any) {
-    logger.error('[Backup] List backups failed:', error.message);
-    res.status(500).json({ error: error.message || '获取备份列表失败' });
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -463,9 +461,8 @@ export const deleteBackup = async (req: AuthRequest, res: Response, next: NextFu
     await webdavClient.deleteFile(filename);
 
     res.json({ success: true, message: '备份已成功从云端删除' });
-  } catch (error: any) {
-    logger.error('[Backup] Delete failed:', error.message);
-    res.status(500).json({ error: error.message || '删除备份失败' });
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -917,10 +914,7 @@ export const restoreBackup = async (req: AuthRequest, res: Response, next: NextF
     });
 
     res.json({ success: true, message: '备份数据恢复成功！相关功能配置已更新。' });
-  } catch (error: any) {
-    logger.error('[Backup] Restore failed:', error.message);
-    res
-      .status(500)
-      .json({ error: error.message || '恢复备份失败，请检查云端连接或备份文件完整性' });
+  } catch (error) {
+    next(error);
   }
 };

@@ -13,6 +13,7 @@ import {
   LoadingManager,
   Mesh,
   MeshStandardMaterial,
+  Cache,
   PerspectiveCamera,
   Raycaster,
   Scene,
@@ -23,15 +24,25 @@ import {
   Vector3,
   WebGLRenderer,
   WireframeGeometry,
+  GridHelper,
+  AxesHelper,
   type AnimationAction,
   type Material,
   type Object3D,
 } from 'three';
 import gsap from 'gsap';
-import { Info, RefreshCw, Layers } from 'lucide-vue-next';
-import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { Info, RefreshCw, Layers, Camera } from 'lucide-vue-next';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { getAssetUrl } from '@/utils/api';
 import { logError } from '@/utils/error';
+
+Cache.enabled = true;
 
 type ViewMode = 'solid' | 'wireframe' | 'solid+wireframe';
 type ModelHotspot = {
@@ -70,10 +81,15 @@ const props = defineProps<{
       intensity: number;
       color: string;
     };
+    bgColor?: string;
+    showGrid?: boolean;
+    showAxes?: boolean;
   };
+  defaultCameraPos?: string | null;
+  defaultCameraTarget?: string | null;
 }>();
 
-const emit = defineEmits(['metadata-loaded', 'screenshot-captured', 'hotspot-added']);
+const emit = defineEmits(['metadata-loaded', 'screenshot-captured', 'hotspot-added', 'save-viewport']);
 
 const envMaps: Record<string, string> = {
   sunset:
@@ -133,6 +149,9 @@ let intersectionObserver: IntersectionObserver | null = null;
 let renderLoopActive = false;
 let isInitializing = false;
 let isViewerVisible = false;
+// Grid and Axes helpers for the 3D scene (instance-scoped inside Vue setup context)
+let gridHelper: GridHelper | null = null;
+let axesHelper: AxesHelper | null = null;
 
 const raycaster = new Raycaster();
 const mouse = new Vector2();
@@ -180,12 +199,59 @@ const updateSceneConfig = async () => {
 
   // Environment
   if (config.environment && envMaps[config.environment]) {
-    const { HDRLoader } = await import('three/examples/jsm/loaders/HDRLoader.js');
     new HDRLoader().load(envMaps[config.environment], (texture) => {
       texture.mapping = EquirectangularReflectionMapping;
       scene.environment = texture;
     });
   }
+
+  // Background Color
+  if (config.bgColor) {
+    scene.background = new Color(config.bgColor);
+  }
+
+  // Grid Helper
+  if (config.showGrid !== false) {
+    const isLightBg = (() => {
+      if (!scene || !scene.background) return false;
+      const color = scene.background as Color;
+      const luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+      return luminance > 0.5;
+    })();
+    const gridColor = isLightBg ? 0x94a3b8 : 0x475569;
+    if (!gridHelper) {
+      gridHelper = new GridHelper(10, 10, 0x4f46e5, gridColor);
+      scene.add(gridHelper);
+    } else {
+      scene.remove(gridHelper);
+      gridHelper.dispose();
+      gridHelper = new GridHelper(10, 10, 0x4f46e5, gridColor);
+      scene.add(gridHelper);
+    }
+  } else {
+    if (gridHelper) {
+      scene.remove(gridHelper);
+      gridHelper.dispose();
+      gridHelper = null;
+    }
+  }
+
+  // Axes Helper
+  if (config.showAxes) {
+    if (!axesHelper) {
+      axesHelper = new AxesHelper(3);
+      scene.add(axesHelper);
+    }
+  } else {
+    if (axesHelper) {
+      scene.remove(axesHelper);
+      axesHelper.dispose();
+      axesHelper = null;
+    }
+  }
+
+  // Dynamically update wireframe overlay color if active
+  applyViewMode();
 };
 
 const flyTo = (
@@ -290,7 +356,6 @@ const initScene = async () => {
 
     await updateSceneConfig(); // Apply initial config
 
-    const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
@@ -338,7 +403,9 @@ const centerAndScaleModel = (object: Object3D) => {
   object.updateWorldMatrix(true, true);
   const newBox = new Box3().setFromObject(object);
   newBox.getCenter(center);
-  object.position.sub(center);
+  object.position.x -= center.x;
+  object.position.z -= center.z;
+  object.position.y -= newBox.min.y;
 };
 
 const optimizeTexturesForGPULimit = (object: Object3D) => {
@@ -372,9 +439,12 @@ const optimizeTexturesForGPULimit = (object: Object3D) => {
         );
 
         if (activeSlots.length > maxAllowed) {
-          console.warn(
-            `Mesh "${child.name}" material textures (${activeSlots.length}) exceed GPU limit (${maxAllowed}). Optimizing...`,
-          );
+          if (import.meta.env.DEV) {
+            logError(
+              new Error(`Mesh "${child.name}" material textures (${activeSlots.length}) exceed GPU limit (${maxAllowed}). Optimizing...`),
+              { operation: 'optimizeTextures', component: 'ModelViewer' },
+            );
+          }
 
           const slotsToPrune = [
             'lightMap',
@@ -448,10 +518,29 @@ const onModelLoaded = (object: Object3D, animCount: number = 0) => {
 
   applyViewMode();
 
+  // Apply default camera preset if available
+  if (props.defaultCameraPos && props.defaultCameraTarget) {
+    try {
+      const pos = JSON.parse(props.defaultCameraPos);
+      const tar = JSON.parse(props.defaultCameraTarget);
+      if (
+        typeof pos.x === 'number' && typeof pos.y === 'number' && typeof pos.z === 'number' &&
+        typeof tar.x === 'number' && typeof tar.y === 'number' && typeof tar.z === 'number'
+      ) {
+        setTimeout(() => {
+          flyTo(pos, tar);
+        }, 100);
+      }
+    } catch (e) {
+      logError(e, { operation: 'parseDefaultCameraPreset', component: 'ModelViewer' });
+    }
+  }
+
+  // Wait 2500ms to allow textures, materials, and geometry to finish loading and rendering before capturing the automatic preview screenshot
   setTimeout(() => {
     const dataURL = takeScreenshot(false);
     if (dataURL) emit('screenshot-captured', dataURL);
-  }, 800);
+  }, 2500);
 };
 
 const loadModel = async (url: string) => {
@@ -509,8 +598,9 @@ const loadModel = async (url: string) => {
     const isRenamedAsset = url.includes('asset-');
 
     if (isImage && isAssetPath && !isRenamedAsset) {
+      // Silently swallow: intercepted texture 404 — no need to surface to user
       if (import.meta.env.DEV) {
-        console.warn(`Intercepted missing texture request to prevent 404: ${url}`);
+        logError(new Error(`Intercepted missing texture request to prevent 404: ${url}`), { operation: 'loadManager', component: 'ModelViewer' });
       }
       // Return 1x1 transparent PNG data URL
       return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
@@ -521,13 +611,13 @@ const loadModel = async (url: string) => {
   switch (ext) {
     case '.glb':
     case '.gltf': {
-      const [{ GLTFLoader }, { DRACOLoader }] = await Promise.all([
-        import('three/examples/jsm/loaders/GLTFLoader.js'),
-        import('three/examples/jsm/loaders/DRACOLoader.js'),
-      ]);
       const loader = new GLTFLoader(manager);
       const dracoLoader = new DRACOLoader();
-      dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+      dracoLoader.setDecoderPath('/libs/draco/');
+      // Configure Web Workers for multi-threaded decoding
+      const workerLimit = Math.max(1, (navigator.hardwareConcurrency || 4) - 1);
+      dracoLoader.setWorkerLimit(workerLimit);
+      dracoLoader.preload();
       loader.setDRACOLoader(dracoLoader);
       loader.load(
         url,
@@ -550,7 +640,6 @@ const loadModel = async (url: string) => {
       break;
     }
     case '.fbx': {
-      const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js');
       const loader = new FBXLoader(manager);
       loader.load(
         url,
@@ -571,7 +660,6 @@ const loadModel = async (url: string) => {
       break;
     }
     case '.obj': {
-      const { OBJLoader } = await import('three/examples/jsm/loaders/OBJLoader.js');
       const loader = new OBJLoader(manager);
       loader.load(
         url,
@@ -584,7 +672,6 @@ const loadModel = async (url: string) => {
       break;
     }
     case '.stl': {
-      const { STLLoader } = await import('three/examples/jsm/loaders/STLLoader.js');
       const loader = new STLLoader(manager);
       loader.load(
         url,
@@ -647,15 +734,25 @@ const setMaterialWireframe = (mesh: Mesh, enabled: boolean) => {
 const createBlenderWireOverlay = () => {
   if (!loadedModel) return;
 
+  const isLightBg = (() => {
+    if (!scene || !scene.background) return false;
+    const color = scene.background as Color;
+    const luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+    return luminance > 0.5;
+  })();
+
+  const wireColor = isLightBg ? 0x334155 : 0xb8c7de;
+  const wireOpacity = isLightBg ? 0.35 : 0.68;
+
   loadedModel.traverse((child) => {
     if (!(child instanceof Mesh) || child.userData?.isBlenderWireOverlay) return;
     if (!child.geometry?.attributes?.position) return;
 
     const wireGeometry = new WireframeGeometry(child.geometry);
     const wireMaterial = new LineBasicMaterial({
-      color: 0xb8c7de,
+      color: wireColor,
       transparent: true,
-      opacity: 0.68,
+      opacity: wireOpacity,
       depthTest: true,
       depthWrite: false,
       toneMapped: false,
@@ -891,6 +988,8 @@ onUnmounted(() => {
   if (controls) {
     controls.dispose();
   }
+  gridHelper = null;
+  axesHelper = null;
   if (scene) {
     scene.clear();
   }
@@ -921,6 +1020,16 @@ watch(
     if (hasInitialized.value) void updateSceneConfig();
   },
 );
+
+const saveCurrentViewport = () => {
+  const state = getCameraState();
+  if (state) {
+    emit('save-viewport', {
+      cameraPos: JSON.stringify(state.position),
+      cameraTarget: JSON.stringify(state.target),
+    });
+  }
+};
 
 defineExpose({
   getCameraState,
@@ -1041,6 +1150,15 @@ defineExpose({
     <div
       class="absolute right-4 top-4 flex flex-col gap-2.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
     >
+      <button
+        v-if="props.editable"
+        type="button"
+        class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"
+        title="保存当前视角为默认"
+        @click="saveCurrentViewport"
+      >
+        <Camera class="w-4.5 h-4.5" />
+      </button>
       <button
         type="button"
         class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"

@@ -219,7 +219,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="resource-center-page mobile-adaptive">
+  <div class="resource-center-page mobile-adaptive flex flex-col h-full overflow-hidden">
     <ResourceCenterHeader
       v-model:search-query="searchQuery"
       :is-loading="isLoading"
@@ -230,45 +230,47 @@ onUnmounted(() => {
       @publish="openPublishDialog('work')"
     />
 
-    <ResourceStatsPanel
-      :overview="overview"
-      :is-stats-expanded="isStatsExpanded"
-      @open-library="openLibrary"
-      @review-cta="(path) => router.push(path)"
-    />
-
-    <section class="resource-workbench">
-      <ResourceFeedPanel
-        v-model:active-kind="activeKind"
-        v-model:active-status="activeStatus"
-        v-model:sort-mode="sortMode"
-        v-model:view-mode="viewMode"
-        :feed-items="feedItems"
-        :feed-meta="feedMeta"
-        :is-feed-loading="isFeedLoading"
-        :current-page="currentPage"
-        :page-size="pageSize"
-        :total-pages="totalPages"
-        :result-total="resultTotal"
-        :kind-tab-options="kindTabOptions"
-        :status-tab-options="statusTabOptions"
-        :view-mode-options="viewModeOptions"
-        @set-page="setPage"
-        @open-item="openItem"
-        @open-material-library="openMaterialLibrary"
-        @open-publish-dialog="openPublishDialog('work')"
-      />
-
-      <ResourceInsightRail
+    <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+      <ResourceStatsPanel
         :overview="overview"
-        :kind-meta="kindMeta"
-        @open-item="openItem"
-        @open-review-item="openReviewItem"
-        @open-publish-dialog="openPublishDialog"
-        @navigate="(path) => router.push(path)"
-        @search="(query) => (searchQuery = query)"
+        :is-stats-expanded="isStatsExpanded"
+        @open-library="openLibrary"
+        @review-cta="(path) => router.push(path)"
       />
-    </section>
+
+      <section class="resource-workbench">
+        <ResourceFeedPanel
+          v-model:active-kind="activeKind"
+          v-model:active-status="activeStatus"
+          v-model:sort-mode="sortMode"
+          v-model:view-mode="viewMode"
+          :feed-items="feedItems"
+          :feed-meta="feedMeta"
+          :is-feed-loading="isFeedLoading"
+          :current-page="currentPage"
+          :page-size="pageSize"
+          :total-pages="totalPages"
+          :result-total="resultTotal"
+          :kind-tab-options="kindTabOptions"
+          :status-tab-options="statusTabOptions"
+          :view-mode-options="viewModeOptions"
+          @set-page="setPage"
+          @open-item="openItem"
+          @open-material-library="openMaterialLibrary"
+          @open-publish-dialog="openPublishDialog('work')"
+        />
+
+        <ResourceInsightRail
+          :overview="overview"
+          :kind-meta="kindMeta"
+          @open-item="openItem"
+          @open-review-item="openReviewItem"
+          @open-publish-dialog="openPublishDialog"
+          @navigate="(path) => router.push(path)"
+          @search="(query) => (searchQuery = query)"
+        />
+      </section>
+    </div>
 
     <PublishWorkDialog
       v-model="isPublishDialogOpen"
@@ -280,11 +282,7 @@ onUnmounted(() => {
 
 <style scoped>
 .resource-center-page {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  height: 100%;
   background: transparent !important;
   color: var(--text-primary);
 }

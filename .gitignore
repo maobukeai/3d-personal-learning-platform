@@ -59,3 +59,6 @@ code_review_report.md
 
 # Developer debug/test scripts (not for version control)
 server/scripts/test-ai-stream.js
+server/test_*.js
+server/scripts/test_*.ts
+server/scripts/list_functions.ts

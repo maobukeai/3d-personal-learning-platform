@@ -4,6 +4,31 @@ import path from 'path';
 import prisma from '../services/prisma';
 import { storageService } from '../services/storage.service';
 import { buildDecryptedStorageConfig } from './crypto';
+import unzipper from 'unzipper';
+import axios from 'axios';
+import iconv from 'iconv-lite';
+import type { Request } from 'express';
+import type { UploadedFile } from '../types/upload';
+
+/**
+ * Returns the public URL for an uploaded file.
+ * Prefers the cloud storage URL (R2/S3) if available,
+ * otherwise constructs a local URL from the request context.
+ *
+ * @param req      - Express Request (used to build the fallback URL)
+ * @param file     - Multer file object (may have an `.url` property after cloud upload)
+ * @param subfolder - The uploads subfolder (e.g. 'assets', 'materials', 'tasks')
+ */
+export function getUploadedFileUrl(
+  req: Request,
+  file: Express.Multer.File,
+  subfolder: string,
+): string {
+  return (
+    (file as UploadedFile).url ||
+    `${req.protocol}://${req.get('host')}/uploads/${subfolder}/${file.filename}`
+  );
+}
 
 const uploadsRoot = path.resolve(process.cwd(), 'uploads');
 
@@ -156,3 +181,128 @@ export async function deleteCloudOrLocalFileByUrl(
 
   return false;
 }
+
+interface CacheEntry {
+  files: string[];
+  expiresAt: number;
+}
+
+const zipFilesCache = new Map<string, CacheEntry>();
+const MAX_CACHE_SIZE = 200;
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+const decodeEntryPath = (file: any): string => {
+  const pathBuffer = file.pathBuffer || file.props?.pathBuffer;
+  const isUnicode = file.isUnicode ?? file.props?.flags?.isUnicode;
+  if (pathBuffer && !isUnicode) {
+    try {
+      // Decode using GBK for legacy Chinese ZIP files created on Windows
+      return iconv.decode(pathBuffer, 'gbk');
+    } catch (err) {
+      // Fallback
+    }
+  }
+  return file.path;
+};
+
+/**
+ * Safely parses a local ZIP file and returns a list of files.
+ */
+export const parseZipLocal = async (localFilePath: string): Promise<string[]> => {
+  try {
+    if (fs.existsSync(localFilePath)) {
+      const directory = await unzipper.Open.file(localFilePath);
+      return directory.files
+        .map((file) => decodeEntryPath(file))
+        .filter((filePath) => {
+          const name = filePath.toLowerCase();
+          return (
+            !name.includes('__macosx') && !name.includes('.ds_store') && !filePath.endsWith('/')
+          );
+        });
+    }
+  } catch (error) {
+    logger.error(`[FileUtil] Failed to parse local ZIP package at ${localFilePath}:`, error);
+  }
+  return [];
+};
+
+/**
+ * Safely opens a remote or local ZIP package file and returns its directory.
+ */
+export const getZipFileDirectory = async (
+  packageUrl: string | null,
+): Promise<unzipper.CentralDirectory | null> => {
+  if (!packageUrl) return null;
+
+  try {
+    // If it's a local uploads file URL, extract the path and open it locally
+    if (packageUrl.includes('/uploads/')) {
+      const relativePart = packageUrl.split('/uploads/').pop();
+      if (relativePart) {
+        const localPath = path.join(process.cwd(), 'uploads', relativePart);
+        if (fs.existsSync(localPath)) {
+          return await unzipper.Open.file(localPath);
+        }
+      }
+    }
+
+    if (packageUrl.startsWith('http://') || packageUrl.startsWith('https://')) {
+      logger.info(`[FileUtil] Fetching remote ZIP: ${packageUrl}`);
+      const response = await axios.get(packageUrl, { responseType: 'arraybuffer', timeout: 15000 });
+      return await unzipper.Open.buffer(response.data);
+    }
+  } catch (error) {
+    logger.error(`[FileUtil] Failed to open ZIP directory for ${packageUrl}:`, error);
+  }
+  return null;
+};
+
+/**
+ * Safely parses a remote or local ZIP file URL and returns a list of files, caching results.
+ */
+export const getZipFileNames = async (packageUrl: string | null): Promise<string[]> => {
+  if (!packageUrl) return [];
+
+  if (zipFilesCache.has(packageUrl)) {
+    const entry = zipFilesCache.get(packageUrl);
+    if (entry) {
+      if (Date.now() < entry.expiresAt) {
+        return entry.files;
+      } else {
+        zipFilesCache.delete(packageUrl);
+      }
+    }
+  }
+
+  try {
+    const directory = await getZipFileDirectory(packageUrl);
+    if (directory) {
+      const files = directory.files
+        .map((file) => decodeEntryPath(file))
+        .filter((filePath) => {
+          const name = filePath.toLowerCase();
+          return (
+            !name.includes('__macosx') && !name.includes('.ds_store') && !filePath.endsWith('/')
+          );
+        });
+
+      if (zipFilesCache.size >= MAX_CACHE_SIZE) {
+        const firstKey = zipFilesCache.keys().next().value;
+        if (firstKey) {
+          zipFilesCache.delete(firstKey);
+        }
+      }
+      zipFilesCache.set(packageUrl, {
+        files,
+        expiresAt: Date.now() + CACHE_TTL,
+      });
+
+      return files;
+    }
+  } catch (error) {
+    logger.error(`[FileUtil] Failed to read ZIP file names from package URL: ${packageUrl}:`, error);
+  }
+  return [];
+};
+

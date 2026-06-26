@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onUnmounted, defineAsyncComponent } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
 import type { User } from '@/types';
@@ -55,7 +55,19 @@ const emit = defineEmits<{
   (e: 'popular-updated', data: { id: string; isPopular: boolean }): void;
   (e: 'views-updated', data: { id: string; views: number }): void;
   (e: 'share', note: Note): void;
+  (e: 'close'): void;
 }>();
+
+const props = withDefaults(
+  defineProps<{
+    note?: Note | null;
+    inline?: boolean;
+  }>(),
+  {
+    note: null,
+    inline: false,
+  }
+);
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -63,6 +75,9 @@ const { t } = useI18n();
 const visible = ref(false);
 const detailNote = ref<Note | null>(null);
 const isCopying = ref(false);
+const isSummarizing = ref(false);
+const sessionSummary = ref('');
+const summaryProgress = ref(0);
 let progressInterval: ReturnType<typeof setInterval> | null = null;
 let fillInterval: ReturnType<typeof setInterval> | null = null;
 let copyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -156,8 +171,29 @@ const handleDeleteComment = async (commentId: string) => {
   }
 };
 
-const handleScroll = (e: Event) => {
-  const target = e.target as HTMLElement;
+const isFallbackExcerpt = (summary: string, content: string): boolean => {
+  if (!summary || !content) return false;
+  const cleanStr = (str: string) => str.replace(/[#*`>_\-[\]()+:\s\r\n.,，。！!？?、]/g, '');
+  const cleanSummary = cleanStr(summary);
+  const cleanContent = cleanStr(content);
+  return cleanContent.includes(cleanSummary) && cleanContent.indexOf(cleanSummary) < 150;
+};
+
+const handleScroll = (e?: Event) => {
+  if (props.inline) {
+    const scrollTop = window.scrollY || document.documentElement.scrollTop;
+    const scrollHeight = document.documentElement.scrollHeight;
+    const clientHeight = document.documentElement.clientHeight;
+    const totalScroll = scrollHeight - clientHeight;
+    if (totalScroll > 0) {
+      readProgress.value = Math.min(Math.round((scrollTop / totalScroll) * 100), 100);
+    } else {
+      readProgress.value = 0;
+    }
+    return;
+  }
+
+  const target = e?.target as HTMLElement;
   if (!target) return;
   const scrollTop = target.scrollTop;
   const scrollHeight = target.scrollHeight;
@@ -169,6 +205,28 @@ const handleScroll = (e: Event) => {
     readProgress.value = 0;
   }
 };
+
+watch(
+  () => props.note,
+  (newNote) => {
+    if (props.inline && newNote) {
+      detailNote.value = newNote;
+      if (newNote.summary && !isFallbackExcerpt(newNote.summary, newNote.content)) {
+        sessionSummary.value = newNote.summary;
+      } else {
+        sessionSummary.value = '';
+      }
+      void fetchComments(newNote.id);
+    }
+  },
+  { immediate: true }
+);
+
+onMounted(() => {
+  if (props.inline) {
+    window.addEventListener('scroll', handleScroll);
+  }
+});
 
 const handleContentClick = (e: MouseEvent) => {
   const target = e.target as HTMLElement;
@@ -264,6 +322,9 @@ const handleLike = async () => {
   try {
     const res = await api.post(`/api/notes/${detailNote.value.id}/like`);
     detailNote.value.isLiked = res.data.isLiked;
+    if (!detailNote.value._count) {
+      detailNote.value._count = { likes: 0, comments: 0 };
+    }
     if (res.data.isLiked) {
       detailNote.value._count.likes++;
     } else {
@@ -317,17 +378,9 @@ const changeFontSize = (delta: number) => {
   }
 };
 
-const isFallbackExcerpt = (summary: string, content: string): boolean => {
-  if (!summary || !content) return false;
-  const cleanStr = (str: string) => str.replace(/[#*`>_\-[\]()+:\s\r\n.,，。！!？?、]/g, '');
-  const cleanSummary = cleanStr(summary);
-  const cleanContent = cleanStr(content);
-  return cleanContent.includes(cleanSummary) && cleanContent.indexOf(cleanSummary) < 150;
-};
 
-const isSummarizing = ref(false);
-const sessionSummary = ref('');
-const summaryProgress = ref(0);
+
+
 
 const currentThinkingStep = computed(() => {
   const percent = summaryProgress.value;
@@ -396,6 +449,9 @@ const generateAiSummary = async () => {
 };
 
 onUnmounted(() => {
+  if (props.inline) {
+    window.removeEventListener('scroll', handleScroll);
+  }
   if (progressInterval) clearInterval(progressInterval);
   if (fillInterval) clearInterval(fillInterval);
   if (copyTimer) clearTimeout(copyTimer);
@@ -406,24 +462,29 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" size="xxl" padding="none" glass-card @close="visible = false">
+  <component
+    :is="inline ? 'div' : Modal"
+    v-bind="inline ? { class: 'w-full text-left bg-transparent' } : { show: visible, size: 'xxl', padding: 'none', glassCard: true }"
+    @close="visible = false; emit('close')"
+  >
     <div
       v-if="detailNote"
-      class="mobile-adaptive flex flex-col md:flex-row h-screen md:h-[88vh] overflow-hidden relative bg-transparent"
+      :class="inline ? 'mobile-adaptive flex flex-col md:flex-row relative bg-transparent w-full' : 'mobile-adaptive flex flex-col md:flex-row h-screen md:h-[88vh] overflow-hidden relative bg-transparent'"
     >
       <!-- Global Close Button (Top Right of the entire Dialog Container) -->
       <button
+        v-if="!inline"
         type="button"
         class="dialog-close-btn absolute top-4 right-4 z-50 flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)]/80 backdrop-blur-xs hover:bg-slate-100 dark:hover:bg-zinc-800 text-[var(--text-secondary)] transition-all active:scale-90 shadow-md cursor-pointer"
         :title="t('notes.closeReading')"
-        @click="visible = false"
+        @click="visible = false; emit('close')"
       >
         <X class="w-4 h-4" />
       </button>
 
       <!-- Side Dashboard Panel -->
       <aside
-        class="hidden md:flex w-64 p-5 flex-col shrink-0 border-r relative z-10 select-none bg-slate-50/30 dark:bg-white/[0.01] backdrop-blur-md"
+        :class="['hidden md:flex w-64 p-5 flex-col shrink-0 border-r relative z-10 select-none bg-slate-50/30 dark:bg-white/[0.01] backdrop-blur-md', inline ? 'md:sticky md:top-20 h-fit' : '']"
         style="border-color: var(--border-base)"
       >
         <!-- User Information Dashboard (Clickable) -->
@@ -481,7 +542,7 @@ defineExpose({ open });
                 }}</span>
                 <span
                   class="text-xs font-black text-[var(--text-primary)] flex items-center justify-center gap-1 mt-0.5"
-                  ><Heart class="w-3 h-3 text-rose-500" />{{ detailNote._count.likes }}</span
+                  ><Heart class="w-3 h-3 text-rose-500" />{{ detailNote._count?.likes ?? 0 }}</span
                 >
               </div>
             </div>
@@ -605,12 +666,12 @@ defineExpose({ open });
       <!-- Right Main Reading Canvas -->
       <div
         ref="scrollContainer"
-        class="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col bg-white/20 dark:bg-zinc-900/20 text-[var(--text-primary)]"
-        @scroll="handleScroll"
+        :class="inline ? 'flex-1 relative flex flex-col bg-white/20 dark:bg-zinc-900/20 text-[var(--text-primary)] w-full' : 'flex-1 overflow-y-auto custom-scrollbar relative flex flex-col bg-white/20 dark:bg-zinc-900/20 text-[var(--text-primary)]'"
+        @scroll="inline ? undefined : handleScroll"
         @click="handleContentClick"
       >
         <!-- Floating Reading Progress Indicator -->
-        <div class="sticky top-0 left-0 right-0 z-50 h-0.5 bg-slate-100/50 dark:bg-zinc-800/50">
+        <div v-if="!inline" class="sticky top-0 left-0 right-0 z-50 h-0.5 bg-slate-100/50 dark:bg-zinc-800/50">
           <div
             class="h-full bg-gradient-to-r from-purple-500 via-accent to-indigo-500 transition-all duration-100"
             :style="{ width: readProgress + '%' }"
@@ -618,7 +679,10 @@ defineExpose({ open });
         </div>
 
         <div
-          class="dialog-content-wrapper max-w-[760px] w-full mx-auto px-3 sm:px-8 pt-14 pb-6 sm:py-10 flex-1 flex flex-col justify-between"
+          :class="[
+            'dialog-content-wrapper max-w-[760px] w-full mx-auto px-3 sm:px-8 flex-1 flex flex-col justify-between',
+            inline ? 'dialog-content-inline pt-2 pb-6 sm:py-6' : 'pt-14 pb-6 sm:py-10'
+          ]"
         >
           <!-- Article Body -->
           <div>
@@ -655,7 +719,7 @@ defineExpose({ open });
                   ><Eye class="w-3 h-3" /> {{ detailNote.views }}</span
                 >
                 <span class="flex items-center gap-0.5"
-                  ><Heart class="w-3 h-3 text-rose-500" /> {{ detailNote._count.likes }}</span
+                  ><Heart class="w-3 h-3 text-rose-500" /> {{ detailNote._count?.likes ?? 0 }}</span
                 >
               </div>
             </div>
@@ -983,7 +1047,7 @@ defineExpose({ open });
         @chat="handleChatWithMember"
       />
     </div>
-  </Modal>
+  </component>
 </template>
 
 <style scoped>
@@ -995,7 +1059,7 @@ defineExpose({ open });
     top: calc(12px + env(safe-area-inset-top, 0px)) !important;
     right: 12px !important;
   }
-  .dialog-content-wrapper {
+  .dialog-content-wrapper:not(.dialog-content-inline) {
     padding-top: calc(56px + env(safe-area-inset-top, 0px)) !important;
   }
 }
@@ -1133,5 +1197,76 @@ defineExpose({ open });
   align-items: center !important;
   justify-content: center !important;
   gap: 6px !important;
+}
+
+/* Premium Markdown Styling and Adaptation */
+.modern-markdown-content :deep(p) {
+  margin-bottom: 1.2rem !important;
+  line-height: 1.85 !important;
+}
+
+.modern-markdown-content :deep(ul) {
+  list-style-type: disc !important;
+  padding-left: 1.6em !important;
+  margin-top: 0.4em !important;
+  margin-bottom: 1rem !important;
+}
+
+.modern-markdown-content :deep(ol) {
+  list-style-type: decimal !important;
+  padding-left: 1.6em !important;
+  margin-top: 0.4em !important;
+  margin-bottom: 1rem !important;
+}
+
+.modern-markdown-content :deep(li) {
+  margin-bottom: 0.4em !important;
+  line-height: 1.75 !important;
+}
+
+.modern-markdown-content :deep(li p) {
+  margin-bottom: 0.2rem !important;
+}
+
+.modern-markdown-content :deep(blockquote) {
+  border-left: 4px solid var(--accent, #6366f1) !important;
+  background-color: var(--bg-subtle, rgba(99, 102, 241, 0.04)) !important;
+  padding: 0.8em 1.2em !important;
+  margin: 1.2em 0 !important;
+  border-radius: 0 8px 8px 0 !important;
+  color: var(--text-secondary) !important;
+}
+
+.modern-markdown-content :deep(code:not(pre code)) {
+  background-color: var(--bg-subtle, rgba(0, 0, 0, 0.05)) !important;
+  color: var(--accent, #6366f1) !important;
+  padding: 0.2em 0.4em !important;
+  border-radius: 6px !important;
+  font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace !important;
+  font-size: 0.88em !important;
+}
+
+.dark .modern-markdown-content :deep(code:not(pre code)) {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #a5b4fc !important;
+}
+
+.modern-markdown-content :deep(img) {
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 12px !important;
+  margin: 1.8rem auto !important;
+  display: block !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid var(--border-base) !important;
+}
+
+.modern-markdown-content :deep(pre) {
+  background-color: var(--bg-subtle, #1e1e2e) !important;
+  border: 1px solid var(--border-base) !important;
+  border-radius: 12px !important;
+  padding: 1.2rem !important;
+  margin: 1.8rem 0 !important;
+  overflow-x: auto !important;
 }
 </style>

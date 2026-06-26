@@ -3,14 +3,13 @@ import { formatCompactNumber as formatNumber } from '@/utils/format';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
-  BarChart3,
   Clock,
   Eye,
   Flame,
-  Heart,
+  Grid3X3,
   Inbox,
   Layers,
-  MessageCircle,
+  LayoutList,
   MessageSquare,
   Pin,
   Sparkles,
@@ -22,8 +21,6 @@ import { logError } from '@/utils/error';
 import { useAuthStore } from '@/stores/auth';
 import DiscussionDetail from './components/DiscussionDetail.vue';
 import DiscussionHeader from './components/DiscussionHeader.vue';
-import DiscussionStatsPanel from './components/DiscussionStatsPanel.vue';
-import DiscussionComposerCard from './components/DiscussionComposerCard.vue';
 import DiscussionFilterBar from './components/DiscussionFilterBar.vue';
 import DiscussionListPanel from './components/DiscussionListPanel.vue';
 import DiscussionSidebar from './components/DiscussionSidebar.vue';
@@ -134,6 +131,11 @@ const isInsightsLoading = ref(false);
 const sortBy = ref('active');
 const activeFilter = ref<DiscussionFilter>('all');
 const selectedTag = ref('');
+const viewMode = ref<'grid' | 'list'>('list');
+const viewModeOptions = computed(() => [
+  { value: 'grid' as const, icon: Grid3X3 },
+  { value: 'list' as const, icon: LayoutList },
+]);
 
 const pagination = ref({
   total: 0,
@@ -241,42 +243,6 @@ const topContributors = computed<ContributorInsight[]>(() => {
 
 const recentComments = computed(() => insights.value?.recentComments?.slice(0, 5) || []);
 
-const metricCards = computed(() => {
-  const totals = insights.value?.totals;
-  const pageLikes = discussions.value.reduce((sum, item) => sum + (item._count?.likes || 0), 0);
-  const pageViews = discussions.value.reduce((sum, item) => sum + (item.viewCount || 0), 0);
-  const pageComments = discussions.value.reduce(
-    (sum, item) => sum + (item._count?.comments || 0),
-    0,
-  );
-
-  return [
-    {
-      label: t('community.discussions.totalPosts'),
-      value: formatNumber(totals?.discussions ?? pagination.value.total),
-      icon: MessageSquare,
-      tone: 'blue',
-    },
-    {
-      label: t('community.discussions.totalReplies'),
-      value: formatNumber(totals?.comments ?? pageComments),
-      icon: MessageCircle,
-      tone: 'teal',
-    },
-    {
-      label: t('community.discussions.totalLikes'),
-      value: formatNumber(totals?.likes ?? pageLikes),
-      icon: Heart,
-      tone: 'rose',
-    },
-    {
-      label: t('community.discussions.totalViews'),
-      value: formatNumber(totals?.views ?? pageViews),
-      icon: BarChart3,
-      tone: 'amber',
-    },
-  ];
-});
 
 const selectedSortLabel = computed(() => {
   return sortOptions.value.find((item) => item.value === sortBy.value)?.label || '';
@@ -584,16 +550,16 @@ onBeforeUnmount(() => {
 
     <main class="discussion-board">
       <section class="discussion-feed">
-        <DiscussionStatsPanel :metrics="metricCards" />
-        <DiscussionComposerCard :user="authStore.user" @click="showCreateModal = true" />
         <DiscussionFilterBar
           v-model:active-filter="activeFilter"
           v-model:sort-by="sortBy"
+          v-model:view-mode="viewMode"
           :filters="filterOptions"
           :sort-options="sortOptions"
           :selected-sort-label="selectedSortLabel"
           :selected-tag="selectedTag"
           :has-active-filters="hasActiveFilters"
+          :view-mode-options="viewModeOptions"
           @clear="clearFilters"
         />
         <DiscussionListPanel
@@ -602,6 +568,7 @@ onBeforeUnmount(() => {
           :current-user-id="currentUserId"
           :is-admin="isAdmin"
           :pagination="pagination"
+          :view-mode="viewMode"
           @open="openDiscussion"
           @like="toggleLikeDiscussion"
           @pin="togglePinDiscussion"

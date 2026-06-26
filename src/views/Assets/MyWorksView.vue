@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import {
   Box,
   Clock3,
@@ -27,6 +27,10 @@ import {
   filterAndSortWorks,
   getReviewCompletion,
   normalizeWorkbenchWorks,
+  normalizeAssetWork,
+  normalizeMaterialWork,
+  normalizePluginWork,
+  normalizeShowcaseWork,
   type AssetWork,
   type CategoryType,
   type MaterialWork,
@@ -44,9 +48,167 @@ import MyWorksStatsPanel from './components/MyWorksStatsPanel.vue';
 import MyWorksFilterPanel from './components/MyWorksFilterPanel.vue';
 import MyWorksGrid from './components/MyWorksGrid.vue';
 import EditWorkDialog from './components/EditWorkDialog.vue';
-import PublishShowcaseDialog from './components/PublishShowcaseDialog.vue';
+import SubmitShowcaseDialog from './components/SubmitShowcaseDialog.vue';
+import { useAuthStore } from '@/stores/auth';
+import AssetDetailModal from './components/AssetDetailModal.vue';
+import MaterialDetailPanel from './components/MaterialDetailPanel.vue';
+import PluginDetailModal from './components/PluginDetailModal.vue';
+import ShowcaseDetail from '../Community/components/ShowcaseDetail.vue';
 
 const router = useRouter();
+const route = useRoute();
+const authStore = useAuthStore();
+const isAdmin = computed(() => authStore.user?.role === 'ADMIN');
+
+const isAssetDetailOpen = ref(false);
+const selectedAssetId = ref<string | null>(null);
+
+const isMaterialDetailOpen = ref(false);
+const selectedMaterial = ref<any | null>(null);
+const isMaterialLoading = ref(false);
+
+const isPluginDetailOpen = ref(false);
+const selectedPlugin = ref<any | null>(null);
+const isPluginLoading = ref(false);
+
+const isShowcaseDetailOpen = ref(false);
+const selectedShowcase = ref<any | null>(null);
+const isShowcaseLoading = ref(false);
+
+function showAssetDetail(assetId: string) {
+  selectedAssetId.value = assetId;
+  isAssetDetailOpen.value = true;
+}
+
+async function showMaterialDetail(materialId: string) {
+  isMaterialLoading.value = true;
+  try {
+    const { data } = await api.get(`/api/materials/${materialId}`);
+    selectedMaterial.value = {
+      ...data,
+      id: data.id,
+      title: data.title || '',
+      description: data.description || '',
+      category: data.category || '其他',
+      tags: data.tags || [],
+      preview: data.previewUrl || data.preview || '',
+      downloads: data.downloads || 0,
+      fileSize: data.fileSize || 0,
+      resolution: data.resolution || '4K',
+      favorites: data.favorites || 0,
+      isProcedural: !!data.isProcedural,
+      status: data.status,
+      rejectReason: data.rejectReason,
+      userId: data.userId,
+      isFavorited: !!data.isFavorited,
+      _count: data._count || { favorites: data.favorites || 0 }
+    };
+    isMaterialDetailOpen.value = true;
+  } catch (error) {
+    ElMessage.error('加载材质详情失败');
+  } finally {
+    isMaterialLoading.value = false;
+  }
+}
+
+async function showPluginDetail(pluginId: string) {
+  isPluginLoading.value = true;
+  try {
+    const { data } = await api.get(`/api/plugins/${pluginId}`);
+    selectedPlugin.value = data.plugin || data;
+    isPluginDetailOpen.value = true;
+  } catch (error) {
+    ElMessage.error('加载插件详情失败');
+  } finally {
+    isPluginLoading.value = false;
+  }
+}
+
+async function showShowcaseDetail(showcaseId: string) {
+  isShowcaseLoading.value = true;
+  try {
+    const { data } = await api.get(`/api/showcase/${showcaseId}`);
+    selectedShowcase.value = data;
+    isShowcaseDetailOpen.value = true;
+  } catch (error) {
+    ElMessage.error('加载展示详情失败');
+  } finally {
+    isShowcaseLoading.value = false;
+  }
+}
+
+function handleDetailEdit(item: any, kind: 'asset' | 'material' | 'plugin' | 'showcase') {
+  isAssetDetailOpen.value = false;
+  isMaterialDetailOpen.value = false;
+  isPluginDetailOpen.value = false;
+  isShowcaseDetailOpen.value = false;
+
+  let work: UnifiedWork | null = null;
+  if (kind === 'asset') {
+    const raw = assets.value.find((a) => a.id === item.id);
+    if (raw) work = normalizeAssetWork(raw);
+  } else if (kind === 'material') {
+    const raw = materials.value.find((m) => m.id === item.id);
+    if (raw) work = normalizeMaterialWork(raw);
+  } else if (kind === 'plugin') {
+    const raw = plugins.value.find((p) => p.id === item.id);
+    if (raw) work = normalizePluginWork(raw);
+  } else if (kind === 'showcase') {
+    const raw = showcases.value.find((s) => s.id === item.id);
+    if (raw) work = normalizeShowcaseWork(raw);
+  }
+
+  if (work) {
+    openEditDialog(work);
+  } else {
+    const fallbackWork: UnifiedWork = {
+      uid: `${kind}-${item.id}`,
+      id: item.id,
+      kind,
+      title: item.title,
+      description: item.description || '',
+      status: item.status || 'APPROVED',
+      tags: item.tags || [],
+      surface: '',
+      typeLabel: kind === 'asset' ? '资源' : kind === 'material' ? '材质' : kind === 'plugin' ? '插件' : '展示',
+      format: '',
+      thumbnail: item.previewUrl || item.preview || '',
+      size: item.fileSize || 0,
+      metric: 0,
+      metricLabel: '',
+      createdAt: item.createdAt || '',
+      raw: item
+    };
+    openEditDialog(fallbackWork);
+  }
+}
+
+function handleDetailDelete(item: any, kind: 'asset' | 'material' | 'plugin' | 'showcase') {
+  isAssetDetailOpen.value = false;
+  isMaterialDetailOpen.value = false;
+  isPluginDetailOpen.value = false;
+  isShowcaseDetailOpen.value = false;
+
+  const work: UnifiedWork = {
+    uid: `${kind}-${item.id}`,
+    id: item.id,
+    kind,
+    title: item.title,
+    description: item.description || '',
+    status: item.status || 'APPROVED',
+    tags: item.tags || [],
+    surface: '',
+    typeLabel: kind === 'asset' ? '资源' : kind === 'material' ? '材质' : kind === 'plugin' ? '插件' : '展示',
+    format: '',
+    thumbnail: item.previewUrl || item.preview || '',
+    size: item.fileSize || 0,
+    metric: 0,
+    metricLabel: '',
+    createdAt: item.createdAt || '',
+    raw: item
+  };
+  handleDeleteWork(work);
+}
 const searchQuery = ref('');
 const isStatsExpanded = ref(false);
 const sourceFilter = ref<'ALL' | WorkKind>('ALL');
@@ -92,7 +254,39 @@ const pluginCategories = computed(() =>
   ),
 );
 
-const editForm = ref({
+const editForm = ref<{
+  title: string;
+  description: string;
+  tags: string;
+  categoryId: string;
+  materialCategory: string;
+  resolution: string;
+  isProcedural: boolean;
+  pluginCategory: string;
+  pluginVersion: string;
+  pluginCompatibility: string;
+  showcaseType: string;
+  videoUrl: string;
+  installGuide: string;
+  // asset-specific fields
+  originality: string;
+  originalAuthor: string;
+  originalLink: string;
+  license: string;
+  isFree: boolean;
+  meshType: string;
+  uvUnwrapped: boolean;
+  uvOverlapping: boolean;
+  pbrChannels: string[];
+  rigged: boolean;
+  gameReady: boolean;
+  linkedCourseId: string;
+  linkedLessonId: string;
+  // files
+  file: File | null;
+  packageFile: File | null;
+  thumbnail: File | null;
+}>({
   title: '',
   description: '',
   tags: '',
@@ -105,6 +299,25 @@ const editForm = ref({
   pluginCompatibility: '',
   showcaseType: 'IMAGE',
   videoUrl: '',
+  installGuide: '',
+  // asset-specific fields
+  originality: 'ORIGINAL',
+  originalAuthor: '',
+  originalLink: '',
+  license: 'CC_BY',
+  isFree: true,
+  meshType: 'LOW_POLY',
+  uvUnwrapped: true,
+  uvOverlapping: false,
+  pbrChannels: [] as string[],
+  rigged: false,
+  gameReady: false,
+  linkedCourseId: '',
+  linkedLessonId: '',
+  // files
+  file: null,
+  packageFile: null,
+  thumbnail: null,
 });
 
 const showcaseForm = ref({
@@ -333,20 +546,16 @@ const fetchCategories = async () => {
 
 const openWork = (work: UnifiedWork) => {
   if (work.kind === 'asset') {
-    router.push({ name: 'AssetDetail', params: { id: work.id } });
-    return;
+    showAssetDetail(work.id);
+  } else if (work.kind === 'material') {
+    showMaterialDetail(work.id);
+  } else if (work.kind === 'plugin') {
+    showPluginDetail(work.id);
+  } else if (work.kind === 'showcase') {
+    showShowcaseDetail(work.id);
+  } else {
+    router.push('/my-works');
   }
-  if (work.kind === 'material') {
-    const raw = work.raw as MaterialWork;
-    const url = raw.previewUrl || raw.fileUrl;
-    if (url) window.open(getAssetUrl(url), '_blank', 'noopener,noreferrer');
-    return;
-  }
-  if (work.kind === 'plugin') {
-    router.push({ name: 'Plugins' });
-    return;
-  }
-  router.push({ name: 'Showcase' });
 };
 
 const handleDownload = async (work: UnifiedWork) => {
@@ -404,6 +613,23 @@ const handleDownload = async (work: UnifiedWork) => {
 const openEditDialog = (work: UnifiedWork) => {
   selectedWork.value = work;
   const raw = work.raw;
+  const rawAny = raw as any;
+  const rawAsset = work.kind === 'asset' ? (raw as AssetWork) : null;
+  const rawPlugin = work.kind === 'plugin' ? (raw as PluginWork) : null;
+
+  let parsedPbrChannels: string[] = [];
+  if (rawAsset && rawAsset.pbrChannels) {
+    if (typeof rawAsset.pbrChannels === 'string') {
+      try {
+        parsedPbrChannels = JSON.parse(rawAsset.pbrChannels);
+      } catch {
+        parsedPbrChannels = [];
+      }
+    } else if (Array.isArray(rawAsset.pbrChannels)) {
+      parsedPbrChannels = rawAsset.pbrChannels;
+    }
+  }
+
   editForm.value = {
     title: work.title,
     description: work.description,
@@ -418,6 +644,27 @@ const openEditDialog = (work: UnifiedWork) => {
     pluginCompatibility: work.kind === 'plugin' ? (raw as PluginWork).compatibility || '' : '',
     showcaseType: work.kind === 'showcase' ? (raw as ShowcaseWork).type || 'IMAGE' : 'IMAGE',
     videoUrl: work.kind === 'showcase' ? (raw as ShowcaseWork).videoUrl || '' : '',
+    installGuide: rawPlugin?.installGuide || '',
+    
+    // advanced fields shared across asset, material, plugin
+    originality: rawAny?.originality || 'ORIGINAL',
+    originalAuthor: rawAny?.originalAuthor || '',
+    originalLink: rawAny?.originalLink || '',
+    license: rawAny?.license || 'CC_BY',
+    isFree: rawAny?.isFree !== false,
+    meshType: rawAsset?.meshType || 'LOW_POLY',
+    uvUnwrapped: rawAsset?.uvUnwrapped !== false,
+    uvOverlapping: !!rawAsset?.uvOverlapping,
+    pbrChannels: parsedPbrChannels,
+    rigged: !!rawAsset?.rigged,
+    gameReady: !!rawAsset?.gameReady,
+    linkedCourseId: rawAny?.linkedCourseId || '',
+    linkedLessonId: rawAny?.linkedLessonId || '',
+
+    // files
+    file: null,
+    packageFile: null,
+    thumbnail: null,
   };
   isEditDialogOpen.value = true;
 };
@@ -432,29 +679,96 @@ const handleSaveEdit = async () => {
   isSaving.value = true;
   try {
     if (work.kind === 'asset') {
-      await api.patch(`/api/assets/${work.id}`, {
-        title: editForm.value.title,
-        description: editForm.value.description,
-        categoryId: editForm.value.categoryId || null,
-        tags: editForm.value.tags,
+      const formData = new FormData();
+      formData.append('title', editForm.value.title);
+      formData.append('description', editForm.value.description);
+      formData.append('categoryId', editForm.value.categoryId || '');
+      formData.append('tags', editForm.value.tags);
+      formData.append('originality', editForm.value.originality || 'ORIGINAL');
+      formData.append('originalAuthor', editForm.value.originalAuthor || '');
+      formData.append('originalLink', editForm.value.originalLink || '');
+      formData.append('license', editForm.value.license || 'CC_BY');
+      formData.append('isFree', String(editForm.value.isFree !== false));
+      formData.append('meshType', editForm.value.meshType || 'LOW_POLY');
+      formData.append('uvUnwrapped', String(editForm.value.uvUnwrapped !== false));
+      formData.append('uvOverlapping', String(!!editForm.value.uvOverlapping));
+      formData.append('pbrChannels', JSON.stringify(editForm.value.pbrChannels || []));
+      formData.append('rigged', String(!!editForm.value.rigged));
+      formData.append('gameReady', String(!!editForm.value.gameReady));
+      formData.append('linkedCourseId', editForm.value.linkedCourseId || '');
+      formData.append('linkedLessonId', editForm.value.linkedLessonId || '');
+
+      if (editForm.value.file) {
+        formData.append('asset', editForm.value.file);
+      }
+      if (editForm.value.packageFile) {
+        formData.append('package', editForm.value.packageFile);
+      }
+      if (editForm.value.thumbnail) {
+        formData.append('thumbnail', editForm.value.thumbnail);
+      }
+
+      await api.patch(`/api/assets/${work.id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
     } else if (work.kind === 'material') {
-      await api.put(`/api/materials/${work.id}`, {
-        title: editForm.value.title,
-        description: editForm.value.description,
-        category: editForm.value.materialCategory,
-        resolution: editForm.value.resolution,
-        tags: editForm.value.tags,
-        isProcedural: editForm.value.isProcedural,
+      const formData = new FormData();
+      formData.append('title', editForm.value.title);
+      formData.append('description', editForm.value.description);
+      formData.append('category', editForm.value.materialCategory);
+      formData.append('resolution', editForm.value.resolution);
+      formData.append('tags', editForm.value.tags);
+      formData.append('isProcedural', String(editForm.value.isProcedural));
+      formData.append('originality', editForm.value.originality || 'ORIGINAL');
+      formData.append('originalAuthor', editForm.value.originalAuthor || '');
+      formData.append('originalLink', editForm.value.originalLink || '');
+      formData.append('license', editForm.value.license || 'CC_BY');
+      formData.append('isFree', String(editForm.value.isFree !== false));
+      formData.append('linkedCourseId', editForm.value.linkedCourseId || '');
+      formData.append('linkedLessonId', editForm.value.linkedLessonId || '');
+
+      if (editForm.value.file) {
+        formData.append('material', editForm.value.file);
+      }
+      if (editForm.value.thumbnail) {
+        formData.append('preview', editForm.value.thumbnail);
+      }
+
+      await api.put(`/api/materials/${work.id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
     } else if (work.kind === 'plugin') {
-      await api.put(`/api/plugins/${work.id}`, {
-        title: editForm.value.title,
-        description: editForm.value.description,
-        category: editForm.value.pluginCategory,
-        version: editForm.value.pluginVersion,
-        compatibility: editForm.value.pluginCompatibility,
-        tags: editForm.value.tags,
+      const formData = new FormData();
+      formData.append('title', editForm.value.title);
+      formData.append('description', editForm.value.description);
+      formData.append('category', editForm.value.pluginCategory);
+      formData.append('version', editForm.value.pluginVersion);
+      formData.append('compatibility', editForm.value.pluginCompatibility);
+      formData.append('tags', editForm.value.tags);
+      formData.append('installGuide', editForm.value.installGuide || '');
+      formData.append('originality', editForm.value.originality || 'ORIGINAL');
+      formData.append('originalAuthor', editForm.value.originalAuthor || '');
+      formData.append('originalLink', editForm.value.originalLink || '');
+      formData.append('license', editForm.value.license || 'CC_BY');
+      formData.append('isFree', String(editForm.value.isFree !== false));
+      formData.append('linkedCourseId', editForm.value.linkedCourseId || '');
+      formData.append('linkedLessonId', editForm.value.linkedLessonId || '');
+
+      if (editForm.value.file) {
+        formData.append('plugin_file', editForm.value.file);
+      }
+      if (editForm.value.thumbnail) {
+        formData.append('plugin_preview', editForm.value.thumbnail);
+      }
+
+      await api.put(`/api/plugins/${work.id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
     } else {
       await api.put(`/api/showcase/${work.id}`, {
@@ -555,10 +869,43 @@ const publishToShowcase = async () => {
   }
 };
 
+const checkEditQueryParam = () => {
+  if (route.query.editAssetId) {
+    const assetId = String(route.query.editAssetId);
+    const foundAsset = assets.value.find((a) => a.id === assetId);
+    if (foundAsset) {
+      const work = normalizeAssetWork(foundAsset);
+      openEditDialog(work);
+    }
+  } else if (route.query.editMaterialId) {
+    const materialId = String(route.query.editMaterialId);
+    const foundMaterial = materials.value.find((m) => m.id === materialId);
+    if (foundMaterial) {
+      const work = normalizeMaterialWork(foundMaterial);
+      openEditDialog(work);
+    }
+  } else if (route.query.editPluginId) {
+    const pluginId = String(route.query.editPluginId);
+    const foundPlugin = plugins.value.find((p) => p.id === pluginId);
+    if (foundPlugin) {
+      const work = normalizePluginWork(foundPlugin);
+      openEditDialog(work);
+    }
+  }
+};
+
+watch(
+  () => [route.query.editAssetId, route.query.editMaterialId, route.query.editPluginId],
+  () => {
+    checkEditQueryParam();
+  },
+);
+
 onMounted(async () => {
   systemStore.fetchSettings();
   fetchCategories();
   await fetchWorks();
+  checkEditQueryParam();
 
   // Pre-fetch favorites count to display badge on tab
   try {
@@ -580,7 +927,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="my-works-page mobile-adaptive">
+  <div class="my-works-page mobile-adaptive flex flex-col h-full overflow-hidden">
     <MyWorksHeader
       v-model:search-query="searchQuery"
       v-model:is-stats-expanded="isStatsExpanded"
@@ -590,40 +937,42 @@ onMounted(async () => {
       @publish="isPublishWorkDialogOpen = true"
     />
 
-    <MyWorksStatsPanel
-      v-model:status-filter="statusFilter"
-      :is-stats-expanded="isStatsExpanded"
-      :active-tab="activeTab"
-      :stat-cards="statCards"
-      :workbench-signals="workbenchSignals"
-      :review-completion="reviewCompletion"
-    />
-
-    <section class="workspace-shell">
-      <MyWorksFilterPanel
-        v-model:source-filter="sourceFilter"
+    <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+      <MyWorksStatsPanel
         v-model:status-filter="statusFilter"
+        :is-stats-expanded="isStatsExpanded"
         :active-tab="activeTab"
-        :source-tab-options="sourceTabOptions"
-        :status-tab-options="statusTabOptions"
+        :stat-cards="statCards"
+        :workbench-signals="workbenchSignals"
+        :review-completion="reviewCompletion"
       />
 
-      <MyWorksGrid
-        v-model:active-tab="activeTab"
-        v-model:sort-by="sortBy"
-        v-model:view-mode="viewMode"
-        :library-tab-options="libraryTabOptions"
-        :view-mode-options="viewModeOptions"
-        :is-loading="isLoading"
-        :filtered-works="filteredWorks"
-        @open-work="openWork"
-        @edit="openEditDialog"
-        @download="handleDownload"
-        @share="openShowcaseDialog"
-        @delete="handleDeleteWork"
-        @publish="isPublishWorkDialogOpen = true"
-      />
-    </section>
+      <section class="workspace-shell">
+        <MyWorksFilterPanel
+          v-model:source-filter="sourceFilter"
+          v-model:status-filter="statusFilter"
+          :active-tab="activeTab"
+          :source-tab-options="sourceTabOptions"
+          :status-tab-options="statusTabOptions"
+        />
+
+        <MyWorksGrid
+          v-model:active-tab="activeTab"
+          v-model:sort-by="sortBy"
+          v-model:view-mode="viewMode"
+          :library-tab-options="libraryTabOptions"
+          :view-mode-options="viewModeOptions"
+          :is-loading="isLoading"
+          :filtered-works="filteredWorks"
+          @open-work="openWork"
+          @edit="openEditDialog"
+          @download="handleDownload"
+          @share="openShowcaseDialog"
+          @delete="handleDeleteWork"
+          @publish="isPublishWorkDialogOpen = true"
+        />
+      </section>
+    </div>
 
     <EditWorkDialog
       v-model:show="isEditDialogOpen"
@@ -636,23 +985,64 @@ onMounted(async () => {
       @save="handleSaveEdit"
     />
 
-    <PublishShowcaseDialog
+    <SubmitShowcaseDialog
       v-model:show="isShowcaseDialogOpen"
       v-model:form="showcaseForm"
       @submit="publishToShowcase"
     />
 
     <PublishWorkDialog v-model="isPublishWorkDialogOpen" @published="fetchWorks" />
+
+    <AssetDetailModal
+      :show="isAssetDetailOpen"
+      :asset-id="selectedAssetId"
+      @close="isAssetDetailOpen = false; selectedAssetId = null;"
+      @update="fetchWorks"
+      @edit="handleDetailEdit($event, 'asset')"
+    />
+
+    <MaterialDetailPanel
+      v-if="selectedMaterial"
+      :material="selectedMaterial"
+      :loading="isMaterialLoading"
+      :my-materials="[]"
+      :is-admin="isAdmin"
+      :can-edit="true"
+      :can-download="true"
+      :is-saving-review="false"
+      @close="isMaterialDetailOpen = false; selectedMaterial = null;"
+      @edit="handleDetailEdit($event, 'material')"
+      @delete="handleDetailDelete($event, 'material')"
+      @update="fetchWorks"
+    />
+
+    <PluginDetailModal
+      :show="isPluginDetailOpen"
+      :plugin="selectedPlugin"
+      :is-favorited="false"
+      :is-downloading="isPluginLoading"
+      :is-admin="isAdmin"
+      :can-edit="true"
+      :is-saving-review="false"
+      @close="isPluginDetailOpen = false; selectedPlugin = null;"
+      @edit="handleDetailEdit($event, 'plugin')"
+      @delete="handleDetailDelete($event, 'plugin')"
+      @update="fetchWorks"
+    />
+
+    <ShowcaseDetail
+      v-model:is-open="isShowcaseDetailOpen"
+      v-model:item="selectedShowcase"
+      :is-admin="isAdmin"
+      :showcases="[]"
+      @refresh-list="fetchWorks"
+    />
   </div>
 </template>
 
 <style scoped>
 .my-works-page {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  height: 100%;
   background: transparent !important;
   color: var(--text-primary);
 }
@@ -663,12 +1053,5 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr);
   gap: 12px;
-  margin-top: 12px;
-}
-
-@media (max-width: 680px) {
-  .my-works-page {
-    padding: 12px;
-  }
 }
 </style>

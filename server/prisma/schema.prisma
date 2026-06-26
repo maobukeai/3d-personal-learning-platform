@@ -87,6 +87,7 @@ model User {
   mirrorLikes             MirrorResourceLike[]
   manualComments          ManualResourceComment[]
   manualLikes             ManualResourceLike[]
+  assetComments           AssetComment[]
 
   googleId                  String?                   @unique
   githubId                  String?                   @unique
@@ -99,8 +100,16 @@ model User {
   aiBotKnowledgeSources     AiBotKnowledgeSource[]
   directMessageEmailBatches DirectMessageEmailBatch[]
   aiMessages                AiMessage[]
-  plugins                   Plugin[]
-  assetLikes                AssetLike[]
+  plugins                    Plugin[]
+  assetLikes                 AssetLike[]
+  assetShares                AssetShare[]
+  materialComments           MaterialComment[]
+  pluginComments             PluginComment[]
+  materialShares             MaterialShare[]
+  pluginShares               PluginShare[]
+  pluginRequests            PluginRequest[]
+  pluginRequestReplies      PluginRequestReply[]
+  pluginFavorites           PluginFavorite[]
 }
 
 model Conversation {
@@ -230,6 +239,7 @@ model Notification {
   createdAt   DateTime   @default(now())
 
   @@index([userId, isRead])
+  @@index([userId, createdAt])
   @@index([broadcastId])
 }
 
@@ -307,12 +317,41 @@ model Asset {
   title        String
   description  String? @db.Text
   url          String
+  packageUrl   String?
+  packageSize  Float?
+  packageFilesList String? @db.Text
   thumbnail    String?
   type         String // e.g., 'GLB', 'GLTF', 'FBX'
   status       String  @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
   rejectReason String?
   formats      String? @db.Text // 存储 JSON 字符串，如 ["FBX", "OBJ"]
   tags         String? @db.Text // JSON string of tag names (e.g., ["scifi", "character"])
+
+  // 版权与授权
+  originality     String?  @default("ORIGINAL") // "ORIGINAL", "AUTHORIZED", "REMIX"
+  originalAuthor  String?
+  originalLink    String?
+  license         String?  @default("CC_BY") // "CC_BY", "CC_BY_NC", etc.
+
+  // 3D 规格与优化
+  meshType        String?  @default("LOW_POLY") // "LOW_POLY", "HIGH_POLY", "CAD"
+  uvUnwrapped     Boolean  @default(true)
+  uvOverlapping   Boolean  @default(false)
+  pbrChannels     String?  @db.Text // JSON string of selected channels
+  rigged          Boolean  @default(false)
+  gameReady       Boolean  @default(false)
+
+  // 3D 视口初始化配置
+  defaultCameraPos    String? // JSON string
+  defaultCameraTarget String? // JSON string
+  defaultEnvironment  String? @default("studio")
+  defaultExposure     Float?  @default(1.0)
+
+  // 关联教学与课时
+  linkedCourseId  String?
+  linkedCourse    Course?  @relation("CourseAssets", fields: [linkedCourseId], references: [id], onDelete: SetNull)
+  linkedLessonId  String?
+  linkedLesson    Lesson?  @relation("LessonAssets", fields: [linkedLessonId], references: [id], onDelete: SetNull)
 
   // 3D Metadata
   vertices      Int?
@@ -335,9 +374,13 @@ model Asset {
   teamId        String?
   team          Team?             @relation(fields: [teamId], references: [id], onDelete: SetNull)
   showcases     Showcase[]
+  linkedShowcases Showcase[]     @relation("ShowcaseLinkedAssets")
   versions      AssetVersion[]
   annotations   AssetAnnotation[]
   likesRelation AssetLike[]
+  isFree        Boolean           @default(true)
+  assetShare    AssetShare?
+  comments      AssetComment[]
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
@@ -347,6 +390,8 @@ model Asset {
   @@index([status, type, createdAt])
   @@index([size])
   @@index([type])
+  @@index([linkedCourseId])
+  @@index([linkedLessonId])
 }
 
 model Category {
@@ -368,6 +413,9 @@ model Course {
   status      String          @default("PUBLISHED") // 'DRAFT', 'PUBLISHED'
   lessons     Lesson[]
   enrollments Enrollment[]
+  linkedAssets Asset[]      @relation("CourseAssets")
+  linkedMaterials Material[]   @relation("CourseMaterials")
+  linkedPlugins   Plugin[]     @relation("CoursePlugins")
   discussions Discussion[]
   reviews     CourseReview[]
   categoryId  String?
@@ -401,6 +449,9 @@ model Lesson {
   order       Int
   progress    LessonProgress[]
   notes       CourseNote[]
+  linkedAssets Asset[]          @relation("LessonAssets")
+  linkedMaterials Material[]    @relation("LessonMaterials")
+  linkedPlugins   Plugin[]      @relation("LessonPlugins")
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
@@ -761,6 +812,7 @@ model Material {
   previewUrl   String?
   fileUrl      String
   fileSize     Float? // in MB
+  packageFilesList String?            @db.Text
   tags         String?            @db.Text
   isProcedural Boolean            @default(false)
   downloads    Int                @default(0)
@@ -771,13 +823,31 @@ model Material {
   teamId       String?
   team         Team?              @relation(fields: [teamId], references: [id], onDelete: SetNull, map: "Material_teamId_fk")
   favorites    MaterialFavorite[]
+  comments     MaterialComment[]
+  materialShare MaterialShare?
+  linkedShowcases Showcase[]     @relation("ShowcaseLinkedMaterials")
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
+
+  // 版权与授权
+  originality     String?            @default("ORIGINAL")
+  originalAuthor  String?
+  originalLink    String?
+  license         String?            @default("CC_BY")
+  isFree          Boolean            @default(true)
+
+  // 关联教学与课时
+  linkedCourseId  String?
+  linkedCourse    Course?            @relation("CourseMaterials", fields: [linkedCourseId], references: [id], onDelete: SetNull)
+  linkedLessonId  String?
+  linkedLesson    Lesson?            @relation("LessonMaterials", fields: [linkedLessonId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([teamId])
   @@index([status])
   @@index([category])
+  @@index([linkedCourseId])
+  @@index([linkedLessonId])
 }
 
 model MaterialFavorite {
@@ -811,6 +881,9 @@ model Showcase {
   team         Team?             @relation(fields: [teamId], references: [id], onDelete: SetNull)
   likes        ShowcaseLike[]
   comments     ShowcaseComment[]
+  linkedAssets Asset[]           @relation("ShowcaseLinkedAssets")
+  linkedMaterials Material[]     @relation("ShowcaseLinkedMaterials")
+  linkedPlugins   Plugin[]       @relation("ShowcaseLinkedPlugins")
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 
@@ -1038,6 +1111,7 @@ model AuditLog {
   createdAt   DateTime @default(now())
 
   @@index([userId])
+  @@index([createdAt])
 }
 
 model MirrorSource {
@@ -1299,6 +1373,22 @@ model NoteShare {
   @@index([expiresAt])
 }
 
+model AssetShare {
+  id         String    @id @default(uuid())
+  assetId    String    @unique
+  userId     String
+  expiresAt  DateTime?
+  customText String?   @db.Text
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  asset      Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
 model Banner {
   id         String   @id @default(uuid())
   title      String
@@ -1322,8 +1412,29 @@ model AssetVersion {
   asset         Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
   version       String
   url           String
+  packageUrl    String?
+  packageSize   Float?
+  packageFilesList String? @db.Text
   thumbnail     String?
   size          Float?
+
+  // 版本特定版权与规格
+  originality     String?  @default("ORIGINAL")
+  originalAuthor  String?
+  originalLink    String?
+  license         String?  @default("CC_BY")
+  meshType        String?  @default("LOW_POLY")
+  uvUnwrapped     Boolean  @default(true)
+  uvOverlapping   Boolean  @default(false)
+  pbrChannels     String?  @db.Text
+  rigged          Boolean  @default(false)
+  gameReady       Boolean  @default(false)
+
+  // 版本特定相机与渲染配置
+  defaultCameraPos    String?
+  defaultCameraTarget String?
+  defaultEnvironment  String? @default("studio")
+  defaultExposure     Float?  @default(1.0)
   vertices      Int?
   faces         Int?
   materials     Int?
@@ -1367,6 +1478,7 @@ model Plugin {
   tags          String?  @db.Text
   fileUrl       String
   fileSize      Float? // in MB
+  packageFilesList String?            @db.Text
   previewUrl    String?
   installGuide  String?  @db.Text // Markdown
   status        String   @default("PENDING") // 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -1374,12 +1486,108 @@ model Plugin {
   downloads     Int      @default(0)
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments      PluginComment[]
+  pluginShare   PluginShare?
+  linkedShowcases Showcase[]     @relation("ShowcaseLinkedPlugins")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  // 版权与授权
+  originality     String?  @default("ORIGINAL")
+  originalAuthor  String?
+  originalLink    String?
+  license         String?  @default("CC_BY")
+  isFree          Boolean  @default(true)
+
+  // 关联教学与课时
+  linkedCourseId  String?
+  linkedCourse    Course?  @relation("CoursePlugins", fields: [linkedCourseId], references: [id], onDelete: SetNull)
+  linkedLessonId  String?
+  linkedLesson    Lesson?  @relation("LessonPlugins", fields: [linkedLessonId], references: [id], onDelete: SetNull)
+
+  // B站分享与开发者工具
+  bilibiliUrl     String?
+  developerToken  String?  @unique
+  versions        PluginVersion[]
+  feedbacks       PluginFeedback[]
+  favorites       PluginFavorite[]
+  linkedReplies   PluginRequestReply[]
 
   @@index([userId])
   @@index([status])
   @@index([category])
+  @@index([linkedCourseId])
+  @@index([linkedLessonId])
+}
+
+model PluginVersion {
+  id              String   @id @default(uuid())
+  pluginId        String
+  plugin          Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  version         String
+  changelog       String?  @db.Text
+  fileUrl         String
+  fileSize        Float?   // in MB
+  packageFilesList String? @db.Text
+  downloads       Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@index([pluginId])
+}
+
+model PluginFeedback {
+  id            String   @id @default(uuid())
+  pluginId      String
+  plugin        Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  clientVersion String
+  feedbackType  String   // 'BUG' | 'SUGGESTION' | 'LOG'
+  content       String   @db.Text
+  createdAt     DateTime @default(now())
+
+  @@index([pluginId])
+}
+
+model PluginRequest {
+  id          String               @id @default(uuid())
+  title       String
+  description String               @db.Text
+  status      String               @default("OPEN") // 'OPEN' | 'RESOLVED'
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replies     PluginRequestReply[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model PluginRequestReply {
+  id             String        @id @default(uuid())
+  requestId      String
+  request        PluginRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content        String        @db.Text
+  linkedPluginId String?
+  linkedPlugin   Plugin?       @relation(fields: [linkedPluginId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+
+  @@index([requestId])
+  @@index([userId])
+}
+
+model PluginFavorite {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pluginId  String
+  plugin    Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  category  String   @default("默认")
+  createdAt DateTime @default(now())
+
+  @@unique([userId, pluginId])
+  @@index([userId])
 }
 
 model AssetLike {
@@ -1568,3 +1776,78 @@ model StorageConfig {
   @@index([status])
   @@index([assetType])
 }
+
+model AssetComment {
+  id        String   @id @default(uuid())
+  content   String   @db.Text
+  assetId   String
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assetId])
+  @@index([userId])
+}
+
+model MaterialComment {
+  id         String   @id @default(uuid())
+  content    String   @db.Text
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([materialId])
+  @@index([userId])
+}
+
+model PluginComment {
+  id        String   @id @default(uuid())
+  content   String   @db.Text
+  pluginId  String
+  plugin    Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pluginId])
+  @@index([userId])
+}
+
+model MaterialShare {
+  id         String    @id @default(uuid())
+  materialId String    @unique
+  userId     String
+  expiresAt  DateTime?
+  customText String?   @db.Text
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  material   Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([materialId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PluginShare {
+  id         String    @id @default(uuid())
+  pluginId   String    @unique
+  userId     String
+  expiresAt  DateTime?
+  customText String?   @db.Text
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  plugin     Plugin    @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([pluginId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+

@@ -81,7 +81,7 @@ const handleCreateGroup = () => {
     return;
   }
   if (groupChatParticipants.value.length === 0) {
-    ElMessage.warning(t('community.teamDetail.selectMemberWarning') || '请选择至少一名成员');
+    ElMessage.warning(t('community.teamDetail.selectMemberWarning'));
     return;
   }
   emit('create-group', {

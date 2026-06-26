@@ -2,7 +2,12 @@ import { randomUUID } from 'crypto';
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../utils/error';
-import { AIChatMessage, streamLLMChat, callLLMWithFailover, generateImageWithFailover } from '../services/ai.service';
+import {
+  AIChatMessage,
+  streamLLMChat,
+  callLLMWithFailover,
+  generateImageWithFailover,
+} from '../services/ai.service';
 import { PROMPT_INJECTION_DEFENSE } from '../config/prompts';
 import { hasPromptInjection } from '../utils/security';
 import { logger } from '../utils/logger';
@@ -105,7 +110,11 @@ function sanitizeImagePrompt(prompt: string): string {
     cleaned = cleaned.replace(pattern, '');
   }
   // Collapse repeated commas / whitespace left by removals
-  cleaned = cleaned.replace(/,\s*,/g, ',').replace(/\.\s*,/g, '.').trim().replace(/,\s*$/, '');
+  cleaned = cleaned
+    .replace(/,\s*,/g, ',')
+    .replace(/\.\s*,/g, '.')
+    .trim()
+    .replace(/,\s*$/, '');
   return cleaned;
 }
 
@@ -272,7 +281,7 @@ export const writeAssist = async (req: AuthRequest, res: Response, next: NextFun
 export const optimizePrompt = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const prompt = normalizeString(req.body.prompt);
   const type = normalizeString(req.body.type) || 'avatar'; // 'avatar' | 'cover'
-  
+
   if (!prompt) {
     return next(new AppError('提示词不能为空', 400));
   }
@@ -282,8 +291,10 @@ export const optimizePrompt = async (req: AuthRequest, res: Response, next: Next
   }
 
   try {
-    const avatarHint = 'Centralized portrait composition, single main subject, clean simple background, close-up or bust-shot framing.';
-    const coverHint = 'Wide landscape composition (21:9 aspect), rich scene details, depth of field, cinematic framing.';
+    const avatarHint =
+      'Centralized portrait composition, single main subject, clean simple background, close-up or bust-shot framing.';
+    const coverHint =
+      'Wide landscape composition (21:9 aspect), rich scene details, depth of field, cinematic framing.';
     const systemPrompt = `You are an expert prompt engineer for AI image generation models (Stable Diffusion, DALL-E, Flux, etc.).
 Your task: take the user input (possibly in Chinese or brief English) and expand it into a rich, visually descriptive English prompt.
 Rules:
@@ -327,4 +338,3 @@ export const generateImage = async (req: AuthRequest, res: Response, next: NextF
     next(new AppError(msg, 400, 'AI_GENERATION_ERROR'));
   }
 };
-

@@ -2,7 +2,7 @@
 import { getApiErrorMessage, logError } from '@/utils/error';
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { useI18n } from 'vue-i18n';
+import { useCommunityI18n } from '@/composables/useCommunityI18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import CreateTeamDialog from '@/components/CreateTeamDialog.vue';
 import GroupDetailDialog from '@/components/GroupDetailDialog.vue';
@@ -14,14 +14,7 @@ import type { ExploreTeam } from './components/exploreTeamsTypes';
 
 const router = useRouter();
 const workspaceStore = useWorkspaceStore();
-const { t: i18nT } = useI18n();
-const t = (key: string, ...args: unknown[]) => {
-  const prefixes = ['showcase.', 'teams.', 'members.', 'teamDetail.', 'discussions.', 'chat.'];
-  if (prefixes.some((p) => key.startsWith(p))) {
-    return (i18nT as (key: string, ...args: unknown[]) => string)(`community.${key}`, ...args);
-  }
-  return (i18nT as (key: string, ...args: unknown[]) => string)(key, ...args);
-};
+const { t } = useCommunityI18n();
 
 const isCreateTeamVisible = ref(false);
 const isDetailVisible = ref(false);

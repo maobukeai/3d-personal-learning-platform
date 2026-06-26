@@ -345,12 +345,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="security-section mobile-adaptive">
-    <section class="security-overview mobile-row">
-      <div class="min-w-0">
-        <p class="section-kicker">账号安全</p>
-        <h3 class="truncate">{{ securityScore }}% 安全评分</h3>
-        <span class="truncate">{{
+  <div class="settings-layout-container mobile-adaptive">
+    <section class="settings-overview mobile-row">
+      <div class="settings-overview-info min-w-0">
+        <p class="settings-kicker">账号安全</p>
+        <h3 class="settings-card-title truncate">{{ securityScore }}% 安全评分</h3>
+        <span class="settings-card-subtitle truncate">{{
           authStore.user?.twoFactorEnabled
             ? '双重验证已保护你的登录流程。'
             : '建议开启双重验证并定期更新密码。'
@@ -364,270 +364,289 @@ onUnmounted(() => {
       </div>
     </section>
 
-    <section class="security-grid">
-      <div class="security-panel">
-        <div class="panel-title mobile-row">
-          <span>邮箱地址</span>
-          <Mail />
-        </div>
-        <p class="current-email truncate">当前邮箱：{{ authStore.user?.email }}</p>
+    <div class="security-layout-main">
+      <div class="security-left-col">
+        <div class="settings-card security-panel">
+          <header class="settings-card-header flex items-center justify-between">
+            <h3 class="settings-card-title flex items-center gap-2">
+              <span>邮箱地址</span>
+              <Mail class="w-4 h-4 text-[var(--text-muted)]" />
+            </h3>
+          </header>
+          <div class="panel-body p-4">
+            <p class="current-email truncate">当前邮箱：{{ authStore.user?.email }}</p>
 
-        <div v-if="emailChangeForm.step === 1" class="form-stack">
-          <Input
-            v-model="emailChangeForm.newEmail"
-            type="email"
-            label="新邮箱地址"
-            placeholder="new@example.com"
-            :icon="AtSign"
-          />
-          <Button
-            variant="secondary"
-            :disabled="isSendingEmailCode || emailCodeCountdown > 0"
-            :loading="isSendingEmailCode"
-            @click="sendEmailChangeCode"
-          >
-            {{ emailCodeCountdown > 0 ? `重新发送 ${emailCodeCountdown}s` : '发送验证码' }}
-          </Button>
-        </div>
-
-        <div v-else class="form-stack">
-          <div class="notice-box">验证码已发送至 {{ emailChangeForm.newEmail }}</div>
-          <Input
-            v-model="emailChangeForm.code"
-            type="text"
-            label="邮箱验证码"
-            maxlength="6"
-            inputmode="numeric"
-            placeholder="000000"
-            input-class="text-center font-bold tracking-widest text-lg"
-          />
-          <div class="inline-actions mobile-row">
-            <Button variant="secondary" @click="emailChangeForm.step = 1"> 返回 </Button>
-            <Button
-              variant="primary"
-              :disabled="isConfirmingEmail"
-              :loading="isConfirmingEmail"
-              @click="confirmEmailChange"
-            >
-              确认更换
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div class="security-panel">
-        <div class="panel-title mobile-row">
-          <span>登录密码</span>
-          <Lock />
-        </div>
-        <div class="form-stack">
-          <Input
-            v-model="passwordForm.currentPassword"
-            type="password"
-            label="当前密码"
-            autocomplete="current-password"
-            :icon="KeyRound"
-          />
-          <div class="field-grid">
-            <Input
-              v-model="passwordForm.newPassword"
-              type="password"
-              label="新密码"
-              autocomplete="new-password"
-            />
-            <Input
-              v-model="passwordForm.confirmPassword"
-              type="password"
-              label="确认新密码"
-              autocomplete="new-password"
-            />
-          </div>
-          <div class="strength-row">
-            <span>强度：{{ passwordStrength.label }}</span>
-            <i :class="passwordStrength.tone" :style="{ width: `${passwordStrength.value}%` }"></i>
-          </div>
-          <Button
-            variant="primary"
-            :disabled="isChangingPassword"
-            :loading="isChangingPassword"
-            @click="handleChangePassword"
-          >
-            更新密码
-          </Button>
-        </div>
-      </div>
-    </section>
-
-    <section class="security-panel two-factor-panel">
-      <div class="two-factor-head mobile-row">
-        <div class="min-w-0">
-          <div class="panel-title mobile-row">
-            <span>双重验证</span>
-            <Fingerprint />
-          </div>
-          <p class="truncate">
-            {{
-              authStore.user?.twoFactorEnabled
-                ? '登录时需要动态验证码或恢复码。'
-                : '使用 Authenticator 应用保护登录。'
-            }}
-          </p>
-        </div>
-        <em :class="{ enabled: authStore.user?.twoFactorEnabled }">
-          {{ authStore.user?.twoFactorEnabled ? '已启用' : '未启用' }}
-        </em>
-      </div>
-
-      <div v-if="!authStore.user?.twoFactorEnabled" class="two-factor-setup">
-        <button
-          v-if="!show2FASetup"
-          type="button"
-          class="setup-button"
-          :disabled="is2FALoading"
-          @click="start2FASetup"
-        >
-          <Plus />
-          {{ is2FALoading ? '准备中...' : '开始启用双重验证' }}
-        </button>
-
-        <div v-else class="setup-grid">
-          <div class="qr-box">
-            <img :src="qrCodeUrl" alt="2FA QR Code" />
-            <div v-if="secretKey" class="secret-key-display">
-              <span class="secret-key-title">手动录入密钥</span>
-              <code class="secret-key-value">{{ secretKey }}</code>
-              <button type="button" class="secret-key-copy" @click="copySecret">
-                <Copy />
-                <span>复制密钥</span>
-              </button>
-            </div>
-          </div>
-          <div class="form-stack">
-            <div class="notice-box">扫描二维码后，输入当前密码和应用中的 6 位验证码完成启用。</div>
-            <div v-if="setupRecoveryCodes.length > 0" class="recovery-box">
-              <div class="panel-title">
-                <span>初始恢复码</span>
-                <button type="button" @click="copyRecoveryCodes(setupRecoveryCodes)">
-                  <Copy />
-                  复制
-                </button>
-              </div>
-              <div class="code-grid">
-                <code v-for="code in setupRecoveryCodes" :key="code">{{ code }}</code>
-              </div>
-            </div>
-            <div class="field-grid">
+            <div v-if="emailChangeForm.step === 1" class="form-stack">
               <Input
-                v-model="tfaPassword"
-                type="password"
-                label="当前密码"
-                autocomplete="current-password"
+                v-model="emailChangeForm.newEmail"
+                type="email"
+                label="新邮箱地址"
+                placeholder="new@example.com"
+                :icon="AtSign"
               />
+              <Button
+                variant="secondary"
+                :disabled="isSendingEmailCode || emailCodeCountdown > 0"
+                :loading="isSendingEmailCode"
+                @click="sendEmailChangeCode"
+              >
+                {{ emailCodeCountdown > 0 ? `重新发送 ${emailCodeCountdown}s` : '发送验证码' }}
+              </Button>
+            </div>
+
+            <div v-else class="form-stack">
+              <div class="notice-box">验证码已发送至 {{ emailChangeForm.newEmail }}</div>
               <Input
-                v-model="tfaCode"
+                v-model="emailChangeForm.code"
                 type="text"
-                label="动态验证码"
+                label="邮箱验证码"
                 maxlength="6"
                 inputmode="numeric"
                 placeholder="000000"
+                input-class="text-center font-bold tracking-widest text-lg"
               />
+              <div class="inline-actions mobile-row">
+                <Button variant="secondary" @click="emailChangeForm.step = 1"> 返回 </Button>
+                <Button
+                  variant="primary"
+                  :disabled="isConfirmingEmail"
+                  :loading="isConfirmingEmail"
+                  @click="confirmEmailChange"
+                >
+                  确认更换
+                </Button>
+              </div>
             </div>
-            <div class="inline-actions mobile-row">
-              <Button variant="secondary" @click="show2FASetup = false"> 取消 </Button>
+          </div>
+        </div>
+
+        <div class="settings-card security-panel">
+          <header class="settings-card-header">
+            <h3 class="settings-card-title flex items-center gap-2">
+              <span>登录密码</span>
+              <Lock class="w-4 h-4 text-[var(--text-muted)]" />
+            </h3>
+          </header>
+          <div class="panel-body p-4">
+            <div class="form-stack">
+              <Input
+                v-model="passwordForm.currentPassword"
+                type="password"
+                label="当前密码"
+                autocomplete="current-password"
+                :icon="KeyRound"
+              />
+              <div class="field-grid gap-2 grid grid-cols-2">
+                <Input
+                  v-model="passwordForm.newPassword"
+                  type="password"
+                  label="新密码"
+                  autocomplete="new-password"
+                />
+                <Input
+                  v-model="passwordForm.confirmPassword"
+                  type="password"
+                  label="确认新密码"
+                  autocomplete="new-password"
+                />
+              </div>
+              <div class="strength-row">
+                <span>强度：{{ passwordStrength.label }}</span>
+                <i :class="passwordStrength.tone" :style="{ width: `${passwordStrength.value}%` }"></i>
+              </div>
               <Button
                 variant="primary"
-                :disabled="is2FALoading"
-                :loading="is2FALoading"
-                @click="confirm2FA"
+                :disabled="isChangingPassword"
+                :loading="isChangingPassword"
+                @click="handleChangePassword"
               >
-                验证并启用
+                更新密码
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-else class="enabled-grid">
-        <div class="recovery-box">
-          <div class="panel-title">
-            <span>恢复码</span>
-            <strong>{{ recoveryCodeCount }} 枚可用</strong>
+      <section class="settings-card security-panel two-factor-panel">
+        <header class="settings-card-header flex items-center justify-between">
+          <div class="min-w-0">
+            <h3 class="settings-card-title flex items-center gap-2">
+              <span>双重验证</span>
+              <Fingerprint class="w-4 h-4 text-[var(--text-muted)]" />
+            </h3>
+            <p class="settings-card-subtitle truncate">
+              {{
+                authStore.user?.twoFactorEnabled
+                  ? '登录时需要动态验证码或恢复码。'
+                  : '使用 Authenticator 应用保护登录。'
+              }}
+            </p>
           </div>
-          <p>恢复码只会在生成时完整显示，请保存到安全的位置。</p>
-          <div class="field-grid">
-            <Input
-              v-model="regeneratePassword"
-              type="password"
-              label="当前密码"
-              autocomplete="current-password"
-            />
-            <Input
-              v-model="regenerateCode"
-              type="text"
-              label="或 2FA 验证码"
-              maxlength="6"
-              inputmode="numeric"
-              placeholder="000000"
-            />
-          </div>
-          <Button
-            variant="secondary"
-            :disabled="isRegeneratingCodes"
-            :loading="isRegeneratingCodes"
-            :icon="RefreshCw"
-            @click="regenerateRecoveryCodes"
-          >
-            重新生成恢复码
-          </Button>
-          <div v-if="regeneratedRecoveryCodes.length > 0" class="code-grid">
-            <code v-for="code in regeneratedRecoveryCodes" :key="code">{{ code }}</code>
-          </div>
-          <button
-            v-if="regeneratedRecoveryCodes.length > 0"
-            type="button"
-            class="link-action"
-            @click="copyRecoveryCodes(regeneratedRecoveryCodes)"
-          >
-            <Copy />
-            复制新恢复码
-          </button>
-        </div>
+          <em :class="{ enabled: authStore.user?.twoFactorEnabled }" class="two-factor-status shrink-0">
+            {{ authStore.user?.twoFactorEnabled ? '已启用' : '未启用' }}
+          </em>
+        </header>
 
-        <div class="disable-box">
-          <div class="panel-title">
-            <span>关闭双重验证</span>
-            <ShieldAlert />
-          </div>
-          <p>需要当前密码或 2FA 验证码。关闭后，账号登录安全等级会下降。</p>
-          <Input
-            v-model="disable2FACode"
-            type="text"
-            label="2FA 验证码"
-            maxlength="6"
-            inputmode="numeric"
-            placeholder="000000"
-          />
-          <Input
-            v-model="disablePassword"
-            type="password"
-            label="或当前密码"
-            autocomplete="current-password"
-          />
-          <Button
-            variant="danger"
-            :disabled="isDisabling2FA"
-            :loading="isDisabling2FA"
-            @click="disable2FA"
-          >
-            关闭双重验证
-          </Button>
-        </div>
-      </div>
-    </section>
+        <div class="panel-body p-4">
+          <div v-if="!authStore.user?.twoFactorEnabled" class="two-factor-setup">
+            <button
+              v-if="!show2FASetup"
+              type="button"
+              class="setup-button"
+              :disabled="is2FALoading"
+              @click="start2FASetup"
+            >
+              <Plus />
+              {{ is2FALoading ? '准备中...' : '开始启用双重验证' }}
+            </button>
 
-    <section class="security-panel">
-      <div class="panel-title mobile-row">
-        <span>受信设备</span>
+            <div v-else class="setup-grid">
+              <div class="qr-box">
+                <img :src="qrCodeUrl" alt="2FA QR Code" />
+                <div v-if="secretKey" class="secret-key-display">
+                  <span class="secret-key-title">手动录入密钥</span>
+                  <code class="secret-key-value">{{ secretKey }}</code>
+                  <button type="button" class="secret-key-copy" @click="copySecret">
+                    <Copy />
+                    <span>复制密钥</span>
+                  </button>
+                </div>
+              </div>
+              <div class="form-stack">
+                <div class="notice-box">扫描二维码后，输入当前密码和应用中的 6 位验证码完成启用。</div>
+                <div v-if="setupRecoveryCodes.length > 0" class="recovery-box">
+                  <div class="panel-title flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold">初始恢复码</span>
+                    <button type="button" class="secret-key-copy" @click="copyRecoveryCodes(setupRecoveryCodes)">
+                      <Copy />
+                      复制
+                    </button>
+                  </div>
+                  <div class="code-grid">
+                    <code v-for="code in setupRecoveryCodes" :key="code">{{ code }}</code>
+                  </div>
+                </div>
+                <div class="field-grid gap-2 grid grid-cols-2">
+                  <Input
+                    v-model="tfaPassword"
+                    type="password"
+                    label="当前密码"
+                    autocomplete="current-password"
+                  />
+                  <Input
+                    v-model="tfaCode"
+                    type="text"
+                    label="动态验证码"
+                    maxlength="6"
+                    inputmode="numeric"
+                    placeholder="000000"
+                  />
+                </div>
+                <div class="inline-actions mobile-row">
+                  <Button variant="secondary" @click="show2FASetup = false"> 取消 </Button>
+                  <Button
+                    variant="primary"
+                    :disabled="is2FALoading"
+                    :loading="is2FALoading"
+                    @click="confirm2FA"
+                  >
+                    验证并启用
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="enabled-grid">
+            <div class="recovery-box">
+              <div class="panel-title flex justify-between items-center mb-2">
+                <span class="text-xs font-bold">恢复码</span>
+                <strong class="text-xs text-[var(--text-muted)]">{{ recoveryCodeCount }} 枚可用</strong>
+              </div>
+              <p class="text-xs text-[var(--text-muted)] mb-3">恢复码只会在生成时完整显示，请保存到安全的位置。</p>
+              <div class="field-grid gap-2 grid grid-cols-2 mb-3">
+                <Input
+                  v-model="regeneratePassword"
+                  type="password"
+                  label="当前密码"
+                  autocomplete="current-password"
+                />
+                <Input
+                  v-model="regenerateCode"
+                  type="text"
+                  label="或 2FA 验证码"
+                  maxlength="6"
+                  inputmode="numeric"
+                  placeholder="000000"
+                />
+              </div>
+              <Button
+                variant="secondary"
+                class="w-full mb-3"
+                :disabled="isRegeneratingCodes"
+                :loading="isRegeneratingCodes"
+                :icon="RefreshCw"
+                @click="regenerateRecoveryCodes"
+              >
+                重新生成恢复码
+              </Button>
+              <div v-if="regeneratedRecoveryCodes.length > 0" class="code-grid mb-2">
+                <code v-for="code in regeneratedRecoveryCodes" :key="code">{{ code }}</code>
+              </div>
+              <button
+                v-if="regeneratedRecoveryCodes.length > 0"
+                type="button"
+                class="secret-key-copy"
+                @click="copyRecoveryCodes(regeneratedRecoveryCodes)"
+              >
+                <Copy />
+                复制新恢复码
+              </button>
+            </div>
+
+            <div class="disable-box">
+              <div class="panel-title flex justify-between items-center mb-2">
+                <span class="text-xs font-bold">关闭双重验证</span>
+                <ShieldAlert class="w-4 h-4 text-rose-500" />
+              </div>
+              <p class="text-xs text-[var(--text-muted)] mb-3">需要当前密码或 2FA 验证码。关闭后，账号登录安全等级会下降。</p>
+              <Input
+                v-model="disable2FACode"
+                type="text"
+                label="2FA 验证码"
+                maxlength="6"
+                inputmode="numeric"
+                placeholder="000000"
+                class="mb-2"
+              />
+              <Input
+                v-model="disablePassword"
+                type="password"
+                label="或当前密码"
+                autocomplete="current-password"
+                class="mb-3"
+              />
+              <Button
+                variant="danger"
+                class="w-full"
+                :disabled="isDisabling2FA"
+                :loading="isDisabling2FA"
+                @click="disable2FA"
+              >
+                关闭双重验证
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="settings-card security-panel">
+      <header class="settings-card-header flex items-center justify-between">
+        <h3 class="settings-card-title flex items-center gap-2">
+          <span>受信设备</span>
+          <Smartphone class="w-4 h-4 text-[var(--text-muted)]" />
+        </h3>
         <Button
           size="sm"
           variant="secondary"
@@ -637,275 +656,62 @@ onUnmounted(() => {
         >
           刷新
         </Button>
-      </div>
+      </header>
 
-      <div v-if="isLoadingDevices" class="device-skeletons">
-        <i v-for="item in 2" :key="item"></i>
-      </div>
+      <div class="panel-body p-4">
+        <div v-if="isLoadingDevices" class="device-skeletons">
+          <i v-for="item in 2" :key="item"></i>
+        </div>
 
-      <div v-else-if="trustedDevices.length > 0" class="device-list">
-        <article v-for="(device, index) in trustedDevices" :key="device.id" class="device-row">
+        <div v-else-if="trustedDevices.length > 0" class="device-list">
+          <article v-for="(device, index) in trustedDevices" :key="device.id" class="device-row">
+            <Smartphone />
+            <div>
+              <strong>受信设备 #{{ index + 1 }}</strong>
+              <span>添加时间：{{ formatDate(device.createdAt) }}</span>
+            </div>
+            <button type="button" title="移除设备" @click="revokeDevice(device.id)">
+              <Trash2 />
+            </button>
+          </article>
+        </div>
+
+        <div v-else class="empty-devices">
           <Smartphone />
-          <div>
-            <strong>受信设备 #{{ index + 1 }}</strong>
-            <span>添加时间：{{ formatDate(device.createdAt) }}</span>
-          </div>
-          <button type="button" title="移除设备" @click="revokeDevice(device.id)">
-            <Trash2 />
-          </button>
-        </article>
-      </div>
-
-      <div v-else class="empty-devices">
-        <Smartphone />
-        <span>暂无受信设备</span>
+          <span>暂无受信设备</span>
+        </div>
       </div>
     </section>
   </div>
 </template>
 
 <style scoped>
-.security-section {
-  display: grid;
-  gap: 12px;
-}
-
-.security-overview,
-.security-panel {
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-}
-
-.security-overview {
-  min-height: 82px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
-}
-
-.section-kicker,
-.security-overview span,
-.panel-title,
-.current-email,
-.form-stack label span,
-.two-factor-head p,
-.recovery-box p,
-.disable-box p,
-.device-row span,
-.empty-devices {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.section-kicker,
-.panel-title,
-.form-stack label span,
-.disable-box label span {
-  font-size: 11px;
-  font-weight: 900;
-}
-
-h3 {
-  margin: 2px 0 4px;
-  font-size: 20px;
-  font-weight: 900;
-}
-
-.check-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: flex-end;
-}
-
-.check-strip span {
-  min-height: 26px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: 999px;
-  padding: 0 10px;
-  background: var(--bg-app);
-  border: 1px solid var(--border-base);
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.check-strip span.done {
-  background: rgba(16, 185, 129, 0.06);
-  border-color: rgba(16, 185, 129, 0.2);
-  color: #10b981;
-  font-weight: 600;
-}
-
-.check-strip svg {
-  width: 14px;
-  height: 14px;
-}
-
-.security-grid {
+.security-layout-main {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
-.security-panel {
-  padding: 12px;
-}
-
-.panel-title {
+.security-left-col {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.panel-title svg,
-.panel-title button svg {
-  width: 15px;
-  height: 15px;
-}
-
-.panel-title button {
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  padding: 0 8px;
-  background: var(--bg-app);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 900;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .current-email {
   margin: 0 0 10px;
 }
 
-.device-list,
-.device-skeletons {
-  display: grid;
-  gap: 9px;
-}
-
-.disable-box label {
-  display: grid;
-  gap: 7px;
-}
-
-.field-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
-}
-
-.input-shell {
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-}
-
-.input-shell,
-input {
-  min-height: 40px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
-}
-
-.input-shell input {
-  min-height: auto;
-  border: 0;
-  border-radius: 0;
-}
-
-.input-shell svg {
-  width: 15px;
-  height: 15px;
-  margin-left: 10px;
-  color: var(--text-muted);
-}
-
-input {
-  width: 100%;
-  min-width: 0;
-  padding: 0 11px;
-  outline: 0;
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 13px;
-}
-
-.code-input {
-  text-align: center;
-  font-weight: 900;
-}
-
-.primary-action,
-.secondary-action,
-.danger-action,
-.link-action {
-  height: 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  border-radius: 8px;
-  padding: 0 12px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.primary-action {
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #ffffff;
-}
-
-.secondary-action,
-.link-action {
-  border: 1px solid var(--border-base);
-  background: var(--bg-app);
-  color: var(--text-secondary);
-}
-
-.danger-action {
-  border: 1px solid #dc2626;
-  background: #dc2626;
-  color: #ffffff;
-}
-
-.primary-action:disabled,
-.secondary-action:disabled,
-.danger-action:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.primary-action svg,
-.secondary-action svg,
-.danger-action svg,
-.link-action svg {
-  width: 15px;
-  height: 15px;
-}
-
-.inline-actions {
+.form-stack {
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-stack label span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .notice-box {
@@ -964,21 +770,8 @@ input {
   gap: 10px;
 }
 
-.two-factor-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.two-factor-head p,
-.recovery-box p,
-.disable-box p {
-  margin: 0;
-  line-height: 1.6;
-}
-
-.two-factor-head em {
-  height: 26px;
+.two-factor-status {
+  height: 24px;
   border-radius: 999px;
   padding: 0 10px;
   display: inline-flex;
@@ -991,7 +784,7 @@ input {
   font-weight: 500;
 }
 
-.two-factor-head em.enabled {
+.two-factor-status.enabled {
   background: rgba(16, 185, 129, 0.06);
   border-color: rgba(16, 185, 129, 0.2);
   color: #10b981;
@@ -1000,7 +793,7 @@ input {
 
 .setup-button {
   width: 100%;
-  min-height: 58px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1013,11 +806,6 @@ input {
   font: inherit;
   font-size: 13px;
   font-weight: 900;
-}
-
-.setup-button svg {
-  width: 16px;
-  height: 16px;
 }
 
 .setup-grid,
@@ -1036,12 +824,12 @@ input {
   place-items: center;
   border-radius: 8px;
   background: var(--bg-app);
-  padding: 12px;
+  padding: 10px;
 }
 
 .qr-box img {
-  width: 150px;
-  height: 150px;
+  width: 130px;
+  height: 130px;
 }
 
 .recovery-box,
@@ -1066,48 +854,51 @@ input {
 .code-grid code {
   border: 1px solid var(--border-base);
   border-radius: 8px;
-  padding: 7px;
+  padding: 6px;
   background: var(--bg-card);
   text-align: center;
-  font-size: 12px;
+  font-size: 11.5px;
+}
+
+.device-list,
+.device-skeletons {
+  display: grid;
+  gap: 9px;
 }
 
 .device-skeletons i {
-  height: 54px;
+  height: 46px;
   border-radius: 8px;
   background: color-mix(in srgb, var(--text-muted) 10%, transparent);
   animation: pulse 1.1s ease-in-out infinite;
 }
 
 .device-row {
-  min-height: 56px;
+  min-height: 46px;
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr) 34px;
   align-items: center;
   gap: 9px;
   border: 1px solid var(--border-base);
   border-radius: 8px;
-  padding: 8px;
+  padding: 6px 8px;
   background: var(--bg-app);
 }
 
 .device-row > svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   color: var(--accent);
-}
-
-.device-row strong,
-.device-row span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .device-row strong {
   font-size: 13px;
   font-weight: 900;
+}
+
+.device-row span {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .device-row button {
@@ -1127,32 +918,19 @@ input {
   color: #dc2626;
 }
 
-.device-row button svg {
-  width: 15px;
-  height: 15px;
-}
-
 .empty-devices {
   min-height: 90px;
   display: grid;
   place-items: center;
   align-content: center;
   gap: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .empty-devices svg {
   width: 24px;
   height: 24px;
-}
-
-.spinning {
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 @keyframes pulse {
@@ -1166,13 +944,7 @@ input {
 }
 
 @media (max-width: 980px) {
-  .security-overview,
-  .two-factor-head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .security-grid,
+  .security-layout-main,
   .setup-grid,
   .enabled-grid {
     grid-template-columns: 1fr;
@@ -1180,19 +952,12 @@ input {
 }
 
 @media (max-width: 620px) {
-  .field-grid,
   .code-grid {
     grid-template-columns: 1fr;
   }
 
   .inline-actions {
     flex-direction: column;
-  }
-
-  .primary-action,
-  .secondary-action,
-  .danger-action {
-    width: 100%;
   }
 }
 

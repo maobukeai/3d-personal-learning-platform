@@ -446,6 +446,17 @@ const handleAiGenerate = async () => {
   broadcastForm.value.title = '';
   broadcastForm.value.content = '';
 
+  const sId = `broadcast-session-${Date.now()}`;
+
+  const cleanupSession = async () => {
+    try {
+      await api.delete(`/api/projects/ai-chat/history?sessionId=${sId}`);
+      window.dispatchEvent(new CustomEvent('ai-chat-history-updated'));
+    } catch (cleanupErr) {
+      logError(cleanupErr, { operation: 'admin.aiAnnouncementCleanup', component: 'AdminDashboardView' });
+    }
+  };
+
   try {
     const siteContext = [
       '【本网站实时数据与背景】',
@@ -468,7 +479,6 @@ ${siteContext}
 3. 公告正文内容请字数不限，可以极其详尽、长篇幅地展开叙述所有的升级细则、规则、操作指引或相关背景。
 4. 正文可以使用标准的 Markdown 语法（如加粗 **text**、无序/有序列表、小标题、Emoji 等）来进行排版与强调，以确保内容结构清晰、条理分明、专业大气。`;
 
-    const sId = `broadcast-session-${Date.now()}`;
     const clientRunId = `run-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     const response = await fetch('/api/projects/ai-chat', {
@@ -532,21 +542,24 @@ ${siteContext}
           }
         }
       },
-      () => {
+      async () => {
         isAiGenerating.value = false;
         ElMessage.success('公告生成成功！');
         aiPrompt.value = '';
+        await cleanupSession();
       },
-      (err) => {
+      async (err) => {
         logError(err, { operation: 'admin.aiAnnouncementSSE', component: 'AdminDashboardView' });
         ElMessage.error(err.message || '生成中途发生错误');
         isAiGenerating.value = false;
+        await cleanupSession();
       },
     );
   } catch (error) {
     logError(error, { operation: 'admin.aiAnnouncementGenerate', component: 'AdminDashboardView' });
     ElMessage.error(error instanceof Error ? error.message : 'AI 生成失败，请稍后重试');
     isAiGenerating.value = false;
+    await cleanupSession();
   }
 };
 

@@ -188,12 +188,12 @@ onMounted(fetchMyTeams);
 }
 
 .teams-overview {
-  min-height: 82px;
+  min-height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px;
+  padding: 10px 14px;
 }
 
 .section-kicker,
@@ -203,7 +203,7 @@ onMounted(fetchMyTeams);
 .quick-grid small,
 .empty-state span {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 .section-kicker {
@@ -212,8 +212,8 @@ onMounted(fetchMyTeams);
 }
 
 h3 {
-  margin: 2px 0 4px;
-  font-size: 20px;
+  margin: 1px 0 2px;
+  font-size: 18px;
   font-weight: 900;
 }
 
@@ -225,7 +225,7 @@ h3 {
 
 .primary-action,
 .secondary-action {
-  height: 38px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -233,7 +233,7 @@ h3 {
   padding: 0 12px;
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 900;
 }
 
@@ -271,19 +271,19 @@ a svg {
 }
 
 .team-metrics article {
-  min-height: 64px;
+  min-height: 52px;
   display: grid;
   gap: 4px;
-  padding: 10px;
+  padding: 8px 10px;
 }
 
 .team-metrics strong {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 900;
 }
 
 .team-workbench {
-  padding: 12px;
+  padding: 10px;
 }
 
 .team-toolbar {
@@ -291,12 +291,12 @@ a svg {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .team-search {
   width: min(320px, 38vw);
-  height: 38px;
+  height: 32px;
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);
   align-items: center;
@@ -308,8 +308,8 @@ a svg {
 }
 
 .team-search svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   color: var(--text-muted);
 }
 
@@ -320,7 +320,7 @@ a svg {
   background: transparent;
   color: var(--text-primary);
   font: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .filter-tabs {
@@ -329,7 +329,7 @@ a svg {
 }
 
 .filter-tabs button {
-  height: 32px;
+  height: 28px;
   border: 1px solid var(--border-base);
   border-radius: 8px;
   padding: 0 10px;
@@ -337,7 +337,7 @@ a svg {
   color: var(--text-secondary);
   cursor: pointer;
   font: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 900;
 }
 
@@ -354,34 +354,35 @@ a svg {
 }
 
 .team-skeletons i {
-  height: 58px;
+  height: 52px;
   border-radius: 8px;
   background: color-mix(in srgb, var(--text-muted) 10%, transparent);
   animation: pulse 1.1s ease-in-out infinite;
 }
 
 .team-row {
-  min-height: 64px;
+  min-height: 52px;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  padding: 9px;
+  padding: 6px 10px;
   border: 1px solid var(--border-base);
   border-radius: 8px;
   background: var(--bg-app);
 }
 
 .team-avatar {
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   overflow: hidden;
   display: inline-grid;
   place-items: center;
-  border-radius: 8px;
+  border-radius: 6px;
   background: linear-gradient(135deg, #f97316, #2563eb);
   color: #ffffff;
   font-weight: 900;
+  font-size: 12.5px;
 }
 
 .team-avatar img {
@@ -393,7 +394,7 @@ a svg {
 .team-copy {
   min-width: 0;
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .team-copy div {
@@ -410,23 +411,23 @@ a svg {
 }
 
 .team-copy strong {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 900;
 }
 
 .team-copy em {
   border-radius: 999px;
-  padding: 2px 7px;
+  padding: 1px 6px;
   background: rgba(37, 99, 235, 0.12);
   color: #2563eb;
-  font-size: 11px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 900;
 }
 
 .team-actions a {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   display: inline-grid;
   place-items: center;
   border-radius: 8px;
@@ -440,22 +441,23 @@ a svg {
 }
 
 .empty-state {
-  min-height: 160px;
+  min-height: 120px;
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 8px;
+  gap: 6px;
   color: var(--text-muted);
   text-align: center;
 }
 
 .empty-state svg {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
 }
 
 .empty-state strong {
   color: var(--text-primary);
+  font-size: 13px;
 }
 
 .quick-grid {
@@ -465,12 +467,12 @@ a svg {
 }
 
 .quick-grid button {
-  min-height: 64px;
+  min-height: 54px;
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
-  padding: 10px;
+  padding: 8px 10px;
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;

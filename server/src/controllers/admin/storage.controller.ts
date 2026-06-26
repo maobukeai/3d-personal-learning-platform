@@ -8,6 +8,7 @@ import { logger } from '../../utils/logger';
 import { auditService, AuditModule } from '../../services/audit.service';
 import { AppError } from '../../utils/error';
 import { encrypt, buildDecryptedStorageConfig } from '../../utils/crypto';
+import { gbToBytes } from '../../utils/quota';
 import { resolveCloudflareApiToken } from '../../utils/cloudflare-r2';
 import { Prisma, type StorageConfig } from '@prisma/client';
 
@@ -39,7 +40,7 @@ function prepareConfigResponse(config: StorageConfig) {
   return {
     ...config,
     secretAccessKey: '',
-    cloudflareApiToken: '',
+    cloudflareApiToken: decryptSecretIfNeeded(config.cloudflareApiToken),
     hasSecretAccessKey: Boolean(config.secretAccessKey),
     hasCloudflareApiToken: Boolean(config.cloudflareApiToken),
   };
@@ -532,7 +533,7 @@ export const uploadDirectFile = async (req: AuthRequest, res: Response, next: Ne
     }
 
     // Check capacity limit before uploading (read-only check, no write yet)
-    const limitBytes = raw.limitGb * 1000 * 1000 * 1000;
+    const limitBytes = gbToBytes(raw.limitGb);
     if (raw.status !== 'ACTIVE' || raw.usedBytes + file.size > limitBytes) {
       if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
       return next(new AppError('云端存储容量已满，无法上传', 400));
@@ -617,9 +618,8 @@ export const syncActualSize = async (req: AuthRequest, res: Response, next: Next
       scan: type === 'scanned',
     });
 
-    const bytesToSync = type === 'official'
-      ? usage.dashboardBytes
-      : (usage.scannedBytes ?? usage.dashboardBytes);
+    const bytesToSync =
+      type === 'official' ? usage.dashboardBytes : (usage.scannedBytes ?? usage.dashboardBytes);
 
     const updated = await prisma.storageConfig.update({
       where: { id },

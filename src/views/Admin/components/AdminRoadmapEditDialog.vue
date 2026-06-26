@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
@@ -253,7 +253,7 @@ const handleAiGenerate = async () => {
         }
       }
     } catch (e) {
-      console.warn('Final parse error:', e);
+      logError('Final parse error:', e);
     }
 
     ElMessage.success('AI 已成功为您规划官方路线，请核对并继续编辑！');

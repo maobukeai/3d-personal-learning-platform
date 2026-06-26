@@ -1,5 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, onUnmounted, watch, computed } from 'vue';
+import { logError } from '@/utils/error';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
@@ -430,7 +431,7 @@ const triggerCoPlanStream = async (activeMessageIndex: number) => {
             ) {
               currentPlanJson.value = extracted as PlanJson;
               isPlanJsonSynced.value = true;
-              console.warn(
+              logError(
                 '[CoPlan] AI output raw JSON instead of Markdown — parsed via fallback extractor.',
               );
             }
@@ -438,7 +439,7 @@ const triggerCoPlanStream = async (activeMessageIndex: number) => {
         }
       }
     } catch (e) {
-      console.warn('Final markdown parse failed:', e);
+      logError('Final markdown parse failed:', e);
     }
   } catch (err: unknown) {
     ElMessage.error(getApiErrorMessage(err, '规划助手对话发生错误'));

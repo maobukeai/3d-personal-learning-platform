@@ -6,11 +6,13 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import path from 'path';
 import fs from 'fs';
 import { checkStorageQuota } from '../utils/quota';
-import { deleteCloudOrLocalFileByUrl } from '../utils/file';
+import { deleteCloudOrLocalFileByUrl, getZipFileNames, parseZipLocal, getZipFileDirectory, getUploadedFileUrl } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../utils/error';
 import { createPaginationMeta, getPaginationParams } from '../utils/pagination';
 import { parseTags } from '../utils/tags';
+
+import { parseBool } from '../utils/parser';
 
 const ALL_FILTER_VALUES = new Set(['all', '全部', '全部材料', 'All Materials', 'All']);
 const MATERIAL_STATUSES = new Set(['PENDING', 'APPROVED', 'REJECTED']);
@@ -105,7 +107,6 @@ export const getAllMaterials = async (req: AuthRequest, res: Response, next: Nex
     const where: Prisma.MaterialWhereInput = mine
       ? {
           userId,
-          teamId: req.workspaceId,
           ...(status ? { status } : {}),
         }
       : {
@@ -337,52 +338,101 @@ export const getMyMaterials = async (req: AuthRequest, res: Response, next: Next
 };
 
 export const uploadMaterial = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+  const materialFile = files?.material?.[0];
+  const previewFile = files?.preview?.[0];
   try {
     const userId = req.userId as string;
     const workspaceId = req.workspaceId;
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
-    const materialFile = files?.material?.[0];
-    const previewFile = files?.preview?.[0];
 
-    if (!materialFile) {
-      return next(new AppError('No material file uploaded', 400));
+    const {
+      title,
+      description,
+      category,
+      resolution,
+      tags,
+      isProcedural,
+      externalUrl,
+      originality,
+      originalAuthor,
+      originalLink,
+      license,
+      isFree,
+      linkedCourseId,
+      linkedLessonId,
+    } = req.body;
+
+    if (!materialFile && !externalUrl) {
+      return next(new AppError('No material file or external link provided', 400));
     }
 
-    const fileSizeMB = materialFile.size / (1024 * 1024);
+    const fileSizeMB = materialFile ? materialFile.size / (1024 * 1024) : 0;
 
     // Check quota
     const storageQuota = await checkStorageQuota(userId, fileSizeMB, workspaceId);
     if (!storageQuota.allowed) {
+      if (materialFile && fs.existsSync(materialFile.path)) {
+        try {
+          fs.unlinkSync(materialFile.path);
+        } catch (_e) {}
+      }
+      if (previewFile && fs.existsSync(previewFile.path)) {
+        try {
+          fs.unlinkSync(previewFile.path);
+        } catch (_e) {}
+      }
       return next(new AppError(storageQuota.message || 'Quota exceeded', 403));
     }
 
-    const { title, description, category, resolution, tags, isProcedural } = req.body;
+    let packageFilesList: string[] = [];
+    if (materialFile) {
+      const ext = path.extname(materialFile.originalname).toLowerCase();
+      if (ext === '.zip') {
+        packageFilesList = await parseZipLocal(materialFile.path);
+      }
+    }
 
-    const fileUrl =
-      (materialFile as any).url ||
-      `${req.protocol}://${req.get('host')}/uploads/materials/${materialFile.filename}`;
+    const fileUrl = materialFile
+      ? getUploadedFileUrl(req, materialFile, 'materials')
+      : externalUrl;
+
     let previewUrl = null;
     if (previewFile) {
-      previewUrl =
-        (previewFile as any).url ||
-        `${req.protocol}://${req.get('host')}/uploads/materials/${previewFile.filename}`;
+      previewUrl = getUploadedFileUrl(req, previewFile, 'materials');
     }
 
     const material = await prisma.material.create({
       data: {
-        title: title || materialFile.originalname,
+        title: title || (materialFile ? materialFile.originalname : '未命名材质'),
         description: description || null,
         category: category || '其他',
         resolution,
         previewUrl,
         fileUrl,
         fileSize: Math.round(fileSizeMB * 100) / 100,
+        packageFilesList: packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null,
         tags: normalizeTagsForStorage(tags),
-        isProcedural: isProcedural === 'true',
+        isProcedural: parseBool(isProcedural),
         userId: userId,
         teamId: workspaceId,
+        originality: originality || 'ORIGINAL',
+        originalAuthor: originalAuthor || null,
+        originalLink: originalLink || null,
+        license: license || 'CC_BY',
+        isFree: parseBool(isFree, true),
+        linkedCourseId: linkedCourseId || null,
+        linkedLessonId: linkedLessonId || null,
       },
     });
+
+    // Clean up local material file after parsing
+    if (materialFile && fs.existsSync(materialFile.path)) {
+      try {
+        fs.unlinkSync(materialFile.path);
+      } catch (err) {
+        logger.error('[Material] Failed to delete local material file:', err);
+      }
+    }
 
     await auditService.log({
       userId,
@@ -395,25 +445,75 @@ export const uploadMaterial = async (req: AuthRequest, res: Response, next: Next
 
     res.status(201).json(material);
   } catch (error) {
+    if (materialFile?.path && fs.existsSync(materialFile.path)) {
+      try {
+        fs.unlinkSync(materialFile.path);
+      } catch (_e) {}
+    }
+    if (previewFile?.path && fs.existsSync(previewFile.path)) {
+      try {
+        fs.unlinkSync(previewFile.path);
+      } catch (_e) {}
+    }
     next(error);
   }
 };
 
 export const updateMaterial = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+  const materialFile = files?.material?.[0];
+  const previewFile = files?.preview?.[0];
   try {
     const existing = await prisma.material.findFirst({
       where: { id, teamId: req.workspaceId },
     });
 
-    if (!existing) return next(new AppError('Material not found', 404));
+    if (!existing) {
+      if (materialFile?.path && fs.existsSync(materialFile.path)) {
+        try {
+          fs.unlinkSync(materialFile.path);
+        } catch (_e) {}
+      }
+      if (previewFile?.path && fs.existsSync(previewFile.path)) {
+        try {
+          fs.unlinkSync(previewFile.path);
+        } catch (_e) {}
+      }
+      return next(new AppError('Material not found', 404));
+    }
 
     if (existing.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      if (materialFile?.path && fs.existsSync(materialFile.path)) {
+        try {
+          fs.unlinkSync(materialFile.path);
+        } catch (_e) {}
+      }
+      if (previewFile?.path && fs.existsSync(previewFile.path)) {
+        try {
+          fs.unlinkSync(previewFile.path);
+        } catch (_e) {}
+      }
       return next(new AppError('Not authorized to update this material', 403));
     }
 
-    const { title, description, category, resolution, tags, isProcedural } = req.body;
-    const updateData: Prisma.MaterialUpdateInput = {};
+    const {
+      title,
+      description,
+      category,
+      resolution,
+      tags,
+      isProcedural,
+      externalUrl,
+      originality,
+      originalAuthor,
+      originalLink,
+      license,
+      isFree,
+      linkedCourseId,
+      linkedLessonId,
+    } = req.body;
+    const updateData: Prisma.MaterialUncheckedUpdateInput = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description || null;
     if (category !== undefined) updateData.category = category;
@@ -422,9 +522,87 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
     if (isProcedural !== undefined) {
       updateData.isProcedural = isProcedural === true || isProcedural === 'true';
     }
+    if (originality !== undefined) updateData.originality = originality;
+    if (originalAuthor !== undefined) updateData.originalAuthor = originalAuthor || null;
+    if (originalLink !== undefined) updateData.originalLink = originalLink || null;
+    if (license !== undefined) updateData.license = license;
+    if (isFree !== undefined) {
+      updateData.isFree = isFree === true || isFree === 'true';
+    }
+    if (linkedCourseId !== undefined) updateData.linkedCourseId = linkedCourseId || null;
+    if (linkedLessonId !== undefined) updateData.linkedLessonId = linkedLessonId || null;
     if (existing.userId === req.userId && req.user?.role !== 'ADMIN') {
       updateData.status = 'PENDING';
       updateData.rejectReason = null;
+    }
+
+    // Process new file uploads if present
+    if (materialFile) {
+      const fileSizeMB = materialFile.size / (1024 * 1024);
+      const storageQuota = await checkStorageQuota(
+        req.userId as string,
+        fileSizeMB,
+        req.workspaceId,
+      );
+      if (!storageQuota.allowed) {
+        try {
+          fs.unlinkSync(materialFile.path);
+        } catch (_e) {}
+        if (previewFile?.path && fs.existsSync(previewFile.path)) {
+          try {
+            fs.unlinkSync(previewFile.path);
+          } catch (_e) {}
+        }
+        return next(new AppError(storageQuota.message || 'Quota exceeded', 403));
+      }
+
+      // Delete old file
+      if (existing.fileUrl && !existing.fileUrl.startsWith('http')) {
+        deleteCloudOrLocalFileByUrl(existing.fileUrl).catch(() => {});
+      }
+
+      const fileUrl = getUploadedFileUrl(req, materialFile, 'materials');
+      updateData.fileUrl = fileUrl;
+      updateData.fileSize = Math.round(fileSizeMB * 100) / 100;
+
+      let packageFilesList: string[] = [];
+      const ext = path.extname(materialFile.originalname).toLowerCase();
+      if (ext === '.zip') {
+        packageFilesList = await parseZipLocal(materialFile.path);
+      }
+      updateData.packageFilesList =
+        packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null;
+
+      // Clean up local temp file
+      if (fs.existsSync(materialFile.path)) {
+        try {
+          fs.unlinkSync(materialFile.path);
+        } catch (_e) {}
+      }
+    } else if (externalUrl !== undefined) {
+      if (externalUrl && existing.fileUrl && !existing.fileUrl.startsWith('http')) {
+        deleteCloudOrLocalFileByUrl(existing.fileUrl).catch(() => {});
+        updateData.fileSize = 0;
+        updateData.packageFilesList = null;
+      }
+      if (externalUrl !== undefined) {
+        updateData.fileUrl = externalUrl || null;
+      }
+    }
+
+    if (previewFile) {
+      if (existing.previewUrl && !existing.previewUrl.startsWith('http')) {
+        deleteCloudOrLocalFileByUrl(existing.previewUrl).catch(() => {});
+      }
+      const previewUrl = getUploadedFileUrl(req, previewFile, 'materials');
+      updateData.previewUrl = previewUrl;
+
+      // Clean up local temp file
+      if (fs.existsSync(previewFile.path)) {
+        try {
+          fs.unlinkSync(previewFile.path);
+        } catch (_e) {}
+      }
     }
 
     const material = await prisma.material.update({
@@ -445,6 +623,16 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
 
     res.json(material);
   } catch (error) {
+    if (materialFile?.path && fs.existsSync(materialFile.path)) {
+      try {
+        fs.unlinkSync(materialFile.path);
+      } catch (_e) {}
+    }
+    if (previewFile?.path && fs.existsSync(previewFile.path)) {
+      try {
+        fs.unlinkSync(previewFile.path);
+      } catch (_e) {}
+    }
     next(error);
   }
 };
@@ -695,6 +883,373 @@ export const getMyFavorites = async (req: AuthRequest, res: Response, next: Next
     }));
 
     res.json(materials);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/materials/:id/package-files - non-blocking, cached ZIP file listing
+export const getMaterialPackageFiles = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const id = req.params.id as string;
+  try {
+    const material = await prisma.material.findFirst({
+      where: {
+        id,
+        OR:
+          req.user?.role === 'ADMIN'
+            ? undefined
+            : [{ status: 'APPROVED' }, { teamId: req.workspaceId }, { userId: req.userId }],
+      },
+      select: { fileUrl: true, packageFilesList: true },
+    });
+
+    if (!material) {
+      return next(new AppError('Material not found or access denied', 404));
+    }
+
+    if (!material.fileUrl) {
+      return res.json({ packageFiles: [] });
+    }
+
+    if (material.packageFilesList) {
+      try {
+        const files = JSON.parse(material.packageFilesList);
+        if (Array.isArray(files)) {
+          return res.json({ packageFiles: files });
+        }
+      } catch (_e) {
+        // ignore and fallback
+      }
+    }
+
+    const packageFiles = await getZipFileNames(material.fileUrl);
+
+    // Cache to DB for future requests
+    if (packageFiles.length > 0) {
+      await prisma.material
+        .update({
+          where: { id },
+          data: { packageFilesList: JSON.stringify(packageFiles) },
+        })
+        .catch((err) => {
+          logger.error(
+            `[Material] Failed to update packageFilesList fallback for material ${id}:`,
+            err,
+          );
+        });
+    }
+
+    res.json({ packageFiles });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/materials/:id/zip-entry - stream a specific texture image inside the ZIP archive
+export const getMaterialZipEntry = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
+  const filePathInsideZip = req.query.path as string;
+
+  if (!filePathInsideZip) {
+    return next(new AppError('Query parameter "path" is required', 400));
+  }
+
+  try {
+    const material = await prisma.material.findFirst({
+      where: {
+        id,
+        OR:
+          req.user?.role === 'ADMIN'
+            ? undefined
+            : [{ status: 'APPROVED' }, { teamId: req.workspaceId }, { userId: req.userId }],
+      },
+      select: { fileUrl: true },
+    });
+
+    if (!material) {
+      return next(new AppError('Material not found or access denied', 404));
+    }
+
+    if (!material.fileUrl) {
+      return next(new AppError('Material has no file package', 404));
+    }
+
+    const packageUrl = material.fileUrl;
+    const directory = await getZipFileDirectory(packageUrl);
+
+    if (!directory) {
+      return next(new AppError('Failed to open material package file', 400));
+    }
+
+    const file = directory.files.find((f: any) => f.path === filePathInsideZip);
+
+    if (!file) {
+      return next(new AppError(`File "${filePathInsideZip}" not found in package`, 404));
+    }
+
+    const ext = path.extname(filePathInsideZip).toLowerCase();
+    let contentType = 'application/octet-stream';
+    if (['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif'].includes(ext)) {
+      contentType = `image/${ext.replace('.', '') === 'jpg' ? 'jpeg' : ext.replace('.', '')}`;
+    } else if (ext === '.tga') {
+      contentType = 'image/x-tga';
+    } else if (ext === '.hdr') {
+      contentType = 'image/vnd.radiance';
+    } else if (ext === '.exr') {
+      contentType = 'image/x-exr';
+    }
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+
+    file.stream().pipe(res);
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+// GET /api/materials/:id/comments
+export const getMaterialComments = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const materialId = req.params.id as string;
+  try {
+    const material = await prisma.material.findFirst({
+      where: {
+        id: materialId,
+        OR:
+          req.user?.role === 'ADMIN'
+            ? undefined
+            : [{ status: 'APPROVED' }, { teamId: req.workspaceId }, { userId: req.userId }],
+      },
+    });
+    if (!material) {
+      return next(new AppError('Material not found or access denied', 404));
+    }
+    const comments = await prisma.materialComment.findMany({
+      where: { materialId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { id: true, name: true, avatarUrl: true } },
+      },
+    });
+    res.json(comments);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/materials/:id/comments
+export const createMaterialComment = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const materialId = req.params.id as string;
+  const userId = req.user?.id;
+  const { content } = req.body;
+
+  if (!userId) {
+    return next(new AppError('Unauthorized', 401));
+  }
+  if (!content || !content.trim()) {
+    return next(new AppError('Comment content cannot be empty', 400));
+  }
+
+  try {
+    const material = await prisma.material.findFirst({
+      where: {
+        id: materialId,
+        OR:
+          req.user?.role === 'ADMIN'
+            ? undefined
+            : [{ status: 'APPROVED' }, { teamId: req.workspaceId }, { userId: req.userId }],
+      },
+    });
+    if (!material) {
+      return next(new AppError('Material not found or access denied', 404));
+    }
+    const comment = await prisma.materialComment.create({
+      data: {
+        content: content.trim(),
+        materialId,
+        userId,
+      },
+      include: {
+        user: { select: { id: true, name: true, avatarUrl: true } },
+      },
+    });
+    res.status(201).json(comment);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/materials/comments/:commentId
+export const deleteMaterialComment = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const commentId = req.params.commentId as string;
+  const userId = req.user?.id;
+  const userRole = req.user?.role;
+
+  if (!userId) {
+    return next(new AppError('Unauthorized', 401));
+  }
+
+  try {
+    const comment = await prisma.materialComment.findUnique({
+      where: { id: commentId },
+    });
+
+    if (!comment) {
+      return next(new AppError('Comment not found', 404));
+    }
+
+    if (comment.userId !== userId && userRole !== 'ADMIN') {
+      return next(new AppError('Forbidden', 403));
+    }
+
+    await prisma.materialComment.delete({
+      where: { id: commentId },
+    });
+
+    res.json({ success: true, message: 'Comment deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/materials/:id/share
+export const getMaterialShare = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const materialId = req.params.id as string;
+  try {
+    const material = await prisma.material.findFirst({
+      where: req.user?.role === 'ADMIN' ? { id: materialId } : { id: materialId, OR: [{ userId: req.userId }, { teamId: req.workspaceId }] }
+    });
+    if (!material) {
+      return next(new AppError('Material not found or access denied', 404));
+    }
+    const share = await prisma.materialShare.findUnique({
+      where: { materialId },
+    });
+    res.json(share);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/materials/:id/share
+export const createOrUpdateMaterialShare = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const materialId = req.params.id as string;
+  const userId = req.userId as string;
+  const { expireHours, expiresAt, customText } = req.body;
+  try {
+    const material = await prisma.material.findFirst({
+      where: req.user?.role === 'ADMIN' ? { id: materialId } : { id: materialId, OR: [{ userId: req.userId }, { teamId: req.workspaceId }] }
+    });
+    if (!material) {
+      return next(new AppError('Material not found or access denied', 404));
+    }
+
+    let calculatedExpiresAt: Date | null = null;
+    if (expiresAt) {
+      calculatedExpiresAt = new Date(expiresAt);
+    } else if (expireHours !== undefined && expireHours !== null) {
+      calculatedExpiresAt = new Date(Date.now() + expireHours * 60 * 60 * 1000);
+    }
+
+    const existing = await prisma.materialShare.findUnique({
+      where: { materialId },
+    });
+
+    let share;
+    if (existing) {
+      share = await prisma.materialShare.update({
+        where: { materialId },
+        data: {
+          expiresAt: calculatedExpiresAt,
+          customText,
+        },
+      });
+    } else {
+      share = await prisma.materialShare.create({
+        data: {
+          materialId,
+          userId,
+          expiresAt: calculatedExpiresAt,
+          customText,
+        },
+      });
+    }
+
+    res.json(share);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/materials/:id/share
+export const cancelMaterialShare = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const materialId = req.params.id as string;
+  try {
+    const material = await prisma.material.findFirst({
+      where: req.user?.role === 'ADMIN' ? { id: materialId } : { id: materialId, OR: [{ userId: req.userId }, { teamId: req.workspaceId }] }
+    });
+    if (!material) {
+      return next(new AppError('Material not found or access denied', 404));
+    }
+
+    await prisma.materialShare.deleteMany({
+      where: { materialId },
+    });
+    res.json({ success: true, message: 'Share link cancelled' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/materials/share/:shareId
+export const getPublicSharedMaterial = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const shareId = req.params.shareId as string;
+  try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    const share = await prisma.materialShare.findUnique({
+      where: { id: shareId },
+      include: {
+        material: {
+          include: {
+            user: {
+              select: { id: true, name: true, avatarUrl: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!share) {
+      return res.status(404).json({ error: '分享链接不存在或已失效' });
+    }
+
+    if (share.expiresAt && new Date() > share.expiresAt) {
+      return res.status(410).json({ error: '分享链接已过期且失效' });
+    }
+
+    res.json(share);
   } catch (error) {
     next(error);
   }

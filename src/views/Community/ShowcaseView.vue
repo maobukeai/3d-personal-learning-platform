@@ -37,7 +37,7 @@ import { useAuthStore } from '@/stores/auth';
 import { parseTags } from '@/utils/tags';
 
 import PageHeader from '@/components/PageHeader.vue';
-import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
+import PublishShowcaseDialog from '@/components/PublishShowcaseDialog.vue';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import ShowcaseDetail from './components/ShowcaseDetail.vue';
 import Button from '@/components/ui/Button.vue';
@@ -580,7 +580,7 @@ onUnmounted(() => {
       @user-profile="openUserProfile"
     />
 
-    <PublishWorkDialog v-model="isPublishDialogOpen" @published="handlePublished" />
+    <PublishShowcaseDialog v-model="isPublishDialogOpen" @published="handlePublished" />
 
     <UserProfileDialog
       v-model="isProfileDialogOpen"

@@ -3,7 +3,7 @@ import { getApiErrorMessage, getApiErrorStatus, logError } from '@/utils/error';
 import { cleanTeamDescription } from '@/utils/team';
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useI18n } from 'vue-i18n';
+import { useCommunityI18n } from '@/composables/useCommunityI18n';
 import {
   Users,
   Settings,
@@ -44,14 +44,7 @@ import type {
   TeamUser,
 } from './components/teamDetailTypes';
 
-const { t: i18nT } = useI18n();
-const t = (key: string, ...args: unknown[]) => {
-  const prefixes = ['showcase.', 'teams.', 'members.', 'teamDetail.', 'discussions.', 'chat.'];
-  if (prefixes.some((p) => key.startsWith(p))) {
-    return (i18nT as (key: string, ...args: unknown[]) => string)(`community.${key}`, ...args);
-  }
-  return (i18nT as (key: string, ...args: unknown[]) => string)(key, ...args);
-};
+const { t } = useCommunityI18n();
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import {
   CheckCircle2,
   Clock3,
@@ -28,7 +28,11 @@ import MaterialSignalsRow from './components/MaterialSignalsRow.vue';
 import MaterialStateBar from './components/MaterialStateBar.vue';
 import MaterialsGrid from './components/MaterialsGrid.vue';
 import MaterialDetailPanel from './components/MaterialDetailPanel.vue';
-import MaterialFormDialog from './components/MaterialFormDialog.vue';
+import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
+import EditWorkDialog from './components/EditWorkDialog.vue';
+import { normalizeMaterialWork } from './myWorksModel';
+import type { UnifiedWork } from './myWorksModel';
+import MaterialLibraryHeader from './components/MaterialLibraryHeader.vue';
 import { useLabel } from '@/utils/i18n';
 
 type ViewMode = 'grid' | 'list';
@@ -111,6 +115,7 @@ const resolutionOptions = ['2K', '4K', '8K', '矢量', '程序化'];
 const authStore = useAuthStore();
 const systemStore = useSystemStore();
 const route = useRoute();
+const router = useRouter();
 const { locale } = useI18n();
 const label = useLabel();
 const categoryLabel = (name: string) => {
@@ -188,7 +193,7 @@ const statCards = computed(() => [
     tone: 'rose',
   },
   {
-    label: label('我的提交', 'My Uploads'),
+    label: label('我的材质', 'My Uploads'),
     value: insights.value?.summary.myUploads || myMaterials.value.length,
     meta: label(
       `${insights.value?.summary.myPending || 0} 待审 / ${insights.value?.summary.myApproved || 0} 通过`,
@@ -222,7 +227,7 @@ const libraryTabs = computed(() => [
   },
   {
     key: 'mine' as const,
-    label: label('我的提交', 'My Uploads'),
+    label: label('我的材质', 'My Uploads'),
     count: insights.value?.summary.myUploads || myMaterials.value.length,
   },
 ]);
@@ -505,20 +510,131 @@ function openCreateDialog() {
   isUploadDialogOpen.value = true;
 }
 
+// Local EditWorkDialog state
+const isEditDialogOpen = ref(false);
+const isSaving = ref(false);
+const selectedWork = ref<UnifiedWork | null>(null);
+const editForm = ref({
+  title: '',
+  description: '',
+  tags: '',
+  categoryId: '',
+  materialCategory: '',
+  resolution: '4K',
+  isProcedural: false,
+  pluginCategory: '',
+  pluginVersion: '1.0.0',
+  pluginCompatibility: '',
+  showcaseType: 'IMAGE',
+  videoUrl: '',
+  originality: 'ORIGINAL',
+  originalAuthor: '',
+  originalLink: '',
+  license: 'CC_BY',
+  isFree: true,
+  meshType: 'LOW_POLY',
+  uvUnwrapped: true,
+  uvOverlapping: false,
+  pbrChannels: [] as string[],
+  rigged: false,
+  gameReady: false,
+  linkedCourseId: '',
+  linkedLessonId: '',
+  installGuide: '',
+  file: null as File | null,
+  packageFile: null as File | null,
+  thumbnail: null as File | null,
+});
+
+const materialCategories = computed(() =>
+  (systemStore.settings.MATERIAL_CATEGORIES || []).filter(
+    (name: string) => name !== '全部材料' && name !== '全部',
+  ),
+);
+
 function openEditDialog(material: NormalizedMaterial) {
-  editingMaterial.value = material;
-  materialForm.value = {
-    title: material.title,
-    description: material.description,
-    category: material.category,
-    resolution: material.resolution,
-    tags: material.tags.join(', '),
-    isProcedural: Boolean(material.isProcedural),
+  closeDetail();
+  const work = normalizeMaterialWork(material as any);
+  selectedWork.value = work;
+  const rawMaterial = work.raw as any;
+  editForm.value = {
+    title: work.title,
+    description: work.description || '',
+    tags: work.tags.join(', '),
+    categoryId: '',
+    materialCategory: rawMaterial.category || '',
+    resolution: rawMaterial.resolution || '4K',
+    isProcedural: !!rawMaterial.isProcedural,
+    pluginCategory: '',
+    pluginVersion: '1.0.0',
+    pluginCompatibility: '',
+    showcaseType: 'IMAGE',
+    videoUrl: '',
+    originality: rawMaterial.originality || 'ORIGINAL',
+    originalAuthor: rawMaterial.originalAuthor || '',
+    originalLink: rawMaterial.originalLink || '',
+    license: rawMaterial.license || 'CC_BY',
+    isFree: rawMaterial.isFree !== false,
+    meshType: 'LOW_POLY',
+    uvUnwrapped: true,
+    uvOverlapping: false,
+    pbrChannels: [],
+    rigged: false,
+    gameReady: false,
+    linkedCourseId: rawMaterial.linkedCourseId || '',
+    linkedLessonId: rawMaterial.linkedLessonId || '',
+    installGuide: '',
     file: null,
-    preview: null,
+    packageFile: null,
+    thumbnail: null,
   };
-  isUploadDialogOpen.value = true;
+  isEditDialogOpen.value = true;
 }
+
+const handleSaveEdit = async () => {
+  if (!selectedWork.value || !editForm.value.title.trim()) {
+    ElMessage.warning(label('请填写作品名称', 'Please fill in the work name'));
+    return;
+  }
+  isSaving.value = true;
+  try {
+    const work = selectedWork.value;
+    const formData = new FormData();
+    formData.append('title', editForm.value.title);
+    formData.append('description', editForm.value.description);
+    formData.append('category', editForm.value.materialCategory);
+    formData.append('resolution', editForm.value.resolution);
+    formData.append('tags', editForm.value.tags);
+    formData.append('isProcedural', String(editForm.value.isProcedural));
+    formData.append('originality', editForm.value.originality || 'ORIGINAL');
+    formData.append('originalAuthor', editForm.value.originalAuthor || '');
+    formData.append('originalLink', editForm.value.originalLink || '');
+    formData.append('license', editForm.value.license || 'CC_BY');
+    formData.append('isFree', String(editForm.value.isFree !== false));
+    formData.append('linkedCourseId', editForm.value.linkedCourseId || '');
+    formData.append('linkedLessonId', editForm.value.linkedLessonId || '');
+
+    if (editForm.value.file) {
+      formData.append('material', editForm.value.file);
+    }
+    if (editForm.value.thumbnail) {
+      formData.append('preview', editForm.value.thumbnail);
+    }
+
+    await api.put(`/api/materials/${work.id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    ElMessage.success(label('保存成功', 'Saved successfully'));
+    isEditDialogOpen.value = false;
+    fetchMaterials();
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, label('保存失败', 'Save failed')));
+  } finally {
+    isSaving.value = false;
+  }
+};
 
 function closeMaterialDialog() {
   isUploadDialogOpen.value = false;
@@ -918,183 +1034,143 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="materials-page mobile-adaptive">
-    <header
-      class="page-header flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0"
-    >
-      <div class="title-block flex-1 min-w-0">
-        <div class="title-icon">
-          <Layers class="icon-sm" />
-        </div>
-        <div>
-          <h1>{{ label('材质库', 'Material Library') }}</h1>
-          <p>
-            {{
-              label(
-                'PBR 贴图、程序化材质、纹理包',
-                'PBR maps, procedural materials, and texture packs',
-              )
-            }}
-          </p>
-        </div>
-      </div>
+  <div class="materials-page mobile-adaptive flex flex-col h-full overflow-hidden">
+    <MaterialLibraryHeader
+      v-model:search-query="searchQuery"
+      :is-stats-expanded="isStatsExpanded"
+      @toggle-stats="isStatsExpanded = !isStatsExpanded"
+      @show-favorites="activeTab = 'favorites'"
+      @upload="openCreateDialog"
+    />
 
-      <div class="flex justify-center flex-1 w-full md:w-auto">
-        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 md:w-80 shrink-0">
-          <Search />
-          <input
-            v-model="searchQuery"
-            type="text"
-            :placeholder="label('搜索名称、标签、说明', 'Search name, tags, or description')"
-          />
-        </label>
-      </div>
-
-      <div class="header-actions flex-1 flex justify-end mobile-row">
-        <button
-          type="button"
-          class="ghost-button icon-text"
-          @click="isStatsExpanded = !isStatsExpanded"
+    <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+      <div v-show="isStatsExpanded" class="metric-strip">
+        <article
+          v-for="stat in statCards"
+          :key="stat.label"
+          class="metric-tile"
+          :data-tone="stat.tone"
         >
-          <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
-          {{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}
-        </button>
-        <button type="button" class="ghost-button icon-text" @click="activeTab = 'favorites'">
-          <Heart class="icon-sm" />
-          {{ label('收藏', 'Favorites') }}
-        </button>
-        <button type="button" class="primary-button icon-text" @click="openCreateDialog">
-          <UploadCloud class="icon-sm" />
-          {{ label('上传', 'Upload') }}
-        </button>
+          <component :is="stat.icon" class="icon-sm" />
+          <span>{{ stat.label }}</span>
+          <strong>{{ stat.value }}</strong>
+          <small>{{ stat.meta }}</small>
+        </article>
       </div>
-    </header>
 
-    <div v-show="isStatsExpanded" class="metric-strip">
-      <article
-        v-for="stat in statCards"
-        :key="stat.label"
-        class="metric-tile"
-        :data-tone="stat.tone"
-      >
-        <component :is="stat.icon" class="icon-sm" />
-        <span>{{ stat.label }}</span>
-        <strong>{{ stat.value }}</strong>
-        <small>{{ stat.meta }}</small>
-      </article>
-    </div>
-
-    <div class="workspace-shell">
-      <MaterialFiltersPanel
-        :is-open="isFilterOpen"
-        :active-tab="activeTab"
-        :active-category="activeCategory"
-        :selected-resolution="selectedResolution"
-        :selected-tag="selectedTag"
-        :selected-procedural="selectedProcedural"
-        :my-status-filter="myStatusFilter"
-        :category-options="categoryTabOptions"
-        :resolution-options="resolutionTabOptions"
-        :procedural-options="proceduralTabOptions"
-        :status-options="statusTabOptions"
-        :hot-tags="insights?.hotTags || []"
-        @update:category="activeCategory = $event"
-        @update:resolution="selectedResolution = $event"
-        @update:tag="selectedTag = $event"
-        @update:procedural="selectedProcedural = $event"
-        @update:status="myStatusFilter = $event"
-      />
-
-      <main class="content-panel">
-        <MaterialControlToolbar
-          v-model:active-tab="activeTab"
-          v-model:sort-by="sortBy"
-          v-model:view-mode="viewMode"
-          :library-tab-options="libraryTabOptions"
-          :view-mode-options="viewModeOptions"
-          :is-filter-open="isFilterOpen"
-          @toggle-filter="isFilterOpen = !isFilterOpen"
-        />
-
-        <MaterialSignalsRow
-          v-show="isStatsExpanded"
-          :top-downloads="insights?.topDownloads || []"
-          :latest-uploads="insights?.latest || []"
-          @open-detail="openDetail"
-        />
-
-        <MaterialStateBar
-          :active-filter-labels="activeFilterLabels"
-          :selected-count="selectedIds.length"
-          :all-visible-selected="allVisibleSelected"
-          :is-bulk-busy="isBulkBusy"
+      <div class="workspace-shell">
+        <MaterialFiltersPanel
+          :is-open="isFilterOpen"
           :active-tab="activeTab"
-          @clear-filter="clearFilter"
-          @reset-filters="resetFilters"
-          @toggle-select-all="toggleSelectAllVisible"
-          @bulk-favorite="bulkFavorite"
-          @download-selected="downloadSelected"
+          :active-category="activeCategory"
+          :selected-resolution="selectedResolution"
+          :selected-tag="selectedTag"
+          :selected-procedural="selectedProcedural"
+          :my-status-filter="myStatusFilter"
+          :category-options="categoryTabOptions"
+          :resolution-options="resolutionTabOptions"
+          :procedural-options="proceduralTabOptions"
+          :status-options="statusTabOptions"
+          :hot-tags="insights?.hotTags || []"
+          @update:category="activeCategory = $event"
+          @update:resolution="selectedResolution = $event"
+          @update:tag="selectedTag = $event"
+          @update:procedural="selectedProcedural = $event"
+          @update:status="myStatusFilter = $event"
         />
 
-        <section class="workbench" :class="{ 'with-detail': selectedMaterial }">
-          <MaterialsGrid
-            :is-loading="isLoading"
-            :view-mode="viewMode"
-            :materials="visibleMaterials"
-            :selected-ids="selectedIds"
-            :active-tab="activeTab"
-            :empty-title="emptyState.title"
-            :empty-body="emptyState.body"
-            @open-detail="openDetail"
-            @toggle-select="toggleSelect"
-            @toggle-favorite="toggleFavorite"
-            @download="handleDownload"
-            @create="openCreateDialog"
+        <main class="content-panel">
+          <MaterialControlToolbar
+            v-model:active-tab="activeTab"
+            v-model:sort-by="sortBy"
+            v-model:view-mode="viewMode"
+            :library-tab-options="libraryTabOptions"
+            :view-mode-options="viewModeOptions"
+            :is-filter-open="isFilterOpen"
+            @toggle-filter="isFilterOpen = !isFilterOpen"
           />
 
-          <MaterialDetailPanel
-            v-if="selectedMaterial"
-            :material="selectedMaterial"
-            :loading="isLoadingDetail"
-            :my-materials="normalizedMyMaterials"
-            :is-admin="isAdmin"
-            :can-edit="canEditMaterial(selectedMaterial)"
-            :can-download="canDownloadMaterial(selectedMaterial)"
-            :is-saving-review="isSavingReview"
-            @close="closeDetail"
-            @favorite="toggleFavorite(selectedMaterial)"
-            @download="handleDownload(selectedMaterial)"
-            @edit="openEditDialog"
-            @select="openDetail"
-            @delete="deleteMaterial(selectedMaterial)"
-            @review-approved="reviewMaterial(selectedMaterial, 'APPROVED')"
-            @review-rejected="reviewMaterial(selectedMaterial, 'REJECTED')"
+          <MaterialSignalsRow
+            v-show="isStatsExpanded"
+            :top-downloads="insights?.topDownloads || []"
+            :latest-uploads="insights?.latest || []"
+            @open-detail="openDetail"
           />
-        </section>
-      </main>
+
+          <MaterialStateBar
+            :active-filter-labels="activeFilterLabels"
+            :selected-count="selectedIds.length"
+            :all-visible-selected="allVisibleSelected"
+            :is-bulk-busy="isBulkBusy"
+            :active-tab="activeTab"
+            @clear-filter="clearFilter"
+            @reset-filters="resetFilters"
+            @toggle-select-all="toggleSelectAllVisible"
+            @bulk-favorite="bulkFavorite"
+            @download-selected="downloadSelected"
+          />
+
+          <section class="workbench" :class="{ 'with-detail': selectedMaterial }">
+            <MaterialsGrid
+              :is-loading="isLoading"
+              :view-mode="viewMode"
+              :materials="visibleMaterials"
+              :selected-ids="selectedIds"
+              :active-tab="activeTab"
+              :empty-title="emptyState.title"
+              :empty-body="emptyState.body"
+              @open-detail="openDetail"
+              @toggle-select="toggleSelect"
+              @toggle-favorite="toggleFavorite"
+              @download="handleDownload"
+              @create="openCreateDialog"
+            />
+
+            <MaterialDetailPanel
+              v-if="selectedMaterial"
+              :material="selectedMaterial"
+              :loading="isLoadingDetail"
+              :my-materials="normalizedMyMaterials"
+              :is-admin="isAdmin"
+              :can-edit="canEditMaterial(selectedMaterial)"
+              :can-download="canDownloadMaterial(selectedMaterial)"
+              :is-saving-review="isSavingReview"
+              @close="closeDetail"
+              @favorite="toggleFavorite(selectedMaterial)"
+              @download="handleDownload(selectedMaterial)"
+              @edit="openEditDialog"
+              @select="openDetail"
+              @delete="deleteMaterial(selectedMaterial)"
+              @review-approved="reviewMaterial(selectedMaterial, 'APPROVED')"
+              @review-rejected="reviewMaterial(selectedMaterial, 'REJECTED')"
+            />
+          </section>
+        </main>
+      </div>
     </div>
 
-    <MaterialFormDialog
-      v-model="materialForm"
-      :is-editing="isEditingMaterial"
-      :is-open="isUploadDialogOpen"
-      :categories="uploadCategories"
-      :resolution-options="resolutionOptions"
-      :is-uploading="isUploading"
-      :can-submit="canSubmitMaterial"
-      @submit="submitMaterial"
-      @close="closeMaterialDialog"
+    <PublishWorkDialog
+      v-model="isUploadDialogOpen"
+      default-category="material"
+      @published="fetchMaterials"
+    />
+
+    <EditWorkDialog
+      v-model:show="isEditDialogOpen"
+      v-model:form="editForm"
+      :work="selectedWork"
+      :is-saving="isSaving"
+      :asset-categories="[]"
+      :material-categories="materialCategories"
+      :plugin-categories="[]"
+      @save="handleSaveEdit"
     />
   </div>
 </template>
 
 <style scoped>
 .materials-page {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  height: 100%;
   background: transparent !important;
   color: var(--text-primary);
 }
@@ -1326,10 +1402,6 @@ button:disabled {
 }
 
 @media (max-width: 860px) {
-  .materials-page {
-    padding: 12px;
-  }
-
   .metric-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

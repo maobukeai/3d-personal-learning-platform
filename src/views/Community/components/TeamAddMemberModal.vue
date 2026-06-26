@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { useCommunityI18n } from '@/composables/useCommunityI18n';
 import { Search, Mail, Plus } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { getApiErrorMessage, logError } from '@/utils/error';
@@ -20,14 +20,7 @@ const emit = defineEmits<{
   (e: 'added'): void;
 }>();
 
-const { t: i18nT } = useI18n();
-const t = (key: string, ...args: unknown[]) => {
-  const prefixes = ['showcase.', 'teams.', 'members.', 'teamDetail.', 'discussions.', 'chat.'];
-  if (prefixes.some((p) => key.startsWith(p))) {
-    return (i18nT as (key: string, ...args: unknown[]) => string)(`community.${key}`, ...args);
-  }
-  return (i18nT as (key: string, ...args: unknown[]) => string)(key, ...args);
-};
+const { t } = useCommunityI18n();
 
 const userSearchQuery = ref('');
 const searchResults = ref<TeamUser[]>([]);
@@ -123,7 +116,7 @@ const handleSendInvite = async () => {
             v-model="userSearchQuery"
             type="text"
             :placeholder="t('teamDetail.searchUserPlaceholder')"
-            class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80 rounded-xl text-sm focus:border-accent dark:focus:border-accent focus:bg-white dark:focus:bg-slate-950 outline-none transition-all duration-300 shadow-2xs focus:shadow-md focus:shadow-accent/5"
+            class="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80 rounded-xl text-sm focus:border-accent dark:focus:border-accent focus:bg-white dark:focus:bg-slate-950 outline-none transition-all duration-300 shadow-2xs focus:shadow-md focus:shadow-accent/5"
             style="color: var(--text-primary)"
           />
         </div>
@@ -194,7 +187,7 @@ const handleSendInvite = async () => {
               v-model="inviteEmailInput"
               type="email"
               placeholder="example@email.com"
-              class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80 rounded-xl text-sm focus:border-accent dark:focus:border-accent focus:bg-white dark:focus:bg-slate-950 outline-none transition-all duration-300 shadow-2xs focus:shadow-md focus:shadow-accent/5"
+              class="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80 rounded-xl text-sm focus:border-accent dark:focus:border-accent focus:bg-white dark:focus:bg-slate-950 outline-none transition-all duration-300 shadow-2xs focus:shadow-md focus:shadow-accent/5"
               style="color: var(--text-primary)"
             />
           </div>

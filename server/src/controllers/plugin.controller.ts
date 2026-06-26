@@ -3,13 +3,16 @@ import { Prisma } from '@prisma/client';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../utils/error';
 import prisma from '../services/prisma';
+import crypto from 'crypto';
 import { logger } from '../utils/logger';
 import { getPaginationParams, createPaginationMeta } from '../utils/pagination';
-
+import path from 'path';
 import fs from 'fs';
-import { deleteCloudOrLocalFileByUrl } from '../utils/file';
+import { deleteCloudOrLocalFileByUrl, getZipFileNames, parseZipLocal } from '../utils/file';
 import { parseTags } from '../utils/tags';
 import { UploadedFile } from '../types/upload';
+
+import { parseBool } from '../utils/parser';
 
 const PLUGIN_FAVORITES_SETTING_KEY = 'favorite_plugins';
 
@@ -27,25 +30,30 @@ const parseFavoritePluginIds = (value?: string | null): string[] => {
     .filter(Boolean);
 };
 
-const getFavoritePluginIds = async (userId: string) => {
+const migrateOldFavoritesIfNeeded = async (userId: string) => {
   const setting = await prisma.userSetting.findUnique({
     where: { userId_key: { userId, key: PLUGIN_FAVORITES_SETTING_KEY } },
   });
-  return parseFavoritePluginIds(setting?.value);
-};
-
-const saveFavoritePluginIds = async (userId: string, pluginIds: string[]) => {
-  const uniqueIds = Array.from(new Set(pluginIds.filter(Boolean)));
-  await prisma.userSetting.upsert({
-    where: { userId_key: { userId, key: PLUGIN_FAVORITES_SETTING_KEY } },
-    update: { value: JSON.stringify(uniqueIds) },
-    create: {
-      userId,
-      key: PLUGIN_FAVORITES_SETTING_KEY,
-      value: JSON.stringify(uniqueIds),
-    },
-  });
-  return uniqueIds;
+  if (setting) {
+    const favoriteIds = parseFavoritePluginIds(setting.value);
+    for (const pluginId of favoriteIds) {
+      const plugin = await prisma.plugin.findUnique({ where: { id: pluginId } });
+      if (plugin) {
+        await prisma.pluginFavorite
+          .upsert({
+            where: { userId_pluginId: { userId, pluginId } },
+            update: {},
+            create: { userId, pluginId, category: '默认' },
+          })
+          .catch(() => {});
+      }
+    }
+    await prisma.userSetting
+      .delete({
+        where: { userId_key: { userId, key: PLUGIN_FAVORITES_SETTING_KEY } },
+      })
+      .catch(() => {});
+  }
 };
 
 // ── Public: list approved plugins ─────────────────────────────────────────────
@@ -58,6 +66,7 @@ export const listPlugins = async (req: Request, res: Response, next: NextFunctio
     const authReq = req as AuthRequest;
     const mine = req.query.mine === 'true';
     const favoritesOnly = req.query.favoritesOnly === 'true';
+    const favoriteCategory = req.query.favoriteCategory as string | undefined;
     const status = req.query.status as string;
     const userId = authReq.userId as string;
 
@@ -80,7 +89,16 @@ export const listPlugins = async (req: Request, res: Response, next: NextFunctio
     }
 
     if (favoritesOnly && userId) {
-      const favoriteIds = await getFavoritePluginIds(userId);
+      await migrateOldFavoritesIfNeeded(userId);
+      const favFilter: Prisma.PluginFavoriteWhereInput = { userId };
+      if (favoriteCategory && favoriteCategory !== 'all') {
+        favFilter.category = favoriteCategory;
+      }
+      const userFavs = await prisma.pluginFavorite.findMany({
+        where: favFilter,
+        select: { pluginId: true },
+      });
+      const favoriteIds = userFavs.map((f) => f.pluginId);
       where.id = { in: favoriteIds };
     }
 
@@ -112,7 +130,7 @@ export const getPluginById = async (req: AuthRequest, res: Response, next: NextF
             ? undefined
             : [{ status: 'APPROVED' }, { userId: req.userId as string }],
       },
-      include: { user: { select: { id: true, name: true, avatarUrl: true, email: true } } },
+      include: { user: { select: { id: true, name: true, avatarUrl: true } } },
     });
 
     if (!plugin) return next(new AppError('插件不存在', 404));
@@ -127,7 +145,14 @@ export const getPluginById = async (req: AuthRequest, res: Response, next: NextF
 export const getPluginInsights = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId as string;
-    const [approvedPlugins, pendingCount, favoriteIds, myUploadsCount] = await Promise.all([
+    await migrateOldFavoritesIfNeeded(userId);
+    const userFavs = await prisma.pluginFavorite.findMany({
+      where: { userId },
+      select: { pluginId: true },
+    });
+    const favoriteIds = userFavs.map((f) => f.pluginId);
+
+    const [approvedPlugins, pendingCount, myUploadsCount] = await Promise.all([
       prisma.plugin.findMany({
         where: { status: 'APPROVED' },
         orderBy: { createdAt: 'desc' },
@@ -146,7 +171,6 @@ export const getPluginInsights = async (req: AuthRequest, res: Response, next: N
         take: 120,
       }),
       prisma.plugin.count({ where: { status: 'PENDING' } }),
-      getFavoritePluginIds(userId),
       prisma.plugin.count({ where: { userId } }),
     ]);
 
@@ -223,49 +247,245 @@ export const getMyPlugins = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
+// ── Custom categories setting helper functions ───────────────────────────────
+const CUSTOM_CATEGORIES_SETTING_KEY = 'plugin_favorite_categories';
+
+const getCustomCategories = async (userId: string): Promise<string[]> => {
+  try {
+    const setting = await prisma.userSetting.findUnique({
+      where: { userId_key: { userId, key: CUSTOM_CATEGORIES_SETTING_KEY } },
+    });
+    if (setting && setting.value) {
+      return JSON.parse(setting.value) as string[];
+    }
+  } catch (err) {
+    logger.warn('[Plugin] Failed to parse custom categories setting:', err instanceof Error ? err.message : err);
+  }
+  return [];
+};
+
+const saveCustomCategories = async (userId: string, categories: string[]) => {
+  const uniqueCats = Array.from(new Set(categories.map(c => c.trim()).filter(Boolean)));
+  await prisma.userSetting.upsert({
+    where: { userId_key: { userId, key: CUSTOM_CATEGORIES_SETTING_KEY } },
+    update: { value: JSON.stringify(uniqueCats) },
+    create: { userId, key: CUSTOM_CATEGORIES_SETTING_KEY, value: JSON.stringify(uniqueCats) },
+  });
+};
+
 // ── My favorite plugins ───────────────────────────────────────────────────────
 export const getMyFavoritePlugins = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const favoriteIds = await getFavoritePluginIds(req.userId as string);
-    if (favoriteIds.length === 0) {
-      res.json({ ids: [], plugins: [] });
-      return;
-    }
+    const userId = req.userId as string;
+    await migrateOldFavoritesIfNeeded(userId);
 
-    const plugins = await prisma.plugin.findMany({
-      where: { id: { in: favoriteIds }, status: 'APPROVED' },
+    const favorites = await prisma.pluginFavorite.findMany({
+      where: { userId, plugin: { status: 'APPROVED' } },
       orderBy: { createdAt: 'desc' },
-      include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+      include: {
+        plugin: {
+          include: {
+            user: { select: { id: true, name: true, avatarUrl: true } },
+          },
+        },
+      },
     });
 
+    const categoryList = await prisma.pluginFavorite.groupBy({
+      by: ['category'],
+      where: { userId },
+    });
+
+    const dbCategories = categoryList.map((c) => c.category);
+    const customCategories = await getCustomCategories(userId);
+
+    // Merge database categories and custom categories
+    const categoriesSet = new Set(['默认', ...dbCategories, ...customCategories]);
+
     res.json({
-      ids: plugins.map((plugin) => plugin.id),
-      plugins,
+      ids: favorites.map((f) => f.pluginId),
+      favorites: favorites.map((f) => ({
+        id: f.id,
+        category: f.category,
+        plugin: f.plugin,
+      })),
+      categories: Array.from(categoriesSet),
     });
   } catch (err) {
     next(err);
   }
 };
 
+// POST /api/plugins/favorites/categories
+export const createFavoriteCategory = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const userId = req.userId as string;
+  const { category } = req.body;
+
+  if (!category || !category.trim()) {
+    return next(new AppError('分类名称不能为空', 400));
+  }
+
+  const newCat = category.trim();
+  if (newCat === '默认') {
+    return next(new AppError('不能创建默认分类', 400));
+  }
+
+  try {
+    const customCats = await getCustomCategories(userId);
+    if (!customCats.includes(newCat)) {
+      customCats.push(newCat);
+      await saveCustomCategories(userId, customCats);
+    }
+
+    res.json({ success: true, message: '分类创建成功', categories: ['默认', ...customCats] });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /api/plugins/favorites/categories
+export const updateFavoriteCategory = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const userId = req.userId as string;
+  const { oldCategory, newCategory } = req.body;
+
+  if (!oldCategory || !newCategory) {
+    return next(new AppError('缺少必要参数', 400));
+  }
+
+  const oldCat = oldCategory.trim();
+  const newCat = newCategory.trim();
+
+  if (oldCat === '默认' || newCat === '默认') {
+    return next(new AppError('不能重命名默认分类', 400));
+  }
+
+  try {
+    await prisma.pluginFavorite.updateMany({
+      where: {
+        userId,
+        category: oldCat,
+      },
+      data: {
+        category: newCat,
+      },
+    });
+
+    const customCats = await getCustomCategories(userId);
+    const updatedCats = customCats.map((c) => (c === oldCat ? newCat : c));
+    await saveCustomCategories(userId, updatedCats);
+
+    res.json({ success: true, message: '分类更新成功' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/plugins/favorites/categories/:categoryName
+export const deleteFavoriteCategory = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const userId = req.userId as string;
+  const categoryName = req.params.categoryName as string;
+
+  if (!categoryName) {
+    return next(new AppError('缺少分类名称', 400));
+  }
+
+  const cat = categoryName.trim();
+
+  if (cat === '默认') {
+    return next(new AppError('不能删除默认分类', 400));
+  }
+
+  try {
+    // Delete all favorites belonging to this category
+    await prisma.pluginFavorite.deleteMany({
+      where: {
+        userId,
+        category: cat,
+      },
+    });
+
+    const customCats = await getCustomCategories(userId);
+    const filteredCats = customCats.filter((c) => c !== cat);
+    await saveCustomCategories(userId, filteredCats);
+
+    res.json({ success: true, message: '分类删除成功' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const togglePluginFavorite = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params as { id: string };
+    const categoryVal = typeof req.body.category === 'string' ? req.body.category.trim() : '默认';
+    const category = categoryVal || '默认';
+    const userId = req.userId as string;
+
     const plugin = await prisma.plugin.findFirst({
       where: { id, status: 'APPROVED' },
       select: { id: true },
     });
     if (!plugin) return next(new AppError('插件不存在', 404));
 
-    const favoriteIds = await getFavoritePluginIds(req.userId as string);
-    const isFavorited = favoriteIds.includes(id);
-    const nextIds = isFavorited
-      ? favoriteIds.filter((pluginId) => pluginId !== id)
-      : [...favoriteIds, id];
-    const savedIds = await saveFavoritePluginIds(req.userId as string, nextIds);
+    await migrateOldFavoritesIfNeeded(userId);
+
+    const existing = await prisma.pluginFavorite.findUnique({
+      where: { userId_pluginId: { userId, pluginId: id } },
+    });
+
+    let isFavorited = false;
+    if (existing) {
+      if (existing.category === category) {
+        await prisma.pluginFavorite.delete({
+          where: { id: existing.id },
+        });
+        isFavorited = false;
+      } else {
+        await prisma.pluginFavorite.update({
+          where: { id: existing.id },
+          data: { category },
+        });
+        isFavorited = true;
+      }
+    } else {
+      await prisma.pluginFavorite.create({
+        data: {
+          userId,
+          pluginId: id,
+          category,
+        },
+      });
+      isFavorited = true;
+    }
+
+    if (isFavorited && category !== '默认') {
+      const customCats = await getCustomCategories(userId);
+      if (!customCats.includes(category)) {
+        customCats.push(category);
+        await saveCustomCategories(userId, customCats);
+      }
+    }
+
+    const favorites = await prisma.pluginFavorite.findMany({
+      where: { userId },
+      select: { pluginId: true },
+    });
 
     res.json({
-      isFavorited: !isFavorited,
-      favoriteIds: savedIds,
+      isFavorited,
+      favoriteIds: favorites.map((f) => f.pluginId),
     });
   } catch (err) {
     next(err);
@@ -278,8 +498,10 @@ export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFu
   const pluginFile = files?.plugin_file?.[0] || files?.file?.[0];
   const previewFile = files?.plugin_preview?.[0] || files?.preview?.[0];
 
-  if (!pluginFile) {
-    return next(new AppError('请上传插件文件', 400));
+  const externalUrl = req.body.externalUrl;
+
+  if (!pluginFile && !externalUrl) {
+    return next(new AppError('请上传插件文件或提供外部链接', 400));
   }
 
   try {
@@ -291,14 +513,31 @@ export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFu
       compatibility = '',
       tags,
       installGuide,
+      originality,
+      originalAuthor,
+      originalLink,
+      license,
+      isFree,
+      linkedCourseId,
+      linkedLessonId,
     } = req.body;
 
     if (!title?.trim()) {
       return next(new AppError('插件名称为必填项', 400));
     }
 
-    const fileUrl = (pluginFile as UploadedFile).url || `/uploads/plugins/${pluginFile.filename}`;
-    const fileSizeMb = pluginFile.size / (1024 * 1024);
+    let packageFilesList: string[] = [];
+    if (pluginFile) {
+      const ext = path.extname(pluginFile.originalname).toLowerCase();
+      if (ext === '.zip') {
+        packageFilesList = await parseZipLocal(pluginFile.path);
+      }
+    }
+
+    const fileUrl = pluginFile
+      ? (pluginFile as UploadedFile).url || `/uploads/plugins/${pluginFile.filename}`
+      : externalUrl;
+    const fileSizeMb = pluginFile ? pluginFile.size / (1024 * 1024) : 0;
     const previewUrl = previewFile
       ? (previewFile as UploadedFile).url || `/uploads/plugins/${previewFile.filename}`
       : null;
@@ -313,12 +552,46 @@ export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFu
         tags: tags?.trim() || null,
         fileUrl,
         fileSize: fileSizeMb,
+        packageFilesList: packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null,
         previewUrl,
         installGuide: installGuide?.trim() || null,
         userId: req.userId!,
         status: 'PENDING',
+        originality: originality || 'ORIGINAL',
+        originalAuthor: originalAuthor || null,
+        originalLink: originalLink || null,
+        license: license || 'CC_BY',
+        isFree: parseBool(isFree, true),
+        linkedCourseId: linkedCourseId || null,
+        linkedLessonId: linkedLessonId || null,
+        bilibiliUrl: req.body.bilibiliUrl || null,
       },
     });
+
+    // Create initial version record
+    await prisma.pluginVersion
+      .create({
+        data: {
+          pluginId: plugin.id,
+          version: plugin.version,
+          changelog: '初始发布版本',
+          fileUrl: plugin.fileUrl,
+          fileSize: plugin.fileSize,
+          packageFilesList: plugin.packageFilesList,
+        },
+      })
+      .catch((err) => {
+        logger.error('[Plugin] Failed to create initial version record:', err);
+      });
+
+    // Clean up local plugin file after parsing
+    if (pluginFile && fs.existsSync(pluginFile.path)) {
+      try {
+        fs.unlinkSync(pluginFile.path);
+      } catch (err) {
+        logger.error('[Plugin] Failed to delete local plugin file:', err);
+      }
+    }
 
     logger.info(`[Plugin] User ${req.userId} uploaded plugin: ${plugin.id}`);
     res.status(201).json(plugin);
@@ -330,14 +603,26 @@ export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
-// ── Update plugin (owner only) ─────────────────────────────────────────────────
 export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+  const pluginFile = files?.plugin_file?.[0] || files?.file?.[0];
+  const previewFile = files?.plugin_preview?.[0] || files?.preview?.[0];
+  const externalUrl = req.body.externalUrl;
+
   try {
     const { id } = req.params as { id: string };
     const existing = await prisma.plugin.findUnique({ where: { id } });
 
-    if (!existing) return next(new AppError('插件不存在', 404));
-    if (existing.userId !== req.userId) return next(new AppError('无权修改此插件', 403));
+    if (!existing) {
+      if (pluginFile?.path && fs.existsSync(pluginFile.path)) fs.unlinkSync(pluginFile.path);
+      if (previewFile?.path && fs.existsSync(previewFile.path)) fs.unlinkSync(previewFile.path);
+      return next(new AppError('插件不存在', 404));
+    }
+    if (existing.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      if (pluginFile?.path && fs.existsSync(pluginFile.path)) fs.unlinkSync(pluginFile.path);
+      if (previewFile?.path && fs.existsSync(previewFile.path)) fs.unlinkSync(previewFile.path);
+      return next(new AppError('无权修改此插件', 403));
+    }
 
     const allowed = [
       'title',
@@ -347,11 +632,94 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
       'compatibility',
       'tags',
       'installGuide',
+      'originality',
+      'originalAuthor',
+      'originalLink',
+      'license',
+      'bilibiliUrl',
     ];
     const updateData: Record<string, unknown> = {};
     for (const field of allowed) {
       if (req.body[field] !== undefined) updateData[field] = req.body[field];
     }
+
+    // If version is changed but no new file is uploaded, switch the active file mapping to that version's files
+    if (req.body.version && !pluginFile && !externalUrl) {
+      const targetVersionRecord = await prisma.pluginVersion.findFirst({
+        where: {
+          pluginId: id,
+          version: req.body.version,
+        },
+      });
+      if (targetVersionRecord) {
+        updateData.fileUrl = targetVersionRecord.fileUrl;
+        updateData.fileSize = targetVersionRecord.fileSize;
+        updateData.packageFilesList = targetVersionRecord.packageFilesList;
+      }
+    }
+
+    if (req.body.linkedCourseId !== undefined) {
+      updateData.linkedCourseId = req.body.linkedCourseId || null;
+    }
+    if (req.body.linkedLessonId !== undefined) {
+      updateData.linkedLessonId = req.body.linkedLessonId || null;
+    }
+
+    if (req.body.isFree !== undefined) {
+      updateData.isFree = parseBool(req.body.isFree, true);
+    }
+
+    // Check if new plugin file is uploaded
+    if (pluginFile) {
+      if (existing.fileUrl) {
+        deleteCloudOrLocalFileByUrl(existing.fileUrl).catch(() => {});
+      }
+      const fileUrl = (pluginFile as UploadedFile).url || `/uploads/plugins/${pluginFile.filename}`;
+      const fileSizeMb = pluginFile.size / (1024 * 1024);
+      updateData.fileUrl = fileUrl;
+      updateData.fileSize = fileSizeMb;
+
+      let packageFilesList: string[] = [];
+      const ext = path.extname(pluginFile.originalname).toLowerCase();
+      if (ext === '.zip') {
+        packageFilesList = await parseZipLocal(pluginFile.path);
+      }
+      updateData.packageFilesList =
+        packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null;
+
+      // Clean up local temp file
+      if (fs.existsSync(pluginFile.path)) {
+        try {
+          fs.unlinkSync(pluginFile.path);
+        } catch (_e) {}
+      }
+    } else if (externalUrl !== undefined) {
+      if (externalUrl && existing.fileUrl) {
+        deleteCloudOrLocalFileByUrl(existing.fileUrl).catch(() => {});
+        updateData.fileSize = 0;
+        updateData.packageFilesList = null;
+      }
+      if (externalUrl !== undefined) {
+        updateData.fileUrl = externalUrl || null;
+      }
+    }
+
+    if (previewFile) {
+      if (existing.previewUrl) {
+        deleteCloudOrLocalFileByUrl(existing.previewUrl).catch(() => {});
+      }
+      const previewUrl =
+        (previewFile as UploadedFile).url || `/uploads/plugins/${previewFile.filename}`;
+      updateData.previewUrl = previewUrl;
+
+      // Clean up local temp file
+      if (fs.existsSync(previewFile.path)) {
+        try {
+          fs.unlinkSync(previewFile.path);
+        } catch (_e) {}
+      }
+    }
+
     // Editing resets to PENDING for re-review
     updateData.status = 'PENDING';
     updateData.rejectReason = null;
@@ -360,8 +728,56 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
       where: { id },
       data: updateData as Prisma.PluginUpdateInput,
     });
+
+    // Sync to PluginVersion table
+    const existingVersionRecord = await prisma.pluginVersion.findFirst({
+      where: {
+        pluginId: id,
+        version: plugin.version,
+      },
+    });
+
+    if (existingVersionRecord) {
+      if (
+        existingVersionRecord.fileUrl &&
+        existingVersionRecord.fileUrl !== plugin.fileUrl
+      ) {
+        deleteCloudOrLocalFileByUrl(existingVersionRecord.fileUrl).catch(() => {});
+      }
+
+      await prisma.pluginVersion.update({
+        where: { id: existingVersionRecord.id },
+        data: {
+          fileUrl: plugin.fileUrl,
+          fileSize: plugin.fileSize,
+          packageFilesList: plugin.packageFilesList,
+        },
+      });
+    } else {
+      await prisma.pluginVersion.create({
+        data: {
+          pluginId: id,
+          version: plugin.version,
+          fileUrl: plugin.fileUrl,
+          fileSize: plugin.fileSize,
+          packageFilesList: plugin.packageFilesList,
+          changelog: '通过编辑插件上传',
+        },
+      });
+    }
+
     res.json(plugin);
   } catch (err) {
+    if (pluginFile?.path && fs.existsSync(pluginFile.path)) {
+      try {
+        fs.unlinkSync(pluginFile.path);
+      } catch (_e) {}
+    }
+    if (previewFile?.path && fs.existsSync(previewFile.path)) {
+      try {
+        fs.unlinkSync(previewFile.path);
+      } catch (_e) {}
+    }
     next(err);
   }
 };
@@ -405,5 +821,710 @@ export const downloadPlugin = async (req: AuthRequest, res: Response, next: Next
     res.json({ fileUrl: plugin.fileUrl });
   } catch (err) {
     next(err);
+  }
+};
+
+// GET /api/plugins/:id/package-files - non-blocking, cached ZIP file listing
+export const getPluginPackageFiles = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const id = req.params.id as string;
+  try {
+    const plugin = await prisma.plugin.findFirst({
+      where: {
+        id,
+        OR:
+          req.user?.role === 'ADMIN'
+            ? undefined
+            : [{ status: 'APPROVED' }, { userId: req.userId as string }],
+      },
+      select: { fileUrl: true, packageFilesList: true },
+    });
+
+    if (!plugin) {
+      return next(new AppError('Plugin not found or access denied', 404));
+    }
+
+    if (!plugin.fileUrl) {
+      return res.json({ packageFiles: [] });
+    }
+
+    if (plugin.packageFilesList) {
+      try {
+        const files = JSON.parse(plugin.packageFilesList);
+        if (Array.isArray(files)) {
+          return res.json({ packageFiles: files });
+        }
+      } catch (_e) {
+        // ignore and fallback
+      }
+    }
+
+    const packageFiles = await getZipFileNames(plugin.fileUrl);
+
+    // Cache to DB for future requests
+    if (packageFiles.length > 0) {
+      await prisma.plugin
+        .update({
+          where: { id },
+          data: { packageFilesList: JSON.stringify(packageFiles) },
+        })
+        .catch((err) => {
+          logger.error(
+            `[Plugin] Failed to update packageFilesList fallback for plugin ${id}:`,
+            err,
+          );
+        });
+    }
+
+    res.json({ packageFiles });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+// GET /api/plugins/:id/comments
+export const getPluginComments = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const pluginId = req.params.id as string;
+  try {
+    const plugin = await prisma.plugin.findFirst({
+      where: {
+        id: pluginId,
+        OR:
+          req.user?.role === 'ADMIN'
+            ? undefined
+            : [{ status: 'APPROVED' }, { userId: req.userId as string }],
+      },
+    });
+    if (!plugin) {
+      return next(new AppError('Plugin not found or access denied', 404));
+    }
+    const comments = await prisma.pluginComment.findMany({
+      where: { pluginId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { id: true, name: true, avatarUrl: true } },
+      },
+    });
+    res.json(comments);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/plugins/:id/comments
+export const createPluginComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const pluginId = req.params.id as string;
+  const userId = req.user?.id;
+  const { content } = req.body;
+
+  if (!userId) {
+    return next(new AppError('Unauthorized', 401));
+  }
+  if (!content || !content.trim()) {
+    return next(new AppError('Comment content cannot be empty', 400));
+  }
+
+  try {
+    const plugin = await prisma.plugin.findFirst({
+      where: {
+        id: pluginId,
+        OR:
+          req.user?.role === 'ADMIN'
+            ? undefined
+            : [{ status: 'APPROVED' }, { userId: req.userId as string }],
+      },
+    });
+    if (!plugin) {
+      return next(new AppError('Plugin not found or access denied', 404));
+    }
+    const comment = await prisma.pluginComment.create({
+      data: {
+        content: content.trim(),
+        pluginId,
+        userId,
+      },
+      include: {
+        user: { select: { id: true, name: true, avatarUrl: true } },
+      },
+    });
+    res.status(201).json(comment);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/plugins/comments/:commentId
+export const deletePluginComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const commentId = req.params.commentId as string;
+  const userId = req.user?.id;
+  const userRole = req.user?.role;
+
+  if (!userId) {
+    return next(new AppError('Unauthorized', 401));
+  }
+
+  try {
+    const comment = await prisma.pluginComment.findUnique({
+      where: { id: commentId },
+    });
+
+    if (!comment) {
+      return next(new AppError('Comment not found', 404));
+    }
+
+    if (comment.userId !== userId && userRole !== 'ADMIN') {
+      return next(new AppError('Forbidden', 403));
+    }
+
+    await prisma.pluginComment.delete({
+      where: { id: commentId },
+    });
+
+    res.json({ success: true, message: 'Comment deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/plugins/:id/share
+export const getPluginShare = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const pluginId = req.params.id as string;
+  try {
+    const plugin = await prisma.plugin.findFirst({
+      where: req.user?.role === 'ADMIN' ? { id: pluginId } : { id: pluginId, userId: req.userId as string }
+    });
+    if (!plugin) {
+      return next(new AppError('Plugin not found or access denied', 404));
+    }
+    const share = await prisma.pluginShare.findUnique({
+      where: { pluginId },
+    });
+    res.json(share);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/plugins/:id/share
+export const createOrUpdatePluginShare = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const pluginId = req.params.id as string;
+  const userId = req.userId as string;
+  const { expireHours, expiresAt, customText } = req.body;
+  try {
+    const plugin = await prisma.plugin.findFirst({
+      where: req.user?.role === 'ADMIN' ? { id: pluginId } : { id: pluginId, userId: req.userId as string }
+    });
+    if (!plugin) {
+      return next(new AppError('Plugin not found or access denied', 404));
+    }
+
+    let calculatedExpiresAt: Date | null = null;
+    if (expiresAt) {
+      calculatedExpiresAt = new Date(expiresAt);
+    } else if (expireHours !== undefined && expireHours !== null) {
+      calculatedExpiresAt = new Date(Date.now() + expireHours * 60 * 60 * 1000);
+    }
+
+    const existing = await prisma.pluginShare.findUnique({
+      where: { pluginId },
+    });
+
+    let share;
+    if (existing) {
+      share = await prisma.pluginShare.update({
+        where: { pluginId },
+        data: {
+          expiresAt: calculatedExpiresAt,
+          customText,
+        },
+      });
+    } else {
+      share = await prisma.pluginShare.create({
+        data: {
+          pluginId,
+          userId,
+          expiresAt: calculatedExpiresAt,
+          customText,
+        },
+      });
+    }
+
+    res.json(share);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/plugins/:id/share
+export const cancelPluginShare = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const pluginId = req.params.id as string;
+  try {
+    const plugin = await prisma.plugin.findFirst({
+      where: req.user?.role === 'ADMIN' ? { id: pluginId } : { id: pluginId, userId: req.userId as string }
+    });
+    if (!plugin) {
+      return next(new AppError('Plugin not found or access denied', 404));
+    }
+
+    await prisma.pluginShare.deleteMany({
+      where: { pluginId },
+    });
+    res.json({ success: true, message: 'Share link cancelled' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/plugins/share/:shareId
+export const getPublicSharedPlugin = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const shareId = req.params.shareId as string;
+  try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    const share = await prisma.pluginShare.findUnique({
+      where: { id: shareId },
+      include: {
+        plugin: {
+          include: {
+            user: {
+              select: { id: true, name: true, avatarUrl: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!share) {
+      return res.status(404).json({ error: '分享链接不存在或已失效' });
+    }
+
+    if (share.expiresAt && new Date() > share.expiresAt) {
+      return res.status(410).json({ error: '分享链接已过期且失效' });
+    }
+
+    res.json(share);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/plugins/:id/token
+export const generateDeveloperToken = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const pluginId = req.params.id as string;
+  try {
+    const plugin = await prisma.plugin.findUnique({ where: { id: pluginId } });
+    if (!plugin) return next(new AppError('插件不存在', 404));
+    if (plugin.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return next(new AppError('无权操作此插件', 403));
+    }
+
+    const token = 'plg_' + crypto.randomUUID().replace(/-/g, '');
+    const updated = await prisma.plugin.update({
+      where: { id: pluginId },
+      data: { developerToken: token },
+    });
+
+    res.json({ developerToken: updated.developerToken });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/plugins/:id/feedbacks
+export const listPluginFeedbacks = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const pluginId = req.params.id as string;
+  try {
+    const plugin = await prisma.plugin.findUnique({ where: { id: pluginId } });
+    if (!plugin) return next(new AppError('插件不存在', 404));
+    if (plugin.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return next(new AppError('无权操作此插件', 403));
+    }
+
+    const feedbacks = await prisma.pluginFeedback.findMany({
+      where: { pluginId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(feedbacks);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/plugins/:id/versions
+export const uploadPluginVersion = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const pluginId = req.params.id as string;
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+  const pluginFile = files?.plugin_file?.[0] || files?.file?.[0];
+
+  if (!pluginFile) {
+    return next(new AppError('请上传插件包文件', 400));
+  }
+
+  try {
+    const plugin = await prisma.plugin.findUnique({ where: { id: pluginId } });
+    if (!plugin) {
+      if (fs.existsSync(pluginFile.path)) fs.unlinkSync(pluginFile.path);
+      return next(new AppError('插件不存在', 404));
+    }
+    if (plugin.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      if (fs.existsSync(pluginFile.path)) fs.unlinkSync(pluginFile.path);
+      return next(new AppError('无权操作此插件', 403));
+    }
+
+    const { version, changelog } = req.body;
+    if (!version) {
+      if (fs.existsSync(pluginFile.path)) fs.unlinkSync(pluginFile.path);
+      return next(new AppError('版本号为必填项', 400));
+    }
+
+    const fileUrl = (pluginFile as UploadedFile).url || `/uploads/plugins/${pluginFile.filename}`;
+    const fileSizeMb = pluginFile.size / (1024 * 1024);
+
+    let packageFilesList: string[] = [];
+    const ext = path.extname(pluginFile.originalname).toLowerCase();
+    if (ext === '.zip') {
+      packageFilesList = await parseZipLocal(pluginFile.path);
+    }
+
+    const newVersion = await prisma.pluginVersion.create({
+      data: {
+        pluginId,
+        version,
+        changelog: changelog || null,
+        fileUrl,
+        fileSize: fileSizeMb,
+        packageFilesList: packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null,
+      },
+    });
+
+    await prisma.plugin.update({
+      where: { id: pluginId },
+      data: {
+        version,
+        fileUrl,
+        fileSize: fileSizeMb,
+        packageFilesList: packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null,
+        status: 'PENDING',
+        rejectReason: null,
+      },
+    });
+
+    if (fs.existsSync(pluginFile.path)) {
+      try {
+        fs.unlinkSync(pluginFile.path);
+      } catch (_e) {}
+    }
+
+    res.status(201).json(newVersion);
+  } catch (err) {
+    if (pluginFile?.path && fs.existsSync(pluginFile.path)) {
+      try {
+        fs.unlinkSync(pluginFile.path);
+      } catch (_e) {}
+    }
+    next(err);
+  }
+};
+
+// GET /api/plugins/:id/versions
+export const listPluginVersions = async (req: Request, res: Response, next: NextFunction) => {
+  const pluginId = req.params.id as string;
+  try {
+    const versions = await prisma.pluginVersion.findMany({
+      where: { pluginId },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(versions);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/plugins/:id/versions/:versionId/set-active
+export const setActivePluginVersion = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { id: pluginId, versionId } = req.params as { id: string; versionId: string };
+  try {
+    const plugin = await prisma.plugin.findUnique({ where: { id: pluginId } });
+    if (!plugin) return next(new AppError('插件不存在', 404));
+    if (plugin.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return next(new AppError('无权操作此插件', 403));
+    }
+
+    const version = await prisma.pluginVersion.findFirst({
+      where: { id: versionId, pluginId },
+    });
+    if (!version) return next(new AppError('版本记录不存在', 404));
+
+    // Promote this version record to be the plugin's active published version
+    const updated = await prisma.plugin.update({
+      where: { id: pluginId },
+      data: {
+        version: version.version,
+        fileUrl: version.fileUrl,
+      },
+    });
+
+    logger.info(
+      `[Plugin] ${pluginId} active version set to ${version.version} by user ${req.userId}`,
+    );
+
+    res.json({
+      success: true,
+      message: `已将 v${version.version} 设为当前推送版本`,
+      plugin: { id: updated.id, version: updated.version },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/plugins/client/check-update
+
+export const checkPluginUpdate = async (req: Request, res: Response, next: NextFunction) => {
+  const token = (req.headers['x-developer-token'] as string) || (req.query.token as string) || (req.body?.token as string);
+  const currentVersion = req.query.version as string;
+
+  if (!token) {
+    return next(new AppError('developer token is required', 400));
+  }
+
+  try {
+    const plugin = await prisma.plugin.findUnique({
+      where: { developerToken: token },
+    });
+
+    if (!plugin) {
+      return next(new AppError('Invalid token or plugin not found', 404));
+    }
+
+    const latestVersion = plugin.version;
+    const updateAvailable = latestVersion !== currentVersion;
+
+    const latestVersionRecord = await prisma.pluginVersion.findFirst({
+      where: { pluginId: plugin.id, version: latestVersion },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({
+      updateAvailable,
+      latestVersion,
+      downloadUrl: plugin.fileUrl ? `${req.protocol}://${req.get('host')}${plugin.fileUrl}` : null,
+      compatibility: plugin.compatibility,
+      changelog: latestVersionRecord?.changelog || '暂无更新日志',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/plugins/client/feedback
+export const createPluginFeedback = async (req: Request, res: Response, next: NextFunction) => {
+  const token = (req.headers['x-developer-token'] as string) || (req.query.token as string) || (req.body?.token as string);
+  const { clientVersion, feedbackType = 'BUG', content } = req.body;
+
+  if (!token) {
+    return next(new AppError('developer token is required', 400));
+  }
+  if (!content) {
+    return next(new AppError('content is required', 400));
+  }
+
+  try {
+    const plugin = await prisma.plugin.findUnique({
+      where: { developerToken: token },
+    });
+
+    if (!plugin) {
+      return next(new AppError('Invalid token or plugin not found', 404));
+    }
+
+    const feedback = await prisma.pluginFeedback.create({
+      data: {
+        pluginId: plugin.id,
+        clientVersion: clientVersion || plugin.version,
+        feedbackType,
+        content,
+      },
+    });
+
+    res.status(201).json({ success: true, feedback });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/plugins/requests
+export const listPluginRequests = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { page, limit, skip } = getPaginationParams(req.query as Record<string, unknown>, 20, 50);
+    const status = req.query.status as string | undefined;
+
+    const where: Prisma.PluginRequestWhereInput = {};
+    if (status && status !== 'ALL') {
+      where.status = status;
+    }
+
+    const [requests, total] = await Promise.all([
+      prisma.pluginRequest.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          user: { select: { id: true, name: true, avatarUrl: true } },
+          _count: { select: { replies: true } },
+        },
+      }),
+      prisma.pluginRequest.count({ where }),
+    ]);
+
+    res.json({ requests, pagination: createPaginationMeta(page, limit, total) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/plugins/requests/:id
+export const getPluginRequestById = async (req: Request, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
+  try {
+    const request = await prisma.pluginRequest.findUnique({
+      where: { id },
+      include: {
+        user: { select: { id: true, name: true, avatarUrl: true } },
+        replies: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            user: { select: { id: true, name: true, avatarUrl: true } },
+            linkedPlugin: {
+              select: { id: true, title: true, version: true, previewUrl: true, downloads: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!request) {
+      return next(new AppError('求助帖不存在', 404));
+    }
+
+    res.json(request);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/plugins/requests
+export const createPluginRequest = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const { title, description } = req.body;
+  if (!title?.trim() || !description?.trim()) {
+    return next(new AppError('标题和内容为必填项', 400));
+  }
+
+  try {
+    const request = await prisma.pluginRequest.create({
+      data: {
+        title: title.trim(),
+        description: description.trim(),
+        userId: req.userId!,
+        status: 'OPEN',
+      },
+      include: {
+        user: { select: { id: true, name: true, avatarUrl: true } },
+        _count: { select: { replies: true } },
+      },
+    });
+
+    res.status(201).json(request);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/plugins/requests/:id/replies
+export const createPluginRequestReply = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const requestId = req.params.id as string;
+  const { content, linkedPluginId } = req.body;
+
+  if (!content?.trim()) {
+    return next(new AppError('回复内容不能为空', 400));
+  }
+
+  try {
+    const request = await prisma.pluginRequest.findUnique({ where: { id: requestId } });
+    if (!request) return next(new AppError('求助帖不存在', 404));
+
+    if (linkedPluginId) {
+      const plugin = await prisma.plugin.findFirst({
+        where: { id: linkedPluginId, status: 'APPROVED' },
+      });
+      if (!plugin) return next(new AppError('关联的插件不存在或未被批准发布', 400));
+    }
+
+    const reply = await prisma.pluginRequestReply.create({
+      data: {
+        requestId,
+        userId: req.userId!,
+        content: content.trim(),
+        linkedPluginId: linkedPluginId || null,
+      },
+      include: {
+        user: { select: { id: true, name: true, avatarUrl: true } },
+        linkedPlugin: {
+          select: { id: true, title: true, version: true, previewUrl: true, downloads: true },
+        },
+      },
+    });
+
+    res.status(201).json(reply);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/plugins/requests/:id/resolve
+export const resolvePluginRequest = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const requestId = req.params.id as string;
+  try {
+    const request = await prisma.pluginRequest.findUnique({ where: { id: requestId } });
+    if (!request) return next(new AppError('求助帖不存在', 404));
+
+    if (request.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return next(new AppError('无权关闭此求助贴', 403));
+    }
+
+    const updated = await prisma.pluginRequest.update({
+      where: { id: requestId },
+      data: { status: 'RESOLVED' },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    next(error);
   }
 };

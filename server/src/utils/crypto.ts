@@ -53,7 +53,6 @@ export function decryptText(hex: string, key: string): string {
   return rc4(key, str);
 }
 
-
 // ─── Scheme 2: encrypt / decrypt (env-key, used for SecretAccessKey) ────────────
 
 const ALGORITHM = 'aes-256-gcm';

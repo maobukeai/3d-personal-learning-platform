@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { getApiErrorMessage, logError } from '@/utils/error';
 import { computed, ref, onMounted, watch, defineAsyncComponent } from 'vue';
-import { Box, UploadCloud, Image, Film, FileText, File, Puzzle, Check } from 'lucide-vue-next';
+import { UploadCloud, Layers, Puzzle } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { useI18n } from 'vue-i18n';
@@ -16,11 +16,32 @@ const { t } = useI18n();
 
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
-type PublishCategory = 'model' | 'asset' | 'work' | 'plugin';
+type PublishCategory = 'asset' | 'material' | 'plugin';
+
+interface InitialPublishData {
+  title?: string;
+  description?: string;
+  tags?: string;
+  thumbnail?: File | null;
+  assetFile?: File | null;
+  assetCategory?: string;
+  pluginFile?: File | null;
+  pluginPreview?: File | null;
+  pluginCategory?: string;
+  pluginVersion?: string;
+  pluginCompatibility?: string;
+  pluginInstallGuide?: string;
+  bilibiliUrl?: string;
+  materialFile?: File | null;
+  materialCategory?: string;
+  materialResolution?: string;
+  materialIsProcedural?: boolean;
+}
 
 const props = defineProps<{
   modelValue: boolean;
-  defaultCategory?: PublishCategory;
+  defaultCategory?: string; // Accept any category string from legacy references and gracefully fallback
+  initialData?: InitialPublishData;
 }>();
 
 const emit = defineEmits<{
@@ -28,134 +49,66 @@ const emit = defineEmits<{
   (e: 'published'): void;
 }>();
 
-interface ApprovedAsset {
-  id: string;
-  title: string;
-  description?: string | null;
-  status: string;
-}
-
 interface AssetCategory {
   id: string;
   name: string;
 }
 
 const isPublishing = ref(false);
-const publishCategory = ref<PublishCategory>('work');
-const myApprovedAssets = ref<ApprovedAsset[]>([]);
-const selectedAssetId = ref('');
+const publishCategory = ref<PublishCategory>('asset');
 const assetCategories = ref<AssetCategory[]>([]);
 const { isMobile } = useMobile();
 const systemStore = useSystemStore();
 
 const activeCategoryLabel = computed(() => {
   switch (publishCategory.value) {
-    case 'model':
-      return '关联模型作品';
     case 'asset':
-      return '上传模型资产';
+      return t('publishDialog.uploadModel') || '上传3D模型';
+    case 'material':
+      return t('publishDialog.uploadMaterial') || '上传材质';
     case 'plugin':
-      return '上传创作插件';
+      return t('publishDialog.uploadPlugin') || '上传插件';
     default:
-      return '发布作品展示';
+      return '';
   }
 });
 
-const publishReadiness = computed(() => {
-  const checks = [
-    { label: '标题', done: !!publishForm.value.title.trim() },
-    {
-      label: '内容说明',
-      done:
-        !!publishForm.value.description.trim() ||
-        (publishCategory.value === 'plugin' && !!publishForm.value.pluginInstallGuide.trim()),
-    },
-    {
-      label: '素材',
-      done:
-        (publishCategory.value === 'model' && !!selectedAssetId.value) ||
-        (publishCategory.value === 'asset' && !!publishForm.value.assetFile) ||
-        (publishCategory.value === 'plugin' && !!publishForm.value.pluginFile) ||
-        (publishCategory.value === 'work' &&
-          (publishForm.value.type === 'TEXT' || !!publishForm.value.thumbnail)),
-    },
-  ];
-  const doneCount = checks.filter((item) => item.done).length;
-  return {
-    checks,
-    percent: Math.round((doneCount / checks.length) * 100),
-  };
-});
-
 const categoryTabs = computed(() => [
-  { value: 'model', label: t('publishDialog.tabModel'), icon: Box },
-  { value: 'asset', label: t('publishDialog.tabAsset'), icon: UploadCloud },
-  { value: 'work', label: t('publishDialog.tabWork'), icon: Image },
-  { value: 'plugin', label: '上传插件', icon: Puzzle },
+  { value: 'asset', label: t('publishDialog.uploadModel') || '上传3D模型', icon: UploadCloud },
+  { value: 'material', label: t('publishDialog.uploadMaterial') || '上传材质', icon: Layers },
+  { value: 'plugin', label: t('publishDialog.uploadPlugin') || '上传插件', icon: Puzzle },
 ]);
 
 const publishForm = ref({
   title: '',
   description: '',
   tags: '',
-  videoUrl: '',
-  isVideo: false,
-  type: 'IMAGE',
   thumbnail: null as File | null,
-  images: [] as File[],
+  // Asset
   assetFile: null as File | null,
-  assetCategory: '', // Will store categoryId
-  // Plugin-specific fields
+  assetCategory: '',
+  // Plugin
   pluginFile: null as File | null,
   pluginPreview: null as File | null,
   pluginCategory: '其他工具',
   pluginVersion: '1.0.0',
   pluginCompatibility: '',
   pluginInstallGuide: '',
+  bilibiliUrl: '',
+  // Material
+  materialFile: null as File | null,
+  materialCategory: '',
+  materialResolution: '4K',
+  materialIsProcedural: false,
 });
 
-const getTypeIcon = (type: string) => {
-  switch (type) {
-    case 'MODEL':
-      return Box;
-    case 'VIDEO':
-      return Film;
-    case 'IMAGE':
-      return Image;
-    case 'TEXT':
-      return FileText;
-    default:
-      return File;
-  }
-};
+const resolutionOptions = ['2K', '4K', '8K', '矢量', '程序化'];
 
-const getTypeLabel = (type: string) => {
-  switch (type) {
-    case 'MODEL':
-      return t('publishDialog.typeModel');
-    case 'VIDEO':
-      return t('publishDialog.typeVideo');
-    case 'IMAGE':
-      return t('publishDialog.typeImage');
-    case 'TEXT':
-      return t('publishDialog.typeText');
-    case 'OTHER':
-      return t('publishDialog.typeOther');
-    default:
-      return t('publishDialog.typeWork');
-  }
-};
-
-const fetchMyApprovedAssets = async () => {
-  try {
-    const response = await api.get('/api/assets/my');
-    myApprovedAssets.value = (response.data as ApprovedAsset[]).filter(
-      (asset) => asset.status === 'APPROVED',
-    );
-  } catch (error) {
-    logError(error, { operation: 'publish.fetchMyAssets', component: 'PublishWorkDialog' });
-  }
-};
+const materialCategories = computed(() => {
+  return (systemStore.settings.MATERIAL_CATEGORIES || []).filter(
+    (cat) => cat !== '全部材料' && cat !== '全部',
+  );
+});
 
 const fetchCategories = async () => {
   try {
@@ -166,12 +119,27 @@ const fetchCategories = async () => {
   }
 };
 
+const initDialog = async () => {
+  const cat = props.defaultCategory;
+  if (cat === 'asset' || cat === 'material' || cat === 'plugin') {
+    publishCategory.value = cat;
+  } else {
+    publishCategory.value = 'asset';
+  }
+  if (props.initialData) {
+    publishForm.value = {
+      ...publishForm.value,
+      ...props.initialData,
+    };
+  }
+  await Promise.all([fetchCategories(), systemStore.fetchSettings()]);
+};
+
 watch(
   () => props.modelValue,
   async (val) => {
     if (val) {
-      publishCategory.value = props.defaultCategory || 'work';
-      await Promise.all([fetchMyApprovedAssets(), fetchCategories(), systemStore.fetchSettings()]);
+      await initDialog();
     }
   },
 );
@@ -180,30 +148,20 @@ watch(
   () => props.defaultCategory,
   (category) => {
     if (props.modelValue && category) {
-      publishCategory.value = category;
+      if (category === 'asset' || category === 'material' || category === 'plugin') {
+        publishCategory.value = category;
+      } else {
+        publishCategory.value = 'asset';
+      }
     }
   },
 );
-
-const onAssetSelected = () => {
-  const asset = myApprovedAssets.value.find((a) => a.id === selectedAssetId.value);
-  if (asset) {
-    publishForm.value.title = asset.title;
-    publishForm.value.description = asset.description || '';
-    publishForm.value.type = 'MODEL';
-  }
-};
 
 const handleThumbnailChange = (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     publishForm.value.thumbnail = file;
   }
-};
-
-const handleImagesChange = (e: Event) => {
-  const files = Array.from((e.target as HTMLInputElement).files || []);
-  publishForm.value.images = files;
 };
 
 const handleAssetFileChange = (e: Event) => {
@@ -231,6 +189,16 @@ const handlePluginPreviewChange = (e: Event) => {
   if (file) publishForm.value.pluginPreview = file;
 };
 
+const handleMaterialFileChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    publishForm.value.materialFile = file;
+    if (!publishForm.value.title) {
+      publishForm.value.title = file.name.replace(/\.[^.]+$/, '');
+    }
+  }
+};
+
 const handlePublish = async () => {
   if (!publishForm.value.title.trim()) {
     ElMessage.warning(t('publishDialog.titleRequired'));
@@ -240,14 +208,7 @@ const handlePublish = async () => {
   isPublishing.value = true;
 
   try {
-    if (publishCategory.value === 'model' && selectedAssetId.value) {
-      await api.post('/api/showcase/publish-asset', {
-        assetId: selectedAssetId.value,
-        title: publishForm.value.title,
-        description: publishForm.value.description,
-        tags: publishForm.value.tags,
-      });
-    } else if (publishCategory.value === 'asset') {
+    if (publishCategory.value === 'asset') {
       if (!publishForm.value.assetFile) {
         ElMessage.warning(t('publishDialog.modelRequired'));
         isPublishing.value = false;
@@ -268,19 +229,12 @@ const handlePublish = async () => {
       uploadFormData.append('description', publishForm.value.description);
       uploadFormData.append('categoryId', publishForm.value.assetCategory);
 
-      const uploadRes = await api.post('/api/assets/upload', uploadFormData, {
+      await api.post('/api/assets/upload', uploadFormData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      await api.post('/api/showcase/publish-asset', {
-        assetId: uploadRes.data.id,
-        title: publishForm.value.title,
-        description: publishForm.value.description,
-        tags: publishForm.value.tags,
       });
     } else if (publishCategory.value === 'plugin') {
       if (!publishForm.value.pluginFile) {
-        ElMessage.warning('请上传插件文件');
+        ElMessage.warning(t('publishDialog.pluginRequired') || '请上传插件文件');
         isPublishing.value = false;
         return;
       }
@@ -301,40 +255,49 @@ const handlePublish = async () => {
       pluginFormData.append('compatibility', publishForm.value.pluginCompatibility);
       pluginFormData.append('tags', publishForm.value.tags);
       pluginFormData.append('installGuide', publishForm.value.pluginInstallGuide);
+      if (publishForm.value.bilibiliUrl) {
+        pluginFormData.append('bilibiliUrl', publishForm.value.bilibiliUrl);
+      }
       await api.post('/api/plugins/upload', pluginFormData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-    } else {
-      if (publishForm.value.type !== 'TEXT' && !publishForm.value.thumbnail) {
-        ElMessage.warning(t('publishDialog.thumbnailRequired'));
+    } else if (publishCategory.value === 'material') {
+      if (!publishForm.value.materialFile) {
+        ElMessage.warning(t('publishDialog.materialRequired') || '请上传材质包文件');
+        isPublishing.value = false;
+        return;
+      }
+      if (!publishForm.value.materialCategory) {
+        ElMessage.warning('请选择材质分类');
         isPublishing.value = false;
         return;
       }
 
-      const formData = new FormData();
+      const materialFormData = new FormData();
+      materialFormData.append('material', publishForm.value.materialFile);
       if (publishForm.value.thumbnail) {
-        formData.append('thumbnail', publishForm.value.thumbnail);
+        materialFormData.append('preview', publishForm.value.thumbnail);
       }
-      publishForm.value.images.forEach((img) => {
-        formData.append('images', img);
-      });
-      formData.append('title', publishForm.value.title);
-      formData.append('description', publishForm.value.description);
-      formData.append('tags', publishForm.value.tags);
-      formData.append('videoUrl', publishForm.value.videoUrl);
-      formData.append('isVideo', String(publishForm.value.isVideo));
-      formData.append('type', publishForm.value.type);
+      materialFormData.append('title', publishForm.value.title);
+      materialFormData.append('description', publishForm.value.description);
+      materialFormData.append('category', publishForm.value.materialCategory);
+      materialFormData.append('resolution', publishForm.value.materialResolution);
+      materialFormData.append('isProcedural', String(publishForm.value.materialIsProcedural));
+      materialFormData.append('tags', publishForm.value.tags);
+      materialFormData.append('originality', 'ORIGINAL');
+      materialFormData.append('license', 'CC_BY');
+      materialFormData.append('isFree', 'true');
 
-      await api.post('/api/showcase', formData, {
+      await api.post('/api/materials/upload', materialFormData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
     }
 
-    ElMessage.success(t('publishDialog.publishSuccess'));
+    ElMessage.success(t('publishDialog.publishSuccess') || '发布成功');
     closeDialog();
     emit('published');
   } catch (error) {
-    const msg = getApiErrorMessage(error, t('publishDialog.publishFailed'));
+    const msg = getApiErrorMessage(error, t('publishDialog.publishFailed') || '发布失败');
     ElMessage.error(msg);
   } finally {
     isPublishing.value = false;
@@ -348,11 +311,7 @@ const closeDialog = () => {
     title: '',
     description: '',
     tags: '',
-    videoUrl: '',
-    isVideo: false,
-    type: 'IMAGE',
     thumbnail: null,
-    images: [],
     assetFile: null,
     assetCategory: '',
     pluginFile: null,
@@ -361,17 +320,18 @@ const closeDialog = () => {
     pluginVersion: '1.0.0',
     pluginCompatibility: '',
     pluginInstallGuide: '',
+    bilibiliUrl: '',
+    materialFile: null,
+    materialCategory: '',
+    materialResolution: '4K',
+    materialIsProcedural: false,
   };
-  selectedAssetId.value = '';
-  publishCategory.value = 'work';
+  publishCategory.value = 'asset';
 };
 
 onMounted(() => {
   if (props.modelValue) {
-    publishCategory.value = props.defaultCategory || 'work';
-    fetchMyApprovedAssets();
-    fetchCategories();
-    systemStore.fetchSettings();
+    initDialog();
   }
 });
 </script>
@@ -384,98 +344,15 @@ onMounted(() => {
           {{ t('publishDialog.title') }}
         </h3>
         <p class="text-xs text-[var(--text-muted)] mt-1">
-          {{ activeCategoryLabel }} · 完成度 {{ publishReadiness.percent }}%
+          {{ activeCategoryLabel }}
         </p>
       </div>
     </template>
-
-    <div class="publish-progress-panel">
-      <div class="publish-progress-track">
-        <span :style="{ width: `${publishReadiness.percent}%` }"></span>
-      </div>
-      <div class="publish-checks">
-        <span
-          v-for="check in publishReadiness.checks"
-          :key="check.label"
-          :class="{ done: check.done }"
-        >
-          <Check class="w-3 h-3" />
-          {{ check.label }}
-        </span>
-      </div>
-    </div>
 
     <!-- Category Tabs -->
     <div class="mb-5 flex justify-center">
       <Tabs v-model="publishCategory" :options="categoryTabs" size="sm" />
     </div>
-
-    <!-- Model Category: Select existing approved asset -->
-    <template v-if="publishCategory === 'model'">
-      <div class="space-y-5">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="space-y-5">
-            <div>
-              <label
-                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                >{{ t('publishDialog.selectExisting') }}</label
-              >
-              <el-select
-                v-model="selectedAssetId"
-                :placeholder="t('publishDialog.selectExistingPlaceholder')"
-                class="w-full custom-select-v2"
-                @change="onAssetSelected"
-              >
-                <el-option
-                  v-for="asset in myApprovedAssets"
-                  :key="asset.id"
-                  :label="asset.title"
-                  :value="asset.id"
-                />
-              </el-select>
-              <p v-if="myApprovedAssets.length === 0" class="text-[10px] text-slate-400 mt-1 ml-1">
-                {{ t('publishDialog.noApprovedAssetsTip') }}
-              </p>
-            </div>
-
-            <div class="space-y-4">
-              <Input
-                v-model="publishForm.title"
-                type="text"
-                :label="t('publishDialog.showcaseTitleLabel')"
-                :placeholder="t('publishDialog.titlePlaceholder')"
-                required
-              />
-            </div>
-
-            <div class="space-y-4">
-              <Input
-                v-model="publishForm.tags"
-                type="text"
-                :label="t('publishDialog.tagsLabel')"
-                :placeholder="t('publishDialog.tagsPlaceholder')"
-              />
-              <p class="text-[10px] text-slate-400 mt-1 ml-1">
-                {{ t('publishDialog.tagsTip') }}
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-              >{{ t('publishDialog.descriptionLabel') }}</label
-            >
-            <MarkdownEditor
-              v-model="publishForm.description"
-              :placeholder="t('publishDialog.descriptionPlaceholder')"
-              :height="isMobile ? '280px' : '300px'"
-              simple
-            />
-          </div>
-        </div>
-      </div>
-    </template>
 
     <!-- Asset Category: Upload a new 3D model file -->
     <template v-if="publishCategory === 'asset'">
@@ -583,146 +460,6 @@ onMounted(() => {
       </div>
     </template>
 
-    <!-- Work Category: Create a work showcase (two-column layout) -->
-    <template v-if="publishCategory === 'work'">
-      <div class="flex flex-col md:flex-row gap-6">
-        <!-- Left side: Form fields -->
-        <div class="w-full md:w-[40%] space-y-5 shrink-0">
-          <div>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-              >{{ t('publishDialog.workTypeLabel') }}</label
-            >
-            <div
-              class="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide p-1"
-            >
-              <button
-                v-for="workType in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']"
-                :key="workType"
-                type="button"
-                class="flex-none md:flex-1 px-4 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1"
-                :class="publishForm.type === workType ? 'bg-indigo-600 text-white shadow-md' : ''"
-                :style="
-                  publishForm.type !== workType
-                    ? 'color: var(--text-secondary); background-color: var(--bg-app)'
-                    : ''
-                "
-                @click="publishForm.type = workType"
-              >
-                <component :is="getTypeIcon(workType)" class="w-3 h-3" />
-                {{ getTypeLabel(workType) }}
-              </button>
-            </div>
-          </div>
-
-          <Input
-            v-model="publishForm.title"
-            type="text"
-            :label="t('publishDialog.titleLabel')"
-            :placeholder="t('publishDialog.titlePlaceholder')"
-            required
-          />
-
-          <div v-if="publishForm.type !== 'TEXT'">
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-              >{{ t('publishDialog.thumbnailRequiredLabel') }}</label
-            >
-            <FileDropZone
-              v-model="publishForm.thumbnail"
-              accept="image/*"
-              :label="
-                publishForm.thumbnail
-                  ? publishForm.thumbnail.name
-                  : t('publishDialog.clickUploadThumbnail')
-              "
-              @change="handleThumbnailChange"
-            />
-          </div>
-
-          <div v-else>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-              >{{ t('publishDialog.thumbnailOptionalLabel') }}</label
-            >
-            <FileDropZone
-              v-model="publishForm.thumbnail"
-              accept="image/*"
-              height-class="h-24"
-              :label="
-                publishForm.thumbnail
-                  ? publishForm.thumbnail.name
-                  : t('publishDialog.clickUploadThumbnailOptional')
-              "
-              @change="handleThumbnailChange"
-            />
-          </div>
-
-          <div v-if="publishForm.type !== 'TEXT'">
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-              >{{ t('publishDialog.moreImagesLabel') }}</label
-            >
-            <FileDropZone
-              v-model="publishForm.images"
-              accept="image/*"
-              multiple
-              height-class="h-20"
-              :label="
-                publishForm.images.length > 0
-                  ? t('publishDialog.selectedImagesCount', { n: publishForm.images.length })
-                  : t('publishDialog.clickUploadMoreImages')
-              "
-              @change="handleImagesChange"
-            />
-          </div>
-
-          <div
-            v-if="publishForm.type === 'VIDEO' || publishForm.isVideo"
-            class="flex items-center gap-3 py-2"
-          >
-            <el-switch v-model="publishForm.isVideo" active-color="var(--accent)" />
-            <span class="text-xs font-bold" style="color: var(--text-secondary)">{{
-              t('publishDialog.isVideoWorkLabel')
-            }}</span>
-          </div>
-
-          <div v-if="publishForm.isVideo">
-            <Input
-              v-model="publishForm.videoUrl"
-              type="text"
-              :label="t('publishDialog.videoUrlLabel')"
-              :placeholder="t('publishDialog.videoUrlPlaceholder')"
-            />
-          </div>
-
-          <div>
-            <Input
-              v-model="publishForm.tags"
-              type="text"
-              :label="t('publishDialog.tagsLabel')"
-              :placeholder="t('publishDialog.tagsPlaceholder')"
-            />
-            <p class="text-[10px] text-slate-400 mt-1 ml-1">{{ t('publishDialog.tagsTip') }}</p>
-          </div>
-        </div>
-
-        <!-- Right side: Markdown editor -->
-        <div class="w-full md:w-[60%] min-w-0">
-          <label
-            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-            >{{ t('publishDialog.descriptionLabel') }}</label
-          >
-          <MarkdownEditor
-            v-model="publishForm.description"
-            :placeholder="t('publishDialog.descriptionPlaceholder')"
-            :height="isMobile ? '320px' : '360px'"
-            simple
-          />
-        </div>
-      </div>
-    </template>
-
     <!-- Plugin Category: Upload plugin file -->
     <template v-if="publishCategory === 'plugin'">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -758,24 +495,24 @@ onMounted(() => {
 
           <!-- Category & Version -->
           <div class="grid grid-cols-2 gap-3">
-            <label class="flex flex-col">
+            <div class="flex flex-col">
               <span
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
                 >插件分类</span
               >
-              <select
+              <el-select
                 v-model="publishForm.pluginCategory"
-                class="glass-input text-sm p-3.5 rounded-xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                placeholder="请选择插件分类"
+                class="w-full custom-select-v2"
               >
-                <option
+                <el-option
                   v-for="cat in systemStore.settings.PLUGIN_CATEGORIES"
                   :key="cat"
+                  :label="cat"
                   :value="cat"
-                >
-                  {{ cat }}
-                </option>
-              </select>
-            </label>
+                />
+              </el-select>
+            </div>
             <div>
               <Input
                 v-model="publishForm.pluginVersion"
@@ -821,6 +558,16 @@ onMounted(() => {
               placeholder="用逗号分隔，如：Blender, 材质, 批量"
             />
           </div>
+
+          <!-- B站视频或分享链接 -->
+          <div>
+            <Input
+              v-model="publishForm.bilibiliUrl"
+              type="text"
+              label="B站分享视频或主页链接（可选）"
+              placeholder="如：https://www.bilibili.com/video/BV1xx... 或个人主页"
+            />
+          </div>
         </div>
 
         <!-- Right: description + install guide -->
@@ -846,6 +593,129 @@ onMounted(() => {
               v-model="publishForm.pluginInstallGuide"
               placeholder="步骤 1: 解压 zip 文件&#10;步骤 2: 在 Blender 首选项中安装..."
               :height="isMobile ? '180px' : '210px'"
+              simple
+            />
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Material Category: Upload material package -->
+    <template v-if="publishCategory === 'material'">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="space-y-4">
+          <!-- Material file upload -->
+          <div>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >材质包文件 *</label
+            >
+            <FileDropZone
+              v-model="publishForm.materialFile"
+              accept=".zip,.sbsar"
+              height-class="h-28"
+              hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
+              :label="publishForm.materialFile ? publishForm.materialFile.name : '点击上传材质包文件'"
+              sublabel="支持 .zip .sbsar 格式"
+              @change="handleMaterialFileChange"
+            />
+          </div>
+
+          <!-- Material name -->
+          <div>
+            <Input
+              v-model="publishForm.title"
+              type="text"
+              label="材质名称"
+              placeholder="如：磨砂金属 PBR 套装"
+              required
+            />
+          </div>
+
+          <!-- Category & Resolution -->
+          <div class="grid grid-cols-2 gap-3">
+            <div class="flex flex-col">
+              <span
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+                >材质分类</span
+              >
+              <el-select
+                v-model="publishForm.materialCategory"
+                placeholder="请选择材质分类"
+                class="w-full custom-select-v2"
+              >
+                <el-option
+                  v-for="cat in materialCategories"
+                  :key="cat"
+                  :label="cat"
+                  :value="cat"
+                />
+              </el-select>
+            </div>
+            <div class="flex flex-col">
+              <span
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+                >材质分辨率</span
+              >
+              <el-select
+                v-model="publishForm.materialResolution"
+                placeholder="请选择分辨率"
+                class="w-full custom-select-v2"
+              >
+                <el-option
+                  v-for="res in resolutionOptions"
+                  :key="res"
+                  :label="res"
+                  :value="res"
+                />
+              </el-select>
+            </div>
+          </div>
+
+          <!-- Procedural Switch -->
+          <div class="flex items-center gap-3 py-1">
+            <el-switch v-model="publishForm.materialIsProcedural" active-color="var(--accent)" />
+            <span class="text-xs font-bold text-slate-400">程序化材质 / SBSAR</span>
+          </div>
+
+          <!-- Preview image (Cover) -->
+          <div>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >封面图（可选）</label
+            >
+            <FileDropZone
+              v-model="publishForm.thumbnail"
+              accept="image/*"
+              height-class="h-20"
+              hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
+              :label="publishForm.thumbnail ? publishForm.thumbnail.name : '点击上传封面图'"
+              @change="handleThumbnailChange"
+            />
+          </div>
+
+          <!-- Tags -->
+          <div>
+            <Input
+              v-model="publishForm.tags"
+              type="text"
+              label="标签"
+              placeholder="用逗号分隔，如：PBR, 金属, 4K, 游戏资产"
+            />
+          </div>
+        </div>
+
+        <!-- Right: description -->
+        <div class="space-y-4">
+          <div>
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+              >材质说明</label
+            >
+            <MarkdownEditor
+              v-model="publishForm.description"
+              placeholder="贴图通道、使用场景、授权或引擎导入注意事项... 支持 Markdown 格式"
+              :height="isMobile ? '320px' : '390px'"
               simple
             />
           </div>
@@ -894,57 +764,7 @@ onMounted(() => {
 .publish-dialog-shell {
   border: 1px solid var(--border-base);
 }
-.publish-progress-panel {
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
-}
-.publish-progress-track {
-  height: 6px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text-muted) 16%, transparent);
-}
-.publish-progress-track span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #2563eb, #059669);
-  transition: width 0.2s ease;
-}
-.publish-checks {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.publish-checks span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 6px;
-  color: var(--text-muted);
-  background: var(--bg-card);
-  font-size: 11px;
-  font-weight: 800;
-}
-.publish-checks span.done {
-  color: #059669;
-}
 .publish-submit {
   box-shadow: 0 -8px 20px color-mix(in srgb, var(--bg-card) 86%, transparent);
-}
-@media (max-width: 768px) {
-  .publish-progress-panel {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

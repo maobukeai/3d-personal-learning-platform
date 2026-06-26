@@ -86,6 +86,8 @@ export interface Asset {
   title: string;
   description?: string | null;
   url: string;
+  packageUrl?: string | null;
+  packageSize?: number | null;
   thumbnail?: string | null;
   type: string;
   format?: string | null;
@@ -109,6 +111,25 @@ export interface Asset {
   userId: string;
   user?: User;
   teamId?: string | null;
+  originality?: string | null;
+  originalAuthor?: string | null;
+  originalLink?: string | null;
+  license?: string | null;
+  meshType?: string | null;
+  uvUnwrapped?: boolean;
+  uvOverlapping?: boolean;
+  pbrChannels?: string[] | string | null;
+  rigged?: boolean;
+  gameReady?: boolean;
+  defaultCameraPos?: string | null;
+  defaultCameraTarget?: string | null;
+  defaultEnvironment?: string | null;
+  defaultExposure?: number | null;
+  linkedCourseId?: string | null;
+  linkedLessonId?: string | null;
+  linkedCourse?: Course | null;
+  isFree?: boolean;
+  linkedLesson?: Lesson | null;
   createdAt: string;
   updatedAt: string;
 }

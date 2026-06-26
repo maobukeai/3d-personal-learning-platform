@@ -55,10 +55,12 @@ const props = withDefaults(
     discussion: DiscussionCardItem;
     currentUserId?: string;
     isAdmin?: boolean;
+    viewMode?: 'grid' | 'list';
   }>(),
   {
     currentUserId: '',
     isAdmin: false,
+    viewMode: 'list',
   },
 );
 
@@ -117,12 +119,7 @@ const formattedActivityTime = computed(() =>
   formatTime(props.discussion.lastActivityAt || props.discussion.createdAt),
 );
 
-const score = computed(() => {
-  const likes = props.discussion._count?.likes || 0;
-  const comments = props.discussion._count?.comments || 0;
-  const views = props.discussion.viewCount || 0;
-  return likes * 3 + comments * 4 + Math.round(views / 12);
-});
+
 
 function handleCardClick() {
   emit('click', props.discussion.id);
@@ -148,34 +145,61 @@ function handleTagClick(tagName: string, event: Event) {
 <template>
   <article
     class="discussion-card"
-    :class="{ 'discussion-card--pinned': discussion.isPinned }"
+    :class="{
+      'discussion-card--pinned': discussion.isPinned,
+      'discussion-card--grid': viewMode === 'grid'
+    }"
     @click="handleCardClick"
   >
-    <UserAvatar :user="discussion.user" size="sm" class="discussion-card__avatar" />
+    <UserAvatar
+      v-if="viewMode !== 'grid'"
+      :user="discussion.user"
+      size="sm"
+      class="discussion-card__avatar"
+    />
 
     <div class="discussion-card__content">
       <header class="discussion-card__header">
-        <div class="discussion-card__title-line">
+        <div v-if="viewMode === 'grid'" class="discussion-card__author-row">
+          <UserAvatar :user="discussion.user" size="xs" />
+          <div class="discussion-card__author-info">
+            <span class="discussion-card__author-name">
+              {{ discussion.user?.name || t('community.discussions.anonymous') }}
+            </span>
+            <span class="discussion-card__time">{{ formattedTime }}</span>
+          </div>
+        </div>
+
+        <div class="discussion-card__title-line" :class="{ 'mt-1': viewMode === 'grid' }">
           <h3 class="discussion-card__title">{{ discussion.title }}</h3>
           <span v-if="discussion.isPinned" class="discussion-card__pin">
             <Pin class="h-3 w-3" />
             {{ t('community.discussions.pinned') }}
           </span>
         </div>
-        <p class="discussion-card__byline">
+        <p v-if="viewMode !== 'grid'" class="discussion-card__byline">
           <strong>{{ discussion.user?.name || t('community.discussions.anonymous') }}</strong>
           <span>{{ formattedTime }}</span>
           <span>{{ t('community.discussions.lastActive') }} {{ formattedActivityTime }}</span>
         </p>
       </header>
 
-      <div class="discussion-card__body">
+      <div class="discussion-card__body" :class="{ 'flex-col gap-2': viewMode === 'grid' }">
+        <div
+          v-if="viewMode === 'grid' && coverImages.length > 0"
+          class="discussion-card__media-grid"
+          aria-hidden="true"
+        >
+          <img :src="coverImages[0]" alt="" loading="lazy" />
+          <span v-if="parsedImages.length > 1">+{{ parsedImages.length - 1 }}</span>
+        </div>
+
         <div class="discussion-card__copy">
           <p class="discussion-card__excerpt">
             {{ plainContent || t('community.discussions.emptyContent') }}
           </p>
 
-          <div v-if="latestCommentText" class="discussion-card__reply">
+          <div v-if="latestCommentText && viewMode !== 'grid'" class="discussion-card__reply">
             <MessageSquare class="h-3.5 w-3.5" />
             <span class="truncate">
               {{ discussion.latestComment?.user?.name || t('community.discussions.anonymous') }}:
@@ -184,16 +208,23 @@ function handleTagClick(tagName: string, event: Event) {
           </div>
         </div>
 
-        <div v-if="coverImages.length > 0" class="discussion-card__media" aria-hidden="true">
+        <div
+          v-if="viewMode !== 'grid' && coverImages.length > 0"
+          class="discussion-card__media"
+          aria-hidden="true"
+        >
           <img :src="coverImages[0]" alt="" loading="lazy" />
           <span v-if="parsedImages.length > 1">+{{ parsedImages.length - 1 }}</span>
         </div>
       </div>
 
-      <footer class="discussion-card__footer">
+      <footer
+        class="discussion-card__footer"
+        :class="{ 'discussion-card__footer--grid': viewMode === 'grid' }"
+      >
         <div v-if="parsedTags.length > 0" class="discussion-card__tags">
           <button
-            v-for="tagName in parsedTags.slice(0, 4)"
+            v-for="tagName in parsedTags.slice(0, 3)"
             :key="tagName"
             type="button"
             class="discussion-card__tag"
@@ -210,29 +241,31 @@ function handleTagClick(tagName: string, event: Event) {
           </span>
         </div>
 
-        <div class="discussion-card__metrics" @click.stop>
-          <button
-            type="button"
-            class="discussion-card__metric discussion-card__metric--button"
-            :class="{ 'is-liked': discussion.isLiked }"
-            :title="t('community.discussions.likes')"
-            @click="handleLikeClick"
-          >
-            <Heart class="h-3.5 w-3.5" :class="{ 'fill-current': discussion.isLiked }" />
-            <span>{{ formatNumber(discussion._count?.likes) }}</span>
-          </button>
-          <span class="discussion-card__metric" :title="t('community.discussions.comments')">
-            <MessageSquare class="h-3.5 w-3.5" />
-            {{ formatNumber(discussion._count?.comments) }}
-          </span>
-          <span class="discussion-card__metric" :title="t('community.discussions.views')">
-            <Eye class="h-3.5 w-3.5" />
-            {{ formatNumber(discussion.viewCount) }}
-          </span>
-          <span class="discussion-card__metric discussion-card__score">
-            <Sparkles class="h-3.5 w-3.5" />
-            {{ score }}
-          </span>
+        <div
+          class="discussion-card__metrics"
+          :class="{ 'w-full justify-between': viewMode === 'grid' }"
+          @click.stop
+        >
+          <div class="flex items-center gap-1.5">
+            <button
+              type="button"
+              class="discussion-card__metric discussion-card__metric--button"
+              :class="{ 'is-liked': discussion.isLiked }"
+              :title="t('community.discussions.likes')"
+              @click="handleLikeClick"
+            >
+              <Heart class="h-3.5 w-3.5" :class="{ 'fill-current': discussion.isLiked }" />
+              <span>{{ formatNumber(discussion._count?.likes) }}</span>
+            </button>
+            <span class="discussion-card__metric" :title="t('community.discussions.comments')">
+              <MessageSquare class="h-3.5 w-3.5" />
+              {{ formatNumber(discussion._count?.comments) }}
+            </span>
+            <span class="discussion-card__metric" :title="t('community.discussions.views')">
+              <Eye class="h-3.5 w-3.5" />
+              {{ formatNumber(discussion.viewCount) }}
+            </span>
+          </div>
 
           <span v-if="isOwner || isAdmin" class="discussion-card__actions">
             <button
@@ -518,9 +551,7 @@ function handleTagClick(tagName: string, event: Event) {
   color: #ef4444;
 }
 
-.discussion-card__score {
-  color: #b45309;
-}
+
 
 .discussion-card__actions {
   gap: 4px;
@@ -589,5 +620,128 @@ function handleTagClick(tagName: string, event: Event) {
     flex-wrap: wrap;
     white-space: normal;
   }
+}
+/* Grid Layout Mode Styles */
+.discussion-card--grid {
+  grid-template-columns: 1fr;
+  padding: 10px;
+  height: 100%;
+}
+
+.discussion-card--grid .discussion-card__content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.discussion-card--grid .discussion-card__author-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.discussion-card--grid .discussion-card__author-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.discussion-card--grid .discussion-card__author-name {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.discussion-card--grid .discussion-card__time {
+  color: var(--text-muted);
+  font-size: 9px;
+  margin-top: 1px;
+}
+
+.discussion-card--grid .discussion-card__title {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.discussion-card--grid .discussion-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.discussion-card--grid .discussion-card__excerpt {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.discussion-card__media-grid {
+  position: relative;
+  width: 100%;
+  height: 95px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-base);
+  background: var(--bg-app);
+}
+
+.discussion-card__media-grid img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.discussion-card__media-grid span {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.discussion-card__footer--grid {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-base);
+}
+
+.discussion-card--grid .discussion-card__tag {
+  height: 18px;
+  padding: 0 6px;
+  font-size: 9px;
+  gap: 2px;
+}
+
+.discussion-card--grid .discussion-card__tag svg {
+  width: 10px;
+  height: 10px;
+}
+
+.discussion-card--grid .discussion-card__metric {
+  font-size: 9.5px;
+  height: 20px;
+  padding: 0 4px;
+  gap: 3px;
+}
+
+.discussion-card--grid .discussion-card__metric svg {
+  width: 12px;
+  height: 12px;
 }
 </style>

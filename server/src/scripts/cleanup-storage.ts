@@ -20,7 +20,7 @@ function parsePrismaSchema(schemaContent: string): Record<string, string[]> | nu
       if (!nameMatch || !nameMatch[1]) continue;
       const modelName = nameMatch[1];
       const camelModelName = modelName.charAt(0).toLowerCase() + modelName.slice(1);
-      
+
       const fields: string[] = [];
       const lines = block.split('\n');
       for (const line of lines) {
@@ -39,8 +39,8 @@ function parsePrismaSchema(schemaContent: string): Record<string, string[]> | nu
         if (!isStringOrJson) continue;
 
         const fieldLower = fieldName.toLowerCase();
-        
-        const matchesPattern = 
+
+        const matchesPattern =
           // Direct file/URL fields
           fieldLower.endsWith('url') ||
           fieldLower.endsWith('thumbnail') ||
@@ -207,13 +207,20 @@ export async function cleanupOrphanedFiles() {
         const parsed = parsePrismaSchema(schemaContent);
         if (parsed && Object.keys(parsed).length > 0) {
           fieldsMap = parsed;
-          logger.info(`[CleanupEngine] Dynamically loaded ${Object.keys(fieldsMap).length} models from prisma schema.`);
+          logger.info(
+            `[CleanupEngine] Dynamically loaded ${Object.keys(fieldsMap).length} models from prisma schema.`,
+          );
         }
       } catch (schemaErr) {
-        logger.error('[CleanupEngine] Failed to dynamically parse schema, using fallback:', schemaErr);
+        logger.error(
+          '[CleanupEngine] Failed to dynamically parse schema, using fallback:',
+          schemaErr,
+        );
       }
     } else {
-      logger.warn(`[CleanupEngine] schema.prisma not found at ${schemaPath}, using fallback fields.`);
+      logger.warn(
+        `[CleanupEngine] schema.prisma not found at ${schemaPath}, using fallback fields.`,
+      );
     }
 
     // Query each model and extract paths
@@ -281,7 +288,7 @@ export async function cleanupOrphanedFiles() {
         } catch (queryErr) {
           logger.error(`[CleanupEngine] Failed to query model ${modelName}:`, queryErr);
         }
-      })
+      }),
     );
 
     // 1.5. Clean up S3 / Cloudflare R2 Storage Buckets

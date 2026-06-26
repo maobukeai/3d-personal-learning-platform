@@ -246,7 +246,7 @@ onMounted(fetchNotificationPrefs);
     </section>
 
     <section class="notification-grid">
-      <div class="main-stack">
+      <div class="main-stack side-by-side-preferences">
         <!-- 站内通知 Panel -->
         <div class="preference-panel">
           <div class="panel-header mobile-row">
@@ -287,7 +287,7 @@ onMounted(fetchNotificationPrefs);
         </div>
 
         <!-- 站外通知 Panel -->
-        <div class="preference-panel mt-6">
+        <div class="preference-panel">
           <div class="panel-header mobile-row">
             <div class="header-copy">
               <span class="category-header">
@@ -472,6 +472,19 @@ button svg {
 .main-stack {
   display: grid;
   gap: 16px;
+}
+
+.side-by-side-preferences {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .side-by-side-preferences {
+    grid-template-columns: 1fr;
+  }
 }
 
 .mt-6 {

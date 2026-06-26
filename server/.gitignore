@@ -42,4 +42,9 @@ scripts/backfill-personal-teams.js
 # Bilibili scrape/test data
 bilibili_state.json
 
+# Temporary test scripts and debug logs
+test_*.js
+repair_zip_names.js
+error-debug.log
+
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type Component } from 'vue';
-import { ArrowRight, Layers, Sparkles } from 'lucide-vue-next';
+import { Sparkles } from 'lucide-vue-next';
 import Tabs from '@/components/ui/Tabs.vue';
 import UnifiedCard from '@/components/UnifiedCard.vue';
 import EmptyState from '@/components/EmptyState.vue';
@@ -81,17 +81,6 @@ function getMaterialFavorites(item: ResourceItem) {
       </div>
     </div>
 
-    <div v-if="isMaterialFeed" class="material-mode-bar mobile-row">
-      <div>
-        <Layers class="icon-sm" />
-        <strong>材质样本</strong>
-        <span>{{ formatNumber(resultTotal) }} 个 / PBR / SBSAR / 纹理包</span>
-      </div>
-      <button type="button" @click="emit('openMaterialLibrary')">
-        完整材质库
-        <ArrowRight class="icon-xs" />
-      </button>
-    </div>
 
     <div v-if="isFeedLoading" class="feed-list" :class="viewMode">
       <div v-for="index in 8" :key="index" class="feed-row skeleton-row"></div>

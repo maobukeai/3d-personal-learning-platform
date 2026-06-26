@@ -230,6 +230,7 @@ export const useWorkspaceStore = defineStore('workspace', {
       }
     },
 
+    // Asset drawer state – kept here for backward compat with AssetDetailsDrawer / MainLayout
     openDetails(asset: Asset) {
       this.selectedAsset = asset;
       this.isDetailDrawerOpen = true;
@@ -237,6 +238,10 @@ export const useWorkspaceStore = defineStore('workspace', {
 
     closeDetails() {
       this.isDetailDrawerOpen = false;
+      // Defer clearing to avoid flicker during close animation
+      setTimeout(() => {
+        if (!this.isDetailDrawerOpen) this.selectedAsset = null;
+      }, 300);
     },
 
     reset() {

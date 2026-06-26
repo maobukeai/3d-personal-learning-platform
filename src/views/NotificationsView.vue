@@ -76,6 +76,41 @@ const filteredNotifications = computed(() => {
 
 const unreadCount = computed(() => notifications.value.filter((n) => !n.isRead).length);
 
+const categories = computed(() => [
+  {
+    id: 'all',
+    label: t('notifications.cat_all'),
+    mobileLabel: t('notifications.filter_all'),
+    icon: Inbox,
+    color: 'text-slate-400',
+    desktopOnly: true,
+  },
+  {
+    id: 'SYSTEM',
+    label: t('notifications.cat_system'),
+    icon: Info,
+    color: 'text-indigo-500',
+  },
+  {
+    id: 'TEAM',
+    label: t('notifications.cat_team'),
+    icon: Users,
+    color: 'text-blue-500',
+  },
+  {
+    id: 'TASK',
+    label: t('notifications.cat_task'),
+    icon: Briefcase,
+    color: 'text-amber-500',
+  },
+  {
+    id: 'MESSAGE',
+    label: t('notifications.cat_message'),
+    icon: MessageSquare,
+    color: 'text-emerald-500',
+  },
+]);
+
 const processingInvitations = ref<Record<string, boolean>>({});
 const respondedInvitations = ref<Record<string, 'ACCEPTED' | 'REJECTED'>>({});
 
@@ -216,10 +251,10 @@ onMounted(() => {
 
 <template>
   <div
-    class="mobile-adaptive flex-1 flex flex-col h-full overflow-hidden bg-slate-50/50 dark:bg-black/20"
+    class="mobile-adaptive flex-1 flex flex-col h-full overflow-hidden bg-transparent"
   >
     <div
-      class="min-h-[3.5rem] md:min-h-[4rem] py-2 md:py-3 px-4 md:px-8 flex items-center justify-between mobile-row shrink-0 border-b backdrop-blur-md bg-white/40 dark:bg-slate-900/40 sticky top-0 z-20 gap-4"
+      class="min-h-[3.5rem] md:min-h-[4rem] py-2 md:py-3 px-4 md:px-8 flex items-center justify-between mobile-row shrink-0 border-b backdrop-blur-md bg-white/10 dark:bg-white/5 sticky top-0 z-20 gap-4"
       style="border-color: var(--border-base)"
     >
       <div class="flex items-center gap-2 md:gap-4 min-w-0">
@@ -269,7 +304,7 @@ onMounted(() => {
     <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
       <!-- Sidebar / Mobile Tabs -->
       <div
-        class="hidden lg:block lg:w-60 xl:w-72 border-b md:border-b-0 md:border-r shrink-0 backdrop-blur-sm bg-white/20 dark:bg-slate-900/20 z-10"
+        class="hidden lg:block lg:w-60 xl:w-72 border-b md:border-b-0 md:border-r shrink-0 backdrop-blur-sm bg-white/5 dark:bg-white/2 z-10"
         style="border-color: var(--border-base)"
       >
         <div class="p-3 md:p-6 flex flex-col gap-3 md:gap-8">
@@ -341,39 +376,7 @@ onMounted(() => {
             <!-- Category List: Also in horizontal scroll on mobile -->
             <div class="flex md:flex-col gap-1.5 md:gap-1 shrink-0">
               <button
-                v-for="cat in [
-                  {
-                    id: 'all',
-                    label: $t('notifications.cat_all'),
-                    icon: Inbox,
-                    color: 'text-slate-400',
-                    desktopOnly: true,
-                  },
-                  {
-                    id: 'SYSTEM',
-                    label: $t('notifications.cat_system'),
-                    icon: Info,
-                    color: 'text-indigo-500',
-                  },
-                  {
-                    id: 'TEAM',
-                    label: $t('notifications.cat_team'),
-                    icon: Users,
-                    color: 'text-blue-500',
-                  },
-                  {
-                    id: 'TASK',
-                    label: $t('notifications.cat_task'),
-                    icon: Briefcase,
-                    color: 'text-amber-500',
-                  },
-                  {
-                    id: 'MESSAGE',
-                    label: $t('notifications.cat_message'),
-                    icon: MessageSquare,
-                    color: 'text-emerald-500',
-                  },
-                ]"
+                v-for="cat in categories"
                 :key="cat.id"
                 type="button"
                 class="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[11px] md:text-xs transition-all whitespace-nowrap shrink-0"
@@ -399,17 +402,11 @@ onMounted(() => {
 
       <!-- Content -->
       <div
-        class="flex-1 overflow-y-auto p-3.5 md:p-8 scrollbar-hide bg-gradient-to-br from-transparent to-accent/5"
+        class="flex-1 overflow-y-auto p-3.5 md:p-8 scrollbar-hide bg-transparent"
       >
         <div class="lg:hidden flex overflow-x-auto gap-2 px-4 py-2 -mx-3.5 mb-4 scrollbar-hide">
           <button
-            v-for="cat in [
-              { id: 'all', label: $t('notifications.filter_all'), icon: Inbox },
-              { id: 'SYSTEM', label: $t('notifications.cat_system'), icon: Info },
-              { id: 'TEAM', label: $t('notifications.cat_team'), icon: Users },
-              { id: 'TASK', label: $t('notifications.cat_task'), icon: Briefcase },
-              { id: 'MESSAGE', label: $t('notifications.cat_message'), icon: MessageSquare },
-            ]"
+            v-for="cat in categories"
             :key="cat.id"
             type="button"
             class="px-3 py-2 rounded-full text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors"
@@ -421,7 +418,7 @@ onMounted(() => {
             @click="handleCategoryChange(cat.id)"
           >
             <component :is="cat.icon" class="w-3.5 h-3.5" />
-            {{ cat.label }}
+            {{ cat.id === 'all' ? cat.mobileLabel : cat.label }}
           </button>
         </div>
 
@@ -438,7 +435,7 @@ onMounted(() => {
             <div
               v-for="n in filteredNotifications"
               :key="n.id"
-              class="group px-4 py-3.5 md:p-6 glass-card transition-all duration-300 cursor-pointer hover:shadow-xl hover:shadow-accent/5"
+              class="group px-4 py-3.5 md:p-6 glass-card transition-all duration-300 cursor-pointer hover:shadow-xl hover:shadow-accent/5 hover:bg-white/10 dark:hover:bg-white/5"
               :class="[!n.isRead ? 'ring-1 ring-accent/30' : '']"
               @click="handleMarkAsRead(n)"
             >

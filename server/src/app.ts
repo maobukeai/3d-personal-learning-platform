@@ -89,6 +89,7 @@ app.use(
       }
     },
     credentials: true,
+    exposedHeaders: ['Content-Length', 'Accept-Ranges', 'Content-Range', 'Content-Disposition'],
   }),
 );
 
@@ -165,7 +166,10 @@ app.use('/api', globalLimiter);
 
 // Routes
 app.use('/api/auth', authRoutes);
+// General admin routes: /api/admin/*
 app.use('/api/admin', adminRoutes);
+// Plugin admin sub-routes: /api/admin/plugins/* (registered under same /api/admin prefix; plugin.admin.routes internally prefixes /plugins)
+app.use('/api/admin', adminPluginRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/lessons', lessonRoutes);
@@ -193,7 +197,6 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/ai-bots', aiBotRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/plugins', pluginRoutes);
-app.use('/api/admin', adminPluginRoutes);
 app.use('/api/backup', backupRoutes);
 
 app.get('/', (req, res) => {

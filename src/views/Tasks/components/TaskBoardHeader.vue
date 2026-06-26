@@ -15,6 +15,7 @@ import {
   Calendar,
 } from 'lucide-vue-next';
 import Tabs from '@/components/ui/Tabs.vue';
+import PageHeader from '@/components/PageHeader.vue';
 
 interface CardSettings {
   assignee: boolean;
@@ -105,26 +106,11 @@ const columnVisibilityLabel = (field: string): string => {
 </script>
 
 <template>
-  <div
-    class="h-auto md:h-13 px-4 sm:px-6 py-3 md:py-0 flex flex-col md:grid md:grid-cols-3 md:items-center shrink-0 border-b transition-colors duration-300 gap-3"
-    style="background-color: var(--bg-card); border-color: var(--border-base)"
+  <PageHeader
+    :title="t('tasks.board')"
+    :icon="CheckCircle2"
   >
-    <!-- Left: Title & Stats -->
-    <div
-      class="mobile-row flex items-center justify-between w-full md:w-auto md:justify-start gap-3"
-    >
-      <div class="flex items-center gap-2">
-        <div class="p-1.5 bg-accent/10 rounded-lg">
-          <CheckCircle2 class="w-4.5 h-4.5 text-accent" />
-        </div>
-        <h1
-          class="text-base md:text-lg font-bold whitespace-nowrap truncate"
-          style="color: var(--text-primary)"
-        >
-          {{ t('tasks.board') }}
-        </h1>
-      </div>
-
+    <template #title-badge>
       <!-- Inline stats badges -->
       <div class="hidden lg:flex items-center gap-1.5 shrink-0">
         <div
@@ -155,17 +141,15 @@ const columnVisibilityLabel = (field: string): string => {
       >
         <Plus class="w-4 h-4" />
       </button>
-    </div>
+    </template>
 
-    <!-- Center: Search Input -->
-    <div class="flex justify-center w-full md:w-auto">
+    <template #center>
       <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
         <Search />
         <input v-model="localSearchQuery" type="text" :placeholder="t('tasks.searchPlaceholder')" />
       </label>
-    </div>
+    </template>
 
-    <!-- Right: Action Controls -->
     <div class="mobile-row flex items-center justify-end gap-2 sm:gap-2.5 w-full md:w-auto">
       <Tabs
         v-model="localViewMode"
@@ -256,7 +240,7 @@ const columnVisibilityLabel = (field: string): string => {
 
       <button
         type="button"
-        class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all"
+        class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all cursor-pointer"
         @click="emit('new-project')"
       >
         <FolderPlus class="w-3.5 h-3.5 text-slate-500" /> {{ t('tasks.newProject') }}
@@ -264,11 +248,11 @@ const columnVisibilityLabel = (field: string): string => {
 
       <button
         type="button"
-        class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-xs font-bold hover:shadow-lg hover:shadow-accent/20 transition-all"
+        class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-xs font-bold hover:shadow-lg hover:shadow-accent/20 transition-all cursor-pointer"
         @click="emit('new-task')"
       >
         <Plus class="w-3.5 h-3.5" /> {{ t('tasks.newTask') }}
       </button>
     </div>
-  </div>
+  </PageHeader>
 </template>

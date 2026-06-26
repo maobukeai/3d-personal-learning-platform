@@ -48,6 +48,21 @@ const router = createRouter({
       component: () => import('@/views/Learning/NoteShareView.vue'),
     },
     {
+      path: '/share/asset/:shareId',
+      name: 'AssetShare',
+      component: () => import('@/views/Assets/AssetShareView.vue'),
+    },
+    {
+      path: '/share/material/:shareId',
+      name: 'MaterialShare',
+      component: () => import('@/views/Assets/MaterialShareView.vue'),
+    },
+    {
+      path: '/share/plugin/:shareId',
+      name: 'PluginShare',
+      component: () => import('@/views/Assets/PluginShareView.vue'),
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/404',
     },
@@ -102,6 +117,16 @@ const router = createRouter({
               path: 'assets/:id',
               name: 'AssetDetail',
               component: () => import('@/views/Assets/AssetDetailView.vue'),
+            },
+            {
+              path: 'materials/:id',
+              name: 'MaterialDetail',
+              component: () => import('@/views/Assets/MaterialDetailView.vue'),
+            },
+            {
+              path: 'plugins/:id',
+              name: 'PluginDetail',
+              component: () => import('@/views/Assets/PluginDetailView.vue'),
             },
             {
               path: 'my-works',

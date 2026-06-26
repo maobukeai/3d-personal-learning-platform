@@ -200,7 +200,7 @@ const compatibilityInfo = computed(() => {
       :class="[
         'absolute left-2 top-2 z-30 w-5 h-5 flex items-center justify-center rounded-full bg-black/40 border border-white/30 text-white backdrop-blur-sm transition-all duration-300',
         isSelected
-          ? 'bg-primary text-white border-primary scale-110 shadow-md'
+          ? 'bg-accent text-white border-accent scale-110 shadow-md'
           : 'opacity-0 group-hover:opacity-100',
       ]"
       @click.stop="emit('select', item, $event)"
@@ -300,7 +300,7 @@ const compatibilityInfo = computed(() => {
       </div>
 
       <!-- Description -->
-      <p class="text-[11px] text-slate-400 dark:text-slate-500 truncate mb-2">
+      <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate mb-2">
         {{ description || label('暂无说明内容。', 'No description yet.') }}
       </p>
 
@@ -327,7 +327,7 @@ const compatibilityInfo = computed(() => {
         <span
           v-for="tag in tagsList"
           :key="tag"
-          class="text-[9px] text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md"
+          class="text-[9px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md"
         >
           #{{ tag }}
         </span>
@@ -338,11 +338,11 @@ const compatibilityInfo = computed(() => {
 
       <!-- Metadata & Metrics Row -->
       <div
-        class="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2 text-[10px] text-slate-400 dark:text-slate-500"
+        class="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2 text-[10px] text-slate-500 dark:text-slate-400"
       >
         <!-- Category & size -->
         <div class="flex items-center gap-1.5 truncate flex-shrink min-w-0">
-          <span class="truncate font-medium text-slate-500 dark:text-slate-400">{{
+          <span class="truncate font-medium text-slate-700 dark:text-slate-300">{{
             categoryLabel
           }}</span>
           <span v-if="sizeLabel" class="text-slate-300 dark:text-slate-700 font-bold text-[8px]"
@@ -361,7 +361,7 @@ const compatibilityInfo = computed(() => {
       <div
         class="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-2"
       >
-        <div class="flex items-center gap-2.5 text-[10px] text-slate-400 dark:text-slate-500">
+        <div class="flex items-center gap-2.5 text-[10px] text-slate-500 dark:text-slate-400">
           <span v-if="downloadsCount > 0 || kind === 'plugin'" class="flex items-center gap-1">
             <ArrowDownToLine class="w-3.5 h-3.5 stroke-[1.8]" />
             {{ downloadsCount }}
@@ -419,7 +419,7 @@ const compatibilityInfo = computed(() => {
           <button
             v-else-if="kind === 'asset' || kind === 'material' || kind === 'plugin'"
             type="button"
-            class="px-2.5 py-1 rounded-lg text-[10px] font-semibold flex items-center gap-1 bg-primary hover:bg-primary-hover text-white transition-all shadow-sm"
+            class="px-2.5 py-1 rounded-lg text-[10px] font-semibold flex items-center gap-1 bg-accent hover:bg-accent-hover text-white transition-all shadow-sm"
             :disabled="downloading"
             @click.stop="emit('download', item, $event)"
           >
@@ -460,18 +460,18 @@ const compatibilityInfo = computed(() => {
           </div>
         </div>
 
-        <p class="text-[10px] text-slate-400 dark:text-slate-500 truncate max-w-[400px]">
+        <p class="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[400px]">
           {{ description || label('暂无说明内容。', 'No description yet.') }}
         </p>
 
-        <div class="flex items-center gap-2 text-[9px] text-slate-400 dark:text-slate-500">
+        <div class="flex items-center gap-2 text-[9px] text-slate-500 dark:text-slate-400">
           <span>{{ categoryLabel }}</span>
           <span v-if="sizeLabel">•</span>
           <span v-if="sizeLabel">{{ sizeLabel }}</span>
           <span>•</span>
           <span>{{ dateLabel }}</span>
           <span v-if="authorName">•</span>
-          <span v-if="authorName" class="font-medium text-slate-500 dark:text-slate-400">{{
+          <span v-if="authorName" class="font-medium text-slate-700 dark:text-slate-300">{{
             authorName
           }}</span>
         </div>
@@ -480,7 +480,7 @@ const compatibilityInfo = computed(() => {
       <!-- Action Area / Metrics (List Mode) -->
       <div class="flex items-center gap-4 flex-shrink-0">
         <div
-          class="hidden md:flex items-center gap-3 text-[10px] text-slate-400 dark:text-slate-500"
+          class="hidden md:flex items-center gap-3 text-[10px] text-slate-500 dark:text-slate-400"
         >
           <span v-if="downloadsCount > 0 || kind === 'plugin'" class="flex items-center gap-1">
             <ArrowDownToLine class="w-3.5 h-3.5 stroke-[1.8]" />
@@ -535,7 +535,7 @@ const compatibilityInfo = computed(() => {
           <button
             v-else-if="kind === 'asset' || kind === 'material' || kind === 'plugin'"
             type="button"
-            class="px-2 py-0.5 rounded-lg text-[9px] font-semibold flex items-center gap-0.5 bg-primary hover:bg-primary-hover text-white transition-all shadow-sm"
+            class="px-2 py-0.5 rounded-lg text-[9px] font-semibold flex items-center gap-0.5 bg-accent hover:bg-accent-hover text-white transition-all shadow-sm"
             :disabled="downloading"
             @click.stop="emit('download', item, $event)"
           >

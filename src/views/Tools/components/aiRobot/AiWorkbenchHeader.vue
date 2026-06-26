@@ -21,6 +21,8 @@ import {
   Zap,
 } from 'lucide-vue-next';
 import type { AiBotAnalytics, AiBotEntitlement, TabKey } from '../../aiRobotAccessModel';
+import PageHeader from '@/components/PageHeader.vue';
+import Button from '@/components/ui/Button.vue';
 
 interface Props {
   analytics: AiBotAnalytics | null;
@@ -93,33 +95,20 @@ const workbenchPulse = computed(() => {
 </script>
 
 <template>
-  <header
-    class="top-shell sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95"
-  >
-    <div class="flex w-full flex-col gap-3 px-4 py-3 md:px-5">
-      <div class="flex flex-row gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div class="min-w-0">
-          <div class="mobile-row flex items-center gap-3">
-            <div class="brand-mark">
-              <Sparkles class="h-5 w-5" />
-            </div>
-            <div class="min-w-0">
-              <h1 class="truncate text-lg font-black text-slate-950 dark:text-white">
-                AI 运营与机器人中枢
-              </h1>
-              <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                多平台接入、知识库、发布手册、沙盒模拟、提示词编排和调用分析
-              </p>
-            </div>
-          </div>
-        </div>
-
+  <div class="flex flex-col h-full overflow-hidden">
+    <PageHeader
+      title="AI 运营与机器人中枢"
+      subtitle="多平台接入、知识库、发布手册、沙盒模拟、提示词编排和调用分析"
+      :icon="Sparkles"
+      icon-container-class="brand-mark shrink-0"
+    >
+      <template #default>
         <div class="mobile-row flex flex-wrap items-center gap-2">
           <span class="pulse-pill" :class="workbenchPulse.className">
             <Activity class="h-3.5 w-3.5" />
             <span>{{ workbenchPulse.label }}</span>
           </span>
-          <div class="range-switch">
+          <div class="range-switch shrink-0">
             <button
               v-for="option in rangeOptions"
               :key="option.value"
@@ -130,35 +119,43 @@ const workbenchPulse = computed(() => {
               {{ option.label }}
             </button>
           </div>
-          <button
-            type="button"
-            class="secondary-btn compact-btn"
+          <Button
+            variant="secondary"
+            size="sm"
+            class="!h-8 shrink-0"
             :class="{ active: autoRefresh }"
             @click="emit('toggle-auto-refresh')"
           >
-            <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': autoRefresh }" />
+            <RefreshCw class="h-3.5 w-3.5" :class="{ 'animate-spin': autoRefresh }" />
             <span>{{ autoRefresh ? '自动刷新' : '自动' }}</span>
-          </button>
-          <el-tooltip content="刷新工作台" placement="top">
-            <button type="button" class="icon-btn" @click="emit('refresh')">
-              <RefreshCw
-                class="h-4 w-4"
-                :class="{ 'animate-spin': isLoading || isAnalyticsLoading }"
-              />
-            </button>
-          </el-tooltip>
-          <button
-            type="button"
-            class="primary-btn"
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            class="!h-8 shrink-0"
+            :disabled="isLoading"
+            @click="emit('refresh')"
+          >
+            <RefreshCw
+              class="h-3.5 w-3.5"
+              :class="{ 'animate-spin': isLoading || isAnalyticsLoading }"
+            />
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            class="!h-8 cursor-pointer shrink-0"
             :disabled="!canCreateMore"
             @click="emit('create-click')"
           >
-            <Plus class="h-4 w-4" />
+            <Plus class="h-3.5 w-3.5" />
             <span>新增接入</span>
-          </button>
+          </Button>
         </div>
-      </div>
+      </template>
+    </PageHeader>
 
+    <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
       <div class="grid grid-cols-2 gap-2 lg:grid-cols-6">
         <div class="metric-block">
           <div class="metric-icon metric-slate"><Gauge class="h-4 w-4" /></div>
@@ -246,6 +243,8 @@ const workbenchPulse = computed(() => {
           <span>{{ tab.label }}</span>
         </button>
       </nav>
+
+      <slot />
     </div>
-  </header>
+  </div>
 </template>

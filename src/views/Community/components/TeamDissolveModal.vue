@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { useCommunityI18n } from '@/composables/useCommunityI18n';
 import { Trash2 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { getApiErrorMessage } from '@/utils/error';
@@ -21,14 +21,7 @@ const emit = defineEmits<{
   (e: 'dissolved'): void;
 }>();
 
-const { t: i18nT } = useI18n();
-const t = (key: string, ...args: unknown[]) => {
-  const prefixes = ['showcase.', 'teams.', 'members.', 'teamDetail.', 'discussions.', 'chat.'];
-  if (prefixes.some((p) => key.startsWith(p))) {
-    return (i18nT as (key: string, ...args: unknown[]) => string)(`community.${key}`, ...args);
-  }
-  return (i18nT as (key: string, ...args: unknown[]) => string)(key, ...args);
-};
+const { t } = useCommunityI18n();
 
 const dissolveCode = ref('');
 const isDissolving = ref(false);

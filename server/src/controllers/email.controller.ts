@@ -515,7 +515,17 @@ export class EmailController {
         return;
       }
 
-      const updateData: any = {};
+      const updateData: {
+        password?: string | null;
+        clientId?: string;
+        refreshToken?: string;
+        status?: string;
+        statusMessage?: string;
+        proxy?: string | null;
+        dailyLimit?: number;
+        minDelay?: number;
+        maxDelay?: number;
+      } = {};
       if (password !== undefined) {
         updateData.password = password ? encryptSecret(password) : null;
       }

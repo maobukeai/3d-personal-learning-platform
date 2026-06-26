@@ -126,7 +126,9 @@ export const cleanupMessageFiles = async () => {
     }
 
     if (deletedCount > 0) {
-      logger.info(`[Cleanup] Auto-deleted ${deletedCount} message entries older than 3 days from uploads/messages.`);
+      logger.info(
+        `[Cleanup] Auto-deleted ${deletedCount} message entries older than 3 days from uploads/messages.`,
+      );
     }
   } catch (err) {
     logger.error('[Cleanup Error] Failed to cleanup message files:', err);
@@ -233,7 +235,9 @@ export const startMessageCleanupJob = (intervalMs = 3 * 24 * 60 * 60 * 1000) => 
     messageCleanupInterval.unref();
   }
 
-  logger.info(`[Cleanup] Background message file cleanup job started (interval: ${intervalMs / 1000}s).`);
+  logger.info(
+    `[Cleanup] Background message file cleanup job started (interval: ${intervalMs / 1000}s).`,
+  );
 };
 
 export const stopMessageCleanupJob = () => {

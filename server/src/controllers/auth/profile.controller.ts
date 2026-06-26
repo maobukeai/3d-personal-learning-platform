@@ -12,6 +12,7 @@ import { AppError } from '../../utils/error';
 import { redisService } from '../../services/redis.service';
 import { getShanghaiStartOfDay, getShanghaiEndOfDay } from '../../utils/date';
 import { TaskStatus } from '../../types/task';
+import { getUploadedFileUrl } from '../../utils/file';
 
 const ACCOUNT_EXPORT_ITEM_LIMIT = 200;
 
@@ -424,9 +425,7 @@ export const uploadAvatar = async (req: AuthRequest, res: Response, next: NextFu
       return next(new AppError('No file uploaded', 400));
     }
 
-    const avatarUrl =
-      (req.file as any).url ||
-      `${req.protocol}://${req.get('host')}/uploads/avatars/${req.file.filename}`;
+    const avatarUrl = getUploadedFileUrl(req, req.file, 'avatars');
 
     const updatedUser = await prisma.user.update({
       where: { id: req.userId as string },
@@ -458,9 +457,7 @@ export const uploadCover = async (req: AuthRequest, res: Response, next: NextFun
       return next(new AppError('No file uploaded', 400));
     }
 
-    const coverUrl =
-      (req.file as any).url ||
-      `${req.protocol}://${req.get('host')}/uploads/covers/${req.file.filename}`;
+    const coverUrl = getUploadedFileUrl(req, req.file, 'covers');
 
     const updatedUser = await prisma.user.update({
       where: { id: req.userId as string },

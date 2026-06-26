@@ -127,49 +127,56 @@ onMounted(() => {
     ></div>
 
     <!-- Tab buttons -->
-    <button
+    <template
       v-for="(option, index) in options"
       :key="option.value === null ? 'null' : option.value"
-      :ref="(el) => setTabRef(el, index)"
-      type="button"
-      class="relative z-10 flex items-center gap-1.5 font-bold tracking-tight rounded-lg transition-colors duration-200 outline-none focus:outline-none"
-      :class="[
-        size === 'sm'
-          ? 'px-2.5 py-1 text-xs'
-          : size === 'lg'
-            ? 'px-4 py-2 text-base'
-            : 'px-3 py-1.5 text-sm',
-        modelValue === option.value
-          ? 'text-accent dark:text-white'
-          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-        direction === 'vertical' ? 'w-full justify-between' : 'shrink-0 justify-center',
-      ]"
-      @click="selectTab(option.value, index)"
     >
-      <div class="flex items-center gap-1.5">
-        <component :is="option.icon" v-if="option.icon" class="w-4 h-4 shrink-0" />
-        <div v-if="option.hint" class="flex flex-col text-left">
-          <span v-if="option.label" class="leading-none">{{ option.label }}</span>
-          <span class="text-[9px] font-normal opacity-60 mt-1 leading-none">{{ option.hint }}</span>
-        </div>
-        <span v-else-if="option.label">{{ option.label }}</span>
-      </div>
-      <span
-        v-if="
-          option.badge !== undefined &&
-          option.badge !== null &&
-          option.badge !== 0 &&
-          option.badge !== '0'
-        "
-        class="px-1.5 py-0.5 text-[10px] font-black leading-none rounded-full min-w-[16px] h-4 inline-flex items-center justify-center shrink-0 transition-colors"
-        :class="
+      <div
+        v-if="index > 0 && direction === 'vertical'"
+        class="mx-2.5 border-t border-black/[0.06] dark:border-white/[0.06]"
+      ></div>
+      <button
+        :ref="(el) => setTabRef(el, index)"
+        type="button"
+        class="relative z-10 flex items-center gap-1.5 font-bold tracking-tight rounded-lg transition-colors duration-200 outline-none focus:outline-none"
+        :class="[
+          size === 'sm'
+            ? 'px-2.5 py-1 text-xs'
+            : size === 'lg'
+              ? 'px-4 py-2 text-base'
+              : 'px-3 py-1.5 text-sm',
           modelValue === option.value
-            ? 'bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-foreground'
-            : 'bg-black/5 dark:bg-white/10 text-[var(--text-secondary)]'
-        "
+            ? 'text-accent dark:text-white'
+            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+          direction === 'vertical' ? 'w-full justify-between' : 'shrink-0 justify-center',
+        ]"
+        @click="selectTab(option.value, index)"
       >
-        {{ option.badge }}
-      </span>
-    </button>
+        <div class="flex items-center gap-1.5">
+          <component :is="option.icon" v-if="option.icon" class="w-4 h-4 shrink-0" />
+          <div v-if="option.hint" class="flex flex-col text-left">
+            <span v-if="option.label" class="leading-none">{{ option.label }}</span>
+            <span class="text-[9px] font-normal opacity-60 mt-1 leading-none">{{ option.hint }}</span>
+          </div>
+          <span v-else-if="option.label">{{ option.label }}</span>
+        </div>
+        <span
+          v-if="
+            option.badge !== undefined &&
+            option.badge !== null &&
+            option.badge !== 0 &&
+            option.badge !== '0'
+          "
+          class="px-1.5 py-0.5 text-[10px] font-black leading-none rounded-full min-w-[16px] h-4 inline-flex items-center justify-center shrink-0 transition-colors"
+          :class="
+            modelValue === option.value
+              ? 'bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-foreground'
+              : 'bg-black/5 dark:bg-white/10 text-[var(--text-secondary)]'
+          "
+        >
+          {{ option.badge }}
+        </span>
+      </button>
+    </template>
   </div>
 </template>

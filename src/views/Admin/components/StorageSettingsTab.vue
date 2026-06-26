@@ -95,7 +95,7 @@ const openEditDialog = (config: StorageConfig) => {
   form.value = {
     ...config,
     secretAccessKey: '',
-    cloudflareApiToken: '',
+    cloudflareApiToken: config.cloudflareApiToken || '',
     remark: config.remark || '',
   };
   isEdit.value = true;
@@ -163,7 +163,6 @@ const submitForm = async () => {
     if (isEdit.value) {
       const payload: Record<string, unknown> = { ...form.value };
       if (!form.value.secretAccessKey) delete payload.secretAccessKey;
-      if (!form.value.cloudflareApiToken) delete payload.cloudflareApiToken;
       await api.put(`/api/admin/storage-configs/${form.value.id}`, payload);
       ElMessage.success('存储配置更新成功');
     } else {

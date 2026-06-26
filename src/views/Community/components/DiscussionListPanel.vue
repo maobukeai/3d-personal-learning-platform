@@ -18,6 +18,7 @@ defineProps<{
   currentUserId: string | undefined;
   isAdmin: boolean;
   pagination: Pagination;
+  viewMode: 'grid' | 'list';
 }>();
 
 const emit = defineEmits<{
@@ -38,7 +39,7 @@ function handlePageChange(page: number) {
 </script>
 
 <template>
-  <div v-if="isLoading" class="loading-list">
+  <div v-if="isLoading" class="loading-list" :class="viewMode">
     <div v-for="idx in 4" :key="idx" class="skeleton-card">
       <span></span>
       <div>
@@ -49,13 +50,14 @@ function handlePageChange(page: number) {
     </div>
   </div>
 
-  <div v-else-if="discussions.length > 0" class="discussion-list">
+  <div v-else-if="discussions.length > 0" class="discussion-list" :class="viewMode">
     <DiscussionCard
       v-for="discussion in discussions"
       :key="discussion.id"
       :discussion="discussion"
       :current-user-id="currentUserId"
       :is-admin="isAdmin"
+      :view-mode="viewMode"
       @click="emit('open', $event)"
       @like="(item, event) => emit('like', item, event)"
       @pin="(item, event) => emit('pin', item, event)"
@@ -93,6 +95,13 @@ function handlePageChange(page: number) {
   gap: 10px;
 }
 
+.discussion-list.grid,
+.loading-list.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+}
+
 .skeleton-card {
   display: flex;
   gap: 12px;
@@ -101,6 +110,12 @@ function handlePageChange(page: number) {
   border: 1px solid var(--border-base);
   border-radius: 8px;
   background: var(--bg-card);
+}
+
+.loading-list.grid .skeleton-card {
+  flex-direction: column;
+  height: 210px;
+  align-items: flex-start;
 }
 
 .skeleton-card span,

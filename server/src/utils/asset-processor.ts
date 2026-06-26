@@ -1,9 +1,19 @@
 import { logger } from './logger';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { getBounds } from '@gltf-transform/functions';
+import {
+  getBounds,
+  weld,
+  resample,
+  prune,
+  dedup,
+  quantize,
+  textureCompress,
+} from '@gltf-transform/functions';
 import path from 'path';
 import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
+import sharp from 'sharp';
+import fs from 'fs';
 
 export interface AssetMetadata {
   vertices: number;
@@ -15,8 +25,46 @@ export interface AssetMetadata {
   maxTextureRes: number;
 }
 
+export async function optimize3DAsset(filePath: string): Promise<void> {
+  const tempPath = `${filePath}.tmp-${Date.now()}`;
+  try {
+    const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+    const document = await io.read(filePath);
+    logger.info(`[AssetProcessor] Compressing GLB file: ${filePath}`);
+    await document.transform(
+      weld(),
+      resample(),
+      prune(),
+      dedup(),
+      quantize(),
+      textureCompress({
+        encoder: sharp,
+        targetFormat: 'webp',
+        resize: [1024, 1024],
+      }),
+    );
+    // Save to temp path first
+    await io.write(tempPath, document);
+    
+    // Atomically replace original file
+    await fs.promises.rename(tempPath, filePath);
+    logger.info(`[AssetProcessor] GLB compression complete: ${filePath}`);
+  } catch (compressErr) {
+    // Clean up temp file if it exists
+    if (fs.existsSync(tempPath)) {
+      try {
+        fs.unlinkSync(tempPath);
+      } catch (_e) {
+        // ignore
+      }
+    }
+    logger.error(`[AssetProcessor] Failed to compress GLB file ${filePath}:`, compressErr);
+    throw compressErr;
+  }
+}
+
 // CPU-bound calculations offloaded to Worker (asynchronous read)
-async function executeAssetAnalysis(filePath: string): Promise<AssetMetadata | null> {
+export async function executeAssetAnalysis(filePath: string): Promise<AssetMetadata | null> {
   try {
     const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
     const document = await io.read(filePath); // NodeIO.read returns a Promise<Document>
@@ -87,6 +135,18 @@ async function executeAssetAnalysis(filePath: string): Promise<AssetMetadata | n
   }
 }
 
+// Sequence optimization and analysis
+export async function executeAssetProcessing(filePath: string): Promise<AssetMetadata | null> {
+  try {
+    // 1. Optimize
+    await optimize3DAsset(filePath);
+  } catch (err) {
+    logger.error(`[AssetProcessor] Optimization skipped or failed during pipeline:`, err);
+  }
+  // 2. Analyze
+  return executeAssetAnalysis(filePath);
+}
+
 // Master Thread / API Entrypoint
 export async function process3DAsset(filePath: string): Promise<AssetMetadata | null> {
   const ext = path.extname(filePath).toLowerCase();
@@ -111,7 +171,7 @@ export async function process3DAsset(filePath: string): Promise<AssetMetadata | 
       worker.on('error', (err) => {
         logger.error('Asset worker thread error, falling back to main thread:', err);
         // Safe Fallback: execute in main thread if worker crashes
-        executeAssetAnalysis(filePath).then(resolve);
+        executeAssetProcessing(filePath).then(resolve);
       });
 
       worker.on('exit', (code) => {
@@ -122,7 +182,7 @@ export async function process3DAsset(filePath: string): Promise<AssetMetadata | 
     } catch (err) {
       logger.error('Failed to spawn asset worker thread, falling back to main thread:', err);
       // Safe Fallback: execute in main thread if spawning fails
-      executeAssetAnalysis(filePath).then(resolve);
+      executeAssetProcessing(filePath).then(resolve);
     }
   });
 }
@@ -130,7 +190,7 @@ export async function process3DAsset(filePath: string): Promise<AssetMetadata | 
 // Worker Thread entrypoint
 if (!isMainThread) {
   const { filePath } = workerData;
-  executeAssetAnalysis(filePath)
+  executeAssetProcessing(filePath)
     .then((result) => {
       if (parentPort) {
         parentPort.postMessage(result);

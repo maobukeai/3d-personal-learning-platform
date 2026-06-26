@@ -1184,7 +1184,7 @@ onUnmounted(stopAutoRefresh);
 
 <template>
   <div
-    class="ai-workbench mobile-adaptive min-h-full bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100"
+    class="ai-workbench mobile-adaptive flex flex-col h-full overflow-hidden bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100"
   >
     <AiWorkbenchHeader
       :analytics="analytics"
@@ -1208,129 +1208,129 @@ onUnmounted(stopAutoRefresh);
       @create-click="openCreateDialog"
       @change-tab="activeTab = $event as TabKey"
       @go-billing="goBilling"
-    />
+    >
+      <main class="w-full">
+        <BotOverviewTab
+          v-if="activeTab === 'overview'"
+          :analytics="analytics"
+          :analytics-range="analyticsRange"
+        />
 
-    <main class="w-full px-4 py-3 md:px-5">
-      <BotOverviewTab
-        v-if="activeTab === 'overview'"
-        :analytics="analytics"
-        :analytics-range="analyticsRange"
-      />
+        <BotOperationsTab
+          v-else-if="activeTab === 'operations'"
+          :operations-report="operationsReport"
+          :is-operations-loading="isOperationsLoading"
+          @fetch-operations="fetchOperations"
+          @focus-action="focusOperationAction"
+          @open-diagnostics="openOperationDiagnostics"
+          @change-tab="activeTab = $event as TabKey"
+        />
 
-      <BotOperationsTab
-        v-else-if="activeTab === 'operations'"
-        :operations-report="operationsReport"
-        :is-operations-loading="isOperationsLoading"
-        @fetch-operations="fetchOperations"
-        @focus-action="focusOperationAction"
-        @open-diagnostics="openOperationDiagnostics"
-        @change-tab="activeTab = $event as TabKey"
-      />
+        <BotIntegrationsTab
+          v-else-if="activeTab === 'integrations'"
+          v-model:message-status-filter="messageStatusFilter"
+          v-model:message-search="messageSearch"
+          v-model:test-prompt="testPrompt"
+          :integrations="integrations"
+          :selected-id="selectedId"
+          :selected-integration="selectedIntegration"
+          :entitlement="entitlement"
+          :messages="messages"
+          :message-total="messageTotal"
+          :message-summary="messageSummary"
+          :latest-reply="latestReply"
+          :is-messages-loading="isMessagesLoading"
+          :is-testing="isTesting"
+          :is-replaying-message-id="isReplayingMessageId"
+          @create-click="openCreateDialog"
+          @select-integration="selectIntegration"
+          @toggle-status="toggleIntegrationStatus"
+          @diagnostics-click="
+            activeTab = 'diagnostics';
+            fetchDiagnostics();
+          "
+          @edit-click="openEditDialog"
+          @rotate-token="rotateToken"
+          @delete-click="deleteIntegration"
+          @replay-message="replayMessage"
+          @test-integration="testSelectedIntegration"
+          @fetch-messages="fetchMessages"
+          @clear-message-filters="clearMessageFilters"
+        />
 
-      <BotIntegrationsTab
-        v-else-if="activeTab === 'integrations'"
-        v-model:message-status-filter="messageStatusFilter"
-        v-model:message-search="messageSearch"
-        v-model:test-prompt="testPrompt"
-        :integrations="integrations"
-        :selected-id="selectedId"
-        :selected-integration="selectedIntegration"
-        :entitlement="entitlement"
-        :messages="messages"
-        :message-total="messageTotal"
-        :message-summary="messageSummary"
-        :latest-reply="latestReply"
-        :is-messages-loading="isMessagesLoading"
-        :is-testing="isTesting"
-        :is-replaying-message-id="isReplayingMessageId"
-        @create-click="openCreateDialog"
-        @select-integration="selectIntegration"
-        @toggle-status="toggleIntegrationStatus"
-        @diagnostics-click="
-          activeTab = 'diagnostics';
-          fetchDiagnostics();
-        "
-        @edit-click="openEditDialog"
-        @rotate-token="rotateToken"
-        @delete-click="deleteIntegration"
-        @replay-message="replayMessage"
-        @test-integration="testSelectedIntegration"
-        @fetch-messages="fetchMessages"
-        @clear-message-filters="clearMessageFilters"
-      />
+        <BotKnowledgeTab
+          v-else-if="activeTab === 'knowledge'"
+          :selected-integration="selectedIntegration"
+          :knowledge-sources="knowledgeSources"
+          :knowledge-summary="knowledgeSummary"
+          :is-knowledge-loading="isKnowledgeLoading"
+          :runbook="runbook"
+          :is-runbook-loading="isRunbookLoading"
+          @fetch-knowledge="fetchKnowledgeSources"
+          @create-knowledge="openCreateKnowledgeDialog"
+          @toggle-knowledge-status="toggleKnowledgeStatus"
+          @edit-knowledge="openEditKnowledgeDialog"
+          @delete-knowledge="deleteKnowledgeSource"
+          @change-tab="activeTab = $event as TabKey"
+          @fetch-runbook="fetchRunbook"
+        />
 
-      <BotKnowledgeTab
-        v-else-if="activeTab === 'knowledge'"
-        :selected-integration="selectedIntegration"
-        :knowledge-sources="knowledgeSources"
-        :knowledge-summary="knowledgeSummary"
-        :is-knowledge-loading="isKnowledgeLoading"
-        :runbook="runbook"
-        :is-runbook-loading="isRunbookLoading"
-        @fetch-knowledge="fetchKnowledgeSources"
-        @create-knowledge="openCreateKnowledgeDialog"
-        @toggle-knowledge-status="toggleKnowledgeStatus"
-        @edit-knowledge="openEditKnowledgeDialog"
-        @delete-knowledge="deleteKnowledgeSource"
-        @change-tab="activeTab = $event as TabKey"
-        @fetch-runbook="fetchRunbook"
-      />
+        <BotEvolutionTab
+          v-else-if="activeTab === 'evolution'"
+          v-model:optimization-form="optimizationForm"
+          :selected-integration="selectedIntegration"
+          :is-evolution-loading="isEvolutionLoading"
+          :evolution-insights="evolutionInsights"
+          :evaluation-cases="evaluationCases"
+          :evaluation-report="evaluationReport"
+          :is-evaluation-running="isEvaluationRunning"
+          :is-prompt-optimizing="isPromptOptimizing"
+          :prompt-optimization="promptOptimization"
+          @fetch-insights="fetchEvolutionInsights"
+          @add-case="addEvaluationCase"
+          @remove-case="removeEvaluationCase"
+          @update-keyword="({ index, key, value }) => updateEvaluationKeywordList(index, key, value)"
+          @run-evaluation="runBatchEvaluation"
+          @optimize-prompt="optimizeSelectedPrompt"
+          @apply-optimized-prompt="applyOptimizedPrompt"
+          @change-tab="activeTab = $event as TabKey"
+        />
 
-      <BotEvolutionTab
-        v-else-if="activeTab === 'evolution'"
-        v-model:optimization-form="optimizationForm"
-        :selected-integration="selectedIntegration"
-        :is-evolution-loading="isEvolutionLoading"
-        :evolution-insights="evolutionInsights"
-        :evaluation-cases="evaluationCases"
-        :evaluation-report="evaluationReport"
-        :is-evaluation-running="isEvaluationRunning"
-        :is-prompt-optimizing="isPromptOptimizing"
-        :prompt-optimization="promptOptimization"
-        @fetch-insights="fetchEvolutionInsights"
-        @add-case="addEvaluationCase"
-        @remove-case="removeEvaluationCase"
-        @update-keyword="({ index, key, value }) => updateEvaluationKeywordList(index, key, value)"
-        @run-evaluation="runBatchEvaluation"
-        @optimize-prompt="optimizeSelectedPrompt"
-        @apply-optimized-prompt="applyOptimizedPrompt"
-        @change-tab="activeTab = $event as TabKey"
-      />
+        <BotPlaygroundTab
+          v-else-if="activeTab === 'playground'"
+          v-model:playground-user="playgroundUser"
+          v-model:playground-conversation="playgroundConversation"
+          v-model:playground-prompt="playgroundPrompt"
+          v-model:sample-payload="samplePayload"
+          :selected-integration="selectedIntegration"
+          :scenario-options="scenarioOptions"
+          :is-playground-running="isPlaygroundRunning"
+          :playground-reply="playgroundReply"
+          :playground-quality="playgroundQuality"
+          :playground-suggestions="playgroundSuggestions"
+          :is-payload-previewing="isPayloadPreviewing"
+          :payload-preview="payloadPreview"
+          @run-playground="runPlayground"
+          @preview-payload="previewPayload"
+          @use-scenario="useScenario"
+        />
 
-      <BotPlaygroundTab
-        v-else-if="activeTab === 'playground'"
-        v-model:playground-user="playgroundUser"
-        v-model:playground-conversation="playgroundConversation"
-        v-model:playground-prompt="playgroundPrompt"
-        v-model:sample-payload="samplePayload"
-        :selected-integration="selectedIntegration"
-        :scenario-options="scenarioOptions"
-        :is-playground-running="isPlaygroundRunning"
-        :playground-reply="playgroundReply"
-        :playground-quality="playgroundQuality"
-        :playground-suggestions="playgroundSuggestions"
-        :is-payload-previewing="isPayloadPreviewing"
-        :payload-preview="payloadPreview"
-        @run-playground="runPlayground"
-        @preview-payload="previewPayload"
-        @use-scenario="useScenario"
-      />
+        <BotTemplatesTab
+          v-else-if="activeTab === 'templates'"
+          :templates="templates"
+          :is-templates-loading="isTemplatesLoading"
+          @apply-template="applyTemplate"
+        />
 
-      <BotTemplatesTab
-        v-else-if="activeTab === 'templates'"
-        :templates="templates"
-        :is-templates-loading="isTemplatesLoading"
-        @apply-template="applyTemplate"
-      />
-
-      <BotDiagnosticsTab
-        v-else
-        :selected-integration="selectedIntegration"
-        :diagnostics="diagnostics"
-        :is-diagnostics-loading="isDiagnosticsLoading"
-        @fetch-diagnostics="fetchDiagnostics"
-      />
-    </main>
+        <BotDiagnosticsTab
+          v-else
+          :selected-integration="selectedIntegration"
+          :diagnostics="diagnostics"
+          :is-diagnostics-loading="isDiagnosticsLoading"
+          @fetch-diagnostics="fetchDiagnostics"
+        />
+      </main>
+    </AiWorkbenchHeader>
 
     <BotKnowledgeDialog
       v-model:show="isKnowledgeDialogVisible"

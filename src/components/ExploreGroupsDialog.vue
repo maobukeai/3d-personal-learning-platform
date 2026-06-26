@@ -101,7 +101,7 @@ onMounted(() => {
           type="text"
           placeholder="搜索小组名称或关键词..."
           :icon="Search"
-          input-class="!pl-11 !py-3.5 !rounded-2xl"
+          input-class="!pl-10 !py-3 !rounded-xl"
         />
       </div>
 

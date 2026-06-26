@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatDate } from '@/utils/format';
 import { ref, computed, type Component } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { useCommunityI18n } from '@/composables/useCommunityI18n';
 import { useAuthStore } from '@/stores/auth';
 import {
   ShieldCheck,
@@ -173,16 +173,10 @@ const emit = defineEmits<{
   (e: 'remove-member', userId: string, name: string): void;
 }>();
 
-const { t: i18nT } = useI18n();
+
 const authStore = useAuthStore();
 
-const t = (key: string, ...args: unknown[]) => {
-  const prefixes = ['showcase.', 'teams.', 'members.', 'teamDetail.', 'discussions.', 'chat.'];
-  if (prefixes.some((p) => key.startsWith(p))) {
-    return (i18nT as (key: string, ...args: unknown[]) => string)(`community.${key}`, ...args);
-  }
-  return (i18nT as (key: string, ...args: unknown[]) => string)(key, ...args);
-};
+const { t } = useCommunityI18n();
 
 const activeFilter = ref<MemberFilter>('all');
 const memberSearchQuery = ref('');

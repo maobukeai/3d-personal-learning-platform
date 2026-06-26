@@ -1,5 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { logError } from '@/utils/error';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   Cloud,
@@ -139,7 +140,7 @@ const refreshBackupsList = async () => {
   } catch (error) {
     // If not configured, it returns empty list silently, but if configured and fails, show error
     if (url.value) {
-      console.warn(
+      logError(
         'Failed to load remote backups list:',
         getBackupErrorMessage(error, 'Unknown error'),
       );
@@ -854,7 +855,7 @@ const formatDate = (dateStr: string) => {
 .backup-section {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
 }
 
 .glass-panel {
@@ -865,40 +866,40 @@ const formatDate = (dateStr: string) => {
 }
 
 .settings-card {
-  padding: 24px;
+  padding: 16px;
 }
 
 .card-header {
-  margin-bottom: 24px;
+  margin-bottom: 14px;
 }
 
 .header-title {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .header-title svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 
 .header-desc {
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--text-muted);
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-  margin-bottom: 24px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .span-full {
@@ -908,7 +909,7 @@ const formatDate = (dateStr: string) => {
 .form-item {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .input-tip {
@@ -920,19 +921,19 @@ const formatDate = (dateStr: string) => {
   background: rgba(var(--accent-rgb, 59, 130, 246), 0.05);
   border: 1px solid var(--border-base);
   border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 24px;
+  padding: 12px;
+  margin-bottom: 16px;
 }
 
 .status-info {
-  margin: 0 0 8px 0;
-  font-size: 13px;
-  line-height: 1.5;
+  margin: 0 0 6px 0;
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
 .status-details {
   margin: 4px 0;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--text-muted);
   display: flex;
   align-items: center;
@@ -952,18 +953,18 @@ const formatDate = (dateStr: string) => {
 
 .actions-bar {
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
 
 .btn-icon {
-  width: 16px;
-  height: 16px;
-  margin-right: 6px;
+  width: 15px;
+  height: 15px;
+  margin-right: 5px;
 }
 
 .btn-icon-sm {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   margin-right: 4px;
 }
 
@@ -975,42 +976,42 @@ const formatDate = (dateStr: string) => {
 .checkbox-group {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  margin-bottom: 24px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .category-block {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .border-top {
   border-top: 1px solid var(--border-base);
-  padding-top: 20px;
+  padding-top: 14px;
 }
 
 .category-title {
   margin: 0;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
 }
 
 .checkbox-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .checkbox-grid.compact {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 .checkbox-item {
   display: flex;
-  gap: 12px;
-  padding: 12px;
+  gap: 10px;
+  padding: 10px;
   border: 1px solid var(--border-base);
   border-radius: 8px;
   background: rgba(var(--bg-app-rgb), 0.3);
@@ -1025,8 +1026,8 @@ const formatDate = (dateStr: string) => {
 }
 
 .checkbox-item input[type='checkbox'] {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   margin-top: 2px;
   cursor: pointer;
 }
@@ -1038,14 +1039,14 @@ const formatDate = (dateStr: string) => {
 }
 
 .checkbox-label strong {
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--text-primary);
 }
 
 .checkbox-label span {
   font-size: 11px;
   color: var(--text-muted);
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
 /* Remote Backups List CSS */
@@ -1056,7 +1057,7 @@ const formatDate = (dateStr: string) => {
 }
 
 .backups-list-container {
-  min-height: 100px;
+  min-height: 80px;
 }
 
 .empty-list {
@@ -1064,7 +1065,7 @@ const formatDate = (dateStr: string) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 24px 16px;
   text-align: center;
   color: var(--text-muted);
   border: 1px dashed var(--border-base);
@@ -1072,14 +1073,14 @@ const formatDate = (dateStr: string) => {
 }
 
 .empty-list svg {
-  width: 32px;
-  height: 32px;
-  margin-bottom: 12px;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 10px;
 }
 
 .empty-list p {
   margin: 0;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .table-wrapper {
@@ -1092,12 +1093,12 @@ const formatDate = (dateStr: string) => {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .backups-table th,
 .backups-table td {
-  padding: 12px 16px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border-base);
 }
 

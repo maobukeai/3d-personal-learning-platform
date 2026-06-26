@@ -607,17 +607,14 @@ onUnmounted(() => {
 // ── Password Generator ────────────────────────────────────────────────────────
 const generateRandomPassword = (targetRef: Partial<GoogleAccount>) => {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+';
-  let password = '';
-  const poolLower = 'abcdefghijklmnopqrstuvwxyz';
-  const poolUpper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const poolDigit = '0123456789';
-  const poolSymbol = '!@#$%^&*()_+';
-
-  password += poolLower[Math.floor(Math.random() * poolLower.length)];
-  password += poolUpper[Math.floor(Math.random() * poolUpper.length)];
-  password += poolDigit[Math.floor(Math.random() * poolDigit.length)];
-  password += poolSymbol[Math.floor(Math.random() * poolSymbol.length)];
-
+  // Guarantee complexity: select at least one character from each character category
+  const guaranteed = [
+    chars[Math.floor(Math.random() * 26)],           // Lowercase
+    chars[26 + Math.floor(Math.random() * 26)],      // Uppercase
+    chars[52 + Math.floor(Math.random() * 10)],      // Digit
+    chars[62 + Math.floor(Math.random() * 12)],      // Symbol
+  ];
+  let password = guaranteed.join('');
   for (let i = 4; i < 12; i++) {
     password += chars[Math.floor(Math.random() * chars.length)];
   }
@@ -627,7 +624,7 @@ const generateRandomPassword = (targetRef: Partial<GoogleAccount>) => {
     .sort(() => 0.5 - Math.random())
     .join('');
   targetRef.password = shuffled;
-  ElMessage.success('已自动生成并填充复杂密码！');
+  ElMessage.success(t('googleWarming.passwordGenerated'));
 };
 
 const isPasswordGenVisible = ref(false);
@@ -641,7 +638,7 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 
 function handleExportAccounts() {
   if (accounts.value.length === 0) {
-    ElMessage.warning('暂无账号数据可导出');
+    ElMessage.warning(t('googleWarming.noDataToExport'));
     return;
   }
   const data = {

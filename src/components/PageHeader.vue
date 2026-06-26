@@ -34,12 +34,15 @@ const hasIcon = computed(() => !!props.icon);
         <component :is="icon" class="w-3.5 h-3.5 sm:w-4 sm:h-4" :class="iconClass" />
       </div>
       <div class="min-w-0">
-        <h1
-          class="text-sm sm:text-lg font-bold leading-tight truncate"
-          style="color: var(--text-primary)"
-        >
-          {{ title }}
-        </h1>
+        <div class="flex items-center gap-2">
+          <h1
+            class="text-sm sm:text-lg font-bold leading-tight truncate"
+            style="color: var(--text-primary)"
+          >
+            {{ title }}
+          </h1>
+          <slot name="title-badge" />
+        </div>
         <p
           v-if="subtitle"
           class="block text-[10px] sm:text-xs font-medium mt-0.5 line-clamp-1"
@@ -119,5 +122,27 @@ const hasIcon = computed(() => !!props.icon);
   box-shadow:
     inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
     var(--shadow-card);
+}
+
+/* Overrides to prevent mobile-compact.css from squishing header components */
+.enterprise-toolbar,
+.enterprise-toolbar > *,
+.enterprise-toolbar .shrink-0,
+.premium-card,
+.premium-card > *,
+.premium-card .shrink-0 {
+  flex-shrink: 0 !important;
+}
+
+.enterprise-toolbar :deep(button),
+.enterprise-toolbar :deep(a),
+.premium-card :deep(button),
+.premium-card :deep(a) {
+  flex-shrink: 0 !important;
+}
+
+.enterprise-toolbar .min-w-0,
+.premium-card .min-w-0 {
+  flex-shrink: 1 !important;
 }
 </style>

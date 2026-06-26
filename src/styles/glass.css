@@ -264,6 +264,8 @@
 /* Glass element styles - Tier 1: Frosted Layout & Teleported Overlays */
 html.theme-glass .notification-panel,
 html.theme-glass .el-popper,
+html.theme-glass .el-popper.is-dark,
+html.theme-glass .el-popper.is-light,
 html.theme-glass .el-dropdown__popper,
 html.theme-glass .el-select__popper,
 html.theme-glass .el-cascader__dropdown,
@@ -273,6 +275,7 @@ html.theme-glass .el-popover {
   -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
   border: var(--glass-border) !important;
   box-shadow: var(--glass-shadow) !important;
+  color: var(--text-primary) !important;
 }
 
 /* Reusable glass card style */

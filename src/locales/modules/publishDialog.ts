@@ -44,8 +44,15 @@ export const publishDialogZh = {
   isVideoWorkLabel: '这是一个视频作品',
   videoUrlLabel: '视频链接',
   videoUrlPlaceholder: '请输入外部视频平台链接',
+  insertWorksLabel: '嵌入关联的3D模型作品',
+  insertWorksPlaceholder: '选择你想在帖子中展示的已发布3D模型(可多选)',
   publishing: '正在处理发布...',
   publishNow: '立即发布作品',
+  uploadModel: '上传3D模型',
+  uploadMaterial: '上传材质',
+  uploadPlugin: '上传插件',
+  pluginRequired: '请上传插件文件',
+  materialRequired: '请上传材质包文件',
 };
 
 export const publishDialogEn = {
@@ -96,6 +103,13 @@ export const publishDialogEn = {
   isVideoWorkLabel: 'This is a video work',
   videoUrlLabel: 'Video URL',
   videoUrlPlaceholder: 'Please enter external video platform URL',
+  insertWorksLabel: 'Embed Linked 3D Assets',
+  insertWorksPlaceholder: 'Select approved models to showcase in this post (Multiple)',
   publishing: 'Publishing...',
   publishNow: 'Publish Now',
+  uploadModel: 'Upload 3D Model',
+  uploadMaterial: 'Upload Material',
+  uploadPlugin: 'Upload Plugin',
+  pluginRequired: 'Please upload plugin file',
+  materialRequired: 'Please upload material package file',
 };

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { Activity, Box, FileArchive, Grid3X3, LayoutList, UsersRound } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
@@ -8,14 +8,10 @@ import { getApiErrorMessage, logError } from '@/utils/error';
 import type { Category } from '@/types';
 import { useLabel } from '@/utils/i18n';
 import {
-  ASSET_UPLOAD_FORMAT_OPTIONS,
   buildActiveAssetFilterChips,
   buildAssetCategoryOptions,
   buildAssetFormatOptions,
-  buildAssetUploadFormData,
-  createAssetUploadForm,
   filterVisibleAssets,
-  isAssetUploadReady,
   type AssetInsights,
   type AssetInsightCategory,
   type AssetListItem,
@@ -28,9 +24,14 @@ import AssetStatsPanel from './components/AssetStatsPanel.vue';
 import AssetFilterPanel from './components/AssetFilterPanel.vue';
 import AssetContentPanel from './components/AssetContentPanel.vue';
 import AssetInsightPanel from './components/AssetInsightPanel.vue';
-import AssetUploadModal from './components/AssetUploadModal.vue';
+import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
+import AssetDetailModal from './components/AssetDetailModal.vue';
+import EditWorkDialog from './components/EditWorkDialog.vue';
+import { normalizeAssetWork } from './myWorksModel';
+import type { UnifiedWork } from './myWorksModel';
 
 const router = useRouter();
+const route = useRoute();
 const label = useLabel();
 const searchQuery = ref('');
 const isStatsExpanded = ref(false);
@@ -45,7 +46,43 @@ const viewModeOptions = computed(() => [
 ]);
 const isFilterOpen = ref(false);
 const isLoading = ref(false);
-const isUploading = ref(false);
+
+
+// Edit Work dialog state
+const isEditDialogOpen = ref(false);
+const isSaving = ref(false);
+const selectedWork = ref<UnifiedWork | null>(null);
+const editForm = ref({
+  title: '',
+  description: '',
+  tags: '',
+  categoryId: '',
+  materialCategory: '',
+  resolution: '4K',
+  isProcedural: false,
+  pluginCategory: '',
+  pluginVersion: '1.0.0',
+  pluginCompatibility: '',
+  showcaseType: 'IMAGE',
+  videoUrl: '',
+  originality: 'ORIGINAL',
+  originalAuthor: '',
+  originalLink: '',
+  license: 'CC_BY',
+  isFree: true,
+  meshType: 'LOW_POLY',
+  uvUnwrapped: true,
+  uvOverlapping: false,
+  pbrChannels: [] as string[],
+  rigged: false,
+  gameReady: false,
+  linkedCourseId: '',
+  linkedLessonId: '',
+  installGuide: '',
+  file: null as File | null,
+  packageFile: null as File | null,
+  thumbnail: null as File | null,
+});
 const isUploadDialogOpen = ref(false);
 const assets = ref<AssetListItem[]>([]);
 const categories = ref<AssetInsightCategory[]>([]);
@@ -71,7 +108,7 @@ const libraryTabs = computed(() => [
   },
   {
     key: 'mine' as const,
-    label: label('我的提交', 'My Uploads'),
+    label: label('我的资源', 'My Uploads'),
     count: insights.value?.summary.myUploads || 0,
   },
 ]);
@@ -97,8 +134,7 @@ const pagination = ref({
   totalPages: 0,
 });
 
-const uploadForm = ref(createAssetUploadForm());
-const uploadFormatOptions = ASSET_UPLOAD_FORMAT_OPTIONS;
+
 
 const categoryOptions = computed(() =>
   buildAssetCategoryOptions(
@@ -195,7 +231,7 @@ const activeFilterChips = computed(() => {
   });
 });
 
-const uploadCanSubmit = computed(() => isAssetUploadReady(uploadForm.value));
+
 
 watch([activeCategoryId, sortKey, activeTab, myStatusFilter], () => {
   pagination.value.page = 1;
@@ -281,8 +317,124 @@ const resetFilters = () => {
   searchQuery.value = '';
 };
 
+const isAssetDetailOpen = ref(false);
+const selectedAssetId = ref<string | null>(null);
+
+watch(
+  () => route.query.id,
+  (newId) => {
+    if (newId) {
+      selectedAssetId.value = String(newId);
+      isAssetDetailOpen.value = true;
+    } else {
+      isAssetDetailOpen.value = false;
+      selectedAssetId.value = null;
+    }
+  },
+  { immediate: true }
+);
+
 const goToDetail = (asset: AssetListItem) => {
-  router.push({ name: 'AssetDetail', params: { id: asset.id } });
+  router.push({ path: '/assets', query: { id: asset.id } });
+};
+
+const closeDetailModal = () => {
+  isAssetDetailOpen.value = false;
+  selectedAssetId.value = null;
+  router.push({ path: '/assets' });
+};
+
+const handleDetailEdit = (asset: any) => {
+  isAssetDetailOpen.value = false;
+  selectedAssetId.value = null;
+  const work = normalizeAssetWork(asset);
+  selectedWork.value = work;
+  const rawAsset = work.raw as any;
+  editForm.value = {
+    title: work.title,
+    description: work.description || '',
+    tags: work.tags.join(', '),
+    categoryId: rawAsset.categoryId || '',
+    materialCategory: '',
+    resolution: '4K',
+    isProcedural: false,
+    pluginCategory: '',
+    pluginVersion: '1.0.0',
+    pluginCompatibility: '',
+    showcaseType: 'IMAGE',
+    videoUrl: '',
+    originality: rawAsset.originality || 'ORIGINAL',
+    originalAuthor: rawAsset.originalAuthor || '',
+    originalLink: rawAsset.originalLink || '',
+    license: rawAsset.license || 'CC_BY',
+    isFree: rawAsset.isFree !== false,
+    meshType: rawAsset.meshType || 'LOW_POLY',
+    uvUnwrapped: rawAsset.uvUnwrapped !== false,
+    uvOverlapping: !!rawAsset.uvOverlapping,
+    pbrChannels: rawAsset.pbrChannels || [],
+    rigged: !!rawAsset.rigged,
+    gameReady: !!rawAsset.gameReady,
+    linkedCourseId: rawAsset.linkedCourseId || '',
+    linkedLessonId: rawAsset.linkedLessonId || '',
+    installGuide: '',
+    file: null,
+    packageFile: null,
+    thumbnail: null,
+  };
+  isEditDialogOpen.value = true;
+};
+
+const handleSaveEdit = async () => {
+  if (!selectedWork.value || !editForm.value.title.trim()) {
+    ElMessage.warning(label('请填写作品名称', 'Please fill in the work name'));
+    return;
+  }
+  isSaving.value = true;
+  try {
+    const work = selectedWork.value;
+    const formData = new FormData();
+    formData.append('title', editForm.value.title);
+    formData.append('description', editForm.value.description);
+    formData.append('categoryId', editForm.value.categoryId || '');
+    formData.append('tags', editForm.value.tags);
+    formData.append('originality', editForm.value.originality || 'ORIGINAL');
+    formData.append('originalAuthor', editForm.value.originalAuthor || '');
+    formData.append('originalLink', editForm.value.originalLink || '');
+    formData.append('license', editForm.value.license || 'CC_BY');
+    formData.append('isFree', String(editForm.value.isFree !== false));
+    formData.append('meshType', editForm.value.meshType || 'LOW_POLY');
+    formData.append('uvUnwrapped', String(editForm.value.uvUnwrapped !== false));
+    formData.append('uvOverlapping', String(!!editForm.value.uvOverlapping));
+    formData.append('pbrChannels', JSON.stringify(editForm.value.pbrChannels || []));
+    formData.append('rigged', String(!!editForm.value.rigged));
+    formData.append('gameReady', String(!!editForm.value.gameReady));
+    formData.append('linkedCourseId', editForm.value.linkedCourseId || '');
+    formData.append('linkedLessonId', editForm.value.linkedLessonId || '');
+
+    if (editForm.value.file) {
+      formData.append('asset', editForm.value.file);
+    }
+    if (editForm.value.packageFile) {
+      formData.append('package', editForm.value.packageFile);
+    }
+    if (editForm.value.thumbnail) {
+      formData.append('thumbnail', editForm.value.thumbnail);
+    }
+
+    await api.patch(`/api/assets/${work.id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    ElMessage.success(label('保存成功', 'Saved successfully'));
+    isEditDialogOpen.value = false;
+    fetchAssets();
+    fetchInsights();
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, label('保存失败', 'Save failed')));
+  } finally {
+    isSaving.value = false;
+  }
 };
 
 const handleDownload = async (asset: AssetListItem, event?: Event) => {
@@ -313,49 +465,7 @@ const handleLike = async (asset: AssetListItem, event?: Event) => {
   }
 };
 
-const handleFileChange = (event: Event) => {
-  const file = (event.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  uploadForm.value.file = file;
-  if (!uploadForm.value.title.trim()) {
-    uploadForm.value.title = file.name.replace(/\.[^.]+$/, '');
-  }
-};
 
-const handleThumbnailChange = (event: Event) => {
-  const file = (event.target as HTMLInputElement).files?.[0];
-  if (file) uploadForm.value.thumbnail = file;
-};
-
-const resetUploadForm = () => {
-  uploadForm.value = createAssetUploadForm();
-};
-
-const submitUpload = async () => {
-  if (!uploadCanSubmit.value) {
-    ElMessage.warning(
-      label('请补全资源名称、分类和文件来源', 'Please complete asset name, category, and source'),
-    );
-    return;
-  }
-
-  const formData = buildAssetUploadFormData(uploadForm.value);
-
-  try {
-    isUploading.value = true;
-    await api.post('/api/assets/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    ElMessage.success(label('资源已提交审核', 'Asset submitted for review'));
-    isUploadDialogOpen.value = false;
-    resetUploadForm();
-    await Promise.all([fetchAssets(), fetchInsights(), fetchCategories()]);
-  } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, label('上传失败', 'Upload failed')));
-  } finally {
-    isUploading.value = false;
-  }
-};
 
 onMounted(() => {
   fetchAssets();
@@ -369,7 +479,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="asset-library-page mobile-adaptive">
+  <div class="asset-library-page mobile-adaptive flex flex-col h-full overflow-hidden">
     <AssetLibraryHeader
       v-model:search-query="searchQuery"
       :is-stats-expanded="isStatsExpanded"
@@ -378,80 +488,89 @@ onUnmounted(() => {
       @upload="isUploadDialogOpen = true"
     />
 
-    <AssetStatsPanel :is-expanded="isStatsExpanded" :stat-cards="statCards" />
+    <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+      <AssetStatsPanel :is-expanded="isStatsExpanded" :stat-cards="statCards" />
 
-    <section class="workspace-shell">
-      <AssetFilterPanel
-        :is-open="isFilterOpen"
-        :active-category-id="activeCategoryId"
-        :selected-format="selectedFormat"
-        :selected-tag="selectedTag"
-        :my-status-filter="myStatusFilter"
-        :active-tab="activeTab"
-        :category-tab-options="categoryTabOptions"
-        :format-tab-options="formatTabOptions"
-        :status-tab-options="statusTabOptions"
-        :hot-tags="insights?.hotTags || []"
-        @update:active-category-id="activeCategoryId = $event"
-        @update:selected-format="selectedFormat = $event"
-        @update:selected-tag="selectedTag = $event"
-        @update:my-status-filter="myStatusFilter = $event as StatusFilter"
-      />
+      <section class="workspace-shell">
+        <AssetFilterPanel
+          :is-open="isFilterOpen"
+          :active-category-id="activeCategoryId"
+          :selected-format="selectedFormat"
+          :selected-tag="selectedTag"
+          :my-status-filter="myStatusFilter"
+          :active-tab="activeTab"
+          :category-tab-options="categoryTabOptions"
+          :format-tab-options="formatTabOptions"
+          :status-tab-options="statusTabOptions"
+          :hot-tags="insights?.hotTags || []"
+          @update:active-category-id="activeCategoryId = $event"
+          @update:selected-format="selectedFormat = $event"
+          @update:selected-tag="selectedTag = $event"
+          @update:my-status-filter="myStatusFilter = $event as StatusFilter"
+        />
 
-      <AssetContentPanel
-        :active-tab="activeTab"
-        :sort-key="sortKey"
-        :view-mode="viewMode"
-        :is-filter-open="isFilterOpen"
-        :is-loading="isLoading"
-        :visible-assets="visibleAssets"
-        :pagination="pagination"
-        :library-tab-options="libraryTabOptions"
-        :view-mode-options="viewModeOptions"
-        :active-filter-chips="activeFilterChips"
-        @update:active-tab="activeTab = $event"
-        @update:sort-key="sortKey = $event"
-        @update:view-mode="viewMode = $event"
-        @toggle-filter="isFilterOpen = !isFilterOpen"
-        @page-change="handlePageChange"
-        @clear-filter="clearFilter"
-        @reset-filters="resetFilters"
-        @go-to-detail="goToDetail"
-        @like="(asset, event) => handleLike(asset, event)"
-        @download="(asset, event) => handleDownload(asset, event)"
-        @upload="isUploadDialogOpen = true"
-      />
+        <AssetContentPanel
+          :active-tab="activeTab"
+          :sort-key="sortKey"
+          :view-mode="viewMode"
+          :is-filter-open="isFilterOpen"
+          :is-loading="isLoading"
+          :visible-assets="visibleAssets"
+          :pagination="pagination"
+          :library-tab-options="libraryTabOptions"
+          :view-mode-options="viewModeOptions"
+          :active-filter-chips="activeFilterChips"
+          @update:active-tab="activeTab = $event"
+          @update:sort-key="sortKey = $event"
+          @update:view-mode="viewMode = $event"
+          @toggle-filter="isFilterOpen = !isFilterOpen"
+          @page-change="handlePageChange"
+          @clear-filter="clearFilter"
+          @reset-filters="resetFilters"
+          @go-to-detail="goToDetail"
+          @like="(asset, event) => handleLike(asset, event)"
+          @download="(asset, event) => handleDownload(asset, event)"
+          @upload="isUploadDialogOpen = true"
+        />
 
-      <AssetInsightPanel
-        :top-downloads="insights?.topDownloads || []"
-        :latest="insights?.latest || []"
-        @go-to-detail="goToDetail"
-      />
-    </section>
+        <AssetInsightPanel
+          :top-downloads="insights?.topDownloads || []"
+          :latest="insights?.latest || []"
+          @go-to-detail="goToDetail"
+        />
+      </section>
+    </div>
 
-    <AssetUploadModal
-      :show="isUploadDialogOpen"
-      :upload-form="uploadForm"
-      :is-uploading="isUploading"
-      :upload-can-submit="uploadCanSubmit"
-      :categories="categories"
-      :upload-format-options="uploadFormatOptions"
-      @close="isUploadDialogOpen = false"
-      @submit="submitUpload"
-      @update:upload-form="uploadForm = $event"
-      @file-change="handleFileChange"
-      @thumbnail-change="handleThumbnailChange"
+    <PublishWorkDialog
+      v-model="isUploadDialogOpen"
+      default-category="asset"
+      @published="fetchAssets(); fetchInsights();"
+    />
+
+    <AssetDetailModal
+      :show="isAssetDetailOpen"
+      :asset-id="selectedAssetId"
+      @close="closeDetailModal"
+      @update="fetchAssets(); fetchInsights();"
+      @edit="handleDetailEdit"
+    />
+
+    <EditWorkDialog
+      v-model:show="isEditDialogOpen"
+      v-model:form="editForm"
+      :work="selectedWork"
+      :is-saving="isSaving"
+      :asset-categories="categories"
+      :material-categories="[]"
+      :plugin-categories="[]"
+      @save="handleSaveEdit"
     />
   </div>
 </template>
 
 <style scoped>
 .asset-library-page {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  height: 100%;
   background: transparent !important;
   color: var(--text-primary);
 }
@@ -471,10 +590,6 @@ onUnmounted(() => {
 }
 
 @media (max-width: 860px) {
-  .asset-library-page {
-    padding: 12px;
-  }
-
   .workspace-shell {
     grid-template-columns: 1fr;
   }

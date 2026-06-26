@@ -442,12 +442,12 @@ onUnmounted(() => {
 }
 
 .appearance-overview {
-  min-height: 82px;
+  min-height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px;
+  padding: 10px 14px;
 }
 
 .section-kicker,
@@ -455,7 +455,7 @@ onUnmounted(() => {
 .appearance-overview span,
 .theme-options span {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .section-kicker,
@@ -465,8 +465,8 @@ onUnmounted(() => {
 }
 
 h3 {
-  margin: 2px 0 4px;
-  font-size: 20px;
+  margin: 1px 0 2px;
+  font-size: 18px;
   font-weight: 900;
 }
 
@@ -478,7 +478,7 @@ h3 {
 
 .primary-action,
 .secondary-action {
-  height: 38px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -486,7 +486,7 @@ h3 {
   padding: 0 12px;
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 900;
 }
 
@@ -508,8 +508,8 @@ h3 {
 }
 
 button svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
 }
 
 .appearance-grid {
@@ -521,7 +521,7 @@ button svg {
 .theme-panel,
 .accent-panel,
 .language-panel {
-  padding: 12px;
+  padding: 10px 12px;
 }
 
 .language-panel {
@@ -532,7 +532,7 @@ button svg {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .panel-title strong {
@@ -547,13 +547,13 @@ button svg {
 
 .theme-options button {
   position: relative;
-  min-height: 112px;
+  min-height: 88px;
   display: grid;
   align-content: center;
-  gap: 7px;
+  gap: 4px;
   border: 1px solid var(--border-base);
   border-radius: 8px;
-  padding: 12px;
+  padding: 10px;
   background: var(--bg-app);
   color: var(--text-primary);
   cursor: pointer;
@@ -567,20 +567,20 @@ button svg {
 }
 
 .theme-options button > svg:first-child {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   color: var(--accent);
 }
 
 .theme-options strong {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 900;
 }
 
 .check-icon {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 8px;
+  right: 8px;
   color: #047857;
 }
 
@@ -591,7 +591,7 @@ button svg {
 }
 
 .accent-grid button {
-  min-height: 48px;
+  min-height: 38px;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -602,8 +602,8 @@ button svg {
   color: var(--text-primary);
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
-  font-weight: 900;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .accent-grid button.active {
@@ -612,15 +612,15 @@ button svg {
 }
 
 .accent-grid i {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
   background: var(--swatch);
 }
 
 .auto-switch-section {
-  margin-top: 14px;
-  padding-top: 14px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--border-base);
 }
 
@@ -631,7 +631,7 @@ button svg {
 }
 
 .mode-btn {
-  height: 38px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -641,7 +641,7 @@ button svg {
   color: var(--text-secondary);
   cursor: pointer;
   font: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
   transition: all 0.2s ease;
   width: 100%;
@@ -654,7 +654,7 @@ button svg {
 }
 
 .interval-options-container {
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .interval-options {
@@ -664,7 +664,7 @@ button svg {
 }
 
 .interval-btn {
-  height: 32px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -674,7 +674,7 @@ button svg {
   color: var(--text-secondary);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   transition: all 0.2s ease;
   width: 100%;
@@ -693,14 +693,14 @@ button svg {
 }
 
 .language-options button {
-  height: 44px;
+  height: 36px;
   border: 1px solid var(--border-base);
   border-radius: 8px;
   background: var(--bg-app);
   color: var(--text-secondary);
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 900;
 }
 

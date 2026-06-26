@@ -12,6 +12,7 @@ import { settingsService, AIModelOption } from '../services/settings.service';
 import { storageService } from '../services/storage.service';
 import { buildDecryptedStorageConfig } from '../utils/crypto';
 import { getActiveStorageConfig } from '../mirror/services/metadata.helper';
+import { gbToBytes } from '../utils/quota';
 
 type ConversationParticipant = {
   id: string;
@@ -413,27 +414,34 @@ export const sendMessage = async (req: AuthRequest, res: Response, next: NextFun
 
     // If it's a file or image upload, check if it was uploaded to our active R2 storage
     if (msgType === 'FILE' || msgType === 'IMAGE') {
-      const activeStorage = await getActiveStorage();
-      if (activeStorage) {
-        const publicUrlBase = activeStorage.publicUrl.replace(/\/$/, '');
-        if (content && content.startsWith(publicUrlBase)) {
-          try {
-            const key = content.replace(publicUrlBase, '').replace(/^\//, '');
-            const config = buildDecryptedStorageConfig(activeStorage);
-            const metadata = await storageService.getObjectMetadata(config, key);
-            const size = metadata.ContentLength || 0;
-            if (size > 0) {
-              await prisma.storageConfig.update({
-                where: { id: activeStorage.id },
-                data: { usedBytes: { increment: size } },
-              });
-              logger.info(`[Message Storage] Incremented R2 storage usedBytes by ${size} for file: ${key}`);
+      void (async () => {
+        try {
+          const activeStorage = await getActiveStorage();
+          if (activeStorage) {
+            const publicUrlBase = activeStorage.publicUrl.replace(/\/$/, '');
+            if (content && content.startsWith(publicUrlBase)) {
+              const key = content.replace(publicUrlBase, '').replace(/^\//, '');
+              const config = buildDecryptedStorageConfig(activeStorage);
+              const metadata = await storageService.getObjectMetadata(config, key);
+              const size = metadata.ContentLength || 0;
+              if (size > 0) {
+                await prisma.storageConfig.update({
+                  where: { id: activeStorage.id },
+                  data: { usedBytes: { increment: size } },
+                });
+                logger.info(
+                  `[Message Storage] Incremented R2 storage usedBytes by ${size} for file: ${key}`,
+                );
+              }
             }
-          } catch (storageErr) {
-            logger.warn('[Message Storage] Failed to update storage usedBytes for sent message:', storageErr);
           }
+        } catch (storageErr) {
+          logger.error(
+            '[Message Storage] Failed to update storage usedBytes for sent message:',
+            storageErr,
+          );
         }
-      }
+      })();
     }
 
     await prisma.conversation.update({
@@ -738,13 +746,24 @@ export const translateMessage = async (req: AuthRequest, res: Response, next: Ne
     }
 
     // 1. Find enabled translation model by capability, name or description
-    const translationModel = models.find((m) =>
-      m.enabled && (
-        (m.capabilities && m.capabilities.some(c => c.toLowerCase().includes('translate') || c.toLowerCase().includes('translation'))) ||
-        (m.name && (m.name.toLowerCase().includes('translate') || m.name.toLowerCase().includes('translation') || m.name.includes('翻译'))) ||
-        (m.modelName && (m.modelName.toLowerCase().includes('translate') || m.modelName.toLowerCase().includes('translation'))) ||
-        (m.description && (m.description.toLowerCase().includes('translate') || m.description.toLowerCase().includes('translation') || m.description.includes('翻译')))
-      )
+    const translationModel = models.find(
+      (m) =>
+        m.enabled &&
+        ((m.capabilities &&
+          m.capabilities.some(
+            (c) => c.toLowerCase().includes('translate') || c.toLowerCase().includes('translation'),
+          )) ||
+          (m.name &&
+            (m.name.toLowerCase().includes('translate') ||
+              m.name.toLowerCase().includes('translation') ||
+              m.name.includes('翻译'))) ||
+          (m.modelName &&
+            (m.modelName.toLowerCase().includes('translate') ||
+              m.modelName.toLowerCase().includes('translation'))) ||
+          (m.description &&
+            (m.description.toLowerCase().includes('translate') ||
+              m.description.toLowerCase().includes('translation') ||
+              m.description.includes('翻译')))),
     );
 
     // 2. Prepare items to translate
@@ -771,17 +790,25 @@ Your task is to translate a list of chat messages between Chinese and English:
       const overrides = {
         AI_IMPORT_ENABLED: true,
         AI_PROVIDER: translationModel.provider,
-        AI_API_KEY: translationModel.apiKey || (translationModel.apiKeys && translationModel.apiKeys[0]) || settings.AI_API_KEY,
+        AI_API_KEY:
+          translationModel.apiKey ||
+          (translationModel.apiKeys && translationModel.apiKeys[0]) ||
+          settings.AI_API_KEY,
         AI_API_ENDPOINT: translationModel.endpoint || settings.AI_API_ENDPOINT,
         AI_MODEL_NAME: translationModel.modelName,
         capabilities: translationModel.capabilities,
       };
 
       try {
-        logger.info(`[Message Translate] Batch translating using translation model: ${translationModel.name || translationModel.modelName}`);
+        logger.info(
+          `[Message Translate] Batch translating using translation model: ${translationModel.name || translationModel.modelName}`,
+        );
         responseText = await callLLM(userPrompt, systemPrompt, overrides);
       } catch (err) {
-        logger.warn(`[Message Translate] Custom translation model call failed, falling back to auto model:`, err);
+        logger.warn(
+          `[Message Translate] Custom translation model call failed, falling back to auto model:`,
+          err,
+        );
         responseText = await callLLMWithFailover(userPrompt, systemPrompt);
       }
     } else {
@@ -792,9 +819,12 @@ Your task is to translate a list of chat messages between Chinese and English:
     // 3. Robust JSON Parsing
     let cleaned = responseText.trim();
     if (cleaned.startsWith('```')) {
-      cleaned = cleaned.replace(/^```[a-zA-Z]*\s*/, '').replace(/\s*```$/, '').trim();
+      cleaned = cleaned
+        .replace(/^```[a-zA-Z]*\s*/, '')
+        .replace(/\s*```$/, '')
+        .trim();
     }
-    
+
     let resultList: Array<{ id: string; translation: string }> = [];
     try {
       resultList = JSON.parse(cleaned);
@@ -810,7 +840,7 @@ Your task is to translate a list of chat messages between Chinese and English:
 
     // 4. Return results
     if (content) {
-      const singleTranslation = resultList.find(item => item.id === 'single')?.translation || '';
+      const singleTranslation = resultList.find((item) => item.id === 'single')?.translation || '';
       return res.json({ translation: singleTranslation });
     }
 
@@ -827,6 +857,15 @@ Your task is to translate a list of chat messages between Chinese and English:
 // getActiveStorageConfig('ALL') is the shared helper from metadata.helper.
 const getActiveStorage = () => getActiveStorageConfig('ALL');
 
+const getDecryptedActiveStorage = async () => {
+  const raw = await getActiveStorage();
+  if (!raw) return null;
+  return {
+    raw,
+    config: buildDecryptedStorageConfig(raw),
+  };
+};
+
 export const getPresignedUrl = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { filename, mimetype, size } = req.body;
   if (!filename || !mimetype) {
@@ -834,19 +873,22 @@ export const getPresignedUrl = async (req: AuthRequest, res: Response, next: Nex
   }
 
   try {
-    const raw = await getActiveStorage();
-    if (!raw) {
+    const active = await getDecryptedActiveStorage();
+    if (!active) {
       return res.json({ isDirect: false });
     }
+    const { raw, config } = active;
 
-    const limitBytes = raw.limitGb * 1000 * 1000 * 1000;
+    const limitBytes = gbToBytes(raw.limitGb);
     if (size && raw.usedBytes + size > limitBytes) {
       return res.status(400).json({ error: '云端存储容量已满，无法上传' });
     }
 
-    const config = buildDecryptedStorageConfig(raw);
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const sanitized = filename.replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_').replace(/\s+/g, '_');
+    const sanitized = filename
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
+      .replace(/\s+/g, '_');
     const key = `messages/${uniqueSuffix}/${sanitized}`;
 
     const uploadUrl = await storageService.getPresignedUploadUrl(config, key, mimetype);
@@ -865,26 +907,33 @@ export const getPresignedUrl = async (req: AuthRequest, res: Response, next: Nex
   }
 };
 
-export const initiateMultipartUpload = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const initiateMultipartUpload = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const { filename, mimetype, size } = req.body;
   if (!filename || !mimetype) {
     return res.status(400).json({ error: 'filename and mimetype are required' });
   }
 
   try {
-    const raw = await getActiveStorage();
-    if (!raw) {
+    const active = await getDecryptedActiveStorage();
+    if (!active) {
       return res.json({ isDirect: false });
     }
+    const { raw, config } = active;
 
-    const limitBytes = raw.limitGb * 1000 * 1000 * 1000;
+    const limitBytes = gbToBytes(raw.limitGb);
     if (size && raw.usedBytes + size > limitBytes) {
       return res.status(400).json({ error: '云端存储容量已满，无法上传' });
     }
 
-    const config = buildDecryptedStorageConfig(raw);
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const sanitized = filename.replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_').replace(/\s+/g, '_');
+    const sanitized = filename
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
+      .replace(/\s+/g, '_');
     const key = `messages/${uniqueSuffix}/${sanitized}`;
 
     const uploadId = await storageService.initiateMultipartUpload(config, key, mimetype);
@@ -899,19 +948,23 @@ export const initiateMultipartUpload = async (req: AuthRequest, res: Response, n
   }
 };
 
-export const getPresignedUploadPartUrls = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getPresignedUploadPartUrls = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const { key, uploadId, partNumbers } = req.body;
   if (!key || !uploadId || !Array.isArray(partNumbers)) {
     return res.status(400).json({ error: 'key, uploadId, and partNumbers are required' });
   }
 
   try {
-    const raw = await getActiveStorage();
-    if (!raw) {
+    const active = await getDecryptedActiveStorage();
+    if (!active) {
       return res.status(400).json({ error: 'Storage configuration not active' });
     }
+    const { config } = active;
 
-    const config = buildDecryptedStorageConfig(raw);
     const urls: Record<number, string> = {};
     for (const partNum of partNumbers) {
       const url = await storageService.getPresignedUploadPartUrl(config, key, uploadId, partNum);
@@ -924,19 +977,23 @@ export const getPresignedUploadPartUrls = async (req: AuthRequest, res: Response
   }
 };
 
-export const completeMultipartUpload = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const completeMultipartUpload = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const { key, uploadId, parts } = req.body;
   if (!key || !uploadId || !Array.isArray(parts)) {
     return res.status(400).json({ error: 'key, uploadId, and parts are required' });
   }
 
   try {
-    const raw = await getActiveStorage();
-    if (!raw) {
+    const active = await getDecryptedActiveStorage();
+    if (!active) {
       return res.status(400).json({ error: 'Storage configuration not active' });
     }
+    const { config } = active;
 
-    const config = buildDecryptedStorageConfig(raw);
     const finalUrl = await storageService.completeMultipartUpload(config, key, uploadId, parts);
     const isImage = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(key);
 
@@ -957,12 +1014,12 @@ export const abortMultipartUpload = async (req: AuthRequest, res: Response, next
   }
 
   try {
-    const raw = await getActiveStorage();
-    if (!raw) {
+    const active = await getDecryptedActiveStorage();
+    if (!active) {
       return res.status(400).json({ error: 'Storage configuration not active' });
     }
+    const { config } = active;
 
-    const config = buildDecryptedStorageConfig(raw);
     await storageService.abortMultipartUpload(config, key, uploadId);
     res.json({ success: true });
   } catch (error) {

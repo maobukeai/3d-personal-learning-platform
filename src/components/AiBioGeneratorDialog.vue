@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { Sparkles, Wand2, X, Check, AlertCircle, Plus } from 'lucide-vue-next';
+import { Sparkles, Wand2, X, Check, Plus } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
-import Modal from '@/components/ui/Modal.vue';
+import AiGeneratorBase from '@/components/aiSprite/AiGeneratorBase.vue';
 import Button from '@/components/ui/Button.vue';
 import { logError } from '@/utils/error';
 import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
@@ -201,17 +201,18 @@ const handleSave = () => {
 </script>
 
 <template>
-  <Modal
+  <AiGeneratorBase
     :show="show"
     :title="title"
-    size="lg"
-    glass-card
-    class="ai-bio-generator-modal"
+    subtitle="根据您的定位和专长，智能生成一段生动抓人的个人简介"
+    :is-generating="isGenerating"
+    generating-text="AI 正在为您起草简介，请稍候..."
+    :error-msg="errorMsg"
     @close="emit('close')"
   >
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-1">
       <!-- Input Panel -->
-      <div class="flex flex-col gap-4">
+      <div class="flex flex-col gap-4 text-left">
         <!-- Role Selection -->
         <div class="flex flex-col gap-2">
           <label class="text-xs font-bold text-[var(--text-secondary)]">职业 / 角色定位</label>
@@ -329,7 +330,7 @@ const handleSave = () => {
           <textarea
             v-model="additionalRequirements"
             rows="2"
-            placeholder="例如：突出自己对三维交互和WebGL开发的热爱，或者目前正在寻找远程合作机会..."
+            placeholder="例如：突出自己对三维交互 and WebGL 开发的热爱，或者目前正在寻找远程合作机会..."
             class="w-full bg-[var(--bg-app)] border border-[var(--border-base)] text-[var(--text-primary)] rounded-lg p-2.5 text-xs outline-none focus:border-accent resize-none placeholder-[var(--text-muted)]"
           ></textarea>
         </div>
@@ -382,29 +383,6 @@ const handleSave = () => {
             </p>
           </div>
         </div>
-
-        <!-- Loading overlay spinner -->
-        <div
-          v-if="isGenerating && !generatedBio"
-          class="absolute inset-0 bg-slate-950/75 flex flex-col items-center justify-center gap-4 text-center"
-        >
-          <div
-            class="w-10 h-10 rounded-full border-4 border-indigo-600/20 border-t-indigo-500 animate-spin"
-          ></div>
-          <div class="space-y-1">
-            <p class="text-sm font-bold text-slate-200">AI 正在构思精美简介...</p>
-            <p class="text-xs text-slate-500">请稍候数秒</p>
-          </div>
-        </div>
-
-        <!-- Error state -->
-        <div
-          v-if="errorMsg"
-          class="absolute bottom-4 left-4 right-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs px-3 py-2.5 rounded-lg flex items-start gap-2 animate-in slide-in-from-bottom-2 duration-300"
-        >
-          <AlertCircle class="w-4 h-4 shrink-0 mt-0.5" />
-          <span>{{ errorMsg }}</span>
-        </div>
       </div>
     </div>
 
@@ -421,7 +399,7 @@ const handleSave = () => {
         使用该简介
       </Button>
     </template>
-  </Modal>
+  </AiGeneratorBase>
 </template>
 
 <style scoped>

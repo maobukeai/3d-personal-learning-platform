@@ -13,6 +13,7 @@ import archiver from 'archiver';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { gbToBytes } from '../../utils/quota';
 import { clampLimit, clampPage } from '../../utils/pagination';
 import unzipper from 'unzipper';
 import { storageService } from '../../services/storage.service';
@@ -1523,7 +1524,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
         // Upload to Cloudflare R2
         const key = `mirror/icon/${iconFilename}`;
         const fileBytes = fs.statSync(tempIconPath).size;
-        const limitBytes = activeConfig.limitGb * 1000 * 1000 * 1000;
+        const limitBytes = gbToBytes(activeConfig.limitGb);
 
         // Try to reserve space
         const updateResult = await prisma.storageConfig.updateMany({
@@ -1638,7 +1639,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
         );
       }
 
-      const limitBytes = activeConfig.limitGb * 1000 * 1000 * 1000;
+      const limitBytes = gbToBytes(activeConfig.limitGb);
       if (actualBytes + totalSize > limitBytes) {
         logger.warn(
           `[ImportMirror] Cloud storage space insufficient based on actual R2 occupancy (actual: ${actualBytes} bytes, need ${totalSize} bytes, limit: ${limitBytes} bytes). Falling back to local storage.`,

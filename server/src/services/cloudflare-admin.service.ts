@@ -1,5 +1,6 @@
 import { encrypt, ENCRYPTED_VALUE_RE, decryptSecretIfNeeded } from '../utils/crypto';
 import prisma from './prisma';
+import { AppError } from '../utils/error';
 
 // Re-export for convenience — the canonical definitions live in utils/crypto.
 export { ENCRYPTED_VALUE_RE };
@@ -140,7 +141,7 @@ class CloudflareAdminService {
   private async requireToken(): Promise<string> {
     const config = await this.getConfig();
     if (!config.apiToken) {
-      throw new Error('请先在 Cloudflare 域名管理页面配置 API Token');
+      throw new AppError('请先在 Cloudflare 域名管理页面配置 API Token', 400, 'CLOUDFLARE_CONFIG_MISSING');
     }
     return config.apiToken;
   }
@@ -148,7 +149,7 @@ class CloudflareAdminService {
   async listZones(): Promise<CloudflareZoneSummary[]> {
     const config = await this.getConfig();
     if (!config.apiToken) {
-      throw new Error('请先在 Cloudflare 域名管理页面配置 API Token');
+      throw new AppError('请先在 Cloudflare 域名管理页面配置 API Token', 400, 'CLOUDFLARE_CONFIG_MISSING');
     }
     const apiToken = config.apiToken;
     const zones: CloudflareZoneSummary[] = [];

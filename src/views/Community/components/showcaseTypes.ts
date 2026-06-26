@@ -28,6 +28,27 @@ export interface ShowcaseUser {
   bio?: string | null;
 }
 
+export interface LinkedMaterial {
+  id: string;
+  title: string;
+  previewUrl?: string | null;
+  category: string;
+  resolution?: string | null;
+  fileSize?: number | null;
+  downloads: number;
+}
+
+export interface LinkedPlugin {
+  id: string;
+  title: string;
+  previewUrl?: string | null;
+  category: string;
+  version: string;
+  compatibility: string;
+  fileSize?: number | null;
+  downloads: number;
+}
+
 export interface ShowcaseItem {
   id: string;
   title: string;
@@ -46,6 +67,9 @@ export interface ShowcaseItem {
   tags?: string | null;
   asset?: Asset | null;
   assetId?: string | null;
+  linkedAssets?: Asset[] | null;
+  linkedMaterials?: LinkedMaterial[] | null;
+  linkedPlugins?: LinkedPlugin[] | null;
   status?: ShowcaseStatus;
 }
 

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { Bell, Loader2 } from 'lucide-vue-next';
@@ -124,7 +124,7 @@ const handleMarkAsRead = async (notification: AppNotification) => {
     if (resolved.name) {
       router.push(notification.link);
     } else {
-      console.warn('Notification link points to unknown route:', notification.link);
+      logError('Notification link points to unknown route:', notification.link);
     }
   }
 };
@@ -202,7 +202,7 @@ defineExpose({
         </p>
         <!-- eslint-disable vue/no-v-html -->
         <div
-          class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-2.5"
+          class="notification-content text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-2.5"
           v-html="renderMarkdown(n.content)"
         ></div>
         <!-- eslint-enable vue/no-v-html -->
@@ -267,6 +267,14 @@ defineExpose({
 
 .topbar-icon-btn:hover {
   background-color: var(--bg-subtle);
+}
+
+.notification-content {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Glassmorphism theme integration */

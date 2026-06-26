@@ -15,15 +15,9 @@ export const languageOptions: Array<{ label: string; value: LocalePreference }> 
   { label: 'English', value: 'en-US' },
 ];
 
-export const getBeijingHour = (): number => {
-  const utc = new Date().getTime() + new Date().getTimezoneOffset() * 60000;
-  const beijingTime = new Date(utc + 3600000 * 8);
-  return beijingTime.getHours();
-};
-
 export const getEffectiveTheme = (theme: ThemePreference): 'glass-light' | 'glass-dark' => {
   if (theme === 'glass-auto') {
-    const hour = getBeijingHour();
+    const hour = new Date().getHours();
     return hour >= 6 && hour < 18 ? 'glass-light' : 'glass-dark';
   }
   return theme;

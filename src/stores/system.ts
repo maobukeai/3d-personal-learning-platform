@@ -41,44 +41,45 @@ export interface PublicAIModelOption {
   priority?: number;
 }
 
+// ── Default category lists (single source of truth) ──────────────────────────
+const DEFAULT_MATERIAL_CATEGORIES = ['全部材料', '金属', '木纹', '石材', '织物', '程序化', '玻璃', '其他'];
+const DEFAULT_TEAM_CATEGORIES = ['建模', '渲染', '动画', '材质', '游戏引擎'];
+const DEFAULT_SHOWCASE_CATEGORIES = ['角色', '场景', '硬表面', '动效', '渲染', '其他'];
+const DEFAULT_PLUGIN_CATEGORIES = ['建模', '材质与纹理', '渲染与灯光', '动画与骨骼', '导入与导出', '物理与特效', '其他工具'];
+const DEFAULT_ALLOWED_FILE_TYPES = ['.glb', '.gltf', '.fbx', '.obj', '.stl', '.zip'];
+
+const DEFAULT_SETTINGS: SystemSettings = {
+  PLATFORM_NAME: '3D Personal Learning Hub',
+  PLATFORM_SUBTITLE: '一起学 Blender，创造无限可能',
+  BROWSER_TITLE: '3D Personal Learning Hub',
+  PLATFORM_LOGO_URL: '',
+  PLATFORM_FAVICON_URL: '',
+  PLATFORM_DESCRIPTION: '',
+  ALLOW_REGISTRATION: true,
+  MAINTENANCE_MODE: false,
+  MATERIAL_CATEGORIES: DEFAULT_MATERIAL_CATEGORIES,
+  TEAM_CATEGORIES: DEFAULT_TEAM_CATEGORIES,
+  SHOWCASE_CATEGORIES: DEFAULT_SHOWCASE_CATEGORIES,
+  PLUGIN_CATEGORIES: DEFAULT_PLUGIN_CATEGORIES,
+  PASSWORD_MIN_LENGTH: '6',
+  SESSION_TIMEOUT: '7d',
+  AUTO_APPROVE_MATERIALS: false,
+  AUTO_APPROVE_SHOWCASES: false,
+  MAX_UPLOAD_SIZE_MB: '100',
+  ALLOWED_FILE_TYPES: DEFAULT_ALLOWED_FILE_TYPES,
+  DEFAULT_USER_ROLE: 'USER',
+  FOOTER_TEXT: '',
+  OAUTH_GOOGLE_ENABLED: false,
+  OAUTH_GITHUB_ENABLED: false,
+  AI_IMPORT_ENABLED: false,
+  AI_MODEL_OPTIONS: [],
+};
+
 let pendingSettingsFetch: Promise<void> | null = null;
 
 export const useSystemStore = defineStore('system', {
   state: () => ({
-    settings: {
-      PLATFORM_NAME: '3D Personal Learning Hub',
-      PLATFORM_SUBTITLE: '一起学 Blender，创造无限可能',
-      BROWSER_TITLE: '3D Personal Learning Hub',
-      PLATFORM_LOGO_URL: '',
-      PLATFORM_FAVICON_URL: '',
-      PLATFORM_DESCRIPTION: '',
-      ALLOW_REGISTRATION: true,
-      MAINTENANCE_MODE: false,
-      MATERIAL_CATEGORIES: ['全部材料', '金属', '木纹', '石材', '织物', '程序化', '玻璃', '其他'],
-      TEAM_CATEGORIES: ['建模', '渲染', '动画', '材质', '游戏引擎'],
-      SHOWCASE_CATEGORIES: ['角色', '场景', '硬表面', '动效', '渲染', '其他'],
-      PLUGIN_CATEGORIES: [
-        '建模',
-        '材质与纹理',
-        '渲染与灯光',
-        '动画与骨骼',
-        '导入与导出',
-        '物理与特效',
-        '其他工具',
-      ],
-      PASSWORD_MIN_LENGTH: '6',
-      SESSION_TIMEOUT: '7d',
-      AUTO_APPROVE_MATERIALS: false,
-      AUTO_APPROVE_SHOWCASES: false,
-      MAX_UPLOAD_SIZE_MB: '100',
-      ALLOWED_FILE_TYPES: ['.glb', '.gltf', '.fbx', '.obj', '.stl', '.zip'],
-      DEFAULT_USER_ROLE: 'USER',
-      FOOTER_TEXT: '',
-      OAUTH_GOOGLE_ENABLED: false,
-      OAUTH_GITHUB_ENABLED: false,
-      AI_IMPORT_ENABLED: false,
-      AI_MODEL_OPTIONS: [],
-    } as SystemSettings,
+    settings: { ...DEFAULT_SETTINGS } as SystemSettings,
     isInitialized: false,
   }),
   actions: {
@@ -138,7 +139,6 @@ export const useSystemStore = defineStore('system', {
 
           const toBool = (val: unknown): boolean => val === true || val === 'true';
 
-          // Helper for safe JSON parsing
           const safeParseArray = (val: unknown, fallback: string[]) => {
             if (Array.isArray(val)) return val;
             if (typeof val !== 'string') return fallback;
@@ -149,17 +149,17 @@ export const useSystemStore = defineStore('system', {
               return fallback;
             }
           };
+
+          const tryParseJson = (val: string): unknown => {
+            try {
+              return JSON.parse(val);
+            } catch {
+              return [];
+            }
+          };
+
           const safeParseModels = (val: unknown): PublicAIModelOption[] => {
-            const raw =
-              typeof val === 'string'
-                ? (() => {
-                    try {
-                      return JSON.parse(val);
-                    } catch {
-                      return [];
-                    }
-                  })()
-                : val;
+            const raw = typeof val === 'string' ? tryParseJson(val) : val;
             if (!Array.isArray(raw)) return [];
             return raw
               .map((item): PublicAIModelOption | null => {
@@ -187,64 +187,27 @@ export const useSystemStore = defineStore('system', {
           };
 
           this.settings = {
-            PLATFORM_NAME: data.PLATFORM_NAME || '3D Personal Learning Hub',
-            PLATFORM_SUBTITLE: data.PLATFORM_SUBTITLE || '一起学 Blender，创造无限可能',
+            PLATFORM_NAME: data.PLATFORM_NAME || DEFAULT_SETTINGS.PLATFORM_NAME,
+            PLATFORM_SUBTITLE: data.PLATFORM_SUBTITLE || DEFAULT_SETTINGS.PLATFORM_SUBTITLE,
             BROWSER_TITLE:
-              data.BROWSER_TITLE && data.BROWSER_TITLE !== '3D Personal Learning Hub'
+              data.BROWSER_TITLE && data.BROWSER_TITLE !== DEFAULT_SETTINGS.PLATFORM_NAME
                 ? data.BROWSER_TITLE
-                : data.PLATFORM_NAME || '3D Personal Learning Hub',
+                : data.PLATFORM_NAME || DEFAULT_SETTINGS.PLATFORM_NAME,
             PLATFORM_LOGO_URL: data.PLATFORM_LOGO_URL || '',
             PLATFORM_FAVICON_URL: data.PLATFORM_FAVICON_URL || '',
             PLATFORM_DESCRIPTION: data.PLATFORM_DESCRIPTION || '',
             ALLOW_REGISTRATION: toBool(data.ALLOW_REGISTRATION),
             MAINTENANCE_MODE: toBool(data.MAINTENANCE_MODE),
-            MATERIAL_CATEGORIES: safeParseArray(data.MATERIAL_CATEGORIES, [
-              '全部材料',
-              '金属',
-              '木纹',
-              '石材',
-              '织物',
-              '程序化',
-              '玻璃',
-              '其他',
-            ]),
-            TEAM_CATEGORIES: safeParseArray(data.TEAM_CATEGORIES, [
-              '建模',
-              '渲染',
-              '动画',
-              '材质',
-              '游戏引擎',
-            ]),
-            SHOWCASE_CATEGORIES: safeParseArray(data.SHOWCASE_CATEGORIES, [
-              '角色',
-              '场景',
-              '硬表面',
-              '动效',
-              '渲染',
-              '其他',
-            ]),
-            PLUGIN_CATEGORIES: safeParseArray(data.PLUGIN_CATEGORIES, [
-              '建模',
-              '材质与纹理',
-              '渲染与灯光',
-              '动画与骨骼',
-              '导入与导出',
-              '物理与特效',
-              '其他工具',
-            ]),
+            MATERIAL_CATEGORIES: safeParseArray(data.MATERIAL_CATEGORIES, DEFAULT_MATERIAL_CATEGORIES),
+            TEAM_CATEGORIES: safeParseArray(data.TEAM_CATEGORIES, DEFAULT_TEAM_CATEGORIES),
+            SHOWCASE_CATEGORIES: safeParseArray(data.SHOWCASE_CATEGORIES, DEFAULT_SHOWCASE_CATEGORIES),
+            PLUGIN_CATEGORIES: safeParseArray(data.PLUGIN_CATEGORIES, DEFAULT_PLUGIN_CATEGORIES),
             PASSWORD_MIN_LENGTH: String(data.PASSWORD_MIN_LENGTH || '6'),
             SESSION_TIMEOUT: data.SESSION_TIMEOUT || '7d',
             AUTO_APPROVE_MATERIALS: toBool(data.AUTO_APPROVE_MATERIALS),
             AUTO_APPROVE_SHOWCASES: toBool(data.AUTO_APPROVE_SHOWCASES),
             MAX_UPLOAD_SIZE_MB: String(data.MAX_UPLOAD_SIZE_MB || '100'),
-            ALLOWED_FILE_TYPES: safeParseArray(data.ALLOWED_FILE_TYPES, [
-              '.glb',
-              '.gltf',
-              '.fbx',
-              '.obj',
-              '.stl',
-              '.zip',
-            ]),
+            ALLOWED_FILE_TYPES: safeParseArray(data.ALLOWED_FILE_TYPES, DEFAULT_ALLOWED_FILE_TYPES),
             DEFAULT_USER_ROLE: data.DEFAULT_USER_ROLE || 'USER',
             FOOTER_TEXT: data.FOOTER_TEXT || '',
             OAUTH_GOOGLE_ENABLED: toBool(data.OAUTH_GOOGLE_ENABLED),

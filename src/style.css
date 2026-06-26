@@ -6,4 +6,5 @@
 @import './styles/mobile-density.css';
 @import './styles/mobile-compact.css';
 @import './styles/form.css';
+@import './styles/settings-shared.css';
 @import './styles/element-plus-override.css';

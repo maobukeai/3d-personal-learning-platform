@@ -46,9 +46,10 @@ export class WebDAVClient {
         throw new Error(`连接失败，HTTP 状态码: ${response.status}`);
       }
       return true;
-    } catch (err: any) {
-      logger.error('[WebDAV] Connection check failed:', err.message);
-      throw new Error(err.message || 'WebDAV 服务连接失败，请检查服务地址和网络');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error('[WebDAV] Connection check failed:', msg);
+      throw new Error(msg || 'WebDAV 服务连接失败，请检查服务地址和网络');
     }
   }
 
@@ -93,9 +94,10 @@ export class WebDAVClient {
           }
         }
       }
-    } catch (err: any) {
-      logger.error(`[WebDAV] ensureDirExists failed: ${err.message}`);
-      throw new Error(`远端目录初始化失败: ${err.message}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error(`[WebDAV] ensureDirExists failed: ${msg}`);
+      throw new Error(`远端目录初始化失败: ${msg}`);
     }
   }
 
@@ -116,9 +118,10 @@ export class WebDAVClient {
       if (response.status < 200 || response.status >= 300) {
         throw new Error(`HTTP 状态码: ${response.status}`);
       }
-    } catch (err: any) {
-      logger.error(`[WebDAV] Upload failed for ${filename}: ${err.message}`);
-      throw new Error(`上传文件到 WebDAV 失败: ${err.message}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error(`[WebDAV] Upload failed for ${filename}: ${msg}`);
+      throw new Error(`上传文件到 WebDAV 失败: ${msg}`);
     }
   }
 
@@ -137,9 +140,10 @@ export class WebDAVClient {
         throw new Error('文件在远端服务器上不存在');
       }
       return Buffer.from(response.data);
-    } catch (err: any) {
-      logger.error(`[WebDAV] Download failed for ${filename}: ${err.message}`);
-      throw new Error(`从 WebDAV 下载文件失败: ${err.message}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error(`[WebDAV] Download failed for ${filename}: ${msg}`);
+      throw new Error(`从 WebDAV 下载文件失败: ${msg}`);
     }
   }
 
@@ -159,9 +163,10 @@ export class WebDAVClient {
       if (response.status < 200 || response.status >= 300) {
         throw new Error(`HTTP 状态码: ${response.status}`);
       }
-    } catch (err: any) {
-      logger.error(`[WebDAV] Delete failed for ${filename}: ${err.message}`);
-      throw new Error(`从 WebDAV 删除文件失败: ${err.message}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error(`[WebDAV] Delete failed for ${filename}: ${msg}`);
+      throw new Error(`从 WebDAV 删除文件失败: ${msg}`);
     }
   }
 
@@ -222,9 +227,10 @@ export class WebDAVClient {
       });
 
       return files;
-    } catch (err: any) {
-      logger.error(`[WebDAV] List files failed: ${err.message}`);
-      throw new Error(`获取远端备份列表失败: ${err.message}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error(`[WebDAV] List files failed: ${msg}`);
+      throw new Error(`获取远端备份列表失败: ${msg}`);
     }
   }
 }

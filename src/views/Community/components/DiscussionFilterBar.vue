@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { Component } from 'vue';
+import { computed, type Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { CheckCircle2 } from 'lucide-vue-next';
 import type { DiscussionFilter } from '../DiscussionsView.vue';
 import { formatCompactNumber as formatNumber } from '@/utils/format';
+import Tabs from '@/components/ui/Tabs.vue';
 
 interface FilterOption {
   value: DiscussionFilter;
@@ -18,7 +19,7 @@ interface SortOption {
   icon: Component;
 }
 
-defineProps<{
+const props = defineProps<{
   filters: FilterOption[];
   activeFilter: DiscussionFilter;
   sortOptions: SortOption[];
@@ -26,15 +27,23 @@ defineProps<{
   selectedSortLabel: string;
   selectedTag: string;
   hasActiveFilters: boolean;
+  viewMode: 'grid' | 'list';
+  viewModeOptions: Array<{ value: 'grid' | 'list'; icon: any }>;
 }>();
 
 const emit = defineEmits<{
   (e: 'update:activeFilter', value: DiscussionFilter): void;
   (e: 'update:sortBy', value: string): void;
+  (e: 'update:viewMode', value: 'grid' | 'list'): void;
   (e: 'clear'): void;
 }>();
 
 const { t } = useI18n();
+
+const localViewMode = computed({
+  get: () => props.viewMode,
+  set: (value) => emit('update:viewMode', value as 'grid' | 'list'),
+});
 </script>
 
 <template>
@@ -53,18 +62,21 @@ const { t } = useI18n();
       </button>
     </div>
 
-    <div class="sort-strip">
-      <span>{{ selectedSortLabel }}</span>
-      <button
-        v-for="option in sortOptions"
-        :key="option.value"
-        type="button"
-        :class="{ 'is-active': sortBy === option.value }"
-        :title="option.label"
-        @click="emit('update:sortBy', option.value)"
-      >
-        <component :is="option.icon" class="h-3.5 w-3.5" />
-      </button>
+    <div class="flex items-center gap-2 shrink-0">
+      <div class="sort-strip">
+        <span>{{ selectedSortLabel }}</span>
+        <button
+          v-for="option in sortOptions"
+          :key="option.value"
+          type="button"
+          :class="{ 'is-active': sortBy === option.value }"
+          :title="option.label"
+          @click="emit('update:sortBy', option.value)"
+        >
+          <component :is="option.icon" class="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <Tabs v-model="localViewMode" :options="viewModeOptions" size="sm" />
     </div>
   </div>
 

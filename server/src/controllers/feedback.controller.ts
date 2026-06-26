@@ -3,6 +3,7 @@ import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../utils/error';
 import { createNotificationBatch } from '../utils/notification';
+import { getUploadedFileUrl } from '../utils/file';
 
 const FEEDBACK_TYPES = ['Bug', 'Feature', 'UI', 'Other'] as const;
 const FEEDBACK_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'] as const;
@@ -72,9 +73,7 @@ export const uploadAttachment = async (req: AuthRequest, res: Response, next: Ne
     if (!req.file) {
       return next(new AppError('No file uploaded', 400));
     }
-    const attachmentUrl =
-      (req.file as any).url ||
-      `${req.protocol}://${req.get('host')}/uploads/feedback/${req.file.filename}`;
+    const attachmentUrl = getUploadedFileUrl(req, req.file, 'feedback');
     res.json({ url: attachmentUrl });
   } catch (error) {
     next(error);

@@ -28,11 +28,9 @@ export const generateRefreshToken = async (userId: string) => {
 };
 
 export const generateRecoveryCodes = () => {
-  const codes = [];
-  for (let i = 0; i < 8; i++) {
-    codes.push(crypto.randomBytes(4).toString('hex').toUpperCase()); // 8 chars code
-  }
-  return codes;
+  return Array.from({ length: 8 }, () =>
+    crypto.randomBytes(4).toString('hex').toUpperCase(),
+  );
 };
 
 export const hashRecoveryCodes = async (codes: string[]) => {
@@ -74,7 +72,7 @@ export const verifyRecoveryCode = async (
   return { valid: false, remainingCodes: storedCodes };
 };
 
-export const sanitizeUser = (user: any) => {
+export const sanitizeUser = (user: Record<string, unknown> | null) => {
   if (!user) return null;
   const {
     password: _password,

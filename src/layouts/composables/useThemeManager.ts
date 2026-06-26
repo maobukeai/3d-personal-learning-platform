@@ -8,6 +8,11 @@ import {
 
 export function useThemeManager() {
   const currentTheme = ref<ThemePreference>(preferences.getTheme());
+  const isDark = ref(false);
+
+  const updateIsDark = () => {
+    isDark.value = document.documentElement.classList.contains('dark');
+  };
 
   let autoThemeInterval: number | null = null;
   let autoAccentInterval: number | null = null;
@@ -15,8 +20,10 @@ export function useThemeManager() {
   const startAutoThemeInterval = () => {
     stopAutoThemeInterval();
     applyThemeToDocument('glass-auto');
+    updateIsDark();
     autoThemeInterval = window.setInterval(() => {
       applyThemeToDocument('glass-auto');
+      updateIsDark();
     }, 60000);
   };
 
@@ -80,6 +87,7 @@ export function useThemeManager() {
     } else {
       stopAutoThemeInterval();
       applyThemeToDocument(theme);
+      updateIsDark();
     }
   };
 
@@ -144,6 +152,7 @@ export function useThemeManager() {
 
   return {
     currentTheme,
+    isDark,
     applyTheme,
     applyAccentColor,
     initTheme,

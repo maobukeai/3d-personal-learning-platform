@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
@@ -27,6 +28,7 @@ const accounts = ref<TwoFactorAccount[]>([]);
 const liveCodes = ref<Record<string, LiveTotp>>({});
 const isLoading = ref<boolean>(false);
 const searchQuery = ref<string>('');
+const { t } = useI18n();
 
 // Modal visibility & form states
 const isFormDialogVisible = ref<boolean>(false);
@@ -95,7 +97,7 @@ const copiedStates = ref<Record<string, boolean>>({});
 const qrCodeAccount = ref<TwoFactorAccount | null>(null);
 
 // Timer for dynamic code refresh
-let totpTimer: NodeJS.Timeout | null = null;
+let totpTimer: ReturnType<typeof setInterval> | null = null;
 
 // Load saved 2FA accounts
 async function fetchAccounts() {
@@ -105,7 +107,7 @@ async function fetchAccounts() {
     accounts.value = res.data || [];
     await updateAllCodes();
   } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, '加载2FA账号列表失败'));
+    ElMessage.error(getApiErrorMessage(e, t('twoFactor.fetchFailed')));
   } finally {
     isLoading.value = false;
   }
@@ -157,21 +159,21 @@ function openAddDialog() {
 async function deleteAccount(acc: TwoFactorAccount) {
   try {
     await ElMessageBox.confirm(
-      `确定要删除 2FA 记录 “${acc.label}” 吗？此操作不可撤销！`,
-      '删除确认',
+      t('twoFactor.deleteConfirm', { label: acc.label }),
+      t('twoFactor.deleteConfirmTitle'),
       {
-        confirmButtonText: '确认删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('twoFactor.confirmDelete'),
+        cancelButtonText: t('twoFactor.cancel'),
         type: 'warning',
       },
     );
 
     await api.delete(`/api/two-factor/accounts/${acc.id}`);
-    ElMessage.success('删除成功');
+    ElMessage.success(t('twoFactor.deleteSuccess'));
     await fetchAccounts();
   } catch (e) {
     if (e !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(e, '删除2FA记录失败'));
+      ElMessage.error(getApiErrorMessage(e, t('twoFactor.deleteFailed')));
     }
   }
 }
@@ -213,7 +215,7 @@ async function copyToClipboard(text: string, id: string, successMessage: string)
     ElMessage.success(successMessage);
     triggerCopyFeedback(id);
   } catch {
-    ElMessage.error('复制失败，请手动选择复制');
+    ElMessage.error(t('twoFactor.copyFailed'));
   }
 }
 
@@ -221,7 +223,7 @@ async function copyToClipboard(text: string, id: string, successMessage: string)
 function copyCode(id: string) {
   const code = liveCodes.value[id]?.code;
   if (code && code !== '------') {
-    copyToClipboard(code, id, '验证码已复制到剪贴板');
+    copyToClipboard(code, id, t('twoFactor.copiedSuccess'));
   }
 }
 

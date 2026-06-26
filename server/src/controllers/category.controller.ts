@@ -1,16 +1,27 @@
 import { Request, Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { auditService } from '../services/audit.service';
 import { AppError } from '../utils/error';
+import { redisService } from '../services/redis.service';
 
-// In-memory categories cache
-let categoriesCache: any[] | null = null;
+const CATEGORIES_CACHE_KEY = 'categories:all';
+const CATEGORIES_CACHE_TTL = 300; // 5 minutes
+
+type CategoryWithCount = Prisma.CategoryGetPayload<{
+  include: { _count: { select: { assets: true } } };
+}>;
+
+const invalidateCategoriesCache = async () => {
+  await redisService.del(CATEGORIES_CACHE_KEY);
+};
 
 export const getAllCategories = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (categoriesCache) {
-      return res.json(categoriesCache);
+    const cached = await redisService.get<CategoryWithCount[]>(CATEGORIES_CACHE_KEY);
+    if (cached) {
+      return res.json(cached);
     }
 
     const categories = await prisma.category.findMany({
@@ -22,7 +33,7 @@ export const getAllCategories = async (req: Request, res: Response, next: NextFu
       },
     });
 
-    categoriesCache = categories;
+    await redisService.set(CATEGORIES_CACHE_KEY, categories, CATEGORIES_CACHE_TTL);
     res.json(categories);
   } catch (error) {
     next(error);
@@ -44,8 +55,7 @@ export const adminCreateCategory = async (req: AuthRequest, res: Response, next:
       },
     });
 
-    // Invalidate categories cache
-    categoriesCache = null;
+    await invalidateCategoriesCache();
 
     await auditService.log({
       userId: req.userId as string,
@@ -84,8 +94,7 @@ export const adminUpdateCategory = async (req: AuthRequest, res: Response, next:
       },
     });
 
-    // Invalidate categories cache
-    categoriesCache = null;
+    await invalidateCategoriesCache();
 
     await auditService.log({
       userId: req.userId as string,
@@ -120,8 +129,7 @@ export const adminDeleteCategory = async (req: AuthRequest, res: Response, next:
 
     await prisma.category.delete({ where: { id } });
 
-    // Invalidate categories cache
-    categoriesCache = null;
+    await invalidateCategoriesCache();
 
     await auditService.log({
       userId: req.userId as string,

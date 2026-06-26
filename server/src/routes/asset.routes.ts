@@ -5,6 +5,8 @@ import { upload, validateFileContent } from '../middlewares/upload.middleware';
 
 const router = Router();
 
+router.get('/share/:shareId', assetController.getPublicSharedAsset);
+
 router.use(authenticate);
 
 import * as categoryController from '../controllers/category.controller';
@@ -14,6 +16,7 @@ router.post(
   '/upload',
   upload.fields([
     { name: 'asset', maxCount: 1 },
+    { name: 'package', maxCount: 1 },
     { name: 'thumbnail', maxCount: 1 },
   ]),
   validateFileContent,
@@ -26,8 +29,18 @@ router.get('/tags', assetController.getAssetTags);
 router.post('/:id/download', assetController.recordAssetDownload);
 router.post('/:id/like', assetController.toggleAssetLike);
 router.get('/:id/toolkit', assetController.getAssetToolkit);
+router.get('/:id/package-files', assetController.getAssetPackageFiles);
 router.get('/:id', assetController.getAssetById);
-router.patch('/:id', assetController.updateAsset);
+router.patch(
+  '/:id',
+  upload.fields([
+    { name: 'asset', maxCount: 1 },
+    { name: 'package', maxCount: 1 },
+    { name: 'thumbnail', maxCount: 1 },
+  ]),
+  validateFileContent,
+  assetController.updateAsset,
+);
 router.patch('/:id/metadata', assetController.updateAssetMetadata);
 router.patch('/:id/thumbnail', assetController.updateAssetThumbnail);
 router.delete('/:id', assetController.deleteAsset);
@@ -35,7 +48,10 @@ router.delete('/:id', assetController.deleteAsset);
 // Versions and 3D Annotations
 router.post(
   '/:id/versions',
-  upload.fields([{ name: 'asset', maxCount: 1 }]),
+  upload.fields([
+    { name: 'asset', maxCount: 1 },
+    { name: 'package', maxCount: 1 },
+  ]),
   validateFileContent,
   assetController.uploadAssetVersion,
 );
@@ -43,5 +59,15 @@ router.get('/:id/versions', assetController.getAssetVersions);
 router.post('/:id/annotations', assetController.createAssetAnnotation);
 router.get('/:id/annotations', assetController.getAssetAnnotations);
 router.delete('/:id/annotations/:annotationId', assetController.deleteAssetAnnotation);
+
+// Asset sharing configuration
+router.get('/:id/share', assetController.getAssetShare);
+router.post('/:id/share', assetController.createOrUpdateAssetShare);
+router.delete('/:id/share', assetController.cancelAssetShare);
+
+// Comments endpoints
+router.get('/:id/comments', assetController.getAssetComments);
+router.post('/:id/comments', assetController.createAssetComment);
+router.delete('/comments/:commentId', assetController.deleteAssetComment);
 
 export default router;

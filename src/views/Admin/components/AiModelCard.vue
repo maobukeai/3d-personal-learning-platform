@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { GripVertical, RefreshCw } from 'lucide-vue-next';
+import { computed, ref, reactive } from 'vue';
+import { GripVertical, RefreshCw, Eye, EyeOff } from 'lucide-vue-next';
 import { useAiSettingsMeta } from './AiSettingsTab.meta';
 import type { AiModelConfig, ProviderMeta } from './AiSettingsTab.types';
 
@@ -86,6 +86,9 @@ const handleModelNameBlur = (e: Event) => {
   update({ modelName: (e.target as HTMLTextAreaElement).value });
   emit('model-name-blur');
 };
+
+const showApiKey = ref(false);
+const showBackupKeys = reactive<Record<number, boolean>>({});
 </script>
 
 <template>
@@ -314,20 +317,32 @@ const handleModelNameBlur = (e: Event) => {
               >+{{ (props.model.apiKeys || []).filter(Boolean).length }} 个备用密钥</span
             >
           </div>
-          <input
-            :value="props.model.apiKey"
-            type="password"
-            draggable="false"
-            class="w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none transition-colors"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-            placeholder="主 API Key（必填）"
-            @dragstart.stop
-            @change="(e: Event) => update({ apiKey: (e.target as HTMLInputElement).value })"
-          />
+          <div class="relative flex items-center">
+            <input
+              :value="props.model.apiKey"
+              :type="showApiKey ? 'text' : 'password'"
+              draggable="false"
+              class="w-full pl-3 pr-9 py-2 rounded-lg border text-xs font-mono outline-none transition-colors"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+              placeholder="主 API Key（必填）"
+              @dragstart.stop
+              @change="(e: Event) => update({ apiKey: (e.target as HTMLInputElement).value })"
+            />
+            <button
+              type="button"
+              class="absolute right-2.5 text-slate-400 hover:text-slate-200 transition-colors flex items-center justify-center p-1"
+              style="background: transparent; border: none; cursor: pointer;"
+              :title="showApiKey ? '隐藏密钥' : '显示密钥'"
+              @click="showApiKey = !showApiKey"
+            >
+              <Eye v-if="showApiKey" class="w-3.5 h-3.5" />
+              <EyeOff v-else class="w-3.5 h-3.5" />
+            </button>
+          </div>
 
           <!-- Backup Keys -->
           <div class="mt-2 space-y-1.5">
@@ -352,20 +367,32 @@ const handleModelNameBlur = (e: Event) => {
               :key="keyIdx"
               class="flex items-center gap-2"
             >
-              <input
-                :value="(props.model.apiKeys || [])[keyIdx]"
-                type="password"
-                draggable="false"
-                class="flex-1 px-3 py-1.5 rounded-lg border text-xs font-mono outline-none transition-colors"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-                :placeholder="`备用密钥 ${keyIdx + 1}`"
-                @dragstart.stop
-                @input="(e: Event) => updateBackupKey(keyIdx, (e.target as HTMLInputElement).value)"
-              />
+              <div class="relative flex-1 flex items-center">
+                <input
+                  :value="(props.model.apiKeys || [])[keyIdx]"
+                  :type="showBackupKeys[keyIdx] ? 'text' : 'password'"
+                  draggable="false"
+                  class="w-full pl-3 pr-9 py-1.5 rounded-lg border text-xs font-mono outline-none transition-colors"
+                  style="
+                    background-color: var(--bg-app);
+                    border-color: var(--border-base);
+                    color: var(--text-primary);
+                  "
+                  :placeholder="`备用密钥 ${keyIdx + 1}`"
+                  @dragstart.stop
+                  @input="(e: Event) => updateBackupKey(keyIdx, (e.target as HTMLInputElement).value)"
+                />
+                <button
+                  type="button"
+                  class="absolute right-2.5 text-slate-400 hover:text-slate-200 transition-colors flex items-center justify-center p-1"
+                  style="background: transparent; border: none; cursor: pointer;"
+                  :title="showBackupKeys[keyIdx] ? '隐藏密钥' : '显示密钥'"
+                  @click="showBackupKeys[keyIdx] = !showBackupKeys[keyIdx]"
+                >
+                  <Eye v-if="showBackupKeys[keyIdx]" class="w-3.5 h-3.5" />
+                  <EyeOff v-else class="w-3.5 h-3.5" />
+                </button>
+              </div>
               <button
                 type="button"
                 class="w-6 h-6 rounded flex items-center justify-center text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors flex-shrink-0"

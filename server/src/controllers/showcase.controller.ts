@@ -4,12 +4,12 @@ import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { createNotification } from '../utils/notification';
-import { deleteCloudOrLocalFileByUrl } from '../utils/file';
+import { deleteCloudOrLocalFileByUrl, getUploadedFileUrl } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../utils/error';
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
 import { parseTags } from '../utils/tags';
-import { UploadedFile } from '../types/upload';
+
 
 type ShowcaseSortKey = 'popular' | 'newest' | 'trending' | 'viewed' | 'discussed' | 'featured';
 type ShowcaseScope = 'all' | 'my' | 'liked';
@@ -33,6 +33,44 @@ type ShowcaseListItem = Prisma.ShowcaseGetPayload<{
     createdAt: true;
     user: { select: { id: true; name: true; email: true; avatarUrl: true; bio: true } };
     asset: { select: { id: true; title: true; url: true; type: true; thumbnail: true } };
+    linkedAssets: {
+      select: {
+        id: true;
+        title: true;
+        url: true;
+        type: true;
+        thumbnail: true;
+        vertices: true;
+        faces: true;
+        size: true;
+        downloads: true;
+        likes: true;
+        isFree: true;
+      };
+    };
+    linkedMaterials: {
+      select: {
+        id: true;
+        title: true;
+        previewUrl: true;
+        category: true;
+        resolution: true;
+        fileSize: true;
+        downloads: true;
+      };
+    };
+    linkedPlugins: {
+      select: {
+        id: true;
+        title: true;
+        previewUrl: true;
+        category: true;
+        version: true;
+        compatibility: true;
+        fileSize: true;
+        downloads: true;
+      };
+    };
     _count: { select: { likes: true; comments: true } };
     likes: { select: { userId: true } };
   };
@@ -127,6 +165,9 @@ const formatShowcaseListItem = (showcase: ShowcaseListItem, userId: string) => (
   status: showcase.status,
   assetId: showcase.assetId,
   asset: showcase.asset,
+  linkedAssets: showcase.linkedAssets || [],
+  linkedMaterials: showcase.linkedMaterials || [],
+  linkedPlugins: showcase.linkedPlugins || [],
   createdAt: showcase.createdAt,
   user: showcase.user,
   isLiked: showcase.likes?.some((like: { userId: string }) => like.userId === userId) ?? false,
@@ -213,6 +254,44 @@ export const getAllShowcases = async (req: AuthRequest, res: Response, next: Nex
           },
           asset: {
             select: { id: true, title: true, url: true, type: true, thumbnail: true },
+          },
+          linkedAssets: {
+            select: {
+              id: true,
+              title: true,
+              url: true,
+              type: true,
+              thumbnail: true,
+              vertices: true,
+              faces: true,
+              size: true,
+              downloads: true,
+              likes: true,
+              isFree: true,
+            },
+          },
+          linkedMaterials: {
+            select: {
+              id: true,
+              title: true,
+              previewUrl: true,
+              category: true,
+              resolution: true,
+              fileSize: true,
+              downloads: true,
+            },
+          },
+          linkedPlugins: {
+            select: {
+              id: true,
+              title: true,
+              previewUrl: true,
+              category: true,
+              version: true,
+              compatibility: true,
+              fileSize: true,
+              downloads: true,
+            },
           },
           _count: {
             select: { likes: true, comments: true },
@@ -436,6 +515,44 @@ export const getShowcaseById = async (req: AuthRequest, res: Response, next: Nex
         asset: {
           select: { id: true, title: true, url: true, type: true, thumbnail: true },
         },
+        linkedAssets: {
+          select: {
+            id: true,
+            title: true,
+            url: true,
+            type: true,
+            thumbnail: true,
+            vertices: true,
+            faces: true,
+            size: true,
+            downloads: true,
+            likes: true,
+            isFree: true,
+          },
+        },
+        linkedMaterials: {
+          select: {
+            id: true,
+            title: true,
+            previewUrl: true,
+            category: true,
+            resolution: true,
+            fileSize: true,
+            downloads: true,
+          },
+        },
+        linkedPlugins: {
+          select: {
+            id: true,
+            title: true,
+            previewUrl: true,
+            category: true,
+            version: true,
+            compatibility: true,
+            fileSize: true,
+            downloads: true,
+          },
+        },
         _count: {
           select: { likes: true, comments: true },
         },
@@ -523,6 +640,44 @@ export const getRelatedShowcases = async (req: AuthRequest, res: Response, next:
         asset: {
           select: { id: true, title: true, url: true, type: true, thumbnail: true },
         },
+        linkedAssets: {
+          select: {
+            id: true,
+            title: true,
+            url: true,
+            type: true,
+            thumbnail: true,
+            vertices: true,
+            faces: true,
+            size: true,
+            downloads: true,
+            likes: true,
+            isFree: true,
+          },
+        },
+        linkedMaterials: {
+          select: {
+            id: true,
+            title: true,
+            previewUrl: true,
+            category: true,
+            resolution: true,
+            fileSize: true,
+            downloads: true,
+          },
+        },
+        linkedPlugins: {
+          select: {
+            id: true,
+            title: true,
+            previewUrl: true,
+            category: true,
+            version: true,
+            compatibility: true,
+            fileSize: true,
+            downloads: true,
+          },
+        },
         _count: {
           select: { likes: true, comments: true },
         },
@@ -578,14 +733,84 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
     const thumbnailFile = files?.thumbnail?.[0];
     const imageFiles = files?.images || [];
 
-    const { title, description, tags, videoUrl, isVideo, type, assetId } = req.body;
+    const {
+      title,
+      description,
+      tags,
+      videoUrl,
+      isVideo,
+      type,
+      assetId,
+      linkedAssetIds,
+      linkedMaterialIds,
+      linkedPluginIds,
+    } = req.body;
 
     if (!title || !title.trim()) {
       return next(new AppError('标题不能为空', 400));
     }
 
+    let assetIdsArr: string[] = [];
+    if (linkedAssetIds) {
+      try {
+        const parsed = JSON.parse(linkedAssetIds);
+        if (Array.isArray(parsed)) {
+          assetIdsArr = parsed.map(String).filter(Boolean);
+        }
+      } catch {
+        if (typeof linkedAssetIds === 'string') {
+          assetIdsArr = linkedAssetIds
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+      }
+    }
+
+    let materialIdsArr: string[] = [];
+    if (linkedMaterialIds) {
+      try {
+        const parsed = JSON.parse(linkedMaterialIds);
+        if (Array.isArray(parsed)) {
+          materialIdsArr = parsed.map(String).filter(Boolean);
+        }
+      } catch {
+        if (typeof linkedMaterialIds === 'string') {
+          materialIdsArr = linkedMaterialIds
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+      }
+    }
+
+    let pluginIdsArr: string[] = [];
+    if (linkedPluginIds) {
+      try {
+        const parsed = JSON.parse(linkedPluginIds);
+        if (Array.isArray(parsed)) {
+          pluginIdsArr = parsed.map(String).filter(Boolean);
+        }
+      } catch {
+        if (typeof linkedPluginIds === 'string') {
+          pluginIdsArr = linkedPluginIds
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+      }
+    }
+
+    let finalAssetId = assetId || null;
+    if (!finalAssetId && assetIdsArr.length > 0) {
+      finalAssetId = assetIdsArr[0];
+    }
+    if (finalAssetId && !assetIdsArr.includes(finalAssetId)) {
+      assetIdsArr.unshift(finalAssetId);
+    }
+
     let showcaseType = type || 'IMAGE';
-    if (assetId && !type) {
+    if (finalAssetId && !type) {
       showcaseType = 'MODEL';
     }
     if (isVideo === 'true' && !type) {
@@ -594,12 +819,10 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
 
     let thumbnailUrl = '';
     if (thumbnailFile) {
-      thumbnailUrl =
-        (thumbnailFile as UploadedFile).url ||
-        `${req.protocol}://${req.get('host')}/uploads/showcase/${thumbnailFile.filename}`;
-    } else if (assetId) {
+      thumbnailUrl = getUploadedFileUrl(req, thumbnailFile, 'showcase');
+    } else if (finalAssetId) {
       const asset = await prisma.asset.findUnique({
-        where: { id: assetId as string },
+        where: { id: finalAssetId as string },
       });
       if (asset?.thumbnail) {
         thumbnailUrl = asset.thumbnail;
@@ -610,11 +833,7 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
       return next(new AppError('Thumbnail is required', 400));
     }
 
-    const imageUrls = imageFiles.map(
-      (f) =>
-        (f as UploadedFile).url ||
-        `${req.protocol}://${req.get('host')}/uploads/showcase/${f.filename}`,
-    );
+    const imageUrls = imageFiles.map((f) => getUploadedFileUrl(req, f, 'showcase'));
 
     const showcase = await prisma.showcase.create({
       data: {
@@ -626,10 +845,28 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
         images: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null,
         videoUrl: videoUrl || null,
         isVideo: isVideo === 'true',
-        assetId: assetId || null,
+        assetId: finalAssetId,
         userId: req.userId as string,
         teamId: req.workspaceId,
         status: req.user?.role === 'ADMIN' ? APPROVED_STATUS : PENDING_STATUS,
+        linkedAssets:
+          assetIdsArr.length > 0
+            ? {
+                connect: assetIdsArr.map((id) => ({ id })),
+              }
+            : undefined,
+        linkedMaterials:
+          materialIdsArr.length > 0
+            ? {
+                connect: materialIdsArr.map((id) => ({ id })),
+              }
+            : undefined,
+        linkedPlugins:
+          pluginIdsArr.length > 0
+            ? {
+                connect: pluginIdsArr.map((id) => ({ id })),
+              }
+            : undefined,
       },
       include: {
         user: {
@@ -637,6 +874,44 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
         },
         asset: {
           select: { id: true, title: true, url: true, type: true, thumbnail: true },
+        },
+        linkedAssets: {
+          select: {
+            id: true,
+            title: true,
+            url: true,
+            type: true,
+            thumbnail: true,
+            vertices: true,
+            faces: true,
+            size: true,
+            downloads: true,
+            likes: true,
+            isFree: true,
+          },
+        },
+        linkedMaterials: {
+          select: {
+            id: true,
+            title: true,
+            previewUrl: true,
+            category: true,
+            resolution: true,
+            fileSize: true,
+            downloads: true,
+          },
+        },
+        linkedPlugins: {
+          select: {
+            id: true,
+            title: true,
+            previewUrl: true,
+            category: true,
+            version: true,
+            compatibility: true,
+            fileSize: true,
+            downloads: true,
+          },
         },
       },
     });
@@ -745,7 +1020,17 @@ export const updateShowcase = async (req: AuthRequest, res: Response, next: Next
       return next(new AppError('Forbidden', 403));
     }
 
-    const { title, description, tags, videoUrl, isVideo, type } = req.body;
+    const {
+      title,
+      description,
+      tags,
+      videoUrl,
+      isVideo,
+      type,
+      linkedAssetIds,
+      linkedMaterialIds,
+      linkedPluginIds,
+    } = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const thumbnailFile = files?.thumbnail?.[0];
     const imageFiles = files?.images || [];
@@ -778,18 +1063,83 @@ export const updateShowcase = async (req: AuthRequest, res: Response, next: Next
           logger.error('[ShowcaseController] Failed to delete old thumbnail in background:', err);
         });
       }
-      updateData.thumbnailUrl =
-        (thumbnailFile as UploadedFile).url ||
-        `${req.protocol}://${req.get('host')}/uploads/showcase/${thumbnailFile.filename}`;
+      updateData.thumbnailUrl = getUploadedFileUrl(req, thumbnailFile, 'showcase');
     }
     if (imageFiles.length > 0) {
-      const imageUrls = imageFiles.map(
-        (f) =>
-          (f as UploadedFile).url ||
-          `${req.protocol}://${req.get('host')}/uploads/showcase/${f.filename}`,
-      );
+      const imageUrls = imageFiles.map((f) => getUploadedFileUrl(req, f, 'showcase'));
       const existingImages = parseImages(showcase.images);
       updateData.images = JSON.stringify([...existingImages, ...imageUrls]);
+    }
+
+    if (linkedAssetIds !== undefined) {
+      let assetIdsArr: string[] = [];
+      if (linkedAssetIds) {
+        try {
+          const parsed = JSON.parse(linkedAssetIds);
+          if (Array.isArray(parsed)) {
+            assetIdsArr = parsed.map(String).filter(Boolean);
+          }
+        } catch {
+          if (typeof linkedAssetIds === 'string') {
+            assetIdsArr = linkedAssetIds
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean);
+          }
+        }
+      }
+      updateData.linkedAssets = {
+        set: assetIdsArr.map((id) => ({ id })),
+      };
+      if (assetIdsArr.length > 0) {
+        updateData.asset = { connect: { id: assetIdsArr[0] } };
+      } else {
+        updateData.asset = { disconnect: true };
+      }
+    }
+
+    if (linkedMaterialIds !== undefined) {
+      let materialIdsArr: string[] = [];
+      if (linkedMaterialIds) {
+        try {
+          const parsed = JSON.parse(linkedMaterialIds);
+          if (Array.isArray(parsed)) {
+            materialIdsArr = parsed.map(String).filter(Boolean);
+          }
+        } catch {
+          if (typeof linkedMaterialIds === 'string') {
+            materialIdsArr = linkedMaterialIds
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean);
+          }
+        }
+      }
+      updateData.linkedMaterials = {
+        set: materialIdsArr.map((id) => ({ id })),
+      };
+    }
+
+    if (linkedPluginIds !== undefined) {
+      let pluginIdsArr: string[] = [];
+      if (linkedPluginIds) {
+        try {
+          const parsed = JSON.parse(linkedPluginIds);
+          if (Array.isArray(parsed)) {
+            pluginIdsArr = parsed.map(String).filter(Boolean);
+          }
+        } catch {
+          if (typeof linkedPluginIds === 'string') {
+            pluginIdsArr = linkedPluginIds
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean);
+          }
+        }
+      }
+      updateData.linkedPlugins = {
+        set: pluginIdsArr.map((id) => ({ id })),
+      };
     }
 
     const updated = await prisma.showcase.update({
@@ -801,6 +1151,44 @@ export const updateShowcase = async (req: AuthRequest, res: Response, next: Next
         },
         asset: {
           select: { id: true, title: true, url: true, type: true, thumbnail: true },
+        },
+        linkedAssets: {
+          select: {
+            id: true,
+            title: true,
+            url: true,
+            type: true,
+            thumbnail: true,
+            vertices: true,
+            faces: true,
+            size: true,
+            downloads: true,
+            likes: true,
+            isFree: true,
+          },
+        },
+        linkedMaterials: {
+          select: {
+            id: true,
+            title: true,
+            previewUrl: true,
+            category: true,
+            resolution: true,
+            fileSize: true,
+            downloads: true,
+          },
+        },
+        linkedPlugins: {
+          select: {
+            id: true,
+            title: true,
+            previewUrl: true,
+            category: true,
+            version: true,
+            compatibility: true,
+            fileSize: true,
+            downloads: true,
+          },
         },
         _count: {
           select: { likes: true, comments: true },

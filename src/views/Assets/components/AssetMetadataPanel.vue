@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Download, Eye, Gauge, MessageSquare, Plus, Smartphone, Star } from 'lucide-vue-next';
 import type { AssetDetail, PerformanceReport } from './types';
 import type { Component } from 'vue';
@@ -7,7 +8,7 @@ type ReviewStatus = { label: string; tone: 'success' | 'warning' | 'danger' };
 type InfoRow = { label: string; value: string };
 type ModelRow = { label: string; value: string; icon: Component };
 
-defineProps<{
+const props = defineProps<{
   asset: AssetDetail | null;
   displayFormat: string;
   assetSize: string;
@@ -28,6 +29,34 @@ defineProps<{
 const emit = defineEmits<{
   viewPerformance: [];
 }>();
+
+const originalityText = computed(() => {
+  const orig = props.asset?.originality;
+  if (orig === 'ORIGINAL') return '原创';
+  if (orig === 'AUTHORIZED') return '授权发布';
+  if (orig === 'REMIX') return '二次创作';
+  return '原创';
+});
+
+const meshTypeText = computed(() => {
+  const t = props.asset?.meshType;
+  if (t === 'LOW_POLY') return '低模 (Low Poly)';
+  if (t === 'HIGH_POLY') return '高模 (High Poly)';
+  if (t === 'CAD') return '工程模型 (CAD)';
+  return '未指定';
+});
+
+const pbrChannelsList = computed<string[]>(() => {
+  const chs = props.asset?.pbrChannels;
+  if (!chs) return [];
+  if (Array.isArray(chs)) return chs;
+  try {
+    const parsed = JSON.parse(chs);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+});
 </script>
 
 <template>
@@ -39,6 +68,8 @@ const emit = defineEmits<{
     </p>
     <div>
       <strong>{{ reviewStatus.label }}</strong>
+      <strong class="uppercase">{{ originalityText }}</strong>
+      <strong v-if="asset?.license" class="uppercase">{{ asset.license.replace('_', ' ') }}</strong>
       <strong>{{ parsedFormats.length || 1 }} 种格式</strong>
     </div>
   </section>
@@ -75,12 +106,69 @@ const emit = defineEmits<{
     </div>
   </section>
 
+  <section v-if="asset?.packageUrl" class="side-card">
+    <h2>资源包内容</h2>
+    <div class="file-grid">
+      <div>
+        <span>资源包大小</span>
+        <strong>{{ asset.packageSize ? `${asset.packageSize} MB` : '未知大小' }}</strong>
+      </div>
+      <div class="col-span-2 mt-2">
+        <span class="block text-xs text-[var(--text-secondary)] mb-1">包内所含文件格式：</span>
+        <div class="flex flex-wrap gap-1.5 mt-1">
+          <span
+            v-for="fmt in parsedFormats"
+            :key="fmt"
+            class="px-2 py-0.5 rounded text-xs bg-teal-500/10 text-teal-400 border border-teal-500/20 font-medium uppercase"
+          >
+            {{ fmt }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="side-card">
     <h2>模型信息</h2>
     <div class="model-rows">
       <div v-for="item in modelInfoRows" :key="item.label">
         <span><component :is="item.icon" class="h-4 w-4" />{{ item.label }}</span>
         <strong>{{ item.value }}</strong>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3D Specifications & Optimizations -->
+  <section class="side-card specs-card">
+    <h2>3D 技术参数与优化</h2>
+    <div class="specs-grid">
+      <div class="spec-item">
+        <span>多边形类型</span>
+        <strong>{{ meshTypeText }}</strong>
+      </div>
+      <div class="spec-item">
+        <span>UV 展开状况</span>
+        <strong>{{ asset?.uvUnwrapped ? '已展开' : '未展开' }}{{ asset?.uvOverlapping ? ' (重叠)' : ' (无重叠)' }}</strong>
+      </div>
+      <div class="spec-item">
+        <span>骨骼动画绑定</span>
+        <strong>{{ asset?.rigged ? '已绑定骨骼' : '无骨骼绑定' }}</strong>
+      </div>
+      <div class="spec-item">
+        <span>游戏引擎就绪</span>
+        <strong>{{ asset?.gameReady ? 'Game Ready' : '未就绪' }}</strong>
+      </div>
+      <div class="spec-item col-span-2" v-if="pbrChannelsList.length > 0">
+        <span>PBR 材质通道</span>
+        <div class="flex flex-wrap gap-1 mt-1.5">
+          <span
+            v-for="ch in pbrChannelsList"
+            :key="ch"
+            class="px-2 py-0.5 rounded text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium"
+          >
+            {{ ch }}
+          </span>
+        </div>
       </div>
     </div>
   </section>
@@ -343,5 +431,44 @@ const emit = defineEmits<{
   justify-content: center;
   padding: 0;
   cursor: pointer;
+}
+
+.specs-card {
+  display: grid;
+  gap: 12px;
+}
+
+.specs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.spec-item {
+  min-height: 58px;
+  border-radius: 8px;
+  background: #f8faff;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.spec-item.col-span-2 {
+  grid-column: span 2 / span 2;
+}
+
+.spec-item span {
+  color: #65718b;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.spec-item strong {
+  display: block;
+  margin-top: 4px;
+  color: #17213a;
+  font-size: 12px;
+  font-weight: bold;
 }
 </style>

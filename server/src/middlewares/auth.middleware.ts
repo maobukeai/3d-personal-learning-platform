@@ -73,13 +73,19 @@ const getTokenFromRequest = (req: Request) => {
   return null;
 };
 
+const getUserPlanPriority = async (userId: string): Promise<number> => {
+  const subscription = await prisma.subscription.findFirst({
+    where: { userId, status: 'ACTIVE' },
+    include: { plan: true },
+  });
+  return subscription?.plan?.priority ?? 0;
+};
+
 const resolveWorkspaceId = async (user: SafeUser, requestedWorkspaceId?: string) => {
   // Check workspace resolution cache for non-virtual workspaces
   if (
     requestedWorkspaceId &&
-    !requestedWorkspaceId.startsWith('admin-') &&
-    !requestedWorkspaceId.startsWith('mirror-') &&
-    !requestedWorkspaceId.startsWith('manual-')
+    !requestedWorkspaceId.startsWith('admin-')
   ) {
     const cacheKey = `workspace_resolve:${user.id}:${requestedWorkspaceId}`;
     const cached = await redisService.get<string>(cacheKey);
@@ -147,15 +153,13 @@ const resolveWorkspaceId = async (user: SafeUser, requestedWorkspaceId?: string)
       throw new AppError('无权访问该资源空间', 403, 'WORKSPACE_FORBIDDEN');
     }
     if (source.minPlanPriority > 0) {
-      const subscription = await prisma.subscription.findFirst({
-        where: { userId: user.id, status: 'ACTIVE' },
-        include: { plan: true },
-      });
-      const userPlanPriority = subscription?.plan?.priority ?? 0;
+      const userPlanPriority = await getUserPlanPriority(user.id);
       if (userPlanPriority < source.minPlanPriority) {
         throw new AppError('权限不足，请升级订阅以访问该资源空间', 403, 'WORKSPACE_FORBIDDEN');
       }
     }
+    const cacheKey = `workspace_resolve:${user.id}:${requestedWorkspaceId}`;
+    await redisService.set(cacheKey, requestedWorkspaceId, WORKSPACE_CACHE_TTL_SECONDS);
     return requestedWorkspaceId;
   }
 
@@ -169,15 +173,13 @@ const resolveWorkspaceId = async (user: SafeUser, requestedWorkspaceId?: string)
       throw new AppError('无权访问该资源空间', 403, 'WORKSPACE_FORBIDDEN');
     }
     if (station.minPlanPriority > 0) {
-      const subscription = await prisma.subscription.findFirst({
-        where: { userId: user.id, status: 'ACTIVE' },
-        include: { plan: true },
-      });
-      const userPlanPriority = subscription?.plan?.priority ?? 0;
+      const userPlanPriority = await getUserPlanPriority(user.id);
       if (userPlanPriority < station.minPlanPriority) {
         throw new AppError('权限不足，请升级订阅以访问该资源空间', 403, 'WORKSPACE_FORBIDDEN');
       }
     }
+    const cacheKey = `workspace_resolve:${user.id}:${requestedWorkspaceId}`;
+    await redisService.set(cacheKey, requestedWorkspaceId, WORKSPACE_CACHE_TTL_SECONDS);
     return requestedWorkspaceId;
   }
 
@@ -236,7 +238,15 @@ const attachAuthenticatedUser = async (req: AuthRequest, userId: string) => {
 
   req.userId = user.id;
   req.user = user;
-  req.workspaceId = await resolveWorkspaceId(user, req.headers['x-workspace-id'] as string);
+  try {
+    req.workspaceId = await resolveWorkspaceId(user, req.headers['x-workspace-id'] as string);
+  } catch (error) {
+    if (error instanceof AppError && error.statusCode === 403) {
+      req.workspaceId = await resolveWorkspaceId(user, undefined);
+    } else {
+      throw error;
+    }
+  }
 };
 
 export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {

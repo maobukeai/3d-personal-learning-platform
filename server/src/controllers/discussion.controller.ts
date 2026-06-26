@@ -8,6 +8,7 @@ import { AppError } from '../utils/error';
 import { clampLimit, clampPage } from '../utils/pagination';
 import { sanitizeHtml } from '../utils/sanitize';
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
+import { getUploadedFileUrl } from '../utils/file';
 
 const userSelect = { id: true, name: true, avatarUrl: true } satisfies Prisma.UserSelect;
 
@@ -383,11 +384,7 @@ export const createDiscussion = async (req: AuthRequest, res: Response, next: Ne
   try {
     let imageUrls: string[] = [];
     if (files && files.length > 0) {
-      imageUrls = files.map(
-        (file) =>
-          (file as any).url ||
-          `${req.protocol}://${req.get('host')}/uploads/discussions/${file.filename}`,
-      );
+      imageUrls = files.map((file) => getUploadedFileUrl(req, file, 'discussions'));
     }
 
     const discussion = await prisma.discussion.create({

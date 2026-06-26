@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { Save } from 'lucide-vue-next';
+import { ref } from 'vue';
+import { Save, Eye, EyeOff } from 'lucide-vue-next';
 import Modal from '@/components/ui/Modal.vue';
+
+const showSecret = ref(false);
 import type {
   AiBotEntitlement,
   AiBotIntegrationForm,
@@ -98,12 +101,23 @@ const responseModeDescription = (mode?: string | null) =>
         </div>
         <div>
           <label class="field-label">签名密钥</label>
-          <input
-            v-model="form.secret"
-            type="password"
-            class="form-input"
-            :placeholder="isEditing ? '留空保持不变' : '可选'"
-          />
+          <div class="relative flex items-center">
+            <input
+              v-model="form.secret"
+              :type="showSecret ? 'text' : 'password'"
+              class="form-input w-full pl-3 pr-9 py-2"
+              :placeholder="isEditing ? '留空保持不变' : '可选'"
+            />
+            <button
+              type="button"
+              class="absolute right-2.5 text-slate-400 hover:text-slate-200 transition-colors flex items-center justify-center p-1"
+              style="background: transparent; border: none; cursor: pointer;"
+              @click="showSecret = !showSecret"
+            >
+              <Eye v-if="showSecret" class="w-4 h-4" />
+              <EyeOff v-else class="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 

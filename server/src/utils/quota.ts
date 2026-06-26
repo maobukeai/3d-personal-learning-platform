@@ -1,6 +1,8 @@
 import prisma from '../services/prisma';
 import { redisService } from '../services/redis.service';
 
+export const gbToBytes = (gb: number): number => gb * 1_000_000_000;
+
 const USER_PLAN_CACHE_TTL = 60; // seconds
 
 export interface QuotaStatus {

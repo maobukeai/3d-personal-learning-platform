@@ -1,9 +1,11 @@
 import prisma from '../services/prisma';
 import { emitToUser } from '../services/socket.service';
+import { NotificationPreference } from '@prisma/client';
 import { config } from '../config/env';
 import { sendEmail } from './email';
 import { logger } from './logger';
 import { settingsService } from '../services/settings.service';
+import { randomUUID } from 'crypto';
 
 type NotificationCategory =
   | 'SYSTEM'
@@ -32,12 +34,12 @@ const categoryToEmailPrefKey: Partial<Record<NotificationCategory, string>> = {
 };
 
 async function getUserPreference(userId: string, category: NotificationCategory): Promise<boolean> {
-  const prefKey = categoryToPrefKey[category];
+  const prefKey = categoryToPrefKey[category] as keyof NotificationPreference;
   const prefs = await prisma.notificationPreference.findUnique({
     where: { userId },
   });
   if (!prefs) return prefKey !== 'pushMarketing';
-  return (prefs as any)[prefKey] ?? prefKey !== 'pushMarketing';
+  return (prefs[prefKey] as boolean | undefined) ?? prefKey !== 'pushMarketing';
 }
 
 async function getUserEmailPreference(
@@ -51,7 +53,8 @@ async function getUserEmailPreference(
     where: { userId },
   });
   if (!prefs) return prefKey !== 'emailMarketing';
-  return (prefs as any)[prefKey] ?? prefKey !== 'emailMarketing';
+  const key = prefKey as keyof NotificationPreference;
+  return (prefs[key] as boolean | undefined) ?? prefKey !== 'emailMarketing';
 }
 
 function escapeHtml(value: string): string {
@@ -65,22 +68,37 @@ function escapeHtml(value: string): string {
 
 function renderMarkdown(text: string): string {
   if (!text) return '';
-  let html = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
   // 1. Block-level: Headings
   html = html
-    .replace(/^#### (.+)$/gm, '<h5 style="margin: 10px 0 5px; font-size: 1.0em; font-weight: bold; color: #334155;">$1</h5>')
-    .replace(/^### (.+)$/gm, '<h4 style="margin: 12px 0 6px; font-size: 1.1em; font-weight: bold; color: #1e293b;">$1</h4>')
-    .replace(/^## (.+)$/gm, '<h3 style="margin: 14px 0 8px; font-size: 1.25em; font-weight: bold; color: #0f172a;">$1</h3>')
-    .replace(/^# (.+)$/gm, '<h2 style="margin: 16px 0 10px; font-size: 1.4em; font-weight: bold; color: #020617;">$1</h2>');
+    .replace(
+      /^#### (.+)$/gm,
+      '<h5 style="margin: 10px 0 5px; font-size: 1.0em; font-weight: bold; color: #334155;">$1</h5>',
+    )
+    .replace(
+      /^### (.+)$/gm,
+      '<h4 style="margin: 12px 0 6px; font-size: 1.1em; font-weight: bold; color: #1e293b;">$1</h4>',
+    )
+    .replace(
+      /^## (.+)$/gm,
+      '<h3 style="margin: 14px 0 8px; font-size: 1.25em; font-weight: bold; color: #0f172a;">$1</h3>',
+    )
+    .replace(
+      /^# (.+)$/gm,
+      '<h2 style="margin: 16px 0 10px; font-size: 1.4em; font-weight: bold; color: #020617;">$1</h2>',
+    );
 
   // 2. Block-level: Lists
   html = html
-    .replace(/^\s*[-*]\s+\[\s*\]\s+(.+)$/gm, '<li style="margin: 4px 0; list-style-type: none;">☐ $1</li>')
-    .replace(/^\s*[-*]\s+\[x\]\s+(.+)$/gm, '<li style="margin: 4px 0; list-style-type: none;">☑ $1</li>')
+    .replace(
+      /^\s*[-*]\s+\[\s*\]\s+(.+)$/gm,
+      '<li style="margin: 4px 0; list-style-type: none;">☐ $1</li>',
+    )
+    .replace(
+      /^\s*[-*]\s+\[x\]\s+(.+)$/gm,
+      '<li style="margin: 4px 0; list-style-type: none;">☑ $1</li>',
+    )
     .replace(/^\s*[-*]\s+(.+)$/gm, '<li style="margin: 4px 0;">$1</li>')
     .replace(/^\s*\d+\.\s+(.+)$/gm, '<li style="margin: 4px 0;">$1</li>');
 
@@ -88,7 +106,10 @@ function renderMarkdown(text: string): string {
   html = html
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    .replace(/`([^`]+)`/g, '<code style="background: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; color: #e11d48;">$1</code>');
+    .replace(
+      /`([^`]+)`/g,
+      '<code style="background: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; color: #e11d48;">$1</code>',
+    );
 
   // 4. Line breaks and cleanups
   html = html
@@ -211,7 +232,10 @@ export async function createNotification(params: {
           link: params.link || undefined,
         });
       } catch (error) {
-        logger.error(`[Notification Email] Failed to send background email for category ${category}:`, error);
+        logger.error(
+          `[Notification Email] Failed to send background email for category ${category}:`,
+          error,
+        );
       }
     })();
   }
@@ -230,23 +254,41 @@ export async function createNotificationBatch(
     category: NotificationCategory;
   }>,
 ) {
-  const filtered: Array<(typeof paramsList)[0] & { enabled: boolean }> = [];
+  const userIds = Array.from(new Set(paramsList.map((p) => p.userId)));
+  const preferences = await prisma.notificationPreference.findMany({
+    where: { userId: { in: userIds } },
+  });
+  const prefsMap = new Map(preferences.map((p) => [p.userId, p]));
 
-  for (const params of paramsList) {
-    const enabled = await getUserPreference(params.userId, params.category);
-    if (enabled) {
-      filtered.push({ ...params, enabled: true });
-    }
-  }
+  const filtered = paramsList.filter((params) => {
+    const prefKey = categoryToPrefKey[params.category] as keyof NotificationPreference;
+    const prefs = prefsMap.get(params.userId);
+    if (!prefs) return prefKey !== 'pushMarketing';
+    return (prefs[prefKey] as boolean | undefined) ?? prefKey !== 'pushMarketing';
+  });
 
   if (filtered.length === 0) return [];
 
-  const data = filtered.map(({ category: _category, enabled: _enabled, ...rest }) => rest);
+  const data = filtered.map(({ category: _category, ...rest }) => ({
+    id: randomUUID(),
+    type: rest.type,
+    title: rest.title,
+    content: rest.content,
+    isRead: false,
+    userId: rest.userId,
+    link: rest.link || null,
+    broadcastId: rest.broadcastId || null,
+    createdAt: new Date(),
+  }));
+
   await prisma.notification.createMany({ data });
 
-  for (const item of filtered) {
-    const { category: _category, enabled: _enabled, ...notificationData } = item;
-    emitToUser(notificationData.userId, 'new_notification', notificationData);
+  for (let i = 0; i < filtered.length; i++) {
+    const item = filtered[i];
+    const notification = data[i];
+    if (!item || !notification) continue;
+
+    emitToUser(item.userId, 'new_notification', notification);
 
     if (item.category !== 'DIRECT_MESSAGE') {
       void (async () => {
@@ -260,11 +302,14 @@ export async function createNotificationBatch(
             link: item.link || undefined,
           });
         } catch (error) {
-          logger.error(`[Notification Email Batch] Failed to send background email for category ${item.category}:`, error);
+          logger.error(
+            `[Notification Email Batch] Failed to send background email for category ${item.category}:`,
+            error,
+          );
         }
       })();
     }
   }
 
-  return filtered;
+  return data;
 }

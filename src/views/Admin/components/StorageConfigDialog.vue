@@ -113,6 +113,7 @@ const emit = defineEmits<{
           <div>
             <Input
               v-model="form.secretAccessKey"
+              type="password"
               label="Secret Access Key"
               :placeholder="props.isEdit ? '留空则不修改已保存的密钥' : 'R2 机密存取密钥'"
               input-class="!py-2.5 font-mono text-xs"
@@ -122,6 +123,7 @@ const emit = defineEmits<{
           <div class="col-span-4">
             <Input
               v-model="form.cloudflareApiToken"
+              type="password"
               label="Cloudflare API Token（可选，推荐）"
               placeholder="此 Cloudflare 账号的 R2 只读 API Token"
               input-class="!py-2.5 font-mono text-xs"

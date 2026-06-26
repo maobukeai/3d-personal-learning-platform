@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { Eye, EyeOff } from 'lucide-vue-next';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
 import type { SingleAccountForm, EditAccountForm } from './email-types';
+
+const showPassword = ref(false);
 
 interface Props {
   show: boolean;
@@ -58,12 +61,23 @@ const form = computed({
         <label class="text-xs font-semibold text-slate-400">
           {{ $t('tools.email.email_pass_label') }}{{ isEdit ? ' (留空表示不修改)' : '' }}
         </label>
-        <input
-          v-model="form.password"
-          type="password"
-          :placeholder="isEdit ? '留空表示不修改密码' : '微软网页登录密码'"
-          class="text-xs px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all duration-200"
-        />
+        <div class="relative flex items-center">
+          <input
+            v-model="form.password"
+            :type="showPassword ? 'text' : 'password'"
+            :placeholder="isEdit ? '留空表示不修改密码' : '微软网页登录密码'"
+            class="w-full text-xs pl-3 pr-9 py-2 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all duration-200"
+          />
+          <button
+            type="button"
+            class="absolute right-3.5 text-slate-400 hover:text-slate-200 transition-colors flex items-center justify-center p-1"
+            style="background: transparent; border: none; cursor: pointer;"
+            @click="showPassword = !showPassword"
+          >
+            <Eye v-if="showPassword" class="w-4 h-4" />
+            <EyeOff v-else class="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       <!-- Client ID -->

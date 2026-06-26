@@ -67,7 +67,12 @@ export function usePagedList<T = unknown, R = unknown>(
     return paramsRef || {};
   };
 
+  let currentRequestId = 0;
+
   const fetchData = async (append = false) => {
+    currentRequestId++;
+    const requestId = currentRequestId;
+
     if (append) {
       loadingMore.value = true;
     } else {
@@ -87,6 +92,11 @@ export function usePagedList<T = unknown, R = unknown>(
 
       const currentEndpoint = getEndpoint();
       const response = await api.get(currentEndpoint, { params: requestParams });
+
+      if (requestId !== currentRequestId) {
+        return;
+      }
+
       const responseData = response.data;
 
       const items = listExtractor(responseData);
@@ -98,11 +108,16 @@ export function usePagedList<T = unknown, R = unknown>(
 
       if (onAfterFetch) onAfterFetch(responseData);
     } catch (err) {
+      if (requestId !== currentRequestId) {
+        return;
+      }
       error.value = err;
       if (onError) onError(err);
     } finally {
-      loading.value = false;
-      loadingMore.value = false;
+      if (requestId === currentRequestId) {
+        loading.value = false;
+        loadingMore.value = false;
+      }
     }
   };
 

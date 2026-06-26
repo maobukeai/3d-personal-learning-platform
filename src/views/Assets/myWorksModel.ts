@@ -26,6 +26,21 @@ export interface AssetWork {
   downloads?: number;
   viewCount?: number;
   createdAt: string;
+  
+  // Advanced fields
+  originality?: string | null;
+  originalAuthor?: string | null;
+  originalLink?: string | null;
+  license?: string | null;
+  isFree?: boolean;
+  meshType?: string | null;
+  uvUnwrapped?: boolean;
+  uvOverlapping?: boolean;
+  pbrChannels?: string[] | string | null;
+  rigged?: boolean;
+  gameReady?: boolean;
+  linkedCourseId?: string | null;
+  linkedLessonId?: string | null;
 }
 
 export interface MaterialWork {
@@ -44,6 +59,15 @@ export interface MaterialWork {
   rejectReason?: string | null;
   createdAt: string;
   _count?: { favorites?: number };
+
+  // Advanced fields
+  originality?: string | null;
+  originalAuthor?: string | null;
+  originalLink?: string | null;
+  license?: string | null;
+  isFree?: boolean;
+  linkedCourseId?: string | null;
+  linkedLessonId?: string | null;
 }
 
 export interface PluginWork {
@@ -62,6 +86,15 @@ export interface PluginWork {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectReason?: string | null;
   createdAt: string;
+
+  // Advanced fields
+  originality?: string | null;
+  originalAuthor?: string | null;
+  originalLink?: string | null;
+  license?: string | null;
+  isFree?: boolean;
+  linkedCourseId?: string | null;
+  linkedLessonId?: string | null;
 }
 
 export interface ShowcaseWork {

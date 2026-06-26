@@ -23,6 +23,12 @@ import { useAuthStore } from '@/stores/auth';
 import type { Task, TaskUpdatePayload, TaskActivity, Subtask as BaseSubtask } from '@/types/task';
 import Modal from '@/components/ui/Modal.vue';
 
+// Import split components & helpers
+import TaskSubtasks from './taskDetail/TaskSubtasks.vue';
+import TaskComments from './taskDetail/TaskComments.vue';
+import TaskActivities from './taskDetail/TaskActivities.vue';
+import { parseCommentContent, isImageUrl } from './taskDetail/helpers';
+
 interface Member {
   id: string;
   name: string;
@@ -63,17 +69,6 @@ interface SubtaskComment {
   createdAt: string;
 }
 
-interface TaskComment {
-  id: string;
-  content: string;
-  userId: string;
-  createdAt: string;
-  user: {
-    name?: string | null;
-    avatarUrl?: string | null;
-  };
-}
-
 interface Subtask extends BaseSubtask {
   description?: string;
   comments?: SubtaskComment[];
@@ -105,70 +100,7 @@ const drawerForm = ref({
 });
 
 const drawerSubtasks = ref<Subtask[]>([]);
-const newSubtaskText = ref('');
 const detailDrawerTagInput = ref('');
-
-const isImageUrl = (url: string): boolean => {
-  const clean = url.trim();
-  if (
-    !clean.startsWith('http://') &&
-    !clean.startsWith('https://') &&
-    !clean.startsWith('data:image/')
-  )
-    return false;
-  if (clean.startsWith('data:image/')) return true;
-
-  try {
-    const urlObj = new URL(clean);
-    const pathname = urlObj.pathname.toLowerCase();
-    const cleanUrl = clean.toLowerCase();
-
-    // Check extension in pathname
-    if (
-      pathname.endsWith('.png') ||
-      pathname.endsWith('.jpg') ||
-      pathname.endsWith('.jpeg') ||
-      pathname.endsWith('.gif') ||
-      pathname.endsWith('.webp') ||
-      pathname.endsWith('.svg') ||
-      pathname.endsWith('.bmp') ||
-      pathname.endsWith('.tiff') ||
-      pathname.endsWith('.ico')
-    ) {
-      return true;
-    }
-
-    // Check keywords anywhere in the URL (case-insensitive)
-    if (
-      cleanUrl.includes('/uploads/') ||
-      cleanUrl.includes('/image') ||
-      cleanUrl.includes('/img/') ||
-      cleanUrl.includes('/avatar') ||
-      cleanUrl.includes('/photo') ||
-      cleanUrl.includes('/pic/') ||
-      cleanUrl.includes('placeholder')
-    ) {
-      return true;
-    }
-
-    // Check query params for format
-    const format = urlObj.searchParams.get('format') || urlObj.searchParams.get('fmt');
-    if (format && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(format.toLowerCase())) {
-      return true;
-    }
-  } catch {
-    const lower = clean.toLowerCase();
-    return (
-      lower.endsWith('.png') ||
-      lower.endsWith('.jpg') ||
-      lower.endsWith('.jpeg') ||
-      lower.endsWith('.gif') ||
-      lower.endsWith('.webp')
-    );
-  }
-
-  return false;
-};
 
 const parseSubtasks = (subtasksStr: string | null | undefined): Subtask[] => {
   if (!subtasksStr) return [];
@@ -186,9 +118,7 @@ const parseSubtasks = (subtasksStr: string | null | undefined): Subtask[] => {
   }
 };
 
-// Initialize form from task prop — react to identity change (task switch)
-// rather than deep-watching every nested property, which would overwrite
-// in-progress edits whenever any subfield mutates.
+// Initialize form from task prop
 watch(
   () => props.task?.id,
   () => {
@@ -209,7 +139,6 @@ watch(
         timeSpentHours: newTask.timeSpent ? newTask.timeSpent / 60 : 0,
       };
       drawerSubtasks.value = parseSubtasks(newTask.subtasks);
-      newSubtaskText.value = '';
       detailDrawerTagInput.value = '';
     }
   },
@@ -260,28 +189,6 @@ const handleClose = () => {
   emit('close');
 };
 
-const addSubtask = () => {
-  const text = newSubtaskText.value.trim();
-  if (!text) return;
-  drawerSubtasks.value.push({
-    id: Math.random().toString(36).substring(2, 11),
-    text,
-    done: false,
-  });
-  newSubtaskText.value = '';
-  triggerSave();
-};
-
-const toggleSubtask = (subtask: Subtask) => {
-  subtask.done = !subtask.done;
-  triggerSave();
-};
-
-const removeSubtask = (index: number) => {
-  drawerSubtasks.value.splice(index, 1);
-  triggerSave();
-};
-
 const drawerAddTag = () => {
   const tag = detailDrawerTagInput.value.trim();
   if (tag && !drawerForm.value.tags.includes(tag)) {
@@ -296,136 +203,16 @@ const drawerRemoveTag = (tag: string) => {
   triggerSave();
 };
 
-// Comments logic
 const authStore = useAuthStore();
-const comments = ref<TaskComment[]>([]);
-const newCommentText = ref('');
-const isCommentsLoading = ref(false);
 
-const fetchComments = async () => {
-  if (!props.task?.id) return;
-  isCommentsLoading.value = true;
-  try {
-    const response = await api.get(`/api/tasks/${props.task.id}/comments`);
-    comments.value = response.data;
-  } catch {
-    ElMessage.error('获取评论失败');
-  } finally {
-    isCommentsLoading.value = false;
-  }
-};
+// Child components refs
+const subtasksRef = ref<InstanceType<typeof TaskSubtasks> | null>(null);
+const commentsRef = ref<InstanceType<typeof TaskComments> | null>(null);
+const activitiesRef = ref<InstanceType<typeof TaskActivities> | null>(null);
 
-const activities = ref<TaskActivity[]>([]);
-const isActivitiesLoading = ref(false);
-
-const fetchActivities = async () => {
-  if (!props.task?.id) return;
-  isActivitiesLoading.value = true;
-  try {
-    const response = await api.get(`/api/tasks/${props.task.id}/activities`);
-    activities.value = response.data;
-  } catch {
-    ElMessage.error('获取任务动态失败');
-  } finally {
-    isActivitiesLoading.value = false;
-  }
-};
-
-const tempUploadedImages = ref<string[]>([]);
-
-const handleAddComment = async () => {
-  const content = newCommentText.value.trim();
-  if (!content && tempUploadedImages.value.length === 0) return;
-  if (!props.task?.id) return;
-  try {
-    let finalContent = content;
-    if (tempUploadedImages.value.length > 0) {
-      finalContent += '\n' + tempUploadedImages.value.map((url) => `![图片](${url})`).join('\n');
-    }
-    const response = await api.post(`/api/tasks/${props.task.id}/comments`, {
-      content: finalContent,
-    });
-    comments.value.push(response.data);
-    newCommentText.value = '';
-    tempUploadedImages.value = [];
-    ElMessage.success('发表评论成功');
-    fetchActivities();
-  } catch {
-    ElMessage.error('发表评论失败');
-  }
-};
-
-const handleDeleteComment = async (commentId: string) => {
-  if (!props.task?.id) return;
-  try {
-    await api.delete(`/api/tasks/${props.task.id}/comments/${commentId}`);
-    comments.value = comments.value.filter((c) => c.id !== commentId);
-    ElMessage.success('评论删除成功');
-    fetchActivities();
-  } catch {
-    ElMessage.error('删除评论失败');
-  }
-};
-
-const handlePasteComment = async (event: ClipboardEvent) => {
-  const items = event.clipboardData?.items;
-  if (!items) return;
-
-  let hasImage = false;
-  for (const item of items) {
-    if (item.type.indexOf('image') !== -1) {
-      hasImage = true;
-      break;
-    }
-  }
-
-  if (hasImage) {
-    event.preventDefault();
-    for (const item of items) {
-      if (item.type.indexOf('image') !== -1) {
-        const file = item.getAsFile();
-        if (!file) continue;
-
-        const formData = new FormData();
-        formData.append('task_image', file);
-        try {
-          ElMessage.info('图片上传中...');
-          const response = await api.post('/api/tasks/upload-image', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-          const imageUrl = response.data.url;
-          tempUploadedImages.value.push(imageUrl);
-          ElMessage.success('图片上传成功');
-        } catch {
-          ElMessage.error('图片上传失败');
-        }
-      }
-    }
-    return;
-  }
-
-  // Check if pasted text is an image URL
-  const pastedText = event.clipboardData.getData('text');
-  if (pastedText && isImageUrl(pastedText)) {
-    event.preventDefault();
-    tempUploadedImages.value.push(pastedText.trim());
-    ElMessage.success('图片链接已识别');
-  }
-};
-
-const parseCommentContent = (content: string) => {
-  if (!content) return { text: '', images: [] };
-  const regex = /!\[.*?\]\((.*?)\)/g;
-  const images: string[] = [];
-  let match;
-  while ((match = regex.exec(content)) !== null) {
-    images.push(match[1]);
-  }
-  const cleanText = content.replace(regex, '').trim();
-  return {
-    text: cleanText,
-    images,
-  };
+const handleSubtasksUpdate = (newSubtasks: Subtask[]) => {
+  drawerSubtasks.value = newSubtasks;
+  triggerSave();
 };
 
 const isImagePreviewOpen = ref(false);
@@ -435,189 +222,6 @@ const openImageModal = (url: string) => {
   previewImageUrl.value = url;
   isImagePreviewOpen.value = true;
 };
-
-// Subtask detail view states & methods
-const isSubtaskDetailOpen = ref(false);
-const editingSubtask = ref<Subtask | null>(null);
-const editingSubtaskIndex = ref<number>(-1);
-const newSubtaskCommentText = ref('');
-const isEditingSubtaskDescription = ref(false);
-const tempSubtaskDescriptionImages = ref<string[]>([]);
-
-const getMemberById = (id: string | null | undefined) => {
-  if (!id) return null;
-  return props.teamMembers?.find((m) => m.id === id) || null;
-};
-
-const openSubtaskDetail = (sub: Subtask, index: number) => {
-  editingSubtaskIndex.value = index;
-  editingSubtask.value = JSON.parse(JSON.stringify(sub));
-  if (!editingSubtask.value!.comments) {
-    editingSubtask.value!.comments = [];
-  }
-
-  // Parse subtask description into clean text and images
-  const parsed = parseCommentContent(editingSubtask.value!.description || '');
-  editingSubtask.value!.description = parsed.text;
-  tempSubtaskDescriptionImages.value = [...parsed.images];
-
-  newSubtaskCommentText.value = '';
-  isEditingSubtaskDescription.value = false;
-  isSubtaskDetailOpen.value = true;
-};
-
-const saveSubtaskChanges = () => {
-  if (editingSubtaskIndex.value === -1 || !editingSubtask.value) return;
-
-  // Concatenate description and images back to markdown
-  let finalDesc = (editingSubtask.value.description || '').trim();
-  if (tempSubtaskDescriptionImages.value.length > 0) {
-    finalDesc +=
-      (finalDesc ? '\n' : '') +
-      tempSubtaskDescriptionImages.value.map((url) => `![图片](${url})`).join('\n');
-  }
-
-  drawerSubtasks.value[editingSubtaskIndex.value] = {
-    ...drawerSubtasks.value[editingSubtaskIndex.value],
-    ...editingSubtask.value,
-    description: finalDesc,
-  };
-  triggerSave();
-};
-
-const handleSaveSubtaskAndClose = () => {
-  saveSubtaskChanges();
-  isSubtaskDetailOpen.value = false;
-};
-
-const handleCancelSubtaskEdit = () => {
-  isSubtaskDetailOpen.value = false;
-};
-
-watch(
-  [() => props.activeSubtaskId, () => drawerSubtasks.value],
-  ([subId, subtasks]) => {
-    if (subId && subtasks && subtasks.length > 0) {
-      let idx = subtasks.findIndex((s) => s.id === subId);
-      if (idx === -1 && subId.includes('_sub_')) {
-        const parts = subId.split('_sub_');
-        const indexStr = parts[parts.length - 1];
-        const index = parseInt(indexStr, 10);
-        if (!isNaN(index) && index >= 0 && index < subtasks.length) {
-          idx = index;
-        }
-      }
-      if (idx !== -1) {
-        openSubtaskDetail(subtasks[idx], idx);
-      }
-    } else if (!subId) {
-      isSubtaskDetailOpen.value = false;
-    }
-  },
-  { immediate: true },
-);
-
-watch(isSubtaskDetailOpen, (newVal) => {
-  if (!newVal) {
-    emit('update:activeSubtaskId', null);
-  }
-});
-
-const tempUploadedSubtaskImages = ref<string[]>([]);
-
-const addSubtaskComment = () => {
-  const content = newSubtaskCommentText.value.trim();
-  if (!content && tempUploadedSubtaskImages.value.length === 0) return;
-  if (!editingSubtask.value) return;
-
-  let finalContent = content;
-  if (tempUploadedSubtaskImages.value.length > 0) {
-    finalContent +=
-      '\n' + tempUploadedSubtaskImages.value.map((url) => `![图片](${url})`).join('\n');
-  }
-
-  const newComment: SubtaskComment = {
-    id: Math.random().toString(36).substring(2, 11),
-    content: finalContent,
-    userId: authStore.user?.id || 'unknown',
-    userName: authStore.user?.name || '未知用户',
-    userAvatarUrl: authStore.user?.avatarUrl || null,
-    createdAt: new Date().toISOString(),
-  };
-
-  editingSubtask.value.comments = editingSubtask.value.comments || [];
-  editingSubtask.value.comments.push(newComment);
-  newSubtaskCommentText.value = '';
-  tempUploadedSubtaskImages.value = [];
-  saveSubtaskChanges();
-};
-
-const handlePasteSubtaskComment = async (event: ClipboardEvent) => {
-  const items = event.clipboardData?.items;
-  if (!items) return;
-
-  let hasImage = false;
-  for (const item of items) {
-    if (item.type.indexOf('image') !== -1) {
-      hasImage = true;
-      break;
-    }
-  }
-
-  if (hasImage) {
-    event.preventDefault();
-    for (const item of items) {
-      if (item.type.indexOf('image') !== -1) {
-        const file = item.getAsFile();
-        if (!file) continue;
-
-        const formData = new FormData();
-        formData.append('task_image', file);
-        try {
-          ElMessage.info('图片上传中...');
-          const response = await api.post('/api/tasks/upload-image', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-          const imageUrl = response.data.url;
-          tempUploadedSubtaskImages.value.push(imageUrl);
-          ElMessage.success('图片上传成功');
-        } catch {
-          ElMessage.error('图片上传失败');
-        }
-      }
-    }
-    return;
-  }
-
-  // Check if pasted text is an image URL
-  const pastedText = event.clipboardData.getData('text');
-  if (pastedText && isImageUrl(pastedText)) {
-    event.preventDefault();
-    tempUploadedSubtaskImages.value.push(pastedText.trim());
-    ElMessage.success('图片链接已识别');
-  }
-};
-
-const deleteSubtaskComment = (cmtIndex: number) => {
-  if (!editingSubtask.value || !editingSubtask.value.comments) return;
-  editingSubtask.value.comments.splice(cmtIndex, 1);
-  saveSubtaskChanges();
-};
-
-// Dark theme observer for MdEditor
-const isDark = ref(document.documentElement.classList.contains('dark'));
-let themeObserver: MutationObserver | null = null;
-
-onMounted(() => {
-  themeObserver = new MutationObserver(() => {
-    isDark.value = document.documentElement.classList.contains('dark');
-  });
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-});
-
-onUnmounted(() => {
-  themeObserver?.disconnect();
-});
 
 // Description edit states
 const isEditingDescription = ref(false);
@@ -974,7 +578,7 @@ const formatActivityTime = (dateStr: string) => {
                 <input
                   v-model="drawerForm.title"
                   type="text"
-                  class="w-full text-xl sm:text-2xl font-black bg-transparent border-b border-transparent focus:border-accent/30 focus:outline-none py-1.5 transition-all text-primary"
+                  class="w-full text-xl sm:text-2xl font-black bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 transition-all text-primary !rounded-xl !px-4 !py-3 focus:outline-none focus:border-accent/45"
                   placeholder="未命名任务"
                   style="color: var(--text-primary)"
                   @blur="triggerSave"
@@ -1115,139 +719,13 @@ const formatActivityTime = (dateStr: string) => {
               </div>
 
               <!-- Subtasks Checklist Section -->
-              <div class="pt-4 border-t" style="border-color: var(--border-base)">
-                <div class="flex items-center justify-between mb-3">
-                  <div class="flex items-center gap-2">
-                    <CheckSquare class="w-4 h-4 text-accent" />
-                    <h3 class="text-sm font-bold" style="color: var(--text-primary)">子任务清单</h3>
-                    <span v-if="drawerSubtasks.length > 0" class="text-xs text-slate-400 font-bold">
-                      ({{ drawerSubtasks.filter((s) => s.done).length }}/{{
-                        drawerSubtasks.length
-                      }})
-                    </span>
-                  </div>
-                </div>
-
-                <!-- Subtask Progress Bar -->
-                <div
-                  v-if="drawerSubtasks.length > 0"
-                  class="w-full bg-slate-100 dark:bg-white/10 h-1.5 rounded-full mb-4 overflow-hidden"
-                >
-                  <div
-                    class="bg-accent h-full transition-all duration-300"
-                    :style="{
-                      width: `${(drawerSubtasks.filter((s) => s.done).length / drawerSubtasks.length) * 100}%`,
-                    }"
-                  ></div>
-                </div>
-
-                <!-- Checklist Items -->
-                <div class="space-y-2 mb-4">
-                  <div
-                    v-for="(sub, index) in drawerSubtasks"
-                    :key="sub.id"
-                    class="flex items-center gap-3 group/sub p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-                  >
-                    <!-- Toggle Checkbox -->
-                    <button
-                      type="button"
-                      class="w-4 h-4 rounded-md border flex items-center justify-center transition-colors shrink-0"
-                      :class="
-                        sub.done
-                          ? 'bg-emerald-500 border-emerald-500 text-white'
-                          : 'border-slate-300 dark:border-slate-600 hover:border-accent'
-                      "
-                      @click="toggleSubtask(sub)"
-                    >
-                      <CheckCircle2 v-if="sub.done" class="w-3.5 h-3.5" />
-                    </button>
-
-                    <!-- Clickable Subtask Text -->
-                    <div
-                      class="flex-1 text-xs transition-all font-medium cursor-pointer hover:text-accent hover:underline py-1 truncate"
-                      :class="
-                        sub.done
-                          ? 'line-through text-slate-400 dark:text-slate-500'
-                          : 'text-slate-700 dark:text-slate-200'
-                      "
-                      @click="openSubtaskDetail(sub, index)"
-                    >
-                      {{ sub.text }}
-                    </div>
-
-                    <!-- Subtask Info Badges (Assignee + Comments) -->
-                    <div class="flex items-center gap-2 shrink-0">
-                      <!-- Assignee Avatar -->
-                      <template v-if="sub.assigneeId && getMemberById(sub.assigneeId)">
-                        <el-tooltip
-                          :content="getMemberById(sub.assigneeId)?.name"
-                          placement="top"
-                          :show-after="500"
-                        >
-                          <img
-                            v-if="getMemberById(sub.assigneeId)?.avatarUrl"
-                            :src="getMemberById(sub.assigneeId)?.avatarUrl || undefined"
-                            class="w-4.5 h-4.5 rounded-full object-cover border border-slate-200 dark:border-slate-700"
-                          />
-                          <div
-                            v-else
-                            class="w-4.5 h-4.5 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-[8px]"
-                          >
-                            {{ getMemberById(sub.assigneeId)?.name?.[0] || 'U' }}
-                          </div>
-                        </el-tooltip>
-                      </template>
-
-                      <!-- Comments count badge -->
-                      <div
-                        v-if="sub.comments && sub.comments.length > 0"
-                        class="flex items-center gap-0.5 text-[10px] text-slate-400"
-                        title="子任务评论数"
-                      >
-                        <MessageSquare class="w-3 h-3 text-slate-400" />
-                        <span>{{ sub.comments.length }}</span>
-                      </div>
-                    </div>
-
-                    <!-- Subtask Details / Comment button -->
-                    <button
-                      type="button"
-                      class="opacity-0 group-hover/sub:opacity-100 p-1 text-slate-400 hover:text-accent rounded transition-opacity cursor-pointer"
-                      @click="openSubtaskDetail(sub, index)"
-                    >
-                      <MessageSquare class="w-3.5 h-3.5" />
-                    </button>
-
-                    <!-- Delete Button -->
-                    <button
-                      type="button"
-                      class="opacity-0 group-hover/sub:opacity-100 p-1 text-slate-400 hover:text-rose-500 rounded transition-opacity cursor-pointer"
-                      @click="removeSubtask(index)"
-                    >
-                      <Trash2 class="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Add Subtask Form -->
-                <div class="flex gap-2">
-                  <input
-                    v-model="newSubtaskText"
-                    type="text"
-                    placeholder="+ 添加子任务..."
-                    class="flex-1 px-4 py-2 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:border-accent/40 focus:border-solid transition-all"
-                    style="color: var(--text-primary)"
-                    @keyup.enter="addSubtask"
-                  />
-                  <button
-                    type="button"
-                    class="px-3 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:opacity-85 transition-all"
-                    @click="addSubtask"
-                  >
-                    添加
-                  </button>
-                </div>
-              </div>
+              <TaskSubtasks
+                ref="subtasksRef"
+                :subtasks="drawerSubtasks"
+                :teamMembers="teamMembers"
+                @update:subtasks="handleSubtasksUpdate"
+                @image-click="openImageModal"
+              />
 
               <!-- Dependencies Section -->
               <div class="pt-6 border-t" style="border-color: var(--border-base)">
@@ -1384,140 +862,12 @@ const formatActivityTime = (dateStr: string) => {
               </div>
 
               <!-- Comments Section -->
-              <div class="pt-6 border-t" style="border-color: var(--border-base)">
-                <div class="flex items-center gap-2 mb-4">
-                  <MessageSquare class="w-4 h-4 text-accent" />
-                  <h3 class="text-sm font-bold" style="color: var(--text-primary)">评论讨论区</h3>
-                  <span v-if="comments.length > 0" class="text-xs text-slate-400 font-bold">
-                    ({{ comments.length }})
-                  </span>
-                </div>
-
-                <!-- Comment List -->
-                <div class="space-y-4 mb-4 max-h-[300px] overflow-y-auto pr-1 scrollbar-hide">
-                  <div v-if="isCommentsLoading" class="text-center py-4 text-xs text-slate-400">
-                    加载评论中...
-                  </div>
-                  <div
-                    v-else-if="comments.length === 0"
-                    class="text-center py-4 text-xs text-slate-400 dark:text-slate-500"
-                  >
-                    暂无讨论，发表第一条评论吧！
-                  </div>
-                  <div
-                    v-for="comment in comments"
-                    v-else
-                    :key="comment.id"
-                    class="flex gap-3 group/comment p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-                  >
-                    <!-- Avatar -->
-                    <div class="shrink-0">
-                      <img
-                        v-if="comment.user?.avatarUrl"
-                        :src="comment.user.avatarUrl"
-                        class="w-7 h-7 rounded-full object-cover"
-                        alt=""
-                      />
-                      <div
-                        v-else
-                        class="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-xs"
-                      >
-                        {{ comment.user?.name?.[0] || 'U' }}
-                      </div>
-                    </div>
-
-                    <!-- Content -->
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center justify-between gap-2 mb-1">
-                        <span class="text-xs font-bold" style="color: var(--text-primary)">
-                          {{ comment.user?.name || '未知用户' }}
-                        </span>
-                        <div class="flex items-center gap-2">
-                          <span class="text-[10px] text-slate-400">
-                            {{ new Date(comment.createdAt).toLocaleString() }}
-                          </span>
-                          <!-- Delete Action -->
-                          <button
-                            v-if="
-                              comment.userId === authStore.user?.id ||
-                              authStore.user?.role === 'ADMIN'
-                            "
-                            type="button"
-                            class="opacity-0 group-hover/comment:opacity-100 p-0.5 text-slate-400 hover:text-rose-500 rounded transition-opacity"
-                            @click="handleDeleteComment(comment.id)"
-                          >
-                            <Trash2 class="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                      <div class="space-y-1.5">
-                        <p
-                          v-if="parseCommentContent(comment.content).text"
-                          class="text-xs whitespace-pre-wrap leading-relaxed text-slate-600 dark:text-slate-300"
-                        >
-                          {{ parseCommentContent(comment.content).text }}
-                        </p>
-                        <div
-                          v-if="parseCommentContent(comment.content).images.length > 0"
-                          class="flex flex-wrap gap-2 pt-1"
-                        >
-                          <img
-                            v-for="img in parseCommentContent(comment.content).images"
-                            :key="img"
-                            :src="img"
-                            class="max-w-[200px] max-h-[150px] rounded-lg border object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
-                            style="border-color: var(--border-base)"
-                            @click="openImageModal(img)"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Comment Input -->
-                <div class="space-y-2">
-                  <!-- Pasted Image Preview List -->
-                  <div
-                    v-if="tempUploadedImages.length > 0"
-                    class="flex flex-wrap gap-2 p-2 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl"
-                  >
-                    <div
-                      v-for="(url, idx) in tempUploadedImages"
-                      :key="url"
-                      class="relative group w-16 h-16 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden"
-                    >
-                      <img :src="url" class="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        class="absolute top-1 right-1 p-0.5 bg-black/55 hover:bg-rose-600 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center"
-                        @click="tempUploadedImages.splice(idx, 1)"
-                      >
-                        <X class="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="flex gap-2 items-end">
-                    <textarea
-                      v-model="newCommentText"
-                      rows="2"
-                      placeholder="输入评论或反馈，按 Enter 发送... (支持粘贴图片)"
-                      class="flex-1 px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:border-accent/40 focus:border-solid transition-all resize-none"
-                      style="color: var(--text-primary)"
-                      @keyup.enter.exact.prevent="handleAddComment"
-                      @paste="handlePasteComment"
-                    ></textarea>
-                    <button
-                      type="button"
-                      class="p-2.5 bg-accent hover:opacity-85 text-white rounded-xl transition-all flex items-center justify-center shrink-0 cursor-pointer"
-                      @click="handleAddComment"
-                    >
-                      <Send class="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <TaskComments
+                ref="commentsRef"
+                :taskId="task?.id"
+                @comments-changed="activitiesRef?.refresh()"
+                @image-click="openImageModal"
+              />
             </div>
 
             <!-- Right Column: Metadata Sidebar -->
@@ -1715,58 +1065,10 @@ const formatActivityTime = (dateStr: string) => {
               </div>
 
               <!-- Task Activities (任务动态) -->
-              <div class="pt-4 border-t space-y-3" style="border-color: var(--border-base)">
-                <h3
-                  class="text-xs font-black uppercase tracking-widest text-slate-400 pb-1 border-b"
-                  style="border-color: var(--border-base)"
-                >
-                  任务动态
-                </h3>
-
-                <div v-if="isActivitiesLoading" class="flex justify-center py-4">
-                  <span class="text-xs text-slate-400 animate-pulse">加载动态中...</span>
-                </div>
-                <div
-                  v-else-if="activities.length === 0"
-                  class="text-center py-4 text-xs text-slate-400/70 border border-dashed border-slate-200/50 dark:border-slate-800 rounded-xl"
-                >
-                  暂无动态
-                </div>
-                <div
-                  v-else
-                  class="max-h-[300px] overflow-y-auto pr-1 space-y-3 scrollbar-hide text-xs"
-                >
-                  <div v-for="act in activities" :key="act.id" class="flex gap-2.5 items-start">
-                    <img
-                      v-if="act.user?.avatarUrl"
-                      :src="act.user.avatarUrl"
-                      alt=""
-                      class="w-5 h-5 rounded-full object-cover shrink-0 mt-0.5 border"
-                      style="border-color: var(--border-base)"
-                    />
-                    <div
-                      v-else
-                      class="w-5 h-5 rounded-full bg-gradient-to-br from-accent/20 to-indigo-600/20 text-accent dark:text-indigo-400 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5 border"
-                      style="border-color: var(--border-base)"
-                    >
-                      {{ act.user?.name?.substring(0, 1) || '系' }}
-                    </div>
-                    <div class="flex-1 min-w-0">
-                      <div class="flex justify-between items-baseline gap-2">
-                        <span class="font-bold shrink-0" style="color: var(--text-primary)">
-                          {{ act.user?.name || '系统' }}
-                        </span>
-                        <span class="text-[9px] text-slate-400 tracking-tight whitespace-nowrap">
-                          {{ formatActivityTime(act.createdAt) }}
-                        </span>
-                      </div>
-                      <p class="text-slate-500 dark:text-slate-400 leading-normal mt-0.5 break-all">
-                        {{ act.description }}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <TaskActivities
+                ref="activitiesRef"
+                :taskId="task?.id"
+              />
 
               <!-- Final Manual Save Feedback -->
               <div class="pt-4 border-t" style="border-color: var(--border-base)">
@@ -1799,272 +1101,6 @@ const formatActivityTime = (dateStr: string) => {
         class="max-w-full max-h-[80vh] rounded-xl object-contain"
       />
     </div>
-  </Modal>
-
-  <!-- Subtask Detail Modal -->
-  <Modal
-    :show="isSubtaskDetailOpen"
-    title="子任务详情"
-    size="md"
-    @close="handleCancelSubtaskEdit"
-  >
-    <div v-if="editingSubtask" class="space-y-4 py-2 text-left">
-      <!-- Title -->
-      <div>
-        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-          子任务标题
-        </label>
-        <input
-          v-model="editingSubtask.text"
-          type="text"
-          class="w-full px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:border-accent/45 transition-all"
-          style="color: var(--text-primary)"
-        />
-      </div>
-
-      <!-- Assignee -->
-      <div>
-        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-          负责人
-        </label>
-        <el-select
-          v-model="editingSubtask.assigneeId"
-          clearable
-          placeholder="选择负责人"
-          class="!w-full custom-select-small"
-        >
-          <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
-            <div class="flex items-center gap-2">
-              <img
-                v-if="m.avatarUrl"
-                alt=""
-                :src="m.avatarUrl"
-                class="w-4 h-4 rounded-lg object-cover"
-              />
-              <span class="text-xs">{{ m.name }}</span>
-            </div>
-          </el-option>
-        </el-select>
-      </div>
-
-      <!-- Description -->
-      <div>
-        <div class="flex items-center justify-between mb-1.5">
-          <label
-            class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"
-          >
-            <span class="w-1.5 h-1.5 rounded-full bg-accent"></span> 详细描述
-          </label>
-          <button
-            v-if="!isEditingSubtaskDescription"
-            type="button"
-            class="text-[10px] font-bold text-accent hover:underline cursor-pointer"
-            @click="isEditingSubtaskDescription = true"
-          >
-            编辑描述
-          </button>
-        </div>
-
-        <!-- Edit Mode -->
-        <div v-if="isEditingSubtaskDescription" class="space-y-2">
-          <textarea
-            v-model="editingSubtask.description"
-            placeholder="输入子任务描述... (支持粘贴图片)"
-            rows="3"
-            class="w-full px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:border-accent/45 transition-all resize-y"
-            style="color: var(--text-primary)"
-            @paste="handlePasteSubtaskDescription"
-          ></textarea>
-
-          <!-- Image Previews during Editing -->
-          <div
-            v-if="tempSubtaskDescriptionImages.length > 0"
-            class="flex flex-wrap gap-1.5 p-1.5 bg-slate-50/50 dark:bg-white/2 border border-dashed border-slate-200 dark:border-slate-700 rounded-lg"
-          >
-            <div
-              v-for="(img, idx) in tempSubtaskDescriptionImages"
-              :key="img"
-              class="relative group w-12 h-12 rounded border border-slate-200 dark:border-slate-700 overflow-hidden"
-            >
-              <img
-                :src="img"
-                class="w-full h-full object-cover cursor-zoom-in"
-                @click="openImageModal(img)"
-              />
-              <button
-                type="button"
-                class="absolute top-0.5 right-0.5 p-0.5 bg-black/55 hover:bg-rose-600 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center"
-                @click="tempSubtaskDescriptionImages.splice(idx, 1)"
-              >
-                <X class="w-2.5 h-2.5" />
-              </button>
-            </div>
-          </div>
-
-          <div class="flex justify-end gap-2">
-            <button
-              type="button"
-              class="px-2 py-1 bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-200 text-[10px] font-bold rounded-lg hover:opacity-80 transition-all cursor-pointer"
-              @click="isEditingSubtaskDescription = false"
-            >
-              确定
-            </button>
-          </div>
-        </div>
-
-        <!-- Preview Mode -->
-        <div
-          v-else
-          class="px-3 py-2 bg-slate-50 dark:bg-white/2 border border-slate-200 dark:border-white/5 rounded-xl min-h-[60px] cursor-pointer hover:bg-slate-100/50 dark:hover:bg-white/5 transition-all relative"
-          @click="isEditingSubtaskDescription = true"
-        >
-          <div
-            v-if="!editingSubtask.description"
-            class="text-xs text-slate-400 dark:text-slate-500 italic py-2 text-center select-none"
-          >
-            + 点击添加详细描述...
-          </div>
-          <div
-            v-else
-            class="text-xs leading-relaxed whitespace-pre-wrap text-slate-600 dark:text-slate-300 space-y-2"
-          >
-            <p>{{ editingSubtask.description }}</p>
-            <div v-if="tempSubtaskDescriptionImages.length > 0" class="flex flex-wrap gap-2 pt-1">
-              <img
-                v-for="img in tempSubtaskDescriptionImages"
-                :key="img"
-                :src="img"
-                class="max-w-full max-h-[150px] rounded-lg border object-contain cursor-zoom-in hover:opacity-90 transition-opacity"
-                style="border-color: var(--border-base)"
-                @click.stop="openImageModal(img)"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Comments Section -->
-      <div class="border-t pt-4" style="border-color: var(--border-base)">
-        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">
-          评论和反馈 ({{ editingSubtask.comments?.length || 0 }})
-        </label>
-
-        <!-- Subtask Comment List -->
-        <div class="space-y-3 max-h-[160px] overflow-y-auto pr-1 mb-3 scrollbar-hide">
-          <div
-            v-if="!editingSubtask.comments || editingSubtask.comments.length === 0"
-            class="text-center py-6 text-slate-400 text-xs italic"
-          >
-            暂无评论
-          </div>
-          <div
-            v-for="(cmt, cIdx) in editingSubtask.comments"
-            :key="cmt.id"
-            class="flex gap-2.5 p-2 rounded-lg bg-slate-50 dark:bg-white/2 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors relative group/subcmt"
-          >
-            <!-- Avatar -->
-            <img
-              v-if="cmt.userAvatarUrl"
-              :src="cmt.userAvatarUrl"
-              class="w-5 h-5 rounded-full object-cover shrink-0"
-            />
-            <div
-              v-else
-              class="w-5 h-5 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-[8px] shrink-0"
-            >
-              {{ cmt.userName?.[0] || 'U' }}
-            </div>
-            <!-- Body -->
-            <div class="flex-1 min-w-0">
-              <div class="flex justify-between items-center gap-2 mb-0.5">
-                <span class="text-[10px] font-bold text-slate-700 dark:text-slate-200">
-                  {{ cmt.userName }}
-                </span>
-                <span class="text-[8px] text-slate-400">
-                  {{ new Date(cmt.createdAt).toLocaleString() }}
-                </span>
-              </div>
-              <p
-                class="text-[10px] leading-relaxed text-slate-600 dark:text-slate-300 whitespace-pre-wrap mb-1"
-              >
-                {{ parseCommentContent(cmt.content).text }}
-              </p>
-              <div
-                v-if="parseCommentContent(cmt.content).images.length > 0"
-                class="flex flex-wrap gap-1.5 mt-1"
-              >
-                <img
-                  v-for="img in parseCommentContent(cmt.content).images"
-                  :key="img"
-                  :src="img"
-                  class="max-w-[120px] max-h-[90px] rounded border object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
-                  style="border-color: var(--border-base)"
-                  @click="openImageModal(img)"
-                />
-              </div>
-            </div>
-            <!-- Delete -->
-            <button
-              v-if="cmt.userId === authStore.user?.id || authStore.user?.role === 'ADMIN'"
-              type="button"
-              class="opacity-0 group-hover/subcmt:opacity-100 absolute right-2 top-2 p-0.5 text-slate-400 hover:text-rose-500 transition-opacity cursor-pointer"
-              @click="deleteSubtaskComment(cIdx)"
-            >
-              <Trash2 class="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-
-        <!-- Add Comment Input -->
-        <div class="space-y-2">
-          <!-- Pasted Image Preview List -->
-          <div
-            v-if="tempUploadedSubtaskImages.length > 0"
-            class="flex flex-wrap gap-1.5 p-1.5 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-lg"
-          >
-            <div
-              v-for="(url, idx) in tempUploadedSubtaskImages"
-              :key="url"
-              class="relative group w-12 h-12 rounded border border-slate-200 dark:border-slate-700 overflow-hidden"
-            >
-              <img :src="url" class="w-full h-full object-cover" />
-              <button
-                type="button"
-                class="absolute top-0.5 right-0.5 p-0.5 bg-black/55 hover:bg-rose-600 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center"
-                @click="tempUploadedSubtaskImages.splice(idx, 1)"
-              >
-                <X class="w-2.5 h-2.5" />
-              </button>
-            </div>
-          </div>
-
-          <div class="flex gap-2 items-end">
-            <textarea
-              v-model="newSubtaskCommentText"
-              rows="1.5"
-              placeholder="写下子任务反馈... (支持粘贴图片)"
-              class="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:border-accent/40 focus:border-solid transition-all resize-none"
-              style="color: var(--text-primary)"
-              @keyup.enter.exact.prevent="addSubtaskComment"
-              @paste="handlePasteSubtaskComment"
-            ></textarea>
-            <button
-              type="button"
-              class="p-2 bg-accent hover:opacity-85 text-white rounded-lg transition-all flex items-center justify-center shrink-0 cursor-pointer"
-              @click="addSubtaskComment"
-            >
-              <Send class="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <template #footer>
-      <div class="flex justify-end gap-2 pt-2 border-t w-full" style="border-color: var(--border-base)">
-        <el-button size="small" @click="handleCancelSubtaskEdit">取消</el-button>
-        <el-button type="primary" size="small" @click="handleSaveSubtaskAndClose">确定</el-button>
-      </div>
-    </template>
   </Modal>
 </template>
 

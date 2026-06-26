@@ -213,22 +213,22 @@ const handleCoverUpload = async (event: Event) => {
 </script>
 
 <template>
-  <div class="profile-section mobile-adaptive">
-    <section class="settings-group">
-      <header class="group-header">
+  <div class="settings-layout-container mobile-adaptive">
+    <section class="settings-card">
+      <header class="settings-card-header">
         <div>
-          <p class="section-kicker">公开资料</p>
-          <h3>个人资料</h3>
-          <span>这些信息会显示在成员资料、作品页和协作空间中。</span>
+          <p class="settings-kicker">公开资料</p>
+          <h3 class="settings-card-title">个人资料</h3>
+          <span class="settings-card-subtitle">这些信息会显示在成员资料、作品页 and 协作空间中。</span>
         </div>
       </header>
 
-      <div class="setting-row avatar-row">
-        <div class="row-copy">
-          <strong>头像</strong>
-          <span>建议上传清晰方形图片，最大 4MB。</span>
+      <div class="settings-row avatar-row">
+        <div class="settings-row-label">
+          <strong class="settings-row-title">头像</strong>
+          <span class="settings-row-desc">建议上传清晰方形图片，最大 4MB。</span>
         </div>
-        <div class="flex items-center gap-3 mobile-row">
+        <div class="settings-row-content flex items-center gap-3 mobile-row">
           <label class="avatar-control">
             <UserAvatar :user="authStore.user" size="lg" />
             <span class="avatar-button">
@@ -255,12 +255,12 @@ const handleCoverUpload = async (event: Event) => {
         </div>
       </div>
 
-      <div class="setting-row cover-row">
-        <div class="row-copy">
-          <strong>个人封面</strong>
-          <span>用于个人主页和弹窗背景，建议比例 21:9，最大 4MB。</span>
+      <div class="settings-row cover-row">
+        <div class="settings-row-label">
+          <strong class="settings-row-title">个人封面</strong>
+          <span class="settings-row-desc">用于个人主页和弹窗背景，建议比例 21:9，最大 4MB。</span>
         </div>
-        <div class="flex items-center gap-4 mobile-row">
+        <div class="settings-row-content flex items-center gap-4 mobile-row">
           <div
             class="w-40 h-16 max-w-full rounded-lg overflow-hidden border border-[var(--border-strong)] bg-slate-900/60 relative shrink-0"
           >
@@ -303,40 +303,44 @@ const handleCoverUpload = async (event: Event) => {
         </div>
       </div>
 
-      <div class="setting-row">
-        <label class="row-copy" for="profile-name">
-          <strong>昵称</strong>
-          <span>用于个人主页、评论和团队成员列表。</span>
+      <div class="settings-row">
+        <label class="settings-row-label" for="profile-name">
+          <strong class="settings-row-title">昵称</strong>
+          <span class="settings-row-desc">用于个人主页、评论和团队成员列表。</span>
         </label>
-        <Input
-          id="profile-name"
-          v-model="profileForm.name"
-          type="text"
-          maxlength="50"
-          placeholder="你的展示名称"
-          :icon="UserRound"
-        />
+        <div class="settings-row-content">
+          <Input
+            id="profile-name"
+            v-model="profileForm.name"
+            type="text"
+            maxlength="50"
+            placeholder="你的展示名称"
+            :icon="UserRound"
+          />
+        </div>
       </div>
 
-      <div class="setting-row">
-        <label class="row-copy" for="profile-location">
-          <strong>所在地</strong>
-          <span>可选，用于让协作者了解你的时区或城市。</span>
+      <div class="settings-row">
+        <label class="settings-row-label" for="profile-location">
+          <strong class="settings-row-title">所在地</strong>
+          <span class="settings-row-desc">可选，用于让协作者了解你的时区或城市。</span>
         </label>
-        <Input
-          id="profile-location"
-          v-model="profileForm.location"
-          type="text"
-          maxlength="100"
-          placeholder="城市，国家"
-          :icon="MapPin"
-        />
+        <div class="settings-row-content">
+          <Input
+            id="profile-location"
+            v-model="profileForm.location"
+            type="text"
+            maxlength="100"
+            placeholder="城市，国家"
+            :icon="MapPin"
+          />
+        </div>
       </div>
 
-      <div class="setting-row text-row">
-        <label class="row-copy" for="profile-bio">
+      <div class="settings-row text-row">
+        <label class="settings-row-label" for="profile-bio">
           <div class="flex items-center justify-between w-full pr-4 mobile-row">
-            <strong class="truncate">个人简介</strong>
+            <strong class="settings-row-title truncate">个人简介</strong>
             <Button
               type="button"
               variant="secondary"
@@ -347,9 +351,9 @@ const handleCoverUpload = async (event: Event) => {
               AI 生成
             </Button>
           </div>
-          <span>一句话说明你的方向、技能或正在学习的内容。</span>
+          <span class="settings-row-desc">一句话说明你的方向、技能或正在学习的内容。</span>
         </label>
-        <div class="field-stack">
+        <div class="settings-row-content field-stack">
           <textarea
             id="profile-bio"
             v-model="profileForm.bio"
@@ -361,28 +365,30 @@ const handleCoverUpload = async (event: Event) => {
         </div>
       </div>
 
-      <div class="setting-row">
-        <label class="row-copy" for="profile-website">
-          <strong>个人主页 / 作品集</strong>
-          <span>支持自动补全 https://，保存前会校验格式。</span>
+      <div class="settings-row">
+        <label class="settings-row-label" for="profile-website">
+          <strong class="settings-row-title">个人主页 / 作品集</strong>
+          <span class="settings-row-desc">支持自动补全 https://，保存前会校验格式。</span>
         </label>
-        <Input
-          id="profile-website"
-          v-model="profileForm.website"
-          type="url"
-          maxlength="255"
-          placeholder="https://yourportfolio.com"
-          :icon="Globe"
-          :error="!isWebsiteValid ? '链接格式不正确' : ''"
-        />
+        <div class="settings-row-content">
+          <Input
+            id="profile-website"
+            v-model="profileForm.website"
+            type="url"
+            maxlength="255"
+            placeholder="https://yourportfolio.com"
+            :icon="Globe"
+            :error="!isWebsiteValid ? '链接格式不正确' : ''"
+          />
+        </div>
       </div>
     </section>
 
-    <section class="settings-group checklist-group">
-      <header class="group-header compact">
+    <section class="settings-card checklist-group">
+      <header class="settings-card-header compact">
         <div>
-          <p class="section-kicker">资料状态</p>
-          <h3>完善清单</h3>
+          <p class="settings-kicker">资料状态</p>
+          <h3 class="settings-card-title">完善清单</h3>
         </div>
         <div class="progress-track" :aria-label="`资料完成度 ${completion}%`">
           <i :style="{ width: `${completion}%` }"></i>
@@ -402,7 +408,7 @@ const handleCoverUpload = async (event: Event) => {
       </div>
     </section>
 
-    <footer class="settings-actions mobile-row">
+    <footer class="settings-actions-footer mobile-row">
       <Button
         variant="secondary"
         :disabled="!hasChanges || isSaving"
@@ -441,109 +447,13 @@ const handleCoverUpload = async (event: Event) => {
 </template>
 
 <style scoped>
-.profile-section {
-  display: grid;
-  gap: 14px;
-}
-
-.settings-group,
-.settings-actions {
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-}
-
-.settings-group {
-  overflow: hidden;
-}
-
-.group-header {
-  min-height: 74px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border-base);
-}
-
 .group-header.compact {
   min-height: 64px;
 }
 
-h3,
-p {
-  margin: 0;
-}
-
-h3 {
-  margin-top: 2px;
-  color: var(--text-primary);
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.section-kicker,
-.group-header span,
-.row-copy span,
 .field-stack small {
   color: var(--text-muted);
   font-size: 12px;
-}
-
-.section-kicker {
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.completion-badge {
-  min-width: 84px;
-  display: grid;
-  gap: 3px;
-  border-radius: 8px;
-  padding: 8px 10px;
-  background: var(--bg-app);
-  text-align: right;
-}
-
-.completion-badge span {
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.completion-badge strong {
-  font-size: 20px;
-  font-weight: 900;
-}
-
-.setting-row {
-  display: grid;
-  grid-template-columns: minmax(180px, 0.32fr) minmax(0, 1fr);
-  align-items: center;
-  gap: 18px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border-base);
-}
-
-.setting-row:last-child {
-  border-bottom: 0;
-}
-
-.text-row {
-  align-items: start;
-}
-
-.row-copy {
-  min-width: 0;
-  display: grid;
-  gap: 4px;
-}
-
-.row-copy strong {
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 900;
 }
 
 .avatar-row {
@@ -581,35 +491,12 @@ h3 {
   border-color: color-mix(in srgb, var(--accent) 32%, var(--border-base));
 }
 
-.input-shell {
-  min-height: 42px;
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  padding: 0 11px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
-}
-
 .field-stack {
   min-width: 0;
   display: grid;
   gap: 7px;
 }
 
-.input-shell.invalid {
-  border-color: #ef4444;
-}
-
-.input-shell svg {
-  width: 16px;
-  height: 16px;
-  color: var(--text-muted);
-}
-
-input,
 textarea {
   width: 100%;
   min-width: 0;
@@ -628,10 +515,6 @@ textarea {
   border-radius: 8px;
   resize: vertical;
   background: var(--bg-app);
-}
-
-.error-text {
-  color: #dc2626;
 }
 
 .checklist-group {
@@ -656,12 +539,12 @@ textarea {
 .check-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
-  padding: 14px 16px;
+  gap: 6px;
+  padding: 10px 18px;
 }
 
 .check-item {
-  min-height: 32px;
+  min-height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -670,7 +553,7 @@ textarea {
   background: var(--bg-app);
   border: 1px solid var(--border-base);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   transition: all 0.2s;
 }
@@ -684,95 +567,23 @@ textarea {
 
 .check-item svg,
 .avatar-button svg {
-  width: 15px;
-  height: 15px;
-}
-
-.settings-actions {
-  min-height: 62px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 16px;
-}
-
-.primary-action,
-.secondary-action {
-  height: 38px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border-radius: 8px;
-  padding: 0 14px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.primary-action {
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #ffffff;
-}
-
-.secondary-action {
-  border: 1px solid var(--border-base);
-  background: var(--bg-app);
-  color: var(--text-secondary);
-}
-
-.primary-action:disabled,
-.secondary-action:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.primary-action svg,
-.secondary-action svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
 }
 
 @media (max-width: 960px) {
-  .setting-row {
-    grid-template-columns: 1fr;
-    gap: 9px;
-  }
-
   .check-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 640px) {
-  .group-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .completion-badge {
-    width: 100%;
-    text-align: left;
-  }
-
   .progress-track {
     width: 100%;
   }
 
   .check-grid {
     grid-template-columns: 1fr;
-  }
-
-  .settings-actions {
-    flex-direction: column;
-  }
-
-  .primary-action,
-  .secondary-action {
-    justify-content: center;
-    width: 100%;
   }
 }
 </style>

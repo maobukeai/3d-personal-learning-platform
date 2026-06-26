@@ -9,6 +9,7 @@ import { awardPoints, deductPoints, PointsAction } from '../services/points.serv
 import logger from '../utils/logger';
 import { TaskStatus } from '../types/task';
 import { logTaskActivity } from '../services/taskActivity.service';
+import { getUploadedFileUrl } from '../utils/file';
 
 interface BatchCreateTaskInput {
   title?: string;
@@ -1322,9 +1323,7 @@ export const uploadImage = async (req: AuthRequest, res: Response, next: NextFun
     }
     const parts = req.file.destination ? req.file.destination.split(/[/\\]/) : [];
     const subFolder = parts[parts.length - 1] || 'tasks';
-    const attachmentUrl =
-      (req.file as any).url ||
-      `${req.protocol}://${req.get('host')}/uploads/${subFolder}/${req.file.filename}`;
+    const attachmentUrl = getUploadedFileUrl(req, req.file, subFolder);
     res.json({ url: attachmentUrl });
   } catch (error) {
     next(error);

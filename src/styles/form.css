@@ -75,3 +75,303 @@ html:not(.dark) .form-stack select:focus,
 html:not(.dark) .form-stack textarea:focus {
   background: rgba(0, 0, 0, 0.04);
 }
+
+/* ============================================================
+   Unified Upload Modal Styles (Asset, Material, Plugin)
+   ============================================================ */
+
+.upload-modal-scroll {
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.upload-modal-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.upload-modal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.upload-modal-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-base);
+  border-radius: 3px;
+}
+.upload-modal-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.upload-modal-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.05fr);
+  gap: 20px;
+  margin-top: 12px;
+}
+
+@media (max-width: 860px) {
+  .upload-modal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.upload-modal-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.upload-modal-dropzone {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  min-height: 96px;
+  border: 1px dashed var(--border-base);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  padding: 12px;
+}
+
+.upload-modal-dropzone:hover {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.upload-modal-dropzone input,
+.upload-modal-picker input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.upload-modal-dropzone .drop-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--accent);
+}
+
+.upload-modal-dropzone strong {
+  max-width: 90%;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-modal-dropzone span {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.upload-modal-field {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  text-align: left;
+}
+
+.upload-modal-field > span {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Glassmorphism Inputs & Selects & Textarea inside upload dialogs */
+.upload-modal-field input,
+.upload-modal-field select,
+.upload-modal-field textarea,
+.upload-modal-input {
+  width: 100%;
+  border: 1px solid var(--border-base) !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  color: var(--text-primary) !important;
+  outline: none !important;
+  transition: all 0.25s ease !important;
+  font-size: 13px !important;
+  padding: 10px 14px !important;
+}
+
+html:not(.dark) .upload-modal-field input,
+html:not(.dark) .upload-modal-field select,
+html:not(.dark) .upload-modal-field textarea,
+html:not(.dark) .upload-modal-input {
+  background: rgba(0, 0, 0, 0.02) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.upload-modal-field input:hover,
+.upload-modal-field select:hover,
+.upload-modal-field textarea:hover,
+.upload-modal-input:hover {
+  border-color: var(--accent) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+html:not(.dark) .upload-modal-field input:hover,
+html:not(.dark) .upload-modal-field select:hover,
+html:not(.dark) .upload-modal-field textarea:hover,
+html:not(.dark) .upload-modal-input:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+.upload-modal-field input:focus,
+.upload-modal-field select:focus,
+.upload-modal-field textarea:focus,
+.upload-modal-input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 59, 130, 246), 0.2) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+/* Custom styling for select dropdowns under glass mode */
+select.upload-modal-input,
+.upload-modal-field select {
+  height: 42px !important;
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(148, 163, 184, 0.8)' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 36px !important;
+}
+
+.dark select.upload-modal-input,
+.dark .upload-modal-field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(255, 255, 255, 0.6)' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+}
+
+/* Premium Cover Image Picker */
+.upload-modal-picker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.upload-modal-picker .picker-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 42px;
+  border: 1px solid var(--border-base);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  width: 100%;
+}
+
+.upload-modal-picker:hover .picker-btn {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Collapsible Section Cards */
+.upload-modal-accordion-card {
+  border: 1px solid var(--border-base) !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+.upload-modal-accordion-card .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.upload-modal-accordion-card .card-header:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.upload-modal-accordion-card .card-body {
+  padding: 16px;
+  border-top: 1px solid var(--border-base) !important;
+  background: rgba(255, 255, 255, 0.01);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Switcher tabs */
+.upload-modal-switch {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-base);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.upload-modal-switch button {
+  flex: 1;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  border-radius: 8px;
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.upload-modal-switch button:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.upload-modal-switch button.active {
+  background: var(--bg-card) !important;
+  color: var(--accent) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  font-weight: 600;
+}
+
+/* Markdown Toolbar Wrap */
+.editor-field .md-editor-toolbar {
+  flex-wrap: wrap !important;
+}
+.editor-field .md-editor-toolbar-wrapper {
+  height: auto !important;
+}
+.editor-field .mdw,
+.editor-field .md-editor {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+

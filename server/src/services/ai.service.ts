@@ -25,6 +25,7 @@ export interface AIServiceConfig {
   maxTokens?: number;
   systemPrompt?: string;
   capabilities?: string[];
+  timeoutMs?: number;
 }
 
 type AIProvider = 'DEEPSEEK' | 'OPENAI' | 'AZURE' | 'GEMINI' | 'OLLAMA' | 'AGNES' | string;
@@ -1316,38 +1317,33 @@ export async function streamLLMChat(
     );
     activeProvider = provider;
 
+    // Register close listener early for all request types to handle aborts
+    res.on('close', () => {
+      if (!completed) {
+        const run = persistentRunKey ? activePersistentAiRuns.get(persistentRunKey) : null;
+        if (shouldPersistOnDisconnect && !run?.cancelled) {
+          logger.info(
+            `[AI Streaming Chat] requestId=${requestId} client connection closed. Continuing persistent run.`,
+          );
+          return;
+        }
+        logger.info(
+          `[AI Streaming Chat] requestId=${requestId} client connection closed. Aborting upstream request.`,
+        );
+        controller.abort();
+      }
+    });
+
     if (isVideoGenerationModel(modelName, overrides?.capabilities, url)) {
-      // Establish SSE stream headers
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no');
-      res.setHeader('Content-Encoding', 'none');
-      res.flushHeaders();
+      const lastUserMsg = messages[messages.length - 1]?.content || '生成一段3D模型旋转的精美视频';
+      const cleanPrompt = lastUserMsg.replace(/\[(图片|视频)\]/g, '').trim();
+      const videoUrl = cleanVideoEndpointUrl(url, modelName);
 
-      sendSSE(res, {
-        event: 'meta',
-        requestId,
-        provider,
-        model: modelName,
-        ...streamMetaForClient,
-      });
-
-      sendSSE(res, {
-        reasoning: `正在为您使用视频生成模型 ${modelName} 生成视频，请稍候...\n(Please wait while generating video using model: ${modelName})`,
-        requestId,
-      });
+      logger.info(
+        `[AI Video Generation] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(videoUrl)}`,
+      );
 
       try {
-        const lastUserMsg =
-          messages[messages.length - 1]?.content || '生成一段3D模型旋转的精美视频';
-        const cleanPrompt = lastUserMsg.replace(/\[(图片|视频)\]/g, '').trim();
-        const videoUrl = cleanVideoEndpointUrl(url, modelName);
-
-        logger.info(
-          `[AI Video Generation] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(videoUrl)}`,
-        );
-
         const response = await aiHttp.post(
           videoUrl,
           {
@@ -1360,6 +1356,29 @@ export async function streamLLMChat(
             signal: controller.signal,
           },
         );
+
+        // Establish SSE stream headers ONLY after successful request
+        if (!res.headersSent) {
+          res.setHeader('Content-Type', 'text/event-stream');
+          res.setHeader('Cache-Control', 'no-cache');
+          res.setHeader('Connection', 'keep-alive');
+          res.setHeader('X-Accel-Buffering', 'no');
+          res.setHeader('Content-Encoding', 'none');
+          res.flushHeaders();
+        }
+
+        sendSSE(res, {
+          event: 'meta',
+          requestId,
+          provider,
+          model: modelName,
+          ...streamMetaForClient,
+        });
+
+        sendSSE(res, {
+          reasoning: `正在为您使用视频生成模型 ${modelName} 生成视频，请稍候...\n(Please wait while generating video using model: ${modelName})`,
+          requestId,
+        });
 
         const responseData = response.data;
         let finalVideoUrl = responseData.data?.[0]?.url || responseData.url;
@@ -1499,118 +1518,124 @@ export async function streamLLMChat(
           },
         });
         sendSSE(res, '[DONE]');
+        res.end();
       } catch (error: unknown) {
         logger.error('[AI Video Generation Error]:', sanitizeAIError(error));
-        sendSSE(res, {
-          error: `视频生成失败: ${toUserFacingAIError(error, provider)}`,
-          requestId,
-        });
-        sendSSE(res, '[DONE]');
-      } finally {
-        res.end();
+        if (res.headersSent) {
+          sendSSE(res, {
+            error: `视频生成失败: ${toUserFacingAIError(error, provider)}`,
+            requestId,
+          });
+          sendSSE(res, '[DONE]');
+          res.end();
+        } else {
+          throw error;
+        }
       }
       return;
     }
 
     if (isImageGenerationModel(modelName, overrides?.capabilities, url)) {
-      // Establish SSE stream headers
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no');
-      res.setHeader('Content-Encoding', 'none');
-      res.flushHeaders();
+      const lastUserMsg = messages[messages.length - 1]?.content || '画一幅精美的3D模型渲染图';
+      const cleanPrompt = lastUserMsg.replace(/\[图片\]/g, '').trim();
+      const imgUrl = cleanImageEndpointUrl(url);
 
-      sendSSE(res, {
-        event: 'meta',
-        requestId,
-        provider,
+      // 1. Flexible size control (灵活的尺寸控制)
+      let size = '1024x1024';
+      const sizeMatch = cleanPrompt.match(/(\d{3,4})[xX](\d{3,4})/);
+      if (sizeMatch) {
+        size = `${sizeMatch[1]}x${sizeMatch[2]}`;
+      }
+
+      // 2. Base64 vs URL return format (Base64返回 / 网址返回)
+      let responseFormat = 'url';
+      if (cleanPrompt.toLowerCase().includes('base64')) {
+        responseFormat = 'b64_json';
+      }
+
+      // 3. Image-to-Image input (URL 或数据 URI 输入 / 图生图)
+      const { images: inputImages } = await extractImagesAndText(lastUserMsg);
+      let inputImage: string | undefined;
+      if (inputImages && inputImages.length > 0) {
+        const firstImg = inputImages[0];
+        if (firstImg) {
+          inputImage = `data:${firstImg.mimeType};base64,${firstImg.data}`;
+        }
+      }
+
+      logger.info(
+        `[AI Image Generation] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(imgUrl)} size=${size} format=${responseFormat} isImg2Img=${!!inputImage}`,
+      );
+
+      // 4. Request payload setup including Structure Preservation (结构保持) and High Information Density (高信息密度)
+      const imageBody: any = {
         model: modelName,
-        ...streamMetaForClient,
-      });
+        prompt: cleanPrompt,
+        n: 1,
+        size,
+        ...(responseFormat !== 'url' && { response_format: responseFormat }),
+      };
 
-      sendSSE(res, {
-        reasoning: `正在为您使用生图模型 ${modelName} 生成图片，请稍候...\n(Please wait while generating image using model: ${modelName})`,
-        requestId,
-      });
-
-      try {
-        const lastUserMsg = messages[messages.length - 1]?.content || '画一幅精美的3D模型渲染图';
-        const cleanPrompt = lastUserMsg.replace(/\[图片\]/g, '').trim();
-        const imgUrl = cleanImageEndpointUrl(url);
-
-        // 1. Flexible size control (灵活的尺寸控制)
-        let size = '1024x1024';
-        const sizeMatch = cleanPrompt.match(/(\d{3,4})[xX](\d{3,4})/);
-        if (sizeMatch) {
-          size = `${sizeMatch[1]}x${sizeMatch[2]}`;
-        }
-
-        // 2. Base64 vs URL return format (Base64返回 / 网址返回)
-        let responseFormat = 'url';
-        if (cleanPrompt.toLowerCase().includes('base64')) {
-          responseFormat = 'b64_json';
-        }
-
-        // 3. Image-to-Image input (URL 或数据 URI 输入 / 图生图)
-        const { images: inputImages } = await extractImagesAndText(lastUserMsg);
-        let inputImage: string | undefined;
-        if (inputImages && inputImages.length > 0) {
-          const firstImg = inputImages[0];
-          if (firstImg) {
-            inputImage = `data:${firstImg.mimeType};base64,${firstImg.data}`;
-          }
-        }
-
-        logger.info(
-          `[AI Image Generation] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(imgUrl)} size=${size} format=${responseFormat} isImg2Img=${!!inputImage}`,
-        );
-
-        // 4. Request payload setup including Structure Preservation (结构保持) and High Information Density (高信息密度)
-        const imageBody: any = {
-          model: modelName,
-          prompt: cleanPrompt,
-          n: 1,
-          size,
-          ...(responseFormat !== 'url' && { response_format: responseFormat }),
+      if (provider === 'AGNES') {
+        // High Information Density Image Optimization (高信息密度图像优化)
+        imageBody.high_density = true;
+        imageBody.density = 'high';
+        imageBody.quality = 'hd';
+        imageBody.extra_body = {
+          high_density: true,
+          density: 'high',
+          quality: 'hd',
         };
 
-        if (provider === 'AGNES') {
-          // High Information Density Image Optimization (高信息密度图像优化)
-          imageBody.high_density = true;
-          imageBody.density = 'high';
-          imageBody.quality = 'hd';
-          imageBody.extra_body = {
-            high_density: true,
-            density: 'high',
-            quality: 'hd',
-          };
+        if (inputImage) {
+          imageBody.image = inputImage;
+          imageBody.image_url = inputImage;
+          // Structure Preservation (结构保持)
+          imageBody.structure_preservation = true;
+          imageBody.keep_structure = true;
+          imageBody.structure_strength = 0.8;
 
-          if (inputImage) {
-            imageBody.image = inputImage;
-            imageBody.image_url = inputImage;
-            // Structure Preservation (结构保持)
-            imageBody.structure_preservation = true;
-            imageBody.keep_structure = true;
-            imageBody.structure_strength = 0.8;
-
-            imageBody.extra_body.image = inputImage;
-            imageBody.extra_body.image_url = inputImage;
-            imageBody.extra_body.structure_preservation = true;
-            imageBody.extra_body.keep_structure = true;
-            imageBody.extra_body.structure_strength = 0.8;
-          }
-        } else {
-          if (inputImage) {
-            imageBody.image = inputImage;
-            imageBody.image_url = inputImage;
-          }
+          imageBody.extra_body.image = inputImage;
+          imageBody.extra_body.image_url = inputImage;
+          imageBody.extra_body.structure_preservation = true;
+          imageBody.extra_body.keep_structure = true;
+          imageBody.extra_body.structure_strength = 0.8;
         }
+      } else {
+        if (inputImage) {
+          imageBody.image = inputImage;
+          imageBody.image_url = inputImage;
+        }
+      }
 
+      try {
         const response = await aiHttp.post(imgUrl, imageBody, {
           headers,
-          timeout: AI_STREAM_TIMEOUT_MS,
+          timeout: overrides?.timeoutMs || AI_STREAM_TIMEOUT_MS,
           signal: controller.signal,
+        });
+
+        // Establish SSE stream headers ONLY after successful request
+        if (!res.headersSent) {
+          res.setHeader('Content-Type', 'text/event-stream');
+          res.setHeader('Cache-Control', 'no-cache');
+          res.setHeader('Connection', 'keep-alive');
+          res.setHeader('X-Accel-Buffering', 'no');
+          res.setHeader('Content-Encoding', 'none');
+          res.flushHeaders();
+        }
+
+        sendSSE(res, {
+          event: 'meta',
+          requestId,
+          provider,
+          model: modelName,
+          ...streamMetaForClient,
+        });
+
+        sendSSE(res, {
+          reasoning: `正在为您使用生图模型 ${modelName} 生成图片，请稍候...\n(Please wait while generating image using model: ${modelName})`,
+          requestId,
         });
 
         const responseData = response.data;
@@ -1681,15 +1706,30 @@ export async function streamLLMChat(
       } catch (err) {
         logger.error('[AI Image Generation Error]:', sanitizeAIError(err));
         const errMsg = toUserFacingAIError(err, provider);
-        sendSSE(res, { error: `图片生成失败: ${errMsg}`, requestId });
-        sendSSE(res, '[DONE]');
-        res.end();
-        cleanupPersistentRun();
+        if (res.headersSent) {
+          sendSSE(res, { error: `图片生成失败: ${errMsg}`, requestId });
+          sendSSE(res, '[DONE]');
+          res.end();
+          cleanupPersistentRun();
+        } else {
+          throw err;
+        }
         return;
       }
     }
 
-    // Establish SSE stream headers ONLY after config was prepared successfully if not already sent
+    logger.info(
+      `[AI Streaming Chat] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(url)}`,
+    );
+
+    const response = await aiHttp.post(url, body, {
+      headers,
+      responseType: 'stream',
+      timeout: AI_STREAM_TIMEOUT_MS,
+      signal: controller.signal,
+    });
+
+    // Establish SSE stream headers ONLY after successful request
     if (!res.headersSent) {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
@@ -1698,22 +1738,6 @@ export async function streamLLMChat(
       res.setHeader('Content-Encoding', 'none'); // Prevent compression buffering
       res.flushHeaders();
     }
-
-    res.on('close', () => {
-      if (!completed) {
-        const run = persistentRunKey ? activePersistentAiRuns.get(persistentRunKey) : null;
-        if (shouldPersistOnDisconnect && !run?.cancelled) {
-          logger.info(
-            `[AI Streaming Chat] requestId=${requestId} client connection closed. Continuing persistent run.`,
-          );
-          return;
-        }
-        logger.info(
-          `[AI Streaming Chat] requestId=${requestId} client connection closed. Aborting upstream request.`,
-        );
-        controller.abort();
-      }
-    });
 
     sendSSE(res, {
       event: 'meta',
@@ -1728,17 +1752,6 @@ export async function streamLLMChat(
         sendSSE(res, { event: 'heartbeat', requestId, ts: Date.now() });
       }
     }, AI_STREAM_HEARTBEAT_MS);
-
-    logger.info(
-      `[AI Streaming Chat] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(url)}`,
-    );
-
-    const response = await aiHttp.post(url, body, {
-      headers,
-      responseType: 'stream',
-      timeout: AI_STREAM_TIMEOUT_MS,
-      signal: controller.signal,
-    });
 
     const stream = response.data;
     let lastActivityTime = Date.now();
@@ -2037,7 +2050,7 @@ export async function streamLLMChat(
       sendSSE(res, { error: errMsg });
       res.end();
     } else {
-      next(error);
+      throw error;
     }
   }
 }
@@ -2218,8 +2231,9 @@ export async function generateImage(
   let finalSize = size || '1024x1024';
   const modelLower = modelName.toLowerCase();
   const isDalle3 = modelLower.includes('dall-e-3') || modelLower.includes('dalle3');
-  const isDalle2 = modelLower.includes('dall-e-2') || modelLower.includes('dalle2') || modelLower === 'dall-e';
-  
+  const isDalle2 =
+    modelLower.includes('dall-e-2') || modelLower.includes('dalle2') || modelLower === 'dall-e';
+
   if (isDalle3) {
     if (finalSize === '1792x768') {
       finalSize = '1792x1024'; // DALL-E 3 only supports 1792x1024 for landscape
@@ -2283,7 +2297,7 @@ export async function generateImage(
   }
 
   logger.info(
-    `[AI Image Service] Calling image generation: provider=${provider} model=${modelName} url=${maskUrlApiKey(finalUrl)}`
+    `[AI Image Service] Calling image generation: provider=${provider} model=${modelName} url=${maskUrlApiKey(finalUrl)}`,
   );
 
   try {
@@ -2363,10 +2377,12 @@ export async function generateImageWithFailover(
     const isGlobalImgGen = isImageGenerationModel(
       settings.AI_MODEL_NAME || '',
       undefined,
-      settings.AI_API_ENDPOINT
+      settings.AI_API_ENDPOINT,
     );
     if (!isGlobalImgGen) {
-      throw new Error('系统尚未配置任何“图像生成”模型（如 DALL-E 3、Flux、Stable Diffusion 等）。请联系管理员在后台 AI 设置中添加具备 draw 或 image 能力的图像生成模型。');
+      throw new Error(
+        '系统尚未配置任何“图像生成”模型（如 DALL-E 3、Flux、Stable Diffusion 等）。请联系管理员在后台 AI 设置中添加具备 draw 或 image 能力的图像生成模型。',
+      );
     }
     // Fallback to global setting directly
     return generateImage(prompt, undefined, timeoutMs, size);
@@ -2388,7 +2404,7 @@ export async function generateImageWithFailover(
     try {
       if (failedLabels.length > 0) {
         logger.info(
-          `[AI Image Failover] Retrying image generation with model: ${label} (after ${failedLabels.length} failure(s))`
+          `[AI Image Failover] Retrying image generation with model: ${label} (after ${failedLabels.length} failure(s))`,
         );
       }
       const result = await generateImage(prompt, overrides, timeoutMs, size);
@@ -2399,13 +2415,14 @@ export async function generateImageWithFailover(
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       failedLabels.push(label);
-      logger.warn(`[AI Image Failover] Model ${label} failed: ${lastError.message}. Trying next...`);
+      logger.warn(
+        `[AI Image Failover] Model ${label} failed: ${lastError.message}. Trying next...`,
+      );
     }
   }
 
   logger.error(
-    `[AI Image Failover] All ${chain.length} model/key combination(s) failed. Tried: ${failedLabels.join(', ')}`
+    `[AI Image Failover] All ${chain.length} model/key combination(s) failed. Tried: ${failedLabels.join(', ')}`,
   );
   throw lastError ?? new Error('所有生图 AI 模型均不可用，请联系管理员检查配置。');
 }
-

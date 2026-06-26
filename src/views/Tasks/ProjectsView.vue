@@ -24,6 +24,7 @@ import { isTaskOverdue } from '@/utils/taskDisplay';
 import ProjectDetailPanel from './components/ProjectDetailPanel.vue';
 import ProjectFormPanel from './components/ProjectFormPanel.vue';
 import Button from '@/components/ui/Button.vue';
+import PageHeader from '@/components/PageHeader.vue';
 
 // Subcomponents
 import ProjectsOverview from './components/ProjectsOverview.vue';
@@ -718,81 +719,58 @@ watch(viewMode, (newMode) => {
     class="mobile-adaptive team-projects flex-1 flex flex-col h-full overflow-hidden"
     style="background-color: var(--bg-app)"
   >
-    <div
-      class="mobile-row shrink-0 border-b px-4 sm:px-6 py-3 xl:py-0 xl:h-14 flex items-center"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
+    <PageHeader
+      title="项目空间"
+      :subtitle="`${activeWorkspaceName} · ${projectStats.total} 个项目 · ${taskStats.total} 个任务 · 同步 ${dataFreshnessLabel}`"
+      :icon="Layers"
     >
-      <div
-        class="mobile-row flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between w-full"
-      >
-        <!-- Left Section -->
-        <div class="flex items-center gap-2.5 min-w-0 xl:flex-1">
-          <div class="p-1.5 bg-accent/10 rounded-lg border border-accent/15 shrink-0">
-            <Layers class="w-4 h-4 text-accent" />
-          </div>
-          <div class="min-w-0">
-            <h1 class="text-base sm:text-lg font-black truncate" style="color: var(--text-primary)">
-              项目空间
-            </h1>
-            <p class="text-[10px] sm:text-xs font-medium truncate" style="color: var(--text-muted)">
-              {{ activeWorkspaceName }} · {{ projectStats.total }} 个项目 ·
-              {{ taskStats.total }} 个任务 · 同步 {{ dataFreshnessLabel }}
-            </p>
-          </div>
-        </div>
+      <template #center>
+        <label class="search-box !min-h-0 !h-8 w-full sm:w-72 xl:w-80 shrink-0">
+          <Search />
+          <input v-model="searchQuery" type="text" placeholder="搜索项目、描述、标签" />
+        </label>
+      </template>
 
-        <!-- Center Section (Search) -->
-        <div class="flex justify-center xl:flex-1 w-full xl:w-auto">
-          <label class="search-box !min-h-0 !h-8 w-full sm:w-72 xl:w-80 shrink-0">
-            <Search />
-            <input v-model="searchQuery" type="text" placeholder="搜索项目、描述、标签" />
-          </label>
-        </div>
-
-        <!-- Right Section (Actions) -->
-        <div class="flex items-center gap-2 justify-start sm:justify-end xl:flex-1">
-          <div class="mobile-row flex items-center gap-2 shrink-0">
-            <Button
-              variant="secondary"
-              size="sm"
-              class="!h-8 shrink-0"
-              :icon="isRefreshing ? undefined : RefreshCw"
-              :loading="isRefreshing"
-              @click="handleManualRefresh"
-            >
-              同步
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              class="!h-8 shrink-0"
-              :icon="isStatsExpanded ? EyeOff : Eye"
-              @click="isStatsExpanded = !isStatsExpanded"
-            >
-              {{ isStatsExpanded ? '收起指标' : '数据指标' }}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              class="!h-8 shrink-0"
-              :icon="KanbanSquare"
-              @click="navigateToTaskBoard()"
-            >
-              看板
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              class="!h-8 shrink-0"
-              :icon="FolderPlus"
-              @click="openAddDrawer"
-            >
-              新项目
-            </Button>
-          </div>
-        </div>
+      <div class="mobile-row flex items-center gap-2 shrink-0">
+        <Button
+          variant="secondary"
+          size="sm"
+          class="!h-8 shrink-0"
+          :icon="isRefreshing ? undefined : RefreshCw"
+          :loading="isRefreshing"
+          @click="handleManualRefresh"
+        >
+          同步
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          class="!h-8 shrink-0"
+          :icon="isStatsExpanded ? EyeOff : Eye"
+          @click="isStatsExpanded = !isStatsExpanded"
+        >
+          {{ isStatsExpanded ? '收起指标' : '数据指标' }}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          class="!h-8 shrink-0"
+          :icon="KanbanSquare"
+          @click="navigateToTaskBoard()"
+        >
+          看板
+        </Button>
+        <Button
+          variant="primary"
+          size="sm"
+          class="!h-8 shrink-0"
+          :icon="FolderPlus"
+          @click="openAddDrawer"
+        >
+          新项目
+        </Button>
       </div>
-    </div>
+    </PageHeader>
 
     <div class="flex-1 overflow-y-auto scrollbar-hide">
       <div v-if="isLoading" class="h-full flex flex-col items-center justify-center opacity-60">

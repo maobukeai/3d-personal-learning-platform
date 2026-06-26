@@ -55,10 +55,27 @@ export interface AssetUploadForm {
   description: string;
   categoryId: string;
   file: File | null;
+  packageFile: File | null;
   externalUrl: string;
   thumbnail: File | null;
   tags: string;
   formats: string[];
+  // Copyright
+  originality: 'ORIGINAL' | 'AUTHORIZED' | 'REMIX';
+  originalAuthor: string;
+  originalLink: string;
+  license: string;
+  // Specs
+  meshType: 'LOW_POLY' | 'HIGH_POLY' | 'CAD';
+  uvUnwrapped: boolean;
+  uvOverlapping: boolean;
+  pbrChannels: string[];
+  rigged: boolean;
+  gameReady: boolean;
+  // Relations
+  linkedCourseId: string;
+  linkedLessonId: string;
+  isFree: boolean;
 }
 
 export interface NormalizedAsset extends AssetListItem {
@@ -96,11 +113,61 @@ export const createAssetUploadForm = (): AssetUploadForm => ({
   description: '',
   categoryId: '',
   file: null,
+  packageFile: null,
   externalUrl: '',
   thumbnail: null,
   tags: '',
   formats: [],
+  // Copyright
+  originality: 'ORIGINAL',
+  originalAuthor: '',
+  originalLink: '',
+  license: 'CC_BY',
+  // Specs
+  meshType: 'LOW_POLY',
+  uvUnwrapped: true,
+  uvOverlapping: false,
+  pbrChannels: [],
+  rigged: false,
+  gameReady: false,
+  // Relations
+  linkedCourseId: '',
+  linkedLessonId: '',
+  isFree: true,
 });
+
+export const ASSET_ORIGINALITY_OPTIONS = [
+  { value: 'ORIGINAL', label_zh: '原创作品', label_en: 'Original' },
+  { value: 'AUTHORIZED', label_zh: '授权分享', label_en: 'Authorized Share' },
+  { value: 'REMIX', label_zh: '二次创作/改编', label_en: 'Remix/Adaptation' },
+] as const;
+
+export const ASSET_LICENSE_OPTIONS = [
+  { value: 'CC_BY', label_zh: 'CC BY (署名)', label_en: 'CC BY (Attribution)' },
+  { value: 'CC_BY_NC', label_zh: 'CC BY-NC (署名-非商业性使用)', label_en: 'CC BY-NC (Non-Commercial)' },
+  { value: 'CC_BY_ND', label_zh: 'CC BY-ND (署名-禁止演绎)', label_en: 'CC BY-ND (No Derivatives)' },
+  { value: 'CC_BY_NC_ND', label_zh: 'CC BY-NC-ND (署名-非商业使用-禁止演绎)', label_en: 'CC BY-NC-ND (NC-ND)' },
+  { value: 'PROPRIETARY', label_zh: '专有商业授权/保护', label_en: 'Proprietary Commercial' },
+  { value: 'PUBLIC_DOMAIN', label_zh: '公有领域 (CC0 / 放弃版权)', label_en: 'Public Domain (CC0)' },
+] as const;
+
+export const ASSET_MESHTYPE_OPTIONS = [
+  { value: 'LOW_POLY', label_zh: 'Low-Poly (低模/游戏优化)', label_en: 'Low-Poly' },
+  { value: 'HIGH_POLY', label_zh: 'High-Poly (高模/影视渲染)', label_en: 'High-Poly' },
+  { value: 'CAD', label_zh: 'CAD (工业模型/结构)', label_en: 'CAD/Industrial' },
+] as const;
+
+export const ASSET_PBR_MAPS_OPTIONS = [
+  'BaseColor',
+  'Normal',
+  'Roughness',
+  'Metallic',
+  'AO',
+  'Specular',
+  'Glossiness',
+  'Emissive',
+  'Opacity',
+] as const;
 
 export const buildAssetCategoryOptions = (
   categories: AssetInsightCategory[],
@@ -177,16 +244,37 @@ export const buildActiveAssetFilterChips = (options: {
   return chips;
 };
 
-export const isAssetUploadReady = (form: AssetUploadForm) => {
-  const hasSource =
-    form.uploadType === 'file' ? Boolean(form.file) : Boolean(form.externalUrl.trim());
-  return hasSource && Boolean(form.title.trim()) && Boolean(form.categoryId);
+export const isAssetUploadReady = (form: AssetUploadForm, isEditing = false) => {
+  if (!isEditing) {
+    if (form.uploadType === 'file') {
+      if (!form.file) return false;
+      const name = form.file.name.toLowerCase();
+      if (!name.endsWith('.glb')) return false;
+    } else {
+      if (!form.externalUrl.trim()) return false;
+    }
+  } else {
+    if (form.uploadType === 'file' && form.file) {
+      const name = form.file.name.toLowerCase();
+      if (!name.endsWith('.glb')) return false;
+    } else if (form.uploadType === 'link') {
+      if (!form.externalUrl.trim()) return false;
+    }
+  }
+  if (form.packageFile) {
+    const pkgName = form.packageFile.name.toLowerCase();
+    if (!pkgName.endsWith('.zip')) return false;
+  }
+  return Boolean(form.title.trim()) && Boolean(form.categoryId);
 };
 
 export const buildAssetUploadFormData = (form: AssetUploadForm) => {
   const formData = new FormData();
   if (form.uploadType === 'file') {
     formData.append('asset', form.file as File);
+    if (form.packageFile) {
+      formData.append('package', form.packageFile);
+    }
   } else {
     formData.append('externalUrl', form.externalUrl.trim());
   }
@@ -200,5 +288,26 @@ export const buildAssetUploadFormData = (form: AssetUploadForm) => {
   if (form.formats.length) {
     formData.append('formats', JSON.stringify(form.formats));
   }
+  // Copyright
+  formData.append('originality', form.originality);
+  formData.append('originalAuthor', form.originalAuthor.trim());
+  formData.append('originalLink', form.originalLink.trim());
+  formData.append('license', form.license);
+  // Specs
+  formData.append('meshType', form.meshType);
+  formData.append('uvUnwrapped', String(form.uvUnwrapped));
+  formData.append('uvOverlapping', String(form.uvOverlapping));
+  if (form.pbrChannels.length) {
+    formData.append('pbrChannels', JSON.stringify(form.pbrChannels));
+  }
+  formData.append('rigged', String(form.rigged));
+  formData.append('gameReady', String(form.gameReady));
+  if (form.linkedCourseId) {
+    formData.append('linkedCourseId', form.linkedCourseId);
+  }
+  if (form.linkedLessonId) {
+    formData.append('linkedLessonId', form.linkedLessonId);
+  }
+  formData.append('isFree', String(form.isFree));
   return formData;
 };

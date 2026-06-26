@@ -257,7 +257,40 @@ const getReviewAgeHours = (createdAt: Date | string, status: string) => {
   return Math.max(0, Math.floor((Date.now() - timestamp) / 36e5));
 };
 
-const normalizeAssetItem = (asset: any, metricLabel = '触达'): ResourceFeedItem => ({
+// ── Narrow input shapes for normalise helpers ────────────────────────────────
+type AssetRow = {
+  id: string; title: string; type?: string | null; status: string;
+  thumbnail?: string | null; tags?: string | null; rejectReason?: string | null;
+  createdAt: Date | string; updatedAt?: Date | string;
+  downloads?: number | null; viewCount?: number | null;
+  category?: { name?: string | null } | null;
+  user?: { name?: string | null; email?: string | null } | null;
+};
+type MaterialRow = {
+  id: string; title: string; category?: string | null; resolution?: string | null;
+  status: string; previewUrl?: string | null; tags?: string | null;
+  rejectReason?: string | null; createdAt: Date | string; updatedAt: Date | string;
+  fileSize?: number | null; isProcedural?: boolean | null; downloads?: number | null;
+  _count?: { favorites?: number } | null;
+  user?: { name?: string | null; email?: string | null } | null;
+};
+type PluginRow = {
+  id: string; title: string; category?: string | null; version?: string | null;
+  status: string; previewUrl?: string | null; tags?: string | null;
+  rejectReason?: string | null; createdAt: Date | string; updatedAt: Date | string;
+  downloads?: number;
+  user?: { name?: string | null; email?: string | null } | null;
+};
+type ShowcaseRow = {
+  id: string; title: string; type?: string | null; status: string;
+  thumbnailUrl?: string | null; tags?: string | null;
+  createdAt: Date | string; updatedAt: Date | string;
+  views?: number;
+  _count?: { likes?: number; comments?: number } | null;
+  user?: { name?: string | null; email?: string | null } | null;
+};
+
+const normalizeAssetItem = (asset: AssetRow, metricLabel = '触达'): ResourceFeedItem => ({
   id: asset.id,
   kind: 'asset',
   title: asset.title,
@@ -268,9 +301,9 @@ const normalizeAssetItem = (asset: any, metricLabel = '触达'): ResourceFeedIte
       : sumNumbers(asset.downloads, asset.viewCount),
   metricLabel,
   status: asset.status,
-  previewUrl: asset.thumbnail,
+  previewUrl: asset.thumbnail ?? null,
   createdAt: toIso(asset.createdAt),
-  updatedAt: toIso(asset.updatedAt),
+  updatedAt: asset.updatedAt ? toIso(asset.updatedAt) : toIso(asset.createdAt),
   path: `/assets/${asset.id}`,
   reviewPath: `/admin/audits?tab=assets&item=${asset.id}`,
   author: getAuthorName(asset.user),
@@ -279,7 +312,7 @@ const normalizeAssetItem = (asset: any, metricLabel = '触达'): ResourceFeedIte
   reviewAgeHours: getReviewAgeHours(asset.createdAt, asset.status),
 });
 
-const normalizeMaterialItem = (material: any, metricLabel = '收藏'): ResourceFeedItem => ({
+const normalizeMaterialItem = (material: MaterialRow, metricLabel = '收藏'): ResourceFeedItem => ({
   id: material.id,
   kind: 'material',
   title: material.title,
@@ -290,7 +323,7 @@ const normalizeMaterialItem = (material: any, metricLabel = '收藏'): ResourceF
       : sumNumbers(material._count?.favorites),
   metricLabel,
   status: material.status,
-  previewUrl: material.previewUrl,
+  previewUrl: material.previewUrl ?? null,
   createdAt: toIso(material.createdAt),
   updatedAt: toIso(material.updatedAt),
   path: `/materials?material=${material.id}`,
@@ -307,15 +340,15 @@ const normalizeMaterialItem = (material: any, metricLabel = '收藏'): ResourceF
   favorites: sumNumbers(material._count?.favorites),
 });
 
-const normalizePluginItem = (plugin: any, metricLabel = '下载'): ResourceFeedItem => ({
+const normalizePluginItem = (plugin: PluginRow, metricLabel = '下载'): ResourceFeedItem => ({
   id: plugin.id,
   kind: 'plugin',
   title: plugin.title,
   subtitle: `${plugin.category} / v${String(plugin.version).replace(/^v/i, '')}`,
-  metric: plugin.downloads,
+  metric: plugin.downloads ?? 0,
   metricLabel,
   status: plugin.status,
-  previewUrl: plugin.previewUrl,
+  previewUrl: plugin.previewUrl ?? null,
   createdAt: toIso(plugin.createdAt),
   updatedAt: toIso(plugin.updatedAt),
   path: `/plugins?plugin=${plugin.id}`,
@@ -326,18 +359,18 @@ const normalizePluginItem = (plugin: any, metricLabel = '下载'): ResourceFeedI
   reviewAgeHours: getReviewAgeHours(plugin.createdAt, plugin.status),
 });
 
-const normalizeShowcaseItem = (showcase: any, metricLabel = '互动'): ResourceFeedItem => ({
+const normalizeShowcaseItem = (showcase: ShowcaseRow, metricLabel = '互动'): ResourceFeedItem => ({
   id: showcase.id,
   kind: 'showcase',
   title: showcase.title,
-  subtitle: showcase.type,
+  subtitle: showcase.type ?? '',
   metric:
     metricLabel === '浏览'
       ? sumNumbers(showcase.views)
       : sumNumbers(showcase._count?.likes, showcase._count?.comments),
   metricLabel,
   status: showcase.status,
-  previewUrl: showcase.thumbnailUrl,
+  previewUrl: showcase.thumbnailUrl ?? null,
   createdAt: toIso(showcase.createdAt),
   updatedAt: toIso(showcase.updatedAt),
   path: `/showcase?work=${showcase.id}`,
@@ -1002,12 +1035,11 @@ export const getMyResourceWorkbench = async (
 ) => {
   try {
     const userId = req.userId as string;
-    const teamFilter = getTeamFilter(req.workspaceId);
     const limit = parseLimit(req.query.limit);
 
     const [assets, materials, plugins, showcases] = await Promise.all([
       prisma.asset.findMany({
-        where: { userId, ...teamFilter },
+        where: { userId },
         orderBy: { updatedAt: 'desc' },
         take: limit,
         include: {
@@ -1015,7 +1047,7 @@ export const getMyResourceWorkbench = async (
         },
       }),
       prisma.material.findMany({
-        where: { userId, ...teamFilter },
+        where: { userId },
         orderBy: { updatedAt: 'desc' },
         take: limit,
         include: {
@@ -1029,7 +1061,7 @@ export const getMyResourceWorkbench = async (
         take: limit,
       }),
       prisma.showcase.findMany({
-        where: { userId, ...teamFilter },
+        where: { userId },
         orderBy: { updatedAt: 'desc' },
         take: limit,
         include: {

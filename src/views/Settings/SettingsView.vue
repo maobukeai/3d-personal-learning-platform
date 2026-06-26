@@ -27,6 +27,17 @@ import DataSection from './components/DataSection.vue';
 import BackupSection from './components/BackupSection.vue';
 import { useLabel } from '@/utils/i18n';
 
+const sectionComponents: Record<SectionId, Component> = {
+  profile: ProfileSection,
+  notifications: NotificationSection,
+  security: SecuritySection,
+  appearance: AppearanceSection,
+  teams: TeamsSection,
+  data: DataSection,
+  backup: BackupSection,
+};
+
+
 type SectionId =
   | 'profile'
   | 'notifications'
@@ -327,13 +338,9 @@ watch(filteredSections, (next) => {
       </header>
 
       <div class="section-content">
-        <ProfileSection v-if="activeSection === 'profile'" />
-        <NotificationSection v-else-if="activeSection === 'notifications'" />
-        <SecuritySection v-else-if="activeSection === 'security'" />
-        <AppearanceSection v-else-if="activeSection === 'appearance'" />
-        <TeamsSection v-else-if="activeSection === 'teams'" />
-        <DataSection v-else-if="activeSection === 'data'" />
-        <BackupSection v-else-if="activeSection === 'backup'" />
+        <KeepAlive>
+          <component :is="sectionComponents[activeSection]" />
+        </KeepAlive>
       </div>
     </main>
   </div>
@@ -401,37 +408,6 @@ h2 {
   padding: 4px 0 8px;
 }
 
-.settings-search {
-  width: 100%;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 11px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
-}
-
-.settings-search svg {
-  width: 16px;
-  height: 16px;
-}
-
-.settings-search svg {
-  color: var(--text-muted);
-}
-
-.settings-search input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 13px;
-}
 
 .icon-action {
   width: 38px;

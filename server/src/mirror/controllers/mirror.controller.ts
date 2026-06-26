@@ -6,6 +6,7 @@ import { getPlanName } from '../../utils/plan-utils';
 import { encryptText } from '../../utils/crypto';
 import { clampLimit, clampPage } from '../../utils/pagination';
 import { config } from '../../config/env';
+import { logger } from '../../utils/logger';
 
 export const getSources = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -587,7 +588,9 @@ export const extractResourceLink = async (req: AuthRequest, res: Response, next:
     // Encrypt link and password with shared key
     const envKey = process.env.EXTRACT_ENCRYPTION_KEY;
     if (!envKey && process.env.NODE_ENV === 'production') {
-      console.warn('[Warning] EXTRACT_ENCRYPTION_KEY is not set in production. Falling back to default key.');
+      logger.warn(
+        '[Mirror] EXTRACT_ENCRYPTION_KEY is not set in production. Falling back to default key.',
+      );
     }
     const key = envKey || '3d_learning_platform_secure_extract_key_2026';
     const encryptedLink = encryptText(link, key);

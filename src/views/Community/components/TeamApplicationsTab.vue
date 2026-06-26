@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
+import { useCommunityI18n } from '@/composables/useCommunityI18n';
 import { ClipboardList, XCircle, CheckCheck } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 
@@ -28,15 +29,8 @@ const emit = defineEmits<{
   (e: 'respond-application', id: string, approve: boolean, name: string): void;
 }>();
 
-const { t: i18nT, locale } = useI18n();
-
-const t = (key: string, ...args: unknown[]) => {
-  const prefixes = ['showcase.', 'teams.', 'members.', 'teamDetail.', 'discussions.', 'chat.'];
-  if (prefixes.some((p) => key.startsWith(p))) {
-    return (i18nT as (key: string, ...args: unknown[]) => string)(`community.${key}`, ...args);
-  }
-  return (i18nT as (key: string, ...args: unknown[]) => string)(key, ...args);
-};
+const { locale } = useI18n();
+const { t } = useCommunityI18n();
 </script>
 
 <template>

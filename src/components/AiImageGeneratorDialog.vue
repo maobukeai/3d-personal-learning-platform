@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { Sparkles, Wand2, Check, AlertCircle } from 'lucide-vue-next';
+import { Sparkles, Wand2, Check } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { useSystemStore } from '@/stores/system';
 import type { AiModelFamilyCandidate } from '@/utils/aiModelFamilies';
@@ -9,7 +9,7 @@ interface AiImageModelOption extends AiModelFamilyCandidate {
   endpoint?: string;
   capabilities?: string[];
 }
-import Modal from '@/components/ui/Modal.vue';
+import AiGeneratorBase from '@/components/aiSprite/AiGeneratorBase.vue';
 import Button from '@/components/ui/Button.vue';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
@@ -198,12 +198,13 @@ const handleSave = async () => {
 </script>
 
 <template>
-  <Modal
+  <AiGeneratorBase
     :show="show"
     :title="title"
-    size="lg"
-    glass-card
-    class="ai-image-generator-modal"
+    subtitle="输入您的创意构想，AI 将为您智能绘制精美画作或头像"
+    :is-generating="isGenerating"
+    generating-text="AI 正在努力创作中，大约需要 5 - 15 秒..."
+    :error-msg="errorMsg"
     @close="emit('close')"
   >
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-1">
@@ -227,7 +228,7 @@ const handleSave = async () => {
         </div>
 
         <!-- Prompt Textarea -->
-        <div class="flex flex-col gap-1.5 flex-1 min-h-[160px]">
+        <div class="flex flex-col gap-1.5 flex-1 min-h-[160px] text-left">
           <label
             class="text-xs font-bold text-[var(--text-secondary)] flex justify-between items-center"
           >
@@ -247,7 +248,7 @@ const handleSave = async () => {
             <button
               v-if="prompt.trim()"
               type="button"
-              class="absolute bottom-2.5 right-2.5 flex items-center gap-1 px-2.5 py-1 bg-accent/20 hover:bg-accent/35 text-accent text-xs font-bold rounded-md transition-all border border-accent/20"
+              class="absolute bottom-2.5 right-2.5 flex items-center gap-1 px-2.5 py-1 bg-accent/20 hover:bg-accent/35 text-accent text-xs font-bold rounded-md transition-all border border-accent/20 cursor-pointer"
               :disabled="isOptimizing || isGenerating"
               @click="handleOptimizePrompt"
             >
@@ -291,17 +292,6 @@ const handleSave = async () => {
           <p class="text-xs text-slate-400 text-center">如果不满意，可以修改提示词重新生成</p>
         </div>
 
-        <!-- Loading spinner -->
-        <div v-else-if="isGenerating" class="flex flex-col items-center gap-4 text-center">
-          <div
-            class="w-12 h-12 rounded-full border-4 border-indigo-600/20 border-t-indigo-500 animate-spin"
-          ></div>
-          <div class="space-y-1">
-            <p class="text-sm font-bold text-slate-200">AI 正在努力创作中...</p>
-            <p class="text-xs text-slate-500">大约需要 5 - 15 秒，请稍候</p>
-          </div>
-        </div>
-
         <!-- Placeholder -->
         <div v-else class="flex flex-col items-center gap-3 text-slate-500 text-center p-6">
           <div class="p-4 bg-slate-900/60 rounded-full border border-slate-800">
@@ -314,20 +304,11 @@ const handleSave = async () => {
             </p>
           </div>
         </div>
-
-        <!-- Error state -->
-        <div
-          v-if="errorMsg"
-          class="absolute bottom-4 left-4 right-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs px-3 py-2.5 rounded-lg flex items-start gap-2 animate-in slide-in-from-bottom-2 duration-300"
-        >
-          <AlertCircle class="w-4 h-4 shrink-0 mt-0.5" />
-          <span>{{ errorMsg }}</span>
-        </div>
       </div>
     </div>
 
     <!-- Footer buttons -->
-    <template #footer>
+    <template #actions>
       <Button variant="secondary" :disabled="isGenerating || isOptimizing" @click="emit('close')">
         取消
       </Button>
@@ -341,7 +322,7 @@ const handleSave = async () => {
         使用该图片
       </Button>
     </template>
-  </Modal>
+  </AiGeneratorBase>
 </template>
 
 <style scoped>

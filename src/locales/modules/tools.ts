@@ -112,6 +112,8 @@ export const toolsZh = {
     test_failed_detailed: '{email}: {error}',
   },
   googleWarming: {
+    passwordGenerated: '已自动生成并填充复杂密码！',
+    noDataToExport: '暂无账号数据可导出',
     title: '谷歌养号工作区',
     fetch_accounts_failed: '获取账号列表失败',
     description: '批量导入谷歌账号，依照专业策略每日逐步安全养号，降低封号风控概率。',
@@ -234,6 +236,15 @@ export const toolsZh = {
     pin: '置顶',
     unpin: '取消置顶',
     copied: '已复制',
+    deleteConfirm: '确定要删除 2FA 记录 “{label}” 吗？此操作不可撤销！',
+    deleteConfirmTitle: '删除确认',
+    confirmDelete: '确认删除',
+    deleteSuccess: '删除成功',
+    fetchFailed: '加载2FA账号列表失败',
+    copiedSuccess: '验证码已复制到剪贴板',
+    copyFailed: '复制失败，请手动选择复制',
+    deleteFailed: '删除2FA记录失败',
+    cancel: '取消',
   },
 };
 
@@ -357,6 +368,8 @@ export const toolsEn = {
     test_failed_detailed: '{email}: {error}',
   },
   googleWarming: {
+    passwordGenerated: 'Password automatically generated and filled!',
+    noDataToExport: 'No account data available to export',
     title: 'Google Account Warming Workspace',
     fetch_accounts_failed: 'Failed to fetch Google accounts list',
     description:
@@ -489,5 +502,14 @@ export const toolsEn = {
     pin: 'Pin to top',
     unpin: 'Unpin',
     copied: 'Copied',
+    deleteConfirm: 'Are you sure you want to delete the 2FA record "{label}"? This action cannot be undone!',
+    deleteConfirmTitle: 'Delete Confirmation',
+    confirmDelete: 'Confirm Delete',
+    deleteSuccess: 'Deleted successfully',
+    fetchFailed: 'Failed to load 2FA account list',
+    copiedSuccess: 'Verification code copied to clipboard',
+    copyFailed: 'Copy failed, please select and copy manually',
+    deleteFailed: 'Failed to delete 2FA record',
+    cancel: 'Cancel',
   },
 };

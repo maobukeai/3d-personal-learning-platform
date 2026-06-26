@@ -20,7 +20,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox, ElTable } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import Modal from '@/components/ui/Modal.vue';
@@ -270,6 +270,7 @@ const handleTabChange = (tabId: ContentTab) => {
   activeTab.value = tabId;
   currentPage.value = 1;
   router.push({ query: { ...route.query, tab: tabId } });
+  clearSelection();
   fetchItems();
 };
 
@@ -281,6 +282,7 @@ const handleSearch = () => {
 const handleStatusFilterChange = (status: StatusFilter) => {
   statusFilter.value = status;
   currentPage.value = 1;
+  clearSelection();
   fetchItems();
 };
 
@@ -288,6 +290,7 @@ const handleStatusFilterChange = (status: StatusFilter) => {
 const setPage = (page: number) => {
   if (page < 1 || page > totalPages.value) return;
   currentPage.value = page;
+  clearSelection();
   fetchItems();
 };
 
@@ -646,6 +649,126 @@ const handleDelete = (item: ContentItem) => {
     .catch(() => {});
 };
 
+// Batch Operations
+const tableRef = ref<InstanceType<typeof ElTable> | null>(null);
+const selectedItems = ref<ContentItem[]>([]);
+
+const handleSelectionChange = (val: ContentItem[]) => {
+  selectedItems.value = val;
+};
+
+const clearSelection = () => {
+  if (tableRef.value) {
+    tableRef.value.clearSelection();
+  }
+  selectedItems.value = [];
+};
+
+const handleBatchApprove = async () => {
+  if (selectedItems.value.length === 0) return;
+  try {
+    const ids = selectedItems.value.map((item) => item.id);
+    await ElMessageBox.confirm(`确认批量通过已选择的 ${ids.length} 个资源？`, '批量审核通过', {
+      confirmButtonText: '确认通过',
+      cancelButtonText: '取消',
+      type: 'success',
+    });
+    
+    isLoading.value = true;
+    await api.put(`${pageConfig.value.apiPath}/batch-status`, {
+      ids,
+      status: 'APPROVED',
+    });
+    ElMessage.success('批量审核已通过');
+    clearSelection();
+    await fetchItems();
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(getApiErrorMessage(error, '批量审核通过失败'));
+    }
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const handleBatchReject = () => {
+  if (selectedItems.value.length === 0) return;
+  ElMessageBox.prompt('请输入批量退回理由：', '批量退回审核', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    inputPattern: /\S+/,
+    inputErrorMessage: '请输入理由',
+  })
+    .then(async ({ value }) => {
+      isLoading.value = true;
+      try {
+        const ids = selectedItems.value.map((item) => item.id);
+        await api.put(`${pageConfig.value.apiPath}/batch-status`, {
+          ids,
+          status: 'REJECTED',
+          rejectReason: value.trim(),
+        });
+        ElMessage.success(`已批量打回 ${ids.length} 个资源`);
+        clearSelection();
+        await fetchItems();
+      } catch (error) {
+        ElMessage.error(getApiErrorMessage(error, '批量退回失败'));
+      } finally {
+        isLoading.value = false;
+      }
+    })
+    .catch(() => {});
+};
+
+const handleBatchDelete = () => {
+  if (selectedItems.value.length === 0) return;
+  ElMessageBox.confirm(
+    `确定要彻底删除已选择的 ${selectedItems.value.length} 个资源吗？此操作不可逆。`,
+    '警告',
+    {
+      confirmButtonText: '确定删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+    .then(async () => {
+      isLoading.value = true;
+      const ids = selectedItems.value.map((item) => item.id);
+      let successCount = 0;
+      let failCount = 0;
+
+      try {
+        await Promise.all(
+          ids.map(async (id) => {
+            try {
+              await api.delete(`${pageConfig.value.apiPath}/${id}`);
+              successCount++;
+            } catch (err) {
+              failCount++;
+              logError(err, { operation: 'batchDelete', id });
+            }
+          })
+        );
+
+        if (failCount === 0) {
+          ElMessage.success(`成功删除所有已选择的 ${successCount} 个资源`);
+        } else if (successCount > 0) {
+          ElMessage.warning(`成功删除 ${successCount} 个资源，其中 ${failCount} 个删除失败`);
+        } else {
+          ElMessage.error('所有选中的资源删除失败，请稍后重试');
+        }
+
+        clearSelection();
+        await fetchItems();
+      } catch (error) {
+        ElMessage.error(getApiErrorMessage(error, '批量删除操作发生错误'));
+      } finally {
+        isLoading.value = false;
+      }
+    })
+    .catch(() => {});
+};
+
 onMounted(() => {
   fetchItems();
   fetchAssetCategories();
@@ -739,14 +862,60 @@ onMounted(() => {
         </div>
       </Card>
 
+      <!-- Batch operations bar -->
+      <div
+        v-if="selectedItems.length"
+        class="batch-bar flex items-center justify-between gap-3 p-2 px-3 border border-slate-100 dark:border-white/5 bg-white/40 dark:bg-white/5 backdrop-blur-sm rounded-lg mobile-row"
+      >
+        <span class="text-xs font-semibold text-[var(--text-secondary)]">
+          已选择 {{ selectedItems.length }} 项{{ pageConfig.label }}
+        </span>
+        <div class="flex items-center gap-2 mobile-row">
+          <UiButton
+            variant="primary"
+            size="sm"
+            :icon="CheckCircle2"
+            @click="handleBatchApprove"
+          >
+            批量通过
+          </UiButton>
+          <UiButton
+            variant="secondary"
+            size="sm"
+            class="danger-action"
+            :icon="AlertTriangle"
+            @click="handleBatchReject"
+          >
+            批量退回
+          </UiButton>
+          <UiButton
+            variant="danger"
+            size="sm"
+            :icon="Trash2"
+            @click="handleBatchDelete"
+          >
+            批量删除
+          </UiButton>
+          <UiButton
+            variant="secondary"
+            size="sm"
+            @click="clearSelection"
+          >
+            清空选择
+          </UiButton>
+        </div>
+      </div>
+
       <!-- Table Shell Card -->
       <Card padding="none" class="table-shell-card overflow-hidden">
         <el-table
+          ref="tableRef"
           v-loading="isLoading"
           :data="items"
           class="user-table mobile-table"
           row-key="id"
           @row-click="openDetail"
+          @selection-change="handleSelectionChange"
         >
           <!-- Selection Column -->
           <el-table-column type="selection" width="48" align="center" />

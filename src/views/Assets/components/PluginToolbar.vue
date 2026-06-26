@@ -6,7 +6,7 @@ import Tabs from '@/components/ui/Tabs.vue';
 
 type SortMode = 'latest' | 'popular' | 'name';
 type ViewMode = 'grid' | 'list';
-type LibraryTab = 'explore' | 'favorites' | 'mine';
+type LibraryTab = 'explore' | 'favorites' | 'mine' | 'requests';
 
 const props = defineProps<{
   activeTab: LibraryTab;

@@ -19,6 +19,47 @@
         } catch (e) {}
       })();
     </script>
+    <script>
+      (function() {
+        try {
+          // 1. Restore Theme to prevent FOUC (white flash)
+          var theme = localStorage.getItem('theme') || 'glass-dark';
+          var effectiveTheme = theme;
+          if (theme === 'glass-auto') {
+            var hour = new Date().getHours();
+            effectiveTheme = (hour >= 6 && hour < 18) ? 'glass-light' : 'glass-dark';
+          }
+          
+          var root = document.documentElement;
+          root.classList.remove('dark', 'theme-glass');
+          if (effectiveTheme === 'glass-light') {
+            root.classList.add('theme-glass');
+          } else if (effectiveTheme === 'glass-dark') {
+            root.classList.add('theme-glass', 'dark');
+          }
+
+          // 2. Restore Accent Color immediately
+          var color = localStorage.getItem('accentColor') || '#2563eb';
+          var hex = color.replace('#', '');
+          var bigint = parseInt(
+            hex.length === 3
+              ? hex.split('').map(function(c) { return c + c; }).join('')
+              : hex,
+            16
+          );
+          var rgb = isFinite(bigint)
+            ? ((bigint >> 16) & 255) + ', ' + ((bigint >> 8) & 255) + ', ' + (bigint & 255)
+            : '37, 99, 235';
+
+          root.style.setProperty('--accent', color);
+          root.style.setProperty('--accent-rgb', rgb);
+          root.style.setProperty('--el-color-primary', color);
+          root.style.setProperty('--el-color-primary-light-3', color + 'b3');
+          root.style.setProperty('--el-color-primary-light-5', color + '80');
+          root.style.setProperty('--el-color-primary-light-9', color + '1a');
+        } catch (e) {}
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="no-referrer" />
     <meta name="description" content="3D 个人创意学习平台 — 学习建模、渲染与创作" />

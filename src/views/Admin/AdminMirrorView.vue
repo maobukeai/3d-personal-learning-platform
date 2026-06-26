@@ -10,6 +10,13 @@ import { fetchManagementInsights } from './adminManagementInsights';
 import MirrorSourceDialog from './components/MirrorSourceDialog.vue';
 import MirrorSyncLogsDialog from './components/MirrorSyncLogsDialog.vue';
 import CategoryFormDialog from './components/CategoryFormDialog.vue';
+import MirrorHeaderStats from './components/MirrorHeaderStats.vue';
+import MirrorSourceToolbar from './components/MirrorSourceToolbar.vue';
+import MirrorSourceList from './components/MirrorSourceList.vue';
+import MirrorMatchDialog from './components/MirrorMatchDialog.vue';
+import MirrorResourceDialog from './components/MirrorResourceDialog.vue';
+import MirrorCloudScanDialog from './components/MirrorCloudScanDialog.vue';
+import MirrorImportProgressDialog from './components/MirrorImportProgressDialog.vue';
 
 export interface MirrorSource {
   id: string;

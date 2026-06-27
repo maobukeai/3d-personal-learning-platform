@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { Sparkles } from 'lucide-vue-next';
 import { type Component } from 'vue';
 import Tabs from '@/components/ui/Tabs.vue';
-import UnifiedCard from '@/components/UnifiedCard.vue';
-import EmptyState from '@/components/EmptyState.vue';
-import SkeletonGrid from '@/components/SkeletonGrid.vue';
+import { useLabel } from '@/utils/i18n';
+import ResourceGridPanel from './ResourceGridPanel.vue';
 import type { UnifiedWork, WorkSortKey, WorkViewMode } from '../myWorksModel';
 
 interface GridTabOption {
@@ -18,11 +16,13 @@ const activeTab = defineModel<'mine' | 'favorites'>('activeTab', { required: tru
 const sortBy = defineModel<WorkSortKey>('sortBy', { required: true });
 const viewMode = defineModel<WorkViewMode>('viewMode', { required: true });
 
-defineProps<{
+const props = defineProps<{
   libraryTabOptions: GridTabOption[];
   viewModeOptions: GridTabOption[];
   isLoading: boolean;
   filteredWorks: UnifiedWork[];
+  activeFilterChips: Array<{ key: string; label: string }>;
+  totalCount: number;
 }>();
 
 const emit = defineEmits<{
@@ -32,7 +32,11 @@ const emit = defineEmits<{
   share: [work: UnifiedWork];
   delete: [work: UnifiedWork];
   publish: [];
+  clearFilter: [key: string];
+  resetFilters: [];
 }>();
+
+const label = useLabel();
 </script>
 
 <template>
@@ -53,34 +57,26 @@ const emit = defineEmits<{
       </div>
     </section>
 
-    <div class="works-main">
-      <SkeletonGrid v-if="isLoading" :count="8" :columns="viewMode === 'list' ? 1 : 4" compact />
-
-      <div v-else-if="filteredWorks.length" class="works-grid" :class="viewMode">
-        <UnifiedCard
-          v-for="work in filteredWorks"
-          :key="work.uid"
-          :item="work"
-          kind="work"
-          :view-mode="viewMode"
-          :active-tab="activeTab"
-          @click="emit('openWork', work)"
-          @edit="emit('edit', work)"
-          @download="emit('download', work)"
-          @share="emit('share', work)"
-          @select="emit('delete', work)"
-        />
-      </div>
-
-      <EmptyState
-        v-else
-        :icon="Sparkles"
-        title="还没有匹配的作品"
-        description="换一个筛选条件，或发布新的资源、材料、插件或展示作品。"
-        action-text="发布作品"
-        @action="emit('publish')"
-      />
-    </div>
+    <ResourceGridPanel
+      kind="work"
+      :items="filteredWorks"
+      :is-loading="isLoading"
+      :view-mode="viewMode"
+      :active-tab="activeTab"
+      :active-filter-chips="activeFilterChips"
+      :total-count="totalCount"
+      :empty-title="label('还没有匹配的作品', 'No Matching Works')"
+      :empty-body="label('换一个筛选条件，或发布新的资源、材料、插件或展示作品。', 'Adjust filters or publish new assets, materials, plugins, or showcases.')"
+      :empty-action-text="label('发布作品', 'Publish Work')"
+      @click="emit('openWork', $event)"
+      @edit="emit('edit', $event)"
+      @download="emit('download', $event)"
+      @share="emit('share', $event)"
+      @delete="emit('delete', $event)"
+      @create="emit('publish')"
+      @clear-filter="emit('clearFilter', $event)"
+      @reset-filters="emit('resetFilters')"
+    />
   </main>
 </template>
 
@@ -93,7 +89,7 @@ const emit = defineEmits<{
 .content-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
 /* Toolbar */

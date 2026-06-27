@@ -92,7 +92,7 @@ const getWorkspaceMaterial = async (
 };
 
 export const getAllMaterials = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { category, sort, search, resolution, tag } = req.query;
+  const { category, sort, search, resolution, tag, favoriteCategory } = req.query;
   try {
     const userId = req.userId as string;
     const mine = parseBooleanQuery(req.query.mine) === true;
@@ -126,7 +126,12 @@ export const getAllMaterials = async (req: AuthRequest, res: Response, next: Nex
       where.isProcedural = procedural;
     }
     if (favoritesOnly) {
-      where.favorites = { some: { userId } };
+      where.favorites = {
+        some: {
+          userId,
+          ...(favoriteCategory && favoriteCategory !== 'all' ? { category: favoriteCategory as string } : {}),
+        },
+      };
     }
     if (search) {
       where.OR = [
@@ -743,24 +748,72 @@ export const recordDownload = async (req: AuthRequest, res: Response, next: Next
   }
 };
 
+// ── Custom material categories setting helper functions ───────────────────────────────
+const CUSTOM_MATERIAL_CATEGORIES_SETTING_KEY = 'material_favorite_categories';
+
+const getCustomMaterialCategories = async (userId: string): Promise<string[]> => {
+  try {
+    const setting = await prisma.userSetting.findUnique({
+      where: { userId_key: { userId, key: CUSTOM_MATERIAL_CATEGORIES_SETTING_KEY } },
+    });
+    if (setting && setting.value) {
+      return JSON.parse(setting.value) as string[];
+    }
+  } catch (err) {
+    logger.warn('[Material] Failed to parse custom categories setting:', err instanceof Error ? err.message : err);
+  }
+  return [];
+};
+
+const saveCustomMaterialCategories = async (userId: string, categories: string[]) => {
+  const uniqueCats = Array.from(new Set(categories.map(c => c.trim()).filter(Boolean)));
+  await prisma.userSetting.upsert({
+    where: { userId_key: { userId, key: CUSTOM_MATERIAL_CATEGORIES_SETTING_KEY } },
+    update: { value: JSON.stringify(uniqueCats) },
+    create: { userId, key: CUSTOM_MATERIAL_CATEGORIES_SETTING_KEY, value: JSON.stringify(uniqueCats) },
+  });
+};
+
 export const toggleFavorite = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const materialId = req.params.id as string;
+  const categoryVal = typeof req.body.category === 'string' ? req.body.category.trim() : '默认';
+  const category = categoryVal || '默认';
+  const userId = req.userId as string;
   try {
     await getWorkspaceMaterial(materialId, req, { requireApproved: true });
 
-    const existing = await prisma.materialFavorite.findFirst({
-      where: { userId: req.userId as string, materialId },
+    const existing = await prisma.materialFavorite.findUnique({
+      where: { userId_materialId: { userId, materialId } },
     });
 
+    let isFavorited = false;
     if (existing) {
-      await prisma.materialFavorite.delete({ where: { id: existing.id } });
-      res.json({ isFavorited: false });
+      if (existing.category === category) {
+        await prisma.materialFavorite.delete({ where: { id: existing.id } });
+        isFavorited = false;
+      } else {
+        await prisma.materialFavorite.update({
+          where: { id: existing.id },
+          data: { category },
+        });
+        isFavorited = true;
+      }
     } else {
       await prisma.materialFavorite.create({
-        data: { userId: req.userId as string, materialId },
+        data: { userId, materialId, category },
       });
-      res.json({ isFavorited: true });
+      isFavorited = true;
     }
+
+    if (isFavorited && category !== '默认') {
+      const customCats = await getCustomMaterialCategories(userId);
+      if (!customCats.includes(category)) {
+        customCats.push(category);
+        await saveCustomMaterialCategories(userId, customCats);
+      }
+    }
+
+    res.json({ isFavorited });
   } catch (error) {
     next(error);
   }
@@ -774,6 +827,8 @@ export const bulkFavoriteMaterials = async (
   try {
     const userId = req.userId as string;
     const rawIds: unknown[] = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    const categoryVal = typeof req.body?.category === 'string' ? req.body.category.trim() : '默认';
+    const category = categoryVal || '默认';
     const ids = Array.from(
       new Set<string>(rawIds.map((id) => String(id)).filter((id) => Boolean(id))),
     ).slice(0, 100);
@@ -794,9 +849,17 @@ export const bulkFavoriteMaterials = async (
 
     if (favorite) {
       await prisma.materialFavorite.createMany({
-        data: approvedIds.map((materialId) => ({ userId, materialId })),
+        data: approvedIds.map((materialId) => ({ userId, materialId, category })),
         skipDuplicates: true,
       });
+
+      if (category !== '默认') {
+        const customCats = await getCustomMaterialCategories(userId);
+        if (!customCats.includes(category)) {
+          customCats.push(category);
+          await saveCustomMaterialCategories(userId, customCats);
+        }
+      }
     } else {
       await prisma.materialFavorite.deleteMany({
         where: { userId, materialId: { in: approvedIds } },
@@ -858,9 +921,10 @@ export const reviewMaterial = async (req: AuthRequest, res: Response, next: Next
 
 export const getMyFavorites = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const userId = req.userId as string;
     const favorites = await prisma.materialFavorite.findMany({
       where: {
-        userId: req.userId as string,
+        userId,
         material: {
           teamId: req.workspaceId,
           status: 'APPROVED',
@@ -877,12 +941,136 @@ export const getMyFavorites = async (req: AuthRequest, res: Response, next: Next
       orderBy: { createdAt: 'desc' },
     });
 
-    const materials = favorites.map((f) => ({
-      ...f.material,
-      isFavorited: true,
-    }));
+    const categoryList = await prisma.materialFavorite.groupBy({
+      by: ['category'],
+      where: { userId },
+    });
 
-    res.json(materials);
+    const dbCategories = categoryList.map((c) => c.category);
+    const customCategories = await getCustomMaterialCategories(userId);
+    const categoriesSet = new Set(['默认', ...dbCategories, ...customCategories]);
+
+    res.json({
+      ids: favorites.map((f) => f.materialId),
+      favorites: favorites.map((f) => ({
+        id: f.id,
+        category: f.category,
+        material: {
+          ...f.material,
+          isFavorited: true,
+        },
+      })),
+      categories: Array.from(categoriesSet),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/materials/favorites/categories
+export const createMaterialFavoriteCategory = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const userId = req.userId as string;
+  const { category } = req.body;
+
+  if (!category || !category.trim()) {
+    return next(new AppError('分类名称不能为空', 400));
+  }
+
+  const newCat = category.trim();
+  if (newCat === '默认') {
+    return next(new AppError('不能创建默认分类', 400));
+  }
+
+  try {
+    const customCats = await getCustomMaterialCategories(userId);
+    if (!customCats.includes(newCat)) {
+      customCats.push(newCat);
+      await saveCustomMaterialCategories(userId, customCats);
+    }
+
+    res.json({ success: true, message: '分类创建成功', categories: ['默认', ...customCats] });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /api/materials/favorites/categories
+export const updateMaterialFavoriteCategory = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const userId = req.userId as string;
+  const { oldCategory, newCategory } = req.body;
+
+  if (!oldCategory || !newCategory) {
+    return next(new AppError('缺少必要参数', 400));
+  }
+
+  const oldCat = oldCategory.trim();
+  const newCat = newCategory.trim();
+
+  if (oldCat === '默认' || newCat === '默认') {
+    return next(new AppError('不能重命名默认分类', 400));
+  }
+
+  try {
+    await prisma.materialFavorite.updateMany({
+      where: {
+        userId,
+        category: oldCat,
+      },
+      data: {
+        category: newCat,
+      },
+    });
+
+    const customCats = await getCustomMaterialCategories(userId);
+    const updatedCats = customCats.map((c) => (c === oldCat ? newCat : c));
+    await saveCustomMaterialCategories(userId, updatedCats);
+
+    res.json({ success: true, message: '分类更新成功' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/materials/favorites/categories/:categoryName
+export const deleteMaterialFavoriteCategory = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const userId = req.userId as string;
+  const categoryName = req.params.categoryName as string;
+
+  if (!categoryName) {
+    return next(new AppError('缺少分类名称', 400));
+  }
+
+  const cat = categoryName.trim();
+
+  if (cat === '默认') {
+    return next(new AppError('不能删除默认分类', 400));
+  }
+
+  try {
+    await prisma.materialFavorite.deleteMany({
+      where: {
+        userId,
+        category: cat,
+      },
+    });
+
+    const customCats = await getCustomMaterialCategories(userId);
+    const filteredCats = customCats.filter((c) => c !== cat);
+    await saveCustomMaterialCategories(userId, filteredCats);
+
+    res.json({ success: true, message: '分类删除成功' });
   } catch (error) {
     next(error);
   }

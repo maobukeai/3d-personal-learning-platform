@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onMounted, ref, watch, type Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
@@ -35,7 +35,6 @@ import PluginStatsStrip from './components/PluginStatsStrip.vue';
 import PluginFiltersPanel from './components/PluginFiltersPanel.vue';
 import PluginToolbar from './components/PluginToolbar.vue';
 import PluginCatalog from './components/PluginCatalog.vue';
-import PluginInsightPanel from './components/PluginInsightPanel.vue';
 import PluginDetailModal from './components/PluginDetailModal.vue';
 import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
 import EditWorkDialog from './components/EditWorkDialog.vue';
@@ -601,6 +600,45 @@ const openLinkedPlugin = (pluginId: string) => {
   }
 };
 
+const activeFilterChips = computed(() => {
+  const chips: Array<{ key: string; label: string }> = [];
+  
+  if (activeCategory.value !== CATEGORY_ALL) {
+    chips.push({
+      key: 'category',
+      label: label(`分类: ${activeCategory.value}`, `Category: ${activeCategory.value}`),
+    });
+  }
+  if (selectedTag.value !== 'all') {
+    chips.push({
+      key: 'tag',
+      label: label(`标签: ${selectedTag.value}`, `Tag: ${selectedTag.value}`),
+    });
+  }
+  if (showFavoritesOnly.value) {
+    chips.push({
+      key: 'favorites',
+      label: label('只看收藏', 'Favorites Only'),
+    });
+  }
+  if (searchQuery.value.trim()) {
+    chips.push({
+      key: 'search',
+      label: label(`搜索: "${searchQuery.value.trim()}"`, `Search: "${searchQuery.value.trim()}"`),
+    });
+  }
+  
+  return chips;
+});
+
+const clearFilter = (key: string) => {
+  if (key === 'category') activeCategory.value = CATEGORY_ALL;
+  if (key === 'tag') selectedTag.value = 'all';
+  if (key === 'favorites') showFavoritesOnly.value = false;
+  if (key === 'search') searchQuery.value = '';
+  fetchPlugins();
+};
+
 const resetFilters = () => {
   searchQuery.value = '';
   activeCategory.value = CATEGORY_ALL;
@@ -971,20 +1009,6 @@ const categoryTabOptions = computed(() => {
   }));
 });
 
-const topDownloadPlugins = computed(() => (insights.value?.topDownloads || []).slice(0, 5));
-const latestPlugins = computed(() => (insights.value?.latest || []).slice(0, 5));
-const sideCategories = computed(() => {
-  if (insights.value?.categories?.length) return insights.value.categories.slice(0, 5);
-  return categoryTiles.value
-    .filter((category) => category.name !== CATEGORY_ALL)
-    .slice(0, 5)
-    .map((category) => ({
-      name: category.name,
-      count: category.count,
-      downloads: category.downloads,
-    }));
-});
-
 const startFromTemplate = (template: StarterPluginTemplate) => {
   initialPublishData.value = {
     title: template.title,
@@ -1164,7 +1188,7 @@ watch(
       @upload="isUploadDialogOpen = true"
     />
 
-    <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+    <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">
       <PluginMarketOverview
         :is-visible="isStatsExpanded"
         :spotlight-plugin="spotlightPlugin"
@@ -1220,7 +1244,6 @@ watch(
             @toggle-filter="isFilterOpen = !isFilterOpen"
           />
 
-          <section class="market-shell">
             <!-- Request Help forum list -->
             <div v-if="activeTab === 'requests'" class="flex-1 flex flex-col gap-4 text-left">
               <div class="flex justify-between items-center bg-white/[0.01] border border-white/5 p-4 rounded-2xl shrink-0">
@@ -1295,26 +1318,15 @@ watch(
               :active-tab="activeTab"
               :favorited-ids="favoritedIds"
               :downloading-ids="downloadingIds"
+              :active-filter-chips="activeFilterChips"
+              :total-count="stats.total || visiblePlugins.length"
               @open-detail="openDetail"
               @toggle-favorite="toggleFavorite"
               @download="handleDownload"
               @reset-filters="resetFilters"
+              @clear-filter="clearFilter"
               @upload="isUploadDialogOpen = true"
             />
-
-            <PluginInsightPanel
-              :top-download-plugins="topDownloadPlugins"
-              :latest-plugins="latestPlugins"
-              :side-categories="sideCategories"
-              :starter-templates="starterTemplates"
-              @open-detail="openDetail"
-              @start-from-template="startFromTemplate"
-              @set-category="
-                activeCategory = $event;
-                fetchPlugins();
-              "
-            />
-          </section>
         </main>
       </div>
     </div>
@@ -1594,34 +1606,19 @@ watch(
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr);
   gap: 12px;
-  margin-top: 12px;
 }
 
 .content-panel {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
 }
 
-.market-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 12px;
-}
 
-@media (max-width: 1180px) {
-  .market-shell {
-    grid-template-columns: minmax(0, 1fr) 250px;
-  }
-}
 
 @media (max-width: 980px) {
   .workspace-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .market-shell {
     grid-template-columns: 1fr;
   }
 }

@@ -1,10 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Sparkles } from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
-import UnifiedCard from '@/components/UnifiedCard.vue';
-import EmptyState from '@/components/EmptyState.vue';
-import SkeletonGrid from '@/components/SkeletonGrid.vue';
+import ResourceGridPanel from './ResourceGridPanel.vue';
 
 type ViewMode = 'grid' | 'list';
 type LibraryTab = 'explore' | 'favorites' | 'mine';
@@ -46,6 +42,8 @@ const props = defineProps<{
   activeTab: LibraryTab;
   emptyTitle: string;
   emptyBody: string;
+  activeFilterChips: Array<{ key: string; label: string }>;
+  totalCount: number;
 }>();
 
 const emit = defineEmits<{
@@ -54,41 +52,34 @@ const emit = defineEmits<{
   (e: 'toggleFavorite', material: NormalizedMaterial, event?: Event): void;
   (e: 'download', material: NormalizedMaterial, event?: Event): void;
   (e: 'create'): void;
+  (e: 'clearFilter', key: string): void;
+  (e: 'resetFilters'): void;
 }>();
 
 const label = useLabel();
-
-const selectedIdSet = computed(() => new Set(props.selectedIds));
 </script>
 
 <template>
   <main class="asset-area">
-    <SkeletonGrid v-if="isLoading" :count="12" :columns="viewMode === 'list' ? 1 : 4" compact />
-
-    <div v-else-if="materials.length" class="material-grid" :class="viewMode">
-      <UnifiedCard
-        v-for="material in materials"
-        :key="material.id"
-        :item="material"
-        kind="material"
-        :view-mode="viewMode"
-        :is-selected="selectedIdSet.has(material.id)"
-        :is-favorited="material.isFavorited"
-        :active-tab="activeTab"
-        @click="emit('openDetail', material)"
-        @select="(_item, event) => emit('toggleSelect', material.id, event)"
-        @like="(_item, event) => emit('toggleFavorite', material, event)"
-        @download="(_item, event) => emit('download', material, event)"
-      />
-    </div>
-
-    <EmptyState
-      v-else
-      :icon="Sparkles"
-      :title="emptyTitle"
-      :description="emptyBody"
-      :action-text="label('上传材质', 'Upload Material')"
-      @action="emit('create')"
+    <ResourceGridPanel
+      kind="material"
+      :items="materials"
+      :is-loading="isLoading"
+      :view-mode="viewMode"
+      :active-tab="activeTab"
+      :active-filter-chips="activeFilterChips"
+      :total-count="totalCount"
+      :selected-ids="selectedIds"
+      :empty-title="emptyTitle"
+      :empty-body="emptyBody"
+      :empty-action-text="label('上传材质', 'Upload Material')"
+      @click="emit('openDetail', $event)"
+      @select="(id, event) => emit('toggleSelect', id, event)"
+      @like="(item, event) => emit('toggleFavorite', item, event)"
+      @download="(item, event) => emit('download', item, event)"
+      @create="emit('create')"
+      @clear-filter="emit('clearFilter', $event)"
+      @reset-filters="emit('resetFilters')"
     />
   </main>
 </template>

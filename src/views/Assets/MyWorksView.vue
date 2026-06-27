@@ -345,6 +345,56 @@ const filteredWorks = computed(() =>
   }),
 );
 
+const activeFilterChips = computed(() => {
+  const chips: Array<{ key: string; label: string }> = [];
+  
+  if (sourceFilter.value !== 'ALL') {
+    const kindLabels: Record<string, string> = {
+      asset: label('资源库', 'Assets'),
+      material: label('材料库', 'Materials'),
+      plugin: label('插件库', 'Plugins'),
+      showcase: label('展示作品', 'Showcase'),
+    };
+    chips.push({
+      key: 'source',
+      label: label(`来源: ${kindLabels[sourceFilter.value]}`, `Source: ${kindLabels[sourceFilter.value]}`),
+    });
+  }
+  
+  if (statusFilter.value !== 'ALL') {
+    const statusLabels: Record<string, string> = {
+      PENDING: label('待审核', 'Pending'),
+      APPROVED: label('已发布', 'Approved'),
+      REJECTED: label('未通过', 'Rejected'),
+    };
+    chips.push({
+      key: 'status',
+      label: label(`状态: ${statusLabels[statusFilter.value]}`, `Status: ${statusLabels[statusFilter.value]}`),
+    });
+  }
+  
+  if (searchQuery.value.trim()) {
+    chips.push({
+      key: 'search',
+      label: label(`搜索: "${searchQuery.value.trim()}"`, `Search: "${searchQuery.value.trim()}"`),
+    });
+  }
+  
+  return chips;
+});
+
+const clearFilter = (key: string) => {
+  if (key === 'source') sourceFilter.value = 'ALL';
+  if (key === 'status') statusFilter.value = 'ALL';
+  if (key === 'search') searchQuery.value = '';
+};
+
+const resetFilters = () => {
+  sourceFilter.value = 'ALL';
+  statusFilter.value = 'ALL';
+  searchQuery.value = '';
+};
+
 const stats = computed(() => calculateWorkStats(allWorks.value));
 
 const reviewCompletion = computed(() => getReviewCompletion(stats.value));
@@ -937,7 +987,7 @@ onMounted(async () => {
       @publish="isPublishWorkDialogOpen = true"
     />
 
-    <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+    <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">
       <MyWorksStatsPanel
         v-model:status-filter="statusFilter"
         :is-stats-expanded="isStatsExpanded"
@@ -964,12 +1014,16 @@ onMounted(async () => {
           :view-mode-options="viewModeOptions"
           :is-loading="isLoading"
           :filtered-works="filteredWorks"
+          :active-filter-chips="activeFilterChips"
+          :total-count="allWorks.length"
           @open-work="openWork"
           @edit="openEditDialog"
           @download="handleDownload"
           @share="openShowcaseDialog"
           @delete="handleDeleteWork"
           @publish="isPublishWorkDialogOpen = true"
+          @clear-filter="clearFilter"
+          @reset-filters="resetFilters"
         />
       </section>
     </div>

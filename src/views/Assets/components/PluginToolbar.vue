@@ -100,7 +100,6 @@ const onViewModeChange = (value: string | number | null) => {
   border: 1px solid var(--border-base);
   backdrop-filter: blur(12px);
   flex-wrap: nowrap;
-  margin-bottom: 8px;
 }
 
 .toolbar-left {

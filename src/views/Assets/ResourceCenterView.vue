@@ -230,7 +230,7 @@ onUnmounted(() => {
       @publish="openPublishDialog('work')"
     />
 
-    <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+    <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">
       <ResourceStatsPanel
         :overview="overview"
         :is-stats-expanded="isStatsExpanded"

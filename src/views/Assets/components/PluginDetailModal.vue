@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, watch, computed, type Component, defineAsyncComponent } from 'vue';
 import { logError } from '@/utils/error';
 const MdPreview = defineAsyncComponent(async () => {
@@ -659,12 +659,12 @@ def send_feedback(feedback_type="BUG", content=""):
         pass  # 静默失败
 
 # ── 使用示例 ─────────────────────────────────────────────────
-# 在 register() 中调用更新检查
+# 示例 1: 在 register() 中调用更新检查
 def register():
     # ... 注册你的 Operator / Panel ...
     check_for_updates()  # ← 添加这一行
 
-# 在 Operator.execute() 中用 try/except 捕获错误并上报
+# 示例 2: 在 Operator.execute() 中用 try/except 捕获错误并上报
 class MY_OT_Example(bpy.types.Operator):
     bl_idname = "myaddon.example"
     bl_label  = "Example Operator"
@@ -675,7 +675,34 @@ class MY_OT_Example(bpy.types.Operator):
         except Exception as e:
             send_feedback("BUG", traceback.format_exc())
             self.report({"ERROR"}, str(e))
-            return {"CANCELLED"}`;
+            return {"CANCELLED"}
+
+# 示例 3: 制作一个用户反馈/建议提交弹窗 (用户填写建议提交回平台)
+class MY_OT_SubmitFeedback(bpy.types.Operator):
+    bl_idname = "myaddon.submit_feedback"
+    bl_label  = "提交反馈与建议"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    feedback_type: bpy.props.EnumProperty(
+        name="反馈类型",
+        items=[
+            ('SUGGESTION', "建议 / 需求", "对插件的功能建议"),
+            ('BUG', "问题反馈 / BUG", "遇到程序错误")
+        ],
+        default='SUGGESTION'
+    )
+    content: bpy.props.StringProperty(name="反馈内容", default="")
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self, width=400)
+
+    def execute(self, context):
+        if not self.content.strip():
+            self.report({'WARNING'}, "反馈内容不能为空")
+            return {'CANCELLED'}
+        send_feedback(self.feedback_type, self.content)
+        self.report({'INFO'}, "反馈提交成功，感谢您的支持！")
+        return {'FINISHED'}`;
 });
 
 const copyIntegrationCode = async () => {

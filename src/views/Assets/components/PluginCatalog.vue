@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { Cpu, Plus, RefreshCw } from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
-import UnifiedCard from '@/components/UnifiedCard.vue';
-import SkeletonGrid from '@/components/SkeletonGrid.vue';
+import ResourceGridPanel from './ResourceGridPanel.vue';
 
 type LibraryTab = 'explore' | 'favorites' | 'mine';
 type PluginStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -40,6 +38,8 @@ const props = defineProps<{
   activeTab: LibraryTab;
   favoritedIds: string[];
   downloadingIds: Record<string, boolean>;
+  activeFilterChips: Array<{ key: string; label: string }>;
+  totalCount: number;
 }>();
 
 const emit = defineEmits<{
@@ -47,81 +47,34 @@ const emit = defineEmits<{
   (e: 'toggleFavorite', pluginId: string, event?: Event): void;
   (e: 'download', plugin: PluginItem, event?: Event): void;
   (e: 'resetFilters'): void;
+  (e: 'clearFilter', key: string): void;
   (e: 'upload'): void;
 }>();
 
 const label = useLabel();
-
-const isFavorited = (pluginId: string) => props.favoritedIds.includes(pluginId);
 </script>
 
 <template>
-  <main class="plugin-content">
-    <div class="library-heading mobile-row">
-      <div>
-        <strong>{{ label('插件列表', 'Plugin Catalog') }}</strong>
-        <span>
-          {{
-            plugins.length
-              ? label(`当前显示 ${plugins.length} 个插件`, `${plugins.length} plugins shown`)
-              : label(
-                  '浏览插件模板或上传你的第一个插件',
-                  'Browse plugin templates or publish the first plugin',
-                )
-          }}
-        </span>
-      </div>
-      <button type="button" class="text-button" @click="emit('resetFilters')">
-        {{ label('重置筛选', 'Reset Filters') }}
-      </button>
-    </div>
-
-    <SkeletonGrid v-if="isLoading" :count="8" :columns="viewMode === 'list' ? 1 : 4" compact />
-
-    <div
-      v-else-if="plugins.length"
-      :class="viewMode === 'list' ? 'flex flex-col gap-3' : 'plugin-grid'"
-    >
-      <UnifiedCard
-        v-for="plugin in plugins"
-        :key="plugin.id"
-        :item="plugin"
-        kind="plugin"
-        :view-mode="viewMode"
-        :is-favorited="isFavorited(plugin.id)"
-        :downloading="!!downloadingIds[plugin.id]"
-        :active-tab="activeTab"
-        @click="emit('openDetail', plugin)"
-        @like="(item, event) => emit('toggleFavorite', plugin.id, event)"
-        @download="(item, event) => emit('download', plugin, event)"
-      />
-    </div>
-
-    <div v-else class="starter-market">
-      <div class="empty-state">
-        <Cpu class="empty-icon" />
-        <h2>{{ label('还没有匹配的插件', 'No Matching Plugins') }}</h2>
-        <p>
-          {{
-            label(
-              '可以调整筛选条件，也可以从下面的插件方向开始发布。',
-              'Adjust filters or start publishing from one of the plugin directions below.',
-            )
-          }}
-        </p>
-        <div class="empty-actions">
-          <button type="button" class="primary-button" @click="emit('upload')">
-            <Plus class="icon-sm" />
-            {{ label('上传插件', 'Upload Plugin') }}
-          </button>
-          <button type="button" class="ghost-button" @click="emit('resetFilters')">
-            <RefreshCw class="icon-sm" />
-            {{ label('查看全部', 'Show All') }}
-          </button>
-        </div>
-      </div>
-    </div>
-  </main>
+  <ResourceGridPanel
+    kind="plugin"
+    :items="plugins"
+    :is-loading="isLoading"
+    :view-mode="viewMode"
+    :active-tab="activeTab"
+    :active-filter-chips="activeFilterChips"
+    :total-count="totalCount"
+    :favorited-ids="favoritedIds"
+    :downloading-ids="downloadingIds"
+    :empty-title="label('还没有匹配的插件', 'No Matching Plugins')"
+    :empty-body="label('可以调整筛选条件，也可以上传一个新的插件。', 'Adjust filters or upload a new plugin.')"
+    :empty-action-text="label('上传插件', 'Upload Plugin')"
+    @click="emit('openDetail', $event)"
+    @like="(item, event) => emit('toggleFavorite', item.id, event)"
+    @download="(item, event) => emit('download', item, event)"
+    @create="emit('upload')"
+    @clear-filter="emit('clearFilter', $event)"
+    @reset-filters="emit('resetFilters')"
+  />
 </template>
 
 <style scoped>

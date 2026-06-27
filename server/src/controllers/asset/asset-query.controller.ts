@@ -29,6 +29,7 @@ export const getPublicAssets = async (req: AuthRequest, res: Response, next: Nex
 
     const mine = req.query.mine === 'true';
     const favoritesOnly = req.query.favoritesOnly === 'true';
+    const favoriteCategory = req.query.favoriteCategory as string;
     const status = req.query.status as string;
     const userId = req.userId as string;
 
@@ -42,7 +43,12 @@ export const getPublicAssets = async (req: AuthRequest, res: Response, next: Nex
         };
 
     if (favoritesOnly && userId) {
-      where.likesRelation = { some: { userId } };
+      where.likesRelation = {
+        some: {
+          userId,
+          ...(favoriteCategory && favoriteCategory !== 'all' ? { category: favoriteCategory } : {}),
+        },
+      };
     }
 
     if (categoryId && categoryId !== 'all') {
@@ -607,6 +613,189 @@ export const getAssetComments = async (req: AuthRequest, res: Response, next: Ne
       },
     });
     res.json(comments);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ── Custom asset categories setting helper functions ───────────────────────────────
+const CUSTOM_ASSET_CATEGORIES_SETTING_KEY = 'asset_favorite_categories';
+
+export const getCustomAssetCategories = async (userId: string): Promise<string[]> => {
+  try {
+    const setting = await prisma.userSetting.findUnique({
+      where: { userId_key: { userId, key: CUSTOM_ASSET_CATEGORIES_SETTING_KEY } },
+    });
+    if (setting && setting.value) {
+      return JSON.parse(setting.value) as string[];
+    }
+  } catch (err) {
+    logger.warn('[Asset] Failed to parse custom categories setting:', err instanceof Error ? err.message : err);
+  }
+  return [];
+};
+
+export const saveCustomAssetCategories = async (userId: string, categories: string[]) => {
+  const uniqueCats = Array.from(new Set(categories.map(c => c.trim()).filter(Boolean)));
+  await prisma.userSetting.upsert({
+    where: { userId_key: { userId, key: CUSTOM_ASSET_CATEGORIES_SETTING_KEY } },
+    update: { value: JSON.stringify(uniqueCats) },
+    create: { userId, key: CUSTOM_ASSET_CATEGORIES_SETTING_KEY, value: JSON.stringify(uniqueCats) },
+  });
+};
+
+// GET /api/assets/favorites
+export const getMyFavoriteAssets = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId as string;
+    const favorites = await prisma.assetLike.findMany({
+      where: {
+        userId,
+        asset: {
+          status: 'APPROVED',
+        },
+      },
+      include: {
+        asset: {
+          include: {
+            user: { select: { name: true, avatarUrl: true } },
+            category: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const categoryList = await prisma.assetLike.groupBy({
+      by: ['category'],
+      where: { userId },
+    });
+
+    const dbCategories = categoryList.map((c) => c.category);
+    const customCategories = await getCustomAssetCategories(userId);
+    const categoriesSet = new Set(['默认', ...dbCategories, ...customCategories]);
+
+    res.json({
+      ids: favorites.map((f) => f.assetId),
+      favorites: favorites.map((f) => ({
+        id: f.id,
+        category: f.category,
+        asset: {
+          ...f.asset,
+          isLiked: true,
+        },
+      })),
+      categories: Array.from(categoriesSet),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/assets/favorites/categories
+export const createAssetFavoriteCategory = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const userId = req.userId as string;
+  const { category } = req.body;
+
+  if (!category || !category.trim()) {
+    return next(new AppError('分类名称不能为空', 400));
+  }
+
+  const newCat = category.trim();
+  if (newCat === '默认') {
+    return next(new AppError('不能创建默认分类', 400));
+  }
+
+  try {
+    const customCats = await getCustomAssetCategories(userId);
+    if (!customCats.includes(newCat)) {
+      customCats.push(newCat);
+      await saveCustomAssetCategories(userId, customCats);
+    }
+
+    res.json({ success: true, message: '分类创建成功', categories: ['默认', ...customCats] });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /api/assets/favorites/categories
+export const updateAssetFavoriteCategory = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const userId = req.userId as string;
+  const { oldCategory, newCategory } = req.body;
+
+  if (!oldCategory || !newCategory) {
+    return next(new AppError('缺少必要参数', 400));
+  }
+
+  const oldCat = oldCategory.trim();
+  const newCat = newCategory.trim();
+
+  if (oldCat === '默认' || newCat === '默认') {
+    return next(new AppError('不能重命名默认分类', 400));
+  }
+
+  try {
+    await prisma.assetLike.updateMany({
+      where: {
+        userId,
+        category: oldCat,
+      },
+      data: {
+        category: newCat,
+      },
+    });
+
+    const customCats = await getCustomAssetCategories(userId);
+    const updatedCats = customCats.map((c) => (c === oldCat ? newCat : c));
+    await saveCustomAssetCategories(userId, updatedCats);
+
+    res.json({ success: true, message: '分类更新成功' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/assets/favorites/categories/:categoryName
+export const deleteAssetFavoriteCategory = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const userId = req.userId as string;
+  const categoryName = req.params.categoryName as string;
+
+  if (!categoryName) {
+    return next(new AppError('缺少分类名称', 400));
+  }
+
+  const cat = categoryName.trim();
+
+  if (cat === '默认') {
+    return next(new AppError('不能删除默认分类', 400));
+  }
+
+  try {
+    await prisma.assetLike.deleteMany({
+      where: {
+        userId,
+        category: cat,
+      },
+    });
+
+    const customCats = await getCustomAssetCategories(userId);
+    const filteredCats = customCats.filter((c) => c !== cat);
+    await saveCustomAssetCategories(userId, filteredCats);
+
+    res.json({ success: true, message: '分类删除成功' });
   } catch (error) {
     next(error);
   }

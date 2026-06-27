@@ -856,6 +856,7 @@ model MaterialFavorite {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   materialId String
   material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  category   String   @default("默认")
   createdAt  DateTime @default(now())
 
   @@unique([userId, materialId])
@@ -1596,6 +1597,7 @@ model AssetLike {
   asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  String   @default("默认")
   createdAt DateTime @default(now())
 
   @@unique([assetId, userId])

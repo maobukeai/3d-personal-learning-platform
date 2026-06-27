@@ -23,12 +23,13 @@ import AssetLibraryHeader from './components/AssetLibraryHeader.vue';
 import AssetStatsPanel from './components/AssetStatsPanel.vue';
 import AssetFilterPanel from './components/AssetFilterPanel.vue';
 import AssetContentPanel from './components/AssetContentPanel.vue';
-import AssetInsightPanel from './components/AssetInsightPanel.vue';
 import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
 import AssetDetailModal from './components/AssetDetailModal.vue';
 import EditWorkDialog from './components/EditWorkDialog.vue';
 import { normalizeAssetWork } from './myWorksModel';
 import type { UnifiedWork } from './myWorksModel';
+import Modal from '@/components/ui/Modal.vue';
+import Input from '@/components/ui/Input.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -84,6 +85,30 @@ const editForm = ref({
   thumbnail: null as File | null,
 });
 const isUploadDialogOpen = ref(false);
+
+const selectedFavoriteCategory = ref('all');
+const favoritedIds = ref<string[]>([]);
+const favoriteCategoriesList = ref<string[]>([]);
+
+// Category Modal states
+const showCategoryModal = ref(false);
+const categoryModalType = ref<'create' | 'rename'>('create');
+const categoryModalInputValue = ref('');
+const categoryModalOldValue = ref('');
+const categoryModalError = ref('');
+
+const categoryModalTitle = computed(() => {
+  return categoryModalType.value === 'create'
+    ? label('新建分类', 'New Category')
+    : label('重命名分类', 'Rename Category');
+});
+
+const categoryModalLabel = computed(() => {
+  return categoryModalType.value === 'create'
+    ? label('请输入新分类名称', 'Please enter a new category name')
+    : label(`请输入「${categoryModalOldValue.value}」的新名称`, `Please enter a new name for "${categoryModalOldValue.value}"`);
+});
+
 const assets = ref<AssetListItem[]>([]);
 const categories = ref<AssetInsightCategory[]>([]);
 const insights = ref<AssetInsights | null>(null);
@@ -233,9 +258,13 @@ const activeFilterChips = computed(() => {
 
 
 
-watch([activeCategoryId, sortKey, activeTab, myStatusFilter], () => {
+watch([activeCategoryId, sortKey, activeTab, myStatusFilter, selectedFavoriteCategory], () => {
   pagination.value.page = 1;
   fetchAssets();
+});
+
+watch(activeTab, () => {
+  selectedFavoriteCategory.value = 'all';
 });
 
 watch(searchQuery, () => {
@@ -258,6 +287,7 @@ const fetchAssets = async () => {
         sort: sortKey.value,
         mine: activeTab.value === 'mine' ? 'true' : undefined,
         favoritesOnly: activeTab.value === 'favorites' ? 'true' : undefined,
+        favoriteCategory: activeTab.value === 'favorites' && selectedFavoriteCategory.value !== 'all' ? selectedFavoriteCategory.value : undefined,
         status:
           activeTab.value === 'mine' && myStatusFilter.value !== 'all'
             ? myStatusFilter.value
@@ -270,6 +300,16 @@ const fetchAssets = async () => {
     ElMessage.error(getApiErrorMessage(error, label('资源列表加载失败', 'Failed to load assets')));
   } finally {
     isLoading.value = false;
+  }
+};
+
+const fetchFavorites = async () => {
+  try {
+    const { data } = await api.get('/api/assets/favorites');
+    favoritedIds.value = data.ids || [];
+    favoriteCategoriesList.value = data.categories || [];
+  } catch (error) {
+    logError(error, { operation: 'fetchAssetFavorites', view: 'AssetsView' });
   }
 };
 
@@ -314,6 +354,7 @@ const resetFilters = () => {
   activeCategoryId.value = 'all';
   selectedFormat.value = 'all';
   selectedTag.value = 'all';
+  selectedFavoriteCategory.value = 'all';
   searchQuery.value = '';
 };
 
@@ -452,25 +493,139 @@ const handleDownload = async (asset: AssetListItem, event?: Event) => {
 const handleLike = async (asset: AssetListItem, event?: Event) => {
   event?.stopPropagation();
   try {
-    const { data } = await api.post(`/api/assets/${asset.id}/like`);
+    const isFav = favoritedIds.value.includes(asset.id);
+    let category = '默认';
+
+    if (!isFav && selectedFavoriteCategory.value !== 'all') {
+      category = selectedFavoriteCategory.value;
+    }
+
+    const { data } = await api.post(`/api/assets/${asset.id}/like`, {
+      category,
+    });
     asset.likes = data.likes;
+
+    if (data.liked) {
+      if (!favoritedIds.value.includes(asset.id)) favoritedIds.value.push(asset.id);
+    } else {
+      favoritedIds.value = favoritedIds.value.filter((id) => id !== asset.id);
+    }
+
     ElMessage.success(
       data.liked
         ? label('已收藏到喜欢列表', 'Added to favorites')
         : label('已取消喜欢', 'Removed from favorites'),
     );
-    fetchInsights();
+    await fetchInsights();
+    await fetchFavorites();
+    if (activeTab.value === 'favorites') {
+      await fetchAssets();
+    }
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, label('操作失败', 'Operation failed')));
   }
 };
 
+const handleCreateFavoriteCategory = () => {
+  categoryModalType.value = 'create';
+  categoryModalInputValue.value = '';
+  categoryModalOldValue.value = '';
+  categoryModalError.value = '';
+  showCategoryModal.value = true;
+};
 
+const handleRenameFavoriteCategory = (cat: string) => {
+  categoryModalType.value = 'rename';
+  categoryModalInputValue.value = cat;
+  categoryModalOldValue.value = cat;
+  categoryModalError.value = '';
+  showCategoryModal.value = true;
+};
+
+const handleCategoryModalSubmit = async () => {
+  const val = categoryModalInputValue.value.trim();
+  if (!val) {
+    categoryModalError.value = label('请输入分类名称', 'Please enter category name');
+    return;
+  }
+  if (val === '默认') {
+    categoryModalError.value = label('不能命名为默认分类', 'Cannot name as default');
+    return;
+  }
+
+  if (categoryModalType.value === 'create') {
+    if (favoriteCategoriesList.value.includes(val)) {
+      categoryModalError.value = label('分类已存在', 'Category already exists');
+      return;
+    }
+    try {
+      await api.post('/api/assets/favorites/categories', {
+        category: val,
+      });
+      ElMessage.success(label('分类创建成功', 'Category created successfully'));
+      selectedFavoriteCategory.value = val;
+      showCategoryModal.value = false;
+      await fetchFavorites();
+      await fetchAssets();
+    } catch (error) {
+      ElMessage.error(getApiErrorMessage(error, label('创建分类失败', 'Failed to create category')));
+    }
+  } else {
+    // rename
+    if (val === categoryModalOldValue.value) {
+      showCategoryModal.value = false;
+      return;
+    }
+    try {
+      await api.put('/api/assets/favorites/categories', {
+        oldCategory: categoryModalOldValue.value,
+        newCategory: val,
+      });
+      ElMessage.success(label('分类重命名成功', 'Category renamed successfully'));
+      if (selectedFavoriteCategory.value === categoryModalOldValue.value) {
+        selectedFavoriteCategory.value = val;
+      }
+      showCategoryModal.value = false;
+      await fetchFavorites();
+      await fetchAssets();
+    } catch (error) {
+      ElMessage.error(getApiErrorMessage(error, label('重命名失败', 'Rename failed')));
+    }
+  }
+};
+
+const handleDeleteFavoriteCategory = async (cat: string) => {
+  try {
+    await ElMessageBox.confirm(
+      label(`确认删除收藏夹分类「${cat}」？此操作将取消该分类下所有资产的收藏。`, `Delete favorite folder "${cat}"? This will remove all favorites inside this folder.`),
+      label('删除分类', 'Delete Category'),
+      {
+        confirmButtonText: label('删除', 'Delete'),
+        cancelButtonText: label('取消', 'Cancel'),
+        type: 'warning',
+      },
+    );
+
+    await api.delete(`/api/assets/favorites/categories/${encodeURIComponent(cat)}`);
+
+    ElMessage.success(label('分类删除成功', 'Category deleted successfully'));
+    if (selectedFavoriteCategory.value === cat) {
+      selectedFavoriteCategory.value = 'all';
+    }
+    await fetchFavorites();
+    await fetchAssets();
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(getApiErrorMessage(error, label('删除失败', 'Delete failed')));
+    }
+  }
+};
 
 onMounted(() => {
   fetchAssets();
   fetchInsights();
   fetchCategories();
+  fetchFavorites();
 });
 
 onUnmounted(() => {
@@ -488,7 +643,7 @@ onUnmounted(() => {
       @upload="isUploadDialogOpen = true"
     />
 
-    <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+    <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">
       <AssetStatsPanel :is-expanded="isStatsExpanded" :stat-cards="statCards" />
 
       <section class="workspace-shell">
@@ -503,10 +658,16 @@ onUnmounted(() => {
           :format-tab-options="formatTabOptions"
           :status-tab-options="statusTabOptions"
           :hot-tags="insights?.hotTags || []"
+          :favorite-categories="favoriteCategoriesList"
+          :selected-favorite-category="selectedFavoriteCategory"
           @update:active-category-id="activeCategoryId = $event"
           @update:selected-format="selectedFormat = $event"
           @update:selected-tag="selectedTag = $event"
           @update:my-status-filter="myStatusFilter = $event as StatusFilter"
+          @update:selected-favorite-category="selectedFavoriteCategory = $event"
+          @rename-category="handleRenameFavoriteCategory"
+          @delete-category="handleDeleteFavoriteCategory"
+          @create-category="handleCreateFavoriteCategory"
         />
 
         <AssetContentPanel
@@ -531,12 +692,6 @@ onUnmounted(() => {
           @like="(asset, event) => handleLike(asset, event)"
           @download="(asset, event) => handleDownload(asset, event)"
           @upload="isUploadDialogOpen = true"
-        />
-
-        <AssetInsightPanel
-          :top-downloads="insights?.topDownloads || []"
-          :latest="insights?.latest || []"
-          @go-to-detail="goToDetail"
         />
       </section>
     </div>
@@ -565,6 +720,39 @@ onUnmounted(() => {
       :plugin-categories="[]"
       @save="handleSaveEdit"
     />
+
+    <!-- Favorite Category Create/Rename Modal -->
+    <Modal
+      :show="showCategoryModal"
+      size="sm"
+      @close="showCategoryModal = false;"
+    >
+      <template #header>
+        <h3 class="text-sm font-bold text-[var(--text-primary)]">{{ categoryModalTitle }}</h3>
+      </template>
+
+      <div class="flex flex-col gap-4 text-left">
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">
+            {{ categoryModalLabel }}
+          </label>
+          <Input
+            v-model="categoryModalInputValue"
+            type="text"
+            placeholder="例如：游戏模型、写实建筑"
+            required
+            @input="categoryModalError = ''"
+            @keyup.enter="handleCategoryModalSubmit"
+          />
+          <p v-if="categoryModalError" class="text-xs text-rose-500 mt-1.5 ml-1">{{ categoryModalError }}</p>
+        </div>
+
+        <div class="flex justify-end gap-2 mt-2">
+          <Button variant="secondary" size="sm" @click="showCategoryModal = false;">{{ label('取消', 'Cancel') }}</Button>
+          <Button variant="primary" size="sm" :disabled="!categoryModalInputValue.trim()" @click="handleCategoryModalSubmit">{{ label('确定', 'Confirm') }}</Button>
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -577,16 +765,10 @@ onUnmounted(() => {
 
 .workspace-shell {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr) 280px;
+  grid-template-columns: 180px minmax(0, 1fr);
   gap: 12px;
   min-height: 0;
   flex: 1;
-}
-
-@media (max-width: 1180px) {
-  .workspace-shell {
-    grid-template-columns: 190px minmax(0, 1fr);
-  }
 }
 
 @media (max-width: 860px) {

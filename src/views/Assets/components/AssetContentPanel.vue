@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { computed, type Component } from 'vue';
-import { SlidersHorizontal, ChevronLeft, ChevronRight, Sparkles, X } from 'lucide-vue-next';
+import { SlidersHorizontal } from 'lucide-vue-next';
 import Tabs from '@/components/ui/Tabs.vue';
-import UnifiedCard from '@/components/UnifiedCard.vue';
-import EmptyState from '@/components/EmptyState.vue';
-import SkeletonGrid from '@/components/SkeletonGrid.vue';
+import ResourceGridPanel from './ResourceGridPanel.vue';
 import { useLabel } from '@/utils/i18n';
 import type {
   AssetListItem,
@@ -99,86 +97,26 @@ const localView = computed({
       </div>
     </section>
 
-    <section class="asset-filter-strip mobile-row">
-      <div>
-        <strong>{{ visibleAssets.length }}</strong>
-        <span
-          >/ {{ pagination.total || visibleAssets.length }} {{ label('个资源', 'assets') }}</span
-        >
-      </div>
-      <div class="asset-chip-row">
-        <button
-          v-for="chip in activeFilterChips"
-          :key="chip.key"
-          type="button"
-          @click="emit('clearFilter', chip.key)"
-        >
-          {{ chip.label }}
-          <X class="icon-xs" />
-        </button>
-        <button
-          v-if="activeFilterChips.length"
-          type="button"
-          class="reset-chip"
-          @click="emit('resetFilters')"
-        >
-          {{ label('清空筛选', 'Clear Filters') }}
-        </button>
-        <span v-else>{{ label('当前显示全部公开资源', 'Showing all public assets') }}</span>
-      </div>
-    </section>
-
-    <SkeletonGrid v-if="isLoading" :count="8" :columns="viewMode === 'list' ? 1 : 4" compact />
-
-    <div v-else-if="visibleAssets.length" class="asset-grid" :class="viewMode">
-      <UnifiedCard
-        v-for="asset in visibleAssets"
-        :key="asset.id"
-        :item="asset"
-        kind="asset"
-        :view-mode="viewMode"
-        :is-favorited="(asset.likes ?? 0) > 0"
-        :active-tab="activeTab"
-        @click="emit('goToDetail', asset)"
-        @like="(_item, event) => emit('like', asset, event)"
-        @download="(_item, event) => emit('download', asset, event)"
-      />
-    </div>
-
-    <EmptyState
-      v-else
-      :icon="Sparkles"
-      :title="label('没有匹配的资源', 'No Matching Assets')"
-      :description="
-        label(
-          '调整筛选条件，或上传一个新的资源包。',
-          'Adjust filters or upload a new asset package.',
-        )
-      "
-      :action-text="label('上传资源', 'Upload Asset')"
-      @action="emit('upload')"
+    <ResourceGridPanel
+      kind="asset"
+      :items="visibleAssets"
+      :is-loading="isLoading"
+      :view-mode="viewMode"
+      :active-tab="activeTab"
+      :active-filter-chips="activeFilterChips"
+      :total-count="pagination.total || visibleAssets.length"
+      :pagination="pagination"
+      :empty-title="label('没有匹配的资源', 'No Matching Assets')"
+      :empty-body="label('调整筛选条件，或上传一个新的资源包。', 'Adjust filters or upload a new asset package.')"
+      :empty-action-text="label('上传资源', 'Upload Asset')"
+      @click="emit('goToDetail', $event)"
+      @like="(item, event) => emit('like', item, event)"
+      @download="(item, event) => emit('download', item, event)"
+      @create="emit('upload')"
+      @page-change="emit('pageChange', $event)"
+      @clear-filter="emit('clearFilter', $event)"
+      @reset-filters="emit('resetFilters')"
     />
-
-    <footer v-if="pagination.totalPages > 1" class="pagination mobile-row">
-      <button
-        type="button"
-        :disabled="pagination.page <= 1"
-        @click="emit('pageChange', pagination.page - 1)"
-      >
-        <ChevronLeft class="icon-sm" />
-      </button>
-      <span
-        >{{ label('第', 'Page') }} {{ pagination.page }} / {{ pagination.totalPages }}
-        {{ label('页', '') }}</span
-      >
-      <button
-        type="button"
-        :disabled="pagination.page >= pagination.totalPages"
-        @click="emit('pageChange', pagination.page + 1)"
-      >
-        <ChevronRight class="icon-sm" />
-      </button>
-    </footer>
   </main>
 </template>
 
@@ -186,7 +124,7 @@ const localView = computed({
 .content-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   min-width: 0;
 }
 

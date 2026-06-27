@@ -24,6 +24,7 @@ import {
   checkIsUserVip,
   getAssetCollaborationWhere,
 } from './helpers';
+import { getCustomAssetCategories, saveCustomAssetCategories } from './asset-query.controller';
 
 export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -1117,6 +1118,8 @@ export const toggleAssetLike = async (req: AuthRequest, res: Response, next: Nex
   if (!userId) {
     return next(new AppError('Unauthorized', 401));
   }
+  const categoryVal = typeof req.body.category === 'string' ? req.body.category.trim() : '默认';
+  const category = categoryVal || '默认';
   try {
     const asset = await prisma.asset.findFirst({
       where: { id, status: 'APPROVED' },
@@ -1137,20 +1140,35 @@ export const toggleAssetLike = async (req: AuthRequest, res: Response, next: Nex
         },
       });
 
-      const liked = !existingLike;
+      let liked = false;
       if (existingLike) {
-        await tx.assetLike.delete({
-          where: {
-            id: existingLike.id,
-          },
-        });
+        if (existingLike.category === category) {
+          await tx.assetLike.delete({
+            where: {
+              id: existingLike.id,
+            },
+          });
+          liked = false;
+        } else {
+          await tx.assetLike.update({
+            where: {
+              id: existingLike.id,
+            },
+            data: {
+              category,
+            },
+          });
+          liked = true;
+        }
       } else {
         await tx.assetLike.create({
           data: {
             assetId: id,
             userId,
+            category,
           },
         });
+        liked = true;
       }
 
       const likes = await tx.assetLike.count({ where: { assetId: id } });
@@ -1161,6 +1179,14 @@ export const toggleAssetLike = async (req: AuthRequest, res: Response, next: Nex
 
       return { liked, likes };
     });
+
+    if (result.liked && category !== '默认') {
+      const customCats = await getCustomAssetCategories(userId);
+      if (!customCats.includes(category)) {
+        customCats.push(category);
+        await saveCustomAssetCategories(userId, customCats);
+      }
+    }
 
     res.json({
       message: result.liked ? 'Like recorded' : 'Like removed',

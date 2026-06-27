@@ -24,6 +24,10 @@ router.post(
 );
 router.get('/my', assetController.getUserAssets);
 router.get('/public', assetController.getPublicAssets);
+router.get('/favorites', assetController.getMyFavoriteAssets);
+router.post('/favorites/categories', assetController.createAssetFavoriteCategory);
+router.put('/favorites/categories', assetController.updateAssetFavoriteCategory);
+router.delete('/favorites/categories/:categoryName', assetController.deleteAssetFavoriteCategory);
 router.get('/insights', assetController.getAssetInsights);
 router.get('/tags', assetController.getAssetTags);
 router.post('/:id/download', assetController.recordAssetDownload);

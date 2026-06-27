@@ -30,6 +30,8 @@ import MaterialsGrid from './components/MaterialsGrid.vue';
 import MaterialDetailPanel from './components/MaterialDetailPanel.vue';
 import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
 import EditWorkDialog from './components/EditWorkDialog.vue';
+import Modal from '@/components/ui/Modal.vue';
+import Input from '@/components/ui/Input.vue';
 import { normalizeMaterialWork } from './myWorksModel';
 import type { UnifiedWork } from './myWorksModel';
 import MaterialLibraryHeader from './components/MaterialLibraryHeader.vue';
@@ -155,6 +157,29 @@ const selectedMaterial = ref<NormalizedMaterial | null>(null);
 const editingMaterial = ref<NormalizedMaterial | null>(null);
 const searchTimer = ref<number | undefined>();
 let consumedCreateQuery = false;
+
+const selectedFavoriteCategory = ref('all');
+const favoritedIds = ref<string[]>([]);
+const favoriteCategoriesList = ref<string[]>([]);
+
+// Category Modal states
+const showCategoryModal = ref(false);
+const categoryModalType = ref<'create' | 'rename'>('create');
+const categoryModalInputValue = ref('');
+const categoryModalOldValue = ref('');
+const categoryModalError = ref('');
+
+const categoryModalTitle = computed(() => {
+  return categoryModalType.value === 'create'
+    ? label('新建分类', 'New Category')
+    : label('重命名分类', 'Rename Category');
+});
+
+const categoryModalLabel = computed(() => {
+  return categoryModalType.value === 'create'
+    ? label('请输入新分类名称', 'Please enter a new category name')
+    : label(`请输入「${categoryModalOldValue.value}」的新名称`, `Please enter a new name for "${categoryModalOldValue.value}"`);
+});
 
 const materialForm = ref({
   title: '',
@@ -442,6 +467,7 @@ function getListParams() {
     tag: selectedTag.value,
     procedural: selectedProcedural.value === 'all' ? undefined : selectedProcedural.value,
     favoritesOnly: activeTab.value === 'favorites' ? 'true' : undefined,
+    favoriteCategory: activeTab.value === 'favorites' && selectedFavoriteCategory.value !== 'all' ? selectedFavoriteCategory.value : undefined,
     mine: activeTab.value === 'mine' ? 'true' : undefined,
     status:
       activeTab.value === 'mine' && myStatusFilter.value !== 'all'
@@ -469,6 +495,16 @@ async function fetchMaterials(silent = false) {
   }
 }
 
+async function fetchFavorites() {
+  try {
+    const { data } = await api.get('/api/materials/favorites');
+    favoritedIds.value = data.ids || [];
+    favoriteCategoriesList.value = data.categories || [];
+  } catch (error) {
+    logError(error, { operation: 'fetchMaterialFavorites', view: 'MaterialsView' });
+  }
+}
+
 async function fetchMyMaterials() {
   try {
     const { data } = await api.get('/api/materials/my');
@@ -488,7 +524,7 @@ async function fetchInsights() {
 }
 
 async function refreshWorkspace(silent = false) {
-  await Promise.all([fetchMaterials(silent), fetchInsights(), fetchMyMaterials()]);
+  await Promise.all([fetchMaterials(silent), fetchInsights(), fetchMyMaterials(), fetchFavorites()]);
   await applyRouteEntry();
 }
 function resetUploadForm() {
@@ -776,16 +812,135 @@ function applyFavoriteState(id: string, isFavorited: boolean) {
 async function toggleFavorite(material: MaterialItem | NormalizedMaterial, event?: Event) {
   event?.stopPropagation();
   try {
-    const { data } = await api.post(`/api/materials/${material.id}/favorite`);
+    const isFav = favoritedIds.value.includes(material.id);
+    let category = '默认';
+    
+    if (!isFav && selectedFavoriteCategory.value !== 'all') {
+      category = selectedFavoriteCategory.value;
+    }
+    
+    const { data } = await api.post(`/api/materials/${material.id}/favorite`, {
+      category
+    });
+    
     applyFavoriteState(material.id, data.isFavorited);
+    
+    if (data.isFavorited) {
+      if (!favoritedIds.value.includes(material.id)) favoritedIds.value.push(material.id);
+    } else {
+      favoritedIds.value = favoritedIds.value.filter(id => id !== material.id);
+    }
+    
+    ElMessage.success(
+      data.isFavorited
+        ? label('已加入收藏', 'Added to favorites')
+        : label('已取消收藏', 'Favorite removed')
+    );
+    
     await fetchInsights();
-    if (activeTab.value === 'favorites' && !data.isFavorited) {
+    await fetchFavorites();
+    if (activeTab.value === 'favorites') {
       await fetchMaterials();
     }
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, label('收藏失败', 'Favorite failed')));
   }
 }
+
+const handleCreateFavoriteCategory = () => {
+  categoryModalType.value = 'create';
+  categoryModalInputValue.value = '';
+  categoryModalOldValue.value = '';
+  categoryModalError.value = '';
+  showCategoryModal.value = true;
+};
+
+const handleRenameFavoriteCategory = (cat: string) => {
+  categoryModalType.value = 'rename';
+  categoryModalInputValue.value = cat;
+  categoryModalOldValue.value = cat;
+  categoryModalError.value = '';
+  showCategoryModal.value = true;
+};
+
+const handleCategoryModalSubmit = async () => {
+  const val = categoryModalInputValue.value.trim();
+  if (!val) {
+    categoryModalError.value = label('请输入分类名称', 'Please enter category name');
+    return;
+  }
+  if (val === '默认') {
+    categoryModalError.value = label('不能命名为默认分类', 'Cannot name as default');
+    return;
+  }
+
+  if (categoryModalType.value === 'create') {
+    if (favoriteCategoriesList.value.includes(val)) {
+      categoryModalError.value = label('分类已存在', 'Category already exists');
+      return;
+    }
+    try {
+      await api.post('/api/materials/favorites/categories', {
+        category: val,
+      });
+      ElMessage.success(label('分类创建成功', 'Category created successfully'));
+      selectedFavoriteCategory.value = val;
+      showCategoryModal.value = false;
+      await fetchFavorites();
+      await fetchMaterials();
+    } catch (error) {
+      ElMessage.error(getApiErrorMessage(error, label('创建分类失败', 'Failed to create category')));
+    }
+  } else {
+    // rename
+    if (val === categoryModalOldValue.value) {
+      showCategoryModal.value = false;
+      return;
+    }
+    try {
+      await api.put('/api/materials/favorites/categories', {
+        oldCategory: categoryModalOldValue.value,
+        newCategory: val,
+      });
+      ElMessage.success(label('分类重命名成功', 'Category renamed successfully'));
+      if (selectedFavoriteCategory.value === categoryModalOldValue.value) {
+        selectedFavoriteCategory.value = val;
+      }
+      showCategoryModal.value = false;
+      await fetchFavorites();
+      await fetchMaterials();
+    } catch (error) {
+      ElMessage.error(getApiErrorMessage(error, label('重命名失败', 'Rename failed')));
+    }
+  }
+};
+
+const handleDeleteFavoriteCategory = async (cat: string) => {
+  try {
+    await ElMessageBox.confirm(
+      label(`确认删除收藏夹分类「${cat}」？此操作将取消该分类下所有材料的收藏。`, `Delete favorite folder "${cat}"? This will remove all favorites inside this folder.`),
+      label('删除分类', 'Delete Category'),
+      {
+        confirmButtonText: label('删除', 'Delete'),
+        cancelButtonText: label('取消', 'Cancel'),
+        type: 'warning',
+      },
+    );
+
+    await api.delete(`/api/materials/favorites/categories/${encodeURIComponent(cat)}`);
+
+    ElMessage.success(label('分类删除成功', 'Category deleted successfully'));
+    if (selectedFavoriteCategory.value === cat) {
+      selectedFavoriteCategory.value = 'all';
+    }
+    await fetchFavorites();
+    await fetchMaterials();
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(getApiErrorMessage(error, label('删除失败', 'Delete failed')));
+    }
+  }
+};
 
 function incrementDownloadCount(id: string) {
   const updateDownload = (material: MaterialItem) => {
@@ -973,12 +1128,69 @@ async function reviewMaterial(material: NormalizedMaterial, status: MaterialStat
   }
 }
 
+const activeFilterChips = computed(() => {
+  const chips: Array<{ key: string; label: string }> = [];
+  
+  if (activeCategory.value !== CATEGORY_ALL) {
+    chips.push({
+      key: 'category',
+      label: label(`分类: ${activeCategory.value}`, `Category: ${activeCategory.value}`),
+    });
+  }
+  if (selectedResolution.value !== CATEGORY_ALL) {
+    chips.push({
+      key: 'resolution',
+      label: label(`分辨率: ${selectedResolution.value}`, `Resolution: ${selectedResolution.value}`),
+    });
+  }
+  if (selectedTag.value !== CATEGORY_ALL) {
+    chips.push({
+      key: 'tag',
+      label: label(`标签: ${selectedTag.value}`, `Tag: ${selectedTag.value}`),
+    });
+  }
+  if (selectedProcedural.value !== 'all') {
+    chips.push({
+      key: 'procedural',
+      label: selectedProcedural.value === 'true'
+        ? label('程序纹理: 是', 'Procedural: Yes')
+        : label('程序纹理: 否', 'Procedural: No'),
+    });
+  }
+  if (activeTab.value === 'mine' && myStatusFilter.value !== 'all') {
+    const statusLabels: Record<string, string> = {
+      PENDING: label('待审核', 'Pending'),
+      APPROVED: label('已发布', 'Approved'),
+      REJECTED: label('未通过', 'Rejected'),
+    };
+    chips.push({
+      key: 'status',
+      label: label(`状态: ${statusLabels[myStatusFilter.value]}`, `Status: ${statusLabels[myStatusFilter.value]}`),
+    });
+  }
+  if (activeTab.value === 'favorites' && selectedFavoriteCategory.value !== 'all') {
+    chips.push({
+      key: 'favoriteCategory',
+      label: label(`收藏分类: ${selectedFavoriteCategory.value}`, `Folder: ${selectedFavoriteCategory.value}`),
+    });
+  }
+  if (searchQuery.value.trim()) {
+    chips.push({
+      key: 'search',
+      label: label(`搜索: "${searchQuery.value.trim()}"`, `Search: "${searchQuery.value.trim()}"`),
+    });
+  }
+  
+  return chips;
+});
+
 function clearFilter(key: string) {
   if (key === 'category') activeCategory.value = CATEGORY_ALL;
   if (key === 'resolution') selectedResolution.value = CATEGORY_ALL;
   if (key === 'tag') selectedTag.value = CATEGORY_ALL;
   if (key === 'procedural') selectedProcedural.value = 'all';
   if (key === 'status') myStatusFilter.value = 'all';
+  if (key === 'favoriteCategory') selectedFavoriteCategory.value = 'all';
   if (key === 'search') searchQuery.value = '';
 }
 
@@ -988,8 +1200,13 @@ function resetFilters() {
   selectedTag.value = CATEGORY_ALL;
   selectedProcedural.value = 'all';
   myStatusFilter.value = 'all';
+  selectedFavoriteCategory.value = 'all';
   searchQuery.value = '';
 }
+
+watch(activeTab, () => {
+  selectedFavoriteCategory.value = 'all';
+});
 
 watch(
   [
@@ -999,6 +1216,7 @@ watch(
     selectedTag,
     selectedProcedural,
     myStatusFilter,
+    selectedFavoriteCategory,
     sortBy,
   ],
   () => {
@@ -1043,7 +1261,7 @@ onUnmounted(() => {
       @upload="openCreateDialog"
     />
 
-    <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+    <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">
       <div v-show="isStatsExpanded" class="metric-strip">
         <article
           v-for="stat in statCards"
@@ -1072,11 +1290,17 @@ onUnmounted(() => {
           :procedural-options="proceduralTabOptions"
           :status-options="statusTabOptions"
           :hot-tags="insights?.hotTags || []"
+          :favorite-categories="favoriteCategoriesList"
+          :selected-favorite-category="selectedFavoriteCategory"
           @update:category="activeCategory = $event"
           @update:resolution="selectedResolution = $event"
           @update:tag="selectedTag = $event"
           @update:procedural="selectedProcedural = $event"
           @update:status="myStatusFilter = $event"
+          @update:selected-favorite-category="selectedFavoriteCategory = $event"
+          @rename-category="handleRenameFavoriteCategory"
+          @delete-category="handleDeleteFavoriteCategory"
+          @create-category="handleCreateFavoriteCategory"
         />
 
         <main class="content-panel">
@@ -1119,11 +1343,15 @@ onUnmounted(() => {
               :active-tab="activeTab"
               :empty-title="emptyState.title"
               :empty-body="emptyState.body"
+              :active-filter-chips="activeFilterChips"
+              :total-count="insights?.summary.total || visibleMaterials.length"
               @open-detail="openDetail"
               @toggle-select="toggleSelect"
               @toggle-favorite="toggleFavorite"
               @download="handleDownload"
               @create="openCreateDialog"
+              @clear-filter="clearFilter"
+              @reset-filters="resetFilters"
             />
 
             <MaterialDetailPanel
@@ -1165,6 +1393,39 @@ onUnmounted(() => {
       :plugin-categories="[]"
       @save="handleSaveEdit"
     />
+
+    <!-- Favorite Category Create/Rename Modal -->
+    <Modal
+      :show="showCategoryModal"
+      size="sm"
+      @close="showCategoryModal = false;"
+    >
+      <template #header>
+        <h3 class="text-sm font-bold text-[var(--text-primary)]">{{ categoryModalTitle }}</h3>
+      </template>
+
+      <div class="flex flex-col gap-4 text-left">
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">
+            {{ categoryModalLabel }}
+          </label>
+          <Input
+            v-model="categoryModalInputValue"
+            type="text"
+            placeholder="例如：金属材质、织物纹理"
+            required
+            @input="categoryModalError = ''"
+            @keyup.enter="handleCategoryModalSubmit"
+          />
+          <p v-if="categoryModalError" class="text-xs text-rose-500 mt-1.5 ml-1">{{ categoryModalError }}</p>
+        </div>
+
+        <div class="flex justify-end gap-2 mt-2">
+          <Button variant="secondary" size="sm" @click="showCategoryModal = false;">{{ label('取消', 'Cancel') }}</Button>
+          <Button variant="primary" size="sm" :disabled="!categoryModalInputValue.trim()" @click="handleCategoryModalSubmit">{{ label('确定', 'Confirm') }}</Button>
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -1367,14 +1628,13 @@ button:disabled {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr);
   gap: 12px;
-  margin-top: 12px;
 }
 
 .content-panel {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
 }
 
 .workbench {

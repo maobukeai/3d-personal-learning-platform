@@ -330,7 +330,7 @@ const handleVersionDownload = async (v: VersionItem) => {
 
     await downloadFileMultiThreaded(
       resolvedUrl,
-      `${safeTitle}_v${v.version}.${ext}`,
+      `${safeTitle}.${ext}`,
       (percent) => {
         downloadProgress.value = percent;
       },

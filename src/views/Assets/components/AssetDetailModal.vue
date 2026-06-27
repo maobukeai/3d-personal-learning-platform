@@ -1,6 +1,22 @@
-﻿<script setup lang="ts">
-import { ref, watch, computed, defineAsyncComponent } from 'vue';
+<script setup lang="ts">
+import { ref, watch, computed, defineAsyncComponent, onMounted, onUnmounted } from 'vue';
+const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
+import 'md-editor-v3/lib/preview.css';
 import { logError } from '@/utils/error';
+
+const isDark = ref(document.documentElement.classList.contains('dark'));
+let themeObserver: MutationObserver | null = null;
+onMounted(() => {
+  themeObserver = new MutationObserver(() => {
+    isDark.value = document.documentElement.classList.contains('dark');
+  });
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+});
+onUnmounted(() => {
+  if (themeObserver) {
+    themeObserver.disconnect();
+  }
+});
 import { useRouter } from 'vue-router';
 import {
   Heart,
@@ -18,6 +34,7 @@ import {
   Image as ImageIcon,
   CheckCircle2,
   FolderOpen,
+  Folder,
   Globe,
   Maximize2,
   Box,
@@ -174,6 +191,29 @@ const isPackageFilesLoading = ref(false);
 const parsedFileTree = computed(() => {
   const tree = buildFileTree(packageFiles.value);
   return flattenFileTree(tree);
+});
+
+const expandedFolders = ref<Set<string>>(new Set());
+const toggleFolder = (path: string) => {
+  if (expandedFolders.value.has(path)) {
+    expandedFolders.value.delete(path);
+  } else {
+    expandedFolders.value.add(path);
+  }
+};
+const visibleFileNodes = computed(() => {
+  return parsedFileTree.value.filter(node => {
+    const parts = node.path.split('/');
+    if (parts.length <= 1) return true;
+    let parentPath = '';
+    for (let i = 0; i < parts.length - 1; i++) {
+      parentPath = parentPath ? `${parentPath}/${parts[i]}` : parts[i];
+      if (!expandedFolders.value.has(parentPath)) {
+        return false;
+      }
+    }
+    return true;
+  });
 });
 
 const comments = ref<any[]>([]);
@@ -503,10 +543,12 @@ watch(
   ([newShow, newAssetId]) => {
     if (props.inline) return;
     if (newShow && newAssetId) {
+      expandedFolders.value.clear();
       packageFiles.value = [];
       void fetchAssetDetail();
       void fetchComments();
     } else if (!newShow) {
+      expandedFolders.value.clear();
       asset.value = null;
       comments.value = [];
       newCommentContent.value = '';
@@ -1041,9 +1083,9 @@ watch(
         <!-- Description -->
         <div class="flex flex-col gap-1.5 text-left">
           <h4 class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">{{ label('说明', 'Description') }}</h4>
-          <p class="text-xs text-[var(--text-secondary)] leading-relaxed bg-white/[0.01] border border-white/5 rounded-xl p-3">
-            {{ asset.description || label('作者很懒，什么都没有写。', 'No description provided.') }}
-          </p>
+          <div class="bg-white/[0.01] border border-white/5 rounded-xl p-3 overflow-hidden">
+            <MdPreview :model-value="asset.description || label('作者很懒，什么都没有写。', 'No description provided.')" :theme="isDark ? 'dark' : 'light'" class="!bg-transparent !text-[var(--text-secondary)] !text-xs dark:invert-preview" />
+          </div>
         </div>
 
         <!-- ZIP File Explorer (async-loaded) -->
@@ -1071,13 +1113,19 @@ watch(
           <!-- File tree -->
           <div v-else-if="!isFilesCollapsed" class="p-3 flex flex-col gap-1 max-h-[180px] overflow-y-auto custom-scrollbar text-xs text-[var(--text-secondary)] font-mono">
             <div 
-              v-for="node in parsedFileTree" 
+              v-for="node in visibleFileNodes" 
               :key="node.path" 
               class="flex items-center gap-1.5 py-1 hover:bg-[var(--bg-hover)] px-2 rounded transition-colors"
+              :class="{ 'cursor-pointer select-none': node.isFolder }"
               :style="{ paddingLeft: (node.level * 14 + 6) + 'px' }"
+              @click="node.isFolder ? toggleFolder(node.path) : null"
             >
               <!-- Folder Icon -->
-              <FolderOpen v-if="node.isFolder" class="h-3.5 w-3.5 text-amber-500 dark:text-amber-400/80 shrink-0" />
+              <component
+                :is="expandedFolders.has(node.path) ? FolderOpen : Folder"
+                v-if="node.isFolder"
+                class="h-3.5 w-3.5 text-amber-500 dark:text-amber-400/80 shrink-0"
+              />
               <!-- File Icons -->
               <template v-else>
                 <!-- Blender Logo SVG -->

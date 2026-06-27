@@ -1,7 +1,7 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { logError } from '@/utils/error';
-import { Shield, Settings, ChevronDown, ChevronUp, FileArchive, FolderOpen, Box, FileText, RefreshCw, UploadCloud, Image as ImageIcon } from 'lucide-vue-next';
+import { Shield, Settings, ChevronDown, ChevronUp, FileArchive, FolderOpen, Folder, Box, FileText, RefreshCw, UploadCloud, Image as ImageIcon } from 'lucide-vue-next';
 import Input from '@/components/ui/Input.vue';
 import Checkbox from '@/components/ui/Checkbox.vue';
 import api from '@/utils/api';
@@ -275,6 +275,7 @@ const fetchExistingVersions = async () => {
 
 watch(() => show.value, (newShow) => {
   if (newShow) {
+    expandedFolders.value.clear();
     fetchCourses();
     if (form.value.linkedCourseId) {
       fetchLessons(form.value.linkedCourseId);
@@ -320,6 +321,29 @@ const parsedFileTree = computed(() => {
   return [];
 });
 
+const expandedFolders = ref<Set<string>>(new Set());
+const toggleFolder = (path: string) => {
+  if (expandedFolders.value.has(path)) {
+    expandedFolders.value.delete(path);
+  } else {
+    expandedFolders.value.add(path);
+  }
+};
+const visibleFileNodes = computed(() => {
+  return parsedFileTree.value.filter(node => {
+    const parts = node.path.split('/');
+    if (parts.length <= 1) return true;
+    let parentPath = '';
+    for (let i = 0; i < parts.length - 1; i++) {
+      parentPath = parentPath ? `${parentPath}/${parts[i]}` : parts[i];
+      if (!expandedFolders.value.has(parentPath)) {
+        return false;
+      }
+    }
+    return true;
+  });
+});
+
 const hasPackageFiles = computed(() => {
   if (form.value.packageFile) return true;
   const rawAsset = props.work?.raw as any;
@@ -327,6 +351,7 @@ const hasPackageFiles = computed(() => {
 });
 
 watch(() => form.value.packageFile, async (newFile) => {
+  expandedFolders.value.clear();
   if (!newFile) {
     packageFileList.value = [];
     return;
@@ -427,12 +452,18 @@ watch(() => form.value.packageFile, async (newFile) => {
             <!-- File tree -->
             <div v-else-if="parsedFileTree.length > 0" class="p-3 flex flex-col gap-1 max-h-[180px] overflow-y-auto custom-scrollbar text-xs text-[var(--text-secondary)] font-mono">
               <div 
-                v-for="node in parsedFileTree" 
+                v-for="node in visibleFileNodes" 
                 :key="node.path" 
                 class="flex items-center gap-1.5 py-1 hover:bg-white/[0.03] px-2 rounded transition-colors"
+                :class="{ 'cursor-pointer select-none': node.isFolder }"
                 :style="{ paddingLeft: (node.level * 14 + 6) + 'px' }"
+                @click="node.isFolder ? toggleFolder(node.path) : null"
               >
-                <FolderOpen v-if="node.isFolder" class="h-3.5 w-3.5 text-amber-500 dark:text-amber-400/80 shrink-0" />
+                <component
+                  :is="expandedFolders.has(node.path) ? FolderOpen : Folder"
+                  v-if="node.isFolder"
+                  class="h-3.5 w-3.5 text-amber-500 dark:text-amber-400/80 shrink-0"
+                />
                 <template v-else>
                   <svg v-if="node.name.toLowerCase().endsWith('.blend')" class="h-3.5 w-3.5 shrink-0" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M66.332 70.032c.24-4.242 2.327-7.987 5.485-10.634 3.094-2.602 7.248-4.193 11.809-4.193 4.537 0 8.69 1.59 11.78 4.193 3.163 2.647 5.237 6.392 5.485 10.634.24 4.35-1.523 8.41-4.605 11.417-3.158 3.05-7.627 4.977-12.66 4.977-5.037 0-9.526-1.915-12.664-4.977-3.094-3.006-4.853-7.044-4.606-11.397zm0 0" fill="#235785"/>
@@ -461,23 +492,12 @@ watch(() => form.value.packageFile, async (newFile) => {
             <MarkdownEditor
               v-model="description"
               placeholder="描述作品用途、制作说明、安装方式或更新内容"
-              height="200px"
+              :height="work?.kind === 'plugin' ? '300px' : '200px'"
               simple
             />
           </div>
 
-          <!-- Plugin install guide -->
-          <div v-if="work.kind === 'plugin'" class="form-field editor-field text-left mt-2">
-            <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">
-              {{ label('安装指南', 'Installation Guide') }}
-            </span>
-            <MarkdownEditor
-              v-model="installGuide"
-              placeholder="描述插件的安装和使用方式"
-              height="200px"
-              simple
-            />
-          </div>
+
         </div>
 
         <!-- Right Column: Metadata & Advanced configurations -->

@@ -254,7 +254,7 @@ const handlePublish = async () => {
       pluginFormData.append('version', publishForm.value.pluginVersion);
       pluginFormData.append('compatibility', publishForm.value.pluginCompatibility);
       pluginFormData.append('tags', publishForm.value.tags);
-      pluginFormData.append('installGuide', publishForm.value.pluginInstallGuide);
+      pluginFormData.append('installGuide', '');
       if (publishForm.value.bilibiliUrl) {
         pluginFormData.append('bilibiliUrl', publishForm.value.bilibiliUrl);
       }
@@ -580,22 +580,11 @@ onMounted(() => {
             <MarkdownEditor
               v-model="publishForm.description"
               placeholder="简单描述插件的功能和用途"
-              :height="isMobile ? '180px' : '210px'"
+              :height="isMobile ? '200px' : '320px'"
               simple
             />
           </div>
-          <div>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-              >安装说明（Markdown）</label
-            >
-            <MarkdownEditor
-              v-model="publishForm.pluginInstallGuide"
-              placeholder="步骤 1: 解压 zip 文件&#10;步骤 2: 在 Blender 首选项中安装..."
-              :height="isMobile ? '180px' : '210px'"
-              simple
-            />
-          </div>
+
         </div>
       </div>
     </template>

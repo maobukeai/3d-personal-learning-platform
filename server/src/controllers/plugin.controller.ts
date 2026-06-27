@@ -1326,10 +1326,19 @@ export const checkPluginUpdate = async (req: Request, res: Response, next: NextF
       orderBy: { createdAt: 'desc' },
     });
 
+    // Build a fully-qualified download URL.
+    // fileUrl may be an absolute R2/CDN URL (starts with http) or a relative local path.
+    const buildDownloadUrl = (fileUrl: string | null | undefined): string | null => {
+      if (!fileUrl) return null;
+      if (/^https?:\/\//i.test(fileUrl)) return fileUrl; // already absolute
+      const cleanPath = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
+      return `${req.protocol}://${req.get('host')}${cleanPath}`;
+    };
+
     res.json({
       updateAvailable,
       latestVersion,
-      downloadUrl: plugin.fileUrl ? `${req.protocol}://${req.get('host')}${plugin.fileUrl}` : null,
+      downloadUrl: buildDownloadUrl(plugin.fileUrl),
       compatibility: plugin.compatibility,
       changelog: latestVersionRecord?.changelog || '暂无更新日志',
     });

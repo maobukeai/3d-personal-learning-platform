@@ -284,7 +284,7 @@ const handlePluginDownload = async () => {
       totalSizeOverrideBytes
     );
 
-    // Record download on backend
+    // Record download on backend (only after successful download)
     await api.post(`/api/plugins/${props.plugin.id}/download`);
     emit('download');
     emit('update');
@@ -293,7 +293,10 @@ const handlePluginDownload = async () => {
       // Handled: user cancelled download
     } else {
       logError('Failed to download plugin:', err);
-      const msg = err.response?.data?.error || label('下载失败', 'Download failed');
+      const status = err?.response?.status;
+      const msg = status === 404
+        ? label('文件不存在或已被删除，请联系管理员', 'File not found or deleted, please contact admin')
+        : (err.response?.data?.error || label('下载失败，请稍后重试', 'Download failed, please try again'));
       ElMessage.error(msg);
     }
   } finally {
@@ -338,7 +341,7 @@ const handleVersionDownload = async (v: VersionItem) => {
       totalSizeOverrideBytes
     );
 
-    // Record download on backend
+    // Record download on backend (only after successful download)
     await api.post(`/api/plugins/${props.plugin.id}/download`);
     emit('download');
     emit('update');
@@ -347,7 +350,10 @@ const handleVersionDownload = async (v: VersionItem) => {
       // Handled
     } else {
       logError('Failed to download plugin version:', err);
-      const msg = err.response?.data?.error || label('下载失败', 'Download failed');
+      const status = err?.response?.status;
+      const msg = status === 404
+        ? label('文件不存在或已被删除，请联系管理员', 'File not found or deleted, please contact admin')
+        : (err.response?.data?.error || label('下载失败，请稍后重试', 'Download failed, please try again'));
       ElMessage.error(msg);
     }
   } finally {

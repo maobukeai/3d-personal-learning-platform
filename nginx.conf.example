@@ -39,6 +39,16 @@ server {
 
         # 解决 Vue Router History 模式刷新报 404 的问题（必须配置）
         try_files $uri $uri/ /index.html;
+
+        # -------------------------------------------------------
+        # ⚠️ 关键：backdrop-filter 磨砂效果必须的安全响应头
+        # 缺少这些头会导致浏览器在线上环境禁用 GPU 合成层，
+        # 从而使所有 backdrop-filter: blur() 效果在部署后失效。
+        # -------------------------------------------------------
+        add_header Cross-Origin-Opener-Policy "same-origin" always;
+        add_header Cross-Origin-Embedder-Policy "require-corp" always;
+        add_header Cross-Origin-Resource-Policy "same-site" always;
+        add_header Permissions-Policy "interest-cohort=()" always;
     }
 
     # -------------------------------------------------------
@@ -101,7 +111,9 @@ server {
         # ⚠️ 与 location / 一致，替换为前端 dist 目录的绝对路径
         root /path/to/your/project/dist;
         expires 30d;
-        add_header Cache-Control "public, no-transform";
+        # ⚠️ 注意：不要加 no-transform！
+        # no-transform 会阻止浏览器创建 GPU 合成层，导致 backdrop-filter 磨砂效果失效
+        add_header Cache-Control "public, immutable";
         # 如果资源不存在于 dist，不要回退到 index.html（避免 API 响应被当成静态文件）
         try_files $uri =404;
     }

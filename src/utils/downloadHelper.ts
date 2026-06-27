@@ -201,6 +201,16 @@ export async function downloadFileMultiThreaded(
     ) {
       throw error;
     }
+
+    // Re-throw HTTP response errors (404, 403, 500, etc.) so the caller can show
+    // a meaningful message. Do NOT fall back to triggerBrowserDownload for these,
+    // because opening a link to a 404 URL just shows a broken error page.
+    if (axios.isAxiosError(error) && error.response) {
+      throw error;
+    }
+
+    // For non-HTTP errors (CORS, network failure, mixed-content, etc.) fall back
+    // to a plain browser navigation download, which may succeed where fetch cannot.
     logError(error, { operation: 'downloadHelper.download', component: 'DownloadHelper' });
     triggerBrowserDownload(url, filename);
     if (onProgress) onProgress(100);

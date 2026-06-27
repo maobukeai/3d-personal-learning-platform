@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import {
   formatCompactNumber as formatNumber,
   formatRelativeTime as formatTime,
@@ -33,6 +33,8 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
+import axios from 'axios';
+import { downloadFileMultiThreaded } from '@/utils/downloadHelper';
 import { useAuthStore } from '@/stores/auth';
 import { parseTags } from '@/utils/tags';
 import type { ShowcaseItem, ShowcaseType, ShowcaseUser } from './showcaseTypes';
@@ -419,15 +421,25 @@ const downloadMaterialFile = async (material: any) => {
 };
 
 const downloadPluginFile = async (plugin: any) => {
+  if (!plugin.fileUrl) {
+    ElMessage.error('此插件没有有效的下载地址');
+    return;
+  }
   try {
+    const resolvedUrl = getAssetUrl(plugin.fileUrl);
+    const ext = plugin.fileUrl.split('.').pop()?.split('?')[0] || 'zip';
+    const safeTitle = (plugin.title || 'plugin').replace(/[^a-zA-Z0-9\u4e00-\u9fff._-]/g, '_');
+    await downloadFileMultiThreaded(resolvedUrl, `${safeTitle}.${ext}`);
     await api.post(`/api/plugins/${plugin.id}/download`);
-    if (plugin.fileUrl) {
-      window.open(getAssetUrl(plugin.fileUrl), '_blank', 'noopener,noreferrer');
-    } else {
-      ElMessage.error('此插件没有有效的下载地址');
+  } catch (error: any) {
+    if (axios.isCancel(error) || error?.name === 'CanceledError' || error?.name === 'AbortError' || error?.message === 'canceled') {
+      return;
     }
-  } catch (error) {
-    ElMessage.error('下载插件失败，请稍后重试');
+    const status = error?.response?.status;
+    const msg = status === 404
+      ? '文件不存在或已被删除，请联系管理员'
+      : '下载插件失败，请稍后重试';
+    ElMessage.error(msg);
   }
 };
 

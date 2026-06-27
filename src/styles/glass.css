@@ -594,19 +594,8 @@ html.theme-glass.dark kbd {
   color: var(--text-primary) !important;
 }
 
-/* Fallbacks & Reset overrides to prevent style pollution under theme-glass */
-html.theme-glass .el-input__wrapper,
-html.theme-glass input[type='text'],
-html.theme-glass input[type='password'],
-html.theme-glass input[type='email'],
-html.theme-glass input[type='number'],
-html.theme-glass textarea,
-html.theme-glass .notification-item:hover,
-html.theme-glass .el-overlay,
-html.theme-glass .el-overlay-dialog {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
+/* NOTE: The el-input__wrapper / el-overlay backdrop-filter overrides were intentionally removed.
+   The blur rules above for .el-input__wrapper and .el-overlay are correct and should not be reset. */
 
 html.theme-glass .shadow-2xl,
 html.theme-glass .hover\:shadow-2xl:hover {

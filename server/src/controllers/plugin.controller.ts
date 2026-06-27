@@ -672,7 +672,17 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
     // Check if new plugin file is uploaded
     if (pluginFile) {
       if (existing.fileUrl) {
-        deleteCloudOrLocalFileByUrl(existing.fileUrl).catch(() => {});
+        const targetVersion = req.body.version || existing.version;
+        const isFileReferenced = await prisma.pluginVersion.findFirst({
+          where: {
+            pluginId: id,
+            fileUrl: existing.fileUrl,
+            version: { not: targetVersion },
+          },
+        });
+        if (!isFileReferenced) {
+          deleteCloudOrLocalFileByUrl(existing.fileUrl).catch(() => {});
+        }
       }
       const fileUrl = (pluginFile as UploadedFile).url || `/uploads/plugins/${pluginFile.filename}`;
       const fileSizeMb = pluginFile.size / (1024 * 1024);
@@ -695,7 +705,17 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
       }
     } else if (externalUrl !== undefined) {
       if (externalUrl && existing.fileUrl) {
-        deleteCloudOrLocalFileByUrl(existing.fileUrl).catch(() => {});
+        const targetVersion = req.body.version || existing.version;
+        const isFileReferenced = await prisma.pluginVersion.findFirst({
+          where: {
+            pluginId: id,
+            fileUrl: existing.fileUrl,
+            version: { not: targetVersion },
+          },
+        });
+        if (!isFileReferenced) {
+          deleteCloudOrLocalFileByUrl(existing.fileUrl).catch(() => {});
+        }
         updateData.fileSize = 0;
         updateData.packageFilesList = null;
       }
@@ -742,7 +762,16 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
         existingVersionRecord.fileUrl &&
         existingVersionRecord.fileUrl !== plugin.fileUrl
       ) {
-        deleteCloudOrLocalFileByUrl(existingVersionRecord.fileUrl).catch(() => {});
+        const isFileReferenced = await prisma.pluginVersion.findFirst({
+          where: {
+            pluginId: id,
+            fileUrl: existingVersionRecord.fileUrl,
+            version: { not: existingVersionRecord.version },
+          },
+        });
+        if (!isFileReferenced) {
+          deleteCloudOrLocalFileByUrl(existingVersionRecord.fileUrl).catch(() => {});
+        }
       }
 
       await prisma.pluginVersion.update({

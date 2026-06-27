@@ -35,6 +35,7 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction) 
     // Public AI assistant endpoints are protected by route-level rate limits.
     '/api/projects/ai-chat',
     '/api/projects/ai-chat/upload',
+    '/api/plugins/client/feedback',
   ];
 
   const requestPath = req.originalUrl.split('?')[0] || req.originalUrl;

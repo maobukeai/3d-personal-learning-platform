@@ -12,7 +12,7 @@ import {
   Download,
   QrCode,
 } from 'lucide-vue-next';
-import api from '@/utils/api';
+import api, { getAssetUrl } from '@/utils/api';
 import { logError } from '@/utils/error';
 import QRCode from 'qrcode';
 import Modal from '@/components/ui/Modal.vue';
@@ -28,6 +28,8 @@ interface Resource {
   title: string;
   userId: string;
   createdAt: string;
+  previewUrl?: string | null;
+  thumbnail?: string | null;
 }
 
 interface ShareConfig {
@@ -72,14 +74,14 @@ const typeLabels = {
     name: '3D模型',
     urlKey: 'asset',
     apiPath: 'assets',
-    qrSubtitle: '扫码浏览 3D 资产模型',
+    qrSubtitle: '扫码下载与浏览 3D 资产库',
     watermark: '3D 个人学习平台 | 3D 资产库',
     themeClass: 'from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400',
     logoBg: 'bg-gradient-to-tr from-purple-500 to-indigo-600 shadow-sm',
     badgeClass: 'bg-emerald-500/10 text-emerald-500',
     shortcuts: [
       { tpl: '💡 炫酷的 3D 模型渲染，强烈推荐预览！', label: '💡 强烈推荐' },
-      { tpl: '🎨 个人精心制作 the 3D 模型资产。', label: '🎨 精心制作' },
+      { tpl: '🎨 个人精心制作的 3D 模型资产。', label: '🎨 精心制作' },
       { tpl: '🎯 欢迎大家来预览我们的 3D 资产。', label: '🎯 欢迎预览' },
     ],
   },
@@ -87,7 +89,7 @@ const typeLabels = {
     name: '材质',
     urlKey: 'material',
     apiPath: 'materials',
-    qrSubtitle: '扫码浏览精美 3D 材质',
+    qrSubtitle: '扫码下载与浏览 材质库',
     watermark: '3D 个人学习平台 | 材质库',
     themeClass: 'from-indigo-600 to-cyan-600 dark:from-indigo-400 dark:to-cyan-400',
     logoBg: 'bg-gradient-to-tr from-indigo-500 to-cyan-500 shadow-sm',
@@ -102,8 +104,8 @@ const typeLabels = {
     name: '插件',
     urlKey: 'plugin',
     apiPath: 'plugins',
-    qrSubtitle: '扫码下载与浏览 3D 插件',
-    watermark: '3D 个人学习平台 | 插件库',
+    qrSubtitle: '扫码下载与浏览 Blender 插件库',
+    watermark: '3D 个人学习平台 | Blender 插件库',
     themeClass: 'from-amber-600 to-orange-600 dark:from-amber-400 dark:to-orange-400',
     logoBg: 'bg-gradient-to-tr from-amber-500 to-orange-500 shadow-sm',
     badgeClass: 'bg-amber-500/10 text-amber-500',
@@ -203,113 +205,199 @@ const wrapText = (
   return currentY;
 };
 
-const downloadQrCode = () => {
+const loadImg = (src: string): Promise<HTMLImageElement | null> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+};
+
+const downloadQrCode = async () => {
   if (!qrCodeDataUrl.value || !resource.value || renderingCard.value) return;
   renderingCard.value = true;
 
-  const canvas = document.createElement('canvas');
-  canvas.width = 400;
-  canvas.height = 540;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    renderingCard.value = false;
-    return;
-  }
-
-  // Enable anti-aliasing
-  ctx.imageSmoothingEnabled = true;
-
-  // 1. Draw Background Card
-  ctx.fillStyle = '#ffffff';
-  drawRoundRect(ctx, 0, 0, 400, 540, 24);
-  ctx.fill();
-  ctx.lineWidth = 1.5;
-  ctx.strokeStyle = '#e2e8f0';
-  ctx.stroke();
-
-  // 2. Draw Header
-  ctx.font = 'bold 13px sans-serif';
-  ctx.fillStyle = '#475569';
-  ctx.fillText('🔗 分享卡片', 24, 38);
-
-  // Badge background
-  ctx.fillStyle = '#dcfce7'; // green-100
-  drawRoundRect(ctx, 312, 22, 64, 22, 6);
-  ctx.fill();
-  // Badge text
-  ctx.font = 'bold 10px sans-serif';
-  ctx.fillStyle = '#15803d'; // green-700
-  ctx.textAlign = 'center';
-  ctx.fillText('公开可用', 344, 36);
-
-  // 3. Draw Info Box
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#f8fafc';
-  drawRoundRect(ctx, 24, 64, 352, 106, 16);
-  ctx.fill();
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = '#e2e8f0';
-  ctx.stroke();
-
-  // Title
-  ctx.font = 'bold 15px sans-serif';
-  ctx.fillStyle = '#0f172a';
-  wrapText(ctx, resource.value.title, 40, 96, 320, 20, 1);
-
-  // Subtitle / Custom message
-  ctx.font = '11px sans-serif';
-  if (enableCustomText.value && customText.value.trim()) {
-    ctx.fillStyle = '#475569';
-    ctx.font = 'italic 11px sans-serif';
-    wrapText(ctx, `“${customText.value.trim()}”`, 40, 126, 320, 18, 2);
-  } else {
-    ctx.fillStyle = '#64748b';
-    ctx.fillText(configInfo.value.qrSubtitle, 40, 126);
-  }
-
-  // 4. Draw QR Code Frame
-  ctx.fillStyle = '#ffffff';
-  drawRoundRect(ctx, 80, 196, 240, 240, 16);
-  ctx.fill();
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = '#e2e8f0';
-  ctx.stroke();
-
-  // Load and draw QR code image
-  const img = new Image();
-  img.src = qrCodeDataUrl.value;
-  img.onload = () => {
-    try {
-      ctx.drawImage(img, 88, 204, 224, 224);
-
-      // 5. Draw Footer
-      ctx.textAlign = 'center';
-      ctx.font = '11px sans-serif';
-      ctx.fillStyle = '#64748b';
-      ctx.fillText('微信/手机浏览器扫码浏览', 200, 470);
-
-      // Watermark
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText(configInfo.value.watermark, 200, 502);
-
-      // Trigger download
-      const link = document.createElement('a');
-      link.href = canvas.toDataURL('image/png');
-      link.download = `${resource.value!.title}_分享卡片.png`;
-      link.click();
-      ElMessage.success('分享二维码卡片已成功保存到本地！');
-    } catch (err) {
-      logError(err, { operation: `${configInfo.value.apiPath}.saveShareCard`, component: 'ShareDialog' });
-      ElMessage.error('保存二维码卡片失败');
-    } finally {
-      renderingCard.value = false;
+  try {
+    // 1. Resolve preview image if available
+    let previewImg: HTMLImageElement | null = null;
+    const rawPreviewUrl = resource.value.previewUrl || resource.value.thumbnail;
+    if (rawPreviewUrl) {
+      const fullUrl = getAssetUrl(rawPreviewUrl);
+      const isRemote = (fullUrl.startsWith('http://') || fullUrl.startsWith('https://')) && !fullUrl.includes(window.location.host);
+      const proxyUrl = isRemote ? `/api/proxy/image?url=${encodeURIComponent(fullUrl)}` : fullUrl;
+      previewImg = await loadImg(proxyUrl);
     }
-  };
-  img.onerror = () => {
-    ElMessage.error('加载二维码图片失败');
+
+    const hasPreview = !!previewImg;
+    const canvas = document.createElement('canvas');
+    const width = 400;
+    const height = hasPreview ? 720 : 540;
+    
+    // Scale for High-DPI crispness (3x)
+    const scale = 3;
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      renderingCard.value = false;
+      return;
+    }
+    
+    ctx.scale(scale, scale);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    // 2. Check active theme (Dark Mode vs Light Mode) to match UI
+    const isDark = document.documentElement.classList.contains('dark');
+    
+    // Set colors based on theme
+    const cardBgColor = isDark ? '#1b1d22' : '#ffffff';
+    const borderColor = isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0';
+    const infoBgColor = isDark ? 'rgba(255, 255, 255, 0.03)' : '#f8fafc';
+    const infoBorderColor = isDark ? 'rgba(255, 255, 255, 0.06)' : '#e2e8f0';
+    const textColor = isDark ? '#ffffff' : '#0f172a';
+    const subtextColor = isDark ? '#94a3b8' : '#64748b';
+    const headerColor = isDark ? '#ffffff' : '#475569';
+    const footerColor = isDark ? '#64748b' : '#94a3b8';
+    const watermarkColor = isDark ? '#4b5563' : '#cbd5e1';
+
+    // Badge styling
+    const badgeBg = isDark ? 'rgba(16, 185, 129, 0.15)' : '#dcfce7';
+    const badgeBorder = isDark ? 'rgba(16, 185, 129, 0.3)' : '#bbf7d0';
+    const badgeText = isDark ? '#34d399' : '#15803d';
+
+    // Draw Background Card
+    ctx.fillStyle = cardBgColor;
+    drawRoundRect(ctx, 0, 0, width, height, 24);
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = borderColor;
+    ctx.stroke();
+
+    // Subtle background mesh pattern in dark mode
+    if (isDark) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.01)';
+      ctx.lineWidth = 0.5;
+      for (let i = 20; i < width; i += 20) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, height);
+        ctx.stroke();
+      }
+      for (let i = 20; i < height; i += 20) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(width, i);
+        ctx.stroke();
+      }
+    }
+
+    // 3. Draw Header
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillStyle = headerColor;
+    ctx.fillText('🔗 分享卡片', 24, 38);
+
+    // Green glass badge background
+    ctx.fillStyle = badgeBg;
+    drawRoundRect(ctx, 312, 22, 64, 22, 6);
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = badgeBorder;
+    ctx.stroke();
+    // Badge text
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillStyle = badgeText;
+    ctx.textAlign = 'center';
+    ctx.fillText('公开可用', 344, 36);
+
+    // 4. Draw Preview Image if loaded
+    if (hasPreview && previewImg) {
+      ctx.save();
+      ctx.beginPath();
+      drawRoundRect(ctx, 24, 64, 352, 198, 16);
+      ctx.clip();
+      ctx.drawImage(previewImg, 24, 64, 352, 198);
+      ctx.restore();
+
+      // Highlight border overlay
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)';
+      drawRoundRect(ctx, 24, 64, 352, 198, 16);
+      ctx.stroke();
+    }
+
+    // 5. Draw Info Box
+    const infoY = hasPreview ? 282 : 64;
+    const infoH = hasPreview ? 90 : 106;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = infoBgColor;
+    drawRoundRect(ctx, 24, infoY, 352, infoH, 16);
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = infoBorderColor;
+    ctx.stroke();
+
+    // Title
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillStyle = textColor;
+    wrapText(ctx, resource.value.title, 40, infoY + 32, 320, 20, 1);
+
+    // Subtitle / Custom message
+    ctx.font = '11px sans-serif';
+    if (enableCustomText.value && customText.value.trim()) {
+      ctx.fillStyle = isDark ? '#a5b4fc' : '#4f46e5'; // Indigo accent
+      ctx.font = 'italic 11px sans-serif';
+      wrapText(ctx, `“${customText.value.trim()}”`, 40, infoY + 62, 320, 18, 2);
+    } else {
+      ctx.fillStyle = subtextColor;
+      ctx.fillText(configInfo.value.qrSubtitle, 40, infoY + 62);
+    }
+
+    // 6. Draw QR Code Frame (White high-contrast container for scanning reliability)
+    const qrY = hasPreview ? 392 : 196;
+    ctx.fillStyle = '#ffffff';
+    drawRoundRect(ctx, 90, qrY, 220, 220, 18);
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.stroke();
+
+    // Load and draw QR code image
+    const qrImg = await loadImg(qrCodeDataUrl.value);
+    if (qrImg) {
+      ctx.drawImage(qrImg, 100, qrY + 10, 200, 200);
+    } else {
+      throw new Error('Failed to load QR code image');
+    }
+
+    // 7. Draw Footer
+    const footerY = hasPreview ? 646 : 452;
+    ctx.textAlign = 'center';
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = footerColor;
+    ctx.fillText('微信/手机浏览器扫码浏览', 200, footerY);
+
+    // Watermark
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillStyle = watermarkColor;
+    ctx.fillText(configInfo.value.watermark, 200, footerY + 32);
+
+    // 8. Trigger download with correct naming format: [资源标题]_[类型]分享卡片.png
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = `${resource.value.title}_${configInfo.value.name}分享卡片.png`;
+    link.click();
+    ElMessage.success('分享二维码卡片已成功保存到本地！');
+  } catch (err) {
+    logError(err, { operation: `${configInfo.value.apiPath}.saveShareCard`, component: 'ShareDialog' });
+    ElMessage.error('保存二维码卡片失败');
+  } finally {
     renderingCard.value = false;
-  };
+  }
 };
 
 const open = async (targetResource: Resource) => {

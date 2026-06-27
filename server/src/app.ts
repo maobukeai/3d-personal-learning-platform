@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import path from 'path';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
+import axios from 'axios';
 import authRoutes from './routes/auth.routes';
 import adminRoutes from './routes/admin.routes';
 import feedbackRoutes from './routes/feedback.routes';
@@ -198,6 +199,22 @@ app.use('/api/ai-bots', aiBotRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/plugins', pluginRoutes);
 app.use('/api/backup', backupRoutes);
+
+app.get('/api/proxy/image', async (req, res) => {
+  const url = req.query.url as string;
+  if (!url) {
+    res.status(400).send('Missing url parameter');
+    return;
+  }
+  try {
+    const response = await axios.get(url, { responseType: 'stream' });
+    res.setHeader('Content-Type', String(response.headers['content-type'] || 'image/jpeg'));
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    response.data.pipe(res);
+  } catch (error) {
+    res.status(500).send('Failed to proxy image');
+  }
+});
 
 app.get('/', (req, res) => {
   res.send('3D Personal Learning Platform API');

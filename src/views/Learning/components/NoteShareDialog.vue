@@ -141,113 +141,158 @@ const wrapText = (
   return currentY;
 };
 
-const downloadQrCode = () => {
+const loadImg = (src: string): Promise<HTMLImageElement | null> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+};
+
+const downloadQrCode = async () => {
   if (!qrCodeDataUrl.value || !note.value || renderingCard.value) return;
   renderingCard.value = true;
 
-  const canvas = document.createElement('canvas');
-  canvas.width = 400;
-  canvas.height = 540;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    renderingCard.value = false;
-    return;
-  }
-
-  // Enable anti-aliasing
-  ctx.imageSmoothingEnabled = true;
-
-  // 1. Draw Background Card
-  ctx.fillStyle = '#ffffff';
-  drawRoundRect(ctx, 0, 0, 400, 540, 24);
-  ctx.fill();
-  ctx.lineWidth = 1.5;
-  ctx.strokeStyle = '#e2e8f0';
-  ctx.stroke();
-
-  // 2. Draw Header
-  ctx.font = 'bold 13px sans-serif';
-  ctx.fillStyle = '#475569';
-  ctx.fillText('🔗 分享卡片', 24, 38);
-
-  // Badge background
-  ctx.fillStyle = '#dcfce7'; // green-100
-  drawRoundRect(ctx, 312, 22, 64, 22, 6);
-  ctx.fill();
-  // Badge text
-  ctx.font = 'bold 10px sans-serif';
-  ctx.fillStyle = '#15803d'; // green-700
-  ctx.textAlign = 'center';
-  ctx.fillText('公开可用', 344, 36);
-
-  // 3. Draw Note Info Box
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#f8fafc';
-  drawRoundRect(ctx, 24, 64, 352, 106, 16);
-  ctx.fill();
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = '#e2e8f0';
-  ctx.stroke();
-
-  // Title
-  ctx.font = 'bold 15px sans-serif';
-  ctx.fillStyle = '#0f172a';
-  wrapText(ctx, note.value.title, 40, 96, 320, 20, 1);
-
-  // Subtitle / Custom message
-  ctx.font = '11px sans-serif';
-  if (enableCustomText.value && customText.value.trim()) {
-    ctx.fillStyle = '#475569';
-    ctx.font = 'italic 11px sans-serif';
-    wrapText(ctx, `“${customText.value.trim()}”`, 40, 126, 320, 18, 2);
-  } else {
-    ctx.fillStyle = '#64748b';
-    ctx.fillText('扫码阅读完整笔记内容', 40, 126);
-  }
-
-  // 4. Draw QR Code Frame
-  ctx.fillStyle = '#ffffff';
-  drawRoundRect(ctx, 80, 196, 240, 240, 16);
-  ctx.fill();
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = '#e2e8f0';
-  ctx.stroke();
-
-  // Load and draw QR code image
-  const img = new Image();
-  img.src = qrCodeDataUrl.value;
-  img.onload = () => {
-    try {
-      ctx.drawImage(img, 88, 204, 224, 224);
-
-      // 5. Draw Footer
-      ctx.textAlign = 'center';
-      ctx.font = '11px sans-serif';
-      ctx.fillStyle = '#64748b';
-      ctx.fillText('微信/手机浏览器扫码阅读', 200, 470);
-
-      // Watermark
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText('3D 个人学习平台', 200, 502);
-
-      // Trigger download
-      const link = document.createElement('a');
-      link.href = canvas.toDataURL('image/png');
-      link.download = `${note.value!.title}_分享卡片.png`;
-      link.click();
-      ElMessage.success('分享二维码卡片已成功保存到本地！');
-    } catch (err) {
-      logError(err, { operation: 'notes.saveShareCard', component: 'NoteShareDialog' });
-      ElMessage.error('保存二维码卡片失败');
-    } finally {
+  try {
+    const canvas = document.createElement('canvas');
+    const width = 400;
+    const height = 540;
+    
+    // Scale for High-DPI crispness (3x)
+    const scale = 3;
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
       renderingCard.value = false;
+      return;
     }
-  };
-  img.onerror = () => {
-    ElMessage.error('加载二维码图片失败');
+    
+    ctx.scale(scale, scale);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    // 1. Draw Premium Dark Gradient Background Card
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+    bgGrad.addColorStop(0, '#0b0f19'); // Deep slate blue-black
+    bgGrad.addColorStop(1, '#111827'); // Rich dark gray
+    ctx.fillStyle = bgGrad;
+    drawRoundRect(ctx, 0, 0, width, height, 24);
+    ctx.fill();
+
+    // Subtle ambient decorative glowing circle
+    const glowGrad = ctx.createRadialGradient(width / 2, height / 2, 10, width / 2, height / 2, width);
+    glowGrad.addColorStop(0, 'rgba(99, 102, 241, 0.08)'); // Indigo tint
+    glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(width / 2, height / 2, width, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Subtle background grid
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
+    ctx.lineWidth = 0.5;
+    for (let i = 20; i < width; i += 20) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i, height);
+      ctx.stroke();
+    }
+    for (let i = 20; i < height; i += 20) {
+      ctx.beginPath();
+      ctx.moveTo(0, i);
+      ctx.lineTo(width, i);
+      ctx.stroke();
+    }
+
+    // 2. Draw Header
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('🔗 分享卡片', 24, 38);
+
+    // Green glass badge background
+    ctx.fillStyle = 'rgba(16, 185, 129, 0.15)'; // transparent emerald
+    drawRoundRect(ctx, 312, 22, 64, 22, 6);
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.3)';
+    ctx.stroke();
+    // Badge text
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillStyle = '#34d399'; // emerald-400
+    ctx.textAlign = 'center';
+    ctx.fillText('公开可用', 344, 36);
+
+    // 3. Draw Note Info Box
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.03)'; // frosted glass card
+    drawRoundRect(ctx, 24, 64, 352, 106, 16);
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.stroke();
+
+    // Title
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillStyle = '#ffffff';
+    wrapText(ctx, note.value.title, 40, 96, 320, 20, 1);
+
+    // Subtitle / Custom message
+    ctx.font = '11px sans-serif';
+    if (enableCustomText.value && customText.value.trim()) {
+      ctx.fillStyle = '#a5b4fc'; // indigo-300
+      ctx.font = 'italic 11px sans-serif';
+      wrapText(ctx, `“${customText.value.trim()}”`, 40, 126, 320, 18, 2);
+    } else {
+      ctx.fillStyle = '#94a3b8'; // slate-400
+      ctx.fillText('扫码阅读完整笔记内容', 40, 126);
+    }
+
+    // 4. Draw QR Code Frame (High contrast container for scanning reliability)
+    const qrY = 196;
+    ctx.fillStyle = '#ffffff';
+    drawRoundRect(ctx, 90, qrY, 220, 220, 18);
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.stroke();
+
+    // Load and draw QR code image
+    const qrImg = await loadImg(qrCodeDataUrl.value);
+    if (qrImg) {
+      ctx.drawImage(qrImg, 100, qrY + 10, 200, 200);
+    } else {
+      throw new Error('Failed to load QR code image');
+    }
+
+    // 5. Draw Footer
+    const footerY = 452;
+    ctx.textAlign = 'center';
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('微信/手机浏览器扫码阅读', 200, footerY);
+
+    // Watermark
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillStyle = '#64748b';
+    ctx.fillText('3D 个人学习平台', 200, footerY + 32);
+
+    // 6. Trigger download
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = `${note.value.title}_分享卡片.png`;
+    link.click();
+    ElMessage.success('分享二维码卡片已成功保存到本地！');
+  } catch (err) {
+    logError(err, { operation: 'notes.saveShareCard', component: 'NoteShareDialog' });
+    ElMessage.error('保存二维码卡片失败');
+  } finally {
     renderingCard.value = false;
-  };
+  }
 };
 
 const open = async (targetNote: Note) => {

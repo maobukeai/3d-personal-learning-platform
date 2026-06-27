@@ -393,6 +393,7 @@ const handleShare = () => {
     title: props.material.title,
     userId: props.material.userId || '',
     createdAt: props.material.createdAt || '',
+    previewUrl: props.material.previewUrl || null
   });
 };
 

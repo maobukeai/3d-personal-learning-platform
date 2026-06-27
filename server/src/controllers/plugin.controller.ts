@@ -1202,6 +1202,55 @@ export const listPluginFeedbacks = async (req: AuthRequest, res: Response, next:
   }
 };
 
+// DELETE /api/plugins/:id/feedbacks/:feedbackId
+export const deletePluginFeedback = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { id: pluginId, feedbackId } = req.params as { id: string; feedbackId: string };
+  try {
+    const plugin = await prisma.plugin.findUnique({ where: { id: pluginId } });
+    if (!plugin) return next(new AppError('插件不存在', 404));
+    if (plugin.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return next(new AppError('无权操作此反馈', 403));
+    }
+
+    const feedback = await prisma.pluginFeedback.findFirst({
+      where: { id: feedbackId, pluginId },
+    });
+    if (!feedback) return next(new AppError('反馈记录不存在', 404));
+
+    await prisma.pluginFeedback.delete({ where: { id: feedbackId } });
+    res.json({ success: true, message: '反馈已成功删除' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/plugins/:id/feedbacks
+export const clearPluginFeedbacks = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const pluginId = req.params.id as string;
+  try {
+    const plugin = await prisma.plugin.findUnique({ where: { id: pluginId } });
+    if (!plugin) return next(new AppError('插件不存在', 404));
+    if (plugin.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return next(new AppError('无权清除此反馈列表', 403));
+    }
+
+    await prisma.pluginFeedback.deleteMany({
+      where: { pluginId },
+    });
+    res.json({ success: true, message: '反馈列表已清空' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // POST /api/plugins/:id/versions
 export const uploadPluginVersion = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const pluginId = req.params.id as string;

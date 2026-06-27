@@ -277,7 +277,8 @@ const handleShare = () => {
     id: asset.value.id,
     title: asset.value.title,
     userId: asset.value.userId,
-    createdAt: asset.value.createdAt
+    createdAt: asset.value.createdAt,
+    previewUrl: asset.value.previewUrl || asset.value.thumbnail || null
   });
 };
 const currentViewMode = ref<'solid' | 'wireframe' | 'solid+wireframe'>('solid');

@@ -25,6 +25,7 @@ import {
   Share2,
   Edit3,
   Trash2,
+  Trash,
   CheckCircle2,
   XCircle,
   Shield,
@@ -41,7 +42,7 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { formatDate } from '@/utils/format';
 import { useLabel } from '@/utils/i18n';
 import api, { getAssetUrl } from '@/utils/api';
@@ -446,6 +447,7 @@ const handleShare = () => {
     title: props.plugin.title,
     userId: props.plugin.user?.id || '',
     createdAt: props.plugin.createdAt || '',
+    previewUrl: props.plugin.previewUrl || null
   });
 };
 
@@ -522,6 +524,58 @@ const handleGenerateToken = async () => {
     ElMessage.error(label('生成 Token 失败', 'Failed to generate token'));
   } finally {
     isGeneratingToken.value = false;
+  }
+};
+
+const handleDeleteFeedback = async (feedbackId: string) => {
+  if (!props.plugin?.id) return;
+  try {
+    await ElMessageBox.confirm(
+      label('确定要删除这条反馈日志吗？', 'Are you sure you want to delete this feedback log?'),
+      label('删除确认', 'Confirm Delete'),
+      {
+        confirmButtonText: label('确定', 'Confirm'),
+        cancelButtonText: label('取消', 'Cancel'),
+        type: 'warning',
+      }
+    );
+  } catch {
+    return;
+  }
+
+  try {
+    await api.delete(`/api/plugins/${props.plugin.id}/feedbacks/${feedbackId}`);
+    ElMessage.success(label('反馈已删除', 'Feedback deleted'));
+    await fetchTokenAndFeedbacks();
+  } catch (err) {
+    logError('Failed to delete feedback:', err);
+    ElMessage.error(label('删除反馈失败', 'Failed to delete feedback'));
+  }
+};
+
+const handleClearFeedbacks = async () => {
+  if (!props.plugin?.id) return;
+  try {
+    await ElMessageBox.confirm(
+      label('确定要清空所有反馈日志吗？此操作无法恢复。', 'Are you sure you want to clear all feedback logs? This action cannot be undone.'),
+      label('清空确认', 'Confirm Clear All'),
+      {
+        confirmButtonText: label('清空', 'Clear All'),
+        cancelButtonText: label('取消', 'Cancel'),
+        type: 'danger',
+      }
+    );
+  } catch {
+    return;
+  }
+
+  try {
+    await api.delete(`/api/plugins/${props.plugin.id}/feedbacks`);
+    ElMessage.success(label('所有反馈已清空', 'All feedbacks cleared'));
+    await fetchTokenAndFeedbacks();
+  } catch (err) {
+    logError('Failed to clear feedbacks:', err);
+    ElMessage.error(label('清空反馈失败', 'Failed to clear feedbacks'));
   }
 };
 
@@ -869,12 +923,21 @@ const copyIntegrationCode = async () => {
         </div>
 
         <template v-if="activeDetailTab === 'detail'">
+          <!-- Plugin Preview Image -->
+          <div v-if="plugin.previewUrl" class="w-full flex justify-center mb-4">
+            <img
+              :src="getAssetUrl(plugin.previewUrl)"
+              class="max-w-full h-auto max-h-[480px] rounded-2xl border border-black/10 dark:border-white/10 shadow-md transition-transform duration-500 hover:scale-[1.01]"
+              alt="Plugin Preview"
+            />
+          </div>
+
           <!-- Description Section -->
           <div class="flex flex-col gap-2">
             <h3 class="text-sm font-bold text-[var(--text-primary)] border-l-2 border-indigo-500 pl-2">
               {{ label('插件简介', 'Plugin Overview') }}
             </h3>
-            <div class="bg-white/[0.01] border border-white/5 rounded-2xl p-4 overflow-hidden">
+            <div class="bg-white/[0.01] border border-white/5 rounded-2xl p-4 overflow-hidden plugin-markdown-content">
               <MdPreview :model-value="plugin.description || label('作者暂未填写简介。', 'No plugin description yet.')" :theme="isDark ? 'dark' : 'light'" class="!bg-transparent !text-[var(--text-secondary)] !text-xs dark:invert-preview" />
             </div>
           </div>
@@ -1197,10 +1260,20 @@ const copyIntegrationCode = async () => {
 
             <!-- Client Feedback & Crash Telemetry -->
             <div class="flex flex-col gap-3">
-              <h4 class="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-                <Activity class="w-3.5 h-3.5 text-rose-500" />
-                <span>{{ label('Blender 客户端反馈与报错日志', 'Client Error & Telemetry Logs') }}</span>
-              </h4>
+              <div class="flex items-center justify-between">
+                <h4 class="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                  <Activity class="w-3.5 h-3.5 text-rose-500" />
+                  <span>{{ label('Blender 客户端反馈与报错日志', 'Client Error & Telemetry Logs') }}</span>
+                </h4>
+                <button
+                  v-if="canEdit && feedbacks.length > 0"
+                  class="text-[10px] font-bold text-rose-500 hover:text-rose-400 cursor-pointer border-0 bg-transparent flex items-center gap-1"
+                  @click="handleClearFeedbacks"
+                >
+                  <Trash2 class="w-3.5 h-3.5" />
+                  <span>{{ label('清空日志', 'Clear Logs') }}</span>
+                </button>
+              </div>
 
               <div v-if="isFeedbacksLoading" class="flex justify-center py-6">
                 <RefreshCw class="w-6 h-6 animate-spin text-indigo-400" />
@@ -1224,7 +1297,17 @@ const copyIntegrationCode = async () => {
                       </span>
                       <span class="text-slate-700 dark:text-slate-200 font-mono">v{{ fb.clientVersion }}</span>
                     </div>
-                    <span class="text-[9px] text-slate-500 dark:text-slate-300 font-mono">{{ new Date(fb.createdAt).toLocaleString() }}</span>
+                    <div class="flex items-center gap-2">
+                      <span class="text-[9px] text-slate-500 dark:text-slate-300 font-mono">{{ new Date(fb.createdAt).toLocaleString() }}</span>
+                      <button
+                        v-if="canEdit"
+                        class="text-[9px] text-rose-400 hover:text-rose-300 transition-colors cursor-pointer border-0 bg-transparent flex items-center"
+                        title="删除日志 / Delete entry"
+                        @click="handleDeleteFeedback(fb.id)"
+                      >
+                        <Trash class="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                   <pre class="font-mono text-[10px] text-slate-300 leading-normal p-2 rounded bg-black/30 overflow-x-auto whitespace-pre-wrap break-all border border-white/5">{{ fb.content }}</pre>
                 </div>
@@ -1612,5 +1695,67 @@ button:disabled {
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+
+/* Markdown typography and scaling overrides for plugin description */
+.plugin-markdown-content :deep(.md-editor-preview),
+.plugin-markdown-content :deep(.md-preview),
+.plugin-markdown-content :deep(.mdw__preview-only) {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 11px !important;
+  line-height: 1.6 !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+}
+
+.plugin-markdown-content :deep(.md-editor-preview h1),
+.plugin-markdown-content :deep(.md-preview h1) {
+  font-size: 14px !important;
+  margin-top: 14px !important;
+  margin-bottom: 8px !important;
+  font-weight: 800 !important;
+  color: var(--text-primary) !important;
+}
+
+.plugin-markdown-content :deep(.md-editor-preview h2),
+.plugin-markdown-content :deep(.md-preview h2) {
+  font-size: 13px !important;
+  margin-top: 12px !important;
+  margin-bottom: 6px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+}
+
+.plugin-markdown-content :deep(.md-editor-preview h3),
+.plugin-markdown-content :deep(.md-preview h3) {
+  font-size: 12px !important;
+  margin-top: 10px !important;
+  margin-bottom: 4px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+}
+
+.plugin-markdown-content :deep(.md-editor-preview p),
+.plugin-markdown-content :deep(.md-preview p),
+.plugin-markdown-content :deep(.md-editor-preview li),
+.plugin-markdown-content :deep(.md-preview li) {
+  font-size: 11px !important;
+  line-height: 1.6 !important;
+  color: var(--text-secondary) !important;
+  margin-bottom: 6px !important;
+}
+
+.plugin-markdown-content :deep(.md-editor-preview ul),
+.plugin-markdown-content :deep(.md-preview ul) {
+  list-style-type: disc !important;
+  padding-left: 16px !important;
+  margin-bottom: 8px !important;
+}
+
+.plugin-markdown-content :deep(.md-editor-preview ol),
+.plugin-markdown-content :deep(.md-preview ol) {
+  list-style-type: decimal !important;
+  padding-left: 16px !important;
+  margin-bottom: 8px !important;
 }
 </style>

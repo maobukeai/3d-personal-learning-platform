@@ -61,6 +61,8 @@ router.delete('/:id/share', pluginController.cancelPluginShare);
 // Developer Token Management & Telemetry
 router.post('/:id/token', pluginController.generateDeveloperToken);
 router.get('/:id/feedbacks', pluginController.listPluginFeedbacks);
+router.delete('/:id/feedbacks', pluginController.clearPluginFeedbacks);
+router.delete('/:id/feedbacks/:feedbackId', pluginController.deletePluginFeedback);
 
 // Versions Control
 router.post(

@@ -155,6 +155,26 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            const normalizedId = id.replace(/\\/g, '/');
+            if (normalizedId.includes('/node_modules/')) {
+              if (normalizedId.includes('/node_modules/three/examples/')) {
+                return 'three-examples';
+              }
+              if (normalizedId.includes('/node_modules/three/')) {
+                return 'three-core';
+              }
+              const chunkName = getVendorChunkName(id);
+              if (chunkName) {
+                return chunkName;
+              }
+              return 'vendor';
+            }
+          },
+        },
+      },
     },
   };
 });

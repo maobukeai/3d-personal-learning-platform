@@ -20,7 +20,12 @@ export const installElementPlusLocaleBridge = (app: App, locale: LocaleRef) => {
       localeLoaders[normalizedLocale](),
     ]);
 
-    provideGlobalConfig({ locale: messages.default }, app, true);
+    provideGlobalConfig({
+      locale: messages.default,
+      popper: {
+        gpuAcceleration: false,
+      },
+    } as any, app, true);
   };
 
   void applyLocale(locale.value);

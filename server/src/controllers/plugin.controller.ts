@@ -844,7 +844,13 @@ export const downloadPlugin = async (req: AuthRequest, res: Response, next: Next
   try {
     const { id } = req.params as { id: string };
     const plugin = await prisma.plugin.findUnique({ where: { id } });
-    if (!plugin || plugin.status !== 'APPROVED') return next(new AppError('插件不存在', 404));
+    if (!plugin) return next(new AppError('插件不存在', 404));
+
+    const isOwner = plugin.userId === req.userId;
+    const isAdmin = req.user?.role === 'ADMIN';
+    if (plugin.status !== 'APPROVED' && !isOwner && !isAdmin) {
+      return next(new AppError('插件不存在', 404));
+    }
 
     await prisma.plugin.update({ where: { id }, data: { downloads: { increment: 1 } } });
     res.json({ fileUrl: plugin.fileUrl });

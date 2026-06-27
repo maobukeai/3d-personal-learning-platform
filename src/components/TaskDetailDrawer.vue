@@ -428,6 +428,14 @@ const unfinishedDependencies = computed(() => {
     .map((d) => d.dependsOn);
 });
 
+const fetchComments = () => {
+  commentsRef.value?.refresh();
+};
+
+const fetchActivities = () => {
+  activitiesRef.value?.refresh();
+};
+
 watch(
   [() => props.task?.id, () => props.task?.projectId, () => props.modelValue],
   ([newTaskId, newProjectId, isOpen]) => {

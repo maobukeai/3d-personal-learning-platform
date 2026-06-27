@@ -3,7 +3,6 @@ import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ChevronDown, ChevronUp, Heart, MessageSquare, Send, Trash2 } from 'lucide-vue-next';
 import { formatRelativeTime as formatTime } from '@/utils/format';
-import UserAvatar from '@/components/UserAvatar.vue';
 import type { DiscussionComment } from '../DiscussionsView.vue';
 
 const props = defineProps<{
@@ -51,8 +50,7 @@ const canDelete = (item: DiscussionComment) =>
 </script>
 
 <template>
-  <div class="comment-item mobile-adaptive">
-    <UserAvatar :user="comment.user" size="xs" />
+  <div class="comment-item mobile-adaptive group/comment">
     <div class="comment-body">
       <div class="comment-bubble">
         <div>
@@ -78,7 +76,7 @@ const canDelete = (item: DiscussionComment) =>
         <button
           v-if="canDelete(comment)"
           type="button"
-          class="danger"
+          class="danger opacity-0 group-hover/comment:opacity-100 transition-opacity duration-200"
           @click="emit('delete', comment)"
         >
           <Trash2 class="h-3 w-3" />
@@ -117,15 +115,14 @@ const canDelete = (item: DiscussionComment) =>
         <ChevronDown v-else class="h-3 w-3" />
         {{
           expandedReplies
-            ? t('community.discussions.collapseReplies')
-            : t('community.discussions.showRepliesCount', { count: comment._count.replies })
+              ? t('community.discussions.collapseReplies')
+              : t('community.discussions.showRepliesCount', { count: comment._count.replies })
         }}
       </button>
 
       <div v-if="expandedReplies && comment.replies?.length" class="reply-list">
-        <div v-for="reply in comment.replies" :key="reply.id" class="reply-item">
-          <UserAvatar :user="reply.user" size="xs" />
-          <div>
+        <div v-for="reply in comment.replies" :key="reply.id" class="reply-item group/reply">
+          <div class="flex-1 min-w-0">
             <div class="comment-bubble">
               <div>
                 <strong>{{ reply.user?.name || t('community.discussions.anonymous') }}</strong>
@@ -145,7 +142,7 @@ const canDelete = (item: DiscussionComment) =>
               <button
                 v-if="canDelete(reply)"
                 type="button"
-                class="danger"
+                class="danger opacity-0 group-hover/reply:opacity-100 transition-opacity duration-200"
                 @click="emit('delete', reply, comment)"
               >
                 <Trash2 class="h-3 w-3" />

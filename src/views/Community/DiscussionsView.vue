@@ -131,7 +131,7 @@ const isInsightsLoading = ref(false);
 const sortBy = ref('active');
 const activeFilter = ref<DiscussionFilter>('all');
 const selectedTag = ref('');
-const viewMode = ref<'grid' | 'list'>('list');
+const viewMode = ref<'grid' | 'list'>('grid');
 const viewModeOptions = computed(() => [
   { value: 'grid' as const, icon: Grid3X3 },
   { value: 'list' as const, icon: LayoutList },

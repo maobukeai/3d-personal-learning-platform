@@ -322,7 +322,8 @@ const deleteComment = async (comment: DiscussionComment, parentComment?: Discuss
   position: relative;
   display: flex;
   width: 100%;
-  max-height: min(92vh, 860px);
+  height: min(85vh, 720px);
+  min-height: 540px;
   flex-direction: column;
   overflow: hidden;
 }
@@ -331,6 +332,7 @@ const deleteComment = async (comment: DiscussionComment, parentComment?: Discuss
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;
   min-height: 0;
+  flex: 1;
 }
 
 @media (max-width: 767px) {
@@ -353,41 +355,52 @@ const deleteComment = async (comment: DiscussionComment, parentComment?: Discuss
 }
 
 .detail-content {
-  padding: 18px;
+  padding: 16px;
 }
 
 .detail-content h2 {
   margin: 0 0 10px;
   color: var(--text-primary);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 950;
   line-height: 1.35;
+  letter-spacing: -0.015em;
 }
 
 .detail-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .detail-tags button {
   height: 24px;
-  padding: 0 9px;
-  border-radius: 7px;
+  padding: 0 10px;
+  border-radius: 20px;
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 700;
   border: 1px solid var(--border-base);
-  background: var(--bg-app);
+  background: var(--bg-card);
+  color: var(--text-secondary);
   cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.detail-tags button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
 }
 
 .detail-stats {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--border-base);
 }
 
@@ -396,52 +409,103 @@ const deleteComment = async (comment: DiscussionComment, parentComment?: Discuss
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 30px;
+  height: 28px;
   padding: 0 10px;
   border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
+  border-radius: 20px;
+  background: var(--bg-card);
   color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 850;
+  font-size: 11px;
+  font-weight: 700;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
 }
 
 .detail-stats button {
   cursor: pointer;
 }
 
+.detail-stats button:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+.detail-stats button:hover svg {
+  transform: scale(1.1);
+}
+
+.detail-stats button svg {
+  transition: transform 0.2s ease;
+}
+
 .detail-stats button.is-liked {
   color: #ef4444;
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.detail-stats button.is-liked:hover {
+  color: #dc2626;
+  border-color: #ef4444;
+  background: #fee2e2;
 }
 
 .discussion-preview {
   color: var(--text-primary);
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  line-height: 1.6;
+  font-size: 13.5px;
+  margin-bottom: 14px;
+}
+
+.discussion-preview :deep(.md-editor),
+.discussion-preview :deep(.md-editor-preview-wrapper),
+.discussion-preview :deep(.md-editor-preview) {
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
 }
 
 .detail-images {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
-  margin-top: 16px;
+  margin-top: 14px;
 }
 
 .detail-images img {
   width: 100%;
-  aspect-ratio: 16 / 10;
+  height: 180px;
   object-fit: cover;
   border: 1px solid var(--border-base);
-  border-radius: 8px;
+  border-radius: 12px;
+  cursor: zoom-in;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+}
+
+.detail-images img:hover {
+  transform: scale(1.02) translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.1);
+  border-color: var(--accent);
 }
 
 .detail-comments {
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--border-base);
-  background: color-mix(in srgb, var(--bg-app) 72%, var(--bg-card));
+  background: color-mix(in srgb, var(--bg-app) 45%, var(--bg-card));
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.01);
 }
 
 .comments-title {
-  padding: 13px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-base);
 }
 
@@ -449,21 +513,22 @@ const deleteComment = async (comment: DiscussionComment, parentComment?: Discuss
   margin: 0;
   color: var(--text-primary);
   font-size: 13px;
-  font-weight: 950;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .comments-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 12px;
+  padding: 14px;
   scrollbar-width: none;
 }
 
 .comment-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .comments-empty {
@@ -472,7 +537,7 @@ const deleteComment = async (comment: DiscussionComment, parentComment?: Discuss
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 40px 0;
+  padding: 30px 0;
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 700;

@@ -61,7 +61,7 @@ const canDelete = () => props.currentUserId === props.discussion.user?.id || pro
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--border-base);
 }
 
@@ -107,7 +107,7 @@ const canDelete = () => props.currentUserId === props.discussion.user?.id || pro
 
 .modal-actions button {
   border: 1px solid var(--border-base);
-  background: var(--bg-app);
+  background: var(--bg-card);
   color: var(--text-secondary);
   cursor: pointer;
   display: inline-flex;
@@ -115,7 +115,15 @@ const canDelete = () => props.currentUserId === props.discussion.user?.id || pro
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.modal-actions button:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
 
 .modal-actions button.is-active {
@@ -123,7 +131,9 @@ const canDelete = () => props.currentUserId === props.discussion.user?.id || pro
   color: var(--accent);
 }
 
-.modal-actions button.danger {
+.modal-actions button.danger:hover {
+  border-color: #fca5a5;
   color: #ef4444;
+  background: #fef2f2;
 }
 </style>

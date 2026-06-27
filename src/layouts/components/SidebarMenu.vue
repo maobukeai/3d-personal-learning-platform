@@ -99,7 +99,7 @@ const sidebarTitle = computed(() => {
 const sidebarSubtitle = computed(() => {
   if (isAdmin.value) return label('控制中枢', 'Control center');
   if (isResourceWorkspace.value) return label('资源导航', 'Resource navigator');
-  return label('学习工作台', 'Learning workspace');
+  return '';
 });
 
 const settingsPath = computed(() => (isAdmin.value ? '/admin/settings' : '/settings'));

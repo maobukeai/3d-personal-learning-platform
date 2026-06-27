@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { LoaderCircle, Send } from 'lucide-vue-next';
-import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
 
 defineProps<{
@@ -24,7 +23,6 @@ const onInput = (event: Event) => {
 
 <template>
   <div class="comment-composer mobile-adaptive mobile-row">
-    <UserAvatar :user="authStore.user" size="sm" />
     <div>
       <textarea
         :value="modelValue"
@@ -44,10 +42,12 @@ const onInput = (event: Event) => {
 <style scoped>
 .comment-composer {
   display: flex;
-  gap: 10px;
-  padding: 12px;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 20px;
   border-top: 1px solid var(--border-base);
   background: var(--bg-card);
+  transition: all 0.3s ease;
 }
 
 .comment-composer > div {
@@ -57,36 +57,54 @@ const onInput = (event: Event) => {
 
 .comment-composer textarea {
   width: 100%;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border: 1px solid var(--border-base);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--bg-app);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
   resize: vertical;
   outline: none;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .comment-composer textarea:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 .comment-composer button {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 8px 14px;
-  border-radius: 8px;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 10px;
   background: var(--accent);
   color: #fff;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.comment-composer button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 40%, transparent);
+  filter: brightness(1.05);
+}
+
+.comment-composer button:not(:disabled):active {
+  transform: translateY(0);
 }
 
 .comment-composer button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
 }
 </style>

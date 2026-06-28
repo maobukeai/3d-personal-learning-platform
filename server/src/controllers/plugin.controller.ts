@@ -556,7 +556,7 @@ export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFu
         previewUrl,
         installGuide: installGuide?.trim() || null,
         userId: req.userId!,
-        status: 'PENDING',
+        status: req.user?.role === 'ADMIN' ? 'APPROVED' : 'PENDING',
         originality: originality || 'ORIGINAL',
         originalAuthor: originalAuthor || null,
         originalLink: originalLink || null,
@@ -740,8 +740,8 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
       }
     }
 
-    // Editing resets to PENDING for re-review
-    updateData.status = 'PENDING';
+    // Editing resets to PENDING for re-review unless editor is ADMIN
+    updateData.status = req.user?.role === 'ADMIN' ? 'APPROVED' : 'PENDING';
     updateData.rejectReason = null;
 
     const plugin = await prisma.plugin.update({
@@ -1305,7 +1305,7 @@ export const uploadPluginVersion = async (req: AuthRequest, res: Response, next:
         fileUrl,
         fileSize: fileSizeMb,
         packageFilesList: packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null,
-        status: 'PENDING',
+        status: req.user?.role === 'ADMIN' ? 'APPROVED' : 'PENDING',
         rejectReason: null,
       },
     });

@@ -163,6 +163,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
         type,
         size,
         categoryId,
+        status: req.user?.role === 'ADMIN' ? 'APPROVED' : 'PENDING',
         userId,
         teamId: workspaceId,
         isFree: parseBool(isFree, true),

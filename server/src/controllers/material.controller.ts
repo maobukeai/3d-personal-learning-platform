@@ -414,6 +414,7 @@ export const uploadMaterial = async (req: AuthRequest, res: Response, next: Next
         resolution,
         previewUrl,
         fileUrl,
+        status: req.user?.role === 'ADMIN' ? 'APPROVED' : 'PENDING',
         fileSize: Math.round(fileSizeMB * 100) / 100,
         packageFilesList: packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null,
         tags: normalizeTagsForStorage(tags),

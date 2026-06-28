@@ -1097,6 +1097,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
 @media (max-width: 767px) {
   .task-table-grid {
     grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+    min-width: 720px !important;
   }
 }
 </style>

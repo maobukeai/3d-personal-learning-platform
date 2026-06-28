@@ -430,24 +430,26 @@ onUnmounted(() => {
             v-else-if="isBilibili(currentLesson.videoUrl)"
             class="w-full h-full flex items-center justify-center bg-black"
           >
-            <iframe
-              :src="formatBilibiliUrl(currentLesson.videoUrl || '')"
-              class="w-full h-full border-0"
-              scrolling="no"
-              frameborder="0"
-              framespacing="0"
-              referrerpolicy="no-referrer"
-              allow="
-                accelerometer;
-                autoplay;
-                clipboard-write;
-                encrypted-media;
-                gyroscope;
-                picture-in-picture;
-                web-share;
-              "
-              allowfullscreen
-            ></iframe>
+            <div class="perfect-video-container bg-black shadow-lg">
+              <iframe
+                :src="formatBilibiliUrl(currentLesson.videoUrl || '')"
+                class="w-full h-full border-0"
+                scrolling="no"
+                frameborder="0"
+                framespacing="0"
+                referrerpolicy="no-referrer"
+                allow="
+                  accelerometer;
+                  autoplay;
+                  clipboard-write;
+                  encrypted-media;
+                  gyroscope;
+                  picture-in-picture;
+                  web-share;
+                "
+                allowfullscreen
+              ></iframe>
+            </div>
           </div>
 
           <!-- YouTube Video Mode -->
@@ -455,21 +457,23 @@ onUnmounted(() => {
             v-else-if="isYoutube(currentLesson.videoUrl)"
             class="w-full h-full flex items-center justify-center bg-black"
           >
-            <iframe
-              :src="formatYoutubeUrl(currentLesson.videoUrl || '')"
-              class="w-full h-full border-0"
-              frameborder="0"
-              allow="
-                accelerometer;
-                autoplay;
-                clipboard-write;
-                encrypted-media;
-                gyroscope;
-                picture-in-picture;
-                web-share;
-              "
-              allowfullscreen
-            ></iframe>
+            <div class="perfect-video-container bg-black shadow-lg">
+              <iframe
+                :src="formatYoutubeUrl(currentLesson.videoUrl || '')"
+                class="w-full h-full border-0"
+                frameborder="0"
+                allow="
+                  accelerometer;
+                  autoplay;
+                  clipboard-write;
+                  encrypted-media;
+                  gyroscope;
+                  picture-in-picture;
+                  web-share;
+                "
+                allowfullscreen
+              ></iframe>
+            </div>
           </div>
 
           <!-- Native Video Mode -->
@@ -477,12 +481,14 @@ onUnmounted(() => {
             v-else-if="currentLesson.videoUrl"
             class="w-full h-full flex items-center justify-center bg-black"
           >
-            <video
-              :src="currentLesson.videoUrl || ''"
-              controls
-              class="max-w-full max-h-full"
-              @ended="handleVideoEnded"
-            ></video>
+            <div class="perfect-video-container bg-black shadow-lg flex items-center justify-center">
+              <video
+                :src="currentLesson.videoUrl || ''"
+                controls
+                class="w-full h-full object-contain"
+                @ended="handleVideoEnded"
+              ></video>
+            </div>
           </div>
 
           <!-- Text/Doc Mode -->
@@ -643,6 +649,13 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- Backdrop overlay for mobile when sidebar is open -->
+    <div
+      v-if="isSidebarOpen"
+      class="lg:hidden fixed inset-0 bg-black/60 z-20 backdrop-blur-xs transition-opacity duration-300"
+      @click="isSidebarOpen = false"
+    ></div>
 
     <!-- Right Sidebar -->
     <Transition name="slide-right">
@@ -982,6 +995,20 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.perfect-video-container {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  height: auto;
+  margin: auto;
+}
+@media (min-aspect-ratio: 16/9) {
+  .perfect-video-container {
+    height: 100%;
+    width: auto;
+  }
+}
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }

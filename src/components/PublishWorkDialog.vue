@@ -214,7 +214,7 @@ watch(activeUploadFile, async (newFile) => {
       const list = await parseZipFileNames(newFile);
       packageFileList.value = list;
     } catch (err) {
-      logError('Error parsing zip file in publish dialog:', err);
+      logError(err, { operation: 'Error parsing zip file in publish dialog' });
       packageFileList.value = [];
     } finally {
       isParsingZip.value = false;
@@ -458,6 +458,17 @@ const closeDialog = () => {
     materialCategory: '',
     materialResolution: '4K',
     materialIsProcedural: false,
+    originality: '',
+    originalAuthor: '',
+    originalLink: '',
+    license: '',
+    isFree: null,
+    meshType: '',
+    uvUnwrapped: false,
+    uvOverlapping: false,
+    pbrChannels: [],
+    rigged: false,
+    gameReady: false,
   };
   publishCategory.value = 'asset';
 };

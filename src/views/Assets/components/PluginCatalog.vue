@@ -29,6 +29,7 @@ interface PluginItem {
   rejectReason?: string | null;
   createdAt: string;
   user?: PluginUser | null;
+  bilibiliUrl?: string | null;
 }
 
 const props = defineProps<{

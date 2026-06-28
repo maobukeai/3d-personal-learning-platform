@@ -462,7 +462,7 @@ const deleteDetail = async () => {
     closeDetail();
     ElMessage.success('作品已删除');
   } catch (error) {
-    logError('Failed to delete showcase:', error);
+    logError(error, { operation: 'Failed to delete showcase' });
     ElMessage.error(getApiErrorMessage(error, '删除作品失败'));
   } finally {
     isDeletingDetail.value = false;
@@ -765,7 +765,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
 
               <!-- Video Viewport -->
               <div v-else-if="activeMediaTab === 'video' && item.videoUrl">
-                <div class="relative w-full aspect-[1.5] rounded-2xl overflow-hidden bg-black flex items-center justify-center border border-slate-200/50 dark:border-slate-800/50">
+                <div class="relative w-full aspect-video rounded-2xl overflow-hidden bg-black flex items-center justify-center border border-slate-200/50 dark:border-slate-800/50">
                   <iframe
                     v-if="isIframeVideo"
                     :src="item.videoUrl"
@@ -1148,6 +1148,31 @@ const handleStartChat = async (user: ShowcaseUser) => {
 </template>
 
 <style scoped>
+.detail-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 16px;
+  overflow: hidden;
+  background-color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-base);
+  margin-bottom: 12px;
+}
+.detail-media img,
+.detail-media video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.detail-media--empty {
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
 .custom-select-v2 :deep(.el-input__wrapper),
 .custom-select-v2 :deep(.el-select__wrapper) {
   border-radius: 12px !important;

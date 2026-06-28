@@ -12,7 +12,23 @@ import {
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
-import type { Subtask, SubtaskComment } from '@/types/task';
+interface SubtaskComment {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatarUrl?: string | null;
+  content: string;
+  createdAt: string;
+}
+
+interface Subtask {
+  id: string;
+  text: string;
+  done: boolean;
+  assigneeId?: string | null;
+  description?: string;
+  comments?: SubtaskComment[];
+}
 import Modal from '@/components/ui/Modal.vue';
 import { parseCommentContent, isImageUrl } from './helpers';
 

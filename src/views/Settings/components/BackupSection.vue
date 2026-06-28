@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { logError } from '@/utils/error';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -140,10 +140,7 @@ const refreshBackupsList = async () => {
   } catch (error) {
     // If not configured, it returns empty list silently, but if configured and fails, show error
     if (url.value) {
-      logError(
-        'Failed to load remote backups list:',
-        getBackupErrorMessage(error, 'Unknown error'),
-      );
+      logError(error, { operation: 'Failed to load remote backups list' });
     }
   } finally {
     isLoadingList.value = false;

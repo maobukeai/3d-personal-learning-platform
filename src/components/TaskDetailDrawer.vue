@@ -306,51 +306,6 @@ const handlePasteMainDescription = async (event: ClipboardEvent) => {
   }
 };
 
-const handlePasteSubtaskDescription = async (event: ClipboardEvent) => {
-  const items = event.clipboardData?.items;
-  if (!items) return;
-
-  let hasImage = false;
-  for (const item of items) {
-    if (item.type.indexOf('image') !== -1) {
-      hasImage = true;
-      break;
-    }
-  }
-
-  if (hasImage) {
-    event.preventDefault();
-    for (const item of items) {
-      if (item.type.indexOf('image') !== -1) {
-        const file = item.getAsFile();
-        if (!file) continue;
-
-        const formData = new FormData();
-        formData.append('task_image', file);
-        try {
-          ElMessage.info('图片上传中...');
-          const response = await api.post('/api/tasks/upload-image', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-          const imageUrl = response.data.url;
-          tempSubtaskDescriptionImages.value.push(imageUrl);
-          ElMessage.success('图片上传成功');
-        } catch {
-          ElMessage.error('图片上传失败');
-        }
-      }
-    }
-    return;
-  }
-
-  const pastedText = event.clipboardData.getData('text');
-  if (pastedText && isImageUrl(pastedText)) {
-    event.preventDefault();
-    tempSubtaskDescriptionImages.value.push(pastedText.trim());
-    ElMessage.success('图片链接已识别');
-  }
-};
-
 // Dependency management logic
 const projectTasks = ref<Task[]>([]);
 const selectedDepTaskId = ref('');

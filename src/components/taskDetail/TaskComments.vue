@@ -4,7 +4,18 @@ import { ElMessage } from 'element-plus';
 import { MessageSquare, Trash2, X, Send } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
-import type { TaskComment } from '@/types/task';
+interface TaskComment {
+  id: string;
+  taskId: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+  user?: {
+    id: string;
+    name: string;
+    avatarUrl?: string | null;
+  };
+}
 import { parseCommentContent } from './helpers';
 
 const props = defineProps<{

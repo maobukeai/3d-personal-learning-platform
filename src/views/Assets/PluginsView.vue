@@ -68,6 +68,7 @@ interface PluginItem {
   rejectReason?: string | null;
   createdAt: string;
   user?: PluginUser | null;
+  bilibiliUrl?: string | null;
 }
 
 interface PluginInsights {
@@ -432,6 +433,7 @@ const normalizePlugin = (plugin: Partial<PluginItem> & Record<string, unknown>):
   rejectReason: typeof plugin.rejectReason === 'string' ? plugin.rejectReason : null,
   createdAt: String(plugin.createdAt || new Date().toISOString()),
   user: (plugin.user as PluginUser | null | undefined) || null,
+  bilibiliUrl: typeof plugin.bilibiliUrl === 'string' ? plugin.bilibiliUrl : null,
 });
 
 watch([activeTab, myStatusFilter, selectedFavoriteCategory], () => {
@@ -497,7 +499,7 @@ const fetchHelpRequests = async () => {
     helpRequests.value = data.requests || [];
     helpRequestsCount.value = data.pagination?.total || helpRequests.value.length;
   } catch (err) {
-    logError('Failed to fetch help requests:', err);
+    logError(err, { operation: 'fetch help requests' });
   } finally {
     isHelpRequestsLoading.value = false;
   }
@@ -509,7 +511,7 @@ const fetchApprovedPluginsForLinking = async () => {
     const list = data.plugins || [];
     approvedPluginsForLinking.value = list.map((p: any) => ({ id: p.id, title: p.title }));
   } catch (err) {
-    logError('Failed to fetch plugins for linking:', err);
+    logError(err, { operation: 'fetch plugins for linking' });
   }
 };
 
@@ -524,7 +526,7 @@ const openHelpRequestDetail = async (req: HelpRequest) => {
     const { data } = await api.get(`/api/plugins/requests/${req.id}`);
     helpRequestReplies.value = data.replies || [];
   } catch (err) {
-    logError('Failed to load replies:', err);
+    logError(err, { operation: 'load replies' });
   } finally {
     isHelpRepliesLoading.value = false;
   }
@@ -545,7 +547,7 @@ const handlePostHelpRequest = async () => {
     showHelpRequestPostDialog.value = false;
     await fetchHelpRequests();
   } catch (err) {
-    logError('Failed to post help request:', err);
+    logError(err, { operation: 'post help request' });
     ElMessage.error(label('发布失败', 'Failed to post'));
   } finally {
     isSubmittingHelpRequest.value = false;
@@ -568,7 +570,7 @@ const handlePostReply = async () => {
     selectedHelpRequest.value._count.replies += 1;
     fetchHelpRequests();
   } catch (err) {
-    logError('Failed to post reply:', err);
+    logError(err, { operation: 'post reply' });
     ElMessage.error(label('回复失败', 'Failed to reply'));
   } finally {
     isSubmittingReply.value = false;
@@ -584,7 +586,7 @@ const handleResolveRequest = async (requestId: string) => {
     }
     await fetchHelpRequests();
   } catch (err) {
-    logError('Failed to resolve request:', err);
+    logError(err, { operation: 'resolve request' });
     ElMessage.error(label('操作失败', 'Action failed'));
   }
 };
@@ -1153,7 +1155,7 @@ const handlePluginUpdate = async () => {
       const { data } = await api.get(`/api/plugins/${selectedPlugin.value.id}`);
       selectedPlugin.value = normalizePlugin(data);
     } catch (err) {
-      logError('Failed to refresh plugin detail:', err);
+      logError(err, { operation: 'refresh plugin detail' });
     }
   }
 };

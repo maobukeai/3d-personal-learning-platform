@@ -118,6 +118,11 @@ html body .el-dropdown-menu__item {
   padding: 6px 12px !important;
   margin: 2px 4px !important;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  /* Prevent long text from stretching the dropdown too wide */
+  max-width: 260px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
 html body .el-select-dropdown__item.hover,

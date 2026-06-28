@@ -177,7 +177,7 @@ const fetchPackageFiles = async (id: string) => {
       packageFiles.value = data.packageFiles || [];
     }
   } catch (err) {
-    logError('Failed to fetch material package files:', err);
+    logError(err, { operation: 'fetch material package files' });
     if (props.material?.id === id) {
       packageFiles.value = [];
     }
@@ -345,7 +345,7 @@ const fetchComments = async () => {
       comments.value = data;
     }
   } catch (err) {
-    logError('Failed to fetch comments:', err);
+    logError(err, { operation: 'fetch comments' });
   } finally {
     if (props.material?.id === currentId) {
       isCommentsLoading.value = false;
@@ -364,7 +364,7 @@ const handlePostComment = async () => {
     newCommentContent.value = '';
     ElMessage.success(label('评论成功', 'Comment posted successfully'));
   } catch (err) {
-    logError('Failed to post comment:', err);
+    logError(err, { operation: 'post comment' });
     ElMessage.error(label('发表评论失败', 'Failed to post comment'));
   } finally {
     isSubmittingComment.value = false;
@@ -382,7 +382,7 @@ const handleDeleteComment = async (commentId: string) => {
     comments.value = comments.value.filter(c => c.id !== commentId);
     ElMessage.success(label('删除成功', 'Comment deleted successfully'));
   } catch (err) {
-    logError('Failed to delete comment:', err);
+    logError(err, { operation: 'delete comment' });
     ElMessage.error(label('删除评论失败', 'Failed to delete comment'));
   }
 };

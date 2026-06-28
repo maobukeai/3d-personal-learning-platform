@@ -489,7 +489,7 @@ onUnmounted(() => {
         <!-- Search bar on medium screens (no tabs visible) -->
         <div
           v-else
-          class="search-box hidden md:flex cursor-pointer w-[260px] xl:w-[380px] h-9"
+          class="search-box !hidden md:!flex cursor-pointer w-[260px] xl:w-[380px] h-9"
           @click="handleSearch"
         >
           <Search />
@@ -509,7 +509,7 @@ onUnmounted(() => {
         <!-- Search bar for desktop mode when tabs are visible -->
         <div
           v-if="showTopTabs && !isMobile"
-          class="search-box hidden lg:flex cursor-pointer w-[180px] xl:w-[240px] h-8.5"
+          class="search-box !hidden lg:!flex cursor-pointer w-[180px] xl:w-[240px] h-8.5"
           @click="handleSearch"
         >
           <Search />
@@ -557,7 +557,7 @@ onUnmounted(() => {
         <button
           v-if="authStore.isAuthenticated"
           type="button"
-          class="topbar-icon-btn w-9 h-9 flex items-center justify-center transition-colors relative"
+          class="topbar-icon-btn w-9 h-9 hidden sm:flex items-center justify-center transition-colors relative"
           :title="$t('layout.logout')"
           @click="handleLogout"
         >

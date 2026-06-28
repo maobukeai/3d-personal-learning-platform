@@ -222,7 +222,7 @@ const fetchPackageFiles = async (id: string) => {
       packageFiles.value = data.packageFiles || [];
     }
   } catch (err) {
-    logError('Failed to fetch plugin package files:', err);
+    logError(err, { operation: 'fetch plugin package files' });
     if (props.plugin?.id === id) {
       packageFiles.value = [];
     }
@@ -398,7 +398,7 @@ const fetchComments = async () => {
       comments.value = data;
     }
   } catch (err) {
-    logError('Failed to fetch comments:', err);
+    logError(err, { operation: 'fetch comments' });
   } finally {
     if (props.plugin?.id === currentId) {
       isCommentsLoading.value = false;
@@ -417,7 +417,7 @@ const handlePostComment = async () => {
     newCommentContent.value = '';
     ElMessage.success(label('评论成功', 'Comment posted successfully'));
   } catch (err) {
-    logError('Failed to post comment:', err);
+    logError(err, { operation: 'post comment' });
     ElMessage.error(label('发表评论失败', 'Failed to post comment'));
   } finally {
     isSubmittingComment.value = false;
@@ -435,7 +435,7 @@ const handleDeleteComment = async (commentId: string) => {
     comments.value = comments.value.filter(c => c.id !== commentId);
     ElMessage.success(label('删除成功', 'Comment deleted successfully'));
   } catch (err) {
-    logError('Failed to delete comment:', err);
+    logError(err, { operation: 'delete comment' });
     ElMessage.error(label('删除评论失败', 'Failed to delete comment'));
   }
 };
@@ -487,7 +487,7 @@ const fetchVersions = async () => {
       versionsList.value = data;
     }
   } catch (err) {
-    logError('Failed to fetch plugin versions:', err);
+    logError(err, { operation: 'fetch plugin versions' });
   } finally {
     if (props.plugin?.id === currentId) {
       isVersionsLoading.value = false;
@@ -514,7 +514,7 @@ const fetchTokenAndFeedbacks = async () => {
       feedbacks.value = res.data;
     }
   } catch (err) {
-    logError('Failed to fetch developer details:', err);
+    logError(err, { operation: 'fetch developer details' });
   } finally {
     if (props.plugin?.id === currentId) {
       isFeedbacksLoading.value = false;
@@ -530,7 +530,7 @@ const handleGenerateToken = async () => {
     developerToken.value = data.developerToken;
     ElMessage.success(label('Token 生成成功', 'Token generated successfully'));
   } catch (err) {
-    logError('Failed to generate developer token:', err);
+    logError(err, { operation: 'generate developer token' });
     ElMessage.error(label('生成 Token 失败', 'Failed to generate token'));
   } finally {
     isGeneratingToken.value = false;
@@ -558,7 +558,7 @@ const handleDeleteFeedback = async (feedbackId: string) => {
     ElMessage.success(label('反馈已删除', 'Feedback deleted'));
     await fetchTokenAndFeedbacks();
   } catch (err) {
-    logError('Failed to delete feedback:', err);
+    logError(err, { operation: 'delete feedback' });
     ElMessage.error(label('删除反馈失败', 'Failed to delete feedback'));
   }
 };
@@ -572,7 +572,7 @@ const handleClearFeedbacks = async () => {
       {
         confirmButtonText: label('清空', 'Clear All'),
         cancelButtonText: label('取消', 'Cancel'),
-        type: 'danger',
+        type: 'warning',
       }
     );
   } catch {
@@ -584,7 +584,7 @@ const handleClearFeedbacks = async () => {
     ElMessage.success(label('所有反馈已清空', 'All feedbacks cleared'));
     await fetchTokenAndFeedbacks();
   } catch (err) {
-    logError('Failed to clear feedbacks:', err);
+    logError(err, { operation: 'clear feedbacks' });
     ElMessage.error(label('清空反馈失败', 'Failed to clear feedbacks'));
   }
 };
@@ -628,7 +628,7 @@ const handlePublishVersionSubmit = async () => {
     await fetchVersions();
     emit('update');
   } catch (error) {
-    logError('Failed to publish version:', error);
+    logError(error, { operation: 'publish version' });
     ElMessage.error(label('上传失败', 'Upload failed'));
   } finally {
     isPublishingVersion.value = false;
@@ -661,7 +661,7 @@ const handleUpdateVersionSubmit = async (versionId: string) => {
     await fetchVersions();
     emit('update');
   } catch (err) {
-    logError('Failed to update version:', err);
+    logError(err, { operation: 'update version' });
     ElMessage.error(label('更新版本失败', 'Failed to update version'));
   } finally {
     isUpdatingVersion.value = false;
@@ -704,7 +704,7 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
   if (!url) return undefined;
   const match = url.match(/video\/(BV[a-zA-Z0-9]+)/i) || url.match(/bvid=(BV[a-zA-Z0-9]+)/i);
   if (match && match[1]) {
-    return `//player.bilibili.com/player.html?bvid=${match[1]}&page=1&high_quality=1&as_wide=1&autoplay=0`;
+    return `//player.bilibili.com/player.html?bvid=${match[1]}&page=1&high_quality=1&as_wide=1&autoplay=0&danmaku=0`;
   }
   return undefined;
 };
@@ -725,7 +725,7 @@ const fetchFavoriteCategories = async () => {
       pluginFavCategory.value = match ? match.category : '';
     }
   } catch (err) {
-    logError('Failed to fetch favorite categories:', err);
+    logError(err, { operation: 'fetch favorite categories' });
   }
 };
 
@@ -748,7 +748,7 @@ const handleFavoriteWithCategory = async (categoryName: string) => {
     );
     await fetchFavoriteCategories();
   } catch (err) {
-    logError('Failed to toggle favorite with category:', err);
+    logError(err, { operation: 'toggle favorite with category' });
     ElMessage.error(label('操作失败', 'Action failed'));
   }
 };

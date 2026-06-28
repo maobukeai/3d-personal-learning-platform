@@ -175,11 +175,11 @@ const openUserProfile = (userId: string) => {
 
 <template>
   <div class="mobile-adaptive flex-1 overflow-hidden p-1 sm:p-4">
-    <div class="mobile-row md:gap-4 gap-1 sm:gap-2.5 h-full flex w-full">
+    <div class="mobile-row overflow-x-auto md:gap-4 gap-1.5 sm:gap-2.5 h-full flex w-full scrollbar-hide">
       <div
         v-for="col in activeColumns"
         :key="col.id"
-        class="flex flex-col min-w-0 sm:min-w-[260px] h-full rounded-lg sm:rounded-xl transition-colors duration-300 overflow-hidden flex-1 relative border"
+        class="flex flex-col min-w-[240px] sm:min-w-[260px] h-full rounded-lg sm:rounded-xl transition-colors duration-300 overflow-hidden flex-1 relative border"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <!-- Column Header -->

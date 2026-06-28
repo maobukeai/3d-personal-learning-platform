@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { useLabel } from '@/utils/i18n';
 import {
   Box,
   Clock3,
@@ -58,6 +59,7 @@ import ShowcaseDetail from '../Community/components/ShowcaseDetail.vue';
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const label = useLabel();
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN');
 
 const isAssetDetailOpen = ref(false);

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, watch, defineAsyncComponent, onUnmounted } from 'vue';
 import { logError } from '@/utils/error';
 import { UploadCloud, Film, X, Plus, Sparkles } from 'lucide-vue-next';
@@ -67,7 +67,7 @@ const fetchUserResources = async () => {
       (item: any) => item.status === 'APPROVED'
     );
   } catch (error) {
-    logError('[PublishShowcaseDialog] Failed to fetch user approved resources:', error);
+    logError(error, { operation: 'Failed to fetch user approved resources' });
   }
 };
 

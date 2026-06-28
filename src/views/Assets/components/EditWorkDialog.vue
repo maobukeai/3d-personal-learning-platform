@@ -223,7 +223,7 @@ const fetchCourses = async () => {
     const { data } = await api.get('/api/courses');
     courses.value = data.courses || data || [];
   } catch (err) {
-    logError('Failed to fetch courses:', err);
+    logError(err, { operation: 'fetch courses' });
   } finally {
     isLoadingCourses.value = false;
   }
@@ -239,7 +239,7 @@ const fetchLessons = async (courseId: string) => {
     const { data } = await api.get(`/api/courses/${courseId}`);
     lessons.value = data.lessons || data.course?.lessons || [];
   } catch (err) {
-    logError('Failed to fetch lessons:', err);
+    logError(err, { operation: 'fetch lessons' });
     lessons.value = [];
   } finally {
     isLoadingLessons.value = false;
@@ -266,7 +266,7 @@ const fetchExistingVersions = async () => {
         isAddingNewVersion.value = true;
       }
     } catch (err) {
-      logError('Failed to fetch plugin versions:', err);
+      logError(err, { operation: 'fetch plugin versions' });
       existingVersions.value = [];
       isAddingNewVersion.value = true;
     }
@@ -361,7 +361,7 @@ watch(() => form.value.packageFile, async (newFile) => {
     const list = await parseZipFileNames(newFile);
     packageFileList.value = list;
   } catch (err) {
-    logError('Error parsing zip file:', err);
+    logError(err, { operation: 'parse zip file' });
     packageFileList.value = [];
   } finally {
     isParsingZip.value = false;

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { Bell, Loader2 } from 'lucide-vue-next';
@@ -124,7 +124,7 @@ const handleMarkAsRead = async (notification: AppNotification) => {
     if (resolved.name) {
       router.push(notification.link);
     } else {
-      logError('Notification link points to unknown route:', notification.link);
+      logError(new Error('Notification link points to unknown route'), { link: notification.link });
     }
   }
 };

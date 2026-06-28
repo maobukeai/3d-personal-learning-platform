@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
@@ -126,7 +126,7 @@ const cancelUpload = async () => {
         uploadId: activeMultipart.uploadId,
       });
     } catch (err) {
-      logError('[Upload] Failed to abort multipart upload on cancel:', err);
+      logError(err, { operation: 'abort multipart upload on cancel' });
     } finally {
       activeMultipart = null;
     }
@@ -173,7 +173,7 @@ const handleDownloadFile = async (contentUrl: string, fileSizeMb?: number) => {
     if (isCancelError(err)) {
       return;
     }
-    logError('[Download] Parallel download error, standard fallback occurred.', err);
+    logError(err, { operation: 'Parallel download standard fallback occurred' });
   } finally {
     isDownloading.value = false;
     downloadProgress.value = 0;
@@ -359,7 +359,7 @@ const uploadFile = async (fileOrBlob: File | Blob, filename: string, mimetype: s
             uploadId: activeMultipart.uploadId,
           });
         } catch (abortErr) {
-          logError('[Upload] Failed to abort multipart upload on cancel/error:', abortErr);
+          logError(abortErr, { operation: 'abort multipart upload on cancel/error' });
         } finally {
           activeMultipart = null;
         }

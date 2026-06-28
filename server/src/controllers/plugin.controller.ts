@@ -167,6 +167,7 @@ export const getPluginInsights = async (req: AuthRequest, res: Response, next: N
           previewUrl: true,
           createdAt: true,
           user: { select: { id: true, name: true, avatarUrl: true } },
+          bilibiliUrl: true,
         },
         take: 120,
       }),

@@ -68,10 +68,20 @@
     overflow: hidden !important;
   }
 
+  .mobile-row.overflow-x-auto,
+  .mobile-row.overflow-x-scroll {
+    overflow-x: auto !important;
+  }
+
   .mobile-row > * {
     min-width: 0 !important;
     flex-shrink: 1 !important;
     max-width: 100% !important;
+  }
+
+  .mobile-row > .shrink-0,
+  .mobile-row > *.shrink-0 {
+    flex-shrink: 0 !important;
   }
 
   /* 文字在一行内自动截断 */
@@ -226,33 +236,56 @@
     overflow: hidden !important;
   }
 
-  /* 所有网格在内容区最多2列，防止横向溢出 */
-  .content-surface [class*='grid-cols-'],
-  .enterprise-page [class*='grid-cols-'],
-  .mobile-adaptive [class*='grid-cols-'],
-  .content-surface [class*='grid'] {
+  /* 允许横向滚动的 flex 容器及其子元素保持横向不缩减 */
+  .content-surface :where(.flex, .inline-flex).overflow-x-auto,
+  .content-surface :where(.flex, .inline-flex).overflow-x-scroll,
+  .enterprise-page :where(.flex, .inline-flex).overflow-x-auto,
+  .enterprise-page :where(.flex, .inline-flex).overflow-x-scroll,
+  .mobile-adaptive :where(.flex, .inline-flex).overflow-x-auto,
+  .mobile-adaptive :where(.flex, .inline-flex).overflow-x-scroll {
+    overflow-x: auto !important;
+  }
+
+  .content-surface :where(.flex, .inline-flex).overflow-x-auto > *,
+  .content-surface :where(.flex, .inline-flex).overflow-x-scroll > *,
+  .enterprise-page :where(.flex, .inline-flex).overflow-x-auto > *,
+  .enterprise-page :where(.flex, .inline-flex).overflow-x-scroll > *,
+  .mobile-adaptive :where(.flex, .inline-flex).overflow-x-auto > *,
+  .mobile-adaptive :where(.flex, .inline-flex).overflow-x-scroll > * {
+    flex-shrink: 0 !important;
+  }
+
+  /* 解决水平滚动容器内嵌套 flex 容器子元素被强行缩紧的问题 */
+  .content-surface :where(.overflow-x-auto, .overflow-x-scroll) :where(.flex:not(.flex-col), .inline-flex:not(.flex-col)) > *,
+  .enterprise-page :where(.overflow-x-auto, .overflow-x-scroll) :where(.flex:not(.flex-col), .inline-flex:not(.flex-col)) > *,
+  .mobile-adaptive :where(.overflow-x-auto, .overflow-x-scroll) :where(.flex:not(.flex-col), .inline-flex:not(.flex-col)) > * {
+    flex-shrink: 0 !important;
+  }
+
+  /* 所有网格在内容区最多2列，防止横向溢出。仅针对包含基础多列网格类（不含响应式前缀）的情况 */
+  .content-surface :is(.grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5, .grid-cols-6, .grid-cols-7, .grid-cols-8, .grid-cols-9, .grid-cols-10, .grid-cols-11, .grid-cols-12),
+  .enterprise-page :is(.grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5, .grid-cols-6, .grid-cols-7, .grid-cols-8, .grid-cols-9, .grid-cols-10, .grid-cols-11, .grid-cols-12),
+  .mobile-adaptive :is(.grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5, .grid-cols-6, .grid-cols-7, .grid-cols-8, .grid-cols-9, .grid-cols-10, .grid-cols-11, .grid-cols-12) {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
-  .content-surface [class*='grid-cols-'] > *,
-  .enterprise-page [class*='grid-cols-'] > *,
-  .mobile-adaptive [class*='grid-cols-'] > *,
-  .content-surface [class*='grid'] > * {
+  .content-surface :is(.grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5, .grid-cols-6, .grid-cols-7, .grid-cols-8, .grid-cols-9, .grid-cols-10, .grid-cols-11, .grid-cols-12) > *,
+  .enterprise-page :is(.grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5, .grid-cols-6, .grid-cols-7, .grid-cols-8, .grid-cols-9, .grid-cols-10, .grid-cols-11, .grid-cols-12) > *,
+  .mobile-adaptive :is(.grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5, .grid-cols-6, .grid-cols-7, .grid-cols-8, .grid-cols-9, .grid-cols-10, .grid-cols-11, .grid-cols-12) > * {
     min-width: 0 !important;
   }
 
   /* 保持原本就是单列的网格 */
-  .content-surface [class*='grid-cols-1'],
-  .enterprise-page [class*='grid-cols-1'],
-  .mobile-adaptive [class*='grid-cols-1'] {
+  .content-surface .grid-cols-1,
+  .enterprise-page .grid-cols-1,
+  .mobile-adaptive .grid-cols-1 {
     grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
   }
 
   @media (max-width: 420px) {
-    .content-surface [class*='grid-cols-']:not([class*='grid-cols-1']),
-    .enterprise-page [class*='grid-cols-']:not([class*='grid-cols-1']),
-    .mobile-adaptive [class*='grid-cols-']:not([class*='grid-cols-1']),
-    .content-surface [class*='grid']:not([class*='grid-cols-1']) {
+    .content-surface :is(.grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5, .grid-cols-6, .grid-cols-7, .grid-cols-8, .grid-cols-9, .grid-cols-10, .grid-cols-11, .grid-cols-12),
+    .enterprise-page :is(.grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5, .grid-cols-6, .grid-cols-7, .grid-cols-8, .grid-cols-9, .grid-cols-10, .grid-cols-11, .grid-cols-12),
+    .mobile-adaptive :is(.grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5, .grid-cols-6, .grid-cols-7, .grid-cols-8, .grid-cols-9, .grid-cols-10, .grid-cols-11, .grid-cols-12) {
       grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
     }
   }
@@ -317,4 +350,12 @@
 .auth-shell.mobile-adaptive {
   padding-left: inherit !important;
   padding-right: inherit !important;
+}
+
+/* Optimize topbar padding and spacing in mobile view to prevent layout overflow */
+@media (max-width: 640px) {
+  .topbar {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
 }

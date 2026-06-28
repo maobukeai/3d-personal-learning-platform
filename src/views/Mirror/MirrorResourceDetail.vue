@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { getApiErrorMessage, logError } from '@/utils/error';
 import { formatDateTime as formatDate } from '@/utils/format';
 import { parseTags } from '@/utils/tags';
@@ -112,7 +112,7 @@ async function loadResource() {
     if (!resource.value) {
       error.value = getApiErrorMessage(e, '加载失败');
     } else {
-      logError('Failed to refresh resource details in background:', e);
+      logError(e, { operation: 'Failed to refresh resource details in background' });
     }
   } finally {
     isLoading.value = false;

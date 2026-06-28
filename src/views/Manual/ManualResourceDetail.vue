@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, onMounted, watch, defineAsyncComponent } from 'vue';
 import { logError } from '@/utils/error';
 import { useRoute, useRouter } from 'vue-router';
@@ -133,7 +133,7 @@ async function loadResource() {
     if (!resource.value) {
       error.value = err.response?.data?.error || '加载资源详情失败';
     } else {
-      logError('Failed to refresh resource details in background:', e);
+      logError(e, { operation: 'Failed to refresh resource details in background' });
     }
   } finally {
     isLoading.value = false;

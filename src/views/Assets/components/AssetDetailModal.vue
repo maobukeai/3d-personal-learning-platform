@@ -230,7 +230,7 @@ const fetchComments = async () => {
     const { data } = await api.get(`/api/assets/${targetId}/comments`);
     comments.value = data;
   } catch (err) {
-    logError('Failed to fetch comments:', err);
+    logError(err, { operation: 'fetch comments' });
   } finally {
     isCommentsLoading.value = false;
   }
@@ -383,7 +383,7 @@ const fetchPackageFiles = async () => {
     const { data } = await api.get(`/api/assets/${targetId}/package-files`);
     packageFiles.value = data.packageFiles || [];
   } catch (err) {
-    logError('[AssetDetailModal] Failed to load package file list:', err);
+    logError(err, { operation: 'load package file list' });
     packageFiles.value = [];
   } finally {
     isPackageFilesLoading.value = false;
@@ -400,7 +400,7 @@ watch(
           packageFiles.value = parsed;
         }
       } catch (e) {
-        logError('[AssetDetailModal] Failed to parse packageFilesList fallback:', e);
+        logError(e, { operation: 'parse packageFilesList fallback' });
       }
     }
   }
@@ -420,7 +420,7 @@ const fetchAssetDetail = async () => {
       fetchPackageFiles();
     }
   } catch (err) {
-    logError('[AssetDetailModal] Failed to load asset details:', err);
+    logError(err, { operation: 'load asset details' });
     ElMessage.error(label('加载资源详情失败', 'Failed to load details'));
     emit('close');
   } finally {
@@ -439,7 +439,7 @@ const handleScreenshotCaptured = async (base64Data: string) => {
         emit('update');
       }
     } catch (err) {
-      logError('[AssetDetailModal] Failed to auto-upload thumbnail:', err);
+      logError(err, { operation: 'auto-upload thumbnail' });
     }
   }
 };
@@ -457,7 +457,7 @@ const handleLike = async () => {
     );
     emit('update');
   } catch (err) {
-    logError('Failed to like asset:', err);
+    logError(err, { operation: 'like asset' });
     ElMessage.error(label('收藏操作失败', 'Failed to update favorite'));
   }
 };

@@ -256,7 +256,17 @@ const updateActiveIndicator = () => {
   });
 };
 
-const customWidth = ref(232);
+const getSavedWidth = () => {
+  try {
+    if (typeof window !== 'undefined') {
+      const saved = window.localStorage.getItem('sidebarCustomWidth');
+      return saved ? Number(saved) : 232;
+    }
+  } catch (_e) {}
+  return 232;
+};
+
+const customWidth = ref(getSavedWidth());
 const isResizing = ref(false);
 
 const handleMousedown = (e: MouseEvent) => {
@@ -291,10 +301,6 @@ const handleMousedown = (e: MouseEvent) => {
 
 onMounted(() => {
   updateActiveIndicator();
-  const saved = localStorage.getItem('sidebarCustomWidth');
-  if (saved) {
-    customWidth.value = Number(saved);
-  }
   nextTick(() => {
     setTimeout(() => {
       isMounted.value = true;

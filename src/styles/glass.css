@@ -417,6 +417,12 @@ html.theme-glass body .mobile-sidebar-drawer.mobile-sidebar-drawer {
   -webkit-backdrop-filter: blur(16px) !important;
 }
 
+/* Mobile sidebar reuses .glass-card appearance; reset its radius since it is a full-height drawer. */
+html.theme-glass .mobile-sidebar-drawer.glass-card,
+html.theme-glass .mobile-sidebar-drawer {
+  border-radius: 0 !important;
+}
+
 /* Glass element styles - Tier 2: Dialog Modules */
 html.theme-glass .el-dialog,
 html.theme-glass .el-message-box,
@@ -875,6 +881,15 @@ html.dark body .el-popover {
   background: rgba(28, 33, 41, 0.45) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Make el-dropdown-menu transparent so the outer popper's glass effect shows through.
+   This mirrors GlassDropdown.vue's internal .glass-dropdown-menu override and ensures
+   native el-dropdown popovers look identical in dev and prod builds (EP's default
+   menu background fails to resolve in prod, leaving only the 0.45 outer layer). */
+html.theme-glass .el-dropdown-menu {
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 /* AI Assistant Message Bubble Compaction Overrides */

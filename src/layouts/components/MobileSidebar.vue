@@ -61,7 +61,7 @@ const handleLogoError = () => {
     </Transition>
 
     <aside
-      class="fixed inset-y-0 left-0 w-[50vw] max-w-[180px] z-50 flex flex-col h-full shadow-2xl lg:hidden mobile-sidebar-drawer"
+      class="fixed inset-y-0 left-0 w-[50vw] max-w-[180px] z-50 flex flex-col h-full shadow-2xl lg:hidden mobile-sidebar-drawer glass-card"
       :class="isOpen ? 'mobile-sidebar-open' : 'mobile-sidebar-closed'"
       :aria-hidden="!isOpen"
       :inert="!isOpen"

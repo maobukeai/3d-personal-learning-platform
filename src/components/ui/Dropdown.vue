@@ -43,6 +43,7 @@ defineExpose({ toggle, close, isOpen });
   <el-dropdown
     ref="dropdownRef"
     trigger="click"
+    popper-class="dropdown-component-popper"
     :placement="align === 'right' ? 'bottom-end' : 'bottom-start'"
     @visible-change="onVisibleChange"
   >
@@ -64,17 +65,17 @@ defineExpose({ toggle, close, isOpen });
 
 <style>
 /* Clean up Element Plus dropdown wrapper border-radius and outline effects */
-.el-dropdown__popper.el-popper {
+.dropdown-component-popper.el-popper {
   border-radius: 1rem !important;
   border: none !important;
   box-shadow: none !important;
   background: transparent !important;
 }
-.el-dropdown__popper.el-popper .el-popper__arrow::before {
+.dropdown-component-popper.el-popper .el-popper__arrow::before {
   border: 1px solid var(--el-border-color-light) !important;
   background: var(--el-bg-color-overlay) !important;
 }
-.dark .el-dropdown__popper.el-popper .el-popper__arrow::before {
+.dark .dropdown-component-popper.el-popper .el-popper__arrow::before {
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   background: #1e293b !important;
 }

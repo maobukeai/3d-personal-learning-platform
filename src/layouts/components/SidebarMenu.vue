@@ -274,15 +274,27 @@ const handleMousedown = (e: MouseEvent) => {
   isResizing.value = true;
 
   const startX = e.clientX;
-  const startWidth = customWidth.value;
+  const isCurrentlyExpanded = isExpanded.value;
+  const startWidth = isCurrentlyExpanded ? customWidth.value : 60;
 
   const handleMousemove = (moveEvent: MouseEvent) => {
     const deltaX = moveEvent.clientX - startX;
     let newWidth = startWidth + deltaX;
 
     // Constrain the width
-    if (newWidth < 200) newWidth = 200;
-    if (newWidth > 450) newWidth = 450;
+    if (newWidth < 200) {
+      if (newWidth < 130) {
+        if (sidebarMode.value !== 'rail') {
+          setSidebarMode('rail');
+        }
+        return;
+      }
+      newWidth = 200;
+    }
+
+    if (newWidth >= 130 && sidebarMode.value !== 'expanded') {
+      setSidebarMode('expanded');
+    }
 
     customWidth.value = newWidth;
     localStorage.setItem('sidebarCustomWidth', String(newWidth));
@@ -606,7 +618,6 @@ watch(isExpanded, (val) => {
     </Transition>
     <!-- Resize Handle -->
     <div
-      v-if="isExpanded"
       class="sidebar-resize-handle"
       @mousedown="handleMousedown"
     ></div>

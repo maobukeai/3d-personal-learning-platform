@@ -14,6 +14,7 @@ import {
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
+import { getAssetUrl } from '@/utils/api';
 import { preferences, type SidebarMode } from '@/utils/preferences';
 import type { SidebarMenuGroup, SidebarMenuItem } from '../composables/useSidebarMenus';
 import { useSidebarPreferences } from '../composables/useSidebarPreferences';
@@ -487,8 +488,16 @@ watch(isExpanded, (val) => {
         <header class="panel-header">
           <div class="panel-hero-main">
             <div class="panel-mark" :class="{ 'panel-mark--admin': isAdmin }">
-              <ShieldCheck v-if="isAdmin" />
-              <Box v-else />
+              <img
+                v-if="workspaceStore.currentWorkspace?.avatarUrl"
+                :src="getAssetUrl(workspaceStore.currentWorkspace.avatarUrl)"
+                class="panel-mark-avatar"
+                alt="Workspace Avatar"
+              />
+              <template v-else>
+                <ShieldCheck v-if="isAdmin" />
+                <Box v-else />
+              </template>
             </div>
             <div class="panel-title-block">
               <span class="panel-kicker">{{ sidebarSubtitle }}</span>
@@ -891,6 +900,13 @@ watch(isExpanded, (val) => {
 .panel-mark svg {
   width: 14px !important;
   height: 14px !important;
+}
+
+.panel-mark-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 5px;
 }
 
 .panel-mark--admin {

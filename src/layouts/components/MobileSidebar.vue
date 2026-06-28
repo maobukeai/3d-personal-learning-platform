@@ -61,7 +61,7 @@ const handleLogoError = () => {
     </Transition>
 
     <aside
-      class="fixed inset-y-0 left-0 w-[78vw] max-w-[280px] z-50 flex flex-col h-full shadow-2xl lg:hidden mobile-sidebar-drawer"
+      class="fixed inset-y-0 left-0 w-[50vw] max-w-[180px] z-50 flex flex-col h-full shadow-2xl lg:hidden mobile-sidebar-drawer"
       :class="isOpen ? 'mobile-sidebar-open' : 'mobile-sidebar-closed'"
       :aria-hidden="!isOpen"
       :inert="!isOpen"
@@ -221,10 +221,17 @@ const handleLogoError = () => {
   transition:
     transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
     visibility 0.28s;
-  background-color: var(--bg-sidebar, var(--bg-card));
-  border-right: 1px solid var(--border-base);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04) !important;
+}
+
+:global(.dark) .mobile-sidebar-drawer {
+  background: rgba(28, 33, 41, 0.45) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25) !important;
 }
 
 .mobile-sidebar-open {

@@ -18,6 +18,7 @@ import QRCode from 'qrcode';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
 import Switch from '@/components/ui/Switch.vue';
+import { useSystemStore } from '@/stores/system';
 
 const props = defineProps<{
   type: 'asset' | 'material' | 'plugin';
@@ -68,6 +69,8 @@ const isCopied = ref(false);
 const qrCodeDataUrl = ref('');
 const renderingCard = ref(false);
 
+const systemStore = useSystemStore();
+
 // Dynamic computed values based on type prop
 const typeLabels = {
   asset: {
@@ -75,7 +78,7 @@ const typeLabels = {
     urlKey: 'asset',
     apiPath: 'assets',
     qrSubtitle: '扫码下载与浏览 3D 资产库',
-    watermark: '3D 个人学习平台 | 3D 资产库',
+    watermarkSub: '3D 资产库',
     themeClass: 'from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400',
     logoBg: 'bg-gradient-to-tr from-purple-500 to-indigo-600 shadow-sm',
     badgeClass: 'bg-emerald-500/10 text-emerald-500',
@@ -90,7 +93,7 @@ const typeLabels = {
     urlKey: 'material',
     apiPath: 'materials',
     qrSubtitle: '扫码下载与浏览 材质库',
-    watermark: '3D 个人学习平台 | 材质库',
+    watermarkSub: '材质库',
     themeClass: 'from-indigo-600 to-cyan-600 dark:from-indigo-400 dark:to-cyan-400',
     logoBg: 'bg-gradient-to-tr from-indigo-500 to-cyan-500 shadow-sm',
     badgeClass: 'bg-indigo-500/10 text-indigo-500',
@@ -105,7 +108,7 @@ const typeLabels = {
     urlKey: 'plugin',
     apiPath: 'plugins',
     qrSubtitle: '扫码下载与浏览 Blender 插件库',
-    watermark: '3D 个人学习平台 | Blender 插件库',
+    watermarkSub: 'Blender 插件库',
     themeClass: 'from-amber-600 to-orange-600 dark:from-amber-400 dark:to-orange-400',
     logoBg: 'bg-gradient-to-tr from-amber-500 to-orange-500 shadow-sm',
     badgeClass: 'bg-amber-500/10 text-amber-500',
@@ -117,7 +120,14 @@ const typeLabels = {
   },
 };
 
-const configInfo = computed(() => typeLabels[props.type]);
+const configInfo = computed(() => {
+  const base = typeLabels[props.type];
+  const platformName = systemStore.settings.PLATFORM_NAME || '3D 个人学习平台';
+  return {
+    ...base,
+    watermark: `${platformName} | ${base.watermarkSub}`,
+  };
+});
 
 const shareUrl = computed(() => {
   if (!shareConfig.value) return '';

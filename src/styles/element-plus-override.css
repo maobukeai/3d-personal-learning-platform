@@ -71,3 +71,87 @@
     0 0 0 1px var(--accent, #6366f1) inset,
     0 0 0 3px rgba(99, 102, 241, 0.15) !important;
 }
+
+/* ============================================================
+   Premium Glassmorphism Popper Override (Dev & Prod Unified)
+   ============================================================ */
+/* Target all Element Plus overlays, selects, dropdowns, cascades, popovers */
+html body .el-popper,
+html body .el-select__popper,
+html body .el-dropdown__popper,
+html body .el-cascader__dropdown,
+html body .el-popover {
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06) !important;
+  border-radius: 16px !important;
+}
+
+/* Dark mode glass overrides */
+html.dark body .el-popper,
+html.dark body .el-select__popper,
+html.dark body .el-dropdown__popper,
+html.dark body .el-cascader__dropdown,
+html.dark body .el-popover {
+  background: rgba(20, 24, 33, 0.48) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Make inner dropdown lists transparent to prevent double background overlap */
+html body .el-dropdown-menu,
+html body .el-select-dropdown,
+html body .el-picker-panel,
+html body .el-popper .el-dropdown-menu,
+html body .el-popper .el-select-dropdown,
+html body .el-popper .el-picker-panel {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Arrow pointer matching */
+html body .el-popper__arrow::before {
+  background: rgba(255, 255, 255, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+}
+
+html.dark body .el-popper__arrow::before {
+  background: rgba(20, 24, 33, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Style select dropdown list container */
+html body .el-select-dropdown__wrap {
+  padding: 4px !important;
+}
+
+/* Custom premium hover/selected styling for dropdown list items */
+html body .el-select-dropdown__item,
+html body .el-dropdown-menu__item {
+  color: var(--text-secondary) !important;
+  font-size: 13px !important;
+  font-weight: 550 !important;
+  border-radius: 8px !important;
+  padding: 6px 12px !important;
+  margin: 2px 4px !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+html body .el-select-dropdown__item.hover,
+html body .el-select-dropdown__item:hover,
+html body .el-dropdown-menu__item:hover,
+html body .el-dropdown-menu__item:focus {
+  background-color: var(--bg-hover, rgba(0, 0, 0, 0.04)) !important;
+  color: var(--text-primary) !important;
+}
+
+html body .el-select-dropdown__item.is-selected {
+  background-color: var(--bg-active, rgba(37, 99, 235, 0.08)) !important;
+  color: var(--accent, #6366f1) !important;
+  font-weight: 700 !important;
+}

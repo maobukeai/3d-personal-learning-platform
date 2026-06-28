@@ -384,9 +384,11 @@ watch(() => form.value.packageFile, async (newFile) => {
 
     <div v-if="work" :class="['asset', 'material', 'plugin'].includes(work.kind) ? 'modal-scroll-container' : ''">
       <!-- 2-column layout for assets, materials, plugins -->
-      <div v-if="['asset', 'material', 'plugin'].includes(work.kind)" class="upload-grid text-left">
-        <!-- Left Column: File uploads & Description -->
-        <div class="upload-column-left">
+      <div v-if="['asset', 'material', 'plugin'].includes(work.kind)" class="space-y-4 text-left">
+        <!-- Top Row: Inputs (Left) and Description (Right) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <!-- Left Column: File dropzones & Metadata -->
+          <div class="space-y-3">
           
           <!-- ASSET file uploaders -->
           <div v-if="work.kind === 'asset'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -484,163 +486,161 @@ watch(() => form.value.packageFile, async (newFile) => {
             </div>
           </div>
 
-          <!-- Description (Markdown Editor) -->
-          <div class="form-field editor-field text-left mt-2">
-            <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">
-              {{ label('作品说明', 'Asset Description') }}
-            </span>
-            <MarkdownEditor
-              v-model="description"
-              placeholder="描述作品用途、制作说明、安装方式或更新内容"
-              :height="work?.kind === 'plugin' ? '300px' : '200px'"
-              simple
-            />
-          </div>
-
-
-        </div>
-
-        <!-- Right Column: Metadata & Advanced configurations -->
-        <div class="upload-column-right">
-          <div class="col-span-2">
-            <Input v-model="title" type="text" label="作品名称" required />
-          </div>
-
-          <!-- Category and Cover Image Selection -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            
-            <label v-if="work.kind === 'asset'" class="form-field flex flex-col text-left">
-              <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">资源分类</span>
-              <el-select
-                v-model="categoryId"
-                size="large"
-                class="w-full custom-dialog-input"
-                placeholder="选择分类"
-              >
-                <el-option value="" label="选择分类" />
-                <el-option v-for="category in assetCategories" :key="category.id" :label="category.name" :value="category.id" />
-              </el-select>
-            </label>
-
-            <label v-else-if="work.kind === 'material'" class="form-field flex flex-col text-left">
-              <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">材料分类</span>
-              <el-select
-                v-model="materialCategory"
-                size="large"
-                class="w-full custom-dialog-input"
-                placeholder="选择分类"
-              >
-                <el-option v-for="category in materialCategories" :key="category" :label="category" :value="category" />
-              </el-select>
-            </label>
-
-            <label v-else-if="work.kind === 'plugin'" class="form-field flex flex-col text-left">
-              <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">插件分类</span>
-              <el-select
-                v-model="pluginCategory"
-                size="large"
-                class="w-full custom-dialog-input"
-                placeholder="选择分类"
-              >
-                <el-option v-for="category in pluginCategories" :key="category" :label="category" :value="category" />
-              </el-select>
-            </label>
-
-            <label class="file-picker flex flex-col text-left">
-              <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">封面图</span>
-              <div class="relative w-full">
-                <input
-                  type="file"
-                  accept="image/*"
-                  class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                  @change="handleThumbnailChange"
-                />
-                <div
-                  class="glass-input text-xs h-10 rounded-xl text-center font-bold tracking-tight text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-300 flex items-center justify-center gap-1.5 border border-white/10 bg-white/[0.02] hover:bg-white/[0.05] cursor-pointer"
-                >
-                  <ImageIcon class="h-3.5 w-3.5 text-teal-400" />
-                  {{ form.thumbnail?.name || '重新上传可选预览图' }}
-                </div>
-              </div>
-            </label>
-          </div>
-
-          <!-- MATERIAL specifications -->
-          <div v-if="work.kind === 'material'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <label class="form-field flex flex-col text-left">
-              <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">分辨率</span>
-              <el-select
-                v-model="resolution"
-                size="large"
-                class="w-full custom-dialog-input"
-              >
-                <el-option value="2K" label="2K" />
-                <el-option value="4K" label="4K" />
-                <el-option value="8K" label="8K" />
-                <el-option value="矢量" label="矢量" />
-                <el-option value="程序化" label="程序化" />
-              </el-select>
-            </label>
-            <div class="flex items-center pt-6 pl-1">
-              <Checkbox v-model="isProcedural">程序化材质</Checkbox>
+            <div>
+              <Input v-model="title" type="text" label="作品名称" required />
             </div>
-          </div>
 
-          <!-- PLUGIN specifications -->
-          <div v-if="work.kind === 'plugin'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="flex flex-col text-left col-span-1">
-              <div v-if="existingVersions.length > 0 && !isAddingNewVersion" class="form-field flex flex-col text-left">
-                <div class="flex justify-between items-center mb-2">
-                  <span class="block text-xs font-bold uppercase tracking-wider ml-1 text-[var(--text-secondary)]">版本</span>
-                  <button 
-                    type="button"
-                    class="text-xs text-indigo-400 hover:text-indigo-300 font-bold transition-colors cursor-pointer"
-                    @click="isAddingNewVersion = true; pluginVersion = ''"
-                  >
-                    输入新版本
-                  </button>
-                </div>
+            <!-- Category and Cover Image Selection -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label v-if="work.kind === 'asset'" class="form-field flex flex-col text-left">
+                <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">资源分类</span>
                 <el-select
-                  v-model="pluginVersion"
+                  v-model="categoryId"
                   size="large"
                   class="w-full custom-dialog-input"
-                  placeholder="选择已发布版本"
+                  placeholder="选择分类"
                 >
-                  <el-option
-                    v-for="v in existingVersions"
-                    :key="v.id"
-                    :label="v.version"
-                    :value="v.version"
-                  />
+                  <el-option value="" label="选择分类" />
+                  <el-option v-for="category in assetCategories" :key="category.id" :label="category.name" :value="category.id" />
                 </el-select>
-              </div>
-              <div v-else class="form-field flex flex-col text-left">
-                <div class="flex justify-between items-center mb-2">
-                  <span class="block text-xs font-bold uppercase tracking-wider ml-1 text-[var(--text-secondary)]">版本</span>
-                  <button
-                    v-if="existingVersions.length > 0"
-                    type="button"
-                    class="text-xs text-indigo-400 hover:text-indigo-300 font-bold transition-colors cursor-pointer"
-                    @click="isAddingNewVersion = false; pluginVersion = existingVersions[0]?.version || ''"
+              </label>
+
+              <label v-else-if="work.kind === 'material'" class="form-field flex flex-col text-left">
+                <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">材料分类</span>
+                <el-select
+                  v-model="materialCategory"
+                  size="large"
+                  class="w-full custom-dialog-input"
+                  placeholder="选择分类"
+                >
+                  <el-option v-for="category in materialCategories" :key="category" :label="category" :value="category" />
+                </el-select>
+              </label>
+
+              <label v-else-if="work.kind === 'plugin'" class="form-field flex flex-col text-left">
+                <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">插件分类</span>
+                <el-select
+                  v-model="pluginCategory"
+                  size="large"
+                  class="w-full custom-dialog-input"
+                  placeholder="选择分类"
+                >
+                  <el-option v-for="category in pluginCategories" :key="category" :label="category" :value="category" />
+                </el-select>
+              </label>
+
+              <label class="file-picker flex flex-col text-left">
+                <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">封面图</span>
+                <div class="relative w-full">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                    @change="handleThumbnailChange"
+                  />
+                  <div
+                    class="glass-input text-xs h-10 rounded-xl text-center font-bold tracking-tight text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-300 flex items-center justify-center gap-1.5 border border-white/10 bg-white/[0.02] hover:bg-white/[0.05] cursor-pointer"
                   >
-                    选择已发布版本
-                  </button>
+                    <ImageIcon class="h-3.5 w-3.5 text-teal-400" />
+                    {{ form.thumbnail?.name || '重新上传可选预览图' }}
+                  </div>
                 </div>
-                <Input v-model="pluginVersion" type="text" placeholder="例如: 1.0.0" />
+              </label>
+            </div>
+
+            <!-- MATERIAL specifications -->
+            <div v-if="work.kind === 'material'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label class="form-field flex flex-col text-left">
+                <span class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]">分辨率</span>
+                <el-select
+                  v-model="resolution"
+                  size="large"
+                  class="w-full custom-dialog-input"
+                >
+                  <el-option value="2K" label="2K" />
+                  <el-option value="4K" label="4K" />
+                  <el-option value="8K" label="8K" />
+                  <el-option value="矢量" label="矢量" />
+                  <el-option value="程序化" label="程序化" />
+                </el-select>
+              </label>
+              <div class="flex items-center pt-6 pl-1">
+                <Checkbox v-model="isProcedural">程序化材质</Checkbox>
               </div>
             </div>
-            <div class="flex flex-col text-left col-span-1">
-              <Input v-model="pluginCompatibility" type="text" label="兼容版本" />
+
+            <!-- PLUGIN specifications -->
+            <div v-if="work.kind === 'plugin'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="flex flex-col text-left col-span-1">
+                <div v-if="existingVersions.length > 0 && !isAddingNewVersion" class="form-field flex flex-col text-left">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="block text-xs font-bold uppercase tracking-wider ml-1 text-[var(--text-secondary)]">版本</span>
+                    <button 
+                      type="button"
+                      class="text-xs text-indigo-400 hover:text-indigo-300 font-bold transition-colors cursor-pointer"
+                      @click="isAddingNewVersion = true; pluginVersion = ''"
+                    >
+                      输入新版本
+                    </button>
+                  </div>
+                  <el-select
+                    v-model="pluginVersion"
+                    size="large"
+                    class="w-full custom-dialog-input"
+                    placeholder="选择已发布版本"
+                  >
+                    <el-option
+                      v-for="v in existingVersions"
+                      :key="v.id"
+                      :label="v.version"
+                      :value="v.version"
+                    />
+                  </el-select>
+                </div>
+                <div v-else class="form-field flex flex-col text-left">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="block text-xs font-bold uppercase tracking-wider ml-1 text-[var(--text-secondary)]">版本</span>
+                    <button
+                      v-if="existingVersions.length > 0"
+                      type="button"
+                      class="text-xs text-indigo-400 hover:text-indigo-300 font-bold transition-colors cursor-pointer"
+                      @click="isAddingNewVersion = false; pluginVersion = existingVersions[0]?.version || ''"
+                    >
+                      选择已发布版本
+                    </button>
+                  </div>
+                  <Input v-model="pluginVersion" type="text" placeholder="例如: 1.0.0" />
+                </div>
+              </div>
+              <div class="flex flex-col text-left col-span-1">
+                <Input v-model="pluginCompatibility" type="text" label="兼容版本" />
+              </div>
+            </div>
+
+            <!-- Tags -->
+            <div>
+              <Input v-model="tags" type="text" label="标签" placeholder="用逗号分隔多个标签" />
             </div>
           </div>
 
-          <!-- Tags -->
-          <div class="col-span-2">
-            <Input v-model="tags" type="text" label="标签" placeholder="用逗号分隔多个标签" />
+          <!-- Right Column: Description (Markdown Editor) -->
+          <div>
+            <div class="form-field editor-field text-left">
+              <span class="block text-xs font-bold uppercase tracking-wider mb-1 ml-1 text-[var(--text-secondary)]">
+                {{ label('作品说明', 'Asset Description') }}
+              </span>
+              <MarkdownEditor
+                v-model="description"
+                placeholder="描述作品用途、制作说明、安装方式或更新内容"
+                :height="work?.kind === 'plugin' ? '400px' : '340px'"
+                simple
+              />
+            </div>
           </div>
+        </div>
 
-          <!-- Collapsible sections -->
-          <div class="collapsible-sections flex flex-col gap-3 mt-4 col-span-2">
+        <!-- Bottom Row: Horizontally Aligned Copyright & Tech Specs Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
             
             <!-- Copyright & Licensing Section -->
             <div class="collapsible-card border border-white/10 rounded-xl overflow-hidden glass-panel bg-white/[0.02]">
@@ -806,12 +806,8 @@ watch(() => form.value.packageFile, async (newFile) => {
                 </div>
               </div>
             </div>
-
-
-
           </div>
         </div>
-      </div>
 
       <!-- Keep original single-column grid for showcase and other non-standard types -->
       <div v-else class="edit-grid">

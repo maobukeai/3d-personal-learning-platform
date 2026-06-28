@@ -83,3 +83,23 @@ export function formatCompactNumber(value?: number | null): string {
   if (number >= 1000) return `${(number / 1000).toFixed(1)}k`;
   return String(number);
 }
+
+// ─── Markdown 纯文本提取 ───────────────────────────────────────────────────────
+
+/** 剥离 Markdown 格式符号，还原为纯文本摘要 */
+export function stripMarkdown(content?: string | null): string {
+  if (!content) return '';
+  return content
+    .replace(/```[\s\S]*?```/g, '') // 代码块
+    .replace(/`([^`]+)`/g, '$1') // 行内代码
+    .replace(/^#{1,6}\s+/gm, '') // 标题符号 (# ## ###)
+    .replace(/!\[.*?\]\(.*?\)/g, '') // 图片
+    .replace(/\[([^\]]+)\]\(.*?\)/g, '$1') // 链接
+    .replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, '$1') // 加粗斜体
+    .replace(/^\s*[-+*]\s+/gm, '') // 无序列表
+    .replace(/^\s*\d+\.\s+/gm, '') // 有序列表
+    .replace(/^\s*>\s+/gm, '') // 引用
+    .replace(/[\r\n]+/g, ' ') // 换行转空格
+    .replace(/\s{2,}/g, ' ') // 连续空格压缩
+    .trim();
+}

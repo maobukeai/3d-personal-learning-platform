@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Sparkles, Plus, Search, Trash2 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
+import Input from '@/components/ui/Input.vue';
 import { useAuthStore } from '@/stores/auth';
 
 const authStore = useAuthStore();
@@ -75,18 +76,14 @@ const emit = defineEmits<{
     </div>
 
     <div class="px-4 pt-3">
-      <div
-        class="flex items-center gap-2 rounded-xl border border-slate-400/10 dark:border-slate-400/5 bg-white/70 dark:bg-white/5 px-3 py-1.5"
-      >
-        <Search class="h-4 w-4 text-slate-400" />
-        <input
-          :value="historySearch"
-          type="text"
-          class="w-full bg-transparent text-sm outline-none placeholder:text-slate-400 text-slate-800 dark:text-slate-200"
-          placeholder="搜索历史会话"
-          @input="emit('update:historySearch', ($event.target as HTMLInputElement).value)"
-        />
-      </div>
+      <Input
+        :model-value="historySearch"
+        type="text"
+        placeholder="搜索历史会话"
+        :icon="Search"
+        clearable
+        @update:model-value="val => emit('update:historySearch', val)"
+      />
     </div>
 
     <div class="min-h-0 flex-1 px-3 pb-2 pt-3">

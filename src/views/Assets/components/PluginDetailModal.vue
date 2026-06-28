@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed, type Component, defineAsyncComponent, onMounted, onUnmounted } from 'vue';
 import { logError } from '@/utils/error';
-const MdPreview = defineAsyncComponent(async () => {
-  return (await import('md-editor-v3')).MdPreview;
-});
+import { MdPreview } from 'md-editor-v3';
+import 'md-editor-v3/lib/preview.css';
 import { useI18n } from 'vue-i18n';
 import {
   Heart,
@@ -51,6 +50,7 @@ import { downloadFileMultiThreaded } from '@/utils/downloadHelper';
 import { buildFileTree, flattenFileTree } from '@/utils/zipHelper';
 import type { TreeNode, FlattenedNode } from '@/utils/zipHelper';
 import Modal from '@/components/ui/Modal.vue';
+import Tabs from '@/components/ui/Tabs.vue';
 import { useAuthStore } from '@/stores/auth';
 import ShareDialog from './ShareDialog.vue';
 
@@ -452,7 +452,17 @@ const handleShare = () => {
 };
 
 // Details Tab Navigation
-const activeDetailTab = ref<'detail' | 'versions' | 'developer'>('detail');
+const activeDetailTab = ref<any>('detail');
+const detailTabOptions = computed(() => {
+  const options = [
+    { label: label('插件详情', 'Plugin Details'), value: 'detail' },
+    { label: label('版本历史', 'Release History'), value: 'versions', icon: History },
+  ];
+  if (props.canEdit) {
+    options.push({ label: label('开发者中心', 'Developer Panel'), value: 'developer', icon: Settings });
+  }
+  return options;
+});
 
 // Versions history list
 interface VersionItem {
@@ -892,34 +902,12 @@ const copyIntegrationCode = async () => {
         :class="inline ? '' : 'overflow-y-auto max-h-[75vh] pr-1.5 custom-scrollbar'"
       >
         <!-- Details Tab Bar -->
-        <div v-if="!inline" class="flex items-center gap-1 bg-white/[0.02] border border-white/5 p-1 rounded-xl shrink-0">
-          <button
-            type="button"
-            class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors border-0 cursor-pointer"
-            :class="activeDetailTab === 'detail' ? 'bg-indigo-600 text-white' : 'bg-transparent text-[var(--text-muted)] hover:text-white'"
-            @click="activeDetailTab = 'detail'"
-          >
-            {{ label('插件详情', 'Plugin Details') }}
-          </button>
-          <button
-            type="button"
-            class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors border-0 cursor-pointer flex items-center gap-1"
-            :class="activeDetailTab === 'versions' ? 'bg-indigo-600 text-white' : 'bg-transparent text-[var(--text-muted)] hover:text-white'"
-            @click="activeDetailTab = 'versions'"
-          >
-            <History class="w-3.5 h-3.5" />
-            <span>{{ label('版本历史', 'Release History') }}</span>
-          </button>
-          <button
-            v-if="canEdit"
-            type="button"
-            class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors border-0 cursor-pointer flex items-center gap-1"
-            :class="activeDetailTab === 'developer' ? 'bg-indigo-600 text-white' : 'bg-transparent text-[var(--text-muted)] hover:text-white'"
-            @click="activeDetailTab = 'developer'"
-          >
-            <Settings class="w-3.5 h-3.5" />
-            <span>{{ label('开发者中心', 'Developer Panel') }}</span>
-          </button>
+        <div v-if="!inline" class="shrink-0 flex items-center">
+          <Tabs
+            v-model="activeDetailTab"
+            :options="detailTabOptions"
+            size="sm"
+          />
         </div>
 
         <template v-if="activeDetailTab === 'detail'">
@@ -1393,7 +1381,7 @@ const copyIntegrationCode = async () => {
         </div>
 
         <!-- Control Action Buttons -->
-        <div class="flex flex-col gap-2 p-3 bg-white/[0.01] border border-white/5 rounded-2xl text-left">
+        <div v-if="!inline" class="flex flex-col gap-2 p-3 bg-white/[0.01] border border-white/5 rounded-2xl text-left">
           <span class="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold px-1 mb-1">{{ label('管理与操作', 'Actions') }}</span>
           <div class="grid grid-cols-2 gap-2">
             <Button
@@ -1477,6 +1465,7 @@ const copyIntegrationCode = async () => {
             </div>
 
             <Button
+              v-if="authStore.user"
               variant="secondary"
               size="sm"
               class="flex items-center justify-center gap-1.5"

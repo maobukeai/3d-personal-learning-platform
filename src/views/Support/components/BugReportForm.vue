@@ -72,21 +72,27 @@ const onFileChange = (event: Event) => {
       <div class="form-group">
         <label class="form-label">反馈类型</label>
         <div class="relative w-full">
-          <select v-model="form.type" class="custom-select">
-            <option v-for="item in typeOptions" :key="item.value" :value="item.value">
-              {{ item.label }} · {{ item.hint }}
-            </option>
-          </select>
+          <el-select v-model="form.type" class="w-full custom-select">
+            <el-option
+              v-for="item in typeOptions"
+              :key="item.value"
+              :label="`${item.label} · ${item.hint}`"
+              :value="item.value"
+            />
+          </el-select>
         </div>
       </div>
       <div class="form-group">
         <label class="form-label">优先级</label>
         <div class="relative w-full">
-          <select v-model="form.priority" class="custom-select">
-            <option v-for="item in priorityOptions" :key="item.value" :value="item.value">
-              {{ item.label }} · {{ item.hint }}
-            </option>
-          </select>
+          <el-select v-model="form.priority" class="w-full custom-select">
+            <el-option
+              v-for="item in priorityOptions"
+              :key="item.value"
+              :label="`${item.label} · ${item.hint}`"
+              :value="item.value"
+            />
+          </el-select>
         </div>
       </div>
     </div>

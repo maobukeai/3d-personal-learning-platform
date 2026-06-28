@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed, defineAsyncComponent, onMounted, onUnmounted } from 'vue';
-const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
+import { MdPreview } from 'md-editor-v3';
 import 'md-editor-v3/lib/preview.css';
 import { logError } from '@/utils/error';
 
@@ -749,7 +749,7 @@ watch(
           </div>
 
           <!-- Control Action Buttons -->
-          <div class="flex flex-col gap-2 p-3 bg-white/[0.01] border border-white/5 rounded-2xl text-left">
+          <div v-if="!inline" class="flex flex-col gap-2 p-3 bg-white/[0.01] border border-white/5 rounded-2xl text-left">
             <span class="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold px-1 mb-1">{{ label('管理与操作', 'Actions') }}</span>
             <div class="grid grid-cols-2 gap-2">
               <Button
@@ -786,6 +786,7 @@ watch(
               </Button>
 
               <Button
+                v-if="authStore.user"
                 variant="secondary"
                 size="sm"
                 class="flex items-center justify-center gap-1.5"

@@ -5,6 +5,8 @@ import {
 } from '@/utils/format';
 import { ref, computed, watch, defineAsyncComponent } from 'vue';
 import type { Component } from 'vue';
+import { MdPreview } from 'md-editor-v3';
+import 'md-editor-v3/lib/preview.css';
 import { logError, getApiErrorMessage } from '@/utils/error';
 import {
   X,
@@ -63,10 +65,7 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore();
 
-const MdPreview = defineAsyncComponent(async () => {
-  await import('md-editor-v3/lib/style.css');
-  return (await import('md-editor-v3')).MdPreview;
-});
+
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
 const comments = ref<CommentItem[]>([]);

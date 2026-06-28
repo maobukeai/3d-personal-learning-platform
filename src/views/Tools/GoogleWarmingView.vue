@@ -830,6 +830,7 @@ async function handleImportFile(event: Event) {
       <GoogleWarmingEditDialog
         v-model:show="isEditDialogVisible"
         v-model:account="editingAccount"
+        :categories-list="categoriesList"
         @save="saveAccountEdit"
         @generate-password="generateRandomPassword"
       />

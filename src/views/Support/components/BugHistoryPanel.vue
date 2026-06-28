@@ -143,23 +143,17 @@ const _formatRelativeDate = (value?: string | null) => {
           :glass="false"
           class="min-w-[200px]"
         />
-        <select v-model="status" class="custom-select toolbar-select">
-          <option v-for="item in statusOptions" :key="item.value" :value="item.value">
-            {{ item.label }}
-          </option>
-        </select>
-        <select v-model="type" class="custom-select toolbar-select">
-          <option value="ALL">全部类型</option>
-          <option v-for="item in typeOptions" :key="item.value" :value="item.value">
-            {{ item.label }}
-          </option>
-        </select>
-        <select v-model="priority" class="custom-select toolbar-select">
-          <option value="ALL">全部优先级</option>
-          <option v-for="item in priorityOptions" :key="item.value" :value="item.value">
-            {{ item.label }}
-          </option>
-        </select>
+        <el-select v-model="status" class="custom-select toolbar-select !w-36">
+          <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+        <el-select v-model="type" class="custom-select toolbar-select !w-36">
+          <el-option label="全部类型" value="ALL" />
+          <el-option v-for="item in typeOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+        <el-select v-model="priority" class="custom-select toolbar-select !w-36">
+          <el-option label="全部优先级" value="ALL" />
+          <el-option v-for="item in priorityOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
       </div>
 
       <div v-if="isLoadingHistory" class="loading-state">

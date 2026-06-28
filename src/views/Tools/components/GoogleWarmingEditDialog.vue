@@ -19,10 +19,16 @@ interface GoogleAccount {
   createdAt: string;
 }
 
-const props = defineProps<{
-  show: boolean;
-  account: Partial<GoogleAccount>;
-}>();
+const props = withDefaults(
+  defineProps<{
+    show: boolean;
+    account: Partial<GoogleAccount>;
+    categoriesList?: string[];
+  }>(),
+  {
+    categoriesList: () => [],
+  }
+);
 
 const emit = defineEmits<{
   (e: 'update:show', value: boolean): void;
@@ -133,32 +139,39 @@ const close = () => {
             @input="updateField('currentDay', Number(($event.target as HTMLInputElement).value))"
           />
         </div>
-        <div class="gw-field !gap-1">
+        <div class="gw-field !gap-1 text-left flex flex-col">
           <label class="gw-field-label !text-[10px]">分类</label>
-          <input
-            :value="account.category"
-            type="text"
-            placeholder="例如: GCP, AdSense"
-            class="gw-input !py-1.5 !text-xs"
-            @input="updateField('category', ($event.target as HTMLInputElement).value)"
-          />
-        </div>
-        <div class="gw-field !gap-1">
-          <label class="gw-field-label !text-[10px]">状态</label>
-          <select
-            :value="account.status"
-            class="gw-input !py-1.5 !text-xs"
-            @change="
-              updateField(
-                'status',
-                ($event.target as HTMLSelectElement).value as GoogleAccount['status'],
-              )
-            "
+          <el-select
+            :model-value="account.category || '未分类'"
+            filterable
+            allow-create
+            default-first-option
+            placeholder="选择或输入新分类"
+            size="small"
+            class="w-full custom-dialog-input"
+            @change="updateField('category', $event)"
           >
-            <option value="warming">养号中</option>
-            <option value="completed">已毕业</option>
-            <option value="paused">已暂停</option>
-          </select>
+            <el-option
+              v-for="cat in (categoriesList || []).filter((c) => c !== 'all')"
+              :key="cat"
+              :label="cat === '未分类' ? '未分类' : cat"
+              :value="cat"
+            />
+          </el-select>
+        </div>
+        <div class="gw-field !gap-1 text-left flex flex-col">
+          <label class="gw-field-label !text-[10px]">状态</label>
+          <el-select
+            :model-value="account.status"
+            placeholder="选择状态"
+            size="small"
+            class="w-full custom-dialog-input"
+            @change="updateField('status', $event as GoogleAccount['status'])"
+          >
+            <el-option value="warming" label="养号中" />
+            <el-option value="completed" label="已毕业" />
+            <el-option value="paused" label="已暂停" />
+          </el-select>
         </div>
         <div class="gw-field col-span-2 !gap-1">
           <label class="gw-field-label !text-[10px]">备注/描述</label>

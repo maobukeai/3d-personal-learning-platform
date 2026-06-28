@@ -86,13 +86,13 @@ const localView = computed({
       </div>
 
       <div class="toolbar-right">
-        <select v-model="localSort" class="select-field" aria-label="排序方式">
-          <option value="latest">{{ label('最新发布', 'Newest') }}</option>
-          <option value="popular">{{ label('下载最多', 'Most Downloaded') }}</option>
-          <option value="views">{{ label('浏览最多', 'Most Viewed') }}</option>
-          <option value="size">{{ label('体积最大', 'Largest') }}</option>
-          <option value="oldest">{{ label('最早发布', 'Oldest') }}</option>
-        </select>
+        <el-select v-model="localSort" class="!w-32 custom-select" aria-label="排序方式">
+          <el-option value="latest" :label="label('最新发布', 'Newest')" />
+          <el-option value="popular" :label="label('下载最多', 'Most Downloaded')" />
+          <el-option value="views" :label="label('浏览最多', 'Most Viewed')" />
+          <el-option value="size" :label="label('体积最大', 'Largest')" />
+          <el-option value="oldest" :label="label('最早发布', 'Oldest')" />
+        </el-select>
         <Tabs v-model="localView" :options="viewModeOptions" size="sm" />
       </div>
     </section>

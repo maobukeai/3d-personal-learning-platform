@@ -727,19 +727,19 @@ onUnmounted(() => {
           <div class="aip__toolbar-actions">
             <!-- Language Select for Translate -->
             <Transition name="fade">
-              <select
+              <el-select
                 v-if="aiAction === 'translate'"
                 v-model="targetLanguage"
-                class="aip__translate-select"
+                class="aip__translate-select !w-32 custom-select"
                 :disabled="isGenerating"
               >
-                <option value="English">English</option>
-                <option value="中文 (简体)">中文</option>
-                <option value="日本語">日本語</option>
-                <option value="Deutsch">Deutsch</option>
-                <option value="Français">Français</option>
-                <option value="Español">Español</option>
-              </select>
+                <el-option value="English" label="English" />
+                <el-option value="中文 (简体)" label="中文" />
+                <el-option value="日本語" label="日本語" />
+                <el-option value="Deutsch" label="Deutsch" />
+                <el-option value="Français" label="Français" />
+                <el-option value="Español" label="Español" />
+              </el-select>
             </Transition>
 
             <button

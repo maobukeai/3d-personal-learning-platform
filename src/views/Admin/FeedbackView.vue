@@ -717,12 +717,12 @@ onMounted(fetchFeedbacks);
         </label>
         <label>
           同步状态
-          <select v-model="replyStatus">
-            <option value="IN_PROGRESS">处理中</option>
-            <option value="RESOLVED">已解决</option>
-            <option value="CLOSED">已关闭</option>
-            <option value="OPEN">待处理</option>
-          </select>
+          <el-select v-model="replyStatus" class="w-full custom-select">
+            <el-option value="IN_PROGRESS" label="处理中" />
+            <el-option value="RESOLVED" label="已解决" />
+            <el-option value="CLOSED" label="已关闭" />
+            <el-option value="OPEN" label="待处理" />
+          </el-select>
         </label>
       </div>
       <template #footer>

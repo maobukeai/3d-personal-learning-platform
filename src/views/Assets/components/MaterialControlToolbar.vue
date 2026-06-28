@@ -46,13 +46,13 @@ const onSortChange = (event: Event) => {
       <button type="button" class="icon-button mobile-filter" @click="emit('toggleFilter')">
         <SlidersHorizontal class="icon-sm" />
       </button>
-      <select :value="sortBy" class="select-field" aria-label="排序方式" @change="onSortChange">
-        <option value="latest">{{ label('最新', 'Newest') }}</option>
-        <option value="popular">{{ label('下载', 'Downloads') }}</option>
-        <option value="favorited">{{ label('收藏', 'Favorites') }}</option>
-        <option value="largest">{{ label('体积大', 'Largest') }}</option>
-        <option value="smallest">{{ label('体积小', 'Smallest') }}</option>
-      </select>
+      <el-select :model-value="sortBy" class="!w-28 custom-select" aria-label="排序方式" @change="(v: SortMode) => emit('update:sortBy', v)">
+        <el-option value="latest" :label="label('最新', 'Newest')" />
+        <el-option value="popular" :label="label('下载', 'Downloads')" />
+        <el-option value="favorited" :label="label('收藏', 'Favorites')" />
+        <el-option value="largest" :label="label('体积大', 'Largest')" />
+        <el-option value="smallest" :label="label('体积小', 'Smallest')" />
+      </el-select>
       <Tabs
         :model-value="viewMode"
         :options="viewModeOptions"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatFileSize, formatRelativeTime } from '@/utils/format';
+import { formatFileSize, formatRelativeTime, stripMarkdown } from '@/utils/format';
 import { parseTags } from '@/utils/tags';
 import { computed } from 'vue';
 import {
@@ -117,7 +117,7 @@ const tagsList = computed(() => parseTags(props.item?.tags).slice(0, 3));
 
 // Normalized properties depending on kind
 const title = computed(() => props.item?.title || props.item?.name || '---');
-const description = computed(() => props.item?.description || props.item?.subtitle || '');
+const description = computed(() => stripMarkdown(props.item?.description || props.item?.subtitle || ''));
 const previewUrl = computed(() => {
   const url =
     props.item?.preview ||

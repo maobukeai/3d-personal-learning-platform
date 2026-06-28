@@ -319,6 +319,22 @@ html.theme-glass .glass-sidebar {
   will-change: auto !important;
 }
 
+/* Mobile sidebar drawer — promoted to global CSS with high specificity so that
+   dev/prod and scoped/global styles cannot silently disable its backdrop-filter. */
+html.theme-glass .mobile-sidebar-drawer {
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04) !important;
+}
+
+html.theme-glass.dark .mobile-sidebar-drawer {
+  background: rgba(28, 33, 41, 0.45) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25) !important;
+}
+
 /* Glass element styles - Tier 2: Dialog Modules */
 html.theme-glass .el-dialog,
 html.theme-glass .el-message-box,

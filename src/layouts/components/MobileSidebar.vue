@@ -221,17 +221,6 @@ const handleLogoError = () => {
   transition:
     transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
     visibility 0.28s;
-  background: rgba(255, 255, 255, 0.45) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.5) !important;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04) !important;
-}
-
-:global(.dark) .mobile-sidebar-drawer {
-  background: rgba(28, 33, 41, 0.45) !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25) !important;
 }
 
 .mobile-sidebar-open {

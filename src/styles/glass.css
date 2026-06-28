@@ -724,8 +724,17 @@ html.dark.theme-glass .hover\:shadow-2xl:hover {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 
-/* Premium default glass-card styles globally */
-.glass-card {
+/* Premium default glass-card styles globally - Shared with all Element Plus dropdowns/popovers to guarantee 100% style alignment */
+.glass-card,
+html body .el-popper,
+html body .el-popper.is-light,
+html body .el-popper.is-dark,
+html body .el-popper.glass-popover,
+html body .el-popper.glass-card,
+html body .el-select__popper,
+html body .el-dropdown__popper,
+html body .el-cascader__dropdown,
+html body .el-popover {
   background: rgba(255, 255, 255, 0.45) !important;
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
@@ -739,7 +748,16 @@ html.dark.theme-glass .hover\:shadow-2xl:hover {
     background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-.dark .glass-card {
+.dark .glass-card,
+html.dark body .el-popper,
+html.dark body .el-popper.is-light,
+html.dark body .el-popper.is-dark,
+html.dark body .el-popper.glass-popover,
+html.dark body .el-popper.glass-card,
+html.dark body .el-select__popper,
+html.dark body .el-dropdown__popper,
+html.dark body .el-cascader__dropdown,
+html.dark body .el-popover {
   background: rgba(28, 33, 41, 0.45) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25) !important;

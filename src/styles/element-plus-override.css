@@ -76,37 +76,7 @@
    Premium Glassmorphism Popper Override (Dev & Prod Unified)
    ============================================================ */
 /* Target all Element Plus overlays, selects, dropdowns, cascades, popovers with high specificity */
-html body .el-popper,
-html body .el-popper.is-light,
-html body .el-popper.is-dark,
-html body .el-popper.glass-popover,
-html body .el-popper.glass-card,
-html body .el-select__popper,
-html body .el-dropdown__popper,
-html body .el-cascader__dropdown,
-html body .el-popover {
-  background: rgba(255, 255, 255, 0.8) !important; /* Raised opacity fallback for non-HTTPS browsers */
-  backdrop-filter: blur(16px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.5) !important;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06) !important;
-  border-radius: 16px !important;
-}
-
-/* Dark mode glass overrides */
-html.dark body .el-popper,
-html.dark body .el-popper.is-light,
-html.dark body .el-popper.is-dark,
-html.dark body .el-popper.glass-popover,
-html.dark body .el-popper.glass-card,
-html.dark body .el-select__popper,
-html.dark body .el-dropdown__popper,
-html.dark body .el-cascader__dropdown,
-html.dark body .el-popover {
-  background: rgba(20, 24, 33, 0.88) !important; /* Raised opacity fallback for non-HTTPS browsers */
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
-}
+/* Target all Element Plus overlays, selects, dropdowns, cascades, popovers with high specificity - Styled directly in glass.css via sharing .glass-card */
 
 /* Make inner dropdown lists transparent to prevent double background overlap */
 html body .el-dropdown-menu,

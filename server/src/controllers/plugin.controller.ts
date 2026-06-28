@@ -1383,6 +1383,110 @@ export const setActivePluginVersion = async (
   }
 };
 
+// PUT /api/plugins/:id/versions/:versionId
+export const updatePluginVersion = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const { id: pluginId, versionId } = req.params as { id: string; versionId: string };
+  const { version: newVersionString, changelog } = req.body as { version?: string; changelog?: string };
+
+  try {
+    const plugin = await prisma.plugin.findUnique({ where: { id: pluginId } });
+    if (!plugin) return next(new AppError('插件不存在', 404));
+    if (plugin.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return next(new AppError('无权操作此插件', 403));
+    }
+
+    const versionItem = await prisma.pluginVersion.findFirst({
+      where: { id: versionId, pluginId },
+    });
+    if (!versionItem) return next(new AppError('版本记录不存在', 404));
+
+    // If version string is changing, check for duplicates
+    if (newVersionString && newVersionString !== versionItem.version) {
+      const duplicate = await prisma.pluginVersion.findFirst({
+        where: { pluginId, version: newVersionString },
+      });
+      if (duplicate) return next(new AppError('版本号已存在', 400));
+    }
+
+    const updatedVersion = await prisma.pluginVersion.update({
+      where: { id: versionId },
+      data: {
+        version: newVersionString || undefined,
+        changelog: changelog !== undefined ? changelog : undefined,
+      },
+    });
+
+    // If this edited version is currently the active version of the plugin, keep them in sync
+    if (plugin.version === versionItem.version && newVersionString && newVersionString !== versionItem.version) {
+      await prisma.plugin.update({
+        where: { id: pluginId },
+        data: { version: newVersionString },
+      });
+    }
+
+    res.json(updatedVersion);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/plugins/:id/versions/:versionId
+export const deletePluginVersion = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const { id: pluginId, versionId } = req.params as { id: string; versionId: string };
+
+  try {
+    const plugin = await prisma.plugin.findUnique({ where: { id: pluginId } });
+    if (!plugin) return next(new AppError('插件不存在', 404));
+    if (plugin.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return next(new AppError('无权操作此插件', 403));
+    }
+
+    const versionItem = await prisma.pluginVersion.findFirst({
+      where: { id: versionId, pluginId },
+    });
+    if (!versionItem) return next(new AppError('版本记录不存在', 404));
+
+    // Ensure we don't delete the last version package
+    const versionCount = await prisma.pluginVersion.count({ where: { pluginId } });
+    if (versionCount <= 1) {
+      return next(new AppError('无法删除：插件必须保留至少一个历史版本包', 400));
+    }
+
+    // If we are deleting the active version, promote the next latest version to active
+    if (plugin.version === versionItem.version) {
+      const nextActive = await prisma.pluginVersion.findFirst({
+        where: { pluginId, id: { not: versionId } },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (nextActive) {
+        await prisma.plugin.update({
+          where: { id: pluginId },
+          data: {
+            version: nextActive.version,
+            fileUrl: nextActive.fileUrl,
+            fileSize: nextActive.fileSize,
+            packageFilesList: nextActive.packageFilesList,
+          },
+        });
+      }
+    }
+
+    // Delete the database record
+    await prisma.pluginVersion.delete({ where: { id: versionId } });
+
+    // Clean up physical file in background
+    if (versionItem.fileUrl) {
+      deleteCloudOrLocalFileByUrl(versionItem.fileUrl).catch((err) => {
+        logger.error(`[PluginController] Failed to delete plugin version file ${versionItem.fileUrl}:`, err);
+      });
+    }
+
+    res.json({ success: true, message: '版本已成功删除' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // GET /api/plugins/client/check-update
 
 export const checkPluginUpdate = async (req: Request, res: Response, next: NextFunction) => {

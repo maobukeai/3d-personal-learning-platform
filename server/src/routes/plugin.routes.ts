@@ -72,6 +72,8 @@ router.post(
   pluginController.uploadPluginVersion,
 );
 router.get('/:id/versions', pluginController.listPluginVersions);
+router.put('/:id/versions/:versionId', pluginController.updatePluginVersion);
+router.delete('/:id/versions/:versionId', pluginController.deletePluginVersion);
 router.post('/:id/versions/:versionId/set-active', pluginController.setActivePluginVersion);
 
 // Authenticated Help Requests

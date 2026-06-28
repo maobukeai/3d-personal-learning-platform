@@ -635,6 +635,70 @@ const handlePublishVersionSubmit = async () => {
   }
 };
 
+// Edit and Delete version handlers
+const editingVersionId = ref<string | null>(null);
+const editingVersionForm = ref({ version: '', changelog: '' });
+const isUpdatingVersion = ref(false);
+
+const handleEditVersion = (v: VersionItem) => {
+  editingVersionId.value = v.id;
+  editingVersionForm.value = {
+    version: v.version,
+    changelog: v.changelog || '',
+  };
+};
+
+const handleUpdateVersionSubmit = async (versionId: string) => {
+  if (!props.plugin?.id || !editingVersionForm.value.version.trim()) return;
+  isUpdatingVersion.value = true;
+  try {
+    await api.put(`/api/plugins/${props.plugin.id}/versions/${versionId}`, {
+      version: editingVersionForm.value.version.trim(),
+      changelog: editingVersionForm.value.changelog.trim(),
+    });
+    ElMessage.success(label('版本信息已更新', 'Version info updated successfully'));
+    editingVersionId.value = null;
+    await fetchVersions();
+    emit('update');
+  } catch (err) {
+    logError('Failed to update version:', err);
+    ElMessage.error(label('更新版本失败', 'Failed to update version'));
+  } finally {
+    isUpdatingVersion.value = false;
+  }
+};
+
+const handleDeleteVersion = async (v: VersionItem) => {
+  if (!props.plugin?.id) return;
+  try {
+    await ElMessageBox.confirm(
+      label(
+        `确定要删除版本 v${v.version} 吗？此操作将永久删除物理文件且无法撤销。`,
+        `Are you sure you want to delete version v${v.version}? This will permanently delete the physical file and cannot be undone.`
+      ),
+      label('删除确认', 'Confirm Delete'),
+      {
+        confirmButtonText: label('确定', 'Confirm'),
+        cancelButtonText: label('取消', 'Cancel'),
+        type: 'warning',
+      }
+    );
+  } catch {
+    return;
+  }
+
+  try {
+    await api.delete(`/api/plugins/${props.plugin.id}/versions/${v.id}`);
+    ElMessage.success(label('版本已删除', 'Version deleted'));
+    await fetchVersions();
+    emit('update');
+  } catch (err: any) {
+    logError('Failed to delete version:', err);
+    const msg = err.response?.data?.message || label('删除版本失败', 'Failed to delete version');
+    ElMessage.error(msg);
+  }
+};
+
 // Bilibili link player embed helper
 const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
   if (!url) return undefined;
@@ -1098,31 +1162,81 @@ const copyIntegrationCode = async () => {
                 class="flex flex-col gap-2 p-4 rounded-2xl border transition-colors"
                 :class="v.version === plugin.version ? 'bg-indigo-600/8 border-indigo-500/30' : 'bg-white/[0.02] border-white/5'"
               >
-                <div class="flex items-center justify-between gap-3">
-                  <div class="flex items-center gap-2 flex-1 min-w-0">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-indigo-500/10 text-indigo-800 dark:text-indigo-400 border border-indigo-500/20 shrink-0">
-                      v{{ v.version }}
-                    </span>
-                    <span v-if="v.version === plugin.version" class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
-                      {{ label('当前推送', 'Active') }}
-                    </span>
-                    <span class="text-[10px] text-slate-500 dark:text-slate-300 font-mono truncate">
-                      {{ formatDate(v.createdAt) }}
-                    </span>
+                <!-- Edit mode form -->
+                <div v-if="editingVersionId === v.id" class="flex flex-col gap-3">
+                  <div class="flex items-center gap-3">
+                    <div class="flex-1">
+                      <label class="block text-[10px] font-semibold text-slate-400 mb-1">{{ label('版本号', 'Version') }}</label>
+                      <input v-model="editingVersionForm.version" type="text" class="w-full px-3 py-1.5 text-xs bg-white/[0.03] border border-white/10 rounded-xl text-white outline-none focus:border-indigo-500" />
+                    </div>
                   </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold text-slate-400 mb-1">{{ label('更新日志', 'Changelog') }}</label>
+                    <textarea v-model="editingVersionForm.changelog" class="w-full min-h-[60px] px-3 py-1.5 text-xs bg-white/[0.03] border border-white/10 rounded-xl text-white outline-none focus:border-indigo-500 resize-none"></textarea>
+                  </div>
+                  <div class="flex justify-end gap-2 mt-1">
+                    <button class="text-[10px] px-2.5 py-1.5 rounded-xl border border-white/10 text-slate-400 hover:text-white bg-transparent cursor-pointer transition-colors" @click="editingVersionId = null">
+                      {{ label('取消', 'Cancel') }}
+                    </button>
+                    <Button variant="primary" size="sm" :loading="isUpdatingVersion" :disabled="!editingVersionForm.version.trim()" @click="handleUpdateVersionSubmit(v.id)">
+                      {{ label('保存', 'Save') }}
+                    </Button>
+                  </div>
+                </div>
 
-                  <button
-                    type="button"
-                    class="flex items-center gap-1 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors border border-indigo-400/20 hover:border-indigo-400/40 px-2 py-1 rounded-lg shrink-0 bg-transparent cursor-pointer"
-                    @click="handleVersionDownload(v)"
-                  >
-                    <Download class="w-3 h-3" />
-                    <span>{{ formatSize(v.fileSize) }}</span>
-                  </button>
-                </div>
-                <div class="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
-                  {{ v.changelog || label('暂无更新说明。', 'No release notes.') }}
-                </div>
+                <!-- Display mode -->
+                <template v-else>
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                      <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-indigo-500/10 text-indigo-800 dark:text-indigo-400 border border-indigo-500/20 shrink-0">
+                        v{{ v.version }}
+                      </span>
+                      <span v-if="v.version === plugin.version" class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                        {{ label('当前推送', 'Active') }}
+                      </span>
+                      <span class="text-[10px] text-slate-500 dark:text-slate-300 font-mono truncate">
+                        {{ formatDate(v.createdAt) }}
+                      </span>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      <!-- Edit button -->
+                      <button
+                        v-if="canEdit"
+                        type="button"
+                        class="flex items-center justify-center p-1.5 text-[10px] font-bold text-slate-400 hover:text-white hover:bg-white/5 rounded-lg border border-white/10 cursor-pointer transition-colors"
+                        :title="label('编辑版本信息', 'Edit Version Info')"
+                        @click="handleEditVersion(v)"
+                      >
+                        <Edit3 class="w-3.5 h-3.5" />
+                      </button>
+
+                      <!-- Delete button -->
+                      <button
+                        v-if="canEdit"
+                        type="button"
+                        class="flex items-center justify-center p-1.5 text-[10px] font-bold text-rose-500/80 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg border border-rose-500/20 cursor-pointer transition-colors"
+                        :title="label('删除版本', 'Delete Version')"
+                        @click="handleDeleteVersion(v)"
+                      >
+                        <Trash2 class="w-3.5 h-3.5" />
+                      </button>
+
+                      <!-- Download button -->
+                      <button
+                        type="button"
+                        class="flex items-center gap-1 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors border border-indigo-400/20 hover:border-indigo-400/40 px-2 py-1 rounded-lg bg-transparent cursor-pointer"
+                        @click="handleVersionDownload(v)"
+                      >
+                        <Download class="w-3 h-3" />
+                        <span>{{ formatSize(v.fileSize) }}</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+                    {{ v.changelog || label('暂无更新说明。', 'No release notes.') }}
+                  </div>
+                </template>
               </div>
             </div>
           </div>

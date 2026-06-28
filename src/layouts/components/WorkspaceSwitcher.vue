@@ -244,7 +244,7 @@ const handleQuickSettings = (ws: Workspace) => {
             v-if="authStore.isAuthenticated"
             type="button"
             class="p-1.5 rounded-md hover:bg-white/8 transition-all duration-200"
-            :class="authStore.user?.defaultWorkspaceId === ws.id ? 'text-accent opacity-100' : 'text-slate-400 hover:text-accent opacity-0 group-hover:opacity-100'"
+            :class="authStore.user?.defaultWorkspaceId === ws.id ? 'text-accent opacity-100' : 'text-slate-400 hover:text-accent opacity-40 group-hover:opacity-100'"
             @click.stop="handleSetDefaultWorkspace(ws)"
             :title="authStore.user?.defaultWorkspaceId === ws.id ? '默认工作区' : '设为默认工作区'"
           >
@@ -254,7 +254,7 @@ const handleQuickSettings = (ws: Workspace) => {
           <button
             v-if="ws.type === 'personal' || ws.type === 'team'"
             type="button"
-            class="p-1.5 rounded-md hover:bg-white/8 text-slate-400 hover:text-accent transition-colors opacity-0 group-hover:opacity-100"
+            class="p-1.5 rounded-md hover:bg-white/8 text-slate-400 hover:text-accent transition-colors opacity-40 group-hover:opacity-100"
             @click.stop="handleQuickSettings(ws)"
           >
             <Settings class="w-3.5 h-3.5" />
@@ -320,7 +320,7 @@ const handleQuickSettings = (ws: Workspace) => {
               v-if="authStore.isAuthenticated"
               type="button"
               class="p-1.5 rounded-md hover:bg-white/8 transition-all duration-200"
-              :class="authStore.user?.defaultWorkspaceId === adminWorkspace.id ? 'text-accent opacity-100' : 'text-slate-400 hover:text-accent opacity-0 group-hover:opacity-100'"
+              :class="authStore.user?.defaultWorkspaceId === adminWorkspace.id ? 'text-accent opacity-100' : 'text-slate-400 hover:text-accent opacity-40 group-hover:opacity-100'"
               @click.stop="handleSetDefaultWorkspace(adminWorkspace)"
               :title="authStore.user?.defaultWorkspaceId === adminWorkspace.id ? '默认工作区' : '设为默认工作区'"
             >

@@ -256,8 +256,45 @@ const updateActiveIndicator = () => {
   });
 };
 
+const customWidth = ref(232);
+const isResizing = ref(false);
+
+const handleMousedown = (e: MouseEvent) => {
+  e.preventDefault();
+  isResizing.value = true;
+
+  const startX = e.clientX;
+  const startWidth = customWidth.value;
+
+  const handleMousemove = (moveEvent: MouseEvent) => {
+    const deltaX = moveEvent.clientX - startX;
+    let newWidth = startWidth + deltaX;
+
+    // Constrain the width
+    if (newWidth < 200) newWidth = 200;
+    if (newWidth > 450) newWidth = 450;
+
+    customWidth.value = newWidth;
+    localStorage.setItem('sidebarCustomWidth', String(newWidth));
+    updateActiveIndicator();
+  };
+
+  const handleMouseup = () => {
+    isResizing.value = false;
+    window.removeEventListener('mousemove', handleMousemove);
+    window.removeEventListener('mouseup', handleMouseup);
+  };
+
+  window.addEventListener('mousemove', handleMousemove);
+  window.addEventListener('mouseup', handleMouseup);
+};
+
 onMounted(() => {
   updateActiveIndicator();
+  const saved = localStorage.getItem('sidebarCustomWidth');
+  if (saved) {
+    customWidth.value = Number(saved);
+  }
   nextTick(() => {
     setTimeout(() => {
       isMounted.value = true;
@@ -314,10 +351,34 @@ watch(isExpanded, (val) => {
     :class="[
       `workspace-sidebar--${navTone}`,
       isExpanded ? 'workspace-sidebar--expanded' : 'workspace-sidebar--rail',
+      isResizing ? 'is-resizing' : ''
     ]"
+    :style="isExpanded ? {
+      width: customWidth + 'px',
+      '--sidebar-panel-width': customWidth + 'px'
+    } : {}"
   >
     <div class="workspace-sidebar__rail">
       <div class="rail-top">
+        <el-tooltip
+          :content="isExpanded ? collapseNavigationLabel : expandNavigationLabel"
+          placement="right"
+          :show-after="120"
+          popper-class="sidebar-tooltip"
+        >
+          <button
+            type="button"
+            class="rail-link rail-action-button rail-toggle"
+            :aria-label="isExpanded ? collapseNavigationLabel : expandNavigationLabel"
+            :title="isExpanded ? collapseNavigationLabel : expandNavigationLabel"
+            @click="toggleSidebar"
+            style="margin-bottom: 12px;"
+          >
+            <ChevronsLeft v-if="isExpanded" class="rail-icon" />
+            <ChevronsRight v-else class="rail-icon" />
+          </button>
+        </el-tooltip>
+
         <el-tooltip
           :content="sidebarTitle"
           placement="right"
@@ -362,23 +423,6 @@ watch(isExpanded, (val) => {
       </nav>
 
       <div class="rail-actions">
-        <el-tooltip
-          :content="isExpanded ? collapseNavigationLabel : expandNavigationLabel"
-          placement="right"
-          :show-after="120"
-          popper-class="sidebar-tooltip"
-        >
-          <button
-            type="button"
-            class="rail-link rail-action-button rail-toggle"
-            :aria-label="isExpanded ? collapseNavigationLabel : expandNavigationLabel"
-            :title="isExpanded ? collapseNavigationLabel : expandNavigationLabel"
-            @click="toggleSidebar"
-          >
-            <ChevronsLeft v-if="isExpanded" class="rail-icon" />
-            <ChevronsRight v-else class="rail-icon" />
-          </button>
-        </el-tooltip>
 
         <el-tooltip
           :content="$t('sidebar.settingsOption')"
@@ -554,6 +598,12 @@ watch(isExpanded, (val) => {
         </footer>
       </section>
     </Transition>
+    <!-- Resize Handle -->
+    <div
+      v-if="isExpanded"
+      class="sidebar-resize-handle"
+      @mousedown="handleMousedown"
+    ></div>
   </aside>
 </template>
 
@@ -598,6 +648,9 @@ watch(isExpanded, (val) => {
 
 .rail-top {
   padding: 10px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .rail-badge {
@@ -1424,5 +1477,27 @@ watch(isExpanded, (val) => {
   50% {
     opacity: 1;
   }
+}
+
+/* Sidebar manual resize styles */
+.workspace-sidebar.is-resizing {
+  transition: none !important;
+}
+
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 50;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.sidebar-resize-handle:hover,
+.workspace-sidebar.is-resizing .sidebar-resize-handle {
+  background-color: var(--sidebar-accent, var(--accent));
+  opacity: 0.35;
 }
 </style>

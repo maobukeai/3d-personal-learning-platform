@@ -109,7 +109,7 @@ const toggleSortOrder = () => {
       <!-- Project Filter Dropdown -->
       <el-dropdown
         trigger="click"
-        popper-class="glass-popover"
+        popper-class="glass-card"
         @command="
           (val: string) => {
             selectedProjectId = val === 'all' ? null : val;
@@ -203,7 +203,7 @@ const toggleSortOrder = () => {
       <!-- Time Dropdown -->
       <el-dropdown
         trigger="click"
-        popper-class="glass-popover"
+        popper-class="glass-card"
         @command="(val: string) => (dateFilter = val)"
       >
         <button
@@ -239,7 +239,7 @@ const toggleSortOrder = () => {
       <!-- Status Dropdown -->
       <el-dropdown
         trigger="click"
-        popper-class="glass-popover"
+        popper-class="glass-card"
         @command="(val: string) => (statusFilter = val)"
       >
         <button
@@ -275,7 +275,7 @@ const toggleSortOrder = () => {
       <!-- Priority Dropdown -->
       <el-dropdown
         trigger="click"
-        popper-class="glass-popover"
+        popper-class="glass-card"
         @command="(val: string) => (priorityFilter = val)"
       >
         <button
@@ -319,7 +319,7 @@ const toggleSortOrder = () => {
       <!-- Assignee Dropdown -->
       <el-dropdown
         trigger="click"
-        popper-class="glass-popover"
+        popper-class="glass-card"
         @command="(val: string) => (assigneeFilter = val)"
       >
         <button
@@ -383,7 +383,7 @@ const toggleSortOrder = () => {
       <!-- Tag Dropdown -->
       <el-dropdown
         trigger="click"
-        popper-class="glass-popover"
+        popper-class="glass-card"
         @command="(val: string) => (tagFilter = val)"
       >
         <button
@@ -426,7 +426,7 @@ const toggleSortOrder = () => {
       <!-- Subtasks Display Dropdown -->
       <el-dropdown
         trigger="click"
-        popper-class="glass-popover"
+        popper-class="glass-card"
         @command="(val: any) => (subtaskDisplay = val)"
       >
         <button
@@ -484,7 +484,7 @@ const toggleSortOrder = () => {
       <!-- Group By Dropdown -->
       <el-dropdown
         trigger="click"
-        popper-class="glass-popover"
+        popper-class="glass-card"
         @command="(val: any) => (groupBy = val)"
       >
         <button
@@ -520,7 +520,7 @@ const toggleSortOrder = () => {
       <!-- Sort By Dropdown -->
       <el-dropdown
         trigger="click"
-        popper-class="glass-popover"
+        popper-class="glass-card"
         @command="(val: any) => (sortBy = val)"
       >
         <button

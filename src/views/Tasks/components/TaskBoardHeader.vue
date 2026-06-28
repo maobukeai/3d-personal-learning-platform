@@ -167,7 +167,7 @@ const columnVisibilityLabel = (field: string): string => {
         placement="bottom-end"
         :width="180"
         trigger="click"
-        popper-class="glass-popover"
+        popper-class="glass-card"
       >
         <template #reference>
           <button
@@ -205,7 +205,7 @@ const columnVisibilityLabel = (field: string): string => {
         placement="bottom-end"
         :width="180"
         trigger="click"
-        popper-class="glass-popover"
+        popper-class="glass-card"
       >
         <template #reference>
           <button

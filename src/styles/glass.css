@@ -892,38 +892,6 @@ html.theme-glass .el-dropdown-menu {
   box-shadow: none !important;
 }
 
-/* ============================================================
-   Runtime backdrop-filter fallback
-   ============================================================
-   Some browsers/environments silently drop `backdrop-filter` at runtime
-   even though @supports reports it as available (power-saving mode, RDP,
-   no GPU, OS "reduce transparency"). The probe in main.ts adds
-   `bf-unsupported` to <html> when this happens; we then raise popper
-   and overlay backgrounds to near-opaque so text stays readable without
-   relying on blur. When `bf-supported` is present we keep the original
-   0.45 glass look untouched, so dev/normal environments are unchanged. */
-html.theme-glass.bf-unsupported .notification-panel,
-html.theme-glass.bf-unsupported .el-popper,
-html.theme-glass.bf-unsupported .el-popper.is-dark,
-html.theme-glass.bf-unsupported .el-popper.is-light,
-html.theme-glass.bf-unsupported .el-dropdown__popper,
-html.theme-glass.bf-unsupported .el-select__popper,
-html.theme-glass.bf-unsupported .el-cascader__dropdown,
-html.theme-glass.bf-unsupported .el-popover {
-  background: rgba(255, 255, 255, 0.92) !important;
-}
-
-html.theme-glass.bf-unsupported.dark .notification-panel,
-html.theme-glass.bf-unsupported.dark .el-popper,
-html.theme-glass.bf-unsupported.dark .el-popper.is-dark,
-html.theme-glass.bf-unsupported.dark .el-popper.is-light,
-html.theme-glass.bf-unsupported.dark .el-dropdown__popper,
-html.theme-glass.bf-unsupported.dark .el-select__popper,
-html.theme-glass.bf-unsupported.dark .el-cascader__dropdown,
-html.theme-glass.bf-unsupported.dark .el-popover {
-  background: rgba(20, 24, 33, 0.94) !important;
-}
-
 /* AI Assistant Message Bubble Compaction Overrides */
 html body .ai-assistant-bubble,
 html body .ai-assistant-bubble *,

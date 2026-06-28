@@ -138,3 +138,14 @@ html body .el-select-dropdown__item.is-selected {
   color: var(--accent, #6366f1) !important;
   font-weight: 700 !important;
 }
+
+/* Restrict the width of the popper containers themselves for dropdowns and selects */
+html body .el-dropdown__popper,
+html body .el-select__popper {
+  max-width: 280px !important;
+}
+
+html body .el-dropdown__popper .el-dropdown-menu,
+html body .el-select__popper .el-select-dropdown {
+  max-width: 100% !important;
+}

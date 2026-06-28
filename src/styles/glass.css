@@ -270,12 +270,38 @@ html.theme-glass .el-dropdown__popper,
 html.theme-glass .el-select__popper,
 html.theme-glass .el-cascader__dropdown,
 html.theme-glass .el-popover {
-  background: var(--glass-bg) !important;
+  background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
   backdrop-filter: blur(10px) saturate(145%) !important;
   -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
   border: var(--glass-border) !important;
   box-shadow: var(--glass-shadow) !important;
   color: var(--text-primary) !important;
+}
+
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  html.theme-glass .notification-panel,
+  html.theme-glass .el-popper,
+  html.theme-glass .el-popper.is-dark,
+  html.theme-glass .el-popper.is-light,
+  html.theme-glass .el-dropdown__popper,
+  html.theme-glass .el-select__popper,
+  html.theme-glass .el-cascader__dropdown,
+  html.theme-glass .el-popover {
+    background: var(--glass-bg) !important;
+  }
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  html.theme-glass .notification-panel,
+  html.theme-glass .el-popper,
+  html.theme-glass .el-popper.is-dark,
+  html.theme-glass .el-popper.is-light,
+  html.theme-glass .el-dropdown__popper,
+  html.theme-glass .el-select__popper,
+  html.theme-glass .el-cascader__dropdown,
+  html.theme-glass .el-popover {
+    background: var(--glass-bg) !important;
+  }
 }
 
 /* Reusable glass card style */
@@ -300,7 +326,7 @@ html.theme-glass .glass-card {
 }
 
 html.theme-glass .glass-header {
-  background: var(--glass-header-bg, var(--glass-bg)) !important;
+  background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
   backdrop-filter: blur(10px) saturate(145%) !important;
   -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
   border: var(--glass-border) !important;
@@ -309,8 +335,20 @@ html.theme-glass .glass-header {
   will-change: auto !important;
 }
 
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  html.theme-glass .glass-header {
+    background: var(--glass-header-bg, var(--glass-bg)) !important;
+  }
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  html.theme-glass .glass-header {
+    background: var(--glass-header-bg, var(--glass-bg)) !important;
+  }
+}
+
 html.theme-glass .glass-sidebar {
-  background: var(--glass-sidebar-bg, var(--glass-bg)) !important;
+  background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
   backdrop-filter: blur(20px) saturate(160%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
   border: var(--glass-border) !important;
@@ -319,32 +357,92 @@ html.theme-glass .glass-sidebar {
   will-change: auto !important;
 }
 
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  html.theme-glass .glass-sidebar {
+    background: var(--glass-sidebar-bg, var(--glass-bg)) !important;
+  }
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  html.theme-glass .glass-sidebar {
+    background: var(--glass-sidebar-bg, var(--glass-bg)) !important;
+  }
+}
+
 /* Mobile sidebar drawer — promoted to global CSS with high specificity so that
    dev/prod and scoped/global styles cannot silently disable its backdrop-filter. */
 html.theme-glass .mobile-sidebar-drawer {
-  background: rgba(255, 255, 255, 0.45) !important;
+  background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
   border-right: 1px solid rgba(255, 255, 255, 0.5) !important;
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04) !important;
 }
 
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  html.theme-glass .mobile-sidebar-drawer {
+    background: rgba(255, 255, 255, 0.45) !important;
+  }
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  html.theme-glass .mobile-sidebar-drawer {
+    background: rgba(255, 255, 255, 0.45) !important;
+  }
+}
+
 html.theme-glass.dark .mobile-sidebar-drawer {
-  background: rgba(28, 33, 41, 0.45) !important;
+  background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
   border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25) !important;
+}
+
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  html.theme-glass.dark .mobile-sidebar-drawer {
+    background: rgba(28, 33, 41, 0.45) !important;
+  }
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  html.theme-glass.dark .mobile-sidebar-drawer {
+    background: rgba(28, 33, 41, 0.45) !important;
+  }
+}
+
+/* Highest-specificity guard for mobile sidebar drawer: some deployed environments override
+   or disable the backdrop-filter via lower-level rules, so we double-declare it with a selector
+   that is extremely unlikely to be beaten by third-party / scoped styles. */
+html.theme-glass body .mobile-sidebar-drawer.mobile-sidebar-drawer {
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
 }
 
 /* Glass element styles - Tier 2: Dialog Modules */
 html.theme-glass .el-dialog,
 html.theme-glass .el-message-box,
 html.theme-glass .glass-dialog {
-  background: var(--glass-bg) !important;
+  background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
   backdrop-filter: blur(12px) saturate(145%) !important;
   -webkit-backdrop-filter: blur(12px) saturate(145%) !important;
   border: var(--glass-border) !important;
   box-shadow: var(--glass-shadow) !important;
   transform: translateZ(0);
+}
+
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  html.theme-glass .el-dialog,
+  html.theme-glass .el-message-box,
+  html.theme-glass .glass-dialog {
+    background: var(--glass-bg) !important;
+  }
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  html.theme-glass .el-dialog,
+  html.theme-glass .el-message-box,
+  html.theme-glass .glass-dialog {
+    background: var(--glass-bg) !important;
+  }
 }
 
 /* Glass element styles - Tier 3: Content Cards & Background Blocks (High Performance: Filter Disabled) */

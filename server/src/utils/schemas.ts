@@ -44,6 +44,7 @@ export const profileSchema = z.object({
   bio: z.string().max(500, 'Bio must be 500 characters or fewer').optional().nullable(),
   location: z.string().max(100, 'Location must be 100 characters or fewer').optional().nullable(),
   website: z.string().max(255, 'Website must be 255 characters or fewer').optional().nullable(),
+  defaultWorkspaceId: z.string().optional().nullable(),
 });
 
 export const changePasswordSchema = z.object({

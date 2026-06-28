@@ -60,11 +60,11 @@ const buildRecentDayBuckets = (days = 14): RecentDayBucket[] => {
 };
 
 export const updateProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { name, bio, location, website } = req.body;
+  const { name, bio, location, website, defaultWorkspaceId } = req.body;
   try {
     const updatedUser = await prisma.user.update({
       where: { id: req.userId as string },
-      data: { name, bio, location, website },
+      data: { name, bio, location, website, defaultWorkspaceId },
       select: {
         id: true,
         email: true,
@@ -79,6 +79,7 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
         twoFactorEnabled: true,
         createdAt: true,
         updatedAt: true,
+        defaultWorkspaceId: true,
       },
     });
 

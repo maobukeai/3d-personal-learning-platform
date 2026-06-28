@@ -25,6 +25,7 @@ export interface User {
   twoFactorEnabled?: boolean;
   language?: string;
   subscription?: UserSubscription;
+  defaultWorkspaceId?: string | null;
   createdAt: string;
   updatedAt?: string;
 }

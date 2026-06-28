@@ -146,6 +146,13 @@ export const useWorkspaceStore = defineStore('workspace', {
       }
 
       // Validate activeWorkspaceId: must be null or exist in rawWorkspaces
+      if (!this.activeWorkspaceId && authStore.user?.defaultWorkspaceId) {
+        const hasDefault = this.rawWorkspaces.some((ws) => ws.id === authStore.user?.defaultWorkspaceId);
+        if (hasDefault) {
+          this.activeWorkspaceId = authStore.user.defaultWorkspaceId;
+        }
+      }
+
       const exists = this.rawWorkspaces.some((ws) => ws.id === this.activeWorkspaceId);
       if (!exists && this.rawWorkspaces.length > 0) {
         this.activeWorkspaceId = this.rawWorkspaces[0].id;
@@ -195,11 +202,14 @@ export const useWorkspaceStore = defineStore('workspace', {
         const stationId = currentPath.split('/')[3];
         this.activeWorkspaceId = `manual-${stationId}`;
       } else if (this.activeWorkspaceId === 'admin-workspace') {
-        const personalWs =
-          this.rawWorkspaces.find((ws) => ws.type === 'personal') ||
-          this.rawWorkspaces.find((ws) => ws.type !== 'admin');
-        if (personalWs) {
-          this.activeWorkspaceId = personalWs.id;
+        const authStore = useAuthStore();
+        if (authStore.user?.defaultWorkspaceId !== 'admin-workspace') {
+          const personalWs =
+            this.rawWorkspaces.find((ws) => ws.type === 'personal') ||
+            this.rawWorkspaces.find((ws) => ws.type !== 'admin');
+          if (personalWs) {
+            this.activeWorkspaceId = personalWs.id;
+          }
         }
       }
 

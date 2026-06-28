@@ -40,6 +40,7 @@ const selectFields = {
   updatedAt: true,
   googleId: true,
   githubId: true,
+  defaultWorkspaceId: true,
 } as const;
 
 type SafeUser = NonNullable<

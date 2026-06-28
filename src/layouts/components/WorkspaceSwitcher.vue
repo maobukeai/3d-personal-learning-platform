@@ -10,14 +10,36 @@ import {
   Box,
   Briefcase,
   Lock,
+  Pin,
 } from 'lucide-vue-next';
 import { useWorkspaceStore } from '@/stores/workspace';
+import { useAuthStore } from '@/stores/auth';
+import { ElMessage } from 'element-plus';
 import type { Workspace } from '@/stores/workspace';
 import { getAssetUrl } from '@/utils/api';
 import GlassDropdown from '@/components/ui/GlassDropdown.vue';
 
 const router = useRouter();
 const workspaceStore = useWorkspaceStore();
+const authStore = useAuthStore();
+
+const handleSetDefaultWorkspace = async (ws: Workspace) => {
+  if (!authStore.isAuthenticated) return;
+  const isCurrentlyDefault = authStore.user?.defaultWorkspaceId === ws.id;
+  const newDefaultId = isCurrentlyDefault ? null : ws.id;
+  try {
+    await authStore.updateProfile({
+      defaultWorkspaceId: newDefaultId,
+    });
+    ElMessage.success(
+      newDefaultId
+        ? `已设置“${ws.name}”为默认工作区`
+        : `已取消默认工作区设置`
+    );
+  } catch (err) {
+    ElMessage.error('设置默认工作区失败');
+  }
+};
 
 const normalWorkspaces = computed(() => {
   return workspaceStore.workspaces.filter((ws) => ws.type !== 'admin');
@@ -32,7 +54,9 @@ const handleSwitchWorkspace = (ws: Workspace, event?: Event) => {
     const target = event.target as HTMLElement;
     if (
       target.closest('button')?.querySelector('.lucide-settings') ||
-      target.closest('.lucide-settings')
+      target.closest('.lucide-settings') ||
+      target.closest('button')?.querySelector('.lucide-pin') ||
+      target.closest('.lucide-pin')
     ) {
       return;
     }
@@ -215,6 +239,18 @@ const handleQuickSettings = (ws: Workspace) => {
           </div>
         </div>
         <div class="flex items-center gap-2">
+          <!-- Pin button (Set default workspace) -->
+          <button
+            v-if="authStore.isAuthenticated"
+            type="button"
+            class="p-1.5 rounded-md hover:bg-white/8 transition-all duration-200"
+            :class="authStore.user?.defaultWorkspaceId === ws.id ? 'text-accent opacity-100' : 'text-slate-400 hover:text-accent opacity-0 group-hover:opacity-100'"
+            @click.stop="handleSetDefaultWorkspace(ws)"
+            :title="authStore.user?.defaultWorkspaceId === ws.id ? '默认工作区' : '设为默认工作区'"
+          >
+            <Pin class="w-3.5 h-3.5" :class="authStore.user?.defaultWorkspaceId === ws.id ? 'fill-accent/20 rotate-45' : ''" />
+          </button>
+
           <button
             v-if="ws.type === 'personal' || ws.type === 'team'"
             type="button"
@@ -279,6 +315,18 @@ const handleQuickSettings = (ws: Workspace) => {
             </div>
           </div>
           <div class="flex items-center gap-2">
+            <!-- Pin button (Set default workspace) -->
+            <button
+              v-if="authStore.isAuthenticated"
+              type="button"
+              class="p-1.5 rounded-md hover:bg-white/8 transition-all duration-200"
+              :class="authStore.user?.defaultWorkspaceId === adminWorkspace.id ? 'text-accent opacity-100' : 'text-slate-400 hover:text-accent opacity-0 group-hover:opacity-100'"
+              @click.stop="handleSetDefaultWorkspace(adminWorkspace)"
+              :title="authStore.user?.defaultWorkspaceId === adminWorkspace.id ? '默认工作区' : '设为默认工作区'"
+            >
+              <Pin class="w-3.5 h-3.5" :class="authStore.user?.defaultWorkspaceId === adminWorkspace.id ? 'fill-accent/20 rotate-45' : ''" />
+            </button>
+
             <Lock class="w-3.5 h-3.5 text-slate-500" />
             <div
               v-if="workspaceStore.activeWorkspaceId === adminWorkspace.id"

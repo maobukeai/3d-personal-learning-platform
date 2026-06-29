@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   Info,
@@ -12,7 +12,7 @@ import { useSystemStore } from '@/stores/system';
 import { useAuthStore } from '@/stores/auth';
 import Button from '@/components/ui/Button.vue';
 import GlassCard from '@/components/ui/GlassCard.vue';
-import AssetDetailModal from './components/AssetDetailModal.vue';
+const AssetDetailModal = defineAsyncComponent(() => import('./components/AssetDetailModal.vue'));
 import { applyThemeToDocument } from '@/composables/useAppearance';
 import { preferences } from '@/utils/preferences';
 
@@ -68,8 +68,7 @@ const loadSharedAsset = async () => {
 };
 
 onMounted(() => {
-  const currentTheme = preferences.getTheme();
-  applyThemeToDocument(currentTheme);
+  applyThemeToDocument('glass-light');
   void loadSharedAsset();
 });
 </script>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Sparkles, Home, Info } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
@@ -7,7 +7,7 @@ import { useSystemStore } from '@/stores/system';
 import { useAuthStore } from '@/stores/auth';
 import Button from '@/components/ui/Button.vue';
 import GlassCard from '@/components/ui/GlassCard.vue';
-import MaterialDetailPanel from './components/MaterialDetailPanel.vue';
+const MaterialDetailPanel = defineAsyncComponent(() => import('./components/MaterialDetailPanel.vue'));
 import { applyThemeToDocument } from '@/composables/useAppearance';
 import { preferences } from '@/utils/preferences';
 
@@ -59,8 +59,7 @@ const loadSharedMaterial = async () => {
 };
 
 onMounted(() => {
-  const currentTheme = preferences.getTheme();
-  applyThemeToDocument(currentTheme);
+  applyThemeToDocument('glass-light');
   void loadSharedMaterial();
 });
 </script>

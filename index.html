@@ -23,9 +23,12 @@
       (function() {
         try {
           // 1. Restore Theme to prevent FOUC (white flash)
-          var theme = localStorage.getItem('theme') || 'glass-dark';
+          var isSharePage = window.location.pathname.indexOf('/share/') !== -1;
+          var theme = localStorage.getItem('theme') || (isSharePage ? 'glass-light' : 'glass-dark');
           var effectiveTheme = theme;
-          if (theme === 'glass-auto') {
+          if (isSharePage) {
+            effectiveTheme = 'glass-light';
+          } else if (theme === 'glass-auto') {
             var hour = new Date().getHours();
             effectiveTheme = (hour >= 6 && hour < 18) ? 'glass-light' : 'glass-dark';
           }

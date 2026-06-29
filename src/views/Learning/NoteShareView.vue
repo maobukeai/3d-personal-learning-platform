@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   Info,
@@ -12,7 +12,7 @@ import { useSystemStore } from '@/stores/system';
 import { useAuthStore } from '@/stores/auth';
 import Button from '@/components/ui/Button.vue';
 import GlassCard from '@/components/ui/GlassCard.vue';
-import NoteDetailDialog from './components/NoteDetailDialog.vue';
+const NoteDetailDialog = defineAsyncComponent(() => import('./components/NoteDetailDialog.vue'));
 import { applyThemeToDocument } from '@/composables/useAppearance';
 import { preferences } from '@/utils/preferences';
 import { formatDate } from '@/utils/format';
@@ -81,8 +81,7 @@ const loadSharedNote = async () => {
 };
 
 onMounted(() => {
-  const currentTheme = preferences.getTheme();
-  applyThemeToDocument(currentTheme);
+  applyThemeToDocument('glass-light');
   void loadSharedNote();
   window.addEventListener('scroll', onWindowScroll);
 });

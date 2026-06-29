@@ -9,7 +9,6 @@ import {
   type ComponentPublicInstance,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { NormalToolbar } from 'md-editor-v3';
 import type { ToolbarNames } from 'md-editor-v3';
 import 'md-editor-v3/lib/style.css';
 import { ElMessage } from 'element-plus';
@@ -25,6 +24,7 @@ import MarkdownAiPanel from './markdownEditor/MarkdownAiPanel.vue';
 
 const MdEditor = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdEditor));
 const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
+const NormalToolbar = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.NormalToolbar));
 
 const { locale } = useI18n();
 

@@ -75,7 +75,7 @@ const emit = defineEmits<{
 <style scoped>
 .showcase-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 12px;
   margin-top: 14px;
   padding-bottom: 22px;

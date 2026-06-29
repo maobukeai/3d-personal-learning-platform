@@ -212,16 +212,7 @@ const isGroupActive = (group: PreparedSidebarGroup) =>
 
 const isGroupOpen = (group: PreparedSidebarGroup) => !collapsedGroupKeys.value.has(group.key);
 
-const resourceGroupPaths = new Set([
-  '/resources',
-  '/my-works',
-  '/assets',
-  '/materials',
-  '/plugins',
-]);
 
-const isResourceGroup = (group: PreparedSidebarGroup) =>
-  !isAdmin.value && group.items.some((item) => resourceGroupPaths.has(item.path));
 
 const activeIndicatorStyle = ref<CSSProperties>({
   opacity: 0,
@@ -576,16 +567,15 @@ watch(isExpanded, (val) => {
             <Transition name="group-list">
               <ul
                 v-if="isGroupOpen(group)"
-                class="panel-list"
-                :class="{ 'panel-list--resource-grid': isResourceGroup(group) }"
+                class="panel-list panel-list--resource-grid"
+                :class="group.items.length % 2 === 1 ? 'panel-list--resource-grid-odd' : 'panel-list--resource-grid-even'"
               >
                 <li v-for="item in group.items" :key="item.path">
                   <RouterLink
                     :to="item.path"
-                    class="panel-link"
+                    class="panel-link panel-link--resource"
                     :class="{
-                      'panel-link--active': isRouteActive(item.path),
-                      'panel-link--resource': isResourceGroup(group),
+                      'panel-link--active': isRouteActive(item.path)
                     }"
                   >
                     <span class="panel-link-icon-wrap">
@@ -1210,20 +1200,37 @@ watch(isExpanded, (val) => {
   opacity: 0.35;
 }
 
+
 .panel-list--resource-grid {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 0 !important;
   padding-left: 0;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.015);
+  margin: 6px 4px 4px 4px;
 }
 
 .panel-list--resource-grid::before {
   display: none;
 }
 
-.panel-list--resource-grid li:first-child {
-  grid-column: 1 / -1;
+/* All grid cells get a bottom border by default */
+.panel-list--resource-grid li {
+  border-bottom: 1px solid var(--border-base);
 }
 
+/* ==================== ODD ITEM COUNT LAYOUT ==================== */
+/* First child spans full width */
+.panel-list--resource-grid-odd li:first-child {
+  grid-column: 1 / -1;
+  border-bottom: 1px solid var(--border-base);
+}
+
+/* Centering styles for the first full-width header item in the grid */
+.panel-list--resource-grid-odd li:first-child 
 .panel-link {
   position: relative;
   z-index: 2;
@@ -1276,7 +1283,9 @@ watch(isExpanded, (val) => {
 }
 
 .active-indicator-bg--resource {
-  opacity: 0 !important;
+  opacity: 1 !important;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--sidebar-accent) 9%, transparent) !important;
 }
 
 .active-indicator-bg--resource::before {
@@ -1324,49 +1333,70 @@ watch(isExpanded, (val) => {
   white-space: nowrap;
 }
 
+
+.panel-link--resource {
+  justify-content: center;
+}
+.panel-list--resource-grid-odd li:first-child .panel-link--resource .panel-link-label {
+  flex: 0 0 auto;
+}
+
+/* Left column items are even indices: 2, 4, 6... */
+.panel-list--resource-grid-odd li:nth-child(2n) {
+  border-right: 1px solid var(--border-base);
+}
+
+/* Remove bottom borders from last row (1 or 2 items) */
+.panel-list--resource-grid-odd li:last-child {
+  border-bottom: none !important;
+}
+.panel-list--resource-grid-odd li:nth-child(2n):nth-last-child(2) {
+  border-bottom: none !important;
+}
+
+/* ==================== EVEN ITEM COUNT LAYOUT ==================== */
+/* Left column items are odd indices: 1, 3, 5... */
+.panel-list--resource-grid-even li:nth-child(2n-1) {
+  border-right: 1px solid var(--border-base);
+}
+
+/* Remove bottom borders from last row (always exactly 2 items) */
+.panel-list--resource-grid-even li:last-child,
+.panel-list--resource-grid-even li:nth-last-child(2) {
+  border-bottom: none !important;
+}
+
 .panel-link--resource {
   position: relative;
   isolation: isolate;
-  height: 32px;
+  height: 30px;
   display: flex;
   align-items: center;
   gap: 6px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--sidebar-accent) 12%, var(--border-base));
-  border-radius: 8px;
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--bg-card) 88%, transparent),
-    color-mix(in srgb, var(--sidebar-accent) 7%, var(--bg-card))
-  );
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
   color: var(--text-secondary);
   padding: 0 8px;
   transition:
-    border-color 0.16s ease,
-    color 0.16s ease,
-    transform 0.16s ease,
-    box-shadow 0.16s ease;
+    background-color 0.16s ease,
+    color 0.16s ease;
 }
 
 .panel-link--resource::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  content: '';
-  background: var(--sidebar-accent);
-  opacity: 0.42;
-  transition: opacity 0.16s ease;
+  display: none;
 }
 
 .panel-link--resource .panel-link-icon-wrap {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--sidebar-accent) 12%, transparent);
-  color: var(--sidebar-accent);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-muted);
   box-shadow: none;
   transition:
     background-color 0.16s ease,
@@ -1374,40 +1404,51 @@ watch(isExpanded, (val) => {
 }
 
 .panel-link--resource .panel-link-icon {
-  width: 14px !important;
-  height: 14px !important;
+  width: 11px !important;
+  height: 11px !important;
   color: currentColor;
 }
 
 .panel-link--resource .panel-link-label {
-  color: var(--text-primary);
+  color: var(--text-secondary);
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.12;
+  transition: color 0.16s ease;
 }
 
-.panel-link--resource:hover,
-.panel-link--resource.panel-link--active {
-  border-color: color-mix(in srgb, var(--sidebar-accent) 55%, var(--border-base));
+.panel-link--resource:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--sidebar-accent) 6%, transparent) !important;
+}
+
+.panel-link--resource:hover .panel-link-icon-wrap {
   color: var(--sidebar-accent);
-  box-shadow: 0 8px 18px -14px rgba(var(--sidebar-accent-rgb), 0.9);
-  transform: translateY(-1px);
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--bg-card) 88%, transparent),
-    color-mix(in srgb, var(--sidebar-accent) 7%, var(--bg-card))
-  ) !important;
+  background: color-mix(in srgb, var(--sidebar-accent) 10%, transparent);
 }
 
-.panel-link--resource:hover::before,
+.panel-link--resource:hover .panel-link-label {
+  color: var(--text-primary);
+}
+
+.panel-link--resource.panel-link--active {
+  color: var(--sidebar-accent);
+  background: transparent !important;
+}
+
 .panel-link--resource.panel-link--active::before {
-  opacity: 1;
+  display: none;
 }
 
 .panel-link--resource.panel-link--active .panel-link-icon-wrap {
-  color: var(--sidebar-accent) !important;
-  background: color-mix(in srgb, var(--sidebar-accent) 18%, transparent) !important;
-  box-shadow: none !important;
+  color: #ffffff !important;
+  background: var(--sidebar-accent) !important;
+  box-shadow: 0 5px 10px -7px rgba(var(--sidebar-accent-rgb), 0.8) !important;
+}
+
+.panel-link--resource.panel-link--active .panel-link-label {
+  color: var(--text-primary) !important;
+  font-weight: 800;
 }
 
 .panel-badge {
@@ -1584,4 +1625,7 @@ watch(isExpanded, (val) => {
   background-color: var(--sidebar-accent, var(--accent));
   opacity: 0.35;
 }
+
+
+
 </style>

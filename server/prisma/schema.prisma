@@ -1066,6 +1066,10 @@ model Note {
   likes      NoteLike[]
   comments   NoteComment[]
   noteShare  NoteShare?
+  isGithub     Boolean       @default(false)
+  githubRepo   String?
+  githubBranch String?
+  githubPath   String?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
@@ -1073,6 +1077,7 @@ model Note {
   @@index([category])
   @@index([visibility, isPopular])
   @@index([isPinned])
+  @@index([githubRepo, githubPath])
 }
 
 model NoteLike {

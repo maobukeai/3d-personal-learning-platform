@@ -219,22 +219,40 @@ export const importNotesFromGithub = async (req: AuthRequest, res: Response) => 
         }
 
         // 5. Check if note already exists for this user (sync instead of duplicate)
-        const existingNote = await prisma.note.findFirst({
+        // Try finding by githubRepo and githubPath first
+        let existingNote = await prisma.note.findFirst({
           where: {
-            title: sanitizeHtml(parsed.title),
             userId: req.userId as string,
+            githubRepo: `${owner}/${repo}`,
+            githubPath: f.path,
           },
         });
+
+        // Fallback: match by title to migrate older notes imported without githubPath
+        if (!existingNote) {
+          existingNote = await prisma.note.findFirst({
+            where: {
+              userId: req.userId as string,
+              title: sanitizeHtml(parsed.title),
+              githubPath: null,
+            },
+          });
+        }
 
         if (existingNote) {
           await prisma.note.update({
             where: { id: existingNote.id },
             data: {
+              title: sanitizeHtml(parsed.title),
               content: sanitizeHtml(parsed.content),
               summary: parsed.summary ? sanitizeHtml(parsed.summary) : null,
               visibility: visibility || 'PRIVATE',
               tags: parsed.tags,
               category: noteCategory ? sanitizeHtml(noteCategory) : null,
+              isGithub: true,
+              githubRepo: `${owner}/${repo}`,
+              githubBranch: branch,
+              githubPath: f.path,
             },
           });
           updatedCount++;
@@ -248,6 +266,10 @@ export const importNotesFromGithub = async (req: AuthRequest, res: Response) => 
               tags: parsed.tags,
               category: noteCategory ? sanitizeHtml(noteCategory) : null,
               userId: req.userId as string,
+              isGithub: true,
+              githubRepo: `${owner}/${repo}`,
+              githubBranch: branch,
+              githubPath: f.path,
             },
           });
           createdCount++;
@@ -258,9 +280,48 @@ export const importNotesFromGithub = async (req: AuthRequest, res: Response) => 
       }
     }
 
+    // 6. Delete notes that were removed on GitHub
+    let deletedCount = 0;
+    try {
+      const githubFilePaths = mdFiles.map((f) => f.path);
+      const existingDbNotes = await prisma.note.findMany({
+        where: {
+          userId: req.userId as string,
+          githubRepo: `${owner}/${repo}`,
+          isGithub: true,
+        },
+        select: {
+          id: true,
+          githubPath: true,
+        },
+      });
+
+      const notesToDelete = existingDbNotes.filter((n) => {
+        if (!n.githubPath) return false;
+        if (cleanFolder && !n.githubPath.startsWith(cleanFolder + '/')) {
+          return false;
+        }
+        return !githubFilePaths.includes(n.githubPath);
+      });
+
+      if (notesToDelete.length > 0) {
+        const deleteIds = notesToDelete.map((n) => n.id);
+        await prisma.note.deleteMany({
+          where: {
+            id: { in: deleteIds },
+          },
+        });
+        deletedCount = notesToDelete.length;
+        logger.info(`Deleted ${deletedCount} GitHub-synced notes for user ${req.userId} that were removed on GitHub.`);
+      }
+    } catch (delErr) {
+      logger.error('Failed to clean up deleted GitHub notes:', delErr);
+    }
+
     res.status(200).json({
-      message: `同步完成。成功同步 ${createdCount + updatedCount} 篇笔记（其中新建 ${createdCount} 篇，更新 ${updatedCount} 篇），失败 ${failCount} 篇。`,
+      message: `同步完成。成功同步 ${createdCount + updatedCount} 篇笔记（其中新建 ${createdCount} 篇，更新 ${updatedCount} 篇），清除已删除笔记 ${deletedCount} 篇，失败 ${failCount} 篇。`,
       count: createdCount + updatedCount,
+      deletedCount,
       failed: failCount,
     });
   } catch (error: unknown) {

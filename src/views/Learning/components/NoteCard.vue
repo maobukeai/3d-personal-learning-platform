@@ -15,6 +15,7 @@ import {
   Pin,
   FileText,
   Check,
+  Github,
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
@@ -35,6 +36,10 @@ interface Note {
   userId: string;
   _count: { likes: number; comments: number };
   user: { id: string; name: string; avatarUrl: string; bio?: string };
+  isGithub?: boolean;
+  githubRepo?: string;
+  githubBranch?: string;
+  githubPath?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -255,6 +260,18 @@ const toggleVisibility = () => {
           class="px-1 md:px-2"
           >热</el-tag
         >
+
+        <el-tag
+          v-if="props.note.isGithub"
+          type="info"
+          size="small"
+          round
+          effect="plain"
+          class="w-6 h-6 p-0 flex items-center justify-center border-slate-300/30 text-slate-600 dark:text-slate-400 shrink-0"
+          title="GitHub 导入的笔记"
+        >
+          <Github class="w-3.5 h-3.5 shrink-0" />
+        </el-tag>
 
         <!-- Custom Visibility Badge -->
         <span

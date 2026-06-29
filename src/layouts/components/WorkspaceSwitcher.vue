@@ -52,12 +52,7 @@ const adminWorkspace = computed(() => {
 const handleSwitchWorkspace = (ws: Workspace, event?: Event) => {
   if (event) {
     const target = event.target as HTMLElement;
-    if (
-      target.closest('button')?.querySelector('.lucide-settings') ||
-      target.closest('.lucide-settings') ||
-      target.closest('button')?.querySelector('.lucide-pin') ||
-      target.closest('.lucide-pin')
-    ) {
+    if (target.closest('[data-action="pin"]') || target.closest('[data-action="settings"]')) {
       return;
     }
   }
@@ -243,9 +238,10 @@ const handleQuickSettings = (ws: Workspace) => {
           <button
             v-if="authStore.isAuthenticated"
             type="button"
+            data-action="pin"
             class="p-1.5 rounded-md hover:bg-white/8 transition-all duration-200"
             :class="authStore.user?.defaultWorkspaceId === ws.id ? 'text-accent opacity-100' : 'text-slate-400 hover:text-accent opacity-40 group-hover:opacity-100'"
-            @click.stop="handleSetDefaultWorkspace(ws)"
+            @click="handleSetDefaultWorkspace(ws)"
             :title="authStore.user?.defaultWorkspaceId === ws.id ? '默认工作区' : '设为默认工作区'"
           >
             <Pin class="w-3.5 h-3.5" :class="authStore.user?.defaultWorkspaceId === ws.id ? 'fill-accent/20 rotate-45' : ''" />
@@ -254,8 +250,9 @@ const handleQuickSettings = (ws: Workspace) => {
           <button
             v-if="ws.type === 'personal' || ws.type === 'team'"
             type="button"
+            data-action="settings"
             class="p-1.5 rounded-md hover:bg-white/8 text-slate-400 hover:text-accent transition-colors opacity-40 group-hover:opacity-100"
-            @click.stop="handleQuickSettings(ws)"
+            @click="handleQuickSettings(ws)"
           >
             <Settings class="w-3.5 h-3.5" />
           </button>
@@ -319,9 +316,10 @@ const handleQuickSettings = (ws: Workspace) => {
             <button
               v-if="authStore.isAuthenticated"
               type="button"
+              data-action="pin"
               class="p-1.5 rounded-md hover:bg-white/8 transition-all duration-200"
               :class="authStore.user?.defaultWorkspaceId === adminWorkspace.id ? 'text-accent opacity-100' : 'text-slate-400 hover:text-accent opacity-40 group-hover:opacity-100'"
-              @click.stop="handleSetDefaultWorkspace(adminWorkspace)"
+              @click="handleSetDefaultWorkspace(adminWorkspace)"
               :title="authStore.user?.defaultWorkspaceId === adminWorkspace.id ? '默认工作区' : '设为默认工作区'"
             >
               <Pin class="w-3.5 h-3.5" :class="authStore.user?.defaultWorkspaceId === adminWorkspace.id ? 'fill-accent/20 rotate-45' : ''" />

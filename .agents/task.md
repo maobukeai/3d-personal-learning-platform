@@ -1,0 +1,15 @@
+- `[ ]` Backend Implementation
+  - `[ ]` Create `server/src/services/external-search.service.ts`
+  - `[ ]` Update `server/src/controllers/resource.controller.ts`
+  - `[ ]` Update `server/src/routes/resource.routes.ts`
+- `[ ]` Frontend Implementation
+  - `[ ]` Create `src/views/Assets/components/ResourceSearchDialog.vue`
+  - `[ ]` Update `src/views/Assets/components/ResourceCenterHeader.vue`
+  - `[ ]` Update `src/views/Assets/components/AssetLibraryHeader.vue`
+  - `[ ]` Update `src/views/Assets/components/MaterialLibraryHeader.vue`
+  - `[ ]` Update `src/views/Assets/components/PluginPageHeader.vue`
+  - `[ ]` Update `src/views/Assets/components/MyWorksHeader.vue`
+- `[ ]` Verification and Walkthrough
+  - `[ ]` Verify the backend search API
+  - `[ ]` Verify the frontend UI dialog and link navigation
+  - `[ ]` Create `walkthrough.md`

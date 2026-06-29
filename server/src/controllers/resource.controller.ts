@@ -1114,3 +1114,18 @@ export const getMyResourceWorkbench = async (
     next(error);
   }
 };
+
+export const searchExternal = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const q = req.query.q;
+    if (typeof q !== 'string' || !q.trim()) {
+      return res.status(400).json({ error: 'Missing search query q' });
+    }
+    const { searchAndAnalyze } = await import('../services/external-search.service');
+    const result = await searchAndAnalyze(q);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+

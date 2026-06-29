@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, watch, computed, defineAsyncComponent, onMounted, onUnmounted } from 'vue';
-import { MdPreview } from 'md-editor-v3';
 import 'md-editor-v3/lib/preview.css';
 import { logError } from '@/utils/error';
+
+const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
 
 const isDark = ref(document.documentElement.classList.contains('dark'));
 let themeObserver: MutationObserver | null = null;

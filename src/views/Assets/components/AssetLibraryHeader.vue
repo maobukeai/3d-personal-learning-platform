@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Box, Eye, EyeOff, BarChart3, UploadCloud, Search } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { Box, Eye, EyeOff, BarChart3, UploadCloud, Search, Sparkles } from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
 import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';
+import ResourceSearchDialog from './ResourceSearchDialog.vue';
 
 const props = defineProps<{
   searchQuery: string;
@@ -23,6 +24,8 @@ const localSearch = computed({
   get: () => props.searchQuery,
   set: (value) => emit('update:searchQuery', value),
 });
+
+const isSearchOpen = ref(false);
 </script>
 
 <template>
@@ -45,6 +48,15 @@ const localSearch = computed({
     </template>
 
     <div class="flex items-center gap-2 shrink-0">
+      <Button
+        variant="secondary"
+        size="sm"
+        class="!h-8 !text-indigo-400 border-indigo-500/25 hover:bg-indigo-500/[0.05]"
+        @click="isSearchOpen = true"
+      >
+        <Sparkles class="w-3.5 h-3.5" />
+        <span>{{ label('AI 全网搜', 'AI Search') }}</span>
+      </Button>
       <Button variant="secondary" size="sm" class="!h-8" @click="emit('toggleStats')">
         <component :is="isStatsExpanded ? EyeOff : Eye" class="w-3.5 h-3.5" />
         <span>{{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}</span>
@@ -59,4 +71,6 @@ const localSearch = computed({
       </Button>
     </div>
   </PageHeader>
+
+  <ResourceSearchDialog v-model="isSearchOpen" />
 </template>

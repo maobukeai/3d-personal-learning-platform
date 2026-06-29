@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, watch, computed, type Component, defineAsyncComponent, onMounted, onUnmounted } from 'vue';
 import { logError } from '@/utils/error';
-import { MdPreview } from 'md-editor-v3';
 import 'md-editor-v3/lib/preview.css';
+
+const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
 import { useI18n } from 'vue-i18n';
 import {
   Heart,

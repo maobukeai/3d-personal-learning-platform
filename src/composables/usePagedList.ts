@@ -80,7 +80,7 @@ export function usePagedList<T = unknown, R = unknown>(
     }
     error.value = null;
 
-    const nextPage = append ? page.value + 1 : 1;
+    const nextPage = append ? page.value + 1 : page.value;
     if (onBeforeFetch) onBeforeFetch();
 
     try {

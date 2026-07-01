@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { LoaderCircle, Send } from 'lucide-vue-next';
-import { useAuthStore } from '@/stores/auth';
 
 defineProps<{
   modelValue: string;
@@ -14,7 +13,6 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const authStore = useAuthStore();
 
 const onInput = (event: Event) => {
   emit('update:modelValue', (event.target as HTMLTextAreaElement).value);

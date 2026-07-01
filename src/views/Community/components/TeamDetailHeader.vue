@@ -4,7 +4,7 @@ import { useCommunityI18n } from '@/composables/useCommunityI18n';
 import { Users, UserPlus, LogOut, Camera, Sparkles, Clock, Globe } from 'lucide-vue-next';
 import type { DetailedTeam } from './teamDetailTypes';
 
-const props = defineProps<{
+defineProps<{
   team: DetailedTeam;
   isOwnerOrAdmin: boolean;
   canManageTeam: boolean;
@@ -12,7 +12,7 @@ const props = defineProps<{
   isMember: boolean;
 }>();
 
-const emit = defineEmits<{
+defineEmits<{
   (e: 'avatar-change', event: Event): void;
   (e: 'cover-change', event: Event): void;
   (e: 'open-ai-avatar-generator'): void;

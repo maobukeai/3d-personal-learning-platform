@@ -63,7 +63,13 @@ const isSearchOpen = ref(false);
           isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats')
         }}</span>
       </Button>
-      <Button variant="secondary" size="sm" class="!h-8" :disabled="isLoading" @click="emit('refresh')">
+      <Button
+        variant="secondary"
+        size="sm"
+        class="!h-8"
+        :disabled="isLoading"
+        @click="emit('refresh')"
+      >
         <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
         <span>{{ label('刷新', 'Refresh') }}</span>
       </Button>

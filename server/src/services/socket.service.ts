@@ -216,6 +216,8 @@ export const emitToAll = (event: string, data: unknown) => {
 };
 
 export const emitToConversation = (conversationId: string, event: string, data: unknown) => {
-  logger.info(`Emitting ${event} to conversation_${conversationId}`);
+  // High-volume hot path (fires on every message). Demoted from info to debug
+  // to avoid string-interpolation overhead on every emission.
+  logger.debug(`Emitting ${event} to conversation_${conversationId}`);
   io.to(`conversation_${conversationId}`).emit(event, data);
 };

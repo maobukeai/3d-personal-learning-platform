@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
-import { ref, reactive, watch, computed } from 'vue';
+import { ref, computed } from 'vue';
 import { Layout, Eye, Mail, Bell } from 'lucide-vue-next';
 import SafeHtml from '@/components/SafeHtml.vue';
 import Tabs from '@/components/ui/Tabs.vue';
+import { useSettingsSync } from '@/composables/useSettingsSync';
 
 const props = defineProps<{
   settings: {
@@ -19,23 +20,7 @@ const emit = defineEmits<{
   (e: 'update:settings', val: typeof props.settings): void;
 }>();
 
-const localSettings = reactive({ ...props.settings });
-
-watch(
-  () => props.settings,
-  (newVal) => {
-    Object.assign(localSettings, newVal);
-  },
-  { deep: true },
-);
-
-watch(
-  localSettings,
-  (newVal) => {
-    emit('update:settings', { ...props.settings, ...newVal });
-  },
-  { deep: true },
-);
+const { localSettings } = useSettingsSync(props, emit);
 
 const activeSubTab = ref<'verify' | 'notify'>('verify');
 const showEmailPreview = ref(false);

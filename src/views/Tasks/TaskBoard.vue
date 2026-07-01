@@ -14,18 +14,12 @@ export default {
 
 <script setup lang="ts">
 import { getApiErrorMessage } from '@/utils/error';
-import { computed, watch, onActivated } from 'vue';
+import { computed, watch, onActivated, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { Flame, ArrowUp, Minus, ArrowDown } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import UserProfileDialog from '@/components/UserProfileDialog.vue';
-import TaskAddDialog from '@/components/TaskAddDialog.vue';
-import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue';
-import TaskFilterBar from '@/components/TaskFilterBar.vue';
-import TaskBoardView from './components/TaskBoardView.vue';
-import TaskListView from './components/TaskListView.vue';
-import TaskCalendarView from './components/TaskCalendarView.vue';
+// Always-visible skeleton/empty state components — keep eager
 import TaskBoardHeader from './components/TaskBoardHeader.vue';
 import TaskBoardSkeleton from './components/TaskBoardSkeleton.vue';
 import TaskBoardEmptyState from './components/TaskBoardEmptyState.vue';
@@ -34,9 +28,19 @@ import { useWorkspaceStore } from '@/stores/workspace';
 import { useAuthStore } from '@/stores/auth';
 import { getTaskDayIndex, getTaskTime } from '@/utils/taskSort';
 import { isTaskOverdue } from '@/utils/taskDisplay';
-
 import { TaskStatus } from '@/types/task';
 import type { TaskUpdatePayload, Subtask } from '@/types/task';
+
+// Conditionally shown dialogs/drawers — lazy loaded to keep the initial chunk lean
+const UserProfileDialog = defineAsyncComponent(() => import('@/components/UserProfileDialog.vue'));
+const TaskAddDialog = defineAsyncComponent(() => import('@/components/TaskAddDialog.vue'));
+const TaskDetailDrawer = defineAsyncComponent(() => import('@/components/TaskDetailDrawer.vue'));
+const TaskFilterBar = defineAsyncComponent(() => import('@/components/TaskFilterBar.vue'));
+// Tab views — only one is visible at a time, so lazy-load each independently
+const TaskBoardView = defineAsyncComponent(() => import('./components/TaskBoardView.vue'));
+const TaskListView = defineAsyncComponent(() => import('./components/TaskListView.vue'));
+const TaskCalendarView = defineAsyncComponent(() => import('./components/TaskCalendarView.vue'));
+
 
 const { t } = useI18n();
 const workspaceStore = useWorkspaceStore();

@@ -557,8 +557,6 @@ const expandedModelFamilyGroups = ref<string[]>(
   JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]'),
 );
 
-const isModelFamilyGroupCollapsed = (key: string) => !expandedModelFamilyGroups.value.includes(key);
-
 const toggleModelFamilyGroup = (key: string) => {
   if (expandedModelFamilyGroups.value.includes(key)) {
     expandedModelFamilyGroups.value = expandedModelFamilyGroups.value.filter(
@@ -672,8 +670,6 @@ const toggleGroupModelSelection = (group: ModelFamilyGroup) => {
   }
   batchSelectedModelIds.value = Array.from(selected);
 };
-
-const isAiModelSelected = (id: string) => batchSelectedModelIds.value.includes(id);
 
 const toggleAiModelSelection = (id: string, checked: unknown) => {
   const selected = new Set(batchSelectedModelIds.value);

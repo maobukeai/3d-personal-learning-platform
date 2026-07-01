@@ -16,7 +16,7 @@ const activeTab = defineModel<'mine' | 'favorites'>('activeTab', { required: tru
 const sortBy = defineModel<WorkSortKey>('sortBy', { required: true });
 const viewMode = defineModel<WorkViewMode>('viewMode', { required: true });
 
-const props = defineProps<{
+defineProps<{
   libraryTabOptions: GridTabOption[];
   viewModeOptions: GridTabOption[];
   isLoading: boolean;
@@ -47,7 +47,12 @@ const label = useLabel();
       </div>
 
       <div class="toolbar-right">
-        <el-select v-model="sortBy" class="custom-sort-select" style="width: 100px" aria-label="排序方式">
+        <el-select
+          v-model="sortBy"
+          class="custom-sort-select"
+          style="width: 100px"
+          aria-label="排序方式"
+        >
           <el-option value="newest" label="最新更新" />
           <el-option value="oldest" label="最早发布" />
           <el-option value="name" label="名称排序" />
@@ -66,7 +71,12 @@ const label = useLabel();
       :active-filter-chips="activeFilterChips"
       :total-count="totalCount"
       :empty-title="label('还没有匹配的作品', 'No Matching Works')"
-      :empty-body="label('换一个筛选条件，或发布新的资源、材料、插件或展示作品。', 'Adjust filters or publish new assets, materials, plugins, or showcases.')"
+      :empty-body="
+        label(
+          '换一个筛选条件，或发布新的资源、材料、插件或展示作品。',
+          'Adjust filters or publish new assets, materials, plugins, or showcases.',
+        )
+      "
       :empty-action-text="label('发布作品', 'Publish Work')"
       @click="emit('openWork', $event)"
       @edit="emit('edit', $event)"

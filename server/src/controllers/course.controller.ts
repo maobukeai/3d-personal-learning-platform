@@ -6,10 +6,18 @@ import { auditService, AuditAction, AuditModule } from '../services/audit.servic
 import { parseBilibiliUrl } from '../utils/bilibili';
 import { AppError } from '../utils/error';
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
+import redisService from '../services/redis.service';
 
 export const getAllCourses = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { categoryId, search, difficulty, sort } = req.query;
   try {
+    const cacheKey = `courses:list:${categoryId || 'all'}:${search || 'none'}:${difficulty || 'all'}:${sort || 'default'}`;
+    const cached = await redisService.get<any>(cacheKey);
+    if (cached) {
+      res.json(cached);
+      return;
+    }
+
     let orderBy: Prisma.CourseOrderByWithRelationInput = { createdAt: 'desc' };
     if (sort === 'popular') orderBy = { enrollments: { _count: 'desc' } };
     else if (sort === 'rating') orderBy = { reviews: { _count: 'desc' } };
@@ -45,6 +53,8 @@ export const getAllCourses = async (req: AuthRequest, res: Response, next: NextF
           : 0;
       return { ...rest, avgRating: Math.round(avgRating * 10) / 10 };
     });
+
+    await redisService.set(cacheKey, coursesWithAvgRating, 30);
 
     res.json(coursesWithAvgRating);
   } catch (error) {

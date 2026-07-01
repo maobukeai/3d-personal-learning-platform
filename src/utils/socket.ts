@@ -72,7 +72,7 @@ class SocketService {
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
+      logError(error, { operation: 'socket.connectError', component: 'SocketService' });
       this.reconnectAttempts++;
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         logError(new Error(`Socket: 达到最大重连次数，停止重连. Error: ${error.message}`), {
@@ -152,7 +152,10 @@ class SocketService {
       setTimeout(() => {
         if (emitted) return;
         socket.off('connect', emitWhenConnected);
-        console.warn(`Socket: 发送 "${event}" 失败，连接超时`);
+        logError(new Error(`Socket: 发送 "${event}" 失败，连接超时`), {
+          operation: 'socket.emitTimeout',
+          component: 'SocketService',
+        });
       }, 2000);
     }
   }

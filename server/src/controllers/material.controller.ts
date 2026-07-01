@@ -6,7 +6,13 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import path from 'path';
 import fs from 'fs';
 import { checkStorageQuota } from '../utils/quota';
-import { deleteCloudOrLocalFileByUrl, getZipFileNames, parseZipLocal, getZipFileDirectory, getUploadedFileUrl } from '../utils/file';
+import {
+  deleteCloudOrLocalFileByUrl,
+  getZipFileNames,
+  parseZipLocal,
+  getZipFileDirectory,
+  getUploadedFileUrl,
+} from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../utils/error';
 import { createPaginationMeta, getPaginationParams } from '../utils/pagination';
@@ -129,7 +135,9 @@ export const getAllMaterials = async (req: AuthRequest, res: Response, next: Nex
       where.favorites = {
         some: {
           userId,
-          ...(favoriteCategory && favoriteCategory !== 'all' ? { category: favoriteCategory as string } : {}),
+          ...(favoriteCategory && favoriteCategory !== 'all'
+            ? { category: favoriteCategory as string }
+            : {}),
         },
       };
     }
@@ -397,9 +405,7 @@ export const uploadMaterial = async (req: AuthRequest, res: Response, next: Next
       }
     }
 
-    const fileUrl = materialFile
-      ? getUploadedFileUrl(req, materialFile, 'materials')
-      : externalUrl;
+    const fileUrl = materialFile ? getUploadedFileUrl(req, materialFile, 'materials') : externalUrl;
 
     let previewUrl = null;
     if (previewFile) {
@@ -761,23 +767,30 @@ const getCustomMaterialCategories = async (userId: string): Promise<string[]> =>
       return JSON.parse(setting.value) as string[];
     }
   } catch (err) {
-    logger.warn('[Material] Failed to parse custom categories setting:', err instanceof Error ? err.message : err);
+    logger.warn(
+      '[Material] Failed to parse custom categories setting:',
+      err instanceof Error ? err.message : err,
+    );
   }
   return [];
 };
 
 const saveCustomMaterialCategories = async (userId: string, categories: string[]) => {
-  const uniqueCats = Array.from(new Set(categories.map(c => c.trim()).filter(Boolean)));
+  const uniqueCats = Array.from(new Set(categories.map((c) => c.trim()).filter(Boolean)));
   await prisma.userSetting.upsert({
     where: { userId_key: { userId, key: CUSTOM_MATERIAL_CATEGORIES_SETTING_KEY } },
     update: { value: JSON.stringify(uniqueCats) },
-    create: { userId, key: CUSTOM_MATERIAL_CATEGORIES_SETTING_KEY, value: JSON.stringify(uniqueCats) },
+    create: {
+      userId,
+      key: CUSTOM_MATERIAL_CATEGORIES_SETTING_KEY,
+      value: JSON.stringify(uniqueCats),
+    },
   });
 };
 
 export const toggleFavorite = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const materialId = req.params.id as string;
-  const categoryVal = typeof req.body.category === 'string' ? req.body.category.trim() : '默认';
+  const categoryVal = typeof req.body?.category === 'string' ? req.body.category.trim() : '默认';
   const category = categoryVal || '默认';
   const userId = req.userId as string;
   try {
@@ -1201,8 +1214,6 @@ export const getMaterialZipEntry = async (req: AuthRequest, res: Response, next:
   }
 };
 
-
-
 // GET /api/materials/:id/comments
 export const getMaterialComments = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const materialId = req.params.id as string;
@@ -1320,7 +1331,10 @@ export const getMaterialShare = async (req: AuthRequest, res: Response, next: Ne
   const materialId = req.params.id as string;
   try {
     const material = await prisma.material.findFirst({
-      where: req.user?.role === 'ADMIN' ? { id: materialId } : { id: materialId, OR: [{ userId: req.userId }, { teamId: req.workspaceId }] }
+      where:
+        req.user?.role === 'ADMIN'
+          ? { id: materialId }
+          : { id: materialId, OR: [{ userId: req.userId }, { teamId: req.workspaceId }] },
     });
     if (!material) {
       return next(new AppError('Material not found or access denied', 404));
@@ -1345,7 +1359,10 @@ export const createOrUpdateMaterialShare = async (
   const { expireHours, expiresAt, customText } = req.body;
   try {
     const material = await prisma.material.findFirst({
-      where: req.user?.role === 'ADMIN' ? { id: materialId } : { id: materialId, OR: [{ userId: req.userId }, { teamId: req.workspaceId }] }
+      where:
+        req.user?.role === 'ADMIN'
+          ? { id: materialId }
+          : { id: materialId, OR: [{ userId: req.userId }, { teamId: req.workspaceId }] },
     });
     if (!material) {
       return next(new AppError('Material not found or access denied', 404));
@@ -1393,7 +1410,10 @@ export const cancelMaterialShare = async (req: AuthRequest, res: Response, next:
   const materialId = req.params.id as string;
   try {
     const material = await prisma.material.findFirst({
-      where: req.user?.role === 'ADMIN' ? { id: materialId } : { id: materialId, OR: [{ userId: req.userId }, { teamId: req.workspaceId }] }
+      where:
+        req.user?.role === 'ADMIN'
+          ? { id: materialId }
+          : { id: materialId, OR: [{ userId: req.userId }, { teamId: req.workspaceId }] },
     });
     if (!material) {
       return next(new AppError('Material not found or access denied', 404));

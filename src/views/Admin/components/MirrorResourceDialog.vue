@@ -14,7 +14,7 @@ interface ResourceForm {
   categoryId: string;
 }
 
-const props = defineProps<{
+defineProps<{
   isEditing: boolean;
   formattedCategories: MirrorCategory[];
 }>();

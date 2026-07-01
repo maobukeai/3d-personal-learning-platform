@@ -141,7 +141,11 @@ class CloudflareAdminService {
   private async requireToken(): Promise<string> {
     const config = await this.getConfig();
     if (!config.apiToken) {
-      throw new AppError('请先在 Cloudflare 域名管理页面配置 API Token', 400, 'CLOUDFLARE_CONFIG_MISSING');
+      throw new AppError(
+        '请先在 Cloudflare 域名管理页面配置 API Token',
+        400,
+        'CLOUDFLARE_CONFIG_MISSING',
+      );
     }
     return config.apiToken;
   }
@@ -149,7 +153,11 @@ class CloudflareAdminService {
   async listZones(): Promise<CloudflareZoneSummary[]> {
     const config = await this.getConfig();
     if (!config.apiToken) {
-      throw new AppError('请先在 Cloudflare 域名管理页面配置 API Token', 400, 'CLOUDFLARE_CONFIG_MISSING');
+      throw new AppError(
+        '请先在 Cloudflare 域名管理页面配置 API Token',
+        400,
+        'CLOUDFLARE_CONFIG_MISSING',
+      );
     }
     const apiToken = config.apiToken;
     const zones: CloudflareZoneSummary[] = [];
@@ -306,7 +314,7 @@ class CloudflareAdminService {
         sslStatus,
         sslModifiedOn: ssl.modified_on || null,
       };
-    } catch (error) {
+    } catch {
       return {
         sslMode: 'unknown',
         sslStatus: 'unknown',

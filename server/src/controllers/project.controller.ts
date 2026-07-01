@@ -17,18 +17,21 @@ export const checkTeamProjectPermission = async (
     return true;
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true },
-  });
+  // Run user + team queries concurrently to reduce total DB round-trips from 3 to 2
+  const [user, team] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    }),
+    prisma.team.findUnique({
+      where: { id: workspaceId },
+      select: { type: true, ownerId: true },
+    }),
+  ]);
+
   if (user?.role === 'ADMIN') {
     return true;
   }
-
-  const team = await prisma.team.findUnique({
-    where: { id: workspaceId },
-    select: { type: true, ownerId: true },
-  });
 
   if (!team) {
     return true;
@@ -38,6 +41,7 @@ export const checkTeamProjectPermission = async (
     return team.ownerId === userId;
   }
 
+  // Only query teamMember if the team is not PERSONAL and user is not ADMIN
   const member = await prisma.teamMember.findUnique({
     where: {
       teamId_userId: {

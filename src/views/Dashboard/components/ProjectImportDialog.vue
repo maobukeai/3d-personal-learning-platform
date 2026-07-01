@@ -432,7 +432,9 @@ const triggerCoPlanStream = async (activeMessageIndex: number) => {
               currentPlanJson.value = extracted as PlanJson;
               isPlanJsonSynced.value = true;
               logError(
-                new Error('[CoPlan] AI output raw JSON instead of Markdown — parsed via fallback extractor.'),
+                new Error(
+                  '[CoPlan] AI output raw JSON instead of Markdown — parsed via fallback extractor.',
+                ),
               );
             }
           } catch {}

@@ -231,4 +231,3 @@ function isProjectAtRisk(project: ProjectSummary) {
     </aside>
   </div>
 </template>
-

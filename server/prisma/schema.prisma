@@ -111,6 +111,11 @@ model User {
   pluginRequests            PluginRequest[]
   pluginRequestReplies      PluginRequestReply[]
   pluginFavorites           PluginFavorite[]
+
+  // Indexes for frequently-filtered columns (admin user list, dashboard stats)
+  @@index([role])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Conversation {
@@ -198,6 +203,7 @@ model Team {
   // Unique constraint for public space to prevent duplicates
   @@unique([name, type])
   @@index([ownerId])
+  @@index([type])
 }
 
 model TeamMember {
@@ -224,6 +230,7 @@ model TeamInvitation {
   createdAt    DateTime @default(now())
 
   @@index([teamId])
+  @@index([inviteeEmail])
 }
 
 model Notification {
@@ -497,6 +504,7 @@ model Discussion {
 
   @@index([userId])
   @@index([courseId])
+  @@index([createdAt])
 }
 
 model DiscussionLike {

@@ -115,8 +115,8 @@ const canDelete = (item: DiscussionComment) =>
         <ChevronDown v-else class="h-3 w-3" />
         {{
           expandedReplies
-              ? t('community.discussions.collapseReplies')
-              : t('community.discussions.showRepliesCount', { count: comment._count.replies })
+            ? t('community.discussions.collapseReplies')
+            : t('community.discussions.showRepliesCount', { count: comment._count.replies })
         }}
       </button>
 

@@ -5,7 +5,6 @@ import Tabs from '@/components/ui/Tabs.vue';
 import UnifiedCard from '@/components/UnifiedCard.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import {
-  formatResourceNumber as formatNumber,
   type KindFilter,
   type ResourceFeedMeta,
   type ResourceItem,
@@ -80,7 +79,6 @@ function getMaterialFavorites(item: ResourceItem) {
         </div>
       </div>
     </div>
-
 
     <div v-if="isFeedLoading" class="feed-list" :class="viewMode">
       <div v-for="index in 8" :key="index" class="feed-row skeleton-row"></div>

@@ -27,13 +27,27 @@ const isSearchOpen = ref(false);
 <template>
   <PageHeader
     :title="label('我的作品', 'My Works')"
-    :subtitle="label('统一管理资源、材料、插件和展示作品的发布状态。', 'Unify management of publishing status for resources, materials, plugins, and showcases.')"
+    :subtitle="
+      label(
+        '统一管理资源、材料、插件和展示作品的发布状态。',
+        'Unify management of publishing status for resources, materials, plugins, and showcases.',
+      )
+    "
     :icon="PackageCheck"
   >
     <template #center>
       <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 md:w-80 shrink-0">
         <Search />
-        <input v-model="searchQuery" type="text" :placeholder="label('搜索标题、说明、标签或发布位置', 'Search by title, description, tags, or publishing location')" />
+        <input
+          v-model="searchQuery"
+          type="text"
+          :placeholder="
+            label(
+              '搜索标题、说明、标签或发布位置',
+              'Search by title, description, tags, or publishing location',
+            )
+          "
+        />
       </label>
     </template>
 
@@ -55,7 +69,9 @@ const isSearchOpen = ref(false);
         @click="isStatsExpanded = !isStatsExpanded"
       >
         <component :is="isStatsExpanded ? EyeOff : Eye" class="w-3.5 h-3.5" />
-        <span>{{ isStatsExpanded ? label('收起指标', 'Hide Metrics') : label('数据指标', 'Show Metrics') }}</span>
+        <span>{{
+          isStatsExpanded ? label('收起指标', 'Hide Metrics') : label('数据指标', 'Show Metrics')
+        }}</span>
       </Button>
       <Button
         variant="secondary"

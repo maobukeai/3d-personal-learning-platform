@@ -1,140 +1,75 @@
-import { Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import logger from '../utils/logger';
+import { createCommentController, type AccessResult } from './commentController.factory';
 import { logTaskActivity } from '../services/taskActivity.service';
 
-// Get comments for a task
-export const getTaskComments = async (req: AuthRequest, res: Response) => {
-  const taskId = req.params.taskId as string;
-  try {
-    const task = await prisma.task.findFirst({
-      where: {
-        id: taskId,
-        teamId: req.workspaceId || null,
-        OR: [
-          { projectId: null },
-          {
-            project: {
-              members: {
-                some: { userId: req.userId as string },
-              },
+/**
+ * Verify a task exists and the caller may interact with it.
+ * - Task must belong to the caller's current team (or be team-less).
+ * - If the task has a project, the caller must be a member of that project
+ *   (or the project must be null — team-level task).
+ * - Uses the same 404 message for not-found and forbidden to avoid leaking
+ *   the existence of inaccessible tasks.
+ */
+const verifyTaskAccess = async (req: AuthRequest, taskId: string): Promise<AccessResult> => {
+  const task = await prisma.task.findFirst({
+    where: {
+      id: taskId,
+      teamId: req.workspaceId || null,
+      OR: [
+        { projectId: null },
+        {
+          project: {
+            members: {
+              some: { userId: req.userId as string },
             },
           },
-        ],
-      },
-    });
+        },
+      ],
+    },
+  });
 
-    if (!task) {
-      return res.status(404).json({ error: '任务不存在或无权访问' });
-    }
-
-    const comments = await prisma.taskComment.findMany({
-      where: { taskId },
-      include: {
-        user: { select: { id: true, name: true, avatarUrl: true } },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    res.json(comments);
-  } catch (error) {
-    logger.error('Get task comments error:', error);
-    res.status(500).json({ error: '服务器内部错误' });
+  if (!task) {
+    return { ok: false, status: 404, message: '任务不存在或无权访问' };
   }
+
+  return { ok: true };
 };
 
-// Create a task comment
-export const createTaskComment = async (req: AuthRequest, res: Response) => {
-  const taskId = req.params.taskId as string;
-  const { content } = req.body;
-
-  if (!content || !content.trim()) {
-    return res.status(400).json({ error: '评论内容不能为空' });
-  }
-
-  try {
-    const task = await prisma.task.findFirst({
-      where: {
-        id: taskId,
-        teamId: req.workspaceId || null,
-        OR: [
-          { projectId: null },
-          {
-            project: {
-              members: {
-                some: { userId: req.userId as string },
-              },
-            },
-          },
-        ],
-      },
-    });
-
-    if (!task) {
-      return res.status(404).json({ error: '任务不存在或无权访问' });
-    }
-
-    const comment = await prisma.taskComment.create({
-      data: {
-        content: content.trim(),
-        taskId,
-        userId: req.userId as string,
-      },
-      include: {
-        user: { select: { id: true, name: true, avatarUrl: true } },
-      },
-    });
-
+const { list, create, remove } = createCommentController({
+  verifyAccess: verifyTaskAccess,
+  commentModel: prisma.taskComment,
+  parentField: 'taskId',
+  resourceIdParam: 'taskId',
+  messages: {
+    commentEmpty: '评论内容不能为空',
+    commentNotFound: '评论不存在',
+    commentDeleteForbidden: '无权删除此评论',
+    commentDeleted: '评论删除成功',
+    internalError: '服务器内部错误',
+  },
+  verifyCommentBelongsToResource: (comment, taskId) => comment.taskId === taskId,
+  onCommentCreated: async (req, comment, taskId) => {
     await logTaskActivity({
       taskId,
       userId: req.userId as string,
       action: 'ADD_COMMENT',
-      description: `发表了评论: "${content.trim()}"`,
+      description: `发表了评论: "${comment.content}"`,
       newValue: JSON.stringify({ commentId: comment.id, content: comment.content }),
     });
-
-    res.status(201).json(comment);
-  } catch (error) {
-    logger.error('Create task comment error:', error);
-    res.status(500).json({ error: '服务器内部错误' });
-  }
-};
-
-// Delete a task comment
-export const deleteTaskComment = async (req: AuthRequest, res: Response) => {
-  const taskId = req.params.taskId as string;
-  const commentId = req.params.commentId as string;
-
-  try {
-    const comment = await prisma.taskComment.findUnique({
-      where: { id: commentId },
-    });
-
-    if (!comment || comment.taskId !== taskId) {
-      return res.status(404).json({ error: '评论不存在' });
-    }
-
-    // Check if user is the comment author or an admin
-    if (comment.userId !== req.userId && req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ error: '无权删除此评论' });
-    }
-
-    await prisma.taskComment.delete({
-      where: { id: commentId },
-    });
-
+  },
+  onCommentDeleted: async (req, comment, taskId) => {
     await logTaskActivity({
       taskId,
       userId: req.userId as string,
       action: 'DELETE_COMMENT',
       description: '删除了评论',
-      oldValue: JSON.stringify({ commentId, content: comment.content }),
+      oldValue: JSON.stringify({ commentId: comment.id, content: comment.content }),
     });
+  },
+  logPrefix: 'Task comment',
+});
 
-    res.json({ message: '评论删除成功' });
-  } catch (error) {
-    logger.error('Delete task comment error:', error);
-    res.status(500).json({ error: '服务器内部错误' });
-  }
-};
+export const getTaskComments = list;
+export const createTaskComment = create;
+export const deleteTaskComment = remove;

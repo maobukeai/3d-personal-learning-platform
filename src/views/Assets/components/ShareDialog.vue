@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onBeforeUnmount } from 'vue';
 import { ElMessage } from 'element-plus';
 import {
   Share2,
@@ -61,11 +61,15 @@ const durationOptions = [
   { val: 'custom', label: '自定义' },
 ] as const;
 
-const durationType = ref<typeof durationOptions[number]['val']>('permanent');
+const durationType = ref<(typeof durationOptions)[number]['val']>('permanent');
 const customExpiresAt = ref<string | Date | null>(null);
 const customText = ref('');
 const enableCustomText = ref(false);
 const isCopied = ref(false);
+let copyResetTimer: ReturnType<typeof setTimeout> | null = null;
+onBeforeUnmount(() => {
+  if (copyResetTimer) clearTimeout(copyResetTimer);
+});
 const qrCodeDataUrl = ref('');
 const renderingCard = ref(false);
 
@@ -154,7 +158,10 @@ const generateQrCode = async () => {
       },
     });
   } catch (err) {
-    logError(err, { operation: `${configInfo.value.apiPath}.generateQrCode`, component: 'ShareDialog' });
+    logError(err, {
+      operation: `${configInfo.value.apiPath}.generateQrCode`,
+      component: 'ShareDialog',
+    });
     qrCodeDataUrl.value = '';
   }
 };
@@ -235,7 +242,9 @@ const downloadQrCode = async () => {
     const rawPreviewUrl = resource.value.previewUrl || resource.value.thumbnail;
     if (rawPreviewUrl) {
       const fullUrl = getAssetUrl(rawPreviewUrl);
-      const isRemote = (fullUrl.startsWith('http://') || fullUrl.startsWith('https://')) && !fullUrl.includes(window.location.host);
+      const isRemote =
+        (fullUrl.startsWith('http://') || fullUrl.startsWith('https://')) &&
+        !fullUrl.includes(window.location.host);
       const proxyUrl = isRemote ? `/api/proxy/image?url=${encodeURIComponent(fullUrl)}` : fullUrl;
       previewImg = await loadImg(proxyUrl);
     }
@@ -244,25 +253,25 @@ const downloadQrCode = async () => {
     const canvas = document.createElement('canvas');
     const width = 400;
     const height = hasPreview ? 720 : 540;
-    
+
     // Scale for High-DPI crispness (3x)
     const scale = 3;
     canvas.width = width * scale;
     canvas.height = height * scale;
-    
+
     const ctx = canvas.getContext('2d');
     if (!ctx) {
       renderingCard.value = false;
       return;
     }
-    
+
     ctx.scale(scale, scale);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
     // 2. Check active theme (Dark Mode vs Light Mode) to match UI
     const isDark = document.documentElement.classList.contains('dark');
-    
+
     // Set colors based on theme
     const cardBgColor = isDark ? '#1b1d22' : '#ffffff';
     const borderColor = isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0';
@@ -403,7 +412,10 @@ const downloadQrCode = async () => {
     link.click();
     ElMessage.success('分享二维码卡片已成功保存到本地！');
   } catch (err) {
-    logError(err, { operation: `${configInfo.value.apiPath}.saveShareCard`, component: 'ShareDialog' });
+    logError(err, {
+      operation: `${configInfo.value.apiPath}.saveShareCard`,
+      component: 'ShareDialog',
+    });
     ElMessage.error('保存二维码卡片失败');
   } finally {
     renderingCard.value = false;
@@ -423,7 +435,9 @@ const open = async (targetResource: Resource) => {
   qrCodeDataUrl.value = '';
 
   try {
-    const res = await api.get(`/api/${configInfo.value.apiPath}/${targetResource.id}/share?t=${Date.now()}`);
+    const res = await api.get(
+      `/api/${configInfo.value.apiPath}/${targetResource.id}/share?t=${Date.now()}`,
+    );
     if (res.data) {
       shareConfig.value = res.data;
       customText.value = res.data.customText || '';
@@ -443,7 +457,10 @@ const open = async (targetResource: Resource) => {
       await generateQrCode();
     }
   } catch (error) {
-    logError(error, { operation: `${configInfo.value.apiPath}.fetchShareConfig`, component: 'ShareDialog' });
+    logError(error, {
+      operation: `${configInfo.value.apiPath}.fetchShareConfig`,
+      component: 'ShareDialog',
+    });
   } finally {
     loading.value = false;
   }
@@ -465,7 +482,8 @@ const handleCreateOrUpdate = async () => {
         saving.value = false;
         return;
       }
-      const expiresDate = typeof expiresVal === 'string' ? new Date(expiresVal.replace(' ', 'T')) : expiresVal;
+      const expiresDate =
+        typeof expiresVal === 'string' ? new Date(expiresVal.replace(' ', 'T')) : expiresVal;
       if (!expiresDate || Number.isNaN(expiresDate.getTime())) {
         ElMessage.warning('无效的过期时间');
         saving.value = false;
@@ -483,7 +501,10 @@ const handleCreateOrUpdate = async () => {
 
     payload.customText = enableCustomText.value ? customText.value.trim() || null : null;
 
-    const res = await api.post(`/api/${configInfo.value.apiPath}/${resource.value.id}/share`, payload);
+    const res = await api.post(
+      `/api/${configInfo.value.apiPath}/${resource.value.id}/share`,
+      payload,
+    );
     if (res.data) {
       shareConfig.value = res.data;
       await generateQrCode();
@@ -491,7 +512,7 @@ const handleCreateOrUpdate = async () => {
     } else {
       ElMessage.error('创建失败');
     }
-  } catch (error) {
+  } catch {
     ElMessage.error('更新分享链接失败');
   } finally {
     saving.value = false;
@@ -510,7 +531,7 @@ const handleCancelShare = async () => {
     enableCustomText.value = false;
     qrCodeDataUrl.value = '';
     ElMessage.success('已取消分享，该链接已失效');
-  } catch (error) {
+  } catch {
     ElMessage.error('取消分享失败');
   } finally {
     saving.value = false;
@@ -527,10 +548,11 @@ const copyLink = async () => {
     await navigator.clipboard.writeText(copyText);
     isCopied.value = true;
     ElMessage.success('已复制分享链接！');
-    setTimeout(() => {
+    if (copyResetTimer) clearTimeout(copyResetTimer);
+    copyResetTimer = setTimeout(() => {
       isCopied.value = false;
     }, 2000);
-  } catch (error) {
+  } catch {
     ElMessage.error('复制失败');
   }
 };
@@ -579,7 +601,9 @@ defineExpose({ open });
                 >公开分享</span
               >
             </div>
-            <h4 class="text-sm font-bold text-[var(--text-primary)] truncate">{{ resource.title }}</h4>
+            <h4 class="text-sm font-bold text-[var(--text-primary)] truncate">
+              {{ resource.title }}
+            </h4>
             <p class="text-xs text-[var(--text-muted)] mt-0.5">
               创建于: {{ new Date(resource.createdAt).toLocaleString('zh-CN') }}
             </p>
@@ -638,7 +662,8 @@ defineExpose({ open });
               <label
                 class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1"
               >
-                <MessageSquare class="w-3.5 h-3.5 text-[var(--text-secondary)]" /> 附带分享说明 / 寄语
+                <MessageSquare class="w-3.5 h-3.5 text-[var(--text-secondary)]" /> 附带分享说明 /
+                寄语
               </label>
               <Switch v-model="enableCustomText" />
             </div>
@@ -842,24 +867,6 @@ defineExpose({ open });
   transform: translateY(-8px);
 }
 
-:deep(.custom-datepicker .el-input__wrapper) {
-  background-color: var(--bg-subtle) !important;
-  border-radius: 8px !important;
-  box-shadow: none !important;
-  border: 1px solid var(--border-base) !important;
-  padding: 6px 10px !important;
-}
-
-:deep(.custom-datepicker .el-input__wrapper.is-focus) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 1px var(--accent) !important;
-}
-
-.shortcut-list::-webkit-scrollbar {
-  display: none;
-}
-.shortcut-list {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+/* .custom-datepicker .el-input__wrapper overrides + .shortcut-list scrollbar
+   hiding provided globally by src/styles/components.css */
 </style>

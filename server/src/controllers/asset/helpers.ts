@@ -281,7 +281,10 @@ export const getAssetAccessWhere = (id: string, req: AuthRequest): Prisma.AssetW
   return { id, OR: or };
 };
 
-export const getAssetCollaborationWhere = (id: string, req: AuthRequest): Prisma.AssetWhereInput => {
+export const getAssetCollaborationWhere = (
+  id: string,
+  req: AuthRequest,
+): Prisma.AssetWhereInput => {
   const userId = req.userId as string | undefined;
   const workspaceId = req.workspaceId;
   const or: Prisma.AssetWhereInput[] = [];

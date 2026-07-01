@@ -261,7 +261,8 @@ a svg {
 }
 
 .spinning {
-  animation: spin 0.9s linear infinite;
+  /* @keyframes spin provided globally; only duration differs from the 1s default */
+  animation-duration: 0.9s;
 }
 
 .team-metrics {
@@ -499,21 +500,7 @@ a svg {
   font-weight: 900;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 1;
-  }
-}
+/* @keyframes spin + @keyframes pulse provided globally by src/styles/layout.css */
 
 @media (max-width: 620px) {
   .team-metrics,

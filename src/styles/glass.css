@@ -278,20 +278,7 @@ html.theme-glass .el-popover {
   color: var(--text-primary) !important;
 }
 
-@supports (-webkit-backdrop-filter: blur(1px)) {
-  html.theme-glass .notification-panel,
-  html.theme-glass .el-popper,
-  html.theme-glass .el-popper.is-dark,
-  html.theme-glass .el-popper.is-light,
-  html.theme-glass .el-dropdown__popper,
-  html.theme-glass .el-select__popper,
-  html.theme-glass .el-cascader__dropdown,
-  html.theme-glass .el-popover {
-    background: var(--glass-bg) !important;
-  }
-}
-
-@supports (backdrop-filter: blur(1px)) {
+@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
   html.theme-glass .notification-panel,
   html.theme-glass .el-popper,
   html.theme-glass .el-popper.is-dark,
@@ -311,16 +298,10 @@ html.theme-glass .glass-card {
   box-shadow: var(--glass-shadow) !important;
 }
 
-@supports (-webkit-backdrop-filter: blur(1px)) {
+@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
   html.theme-glass .glass-card {
     background: var(--glass-bg) !important;
     -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
-  }
-}
-
-@supports (backdrop-filter: blur(1px)) {
-  html.theme-glass .glass-card {
-    background: var(--glass-bg) !important;
     backdrop-filter: blur(10px) saturate(145%) !important;
   }
 }
@@ -335,13 +316,7 @@ html.theme-glass .glass-header {
   will-change: auto !important;
 }
 
-@supports (-webkit-backdrop-filter: blur(1px)) {
-  html.theme-glass .glass-header {
-    background: var(--glass-header-bg, var(--glass-bg)) !important;
-  }
-}
-
-@supports (backdrop-filter: blur(1px)) {
+@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
   html.theme-glass .glass-header {
     background: var(--glass-header-bg, var(--glass-bg)) !important;
   }
@@ -357,13 +332,7 @@ html.theme-glass .glass-sidebar {
   will-change: auto !important;
 }
 
-@supports (-webkit-backdrop-filter: blur(1px)) {
-  html.theme-glass .glass-sidebar {
-    background: var(--glass-sidebar-bg, var(--glass-bg)) !important;
-  }
-}
-
-@supports (backdrop-filter: blur(1px)) {
+@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
   html.theme-glass .glass-sidebar {
     background: var(--glass-sidebar-bg, var(--glass-bg)) !important;
   }
@@ -379,13 +348,7 @@ html.theme-glass .mobile-sidebar-drawer {
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04) !important;
 }
 
-@supports (-webkit-backdrop-filter: blur(1px)) {
-  html.theme-glass .mobile-sidebar-drawer {
-    background: rgba(255, 255, 255, 0.45) !important;
-  }
-}
-
-@supports (backdrop-filter: blur(1px)) {
+@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
   html.theme-glass .mobile-sidebar-drawer {
     background: rgba(255, 255, 255, 0.45) !important;
   }
@@ -397,13 +360,7 @@ html.theme-glass.dark .mobile-sidebar-drawer {
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25) !important;
 }
 
-@supports (-webkit-backdrop-filter: blur(1px)) {
-  html.theme-glass.dark .mobile-sidebar-drawer {
-    background: rgba(28, 33, 41, 0.45) !important;
-  }
-}
-
-@supports (backdrop-filter: blur(1px)) {
+@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
   html.theme-glass.dark .mobile-sidebar-drawer {
     background: rgba(28, 33, 41, 0.45) !important;
   }
@@ -435,15 +392,7 @@ html.theme-glass .glass-dialog {
   transform: translateZ(0);
 }
 
-@supports (-webkit-backdrop-filter: blur(1px)) {
-  html.theme-glass .el-dialog,
-  html.theme-glass .el-message-box,
-  html.theme-glass .glass-dialog {
-    background: var(--glass-bg) !important;
-  }
-}
-
-@supports (backdrop-filter: blur(1px)) {
+@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
   html.theme-glass .el-dialog,
   html.theme-glass .el-message-box,
   html.theme-glass .glass-dialog {
@@ -949,16 +898,17 @@ html body .dark .subscription-btn:hover {
   opacity: 0 !important;
 }
 
-/* GPU Hardware Acceleration for Glassmorphism & Transition Elements */
+/* GPU Hardware Acceleration for core Glassmorphism elements.
+   Intentionally limited to the three main structural elements to avoid
+   creating excessive GPU compositor layers (one per matched element).
+   Do NOT add wildcard selectors like div[class*='backdrop-blur-'] here —
+   that would create a compositor layer for every blurred element on the page. */
 .glass-card,
 .glass-sidebar,
-.glass-header,
-article[class*='backdrop-blur-'],
-div[class*='backdrop-blur-'] {
-  will-change: transform, opacity;
-  transform: translate3d(0, 0, 0);
+.glass-header {
+  will-change: transform;
+  transform: translateZ(0);
   backface-visibility: hidden;
-  perspective: 1000px;
 }
 
 /* ============================================================

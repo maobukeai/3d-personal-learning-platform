@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch, type Component } from 'vue';
+import {
+  computed,
+  onMounted,
+  onUnmounted,
+  ref,
+  watch,
+  type Component,
+  defineAsyncComponent,
+} from 'vue';
 import { useRouter } from 'vue-router';
 import { Box, Cpu, Grid3X3, Layers, LayoutList, MonitorPlay } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
-import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
+
+const PublishWorkDialog = defineAsyncComponent(() => import('@/components/PublishWorkDialog.vue'));
 import ResourceCenterHeader from './components/ResourceCenterHeader.vue';
 import ResourceFeedPanel from './components/ResourceFeedPanel.vue';
 import ResourceInsightRail from './components/ResourceInsightRail.vue';
@@ -273,6 +282,7 @@ onUnmounted(() => {
     </div>
 
     <PublishWorkDialog
+      v-if="isPublishDialogOpen"
       v-model="isPublishDialogOpen"
       :default-category="publishCategory"
       @published="refreshAll"

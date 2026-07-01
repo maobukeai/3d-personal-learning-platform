@@ -140,7 +140,7 @@ watch(
       comments.value = [];
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 defineExpose({
@@ -170,8 +170,8 @@ defineExpose({
         暂无讨论，发表第一条评论吧！
       </div>
       <div
-        v-else
         v-for="comment in comments"
+        v-else
         :key="comment.id"
         class="flex gap-3 group/comment p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
       >
@@ -203,10 +203,7 @@ defineExpose({
               </span>
               <!-- Delete Action -->
               <button
-                v-if="
-                  comment.userId === authStore.user?.id ||
-                  authStore.user?.role === 'ADMIN'
-                "
+                v-if="comment.userId === authStore.user?.id || authStore.user?.role === 'ADMIN'"
                 type="button"
                 class="opacity-0 group-hover/comment:opacity-100 p-0.5 text-slate-400 hover:text-rose-500 rounded transition-opacity"
                 @click="handleDeleteComment(comment.id)"

@@ -10,7 +10,6 @@ import { logError, getApiErrorMessage } from '@/utils/error';
 
 const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
 import {
-  X,
   Edit3,
   Trash2,
   RefreshCw,
@@ -21,8 +20,6 @@ import {
   Eye,
   MessageCircle,
   Clock,
-  Share2,
-  Check,
   Play,
   Download,
   Send,
@@ -66,14 +63,12 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore();
 
-
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
 const comments = ref<CommentItem[]>([]);
 const commentsLoading = ref(false);
 const newComment = ref('');
 const isSubmittingComment = ref(false);
-const shareCopied = ref(false);
 const currentImageIndex = ref(0);
 const relatedShowcases = ref<ShowcaseItem[]>([]);
 const relatedLoading = ref(false);
@@ -98,7 +93,9 @@ const availableModels = computed(() => {
 
 const activeModel = computed(() => {
   if (availableModels.value.length === 0) return null;
-  return availableModels.value.find(m => m.id === selectedModelId.value) || availableModels.value[0];
+  return (
+    availableModels.value.find((m) => m.id === selectedModelId.value) || availableModels.value[0]
+  );
 });
 
 const myApprovedAssets = ref<Array<{ id: string; title: string }>>([]);
@@ -202,11 +199,13 @@ const currentDetailImage = computed(() => detailImages.value[currentImageIndex.v
 const isVideoUrl = (url: string) => {
   if (!url) return false;
   const cleanUrl = url.split('?')[0].split('#')[0].toLowerCase();
-  return cleanUrl.endsWith('.mp4') || 
-         cleanUrl.endsWith('.webm') || 
-         cleanUrl.endsWith('.mov') || 
-         cleanUrl.endsWith('.ogg') ||
-         cleanUrl.endsWith('.quicktime');
+  return (
+    cleanUrl.endsWith('.mp4') ||
+    cleanUrl.endsWith('.webm') ||
+    cleanUrl.endsWith('.mov') ||
+    cleanUrl.endsWith('.ogg') ||
+    cleanUrl.endsWith('.quicktime')
+  );
 };
 
 const similarShowcases = computed(() => {
@@ -234,9 +233,10 @@ const hydrateEditForm = (target: ShowcaseItem) => {
     type: target.type,
     videoUrl: target.videoUrl || '',
     isVideo: target.isVideo || target.type === 'VIDEO',
-    linkedAssetIds: target.linkedAssets?.map(a => a.id) || (target.assetId ? [target.assetId] : []),
-    linkedMaterialIds: target.linkedMaterials?.map(m => m.id) || [],
-    linkedPluginIds: target.linkedPlugins?.map(p => p.id) || [],
+    linkedAssetIds:
+      target.linkedAssets?.map((a) => a.id) || (target.assetId ? [target.assetId] : []),
+    linkedMaterialIds: target.linkedMaterials?.map((m) => m.id) || [],
+    linkedPluginIds: target.linkedPlugins?.map((p) => p.id) || [],
   };
   editThumbnail.value = null;
   editImages.value = [];
@@ -354,10 +354,6 @@ const handleEditImagesChange = (event: Event) => {
   editImages.value = Array.from((event.target as HTMLInputElement).files ?? []);
 };
 
-const setEditType = (type: ShowcaseType) => {
-  editForm.value.type = type;
-};
-
 const saveDetail = async () => {
   if (!props.item) return;
   if (!editForm.value.title.trim()) {
@@ -415,7 +411,7 @@ const downloadMaterialFile = async (material: any) => {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-  } catch (error) {
+  } catch {
     ElMessage.error('下载材质失败，请稍后重试');
   }
 };
@@ -432,13 +428,16 @@ const downloadPluginFile = async (plugin: any) => {
     await downloadFileMultiThreaded(resolvedUrl, `${safeTitle}.${ext}`);
     await api.post(`/api/plugins/${plugin.id}/download`);
   } catch (error: any) {
-    if (axios.isCancel(error) || error?.name === 'CanceledError' || error?.name === 'AbortError' || error?.message === 'canceled') {
+    if (
+      axios.isCancel(error) ||
+      error?.name === 'CanceledError' ||
+      error?.name === 'AbortError' ||
+      error?.message === 'canceled'
+    ) {
       return;
     }
     const status = error?.response?.status;
-    const msg = status === 404
-      ? '文件不存在或已被删除，请联系管理员'
-      : '下载插件失败，请稍后重试';
+    const msg = status === 404 ? '文件不存在或已被删除，请联系管理员' : '下载插件失败，请稍后重试';
     ElMessage.error(msg);
   }
 };
@@ -484,22 +483,6 @@ const toggleLike = async (target: ShowcaseItem) => {
     emit('refresh-list');
   } catch {
     ElMessage.error('操作失败，请重试');
-  }
-};
-
-const handleShare = async (target?: ShowcaseItem | null) => {
-  const shareTarget = target || props.item;
-  if (!shareTarget) return;
-  try {
-    const url = `${window.location.origin}/showcase?workId=${shareTarget.id}`;
-    await navigator.clipboard.writeText(url);
-    shareCopied.value = true;
-    ElMessage.success('作品链接已复制到剪贴板，快分享给你的好友吧！');
-    setTimeout(() => {
-      shareCopied.value = false;
-    }, 2000);
-  } catch {
-    ElMessage.error('分享链接生成失败，请手动复制浏览器地址。');
   }
 };
 
@@ -571,19 +554,15 @@ const handleStartChat = async (user: ShowcaseUser) => {
 </script>
 
 <template>
-  <Modal
-    :show="isOpen"
-    :glass-card="true"
-    size="xxl"
-    padding="none"
-    @close="closeDetail"
-  >
+  <Modal :show="isOpen" :glass-card="true" size="xxl" padding="none" @close="closeDetail">
     <template #header>
       <div class="flex items-center justify-between w-full">
         <div class="flex items-center gap-3">
           <MonitorPlay class="h-5 w-5 text-indigo-400" />
           <div class="min-w-0">
-            <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)] truncate max-w-[280px] sm:max-w-[450px]">
+            <h3
+              class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)] truncate max-w-[280px] sm:max-w-[450px]"
+            >
               {{ item?.title || '作品详情' }}
             </h3>
             <p v-if="item" class="text-xs text-[var(--text-muted)] mt-0.5">
@@ -617,7 +596,10 @@ const handleStartChat = async (user: ShowcaseUser) => {
       </div>
     </template>
 
-    <div v-if="!item" class="detail-loading py-20 text-center flex flex-col items-center gap-3 text-slate-400">
+    <div
+      v-if="!item"
+      class="detail-loading py-20 text-center flex flex-col items-center gap-3 text-slate-400"
+    >
       <RefreshCw class="w-6 h-6 animate-spin text-indigo-400" />
       <span>正在加载作品...</span>
     </div>
@@ -627,11 +609,18 @@ const handleStartChat = async (user: ShowcaseUser) => {
         <!-- Hero Media Panel (Full width at top) -->
         <section class="detail-media-panel w-full flex flex-col gap-4 mb-6">
           <!-- Media Tab Selector -->
-          <div v-if="availableModels.length > 0 || item.videoUrl" class="flex items-center justify-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl mb-3">
+          <div
+            v-if="availableModels.length > 0 || item.videoUrl"
+            class="flex items-center justify-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl mb-3"
+          >
             <button
               type="button"
               class="flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border-0 cursor-pointer"
-              :class="activeMediaTab === 'renders' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-transparent'"
+              :class="
+                activeMediaTab === 'renders'
+                  ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400 font-extrabold'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-transparent'
+              "
               @click="activeMediaTab = 'renders'"
             >
               效果图册
@@ -640,7 +629,11 @@ const handleStartChat = async (user: ShowcaseUser) => {
               v-if="availableModels.length > 0"
               type="button"
               class="flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border-0 cursor-pointer"
-              :class="activeMediaTab === '3d' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-transparent'"
+              :class="
+                activeMediaTab === '3d'
+                  ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400 font-extrabold'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-transparent'
+              "
               @click="activeMediaTab = '3d'"
             >
               3D交互
@@ -649,7 +642,11 @@ const handleStartChat = async (user: ShowcaseUser) => {
               v-if="item.videoUrl"
               type="button"
               class="flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border-0 cursor-pointer"
-              :class="activeMediaTab === 'video' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-transparent'"
+              :class="
+                activeMediaTab === 'video'
+                  ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400 font-extrabold'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-transparent'
+              "
               @click="activeMediaTab = 'video'"
             >
               视频演示
@@ -712,7 +709,9 @@ const handleStartChat = async (user: ShowcaseUser) => {
 
           <!-- 3D Interactive Viewport -->
           <div v-else-if="activeMediaTab === '3d' && activeModel">
-            <div class="relative w-full aspect-video lg:aspect-[21/9] max-h-[420px] rounded-2xl overflow-hidden bg-slate-950 border border-slate-200/50 dark:border-slate-800/50 mb-3">
+            <div
+              class="relative w-full aspect-video lg:aspect-[21/9] max-h-[420px] rounded-2xl overflow-hidden bg-slate-950 border border-slate-200/50 dark:border-slate-800/50 mb-3"
+            >
               <ModelViewer
                 :model-url="activeModel.url"
                 :default-camera-pos="activeModel.defaultCameraPos"
@@ -720,7 +719,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
                 :scene-config="{
                   environment: activeModel.defaultEnvironment || 'sunset',
                   exposure: activeModel.defaultExposure || 1.0,
-                  showGrid: true
+                  showGrid: true,
                 }"
                 show-controls
                 class="w-full h-full"
@@ -728,14 +727,24 @@ const handleStartChat = async (user: ShowcaseUser) => {
             </div>
 
             <!-- Multiple Models Selector -->
-            <div v-if="availableModels.length > 1" class="model-selector-strip mt-3 mb-3 flex items-center gap-1.5 overflow-x-auto p-1 scrollbar-hide">
-              <span class="text-[10px] uppercase font-black tracking-widest text-slate-400 mr-1 flex-shrink-0">切换模型:</span>
+            <div
+              v-if="availableModels.length > 1"
+              class="model-selector-strip mt-3 mb-3 flex items-center gap-1.5 overflow-x-auto p-1 scrollbar-hide"
+            >
+              <span
+                class="text-[10px] uppercase font-black tracking-widest text-slate-400 mr-1 flex-shrink-0"
+                >切换模型:</span
+              >
               <button
                 v-for="model in availableModels"
                 :key="model.id"
                 type="button"
                 class="px-3 py-1 rounded-lg text-xs font-bold transition-all border whitespace-nowrap cursor-pointer"
-                :class="selectedModelId === model.id ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400'"
+                :class="
+                  selectedModelId === model.id
+                    ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400'
+                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400'
+                "
                 @click="selectedModelId = model.id"
               >
                 {{ model.title }}
@@ -743,9 +752,13 @@ const handleStartChat = async (user: ShowcaseUser) => {
             </div>
 
             <!-- Model Specs Card -->
-            <div class="model-specs-card p-3 rounded-xl border border-slate-200/50 dark:border-slate-800/50 bg-slate-50 dark:bg-slate-900/50 flex flex-col gap-2">
+            <div
+              class="model-specs-card p-3 rounded-xl border border-slate-200/50 dark:border-slate-800/50 bg-slate-50 dark:bg-slate-900/50 flex flex-col gap-2"
+            >
               <div class="flex items-center justify-between">
-                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">3D 规格参数</h4>
+                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  3D 规格参数
+                </h4>
                 <a
                   v-if="activeModel.isFree || authStore.user"
                   :href="getAssetUrl(activeModel.url)"
@@ -759,19 +772,29 @@ const handleStartChat = async (user: ShowcaseUser) => {
               <div class="grid grid-cols-2 gap-2 text-xs">
                 <div class="flex flex-col">
                   <span class="text-[9px] text-slate-400 uppercase font-semibold">名称</span>
-                  <strong class="truncate font-semibold mt-0.5" style="color: var(--text-primary)">{{ activeModel.title }}</strong>
+                  <strong
+                    class="truncate font-semibold mt-0.5"
+                    style="color: var(--text-primary)"
+                    >{{ activeModel.title }}</strong
+                  >
                 </div>
                 <div class="flex flex-col">
                   <span class="text-[9px] text-slate-400 uppercase font-semibold">类型</span>
-                  <strong class="font-semibold mt-0.5" style="color: var(--text-primary)">{{ activeModel.type }}</strong>
+                  <strong class="font-semibold mt-0.5" style="color: var(--text-primary)">{{
+                    activeModel.type
+                  }}</strong>
                 </div>
                 <div class="flex flex-col">
                   <span class="text-[9px] text-slate-400 uppercase font-semibold">顶点数</span>
-                  <strong class="font-semibold mt-0.5" style="color: var(--text-primary)">{{ activeModel.vertices ? formatNumber(activeModel.vertices) : '---' }}</strong>
+                  <strong class="font-semibold mt-0.5" style="color: var(--text-primary)">{{
+                    activeModel.vertices ? formatNumber(activeModel.vertices) : '---'
+                  }}</strong>
                 </div>
                 <div class="flex flex-col">
                   <span class="text-[9px] text-slate-400 uppercase font-semibold">三角面数</span>
-                  <strong class="font-semibold mt-0.5" style="color: var(--text-primary)">{{ activeModel.faces ? formatNumber(activeModel.faces) : '---' }}</strong>
+                  <strong class="font-semibold mt-0.5" style="color: var(--text-primary)">{{
+                    activeModel.faces ? formatNumber(activeModel.faces) : '---'
+                  }}</strong>
                 </div>
               </div>
             </div>
@@ -779,21 +802,25 @@ const handleStartChat = async (user: ShowcaseUser) => {
 
           <!-- Video Viewport -->
           <div v-else-if="activeMediaTab === 'video' && item.videoUrl">
-            <div class="relative w-full aspect-video rounded-2xl overflow-hidden bg-black flex items-center justify-center border border-slate-200/50 dark:border-slate-800/50">
+            <div
+              class="relative w-full aspect-video rounded-2xl overflow-hidden bg-black flex items-center justify-center border border-slate-200/50 dark:border-slate-800/50"
+            >
               <iframe
                 v-if="isIframeVideo"
                 :src="item.videoUrl"
                 frameborder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allow="
+                  accelerometer;
+                  autoplay;
+                  clipboard-write;
+                  encrypted-media;
+                  gyroscope;
+                  picture-in-picture;
+                "
                 allowfullscreen
                 class="w-full h-full"
               ></iframe>
-              <video
-                v-else
-                :src="item.videoUrl"
-                controls
-                class="w-full h-full"
-              ></video>
+              <video v-else :src="item.videoUrl" controls class="w-full h-full"></video>
             </div>
           </div>
         </section>
@@ -914,7 +941,9 @@ const handleStartChat = async (user: ShowcaseUser) => {
           <template v-else>
             <!-- Left Main Column: Title, description, similar works, and comments -->
             <div class="lg:col-span-8 flex flex-col gap-6">
-              <h1 class="text-2xl font-extrabold text-[var(--text-primary)] leading-tight">{{ item.title }}</h1>
+              <h1 class="text-2xl font-extrabold text-[var(--text-primary)] leading-tight">
+                {{ item.title }}
+              </h1>
 
               <div v-if="item.description" class="detail-description mt-2">
                 <MdPreview :model-value="item.description" class="md-preview-showcase" />
@@ -922,8 +951,13 @@ const handleStartChat = async (user: ShowcaseUser) => {
               <p v-else class="detail-description-empty mt-2">创作者还没有填写详细说明。</p>
 
               <!-- Related / Similar Showcases -->
-              <div v-if="similarShowcases.length" class="similar-strip mt-6 pt-6 border-t border-white/5">
-                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">相关推荐作品</h3>
+              <div
+                v-if="similarShowcases.length"
+                class="similar-strip mt-6 pt-6 border-t border-white/5"
+              >
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
+                  相关推荐作品
+                </h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <button
                     v-for="simItem in similarShowcases"
@@ -938,7 +972,9 @@ const handleStartChat = async (user: ShowcaseUser) => {
                       :alt="simItem.title"
                       class="w-12 h-12 rounded-lg object-cover border border-white/10 shrink-0"
                     />
-                    <span class="text-xs font-bold text-[var(--text-secondary)] truncate flex-1">{{ simItem.title }}</span>
+                    <span class="text-xs font-bold text-[var(--text-secondary)] truncate flex-1">{{
+                      simItem.title
+                    }}</span>
                   </button>
                 </div>
               </div>
@@ -946,8 +982,12 @@ const handleStartChat = async (user: ShowcaseUser) => {
               <!-- Comments / Discussion Area -->
               <section class="comments-panel mt-6 pt-6 border-t border-white/5">
                 <header class="flex items-center justify-between mb-4">
-                  <h2 class="text-xs font-black uppercase tracking-widest text-slate-400">作品交流讨论</h2>
-                  <span class="text-[10px] text-slate-500 font-mono">{{ formatNumber(item.commentsCount) }} 条讨论</span>
+                  <h2 class="text-xs font-black uppercase tracking-widest text-slate-400">
+                    作品交流讨论
+                  </h2>
+                  <span class="text-[10px] text-slate-500 font-mono"
+                    >{{ formatNumber(item.commentsCount) }} 条讨论</span
+                  >
                 </header>
 
                 <div class="comment-composer flex gap-3.5 items-center mb-4">
@@ -976,17 +1016,31 @@ const handleStartChat = async (user: ShowcaseUser) => {
                   <RefreshCw class="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-400" />
                   正在加载评论
                 </div>
-                <div v-else-if="!comments.length" class="comments-empty py-8 text-center text-slate-500 text-xs italic">
+                <div
+                  v-else-if="!comments.length"
+                  class="comments-empty py-8 text-center text-slate-500 text-xs italic"
+                >
                   还没有评论，来发表第一句吧。
                 </div>
-                <div v-else class="comment-list flex flex-col gap-3.5 max-h-[360px] overflow-y-auto pr-1">
-                  <article v-for="comment in comments" :key="comment.id" class="comment-item flex gap-3 p-3 rounded-xl border border-white/5 bg-white/[0.01]">
+                <div
+                  v-else
+                  class="comment-list flex flex-col gap-3.5 max-h-[360px] overflow-y-auto pr-1"
+                >
+                  <article
+                    v-for="comment in comments"
+                    :key="comment.id"
+                    class="comment-item flex gap-3 p-3 rounded-xl border border-white/5 bg-white/[0.01]"
+                  >
                     <UserAvatar :user="comment.user" size="sm" class="shrink-0" />
                     <div class="flex-1 min-w-0">
                       <header class="flex items-center justify-between gap-4 mb-1">
-                        <strong class="text-xs font-bold text-[var(--text-primary)] truncate">{{ comment.user.name || comment.user.email || '匿名用户' }}</strong>
+                        <strong class="text-xs font-bold text-[var(--text-primary)] truncate">{{
+                          comment.user.name || comment.user.email || '匿名用户'
+                        }}</strong>
                         <div class="flex items-center gap-2 shrink-0">
-                          <span class="text-[10px] text-slate-500 font-mono">{{ formatTime(comment.createdAt) }}</span>
+                          <span class="text-[10px] text-slate-500 font-mono">{{
+                            formatTime(comment.createdAt)
+                          }}</span>
                           <button
                             v-if="comment.user.id === authStore.user?.id || isAdmin"
                             type="button"
@@ -998,7 +1052,9 @@ const handleStartChat = async (user: ShowcaseUser) => {
                           </button>
                         </div>
                       </header>
-                      <p class="text-xs text-[var(--text-secondary)] leading-relaxed">{{ comment.content }}</p>
+                      <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
+                        {{ comment.content }}
+                      </p>
                     </div>
                   </article>
                 </div>
@@ -1008,15 +1064,21 @@ const handleStartChat = async (user: ShowcaseUser) => {
             <!-- Right Sidebar Column: Metadata, actions, statistics, and project resources -->
             <aside class="lg:col-span-4 flex flex-col gap-6">
               <!-- Creator profile box -->
-              <div class="detail-author flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+              <div
+                class="detail-author flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10"
+              >
                 <UserAvatar :user="item.user" size="md" />
                 <button
                   type="button"
                   class="detail-author-profile flex-1 text-left bg-transparent border-0 p-0 cursor-pointer min-w-0"
                   @click="openUserProfile(item.user.id)"
                 >
-                  <strong class="block text-xs font-bold text-[var(--text-primary)] truncate">{{ item.user.name || item.user.email || '匿名创作者' }}</strong>
-                  <span class="block text-[10px] text-[var(--text-muted)] truncate mt-0.5">{{ item.user.bio || '查看创作者主页与更多作品' }}</span>
+                  <strong class="block text-xs font-bold text-[var(--text-primary)] truncate">{{
+                    item.user.name || item.user.email || '匿名创作者'
+                  }}</strong>
+                  <span class="block text-[10px] text-[var(--text-muted)] truncate mt-0.5">{{
+                    item.user.bio || '查看创作者主页与更多作品'
+                  }}</span>
                 </button>
                 <button
                   v-if="item.user.id !== authStore.user?.id"
@@ -1032,7 +1094,9 @@ const handleStartChat = async (user: ShowcaseUser) => {
               <!-- Metadata & Stats Module -->
               <div class="p-4 rounded-xl bg-white/[0.01] border border-white/5 flex flex-col gap-4">
                 <div class="flex items-center justify-between">
-                  <h4 class="text-[10px] font-black uppercase tracking-widest text-slate-400">作品元数据</h4>
+                  <h4 class="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    作品元数据
+                  </h4>
                   <div class="detail-title-row m-0">
                     <span :class="['detail-type', getTypeClass(item.type)]">
                       {{ getTypeLabel(item.type) }}
@@ -1043,13 +1107,17 @@ const handleStartChat = async (user: ShowcaseUser) => {
                   </div>
                 </div>
 
-                <div class="detail-actions mobile-row m-0 border-t border-b border-white/5 py-3 rounded-none bg-transparent">
+                <div
+                  class="detail-actions mobile-row m-0 border-t border-b border-white/5 py-3 rounded-none bg-transparent"
+                >
                   <button type="button" :class="{ liked: item.isLiked }" @click="toggleLike(item)">
                     <Heart class="w-4 h-4" :class="{ 'fill-current': item.isLiked }" />
                     {{ formatNumber(item.likesCount) }}
                   </button>
                   <span><Eye class="w-4 h-4" />{{ formatNumber(item.views) }}</span>
-                  <span><MessageCircle class="w-4 h-4" />{{ formatNumber(item.commentsCount) }}</span>
+                  <span
+                    ><MessageCircle class="w-4 h-4" />{{ formatNumber(item.commentsCount) }}</span
+                  >
                   <span><Clock class="w-4 h-4" />{{ formatTime(item.createdAt) }}</span>
                 </div>
 
@@ -1089,31 +1157,60 @@ const handleStartChat = async (user: ShowcaseUser) => {
               </div>
 
               <!-- Linked Resources Section (Models, Materials, Plugins used in showcase) -->
-              <div v-if="(item.linkedAssets && item.linkedAssets.length > 0) || (item.linkedMaterials && item.linkedMaterials.length > 0) || (item.linkedPlugins && item.linkedPlugins.length > 0)" class="linked-resources-section p-4 rounded-xl bg-white/[0.01] border border-white/5">
-                <h3 class="text-xs font-black uppercase tracking-wider text-indigo-500 mb-3.5 flex items-center gap-1.5">
+              <div
+                v-if="
+                  (item.linkedAssets && item.linkedAssets.length > 0) ||
+                  (item.linkedMaterials && item.linkedMaterials.length > 0) ||
+                  (item.linkedPlugins && item.linkedPlugins.length > 0)
+                "
+                class="linked-resources-section p-4 rounded-xl bg-white/[0.01] border border-white/5"
+              >
+                <h3
+                  class="text-xs font-black uppercase tracking-wider text-indigo-500 mb-3.5 flex items-center gap-1.5"
+                >
                   <Sparkles class="w-4 h-4 text-indigo-500" />
                   使用的项目资源
                 </h3>
-                
+
                 <div class="space-y-4">
                   <!-- Linked Assets (3D models) -->
                   <div v-if="item.linkedAssets && item.linkedAssets.length > 0" class="space-y-2">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">3D模型作品</div>
+                    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                      3D模型作品
+                    </div>
                     <div class="grid grid-cols-1 gap-2.5">
-                      <div v-for="asset in item.linkedAssets" :key="asset.id" class="flex items-center justify-between p-2.5 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.02] transition-all">
+                      <div
+                        v-for="asset in item.linkedAssets"
+                        :key="asset.id"
+                        class="flex items-center justify-between p-2.5 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.02] transition-all"
+                      >
                         <div class="flex items-center gap-2 min-w-0">
-                          <div class="w-8 h-8 rounded-lg overflow-hidden border border-white/10 bg-slate-950 flex-shrink-0 flex items-center justify-center">
-                            <img v-if="asset.thumbnail" :src="getAssetUrl(asset.thumbnail)" class="w-full h-full object-cover" />
+                          <div
+                            class="w-8 h-8 rounded-lg overflow-hidden border border-white/10 bg-slate-950 flex-shrink-0 flex items-center justify-center"
+                          >
+                            <img
+                              v-if="asset.thumbnail"
+                              :src="getAssetUrl(asset.thumbnail)"
+                              class="w-full h-full object-cover"
+                            />
                             <Box v-else class="w-4 h-4 text-slate-400" />
                           </div>
                           <div class="min-w-0">
-                            <h5 class="text-[11px] font-bold text-slate-200 truncate leading-tight">{{ asset.title }}</h5>
+                            <h5 class="text-[11px] font-bold text-slate-200 truncate leading-tight">
+                              {{ asset.title }}
+                            </h5>
                             <p class="text-[9px] text-slate-500 mt-0.5">
-                              <span v-if="asset.vertices">{{ formatNumber(asset.vertices) }} 顶点</span>
+                              <span v-if="asset.vertices"
+                                >{{ formatNumber(asset.vertices) }} 顶点</span
+                              >
                             </p>
                           </div>
                         </div>
-                        <a :href="getAssetUrl(asset.url)" download class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer no-underline">
+                        <a
+                          :href="getAssetUrl(asset.url)"
+                          download
+                          class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer no-underline"
+                        >
                           <Download class="w-3.5 h-3.5" />
                           下载
                         </a>
@@ -1122,23 +1219,44 @@ const handleStartChat = async (user: ShowcaseUser) => {
                   </div>
 
                   <!-- Linked Materials -->
-                  <div v-if="item.linkedMaterials && item.linkedMaterials.length > 0" class="space-y-2">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">材质贴图作品</div>
+                  <div
+                    v-if="item.linkedMaterials && item.linkedMaterials.length > 0"
+                    class="space-y-2"
+                  >
+                    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                      材质贴图作品
+                    </div>
                     <div class="grid grid-cols-1 gap-2.5">
-                      <div v-for="mat in item.linkedMaterials" :key="mat.id" class="flex items-center justify-between p-2.5 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.02] transition-all">
+                      <div
+                        v-for="mat in item.linkedMaterials"
+                        :key="mat.id"
+                        class="flex items-center justify-between p-2.5 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.02] transition-all"
+                      >
                         <div class="flex items-center gap-2 min-w-0">
-                          <div class="w-8 h-8 rounded-lg overflow-hidden border border-white/10 bg-slate-950 flex-shrink-0 flex items-center justify-center">
-                            <img v-if="mat.previewUrl" :src="getAssetUrl(mat.previewUrl)" class="w-full h-full object-cover" />
+                          <div
+                            class="w-8 h-8 rounded-lg overflow-hidden border border-white/10 bg-slate-950 flex-shrink-0 flex items-center justify-center"
+                          >
+                            <img
+                              v-if="mat.previewUrl"
+                              :src="getAssetUrl(mat.previewUrl)"
+                              class="w-full h-full object-cover"
+                            />
                             <Layers3 v-else class="w-4 h-4 text-slate-400" />
                           </div>
                           <div class="min-w-0">
-                            <h5 class="text-[11px] font-bold text-slate-200 truncate leading-tight">{{ mat.title }}</h5>
+                            <h5 class="text-[11px] font-bold text-slate-200 truncate leading-tight">
+                              {{ mat.title }}
+                            </h5>
                             <p class="text-[9px] text-slate-500 mt-0.5">
                               <span v-if="mat.resolution">{{ mat.resolution }}</span>
                             </p>
                           </div>
                         </div>
-                        <button type="button" @click="downloadMaterialFile(mat)" class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer">
+                        <button
+                          type="button"
+                          class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer"
+                          @click="downloadMaterialFile(mat)"
+                        >
                           <Download class="w-3.5 h-3.5" />
                           下载
                         </button>
@@ -1148,22 +1266,40 @@ const handleStartChat = async (user: ShowcaseUser) => {
 
                   <!-- Linked Plugins -->
                   <div v-if="item.linkedPlugins && item.linkedPlugins.length > 0" class="space-y-2">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">工具插件作品</div>
+                    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                      工具插件作品
+                    </div>
                     <div class="grid grid-cols-1 gap-2.5">
-                      <div v-for="plugin in item.linkedPlugins" :key="plugin.id" class="flex items-center justify-between p-2.5 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.02] transition-all">
+                      <div
+                        v-for="plugin in item.linkedPlugins"
+                        :key="plugin.id"
+                        class="flex items-center justify-between p-2.5 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.02] transition-all"
+                      >
                         <div class="flex items-center gap-2 min-w-0">
-                          <div class="w-8 h-8 rounded-lg overflow-hidden border border-white/10 bg-slate-950 flex-shrink-0 flex items-center justify-center">
-                            <img v-if="plugin.previewUrl" :src="getAssetUrl(plugin.previewUrl)" class="w-full h-full object-cover" />
+                          <div
+                            class="w-8 h-8 rounded-lg overflow-hidden border border-white/10 bg-slate-950 flex-shrink-0 flex items-center justify-center"
+                          >
+                            <img
+                              v-if="plugin.previewUrl"
+                              :src="getAssetUrl(plugin.previewUrl)"
+                              class="w-full h-full object-cover"
+                            />
                             <Puzzle v-else class="w-4 h-4 text-slate-400" />
                           </div>
                           <div class="min-w-0">
-                            <h5 class="text-[11px] font-bold text-slate-200 truncate leading-tight">{{ plugin.title }}</h5>
+                            <h5 class="text-[11px] font-bold text-slate-200 truncate leading-tight">
+                              {{ plugin.title }}
+                            </h5>
                             <p class="text-[9px] text-slate-500 mt-0.5">
                               <span>v{{ plugin.version }}</span>
                             </p>
                           </div>
                         </div>
-                        <button type="button" @click="downloadPluginFile(plugin)" class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer">
+                        <button
+                          type="button"
+                          class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer"
+                          @click="downloadPluginFile(plugin)"
+                        >
                           <Download class="w-3.5 h-3.5" />
                           下载
                         </button>
@@ -1341,7 +1477,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
   font-weight: 600;
   color: var(--text-muted);
 }
-.detail-edit-form input[type="text"] {
+.detail-edit-form input[type='text'] {
   width: 100%;
   padding: 8px 12px;
   border-radius: 8px;
@@ -1351,7 +1487,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
   font-size: 12px;
   outline: none;
 }
-.detail-edit-form input[type="text"]:focus {
+.detail-edit-form input[type='text']:focus {
   border-color: #6366f1;
   background: rgba(255, 255, 255, 0.05);
 }
@@ -1381,15 +1517,44 @@ const handleStartChat = async (user: ShowcaseUser) => {
   padding: 2.5px 7px;
   border-radius: 5px;
 }
-.detail-type.tone-blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.25); }
-.detail-type.tone-rose { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.25); }
-.detail-type.tone-green { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25); }
-.detail-type.tone-amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.25); }
-.detail-type.tone-slate { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.25); }
+.detail-type.tone-blue {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+.detail-type.tone-rose {
+  background: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.25);
+}
+.detail-type.tone-green {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+.detail-type.tone-amber {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+.detail-type.tone-slate {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
 
-.detail-status.status-pending { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-.detail-status.status-rejected { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-.detail-status.status-approved { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.detail-status.status-pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+.detail-status.status-rejected {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+.detail-status.status-approved {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
 
 .comment-list::-webkit-scrollbar {
   width: 4px;
@@ -1440,7 +1605,6 @@ const handleStartChat = async (user: ShowcaseUser) => {
   object-fit: cover;
 }
 
-
 /* Markdown preview transparent overrides */
 .md-preview-showcase {
   background: transparent !important;
@@ -1456,5 +1620,4 @@ const handleStartChat = async (user: ShowcaseUser) => {
   background: transparent !important;
   color: var(--text-primary) !important;
 }
-
 </style>

@@ -22,7 +22,7 @@ export function parseZipFileNames(file: File): Promise<string[]> {
     const EOCD_MAX_SIZE = 65535 + 22;
     const sliceStart = Math.max(0, file.size - EOCD_MAX_SIZE);
     const blob = file.slice(sliceStart);
-    
+
     reader.onload = (e) => {
       try {
         const buffer = e.target?.result as ArrayBuffer;
@@ -30,29 +30,29 @@ export function parseZipFileNames(file: File): Promise<string[]> {
           resolve([]);
           return;
         }
-        
+
         const view = new DataView(buffer);
         let eocdOffset = -1;
-        
+
         for (let i = buffer.byteLength - 22; i >= 0; i--) {
           if (view.getUint32(i, true) === 0x06054b50) {
             eocdOffset = i;
             break;
           }
         }
-        
+
         if (eocdOffset === -1) {
           resolve([]);
           return;
         }
-        
+
         const numRecords = view.getUint16(eocdOffset + 10, true);
         const cdSize = view.getUint32(eocdOffset + 12, true);
         const cdOffset = view.getUint32(eocdOffset + 16, true);
-        
+
         const cdReader = new FileReader();
         const cdBlob = file.slice(cdOffset, cdOffset + cdSize);
-        
+
         cdReader.onload = (cdEvent) => {
           try {
             const cdBuffer = cdEvent.target?.result as ArrayBuffer;
@@ -60,49 +60,49 @@ export function parseZipFileNames(file: File): Promise<string[]> {
               resolve([]);
               return;
             }
-            
+
             const cdView = new DataView(cdBuffer);
             const fileNames: string[] = [];
             let offset = 0;
             const decoder = new TextDecoder('utf-8');
-            
+
             for (let r = 0; r < numRecords; r++) {
               if (offset + 46 > cdBuffer.byteLength) break;
-              
+
               const sig = cdView.getUint32(offset, true);
               if (sig !== 0x02014b50) {
                 break;
               }
-              
+
               const nameLen = cdView.getUint16(offset + 28, true);
               const extraLen = cdView.getUint16(offset + 30, true);
               const commentLen = cdView.getUint16(offset + 32, true);
-              
+
               if (offset + 46 + nameLen > cdBuffer.byteLength) break;
-              
+
               const nameBytes = new Uint8Array(cdBuffer, offset + 46, nameLen);
               const fileName = decoder.decode(nameBytes);
-              
+
               if (fileName && !fileName.endsWith('/')) {
                 fileNames.push(fileName);
               }
-              
+
               offset += 46 + nameLen + extraLen + commentLen;
             }
-            
+
             resolve(fileNames);
           } catch (err) {
             reject(err);
           }
         };
-        
+
         cdReader.onerror = () => reject(cdReader.error);
         cdReader.readAsArrayBuffer(cdBlob);
       } catch (err) {
         reject(err);
       }
     };
-    
+
     reader.onerror = () => reject(reader.error);
     reader.readAsArrayBuffer(blob);
   });
@@ -122,13 +122,13 @@ export function buildFileTree(files: string[]): TreeNode[] {
       if (!part) continue;
       accumulatedPath = accumulatedPath ? `${accumulatedPath}/${part}` : part;
       const isLast = i === parts.length - 1;
-      let existingNode = currentLevel.find(node => node.name === part);
+      let existingNode = currentLevel.find((node) => node.name === part);
       if (!existingNode) {
         existingNode = {
           name: part,
           path: accumulatedPath,
           isFolder: !isLast,
-          children: []
+          children: [],
         };
         currentLevel.push(existingNode);
         currentLevel.sort((a, b) => {
@@ -154,7 +154,7 @@ export function flattenFileTree(nodes: TreeNode[], level = 0): FlattenedNode[] {
       name: node.name,
       path: node.path,
       isFolder: node.isFolder,
-      level
+      level,
     });
     if (node.isFolder && node.children.length > 0) {
       result.push(...flattenFileTree(node.children, level + 1));

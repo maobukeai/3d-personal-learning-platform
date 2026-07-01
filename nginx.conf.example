@@ -30,6 +30,15 @@ server {
     gzip_disable "MSIE [1-6]\.";
 
     # -------------------------------------------------------
+    # Brotli 压缩配置 (相比 Gzip 能进一步减小 20-30% 体积，加载更迅速)
+    # ⚠️ 注意：Brotli 需要 Nginx 加载了 ngx_brotli 模块。若未编译模块，保持注释即可。
+    # -------------------------------------------------------
+    # brotli on;
+    # brotli_static on; # 关键：优先读取前端构建生成的 .br 静态资源文件，免除 CPU 实时压缩开销
+    # brotli_comp_level 6;
+    # brotli_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml model/gltf-binary model/gltf+json application/octet-stream;
+
+    # -------------------------------------------------------
     # 1. 前端静态文件托管 (Vue 3 / Vite 产出的 dist 目录)
     # -------------------------------------------------------
     location / {

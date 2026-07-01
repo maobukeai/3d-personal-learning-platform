@@ -3,7 +3,7 @@ import { Link2, Database, FileText, Trash2, Loader2, Sparkles } from 'lucide-vue
 import Modal from '@/components/ui/Modal.vue';
 import type { MirrorSource } from '../AdminMirrorView.vue';
 
-const props = defineProps<{
+defineProps<{
   selectedSource: MirrorSource | null;
   isUploading: boolean;
   matchResult: { totalLinks: number; matchedCount: number } | null;

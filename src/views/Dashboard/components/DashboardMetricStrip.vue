@@ -4,7 +4,12 @@ import { BookOpen, CheckSquare, Box, Star } from 'lucide-vue-next';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import { formatCompactNumber as formatNumber } from '@/utils/format';
-import type { DashboardEnrollment, DashboardStatsResponse, WorkbenchData, MetricTile } from '../types';
+import type {
+  DashboardEnrollment,
+  DashboardStatsResponse,
+  WorkbenchData,
+  MetricTile,
+} from '../types';
 
 const props = defineProps<{
   workbench: WorkbenchData | null;
@@ -34,7 +39,7 @@ const metricTiles = computed<MetricTile[]>(() => [
     label: '学习推进',
     value: `${props.learningProgress}%`,
     detail: props.activeEnrollment
-      ? (props.activeEnrollment.course?.title || '')
+      ? props.activeEnrollment.course?.title || ''
       : `${props.workbench?.learning.enrollmentCount ?? 0} 门课程`,
     trend: props.stats?.trends?.learning,
     icon: BookOpen,

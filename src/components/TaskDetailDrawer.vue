@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
+import { ref, watch, computed } from 'vue';
 import {
   CheckCircle2,
   Copy,
@@ -7,9 +7,6 @@ import {
   Minimize2,
   Trash2,
   X,
-  CheckSquare,
-  MessageSquare,
-  Send,
   Link2,
   Clock,
   Plus,
@@ -19,8 +16,7 @@ import { parseTags, getTagClass } from '@/utils/tags';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
 import { isAxiosError } from 'axios';
-import { useAuthStore } from '@/stores/auth';
-import type { Task, TaskUpdatePayload, TaskActivity, Subtask as BaseSubtask } from '@/types/task';
+import type { Task, TaskUpdatePayload, Subtask as BaseSubtask } from '@/types/task';
 import Modal from '@/components/ui/Modal.vue';
 
 // Import split components & helpers
@@ -202,8 +198,6 @@ const drawerRemoveTag = (tag: string) => {
   drawerForm.value.tags = drawerForm.value.tags.filter((t) => t !== tag);
   triggerSave();
 };
-
-const authStore = useAuthStore();
 
 // Child components refs
 const subtasksRef = ref<InstanceType<typeof TaskSubtasks> | null>(null);
@@ -415,26 +409,6 @@ watch(
     }
   },
 );
-
-const formatActivityTime = (dateStr: string) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-
-  if (diffMins < 1) return '刚刚';
-  if (diffMins < 60) return `${diffMins}分钟前`;
-  if (diffHours < 24) return `${diffHours}小时前`;
-
-  return d.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
 </script>
 
 <template>
@@ -685,7 +659,7 @@ const formatActivityTime = (dateStr: string) => {
               <TaskSubtasks
                 ref="subtasksRef"
                 :subtasks="drawerSubtasks"
-                :teamMembers="teamMembers"
+                :team-members="teamMembers"
                 @update:subtasks="handleSubtasksUpdate"
                 @image-click="openImageModal"
               />
@@ -827,7 +801,7 @@ const formatActivityTime = (dateStr: string) => {
               <!-- Comments Section -->
               <TaskComments
                 ref="commentsRef"
-                :taskId="task?.id"
+                :task-id="task?.id"
                 @comments-changed="activitiesRef?.refresh()"
                 @image-click="openImageModal"
               />
@@ -1028,10 +1002,7 @@ const formatActivityTime = (dateStr: string) => {
               </div>
 
               <!-- Task Activities (任务动态) -->
-              <TaskActivities
-                ref="activitiesRef"
-                :taskId="task?.id"
-              />
+              <TaskActivities ref="activitiesRef" :task-id="task?.id" />
 
               <!-- Final Manual Save Feedback -->
               <div class="pt-4 border-t" style="border-color: var(--border-base)">
@@ -1051,12 +1022,7 @@ const formatActivityTime = (dateStr: string) => {
   </Teleport>
 
   <!-- Image Preview Dialog -->
-  <Modal
-    :show="isImagePreviewOpen"
-    size="xl"
-    padding="none"
-    @close="isImagePreviewOpen = false"
-  >
+  <Modal :show="isImagePreviewOpen" size="xl" padding="none" @close="isImagePreviewOpen = false">
     <div class="flex items-center justify-center p-2">
       <img
         v-if="previewImageUrl"

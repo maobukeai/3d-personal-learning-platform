@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Eye, Heart, MessageSquare, Pin, Sparkles, Tag, Trash2 } from 'lucide-vue-next';
+import { Eye, Heart, MessageSquare, Pin, Tag, Trash2 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { getAssetUrl } from '@/utils/api';
 import {
@@ -119,8 +119,6 @@ const formattedActivityTime = computed(() =>
   formatTime(props.discussion.lastActivityAt || props.discussion.createdAt),
 );
 
-
-
 function handleCardClick() {
   emit('click', props.discussion.id);
 }
@@ -147,7 +145,7 @@ function handleTagClick(tagName: string, event: Event) {
     class="discussion-card"
     :class="{
       'discussion-card--pinned': discussion.isPinned,
-      'discussion-card--grid': viewMode === 'grid'
+      'discussion-card--grid': viewMode === 'grid',
     }"
     @click="handleCardClick"
   >
@@ -550,8 +548,6 @@ function handleTagClick(tagName: string, event: Event) {
   background: rgba(239, 68, 68, 0.08);
   color: #ef4444;
 }
-
-
 
 .discussion-card__actions {
   gap: 4px;

@@ -13,7 +13,7 @@ import {
 } from 'lucide-vue-next';
 import type { MirrorResource, MirrorCategory } from '../AdminMirrorView.vue';
 
-const props = defineProps<{
+defineProps<{
   sourceId: string;
   resources: MirrorResource[];
   resourceTotal: number;

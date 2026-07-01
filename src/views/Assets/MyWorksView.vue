@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch, defineAsyncComponent } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useLabel } from '@/utils/i18n';
 import {
@@ -20,7 +20,6 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
-import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
 import { useSystemStore } from '@/stores/system';
 import { formatCompactNumber, formatFileSize } from './resourceUtils';
 import {
@@ -48,13 +47,21 @@ import MyWorksHeader from './components/MyWorksHeader.vue';
 import MyWorksStatsPanel from './components/MyWorksStatsPanel.vue';
 import MyWorksFilterPanel from './components/MyWorksFilterPanel.vue';
 import MyWorksGrid from './components/MyWorksGrid.vue';
-import EditWorkDialog from './components/EditWorkDialog.vue';
-import SubmitShowcaseDialog from './components/SubmitShowcaseDialog.vue';
 import { useAuthStore } from '@/stores/auth';
-import AssetDetailModal from './components/AssetDetailModal.vue';
-import MaterialDetailPanel from './components/MaterialDetailPanel.vue';
-import PluginDetailModal from './components/PluginDetailModal.vue';
-import ShowcaseDetail from '../Community/components/ShowcaseDetail.vue';
+
+const PublishWorkDialog = defineAsyncComponent(() => import('@/components/PublishWorkDialog.vue'));
+const EditWorkDialog = defineAsyncComponent(() => import('./components/EditWorkDialog.vue'));
+const SubmitShowcaseDialog = defineAsyncComponent(
+  () => import('./components/SubmitShowcaseDialog.vue'),
+);
+const AssetDetailModal = defineAsyncComponent(() => import('./components/AssetDetailModal.vue'));
+const MaterialDetailPanel = defineAsyncComponent(
+  () => import('./components/MaterialDetailPanel.vue'),
+);
+const PluginDetailModal = defineAsyncComponent(() => import('./components/PluginDetailModal.vue'));
+const ShowcaseDetail = defineAsyncComponent(
+  () => import('../Community/components/ShowcaseDetail.vue'),
+);
 
 const router = useRouter();
 const route = useRoute();
@@ -103,10 +110,10 @@ async function showMaterialDetail(materialId: string) {
       rejectReason: data.rejectReason,
       userId: data.userId,
       isFavorited: !!data.isFavorited,
-      _count: data._count || { favorites: data.favorites || 0 }
+      _count: data._count || { favorites: data.favorites || 0 },
     };
     isMaterialDetailOpen.value = true;
-  } catch (error) {
+  } catch {
     ElMessage.error('加载材质详情失败');
   } finally {
     isMaterialLoading.value = false;
@@ -119,7 +126,7 @@ async function showPluginDetail(pluginId: string) {
     const { data } = await api.get(`/api/plugins/${pluginId}`);
     selectedPlugin.value = data.plugin || data;
     isPluginDetailOpen.value = true;
-  } catch (error) {
+  } catch {
     ElMessage.error('加载插件详情失败');
   } finally {
     isPluginLoading.value = false;
@@ -132,7 +139,7 @@ async function showShowcaseDetail(showcaseId: string) {
     const { data } = await api.get(`/api/showcase/${showcaseId}`);
     selectedShowcase.value = data;
     isShowcaseDetailOpen.value = true;
-  } catch (error) {
+  } catch {
     ElMessage.error('加载展示详情失败');
   } finally {
     isShowcaseLoading.value = false;
@@ -172,14 +179,21 @@ function handleDetailEdit(item: any, kind: 'asset' | 'material' | 'plugin' | 'sh
       status: item.status || 'APPROVED',
       tags: item.tags || [],
       surface: '',
-      typeLabel: kind === 'asset' ? '资源' : kind === 'material' ? '材质' : kind === 'plugin' ? '插件' : '展示',
+      typeLabel:
+        kind === 'asset'
+          ? '资源'
+          : kind === 'material'
+            ? '材质'
+            : kind === 'plugin'
+              ? '插件'
+              : '展示',
       format: '',
       thumbnail: item.previewUrl || item.preview || '',
       size: item.fileSize || 0,
       metric: 0,
       metricLabel: '',
       createdAt: item.createdAt || '',
-      raw: item
+      raw: item,
     };
     openEditDialog(fallbackWork);
   }
@@ -200,14 +214,21 @@ function handleDetailDelete(item: any, kind: 'asset' | 'material' | 'plugin' | '
     status: item.status || 'APPROVED',
     tags: item.tags || [],
     surface: '',
-    typeLabel: kind === 'asset' ? '资源' : kind === 'material' ? '材质' : kind === 'plugin' ? '插件' : '展示',
+    typeLabel:
+      kind === 'asset'
+        ? '资源'
+        : kind === 'material'
+          ? '材质'
+          : kind === 'plugin'
+            ? '插件'
+            : '展示',
     format: '',
     thumbnail: item.previewUrl || item.preview || '',
     size: item.fileSize || 0,
     metric: 0,
     metricLabel: '',
     createdAt: item.createdAt || '',
-    raw: item
+    raw: item,
   };
   handleDeleteWork(work);
 }
@@ -349,7 +370,7 @@ const filteredWorks = computed(() =>
 
 const activeFilterChips = computed(() => {
   const chips: Array<{ key: string; label: string }> = [];
-  
+
   if (sourceFilter.value !== 'ALL') {
     const kindLabels: Record<string, string> = {
       asset: label('资源库', 'Assets'),
@@ -359,10 +380,13 @@ const activeFilterChips = computed(() => {
     };
     chips.push({
       key: 'source',
-      label: label(`来源: ${kindLabels[sourceFilter.value]}`, `Source: ${kindLabels[sourceFilter.value]}`),
+      label: label(
+        `来源: ${kindLabels[sourceFilter.value]}`,
+        `Source: ${kindLabels[sourceFilter.value]}`,
+      ),
     });
   }
-  
+
   if (statusFilter.value !== 'ALL') {
     const statusLabels: Record<string, string> = {
       PENDING: label('待审核', 'Pending'),
@@ -371,17 +395,20 @@ const activeFilterChips = computed(() => {
     };
     chips.push({
       key: 'status',
-      label: label(`状态: ${statusLabels[statusFilter.value]}`, `Status: ${statusLabels[statusFilter.value]}`),
+      label: label(
+        `状态: ${statusLabels[statusFilter.value]}`,
+        `Status: ${statusLabels[statusFilter.value]}`,
+      ),
     });
   }
-  
+
   if (searchQuery.value.trim()) {
     chips.push({
       key: 'search',
       label: label(`搜索: "${searchQuery.value.trim()}"`, `Search: "${searchQuery.value.trim()}"`),
     });
   }
-  
+
   return chips;
 });
 
@@ -697,7 +724,7 @@ const openEditDialog = (work: UnifiedWork) => {
     showcaseType: work.kind === 'showcase' ? (raw as ShowcaseWork).type || 'IMAGE' : 'IMAGE',
     videoUrl: work.kind === 'showcase' ? (raw as ShowcaseWork).videoUrl || '' : '',
     installGuide: rawPlugin?.installGuide || '',
-    
+
     // advanced fields shared across asset, material, plugin
     originality: rawAny?.originality || 'ORIGINAL',
     originalAuthor: rawAny?.originalAuthor || '',
@@ -1031,6 +1058,7 @@ onMounted(async () => {
     </div>
 
     <EditWorkDialog
+      v-if="isEditDialogOpen"
       v-model:show="isEditDialogOpen"
       v-model:form="editForm"
       :work="selectedWork"
@@ -1042,17 +1070,26 @@ onMounted(async () => {
     />
 
     <SubmitShowcaseDialog
+      v-if="isShowcaseDialogOpen"
       v-model:show="isShowcaseDialogOpen"
       v-model:form="showcaseForm"
       @submit="publishToShowcase"
     />
 
-    <PublishWorkDialog v-model="isPublishWorkDialogOpen" @published="fetchWorks" />
+    <PublishWorkDialog
+      v-if="isPublishWorkDialogOpen"
+      v-model="isPublishWorkDialogOpen"
+      @published="fetchWorks"
+    />
 
     <AssetDetailModal
+      v-if="isAssetDetailOpen"
       :show="isAssetDetailOpen"
       :asset-id="selectedAssetId"
-      @close="isAssetDetailOpen = false; selectedAssetId = null;"
+      @close="
+        isAssetDetailOpen = false;
+        selectedAssetId = null;
+      "
       @update="fetchWorks"
       @edit="handleDetailEdit($event, 'asset')"
     />
@@ -1066,13 +1103,17 @@ onMounted(async () => {
       :can-edit="true"
       :can-download="true"
       :is-saving-review="false"
-      @close="isMaterialDetailOpen = false; selectedMaterial = null;"
+      @close="
+        isMaterialDetailOpen = false;
+        selectedMaterial = null;
+      "
       @edit="handleDetailEdit($event, 'material')"
       @delete="handleDetailDelete($event, 'material')"
       @update="fetchWorks"
     />
 
     <PluginDetailModal
+      v-if="isPluginDetailOpen"
       :show="isPluginDetailOpen"
       :plugin="selectedPlugin"
       :is-favorited="false"
@@ -1080,13 +1121,17 @@ onMounted(async () => {
       :is-admin="isAdmin"
       :can-edit="true"
       :is-saving-review="false"
-      @close="isPluginDetailOpen = false; selectedPlugin = null;"
+      @close="
+        isPluginDetailOpen = false;
+        selectedPlugin = null;
+      "
       @edit="handleDetailEdit($event, 'plugin')"
       @delete="handleDetailDelete($event, 'plugin')"
       @update="fetchWorks"
     />
 
     <ShowcaseDetail
+      v-if="isShowcaseDetailOpen"
       v-model:is-open="isShowcaseDetailOpen"
       v-model:item="selectedShowcase"
       :is-admin="isAdmin"

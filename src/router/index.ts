@@ -446,22 +446,33 @@ router.beforeEach(async (to) => {
 });
 
 // Prefetch key views when idle to achieve instant page transitions
+// Only prefetch auth-required views when the user is already logged in
 router.isReady().then(() => {
   if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
     window.requestIdleCallback(() => {
-      const prefetchList = [
-        () => import('@/views/Dashboard/DashboardView.vue'),
+      const authStore = useAuthStore();
+
+      // Public views — always safe to prefetch
+      const publicPrefetch = [
         () => import('@/views/Learning/AcademyView.vue'),
-        () => import('@/views/Assets/ResourceCenterView.vue'),
-        () => import('@/views/Assets/AssetsView.vue'),
-        () => import('@/views/Tasks/TaskBoard.vue'),
-        () => import('@/views/Community/DiscussionsView.vue'),
-        () => import('@/views/Learning/RoadmapsView.vue'),
         () => import('@/views/Community/ShowcaseView.vue'),
         () => import('@/views/Community/ExploreTeamsView.vue'),
-        () => import('@/views/Settings/SettingsView.vue'),
       ];
-      prefetchList.forEach((load) => {
+
+      // Auth-required views — only prefetch if the user is already logged in
+      const authPrefetch = authStore.isAuthenticated
+        ? [
+            () => import('@/views/Dashboard/DashboardView.vue'),
+            () => import('@/views/Assets/ResourceCenterView.vue'),
+            () => import('@/views/Assets/AssetsView.vue'),
+            () => import('@/views/Tasks/TaskBoard.vue'),
+            () => import('@/views/Community/DiscussionsView.vue'),
+            () => import('@/views/Learning/RoadmapsView.vue'),
+            () => import('@/views/Settings/SettingsView.vue'),
+          ]
+        : [];
+
+      [...publicPrefetch, ...authPrefetch].forEach((load) => {
         load().catch(() => {});
       });
     });

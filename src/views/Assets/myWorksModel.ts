@@ -26,7 +26,7 @@ export interface AssetWork {
   downloads?: number;
   viewCount?: number;
   createdAt: string;
-  
+
   // Advanced fields
   originality?: string | null;
   originalAuthor?: string | null;

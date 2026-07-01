@@ -107,7 +107,12 @@ const localView = computed({
       :total-count="pagination.total || visibleAssets.length"
       :pagination="pagination"
       :empty-title="label('没有匹配的资源', 'No Matching Assets')"
-      :empty-body="label('调整筛选条件，或上传一个新的资源包。', 'Adjust filters or upload a new asset package.')"
+      :empty-body="
+        label(
+          '调整筛选条件，或上传一个新的资源包。',
+          'Adjust filters or upload a new asset package.',
+        )
+      "
       :empty-action-text="label('上传资源', 'Upload Asset')"
       @click="emit('goToDetail', $event)"
       @like="(item, event) => emit('like', item, event)"

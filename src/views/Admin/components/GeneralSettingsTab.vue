@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
-import { reactive, watch } from 'vue';
 import { Globe, UserPlus, Lock } from 'lucide-vue-next';
 import { ElMessageBox } from 'element-plus';
+import { useSettingsSync } from '@/composables/useSettingsSync';
 
 const props = defineProps<{
   settings: {
@@ -19,23 +19,7 @@ const emit = defineEmits<{
   (e: 'update:settings', val: typeof props.settings): void;
 }>();
 
-const localSettings = reactive({ ...props.settings });
-
-watch(
-  () => props.settings,
-  (newVal) => {
-    Object.assign(localSettings, newVal);
-  },
-  { deep: true },
-);
-
-watch(
-  localSettings,
-  (newVal) => {
-    emit('update:settings', { ...props.settings, ...newVal });
-  },
-  { deep: true },
-);
+const { localSettings } = useSettingsSync(props, emit);
 
 const defaultRoleOptions = [
   { label: t('admin.ordinary_user'), value: 'USER' },

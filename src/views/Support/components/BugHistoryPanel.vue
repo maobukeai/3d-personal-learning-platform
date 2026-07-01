@@ -144,15 +144,30 @@ const _formatRelativeDate = (value?: string | null) => {
           class="min-w-[200px]"
         />
         <el-select v-model="status" class="custom-select toolbar-select !w-36">
-          <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+          <el-option
+            v-for="item in statusOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
         </el-select>
         <el-select v-model="type" class="custom-select toolbar-select !w-36">
           <el-option label="全部类型" value="ALL" />
-          <el-option v-for="item in typeOptions" :key="item.value" :label="item.label" :value="item.value" />
+          <el-option
+            v-for="item in typeOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
         </el-select>
         <el-select v-model="priority" class="custom-select toolbar-select !w-36">
           <el-option label="全部优先级" value="ALL" />
-          <el-option v-for="item in priorityOptions" :key="item.value" :label="item.label" :value="item.value" />
+          <el-option
+            v-for="item in priorityOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
         </el-select>
       </div>
 

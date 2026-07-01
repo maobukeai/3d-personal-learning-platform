@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { useCommunityI18n } from '@/composables/useCommunityI18n';
 import { formatDate } from '@/utils/format';
 import { ClipboardCheck, Briefcase, BarChart3, ArrowRight } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
@@ -31,8 +30,6 @@ const emit = defineEmits<{
   (e: 'view-profile', userId: string): void;
   (e: 'chat', user: TeamUser): void;
 }>();
-
-const { t } = useCommunityI18n();
 
 const isLoading = ref(false);
 const memberInsight = ref<MemberInsightDetail | null>(null);

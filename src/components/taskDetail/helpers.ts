@@ -94,4 +94,3 @@ export const isImageUrl = (url: string): boolean => {
 
   return false;
 };
-

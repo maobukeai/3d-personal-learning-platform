@@ -84,10 +84,7 @@ const getUserPlanPriority = async (userId: string): Promise<number> => {
 
 const resolveWorkspaceId = async (user: SafeUser, requestedWorkspaceId?: string) => {
   // Check workspace resolution cache for non-virtual workspaces
-  if (
-    requestedWorkspaceId &&
-    !requestedWorkspaceId.startsWith('admin-')
-  ) {
+  if (requestedWorkspaceId && !requestedWorkspaceId.startsWith('admin-')) {
     const cacheKey = `workspace_resolve:${user.id}:${requestedWorkspaceId}`;
     const cached = await redisService.get<string>(cacheKey);
     if (cached) return cached;

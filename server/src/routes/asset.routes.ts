@@ -1,9 +1,33 @@
-import { Router } from 'express';
+import { Router, Request } from 'express';
+import rateLimit from 'express-rate-limit';
 import * as assetController from '../controllers/asset.controller';
 import { authenticate } from '../middlewares/auth.middleware';
+import { createRateLimitHandler } from '../middlewares/rate-limit.middleware';
 import { upload, validateFileContent } from '../middlewares/upload.middleware';
 
+type RequestWithUserId = Request & { userId?: string };
+
 const router = Router();
+
+// Dedicated limiter for upload endpoints (CPU/storage heavy).
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: createRateLimitHandler('上传请求过于频繁，请稍后再试。', 'UPLOAD_RATE_LIMITED'),
+  keyGenerator: (req) => (req as RequestWithUserId).userId || req.ip || 'unknown',
+});
+
+// Dedicated limiter for download endpoints (bandwidth + DB writes).
+const downloadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: createRateLimitHandler('下载请求过于频繁，请稍后再试。', 'DOWNLOAD_RATE_LIMITED'),
+  keyGenerator: (req) => (req as RequestWithUserId).userId || req.ip || 'unknown',
+});
 
 router.get('/share/:shareId', assetController.getPublicSharedAsset);
 
@@ -14,6 +38,7 @@ router.get('/categories', categoryController.getAllCategories);
 
 router.post(
   '/upload',
+  uploadLimiter,
   upload.fields([
     { name: 'asset', maxCount: 1 },
     { name: 'package', maxCount: 1 },
@@ -30,13 +55,14 @@ router.put('/favorites/categories', assetController.updateAssetFavoriteCategory)
 router.delete('/favorites/categories/:categoryName', assetController.deleteAssetFavoriteCategory);
 router.get('/insights', assetController.getAssetInsights);
 router.get('/tags', assetController.getAssetTags);
-router.post('/:id/download', assetController.recordAssetDownload);
+router.post('/:id/download', downloadLimiter, assetController.recordAssetDownload);
 router.post('/:id/like', assetController.toggleAssetLike);
 router.get('/:id/toolkit', assetController.getAssetToolkit);
 router.get('/:id/package-files', assetController.getAssetPackageFiles);
 router.get('/:id', assetController.getAssetById);
 router.patch(
   '/:id',
+  uploadLimiter,
   upload.fields([
     { name: 'asset', maxCount: 1 },
     { name: 'package', maxCount: 1 },
@@ -46,12 +72,13 @@ router.patch(
   assetController.updateAsset,
 );
 router.patch('/:id/metadata', assetController.updateAssetMetadata);
-router.patch('/:id/thumbnail', assetController.updateAssetThumbnail);
+router.patch('/:id/thumbnail', uploadLimiter, assetController.updateAssetThumbnail);
 router.delete('/:id', assetController.deleteAsset);
 
 // Versions and 3D Annotations
 router.post(
   '/:id/versions',
+  uploadLimiter,
   upload.fields([
     { name: 'asset', maxCount: 1 },
     { name: 'package', maxCount: 1 },

@@ -1168,13 +1168,9 @@ onMounted(refreshAll);
 }
 
 :deep(.spinning) {
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  :deep(to) {
-    transform: rotate(360deg);
-  }
+  /* @keyframes spin + base .spinning provided globally by src/styles/layout.css;
+     only the duration differs from the 1s default. */
+  animation-duration: 0.9s;
 }
 
 :deep(.preview-image) {

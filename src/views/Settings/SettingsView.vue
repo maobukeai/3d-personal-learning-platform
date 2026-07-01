@@ -17,6 +17,9 @@ import {
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { preferences } from '@/utils/preferences';
+// Settings-shared CSS is only needed on this route — importing it here keeps
+// it out of the critical-path CSS bundle (saves ~164 lines on first paint).
+import '@/styles/settings-shared.css';
 
 import ProfileSection from './components/ProfileSection.vue';
 import NotificationSection from './components/NotificationSection.vue';
@@ -36,7 +39,6 @@ const sectionComponents: Record<SectionId, Component> = {
   data: DataSection,
   backup: BackupSection,
 };
-
 
 type SectionId =
   | 'profile'
@@ -408,7 +410,6 @@ h2 {
   padding: 4px 0 8px;
 }
 
-
 .icon-action {
   width: 38px;
   height: 38px;
@@ -437,7 +438,8 @@ h2 {
 }
 
 .spinning {
-  animation: spin 0.9s linear infinite;
+  /* @keyframes spin provided globally; only duration differs from the 1s default */
+  animation-duration: 0.9s;
 }
 
 .section-rail,
@@ -685,11 +687,7 @@ h2 {
   color: #2563eb;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* @keyframes spin provided globally by src/styles/layout.css */
 
 @media (max-width: 900px) {
   .settings-workbench {

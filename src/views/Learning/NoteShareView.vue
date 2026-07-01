@@ -1,12 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import {
-  Info,
-  Sparkles,
-  Home,
-  Clock,
-} from 'lucide-vue-next';
+import { Info, Sparkles, Home, Clock } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { useSystemStore } from '@/stores/system';
 import { useAuthStore } from '@/stores/auth';
@@ -14,7 +9,6 @@ import Button from '@/components/ui/Button.vue';
 import GlassCard from '@/components/ui/GlassCard.vue';
 const NoteDetailDialog = defineAsyncComponent(() => import('./components/NoteDetailDialog.vue'));
 import { applyThemeToDocument } from '@/composables/useAppearance';
-import { preferences } from '@/utils/preferences';
 import { formatDate } from '@/utils/format';
 
 const route = useRoute();
@@ -72,7 +66,8 @@ const loadSharedNote = async () => {
       isExpired.value = true;
       errorMsg.value = '该分享链接已过期失效';
     } else {
-      errorMsg.value = error.response?.data?.error || '无法加载分享的笔记，链接可能不存在或已被取消';
+      errorMsg.value =
+        error.response?.data?.error || '无法加载分享的笔记，链接可能不存在或已被取消';
     }
     document.title = `分享链接已失效 | ${systemStore.settings.PLATFORM_NAME || '3D 学习平台'}`;
   } finally {
@@ -105,7 +100,7 @@ onUnmounted(() => {
 
     <!-- Enterprise grid background decoration -->
     <div class="enterprise-canvas absolute inset-0 overflow-hidden pointer-events-none z-0"></div>
-    
+
     <!-- Clean Minimalist Header -->
     <header
       class="mobile-row fixed top-0 left-0 right-0 z-[100] backdrop-blur-md px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between border-b shadow-xs transition-colors bg-[var(--bg-card)]/80 border-[var(--border-base)]"
@@ -224,7 +219,8 @@ onUnmounted(() => {
       class="mt-auto py-6 text-center text-xs text-[var(--text-muted)] border-t bg-[var(--bg-card)]/50 select-none border-[var(--border-base)]"
     >
       <p class="mb-1">
-        © {{ new Date().getFullYear() }} {{ systemStore.settings.PLATFORM_NAME }}. All rights reserved.
+        © {{ new Date().getFullYear() }} {{ systemStore.settings.PLATFORM_NAME }}. All rights
+        reserved.
       </p>
       <p>由公共分享密钥浏览 • 支持免登直接访问</p>
     </footer>

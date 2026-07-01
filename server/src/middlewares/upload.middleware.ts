@@ -11,6 +11,15 @@ import { UploadedFile } from '../types/upload';
 import { optimizeImage } from '../utils/image';
 import { gbToBytes } from '../utils/quota';
 
+/** Async delete-if-exists. Swallows ENOENT so callers don't need existsSync. */
+const safeUnlink = (p: string): Promise<void> =>
+  fs.promises.unlink(p).catch((err: unknown) => {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    if (code !== 'ENOENT') {
+      logger.warn(`[UploadMiddleware] Failed to unlink ${p}:`, err);
+    }
+  });
+
 const getStorageTypeForField = (file: Express.Multer.File, req: Request): string => {
   const fieldname = file.fieldname;
   if (req.originalUrl.includes('/showcase') || req.baseUrl.includes('showcase')) {
@@ -96,9 +105,7 @@ const storage = multer.diskStorage({
       dir = FIELD_TO_DIR[file.fieldname] ?? './uploads/avatars';
     }
 
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+    fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
   filename: (req, file, cb) => {
@@ -342,7 +349,7 @@ const createUploadMiddleware = (config: {
               }
 
               if (file.size > finalMaxFileSize) {
-                if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+                await safeUnlink(file.path);
                 const isMirrorImport =
                   file.fieldname === 'file' &&
                   (req.originalUrl.includes('/mirror/sources/import') ||
@@ -407,8 +414,8 @@ const createUploadMiddleware = (config: {
                 ? files[fieldname]
                 : [files[fieldname]];
               for (const file of fileList) {
-                if (file && fs.existsSync(file.path)) {
-                  fs.unlinkSync(file.path);
+                if (file) {
+                  await safeUnlink(file.path);
                 }
               }
             }
@@ -451,9 +458,7 @@ const createUploadMiddleware = (config: {
               });
 
               if (forceCloud && activeCount === 0) {
-                for (const f of allFiles) {
-                  if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
-                }
+                await Promise.all(allFiles.map((f) => safeUnlink(f.path)));
                 return res.status(400).json({
                   error: '暂时维护中',
                 });
@@ -499,32 +504,32 @@ const createUploadMiddleware = (config: {
                 };
                 const folderPrefix = getFolderPrefix(mainFile.fieldname);
 
+                // Pre-fetch all ACTIVE storage configs once and group by assetType.
+                // Previously this hit the DB once per uploaded file (N+1 when a
+                // request carries multiple files). Falling back from a specific
+                // type to 'ALL' is now an in-memory Map lookup.
+                const allActiveConfigs = await prisma.storageConfig.findMany({
+                  where: { status: 'ACTIVE' },
+                  orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+                });
+                const configsByType = new Map<string, typeof allActiveConfigs>();
+                for (const cfg of allActiveConfigs) {
+                  const arr = configsByType.get(cfg.assetType) || [];
+                  arr.push(cfg);
+                  configsByType.set(cfg.assetType, arr);
+                }
+
                 for (const file of allFiles) {
                   const storageType = getStorageTypeForField(file, req);
 
-                  // Query active configurations: prioritize specific type over ALL fallback
-                  let configs = await prisma.storageConfig.findMany({
-                    where: {
-                      status: 'ACTIVE',
-                      assetType: storageType,
-                    },
-                    orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-                  });
-
+                  // Specific type first, fall back to 'ALL' if missing.
+                  let configs = configsByType.get(storageType) || [];
                   if (configs.length === 0 && storageType !== 'ALL') {
-                    configs = await prisma.storageConfig.findMany({
-                      where: {
-                        status: 'ACTIVE',
-                        assetType: 'ALL',
-                      },
-                      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-                    });
+                    configs = configsByType.get('ALL') || [];
                   }
 
                   if (configs.length === 0) {
-                    for (const f of allFiles) {
-                      if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
-                    }
+                    await Promise.all(allFiles.map((f) => safeUnlink(f.path)));
                     return res.status(400).json({
                       error: `未配置适用于 [${storageType}] 的可用云存储账号`,
                     });
@@ -581,8 +586,8 @@ const createUploadMiddleware = (config: {
                           (file.fieldname === 'material' && ext === '.zip') ||
                           (file.fieldname === 'plugin_file' && ext === '.zip');
 
-                        if (!is3DAsset && fs.existsSync(file.path)) {
-                          fs.unlinkSync(file.path);
+                        if (!is3DAsset) {
+                          await safeUnlink(file.path);
                         }
 
                         uploaded = true;
@@ -605,9 +610,7 @@ const createUploadMiddleware = (config: {
                   }
 
                   if (!uploaded) {
-                    for (const f of allFiles) {
-                      if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
-                    }
+                    await Promise.all(allFiles.map((f) => safeUnlink(f.path)));
                     const errMsg = uploadErrorMsg
                       ? `上传到云存储失败: ${uploadErrorMsg}`
                       : `云存储空间已满 (限额 9.8GB/账号) 且无法保存文件 [${file.originalname}]，请联系管理员。`;
@@ -622,9 +625,7 @@ const createUploadMiddleware = (config: {
                 '[UploadMiddleware] Storage interception DB/validation error:',
                 storageDbError,
               );
-              for (const f of allFiles) {
-                if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
-              }
+              await Promise.all(allFiles.map((f) => safeUnlink(f.path)));
               const errorMessage =
                 storageDbError instanceof Error ? storageDbError.message : '存储系统初始化失败';
               return res.status(400).json({ error: errorMessage });
@@ -727,14 +728,14 @@ export const validateSingleFileContent = async (file: Express.Multer.File) => {
   if (file.fieldname === 'message_file') {
     // For chat message files, allow all formats, but block PHP files for security
     if (ext === '.php' || ext === '.php5' || ext === '.phtml') {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      await safeUnlink(file.path);
       throw new Error('安全限制：不允许上传 PHP 脚本文件');
     }
     // Check looksLikeExecutableContent but only if it's HTML or SVG to prevent HTML-based XSS
     if (ext === '.html' || ext === '.htm' || ext === '.svg') {
       const buffer = await fs.promises.readFile(file.path);
       if (looksLikeExecutableContent(buffer)) {
-        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        await safeUnlink(file.path);
         throw new Error('安全限制：不允许上传包含脚本的 HTML/SVG 文件');
       }
     }
@@ -755,12 +756,12 @@ export const validateSingleFileContent = async (file: Express.Multer.File) => {
     const hasEventHandlers = /\bon[a-z]+\s*=/i.test(content);
     const hasJavascriptUrl = /href\s*=\s*["']\s*javascript:/i.test(content);
     if (hasScript || hasEventHandlers || hasJavascriptUrl) {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      await safeUnlink(file.path);
       throw new Error('安全验证失败：SVG文件包含潜在的安全隐患');
     }
 
     if (!content.includes('<svg') && !content.includes('http://www.w3.org/2000/svg')) {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      await safeUnlink(file.path);
       throw new Error('无效的SVG图片内容');
     }
     return;
@@ -772,13 +773,13 @@ export const validateSingleFileContent = async (file: Express.Multer.File) => {
 
     if (imageUploadFields.has(file.fieldname)) {
       if (!imageMime) {
-        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        await safeUnlink(file.path);
         throw new Error('无效的图片文件内容');
       }
     }
 
     if (looksLikeExecutableContent(buffer)) {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      await safeUnlink(file.path);
       throw new Error('不允许上传可执行或脚本文件');
     }
   }
@@ -803,15 +804,7 @@ export const validateFileContent = async (req: Request, res: Response, next: Nex
     next();
   } catch (error: unknown) {
     logger.error('File validation error:', error);
-    for (const file of files) {
-      try {
-        if (fs.existsSync(file.path)) {
-          fs.unlinkSync(file.path);
-        }
-      } catch (cleanupError) {
-        logger.error('Cleanup error:', cleanupError);
-      }
-    }
+    await Promise.all(files.map((f) => safeUnlink(f.path)));
     const errMsg = error instanceof Error ? error.message : '文件验证失败';
     return res.status(400).json({ error: errMsg });
   }

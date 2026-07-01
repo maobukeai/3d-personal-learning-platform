@@ -9,7 +9,7 @@ import type {
 import MirrorSourceCard from './MirrorSourceCard.vue';
 import MirrorResourcePanel from './MirrorResourcePanel.vue';
 
-const props = defineProps<{
+defineProps<{
   sources: MirrorSource[];
   filteredSources: MirrorSource[];
   isLoading: boolean;

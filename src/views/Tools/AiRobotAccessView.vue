@@ -56,15 +56,6 @@ const AI_BOT_RESPONSE_MODE = {
   CALLBACK_ONLY: 'CALLBACK_ONLY',
 } as const;
 
-const AI_BOT_MESSAGE_STATUS = {
-  QUEUED: 'QUEUED',
-  PROCESSING: 'PROCESSING',
-  SUCCESS: 'SUCCESS',
-  ERROR: 'ERROR',
-  WEBHOOK_FAILED: 'WEBHOOK_FAILED',
-  IGNORED: 'IGNORED',
-} as const;
-
 const scenarioOptions = [
   {
     label: '学习计划',
@@ -1289,7 +1280,9 @@ onUnmounted(stopAutoRefresh);
           @fetch-insights="fetchEvolutionInsights"
           @add-case="addEvaluationCase"
           @remove-case="removeEvaluationCase"
-          @update-keyword="({ index, key, value }) => updateEvaluationKeywordList(index, key, value)"
+          @update-keyword="
+            ({ index, key, value }) => updateEvaluationKeywordList(index, key, value)
+          "
           @run-evaluation="runBatchEvaluation"
           @optimize-prompt="optimizeSelectedPrompt"
           @apply-optimized-prompt="applyOptimizedPrompt"

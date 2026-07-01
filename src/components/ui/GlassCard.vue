@@ -62,7 +62,5 @@ const paddingClass = computed(() => {
 </template>
 
 <style scoped>
-.cubic-bezier-card {
-  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-}
+/* .cubic-bezier-card provided globally by src/styles/components.css */
 </style>

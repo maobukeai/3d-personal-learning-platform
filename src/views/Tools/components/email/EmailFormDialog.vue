@@ -71,7 +71,7 @@ const form = computed({
           <button
             type="button"
             class="absolute right-3.5 text-slate-400 hover:text-slate-200 transition-colors flex items-center justify-center p-1"
-            style="background: transparent; border: none; cursor: pointer;"
+            style="background: transparent; border: none; cursor: pointer"
             @click="showPassword = !showPassword"
           >
             <Eye v-if="showPassword" class="w-4 h-4" />

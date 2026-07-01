@@ -60,7 +60,7 @@ const parseTrustProxy = (value: string | undefined) => {
 app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
 
 app.use(requestContext);
-app.use(compression());
+app.use(compression({ threshold: 1024 })); // Only compress responses larger than 1KB
 
 // Security Middleware
 app.use(
@@ -122,7 +122,7 @@ app.use(csrfProtection);
 app.use(
   '/uploads',
   express.static(path.join(process.cwd(), 'uploads'), {
-    maxAge: '7d', // Enable 7-day browser caching
+    maxAge: '30d', // Enable 30-day browser caching
     immutable: true, // Asset files do not change once uploaded (they are versioned/hashed if updated)
     setHeaders: (res, filePath) => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -200,16 +200,58 @@ app.use('/api/banners', bannerRoutes);
 app.use('/api/plugins', pluginRoutes);
 app.use('/api/backup', backupRoutes);
 
+// Validate proxy image URL to prevent SSRF attacks
+const isAllowedProxyUrl = (rawUrl: string): boolean => {
+  try {
+    const parsed = new URL(rawUrl);
+    // Only allow http/https protocols
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    const host = parsed.hostname.toLowerCase();
+    // Block private/loopback/link-local addresses
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '::1' ||
+      host === '0.0.0.0' ||
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+      /^169\.254\./.test(host) ||
+      host.endsWith('.local') ||
+      host.endsWith('.internal')
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 app.get('/api/proxy/image', async (req, res) => {
   const url = req.query.url as string;
   if (!url) {
     res.status(400).send('Missing url parameter');
     return;
   }
+  if (!isAllowedProxyUrl(url)) {
+    res.status(403).send('URL not allowed');
+    return;
+  }
   try {
-    const response = await axios.get(url, { responseType: 'stream' });
-    res.setHeader('Content-Type', String(response.headers['content-type'] || 'image/jpeg'));
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    const response = await axios.get(url, {
+      responseType: 'stream',
+      timeout: 10000,
+      maxRedirects: 3,
+    });
+    const contentType = String(response.headers['content-type'] || 'image/jpeg');
+    // Only allow image content types
+    if (!contentType.startsWith('image/')) {
+      res.status(400).send('URL does not point to an image');
+      return;
+    }
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
     response.data.pipe(res);
   } catch (error) {
     res.status(500).send('Failed to proxy image');

@@ -673,7 +673,7 @@ const handleBatchApprove = async () => {
       cancelButtonText: '取消',
       type: 'success',
     });
-    
+
     isLoading.value = true;
     await api.put(`${pageConfig.value.apiPath}/batch-status`, {
       ids,
@@ -729,7 +729,7 @@ const handleBatchDelete = () => {
       confirmButtonText: '确定删除',
       cancelButtonText: '取消',
       type: 'warning',
-    }
+    },
   )
     .then(async () => {
       isLoading.value = true;
@@ -747,7 +747,7 @@ const handleBatchDelete = () => {
               failCount++;
               logError(err, { operation: 'batchDelete', id });
             }
-          })
+          }),
         );
 
         if (failCount === 0) {
@@ -871,12 +871,7 @@ onMounted(() => {
           已选择 {{ selectedItems.length }} 项{{ pageConfig.label }}
         </span>
         <div class="flex items-center gap-2 mobile-row">
-          <UiButton
-            variant="primary"
-            size="sm"
-            :icon="CheckCircle2"
-            @click="handleBatchApprove"
-          >
+          <UiButton variant="primary" size="sm" :icon="CheckCircle2" @click="handleBatchApprove">
             批量通过
           </UiButton>
           <UiButton
@@ -888,21 +883,10 @@ onMounted(() => {
           >
             批量退回
           </UiButton>
-          <UiButton
-            variant="danger"
-            size="sm"
-            :icon="Trash2"
-            @click="handleBatchDelete"
-          >
+          <UiButton variant="danger" size="sm" :icon="Trash2" @click="handleBatchDelete">
             批量删除
           </UiButton>
-          <UiButton
-            variant="secondary"
-            size="sm"
-            @click="clearSelection"
-          >
-            清空选择
-          </UiButton>
+          <UiButton variant="secondary" size="sm" @click="clearSelection"> 清空选择 </UiButton>
         </div>
       </div>
 

@@ -3,6 +3,7 @@ import { onErrorCaptured, ref } from 'vue';
 import { RouterView } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { logError } from '@/utils/error';
+import { isI18nReady } from '@/i18n';
 
 const { t } = useI18n();
 
@@ -48,6 +49,17 @@ const reload = () => {
         {{ t('error.refreshPage') }}
       </button>
     </div>
+  </div>
+  <!-- Lightweight splash shown until the initial locale messages are loaded.
+       App mounts immediately, but we avoid rendering route content before
+       translations are ready to prevent a flash of raw translation keys. -->
+  <div
+    v-else-if="!isI18nReady"
+    class="flex items-center justify-center min-h-screen bg-[var(--bg-app)]"
+  >
+    <div
+      class="w-10 h-10 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin"
+    ></div>
   </div>
   <RouterView v-else />
 </template>

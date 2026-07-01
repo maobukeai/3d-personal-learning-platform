@@ -175,7 +175,9 @@ const openUserProfile = (userId: string) => {
 
 <template>
   <div class="mobile-adaptive flex-1 overflow-hidden p-1 sm:p-4">
-    <div class="mobile-row overflow-x-auto md:gap-4 gap-1.5 sm:gap-2.5 h-full flex w-full scrollbar-hide">
+    <div
+      class="mobile-row overflow-x-auto md:gap-4 gap-1.5 sm:gap-2.5 h-full flex w-full scrollbar-hide"
+    >
       <div
         v-for="col in activeColumns"
         :key="col.id"

@@ -9,7 +9,7 @@ interface Props {
 
 defineProps<Props>();
 
-const emit = defineEmits<{
+defineEmits<{
   (e: 'toggleRead'): void;
   (e: 'delete'): void;
 }>();

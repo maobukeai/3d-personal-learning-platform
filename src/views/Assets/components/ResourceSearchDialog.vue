@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
+import { computed, ref, defineAsyncComponent } from 'vue';
+import { useThemeObserver } from '@/composables/useThemeObserver';
 import {
   Search,
   ExternalLink,
@@ -37,24 +38,7 @@ const isOpen = computed({
   set: (val) => emit('update:modelValue', val),
 });
 
-const isDark = ref(document.documentElement.classList.contains('dark'));
-let themeObserver: MutationObserver | null = null;
-
-onMounted(() => {
-  themeObserver = new MutationObserver(() => {
-    isDark.value = document.documentElement.classList.contains('dark');
-  });
-  themeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['class'],
-  });
-});
-
-onUnmounted(() => {
-  if (themeObserver) {
-    themeObserver.disconnect();
-  }
-});
+const { isDark } = useThemeObserver();
 
 const searchQuery = ref('');
 const isSearching = ref(false);
@@ -174,7 +158,12 @@ async function handleSearch() {
     targetSites.value.forEach((site) => {
       site.status = 'error';
     });
-    ElMessage.error(getApiErrorMessage(error, label('搜索失败，请稍后重试', 'Search failed, please try again later')));
+    ElMessage.error(
+      getApiErrorMessage(
+        error,
+        label('搜索失败，请稍后重试', 'Search failed, please try again later'),
+      ),
+    );
   } finally {
     isSearching.value = false;
     simulatedIntervals.value.forEach(clearInterval);
@@ -201,7 +190,9 @@ function handleClose() {
       <!-- Search Bar Section -->
       <div class="flex gap-2.5">
         <div class="relative flex-1">
-          <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-[var(--text-muted)]" />
+          <Search
+            class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-[var(--text-muted)]"
+          />
           <input
             v-model="searchQuery"
             type="text"
@@ -233,7 +224,9 @@ function handleClose() {
         v-if="searchStep === 'idle'"
         class="welcome-card flex flex-col items-center justify-center py-10 px-6 text-center border border-white/5 bg-white/[0.01] rounded-2xl"
       >
-        <div class="p-3 bg-indigo-500/10 rounded-full border border-indigo-500/20 text-indigo-400 mb-4 animate-pulse">
+        <div
+          class="p-3 bg-indigo-500/10 rounded-full border border-indigo-500/20 text-indigo-400 mb-4 animate-pulse"
+        >
           <Compass class="w-7 h-7" />
         </div>
         <h4 class="text-sm font-bold text-[var(--text-primary)] mb-1">
@@ -276,14 +269,37 @@ function handleClose() {
               "
             >
               <div class="flex items-center gap-2 min-w-0">
-                <Globe class="w-3.5 h-3.5" :class="site.status === 'searching' ? 'text-amber-400 animate-pulse' : site.status === 'success' ? 'text-emerald-400' : 'text-[var(--text-muted)]'" />
-                <span class="text-xs font-medium truncate text-[var(--text-secondary)]">{{ site.name }}</span>
+                <Globe
+                  class="w-3.5 h-3.5"
+                  :class="
+                    site.status === 'searching'
+                      ? 'text-amber-400 animate-pulse'
+                      : site.status === 'success'
+                        ? 'text-emerald-400'
+                        : 'text-[var(--text-muted)]'
+                  "
+                />
+                <span class="text-xs font-medium truncate text-[var(--text-secondary)]">{{
+                  site.name
+                }}</span>
               </div>
               <div class="flex items-center">
-                <Loader2 v-if="site.status === 'searching'" class="w-3.5 h-3.5 text-amber-500 animate-spin" />
-                <CheckCircle2 v-else-if="site.status === 'success'" class="w-3.5 h-3.5 text-emerald-400" />
-                <CheckCircle2 v-else-if="site.status === 'empty'" class="w-3.5 h-3.5 text-gray-500/60" />
-                <AlertCircle v-else-if="site.status === 'error'" class="w-3.5 h-3.5 text-rose-500" />
+                <Loader2
+                  v-if="site.status === 'searching'"
+                  class="w-3.5 h-3.5 text-amber-500 animate-spin"
+                />
+                <CheckCircle2
+                  v-else-if="site.status === 'success'"
+                  class="w-3.5 h-3.5 text-emerald-400"
+                />
+                <CheckCircle2
+                  v-else-if="site.status === 'empty'"
+                  class="w-3.5 h-3.5 text-gray-500/60"
+                />
+                <AlertCircle
+                  v-else-if="site.status === 'error'"
+                  class="w-3.5 h-3.5 text-rose-500"
+                />
                 <span v-else class="text-[10px] text-[var(--text-muted)] font-mono">等待中</span>
               </div>
             </div>
@@ -291,15 +307,28 @@ function handleClose() {
         </div>
 
         <!-- AI status panel -->
-        <div class="md:w-60 border-t md:border-t-0 md:border-l border-white/10 pt-4 md:pt-0 md:pl-5 flex flex-col justify-center items-center text-center">
-          <div class="p-3.5 bg-indigo-500/10 rounded-full border border-indigo-500/20 text-indigo-400 mb-3" :class="{ 'animate-spin': searchStep === 'analyzing' }">
+        <div
+          class="md:w-60 border-t md:border-t-0 md:border-l border-white/10 pt-4 md:pt-0 md:pl-5 flex flex-col justify-center items-center text-center"
+        >
+          <div
+            class="p-3.5 bg-indigo-500/10 rounded-full border border-indigo-500/20 text-indigo-400 mb-3"
+            :class="{ 'animate-spin': searchStep === 'analyzing' }"
+          >
             <RefreshCw class="w-5 h-5" />
           </div>
           <span class="text-xs font-bold text-[var(--text-primary)]">
-            {{ searchStep === 'scraping' ? label('数据抓取与对齐中...', 'Aligning results...') : label('AI 智能决策与分析中...', 'AI Thinking...') }}
+            {{
+              searchStep === 'scraping'
+                ? label('数据抓取与对齐中...', 'Aligning results...')
+                : label('AI 智能决策与分析中...', 'AI Thinking...')
+            }}
           </span>
           <span class="text-[10px] text-[var(--text-muted)] mt-1 max-w-[180px]">
-            {{ searchStep === 'scraping' ? label('正在解析各站的标题、说明与链接', 'Parsing links, tags, and titles') : label('正在优选资源版本并撰写推荐说明', 'Curating matching items...') }}
+            {{
+              searchStep === 'scraping'
+                ? label('正在解析各站的标题、说明与链接', 'Parsing links, tags, and titles')
+                : label('正在优选资源版本并撰写推荐说明', 'Curating matching items...')
+            }}
           </span>
         </div>
       </div>
@@ -307,13 +336,19 @@ function handleClose() {
       <!-- Search Results Area -->
       <div v-if="searchStep === 'done'" class="flex flex-col gap-4 animate-fade-in">
         <!-- AI Summary Card -->
-        <div class="ai-summary-card border border-indigo-500/10 rounded-2xl overflow-hidden shadow-sm">
-          <div class="flex items-center justify-between px-5 py-3 border-b border-white/5 bg-indigo-500/[0.03]">
+        <div
+          class="ai-summary-card border border-indigo-500/10 rounded-2xl overflow-hidden shadow-sm"
+        >
+          <div
+            class="flex items-center justify-between px-5 py-3 border-b border-white/5 bg-indigo-500/[0.03]"
+          >
             <div class="flex items-center gap-2">
               <Sparkles class="w-4 h-4 text-indigo-400" />
               <h4 class="text-xs font-bold text-[var(--text-primary)]">AI 推荐与提炼结论</h4>
             </div>
-            <span class="text-[10px] bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 px-2 py-0.5 rounded-full font-mono">
+            <span
+              class="text-[10px] bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 px-2 py-0.5 rounded-full font-mono"
+            >
               关键词: {{ searchQuery }}
             </span>
           </div>
@@ -328,7 +363,9 @@ function handleClose() {
 
         <!-- Direct Result Lists (grouped by site) -->
         <div class="flex flex-col gap-3">
-          <h4 class="text-xs font-bold text-[var(--text-primary)] border-l-2 border-indigo-500 pl-2">
+          <h4
+            class="text-xs font-bold text-[var(--text-primary)] border-l-2 border-indigo-500 pl-2"
+          >
             原始检索详情
           </h4>
           <div class="flex flex-col gap-2">
@@ -337,12 +374,18 @@ function handleClose() {
                 v-if="site.resultsCount > 0"
                 class="site-results-group border border-white/5 bg-white/[0.01] rounded-xl overflow-hidden"
               >
-                <div class="flex items-center justify-between px-4 py-2 bg-white/[0.02] border-b border-white/5">
+                <div
+                  class="flex items-center justify-between px-4 py-2 bg-white/[0.02] border-b border-white/5"
+                >
                   <div class="flex items-center gap-2">
                     <Globe class="w-3.5 h-3.5 text-indigo-400" />
-                    <span class="text-xs font-bold text-[var(--text-primary)]">{{ site.name }}</span>
+                    <span class="text-xs font-bold text-[var(--text-primary)]">{{
+                      site.name
+                    }}</span>
                   </div>
-                  <span class="text-[10px] text-[var(--text-muted)] font-mono">找到 {{ site.resultsCount }} 个资源</span>
+                  <span class="text-[10px] text-[var(--text-muted)] font-mono"
+                    >找到 {{ site.resultsCount }} 个资源</span
+                  >
                 </div>
                 <div class="divide-y divide-white/5 max-h-48 overflow-y-auto">
                   <div
@@ -390,11 +433,18 @@ function handleClose() {
             rel="noopener noreferrer"
             class="site-card group p-3 flex flex-col items-center justify-center text-center rounded-xl border border-white/5 bg-white/[0.02] hover:bg-indigo-600/[0.03] hover:border-indigo-500/25 transition-all duration-200"
           >
-            <div class="w-8 h-8 rounded-full bg-white/[0.03] group-hover:bg-indigo-500/10 flex items-center justify-center text-[var(--text-muted)] group-hover:text-indigo-400 transition-colors mb-2">
+            <div
+              class="w-8 h-8 rounded-full bg-white/[0.03] group-hover:bg-indigo-500/10 flex items-center justify-center text-[var(--text-muted)] group-hover:text-indigo-400 transition-colors mb-2"
+            >
               <Globe class="w-4 h-4" />
             </div>
-            <span class="text-[10px] font-semibold text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] truncate w-full">{{ site.name }}</span>
-            <div class="flex items-center gap-0.5 text-[9px] text-[var(--text-muted)] group-hover:text-indigo-400 mt-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+            <span
+              class="text-[10px] font-semibold text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] truncate w-full"
+              >{{ site.name }}</span
+            >
+            <div
+              class="flex items-center gap-0.5 text-[9px] text-[var(--text-muted)] group-hover:text-indigo-400 mt-1 opacity-0 group-hover:opacity-100 transition-all duration-200"
+            >
               <span>立即跳转</span>
               <ArrowRight class="w-2.5 h-2.5" />
             </div>

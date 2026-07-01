@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
-import { ref, reactive, watch } from 'vue';
+import { ref } from 'vue';
 import { Palette, Image, Upload, RefreshCw, Sparkles } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import { logError } from '@/utils/error';
+import { useSettingsSync } from '@/composables/useSettingsSync';
 
 const props = defineProps<{
   settings: {
@@ -21,23 +22,7 @@ const emit = defineEmits<{
   (e: 'update:settings', val: typeof props.settings): void;
 }>();
 
-const localSettings = reactive({ ...props.settings });
-
-watch(
-  () => props.settings,
-  (newVal) => {
-    Object.assign(localSettings, newVal);
-  },
-  { deep: true },
-);
-
-watch(
-  localSettings,
-  (newVal) => {
-    emit('update:settings', { ...props.settings, ...newVal });
-  },
-  { deep: true },
-);
+const { localSettings } = useSettingsSync(props, emit);
 
 const isUploadingLogo = ref(false);
 const isUploadingFavicon = ref(false);

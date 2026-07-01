@@ -12,7 +12,7 @@ interface ShowcaseForm {
 const show = defineModel<boolean>('show', { required: true });
 const form = defineModel<ShowcaseForm>('form', { required: true });
 
-const props = defineProps<{
+defineProps<{
   isSubmitting?: boolean;
 }>();
 

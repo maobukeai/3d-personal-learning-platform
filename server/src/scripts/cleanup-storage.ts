@@ -281,7 +281,9 @@ export async function cleanupOrphanedFiles() {
                 try {
                   const str = JSON.stringify(val);
                   extractUploadUrls(str).forEach(addPath);
-                } catch (_) {}
+                } catch (_) {
+                  /* ignore */
+                }
               }
             }
           }

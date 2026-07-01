@@ -77,13 +77,6 @@ let reporterConfig: ErrorReporterConfig = {
   sampleRate: 1,
 };
 
-/**
- * Configures the global error reporter.
- */
-export function configureErrorReporter(config: ErrorReporterConfig): void {
-  reporterConfig = { ...reporterConfig, ...config };
-}
-
 function buildReportPayload(error: unknown, context?: ErrorContext): object {
   return {
     message: getApiErrorMessage(error, 'Unknown error'),
@@ -123,29 +116,4 @@ export function logError(error: unknown, context?: ErrorContext): void {
     console.error('[Error]', error, context);
   }
   void sendReport(buildReportPayload(error, context));
-}
-
-/**
- * Wraps an async function with centralized error logging.
- * The wrapped function returns `undefined` on failure unless `rethrow` is true.
- *
- * @param fn - The async function to wrap
- * @param context - Context attached to logged errors
- * @param options - Options such as `rethrow`
- * @returns A wrapped function
- */
-export function withErrorHandling<TArgs extends unknown[], TResult>(
-  fn: (...args: TArgs) => Promise<TResult>,
-  context?: ErrorContext,
-  options: { rethrow?: boolean } = {},
-): (...args: TArgs) => Promise<TResult | undefined> {
-  return async (...args: TArgs) => {
-    try {
-      return await fn(...args);
-    } catch (error) {
-      logError(error, context);
-      if (options.rethrow) throw error;
-      return undefined;
-    }
-  };
 }

@@ -31,12 +31,8 @@ const handleSetDefaultWorkspace = async (ws: Workspace) => {
     await authStore.updateProfile({
       defaultWorkspaceId: newDefaultId,
     });
-    ElMessage.success(
-      newDefaultId
-        ? `已设置“${ws.name}”为默认工作区`
-        : `已取消默认工作区设置`
-    );
-  } catch (err) {
+    ElMessage.success(newDefaultId ? `已设置“${ws.name}”为默认工作区` : `已取消默认工作区设置`);
+  } catch {
     ElMessage.error('设置默认工作区失败');
   }
 };
@@ -240,11 +236,20 @@ const handleQuickSettings = (ws: Workspace) => {
             type="button"
             data-action="pin"
             class="p-1.5 rounded-md hover:bg-white/8 transition-all duration-200"
-            :class="authStore.user?.defaultWorkspaceId === ws.id ? 'text-accent opacity-100' : 'text-slate-400 hover:text-accent opacity-40 group-hover:opacity-100'"
-            @click="handleSetDefaultWorkspace(ws)"
+            :class="
+              authStore.user?.defaultWorkspaceId === ws.id
+                ? 'text-accent opacity-100'
+                : 'text-slate-400 hover:text-accent opacity-40 group-hover:opacity-100'
+            "
             :title="authStore.user?.defaultWorkspaceId === ws.id ? '默认工作区' : '设为默认工作区'"
+            @click="handleSetDefaultWorkspace(ws)"
           >
-            <Pin class="w-3.5 h-3.5" :class="authStore.user?.defaultWorkspaceId === ws.id ? 'fill-accent/20 rotate-45' : ''" />
+            <Pin
+              class="w-3.5 h-3.5"
+              :class="
+                authStore.user?.defaultWorkspaceId === ws.id ? 'fill-accent/20 rotate-45' : ''
+              "
+            />
           </button>
 
           <button
@@ -318,11 +323,26 @@ const handleQuickSettings = (ws: Workspace) => {
               type="button"
               data-action="pin"
               class="p-1.5 rounded-md hover:bg-white/8 transition-all duration-200"
-              :class="authStore.user?.defaultWorkspaceId === adminWorkspace.id ? 'text-accent opacity-100' : 'text-slate-400 hover:text-accent opacity-40 group-hover:opacity-100'"
+              :class="
+                authStore.user?.defaultWorkspaceId === adminWorkspace.id
+                  ? 'text-accent opacity-100'
+                  : 'text-slate-400 hover:text-accent opacity-40 group-hover:opacity-100'
+              "
+              :title="
+                authStore.user?.defaultWorkspaceId === adminWorkspace.id
+                  ? '默认工作区'
+                  : '设为默认工作区'
+              "
               @click="handleSetDefaultWorkspace(adminWorkspace)"
-              :title="authStore.user?.defaultWorkspaceId === adminWorkspace.id ? '默认工作区' : '设为默认工作区'"
             >
-              <Pin class="w-3.5 h-3.5" :class="authStore.user?.defaultWorkspaceId === adminWorkspace.id ? 'fill-accent/20 rotate-45' : ''" />
+              <Pin
+                class="w-3.5 h-3.5"
+                :class="
+                  authStore.user?.defaultWorkspaceId === adminWorkspace.id
+                    ? 'fill-accent/20 rotate-45'
+                    : ''
+                "
+              />
             </button>
 
             <Lock class="w-3.5 h-3.5 text-slate-500" />

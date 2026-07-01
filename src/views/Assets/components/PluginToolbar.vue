@@ -8,7 +8,7 @@ type SortMode = 'latest' | 'popular' | 'name';
 type ViewMode = 'grid' | 'list';
 type LibraryTab = 'explore' | 'favorites' | 'mine' | 'requests';
 
-const props = defineProps<{
+defineProps<{
   activeTab: LibraryTab;
   libraryTabOptions: { label: string; value: string }[];
   sortBy: SortMode;
@@ -27,10 +27,6 @@ const emit = defineEmits<{
 }>();
 
 const label = useLabel();
-
-const onSortChange = (event: Event) => {
-  emit('update:sortBy', (event.target as HTMLSelectElement).value as SortMode);
-};
 
 const onTabChange = (value: string | number | null) => {
   if (value === null) return;
@@ -63,7 +59,7 @@ const onViewModeChange = (value: string | number | null) => {
         class="custom-sort-select"
         style="width: 100px"
         aria-label="排序方式"
-        @update:model-value="val => emit('update:sortBy', val)"
+        @update:model-value="(val) => emit('update:sortBy', val)"
       >
         <el-option value="latest" :label="label('最新发布', 'Newest')" />
         <el-option value="popular" :label="label('下载最多', 'Most Downloaded')" />

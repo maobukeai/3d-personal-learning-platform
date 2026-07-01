@@ -117,7 +117,9 @@ const tagsList = computed(() => parseTags(props.item?.tags).slice(0, 3));
 
 // Normalized properties depending on kind
 const title = computed(() => props.item?.title || props.item?.name || '---');
-const description = computed(() => stripMarkdown(props.item?.description || props.item?.subtitle || ''));
+const description = computed(() =>
+  stripMarkdown(props.item?.description || props.item?.subtitle || ''),
+);
 const previewUrl = computed(() => {
   const url =
     props.item?.preview ||
@@ -550,15 +552,5 @@ const compatibilityInfo = computed(() => {
 </template>
 
 <style scoped>
-.spinning {
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* .spinning + @keyframes spin provided globally by src/styles/layout.css */
 </style>

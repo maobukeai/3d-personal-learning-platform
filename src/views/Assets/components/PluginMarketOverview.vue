@@ -51,7 +51,7 @@ interface MarketplaceSignal {
   Icon: Component;
 }
 
-const props = defineProps<{
+defineProps<{
   isVisible: boolean;
   spotlightPlugin: PluginItem | null;
   starterTemplates: StarterPluginTemplate[];

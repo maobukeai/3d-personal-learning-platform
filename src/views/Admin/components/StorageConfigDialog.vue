@@ -77,11 +77,7 @@ const emit = defineEmits<{
               class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
               >提供商</label
             >
-            <el-select
-              v-model="form.provider"
-              disabled
-              class="w-full custom-dialog-input"
-            >
+            <el-select v-model="form.provider" disabled class="w-full custom-dialog-input">
               <el-option value="CLOUDFLARE_R2" label="Cloudflare R2" />
             </el-select>
           </div>

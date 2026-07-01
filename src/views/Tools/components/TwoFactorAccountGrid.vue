@@ -37,7 +37,7 @@ interface BrandInfo {
   icon: string;
 }
 
-const props = defineProps<{
+defineProps<{
   accounts: TwoFactorAccount[];
   liveCodes: Record<string, LiveTotp>;
   pinnedAccountIds: string[];

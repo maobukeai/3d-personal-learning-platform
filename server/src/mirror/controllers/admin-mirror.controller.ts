@@ -19,6 +19,14 @@ import unzipper from 'unzipper';
 import { storageService } from '../../services/storage.service';
 import { buildDecryptedStorageConfig } from '../../utils/crypto';
 
+const safeUnlink = (p: string) =>
+  fs.promises.unlink(p).catch((err) => {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    if (code !== 'ENOENT') {
+      logger.warn(`[safeUnlink] Failed to unlink ${p}:`, err);
+    }
+  });
+
 type SpreadsheetRow = Record<string, string>;
 
 interface MirrorMetadataSource {
@@ -81,8 +89,9 @@ interface DiscoveredCloudSource {
 const emptyInlineStringCellPattern =
   /<c\b(?=[^>]*\bt="inlineStr")(?=[^>]*\br="[^"]+")[^>]*>\s*<\/c>|<c\b(?=[^>]*\bt="inlineStr")(?=[^>]*\br="[^"]+")[^>]*\/>/g;
 
-const sanitizeXlsxEmptyInlineStrings = (filePath: string): Buffer => {
-  const archive = unzipSync(new Uint8Array(fs.readFileSync(filePath)));
+const sanitizeXlsxEmptyInlineStrings = async (filePath: string): Promise<Buffer> => {
+  const buf = await fs.promises.readFile(filePath);
+  const archive = unzipSync(new Uint8Array(buf));
 
   for (const [entryName, content] of Object.entries(archive)) {
     if (!/^xl\/worksheets\/sheet\d+\.xml$/i.test(entryName)) continue;
@@ -111,7 +120,7 @@ const readSpreadsheetRows = async (filePath: string): Promise<SpreadsheetRow[]> 
       logger.warn(
         `[MirrorLinkMatch] Sanitizing empty inline string cells before reading ${path.basename(filePath)}`,
       );
-      sheetRows = await readSheet(sanitizeXlsxEmptyInlineStrings(filePath));
+      sheetRows = await readSheet(await sanitizeXlsxEmptyInlineStrings(filePath));
     } else {
       throw error;
     }
@@ -348,20 +357,17 @@ const runDeleteSourceFilesInBackground = async (
     }
 
     // 5. Delete local files from disk
-    for (const filePath of localFilesToDelete) {
-      try {
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      } catch (err) {
-        logger.error(`[DeleteSourceBackground] Failed to delete local file ${filePath}:`, err);
-      }
-    }
+    await Promise.all(Array.from(localFilesToDelete).map((filePath) => safeUnlink(filePath)));
 
     // 6. Delete source local folder
     const sourceDir = path.join(process.cwd(), 'uploads', 'mirror', sourceId);
-    if (fs.existsSync(sourceDir)) {
-      fs.rmSync(sourceDir, { recursive: true, force: true });
+    if (
+      await fs.promises
+        .access(sourceDir)
+        .then(() => true)
+        .catch(() => false)
+    ) {
+      await fs.promises.rm(sourceDir, { recursive: true, force: true });
       logger.info(`[DeleteSourceBackground] Deleted local source directory: ${sourceDir}`);
     }
   } catch (error) {
@@ -1259,17 +1265,28 @@ export const exportSource = async (req: AuthRequest, res: Response, next: NextFu
     if (source.iconUrl && source.iconUrl.startsWith('/uploads/mirror/')) {
       const iconFilename = path.basename(source.iconUrl);
       const iconPath = path.join(process.cwd(), 'uploads', 'mirror', iconFilename);
-      if (fs.existsSync(iconPath)) {
+      if (
+        await fs.promises
+          .access(iconPath)
+          .then(() => true)
+          .catch(() => false)
+      ) {
         archive.file(iconPath, { name: `icon/${iconFilename}` });
       }
     }
 
     // 3. Stream each referenced image file (no full read into RAM)
     const sourceDir = path.join(process.cwd(), 'uploads', 'mirror', id);
-    if (fs.existsSync(sourceDir)) {
+    if (
+      await fs.promises
+        .access(sourceDir)
+        .then(() => true)
+        .catch(() => false)
+    ) {
       for (const filename of referencedFiles) {
         const filePath = path.join(sourceDir, filename);
-        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+        const stat = await fs.promises.stat(filePath).catch(() => null);
+        if (stat && stat.isFile()) {
           archive.file(filePath, { name: `files/${filename}` });
         }
       }
@@ -1387,9 +1404,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
 
   try {
     // Ensure temp directory exists
-    if (!fs.existsSync(tempImportDir)) {
-      fs.mkdirSync(tempImportDir, { recursive: true });
-    }
+    await fs.promises.mkdir(tempImportDir, { recursive: true });
 
     // Open zip archive
     const directory = await unzipper.Open.file(zipFilePath);
@@ -1402,7 +1417,12 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
 
     // Read metadata.json from temp directory
     const metadataPath = path.join(tempImportDir, 'metadata.json');
-    if (!fs.existsSync(metadataPath)) {
+    if (
+      !(await fs.promises
+        .access(metadataPath)
+        .then(() => true)
+        .catch(() => false))
+    ) {
       throw new Error('ZIP 归档中找不到 metadata.json，文件格式无效');
     }
 
@@ -1410,7 +1430,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     task.message = '正在解析元数据...';
     task.progress = 5;
 
-    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8')) as MirrorMetadata;
+    const metadata = JSON.parse(await fs.promises.readFile(metadataPath, 'utf8')) as MirrorMetadata;
     const { source, categories = [], resources = [] } = metadata;
 
     if (!source || !source.name || !source.displayName || !source.baseUrl) {
@@ -1430,9 +1450,20 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
 
     // Scan extracted files directory
     const filesDir = path.join(tempImportDir, 'files');
-    const filesToExtract = fs.existsSync(filesDir)
-      ? fs.readdirSync(filesDir).filter((f) => fs.statSync(path.join(filesDir, f)).isFile())
-      : [];
+    const filesToExtract: string[] = [];
+    if (
+      await fs.promises
+        .access(filesDir)
+        .then(() => true)
+        .catch(() => false)
+    ) {
+      const entries = await fs.promises.readdir(filesDir);
+      for (const f of entries) {
+        if ((await fs.promises.stat(path.join(filesDir, f))).isFile()) {
+          filesToExtract.push(f);
+        }
+      }
+    }
 
     const totalCategories = categories.length;
     const totalResources = resources.length;
@@ -1509,10 +1540,19 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     let iconFilename = '';
     let tempIconPath = '';
 
-    if (fs.existsSync(iconDir)) {
-      const iconFiles = fs
-        .readdirSync(iconDir)
-        .filter((f) => fs.statSync(path.join(iconDir, f)).isFile());
+    if (
+      await fs.promises
+        .access(iconDir)
+        .then(() => true)
+        .catch(() => false)
+    ) {
+      const entries = await fs.promises.readdir(iconDir);
+      const iconFiles: string[] = [];
+      for (const f of entries) {
+        if ((await fs.promises.stat(path.join(iconDir, f))).isFile()) {
+          iconFiles.push(f);
+        }
+      }
       if (iconFiles.length > 0) {
         iconFilename = iconFiles[0]!;
         tempIconPath = path.join(iconDir, iconFilename);
@@ -1523,7 +1563,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
       if (activeConfig) {
         // Upload to Cloudflare R2
         const key = `mirror/icon/${iconFilename}`;
-        const fileBytes = fs.statSync(tempIconPath).size;
+        const fileBytes = (await fs.promises.stat(tempIconPath)).size;
         const limitBytes = gbToBytes(activeConfig.limitGb);
 
         // Try to reserve space
@@ -1559,10 +1599,8 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
             });
             // Fall back to local storage
             const localIconDestDir = path.join(process.cwd(), 'uploads', 'mirror');
-            if (!fs.existsSync(localIconDestDir)) {
-              fs.mkdirSync(localIconDestDir, { recursive: true });
-            }
-            fs.copyFileSync(tempIconPath, path.join(localIconDestDir, iconFilename));
+            await fs.promises.mkdir(localIconDestDir, { recursive: true });
+            await fs.promises.copyFile(tempIconPath, path.join(localIconDestDir, iconFilename));
             importedIconUrl = `/uploads/mirror/${iconFilename}`;
           }
         } else {
@@ -1571,19 +1609,15 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
             '[ImportMirror] Cloud storage space full, falling back to local storage for icon',
           );
           const localIconDestDir = path.join(process.cwd(), 'uploads', 'mirror');
-          if (!fs.existsSync(localIconDestDir)) {
-            fs.mkdirSync(localIconDestDir, { recursive: true });
-          }
-          fs.copyFileSync(tempIconPath, path.join(localIconDestDir, iconFilename));
+          await fs.promises.mkdir(localIconDestDir, { recursive: true });
+          await fs.promises.copyFile(tempIconPath, path.join(localIconDestDir, iconFilename));
           importedIconUrl = `/uploads/mirror/${iconFilename}`;
         }
       } else {
         // Fall back to local storage
         const localIconDestDir = path.join(process.cwd(), 'uploads', 'mirror');
-        if (!fs.existsSync(localIconDestDir)) {
-          fs.mkdirSync(localIconDestDir, { recursive: true });
-        }
-        fs.copyFileSync(tempIconPath, path.join(localIconDestDir, iconFilename));
+        await fs.promises.mkdir(localIconDestDir, { recursive: true });
+        await fs.promises.copyFile(tempIconPath, path.join(localIconDestDir, iconFilename));
         importedIconUrl = `/uploads/mirror/${iconFilename}`;
       }
 
@@ -1611,7 +1645,8 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     const fileSizes = new Map<string, number>();
     for (const filename of filesToExtract) {
       const tempFilePath = path.join(filesDir, filename);
-      const size = fs.existsSync(tempFilePath) ? fs.statSync(tempFilePath).size : 0;
+      const stat = await fs.promises.stat(tempFilePath).catch(() => null);
+      const size = stat ? stat.size : 0;
       fileSizes.set(filename, size);
       totalSize += size;
     }
@@ -1703,13 +1738,13 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
             uploadErr,
           );
           ensureLocalDestDir();
-          fs.copyFileSync(tempFilePath, path.join(localDestDir, filename));
+          await fs.promises.copyFile(tempFilePath, path.join(localDestDir, filename));
           finalUrl = `/uploads/mirror/${targetSourceId}/${filename}`;
         }
       } else {
         // Fall back to local storage
         ensureLocalDestDir();
-        fs.copyFileSync(tempFilePath, path.join(localDestDir, filename));
+        await fs.promises.copyFile(tempFilePath, path.join(localDestDir, filename));
         finalUrl = `/uploads/mirror/${targetSourceId}/${filename}`;
       }
 
@@ -1901,9 +1936,14 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     task.message = '导入成功！';
 
     // Delete temp ZIP if failed
-    if (fs.existsSync(zipFilePath)) {
+    if (
+      await fs.promises
+        .access(zipFilePath)
+        .then(() => true)
+        .catch(() => false)
+    ) {
       try {
-        fs.unlinkSync(zipFilePath);
+        await fs.promises.unlink(zipFilePath);
       } catch (unlinkErr) {
         logger.error('Failed to unlink uploaded ZIP:', unlinkErr);
       }

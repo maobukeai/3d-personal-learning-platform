@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Sparkles } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import { useSpriteChatStore } from '@/stores/spriteChat';
 import { useSpriteDraggable } from '@/composables/useSpriteDraggable';
@@ -16,7 +15,6 @@ import SpriteUsageDialog from './aiSprite/SpriteUsageDialog.vue';
 
 import('md-editor-v3/lib/style.css');
 
-const authStore = useAuthStore();
 const systemStore = useSystemStore();
 const chatStore = useSpriteChatStore();
 const route = useRoute();
@@ -24,7 +22,6 @@ const router = useRouter();
 
 // Deconstruct reactive states from Pinia store
 const {
-  messages,
   currentSessionId,
   inputMessage,
   uploadedImages,

@@ -10,7 +10,6 @@ import { AppError } from '../utils/error';
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
 import { parseTags } from '../utils/tags';
 
-
 type ShowcaseSortKey = 'popular' | 'newest' | 'trending' | 'viewed' | 'discussed' | 'featured';
 type ShowcaseScope = 'all' | 'my' | 'liked';
 type ShowcaseStatus = 'PENDING' | 'APPROVED' | 'REJECTED';

@@ -45,17 +45,19 @@ export async function optimize3DAsset(filePath: string): Promise<void> {
     );
     // Save to temp path first
     await io.write(tempPath, document);
-    
+
     // Atomically replace original file
     await fs.promises.rename(tempPath, filePath);
     logger.info(`[AssetProcessor] GLB compression complete: ${filePath}`);
   } catch (compressErr) {
-    // Clean up temp file if it exists
-    if (fs.existsSync(tempPath)) {
-      try {
-        fs.unlinkSync(tempPath);
-      } catch (_e) {
-        // ignore
+    // Clean up temp file if it exists (async to avoid blocking the event loop;
+    // ENOENT is expected when the failed transform never produced a temp file).
+    try {
+      await fs.promises.unlink(tempPath);
+    } catch (cleanupErr: unknown) {
+      const code = (cleanupErr as NodeJS.ErrnoException)?.code;
+      if (code !== 'ENOENT') {
+        logger.warn(`[AssetProcessor] Failed to clean up temp file ${tempPath}:`, cleanupErr);
       }
     }
     logger.error(`[AssetProcessor] Failed to compress GLB file ${filePath}:`, compressErr);

@@ -250,18 +250,39 @@ const is3DModel = (url?: string) => {
 
 const isBilibili = (url?: string) => {
   if (!url) return false;
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
   return (
-    url.includes('player.bilibili.com') || url.includes('bilibili.com') || url.includes('b23.tv')
+    hostname === 'player.bilibili.com' ||
+    hostname === 'bilibili.com' ||
+    hostname === 'www.bilibili.com' ||
+    hostname === 'b23.tv'
   );
 };
 
 const isYoutube = (url?: string) => {
   if (!url) return false;
-  return url.includes('youtube.com') || url.includes('youtu.be');
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return hostname === 'youtube.com' || hostname === 'www.youtube.com' || hostname === 'youtu.be';
 };
 
 const formatBilibiliUrl = (url: string) => {
-  if (url.includes('player.bilibili.com')) return url;
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    return url;
+  }
+  if (parsedUrl.hostname.toLowerCase() === 'player.bilibili.com') return url;
   const bvidMatch = url.match(/video\/(BV[a-zA-Z0-9]+)/);
   if (bvidMatch) {
     const bvid = bvidMatch[1];
@@ -273,7 +294,13 @@ const formatBilibiliUrl = (url: string) => {
 };
 
 const formatYoutubeUrl = (url: string) => {
-  if (url.includes('youtube.com/embed')) return url;
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    return url;
+  }
+  if (parsedUrl.pathname.startsWith('/embed/')) return url;
   const videoIdMatch = url.match(
     /(?:v=|\/embed\/|\/watch\?v=|\/v\/|youtu\.be\/|\/shorts\/|watch\?.*v=)([^#&?]*).*/,
   );
@@ -481,7 +508,9 @@ onUnmounted(() => {
             v-else-if="currentLesson.videoUrl"
             class="w-full h-full flex items-center justify-center bg-black"
           >
-            <div class="perfect-video-container bg-black shadow-lg flex items-center justify-center">
+            <div
+              class="perfect-video-container bg-black shadow-lg flex items-center justify-center"
+            >
               <video
                 :src="currentLesson.videoUrl || ''"
                 controls

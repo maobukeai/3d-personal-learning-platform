@@ -749,18 +749,7 @@ const roleClass = (role: string) => ({
   background: #eab308;
 }
 
-.spinning {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* .spinning + @keyframes spin provided globally by src/styles/layout.css */
 
 .quiet-state {
   display: flex;

@@ -1,17 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import {
   CheckCircle2,
   Clock3,
-  Eye,
-  EyeOff,
   Grid3X3,
   Heart,
   Layers,
   LayoutList,
-  Search,
   ShieldCheck,
   UploadCloud,
   XCircle,
@@ -28,8 +25,9 @@ import MaterialSignalsRow from './components/MaterialSignalsRow.vue';
 import MaterialStateBar from './components/MaterialStateBar.vue';
 import MaterialsGrid from './components/MaterialsGrid.vue';
 import MaterialDetailPanel from './components/MaterialDetailPanel.vue';
-import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
-import EditWorkDialog from './components/EditWorkDialog.vue';
+
+const PublishWorkDialog = defineAsyncComponent(() => import('@/components/PublishWorkDialog.vue'));
+const EditWorkDialog = defineAsyncComponent(() => import('./components/EditWorkDialog.vue'));
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import { normalizeMaterialWork } from './myWorksModel';
@@ -112,12 +110,10 @@ interface MaterialInsights {
 
 const CATEGORY_ALL = 'all';
 const defaultCategories = ['金属', '木纹', '石材', '织物', '程序化', '玻璃', '其他'];
-const resolutionOptions = ['2K', '4K', '8K', '矢量', '程序化'];
 
 const authStore = useAuthStore();
 const systemStore = useSystemStore();
 const route = useRoute();
-const router = useRouter();
 const { locale } = useI18n();
 const label = useLabel();
 const categoryLabel = (name: string) => {
@@ -146,7 +142,7 @@ const selectedIds = ref<string[]>([]);
 const isFilterOpen = ref(false);
 const isLoading = ref(false);
 const isLoadingDetail = ref(false);
-const isUploading = ref(false);
+
 const isUploadDialogOpen = ref(false);
 const isBulkBusy = ref(false);
 const isSavingReview = ref(false);
@@ -178,7 +174,10 @@ const categoryModalTitle = computed(() => {
 const categoryModalLabel = computed(() => {
   return categoryModalType.value === 'create'
     ? label('请输入新分类名称', 'Please enter a new category name')
-    : label(`请输入「${categoryModalOldValue.value}」的新名称`, `Please enter a new name for "${categoryModalOldValue.value}"`);
+    : label(
+        `请输入「${categoryModalOldValue.value}」的新名称`,
+        `Please enter a new name for "${categoryModalOldValue.value}"`,
+      );
 });
 
 const materialForm = ref({
@@ -194,7 +193,6 @@ const materialForm = ref({
 
 const currentUserId = computed(() => authStore.user?.id || '');
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN');
-const isEditingMaterial = computed(() => !!editingMaterial.value);
 
 const statCards = computed(() => [
   {
@@ -356,13 +354,6 @@ const allVisibleSelected = computed(
     visibleMaterials.value.every((material) => selectedIdSet.value.has(material.id)),
 );
 
-const canSubmitMaterial = computed(() => {
-  const hasBasicInfo =
-    Boolean(materialForm.value.title.trim()) && Boolean(materialForm.value.category);
-  if (isEditingMaterial.value) return hasBasicInfo;
-  return hasBasicInfo && Boolean(materialForm.value.file) && Boolean(materialForm.value.preview);
-});
-
 const activeFilterLabels = computed(() => {
   const labels: { key: string; label: string }[] = [];
   if (activeCategory.value !== CATEGORY_ALL)
@@ -467,7 +458,10 @@ function getListParams() {
     tag: selectedTag.value,
     procedural: selectedProcedural.value === 'all' ? undefined : selectedProcedural.value,
     favoritesOnly: activeTab.value === 'favorites' ? 'true' : undefined,
-    favoriteCategory: activeTab.value === 'favorites' && selectedFavoriteCategory.value !== 'all' ? selectedFavoriteCategory.value : undefined,
+    favoriteCategory:
+      activeTab.value === 'favorites' && selectedFavoriteCategory.value !== 'all'
+        ? selectedFavoriteCategory.value
+        : undefined,
     mine: activeTab.value === 'mine' ? 'true' : undefined,
     status:
       activeTab.value === 'mine' && myStatusFilter.value !== 'all'
@@ -524,7 +518,12 @@ async function fetchInsights() {
 }
 
 async function refreshWorkspace(silent = false) {
-  await Promise.all([fetchMaterials(silent), fetchInsights(), fetchMyMaterials(), fetchFavorites()]);
+  await Promise.all([
+    fetchMaterials(silent),
+    fetchInsights(),
+    fetchMyMaterials(),
+    fetchFavorites(),
+  ]);
   await applyRouteEntry();
 }
 function resetUploadForm() {
@@ -672,71 +671,6 @@ const handleSaveEdit = async () => {
   }
 };
 
-function closeMaterialDialog() {
-  isUploadDialogOpen.value = false;
-  editingMaterial.value = null;
-}
-
-async function submitMaterial() {
-  if (!canSubmitMaterial.value) {
-    ElMessage.warning(
-      isEditingMaterial.value
-        ? label('请补全材料名称和分类', 'Please complete material name and category')
-        : label(
-            '请补全材料文件、预览图、名称和分类',
-            'Please complete material file, preview, name, and category',
-          ),
-    );
-    return;
-  }
-
-  try {
-    isUploading.value = true;
-    if (editingMaterial.value) {
-      const payload = {
-        title: materialForm.value.title.trim(),
-        description: materialForm.value.description,
-        category: materialForm.value.category,
-        resolution: materialForm.value.resolution,
-        tags: materialForm.value.tags,
-        isProcedural: materialForm.value.isProcedural,
-      };
-      const { data } = await api.put(`/api/materials/${editingMaterial.value.id}`, payload);
-      selectedMaterial.value = normalizeMaterial(data);
-      ElMessage.success(label('材料信息已更新', 'Material updated'));
-    } else {
-      const formData = new FormData();
-      formData.append('material', materialForm.value.file as File);
-      formData.append('preview', materialForm.value.preview as File);
-      formData.append('title', materialForm.value.title.trim());
-      formData.append('description', materialForm.value.description);
-      formData.append('category', materialForm.value.category);
-      formData.append('resolution', materialForm.value.resolution);
-      formData.append('tags', materialForm.value.tags);
-      formData.append('isProcedural', String(materialForm.value.isProcedural));
-      await api.post('/api/materials/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      ElMessage.success(label('材料已提交审核', 'Material submitted for review'));
-      activeTab.value = 'mine';
-    }
-    closeMaterialDialog();
-    resetUploadForm();
-    await refreshWorkspace();
-  } catch (error) {
-    ElMessage.error(
-      getApiErrorMessage(
-        error,
-        isEditingMaterial.value
-          ? label('更新失败', 'Update failed')
-          : label('上传失败', 'Upload failed'),
-      ),
-    );
-  } finally {
-    isUploading.value = false;
-  }
-}
-
 async function openDetail(material: MaterialItem | NormalizedMaterial) {
   selectedMaterial.value = normalizeMaterial(material);
   isLoadingDetail.value = true;
@@ -814,29 +748,29 @@ async function toggleFavorite(material: MaterialItem | NormalizedMaterial, event
   try {
     const isFav = favoritedIds.value.includes(material.id);
     let category = '默认';
-    
+
     if (!isFav && selectedFavoriteCategory.value !== 'all') {
       category = selectedFavoriteCategory.value;
     }
-    
+
     const { data } = await api.post(`/api/materials/${material.id}/favorite`, {
-      category
+      category,
     });
-    
+
     applyFavoriteState(material.id, data.isFavorited);
-    
+
     if (data.isFavorited) {
       if (!favoritedIds.value.includes(material.id)) favoritedIds.value.push(material.id);
     } else {
-      favoritedIds.value = favoritedIds.value.filter(id => id !== material.id);
+      favoritedIds.value = favoritedIds.value.filter((id) => id !== material.id);
     }
-    
+
     ElMessage.success(
       data.isFavorited
         ? label('已加入收藏', 'Added to favorites')
-        : label('已取消收藏', 'Favorite removed')
+        : label('已取消收藏', 'Favorite removed'),
     );
-    
+
     await fetchInsights();
     await fetchFavorites();
     if (activeTab.value === 'favorites') {
@@ -889,7 +823,9 @@ const handleCategoryModalSubmit = async () => {
       await fetchFavorites();
       await fetchMaterials();
     } catch (error) {
-      ElMessage.error(getApiErrorMessage(error, label('创建分类失败', 'Failed to create category')));
+      ElMessage.error(
+        getApiErrorMessage(error, label('创建分类失败', 'Failed to create category')),
+      );
     }
   } else {
     // rename
@@ -918,7 +854,10 @@ const handleCategoryModalSubmit = async () => {
 const handleDeleteFavoriteCategory = async (cat: string) => {
   try {
     await ElMessageBox.confirm(
-      label(`确认删除收藏夹分类「${cat}」？此操作将取消该分类下所有材料的收藏。`, `Delete favorite folder "${cat}"? This will remove all favorites inside this folder.`),
+      label(
+        `确认删除收藏夹分类「${cat}」？此操作将取消该分类下所有材料的收藏。`,
+        `Delete favorite folder "${cat}"? This will remove all favorites inside this folder.`,
+      ),
       label('删除分类', 'Delete Category'),
       {
         confirmButtonText: label('删除', 'Delete'),
@@ -1130,7 +1069,7 @@ async function reviewMaterial(material: NormalizedMaterial, status: MaterialStat
 
 const activeFilterChips = computed(() => {
   const chips: Array<{ key: string; label: string }> = [];
-  
+
   if (activeCategory.value !== CATEGORY_ALL) {
     chips.push({
       key: 'category',
@@ -1140,7 +1079,10 @@ const activeFilterChips = computed(() => {
   if (selectedResolution.value !== CATEGORY_ALL) {
     chips.push({
       key: 'resolution',
-      label: label(`分辨率: ${selectedResolution.value}`, `Resolution: ${selectedResolution.value}`),
+      label: label(
+        `分辨率: ${selectedResolution.value}`,
+        `Resolution: ${selectedResolution.value}`,
+      ),
     });
   }
   if (selectedTag.value !== CATEGORY_ALL) {
@@ -1152,9 +1094,10 @@ const activeFilterChips = computed(() => {
   if (selectedProcedural.value !== 'all') {
     chips.push({
       key: 'procedural',
-      label: selectedProcedural.value === 'true'
-        ? label('程序纹理: 是', 'Procedural: Yes')
-        : label('程序纹理: 否', 'Procedural: No'),
+      label:
+        selectedProcedural.value === 'true'
+          ? label('程序纹理: 是', 'Procedural: Yes')
+          : label('程序纹理: 否', 'Procedural: No'),
     });
   }
   if (activeTab.value === 'mine' && myStatusFilter.value !== 'all') {
@@ -1165,13 +1108,19 @@ const activeFilterChips = computed(() => {
     };
     chips.push({
       key: 'status',
-      label: label(`状态: ${statusLabels[myStatusFilter.value]}`, `Status: ${statusLabels[myStatusFilter.value]}`),
+      label: label(
+        `状态: ${statusLabels[myStatusFilter.value]}`,
+        `Status: ${statusLabels[myStatusFilter.value]}`,
+      ),
     });
   }
   if (activeTab.value === 'favorites' && selectedFavoriteCategory.value !== 'all') {
     chips.push({
       key: 'favoriteCategory',
-      label: label(`收藏分类: ${selectedFavoriteCategory.value}`, `Folder: ${selectedFavoriteCategory.value}`),
+      label: label(
+        `收藏分类: ${selectedFavoriteCategory.value}`,
+        `Folder: ${selectedFavoriteCategory.value}`,
+      ),
     });
   }
   if (searchQuery.value.trim()) {
@@ -1180,7 +1129,7 @@ const activeFilterChips = computed(() => {
       label: label(`搜索: "${searchQuery.value.trim()}"`, `Search: "${searchQuery.value.trim()}"`),
     });
   }
-  
+
   return chips;
 });
 
@@ -1378,12 +1327,14 @@ onUnmounted(() => {
     </div>
 
     <PublishWorkDialog
+      v-if="isUploadDialogOpen"
       v-model="isUploadDialogOpen"
       default-category="material"
       @published="fetchMaterials"
     />
 
     <EditWorkDialog
+      v-if="isEditDialogOpen"
       v-model:show="isEditDialogOpen"
       v-model:form="editForm"
       :work="selectedWork"
@@ -1395,18 +1346,16 @@ onUnmounted(() => {
     />
 
     <!-- Favorite Category Create/Rename Modal -->
-    <Modal
-      :show="showCategoryModal"
-      size="sm"
-      @close="showCategoryModal = false;"
-    >
+    <Modal :show="showCategoryModal" size="sm" @close="showCategoryModal = false">
       <template #header>
         <h3 class="text-sm font-bold text-[var(--text-primary)]">{{ categoryModalTitle }}</h3>
       </template>
 
       <div class="flex flex-col gap-4 text-left">
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+          >
             {{ categoryModalLabel }}
           </label>
           <Input
@@ -1417,12 +1366,22 @@ onUnmounted(() => {
             @input="categoryModalError = ''"
             @keyup.enter="handleCategoryModalSubmit"
           />
-          <p v-if="categoryModalError" class="text-xs text-rose-500 mt-1.5 ml-1">{{ categoryModalError }}</p>
+          <p v-if="categoryModalError" class="text-xs text-rose-500 mt-1.5 ml-1">
+            {{ categoryModalError }}
+          </p>
         </div>
 
         <div class="flex justify-end gap-2 mt-2">
-          <Button variant="secondary" size="sm" @click="showCategoryModal = false;">{{ label('取消', 'Cancel') }}</Button>
-          <Button variant="primary" size="sm" :disabled="!categoryModalInputValue.trim()" @click="handleCategoryModalSubmit">{{ label('确定', 'Confirm') }}</Button>
+          <Button variant="secondary" size="sm" @click="showCategoryModal = false">{{
+            label('取消', 'Cancel')
+          }}</Button>
+          <Button
+            variant="primary"
+            size="sm"
+            :disabled="!categoryModalInputValue.trim()"
+            @click="handleCategoryModalSubmit"
+            >{{ label('确定', 'Confirm') }}</Button
+          >
         </div>
       </div>
     </Modal>

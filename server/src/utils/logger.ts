@@ -10,13 +10,16 @@ const LOG_LEVELS = {
 
 type LogLevel = keyof typeof LOG_LEVELS;
 
-const getLogLevel = (): number => {
+// Evaluate once at module load time instead of on every log call
+const resolveLogLevel = (): number => {
   const envLevel = process.env.LOG_LEVEL?.toLowerCase() as LogLevel | undefined;
   if (envLevel && envLevel in LOG_LEVELS) {
     return LOG_LEVELS[envLevel];
   }
   return config.NODE_ENV === 'production' ? LOG_LEVELS.warn : LOG_LEVELS.debug;
 };
+
+const currentLogLevel = resolveLogLevel();
 
 const formatMessage = (level: string, message: string): string => {
   const timestamp = new Date().toISOString();
@@ -25,22 +28,22 @@ const formatMessage = (level: string, message: string): string => {
 
 export const logger = {
   debug: (message: string, ...args: unknown[]) => {
-    if (getLogLevel() <= LOG_LEVELS.debug) {
+    if (currentLogLevel <= LOG_LEVELS.debug) {
       console.log(formatMessage('debug', message), ...args);
     }
   },
   info: (message: string, ...args: unknown[]) => {
-    if (getLogLevel() <= LOG_LEVELS.info) {
+    if (currentLogLevel <= LOG_LEVELS.info) {
       console.log(formatMessage('info', message), ...args);
     }
   },
   warn: (message: string, ...args: unknown[]) => {
-    if (getLogLevel() <= LOG_LEVELS.warn) {
+    if (currentLogLevel <= LOG_LEVELS.warn) {
       console.warn(formatMessage('warn', message), ...args);
     }
   },
   error: (message: string, ...args: unknown[]) => {
-    if (getLogLevel() <= LOG_LEVELS.error) {
+    if (currentLogLevel <= LOG_LEVELS.error) {
       console.error(formatMessage('error', message), ...args);
     }
   },

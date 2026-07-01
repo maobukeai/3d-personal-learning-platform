@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
 import {
   ACESFilmicToneMapping,
   AmbientLight,
@@ -33,12 +33,6 @@ import {
 import gsap from 'gsap';
 import { Info, RefreshCw, Layers, Camera } from 'lucide-vue-next';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
-import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
-import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { getAssetUrl } from '@/utils/api';
 import { logError } from '@/utils/error';
 
@@ -89,7 +83,12 @@ const props = defineProps<{
   defaultCameraTarget?: string | null;
 }>();
 
-const emit = defineEmits(['metadata-loaded', 'screenshot-captured', 'hotspot-added', 'save-viewport']);
+const emit = defineEmits([
+  'metadata-loaded',
+  'screenshot-captured',
+  'hotspot-added',
+  'save-viewport',
+]);
 
 const envMaps: Record<string, string> = {
   sunset:
@@ -107,7 +106,7 @@ const loadingProgress = ref(0);
 const error = ref<string | null>(null);
 const modelFormat = ref<string>('');
 
-const animations = ref<string[]>([]);
+const animations = shallowRef<string[]>([]);
 const currentAnimation = ref<number>(-1);
 const isPaused = ref(false);
 const viewMode = ref<ViewMode>('solid');
@@ -124,7 +123,9 @@ const clayMaterial = new MeshStandardMaterial({
   roughness: 0.7,
   metalness: 0.05,
 });
-const stats = ref({
+// shallowRef: stats object is replaced wholesale (not mutated field-by-field),
+// so deep reactivity is wasted overhead. Triggers re-render on .value reassign.
+const stats = shallowRef({
   vertices: 0,
   faces: 0,
   materials: 0,
@@ -133,6 +134,10 @@ const stats = ref({
   maxTextureRes: 0,
 });
 
+// IMPORTANT: three.js objects below are intentionally held in plain `let`
+// bindings (NOT `ref()`/`reactive()`). They mutate every animation frame;
+// making them reactive would add huge overhead and risk Vue recursing into
+// their internal buffers. Do NOT migrate these to `ref()`/`shallowRef()`.
 let scene: Scene;
 let camera: PerspectiveCamera;
 let renderer: WebGLRenderer;
@@ -155,7 +160,9 @@ let axesHelper: AxesHelper | null = null;
 
 const raycaster = new Raycaster();
 const mouse = new Vector2();
-const hotspotsWithScreenPos = ref<HotspotWithScreenPosition[]>([]);
+// shallowRef: the array is replaced wholesale each tick in updateHotspotsPosition;
+// deep reactivity on plain-JS-object elements would be wasted overhead.
+const hotspotsWithScreenPos = shallowRef<HotspotWithScreenPosition[]>([]);
 
 const getModelExtension = (url: string): string => {
   const urlWithoutQuery = url.split('?')[0];
@@ -199,6 +206,7 @@ const updateSceneConfig = async () => {
 
   // Environment
   if (config.environment && envMaps[config.environment]) {
+    const { HDRLoader } = await import('three/examples/jsm/loaders/HDRLoader.js');
     new HDRLoader().load(envMaps[config.environment], (texture) => {
       texture.mapping = EquirectangularReflectionMapping;
       scene.environment = texture;
@@ -441,7 +449,9 @@ const optimizeTexturesForGPULimit = (object: Object3D) => {
         if (activeSlots.length > maxAllowed) {
           if (import.meta.env.DEV) {
             logError(
-              new Error(`Mesh "${child.name}" material textures (${activeSlots.length}) exceed GPU limit (${maxAllowed}). Optimizing...`),
+              new Error(
+                `Mesh "${child.name}" material textures (${activeSlots.length}) exceed GPU limit (${maxAllowed}). Optimizing...`,
+              ),
               { operation: 'optimizeTextures', component: 'ModelViewer' },
             );
           }
@@ -524,8 +534,12 @@ const onModelLoaded = (object: Object3D, animCount: number = 0) => {
       const pos = JSON.parse(props.defaultCameraPos);
       const tar = JSON.parse(props.defaultCameraTarget);
       if (
-        typeof pos.x === 'number' && typeof pos.y === 'number' && typeof pos.z === 'number' &&
-        typeof tar.x === 'number' && typeof tar.y === 'number' && typeof tar.z === 'number'
+        typeof pos.x === 'number' &&
+        typeof pos.y === 'number' &&
+        typeof pos.z === 'number' &&
+        typeof tar.x === 'number' &&
+        typeof tar.y === 'number' &&
+        typeof tar.z === 'number'
       ) {
         setTimeout(() => {
           flyTo(pos, tar);
@@ -600,7 +614,10 @@ const loadModel = async (url: string) => {
     if (isImage && isAssetPath && !isRenamedAsset) {
       // Silently swallow: intercepted texture 404 — no need to surface to user
       if (import.meta.env.DEV) {
-        logError(new Error(`Intercepted missing texture request to prevent 404: ${url}`), { operation: 'loadManager', component: 'ModelViewer' });
+        logError(new Error(`Intercepted missing texture request to prevent 404: ${url}`), {
+          operation: 'loadManager',
+          component: 'ModelViewer',
+        });
       }
       // Return 1x1 transparent PNG data URL
       return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
@@ -611,6 +628,10 @@ const loadModel = async (url: string) => {
   switch (ext) {
     case '.glb':
     case '.gltf': {
+      const [{ GLTFLoader }, { DRACOLoader }] = await Promise.all([
+        import('three/examples/jsm/loaders/GLTFLoader.js'),
+        import('three/examples/jsm/loaders/DRACOLoader.js'),
+      ]);
       const loader = new GLTFLoader(manager);
       const dracoLoader = new DRACOLoader();
       dracoLoader.setDecoderPath('/libs/draco/');
@@ -640,6 +661,7 @@ const loadModel = async (url: string) => {
       break;
     }
     case '.fbx': {
+      const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js');
       const loader = new FBXLoader(manager);
       loader.load(
         url,
@@ -660,6 +682,7 @@ const loadModel = async (url: string) => {
       break;
     }
     case '.obj': {
+      const { OBJLoader } = await import('three/examples/jsm/loaders/OBJLoader.js');
       const loader = new OBJLoader(manager);
       loader.load(
         url,
@@ -672,6 +695,7 @@ const loadModel = async (url: string) => {
       break;
     }
     case '.stl': {
+      const { STLLoader } = await import('three/examples/jsm/loaders/STLLoader.js');
       const loader = new STLLoader(manager);
       loader.load(
         url,

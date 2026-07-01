@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Activity, Box, FileArchive, Grid3X3, LayoutList, UsersRound } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -23,9 +23,10 @@ import AssetLibraryHeader from './components/AssetLibraryHeader.vue';
 import AssetStatsPanel from './components/AssetStatsPanel.vue';
 import AssetFilterPanel from './components/AssetFilterPanel.vue';
 import AssetContentPanel from './components/AssetContentPanel.vue';
-import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
-import AssetDetailModal from './components/AssetDetailModal.vue';
-import EditWorkDialog from './components/EditWorkDialog.vue';
+
+const PublishWorkDialog = defineAsyncComponent(() => import('@/components/PublishWorkDialog.vue'));
+const AssetDetailModal = defineAsyncComponent(() => import('./components/AssetDetailModal.vue'));
+const EditWorkDialog = defineAsyncComponent(() => import('./components/EditWorkDialog.vue'));
 import { normalizeAssetWork } from './myWorksModel';
 import type { UnifiedWork } from './myWorksModel';
 import Modal from '@/components/ui/Modal.vue';
@@ -47,7 +48,6 @@ const viewModeOptions = computed(() => [
 ]);
 const isFilterOpen = ref(false);
 const isLoading = ref(false);
-
 
 // Edit Work dialog state
 const isEditDialogOpen = ref(false);
@@ -106,7 +106,10 @@ const categoryModalTitle = computed(() => {
 const categoryModalLabel = computed(() => {
   return categoryModalType.value === 'create'
     ? label('请输入新分类名称', 'Please enter a new category name')
-    : label(`请输入「${categoryModalOldValue.value}」的新名称`, `Please enter a new name for "${categoryModalOldValue.value}"`);
+    : label(
+        `请输入「${categoryModalOldValue.value}」的新名称`,
+        `Please enter a new name for "${categoryModalOldValue.value}"`,
+      );
 });
 
 const assets = ref<AssetListItem[]>([]);
@@ -158,8 +161,6 @@ const pagination = ref({
   limit: 24,
   totalPages: 0,
 });
-
-
 
 const categoryOptions = computed(() =>
   buildAssetCategoryOptions(
@@ -256,8 +257,6 @@ const activeFilterChips = computed(() => {
   });
 });
 
-
-
 watch([activeCategoryId, sortKey, activeTab, myStatusFilter, selectedFavoriteCategory], () => {
   pagination.value.page = 1;
   fetchAssets();
@@ -287,7 +286,10 @@ const fetchAssets = async () => {
         sort: sortKey.value,
         mine: activeTab.value === 'mine' ? 'true' : undefined,
         favoritesOnly: activeTab.value === 'favorites' ? 'true' : undefined,
-        favoriteCategory: activeTab.value === 'favorites' && selectedFavoriteCategory.value !== 'all' ? selectedFavoriteCategory.value : undefined,
+        favoriteCategory:
+          activeTab.value === 'favorites' && selectedFavoriteCategory.value !== 'all'
+            ? selectedFavoriteCategory.value
+            : undefined,
         status:
           activeTab.value === 'mine' && myStatusFilter.value !== 'all'
             ? myStatusFilter.value
@@ -372,7 +374,7 @@ watch(
       selectedAssetId.value = null;
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 const goToDetail = (asset: AssetListItem) => {
@@ -568,7 +570,9 @@ const handleCategoryModalSubmit = async () => {
       await fetchFavorites();
       await fetchAssets();
     } catch (error) {
-      ElMessage.error(getApiErrorMessage(error, label('创建分类失败', 'Failed to create category')));
+      ElMessage.error(
+        getApiErrorMessage(error, label('创建分类失败', 'Failed to create category')),
+      );
     }
   } else {
     // rename
@@ -597,7 +601,10 @@ const handleCategoryModalSubmit = async () => {
 const handleDeleteFavoriteCategory = async (cat: string) => {
   try {
     await ElMessageBox.confirm(
-      label(`确认删除收藏夹分类「${cat}」？此操作将取消该分类下所有资产的收藏。`, `Delete favorite folder "${cat}"? This will remove all favorites inside this folder.`),
+      label(
+        `确认删除收藏夹分类「${cat}」？此操作将取消该分类下所有资产的收藏。`,
+        `Delete favorite folder "${cat}"? This will remove all favorites inside this folder.`,
+      ),
       label('删除分类', 'Delete Category'),
       {
         confirmButtonText: label('删除', 'Delete'),
@@ -697,20 +704,29 @@ onUnmounted(() => {
     </div>
 
     <PublishWorkDialog
+      v-if="isUploadDialogOpen"
       v-model="isUploadDialogOpen"
       default-category="asset"
-      @published="fetchAssets(); fetchInsights();"
+      @published="
+        fetchAssets();
+        fetchInsights();
+      "
     />
 
     <AssetDetailModal
+      v-if="isAssetDetailOpen"
       :show="isAssetDetailOpen"
       :asset-id="selectedAssetId"
       @close="closeDetailModal"
-      @update="fetchAssets(); fetchInsights();"
+      @update="
+        fetchAssets();
+        fetchInsights();
+      "
       @edit="handleDetailEdit"
     />
 
     <EditWorkDialog
+      v-if="isEditDialogOpen"
       v-model:show="isEditDialogOpen"
       v-model:form="editForm"
       :work="selectedWork"
@@ -722,18 +738,16 @@ onUnmounted(() => {
     />
 
     <!-- Favorite Category Create/Rename Modal -->
-    <Modal
-      :show="showCategoryModal"
-      size="sm"
-      @close="showCategoryModal = false;"
-    >
+    <Modal :show="showCategoryModal" size="sm" @close="showCategoryModal = false">
       <template #header>
         <h3 class="text-sm font-bold text-[var(--text-primary)]">{{ categoryModalTitle }}</h3>
       </template>
 
       <div class="flex flex-col gap-4 text-left">
         <div>
-          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+          >
             {{ categoryModalLabel }}
           </label>
           <Input
@@ -744,12 +758,22 @@ onUnmounted(() => {
             @input="categoryModalError = ''"
             @keyup.enter="handleCategoryModalSubmit"
           />
-          <p v-if="categoryModalError" class="text-xs text-rose-500 mt-1.5 ml-1">{{ categoryModalError }}</p>
+          <p v-if="categoryModalError" class="text-xs text-rose-500 mt-1.5 ml-1">
+            {{ categoryModalError }}
+          </p>
         </div>
 
         <div class="flex justify-end gap-2 mt-2">
-          <Button variant="secondary" size="sm" @click="showCategoryModal = false;">{{ label('取消', 'Cancel') }}</Button>
-          <Button variant="primary" size="sm" :disabled="!categoryModalInputValue.trim()" @click="handleCategoryModalSubmit">{{ label('确定', 'Confirm') }}</Button>
+          <Button variant="secondary" size="sm" @click="showCategoryModal = false">{{
+            label('取消', 'Cancel')
+          }}</Button>
+          <Button
+            variant="primary"
+            size="sm"
+            :disabled="!categoryModalInputValue.trim()"
+            @click="handleCategoryModalSubmit"
+            >{{ label('确定', 'Confirm') }}</Button
+          >
         </div>
       </div>
     </Modal>

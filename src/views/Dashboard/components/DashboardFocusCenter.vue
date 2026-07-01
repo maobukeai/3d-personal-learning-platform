@@ -1,13 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import {
-  BookOpen,
-  CheckSquare,
-  Upload,
-  FolderOpen,
-  MessageSquare,
-  Brain,
-} from 'lucide-vue-next';
+import { BookOpen, CheckSquare, Upload, FolderOpen, MessageSquare, Brain } from 'lucide-vue-next';
 import Card from '@/components/ui/Card.vue';
 import type { DashboardEnrollment, QuickAction } from '../types';
 
@@ -101,9 +94,7 @@ function openQuickAction(action: QuickAction) {
   <Card hoverable glow glass class="command-card shadow-md border-base/80" padding="md">
     <div class="section-heading">
       <div>
-        <p class="eyebrow text-[10px] font-bold uppercase tracking-wider text-slate-400">
-          Today
-        </p>
+        <p class="eyebrow text-[10px] font-bold uppercase tracking-wider text-slate-400">Today</p>
         <h2 class="text-base font-extrabold text-slate-800 dark:text-slate-100">推进中心</h2>
       </div>
       <div class="focus-score shrink-0" :class="{ warning: taskSummary.overdue > 0 }">

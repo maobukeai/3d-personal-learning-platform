@@ -14,12 +14,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <Modal
-    :show="show"
-    size="xl"
-    padding="none"
-    @close="emit('update:show', false)"
-  >
+  <Modal :show="show" size="xl" padding="none" @close="emit('update:show', false)">
     <div class="flex items-center justify-center p-2">
       <img
         v-if="imageUrl"

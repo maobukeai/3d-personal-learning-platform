@@ -31,7 +31,12 @@ const isSearchOpen = ref(false);
 <template>
   <PageHeader
     :title="label('材质库', 'Material Library')"
-    :subtitle="label('PBR 贴图、程序化材质、纹理包统一管理。', 'PBR maps, procedural materials, and texture packs managed in one place.')"
+    :subtitle="
+      label(
+        'PBR 贴图、程序化材质、纹理包统一管理。',
+        'PBR maps, procedural materials, and texture packs managed in one place.',
+      )
+    "
     :icon="Layers"
   >
     <template #center>
@@ -57,7 +62,9 @@ const isSearchOpen = ref(false);
       </Button>
       <Button variant="secondary" size="sm" class="!h-8" @click="emit('toggleStats')">
         <component :is="isStatsExpanded ? EyeOff : Eye" class="w-3.5 h-3.5" />
-        <span>{{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}</span>
+        <span>{{
+          isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats')
+        }}</span>
       </Button>
       <Button variant="secondary" size="sm" class="!h-8" @click="emit('showFavorites')">
         <Heart class="w-3.5 h-3.5" />

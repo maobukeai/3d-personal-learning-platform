@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { getApiErrorMessage, logError } from '@/utils/error';
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Loading } from '@element-plus/icons-vue';
 import {
   Plus,
   Search,
@@ -14,28 +13,29 @@ import {
   Square,
   Grid3X3,
   LayoutList,
+  Loader2,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import PageHeader from '@/components/PageHeader.vue';
-import UserProfileDialog from '@/components/UserProfileDialog.vue';
-import { useRouter } from 'vue-router';
-import { useI18n } from 'vue-i18n';
-import { usePagedList } from '@/composables/usePagedList';
-
-// Subcomponents
-import NotebookCreateDialog from './components/NotebookCreateDialog.vue';
-import NoteCloneDialog from './components/NoteCloneDialog.vue';
-import NoteEditorDialog from './components/NoteEditorDialog.vue';
-import NoteDetailDialog from './components/NoteDetailDialog.vue';
-import NoteShareDialog from './components/NoteShareDialog.vue';
-import NoteImportGithubDialog from './components/NoteImportGithubDialog.vue';
 import NoteCard from './components/NoteCard.vue';
 import ActivityTimeline from './components/ActivityTimeline.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import Button from '@/components/ui/Button.vue';
 import Checkbox from '@/components/ui/Checkbox.vue';
 import Modal from '@/components/ui/Modal.vue';
+import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+import { usePagedList } from '@/composables/usePagedList';
+
+// Dialog components — all conditionally rendered, so lazy-load each independently
+const UserProfileDialog = defineAsyncComponent(() => import('@/components/UserProfileDialog.vue'));
+const NotebookCreateDialog = defineAsyncComponent(() => import('./components/NotebookCreateDialog.vue'));
+const NoteCloneDialog = defineAsyncComponent(() => import('./components/NoteCloneDialog.vue'));
+const NoteEditorDialog = defineAsyncComponent(() => import('./components/NoteEditorDialog.vue'));
+const NoteDetailDialog = defineAsyncComponent(() => import('./components/NoteDetailDialog.vue'));
+const NoteShareDialog = defineAsyncComponent(() => import('./components/NoteShareDialog.vue'));
+const NoteImportGithubDialog = defineAsyncComponent(() => import('./components/NoteImportGithubDialog.vue'));
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -818,7 +818,7 @@ onUnmounted(() => {
               v-if="loading"
               class="flex flex-col items-center justify-center py-32 text-[var(--text-muted)] w-full"
             >
-              <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+              <Loader2 class="animate-spin text-[var(--accent)]" :size="40" />
               <p class="mt-4 font-medium">{{ t('notes.loadingNotes') }}</p>
             </div>
 

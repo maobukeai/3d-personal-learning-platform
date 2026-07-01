@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import type { TaskActivity } from '@/types/task';
@@ -37,7 +37,7 @@ watch(
       activities.value = [];
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 defineExpose({
@@ -63,10 +63,7 @@ defineExpose({
     >
       暂无动态
     </div>
-    <div
-      v-else
-      class="max-h-[300px] overflow-y-auto pr-1 space-y-3 scrollbar-hide text-xs"
-    >
+    <div v-else class="max-h-[300px] overflow-y-auto pr-1 space-y-3 scrollbar-hide text-xs">
       <div v-for="act in activities" :key="act.id" class="flex gap-2.5 items-start">
         <img
           v-if="act.user?.avatarUrl"

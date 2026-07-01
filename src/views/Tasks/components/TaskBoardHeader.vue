@@ -106,10 +106,7 @@ const columnVisibilityLabel = (field: string): string => {
 </script>
 
 <template>
-  <PageHeader
-    :title="t('tasks.board')"
-    :icon="CheckCircle2"
-  >
+  <PageHeader :title="t('tasks.board')" :icon="CheckCircle2">
     <template #title-badge>
       <!-- Inline stats badges -->
       <div class="hidden lg:flex items-center gap-1.5 shrink-0">

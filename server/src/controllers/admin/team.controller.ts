@@ -1019,11 +1019,11 @@ export const updateTeam = async (req: AuthRequest, res: Response, next: NextFunc
 
   try {
     const team = await prisma.$transaction(async (tx) => {
-      const oldTeam = await tx.team.findUnique({ where: { id: id as any } });
+      const oldTeam = await tx.team.findUnique({ where: { id: id } });
       if (!oldTeam) throw new AppError('Team not found', 404);
 
       const updatedTeam = await tx.team.update({
-        where: { id: id as any },
+        where: { id: id },
         data: { name, description, avatarUrl, coverUrl, visibility, category, ownerId },
       });
 
@@ -1063,7 +1063,7 @@ export const updateTeam = async (req: AuthRequest, res: Response, next: NextFunc
 export const deleteTeam = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
-    await prisma.team.delete({ where: { id: id as any } });
+    await prisma.team.delete({ where: { id: id } });
     res.json({ message: 'Team deleted successfully' });
   } catch (error) {
     next(error);

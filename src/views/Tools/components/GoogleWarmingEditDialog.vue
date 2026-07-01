@@ -27,7 +27,7 @@ const props = withDefaults(
   }>(),
   {
     categoriesList: () => [],
-  }
+  },
 );
 
 const emit = defineEmits<{

@@ -111,7 +111,7 @@ const responseModeDescription = (mode?: string | null) =>
             <button
               type="button"
               class="absolute right-2.5 text-slate-400 hover:text-slate-200 transition-colors flex items-center justify-center p-1"
-              style="background: transparent; border: none; cursor: pointer;"
+              style="background: transparent; border: none; cursor: pointer"
               @click="showSecret = !showSecret"
             >
               <Eye v-if="showSecret" class="w-4 h-4" />

@@ -7,6 +7,7 @@ import { syncEngine } from './mirror/services/sync-engine.service';
 import { runManualStationMigration } from './manual/services/migration.service';
 import {
   startCleanupJob,
+  stopCleanupJob,
   startMessageCleanupJob,
   stopMessageCleanupJob,
 } from './services/cleanup.service';
@@ -15,6 +16,7 @@ import {
   startDirectMessageEmailScheduler,
   stopDirectMessageEmailScheduler,
 } from './services/direct-message-email.service';
+import { stopAiCleanupTimer } from './services/ai.service';
 import './services/redis.service';
 import prisma from './services/prisma';
 import { storageService } from './services/storage.service';
@@ -81,11 +83,23 @@ const gracefulShutdown = async (signal: string) => {
   logger.info(`[Shutdown] Received system signal: ${signal}. Initiating graceful shutdown...`);
   try {
     syncEngine.stopScheduler();
+    stopCleanupJob();
     stopDirectMessageEmailScheduler();
     stopMessageCleanupJob();
+    stopAiCleanupTimer();
 
-    server.close(() => {
-      logger.info('[Shutdown] HTTP server closed.');
+    // Wait for the HTTP server to stop accepting new connections before
+    // disconnecting the database — avoids forceful mid-request disconnections.
+    await new Promise<void>((resolve, reject) => {
+      server.close((err) => {
+        if (err) {
+          logger.warn('[Shutdown] HTTP server close error:', err);
+          reject(err);
+        } else {
+          logger.info('[Shutdown] HTTP server closed.');
+          resolve();
+        }
+      });
     });
 
     await prisma.$disconnect();

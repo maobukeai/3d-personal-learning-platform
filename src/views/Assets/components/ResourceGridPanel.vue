@@ -60,7 +60,8 @@ const getUnitLabel = () => {
 
 const getEmptyChipsLabel = () => {
   if (props.kind === 'asset') return label('当前显示全部公开资源', 'Showing all public assets');
-  if (props.kind === 'material') return label('当前显示全部公开材料', 'Showing all public materials');
+  if (props.kind === 'material')
+    return label('当前显示全部公开材料', 'Showing all public materials');
   if (props.kind === 'plugin') return label('当前显示全部公开插件', 'Showing all public plugins');
   return label('当前显示全部作品', 'Showing all works');
 };
@@ -78,7 +79,12 @@ const getEmptyChipsLabel = () => {
       @reset="emit('reset-filters')"
     />
 
-    <SkeletonGrid v-if="isLoading" :count="kind === 'material' ? 12 : 8" :columns="viewMode === 'list' ? 1 : 4" compact />
+    <SkeletonGrid
+      v-if="isLoading"
+      :count="kind === 'material' ? 12 : 8"
+      :columns="viewMode === 'list' ? 1 : 4"
+      compact
+    />
 
     <div v-else-if="items.length" class="items-grid" :class="viewMode">
       <UnifiedCard
@@ -104,7 +110,10 @@ const getEmptyChipsLabel = () => {
       v-else
       :icon="Sparkles"
       :title="emptyTitle || label('还没有匹配的内容', 'No matching items')"
-      :description="emptyBody || label('调整筛选条件或点击下方按钮上传', 'Adjust filters or click below to upload')"
+      :description="
+        emptyBody ||
+        label('调整筛选条件或点击下方按钮上传', 'Adjust filters or click below to upload')
+      "
       :action-text="emptyActionText"
       @action="emit('create')"
     />

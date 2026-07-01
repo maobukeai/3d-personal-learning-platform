@@ -61,15 +61,31 @@ const AUTH_TAG_LENGTH = 16;
 
 function getEncryptionKey(): Buffer {
   const keyHex = process.env.STORAGE_ENCRYPTION_KEY;
-  if (!keyHex) {
-    // Fallback to deriving a 32-byte key from DATABASE_ENCRYPTION_KEY if STORAGE_ENCRYPTION_KEY is not set
-    const dbKey = process.env.DATABASE_ENCRYPTION_KEY || 'dev-secret-key-change-in-production';
-    return crypto.createHash('sha256').update(dbKey).digest();
+  if (keyHex) {
+    if (!/^[0-9a-fA-F]{64}$/.test(keyHex)) {
+      throw new Error('STORAGE_ENCRYPTION_KEY must be a 64-character hex string (32 bytes).');
+    }
+    return Buffer.from(keyHex, 'hex');
   }
-  if (!/^[0-9a-fA-F]{64}$/.test(keyHex)) {
-    throw new Error('STORAGE_ENCRYPTION_KEY must be a 64-character hex string (32 bytes).');
+
+  // STORAGE_ENCRYPTION_KEY is missing. In production, this is a fatal misconfiguration.
+  // In development, allow deriving from DATABASE_ENCRYPTION_KEY (which must be set).
+  if (process.env.NODE_ENV === 'production') {
+    console.error(
+      'FATAL: STORAGE_ENCRYPTION_KEY environment variable must be set in production ' +
+        '(64-character hex string, 32 bytes).',
+    );
+    process.exit(1);
   }
-  return Buffer.from(keyHex, 'hex');
+
+  const dbKey = process.env.DATABASE_ENCRYPTION_KEY;
+  if (!dbKey) {
+    throw new Error(
+      'STORAGE_ENCRYPTION_KEY (or DATABASE_ENCRYPTION_KEY as dev fallback) is not set. ' +
+        'Provide a 64-character hex STORAGE_ENCRYPTION_KEY, or set DATABASE_ENCRYPTION_KEY for dev.',
+    );
+  }
+  return crypto.createHash('sha256').update(dbKey).digest();
 }
 
 /**

@@ -1,15 +1,12 @@
 <script setup lang="ts">
-import { useCommunityI18n } from '@/composables/useCommunityI18n';
 import { formatDate } from '@/utils/format';
 import type { DetailedTeam, OpsKpi } from './teamDetailTypes';
 
-const props = defineProps<{
+defineProps<{
   team: DetailedTeam;
   parsedDescription: string;
   opsKpis: OpsKpi[];
 }>();
-
-const { t } = useCommunityI18n();
 
 const getCategoryLabel = (cat?: string | null) => {
   if (!cat) return '';

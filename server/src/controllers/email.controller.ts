@@ -130,13 +130,17 @@ export class EmailController {
 
     try {
       const results = [];
-      for (const account of parsedAccounts) {
-        const existingAccount = await prisma.microsoftEmailAccount.findUnique({
-          where: { email: account.email },
-          select: { userId: true },
-        });
+      // Single round-trip ownership pre-check for all emails at once (avoids
+      // one findUnique per parsed account — N+1).
+      const existingAccounts = await prisma.microsoftEmailAccount.findMany({
+        where: { email: { in: parsedAccounts.map((a) => a.email) } },
+        select: { email: true, userId: true },
+      });
+      const existingByOwner = new Map(existingAccounts.map((a) => [a.email, a.userId]));
 
-        if (existingAccount && existingAccount.userId !== userId) {
+      for (const account of parsedAccounts) {
+        const ownerUserId = existingByOwner.get(account.email);
+        if (ownerUserId !== undefined && ownerUserId !== userId) {
           errors.push(`账号 ${account.email} 已存在，无法导入到当前用户`);
           continue;
         }

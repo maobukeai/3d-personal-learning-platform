@@ -42,10 +42,27 @@ export interface PublicAIModelOption {
 }
 
 // ── Default category lists (single source of truth) ──────────────────────────
-const DEFAULT_MATERIAL_CATEGORIES = ['全部材料', '金属', '木纹', '石材', '织物', '程序化', '玻璃', '其他'];
+const DEFAULT_MATERIAL_CATEGORIES = [
+  '全部材料',
+  '金属',
+  '木纹',
+  '石材',
+  '织物',
+  '程序化',
+  '玻璃',
+  '其他',
+];
 const DEFAULT_TEAM_CATEGORIES = ['建模', '渲染', '动画', '材质', '游戏引擎'];
 const DEFAULT_SHOWCASE_CATEGORIES = ['角色', '场景', '硬表面', '动效', '渲染', '其他'];
-const DEFAULT_PLUGIN_CATEGORIES = ['建模', '材质与纹理', '渲染与灯光', '动画与骨骼', '导入与导出', '物理与特效', '其他工具'];
+const DEFAULT_PLUGIN_CATEGORIES = [
+  '建模',
+  '材质与纹理',
+  '渲染与灯光',
+  '动画与骨骼',
+  '导入与导出',
+  '物理与特效',
+  '其他工具',
+];
 const DEFAULT_ALLOWED_FILE_TYPES = ['.glb', '.gltf', '.fbx', '.obj', '.stl', '.zip'];
 
 const DEFAULT_SETTINGS: SystemSettings = {
@@ -198,9 +215,15 @@ export const useSystemStore = defineStore('system', {
             PLATFORM_DESCRIPTION: data.PLATFORM_DESCRIPTION || '',
             ALLOW_REGISTRATION: toBool(data.ALLOW_REGISTRATION),
             MAINTENANCE_MODE: toBool(data.MAINTENANCE_MODE),
-            MATERIAL_CATEGORIES: safeParseArray(data.MATERIAL_CATEGORIES, DEFAULT_MATERIAL_CATEGORIES),
+            MATERIAL_CATEGORIES: safeParseArray(
+              data.MATERIAL_CATEGORIES,
+              DEFAULT_MATERIAL_CATEGORIES,
+            ),
             TEAM_CATEGORIES: safeParseArray(data.TEAM_CATEGORIES, DEFAULT_TEAM_CATEGORIES),
-            SHOWCASE_CATEGORIES: safeParseArray(data.SHOWCASE_CATEGORIES, DEFAULT_SHOWCASE_CATEGORIES),
+            SHOWCASE_CATEGORIES: safeParseArray(
+              data.SHOWCASE_CATEGORIES,
+              DEFAULT_SHOWCASE_CATEGORIES,
+            ),
             PLUGIN_CATEGORIES: safeParseArray(data.PLUGIN_CATEGORIES, DEFAULT_PLUGIN_CATEGORIES),
             PASSWORD_MIN_LENGTH: String(data.PASSWORD_MIN_LENGTH || '6'),
             SESSION_TIMEOUT: data.SESSION_TIMEOUT || '7d',

@@ -57,25 +57,8 @@ html.theme-glass .search-box input[type='text']:focus {
   font-size: 0.875rem;
 }
 
-/* Icon button - used in 8+ views */
-.icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.375rem;
-  border-radius: 0.5rem;
-  transition: all 0.2s;
-  cursor: pointer;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-}
-.icon-button:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-/* Icon button (alt name) - used in 6+ views */
+/* Icon button - consolidated to reduce duplication */
+.icon-button,
 .icon-btn {
   display: inline-flex;
   align-items: center;
@@ -88,6 +71,7 @@ html.theme-glass .search-box input[type='text']:focus {
   background: transparent;
   color: var(--text-secondary);
 }
+.icon-button:hover,
 .icon-btn:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
@@ -385,4 +369,76 @@ html.theme-glass .search-box input[type='text']:focus {
   font-size: 0.75rem;
   color: var(--accent, #3b82f6);
   background-color: rgba(var(--accent-rgb, 59, 130, 246), 0.1);
+}
+
+/* ─── Share page background (AssetShareView / MaterialShareView / PluginShareView) ──
+   Consolidated from per-component scoped duplicates. The .dark / .theme-glass
+   modifiers rely on ancestor classes on <html> and are intentionally global. */
+.enterprise-canvas {
+  background-image:
+    linear-gradient(var(--border-base) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-base) 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: 0.15;
+}
+
+.share-page-bg {
+  position: relative;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-app) 75%, white) 0, var(--bg-app) 180px),
+    var(--bg-app);
+}
+
+.dark .share-page-bg {
+  background: var(--bg-app);
+}
+
+.theme-glass .share-page-bg {
+  background: transparent !important;
+}
+
+/* Custom scrollbar (thin dark thumb) — used by MaterialShareView / PluginShareView
+   and several detail modals. Kept here so scoped copies can be deleted. */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Share dialog Element Plus overrides — shared by ShareDialog (Assets) and
+   NoteShareDialog (Learning). Previously duplicated in both scoped styles. */
+.custom-datepicker .el-input__wrapper {
+  background-color: var(--bg-subtle) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  border: 1px solid var(--border-base) !important;
+  padding: 6px 10px !important;
+}
+
+.custom-datepicker .el-input__wrapper.is-focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent) !important;
+}
+
+/* Hide scrollbar on horizontally-scrolling shortcut lists */
+.shortcut-list::-webkit-scrollbar {
+  display: none;
+}
+.shortcut-list {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Premium Apple-style custom spring transition cubic bezier — shared by
+   GlassCard and Card. Previously duplicated in both scoped styles. */
+.cubic-bezier-card {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }

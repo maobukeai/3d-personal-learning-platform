@@ -14,7 +14,7 @@ interface Props {
   teamMembers: ProjectUser[];
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const emit = defineEmits<{
   (e: 'update:show', value: boolean): void;

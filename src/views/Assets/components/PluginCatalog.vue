@@ -32,7 +32,7 @@ interface PluginItem {
   bilibiliUrl?: string | null;
 }
 
-const props = defineProps<{
+defineProps<{
   plugins: PluginItem[];
   isLoading: boolean;
   viewMode: 'grid' | 'list';
@@ -67,7 +67,9 @@ const label = useLabel();
     :favorited-ids="favoritedIds"
     :downloading-ids="downloadingIds"
     :empty-title="label('还没有匹配的插件', 'No Matching Plugins')"
-    :empty-body="label('可以调整筛选条件，也可以上传一个新的插件。', 'Adjust filters or upload a new plugin.')"
+    :empty-body="
+      label('可以调整筛选条件，也可以上传一个新的插件。', 'Adjust filters or upload a new plugin.')
+    "
     :empty-action-text="label('上传插件', 'Upload Plugin')"
     @click="emit('openDetail', $event)"
     @like="(item, event) => emit('toggleFavorite', item.id, event)"

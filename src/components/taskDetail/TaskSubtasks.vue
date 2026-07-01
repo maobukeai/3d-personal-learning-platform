@@ -1,15 +1,7 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
-import {
-  CheckCircle2,
-  Trash2,
-  X,
-  MessageSquare,
-  Send,
-  CheckSquare,
-  Plus
-} from 'lucide-vue-next';
+import { CheckCircle2, Trash2, X, MessageSquare, Send, CheckSquare } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 interface SubtaskComment {
@@ -58,7 +50,7 @@ watch(
     // Keep internal sync
     localSubtasks.value = newVal ? [...newVal] : [];
   },
-  { immediate: true, deep: true }
+  { immediate: true, deep: true },
 );
 
 const getMemberById = (id: string | null | undefined) => {
@@ -408,12 +400,7 @@ defineExpose({
   </div>
 
   <!-- Subtask Detail Modal -->
-  <Modal
-    :show="isSubtaskDetailOpen"
-    title="子任务详情"
-    size="md"
-    @close="handleCancelSubtaskEdit"
-  >
+  <Modal :show="isSubtaskDetailOpen" title="子任务详情" size="md" @close="handleCancelSubtaskEdit">
     <div v-if="editingSubtask" class="space-y-4 py-2 text-left">
       <!-- Title -->
       <div>
@@ -667,7 +654,10 @@ defineExpose({
       </div>
     </div>
     <template #footer>
-      <div class="flex justify-end gap-2 pt-2 border-t w-full" style="border-color: var(--border-base)">
+      <div
+        class="flex justify-end gap-2 pt-2 border-t w-full"
+        style="border-color: var(--border-base)"
+      >
         <el-button size="small" @click="handleCancelSubtaskEdit">取消</el-button>
         <el-button type="primary" size="small" @click="handleSaveSubtaskAndClose">确定</el-button>
       </div>
@@ -676,11 +666,5 @@ defineExpose({
 </template>
 
 <style scoped>
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+/* .scrollbar-hide utility provided globally by src/styles/layout.css */
 </style>

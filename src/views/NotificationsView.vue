@@ -250,9 +250,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div
-    class="mobile-adaptive flex-1 flex flex-col h-full overflow-hidden bg-transparent"
-  >
+  <div class="mobile-adaptive flex-1 flex flex-col h-full overflow-hidden bg-transparent">
     <div
       class="min-h-[3.5rem] md:min-h-[4rem] py-2 md:py-3 px-4 md:px-8 flex items-center justify-between mobile-row shrink-0 border-b backdrop-blur-md bg-white/10 dark:bg-white/5 sticky top-0 z-20 gap-4"
       style="border-color: var(--border-base)"
@@ -401,9 +399,7 @@ onMounted(() => {
       </div>
 
       <!-- Content -->
-      <div
-        class="flex-1 overflow-y-auto p-3.5 md:p-8 scrollbar-hide bg-transparent"
-      >
+      <div class="flex-1 overflow-y-auto p-3.5 md:p-8 scrollbar-hide bg-transparent">
         <div class="lg:hidden flex overflow-x-auto gap-2 px-4 py-2 -mx-3.5 mb-4 scrollbar-hide">
           <button
             v-for="cat in categories"

@@ -5,13 +5,8 @@ import router from './router';
 import i18n, { setupI18n } from './i18n';
 import { installElementPlusLocaleBridge } from './plugins/elementPlusLocale';
 import 'element-plus/theme-chalk/base.css';
-import 'element-plus/es/components/message/style/css';
-import 'element-plus/es/components/message-box/style/css';
-import 'element-plus/es/components/notification/style/css';
 import './style.css';
 import '@/styles/components.css';
-
-await setupI18n();
 
 const app = createApp(App);
 
@@ -19,5 +14,10 @@ app.use(createPinia());
 app.use(router);
 app.use(i18n);
 installElementPlusLocaleBridge(app, i18n.global.locale);
+
+// Mount immediately so the router/stores initialize without waiting for the
+// locale chunk. setupI18n runs in the background; App.vue gates the RouterView
+// behind isI18nReady so users see a splash instead of raw translation keys.
+void setupI18n();
 
 app.mount('#app');

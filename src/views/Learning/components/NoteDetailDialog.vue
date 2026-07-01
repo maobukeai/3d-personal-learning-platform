@@ -66,7 +66,7 @@ const props = withDefaults(
   {
     note: null,
     inline: false,
-  }
+  },
 );
 
 const authStore = useAuthStore();
@@ -219,7 +219,7 @@ watch(
       void fetchComments(newNote.id);
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 onMounted(() => {
@@ -378,10 +378,6 @@ const changeFontSize = (delta: number) => {
   }
 };
 
-
-
-
-
 const currentThinkingStep = computed(() => {
   const percent = summaryProgress.value;
   if (percent < 12) return t('notes.thinkingStep1');
@@ -464,12 +460,23 @@ defineExpose({ open });
 <template>
   <component
     :is="inline ? 'div' : Modal"
-    v-bind="inline ? { class: 'w-full text-left bg-transparent' } : { show: visible, size: 'xxl', padding: 'none', glassCard: true }"
-    @close="visible = false; emit('close')"
+    v-bind="
+      inline
+        ? { class: 'w-full text-left bg-transparent' }
+        : { show: visible, size: 'xxl', padding: 'none', glassCard: true }
+    "
+    @close="
+      visible = false;
+      emit('close');
+    "
   >
     <div
       v-if="detailNote"
-      :class="inline ? 'mobile-adaptive flex flex-col md:flex-row relative bg-transparent w-full' : 'mobile-adaptive flex flex-col md:flex-row h-screen md:h-[88vh] overflow-hidden relative bg-transparent'"
+      :class="
+        inline
+          ? 'mobile-adaptive flex flex-col md:flex-row relative bg-transparent w-full'
+          : 'mobile-adaptive flex flex-col md:flex-row h-screen md:h-[88vh] overflow-hidden relative bg-transparent'
+      "
     >
       <!-- Global Close Button (Top Right of the entire Dialog Container) -->
       <button
@@ -477,14 +484,20 @@ defineExpose({ open });
         type="button"
         class="dialog-close-btn absolute top-4 right-4 z-50 flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)]/80 backdrop-blur-xs hover:bg-slate-100 dark:hover:bg-zinc-800 text-[var(--text-secondary)] transition-all active:scale-90 shadow-md cursor-pointer"
         :title="t('notes.closeReading')"
-        @click="visible = false; emit('close')"
+        @click="
+          visible = false;
+          emit('close');
+        "
       >
         <X class="w-4 h-4" />
       </button>
 
       <!-- Side Dashboard Panel -->
       <aside
-        :class="['hidden md:flex w-64 p-5 flex-col shrink-0 border-r relative z-10 select-none bg-slate-50/30 dark:bg-white/[0.01] backdrop-blur-md', inline ? 'md:sticky md:top-20 h-fit' : '']"
+        :class="[
+          'hidden md:flex w-64 p-5 flex-col shrink-0 border-r relative z-10 select-none bg-slate-50/30 dark:bg-white/[0.01] backdrop-blur-md',
+          inline ? 'md:sticky md:top-20 h-fit' : '',
+        ]"
         style="border-color: var(--border-base)"
       >
         <!-- User Information Dashboard (Clickable) -->
@@ -666,12 +679,19 @@ defineExpose({ open });
       <!-- Right Main Reading Canvas -->
       <div
         ref="scrollContainer"
-        :class="inline ? 'flex-1 relative flex flex-col bg-white/20 dark:bg-zinc-900/20 text-[var(--text-primary)] w-full' : 'flex-1 overflow-y-auto custom-scrollbar relative flex flex-col bg-white/20 dark:bg-zinc-900/20 text-[var(--text-primary)]'"
+        :class="
+          inline
+            ? 'flex-1 relative flex flex-col bg-white/20 dark:bg-zinc-900/20 text-[var(--text-primary)] w-full'
+            : 'flex-1 overflow-y-auto custom-scrollbar relative flex flex-col bg-white/20 dark:bg-zinc-900/20 text-[var(--text-primary)]'
+        "
         @scroll="inline ? undefined : handleScroll"
         @click="handleContentClick"
       >
         <!-- Floating Reading Progress Indicator -->
-        <div v-if="!inline" class="sticky top-0 left-0 right-0 z-50 h-0.5 bg-slate-100/50 dark:bg-zinc-800/50">
+        <div
+          v-if="!inline"
+          class="sticky top-0 left-0 right-0 z-50 h-0.5 bg-slate-100/50 dark:bg-zinc-800/50"
+        >
           <div
             class="h-full bg-gradient-to-r from-purple-500 via-accent to-indigo-500 transition-all duration-100"
             :style="{ width: readProgress + '%' }"
@@ -681,7 +701,7 @@ defineExpose({ open });
         <div
           :class="[
             'dialog-content-wrapper max-w-[760px] w-full mx-auto px-3 sm:px-8 flex-1 flex flex-col justify-between',
-            inline ? 'dialog-content-inline pt-2 pb-6 sm:py-6' : 'pt-14 pb-6 sm:py-10'
+            inline ? 'dialog-content-inline pt-2 pb-6 sm:py-6' : 'pt-14 pb-6 sm:py-10',
           ]"
         >
           <!-- Article Body -->

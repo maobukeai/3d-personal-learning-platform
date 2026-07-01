@@ -1,42 +1,26 @@
 <script setup lang="ts">
-import { ref, watch, computed, defineAsyncComponent, onMounted, onUnmounted } from 'vue';
+import { ref, watch, computed, defineAsyncComponent } from 'vue';
 import 'md-editor-v3/lib/preview.css';
 import { logError } from '@/utils/error';
+import { useThemeObserver } from '@/composables/useThemeObserver';
 
 const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
 
-const isDark = ref(document.documentElement.classList.contains('dark'));
-let themeObserver: MutationObserver | null = null;
-onMounted(() => {
-  themeObserver = new MutationObserver(() => {
-    isDark.value = document.documentElement.classList.contains('dark');
-  });
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-});
-onUnmounted(() => {
-  if (themeObserver) {
-    themeObserver.disconnect();
-  }
-});
+const { isDark } = useThemeObserver();
 import {
   CheckCircle2,
-  Clock3,
   Download,
   Edit3,
   FileArchive,
   Heart,
-  Loader2,
   Trash2,
-  X,
   XCircle,
   FolderOpen,
   Folder,
   Box,
   Image as ImageIcon,
   RefreshCw,
-  MessageSquare,
   Share2,
-  Eye,
   Shield,
   Settings,
   ChevronDown,
@@ -44,19 +28,17 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
-import axios from 'axios';
-import { downloadFileMultiThreaded } from '@/utils/downloadHelper';
 import { buildFileTree, flattenFileTree } from '@/utils/zipHelper';
-import type { TreeNode, FlattenedNode } from '@/utils/zipHelper';
-import UserAvatar from '@/components/UserAvatar.vue';
-import { formatCompactNumber, formatDate, formatFileSize } from '../resourceUtils';
+import { useFileTree } from '@/composables/useFileTree';
+import { useResourceComments } from '@/composables/useResourceComments';
+import { useMultiThreadDownload } from '@/composables/useMultiThreadDownload';
+import DownloadProgressOverlay from '@/components/ui/DownloadProgressOverlay.vue';
 import { useLabel } from '@/utils/i18n';
 import Modal from '@/components/ui/Modal.vue';
 import { useAuthStore } from '@/stores/auth';
 import ShareDialog from './ShareDialog.vue';
 
 type MaterialStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
-type StatusTone = 'success' | 'warning' | 'danger';
 
 export interface NormalizedMaterial {
   id: string;
@@ -107,7 +89,7 @@ const props = withDefaults(
     canDownload: false,
     isSavingReview: false,
     inline: false,
-  }
+  },
 );
 
 const emit = defineEmits<{
@@ -124,50 +106,18 @@ const emit = defineEmits<{
 
 const label = useLabel();
 
-const getStatusMeta = (status?: string) => {
-  const statusMap: Record<string, { label: string; tone: StatusTone; icon: typeof CheckCircle2 }> =
-    {
-      APPROVED: { label: label('已通过', 'Approved'), tone: 'success', icon: CheckCircle2 },
-      PENDING: { label: label('待审核', 'Pending'), tone: 'warning', icon: Clock3 },
-      REJECTED: { label: label('已驳回', 'Rejected'), tone: 'danger', icon: XCircle },
-    };
-  return statusMap[(status || 'APPROVED') as MaterialStatus] || statusMap.APPROVED;
-};
-
 // packageFiles is loaded asynchronously via a dedicated endpoint
 const packageFiles = ref<string[]>([]);
 const isPackageFilesLoading = ref(false);
 const isFilesCollapsed = ref(true);
-
-
 
 const parsedFileTree = computed(() => {
   const tree = buildFileTree(packageFiles.value);
   return flattenFileTree(tree);
 });
 
-const expandedFolders = ref<Set<string>>(new Set());
-const toggleFolder = (path: string) => {
-  if (expandedFolders.value.has(path)) {
-    expandedFolders.value.delete(path);
-  } else {
-    expandedFolders.value.add(path);
-  }
-};
-const visibleFileNodes = computed(() => {
-  return parsedFileTree.value.filter(node => {
-    const parts = node.path.split('/');
-    if (parts.length <= 1) return true;
-    let parentPath = '';
-    for (let i = 0; i < parts.length - 1; i++) {
-      parentPath = parentPath ? `${parentPath}/${parts[i]}` : parts[i];
-      if (!expandedFolders.value.has(parentPath)) {
-        return false;
-      }
-    }
-    return true;
-  });
-});
+const { expandedFolders, toggleFolder, visibleFileNodes, resetExpansion } =
+  useFileTree(parsedFileTree);
 
 const fetchPackageFiles = async (id: string) => {
   if (!id) return;
@@ -193,7 +143,7 @@ const fetchPackageFiles = async (id: string) => {
 
 const pbrChannels = computed(() => {
   const files = packageFiles.value || [];
-  
+
   const channelsList = [
     {
       name: label('基础颜色 (Base Color / Albedo)', 'Albedo / Diffuse'),
@@ -255,24 +205,14 @@ const pbrChannels = computed(() => {
 });
 
 // Download states
-const isDownloading = ref(false);
-const downloadProgress = ref(0);
-const downloadSpeedStr = ref('');
-let downloadAbortController: AbortController | null = null;
-
-const cancelDownload = () => {
-  if (downloadAbortController) {
-    downloadAbortController.abort();
-    downloadAbortController = null;
-  }
-  isDownloading.value = false;
-  downloadProgress.value = 0;
-  downloadSpeedStr.value = '';
-};
+const { isDownloading, downloadProgress, downloadSpeedStr, cancelDownload, runDownload } =
+  useMultiThreadDownload();
 
 const handleMaterialDownload = async () => {
   if (!props.canDownload) {
-    ElMessage.warning(label('该材质审核通过后才能下载', 'This material can be downloaded after approval'));
+    ElMessage.warning(
+      label('该材质审核通过后才能下载', 'This material can be downloaded after approval'),
+    );
     return;
   }
   const downloadUrl = props.material.fileUrl;
@@ -281,112 +221,46 @@ const handleMaterialDownload = async () => {
     return;
   }
 
-  cancelDownload();
-  isDownloading.value = true;
-  downloadProgress.value = 1;
-  downloadSpeedStr.value = '';
-  downloadAbortController = new AbortController();
+  const ext = downloadUrl.split('.').pop()?.split('?')[0] || 'zip';
+  const safeTitle = (props.material.title || 'material').replace(
+    /[^a-zA-Z0-9\u4e00-\u9fff._-]/g,
+    '_',
+  );
+  const resolvedUrl = getAssetUrl(downloadUrl);
 
-  try {
-    const ext = downloadUrl.split('.').pop()?.split('?')[0] || 'zip';
-    const safeTitle = (props.material.title || 'material').replace(/[^a-zA-Z0-9\u4e00-\u9fff._-]/g, '_');
-    const resolvedUrl = getAssetUrl(downloadUrl);
+  const totalSizeOverrideBytes = (props.material.fileSize || 0) * 1024 * 1024;
 
-    const totalSizeOverrideBytes = (props.material.fileSize || 0) * 1024 * 1024;
-
-    await downloadFileMultiThreaded(
-      resolvedUrl,
-      `${safeTitle}.${ext}`,
-      (percent) => {
-        downloadProgress.value = percent;
-      },
-      (speed) => {
-        downloadSpeedStr.value = speed;
-      },
-      downloadAbortController.signal,
-      totalSizeOverrideBytes
-    );
-
-    // Record download on backend
-    await api.post(`/api/materials/${props.material.id}/download`);
-    emit('download');
-    emit('update');
-  } catch (err: any) {
-    if (axios.isCancel(err) || err?.name === 'CanceledError' || err?.name === 'AbortError' || err?.message === 'canceled') {
-      // Handled: user cancelled download
-    } else {
-      logError('Failed to download material:', err);
+  await runDownload({
+    url: resolvedUrl,
+    filename: `${safeTitle}.${ext}`,
+    totalSizeOverrideBytes,
+    onSuccess: async () => {
+      // Record download on backend
+      await api.post(`/api/materials/${props.material.id}/download`);
+      emit('download');
+      emit('update');
+    },
+    onError: (err) => {
       const msg = err.response?.data?.error || label('下载失败', 'Download failed');
       ElMessage.error(msg);
-    }
-  } finally {
-    isDownloading.value = false;
-    downloadProgress.value = 0;
-    downloadSpeedStr.value = '';
-    downloadAbortController = null;
-  }
+    },
+  });
 };
 
 const authStore = useAuthStore();
 
-const comments = ref<any[]>([]);
-const commentsVisible = ref(false);
-const isCommentsLoading = ref(false);
-const newCommentContent = ref('');
-const isSubmittingComment = ref(false);
 const shareDialogRef = ref<any>(null);
 
-const fetchComments = async () => {
-  const currentId = props.material?.id;
-  if (!currentId) return;
-  isCommentsLoading.value = true;
-  try {
-    const { data } = await api.get(`/api/materials/${currentId}/comments`);
-    if (props.material?.id === currentId) {
-      comments.value = data;
-    }
-  } catch (err) {
-    logError(err, { operation: 'fetch comments' });
-  } finally {
-    if (props.material?.id === currentId) {
-      isCommentsLoading.value = false;
-    }
-  }
-};
-
-const handlePostComment = async () => {
-  if (!props.material?.id || !newCommentContent.value.trim()) return;
-  isSubmittingComment.value = true;
-  try {
-    const { data } = await api.post(`/api/materials/${props.material.id}/comments`, {
-      content: newCommentContent.value.trim()
-    });
-    comments.value.unshift(data);
-    newCommentContent.value = '';
-    ElMessage.success(label('评论成功', 'Comment posted successfully'));
-  } catch (err) {
-    logError(err, { operation: 'post comment' });
-    ElMessage.error(label('发表评论失败', 'Failed to post comment'));
-  } finally {
-    isSubmittingComment.value = false;
-  }
-};
-
-const canDeleteComment = (c: any) => {
-  if (!authStore.user) return false;
-  return authStore.user.id === c.userId || authStore.user.role === 'ADMIN';
-};
-
-const handleDeleteComment = async (commentId: string) => {
-  try {
-    await api.delete(`/api/materials/comments/${commentId}`);
-    comments.value = comments.value.filter(c => c.id !== commentId);
-    ElMessage.success(label('删除成功', 'Comment deleted successfully'));
-  } catch (err) {
-    logError(err, { operation: 'delete comment' });
-    ElMessage.error(label('删除评论失败', 'Failed to delete comment'));
-  }
-};
+const {
+  comments,
+  isCommentsLoading,
+  newCommentContent,
+  isSubmittingComment,
+  fetchComments,
+  handlePostComment,
+  handleDeleteComment,
+  canDeleteComment,
+} = useResourceComments('materials', () => props.material?.id);
 
 const handleShare = () => {
   shareDialogRef.value?.open({
@@ -394,7 +268,7 @@ const handleShare = () => {
     title: props.material.title,
     userId: props.material.userId || '',
     createdAt: props.material.createdAt || '',
-    previewUrl: props.material.previewUrl || null
+    previewUrl: props.material.previewUrl || null,
   });
 };
 
@@ -404,7 +278,7 @@ const handleChannelClick = (channel: any) => {
   if (!channel.matchedFile) return;
   const pathPart = encodeURIComponent(channel.matchedFile);
   const targetUrl = getAssetUrl(`/api/materials/${props.material.id}/zip-entry?path=${pathPart}`);
-  
+
   if (selectedPreviewUrl.value === targetUrl) {
     selectedPreviewUrl.value = null; // Toggle off if clicked again
   } else {
@@ -416,7 +290,7 @@ watch(
   () => props.material?.id,
   (newId) => {
     if (newId) {
-      expandedFolders.value.clear();
+      resetExpansion();
       packageFiles.value = [];
       selectedPreviewUrl.value = null;
       isFilesCollapsed.value = true;
@@ -424,22 +298,27 @@ watch(
       fetchComments();
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
-
 </script>
 
 <template>
   <component
     :is="inline ? 'div' : Modal"
-    v-bind="inline ? { class: 'w-full' } : { show: !!material, size: 'xxl', padding: 'md', glassCard: true }"
+    v-bind="
+      inline
+        ? { class: 'w-full' }
+        : { show: !!material, size: 'xxl', padding: 'md', glassCard: true }
+    "
     @close="emit('close')"
   >
-    <template v-slot:header v-if="!inline">
+    <template v-if="!inline" #header>
       <div class="flex items-center gap-3">
         <ImageIcon class="h-5 w-5 text-indigo-400" />
         <div>
-          <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)] flex items-center gap-2">
+          <h3
+            class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)] flex items-center gap-2"
+          >
             <span>{{ material.title }}</span>
             <span
               v-if="!material.isFree"
@@ -462,11 +341,16 @@ watch(
     </template>
 
     <!-- Inline header for share view -->
-    <div v-if="inline && material" class="premium-card-header flex items-center justify-between mb-5 pb-3 border-b border-[var(--border-base)] text-left">
+    <div
+      v-if="inline && material"
+      class="premium-card-header flex items-center justify-between mb-5 pb-3 border-b border-[var(--border-base)] text-left"
+    >
       <div class="flex items-center gap-3">
         <ImageIcon class="h-5 w-5 text-indigo-400" />
         <div>
-          <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)] flex items-center gap-2">
+          <h3
+            class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)] flex items-center gap-2"
+          >
             <span>{{ material.title }}</span>
             <span
               v-if="!material.isFree"
@@ -488,9 +372,14 @@ watch(
       </div>
     </div>
 
-    <div v-if="loading" class="flex flex-col items-center justify-center py-20 gap-3 text-[var(--text-secondary)]">
+    <div
+      v-if="loading"
+      class="flex flex-col items-center justify-center py-20 gap-3 text-[var(--text-secondary)]"
+    >
       <RefreshCw class="h-8 w-8 animate-spin text-teal-400" />
-      <span class="text-xs font-semibold tracking-wider uppercase">{{ label('正在载入材质档案...', 'Loading material...') }}</span>
+      <span class="text-xs font-semibold tracking-wider uppercase">{{
+        label('正在载入材质档案...', 'Loading material...')
+      }}</span>
     </div>
 
     <template v-else>
@@ -501,7 +390,9 @@ watch(
           :class="inline ? '' : 'overflow-y-auto max-h-[75vh] pr-1.5 custom-scrollbar'"
         >
           <!-- Prominent Square Preview Container -->
-          <div class="relative w-full aspect-square sm:max-h-[480px] rounded-2xl overflow-hidden border border-white/10 bg-slate-950/40 flex items-center justify-center group shrink-0">
+          <div
+            class="relative w-full aspect-square sm:max-h-[480px] rounded-2xl overflow-hidden border border-white/10 bg-slate-950/40 flex items-center justify-center group shrink-0"
+          >
             <img
               v-if="selectedPreviewUrl || material.preview"
               :src="selectedPreviewUrl || material.preview"
@@ -514,7 +405,10 @@ watch(
               class="w-full h-full object-contain relative z-10"
               alt="Material Preview"
             />
-            <div v-else class="text-center text-[var(--text-muted)] text-sm flex flex-col items-center gap-2 relative z-10">
+            <div
+              v-else
+              class="text-center text-[var(--text-muted)] text-sm flex flex-col items-center gap-2 relative z-10"
+            >
               <ImageIcon class="h-10 w-10 text-white/20" />
               <span>{{ label('暂无预览图', 'No Preview Available') }}</span>
             </div>
@@ -542,10 +436,15 @@ watch(
             </div>
 
             <!-- Floating Overlay for Channel Preview -->
-            <div v-if="selectedPreviewUrl" class="absolute inset-x-0 bottom-0 bg-black/70 backdrop-blur-md border-t border-white/10 px-4 py-2.5 z-20 flex items-center justify-between text-xs text-white">
+            <div
+              v-if="selectedPreviewUrl"
+              class="absolute inset-x-0 bottom-0 bg-black/70 backdrop-blur-md border-t border-white/10 px-4 py-2.5 z-20 flex items-center justify-between text-xs text-white"
+            >
               <div class="flex items-center gap-2 min-w-0">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-                <span class="font-bold truncate text-left">{{ label('正在预览贴图通道', 'Previewing texture map channel') }}</span>
+                <span class="font-bold truncate text-left">{{
+                  label('正在预览贴图通道', 'Previewing texture map channel')
+                }}</span>
               </div>
               <button
                 type="button"
@@ -558,11 +457,20 @@ watch(
           </div>
 
           <!-- PBR Map Channel Explorer Grid -->
-          <div class="border border-white/10 rounded-2xl p-4 bg-white/[0.01] dark:bg-white/[0.02] shrink-0">
-            <h3 class="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider mb-3 flex items-center justify-between">
+          <div
+            class="border border-white/10 rounded-2xl p-4 bg-white/[0.01] dark:bg-white/[0.02] shrink-0"
+          >
+            <h3
+              class="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider mb-3 flex items-center justify-between"
+            >
               <span>{{ label('贴图通道解析', 'Texture Maps & Channels') }}</span>
               <span class="text-[10px] text-[var(--text-muted)] font-normal normal-case">
-                {{ label('自动识别压缩包内的 PBR 贴图文件', 'Auto-identified PBR textures from package') }}
+                {{
+                  label(
+                    '自动识别压缩包内的 PBR 贴图文件',
+                    'Auto-identified PBR textures from package',
+                  )
+                }}
               </span>
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -571,39 +479,59 @@ watch(
                 :key="channel.key"
                 class="p-3 rounded-xl border transition-all duration-300 flex flex-col gap-2 relative overflow-hidden text-left"
                 :class="[
-                  channel.matchedFile 
-                    ? 'border-emerald-500/20 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01] cursor-pointer hover:border-emerald-500/40 hover:bg-emerald-500/5' 
+                  channel.matchedFile
+                    ? 'border-emerald-500/20 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01] cursor-pointer hover:border-emerald-500/40 hover:bg-emerald-500/5'
                     : 'border-white/5 bg-white/[0.005] opacity-60 cursor-not-allowed',
-                  selectedPreviewUrl && selectedPreviewUrl.includes(encodeURIComponent(channel.matchedFile || ''))
-                    ? '!border-teal-500 !bg-teal-500/10 shadow-lg' 
-                    : ''
+                  selectedPreviewUrl &&
+                  selectedPreviewUrl.includes(encodeURIComponent(channel.matchedFile || ''))
+                    ? '!border-teal-500 !bg-teal-500/10 shadow-lg'
+                    : '',
                 ]"
                 @click="channel.matchedFile && handleChannelClick(channel)"
               >
                 <!-- Card header: Name and Status -->
                 <div class="flex items-center justify-between gap-2">
-                  <span class="font-bold text-[var(--text-primary)] truncate">{{ channel.name }}</span>
+                  <span class="font-bold text-[var(--text-primary)] truncate">{{
+                    channel.name
+                  }}</span>
                   <span
                     class="px-2 py-0.5 rounded text-[8px] font-extrabold uppercase"
-                    :class="channel.matchedFile 
-                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' 
-                      : 'bg-white/5 text-[var(--text-muted)] border border-white/5'"
+                    :class="
+                      channel.matchedFile
+                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                        : 'bg-white/5 text-[var(--text-muted)] border border-white/5'
+                    "
                   >
-                    {{ channel.matchedFile ? label('已包含', 'Included') : label('未找到', 'Missing') }}
+                    {{
+                      channel.matchedFile ? label('已包含', 'Included') : label('未找到', 'Missing')
+                    }}
                   </span>
                 </div>
 
                 <!-- Card body: Filename -->
                 <div class="flex items-center gap-1.5 min-w-0">
-                  <CheckCircle2 v-if="channel.matchedFile" class="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                  <span v-else class="h-3.5 w-3.5 rounded-full border border-dashed border-white/20 shrink-0"></span>
-                  
-                  <span 
-                    class="truncate font-mono text-[10px] text-left" 
-                    :class="channel.matchedFile ? 'text-[var(--text-secondary)] font-semibold' : 'text-[var(--text-muted)] italic'"
+                  <CheckCircle2
+                    v-if="channel.matchedFile"
+                    class="h-3.5 w-3.5 text-emerald-400 shrink-0"
+                  />
+                  <span
+                    v-else
+                    class="h-3.5 w-3.5 rounded-full border border-dashed border-white/20 shrink-0"
+                  ></span>
+
+                  <span
+                    class="truncate font-mono text-[10px] text-left"
+                    :class="
+                      channel.matchedFile
+                        ? 'text-[var(--text-secondary)] font-semibold'
+                        : 'text-[var(--text-muted)] italic'
+                    "
                     :title="channel.matchedFile || ''"
                   >
-                    {{ channel.matchedFile || label('压缩包中未检测到此通道文件', 'No matching file found in package') }}
+                    {{
+                      channel.matchedFile ||
+                      label('压缩包中未检测到此通道文件', 'No matching file found in package')
+                    }}
                   </span>
                 </div>
               </div>
@@ -612,16 +540,26 @@ watch(
 
           <!-- Inline Discussions Section -->
           <div class="flex flex-col gap-4 pt-4 border-t border-white/10">
-            <h3 class="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 border-l-2 border-indigo-500 pl-2">
+            <h3
+              class="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 border-l-2 border-indigo-500 pl-2"
+            >
               <span>{{ label('用户讨论与反馈', 'Discussions & Feedback') }}</span>
-              <span class="px-2 py-0.5 rounded-full text-[10px] bg-white/5 text-[var(--text-muted)] font-mono">{{ comments.length }}</span>
+              <span
+                class="px-2 py-0.5 rounded-full text-[10px] bg-white/5 text-[var(--text-muted)] font-mono"
+                >{{ comments.length }}</span
+              >
             </h3>
 
             <!-- Post Comment Form -->
-            <div v-if="authStore.user" class="flex flex-col gap-2 bg-white/[0.01] border border-white/5 rounded-2xl p-4">
+            <div
+              v-if="authStore.user"
+              class="flex flex-col gap-2 bg-white/[0.01] border border-white/5 rounded-2xl p-4"
+            >
               <textarea
                 v-model="newCommentContent"
-                :placeholder="label('发表您的想法和建议...', 'Post your thoughts and suggestions...')"
+                :placeholder="
+                  label('发表您的想法和建议...', 'Post your thoughts and suggestions...')
+                "
                 class="w-full min-h-[80px] bg-white/[0.03] dark:bg-black/[0.1] border border-[var(--border-base)] rounded-xl p-3 text-xs text-[var(--text-primary)] focus:border-indigo-500 outline-none resize-none placeholder-[var(--text-muted)]"
               ></textarea>
               <div class="flex justify-end">
@@ -631,32 +569,60 @@ watch(
                   :disabled="isSubmittingComment || !newCommentContent.trim()"
                   @click="handlePostComment"
                 >
-                  <span class="text-xs">{{ isSubmittingComment ? label('发表中...', 'Posting...') : label('发表评论', 'Post Comment') }}</span>
+                  <span class="text-xs">{{
+                    isSubmittingComment
+                      ? label('发表中...', 'Posting...')
+                      : label('发表评论', 'Post Comment')
+                  }}</span>
                 </Button>
               </div>
             </div>
-            <div v-else class="text-center py-4 bg-white/[0.02] dark:bg-black/[0.05] rounded-xl border border-dashed border-[var(--border-base)]">
-              <p class="text-xs text-[var(--text-muted)]">{{ label('登录平台后即可发表评论', 'Login to post comments') }}</p>
+            <div
+              v-else
+              class="text-center py-4 bg-white/[0.02] dark:bg-black/[0.05] rounded-xl border border-dashed border-[var(--border-base)]"
+            >
+              <p class="text-xs text-[var(--text-muted)]">
+                {{ label('登录平台后即可发表评论', 'Login to post comments') }}
+              </p>
             </div>
 
             <!-- Comments List -->
             <div v-if="isCommentsLoading" class="flex justify-center py-6">
               <RefreshCw class="w-6 h-6 animate-spin text-indigo-400" />
             </div>
-            <div v-else-if="comments.length === 0" class="text-center py-6 text-[var(--text-muted)] text-xs bg-white/[0.01] border border-dashed border-white/5 rounded-2xl font-semibold">
+            <div
+              v-else-if="comments.length === 0"
+              class="text-center py-6 text-[var(--text-muted)] text-xs bg-white/[0.01] border border-dashed border-white/5 rounded-2xl font-semibold"
+            >
               {{ label('暂无评论，快来抢沙发吧！', 'No comments yet. Be the first to comment!') }}
             </div>
             <div v-else class="space-y-4 max-h-[300px] overflow-y-auto pr-1.5 custom-scrollbar">
-              <div v-for="c in comments" :key="c.id" class="flex gap-3 pb-3 border-b border-[var(--border-base)]/50 last:border-0 last:pb-0">
-                <div class="h-8 w-8 rounded-full overflow-hidden border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center shrink-0">
-                  <img v-if="c.user?.avatarUrl" :src="getAssetUrl(c.user.avatarUrl)" class="h-full w-full object-cover" />
-                  <span v-else class="text-xs font-bold uppercase text-[var(--text-secondary)]">{{ c.user?.name?.slice(0, 1) || 'U' }}</span>
+              <div
+                v-for="c in comments"
+                :key="c.id"
+                class="flex gap-3 pb-3 border-b border-[var(--border-base)]/50 last:border-0 last:pb-0"
+              >
+                <div
+                  class="h-8 w-8 rounded-full overflow-hidden border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center shrink-0"
+                >
+                  <img
+                    v-if="c.user?.avatarUrl"
+                    :src="getAssetUrl(c.user.avatarUrl)"
+                    class="h-full w-full object-cover"
+                  />
+                  <span v-else class="text-xs font-bold uppercase text-[var(--text-secondary)]">{{
+                    c.user?.name?.slice(0, 1) || 'U'
+                  }}</span>
                 </div>
                 <div class="flex-1 flex flex-col gap-1 min-w-0">
                   <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold text-[var(--text-primary)] truncate">{{ c.user?.name || '用户' }}</span>
+                    <span class="text-xs font-bold text-[var(--text-primary)] truncate">{{
+                      c.user?.name || '用户'
+                    }}</span>
                     <div class="flex items-center gap-2">
-                      <span class="text-[10px] text-[var(--text-muted)]">{{ new Date(c.createdAt).toLocaleString() }}</span>
+                      <span class="text-[10px] text-[var(--text-muted)]">{{
+                        new Date(c.createdAt).toLocaleString()
+                      }}</span>
                       <button
                         v-if="canDeleteComment(c)"
                         class="text-[10px] text-rose-400 hover:text-rose-300 transition-colors cursor-pointer border-0 bg-transparent"
@@ -666,7 +632,9 @@ watch(
                       </button>
                     </div>
                   </div>
-                  <p class="text-xs text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap break-words text-left">
+                  <p
+                    class="text-xs text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap break-words text-left"
+                  >
                     {{ c.content }}
                   </p>
                 </div>
@@ -681,21 +649,42 @@ watch(
           :class="inline ? '' : 'overflow-y-auto max-h-[75vh] pr-1.5 custom-scrollbar'"
         >
           <!-- Author Profile Card -->
-          <div v-if="material.user" class="bg-white/[0.02] border border-white/10 rounded-2xl p-4 flex items-center gap-3.5 text-left shrink-0">
-            <div class="h-9 w-9 rounded-full overflow-hidden border border-white/10 bg-slate-900 flex items-center justify-center text-sm shrink-0">
-              <img v-if="material.user.avatarUrl" :src="getAssetUrl(material.user.avatarUrl)" class="h-full w-full object-cover" />
-              <span v-else class="font-semibold uppercase text-xs text-[var(--text-secondary)]">{{ material.user.name?.slice(0, 1) || 'A' }}</span>
+          <div
+            v-if="material.user"
+            class="bg-white/[0.02] border border-white/10 rounded-2xl p-4 flex items-center gap-3.5 text-left shrink-0"
+          >
+            <div
+              class="h-9 w-9 rounded-full overflow-hidden border border-white/10 bg-slate-900 flex items-center justify-center text-sm shrink-0"
+            >
+              <img
+                v-if="material.user.avatarUrl"
+                :src="getAssetUrl(material.user.avatarUrl)"
+                class="h-full w-full object-cover"
+              />
+              <span v-else class="font-semibold uppercase text-xs text-[var(--text-secondary)]">{{
+                material.user.name?.slice(0, 1) || 'A'
+              }}</span>
             </div>
             <div class="text-left min-w-0">
-              <div class="text-xs font-bold text-[var(--text-primary)] truncate">{{ material.user.name }}</div>
-              <div class="text-[10px] text-[var(--text-muted)] mt-1 font-medium uppercase tracking-wider">{{ label('上传作者', 'Author') }}</div>
+              <div class="text-xs font-bold text-[var(--text-primary)] truncate">
+                {{ material.user.name }}
+              </div>
+              <div
+                class="text-[10px] text-[var(--text-muted)] mt-1 font-medium uppercase tracking-wider"
+              >
+                {{ label('上传作者', 'Author') }}
+              </div>
             </div>
           </div>
 
           <!-- Download Options Box -->
-          <div class="bg-white/[0.02] border border-white/10 rounded-2xl p-4 flex flex-col gap-4 text-left">
+          <div
+            class="bg-white/[0.02] border border-white/10 rounded-2xl p-4 flex flex-col gap-4 text-left"
+          >
             <div class="flex justify-between items-center">
-              <span class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">{{ label('下载选项', 'Download Options') }}</span>
+              <span class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">{{
+                label('下载选项', 'Download Options')
+              }}</span>
               <div>
                 <span
                   v-if="material.status === 'APPROVED'"
@@ -733,14 +722,18 @@ watch(
             <!-- Quick Statistics -->
             <div class="grid grid-cols-2 gap-2 mt-1 pt-3 border-t border-white/5">
               <div class="flex flex-col gap-0.5">
-                <span class="text-[10px] text-[var(--text-muted)]">{{ label('下载次数', 'Downloads') }}</span>
+                <span class="text-[10px] text-[var(--text-muted)]">{{
+                  label('下载次数', 'Downloads')
+                }}</span>
                 <span class="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1">
                   <Download class="h-3 w-3 text-teal-400" />
                   {{ material.downloads || 0 }}
                 </span>
               </div>
               <div class="flex flex-col gap-0.5">
-                <span class="text-[10px] text-[var(--text-muted)]">{{ label('收藏人数', 'Favorites') }}</span>
+                <span class="text-[10px] text-[var(--text-muted)]">{{
+                  label('收藏人数', 'Favorites')
+                }}</span>
                 <span class="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1">
                   <Heart class="h-3 w-3 text-rose-400 fill-rose-400/20" />
                   {{ material.favorites || 0 }}
@@ -750,8 +743,14 @@ watch(
           </div>
 
           <!-- Control Action Buttons -->
-          <div v-if="!inline" class="flex flex-col gap-2 p-3 bg-white/[0.01] border border-white/5 rounded-2xl text-left">
-            <span class="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold px-1 mb-1">{{ label('管理与操作', 'Actions') }}</span>
+          <div
+            v-if="!inline"
+            class="flex flex-col gap-2 p-3 bg-white/[0.01] border border-white/5 rounded-2xl text-left"
+          >
+            <span
+              class="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold px-1 mb-1"
+              >{{ label('管理与操作', 'Actions') }}</span
+            >
             <div class="grid grid-cols-2 gap-2">
               <Button
                 v-if="canEdit"
@@ -782,8 +781,15 @@ watch(
                 :class="{ 'text-rose-400 bg-rose-500/5': material.isFavorited }"
                 @click="emit('favorite')"
               >
-                <Heart :class="['h-3.5 w-3.5', material.isFavorited ? 'text-rose-500 fill-rose-500' : 'text-slate-400']" />
-                <span>{{ material.isFavorited ? label('已收藏', 'Saved') : label('收藏', 'Save') }}</span>
+                <Heart
+                  :class="[
+                    'h-3.5 w-3.5',
+                    material.isFavorited ? 'text-rose-500 fill-rose-500' : 'text-slate-400',
+                  ]"
+                />
+                <span>{{
+                  material.isFavorited ? label('已收藏', 'Saved') : label('收藏', 'Save')
+                }}</span>
               </Button>
 
               <Button
@@ -799,8 +805,13 @@ watch(
             </div>
 
             <!-- Admin actions block inside the actions card -->
-            <div v-if="isAdmin && material.status === 'PENDING'" class="flex flex-col gap-2 mt-2 pt-3 border-t border-white/5 w-full">
-              <span class="text-[10px] text-amber-400 font-semibold px-1">{{ label('管理员审核', 'Admin Review') }}</span>
+            <div
+              v-if="isAdmin && material.status === 'PENDING'"
+              class="flex flex-col gap-2 mt-2 pt-3 border-t border-white/5 w-full"
+            >
+              <span class="text-[10px] text-amber-400 font-semibold px-1">{{
+                label('管理员审核', 'Admin Review')
+              }}</span>
               <div class="flex gap-2">
                 <Button
                   variant="primary"
@@ -828,48 +839,75 @@ watch(
 
           <!-- Description -->
           <div class="flex flex-col gap-1.5 text-left">
-            <h4 class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">{{ label('说明', 'Description') }}</h4>
+            <h4 class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
+              {{ label('说明', 'Description') }}
+            </h4>
             <div class="bg-white/[0.01] border border-white/5 rounded-2xl p-4 overflow-hidden">
-              <MdPreview :model-value="material.description || label('作者很懒，什么都没有写。', 'No description provided.')" :theme="isDark ? 'dark' : 'light'" class="!bg-transparent !text-[var(--text-secondary)] !text-xs dark:invert-preview" />
+              <MdPreview
+                :model-value="
+                  material.description ||
+                  label('作者很懒，什么都没有写。', 'No description provided.')
+                "
+                :theme="isDark ? 'dark' : 'light'"
+                class="!bg-transparent !text-[var(--text-secondary)] !text-xs dark:invert-preview"
+              />
             </div>
           </div>
 
           <!-- Reject Reason -->
           <div v-if="material.rejectReason" class="flex flex-col gap-1.5 text-left">
-            <h4 class="text-xs font-bold text-rose-400 uppercase tracking-wider">{{ label('审核驳回原因', 'Rejection Reason') }}</h4>
-            <p class="text-xs text-rose-300 leading-relaxed bg-rose-500/10 border border-rose-500/20 rounded-xl p-3">
+            <h4 class="text-xs font-bold text-rose-400 uppercase tracking-wider">
+              {{ label('审核驳回原因', 'Rejection Reason') }}
+            </h4>
+            <p
+              class="text-xs text-rose-300 leading-relaxed bg-rose-500/10 border border-rose-500/20 rounded-xl p-3"
+            >
               {{ material.rejectReason }}
             </p>
           </div>
 
           <!-- ZIP File Explorer (async-loaded) -->
-          <div v-if="isPackageFilesLoading || packageFiles.length > 0" class="border border-white/10 rounded-2xl overflow-hidden bg-white/[0.01] dark:bg-white/[0.02] text-left shrink-0">
-            <div 
+          <div
+            v-if="isPackageFilesLoading || packageFiles.length > 0"
+            class="border border-white/10 rounded-2xl overflow-hidden bg-white/[0.01] dark:bg-white/[0.02] text-left shrink-0"
+          >
+            <div
               class="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-white/[0.02] cursor-pointer select-none hover:bg-white/[0.04] transition-colors"
               @click="isFilesCollapsed = !isFilesCollapsed"
             >
               <FileArchive class="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
-              <span class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
+              <span
+                class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]"
+              >
                 {{ label('源文件压缩包包含', 'Package Contents') }}
                 <span v-if="!isPackageFilesLoading">({{ packageFiles.length }})</span>
               </span>
-              <RefreshCw v-if="isPackageFilesLoading" class="h-3 w-3 text-amber-400 animate-spin ml-auto shrink-0" />
-              <component 
-                :is="isFilesCollapsed ? ChevronRight : ChevronDown" 
-                v-else 
-                class="h-4 w-4 text-[var(--text-muted)] ml-auto shrink-0 transition-transform duration-200" 
+              <RefreshCw
+                v-if="isPackageFilesLoading"
+                class="h-3 w-3 text-amber-400 animate-spin ml-auto shrink-0"
+              />
+              <component
+                :is="isFilesCollapsed ? ChevronRight : ChevronDown"
+                v-else
+                class="h-4 w-4 text-[var(--text-muted)] ml-auto shrink-0 transition-transform duration-200"
               />
             </div>
-            <div v-if="isPackageFilesLoading && !isFilesCollapsed" class="p-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+            <div
+              v-if="isPackageFilesLoading && !isFilesCollapsed"
+              class="p-3 flex items-center gap-2 text-xs text-[var(--text-muted)]"
+            >
               <span>{{ label('正在读取压缩包目录...', 'Reading package contents...') }}</span>
             </div>
-            <div v-else-if="!isFilesCollapsed" class="p-2.5 flex flex-col gap-1 max-h-[160px] overflow-y-auto custom-scrollbar text-xs text-[var(--text-secondary)] font-mono">
-              <div 
-                v-for="node in visibleFileNodes" 
-                :key="node.path" 
+            <div
+              v-else-if="!isFilesCollapsed"
+              class="p-2.5 flex flex-col gap-1 max-h-[160px] overflow-y-auto custom-scrollbar text-xs text-[var(--text-secondary)] font-mono"
+            >
+              <div
+                v-for="node in visibleFileNodes"
+                :key="node.path"
                 class="flex items-center gap-1.5 py-0.5 hover:bg-[var(--bg-hover)] px-2 rounded transition-colors"
                 :class="{ 'cursor-pointer select-none': node.isFolder }"
-                :style="{ paddingLeft: (node.level * 14 + 4) + 'px' }"
+                :style="{ paddingLeft: node.level * 14 + 4 + 'px' }"
                 @click="node.isFolder ? toggleFolder(node.path) : null"
               >
                 <component
@@ -878,11 +916,45 @@ watch(
                   class="h-3.5 w-3.5 text-amber-500 dark:text-amber-400/80 shrink-0"
                 />
                 <template v-else>
-                  <Box v-if="node.name.toLowerCase().endsWith('.glb') || node.name.toLowerCase().endsWith('.gltf') || node.name.toLowerCase().endsWith('.fbx') || node.name.toLowerCase().endsWith('.obj') || node.name.toLowerCase().endsWith('.blend')" class="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                  <ImageIcon v-else-if="node.name.toLowerCase().endsWith('.png') || node.name.toLowerCase().endsWith('.jpg') || node.name.toLowerCase().endsWith('.jpeg') || node.name.toLowerCase().endsWith('.tga') || node.name.toLowerCase().endsWith('.exr') || node.name.toLowerCase().endsWith('.hdr') || node.name.toLowerCase().endsWith('.tiff')" class="h-3.5 w-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
-                  <FileArchive v-else class="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+                  <Box
+                    v-if="
+                      node.name.toLowerCase().endsWith('.glb') ||
+                      node.name.toLowerCase().endsWith('.gltf') ||
+                      node.name.toLowerCase().endsWith('.fbx') ||
+                      node.name.toLowerCase().endsWith('.obj') ||
+                      node.name.toLowerCase().endsWith('.blend')
+                    "
+                    class="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0"
+                  />
+                  <ImageIcon
+                    v-else-if="
+                      node.name.toLowerCase().endsWith('.png') ||
+                      node.name.toLowerCase().endsWith('.jpg') ||
+                      node.name.toLowerCase().endsWith('.jpeg') ||
+                      node.name.toLowerCase().endsWith('.tga') ||
+                      node.name.toLowerCase().endsWith('.exr') ||
+                      node.name.toLowerCase().endsWith('.hdr') ||
+                      node.name.toLowerCase().endsWith('.tiff')
+                    "
+                    class="h-3.5 w-3.5 text-teal-600 dark:text-teal-400 shrink-0"
+                  />
+                  <FileArchive
+                    v-else
+                    class="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0"
+                  />
                 </template>
-                <span class="truncate min-w-0" :class="{ 'text-indigo-600 dark:text-indigo-300 font-semibold': !node.isFolder && (node.name.toLowerCase().endsWith('.glb') || node.name.toLowerCase().endsWith('.gltf') || node.name.toLowerCase().endsWith('.fbx') || node.name.toLowerCase().endsWith('.obj') || node.name.toLowerCase().endsWith('.blend')) }">
+                <span
+                  class="truncate min-w-0"
+                  :class="{
+                    'text-indigo-600 dark:text-indigo-300 font-semibold':
+                      !node.isFolder &&
+                      (node.name.toLowerCase().endsWith('.glb') ||
+                        node.name.toLowerCase().endsWith('.gltf') ||
+                        node.name.toLowerCase().endsWith('.fbx') ||
+                        node.name.toLowerCase().endsWith('.obj') ||
+                        node.name.toLowerCase().endsWith('.blend')),
+                  }"
+                >
                   {{ node.name }}
                 </span>
               </div>
@@ -892,47 +964,75 @@ watch(
           <!-- Specifications & Copyright side-by-side -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <!-- Copyright Info -->
-            <div class="border border-white/10 rounded-2xl overflow-hidden bg-white/[0.01] dark:bg-white/[0.02] text-left">
-              <div class="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-white/[0.02]">
+            <div
+              class="border border-white/10 rounded-2xl overflow-hidden bg-white/[0.01] dark:bg-white/[0.02] text-left"
+            >
+              <div
+                class="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-white/[0.02]"
+              >
                 <Shield class="h-3.5 w-3.5 text-indigo-400" />
-                <span class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
+                <span
+                  class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]"
+                >
                   {{ label('版权与许可协议', 'Copyright & Licensing') }}
                 </span>
               </div>
               <div class="p-3 flex flex-col gap-2 text-xs text-left">
                 <div class="flex justify-between">
-                  <span class="text-[var(--text-muted)]">{{ label('原创属性', 'Originality') }}</span>
-                  <span class="font-semibold text-[var(--text-secondary)]">{{ material.originality === 'ORIGINAL' ? label('原创', 'Original') : label('转载/改编', 'Reprint/Adaptation') }}</span>
+                  <span class="text-[var(--text-muted)]">{{
+                    label('原创属性', 'Originality')
+                  }}</span>
+                  <span class="font-semibold text-[var(--text-secondary)]">{{
+                    material.originality === 'ORIGINAL'
+                      ? label('原创', 'Original')
+                      : label('转载/改编', 'Reprint/Adaptation')
+                  }}</span>
                 </div>
-                <div class="flex justify-between" v-if="material.license">
+                <div v-if="material.license" class="flex justify-between">
                   <span class="text-[var(--text-muted)]">{{ label('授权协议', 'License') }}</span>
-                  <span class="font-semibold text-teal-400 uppercase text-[10px]">{{ material.license.replace('_', ' ') }}</span>
+                  <span class="font-semibold text-teal-400 uppercase text-[10px]">{{
+                    material.license.replace('_', ' ')
+                  }}</span>
                 </div>
               </div>
             </div>
 
             <!-- Specifications -->
-            <div class="border border-white/10 rounded-2xl overflow-hidden bg-white/[0.01] dark:bg-white/[0.02] text-left">
-              <div class="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-white/[0.02]">
+            <div
+              class="border border-white/10 rounded-2xl overflow-hidden bg-white/[0.01] dark:bg-white/[0.02] text-left"
+            >
+              <div
+                class="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-white/[0.02]"
+              >
                 <Settings class="h-3.5 w-3.5 text-teal-400" />
-                <span class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
+                <span
+                  class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]"
+                >
                   {{ label('技术参数与规格', 'Specifications') }}
                 </span>
               </div>
               <div class="p-3 flex flex-col gap-2 text-xs text-left">
                 <div class="flex justify-between">
-                  <span class="text-[var(--text-muted)]">{{ label('程序化材质', 'Procedural') }}</span>
-                  <span class="font-semibold text-[var(--text-secondary)]">{{ material.isProcedural ? label('是', 'Yes') : label('否', 'No') }}</span>
+                  <span class="text-[var(--text-muted)]">{{
+                    label('程序化材质', 'Procedural')
+                  }}</span>
+                  <span class="font-semibold text-[var(--text-secondary)]">{{
+                    material.isProcedural ? label('是', 'Yes') : label('否', 'No')
+                  }}</span>
                 </div>
               </div>
             </div>
           </div>
 
-
-
           <!-- Tag badges -->
-          <div v-if="material.tags && material.tags.length" class="border border-white/10 rounded-2xl p-3 bg-white/[0.01] dark:bg-white/[0.02] text-left">
-            <span class="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold block mb-2">{{ label('相关标签', 'Tags') }}</span>
+          <div
+            v-if="material.tags && material.tags.length"
+            class="border border-white/10 rounded-2xl p-3 bg-white/[0.01] dark:bg-white/[0.02] text-left"
+          >
+            <span
+              class="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold block mb-2"
+              >{{ label('相关标签', 'Tags') }}</span
+            >
             <div class="flex flex-wrap gap-1.5">
               <span
                 v-for="tag in material.tags"
@@ -951,54 +1051,12 @@ watch(
   <ShareDialog ref="shareDialogRef" type="material" />
 
   <!-- Downloading Progress Dialog Overlay -->
-  <Teleport to="body">
-    <div
-      v-if="isDownloading"
-      class="fixed bottom-6 right-6 z-[99999] w-[340px] p-5 rounded-2xl shadow-2xl border glass-panel backdrop-blur-xl flex flex-col gap-4 overflow-hidden"
-      style="border-color: var(--border-base); background-color: var(--bg-card)"
-    >
-      <!-- Background glow -->
-      <div class="absolute -top-12 -right-12 w-24 h-24 bg-accent/20 rounded-full blur-xl pointer-events-none"></div>
-
-      <div class="flex items-center justify-between">
-        <span
-          class="text-sm font-bold flex items-center gap-2"
-          style="color: var(--text-primary)"
-        >
-          <Loader2 class="w-4 h-4 animate-spin text-accent" />
-          {{ label('正在安全下载资源...', 'Downloading resource safely...') }}
-        </span>
-        <button
-          type="button"
-          class="p-1 hover:bg-white/5 rounded-lg text-[var(--text-muted)] hover:text-rose-500 transition-all cursor-pointer flex items-center justify-center shrink-0 border-0 bg-transparent"
-          title="取消下载 / Cancel download"
-          @click="cancelDownload"
-        >
-          <X class="w-4 h-4" />
-        </button>
-      </div>
-
-      <div class="flex flex-col gap-1.5">
-        <div class="flex justify-between items-center text-xs font-mono text-[var(--text-secondary)]">
-          <span v-if="downloadSpeedStr" class="font-medium text-emerald-400">{{ downloadSpeedStr }}</span>
-          <span v-else class="text-[var(--text-muted)]">{{ label('正在建立连接...', 'Connecting...') }}</span>
-          <span class="font-black text-accent">{{ downloadProgress }}%</span>
-        </div>
-        
-        <!-- Progress Bar -->
-        <div class="w-full bg-slate-100 dark:bg-slate-800/50 rounded-full h-2 overflow-hidden border border-white/5">
-          <div
-            class="bg-accent h-2 rounded-full transition-all duration-300 shadow-[0_0_8px_var(--color-accent)]"
-            :style="{ width: `${downloadProgress}%` }"
-          ></div>
-        </div>
-      </div>
-
-      <div class="text-[10px] text-[var(--text-muted)] leading-relaxed text-center">
-        {{ label('采用多线程并发下载算法以获取最高网速。', 'Multi-threaded chunked downloader is active for maximum speed.') }}
-      </div>
-    </div>
-  </Teleport>
+  <DownloadProgressOverlay
+    :is-downloading="isDownloading"
+    :progress="downloadProgress"
+    :speed-str="downloadSpeedStr"
+    @cancel="cancelDownload"
+  />
 </template>
 
 <style scoped>
@@ -1417,13 +1475,8 @@ button:disabled {
 }
 
 .spinning {
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  /* @keyframes spin provided globally; only duration differs from the 1s default */
+  animation-duration: 0.8s;
 }
 
 @media (max-width: 1080px) {

@@ -452,7 +452,10 @@ onUnmounted(() => {
               </div>
               <div class="strength-row">
                 <span>强度：{{ passwordStrength.label }}</span>
-                <i :class="passwordStrength.tone" :style="{ width: `${passwordStrength.value}%` }"></i>
+                <i
+                  :class="passwordStrength.tone"
+                  :style="{ width: `${passwordStrength.value}%` }"
+                ></i>
               </div>
               <Button
                 variant="primary"
@@ -482,7 +485,10 @@ onUnmounted(() => {
               }}
             </p>
           </div>
-          <em :class="{ enabled: authStore.user?.twoFactorEnabled }" class="two-factor-status shrink-0">
+          <em
+            :class="{ enabled: authStore.user?.twoFactorEnabled }"
+            class="two-factor-status shrink-0"
+          >
             {{ authStore.user?.twoFactorEnabled ? '已启用' : '未启用' }}
           </em>
         </header>
@@ -513,11 +519,17 @@ onUnmounted(() => {
                 </div>
               </div>
               <div class="form-stack">
-                <div class="notice-box">扫描二维码后，输入当前密码和应用中的 6 位验证码完成启用。</div>
+                <div class="notice-box">
+                  扫描二维码后，输入当前密码和应用中的 6 位验证码完成启用。
+                </div>
                 <div v-if="setupRecoveryCodes.length > 0" class="recovery-box">
                   <div class="panel-title flex justify-between items-center mb-2">
                     <span class="text-xs font-bold">初始恢复码</span>
-                    <button type="button" class="secret-key-copy" @click="copyRecoveryCodes(setupRecoveryCodes)">
+                    <button
+                      type="button"
+                      class="secret-key-copy"
+                      @click="copyRecoveryCodes(setupRecoveryCodes)"
+                    >
                       <Copy />
                       复制
                     </button>
@@ -561,9 +573,13 @@ onUnmounted(() => {
             <div class="recovery-box">
               <div class="panel-title flex justify-between items-center mb-2">
                 <span class="text-xs font-bold">恢复码</span>
-                <strong class="text-xs text-[var(--text-muted)]">{{ recoveryCodeCount }} 枚可用</strong>
+                <strong class="text-xs text-[var(--text-muted)]"
+                  >{{ recoveryCodeCount }} 枚可用</strong
+                >
               </div>
-              <p class="text-xs text-[var(--text-muted)] mb-3">恢复码只会在生成时完整显示，请保存到安全的位置。</p>
+              <p class="text-xs text-[var(--text-muted)] mb-3">
+                恢复码只会在生成时完整显示，请保存到安全的位置。
+              </p>
               <div class="field-grid gap-2 grid grid-cols-2 mb-3">
                 <Input
                   v-model="regeneratePassword"
@@ -609,7 +625,9 @@ onUnmounted(() => {
                 <span class="text-xs font-bold">关闭双重验证</span>
                 <ShieldAlert class="w-4 h-4 text-rose-500" />
               </div>
-              <p class="text-xs text-[var(--text-muted)] mb-3">需要当前密码或 2FA 验证码。关闭后，账号登录安全等级会下降。</p>
+              <p class="text-xs text-[var(--text-muted)] mb-3">
+                需要当前密码或 2FA 验证码。关闭后，账号登录安全等级会下降。
+              </p>
               <Input
                 v-model="disable2FACode"
                 type="text"
@@ -933,15 +951,7 @@ onUnmounted(() => {
   height: 24px;
 }
 
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 1;
-  }
-}
+/* @keyframes pulse provided globally by src/styles/layout.css */
 
 @media (max-width: 980px) {
   .security-layout-main,

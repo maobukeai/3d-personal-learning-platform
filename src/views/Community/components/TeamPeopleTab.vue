@@ -173,7 +173,6 @@ const emit = defineEmits<{
   (e: 'remove-member', userId: string, name: string): void;
 }>();
 
-
 const authStore = useAuthStore();
 
 const { t } = useCommunityI18n();

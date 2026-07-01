@@ -31,7 +31,12 @@ const isSearchOpen = ref(false);
 <template>
   <PageHeader
     :title="label('资源库', 'Asset Library')"
-    :subtitle="label('模型、工程文件、贴图包与外链资产统一分发。', 'Distribute models, project files, texture packs, and external assets in one place.')"
+    :subtitle="
+      label(
+        '模型、工程文件、贴图包与外链资产统一分发。',
+        'Distribute models, project files, texture packs, and external assets in one place.',
+      )
+    "
     :icon="Box"
   >
     <template #center>
@@ -59,7 +64,9 @@ const isSearchOpen = ref(false);
       </Button>
       <Button variant="secondary" size="sm" class="!h-8" @click="emit('toggleStats')">
         <component :is="isStatsExpanded ? EyeOff : Eye" class="w-3.5 h-3.5" />
-        <span>{{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}</span>
+        <span>{{
+          isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats')
+        }}</span>
       </Button>
       <Button variant="secondary" size="sm" class="!h-8" @click="emit('refreshStats')">
         <BarChart3 class="w-3.5 h-3.5" />

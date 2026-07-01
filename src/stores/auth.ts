@@ -36,12 +36,15 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: preferences.getUser<User>(),
     deviceToken: preferences.getDeviceToken(),
-    onlineUserIds: new Set<string>(),
+    // Plain object instead of Set: Vue 3 makes object key additions/removals
+    // reactive automatically, so we no longer rebuild the whole collection on
+    // every presence update (was O(n) per event with the prior Set pattern).
+    onlineUserIds: {} as Record<string, true>,
     unreadMessagesCount: 0,
   }),
   getters: {
     isAuthenticated: (state) => !!state.user,
-    isUserOnline: (state) => (userId: string) => state.onlineUserIds.has(userId),
+    isUserOnline: (state) => (userId: string) => state.onlineUserIds[userId] === true,
     userLevel: (state) => {
       const points = state.user?.points ?? 50;
       if (points < 100) return 1;
@@ -64,16 +67,14 @@ export const useAuthStore = defineStore('auth', {
       this.unreadMessagesCount++;
     },
     setOnlineUsers(ids: string[]) {
-      this.onlineUserIds = new Set(ids);
+      this.onlineUserIds = Object.fromEntries(ids.map((id) => [id, true as const]));
     },
     updateUserStatus(userId: string, status: 'online' | 'offline') {
       if (status === 'online') {
-        this.onlineUserIds.add(userId);
+        this.onlineUserIds[userId] = true;
       } else {
-        this.onlineUserIds.delete(userId);
+        delete this.onlineUserIds[userId];
       }
-      // Force reactivity by re-assigning (Set reactivity can be tricky in some Vue versions)
-      this.onlineUserIds = new Set(this.onlineUserIds);
     },
     async login(credentials: LoginCredentials) {
       const response = await api.post('/api/auth/login', {
@@ -225,7 +226,7 @@ export const useAuthStore = defineStore('auth', {
 
       this.user = null;
       this.deviceToken = '';
-      this.onlineUserIds = new Set<string>();
+      this.onlineUserIds = {};
       this.unreadMessagesCount = 0;
       preferences.clearUser();
       preferences.clearDeviceToken();

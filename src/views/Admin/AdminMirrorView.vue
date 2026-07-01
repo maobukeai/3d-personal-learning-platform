@@ -2,7 +2,6 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Globe, Loader2, X, Square, Layers, Check } from 'lucide-vue-next';
 import api from '@/utils/api';
 import type { AxiosProgressEvent } from 'axios';
 import { getApiErrorMessage } from '@/utils/error';
@@ -170,12 +169,6 @@ const categoryForm = ref({
   childExternalIds: [] as string[],
 });
 
-const statusLabels: Record<string, { label: string; color: string }> = {
-  ACTIVE: { label: '启用', color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' },
-  PAUSED: { label: '暂停', color: 'text-amber-500 bg-amber-50 dark:bg-amber-500/10' },
-  ERROR: { label: '异常', color: 'text-red-500 bg-red-50 dark:bg-red-500/10' },
-};
-
 function openCreate() {
   editingSource.value = null;
   showSourceDialog.value = true;
@@ -243,24 +236,6 @@ function openMatchLinks(source: MirrorSource) {
   excelFiles.value = [];
   matchResult.value = null;
   showMatchDialog.value = true;
-}
-
-function handleFileChange(event: Event) {
-  const target = event.target as HTMLInputElement;
-  if (target.files && target.files.length > 0) {
-    const selected = Array.from(target.files);
-    selected.forEach((file) => {
-      const exists = excelFiles.value.some((f) => f.name === file.name && f.size === file.size);
-      if (!exists) {
-        excelFiles.value.push(file);
-      }
-    });
-    target.value = '';
-  }
-}
-
-function removeFile(index: number) {
-  excelFiles.value.splice(index, 1);
 }
 
 async function uploadAndMatch() {
@@ -377,18 +352,6 @@ function stopPolling() {
   }
 }
 
-function formatDuration(seconds: number | null) {
-  if (!seconds) return '-';
-  if (seconds < 60) return `${seconds}秒`;
-  return `${Math.floor(seconds / 60)}分${seconds % 60}秒`;
-}
-
-function formatElapsed(startedAt: string) {
-  const elapsed = Math.round((Date.now() - new Date(startedAt).getTime()) / 1000);
-  if (elapsed < 60) return `${elapsed}秒`;
-  return `${Math.floor(elapsed / 60)}分${elapsed % 60}秒`;
-}
-
 // Resource management functions
 async function toggleResourcePanel(source: MirrorSource) {
   if (expandedSourceId.value === source.id) {
@@ -495,12 +458,6 @@ const formattedMirrorCategories = computed(() => {
 
   return result;
 });
-
-function getParentCategoryName(cat: MirrorCategory) {
-  if (!cat.parentExternalId) return '-';
-  const parent = sourceCategories.value.find((c) => c.externalId === cat.parentExternalId);
-  return parent ? parent.name : '-';
-}
 
 function doResourceSearch() {
   if (!expandedSourceId.value) return;
@@ -720,79 +677,6 @@ const filteredSources = computed(() => {
     return matchesStatus && matchesSearch;
   });
 });
-
-const consolidatedCards = computed(() => {
-  const activeCount = sources.value.filter((s) => s.status === 'ACTIVE').length;
-  const totalCount = sources.value.length;
-  const totalResources = sources.value.reduce(
-    (sum, s) => sum + (s._count?.resources || s.totalResources || 0),
-    0,
-  );
-  const syncingCount = sources.value.filter((s) => s.syncStatus === 'SYNCING').length;
-  const errorCount = sources.value.filter((s) => s.status === 'ERROR').length;
-  const totalCategories = sources.value.reduce((sum, s) => sum + (s._count?.categories || 0), 0);
-
-  return [
-    {
-      label: '可用镜像',
-      value: `${activeCount}/${totalCount}`,
-      hint: `${totalResources} 个资源`,
-      icon: Globe,
-      color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
-      health: { label: '运行中' },
-    },
-    {
-      label: '同步中',
-      value: syncingCount,
-      hint: '当前后台镜像站同步中数',
-      icon: Loader2,
-      color: 'text-indigo-600 bg-indigo-500/10 border-indigo-500/20',
-      health: { label: syncingCount > 0 ? '同步中' : '空闲' },
-    },
-    {
-      label: '异常源',
-      value: errorCount,
-      hint: '需查看网络或日志',
-      icon: X,
-      color: 'text-rose-600 bg-rose-500/10 border-rose-500/20',
-      health: { label: errorCount > 0 ? '有异常' : '无异常' },
-    },
-    {
-      label: '镜像分类',
-      value: totalCategories,
-      hint: '同步至系统内的分类数',
-      icon: Layers,
-      color: 'text-purple-600 bg-purple-500/10 border-purple-500/20',
-      health: { label: '资源目录' },
-    },
-  ];
-});
-
-const getBadgeVariant = (label: string) => {
-  if (label === '运行中' || label === '无异常' || label === '空闲') return 'success';
-  if (label === '有异常') return 'danger';
-  if (label === '同步中') return 'warning';
-  return 'primary';
-};
-
-const tabOptions = computed(() => [
-  { label: `所有镜像源 (${sources.value.length})`, value: 'ALL', icon: Globe },
-  {
-    label: `启用 (${sources.value.filter((s) => s.status === 'ACTIVE').length})`,
-    value: 'ACTIVE',
-    icon: Check,
-  },
-  {
-    label: `暂停 (${sources.value.filter((s) => s.status === 'PAUSED').length})`,
-    value: 'PAUSED',
-    icon: Square,
-  },
-  {
-    label: `异常 (${sources.value.filter((s) => s.status === 'ERROR').length})`,
-    value: 'ERROR',
-    icon: X,
-  },
-]);
 
 onMounted(() => {
   fetchSources().then(() => {

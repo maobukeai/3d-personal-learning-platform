@@ -312,7 +312,9 @@ export const importNotesFromGithub = async (req: AuthRequest, res: Response) => 
           },
         });
         deletedCount = notesToDelete.length;
-        logger.info(`Deleted ${deletedCount} GitHub-synced notes for user ${req.userId} that were removed on GitHub.`);
+        logger.info(
+          `Deleted ${deletedCount} GitHub-synced notes for user ${req.userId} that were removed on GitHub.`,
+        );
       }
     } catch (delErr) {
       logger.error('Failed to clean up deleted GitHub notes:', delErr);

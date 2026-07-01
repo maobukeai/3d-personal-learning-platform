@@ -27,15 +27,6 @@ export function formatDateTime(value?: string | Date | null): string {
   });
 }
 
-/** 格式化为 HH:mm 时间 */
-export function formatTime(value?: string | Date | null): string {
-  if (!value) return '-';
-  return new Date(value).toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 /** 相对时间（如 "3 分钟前"、"2 小时前"、"5 天前"） */
 export function formatRelativeTime(value?: string | Date | null): string {
   if (!value) return '-';
@@ -46,19 +37,6 @@ export function formatRelativeTime(value?: string | Date | null): string {
   if (hours < 24) return `${hours} 小时前`;
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days} 天前`;
-  return formatDate(value);
-}
-
-/** 聊天消息日期分隔符格式（如 "今天"、"昨天"、"2024/01/15"） */
-export function formatDateSeparator(value?: string | Date | null): string {
-  if (!value) return '';
-  const date = new Date(value);
-  const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  if (date.toDateString() === today.toDateString()) return '今天';
-  if (date.toDateString() === yesterday.toDateString()) return '昨天';
   return formatDate(value);
 }
 

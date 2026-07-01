@@ -13,51 +13,59 @@ function customCompressPlugin() {
   return {
     name: 'custom-compress-plugin',
     apply: 'build' as const,
-    closeBundle() {
+    async closeBundle() {
       const distDir = path.resolve(__dirname, 'dist');
-      
-      function compressDir(dir: string) {
-        if (!fs.existsSync(dir)) return;
-        const files = fs.readdirSync(dir);
-        for (const file of files) {
-          const filePath = path.join(dir, file);
-          const stat = fs.statSync(filePath);
-          if (stat.isDirectory()) {
-            compressDir(filePath);
-          } else if (stat.isFile()) {
-            const ext = path.extname(file);
-            // Compress JS, CSS, HTML, SVG, and JSON assets larger than 10KB
-            if (['.js', '.css', '.html', '.svg', '.json'].includes(ext) && stat.size > 10240) {
-              const content = fs.readFileSync(filePath);
-              
-              // 1. Generate Brotli (.br) with max compression quality (11)
-              try {
-                const brContent = zlib.brotliCompressSync(content, {
-                  params: {
-                    [zlib.constants.BROTLI_PARAM_QUALITY]: 11,
-                  }
-                });
-                fs.writeFileSync(filePath + '.br', brContent);
-              } catch (err) {
-                console.error(`[Compress] Brotli compression failed for ${file}:`, err);
-              }
 
-              // 2. Generate Gzip (.gz) with max compression level (9)
-              try {
-                const gzContent = zlib.gzipSync(content, { level: 9 });
-                fs.writeFileSync(filePath + '.gz', gzContent);
-              } catch (err) {
-                console.error(`[Compress] Gzip compression failed for ${file}:`, err);
+      const compressFile = async (filePath: string) => {
+        const content = await fs.promises.readFile(filePath);
+        await Promise.all([
+          // 1. Generate Brotli (.br) with max compression quality (11)
+          fs.promises
+            .writeFile(
+              filePath + '.br',
+              zlib.brotliCompressSync(content, {
+                params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 },
+              }),
+            )
+            .catch((err) =>
+              console.error(`[Compress] Brotli failed for ${path.basename(filePath)}:`, err),
+            ),
+          // 2. Generate Gzip (.gz) with max compression level (9)
+          fs.promises
+            .writeFile(filePath + '.gz', zlib.gzipSync(content, { level: 9 }))
+            .catch((err) =>
+              console.error(`[Compress] Gzip failed for ${path.basename(filePath)}:`, err),
+            ),
+        ]);
+      };
+
+      const collectFiles = async (dir: string): Promise<string[]> => {
+        if (!fs.existsSync(dir)) return [];
+        const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+        const results: string[] = [];
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            results.push(...(await collectFiles(fullPath)));
+          } else if (entry.isFile()) {
+            const ext = path.extname(entry.name);
+            if (['.js', '.css', '.html', '.svg', '.json'].includes(ext)) {
+              const stat = await fs.promises.stat(fullPath);
+              // Compress JS, CSS, HTML, SVG, and JSON assets larger than 10KB
+              if (stat.size > 10240) {
+                results.push(fullPath);
               }
             }
           }
         }
-      }
-      
+        return results;
+      };
+
       console.log('⚡ Generating Gzip and Brotli pre-compressed static assets...');
-      compressDir(distDir);
-      console.log('✓ Compression complete.');
-    }
+      const files = await collectFiles(distDir);
+      await Promise.all(files.map(compressFile));
+      console.log(`✓ Compression complete. Compressed ${files.length} file(s).`);
+    },
   };
 }
 
@@ -72,9 +80,23 @@ export default defineConfig(({ mode }) => {
     ['icons', ['lucide-vue-next', '@element-plus/icons-vue']],
     [
       'markdown-parser',
-      ['markdown-it', 'linkify-it', 'mdurl', 'uc.micro', 'entities', 'punycode.js', 'xss', 'md-editor-v3'],
+      [
+        'markdown-it',
+        'linkify-it',
+        'mdurl',
+        'uc.micro',
+        'entities',
+        'punycode.js',
+        'xss',
+        'md-editor-v3',
+      ],
     ],
-    ['common-libs', ['axios', 'socket.io-client', 'engine.io-client', '@socket.io', 'dompurify']],
+    ['codemirror-core', ['@codemirror', 'codemirror']],
+    ['lezer-parser', ['@lezer', 'lezer']],
+    [
+      'common-libs',
+      ['axios', 'socket.io-client', 'engine.io-client', '@socket.io', 'dompurify', 'qrcode'],
+    ],
     ['motion', ['gsap']],
     ['drag-drop', ['vuedraggable', 'sortablejs']],
   ];
@@ -90,7 +112,7 @@ export default defineConfig(({ mode }) => {
       deps.some((dep) => normalizedId.includes(`/node_modules/${dep}/`)),
     );
 
-    return matchedChunk?.[0];
+    return matchedChunk?.[0] ?? 'vendor-others';
   };
 
   const createApiProxy = (timeout = 120000): ProxyOptions => ({
@@ -120,23 +142,19 @@ export default defineConfig(({ mode }) => {
       customCompressPlugin(),
     ],
     optimizeDeps: {
-      // Pre-bundle heavy deps so the first dev visit doesn't stall on
-      // on-demand discovery + esbuild transforms.
+      // Pre-bundle deps that are needed on the FIRST page load.
+      // three, socket.io-client, qrcode, lucide-vue-next are intentionally
+      // excluded: three is too large (~600KB) and its loaders are already
+      // dynamically imported; the others are only needed after login or in
+      // specific sub-routes, so Vite will discover them on-demand.
       include: [
         'vue',
         'vue-router',
         'pinia',
         'vue-i18n',
         'element-plus',
-        'three',
-        'md-editor-v3',
-        'gsap',
         'axios',
-        'socket.io-client',
-        'lucide-vue-next',
         'dompurify',
-        'vuedraggable',
-        'qrcode',
       ],
     },
     server: {
@@ -166,7 +184,12 @@ export default defineConfig(({ mode }) => {
       ],
     },
     build: {
-      chunkSizeWarningLimit: 500,
+      chunkSizeWarningLimit: 800,
+      // Split CSS per chunk so lazy-loaded routes only pull in their own styles.
+      cssCodeSplit: true,
+      // Inject a polyfill for <link rel="modulepreload"> so older Safari versions
+      // correctly preload JS modules instead of fetching them on demand.
+      modulePreload: { polyfill: true },
       rolldownOptions: {
         output: {
           codeSplitting: {
@@ -198,26 +221,6 @@ export default defineConfig(({ mode }) => {
                 test: /node_modules/,
               },
             ],
-          },
-        },
-      },
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            const normalizedId = id.replace(/\\/g, '/');
-            if (normalizedId.includes('/node_modules/')) {
-              if (normalizedId.includes('/node_modules/three/examples/')) {
-                return 'three-examples';
-              }
-              if (normalizedId.includes('/node_modules/three/')) {
-                return 'three-core';
-              }
-              const chunkName = getVendorChunkName(id);
-              if (chunkName) {
-                return chunkName;
-              }
-              return 'vendor';
-            }
           },
         },
       },

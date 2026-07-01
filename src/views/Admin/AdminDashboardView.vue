@@ -453,7 +453,10 @@ const handleAiGenerate = async () => {
       await api.delete(`/api/projects/ai-chat/history?sessionId=${sId}`);
       window.dispatchEvent(new CustomEvent('ai-chat-history-updated'));
     } catch (cleanupErr) {
-      logError(cleanupErr, { operation: 'admin.aiAnnouncementCleanup', component: 'AdminDashboardView' });
+      logError(cleanupErr, {
+        operation: 'admin.aiAnnouncementCleanup',
+        component: 'AdminDashboardView',
+      });
     }
   };
 

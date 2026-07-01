@@ -91,8 +91,5 @@ const paddingClass = computed(() => {
     var(--shadow-card);
 }
 
-/* Premium Apple-style custom spring transition cubic bezier */
-.cubic-bezier-card {
-  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-}
+/* .cubic-bezier-card provided globally by src/styles/components.css */
 </style>

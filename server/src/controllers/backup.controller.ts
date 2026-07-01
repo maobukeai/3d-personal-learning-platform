@@ -151,7 +151,10 @@ const cleanupOldBackups = async (client: WebDAVClient, retentionDays: number) =>
       }
     }
   } catch (err) {
-    logger.warn('[Backup Cleanup] Error during remote file cleanup:', err instanceof Error ? err.message : err);
+    logger.warn(
+      '[Backup Cleanup] Error during remote file cleanup:',
+      err instanceof Error ? err.message : err,
+    );
   }
 };
 
@@ -321,9 +324,10 @@ export const runBackup = async (req: AuthRequest, res: Response, next: NextFunct
 
     // ZIP CREATION
     const tempDir = path.join(process.cwd(), 'uploads', 'temp_backups');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
+    // mkdir with recursive: true is a no-op if the directory already exists,
+    // so the prior existsSync check is unnecessary. Always use the async API
+    // to avoid blocking the event loop on this admin/user request handler.
+    await fs.promises.mkdir(tempDir, { recursive: true });
 
     const timestamp = new Date()
       .toISOString()
@@ -368,11 +372,11 @@ export const runBackup = async (req: AuthRequest, res: Response, next: NextFunct
 
     // UPLOAD TO WEBDAV
     const webdavClient = new WebDAVClient(config.url, config.username, config.password, config.dir);
-    const fileBuffer = fs.readFileSync(filePath);
+    const fileBuffer = await fs.promises.readFile(filePath);
     await webdavClient.uploadFile(filename, fileBuffer);
 
     // CLEANUP LOCAL FILE
-    fs.unlinkSync(filePath);
+    await fs.promises.unlink(filePath);
 
     // AUTO CLEANUP REMOTE OLD BACKUPS
     await cleanupOldBackups(webdavClient, config.retentionDays);
@@ -493,17 +497,10 @@ export const restoreBackup = async (req: AuthRequest, res: Response, next: NextF
     const webdavClient = new WebDAVClient(config.url, config.username, config.password, config.dir);
     const fileBuffer = await webdavClient.downloadFile(filename);
 
-    // WRITE TEMP ZIP
-    const tempDir = path.join(process.cwd(), 'uploads', 'temp_backups');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-    const tempFilePath = path.join(tempDir, `restore_${Date.now()}_${filename}`);
-    fs.writeFileSync(tempFilePath, fileBuffer);
-
-    // OPEN ZIP AND PARSE CONTENTS
+    // Parse the zip directly from the in-memory buffer — avoids writing,
+    // re-reading, and deleting a temp file (and the prior sync fs calls).
     const extractedData: Record<string, any> = {};
-    const directory = await unzipper.Open.file(tempFilePath);
+    const directory = await unzipper.Open.buffer(fileBuffer);
     for (const file of directory.files) {
       const content = await file.buffer();
       const catName = path.basename(file.path, '.json');
@@ -513,9 +510,6 @@ export const restoreBackup = async (req: AuthRequest, res: Response, next: NextF
         logger.warn(`[Restore] Failed to parse JSON file in zip: ${file.path}`);
       }
     }
-
-    // CLEANUP LOCAL TEMP ZIP
-    fs.unlinkSync(tempFilePath);
 
     // RESTORE LOGIC PER CATEGORY
     if (restoreCategories.includes('notes') && extractedData['notes']) {

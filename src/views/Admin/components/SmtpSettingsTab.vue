@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
-import { ref, reactive, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { Mail, Settings, Sparkles, Shield, Eye, EyeOff } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
+import { useSettingsSync } from '@/composables/useSettingsSync';
 
 interface SmtpConfig {
   id: string;
@@ -47,23 +48,7 @@ const emit = defineEmits<{
   (e: 'update:settings', val: typeof props.settings): void;
 }>();
 
-const localSettings = reactive({ ...props.settings });
-
-watch(
-  () => props.settings,
-  (newVal) => {
-    Object.assign(localSettings, newVal);
-  },
-  { deep: true },
-);
-
-watch(
-  localSettings,
-  (newVal) => {
-    emit('update:settings', { ...props.settings, ...newVal });
-  },
-  { deep: true },
-);
+const { localSettings } = useSettingsSync(props, emit);
 
 const showPassword = ref(false);
 const isTestingSmtp = ref(false);

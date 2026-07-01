@@ -212,8 +212,6 @@ const isGroupActive = (group: PreparedSidebarGroup) =>
 
 const isGroupOpen = (group: PreparedSidebarGroup) => !collapsedGroupKeys.value.has(group.key);
 
-
-
 const activeIndicatorStyle = ref<CSSProperties>({
   opacity: 0,
 });
@@ -254,7 +252,7 @@ const getSavedWidth = () => {
       const saved = window.localStorage.getItem('sidebarCustomWidth');
       return saved ? Number(saved) : 232;
     }
-  } catch (_e) {}
+  } catch {}
   return 232;
 };
 
@@ -361,12 +359,16 @@ watch(isExpanded, (val) => {
     :class="[
       `workspace-sidebar--${navTone}`,
       isExpanded ? 'workspace-sidebar--expanded' : 'workspace-sidebar--rail',
-      isResizing ? 'is-resizing' : ''
+      isResizing ? 'is-resizing' : '',
     ]"
-    :style="isExpanded ? {
-      width: customWidth + 'px',
-      '--sidebar-panel-width': customWidth + 'px'
-    } : {}"
+    :style="
+      isExpanded
+        ? {
+            width: customWidth + 'px',
+            '--sidebar-panel-width': customWidth + 'px',
+          }
+        : {}
+    "
   >
     <div class="workspace-sidebar__rail">
       <div class="rail-top">
@@ -381,8 +383,8 @@ watch(isExpanded, (val) => {
             class="rail-link rail-action-button rail-toggle"
             :aria-label="isExpanded ? collapseNavigationLabel : expandNavigationLabel"
             :title="isExpanded ? collapseNavigationLabel : expandNavigationLabel"
+            style="margin-bottom: 12px"
             @click="toggleSidebar"
-            style="margin-bottom: 12px;"
           >
             <ChevronsLeft v-if="isExpanded" class="rail-icon" />
             <ChevronsRight v-else class="rail-icon" />
@@ -433,7 +435,6 @@ watch(isExpanded, (val) => {
       </nav>
 
       <div class="rail-actions">
-
         <el-tooltip
           :content="$t('sidebar.settingsOption')"
           placement="right"
@@ -519,27 +520,6 @@ watch(isExpanded, (val) => {
           </el-tooltip>
         </header>
 
-        <div v-if="showQuickLinks" class="quick-zone">
-          <p class="sidebar-section-label">{{ $t('sidebar.groups.quickNav') }}</p>
-          <div class="quick-grid">
-            <RouterLink
-              v-for="quick in quickLinks"
-              :key="quick.path"
-              :to="quick.path"
-              class="quick-tile"
-              :class="{ 'quick-tile--active': isRouteActive(quick.path) }"
-            >
-              <span class="quick-tile__icon">
-                <component :is="quick.icon" />
-              </span>
-              <span class="quick-tile__copy">
-                <strong>{{ $t(quick.labelKey) }}</strong>
-                <small>{{ quick.hint }}</small>
-              </span>
-            </RouterLink>
-          </div>
-        </div>
-
         <div class="panel-groups scrollbar-hide">
           <div
             class="active-indicator-bg"
@@ -568,14 +548,18 @@ watch(isExpanded, (val) => {
               <ul
                 v-if="isGroupOpen(group)"
                 class="panel-list panel-list--resource-grid"
-                :class="group.items.length % 2 === 1 ? 'panel-list--resource-grid-odd' : 'panel-list--resource-grid-even'"
+                :class="
+                  group.items.length % 2 === 1
+                    ? 'panel-list--resource-grid-odd'
+                    : 'panel-list--resource-grid-even'
+                "
               >
                 <li v-for="item in group.items" :key="item.path">
                   <RouterLink
                     :to="item.path"
                     class="panel-link panel-link--resource"
                     :class="{
-                      'panel-link--active': isRouteActive(item.path)
+                      'panel-link--active': isRouteActive(item.path),
                     }"
                   >
                     <span class="panel-link-icon-wrap">
@@ -616,10 +600,7 @@ watch(isExpanded, (val) => {
       </section>
     </Transition>
     <!-- Resize Handle -->
-    <div
-      class="sidebar-resize-handle"
-      @mousedown="handleMousedown"
-    ></div>
+    <div class="sidebar-resize-handle" @mousedown="handleMousedown"></div>
   </aside>
 </template>
 
@@ -840,13 +821,13 @@ watch(isExpanded, (val) => {
 
 .panel-header {
   position: relative;
-  min-height: 48px;
+  min-height: 34px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
-  padding: 12px 16px 10px;
+  padding: 6px 10px 4px;
   border-bottom: 1px solid var(--border-base);
   background: transparent;
   box-shadow: none;
@@ -871,32 +852,32 @@ watch(isExpanded, (val) => {
 }
 
 .panel-mark {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border: 1px solid color-mix(in srgb, #ffffff 42%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 12%, transparent);
   border-radius: 6px;
+  overflow: hidden;
   color: #ffffff;
   background: linear-gradient(
     135deg,
     var(--sidebar-accent),
     color-mix(in srgb, var(--sidebar-accent) 64%, #111827)
   );
-  box-shadow: 0 8px 18px -14px rgba(var(--sidebar-accent-rgb), 0.96);
+  box-shadow: 0 2px 6px -3px rgba(var(--sidebar-accent-rgb), 0.5);
 }
 
 .panel-mark svg {
-  width: 14px !important;
-  height: 14px !important;
+  width: 12px !important;
+  height: 12px !important;
 }
 
 .panel-mark-avatar {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 5px;
 }
 
 .panel-mark--admin {
@@ -964,11 +945,11 @@ watch(isExpanded, (val) => {
 
 .panel-icon-button {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 7px;
+  right: 10px;
   z-index: 2;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
@@ -983,8 +964,8 @@ watch(isExpanded, (val) => {
 }
 
 .panel-icon-button svg {
-  width: 14px !important;
-  height: 14px !important;
+  width: 12px !important;
+  height: 12px !important;
 }
 
 .panel-icon-button:hover {
@@ -1011,26 +992,19 @@ watch(isExpanded, (val) => {
   position: relative;
   isolation: isolate;
   min-width: 0;
-  height: 32px;
+  height: 34px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--sidebar-accent) 12%, var(--border-base));
-  border-radius: 8px;
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--bg-card) 88%, transparent),
-    color-mix(in srgb, var(--sidebar-accent) 7%, var(--bg-card))
-  );
+  border: 1px solid color-mix(in srgb, var(--text-primary) 6%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-card) 55%, transparent);
+  backdrop-filter: blur(6px);
   color: var(--text-secondary);
-  padding: 0 8px;
+  padding: 0 10px;
   text-align: left;
-  transition:
-    border-color 0.16s ease,
-    color 0.16s ease,
-    transform 0.16s ease,
-    box-shadow 0.16s ease;
+  transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .quick-tile::before {
@@ -1039,12 +1013,18 @@ watch(isExpanded, (val) => {
   width: 3px;
   content: '';
   background: var(--sidebar-accent);
-  opacity: 0.42;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+.quick-tile:hover::before,
+.quick-tile--active::before {
+  opacity: 0.82;
 }
 
 .quick-tile__icon {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
@@ -1054,8 +1034,8 @@ watch(isExpanded, (val) => {
 }
 
 .quick-tile__icon svg {
-  width: 14px !important;
-  height: 14px !important;
+  width: 13px !important;
+  height: 13px !important;
 }
 
 .quick-tile__copy {
@@ -1066,9 +1046,10 @@ watch(isExpanded, (val) => {
 
 .quick-tile:hover,
 .quick-tile--active {
-  border-color: color-mix(in srgb, var(--sidebar-accent) 55%, var(--border-base));
+  border-color: color-mix(in srgb, var(--sidebar-accent) 25%, transparent);
   color: var(--sidebar-accent);
-  box-shadow: 0 8px 18px -14px rgba(var(--sidebar-accent-rgb), 0.9);
+  background: color-mix(in srgb, var(--sidebar-accent) 8%, var(--bg-card));
+  box-shadow: 0 4px 12px -8px rgba(var(--sidebar-accent-rgb), 0.35);
   transform: translateY(-1px);
 }
 
@@ -1100,28 +1081,28 @@ watch(isExpanded, (val) => {
 }
 
 .panel-group + .panel-group {
-  margin-top: 4px;
-  padding-top: 4px;
-  border-top: 1px solid color-mix(in srgb, var(--border-base) 48%, transparent);
+  margin-top: 2px;
+  padding-top: 2px;
+  border-top: 1px solid color-mix(in srgb, var(--border-base) 24%, transparent);
 }
 
 .group-trigger {
   width: 100%;
-  height: 24px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   border: none;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 800;
   line-height: 1;
   text-align: left;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   padding: 0 4px;
 }
 
@@ -1149,22 +1130,24 @@ watch(isExpanded, (val) => {
 }
 
 .group-count {
-  min-width: 14px;
-  height: 14px;
-  display: grid;
-  place-items: center;
-  padding: 0 4px;
-  border-radius: 4px;
-  background: var(--bg-hover);
+  min-width: 12px;
+  height: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 10%, transparent);
   color: var(--text-muted);
-  font-size: 8.5px;
-  font-weight: 900;
+  font-size: 7.5px;
+  font-weight: 800;
   line-height: 1;
+  transition: all 0.22s ease;
 }
 
 .group-trigger:hover .group-count,
 .group-trigger--active .group-count {
-  background: color-mix(in srgb, var(--sidebar-accent) 8%, transparent);
+  background: color-mix(in srgb, var(--sidebar-accent) 12%, transparent);
   color: var(--sidebar-accent);
 }
 
@@ -1200,38 +1183,37 @@ watch(isExpanded, (val) => {
   opacity: 0.35;
 }
 
-
 .panel-list--resource-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 !important;
-  padding-left: 0;
-  border: 1px solid var(--border-base);
+  gap: 3px !important;
+  padding: 3px;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 4%, transparent);
   border-radius: 8px;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.015);
-  margin: 6px 4px 4px 4px;
+  background: color-mix(in srgb, var(--bg-card) 60%, transparent);
+  backdrop-filter: blur(8px);
+  margin: 3px 2px;
 }
 
 .panel-list--resource-grid::before {
   display: none;
 }
 
-/* All grid cells get a bottom border by default */
+/* Remove all cell borders for Bento look */
 .panel-list--resource-grid li {
-  border-bottom: 1px solid var(--border-base);
+  border-bottom: none !important;
+  border-right: none !important;
 }
 
 /* ==================== ODD ITEM COUNT LAYOUT ==================== */
 /* First child spans full width */
 .panel-list--resource-grid-odd li:first-child {
   grid-column: 1 / -1;
-  border-bottom: 1px solid var(--border-base);
+  border-bottom: none !important;
 }
 
 /* Centering styles for the first full-width header item in the grid */
-.panel-list--resource-grid-odd li:first-child 
-.panel-link {
+.panel-list--resource-grid-odd li:first-child .panel-link {
   position: relative;
   z-index: 2;
   min-width: 0;
@@ -1243,11 +1225,7 @@ watch(isExpanded, (val) => {
   border-radius: 6px;
   padding: 0 5px;
   color: var(--text-secondary);
-  transition:
-    border-color 0.16s ease,
-    background-color 0.16s ease,
-    color 0.16s ease,
-    box-shadow 0.16s ease;
+  transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .panel-link:hover:not(.panel-link--active) {
@@ -1264,17 +1242,17 @@ watch(isExpanded, (val) => {
   position: absolute;
   pointer-events: none;
   z-index: 1;
-  border-radius: 6px;
+  border-radius: 5px;
   background: color-mix(in srgb, var(--sidebar-accent) 10%, transparent);
   opacity: 0;
 }
 
 .active-indicator-bg--mounted {
   transition:
-    top 0.25s cubic-bezier(0.25, 1, 0.5, 1),
-    left 0.25s cubic-bezier(0.25, 1, 0.5, 1),
-    width 0.25s cubic-bezier(0.25, 1, 0.5, 1),
-    height 0.25s cubic-bezier(0.25, 1, 0.5, 1),
+    top 0.22s cubic-bezier(0.25, 1, 0.5, 1),
+    left 0.22s cubic-bezier(0.25, 1, 0.5, 1),
+    width 0.22s cubic-bezier(0.25, 1, 0.5, 1),
+    height 0.22s cubic-bezier(0.25, 1, 0.5, 1),
     opacity 0.18s ease;
 }
 
@@ -1284,8 +1262,10 @@ watch(isExpanded, (val) => {
 
 .active-indicator-bg--resource {
   opacity: 1 !important;
-  border-radius: 6px;
+  border-radius: 5px !important;
   background: color-mix(in srgb, var(--sidebar-accent) 9%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--sidebar-accent) 22%, transparent);
+  box-shadow: 0 3px 8px -6px rgba(var(--sidebar-accent-rgb), 0.3);
 }
 
 .active-indicator-bg--resource::before {
@@ -1333,7 +1313,6 @@ watch(isExpanded, (val) => {
   white-space: nowrap;
 }
 
-
 .panel-link--resource {
   justify-content: center;
 }
@@ -1341,26 +1320,13 @@ watch(isExpanded, (val) => {
   flex: 0 0 auto;
 }
 
-/* Left column items are even indices: 2, 4, 6... */
-.panel-list--resource-grid-odd li:nth-child(2n) {
-  border-right: 1px solid var(--border-base);
-}
-
-/* Remove bottom borders from last row (1 or 2 items) */
-.panel-list--resource-grid-odd li:last-child {
-  border-bottom: none !important;
-}
-.panel-list--resource-grid-odd li:nth-child(2n):nth-last-child(2) {
-  border-bottom: none !important;
-}
-
 /* ==================== EVEN ITEM COUNT LAYOUT ==================== */
 /* Left column items are odd indices: 1, 3, 5... */
 .panel-list--resource-grid-even li:nth-child(2n-1) {
-  border-right: 1px solid var(--border-base);
+  border-right: none !important;
 }
 
-/* Remove bottom borders from last row (always exactly 2 items) */
+/* Remove bottom borders from last row */
 .panel-list--resource-grid-even li:last-child,
 .panel-list--resource-grid-even li:nth-last-child(2) {
   border-bottom: none !important;
@@ -1369,19 +1335,24 @@ watch(isExpanded, (val) => {
 .panel-link--resource {
   position: relative;
   isolation: isolate;
-  height: 30px;
+  height: 26px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   overflow: hidden;
-  border: none !important;
-  border-radius: 0 !important;
-  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 5px !important;
+  background: color-mix(in srgb, var(--text-primary) 2%, transparent) !important;
   color: var(--text-secondary);
-  padding: 0 8px;
-  transition:
-    background-color 0.16s ease,
-    color 0.16s ease;
+  padding: 0 5px;
+  transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Style first child of odd layout as header bento card */
+.panel-list--resource-grid-odd li:first-child .panel-link--resource {
+  height: 30px;
+  background: color-mix(in srgb, var(--sidebar-accent) 4%, color-mix(in srgb, var(--text-primary) 2.5%, transparent)) !important;
+  border-color: color-mix(in srgb, var(--sidebar-accent) 8%, transparent) !important;
 }
 
 .panel-link--resource::before {
@@ -1404,8 +1375,8 @@ watch(isExpanded, (val) => {
 }
 
 .panel-link--resource .panel-link-icon {
-  width: 11px !important;
-  height: 11px !important;
+  width: 13px !important;
+  height: 13px !important;
   color: currentColor;
 }
 
@@ -1419,7 +1390,9 @@ watch(isExpanded, (val) => {
 
 .panel-link--resource:hover {
   color: var(--text-primary);
-  background: color-mix(in srgb, var(--sidebar-accent) 6%, transparent) !important;
+  background: color-mix(in srgb, var(--sidebar-accent) 7%, transparent) !important;
+  border-color: color-mix(in srgb, var(--sidebar-accent) 18%, transparent) !important;
+  transform: translateY(-0.5px);
 }
 
 .panel-link--resource:hover .panel-link-icon-wrap {
@@ -1432,7 +1405,7 @@ watch(isExpanded, (val) => {
 }
 
 .panel-link--resource.panel-link--active {
-  color: var(--sidebar-accent);
+  color: var(--sidebar-accent) !important;
   background: transparent !important;
 }
 
@@ -1443,7 +1416,7 @@ watch(isExpanded, (val) => {
 .panel-link--resource.panel-link--active .panel-link-icon-wrap {
   color: #ffffff !important;
   background: var(--sidebar-accent) !important;
-  box-shadow: 0 5px 10px -7px rgba(var(--sidebar-accent-rgb), 0.8) !important;
+  box-shadow: 0 4px 10px -6px rgba(var(--sidebar-accent-rgb), 0.8) !important;
 }
 
 .panel-link--resource.panel-link--active .panel-link-label {
@@ -1617,7 +1590,9 @@ watch(isExpanded, (val) => {
   width: 6px;
   cursor: col-resize;
   z-index: 50;
-  transition: background-color 0.2s ease, opacity 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .sidebar-resize-handle:hover,
@@ -1625,7 +1600,4 @@ watch(isExpanded, (val) => {
   background-color: var(--sidebar-accent, var(--accent));
   opacity: 0.35;
 }
-
-
-
 </style>

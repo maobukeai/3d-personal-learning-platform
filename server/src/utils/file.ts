@@ -64,32 +64,6 @@ export function urlToPath(url: string | null | undefined): string | null {
 }
 
 /**
- * Safely deletes a file if it exists.
- */
-export function deleteFile(filePath: string | null): boolean {
-  if (!filePath) return false;
-
-  try {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      return true;
-    }
-  } catch (error) {
-    logger.error(`[FileUtil] Failed to delete file at ${filePath}:`, error);
-  }
-  return false;
-}
-
-/**
- * Safely deletes a file from its URL.
- * @deprecated Use `deleteCloudOrLocalFileByUrl` instead. This function only supports local files.
- */
-export function deleteFileByUrl(url: string | null | undefined): boolean {
-  const filePath = urlToPath(url);
-  return deleteFile(filePath);
-}
-
-/**
  * Safely deletes a file from its URL, supporting both local files and R2 cloud files.
  * If R2 is used, it also retrieves the file metadata to decrement usedBytes atomically.
  */
@@ -168,12 +142,20 @@ export async function deleteCloudOrLocalFileByUrl(
       }
     }
 
-    // Fallback: Delete from local disk
+    // Fallback: Delete from local disk (use async fs.promises to avoid blocking the event loop).
     const filePath = urlToPath(url);
-    if (filePath && fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      logger.info(`[FileUtil] Deleted local file: ${filePath}`);
-      return true;
+    if (filePath) {
+      try {
+        await fs.promises.unlink(filePath);
+        logger.info(`[FileUtil] Deleted local file: ${filePath}`);
+        return true;
+      } catch (err: unknown) {
+        const code = (err as NodeJS.ErrnoException)?.code;
+        // ENOENT means the file is already gone — not an error.
+        if (code !== 'ENOENT') {
+          logger.error(`[FileUtil] Failed to delete local file at ${filePath}:`, err);
+        }
+      }
     }
   } catch (err) {
     logger.error(`[FileUtil] Error in deleteCloudOrLocalFileByUrl for url ${url}:`, err);
@@ -198,7 +180,7 @@ const decodeEntryPath = (file: any): string => {
     try {
       // Decode using GBK for legacy Chinese ZIP files created on Windows
       return iconv.decode(pathBuffer, 'gbk');
-    } catch (err) {
+    } catch {
       // Fallback
     }
   }
@@ -210,17 +192,15 @@ const decodeEntryPath = (file: any): string => {
  */
 export const parseZipLocal = async (localFilePath: string): Promise<string[]> => {
   try {
-    if (fs.existsSync(localFilePath)) {
-      const directory = await unzipper.Open.file(localFilePath);
-      return directory.files
-        .map((file) => decodeEntryPath(file))
-        .filter((filePath) => {
-          const name = filePath.toLowerCase();
-          return (
-            !name.includes('__macosx') && !name.includes('.ds_store') && !filePath.endsWith('/')
-          );
-        });
-    }
+    // unzipper.Open.file throws ENOENT if the file is missing — no need for
+    // a prior fs.existsSync (which is a sync call that blocks the event loop).
+    const directory = await unzipper.Open.file(localFilePath);
+    return directory.files
+      .map((file) => decodeEntryPath(file))
+      .filter((filePath) => {
+        const name = filePath.toLowerCase();
+        return !name.includes('__macosx') && !name.includes('.ds_store') && !filePath.endsWith('/');
+      });
   } catch (error) {
     logger.error(`[FileUtil] Failed to parse local ZIP package at ${localFilePath}:`, error);
   }
@@ -241,8 +221,13 @@ export const getZipFileDirectory = async (
       const relativePart = packageUrl.split('/uploads/').pop();
       if (relativePart) {
         const localPath = path.join(process.cwd(), 'uploads', relativePart);
-        if (fs.existsSync(localPath)) {
+        // unzipper.Open.file throws if the file is missing — catch and treat
+        // as "not found" rather than calling fs.existsSync synchronously.
+        try {
           return await unzipper.Open.file(localPath);
+        } catch (openErr) {
+          const code = (openErr as NodeJS.ErrnoException)?.code;
+          if (code !== 'ENOENT') throw openErr;
         }
       }
     }
@@ -301,8 +286,10 @@ export const getZipFileNames = async (packageUrl: string | null): Promise<string
       return files;
     }
   } catch (error) {
-    logger.error(`[FileUtil] Failed to read ZIP file names from package URL: ${packageUrl}:`, error);
+    logger.error(
+      `[FileUtil] Failed to read ZIP file names from package URL: ${packageUrl}:`,
+      error,
+    );
   }
   return [];
 };
-

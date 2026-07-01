@@ -11,6 +11,14 @@ import { pipeline } from 'stream/promises';
 import * as cheerio from 'cheerio';
 import { storageService } from '../../services/storage.service';
 
+const safeUnlink = (p: string) =>
+  fs.promises.unlink(p).catch((err) => {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    if (code !== 'ENOENT') {
+      logger.warn(`[safeUnlink] Failed to unlink ${p}:`, err);
+    }
+  });
+
 const MAX_REDIRECTS = 3;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
@@ -142,15 +150,18 @@ class ThumbnailLocalizer {
       const hash = crypto.createHash('md5').update(originalUrl).digest('hex').slice(0, 12);
       const sourceDir = path.join(this.baseDir, sourceId);
 
-      if (!fs.existsSync(sourceDir)) {
-        fs.mkdirSync(sourceDir, { recursive: true });
-      }
+      await fs.promises.mkdir(sourceDir, { recursive: true });
 
       const fileName = `${hash}${ext}`;
       const filePath = path.join(sourceDir, fileName);
       const localUrl = `${this.baseUrl}/${sourceId}/${fileName}`;
 
-      if (fs.existsSync(filePath)) {
+      if (
+        await fs.promises
+          .access(filePath)
+          .then(() => true)
+          .catch(() => false)
+      ) {
         // Check active configurations: prioritize MIRROR, then ALL fallback
         let configs = await prisma.storageConfig.findMany({
           where: {
@@ -171,7 +182,7 @@ class ThumbnailLocalizer {
         }
 
         if (configs.length > 0) {
-          const stats = fs.statSync(filePath);
+          const stats = await fs.promises.stat(filePath);
           const fileBytes = stats.size;
 
           for (const config of configs) {
@@ -209,7 +220,7 @@ class ThumbnailLocalizer {
                   mimetype,
                 );
 
-                fs.unlinkSync(filePath);
+                await fs.promises.unlink(filePath);
                 return r2Url;
               } catch (err) {
                 logger.error(
@@ -295,7 +306,7 @@ class ThumbnailLocalizer {
           );
           return originalUrl;
         }
-        fs.writeFileSync(filePath, buffer);
+        await fs.promises.writeFile(filePath, buffer);
       }
 
       // Check active configurations: prioritize MIRROR, then ALL fallback
@@ -318,7 +329,7 @@ class ThumbnailLocalizer {
       }
 
       if (configs.length > 0) {
-        const stats = fs.statSync(filePath);
+        const stats = await fs.promises.stat(filePath);
         const fileBytes = stats.size;
 
         for (const config of configs) {
@@ -356,9 +367,7 @@ class ThumbnailLocalizer {
                 mimetype,
               );
 
-              if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-              }
+              await safeUnlink(filePath);
               return r2Url;
             } catch (err) {
               logger.error(
@@ -481,7 +490,12 @@ class ThumbnailLocalizer {
   ): Promise<{ deletedCount: number; savedBytes: number }> {
     try {
       const sourceDir = path.join(this.baseDir, sourceId);
-      if (!fs.existsSync(sourceDir)) {
+      if (
+        !(await fs.promises
+          .access(sourceDir)
+          .then(() => true)
+          .catch(() => false))
+      ) {
         return { deletedCount: 0, savedBytes: 0 };
       }
 
@@ -512,16 +526,17 @@ class ThumbnailLocalizer {
       }
 
       // 3. Scan directory and delete orphaned files
-      const filenames = fs.readdirSync(sourceDir);
+      const filenames = await fs.promises.readdir(sourceDir);
       let deletedCount = 0;
       let savedBytes = 0;
 
       for (const filename of filenames) {
         const filePath = path.join(sourceDir, filename);
-        if (fs.statSync(filePath).isFile()) {
+        const stats = await fs.promises.stat(filePath);
+        if (stats.isFile()) {
           if (!referencedFiles.has(filename)) {
-            const size = fs.statSync(filePath).size;
-            fs.unlinkSync(filePath);
+            const size = stats.size;
+            await fs.promises.unlink(filePath);
             deletedCount++;
             savedBytes += size;
           }

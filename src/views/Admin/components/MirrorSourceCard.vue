@@ -20,7 +20,7 @@ import {
 } from 'lucide-vue-next';
 import type { MirrorSource, SyncProgress } from '../AdminMirrorView.vue';
 
-const props = defineProps<{
+defineProps<{
   source: MirrorSource;
   progress?: SyncProgress | undefined;
   expanded: boolean;

@@ -212,7 +212,9 @@ const handleSave = async () => {
       <div class="flex flex-col gap-4">
         <!-- Model Selection -->
         <div v-if="imageModels.length > 0" class="flex flex-col gap-1.5 text-left">
-          <label class="text-xs font-bold text-[var(--text-secondary)] ml-1">选择生图 AI 模型</label>
+          <label class="text-xs font-bold text-[var(--text-secondary)] ml-1"
+            >选择生图 AI 模型</label
+          >
           <el-select
             v-model="selectedModelId"
             class="w-full custom-dialog-input"

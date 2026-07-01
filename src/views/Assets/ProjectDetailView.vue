@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, onUnmounted } from 'vue';
+import { ref, onMounted, computed, watch, onUnmounted, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   Plus,
@@ -22,18 +22,26 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { getApiErrorMessage, logError } from '@/utils/error';
-import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import api, { getAssetUrl } from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import type { Project, ProjectMember, Task, User, Roadmap, RoadmapStep, Course } from '@/types';
 
-// Subcomponents
+// Always-visible layout component — keep eager
 import ProjectSidebar from './components/ProjectSidebar.vue';
-import InviteMembersDialog from '@/components/InviteMembersDialog.vue';
-import TaskAddDrawer from './components/TaskAddDrawer.vue';
-import TaskEditDrawer from './components/TaskEditDrawer.vue';
-import KanbanBoard from './components/KanbanBoard.vue';
-import CollaborationSpace from './components/CollaborationSpace.vue';
+
+// Conditionally shown dialogs/drawers — lazy loaded to reduce initial chunk
+const UserProfileDialog = defineAsyncComponent(() => import('@/components/UserProfileDialog.vue'));
+const InviteMembersDialog = defineAsyncComponent(() => import('@/components/InviteMembersDialog.vue'));
+const TaskAddDrawer = defineAsyncComponent(() => import('./components/TaskAddDrawer.vue'));
+const TaskEditDrawer = defineAsyncComponent(() => import('./components/TaskEditDrawer.vue'));
+
+// Tab-based content — only one active at a time, lazy-load each independently
+const KanbanBoard = defineAsyncComponent(() => import('./components/KanbanBoard.vue'));
+const CollaborationSpace = defineAsyncComponent(() => import('./components/CollaborationSpace.vue'));
+
+// Type-only imports for component ref typing (erased at runtime, safe alongside defineAsyncComponent)
+import type TaskAddDrawerType from './components/TaskAddDrawer.vue';
+import type TaskEditDrawerType from './components/TaskEditDrawer.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -51,8 +59,8 @@ const selectedUserId = ref<string | null>(null);
 const isInviteDialogOpen = ref(false);
 const teamMembersForInvite = ref<User[]>([]);
 const isInviteLoading = ref(false);
-const taskAddDrawerRef = ref<InstanceType<typeof TaskAddDrawer> | null>(null);
-const taskEditDrawerRef = ref<InstanceType<typeof TaskEditDrawer> | null>(null);
+const taskAddDrawerRef = ref<InstanceType<typeof TaskAddDrawerType> | null>(null);
+const taskEditDrawerRef = ref<InstanceType<typeof TaskEditDrawerType> | null>(null);
 
 const openUserProfile = (userId: string) => {
   selectedUserId.value = userId;

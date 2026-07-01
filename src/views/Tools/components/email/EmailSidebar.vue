@@ -32,7 +32,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const emit = defineEmits<{
+defineEmits<{
   (e: 'refresh'): void;
   (e: 'openImport'): void;
   (e: 'openAdd'): void;

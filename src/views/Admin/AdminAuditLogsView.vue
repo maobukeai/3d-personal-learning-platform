@@ -1320,13 +1320,8 @@ button:disabled {
 }
 
 .spinning {
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  /* @keyframes spin provided globally; only duration differs from the 1s default */
+  animation-duration: 0.9s;
 }
 
 @media (max-width: 1280px) {

@@ -34,7 +34,7 @@ interface NormalizedMaterial {
   createdAt?: string;
 }
 
-const props = defineProps<{
+defineProps<{
   isLoading: boolean;
   viewMode: ViewMode;
   materials: NormalizedMaterial[];

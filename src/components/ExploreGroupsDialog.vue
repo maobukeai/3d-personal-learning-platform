@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { Search, Users, ArrowRight, Loader2 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import GroupDetailDialog from '@/components/GroupDetailDialog.vue';
@@ -50,12 +50,31 @@ watch(
   },
 );
 
-watch(searchQuery, () => {
+// Debounce search input so we don't fire an API request on every keystroke
+// (mirrors the 300ms pattern used in GlobalSearchDialog).
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+const debouncedFetchPublicTeams = () => {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    searchDebounceTimer = null;
+    fetchPublicTeams();
+  }, 300);
+};
+
+watch(searchQuery, debouncedFetchPublicTeams);
+
+watch(selectedCategory, () => {
+  // Category changes are an explicit user action — fire immediately, but
+  // cancel any pending debounced search so we don't double-fetch.
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = null;
+  }
   fetchPublicTeams();
 });
 
-watch(selectedCategory, () => {
-  fetchPublicTeams();
+onUnmounted(() => {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
 });
 
 const handleJoinGroup = (groupName: string) => {

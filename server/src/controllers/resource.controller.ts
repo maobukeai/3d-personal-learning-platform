@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 import type { AuthRequest } from '../middlewares/auth.middleware';
 import prisma from '../services/prisma';
 import { parseTags } from '../utils/tags';
+import redisService from '../services/redis.service';
 
 type ResourceKind = 'asset' | 'material' | 'plugin' | 'showcase';
 type ResourceStatus = 'APPROVED' | 'PENDING' | 'REJECTED';
@@ -259,32 +260,60 @@ const getReviewAgeHours = (createdAt: Date | string, status: string) => {
 
 // ── Narrow input shapes for normalise helpers ────────────────────────────────
 type AssetRow = {
-  id: string; title: string; type?: string | null; status: string;
-  thumbnail?: string | null; tags?: string | null; rejectReason?: string | null;
-  createdAt: Date | string; updatedAt?: Date | string;
-  downloads?: number | null; viewCount?: number | null;
+  id: string;
+  title: string;
+  type?: string | null;
+  status: string;
+  thumbnail?: string | null;
+  tags?: string | null;
+  rejectReason?: string | null;
+  createdAt: Date | string;
+  updatedAt?: Date | string;
+  downloads?: number | null;
+  viewCount?: number | null;
   category?: { name?: string | null } | null;
   user?: { name?: string | null; email?: string | null } | null;
 };
 type MaterialRow = {
-  id: string; title: string; category?: string | null; resolution?: string | null;
-  status: string; previewUrl?: string | null; tags?: string | null;
-  rejectReason?: string | null; createdAt: Date | string; updatedAt: Date | string;
-  fileSize?: number | null; isProcedural?: boolean | null; downloads?: number | null;
+  id: string;
+  title: string;
+  category?: string | null;
+  resolution?: string | null;
+  status: string;
+  previewUrl?: string | null;
+  tags?: string | null;
+  rejectReason?: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  fileSize?: number | null;
+  isProcedural?: boolean | null;
+  downloads?: number | null;
   _count?: { favorites?: number } | null;
   user?: { name?: string | null; email?: string | null } | null;
 };
 type PluginRow = {
-  id: string; title: string; category?: string | null; version?: string | null;
-  status: string; previewUrl?: string | null; tags?: string | null;
-  rejectReason?: string | null; createdAt: Date | string; updatedAt: Date | string;
+  id: string;
+  title: string;
+  category?: string | null;
+  version?: string | null;
+  status: string;
+  previewUrl?: string | null;
+  tags?: string | null;
+  rejectReason?: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
   downloads?: number;
   user?: { name?: string | null; email?: string | null } | null;
 };
 type ShowcaseRow = {
-  id: string; title: string; type?: string | null; status: string;
-  thumbnailUrl?: string | null; tags?: string | null;
-  createdAt: Date | string; updatedAt: Date | string;
+  id: string;
+  title: string;
+  type?: string | null;
+  status: string;
+  thumbnailUrl?: string | null;
+  tags?: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
   views?: number;
   _count?: { likes?: number; comments?: number } | null;
   user?: { name?: string | null; email?: string | null } | null;
@@ -412,6 +441,15 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
     const userId = req.userId as string;
     const teamFilter = getTeamFilter(req.workspaceId);
     const isAdminScope = isAdminResourceScope(req);
+
+    // Cache lookup: unique to user, workspace, and admin status
+    const cacheKey = `resource:overview:${userId}:${req.workspaceId || 'none'}:${isAdminScope}`;
+    const cached = await redisService.get<any>(cacheKey);
+    if (cached) {
+      res.json(cached);
+      return;
+    }
+
     const sinceWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const assetOwnershipWhere = isAdminScope ? {} : { userId, ...teamFilter };
     const materialOwnershipWhere = isAdminScope ? {} : { userId, ...teamFilter };
@@ -784,7 +822,7 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
           ? 'watch'
           : 'none';
 
-    res.json({
+    const result = {
       scope: isAdminScope ? 'admin' : 'workspace',
       summary: {
         totalPublic: sumNumbers(assetTotal, materialTotal, pluginTotal, showcaseTotal),
@@ -843,7 +881,12 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
       topItems,
       reviewQueue,
       generatedAt: new Date().toISOString(),
-    });
+    };
+
+    // Cache the overview payload for 15 seconds
+    await redisService.set(cacheKey, result, 15);
+
+    res.json(result);
   } catch (error) {
     next(error);
   }
@@ -1128,4 +1171,3 @@ export const searchExternal = async (req: AuthRequest, res: Response, next: Next
     next(error);
   }
 };
-

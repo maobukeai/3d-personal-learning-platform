@@ -144,11 +144,27 @@ export const ASSET_ORIGINALITY_OPTIONS = [
 
 export const ASSET_LICENSE_OPTIONS = [
   { value: 'CC_BY', label_zh: 'CC BY (署名)', label_en: 'CC BY (Attribution)' },
-  { value: 'CC_BY_NC', label_zh: 'CC BY-NC (署名-非商业性使用)', label_en: 'CC BY-NC (Non-Commercial)' },
-  { value: 'CC_BY_ND', label_zh: 'CC BY-ND (署名-禁止演绎)', label_en: 'CC BY-ND (No Derivatives)' },
-  { value: 'CC_BY_NC_ND', label_zh: 'CC BY-NC-ND (署名-非商业使用-禁止演绎)', label_en: 'CC BY-NC-ND (NC-ND)' },
+  {
+    value: 'CC_BY_NC',
+    label_zh: 'CC BY-NC (署名-非商业性使用)',
+    label_en: 'CC BY-NC (Non-Commercial)',
+  },
+  {
+    value: 'CC_BY_ND',
+    label_zh: 'CC BY-ND (署名-禁止演绎)',
+    label_en: 'CC BY-ND (No Derivatives)',
+  },
+  {
+    value: 'CC_BY_NC_ND',
+    label_zh: 'CC BY-NC-ND (署名-非商业使用-禁止演绎)',
+    label_en: 'CC BY-NC-ND (NC-ND)',
+  },
   { value: 'PROPRIETARY', label_zh: '专有商业授权/保护', label_en: 'Proprietary Commercial' },
-  { value: 'PUBLIC_DOMAIN', label_zh: '公有领域 (CC0 / 放弃版权)', label_en: 'Public Domain (CC0)' },
+  {
+    value: 'PUBLIC_DOMAIN',
+    label_zh: '公有领域 (CC0 / 放弃版权)',
+    label_en: 'Public Domain (CC0)',
+  },
 ] as const;
 
 export const ASSET_MESHTYPE_OPTIONS = [

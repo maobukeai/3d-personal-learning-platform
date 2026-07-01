@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { formatCompactNumber as formatNumber } from '@/utils/format';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   Clock,
@@ -19,12 +18,15 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
 import { useAuthStore } from '@/stores/auth';
-import DiscussionDetail from './components/DiscussionDetail.vue';
 import DiscussionHeader from './components/DiscussionHeader.vue';
 import DiscussionFilterBar from './components/DiscussionFilterBar.vue';
 import DiscussionListPanel from './components/DiscussionListPanel.vue';
 import DiscussionSidebar from './components/DiscussionSidebar.vue';
-import DiscussionCreateModal from './components/DiscussionCreateModal.vue';
+
+const DiscussionDetail = defineAsyncComponent(() => import('./components/DiscussionDetail.vue'));
+const DiscussionCreateModal = defineAsyncComponent(
+  () => import('./components/DiscussionCreateModal.vue'),
+);
 import { parseTags } from '@/utils/tags';
 
 const authStore = useAuthStore();
@@ -242,7 +244,6 @@ const topContributors = computed<ContributorInsight[]>(() => {
 });
 
 const recentComments = computed(() => insights.value?.recentComments?.slice(0, 5) || []);
-
 
 const selectedSortLabel = computed(() => {
   return sortOptions.value.find((item) => item.value === sortBy.value)?.label || '';
@@ -604,6 +605,7 @@ onBeforeUnmount(() => {
     </Transition>
 
     <DiscussionCreateModal
+      v-if="showCreateModal"
       v-model:show="showCreateModal"
       v-model:title="postForm.title"
       v-model:content="postForm.content"

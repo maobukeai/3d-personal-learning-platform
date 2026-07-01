@@ -25,10 +25,6 @@ const emit = defineEmits<{
 }>();
 
 const label = useLabel();
-
-const onSortChange = (event: Event) => {
-  emit('update:sortBy', (event.target as HTMLSelectElement).value as SortMode);
-};
 </script>
 
 <template>
@@ -46,7 +42,12 @@ const onSortChange = (event: Event) => {
       <button type="button" class="icon-button mobile-filter" @click="emit('toggleFilter')">
         <SlidersHorizontal class="icon-sm" />
       </button>
-      <el-select :model-value="sortBy" class="!w-28 custom-select" aria-label="排序方式" @change="(v: SortMode) => emit('update:sortBy', v)">
+      <el-select
+        :model-value="sortBy"
+        class="!w-28 custom-select"
+        aria-label="排序方式"
+        @change="(v: SortMode) => emit('update:sortBy', v)"
+      >
         <el-option value="latest" :label="label('最新', 'Newest')" />
         <el-option value="popular" :label="label('下载', 'Downloads')" />
         <el-option value="favorited" :label="label('收藏', 'Favorites')" />

@@ -502,7 +502,8 @@ export const toolsEn = {
     pin: 'Pin to top',
     unpin: 'Unpin',
     copied: 'Copied',
-    deleteConfirm: 'Are you sure you want to delete the 2FA record "{label}"? This action cannot be undone!',
+    deleteConfirm:
+      'Are you sure you want to delete the 2FA record "{label}"? This action cannot be undone!',
     deleteConfirmTitle: 'Delete Confirmation',
     confirmDelete: 'Confirm Delete',
     deleteSuccess: 'Deleted successfully',

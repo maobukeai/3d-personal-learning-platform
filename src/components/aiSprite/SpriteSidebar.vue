@@ -82,7 +82,7 @@ const emit = defineEmits<{
         placeholder="搜索历史会话"
         :icon="Search"
         clearable
-        @update:model-value="val => emit('update:historySearch', val)"
+        @update:model-value="(val) => emit('update:historySearch', val)"
       />
     </div>
 
@@ -191,4 +191,3 @@ const emit = defineEmits<{
   overflow: hidden;
 }
 </style>
-

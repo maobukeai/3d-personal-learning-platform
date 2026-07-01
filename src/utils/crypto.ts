@@ -1,5 +1,5 @@
 /**
- * Crypto helper functions for string encryption/decryption
+ * Crypto helper functions for string decryption (used by mirror source credentials)
  */
 
 function rc4(key: string, str: string): string {
@@ -26,15 +26,6 @@ function rc4(key: string, str: string): string {
     res += String.fromCharCode(str.charCodeAt(y) ^ val);
   }
   return res;
-}
-
-export function encryptText(text: string, key: string): string {
-  const encrypted = rc4(key, text);
-  let hex = '';
-  for (let i = 0; i < encrypted.length; i++) {
-    hex += encrypted.charCodeAt(i).toString(16).padStart(2, '0');
-  }
-  return hex;
 }
 
 export function decryptText(hex: string, key: string): string {

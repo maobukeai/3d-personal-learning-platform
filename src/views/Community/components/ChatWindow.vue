@@ -156,7 +156,7 @@ const handleDownloadFile = async (contentUrl: string, fileSizeMb?: number) => {
   downloadAbortController = new AbortController();
 
   try {
-    const totalSizeOverrideBytes = fileSizeMb ? (fileSizeMb * 1024 * 1024) : undefined;
+    const totalSizeOverrideBytes = fileSizeMb ? fileSizeMb * 1024 * 1024 : undefined;
     await downloadFileMultiThreaded(
       resolvedUrl,
       filename,
@@ -167,7 +167,7 @@ const handleDownloadFile = async (contentUrl: string, fileSizeMb?: number) => {
         downloadSpeedStr.value = speed;
       },
       downloadAbortController.signal,
-      totalSizeOverrideBytes
+      totalSizeOverrideBytes,
     );
   } catch (err: unknown) {
     if (isCancelError(err)) {
@@ -1166,7 +1166,7 @@ defineExpose({
 
               <!-- Reactions Display -->
               <div
-                v-if="msg.reactions && getGroupedReactions(msg.reactions).length > 0"
+                v-if="msg.reactions && msg.reactions.length > 0"
                 class="flex flex-wrap gap-1 mt-1"
               >
                 <button

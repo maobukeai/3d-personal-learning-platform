@@ -4,7 +4,6 @@ import { logError } from '@/utils/error';
 import { UploadCloud, Film, X, Plus, Sparkles } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
-import { useMobile } from '@/composables/useMobile';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 
@@ -22,7 +21,6 @@ const emit = defineEmits<{
 }>();
 
 const isPublishing = ref(false);
-const { isMobile } = useMobile();
 
 // Form states
 const title = ref('');
@@ -56,15 +54,15 @@ const fetchUserResources = async () => {
       api.get('/api/materials/my'),
       api.get('/api/plugins/my'),
     ]);
-    
+
     myApprovedAssets.value = (assetsRes.data || []).filter(
-      (item: any) => item.status === 'APPROVED'
+      (item: any) => item.status === 'APPROVED',
     );
     myApprovedMaterials.value = (materialsRes.data || []).filter(
-      (item: any) => item.status === 'APPROVED'
+      (item: any) => item.status === 'APPROVED',
     );
     myApprovedPlugins.value = (pluginsRes.data || []).filter(
-      (item: any) => item.status === 'APPROVED'
+      (item: any) => item.status === 'APPROVED',
     );
   } catch (error) {
     logError(error, { operation: 'Failed to fetch user approved resources' });
@@ -78,20 +76,20 @@ const initDialog = () => {
   tags.value = '';
   videoUrl.value = '';
   isVideo.value = false;
-  
+
   coverFile.value = null;
   if (coverPreviewUrl.value) {
     URL.revokeObjectURL(coverPreviewUrl.value);
     coverPreviewUrl.value = '';
   }
   galleryFiles.value = [];
-  galleryPreviews.value.forEach(url => URL.revokeObjectURL(url));
+  galleryPreviews.value.forEach((url) => URL.revokeObjectURL(url));
   galleryPreviews.value = [];
-  
+
   selectedAssetIds.value = [];
   selectedMaterialIds.value = [];
   selectedPluginIds.value = [];
-  
+
   fetchUserResources();
 };
 
@@ -101,7 +99,7 @@ watch(
     if (val) {
       initDialog();
     }
-  }
+  },
 );
 
 // Cover Image Handlers
@@ -123,7 +121,7 @@ const removeCover = () => {
 // Gallery Images Handlers
 const handleGalleryChange = (e: Event) => {
   const files = Array.from((e.target as HTMLInputElement).files || []);
-  files.forEach(file => {
+  files.forEach((file) => {
     galleryFiles.value.push(file);
     galleryPreviews.value.push(URL.createObjectURL(file));
   });
@@ -140,7 +138,7 @@ const cleanupPreviews = () => {
     URL.revokeObjectURL(coverPreviewUrl.value);
     coverPreviewUrl.value = '';
   }
-  galleryPreviews.value.forEach(url => URL.revokeObjectURL(url));
+  galleryPreviews.value.forEach((url) => URL.revokeObjectURL(url));
   galleryPreviews.value = [];
 };
 
@@ -158,7 +156,7 @@ const isVideoFile = (file: File) => {
 };
 
 const hasVideoFile = computed(() => {
-  return galleryFiles.value.some(file => isVideoFile(file));
+  return galleryFiles.value.some((file) => isVideoFile(file));
 });
 
 const handlePublish = async () => {
@@ -166,12 +164,12 @@ const handlePublish = async () => {
     ElMessage.warning('作品标题不能为空');
     return;
   }
-  
+
   if (!coverFile.value) {
     ElMessage.warning('封面缩略图是必填项');
     return;
   }
-  
+
   isPublishing.value = true;
   try {
     const formData = new FormData();
@@ -180,24 +178,27 @@ const handlePublish = async () => {
     formData.append('tags', tags.value);
     formData.append('type', type.value);
     formData.append('videoUrl', videoUrl.value);
-    formData.append('isVideo', String(isVideo.value || hasVideoFile.value || type.value === 'VIDEO'));
-    
+    formData.append(
+      'isVideo',
+      String(isVideo.value || hasVideoFile.value || type.value === 'VIDEO'),
+    );
+
     if (coverFile.value) {
       formData.append('thumbnail', coverFile.value);
     }
-    
-    galleryFiles.value.forEach(file => {
+
+    galleryFiles.value.forEach((file) => {
       formData.append('images', file);
     });
-    
+
     formData.append('linkedAssetIds', JSON.stringify(selectedAssetIds.value));
     formData.append('linkedMaterialIds', JSON.stringify(selectedMaterialIds.value));
     formData.append('linkedPluginIds', JSON.stringify(selectedPluginIds.value));
-    
+
     await api.post('/api/showcase', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    
+
     ElMessage.success('创意作品发布成功！将在管理员审核通过后公开展示');
     emit('published');
     closeDialog();
@@ -228,7 +229,6 @@ const handlePublish = async () => {
     <div class="space-y-4 max-h-[76vh] overflow-y-auto px-1 pr-2 pb-4 scrollbar-hide">
       <!-- Three-column layout grid -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-        
         <!-- Left Column: Basics & Resource Linking (4 cols) -->
         <div class="lg:col-span-4 space-y-3 flex flex-col justify-between">
           <div>
@@ -243,7 +243,9 @@ const handlePublish = async () => {
 
           <!-- Showcase Type Selector -->
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+            >
               作品类型 *
             </label>
             <el-select v-model="type" class="w-full custom-select-v2" placeholder="选择类型">
@@ -267,7 +269,9 @@ const handlePublish = async () => {
 
           <!-- Cover Upload -->
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+            <label
+              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+            >
               封面缩略图 *
             </label>
             <div
@@ -311,13 +315,17 @@ const handlePublish = async () => {
 
           <!-- Stacked Resource Selectors -->
           <div class="space-y-2.5 pt-2 border-t border-slate-200/50 dark:border-slate-800/50">
-            <h4 class="text-[10px] font-black uppercase tracking-wider text-indigo-500 flex items-center gap-1">
+            <h4
+              class="text-[10px] font-black uppercase tracking-wider text-indigo-500 flex items-center gap-1"
+            >
               <Sparkles class="w-3 h-3 text-indigo-500 animate-spin-slow" />
               关联我发布的 APPROVED 素材
             </h4>
 
             <div>
-              <label class="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-0.5">
+              <label
+                class="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-0.5"
+              >
                 嵌入关联的 3D 作品
               </label>
               <el-select
@@ -339,7 +347,9 @@ const handlePublish = async () => {
             </div>
 
             <div>
-              <label class="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-0.5">
+              <label
+                class="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-0.5"
+              >
                 嵌入关联的材质作品
               </label>
               <el-select
@@ -361,7 +371,9 @@ const handlePublish = async () => {
             </div>
 
             <div>
-              <label class="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-0.5">
+              <label
+                class="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-0.5"
+              >
                 嵌入关联的插件作品
               </label>
               <el-select
@@ -389,7 +401,7 @@ const handlePublish = async () => {
           <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
             展示图集 (支持图片/视频)
           </label>
-          
+
           <!-- Dropzone -->
           <div class="relative group h-16">
             <input
@@ -409,8 +421,13 @@ const handlePublish = async () => {
           </div>
 
           <!-- Thumbnail previews list (scrollable if many) -->
-          <div class="flex-1 overflow-y-auto max-h-[260px] border border-slate-200/50 dark:border-slate-800/50 rounded-xl p-2 bg-slate-50/50 dark:bg-slate-900/30 scrollbar-hide">
-            <div v-if="galleryPreviews.length === 0" class="h-full flex items-center justify-center text-[10px] text-slate-400 py-10">
+          <div
+            class="flex-1 overflow-y-auto max-h-[260px] border border-slate-200/50 dark:border-slate-800/50 rounded-xl p-2 bg-slate-50/50 dark:bg-slate-900/30 scrollbar-hide"
+          >
+            <div
+              v-if="galleryPreviews.length === 0"
+              class="h-full flex items-center justify-center text-[10px] text-slate-400 py-10"
+            >
               暂未添加展示图片/视频
             </div>
             <div v-else class="grid grid-cols-2 gap-2">
@@ -427,12 +444,15 @@ const handlePublish = async () => {
                   playsinline
                 ></video>
                 <img v-else :src="url" class="w-full h-full object-cover" alt="Gallery item" />
-                
-                <div v-if="isVideoFile(galleryFiles[idx])" class="absolute top-1 left-1 p-0.5 rounded bg-black/60 text-white text-[8px] font-black uppercase tracking-wider flex items-center gap-0.5">
+
+                <div
+                  v-if="isVideoFile(galleryFiles[idx])"
+                  class="absolute top-1 left-1 p-0.5 rounded bg-black/60 text-white text-[8px] font-black uppercase tracking-wider flex items-center gap-0.5"
+                >
                   <Film class="w-2.5 h-2.5" />
                   视频
                 </div>
-                
+
                 <button
                   type="button"
                   class="absolute top-1 right-1 p-0.5 rounded-full bg-slate-950/60 hover:bg-slate-950 text-white border-0 cursor-pointer transition-colors"

@@ -12,19 +12,18 @@ import { useI18n } from 'vue-i18n';
 import type { ToolbarNames } from 'md-editor-v3';
 import 'md-editor-v3/lib/style.css';
 import { ElMessage } from 'element-plus';
-import {
-  Sparkles,
-  Send,
-  Square,
-} from 'lucide-vue-next';
+import { Sparkles, Send, Square } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
+import { useThemeObserver } from '@/composables/useThemeObserver';
 import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
-import MarkdownAiPanel from './markdownEditor/MarkdownAiPanel.vue';
+const MarkdownAiPanel = defineAsyncComponent(() => import('./markdownEditor/MarkdownAiPanel.vue'));
 
 const MdEditor = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdEditor));
 const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
-const NormalToolbar = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.NormalToolbar));
+const NormalToolbar = defineAsyncComponent(() =>
+  import('md-editor-v3').then((m) => m.NormalToolbar),
+);
 
 const { locale } = useI18n();
 
@@ -247,8 +246,7 @@ const checkMobile = () => {
   isMobile.value = window.innerWidth < 768;
 };
 
-const isDark = ref(document.documentElement.classList.contains('dark'));
-let themeObserver: MutationObserver | null = null;
+const { isDark } = useThemeObserver();
 
 const handleUploadImg = async (files: FileList, callback: (urls: string[]) => void) => {
   if (!props.uploadUrl) {
@@ -327,14 +325,17 @@ const triggerInlineAI = async (type: 'polish' | 'format' | 'generate') => {
 
   if (type === 'polish') {
     action = 'polish';
-    instruction = '请在保留原文主旨的基础上，润色文字，纠正错别字，优化语法，使语言流畅且更为专业。只输出润色后的Markdown正文。';
+    instruction =
+      '请在保留原文主旨的基础上，润色文字，纠正错别字，优化语法，使语言流畅且更为专业。只输出润色后的Markdown正文。';
   } else if (type === 'format') {
     action = 'polish';
-    instruction = '请在保持原文核心信息的基础上进行 Markdown 格式排版。请整理出合理的层级结构，添加适当的二级或三级标题（如：基本特性、使用场景、技术规格等），并使用无序列表或加粗元素，只输出最终排版完成的 Markdown 文本。';
+    instruction =
+      '请在保持原文核心信息的基础上进行 Markdown 格式排版。请整理出合理的层级结构，添加适当的二级或三级标题（如：基本特性、使用场景、技术规格等），并使用无序列表或加粗元素，只输出最终排版完成的 Markdown 文本。';
   } else if (type === 'generate') {
     action = 'generate';
     requestPrompt = inlinePrompt.value;
-    instruction = '请根据用户指令撰写一段高质量的产品/材质/插件的描述内容。使用标准的 Markdown 格式排版，确保条理清晰、格式美观。只输出最终的 Markdown 文本。';
+    instruction =
+      '请根据用户指令撰写一段高质量的产品/材质/插件的描述内容。使用标准的 Markdown 格式排版，确保条理清晰、格式美观。只输出最终的 Markdown 文本。';
   }
 
   text.value = '';
@@ -406,15 +407,10 @@ const handleResize = () => {
 onMounted(() => {
   checkMobile();
   window.addEventListener('resize', handleResize);
-  themeObserver = new MutationObserver(() => {
-    isDark.value = document.documentElement.classList.contains('dark');
-  });
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
-  themeObserver?.disconnect();
   stopInlineGeneration();
 });
 </script>
@@ -432,7 +428,7 @@ onUnmounted(() => {
         <div class="mdw__ai-tag" title="AI 智能写作">
           <Sparkles class="w-4 h-4 animate-pulse text-purple-400" />
         </div>
-        
+
         <button
           type="button"
           class="mdw__ai-btn"

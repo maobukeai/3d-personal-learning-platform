@@ -335,7 +335,7 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
             <button
               type="button"
               class="absolute right-2.5 text-slate-400 hover:text-slate-200 transition-colors flex items-center justify-center p-1"
-              style="background: transparent; border: none; cursor: pointer;"
+              style="background: transparent; border: none; cursor: pointer"
               :title="showApiKey ? '隐藏密钥' : '显示密钥'"
               @click="showApiKey = !showApiKey"
             >
@@ -380,12 +380,14 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
                   "
                   :placeholder="`备用密钥 ${keyIdx + 1}`"
                   @dragstart.stop
-                  @input="(e: Event) => updateBackupKey(keyIdx, (e.target as HTMLInputElement).value)"
+                  @input="
+                    (e: Event) => updateBackupKey(keyIdx, (e.target as HTMLInputElement).value)
+                  "
                 />
                 <button
                   type="button"
                   class="absolute right-2.5 text-slate-400 hover:text-slate-200 transition-colors flex items-center justify-center p-1"
-                  style="background: transparent; border: none; cursor: pointer;"
+                  style="background: transparent; border: none; cursor: pointer"
                   :title="showBackupKeys[keyIdx] ? '隐藏密钥' : '显示密钥'"
                   @click="showBackupKeys[keyIdx] = !showBackupKeys[keyIdx]"
                 >

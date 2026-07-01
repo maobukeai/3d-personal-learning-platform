@@ -2,7 +2,7 @@
 import { Upload, RefreshCw, Check, X } from 'lucide-vue-next';
 import Modal from '@/components/ui/Modal.vue';
 
-const props = defineProps<{
+defineProps<{
   importProgress: number;
   importStatusText: string;
   importError: string | null;

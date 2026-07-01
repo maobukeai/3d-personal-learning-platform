@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { markRaw } from 'vue';
 import { useAuthStore } from './auth';
 import { preferences } from '@/utils/preferences';
 import {
@@ -147,7 +148,9 @@ export const useWorkspaceStore = defineStore('workspace', {
 
       // Validate activeWorkspaceId: must be null or exist in rawWorkspaces
       if (!this.activeWorkspaceId && authStore.user?.defaultWorkspaceId) {
-        const hasDefault = this.rawWorkspaces.some((ws) => ws.id === authStore.user?.defaultWorkspaceId);
+        const hasDefault = this.rawWorkspaces.some(
+          (ws) => ws.id === authStore.user?.defaultWorkspaceId,
+        );
         if (hasDefault) {
           this.activeWorkspaceId = authStore.user.defaultWorkspaceId;
         }
@@ -242,7 +245,10 @@ export const useWorkspaceStore = defineStore('workspace', {
 
     // Asset drawer state – kept here for backward compat with AssetDetailsDrawer / MainLayout
     openDetails(asset: Asset) {
-      this.selectedAsset = asset;
+      // Asset objects can be large (metadata, relations, file trees). markRaw
+      // prevents Pinia from making the entire object graph deeply reactive
+      // when it's only meant to be displayed read-only in the drawer.
+      this.selectedAsset = markRaw(asset);
       this.isDetailDrawerOpen = true;
     },
 

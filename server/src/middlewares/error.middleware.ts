@@ -1,7 +1,7 @@
 import { logger } from '../utils/logger';
 import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
-import fs from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
 import { AppError } from '../utils/error';
 
@@ -110,35 +110,23 @@ export const errorHandler = (
   const requestId = (req as Request & { requestId?: string }).requestId;
 
   if (statusCode === 500) {
-    try {
-      const logPath = path.join(process.cwd(), 'error-debug.log');
+    // Use async file IO to avoid blocking the event loop during error handling
+    const logPath = path.join(process.cwd(), 'error-debug.log');
+    const logMsg = `\n\n[${new Date().toISOString()}] ${req.method} ${req.url}${requestId ? ` requestId=${requestId}` : ''}\nError: ${message}\nStack: ${err?.stack || err}\n`;
 
-      // Rotation logic: if file exceeds 10MB, back it up and start fresh
-      try {
-        if (fs.existsSync(logPath)) {
-          const stats = fs.statSync(logPath);
-          const maxBytes = 10 * 1024 * 1024; // 10MB
-          if (stats.size > maxBytes) {
-            const backupPath = path.join(process.cwd(), 'error-debug.old.log');
-            if (fs.existsSync(backupPath)) {
-              fs.unlinkSync(backupPath);
-            }
-            fs.renameSync(logPath, backupPath);
-          }
+    fs.stat(logPath)
+      .then((stats) => {
+        const maxBytes = 10 * 1024 * 1024; // 10MB
+        if (stats.size > maxBytes) {
+          const backupPath = path.join(process.cwd(), 'error-debug.old.log');
+          return fs.rename(logPath, backupPath).catch(() => {});
         }
-      } catch (rotationErr) {
-        logger.error('Failed to rotate error-debug.log:', rotationErr);
-      }
-
-      const logMsg = `\n\n[${new Date().toISOString()}] ${req.method} ${req.url}${requestId ? ` requestId=${requestId}` : ''}\nError: ${message}\nStack: ${err?.stack || err}\n`;
-      fs.appendFile(logPath, logMsg, (writeErr) => {
-        if (writeErr) {
-          logger.error('Failed to write debug log:', writeErr);
-        }
+      })
+      .catch(() => {}) // File may not exist yet, that's fine
+      .then(() => fs.appendFile(logPath, logMsg))
+      .catch((writeErr) => {
+        logger.error('Failed to write debug log:', writeErr);
       });
-    } catch (e) {
-      logger.error('Failed to write debug log:', e);
-    }
   }
 
   logger.error(
@@ -152,7 +140,6 @@ export const errorHandler = (
   res.status(statusCode).json({
     status: 'error',
     error: message,
-    message,
     code,
     ...(requestId && { requestId }),
     ...(appError?.details !== undefined && { details: appError.details }),

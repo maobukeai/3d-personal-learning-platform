@@ -39,12 +39,7 @@ const label = useLabel();
         {{ chip.label }}
         <X class="icon-xs" />
       </button>
-      <button
-        v-if="activeChips.length"
-        type="button"
-        class="reset-chip"
-        @click="emit('reset')"
-      >
+      <button v-if="activeChips.length" type="button" class="reset-chip" @click="emit('reset')">
         {{ label('清空筛选', 'Clear Filters') }}
       </button>
       <span v-else>{{ emptyChipsLabel }}</span>

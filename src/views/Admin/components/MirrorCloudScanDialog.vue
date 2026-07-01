@@ -15,7 +15,7 @@ interface CloudSource {
   metadataKey: string;
 }
 
-const props = defineProps<{
+defineProps<{
   isScanningCloud: boolean;
   isConnectingCloud: boolean;
   cloudSources: CloudSource[];

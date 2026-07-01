@@ -129,6 +129,26 @@ const AI_REQUEST_TIMEOUT_MS = 60_000;
 const AI_STREAM_TIMEOUT_MS = 180_000;
 const AI_STREAM_HEARTBEAT_MS = 15_000;
 const PERSISTENT_RUN_MAX_LIFETIME_MS = 30 * 60 * 1000; // 30 minutes
+
+// Cache for parsed AI_MODEL_OPTIONS JSON. Re-parsing on every AI request is
+// wasteful since the settings string changes rarely. Re-parse only when the
+// raw string actually changes.
+let parsedModelOptionsCache: { raw: string; models: AIModelOption[] } | null = null;
+const getParsedModelOptions = (raw: string): AIModelOption[] => {
+  if (parsedModelOptionsCache && parsedModelOptionsCache.raw === raw) {
+    return parsedModelOptionsCache.models;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    const models = Array.isArray(parsed) ? (parsed as AIModelOption[]) : [];
+    parsedModelOptionsCache = { raw, models };
+    return models;
+  } catch (e) {
+    logger.warn('[AI Service] Failed to parse AI_MODEL_OPTIONS', e);
+    parsedModelOptionsCache = { raw, models: [] };
+    return [];
+  }
+};
 const activePersistentAiRuns = new Map<
   string,
   {
@@ -142,8 +162,10 @@ const activePersistentAiRuns = new Map<
 >();
 
 // Periodic cleanup: remove stale persistent AI runs that have been active for too long
-// This prevents memory leaks if cleanupPersistentRun() is not called due to exceptions
-setInterval(
+// This prevents memory leaks if cleanupPersistentRun() is not called due to exceptions.
+// `.unref()` keeps the timer from holding the event loop alive after the HTTP
+// server closes during graceful shutdown; stopAiCleanupTimer() clears it explicitly.
+let aiCleanupTimer: NodeJS.Timeout | null = setInterval(
   () => {
     const now = Date.now();
     for (const [key, run] of activePersistentAiRuns.entries()) {
@@ -166,6 +188,15 @@ setInterval(
   },
   10 * 60 * 1000,
 ); // Run every 10 minutes
+aiCleanupTimer.unref?.();
+
+/** Stop the periodic AI-run cleanup timer. Called from gracefulShutdown. */
+export function stopAiCleanupTimer(): void {
+  if (aiCleanupTimer) {
+    clearInterval(aiCleanupTimer);
+    aiCleanupTimer = null;
+  }
+}
 
 function createRequestId(): string {
   return `ai_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -786,23 +817,17 @@ async function prepareRequestConfig(
   // Look up model config for custom parameters
   let matchingModel: AIModelOption | null = null;
   if (settings.AI_MODEL_OPTIONS) {
-    try {
-      const models = JSON.parse(settings.AI_MODEL_OPTIONS);
-      if (Array.isArray(models)) {
-        matchingModel = models.find(
-          (m: AIModelOption) =>
-            m.enabled &&
-            String(m.provider).toUpperCase() === String(provider).toUpperCase() &&
-            m.modelName === modelName,
-        ) as AIModelOption | null;
-        if (!matchingModel) {
-          matchingModel = models.find(
-            (m: AIModelOption) => m.enabled && m.isDefault,
-          ) as AIModelOption | null;
-        }
-      }
-    } catch (e) {
-      logger.warn('[AI Service] Failed to parse AI_MODEL_OPTIONS', e);
+    const models = getParsedModelOptions(settings.AI_MODEL_OPTIONS);
+    matchingModel = models.find(
+      (m: AIModelOption) =>
+        m.enabled &&
+        String(m.provider).toUpperCase() === String(provider).toUpperCase() &&
+        m.modelName === modelName,
+    ) as AIModelOption | null;
+    if (!matchingModel) {
+      matchingModel = models.find(
+        (m: AIModelOption) => m.enabled && m.isDefault,
+      ) as AIModelOption | null;
     }
   }
 

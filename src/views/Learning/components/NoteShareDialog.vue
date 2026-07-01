@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onBeforeUnmount } from 'vue';
 import { ElMessage } from 'element-plus';
 import {
   Share2,
@@ -52,6 +52,10 @@ const customExpiresAt = ref<Date | null>(null);
 const customText = ref('');
 const enableCustomText = ref(false);
 const isCopied = ref(false);
+let copyResetTimer: ReturnType<typeof setTimeout> | null = null;
+onBeforeUnmount(() => {
+  if (copyResetTimer) clearTimeout(copyResetTimer);
+});
 const qrCodeDataUrl = ref('');
 const renderingCard = ref(false);
 
@@ -159,18 +163,18 @@ const downloadQrCode = async () => {
     const canvas = document.createElement('canvas');
     const width = 400;
     const height = 540;
-    
+
     // Scale for High-DPI crispness (3x)
     const scale = 3;
     canvas.width = width * scale;
     canvas.height = height * scale;
-    
+
     const ctx = canvas.getContext('2d');
     if (!ctx) {
       renderingCard.value = false;
       return;
     }
-    
+
     ctx.scale(scale, scale);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
@@ -184,7 +188,14 @@ const downloadQrCode = async () => {
     ctx.fill();
 
     // Subtle ambient decorative glowing circle
-    const glowGrad = ctx.createRadialGradient(width / 2, height / 2, 10, width / 2, height / 2, width);
+    const glowGrad = ctx.createRadialGradient(
+      width / 2,
+      height / 2,
+      10,
+      width / 2,
+      height / 2,
+      width,
+    );
     glowGrad.addColorStop(0, 'rgba(99, 102, 241, 0.08)'); // Indigo tint
     glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = glowGrad;
@@ -405,7 +416,8 @@ const copyLink = async () => {
     await navigator.clipboard.writeText(copyText);
     isCopied.value = true;
     ElMessage.success('已生成分享寄语并复制到剪贴板！');
-    setTimeout(() => {
+    if (copyResetTimer) clearTimeout(copyResetTimer);
+    copyResetTimer = setTimeout(() => {
       isCopied.value = false;
     }, 2000);
   } catch {
@@ -732,18 +744,8 @@ defineExpose({ open });
   transform: translateY(-8px);
 }
 
-:deep(.custom-datepicker .el-input__wrapper) {
-  background-color: var(--bg-subtle) !important;
-  border-radius: 8px !important;
-  box-shadow: none !important;
-  border: 1px solid var(--border-base) !important;
-  padding: 6px 10px !important;
-}
-
-:deep(.custom-datepicker .el-input__wrapper.is-focus) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 1px var(--accent) !important;
-}
+/* .custom-datepicker .el-input__wrapper overrides + .shortcut-list scrollbar
+   hiding provided globally by src/styles/components.css. */
 
 :deep(.custom-textarea .el-textarea__inner) {
   background-color: var(--bg-subtle) !important;
@@ -769,13 +771,5 @@ defineExpose({ open });
   right: 10px !important;
   font-size: 11px !important;
   color: var(--text-muted) !important;
-}
-
-.shortcut-list::-webkit-scrollbar {
-  display: none;
-}
-.shortcut-list {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
 }
 </style>

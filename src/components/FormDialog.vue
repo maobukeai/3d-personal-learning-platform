@@ -50,7 +50,10 @@ const modalSize = computed(() => {
     :title="title"
     :size="modalSize"
     :close-on-outside-click="closeOnClickModal"
-    @close="emit('cancel'); emit('update:visible', false)"
+    @close="
+      emit('cancel');
+      emit('update:visible', false);
+    "
   >
     <div class="py-1">
       <slot />
@@ -64,7 +67,10 @@ const modalSize = computed(() => {
           class="px-5 py-2.5 rounded-xl text-xs font-bold border transition-colors hover:bg-[var(--bg-hover)] cursor-pointer"
           style="border-color: var(--border-base); color: var(--text-secondary)"
           :disabled="loading"
-          @click="emit('cancel'); emit('update:visible', false)"
+          @click="
+            emit('cancel');
+            emit('update:visible', false);
+          "
         >
           {{ $t(cancelText) }}
         </button>
@@ -83,15 +89,5 @@ const modalSize = computed(() => {
 </template>
 
 <style scoped>
-.spinning {
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* .spinning + @keyframes spin provided globally by src/styles/layout.css */
 </style>

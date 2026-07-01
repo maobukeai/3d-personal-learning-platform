@@ -113,12 +113,6 @@ interface AdminUsersResponse {
   pagination?: PaginationState;
 }
 
-interface RiskInfo {
-  label: string;
-  tone: 'green' | 'amber' | 'red' | 'slate' | 'blue';
-  priority: number;
-}
-
 interface DistributionItem {
   key: string;
   label: string;

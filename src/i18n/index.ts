@@ -1,4 +1,5 @@
 import { createI18n } from 'vue-i18n';
+import { ref } from 'vue';
 import { preferences, type LocalePreference } from '@/utils/preferences';
 
 type LocaleMessages = Record<string, unknown>;
@@ -18,6 +19,11 @@ const i18n = createI18n({
   messages: {},
 });
 
+// Reactive flag that becomes true once the initial locale messages are loaded.
+// Allows the app to mount immediately (without blocking on locale chunk fetch)
+// and gate the RouterView behind a lightweight splash until translations are ready.
+export const isI18nReady = ref(false);
+
 export const loadLocaleMessages = async (locale: LocalePreference) => {
   if (!loadedLocales.has(locale)) {
     const messages = await localeLoaders[locale]();
@@ -35,6 +41,7 @@ export const setLocale = async (locale: LocalePreference) => {
 
 export const setupI18n = async () => {
   await setLocale(initialLocale);
+  isI18nReady.value = true;
   return i18n;
 };
 

@@ -965,9 +965,7 @@ const formatDate = (dateStr: string) => {
   margin-right: 4px;
 }
 
-.spinning {
-  animation: spin 1s linear infinite;
-}
+/* .spinning provided globally by src/styles/layout.css */
 
 /* Checklist CSS */
 .checkbox-group {
@@ -1250,11 +1248,7 @@ const formatDate = (dateStr: string) => {
   }
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* @keyframes spin provided globally by src/styles/layout.css */
 
 .text-blue {
   color: var(--accent, #3b82f6);

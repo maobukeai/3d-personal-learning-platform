@@ -53,49 +53,91 @@ const onStatusChange = (value: string | number | null) => {
           <FolderOpen class="icon-sm" />
           <span>{{ label('收藏夹分类', 'Favorite Folders') }}</span>
         </div>
-        <button 
-          type="button" 
+        <button
+          type="button"
           class="p-0.5 text-slate-400 hover:text-indigo-400 hover:bg-white/5 rounded transition-all cursor-pointer border-0 bg-transparent flex items-center justify-center shrink-0"
           title="新建分类"
           @click.stop="emit('create-category')"
         >
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          <svg
+            class="w-3.5 h-3.5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M5 12h14" />
+            <path d="M12 5v14" />
+          </svg>
         </button>
       </div>
       <div class="flex flex-col gap-1">
-        <div 
+        <div
           class="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all border border-transparent"
-          :class="selectedFavoriteCategory === 'all' || !selectedFavoriteCategory ? 'bg-indigo-600/10 text-indigo-400 border-indigo-500/20' : 'text-[var(--text-secondary)] hover:bg-white/5 hover:text-[var(--text-primary)]'"
+          :class="
+            selectedFavoriteCategory === 'all' || !selectedFavoriteCategory
+              ? 'bg-indigo-600/10 text-indigo-400 border-indigo-500/20'
+              : 'text-[var(--text-secondary)] hover:bg-white/5 hover:text-[var(--text-primary)]'
+          "
           @click="emit('update:selectedFavoriteCategory', 'all')"
         >
           <span>{{ label('全部收藏', 'All Favorites') }}</span>
         </div>
 
-        <div 
+        <div
           v-for="cat in favoriteCategories"
           :key="cat"
           class="group flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all border border-transparent"
-          :class="selectedFavoriteCategory === cat ? 'bg-indigo-600/10 text-indigo-400 border-indigo-500/20' : 'text-[var(--text-secondary)] hover:bg-white/5 hover:text-[var(--text-primary)]'"
+          :class="
+            selectedFavoriteCategory === cat
+              ? 'bg-indigo-600/10 text-indigo-400 border-indigo-500/20'
+              : 'text-[var(--text-secondary)] hover:bg-white/5 hover:text-[var(--text-primary)]'
+          "
           @click="emit('update:selectedFavoriteCategory', cat)"
         >
           <span class="truncate pr-2 flex-1 text-left">{{ cat }}</span>
-          
+
           <div v-if="cat !== '默认'" class="hidden group-hover:flex items-center gap-1.5 shrink-0">
-            <button 
+            <button
               type="button"
               class="p-0.5 text-slate-400 hover:text-indigo-400 rounded transition-colors cursor-pointer border-0 bg-transparent"
               title="重命名"
               @click.stop="emit('rename-category', cat)"
             >
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              <svg
+                class="w-3.5 h-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+              </svg>
             </button>
-            <button 
+            <button
               type="button"
               class="p-0.5 text-slate-400 hover:text-rose-400 rounded transition-colors cursor-pointer border-0 bg-transparent"
               title="删除分类"
               @click.stop="emit('delete-category', cat)"
             >
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+              <svg
+                class="w-3.5 h-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M3 6h18" />
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
             </button>
           </div>
         </div>

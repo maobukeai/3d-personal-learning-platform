@@ -219,7 +219,9 @@ const handleCoverUpload = async (event: Event) => {
         <div>
           <p class="settings-kicker">公开资料</p>
           <h3 class="settings-card-title">个人资料</h3>
-          <span class="settings-card-subtitle">这些信息会显示在成员资料、作品页 and 协作空间中。</span>
+          <span class="settings-card-subtitle"
+            >这些信息会显示在成员资料、作品页 and 协作空间中。</span
+          >
         </div>
       </header>
 

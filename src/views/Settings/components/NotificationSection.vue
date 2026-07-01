@@ -719,15 +719,7 @@ button svg {
   line-height: 1.6;
 }
 
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 1;
-  }
-}
+/* @keyframes pulse provided globally by src/styles/layout.css */
 
 @media (max-width: 960px) {
   .notification-overview,

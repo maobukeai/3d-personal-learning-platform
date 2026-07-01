@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { formatCompactNumber as formatNumber } from '@/utils/format';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch, defineAsyncComponent } from 'vue';
 import type { Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
@@ -37,9 +37,12 @@ import { useAuthStore } from '@/stores/auth';
 import { parseTags } from '@/utils/tags';
 
 import PageHeader from '@/components/PageHeader.vue';
-import PublishShowcaseDialog from '@/components/PublishShowcaseDialog.vue';
-import UserProfileDialog from '@/components/UserProfileDialog.vue';
-import ShowcaseDetail from './components/ShowcaseDetail.vue';
+
+const PublishShowcaseDialog = defineAsyncComponent(
+  () => import('@/components/PublishShowcaseDialog.vue'),
+);
+const UserProfileDialog = defineAsyncComponent(() => import('@/components/UserProfileDialog.vue'));
+const ShowcaseDetail = defineAsyncComponent(() => import('./components/ShowcaseDetail.vue'));
 import Button from '@/components/ui/Button.vue';
 import ShowcaseFilterPanel from './components/ShowcaseFilterPanel.vue';
 import ShowcaseControls from './components/ShowcaseControls.vue';
@@ -571,6 +574,7 @@ onUnmounted(() => {
     </div>
 
     <ShowcaseDetail
+      v-if="isDetailOpen"
       v-model:is-open="isDetailOpen"
       v-model:item="detailItem"
       :is-admin="isAdmin"
@@ -580,9 +584,14 @@ onUnmounted(() => {
       @user-profile="openUserProfile"
     />
 
-    <PublishShowcaseDialog v-model="isPublishDialogOpen" @published="handlePublished" />
+    <PublishShowcaseDialog
+      v-if="isPublishDialogOpen"
+      v-model="isPublishDialogOpen"
+      @published="handlePublished"
+    />
 
     <UserProfileDialog
+      v-if="isProfileDialogOpen"
       v-model="isProfileDialogOpen"
       :user-id="selectedUserId"
       @chat="handleStartChat"

@@ -148,9 +148,13 @@ export const useSpriteChatStore = defineStore('spriteChat', () => {
 
   const isGeneratingMap = ref<Record<string, boolean>>({});
   const isTypingMap = ref<Record<string, boolean>>({});
-  const streamMetaMap = ref<Record<string, { provider?: string; model?: string; requestId?: string } | null>>({});
+  const streamMetaMap = ref<
+    Record<string, { provider?: string; model?: string; requestId?: string } | null>
+  >({});
 
-  const typewriterQueueMap = ref<Record<string, { type: 'text' | 'reasoning'; char: string }[]>>({});
+  const typewriterQueueMap = ref<Record<string, { type: 'text' | 'reasoning'; char: string }[]>>(
+    {},
+  );
   const typewriterTimerMap: Record<string, ReturnType<typeof setInterval> | null> = {};
   const typewriterTargetIdMap = ref<Record<string, string>>({});
   const pendingRunPollers: Record<string, ReturnType<typeof setInterval> | null> = {};
@@ -385,7 +389,9 @@ export const useSpriteChatStore = defineStore('spriteChat', () => {
   };
 
   const syncActiveHistory = () => {
-    const lastUserMessage = [...messages.value].reverse().find((message) => message.role === 'user');
+    const lastUserMessage = [...messages.value]
+      .reverse()
+      .find((message) => message.role === 'user');
     activeHistoryId.value = lastUserMessage?.id || '';
   };
 
@@ -465,7 +471,9 @@ export const useSpriteChatStore = defineStore('spriteChat', () => {
             activePollerSessions.has(m.sessionId || 'default'),
           );
           messages.value = [
-            ...dbMessages.filter((m: Message) => !activePollerSessions.has(m.sessionId || 'default')),
+            ...dbMessages.filter(
+              (m: Message) => !activePollerSessions.has(m.sessionId || 'default'),
+            ),
             ...localActiveMessages,
           ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         } else {
@@ -654,7 +662,9 @@ export const useSpriteChatStore = defineStore('spriteChat', () => {
 
       const userMsgExists = messages.value.some(
         (m) =>
-          m.role === 'user' && (m.sessionId || 'default') === sessionId && m.content === userContent,
+          m.role === 'user' &&
+          (m.sessionId || 'default') === sessionId &&
+          m.content === userContent,
       );
       if (!userMsgExists) {
         messages.value.push(createMessage('user', userContent, { sessionId, sessionTitle }));
@@ -802,7 +812,6 @@ export const useSpriteChatStore = defineStore('spriteChat', () => {
       const batch = Math.min(12, queue.length);
       if (batch === 0) return;
 
-      let hasReasoning = false;
       for (let index = 0; index < batch; index += 1) {
         const item = queue.shift();
         if (!item) continue;
@@ -810,7 +819,6 @@ export const useSpriteChatStore = defineStore('spriteChat', () => {
         if (item.type === 'reasoning') {
           currentMessage.isThinking = true;
           currentMessage.reasoning = `${currentMessage.reasoning || ''}${item.char}`;
-          hasReasoning = true;
         } else {
           currentMessage.isThinking = false;
           currentMessage.content += item.char;
@@ -856,7 +864,11 @@ export const useSpriteChatStore = defineStore('spriteChat', () => {
       try {
         activeAbortControllers[sId]!.abort();
       } catch (error) {
-        logError(error, { operation: 'ai.abortFetch', sessionId: sId, component: 'SpriteChatStore' });
+        logError(error, {
+          operation: 'ai.abortFetch',
+          sessionId: sId,
+          component: 'SpriteChatStore',
+        });
       }
       activeAbortControllers[sId] = null;
     }
@@ -864,7 +876,11 @@ export const useSpriteChatStore = defineStore('spriteChat', () => {
       try {
         activeReaders[sId]!.cancel();
       } catch (error) {
-        logError(error, { operation: 'ai.cancelReader', sessionId: sId, component: 'SpriteChatStore' });
+        logError(error, {
+          operation: 'ai.cancelReader',
+          sessionId: sId,
+          component: 'SpriteChatStore',
+        });
       }
       activeReaders[sId] = null;
     }
@@ -935,8 +951,9 @@ export const useSpriteChatStore = defineStore('spriteChat', () => {
       content: message.content,
     }));
     const sessionTitle =
-      activeSessionMessages.value.find((message) => message.role === 'user')?.content.slice(0, 30) ||
-      '新对话';
+      activeSessionMessages.value
+        .find((message) => message.role === 'user')
+        ?.content.slice(0, 30) || '新对话';
 
     const assistantMessage = createMessage('assistant', '', {
       reasoning: '',
@@ -1077,7 +1094,11 @@ export const useSpriteChatStore = defineStore('spriteChat', () => {
     } catch (error: unknown) {
       const err = error as Error & { response?: { status?: number } };
       if (err.name !== 'AbortError') {
-        logError(error, { operation: 'ai.streamingChat', sessionId: sId, component: 'SpriteChatStore' });
+        logError(error, {
+          operation: 'ai.streamingChat',
+          sessionId: sId,
+          component: 'SpriteChatStore',
+        });
       }
       isGeneratingMap.value[sId] = false;
       flushTypewriterQueue(assistantMessage.id, sId);
@@ -1146,7 +1167,9 @@ export const useSpriteChatStore = defineStore('spriteChat', () => {
     const sessionMessages = messages.value.filter(
       (message) => (message.sessionId || 'default') === sId,
     );
-    const lastUserMessage = [...sessionMessages].reverse().find((message) => message.role === 'user');
+    const lastUserMessage = [...sessionMessages]
+      .reverse()
+      .find((message) => message.role === 'user');
     if (!lastUserMessage) return;
 
     if (authStore.isAuthenticated) {

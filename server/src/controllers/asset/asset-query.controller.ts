@@ -327,9 +327,9 @@ export const getAssetPackageFiles = async (req: AuthRequest, res: Response, next
           where: { id },
           data: { packageFilesList: JSON.stringify(packageFiles) },
         })
-          .catch((err) => {
-            logger.error(`[Asset] Failed to update packageFilesList fallback for asset ${id}:`, err);
-          });
+        .catch((err) => {
+          logger.error(`[Asset] Failed to update packageFilesList fallback for asset ${id}:`, err);
+        });
     }
 
     res.json({ packageFiles });
@@ -495,7 +495,10 @@ export const getAssetShare = async (req: AuthRequest, res: Response, next: NextF
   const assetId = req.params.id as string;
   try {
     const asset = await prisma.asset.findFirst({
-      where: req.user?.role === 'ADMIN' ? { id: assetId } : { id: assetId, OR: [{ userId: req.userId }, { teamId: req.workspaceId }] }
+      where:
+        req.user?.role === 'ADMIN'
+          ? { id: assetId }
+          : { id: assetId, OR: [{ userId: req.userId }, { teamId: req.workspaceId }] },
     });
     if (!asset) {
       return next(new AppError('Asset not found or access denied', 404));
@@ -630,13 +633,16 @@ export const getCustomAssetCategories = async (userId: string): Promise<string[]
       return JSON.parse(setting.value) as string[];
     }
   } catch (err) {
-    logger.warn('[Asset] Failed to parse custom categories setting:', err instanceof Error ? err.message : err);
+    logger.warn(
+      '[Asset] Failed to parse custom categories setting:',
+      err instanceof Error ? err.message : err,
+    );
   }
   return [];
 };
 
 export const saveCustomAssetCategories = async (userId: string, categories: string[]) => {
-  const uniqueCats = Array.from(new Set(categories.map(c => c.trim()).filter(Boolean)));
+  const uniqueCats = Array.from(new Set(categories.map((c) => c.trim()).filter(Boolean)));
   await prisma.userSetting.upsert({
     where: { userId_key: { userId, key: CUSTOM_ASSET_CATEGORIES_SETTING_KEY } },
     update: { value: JSON.stringify(uniqueCats) },

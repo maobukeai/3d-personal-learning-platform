@@ -36,18 +36,26 @@ const migrateOldFavoritesIfNeeded = async (userId: string) => {
   });
   if (setting) {
     const favoriteIds = parseFavoritePluginIds(setting.value);
-    for (const pluginId of favoriteIds) {
-      const plugin = await prisma.plugin.findUnique({ where: { id: pluginId } });
-      if (plugin) {
-        await prisma.pluginFavorite
-          .upsert({
-            where: { userId_pluginId: { userId, pluginId } },
-            update: {},
-            create: { userId, pluginId, category: '默认' },
-          })
-          .catch(() => {});
-      }
-    }
+    // Single round-trip to find which referenced plugins actually exist,
+    // instead of one findUnique per favorite (avoids N+1).
+    const existingPlugins = await prisma.plugin.findMany({
+      where: { id: { in: favoriteIds } },
+      select: { id: true },
+    });
+    const existingIds = new Set(existingPlugins.map((p) => p.id));
+    await Promise.all(
+      favoriteIds
+        .filter((id) => existingIds.has(id))
+        .map((pluginId) =>
+          prisma.pluginFavorite
+            .upsert({
+              where: { userId_pluginId: { userId, pluginId } },
+              update: {},
+              create: { userId, pluginId, category: '默认' },
+            })
+            .catch(() => {}),
+        ),
+    );
     await prisma.userSetting
       .delete({
         where: { userId_key: { userId, key: PLUGIN_FAVORITES_SETTING_KEY } },
@@ -260,13 +268,16 @@ const getCustomCategories = async (userId: string): Promise<string[]> => {
       return JSON.parse(setting.value) as string[];
     }
   } catch (err) {
-    logger.warn('[Plugin] Failed to parse custom categories setting:', err instanceof Error ? err.message : err);
+    logger.warn(
+      '[Plugin] Failed to parse custom categories setting:',
+      err instanceof Error ? err.message : err,
+    );
   }
   return [];
 };
 
 const saveCustomCategories = async (userId: string, categories: string[]) => {
-  const uniqueCats = Array.from(new Set(categories.map(c => c.trim()).filter(Boolean)));
+  const uniqueCats = Array.from(new Set(categories.map((c) => c.trim()).filter(Boolean)));
   await prisma.userSetting.upsert({
     where: { userId_key: { userId, key: CUSTOM_CATEGORIES_SETTING_KEY } },
     update: { value: JSON.stringify(uniqueCats) },
@@ -430,7 +441,7 @@ export const deleteFavoriteCategory = async (
 export const togglePluginFavorite = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params as { id: string };
-    const categoryVal = typeof req.body.category === 'string' ? req.body.category.trim() : '默认';
+    const categoryVal = typeof req.body?.category === 'string' ? req.body.category.trim() : '默认';
     const category = categoryVal || '默认';
     const userId = req.userId as string;
 
@@ -759,10 +770,7 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
     });
 
     if (existingVersionRecord) {
-      if (
-        existingVersionRecord.fileUrl &&
-        existingVersionRecord.fileUrl !== plugin.fileUrl
-      ) {
+      if (existingVersionRecord.fileUrl && existingVersionRecord.fileUrl !== plugin.fileUrl) {
         const isFileReferenced = await prisma.pluginVersion.findFirst({
           where: {
             pluginId: id,
@@ -921,8 +929,6 @@ export const getPluginPackageFiles = async (
   }
 };
 
-
-
 // GET /api/plugins/:id/comments
 export const getPluginComments = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const pluginId = req.params.id as string;
@@ -1032,7 +1038,10 @@ export const getPluginShare = async (req: AuthRequest, res: Response, next: Next
   const pluginId = req.params.id as string;
   try {
     const plugin = await prisma.plugin.findFirst({
-      where: req.user?.role === 'ADMIN' ? { id: pluginId } : { id: pluginId, userId: req.userId as string }
+      where:
+        req.user?.role === 'ADMIN'
+          ? { id: pluginId }
+          : { id: pluginId, userId: req.userId as string },
     });
     if (!plugin) {
       return next(new AppError('Plugin not found or access denied', 404));
@@ -1057,7 +1066,10 @@ export const createOrUpdatePluginShare = async (
   const { expireHours, expiresAt, customText } = req.body;
   try {
     const plugin = await prisma.plugin.findFirst({
-      where: req.user?.role === 'ADMIN' ? { id: pluginId } : { id: pluginId, userId: req.userId as string }
+      where:
+        req.user?.role === 'ADMIN'
+          ? { id: pluginId }
+          : { id: pluginId, userId: req.userId as string },
     });
     if (!plugin) {
       return next(new AppError('Plugin not found or access denied', 404));
@@ -1105,7 +1117,10 @@ export const cancelPluginShare = async (req: AuthRequest, res: Response, next: N
   const pluginId = req.params.id as string;
   try {
     const plugin = await prisma.plugin.findFirst({
-      where: req.user?.role === 'ADMIN' ? { id: pluginId } : { id: pluginId, userId: req.userId as string }
+      where:
+        req.user?.role === 'ADMIN'
+          ? { id: pluginId }
+          : { id: pluginId, userId: req.userId as string },
     });
     if (!plugin) {
       return next(new AppError('Plugin not found or access denied', 404));
@@ -1204,11 +1219,7 @@ export const listPluginFeedbacks = async (req: AuthRequest, res: Response, next:
 };
 
 // DELETE /api/plugins/:id/feedbacks/:feedbackId
-export const deletePluginFeedback = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const deletePluginFeedback = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { id: pluginId, feedbackId } = req.params as { id: string; feedbackId: string };
   try {
     const plugin = await prisma.plugin.findUnique({ where: { id: pluginId } });
@@ -1230,11 +1241,7 @@ export const deletePluginFeedback = async (
 };
 
 // DELETE /api/plugins/:id/feedbacks
-export const clearPluginFeedbacks = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const clearPluginFeedbacks = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const pluginId = req.params.id as string;
   try {
     const plugin = await prisma.plugin.findUnique({ where: { id: pluginId } });
@@ -1387,7 +1394,10 @@ export const setActivePluginVersion = async (
 // PUT /api/plugins/:id/versions/:versionId
 export const updatePluginVersion = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { id: pluginId, versionId } = req.params as { id: string; versionId: string };
-  const { version: newVersionString, changelog } = req.body as { version?: string; changelog?: string };
+  const { version: newVersionString, changelog } = req.body as {
+    version?: string;
+    changelog?: string;
+  };
 
   try {
     const plugin = await prisma.plugin.findUnique({ where: { id: pluginId } });
@@ -1418,7 +1428,11 @@ export const updatePluginVersion = async (req: AuthRequest, res: Response, next:
     });
 
     // If this edited version is currently the active version of the plugin, keep them in sync
-    if (plugin.version === versionItem.version && newVersionString && newVersionString !== versionItem.version) {
+    if (
+      plugin.version === versionItem.version &&
+      newVersionString &&
+      newVersionString !== versionItem.version
+    ) {
       await prisma.plugin.update({
         where: { id: pluginId },
         data: { version: newVersionString },
@@ -1478,7 +1492,10 @@ export const deletePluginVersion = async (req: AuthRequest, res: Response, next:
     // Clean up physical file in background
     if (versionItem.fileUrl) {
       deleteCloudOrLocalFileByUrl(versionItem.fileUrl).catch((err) => {
-        logger.error(`[PluginController] Failed to delete plugin version file ${versionItem.fileUrl}:`, err);
+        logger.error(
+          `[PluginController] Failed to delete plugin version file ${versionItem.fileUrl}:`,
+          err,
+        );
       });
     }
 
@@ -1491,7 +1508,10 @@ export const deletePluginVersion = async (req: AuthRequest, res: Response, next:
 // GET /api/plugins/client/check-update
 
 export const checkPluginUpdate = async (req: Request, res: Response, next: NextFunction) => {
-  const token = (req.headers['x-developer-token'] as string) || (req.query.token as string) || (req.body?.token as string);
+  const token =
+    (req.headers['x-developer-token'] as string) ||
+    (req.query.token as string) ||
+    (req.body?.token as string);
   const currentVersion = req.query.version as string;
 
   if (!token) {
@@ -1538,7 +1558,10 @@ export const checkPluginUpdate = async (req: Request, res: Response, next: NextF
 
 // POST /api/plugins/client/feedback
 export const createPluginFeedback = async (req: Request, res: Response, next: NextFunction) => {
-  const token = (req.headers['x-developer-token'] as string) || (req.query.token as string) || (req.body?.token as string);
+  const token =
+    (req.headers['x-developer-token'] as string) ||
+    (req.query.token as string) ||
+    (req.body?.token as string);
   const { clientVersion, feedbackType = 'BUG', content } = req.body;
 
   if (!token) {

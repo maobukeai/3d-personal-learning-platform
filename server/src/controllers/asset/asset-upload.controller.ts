@@ -119,9 +119,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
 
     if (assetFile) {
       const assetsDir = path.join(__dirname, '../../../uploads/assets');
-      if (!fs.existsSync(assetsDir)) {
-        fs.mkdirSync(assetsDir, { recursive: true });
-      }
+      await fs.promises.mkdir(assetsDir, { recursive: true });
       url = getUploadedFileUrl(req, assetFile, 'assets');
       type = 'GLB';
     }
@@ -543,16 +541,14 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response, next
     }
 
     const assetsDir = path.join(__dirname, '../../../uploads/assets');
-    if (!fs.existsSync(assetsDir)) {
-      fs.mkdirSync(assetsDir, { recursive: true });
-    }
+    await fs.promises.mkdir(assetsDir, { recursive: true });
 
     // Convert base64 to file
     const base64Data = thumbnail.replace(/^data:image\/png;base64,/, '');
     const fileName = `thumb-${id}-${Date.now()}.png`;
     const filePath = path.join(assetsDir, fileName);
 
-    fs.writeFileSync(filePath, base64Data, 'base64');
+    await fs.promises.writeFile(filePath, Buffer.from(base64Data, 'base64'));
 
     let thumbnailUrl = getUploadedFileUrl(req, req.file!, 'assets');
 
@@ -577,7 +573,7 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response, next
 
     if (activeConfigs.length > 0) {
       try {
-        const stats = fs.statSync(filePath);
+        const stats = await fs.promises.stat(filePath);
         const fileBytes = stats.size;
 
         for (const config of activeConfigs) {
@@ -934,7 +930,10 @@ export const createOrUpdateAssetShare = async (
   const { expireHours, expiresAt, customText } = req.body;
   try {
     const asset = await prisma.asset.findFirst({
-      where: req.user?.role === 'ADMIN' ? { id: assetId } : { id: assetId, OR: [{ userId: req.userId }, { teamId: req.workspaceId }] }
+      where:
+        req.user?.role === 'ADMIN'
+          ? { id: assetId }
+          : { id: assetId, OR: [{ userId: req.userId }, { teamId: req.workspaceId }] },
     });
     if (!asset) {
       return next(new AppError('Asset not found or access denied', 404));
@@ -981,7 +980,10 @@ export const cancelAssetShare = async (req: AuthRequest, res: Response, next: Ne
   const assetId = req.params.id as string;
   try {
     const asset = await prisma.asset.findFirst({
-      where: req.user?.role === 'ADMIN' ? { id: assetId } : { id: assetId, OR: [{ userId: req.userId }, { teamId: req.workspaceId }] }
+      where:
+        req.user?.role === 'ADMIN'
+          ? { id: assetId }
+          : { id: assetId, OR: [{ userId: req.userId }, { teamId: req.workspaceId }] },
     });
     if (!asset) {
       return next(new AppError('Asset not found or access denied', 404));
@@ -1119,7 +1121,7 @@ export const toggleAssetLike = async (req: AuthRequest, res: Response, next: Nex
   if (!userId) {
     return next(new AppError('Unauthorized', 401));
   }
-  const categoryVal = typeof req.body.category === 'string' ? req.body.category.trim() : '默认';
+  const categoryVal = typeof req.body?.category === 'string' ? req.body.category.trim() : '默认';
   const category = categoryVal || '默认';
   try {
     const asset = await prisma.asset.findFirst({
@@ -1139,11 +1141,12 @@ export const toggleAssetLike = async (req: AuthRequest, res: Response, next: Nex
             userId,
           },
         },
+        select: { id: true, category: true },
       });
 
-      let liked = false;
+      let liked: boolean;
       if (existingLike) {
-        if (existingLike.category === category) {
+        if ((existingLike.category ?? '默认') === category) {
           await tx.assetLike.delete({
             where: {
               id: existingLike.id,

@@ -451,16 +451,29 @@ export const batchCreateTasks = async (req: AuthRequest, res: Response, next: Ne
       ),
     );
 
+    // Single round-trip to fetch all tasks for the affected projects and
+    // compute progress per project in memory (avoids one findMany + one
+    // update per projectId — N+1).
+    const projectIdSet = new Set(projectIds);
+    const allAffectedTasks = await prisma.task.findMany({
+      where: { projectId: { in: Array.from(projectIdSet) } },
+      select: { projectId: true, status: true },
+    });
+    const progressByProject = new Map<string, { total: number; done: number }>();
+    for (const t of allAffectedTasks) {
+      // Prisma types projectId as `string | null`; tasks without a project
+      // don't contribute to any project's progress, so skip them.
+      if (!t.projectId) continue;
+      const entry = progressByProject.get(t.projectId) || { total: 0, done: 0 };
+      entry.total += 1;
+      if (t.status === TaskStatus.DONE) entry.done += 1;
+      progressByProject.set(t.projectId, entry);
+    }
     await Promise.all(
-      projectIds.map(async (projectId) => {
-        const projectTasks = await prisma.task.findMany({
-          where: { projectId },
-          select: { status: true },
-        });
-        const total = projectTasks.length;
-        const done = projectTasks.filter((task) => task.status === TaskStatus.DONE).length;
-        const progress = total > 0 ? Math.round((done / total) * 100) : 0;
-        await prisma.project.update({
+      Array.from(projectIdSet).map((projectId) => {
+        const entry = progressByProject.get(projectId) || { total: 0, done: 0 };
+        const progress = entry.total > 0 ? Math.round((entry.done / entry.total) * 100) : 0;
+        return prisma.project.update({
           where: { id: projectId },
           data: { progress },
         });
@@ -488,16 +501,24 @@ export const batchCreateTasks = async (req: AuthRequest, res: Response, next: Ne
         ),
     );
 
+    // Single round-trip to fetch all members of all affected projects at
+    // once (avoids one findMany per projectId — N+1), then group in memory.
+    const allProjectMembers = await prisma.projectMember.findMany({
+      where: { projectId: { in: Array.from(projectIdSet) } },
+      select: { projectId: true, userId: true },
+    });
+    const membersByProject = new Map<string, string[]>();
+    for (const m of allProjectMembers) {
+      const arr = membersByProject.get(m.projectId) || [];
+      arr.push(m.userId);
+      membersByProject.set(m.projectId, arr);
+    }
+
     for (const projectId of projectIds) {
       try {
         const projectTasks = createdTasks.filter((task) => task.projectId === projectId);
-        const projectMembers = await prisma.projectMember.findMany({
-          where: { projectId },
-          select: { userId: true },
-        });
-        const targetUserIds = projectMembers
-          .map((member) => member.userId)
-          .filter((userId) => userId !== req.userId);
+        const memberUserIds = membersByProject.get(projectId) || [];
+        const targetUserIds = memberUserIds.filter((userId) => userId !== req.userId);
 
         if (targetUserIds.length > 0 && projectTasks.length > 0) {
           await createNotificationBatch(

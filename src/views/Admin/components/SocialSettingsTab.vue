@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue';
+import { ref } from 'vue';
 import { Chrome, Github, Eye, EyeOff } from 'lucide-vue-next';
 import api from '@/utils/api';
+import { useSettingsSync } from '@/composables/useSettingsSync';
 
 const props = defineProps<{
   settings: {
@@ -18,23 +19,7 @@ const emit = defineEmits<{
   (e: 'update:settings', val: typeof props.settings): void;
 }>();
 
-const localSettings = reactive({ ...props.settings });
-
-watch(
-  () => props.settings,
-  (newVal) => {
-    Object.assign(localSettings, newVal);
-  },
-  { deep: true },
-);
-
-watch(
-  localSettings,
-  (newVal) => {
-    emit('update:settings', { ...props.settings, ...newVal });
-  },
-  { deep: true },
-);
+const { localSettings } = useSettingsSync(props, emit);
 
 const showGooglePassword = ref(false);
 const showGithubPassword = ref(false);

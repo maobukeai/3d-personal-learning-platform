@@ -13,7 +13,9 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex items-center justify-center min-h-[50vh] text-[var(--text-muted)] text-sm font-medium">
+  <div
+    class="flex items-center justify-center min-h-[50vh] text-[var(--text-muted)] text-sm font-medium"
+  >
     Loading asset details...
   </div>
 </template>

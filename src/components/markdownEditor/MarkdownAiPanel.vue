@@ -17,19 +17,14 @@ import {
   Square,
   Copy,
   Check,
-  ChevronDown,
-  ChevronUp,
   Brain,
-  GripHorizontal,
   Maximize2,
   Minimize2,
   Play,
   RotateCcw,
   SlidersHorizontal,
-  FileText,
   ShieldCheck,
 } from 'lucide-vue-next';
-import api from '@/utils/api';
 import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
 
 const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
@@ -152,20 +147,6 @@ const toggleCtxMode = () => {
 
 const hasSelection = computed(() => props.selectedText.trim().length > 0);
 const primaryApplyLabel = computed(() => (hasSelection.value ? '替换选区' : '替换全文'));
-
-const lastAssistant = computed(() => {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === 'assistant') return messages[i];
-  }
-  return null;
-});
-
-const lastUserMessage = computed(() => {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === 'user') return messages[i];
-  }
-  return null;
-});
 
 const selectedCommand = computed(() => AI_COMMANDS.find((c) => c.value === aiAction.value));
 const activeActionLabel = computed(() => selectedCommand.value?.label ?? '写作');
@@ -576,13 +557,6 @@ const onChatInput = () => {
   chatRows.value = Math.min(chatText.value.split('\n').length, 4);
 };
 
-const rerunLast = () => {
-  const last = lastUserMessage.value;
-  if (!last || isGenerating.value) return;
-  aiAction.value = last.actionValue || aiAction.value;
-  runGeneration(last.promptText);
-};
-
 const runSelectedAction = () => {
   if (!canRunAction.value) {
     if (aiAction.value === 'generate') {
@@ -605,14 +579,6 @@ const handleApply = (mode: 'replace' | 'append' | 'copy', content: string, msg: 
   if (mode !== 'copy') {
     msg.applied = true;
   }
-};
-
-const copyMessage = async (msg: ChatMessage) => {
-  await navigator.clipboard.writeText(msg.content);
-  copiedId.value = msg.id;
-  setTimeout(() => {
-    copiedId.value = null;
-  }, 2000);
 };
 
 const clearMessages = () => {
@@ -888,11 +854,10 @@ onUnmounted(() => {
                 >正在组织语言...<span class="aip__cursor">▋</span></pre>
                 <pre
                   v-else-if="msg.isStreaming"
-                  class="chat-ai__stream-text"
-                >{{ msg.content || ' ' }}<span class="aip__cursor">▋</span></pre>
+                  class="chat-ai__stream-text">{{ msg.content || ' ' }}<span class="aip__cursor">▋</span></pre>
                 <MdPreview
                   v-else
-                  :modelValue="msg.content"
+                  :model-value="msg.content"
                   :theme="isDark ? 'dark' : 'light'"
                   class="aip__md-preview"
                   preview-only
@@ -936,7 +901,10 @@ onUnmounted(() => {
 
           <!-- Streaming status bar at bottom of messages -->
           <div v-if="isGenerating" class="aip__status-bar">
-            <div v-if="activeId && messages.find((m) => m.id === activeId)?.isStreaming" class="aip__thinking-bar">
+            <div
+              v-if="activeId && messages.find((m) => m.id === activeId)?.isStreaming"
+              class="aip__thinking-bar"
+            >
               <span class="aip__dots"><span></span><span></span><span></span></span>
               <span>AI 正在撰写建议中</span>
               <button type="button" class="aip__stop" @click="cancelGeneration">

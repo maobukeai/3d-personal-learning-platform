@@ -40,7 +40,9 @@ async function searchBlenderExtensions(query: string): Promise<ExternalSearchRes
     const matches = json.data.filter((item) => {
       const name = (item.name || '').toLowerCase();
       const tagline = (item.tagline || '').toLowerCase();
-      const tags: string[] = Array.isArray(item.tags) ? item.tags.map((t: string) => t.toLowerCase()) : [];
+      const tags: string[] = Array.isArray(item.tags)
+        ? item.tags.map((t: string) => t.toLowerCase())
+        : [];
       return (
         name.includes(keyword) ||
         tagline.includes(keyword) ||
@@ -76,20 +78,22 @@ async function searchBlenderX(query: string): Promise<ExternalSearchResult[]> {
     const $ = cheerio.load(res.data);
     const results: ExternalSearchResult[] = [];
 
-    $('.post.grid').slice(0, 10).each((i, el) => {
-      const titleEl = $(el).find('h3 a');
-      const title = titleEl.attr('title') || titleEl.text().trim();
-      const link = titleEl.attr('href') || '';
-      const snippet = $(el).find('.excerpt').text().trim();
-      if (title && link) {
-        results.push({
-          title,
-          link,
-          snippet,
-          site: 'www.blenderx.cn',
-        });
-      }
-    });
+    $('.post.grid')
+      .slice(0, 10)
+      .each((i, el) => {
+        const titleEl = $(el).find('h3 a');
+        const title = titleEl.attr('title') || titleEl.text().trim();
+        const link = titleEl.attr('href') || '';
+        const snippet = $(el).find('.excerpt').text().trim();
+        if (title && link) {
+          results.push({
+            title,
+            link,
+            snippet,
+            site: 'www.blenderx.cn',
+          });
+        }
+      });
 
     return results;
   } catch (err: any) {
@@ -157,38 +161,42 @@ async function searchGfxCamp(query: string): Promise<ExternalSearchResult[]> {
     const $ = cheerio.load(res.data);
     const results: ExternalSearchResult[] = [];
 
-    $('article, .post, .grid-item').slice(0, 10).each((i, el) => {
-      const titleEl = $(el).find('.entry-title a, h2 a, .post-title a').first();
-      const title = titleEl.text().trim();
-      const link = titleEl.attr('href') || '';
-      let snippet = $(el).find('.entry-summary, .entry-content, p').text().trim();
-      if (snippet.length > 200) {
-        snippet = snippet.substring(0, 200) + '...';
-      }
-      if (title && link) {
-        results.push({
-          title,
-          link,
-          snippet,
-          site: 'www.gfxcamp.com',
-        });
-      }
-    });
-
-    // Fallback Cheerio parse for h2 links
-    if (results.length === 0) {
-      $('h2 a').slice(0, 10).each((i, el) => {
-        const title = $(el).text().trim();
-        const link = $(el).attr('href') || '';
+    $('article, .post, .grid-item')
+      .slice(0, 10)
+      .each((i, el) => {
+        const titleEl = $(el).find('.entry-title a, h2 a, .post-title a').first();
+        const title = titleEl.text().trim();
+        const link = titleEl.attr('href') || '';
+        let snippet = $(el).find('.entry-summary, .entry-content, p').text().trim();
+        if (snippet.length > 200) {
+          snippet = snippet.substring(0, 200) + '...';
+        }
         if (title && link) {
           results.push({
             title,
             link,
-            snippet: '',
+            snippet,
             site: 'www.gfxcamp.com',
           });
         }
       });
+
+    // Fallback Cheerio parse for h2 links
+    if (results.length === 0) {
+      $('h2 a')
+        .slice(0, 10)
+        .each((i, el) => {
+          const title = $(el).text().trim();
+          const link = $(el).attr('href') || '';
+          if (title && link) {
+            results.push({
+              title,
+              link,
+              snippet: '',
+              site: 'www.gfxcamp.com',
+            });
+          }
+        });
     }
 
     return results;
@@ -211,20 +219,22 @@ async function searchBlenderMX(query: string): Promise<ExternalSearchResult[]> {
     const $ = cheerio.load(res.data);
     const results: ExternalSearchResult[] = [];
 
-    $('.post.grid').slice(0, 10).each((i, el) => {
-      const titleEl = $(el).find('h3 a');
-      const title = titleEl.attr('title') || titleEl.text().trim();
-      const link = titleEl.attr('href') || '';
-      const snippet = $(el).find('.excerpt').text().trim();
-      if (title && link) {
-        results.push({
-          title,
-          link,
-          snippet,
-          site: 'www.blendermx.com',
-        });
-      }
-    });
+    $('.post.grid')
+      .slice(0, 10)
+      .each((i, el) => {
+        const titleEl = $(el).find('h3 a');
+        const title = titleEl.attr('title') || titleEl.text().trim();
+        const link = titleEl.attr('href') || '';
+        const snippet = $(el).find('.excerpt').text().trim();
+        if (title && link) {
+          results.push({
+            title,
+            link,
+            snippet,
+            site: 'www.blendermx.com',
+          });
+        }
+      });
 
     return results;
   } catch (err: any) {
@@ -275,10 +285,12 @@ export async function searchAndAnalyze(query: string): Promise<ExternalSearchRes
 
   // Format matches for LLM prompt
   const formattedResults = Object.entries(results)
-    .filter(([site, list]) => list.length > 0)
+    .filter(([, list]) => list.length > 0)
     .map(([site, list]) => {
       const itemsText = list
-        .map((item, idx) => `  ${idx + 1}. [${item.title}](${item.link})\n     描述: ${item.snippet}`)
+        .map(
+          (item, idx) => `  ${idx + 1}. [${item.title}](${item.link})\n     描述: ${item.snippet}`,
+        )
         .join('\n');
       return `### ${site}\n${itemsText}`;
     })
@@ -300,16 +312,19 @@ ${formattedResults}
 
 请帮用户对这些结果进行分析与提炼，给出最推荐的资源链接及推荐原因。`;
 
-  let aiAnalysis = '';
+  let aiAnalysis: string;
   try {
     aiAnalysis = await callLLMWithFailover(prompt, systemPrompt);
   } catch (err: any) {
     logger.error(`[External Search] AI analysis failover error: ${err.message}`);
-    aiAnalysis = `资源抓取成功，但 AI 分析暂时不可用。以下是检索到的推荐链接：\n\n` +
+    aiAnalysis =
+      `资源抓取成功，但 AI 分析暂时不可用。以下是检索到的推荐链接：\n\n` +
       Object.entries(results)
-        .filter(([site, list]) => list.length > 0)
+        .filter(([, list]) => list.length > 0)
         .map(([site, list]) => {
-          return `**${site}**:\n` + list.map(item => `- [${item.title}](${item.link})`).join('\n');
+          return (
+            `**${site}**:\n` + list.map((item) => `- [${item.title}](${item.link})`).join('\n')
+          );
         })
         .join('\n\n');
   }

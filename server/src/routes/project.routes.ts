@@ -17,6 +17,7 @@ const aiRateLimiter = rateLimit({
   max: 10, // Max 10 requests per minute
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   handler: createRateLimitHandler('AI 接口请求过于频繁，请稍后再试。', 'AI_RATE_LIMITED'),
   keyGenerator: createAiRateLimitKeyGenerator('ai_user', 'ai_ip'),
 });
@@ -26,6 +27,7 @@ const aiUploadRateLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   handler: createRateLimitHandler('AI 图片上传过于频繁，请稍后再试。', 'AI_UPLOAD_RATE_LIMITED'),
   keyGenerator: createAiRateLimitKeyGenerator('ai_upload_user', 'ai_upload_ip'),
 });

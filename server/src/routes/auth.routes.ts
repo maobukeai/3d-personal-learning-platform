@@ -108,6 +108,7 @@ const authIpLimiter = rateLimit({
   handler: createRateLimitHandler('请求过于频繁，请稍后再试', 'AUTH_RATE_LIMITED'),
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   skipSuccessfulRequests: true,
 });
 
@@ -117,6 +118,7 @@ const authLimiter = rateLimit({
   handler: createRateLimitHandler('请求过于频繁，请稍后再试', 'AUTH_RATE_LIMITED'),
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   skipSuccessfulRequests: true,
   keyGenerator: getAuthAttemptKey,
 });
@@ -130,6 +132,7 @@ const passwordResetLimiter = rateLimit({
   ),
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
 });
 
 const emailLimiter = rateLimit({
@@ -138,6 +141,7 @@ const emailLimiter = rateLimit({
   handler: createRateLimitHandler('邮件发送请求过于频繁，请 10 分钟后再试', 'EMAIL_RATE_LIMITED'),
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
 });
 
 router.post(

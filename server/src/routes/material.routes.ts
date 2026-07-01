@@ -15,6 +15,7 @@ const uploadLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   handler: createRateLimitHandler('上传请求过于频繁，请稍后再试。', 'UPLOAD_RATE_LIMITED'),
   keyGenerator: (req) => (req as RequestWithUserId).userId || req.ip || 'unknown',
 });
@@ -25,6 +26,7 @@ const downloadLimiter = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   handler: createRateLimitHandler('下载请求过于频繁，请稍后再试。', 'DOWNLOAD_RATE_LIMITED'),
   keyGenerator: (req) => (req as RequestWithUserId).userId || req.ip || 'unknown',
 });

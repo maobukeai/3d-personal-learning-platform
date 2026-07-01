@@ -14,6 +14,7 @@ const aiRateLimiter = rateLimit({
   skipSuccessfulRequests: false,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   handler: createRateLimitHandler('AI 接口请求过于频繁，请稍后再试。', 'AI_RATE_LIMITED'),
   keyGenerator: createAiRateLimitKeyGenerator('ai_user', 'ai_ip'),
 });

@@ -40,7 +40,7 @@ function prepareConfigResponse(config: StorageConfig) {
   return {
     ...config,
     secretAccessKey: '',
-    cloudflareApiToken: decryptSecretIfNeeded(config.cloudflareApiToken),
+    cloudflareApiToken: '',
     hasSecretAccessKey: Boolean(config.secretAccessKey),
     hasCloudflareApiToken: Boolean(config.cloudflareApiToken),
   };
@@ -203,12 +203,17 @@ export const updateConfig = async (req: AuthRequest, res: Response, next: NextFu
       status: status !== undefined ? status : existing.status,
     };
 
-    // Only re-encrypt if the user explicitly provided a new secretAccessKey
-    if (secretAccessKey !== undefined) {
-      updateData.secretAccessKey = encrypt(secretAccessKey);
+    // Only re-encrypt if the user explicitly provided a new non-empty plaintext secret
+    const { ENCRYPTED_VALUE_RE } = await import('../../utils/crypto');
+    if (secretAccessKey !== undefined && secretAccessKey.trim() !== '') {
+      if (!ENCRYPTED_VALUE_RE.test(secretAccessKey.trim())) {
+        updateData.secretAccessKey = encrypt(secretAccessKey.trim());
+      }
     }
-    if (cloudflareApiToken !== undefined) {
-      updateData.cloudflareApiToken = cloudflareApiToken ? encrypt(cloudflareApiToken) : null;
+    if (cloudflareApiToken !== undefined && cloudflareApiToken.trim() !== '') {
+      if (!ENCRYPTED_VALUE_RE.test(cloudflareApiToken.trim())) {
+        updateData.cloudflareApiToken = encrypt(cloudflareApiToken.trim());
+      }
     }
 
     const config = await prisma.storageConfig.update({

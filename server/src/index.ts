@@ -19,7 +19,7 @@ import {
 import { stopAiCleanupTimer } from './services/ai.service';
 import './services/redis.service';
 import prisma from './services/prisma';
-import { storageService } from './services/storage.service';
+import { storageService, decryptSecretIfNeeded } from './services/storage.service';
 
 const port = config.PORT;
 
@@ -46,7 +46,7 @@ const initActiveBucketsCors = async () => {
         const configData = {
           endpoint: raw.endpoint,
           accessKeyId: raw.accessKeyId ?? '',
-          secretAccessKey: raw.secretAccessKey,
+          secretAccessKey: decryptSecretIfNeeded(raw.secretAccessKey),
           bucketName: raw.bucketName,
           publicUrl: raw.publicUrl,
         };

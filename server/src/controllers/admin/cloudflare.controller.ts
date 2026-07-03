@@ -21,13 +21,15 @@ export const saveConfig = async (req: AuthRequest, res: Response, next: NextFunc
   try {
     const { apiToken, accountId } = req.body as { apiToken?: string; accountId?: string | null };
     const existing = await cloudflareAdminService.getConfig();
+    const inputToken = apiToken?.trim();
+    const tokenToSave = (inputToken === '********' || !inputToken) ? existing.apiToken : inputToken;
 
-    if (!apiToken?.trim() && !existing.hasToken) {
+    if (!tokenToSave && !existing.hasToken) {
       return next(new AppError('请填写 Cloudflare API Token', 400));
     }
 
     const saved = await cloudflareAdminService.saveConfig(
-      apiToken?.trim() || existing.apiToken,
+      tokenToSave,
       accountId ?? null,
     );
 

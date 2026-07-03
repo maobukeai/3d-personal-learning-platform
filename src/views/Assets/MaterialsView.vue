@@ -12,6 +12,12 @@ import {
   ShieldCheck,
   UploadCloud,
   XCircle,
+  Plus,
+  RefreshCw,
+  Eye,
+  EyeOff,
+  MessageSquare,
+  Box,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
@@ -21,7 +27,6 @@ import { useSystemStore } from '@/stores/system';
 import { formatCompactNumber, formatFileSize, parseTags, resolvePreviewUrl } from './resourceUtils';
 import MaterialFiltersPanel from './components/MaterialFiltersPanel.vue';
 import MaterialControlToolbar from './components/MaterialControlToolbar.vue';
-import MaterialSignalsRow from './components/MaterialSignalsRow.vue';
 import MaterialStateBar from './components/MaterialStateBar.vue';
 import MaterialsGrid from './components/MaterialsGrid.vue';
 import MaterialDetailPanel from './components/MaterialDetailPanel.vue';
@@ -30,14 +35,60 @@ const PublishWorkDialog = defineAsyncComponent(() => import('@/components/Publis
 const EditWorkDialog = defineAsyncComponent(() => import('./components/EditWorkDialog.vue'));
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
 import { normalizeMaterialWork } from './myWorksModel';
 import type { UnifiedWork } from './myWorksModel';
+import HelpRequestsForum from './components/HelpRequestsForum.vue';
+import HelpRequestPostModal from './components/HelpRequestPostModal.vue';
+import HelpRequestDetailModal from './components/HelpRequestDetailModal.vue';
 import MaterialLibraryHeader from './components/MaterialLibraryHeader.vue';
 import { useLabel } from '@/utils/i18n';
 
 type ViewMode = 'grid' | 'list';
 type SortMode = 'latest' | 'popular' | 'favorited' | 'largest' | 'smallest';
-type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts';
+// Help requests states
+interface HelpRequest {
+  id: string;
+  title: string;
+  description: string;
+  status: 'OPEN' | 'RESOLVED';
+  userId: string;
+  createdAt: string;
+  user: { id: string; name: string; avatarUrl: string | null };
+  _count: { replies: number };
+}
+
+interface HelpRequestReply {
+  id: string;
+  content: string;
+  createdAt: string;
+  user: { id: string; name: string; avatarUrl: string | null };
+  linkedMaterial?: {
+    id: string;
+    title: string;
+    resolution: string | null;
+    previewUrl: string | null;
+    downloads: number;
+  } | null;
+}
+
+const helpRequests = ref<HelpRequest[]>([]);
+const helpRequestsCount = ref(0);
+const isHelpRequestsLoading = ref(false);
+const showHelpRequestPostDialog = ref(false);
+const newHelpRequestForm = ref({ title: '', description: '' });
+const isSubmittingHelpRequest = ref(false);
+
+const selectedHelpRequest = ref<HelpRequest | null>(null);
+const showHelpRequestDetailModal = ref(false);
+const helpRequestReplies = ref<HelpRequestReply[]>([]);
+const isHelpRepliesLoading = ref(false);
+const newHelpReplyContent = ref('');
+const linkedMaterialIdForReply = ref('');
+const isSubmittingReply = ref(false);
+const approvedMaterialsForLinking = ref<{ id: string; title: string }[]>([]);
+
+type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts' | 'requests';
 type MaterialStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 type StatusFilter = 'all' | MaterialStatus;
 type ProceduralFilter = 'all' | 'true' | 'false';
@@ -137,11 +188,23 @@ const selectedProcedural = ref<ProceduralFilter>('all');
 const myStatusFilter = ref<StatusFilter>('all');
 const sortBy = ref<SortMode>('latest');
 const viewMode = ref<ViewMode>('grid');
-const isStatsExpanded = ref(false);
 const selectedIds = ref<string[]>([]);
+const isBatchMode = ref(false);
 const isFilterOpen = ref(false);
+
+const handleContainerClick = (e: MouseEvent) => {
+  if (!isBatchMode.value) return;
+  const target = e.target as HTMLElement;
+  if (!target) return;
+  if (target.closest('article, .unified-card, button, input, .el-select, .el-popper, a, select')) {
+    return;
+  }
+  isBatchMode.value = false;
+  selectedIds.value = [];
+};
 const isLoading = ref(false);
 const isLoadingDetail = ref(false);
+const isFilterCollapsed = ref(false);
 
 const isUploadDialogOpen = ref(false);
 const isBulkBusy = ref(false);
@@ -257,6 +320,11 @@ const libraryTabs = computed(() => [
     key: 'drafts' as const,
     label: label('草稿箱', 'Drafts'),
     count: insights.value?.summary.myPending || 0,
+  },
+  {
+    key: 'requests' as const,
+    label: label('材质求助', 'Help Requests'),
+    count: helpRequestsCount.value,
   },
 ]);
 
@@ -757,6 +825,10 @@ const handleSaveEdit = async () => {
 };
 
 async function openDetail(material: MaterialItem | NormalizedMaterial) {
+  if (isBatchMode.value) {
+    toggleSelect(material.id);
+    return;
+  }
   selectedMaterial.value = normalizeMaterial(material);
   isLoadingDetail.value = true;
   try {
@@ -1273,6 +1345,8 @@ function resetFilters() {
 
 watch(activeTab, () => {
   selectedFavoriteCategory.value = 'all';
+  isBatchMode.value = false;
+  selectedIds.value = [];
 });
 
 watch(
@@ -1307,10 +1381,142 @@ watch(searchQuery, () => {
   }, 320);
 });
 
+const fetchHelpRequests = async () => {
+  try {
+    isHelpRequestsLoading.value = true;
+    const { data } = await api.get('/api/materials/requests');
+    helpRequests.value = data.requests || [];
+    helpRequestsCount.value = data.pagination?.total || helpRequests.value.length;
+  } catch (err) {
+    logError(err, { operation: 'fetch help requests' });
+  } finally {
+    isHelpRequestsLoading.value = false;
+  }
+};
+
+const fetchApprovedMaterialsForLinking = async () => {
+  try {
+    const { data } = await api.get('/api/materials', { params: { pageSize: 100 } });
+    const list = data.materials || [];
+    approvedMaterialsForLinking.value = list.map((m: any) => ({ id: m.id, title: m.title }));
+  } catch (err) {
+    logError(err, { operation: 'fetch materials for linking' });
+  }
+};
+
+const openHelpRequestDetail = async (req: HelpRequest) => {
+  selectedHelpRequest.value = req;
+  showHelpRequestDetailModal.value = true;
+  newHelpReplyContent.value = '';
+  linkedMaterialIdForReply.value = '';
+
+  isHelpRepliesLoading.value = true;
+  try {
+    const { data } = await api.get(`/api/materials/requests/${req.id}`);
+    helpRequestReplies.value = data.replies || [];
+  } catch (err) {
+    logError(err, { operation: 'load replies' });
+  } finally {
+    isHelpRepliesLoading.value = false;
+  }
+
+  fetchApprovedMaterialsForLinking();
+};
+
+const handlePostHelpRequest = async () => {
+  if (!newHelpRequestForm.value.title.trim() || !newHelpRequestForm.value.description.trim())
+    return;
+  isSubmittingHelpRequest.value = true;
+  try {
+    await api.post('/api/materials/requests', {
+      title: newHelpRequestForm.value.title.trim(),
+      description: newHelpRequestForm.value.description.trim(),
+    });
+    ElMessage.success(label('求助帖发布成功', 'Help request posted successfully'));
+    newHelpRequestForm.value = { title: '', description: '' };
+    showHelpRequestPostDialog.value = false;
+    await fetchHelpRequests();
+  } catch (err) {
+    logError(err, { operation: 'post help request' });
+    ElMessage.error(label('发布失败', 'Failed to post'));
+  } finally {
+    isSubmittingHelpRequest.value = false;
+  }
+};
+
+const handlePostReply = async () => {
+  if (!selectedHelpRequest.value || !newHelpReplyContent.value.trim()) return;
+  isSubmittingReply.value = true;
+  try {
+    const { data } = await api.post(
+      `/api/materials/requests/${selectedHelpRequest.value.id}/replies`,
+      {
+        content: newHelpReplyContent.value.trim(),
+        linkedMaterialId: linkedMaterialIdForReply.value || undefined,
+      },
+    );
+    helpRequestReplies.value.push(data);
+    newHelpReplyContent.value = '';
+    linkedMaterialIdForReply.value = '';
+    ElMessage.success(label('回复发表成功', 'Reply posted successfully'));
+    selectedHelpRequest.value._count = selectedHelpRequest.value._count || { replies: 0 };
+    selectedHelpRequest.value._count.replies += 1;
+    fetchHelpRequests();
+  } catch (err) {
+    logError(err, { operation: 'post reply' });
+    ElMessage.error(label('回复失败', 'Failed to reply'));
+  } finally {
+    isSubmittingReply.value = false;
+  }
+};
+
+const handleResolveRequest = async (requestId: string) => {
+  try {
+    await api.post(`/api/materials/requests/${requestId}/resolve`);
+    ElMessage.success(label('求助帖已解决并关闭', 'Request marked as resolved'));
+    if (selectedHelpRequest.value) {
+      selectedHelpRequest.value.status = 'RESOLVED';
+    }
+    await fetchHelpRequests();
+  } catch (err) {
+    logError(err, { operation: 'resolve request' });
+    ElMessage.error(label('操作失败', 'Action failed'));
+  }
+};
+
+const openLinkedMaterial = (materialId: string) => {
+  showHelpRequestDetailModal.value = false;
+  const mat = materials.value.find((item) => item.id === materialId);
+  if (mat) {
+    openDetail(mat);
+  } else {
+    window.location.hash = `#/materials?material=${materialId}`;
+    window.location.reload();
+  }
+};
+
+const handlePostReplyFromComponent = (payload: { content: string; linkedItemId: string }) => {
+  newHelpReplyContent.value = payload.content;
+  linkedMaterialIdForReply.value = payload.linkedItemId;
+  handlePostReply();
+};
+
+const handlePostHelpRequestFromComponent = (formPayload: { title: string; description: string }) => {
+  newHelpRequestForm.value = formPayload;
+  handlePostHelpRequest();
+};
+
+watch(activeTab, (newTab) => {
+  if (newTab === 'requests') {
+    fetchHelpRequests();
+  }
+});
+
 onMounted(() => {
   systemStore.fetchSettings();
   resetUploadForm();
   refreshWorkspace();
+  fetchHelpRequests();
 });
 
 onUnmounted(() => {
@@ -1319,33 +1525,20 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="materials-page mobile-adaptive flex flex-col h-full overflow-hidden">
+  <div class="materials-page mobile-adaptive flex flex-col h-full overflow-hidden" @click="handleContainerClick">
     <MaterialLibraryHeader
       v-model:search-query="searchQuery"
-      :is-stats-expanded="isStatsExpanded"
-      @toggle-stats="isStatsExpanded = !isStatsExpanded"
       @show-favorites="activeTab = 'favorites'"
       @upload="openCreateDialog"
     />
 
     <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">
-      <div v-show="isStatsExpanded" class="metric-strip">
-        <article
-          v-for="stat in statCards"
-          :key="stat.label"
-          class="metric-tile"
-          :data-tone="stat.tone"
-        >
-          <component :is="stat.icon" class="icon-sm" />
-          <span>{{ stat.label }}</span>
-          <strong>{{ stat.value }}</strong>
-          <small>{{ stat.meta }}</small>
-        </article>
-      </div>
 
-      <div class="workspace-shell">
+      <div class="workspace-shell" :class="{ 'single-col': activeTab === 'requests', 'collapsed-shell': isFilterCollapsed }">
         <MaterialFiltersPanel
+          v-if="activeTab !== 'requests'"
           :is-open="isFilterOpen"
+          v-model:collapsed="isFilterCollapsed"
           :active-tab="activeTab"
           :active-category="activeCategory"
           :selected-resolution="selectedResolution"
@@ -1375,72 +1568,88 @@ onUnmounted(() => {
             v-model:active-tab="activeTab"
             v-model:sort-by="sortBy"
             v-model:view-mode="viewMode"
+            v-model:is-batch-mode="isBatchMode"
+            :is-filter-collapsed="isFilterCollapsed"
+            @toggle-filter-collapse="isFilterCollapsed = false"
+            :selected-ids="selectedIds"
+            :visible-materials-count="visibleMaterials.length"
             :library-tab-options="libraryTabOptions"
             :view-mode-options="viewModeOptions"
             :is-filter-open="isFilterOpen"
+            @select-all="toggleSelectAllVisible"
+            @bulk-delete="bulkDeleteMaterials"
+            @bulk-unfavorite="bulkFavorite(false)"
             @toggle-filter="isFilterOpen = !isFilterOpen"
           />
 
-          <MaterialSignalsRow
-            v-show="isStatsExpanded"
-            :top-downloads="insights?.topDownloads || []"
-            :latest-uploads="insights?.latest || []"
-            @open-detail="openDetail"
+          <!-- Request Help forum list -->
+          <HelpRequestsForum
+            v-if="activeTab === 'requests'"
+            :forum-title="label('材质求助论坛', 'Material Help Requests Forum')"
+            :forum-desc="label('找不到需要的材质纹理？发布求助帖，让社区开发者和爱好者来帮助您！', 'Can\'t find a material texture? Ask the community for help.')"
+            :requests="helpRequests"
+            :is-loading="isHelpRequestsLoading"
+            @open-detail="openHelpRequestDetail"
+            @create-request="showHelpRequestPostDialog = true"
           />
+          <template v-else>
+            <!-- MaterialSignalsRow removed -->
 
-          <MaterialStateBar
-            :active-filter-labels="activeFilterLabels"
-            :selected-count="selectedIds.length"
-            :all-visible-selected="allVisibleSelected"
-            :is-bulk-busy="isBulkBusy"
-            :active-tab="activeTab"
-            @clear-filter="clearFilter"
-            @reset-filters="resetFilters"
-            @toggle-select-all="toggleSelectAllVisible"
-            @bulk-favorite="bulkFavorite"
-            @download-selected="downloadSelected"
-            @bulk-delete="bulkDeleteMaterials"
-          />
-
-          <section class="workbench" :class="{ 'with-detail': selectedMaterial }">
-            <MaterialsGrid
-              :is-loading="isLoading"
-              :view-mode="viewMode"
-              :materials="visibleMaterials"
-              :selected-ids="selectedIds"
+            <MaterialStateBar
+              v-if="selectedIds.length > 0"
+              :active-filter-labels="[]"
+              :selected-count="selectedIds.length"
+              :all-visible-selected="allVisibleSelected"
+              :is-bulk-busy="isBulkBusy"
               :active-tab="activeTab"
-              :empty-title="emptyState.title"
-              :empty-body="emptyState.body"
-              :active-filter-chips="activeFilterChips"
-              :total-count="insights?.summary.total || visibleMaterials.length"
-              @open-detail="openDetail"
-              @toggle-select="toggleSelect"
-              @toggle-favorite="toggleFavorite"
-              @download="handleDownload"
-              @create="openCreateDialog"
               @clear-filter="clearFilter"
               @reset-filters="resetFilters"
+              @toggle-select-all="toggleSelectAllVisible"
+              @bulk-favorite="bulkFavorite"
+              @download-selected="downloadSelected"
+              @bulk-delete="bulkDeleteMaterials"
             />
 
-            <MaterialDetailPanel
-              v-if="selectedMaterial"
-              :material="selectedMaterial"
-              :loading="isLoadingDetail"
-              :my-materials="normalizedMyMaterials"
-              :is-admin="isAdmin"
-              :can-edit="canEditMaterial(selectedMaterial)"
-              :can-download="canDownloadMaterial(selectedMaterial)"
-              :is-saving-review="isSavingReview"
-              @close="closeDetail"
-              @favorite="toggleFavorite(selectedMaterial)"
-              @download="handleDownload(selectedMaterial)"
-              @edit="openEditDialog"
-              @select="openDetail"
-              @delete="deleteMaterial(selectedMaterial)"
-              @review-approved="reviewMaterial(selectedMaterial, 'APPROVED')"
-              @review-rejected="reviewMaterial(selectedMaterial, 'REJECTED')"
-            />
-          </section>
+            <section class="workbench" :class="{ 'with-detail': selectedMaterial }">
+              <MaterialsGrid
+                :is-loading="isLoading"
+                :view-mode="viewMode"
+                :materials="visibleMaterials"
+                :selected-ids="selectedIds"
+                :active-tab="activeTab"
+                :empty-title="emptyState.title"
+                :empty-body="emptyState.body"
+                :active-filter-chips="activeFilterChips"
+                :total-count="insights?.summary.total || visibleMaterials.length"
+                @open-detail="openDetail"
+                @toggle-select="toggleSelect"
+                @toggle-favorite="toggleFavorite"
+                @download="handleDownload"
+                @create="openCreateDialog"
+                @clear-filter="clearFilter"
+                @reset-filters="resetFilters"
+              />
+
+              <MaterialDetailPanel
+                v-if="selectedMaterial"
+                :material="selectedMaterial"
+                :loading="isLoadingDetail"
+                :my-materials="normalizedMyMaterials"
+                :is-admin="isAdmin"
+                :can-edit="canEditMaterial(selectedMaterial)"
+                :can-download="canDownloadMaterial(selectedMaterial)"
+                :is-saving-review="isSavingReview"
+                @close="closeDetail"
+                @favorite="toggleFavorite(selectedMaterial)"
+                @download="handleDownload(selectedMaterial)"
+                @edit="openEditDialog"
+                @select="openDetail"
+                @delete="deleteMaterial(selectedMaterial)"
+                @review-approved="reviewMaterial(selectedMaterial, 'APPROVED')"
+                @review-rejected="reviewMaterial(selectedMaterial, 'REJECTED')"
+              />
+            </section>
+          </template>
         </main>
       </div>
     </div>
@@ -1462,6 +1671,35 @@ onUnmounted(() => {
       :material-categories="materialCategories"
       :plugin-categories="[]"
       @save="handleSaveEdit"
+    />
+
+    <!-- Help Request Detail Modal -->
+    <HelpRequestDetailModal
+      :show="showHelpRequestDetailModal"
+      :request="selectedHelpRequest"
+      :replies="helpRequestReplies"
+      :is-replies-loading="isHelpRepliesLoading"
+      :is-submitting-reply="isSubmittingReply"
+      :approved-items-for-linking="approvedMaterialsForLinking"
+      :link-label="label('关联材质：', 'Link Material:')"
+      @close="
+        showHelpRequestDetailModal = false;
+        selectedHelpRequest = null;
+      "
+      @post-reply="handlePostReplyFromComponent"
+      @resolve="handleResolveRequest"
+      @open-linked-item="openLinkedMaterial"
+    />
+
+    <!-- Help Request Post Modal -->
+    <HelpRequestPostModal
+      :show="showHelpRequestPostDialog"
+      :is-submitting="isSubmittingHelpRequest"
+      :modal-title="label('发布新材质求助帖', 'Create Help Request')"
+      :title-placeholder="label('例如：寻找写实红砖墙面 PBR 材质', 'e.g. looking for brick PBR material')"
+      :desc-placeholder="label('请详细描述您需要的材质规格、分辨率（如4K/8K）、是否需要程序化贴图或参考，让大家能更精准地帮您找到！', 'Describe material details...')"
+      @close="showHelpRequestPostDialog = false"
+      @submit="handlePostHelpRequestFromComponent"
     />
 
     <!-- Favorite Category Create/Rename Modal -->
@@ -1585,76 +1823,6 @@ button:disabled {
   gap: 8px;
 }
 
-.metric-strip {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  min-width: 0;
-}
-
-.metric-tile {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  min-width: 0;
-  min-height: 54px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  padding: 8px 12px;
-  box-shadow: var(--shadow-card);
-  transition: all 0.15s ease;
-}
-
-.metric-tile:hover {
-  transform: translateY(-1.5px);
-  border-color: var(--tone-color, #d97706);
-  box-shadow: var(--shadow-card-hover);
-}
-
-.metric-tile svg {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  padding: 5px;
-  background: var(--bg-app);
-  color: var(--tone-color);
-  flex: 0 0 auto;
-}
-
-.metric-tile span {
-  display: block;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.metric-tile strong {
-  margin-left: auto;
-  color: var(--text-primary);
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.metric-tile small {
-  display: none;
-}
-
-.metric-tile[data-tone='amber'] {
-  --tone-color: #d97706;
-}
-.metric-tile[data-tone='rose'] {
-  --tone-color: #e11d48;
-}
-.metric-tile[data-tone='blue'] {
-  --tone-color: #2563eb;
-}
-.metric-tile[data-tone='teal'] {
-  --tone-color: #0f766e;
-}
-
 .primary-button,
 .ghost-button {
   display: inline-flex;
@@ -1701,11 +1869,18 @@ button:disabled {
 }
 
 .workspace-shell {
-  flex: 1;
-  min-height: 0;
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: 156px minmax(0, 1fr);
   gap: 12px;
+  transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.workspace-shell.collapsed-shell {
+  grid-template-columns: 1fr;
+}
+
+.workspace-shell.single-col {
+  grid-template-columns: 1fr;
 }
 
 .content-panel {
@@ -1735,18 +1910,6 @@ button:disabled {
 
 @media (max-width: 1080px) {
   .workbench.with-detail {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 860px) {
-  .metric-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 560px) {
-  .metric-strip {
     grid-template-columns: 1fr;
   }
 }

@@ -46,6 +46,7 @@ router.put(
 );
 router.delete('/:id', pluginController.deletePlugin);
 router.post('/bulk-delete', pluginController.bulkDeletePlugins);
+router.post('/bulk/favorite', pluginController.bulkFavoritePlugins);
 router.post('/:id/download', pluginController.downloadPlugin);
 router.post('/:id/favorite', pluginController.togglePluginFavorite);
 

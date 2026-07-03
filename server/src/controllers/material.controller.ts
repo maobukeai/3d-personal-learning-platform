@@ -1,4 +1,4 @@
-import { Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger';
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
@@ -1589,6 +1589,161 @@ export const bulkDeleteMaterials = async (req: AuthRequest, res: Response, next:
       count: deleteIds.length,
       deletedIds: deleteIds,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/materials/requests
+export const listMaterialRequests = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { page, limit, skip } = getPaginationParams(req.query as Record<string, unknown>, 20, 50);
+    const status = req.query.status as string | undefined;
+
+    const where: Prisma.MaterialRequestWhereInput = {};
+    if (status && status !== 'ALL') {
+      where.status = status;
+    }
+
+    const [requests, total] = await Promise.all([
+      prisma.materialRequest.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          user: { select: { id: true, name: true, avatarUrl: true } },
+          _count: { select: { replies: true } },
+        },
+      }),
+      prisma.materialRequest.count({ where }),
+    ]);
+
+    res.json({ requests, pagination: createPaginationMeta(page, limit, total) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/materials/requests/:id
+export const getMaterialRequestById = async (req: Request, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
+  try {
+    const request = await prisma.materialRequest.findUnique({
+      where: { id },
+      include: {
+        user: { select: { id: true, name: true, avatarUrl: true } },
+        replies: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            user: { select: { id: true, name: true, avatarUrl: true } },
+            linkedMaterial: {
+              select: { id: true, title: true, resolution: true, previewUrl: true, downloads: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!request) {
+      return next(new AppError('求助帖不存在', 404));
+    }
+
+    res.json(request);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/materials/requests
+export const createMaterialRequest = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const { title, description } = req.body;
+  if (!title?.trim() || !description?.trim()) {
+    return next(new AppError('标题和内容为必填项', 400));
+  }
+
+  try {
+    const request = await prisma.materialRequest.create({
+      data: {
+        title: title.trim(),
+        description: description.trim(),
+        userId: req.userId!,
+        status: 'OPEN',
+      },
+      include: {
+        user: { select: { id: true, name: true, avatarUrl: true } },
+        _count: { select: { replies: true } },
+      },
+    });
+
+    res.status(201).json(request);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/materials/requests/:id/replies
+export const createMaterialRequestReply = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const requestId = req.params.id as string;
+  const { content, linkedMaterialId } = req.body;
+
+  if (!content?.trim()) {
+    return next(new AppError('回复内容不能为空', 400));
+  }
+
+  try {
+    const request = await prisma.materialRequest.findUnique({ where: { id: requestId } });
+    if (!request) return next(new AppError('求助帖不存在', 404));
+
+    if (linkedMaterialId) {
+      const material = await prisma.material.findFirst({
+        where: { id: linkedMaterialId, status: 'APPROVED' },
+      });
+      if (!material) return next(new AppError('关联的材质不存在或未被批准发布', 400));
+    }
+
+    const reply = await prisma.materialRequestReply.create({
+      data: {
+        requestId,
+        userId: req.userId!,
+        content: content.trim(),
+        linkedMaterialId: linkedMaterialId || null,
+      },
+      include: {
+        user: { select: { id: true, name: true, avatarUrl: true } },
+        linkedMaterial: {
+          select: { id: true, title: true, resolution: true, previewUrl: true, downloads: true },
+        },
+      },
+    });
+
+    res.status(201).json(reply);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/materials/requests/:id/resolve
+export const resolveMaterialRequest = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const requestId = req.params.id as string;
+  try {
+    const request = await prisma.materialRequest.findUnique({ where: { id: requestId } });
+    if (!request) return next(new AppError('求助帖不存在', 404));
+
+    if (request.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return next(new AppError('无权关闭此求助贴', 403));
+    }
+
+    const updated = await prisma.materialRequest.update({
+      where: { id: requestId },
+      data: { status: 'RESOLVED' },
+    });
+
+    res.json(updated);
   } catch (error) {
     next(error);
   }

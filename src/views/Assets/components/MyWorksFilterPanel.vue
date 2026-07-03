@@ -3,6 +3,7 @@ import { Layers, PackageCheck, ShieldAlert } from 'lucide-vue-next';
 import { type Component } from 'vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import type { WorkKind, WorkStatus } from '../myWorksModel';
+import CollapsibleFilterShell from './CollapsibleFilterShell.vue';
 
 interface FilterTabOption {
   label?: string;
@@ -13,6 +14,7 @@ interface FilterTabOption {
 
 const sourceFilter = defineModel<'ALL' | WorkKind>('sourceFilter', { required: true });
 const statusFilter = defineModel<WorkStatus>('statusFilter', { required: true });
+const isCollapsed = defineModel<boolean>('collapsed', { default: false });
 
 defineProps<{
   activeTab: 'mine' | 'favorites';
@@ -22,7 +24,10 @@ defineProps<{
 </script>
 
 <template>
-  <aside class="filter-panel">
+  <CollapsibleFilterShell
+    v-model:collapsed="isCollapsed"
+    storage-key="myworks_filter_collapsed"
+  >
     <div class="panel-section">
       <div class="section-title">
         <Layers class="icon-sm" />
@@ -44,27 +49,13 @@ defineProps<{
       <strong>审核流</strong>
       <p>编辑已通过内容后会回到待审核，管理员通过后重新公开。</p>
     </div>
-  </aside>
+  </CollapsibleFilterShell>
 </template>
 
 <style scoped>
 .icon-sm {
   width: 14px;
   height: 14px;
-}
-
-.filter-panel {
-  width: 180px;
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  padding: 10px;
-  box-shadow: var(--shadow-card);
-  align-self: start;
 }
 
 .panel-section {
@@ -110,11 +101,5 @@ defineProps<{
   font-size: 10px;
   line-height: 1.4;
   margin: 0;
-}
-
-@media (max-width: 980px) {
-  .filter-panel {
-    width: auto;
-  }
 }
 </style>

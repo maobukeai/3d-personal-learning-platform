@@ -27,6 +27,9 @@ import Card from '@/components/ui/Card.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Modal from '@/components/ui/Modal.vue';
+import { useSystemStore } from '@/stores/system';
+
+const systemStore = useSystemStore();
 
 interface Category {
   id: string;
@@ -330,6 +333,7 @@ const handleSaveCategory = async () => {
         settings: [{ key, value: JSON.stringify(list) }],
       });
       ElMessage.success('系统设置更新成功');
+      await systemStore.fetchSettings();
       fetchSettingsCategories();
       showModal.value = false;
     } catch {
@@ -401,6 +405,7 @@ const handleDeleteCategory = async (category: Category | string) => {
         settings: [{ key, value: JSON.stringify(newList) }],
       });
       ElMessage.success('分类已移除');
+      await systemStore.fetchSettings();
       fetchSettingsCategories();
     } catch {
       /* cancel */

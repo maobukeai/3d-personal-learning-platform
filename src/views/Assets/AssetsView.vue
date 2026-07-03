@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Activity, Box, FileArchive, Grid3X3, LayoutList, UsersRound } from 'lucide-vue-next';
+import { Activity, Box, FileArchive, Grid3X3, LayoutList, UsersRound, Plus, RefreshCw, Eye, EyeOff, MessageSquare } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
@@ -20,7 +20,6 @@ import {
 } from './assetLibraryModel';
 import { formatCompactNumber, formatFileSize } from './resourceUtils';
 import AssetLibraryHeader from './components/AssetLibraryHeader.vue';
-import AssetStatsPanel from './components/AssetStatsPanel.vue';
 import AssetFilterPanel from './components/AssetFilterPanel.vue';
 import AssetContentPanel from './components/AssetContentPanel.vue';
 
@@ -31,12 +30,12 @@ import { normalizeAssetWork } from './myWorksModel';
 import type { UnifiedWork } from './myWorksModel';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
+import Button from '@/components/ui/Button.vue';
 
 const router = useRouter();
 const route = useRoute();
 const label = useLabel();
 const searchQuery = ref('');
-const isStatsExpanded = ref(false);
 const activeCategoryId = ref('all');
 const selectedFormat = ref('all');
 const selectedTag = ref('all');
@@ -47,6 +46,7 @@ const viewModeOptions = computed(() => [
   { value: 'list' as ViewMode, label: '', icon: LayoutList },
 ]);
 const isFilterOpen = ref(false);
+const isFilterCollapsed = ref(false);
 const isLoading = ref(false);
 
 // Edit Work dialog state
@@ -161,7 +161,49 @@ const categories = ref<AssetInsightCategory[]>([]);
 const insights = ref<AssetInsights | null>(null);
 const searchTimer = ref<number | undefined>();
 
-type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts';
+// Help requests states
+interface HelpRequest {
+  id: string;
+  title: string;
+  description: string;
+  status: 'OPEN' | 'RESOLVED';
+  userId: string;
+  createdAt: string;
+  user: { id: string; name: string; avatarUrl: string | null };
+  _count: { replies: number };
+}
+
+interface HelpRequestReply {
+  id: string;
+  content: string;
+  createdAt: string;
+  user: { id: string; name: string; avatarUrl: string | null };
+  linkedAsset?: {
+    id: string;
+    title: string;
+    type: string;
+    thumbnail: string | null;
+    downloads: number;
+  } | null;
+}
+
+const helpRequests = ref<HelpRequest[]>([]);
+const helpRequestsCount = ref(0);
+const isHelpRequestsLoading = ref(false);
+const showHelpRequestPostDialog = ref(false);
+const newHelpRequestForm = ref({ title: '', description: '' });
+const isSubmittingHelpRequest = ref(false);
+
+const selectedHelpRequest = ref<HelpRequest | null>(null);
+const showHelpRequestDetailModal = ref(false);
+const helpRequestReplies = ref<HelpRequestReply[]>([]);
+const isHelpRepliesLoading = ref(false);
+const newHelpReplyContent = ref('');
+const linkedAssetIdForReply = ref('');
+const isSubmittingReply = ref(false);
+const approvedAssetsForLinking = ref<{ id: string; title: string }[]>([]);
+
+type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts' | 'requests';
 type StatusFilter = 'all' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 const activeTab = ref<LibraryTab>('explore');
@@ -170,7 +212,7 @@ const myStatusFilter = ref<StatusFilter>('all');
 const libraryTabs = computed(() => [
   {
     key: 'explore' as const,
-    label: label('资源广场', 'Explore'),
+    label: label('模型广场', 'Explore'),
     count: insights.value?.summary.total || 0,
   },
   {
@@ -180,13 +222,18 @@ const libraryTabs = computed(() => [
   },
   {
     key: 'mine' as const,
-    label: label('我的资源', 'My Uploads'),
+    label: label('我的模型', 'My Uploads'),
     count: insights.value?.summary.myUploads || 0,
   },
   {
     key: 'drafts' as const,
     label: label('草稿箱', 'Drafts'),
     count: insights.value?.summary.myDrafts || 0,
+  },
+  {
+    key: 'requests' as const,
+    label: label('模型求助', 'Help Requests'),
+    count: helpRequestsCount.value,
   },
 ]);
 
@@ -216,7 +263,7 @@ const categoryOptions = computed(() =>
     categories.value,
     insights.value,
     pagination.value.total,
-    label('全部资源', 'All Assets'),
+    label('全部模型', 'All Models'),
   ),
 );
 
@@ -366,6 +413,42 @@ const handleBulkDelete = async () => {
   }
 };
 
+const handleBulkUnfavorite = async () => {
+  if (selectedAssetIds.value.size === 0) {
+    ElMessage.warning(label('请选择要取消收藏的资源', 'Please select assets to unfavorite'));
+    return;
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      label(
+        `确定要批量取消收藏选中的 ${selectedAssetIds.value.size} 个资源吗？`,
+        `Are you sure you want to unfavorite ${selectedAssetIds.value.size} selected assets?`,
+      ),
+      label('批量取消收藏确认', 'Confirm Bulk Unfavorite'),
+      {
+        confirmButtonText: label('确定', 'Confirm'),
+        cancelButtonText: label('取消', 'Cancel'),
+        type: 'warning',
+      },
+    );
+
+    const ids = Array.from(selectedAssetIds.value);
+    await api.post('/api/assets/bulk/favorite', { ids, favorite: false });
+
+    ElMessage.success(label(`成功取消收藏 ${ids.length} 个资源`, `Successfully unfavorited ${ids.length} assets`));
+    selectedAssetIds.value = new Set();
+    isBatchMode.value = false;
+    fetchAssets();
+    fetchInsights();
+    fetchFavorites();
+  } catch (err: any) {
+    if (err !== 'cancel') {
+      ElMessage.error(getApiErrorMessage(err, label('批量取消收藏失败', 'Failed to bulk unfavorite assets')));
+    }
+  }
+};
+
 watch(activeTab, () => {
   selectedFavoriteCategory.value = 'all';
   isBatchMode.value = false;
@@ -485,7 +568,22 @@ watch(
   { immediate: true },
 );
 
+const handleContainerClick = (e: MouseEvent) => {
+  if (!isBatchMode.value) return;
+  const target = e.target as HTMLElement;
+  if (!target) return;
+  if (target.closest('article, .unified-card, button, input, .el-select, .el-popper, a, select')) {
+    return;
+  }
+  isBatchMode.value = false;
+  selectedAssetIds.value = new Set();
+};
+
 const goToDetail = (asset: AssetListItem) => {
+  if (isBatchMode.value) {
+    toggleAssetSelect(asset.id);
+    return;
+  }
   router.push({ path: '/assets', query: { id: asset.id } });
 };
 
@@ -772,11 +870,132 @@ const handleDeleteFavoriteCategory = async (cat: string) => {
   }
 };
 
+const fetchHelpRequests = async () => {
+  try {
+    isHelpRequestsLoading.value = true;
+    const { data } = await api.get('/api/assets/requests');
+    helpRequests.value = data.requests || [];
+    helpRequestsCount.value = data.pagination?.total || helpRequests.value.length;
+  } catch (err) {
+    logError(err, { operation: 'fetch help requests' });
+  } finally {
+    isHelpRequestsLoading.value = false;
+  }
+};
+
+const fetchApprovedAssetsForLinking = async () => {
+  try {
+    const { data } = await api.get('/api/assets/public', { params: { pageSize: 100 } });
+    const list = data.assets || [];
+    approvedAssetsForLinking.value = list.map((a: any) => ({ id: a.id, title: a.title }));
+  } catch (err) {
+    logError(err, { operation: 'fetch assets for linking' });
+  }
+};
+
+const openHelpRequestDetail = async (req: HelpRequest) => {
+  selectedHelpRequest.value = req;
+  showHelpRequestDetailModal.value = true;
+  newHelpReplyContent.value = '';
+  linkedAssetIdForReply.value = '';
+
+  isHelpRepliesLoading.value = true;
+  try {
+    const { data } = await api.get(`/api/assets/requests/${req.id}`);
+    helpRequestReplies.value = data.replies || [];
+  } catch (err) {
+    logError(err, { operation: 'load replies' });
+  } finally {
+    isHelpRepliesLoading.value = false;
+  }
+
+  fetchApprovedAssetsForLinking();
+};
+
+const handlePostHelpRequest = async () => {
+  if (!newHelpRequestForm.value.title.trim() || !newHelpRequestForm.value.description.trim())
+    return;
+  isSubmittingHelpRequest.value = true;
+  try {
+    await api.post('/api/assets/requests', {
+      title: newHelpRequestForm.value.title.trim(),
+      description: newHelpRequestForm.value.description.trim(),
+    });
+    ElMessage.success(label('求助帖发布成功', 'Help request posted successfully'));
+    newHelpRequestForm.value = { title: '', description: '' };
+    showHelpRequestPostDialog.value = false;
+    await fetchHelpRequests();
+  } catch (err) {
+    logError(err, { operation: 'post help request' });
+    ElMessage.error(label('发布失败', 'Failed to post'));
+  } finally {
+    isSubmittingHelpRequest.value = false;
+  }
+};
+
+const handlePostReply = async () => {
+  if (!selectedHelpRequest.value || !newHelpReplyContent.value.trim()) return;
+  isSubmittingReply.value = true;
+  try {
+    const { data } = await api.post(
+      `/api/assets/requests/${selectedHelpRequest.value.id}/replies`,
+      {
+        content: newHelpReplyContent.value.trim(),
+        linkedAssetId: linkedAssetIdForReply.value || undefined,
+      },
+    );
+    helpRequestReplies.value.push(data);
+    newHelpReplyContent.value = '';
+    linkedAssetIdForReply.value = '';
+    ElMessage.success(label('回复发表成功', 'Reply posted successfully'));
+    selectedHelpRequest.value._count = selectedHelpRequest.value._count || { replies: 0 };
+    selectedHelpRequest.value._count.replies += 1;
+    fetchHelpRequests();
+  } catch (err) {
+    logError(err, { operation: 'post reply' });
+    ElMessage.error(label('回复失败', 'Failed to reply'));
+  } finally {
+    isSubmittingReply.value = false;
+  }
+};
+
+const handleResolveRequest = async (requestId: string) => {
+  try {
+    await api.post(`/api/assets/requests/${requestId}/resolve`);
+    ElMessage.success(label('求助帖已解决并关闭', 'Request marked as resolved'));
+    if (selectedHelpRequest.value) {
+      selectedHelpRequest.value.status = 'RESOLVED';
+    }
+    await fetchHelpRequests();
+  } catch (err) {
+    logError(err, { operation: 'resolve request' });
+    ElMessage.error(label('操作失败', 'Action failed'));
+  }
+};
+
+const openLinkedAsset = (assetId: string) => {
+  showHelpRequestDetailModal.value = false;
+  const asset = assets.value.find((item) => item.id === assetId);
+  if (asset) {
+    goToDetail(asset);
+  } else {
+    window.location.hash = `#/assets?asset=${assetId}`;
+    window.location.reload();
+  }
+};
+
+watch(activeTab, (newTab) => {
+  if (newTab === 'requests') {
+    fetchHelpRequests();
+  }
+});
+
 onMounted(() => {
   fetchAssets();
   fetchInsights();
   fetchCategories();
   fetchFavorites();
+  fetchHelpRequests();
 });
 
 onUnmounted(() => {
@@ -785,21 +1004,19 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="asset-library-page mobile-adaptive flex flex-col h-full overflow-hidden">
+  <div class="asset-library-page mobile-adaptive flex flex-col h-full overflow-hidden" @click="handleContainerClick">
     <AssetLibraryHeader
       v-model:search-query="searchQuery"
-      :is-stats-expanded="isStatsExpanded"
-      @toggle-stats="isStatsExpanded = !isStatsExpanded"
-      @refresh-stats="fetchInsights"
       @upload="isUploadDialogOpen = true"
     />
 
     <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">
-      <AssetStatsPanel :is-expanded="isStatsExpanded" :stat-cards="statCards" />
 
-      <section class="workspace-shell">
+      <section class="workspace-shell" :class="{ 'single-col': activeTab === 'requests', 'collapsed-shell': isFilterCollapsed }">
         <AssetFilterPanel
+          v-if="activeTab !== 'requests'"
           :is-open="isFilterOpen"
+          v-model:collapsed="isFilterCollapsed"
           :active-category-id="activeCategoryId"
           :selected-format="selectedFormat"
           :selected-tag="selectedTag"
@@ -826,6 +1043,8 @@ onUnmounted(() => {
           :sort-key="sortKey"
           :view-mode="viewMode"
           :is-filter-open="isFilterOpen"
+          :is-filter-collapsed="isFilterCollapsed"
+          @toggle-filter-collapse="isFilterCollapsed = false"
           :is-loading="isLoading"
           :visible-assets="visibleAssets"
           :pagination="pagination"
@@ -834,6 +1053,8 @@ onUnmounted(() => {
           :active-filter-chips="activeFilterChips"
           :is-batch-mode="isBatchMode"
           :selected-ids="Array.from(selectedAssetIds)"
+          :help-requests="helpRequests"
+          :is-help-requests-loading="isHelpRequestsLoading"
           @update:active-tab="activeTab = $event"
           @update:sort-key="sortKey = $event"
           @update:view-mode="viewMode = $event"
@@ -841,6 +1062,7 @@ onUnmounted(() => {
           @select="toggleAssetSelect"
           @select-all="selectAllAssets"
           @bulk-delete="handleBulkDelete"
+          @bulk-unfavorite="handleBulkUnfavorite"
           @toggle-filter="isFilterOpen = !isFilterOpen"
           @page-change="handlePageChange"
           @clear-filter="clearFilter"
@@ -849,6 +1071,8 @@ onUnmounted(() => {
           @like="(asset, event) => handleLike(asset, event)"
           @download="(asset, event) => handleDownload(asset, event)"
           @upload="isUploadDialogOpen = true"
+          @open-help-request-detail="openHelpRequestDetail"
+          @create-help-request="showHelpRequestPostDialog = true"
         />
       </section>
     </div>
@@ -885,6 +1109,35 @@ onUnmounted(() => {
       :material-categories="[]"
       :plugin-categories="[]"
       @save="handleSaveEdit"
+    />
+
+    <!-- Help Request Detail Modal -->
+    <HelpRequestDetailModal
+      :show="showHelpRequestDetailModal"
+      :request="selectedHelpRequest"
+      :replies="helpRequestReplies"
+      :is-replies-loading="isHelpRepliesLoading"
+      :is-submitting-reply="isSubmittingReply"
+      :approved-items-for-linking="approvedAssetsForLinking"
+      :link-label="label('关联模型：', 'Link Model:')"
+      @close="
+        showHelpRequestDetailModal = false;
+        selectedHelpRequest = null;
+      "
+      @post-reply="handlePostReplyFromComponent"
+      @resolve="handleResolveRequest"
+      @open-linked-item="openLinkedAsset"
+    />
+
+    <!-- Help Request Post Modal -->
+    <HelpRequestPostModal
+      :show="showHelpRequestPostDialog"
+      :is-submitting="isSubmittingHelpRequest"
+      :modal-title="label('发布新模型求助帖', 'Create Help Request')"
+      :title-placeholder="label('例如：寻找写实科幻飞船模型', 'e.g. looking for sci-fi spaceship model')"
+      :desc-placeholder="label('请详细描述您需要的模型规格、格式或参考，让大家能更精准地帮您找到！', 'Describe model details...')"
+      @close="showHelpRequestPostDialog = false"
+      @submit="handlePostHelpRequestFromComponent"
     />
 
     <!-- Favorite Category Create/Rename Modal -->
@@ -939,10 +1192,19 @@ onUnmounted(() => {
 
 .workspace-shell {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: 156px minmax(0, 1fr);
   gap: 12px;
   min-height: 0;
   flex: 1;
+  transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.workspace-shell.collapsed-shell {
+  grid-template-columns: 1fr;
+}
+
+.workspace-shell.single-col {
+  grid-template-columns: 1fr;
 }
 
 @media (max-width: 860px) {

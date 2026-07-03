@@ -1382,3 +1382,65 @@ export const bulkDeleteAssets = async (req: AuthRequest, res: Response, next: Ne
     next(error);
   }
 };
+
+export const bulkFavoriteAssets = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.userId as string;
+    const rawIds: unknown[] = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    const categoryVal = typeof req.body?.category === 'string' ? req.body.category.trim() : '默认';
+    const category = categoryVal || '默认';
+    const ids = Array.from(
+      new Set<string>(rawIds.map((id) => String(id)).filter((id) => Boolean(id))),
+    ).slice(0, 100);
+    const favorite = req.body?.favorite !== false;
+
+    if (!ids.length) {
+      return next(new AppError('No assets selected', 400));
+    }
+
+    const approvedAssets = await prisma.asset.findMany({
+      where: {
+        id: { in: ids },
+        status: 'APPROVED',
+      },
+      select: { id: true },
+    });
+    const approvedIds = approvedAssets.map((asset) => asset.id);
+
+    if (favorite) {
+      await prisma.assetLike.createMany({
+        data: approvedIds.map((assetId) => ({ userId, assetId, category })),
+        skipDuplicates: true,
+      });
+
+      if (category !== '默认') {
+        const customCats = await getCustomAssetCategories(userId);
+        if (!customCats.includes(category)) {
+          customCats.push(category);
+          await saveCustomAssetCategories(userId, customCats);
+        }
+      }
+    } else {
+      await prisma.assetLike.deleteMany({
+        where: { userId, assetId: { in: approvedIds } },
+      });
+    }
+
+    // Update likes count on assets
+    for (const assetId of approvedIds) {
+      const likes = await prisma.assetLike.count({ where: { assetId } });
+      await prisma.asset.update({
+        where: { id: assetId },
+        data: { likes },
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+};

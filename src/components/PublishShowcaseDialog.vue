@@ -6,6 +6,7 @@ import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
+import AiImageGeneratorDialog from '@/components/AiImageGeneratorDialog.vue';
 
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
@@ -33,6 +34,15 @@ const isVideo = ref(false);
 // File states
 const coverFile = ref<File | null>(null);
 const coverPreviewUrl = ref('');
+
+const showAiCoverDialog = ref(false);
+
+const handleAiCoverSave = (file: File) => {
+  if (coverPreviewUrl.value) URL.revokeObjectURL(coverPreviewUrl.value);
+  coverFile.value = file;
+  coverPreviewUrl.value = URL.createObjectURL(file);
+  ElMessage.success('已自动应用 AI 生成的封面图！');
+};
 const galleryFiles = ref<File[]>([]);
 const galleryPreviews = ref<string[]>([]);
 
@@ -269,11 +279,21 @@ const handlePublish = async () => {
 
           <!-- Cover Upload -->
           <div>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
-            >
-              封面缩略图 *
-            </label>
+            <div class="flex items-center justify-between mb-1.5 ml-1">
+              <label
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400"
+              >
+                封面缩略图 *
+              </label>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 text-[10px] font-bold text-violet-400 hover:text-violet-300 transition-colors cursor-pointer border-none bg-transparent"
+                @click="showAiCoverDialog = true"
+              >
+                <Sparkles class="w-3 h-3 text-violet-400" />
+                AI 生成封面
+              </button>
+            </div>
             <div
               v-if="coverPreviewUrl"
               class="relative aspect-[16/9] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 h-[80px]"
@@ -504,6 +524,15 @@ const handlePublish = async () => {
       </div>
     </template>
   </Modal>
+
+  <!-- AI Cover Generator Dialog -->
+  <AiImageGeneratorDialog
+    :show="showAiCoverDialog"
+    type="cover"
+    title="AI 生成封面图"
+    @close="showAiCoverDialog = false"
+    @save="handleAiCoverSave"
+  />
 </template>
 
 <style scoped>

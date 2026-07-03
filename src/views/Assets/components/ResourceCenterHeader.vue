@@ -13,11 +13,9 @@ const searchQuery = defineModel<string>('searchQuery', { required: true });
 defineProps<{
   isLoading: boolean;
   isFeedLoading: boolean;
-  isStatsExpanded: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: 'toggleStats'): void;
   (e: 'refresh'): void;
   (e: 'publish'): void;
 }>();
@@ -56,12 +54,6 @@ const isSearchOpen = ref(false);
       >
         <Sparkles class="w-3.5 h-3.5" />
         <span>{{ label('AI 全网搜', 'AI Search') }}</span>
-      </Button>
-      <Button variant="secondary" size="sm" class="!h-8" @click="emit('toggleStats')">
-        <component :is="isStatsExpanded ? EyeOff : Eye" class="w-3.5 h-3.5" />
-        <span>{{
-          isStatsExpanded ? label('收起指标', 'Hide Metrics') : label('数据指标', 'Show Metrics')
-        }}</span>
       </Button>
       <Button
         variant="secondary"

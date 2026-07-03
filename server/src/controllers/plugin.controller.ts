@@ -1872,3 +1872,56 @@ export const bulkDeletePlugins = async (req: AuthRequest, res: Response, next: N
     next(error);
   }
 };
+
+export const bulkFavoritePlugins = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.userId as string;
+    const rawIds: unknown[] = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    const categoryVal = typeof req.body?.category === 'string' ? req.body.category.trim() : '默认';
+    const category = categoryVal || '默认';
+    const ids = Array.from(
+      new Set<string>(rawIds.map((id) => String(id)).filter((id) => Boolean(id))),
+    ).slice(0, 100);
+    const favorite = req.body?.favorite !== false;
+
+    if (!ids.length) {
+      return next(new AppError('No plugins selected', 400));
+    }
+
+    const approvedPlugins = await prisma.plugin.findMany({
+      where: {
+        id: { in: ids },
+        status: 'APPROVED',
+      },
+      select: { id: true },
+    });
+    const approvedIds = approvedPlugins.map((plugin) => plugin.id);
+
+    if (favorite) {
+      await prisma.pluginFavorite.createMany({
+        data: approvedIds.map((pluginId) => ({ userId, pluginId, category })),
+        skipDuplicates: true,
+      });
+
+      if (category !== '默认') {
+        const customCats = await getCustomCategories(userId);
+        if (!customCats.includes(category)) {
+          customCats.push(category);
+          await saveCustomCategories(userId, customCats);
+        }
+      }
+    } else {
+      await prisma.pluginFavorite.deleteMany({
+        where: { userId, pluginId: { in: approvedIds } },
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -254,6 +254,25 @@ const createUploadMiddleware = (config: {
               '.obj',
               '.stl',
             ];
+          } else if (file.fieldname === 'temp') {
+            finalAllowedExtensions = [
+              '.png',
+              '.jpg',
+              '.jpeg',
+              '.gif',
+              '.webp',
+              '.svg',
+              '.ico',
+              '.glb',
+              '.gltf',
+              '.fbx',
+              '.obj',
+              '.stl',
+              '.zip',
+              '.rar',
+              '.7z',
+              '.blend',
+            ];
           }
 
           if (!finalAllowedExtensions.includes(ext)) {

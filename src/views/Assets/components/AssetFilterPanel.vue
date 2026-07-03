@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { Layers, PackageCheck, SlidersHorizontal, Tags, FolderOpen } from 'lucide-vue-next';
 import Tabs from '@/components/ui/Tabs.vue';
 import { useLabel } from '@/utils/i18n';
+import CollapsibleFilterShell from './CollapsibleFilterShell.vue';
 
 interface TabOption {
   label: string;
@@ -37,10 +38,13 @@ const emit = defineEmits<{
   (e: 'update:selectedTag', value: string): void;
   (e: 'update:myStatusFilter', value: string): void;
   (e: 'update:selectedFavoriteCategory', value: string): void;
+  (e: 'update:collapsed', value: boolean): void;
   (e: 'rename-category', value: string): void;
   (e: 'delete-category', value: string): void;
   (e: 'create-category'): void;
 }>();
+
+const isCollapsed = defineModel<boolean>('collapsed', { default: false });
 
 const label = useLabel();
 
@@ -66,7 +70,11 @@ const localStatus = computed({
 </script>
 
 <template>
-  <aside class="filter-panel" :class="{ open: isOpen }">
+  <CollapsibleFilterShell
+    v-model:collapsed="isCollapsed"
+    :is-open="isOpen"
+    storage-key="asset_filter_collapsed"
+  >
     <!-- Favorite Categories folders filter -->
     <div v-if="activeTab === 'favorites'" class="panel-section mb-2">
       <div class="section-title flex justify-between items-center w-full">
@@ -170,7 +178,12 @@ const localStatus = computed({
         <Layers class="icon-sm" />
         {{ label('分类', 'Categories') }}
       </div>
-      <Tabs v-model="localCategory" :options="categoryTabOptions" direction="vertical" size="sm" />
+      <Tabs
+        v-model="localCategory"
+        :options="categoryTabOptions"
+        direction="vertical"
+        size="sm"
+      />
     </div>
 
     <div v-if="activeTab !== 'favorites'" class="panel-section">
@@ -195,7 +208,11 @@ const localStatus = computed({
         {{ label('热标签', 'Hot Tags') }}
       </div>
       <div class="tag-cloud">
-        <button type="button" :class="{ active: localTag === 'all' }" @click="localTag = 'all'">
+        <button
+          type="button"
+          :class="{ active: localTag === 'all' }"
+          @click="localTag = 'all'"
+        >
           {{ label('全部', 'All') }}
         </button>
         <button
@@ -209,23 +226,10 @@ const localStatus = computed({
         </button>
       </div>
     </div>
-  </aside>
+  </CollapsibleFilterShell>
 </template>
 
 <style scoped>
-.filter-panel {
-  align-self: start;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  padding: 10px;
-  box-shadow: var(--shadow-card);
-  min-width: 0;
-}
-
 .panel-section {
   display: flex;
   flex-direction: column;
@@ -280,15 +284,5 @@ const localStatus = computed({
   background: var(--accent-subtle);
   color: var(--accent);
   font-weight: 600;
-}
-
-@media (max-width: 860px) {
-  .filter-panel {
-    display: none;
-  }
-
-  .filter-panel.open {
-    display: flex;
-  }
 }
 </style>

@@ -12,6 +12,7 @@ const props = withDefaults(
     hoverClass?: string; // e.g. 'group-hover:border-indigo-500 group-hover:bg-indigo-500/5'
     iconType?: 'upload' | 'puzzle';
     progress?: number | null;
+    previewUrl?: string;
   }>(),
   {
     accept: '*',
@@ -21,6 +22,7 @@ const props = withDefaults(
     hoverClass: 'group-hover:border-indigo-500 group-hover:bg-indigo-500/5',
     iconType: 'upload',
     progress: null,
+    previewUrl: '',
   },
 );
 
@@ -28,6 +30,33 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: File | File[] | null): void;
   (e: 'change', event: Event): void;
 }>();
+
+import { ref, watch, onUnmounted, computed } from 'vue';
+import { getAssetUrl } from '@/utils/api';
+
+const objectUrl = ref('');
+
+watch(() => props.modelValue, (newVal) => {
+  if (objectUrl.value) {
+    URL.revokeObjectURL(objectUrl.value);
+    objectUrl.value = '';
+  }
+  const fileVal = Array.isArray(newVal) ? newVal[0] : newVal;
+  if (fileVal instanceof File && fileVal.type.startsWith('image/')) {
+    objectUrl.value = URL.createObjectURL(fileVal);
+  }
+}, { immediate: true });
+
+onUnmounted(() => {
+  if (objectUrl.value) {
+    URL.revokeObjectURL(objectUrl.value);
+  }
+});
+
+const displayPreviewUrl = computed(() => {
+  if (objectUrl.value) return objectUrl.value;
+  return props.previewUrl ? getAssetUrl(props.previewUrl) : '';
+});
 
 const handleFileChange = (e: Event) => {
   const target = e.target as HTMLInputElement;
@@ -60,9 +89,16 @@ const handleFileChange = (e: Event) => {
       <!-- Progress Bar Background Overlay -->
       <div 
         v-if="progress !== null" 
-        class="absolute left-0 bottom-0 top-0 bg-indigo-500/10 dark:bg-indigo-400/5 transition-all duration-300 ease-out"
+        class="absolute left-0 bottom-0 top-0 bg-indigo-500/10 dark:bg-indigo-400/5 transition-all duration-300 ease-out z-10"
         :style="{ width: progress + '%' }"
       ></div>
+
+      <!-- Image Preview Background -->
+      <img
+        v-if="displayPreviewUrl"
+        :src="displayPreviewUrl"
+        class="absolute inset-0 w-full h-full object-cover opacity-30 dark:opacity-40 pointer-events-none group-hover:scale-105 transition-transform duration-300"
+      />
 
       <!-- Icon & Text -->
       <component

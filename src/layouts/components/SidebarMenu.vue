@@ -250,10 +250,11 @@ const getSavedWidth = (): number => {
   try {
     if (typeof window !== 'undefined') {
       const saved = window.localStorage.getItem('sidebarCustomWidth');
-      // If saved width is old default 232 or higher, adjust to slimmer 196px
       if (saved) {
         const val = Number(saved);
-        return val > 210 ? 196 : val;
+        if (val >= 130 && val <= 450) {
+          return val;
+        }
       }
       return 196;
     }
@@ -263,6 +264,9 @@ const getSavedWidth = (): number => {
 
 const customWidth = ref(getSavedWidth());
 const isResizing = ref(false);
+const isVeryNarrowSidebar = computed(() => customWidth.value < 155);
+const isNarrowSidebar = computed(() => customWidth.value >= 155 && customWidth.value < 215);
+const isWideSidebar = computed(() => customWidth.value >= 260);
 
 const handleMousedown = (e: MouseEvent) => {
   e.preventDefault();
@@ -277,17 +281,17 @@ const handleMousedown = (e: MouseEvent) => {
     let newWidth = startWidth + deltaX;
 
     // Constrain the width
-    if (newWidth < 170) {
-      if (newWidth < 120) {
+    if (newWidth < 130) {
+      if (newWidth < 90) {
         if (sidebarMode.value !== 'rail') {
           setSidebarMode('rail');
         }
         return;
       }
-      newWidth = 170;
+      newWidth = 130;
     }
 
-    if (newWidth >= 130 && sidebarMode.value !== 'expanded') {
+    if (newWidth >= 110 && sidebarMode.value !== 'expanded') {
       setSidebarMode('expanded');
     }
 
@@ -481,7 +485,16 @@ watch(isExpanded, (val) => {
     </div>
 
     <Transition name="sidebar-panel">
-      <section v-if="isExpanded" class="workspace-sidebar__panel" aria-label="Expanded navigation">
+      <section
+        v-if="isExpanded"
+        class="workspace-sidebar__panel"
+        :class="{
+          'is-very-narrow-sidebar': isVeryNarrowSidebar,
+          'is-narrow-sidebar': isNarrowSidebar,
+          'is-wide-sidebar': isWideSidebar
+        }"
+        aria-label="Expanded navigation"
+      >
         <header class="panel-header">
           <div class="panel-hero-main">
             <div class="panel-mark" :class="{ 'panel-mark--admin': isAdmin }">
@@ -1602,5 +1615,45 @@ watch(isExpanded, (val) => {
 .workspace-sidebar.is-resizing .sidebar-resize-handle {
   background-color: var(--sidebar-accent, var(--accent));
   opacity: 0.35;
+}
+
+.is-very-narrow-sidebar .panel-list--resource-grid {
+  grid-template-columns: 1fr !important;
+}
+.is-very-narrow-sidebar .panel-list--resource-grid-odd li:first-child .panel-link--resource {
+  height: 23px !important;
+  background: color-mix(in srgb, var(--text-primary) 2%, transparent) !important;
+  border-color: transparent !important;
+}
+
+.is-narrow-sidebar .panel-link--resource {
+  padding: 0 2px !important;
+  gap: 2px !important;
+}
+.is-narrow-sidebar .panel-link--resource .panel-link-icon-wrap {
+  width: 13px !important;
+  height: 13px !important;
+}
+.is-narrow-sidebar .panel-link--resource .panel-link-icon {
+  width: 9px !important;
+  height: 9px !important;
+}
+.is-narrow-sidebar .panel-link--resource .panel-link-label {
+  font-size: 8.2px !important;
+}
+
+.is-wide-sidebar .panel-list--resource-grid-odd {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+.is-wide-sidebar .panel-list--resource-grid-odd li:first-child {
+  grid-column: auto !important;
+}
+.is-wide-sidebar .panel-list--resource-grid-odd li:first-child .panel-link--resource {
+  height: 23px !important;
+  background: color-mix(in srgb, var(--text-primary) 2%, transparent) !important;
+  border-color: transparent !important;
+}
+.is-wide-sidebar .panel-list--resource-grid-even {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
 }
 </style>

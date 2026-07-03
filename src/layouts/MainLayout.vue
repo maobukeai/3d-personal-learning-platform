@@ -7,6 +7,7 @@ import { logError } from '@/utils/error';
 import {
   Menu,
   ExternalLink,
+  LogOut,
   Search,
   Box,
   ShieldCheck,
@@ -234,6 +235,10 @@ const handleLogout = async () => {
   authStore.logout();
   ElMessage.success(t('layout.logoutSuccess'));
   router.push('/login');
+};
+
+const handleOpenInNewTab = () => {
+  window.open(window.location.href, '_blank');
 };
 
 const fetchNotifications = async () => {
@@ -552,15 +557,25 @@ onUnmounted(() => {
           "
         />
 
+        <!-- Open Current Page in New Tab Icon Button -->
+        <button
+          type="button"
+          class="topbar-icon-btn w-9 h-9 flex items-center justify-center cursor-pointer transition-colors"
+          title="在新标签页打开当前页面"
+          @click="handleOpenInNewTab"
+        >
+          <ExternalLink class="w-4.5 h-4.5" style="color: var(--text-muted)" />
+        </button>
+
         <!-- Direct Logout/Exit Icon Button -->
         <button
           v-if="authStore.isAuthenticated"
           type="button"
-          class="topbar-icon-btn w-9 h-9 hidden sm:flex items-center justify-center transition-colors relative"
+          class="topbar-icon-btn w-9 h-9 hidden sm:flex items-center justify-center cursor-pointer transition-colors relative"
           :title="$t('layout.logout')"
           @click="handleLogout"
         >
-          <ExternalLink class="w-4.5 h-4.5" style="color: var(--text-muted)" />
+          <LogOut class="w-4.5 h-4.5" style="color: var(--text-muted)" />
         </button>
 
         <!-- User Avatar or Login Button -->

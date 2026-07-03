@@ -57,6 +57,14 @@ router.put('/favorites/categories', assetController.updateAssetFavoriteCategory)
 router.delete('/favorites/categories/:categoryName', assetController.deleteAssetFavoriteCategory);
 router.get('/insights', assetController.getAssetInsights);
 router.get('/tags', assetController.getAssetTags);
+
+// Asset Help Requests endpoints
+router.get('/requests', assetController.listAssetRequests);
+router.get('/requests/:id', assetController.getAssetRequestById);
+router.post('/requests', assetController.createAssetRequest);
+router.post('/requests/:id/replies', assetController.createAssetRequestReply);
+router.post('/requests/:id/resolve', assetController.resolveAssetRequest);
+
 router.post('/:id/download', downloadLimiter, assetController.recordAssetDownload);
 router.post('/:id/like', assetController.toggleAssetLike);
 router.get('/:id/toolkit', assetController.getAssetToolkit);
@@ -77,6 +85,7 @@ router.patch('/:id/metadata', assetController.updateAssetMetadata);
 router.patch('/:id/thumbnail', uploadLimiter, assetController.updateAssetThumbnail);
 router.delete('/:id', assetController.deleteAsset);
 router.post('/bulk-delete', assetController.bulkDeleteAssets);
+router.post('/bulk/favorite', assetController.bulkFavoriteAssets);
 
 // Versions and 3D Annotations
 router.post(

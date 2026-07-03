@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { type Component } from 'vue';
+import { PanelLeftOpen } from 'lucide-vue-next';
 import Tabs from '@/components/ui/Tabs.vue';
 import { useLabel } from '@/utils/i18n';
 import ResourceGridPanel from './ResourceGridPanel.vue';
@@ -19,6 +20,7 @@ const viewMode = defineModel<WorkViewMode>('viewMode', { required: true });
 defineProps<{
   libraryTabOptions: GridTabOption[];
   viewModeOptions: GridTabOption[];
+  isFilterCollapsed?: boolean;
   isLoading: boolean;
   filteredWorks: UnifiedWork[];
   activeFilterChips: Array<{ key: string; label: string }>;
@@ -34,6 +36,7 @@ const emit = defineEmits<{
   publish: [];
   clearFilter: [key: string];
   resetFilters: [];
+  toggleFilterCollapse: [];
 }>();
 
 const label = useLabel();
@@ -42,7 +45,16 @@ const label = useLabel();
 <template>
   <main class="content-panel">
     <section class="toolbar mobile-row">
-      <div class="toolbar-left">
+      <div class="toolbar-left flex items-center">
+        <button
+          v-if="isFilterCollapsed"
+          type="button"
+          class="p-2 rounded-xl text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer border-0 bg-transparent flex items-center justify-center mr-1 shrink-0"
+          title="展开侧边筛选栏"
+          @click="emit('toggleFilterCollapse')"
+        >
+          <PanelLeftOpen class="w-4 h-4 text-indigo-400" />
+        </button>
         <Tabs v-model="activeTab" :options="libraryTabOptions" size="sm" />
       </div>
 

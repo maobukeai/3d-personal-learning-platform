@@ -44,7 +44,6 @@ import {
   type WorkViewMode as ViewMode,
 } from './myWorksModel';
 import MyWorksHeader from './components/MyWorksHeader.vue';
-import MyWorksStatsPanel from './components/MyWorksStatsPanel.vue';
 import MyWorksFilterPanel from './components/MyWorksFilterPanel.vue';
 import MyWorksGrid from './components/MyWorksGrid.vue';
 import { useAuthStore } from '@/stores/auth';
@@ -233,7 +232,6 @@ function handleDetailDelete(item: any, kind: 'asset' | 'material' | 'plugin' | '
   handleDeleteWork(work);
 }
 const searchQuery = ref('');
-const isStatsExpanded = ref(false);
 const sourceFilter = ref<'ALL' | WorkKind>('ALL');
 const statusFilter = ref<WorkStatus>('ALL');
 const viewMode = ref<ViewMode>('grid');
@@ -257,6 +255,7 @@ const assetCategories = ref<CategoryType[]>([]);
 const workbenchSummary = ref<WorkbenchSummary | null>(null);
 
 const activeTab = ref<'mine' | 'favorites'>('mine');
+const isFilterCollapsed = ref(false);
 const mySubmissionsCount = ref(0);
 const myFavoritesCount = ref(0);
 
@@ -1097,7 +1096,6 @@ onMounted(async () => {
   <div class="my-works-page mobile-adaptive flex flex-col h-full overflow-hidden">
     <MyWorksHeader
       v-model:search-query="searchQuery"
-      v-model:is-stats-expanded="isStatsExpanded"
       :active-tab="activeTab"
       :is-loading="isLoading"
       @refresh="fetchWorks"
@@ -1105,19 +1103,12 @@ onMounted(async () => {
     />
 
     <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">
-      <MyWorksStatsPanel
-        v-model:status-filter="statusFilter"
-        :is-stats-expanded="isStatsExpanded"
-        :active-tab="activeTab"
-        :stat-cards="statCards"
-        :workbench-signals="workbenchSignals"
-        :review-completion="reviewCompletion"
-      />
 
-      <section class="workspace-shell">
+      <section class="workspace-shell" :class="{ 'collapsed-shell': isFilterCollapsed }">
         <MyWorksFilterPanel
           v-model:source-filter="sourceFilter"
           v-model:status-filter="statusFilter"
+          v-model:collapsed="isFilterCollapsed"
           :active-tab="activeTab"
           :source-tab-options="sourceTabOptions"
           :status-tab-options="statusTabOptions"
@@ -1127,6 +1118,8 @@ onMounted(async () => {
           v-model:active-tab="activeTab"
           v-model:sort-by="sortBy"
           v-model:view-mode="viewMode"
+          :is-filter-collapsed="isFilterCollapsed"
+          @toggle-filter-collapse="isFilterCollapsed = false"
           :library-tab-options="libraryTabOptions"
           :view-mode-options="viewModeOptions"
           :is-loading="isLoading"
@@ -1240,7 +1233,12 @@ onMounted(async () => {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: 156px minmax(0, 1fr);
   gap: 12px;
+  transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.workspace-shell.collapsed-shell {
+  grid-template-columns: 1fr;
 }
 </style>

@@ -9,7 +9,6 @@ import ResourceSearchDialog from './ResourceSearchDialog.vue';
 const label = useLabel();
 
 const searchQuery = defineModel<string>('searchQuery', { required: true });
-const isStatsExpanded = defineModel<boolean>('isStatsExpanded', { required: true });
 
 defineProps<{
   activeTab: 'mine' | 'favorites';
@@ -60,18 +59,6 @@ const isSearchOpen = ref(false);
       >
         <Sparkles class="w-3.5 h-3.5" />
         <span>{{ label('AI 全网搜', 'AI Search') }}</span>
-      </Button>
-      <Button
-        v-if="activeTab === 'mine'"
-        variant="secondary"
-        size="sm"
-        class="!h-8"
-        @click="isStatsExpanded = !isStatsExpanded"
-      >
-        <component :is="isStatsExpanded ? EyeOff : Eye" class="w-3.5 h-3.5" />
-        <span>{{
-          isStatsExpanded ? label('收起指标', 'Hide Metrics') : label('数据指标', 'Show Metrics')
-        }}</span>
       </Button>
       <Button
         variant="secondary"

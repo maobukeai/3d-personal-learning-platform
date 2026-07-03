@@ -8,12 +8,10 @@ import ResourceSearchDialog from './ResourceSearchDialog.vue';
 
 const props = defineProps<{
   searchQuery: string;
-  isStatsExpanded: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: 'update:searchQuery', value: string): void;
-  (e: 'toggleStats'): void;
   (e: 'showFavorites'): void;
   (e: 'upload'): void;
 }>();
@@ -60,12 +58,7 @@ const isSearchOpen = ref(false);
         <Sparkles class="w-3.5 h-3.5" />
         <span>{{ label('AI 全网搜', 'AI Search') }}</span>
       </Button>
-      <Button variant="secondary" size="sm" class="!h-8" @click="emit('toggleStats')">
-        <component :is="isStatsExpanded ? EyeOff : Eye" class="w-3.5 h-3.5" />
-        <span>{{
-          isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats')
-        }}</span>
-      </Button>
+      <!-- Stats buttons removed -->
       <Button variant="secondary" size="sm" class="!h-8" @click="emit('showFavorites')">
         <Heart class="w-3.5 h-3.5" />
         <span>{{ label('收藏', 'Favorites') }}</span>

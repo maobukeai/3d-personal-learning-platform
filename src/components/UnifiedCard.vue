@@ -195,15 +195,17 @@ const compatibilityInfo = computed(() => {
     ]"
     @click="emit('click', item)"
   >
-    <!-- Multi-select dot (Material specific) -->
+    <!-- Multi-select dot (Material, Asset, Plugin specific for mine/drafts/favorites) -->
     <button
-      v-if="kind === 'material' && viewMode === 'grid'"
+      v-if="(kind === 'material' || kind === 'asset' || kind === 'plugin') && (activeTab === 'mine' || activeTab === 'drafts' || activeTab === 'favorites')"
       type="button"
       :class="[
-        'absolute left-2 top-2 z-30 w-5 h-5 flex items-center justify-center rounded-full bg-black/40 border border-white/30 text-white backdrop-blur-sm transition-all duration-300',
+        viewMode === 'list'
+          ? 'w-5 h-5 flex items-center justify-center rounded-full border border-slate-300 dark:border-slate-700 text-slate-400 transition-all duration-300 flex-shrink-0 ml-1'
+          : 'absolute left-2 top-2 z-30 w-5 h-5 flex items-center justify-center rounded-full bg-black/40 border border-white/30 text-white backdrop-blur-sm transition-all duration-300',
         isSelected
-          ? 'bg-accent text-white border-accent scale-110 shadow-md'
-          : 'opacity-0 group-hover:opacity-100',
+          ? 'bg-accent text-white border-accent scale-110 shadow-md !text-white'
+          : viewMode === 'list' ? '' : 'opacity-0 group-hover:opacity-100',
       ]"
       @click.stop="emit('select', item, $event)"
     >

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { type Component } from 'vue';
-import { Heart, SlidersHorizontal } from 'lucide-vue-next';
+import { Heart, SlidersHorizontal, ListChecks, CheckCheck, Trash2, HeartOff, PanelLeftOpen } from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
 import Tabs from '@/components/ui/Tabs.vue';
 
@@ -16,6 +16,7 @@ defineProps<{
   viewModeOptions: { value: ViewMode; icon: Component }[];
   showFavoritesOnly: boolean;
   isFilterOpen: boolean;
+  isFilterCollapsed?: boolean;
   selectedIds?: string[];
   isBatchMode?: boolean;
   visiblePluginsCount?: number;
@@ -28,8 +29,10 @@ const emit = defineEmits<{
   (e: 'update:isBatchMode', value: boolean): void;
   (e: 'toggleFavorites'): void;
   (e: 'toggleFilter'): void;
+  (e: 'toggleFilterCollapse'): void;
   (e: 'selectAll'): void;
   (e: 'bulkDelete'): void;
+  (e: 'bulkUnfavorite'): void;
 }>();
 
 const label = useLabel();
@@ -47,7 +50,16 @@ const onViewModeChange = (value: string | number | null) => {
 
 <template>
   <section class="toolbar mobile-row">
-    <div class="toolbar-left">
+    <div class="toolbar-left flex items-center">
+      <button
+        v-if="isFilterCollapsed"
+        type="button"
+        class="p-2 rounded-xl text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer border-0 bg-transparent flex items-center justify-center mr-1 shrink-0"
+        title="展开侧边筛选栏"
+        @click="emit('toggleFilterCollapse')"
+      >
+        <PanelLeftOpen class="w-4 h-4 text-indigo-400" />
+      </button>
       <button type="button" class="icon-button mobile-filter" @click="emit('toggleFilter')">
         <SlidersHorizontal class="icon-sm" />
       </button>
@@ -60,42 +72,40 @@ const onViewModeChange = (value: string | number | null) => {
     </div>
 
     <div class="toolbar-right">
-      <!-- 当处于 'mine' 或 'drafts' 时提供批量管理功能 -->
-      <template v-if="activeTab === 'mine' || activeTab === 'drafts'">
-        <div v-if="isBatchMode" class="flex items-center gap-2">
-          <span class="text-xs text-[var(--text-muted)] font-mono">
+      <!-- 当处于 'mine'、'drafts' 或 'favorites' 时提供批量管理功能 -->
+      <template v-if="activeTab === 'mine' || activeTab === 'drafts' || activeTab === 'favorites'">
+        <div v-if="isBatchMode" class="flex items-center gap-1.5">
+          <span class="text-xs text-[var(--text-muted)] font-mono mr-0.5">
             已选 {{ selectedIds?.length || 0 }} 项
           </span>
           <button
             type="button"
-            class="px-2 py-1 text-xs rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-[var(--text-primary)] transition-colors"
+            class="p-1.5 text-xs rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-[var(--text-primary)] transition-colors flex items-center justify-center"
+            :title="(selectedIds?.length || 0) === (visiblePluginsCount || 0) && (visiblePluginsCount || 0) > 0 ? '取消全选' : '全选本页'"
             @click="emit('selectAll')"
           >
-            {{ (selectedIds?.length || 0) === (visiblePluginsCount || 0) && (visiblePluginsCount || 0) > 0 ? '取消全选' : '全选本页' }}
+            <CheckCheck class="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
-            class="px-2.5 py-1 text-xs rounded-lg bg-rose-500 hover:bg-rose-600 text-white font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            class="p-1.5 text-xs rounded-lg text-white font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+            :class="activeTab === 'favorites' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-rose-500 hover:bg-rose-600'"
             :disabled="!selectedIds?.length"
-            @click="emit('bulkDelete')"
+            :title="activeTab === 'favorites' ? '批量取消收藏' : '批量删除'"
+            @click="activeTab === 'favorites' ? emit('bulkUnfavorite') : emit('bulkDelete')"
           >
-            批量删除
-          </button>
-          <button
-            type="button"
-            class="px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-            @click="emit('update:isBatchMode', false)"
-          >
-            退出
+            <component :is="activeTab === 'favorites' ? HeartOff : Trash2" class="w-3.5 h-3.5" />
           </button>
         </div>
         <button
           v-else
           type="button"
-          class="px-2.5 py-1 text-xs rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-medium transition-colors"
+          class="px-2.5 py-1 text-xs rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-medium transition-colors flex items-center gap-1.5"
+          title="批量管理"
           @click="emit('update:isBatchMode', true)"
         >
-          批量管理
+          <ListChecks class="w-3.5 h-3.5" />
+          <span>批量管理</span>
         </button>
       </template>
 

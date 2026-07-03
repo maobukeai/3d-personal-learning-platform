@@ -2,6 +2,7 @@
 import { SlidersHorizontal, Layers, Tags, FolderOpen } from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
 import Tabs from '@/components/ui/Tabs.vue';
+import CollapsibleFilterShell from './CollapsibleFilterShell.vue';
 
 type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts' | 'requests';
 type StatusFilter = 'all' | 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -24,11 +25,14 @@ const emit = defineEmits<{
   (e: 'update:myStatusFilter', value: StatusFilter): void;
   (e: 'update:selectedTag', value: string): void;
   (e: 'update:selectedFavoriteCategory', value: string): void;
+  (e: 'update:collapsed', value: boolean): void;
   (e: 'fetchPlugins'): void;
   (e: 'rename-category', value: string): void;
   (e: 'delete-category', value: string): void;
   (e: 'create-category'): void;
 }>();
+
+const isCollapsed = defineModel<boolean>('collapsed', { default: false });
 
 const label = useLabel();
 
@@ -45,7 +49,11 @@ const onStatusChange = (value: string | number | null) => {
 </script>
 
 <template>
-  <aside class="filter-panel" :class="{ open: isOpen }">
+  <CollapsibleFilterShell
+    v-model:collapsed="isCollapsed"
+    :is-open="isOpen"
+    storage-key="plugin_filter_collapsed"
+  >
     <!-- Favorite Categories folders filter -->
     <div v-if="activeTab === 'favorites'" class="panel-section mb-2">
       <div class="section-title flex justify-between items-center w-full">
@@ -196,22 +204,10 @@ const onStatusChange = (value: string | number | null) => {
         </button>
       </div>
     </div>
-  </aside>
+  </CollapsibleFilterShell>
 </template>
 
 <style scoped>
-.filter-panel {
-  align-self: start;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  padding: 10px;
-  box-shadow: var(--shadow-card);
-}
-
 .panel-section {
   display: flex;
   flex-direction: column;
@@ -266,24 +262,5 @@ const onStatusChange = (value: string | number | null) => {
   background: var(--accent-subtle);
   color: var(--accent);
   font-weight: 600;
-}
-
-@media (max-width: 980px) {
-  .filter-panel {
-    display: none;
-  }
-  .filter-panel.open {
-    display: flex;
-    position: fixed;
-    top: 50px;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 100;
-    border-radius: 0;
-    border: 0;
-    background: var(--bg-card);
-    overflow: auto;
-  }
 }
 </style>

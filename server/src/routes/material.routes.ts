@@ -46,6 +46,14 @@ router.delete(
 );
 router.get('/my', materialController.getMyMaterials);
 router.post('/bulk/favorite', materialController.bulkFavoriteMaterials);
+
+// Material Help Requests endpoints
+router.get('/requests', materialController.listMaterialRequests);
+router.get('/requests/:id', materialController.getMaterialRequestById);
+router.post('/requests', materialController.createMaterialRequest);
+router.post('/requests/:id/replies', materialController.createMaterialRequestReply);
+router.post('/requests/:id/resolve', materialController.resolveMaterialRequest);
+
 router.get('/:id/file', downloadLimiter, materialController.downloadMaterial);
 router.get('/:id', materialController.getMaterialById);
 router.get('/:id/package-files', materialController.getMaterialPackageFiles);

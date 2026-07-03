@@ -16,9 +16,15 @@ import {
   Settings,
   ChevronDown,
   ChevronUp,
+  Sparkles,
 } from 'lucide-vue-next';
+import { type Ref } from 'vue';
+import AiImageGeneratorDialog from '@/components/AiImageGeneratorDialog.vue';
 import { parseZipFileNames, buildFileTree, flattenFileTree } from '@/utils/zipHelper';
 import { useFileTree } from '@/composables/useFileTree';
+import { useTempUpload } from '@/composables/useTempUpload';
+import DownloadTypeSegment from '@/components/DownloadTypeSegment.vue';
+import ZipFileTreeViewer from '@/components/ZipFileTreeViewer.vue';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { useI18n } from 'vue-i18n';
@@ -177,44 +183,49 @@ const materialUploadProgress = ref<number | null>(null);
 const tempThumbnailPath = ref<string | null>(null);
 const thumbnailUploadProgress = ref<number | null>(null);
 
-const uploadFile = async (
-  file: File,
-  progressRef: typeof assetUploadProgress,
-  pathRef: typeof tempAssetPath
-) => {
-  if (pathRef.value) {
-    cancelUpload(pathRef.value);
-  }
+const showAiCoverDialog = ref(false);
+const activeCoverTarget = ref<'thumbnail' | 'pluginPreview'>('thumbnail');
 
-  progressRef.value = 0;
-  pathRef.value = null;
+const openAiCoverGenerator = (target: 'thumbnail' | 'pluginPreview' = 'thumbnail') => {
+  activeCoverTarget.value = target;
+  showAiCoverDialog.value = true;
+};
 
-  const formData = new FormData();
-  formData.append('temp', file);
-
-  try {
-    const response = await api.post('/api/resources/upload-temp', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress: (progressEvent) => {
-        if (progressEvent.total) {
-          progressRef.value = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        }
-      }
-    });
-    pathRef.value = response.data.filePath;
-  } catch (error) {
-    logError(error, { operation: 'Temp file upload' });
-    ElMessage.error(t('publishDialog.uploadFailed') || '文件上传失败');
-    progressRef.value = null;
+const handleAiCoverSave = async (file: File) => {
+  if (activeCoverTarget.value === 'pluginPreview') {
+    publishForm.value.pluginPreview = file;
+    const success = await uploadFile(file, pluginPreviewUploadProgress, tempPluginPreviewPath);
+    if (success) {
+      ElMessage.success('已自动应用 AI 生成的封面图！');
+    } else {
+      publishForm.value.pluginPreview = null;
+    }
+  } else {
+    publishForm.value.thumbnail = file;
+    const success = await uploadFile(file, thumbnailUploadProgress, tempThumbnailPath);
+    if (success) {
+      ElMessage.success('已自动应用 AI 生成的封面图！');
+    } else {
+      publishForm.value.thumbnail = null;
+    }
   }
 };
 
-const cancelUpload = async (filePath: string) => {
-  try {
-    await api.post('/api/resources/upload-temp-cancel', { filePath });
-  } catch (error) {
-    // Silent fail
-  }
+const { uploadFile: doUpload, cancelUpload } = useTempUpload();
+
+const uploadFile = async (
+  file: File,
+  progressRef: Ref<number | null>,
+  pathRef: Ref<string | null>
+): Promise<boolean> => {
+  return doUpload(
+    file,
+    progressRef,
+    (filePath) => {
+      pathRef.value = filePath;
+    },
+    () => pathRef.value
+  );
 };
 
 const cancelAllTempUploads = () => {
@@ -669,183 +680,26 @@ onMounted(() => {
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
                 >{{ t('publishDialog.assetFileLabel') }}</label
               >
-              <!-- Segment Switcher for Download Type -->
-              <div class="flex p-0.5 mb-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-805/80">
-                <button
-                  type="button"
-                  @click="publishForm.downloadType = 'local'"
-                  :class="[
-                    'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
-                    publishForm.downloadType === 'local'
-                      ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
-                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
-                  ]"
-                >
-                  本地文件上传
-                </button>
-                <button
-                  type="button"
-                  @click="publishForm.downloadType = 'external'"
-                  :class="[
-                    'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
-                    publishForm.downloadType === 'external'
-                      ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
-                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
-                  ]"
-                >
-                  网盘链接 / 网页直达
-                </button>
-              </div>
+              <DownloadTypeSegment
+                v-model:downloadType="publishForm.downloadType"
+                v-model:file="publishForm.assetFile"
+                v-model:externalUrl="publishForm.externalUrl"
+                v-model:extractionCode="publishForm.extractionCode"
+                :progress="assetUploadProgress"
+                accept=".glb,.gltf,.fbx,.obj,.stl,.dae,.3ds,.blend,.usdz,.abc,.zip"
+                :drag-label="t('publishDialog.dragAssetFile')"
+                :supported-label="t('publishDialog.supportedAssetFiles')"
+                @change="handleAssetFileChange"
+              />
 
-              <!-- Local Upload Zone -->
-              <div v-show="publishForm.downloadType === 'local'">
-                <FileDropZone
-                  v-model="publishForm.assetFile"
-                  accept=".glb,.gltf,.fbx,.obj,.stl,.dae,.3ds,.blend,.usdz,.abc,.zip"
-                  height-class="h-20"
-                  :progress="assetUploadProgress"
-                  :label="
-                    publishForm.assetFile
-                      ? publishForm.assetFile.name
-                      : t('publishDialog.dragAssetFile')
-                  "
-                  :sublabel="t('publishDialog.supportedAssetFiles')"
-                  @change="handleAssetFileChange"
-                />
-              </div>
-
-              <!-- External URL Inputs -->
-              <div v-show="publishForm.downloadType === 'external'" class="space-y-2">
-                <div class="grid grid-cols-3 gap-2">
-                  <div class="col-span-2">
-                    <input
-                      v-model="publishForm.externalUrl"
-                      type="text"
-                      placeholder="如：https://pan.baidu.com/s/..."
-                      class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800 text-[var(--text-primary)] outline-none transition-all focus:border-violet-500 focus:bg-white dark:focus:bg-slate-800"
-                    />
-                  </div>
-                  <div>
-                    <input
-                      v-model="publishForm.extractionCode"
-                      type="text"
-                      placeholder="提取码 (可选)"
-                      class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800 text-[var(--text-primary)] outline-none transition-all focus:border-violet-500 focus:bg-white dark:focus:bg-slate-800"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <!-- ZIP File Explorer / Package Contents Preview (Asset) -->
-              <div
-                v-if="publishForm.assetFile"
-                class="border border-white/10 rounded-xl overflow-hidden bg-white/[0.01] dark:bg-white/[0.02] text-left mt-3 shrink-0"
-              >
-                <div
-                  class="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-white/[0.02]"
-                >
-                  <FileArchive class="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
-                  <span
-                    class="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]"
-                  >
-                    {{ t('publishDialog.packageContents') || '压缩包包含' }}
-                    <span v-if="!isParsingZip && parsedFileTree.length > 0"
-                      >({{ parsedFileTree.length }})</span
-                    >
-                  </span>
-                  <RefreshCw
-                    v-if="isParsingZip"
-                    class="h-3 w-3 text-amber-400 animate-spin ml-auto shrink-0"
-                  />
-                </div>
-                <div
-                  v-if="isParsingZip"
-                  class="p-4 flex items-center gap-2 text-xs text-[var(--text-muted)]"
-                >
-                  <span>{{
-                    t('publishDialog.readingPackageContents') || '正在读取压缩包目录...'
-                  }}</span>
-                </div>
-                <div
-                  v-else-if="parsedFileTree.length > 0"
-                  class="p-3 flex flex-col gap-1 max-h-[180px] overflow-y-auto custom-scrollbar text-xs text-[var(--text-secondary)] font-mono"
-                >
-                  <div
-                    v-for="node in visibleFileNodes"
-                    :key="node.path"
-                    class="flex items-center gap-1.5 py-1 hover:bg-white/[0.03] px-2 rounded transition-colors"
-                    :class="{ 'cursor-pointer select-none': node.isFolder }"
-                    :style="{ paddingLeft: node.level * 14 + 6 + 'px' }"
-                    @click="node.isFolder ? toggleFolder(node.path) : null"
-                  >
-                    <component
-                      :is="expandedFolders.has(node.path) ? FolderOpen : Folder"
-                      v-if="node.isFolder"
-                      class="h-3.5 w-3.5 text-amber-500 dark:text-amber-400/80 shrink-0"
-                    />
-                    <template v-else>
-                      <svg
-                        v-if="node.name.toLowerCase().endsWith('.blend')"
-                        class="h-3.5 w-3.5 shrink-0"
-                        viewBox="0 0 128 128"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          d="M66.332 70.032c.24-4.242 2.327-7.987 5.485-10.634 3.094-2.602 7.248-4.193 11.809-4.193 4.537 0 8.69 1.59 11.78 4.193 3.163 2.647 5.237 6.392 5.485 10.634.24 4.35-1.523 8.41-4.605 11.417-3.158 3.05-7.627 4.977-12.66 4.977-5.037 0-9.526-1.915-12.664-4.977-3.094-3.006-4.853-7.044-4.606-11.397zm0 0"
-                          fill="#235785"
-                        />
-                        <path
-                          d="M39.245 79.002c.028 1.66.564 4.89 1.36 7.404 1.682 5.336 4.537 10.273 8.49 14.599 4.062 4.465 9.074 8.055 14.85 10.61 6.073 2.67 12.665 4.037 19.505 4.037 6.84-.009 13.432-1.4 19.504-4.102 5.776-2.582 10.79-6.168 14.85-10.657 3.974-4.374 6.82-9.307 8.491-14.647a37 37 0 001.595-8.163c.208-2.69.12-5.405-.263-8.12a37.535 37.535 0 00-5.417-14.714c-2.574-4.15-5.916-7.76-9.89-10.813l.012-.004-39.955-30.506c-.036-.028-.068-.056-.104-.08-2.619-2.002-7.044-1.994-9.91.008-2.914 2.031-3.25 5.385-.656 7.496l-.012.008 16.682 13.484-50.789.051h-.068c-4.197.004-8.239 2.739-9.03 6.213-.82 3.521 2.035 6.46 6.412 6.46l-.008.016 25.736-.048L4.58 82.524c-.056.044-.12.088-.176.132C.069 85.95-1.33 91.446 1.4 94.9c2.778 3.522 8.666 3.546 13.047.02L39.505 74.51s-.368 2.758-.336 4.397zm64.56 9.219c-5.168 5.228-12.416 8.21-20.227 8.21-7.831.012-15.079-2.918-20.248-8.142-2.526-2.559-4.377-5.473-5.528-8.591a22.202 22.202 0 01-1.271-9.602 22.446 22.446 0 012.778-9.039c1.507-2.714 3.59-5.18 6.14-7.267 5.033-4.058 11.42-6.28 18.1-6.28 6.709-.008 13.097 2.174 18.13 6.236 2.55 2.075 4.625 4.529 6.14 7.243a22.302 22.302 0 012.774 9.043 22.302 22.302 0 01-1.271 9.598c-1.147 3.142-3.002 6.056-5.533 8.615zm0 0"
-                          fill="#e87500"
-                        />
-                      </svg>
-                      <Box
-                        v-else-if="
-                          node.name.toLowerCase().endsWith('.glb') ||
-                          node.name.toLowerCase().endsWith('.gltf') ||
-                          node.name.toLowerCase().endsWith('.fbx') ||
-                          node.name.toLowerCase().endsWith('.obj')
-                        "
-                        class="h-3.5 w-3.5 text-indigo-500 shrink-0"
-                      />
-                      <ImageIcon
-                        v-else-if="
-                          node.name.toLowerCase().endsWith('.png') ||
-                          node.name.toLowerCase().endsWith('.jpg') ||
-                          node.name.toLowerCase().endsWith('.jpeg') ||
-                          node.name.toLowerCase().endsWith('.tga') ||
-                          node.name.toLowerCase().endsWith('.hdr')
-                        "
-                        class="h-3.5 w-3.5 text-teal-500 shrink-0"
-                      />
-                      <FileArchive
-                        v-else-if="
-                          node.name.toLowerCase().endsWith('.zip') ||
-                          node.name.toLowerCase().endsWith('.rar') ||
-                          node.name.toLowerCase().endsWith('.7z')
-                        "
-                        class="h-3.5 w-3.5 text-amber-500 shrink-0"
-                      />
-                      <FileText v-else class="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                    </template>
-                    <span
-                      class="truncate"
-                      :class="{
-                        'text-indigo-600 dark:text-indigo-300 font-semibold':
-                          !node.isFolder &&
-                          (node.name.toLowerCase().endsWith('.glb') ||
-                            node.name.toLowerCase().endsWith('.gltf') ||
-                            node.name.toLowerCase().endsWith('.fbx') ||
-                            node.name.toLowerCase().endsWith('.obj') ||
-                            node.name.toLowerCase().endsWith('.blend')),
-                      }"
-                    >
-                      {{ node.name }}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <ZipFileTreeViewer
+                :file="publishForm.assetFile"
+                :is-parsing-zip="isParsingZip"
+                :parsed-file-tree="parsedFileTree"
+                :visible-file-nodes="visibleFileNodes"
+                :expanded-folders="expandedFolders"
+                @toggle="toggleFolder"
+              />
             </div>
 
             <div>
@@ -878,10 +732,20 @@ onMounted(() => {
                 </el-select>
               </div>
               <div>
-                <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >{{ t('publishDialog.thumbnailOptionalLabel') }}</label
-                >
+                <div class="flex items-center justify-between mb-1.5 ml-1">
+                  <label
+                    class="block text-[10px] font-black uppercase tracking-widest text-slate-400"
+                    >{{ t('publishDialog.thumbnailOptionalLabel') }}</label
+                  >
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1 text-[10px] font-bold text-violet-400 hover:text-violet-300 transition-colors cursor-pointer border-none bg-transparent"
+                    @click="openAiCoverGenerator('thumbnail')"
+                  >
+                    <Sparkles class="w-3 h-3 text-violet-400" />
+                    AI 生成封面
+                  </button>
+                </div>
                 <div class="relative group h-11">
                   <input
                     type="file"
@@ -1261,181 +1125,26 @@ onMounted(() => {
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
                 >插件文件 *</label
               >
-              <!-- Segment Switcher for Download Type -->
-              <div class="flex p-0.5 mb-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-805/80">
-                <button
-                  type="button"
-                  @click="publishForm.downloadType = 'local'"
-                  :class="[
-                    'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
-                    publishForm.downloadType === 'local'
-                      ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
-                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
-                  ]"
-                >
-                  本地文件上传
-                </button>
-                <button
-                  type="button"
-                  @click="publishForm.downloadType = 'external'"
-                  :class="[
-                    'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
-                    publishForm.downloadType === 'external'
-                      ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
-                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
-                  ]"
-                >
-                  网盘链接 / 网页直达
-                </button>
-              </div>
-
-              <!-- Local Upload Zone -->
-              <div v-show="publishForm.downloadType === 'local'">
-                <FileDropZone
-                  v-model="publishForm.pluginFile"
-                  accept=".zip,.rar,.7z,.blend,.js,.ts,.py,.lua,.mjs"
-                  height-class="h-20"
-                  hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
-                  icon-type="puzzle"
-                  :progress="pluginUploadProgress"
-                  :label="publishForm.pluginFile ? publishForm.pluginFile.name : '点击上传插件文件'"
-                  sublabel=".zip .blend .js .ts .py 等格式"
-                  @change="handlePluginFileChange"
-                />
-              </div>
-
-              <!-- External URL Inputs -->
-              <div v-show="publishForm.downloadType === 'external'" class="space-y-2">
-                <div class="grid grid-cols-3 gap-2">
-                  <div class="col-span-2">
-                    <input
-                      v-model="publishForm.externalUrl"
-                      type="text"
-                      placeholder="如：https://pan.baidu.com/s/..."
-                      class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800 text-[var(--text-primary)] outline-none transition-all focus:border-violet-500 focus:bg-white dark:focus:bg-slate-800"
-                    />
-                  </div>
-                  <div>
-                    <input
-                      v-model="publishForm.extractionCode"
-                      type="text"
-                      placeholder="提取码 (可选)"
-                      class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800 text-[var(--text-primary)] outline-none transition-all focus:border-violet-500 focus:bg-white dark:focus:bg-slate-800"
-                    />
-                  </div>
-                </div>
-              </div>
+              <DownloadTypeSegment
+                v-model:downloadType="publishForm.downloadType"
+                v-model:file="publishForm.pluginFile"
+                v-model:externalUrl="publishForm.externalUrl"
+                v-model:extractionCode="publishForm.extractionCode"
+                :progress="pluginUploadProgress"
+                accept=".zip,.rar,.7z,.blend,.js,.ts,.py,.lua,.mjs"
+                supported-label=".zip .blend .js .ts .py 等格式"
+                @change="handlePluginFileChange"
+              />
 
               <!-- ZIP File Explorer / Package Contents Preview (Plugin) -->
-              <div
-                v-if="publishForm.pluginFile"
-                class="border border-white/10 rounded-xl overflow-hidden bg-white/[0.01] dark:bg-white/[0.02] text-left mt-2 shrink-0"
-              >
-                <div
-                  class="flex items-center gap-2 px-3 py-1.5 border-b border-white/10 bg-white/[0.02]"
-                >
-                  <FileArchive class="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
-                  <span
-                    class="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]"
-                  >
-                    {{ t('publishDialog.packageContents') || '压缩包包含' }}
-                    <span v-if="!isParsingZip && parsedFileTree.length > 0"
-                      >({{ parsedFileTree.length }})</span
-                    >
-                  </span>
-                  <RefreshCw
-                    v-if="isParsingZip"
-                    class="h-3 w-3 text-amber-400 animate-spin ml-auto shrink-0"
-                  />
-                </div>
-                <div
-                  v-if="isParsingZip"
-                  class="p-3 flex items-center gap-2 text-xs text-[var(--text-muted)]"
-                >
-                  <span>{{
-                    t('publishDialog.readingPackageContents') || '正在读取压缩包目录...'
-                  }}</span>
-                </div>
-                <div
-                  v-else-if="parsedFileTree.length > 0"
-                  class="p-2.5 flex flex-col gap-1 max-h-[150px] overflow-y-auto custom-scrollbar text-xs text-[var(--text-secondary)] font-mono"
-                >
-                  <div
-                    v-for="node in visibleFileNodes"
-                    :key="node.path"
-                    class="flex items-center gap-1.5 py-0.5 hover:bg-white/[0.03] px-2 rounded transition-colors"
-                    :class="{ 'cursor-pointer select-none': node.isFolder }"
-                    :style="{ paddingLeft: node.level * 14 + 6 + 'px' }"
-                    @click="node.isFolder ? toggleFolder(node.path) : null"
-                  >
-                    <component
-                      :is="expandedFolders.has(node.path) ? FolderOpen : Folder"
-                      v-if="node.isFolder"
-                      class="h-3.5 w-3.5 text-amber-500 dark:text-amber-400/80 shrink-0"
-                    />
-                    <template v-else>
-                      <svg
-                        v-if="node.name.toLowerCase().endsWith('.blend')"
-                        class="h-3.5 w-3.5 shrink-0"
-                        viewBox="0 0 128 128"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          d="M66.332 70.032c.24-4.242 2.327-7.987 5.485-10.634 3.094-2.602 7.248-4.193 11.809-4.193 4.537 0 8.69 1.59 11.78 4.193 3.163 2.647 5.237 6.392 5.485 10.634.24 4.35-1.523 8.41-4.605 11.417-3.158 3.05-7.627 4.977-12.66 4.977-5.037 0-9.526-1.915-12.664-4.977-3.094-3.006-4.853-7.044-4.606-11.397zm0 0"
-                          fill="#235785"
-                        />
-                        <path
-                          d="M39.245 79.002c.028 1.66.564 4.89 1.36 7.404 1.682 5.336 4.537 10.273 8.49 14.599 4.062 4.465 9.074 8.055 14.85 10.61 6.073 2.67 12.665 4.037 19.505 4.037 6.84-.009 13.432-1.4 19.504-4.102 5.776-2.582 10.79-6.168 14.85-10.657 3.974-4.374 6.82-9.307 8.491-14.647a37 37 0 001.595-8.163c.208-2.69.12-5.405-.263-8.12a37.535 37.535 0 00-5.417-14.714c-2.574-4.15-5.916-7.76-9.89-10.813l.012-.004-39.955-30.506c-.036-.028-.068-.056-.104-.08-2.619-2.002-7.044-1.994-9.91.008-2.914 2.031-3.25 5.385-.656 7.496l-.012.008 16.682 13.484-50.789.051h-.068c-4.197.004-8.239 2.739-9.03 6.213-.82 3.521 2.035 6.46 6.412 6.46l-.008.016 25.736-.048L4.58 82.524c-.056.044-.12.088-.176.132C.069 85.95-1.33 91.446 1.4 94.9c2.778 3.522 8.666 3.546 13.047.02L39.505 74.51s-.368 2.758-.336 4.397zm64.56 9.219c-5.168 5.228-12.416 8.21-20.227 8.21-7.831.012-15.079-2.918-20.248-8.142-2.526-2.559-4.377-5.473-5.528-8.591a22.202 22.202 0 01-1.271-9.602 22.446 22.446 0 012.778-9.039c1.507-2.714 3.59-5.18 6.14-7.267 5.033-4.058 11.42-6.28 18.1-6.28 6.709-.008 13.097 2.174 18.13 6.236 2.55 2.075 4.625 4.529 6.14 7.243a22.302 22.302 0 012.774 9.043 22.302 22.302 0 01-1.271 9.598c-1.147 3.142-3.002 6.056-5.533 8.615zm0 0"
-                          fill="#e87500"
-                        />
-                      </svg>
-                      <Box
-                        v-else-if="
-                          node.name.toLowerCase().endsWith('.glb') ||
-                          node.name.toLowerCase().endsWith('.gltf') ||
-                          node.name.toLowerCase().endsWith('.fbx') ||
-                          node.name.toLowerCase().endsWith('.obj')
-                        "
-                        class="h-3.5 w-3.5 text-indigo-500 shrink-0"
-                      />
-                      <ImageIcon
-                        v-else-if="
-                          node.name.toLowerCase().endsWith('.png') ||
-                          node.name.toLowerCase().endsWith('.jpg') ||
-                          node.name.toLowerCase().endsWith('.jpeg') ||
-                          node.name.toLowerCase().endsWith('.tga') ||
-                          node.name.toLowerCase().endsWith('.hdr')
-                        "
-                        class="h-3.5 w-3.5 text-teal-500 shrink-0"
-                      />
-                      <FileArchive
-                        v-else-if="
-                          node.name.toLowerCase().endsWith('.zip') ||
-                          node.name.toLowerCase().endsWith('.rar') ||
-                          node.name.toLowerCase().endsWith('.7z')
-                        "
-                        class="h-3.5 w-3.5 text-amber-500 shrink-0"
-                      />
-                      <FileText v-else class="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                    </template>
-                    <span
-                      class="truncate"
-                      :class="{
-                        'text-indigo-600 dark:text-indigo-300 font-semibold':
-                          !node.isFolder &&
-                          (node.name.toLowerCase().endsWith('.glb') ||
-                            node.name.toLowerCase().endsWith('.gltf') ||
-                            node.name.toLowerCase().endsWith('.fbx') ||
-                            node.name.toLowerCase().endsWith('.obj') ||
-                            node.name.toLowerCase().endsWith('.blend')),
-                      }"
-                    >
-                      {{ node.name }}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <ZipFileTreeViewer
+                :file="publishForm.pluginFile"
+                :is-parsing-zip="isParsingZip"
+                :parsed-file-tree="parsedFileTree"
+                :visible-file-nodes="visibleFileNodes"
+                :expanded-folders="expandedFolders"
+                @toggle="toggleFolder"
+              />
             </div>
 
             <!-- Plugin name -->
@@ -1501,10 +1210,20 @@ onMounted(() => {
 
             <!-- Preview image -->
             <div>
-              <label
-                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
-                >封面图（可选）</label
-              >
+              <div class="flex items-center justify-between mb-1 ml-1">
+                <label
+                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400"
+                  >封面图（可选）</label
+                >
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 text-[10px] font-bold text-violet-400 hover:text-violet-300 transition-colors cursor-pointer border-none bg-transparent"
+                  @click="openAiCoverGenerator('pluginPreview')"
+                >
+                  <Sparkles class="w-3 h-3 text-violet-400" />
+                  AI 生成封面
+                </button>
+              </div>
               <FileDropZone
                 v-model="publishForm.pluginPreview"
                 accept="image/*"
@@ -1875,182 +1594,25 @@ onMounted(() => {
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
                 >材质包文件 *</label
               >
-              <!-- Segment Switcher for Download Type -->
-              <div class="flex p-0.5 mb-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-805/80">
-                <button
-                  type="button"
-                  @click="publishForm.downloadType = 'local'"
-                  :class="[
-                    'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
-                    publishForm.downloadType === 'local'
-                      ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
-                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
-                  ]"
-                >
-                  本地文件上传
-                </button>
-                <button
-                  type="button"
-                  @click="publishForm.downloadType = 'external'"
-                  :class="[
-                    'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
-                    publishForm.downloadType === 'external'
-                      ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
-                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
-                  ]"
-                >
-                  网盘链接 / 网页直达
-                </button>
-              </div>
+              <DownloadTypeSegment
+                v-model:downloadType="publishForm.downloadType"
+                v-model:file="publishForm.materialFile"
+                v-model:externalUrl="publishForm.externalUrl"
+                v-model:extractionCode="publishForm.extractionCode"
+                :progress="materialUploadProgress"
+                accept=".zip,.sbsar"
+                supported-label="支持 .zip .sbsar 格式"
+                @change="handleMaterialFileChange"
+              />
 
-              <!-- Local Upload Zone -->
-              <div v-show="publishForm.downloadType === 'local'">
-                <FileDropZone
-                  v-model="publishForm.materialFile"
-                  accept=".zip,.sbsar"
-                  height-class="h-20"
-                  hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
-                  :progress="materialUploadProgress"
-                  :label="
-                    publishForm.materialFile ? publishForm.materialFile.name : '点击上传材质包文件'
-                  "
-                  sublabel="支持 .zip .sbsar 格式"
-                  @change="handleMaterialFileChange"
-                />
-              </div>
-
-              <!-- External URL Inputs -->
-              <div v-show="publishForm.downloadType === 'external'" class="space-y-2">
-                <div class="grid grid-cols-3 gap-2">
-                  <div class="col-span-2">
-                    <input
-                      v-model="publishForm.externalUrl"
-                      type="text"
-                      placeholder="如：https://pan.baidu.com/s/..."
-                      class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800 text-[var(--text-primary)] outline-none transition-all focus:border-violet-500 focus:bg-white dark:focus:bg-slate-800"
-                    />
-                  </div>
-                  <div>
-                    <input
-                      v-model="publishForm.extractionCode"
-                      type="text"
-                      placeholder="提取码 (可选)"
-                      class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800 text-[var(--text-primary)] outline-none transition-all focus:border-violet-500 focus:bg-white dark:focus:bg-slate-800"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <!-- ZIP File Explorer / Package Contents Preview (Material) -->
-              <div
-                v-if="publishForm.materialFile"
-                class="border border-white/10 rounded-xl overflow-hidden bg-white/[0.01] dark:bg-white/[0.02] text-left mt-2 shrink-0"
-              >
-                <div
-                  class="flex items-center gap-2 px-3 py-1.5 border-b border-white/10 bg-white/[0.02]"
-                >
-                  <FileArchive class="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
-                  <span
-                    class="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]"
-                  >
-                    {{ t('publishDialog.packageContents') || '压缩包包含' }}
-                    <span v-if="!isParsingZip && parsedFileTree.length > 0"
-                      >({{ parsedFileTree.length }})</span
-                    >
-                  </span>
-                  <RefreshCw
-                    v-if="isParsingZip"
-                    class="h-3 w-3 text-amber-400 animate-spin ml-auto shrink-0"
-                  />
-                </div>
-                <div
-                  v-if="isParsingZip"
-                  class="p-3 flex items-center gap-2 text-xs text-[var(--text-muted)]"
-                >
-                  <span>{{
-                    t('publishDialog.readingPackageContents') || '正在读取压缩包目录...'
-                  }}</span>
-                </div>
-                <div
-                  v-else-if="parsedFileTree.length > 0"
-                  class="p-2.5 flex flex-col gap-1 max-h-[150px] overflow-y-auto custom-scrollbar text-xs text-[var(--text-secondary)] font-mono"
-                >
-                  <div
-                    v-for="node in visibleFileNodes"
-                    :key="node.path"
-                    class="flex items-center gap-1.5 py-0.5 hover:bg-white/[0.03] px-2 rounded transition-colors"
-                    :class="{ 'cursor-pointer select-none': node.isFolder }"
-                    :style="{ paddingLeft: node.level * 14 + 6 + 'px' }"
-                    @click="node.isFolder ? toggleFolder(node.path) : null"
-                  >
-                    <component
-                      :is="expandedFolders.has(node.path) ? FolderOpen : Folder"
-                      v-if="node.isFolder"
-                      class="h-3.5 w-3.5 text-amber-500 dark:text-amber-400/80 shrink-0"
-                    />
-                    <template v-else>
-                      <svg
-                        v-if="node.name.toLowerCase().endsWith('.blend')"
-                        class="h-3.5 w-3.5 shrink-0"
-                        viewBox="0 0 128 128"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          d="M66.332 70.032c.24-4.242 2.327-7.987 5.485-10.634 3.094-2.602 7.248-4.193 11.809-4.193 4.537 0 8.69 1.59 11.78 4.193 3.163 2.647 5.237 6.392 5.485 10.634.24 4.35-1.523 8.41-4.605 11.417-3.158 3.05-7.627 4.977-12.66 4.977-5.037 0-9.526-1.915-12.664-4.977-3.094-3.006-4.853-7.044-4.606-11.397zm0 0"
-                          fill="#235785"
-                        />
-                        <path
-                          d="M39.245 79.002c.028 1.66.564 4.89 1.36 7.404 1.682 5.336 4.537 10.273 8.49 14.599 4.062 4.465 9.074 8.055 14.85 10.61 6.073 2.67 12.665 4.037 19.505 4.037 6.84-.009 13.432-1.4 19.504-4.102 5.776-2.582 10.79-6.168 14.85-10.657 3.974-4.374 6.82-9.307 8.491-14.647a37 37 0 001.595-8.163c.208-2.69.12-5.405-.263-8.12a37.535 37.535 0 00-5.417-14.714c-2.574-4.15-5.916-7.76-9.89-10.813l.012-.004-39.955-30.506c-.036-.028-.068-.056-.104-.08-2.619-2.002-7.044-1.994-9.91.008-2.914 2.031-3.25 5.385-.656 7.496l-.012.008 16.682 13.484-50.789.051h-.068c-4.197.004-8.239 2.739-9.03 6.213-.82 3.521 2.035 6.46 6.412 6.46l-.008.016 25.736-.048L4.58 82.524c-.056.044-.12.088-.176.132C.069 85.95-1.33 91.446 1.4 94.9c2.778 3.522 8.666 3.546 13.047.02L39.505 74.51s-.368 2.758-.336 4.397zm64.56 9.219c-5.168 5.228-12.416 8.21-20.227 8.21-7.831.012-15.079-2.918-20.248-8.142-2.526-2.559-4.377-5.473-5.528-8.591a22.202 22.202 0 01-1.271-9.602 22.446 22.446 0 012.778-9.039c1.507-2.714 3.59-5.18 6.14-7.267 5.033-4.058 11.42-6.28 18.1-6.28 6.709-.008 13.097 2.174 18.13 6.236 2.55 2.075 4.625 4.529 6.14 7.243a22.302 22.302 0 012.774 9.043 22.302 22.302 0 01-1.271 9.598c-1.147 3.142-3.002 6.056-5.533 8.615zm0 0"
-                          fill="#e87500"
-                        />
-                      </svg>
-                      <Box
-                        v-else-if="
-                          node.name.toLowerCase().endsWith('.glb') ||
-                          node.name.toLowerCase().endsWith('.gltf') ||
-                          node.name.toLowerCase().endsWith('.fbx') ||
-                          node.name.toLowerCase().endsWith('.obj')
-                        "
-                        class="h-3.5 w-3.5 text-indigo-500 shrink-0"
-                      />
-                      <ImageIcon
-                        v-else-if="
-                          node.name.toLowerCase().endsWith('.png') ||
-                          node.name.toLowerCase().endsWith('.jpg') ||
-                          node.name.toLowerCase().endsWith('.jpeg') ||
-                          node.name.toLowerCase().endsWith('.tga') ||
-                          node.name.toLowerCase().endsWith('.hdr')
-                        "
-                        class="h-3.5 w-3.5 text-teal-500 shrink-0"
-                      />
-                      <FileArchive
-                        v-else-if="
-                          node.name.toLowerCase().endsWith('.zip') ||
-                          node.name.toLowerCase().endsWith('.rar') ||
-                          node.name.toLowerCase().endsWith('.7z')
-                        "
-                        class="h-3.5 w-3.5 text-amber-500 shrink-0"
-                      />
-                      <FileText v-else class="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                    </template>
-                    <span
-                      class="truncate"
-                      :class="{
-                        'text-indigo-600 dark:text-indigo-300 font-semibold':
-                          !node.isFolder &&
-                          (node.name.toLowerCase().endsWith('.glb') ||
-                            node.name.toLowerCase().endsWith('.gltf') ||
-                            node.name.toLowerCase().endsWith('.fbx') ||
-                            node.name.toLowerCase().endsWith('.obj') ||
-                            node.name.toLowerCase().endsWith('.blend')),
-                      }"
-                    >
-                      {{ node.name }}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <ZipFileTreeViewer
+                :file="publishForm.materialFile"
+                :is-parsing-zip="isParsingZip"
+                :parsed-file-tree="parsedFileTree"
+                :visible-file-nodes="visibleFileNodes"
+                :expanded-folders="expandedFolders"
+                @toggle="toggleFolder"
+              />
             </div>
 
             <!-- Material name -->
@@ -2112,10 +1674,20 @@ onMounted(() => {
 
             <!-- Preview image (Cover) -->
             <div>
-              <label
-                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
-                >封面图（可选）</label
-              >
+              <div class="flex items-center justify-between mb-1 ml-1">
+                <label
+                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400"
+                  >封面图（可选）</label
+                >
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 text-[10px] font-bold text-violet-400 hover:text-violet-300 transition-colors cursor-pointer border-none bg-transparent"
+                  @click="openAiCoverGenerator('thumbnail')"
+                >
+                  <Sparkles class="w-3 h-3 text-violet-400" />
+                  AI 生成封面
+                </button>
+              </div>
               <FileDropZone
                 v-model="publishForm.thumbnail"
                 accept="image/*"
@@ -2485,6 +2057,15 @@ onMounted(() => {
       {{ isPublishing ? t('publishDialog.publishing') : t('publishDialog.publishNow') }}
     </Button>
   </Modal>
+
+  <!-- AI Cover Generator Dialog -->
+  <AiImageGeneratorDialog
+    :show="showAiCoverDialog"
+    type="cover"
+    title="AI 生成封面图"
+    @close="showAiCoverDialog = false"
+    @save="handleAiCoverSave"
+  />
 </template>
 
 <style scoped>

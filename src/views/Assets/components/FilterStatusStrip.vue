@@ -24,9 +24,9 @@ const label = useLabel();
 </script>
 
 <template>
-  <section class="filter-status-strip mobile-row">
-    <div>
-      <strong>{{ currentCount }}</strong>
+  <section v-if="activeChips && activeChips.length > 0" class="filter-status-strip mobile-row">
+    <div v-if="totalCount > 0" class="text-xs text-[var(--text-muted)]">
+      <strong class="text-xs font-bold text-[var(--text-primary)]">{{ currentCount }}</strong>
       <span>/ {{ totalCount }} {{ unitLabel }}</span>
     </div>
     <div class="chip-row">
@@ -39,10 +39,9 @@ const label = useLabel();
         {{ chip.label }}
         <X class="icon-xs" />
       </button>
-      <button v-if="activeChips.length" type="button" class="reset-chip" @click="emit('reset')">
+      <button type="button" class="reset-chip" @click="emit('reset')">
         {{ label('清空筛选', 'Clear Filters') }}
       </button>
-      <span v-else>{{ emptyChipsLabel }}</span>
     </div>
   </section>
 </template>

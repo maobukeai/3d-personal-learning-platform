@@ -24,6 +24,7 @@ declare module 'vue' {
     CreateTeamDialog: typeof import('./components/CreateTeamDialog.vue')['default']
     DiscussionCard: typeof import('./components/DiscussionCard.vue')['default']
     DownloadProgressOverlay: typeof import('./components/ui/DownloadProgressOverlay.vue')['default']
+    DownloadTypeSegment: typeof import('./components/DownloadTypeSegment.vue')['default']
     Dropdown: typeof import('./components/ui/Dropdown.vue')['default']
     ElButton: typeof import('element-plus/es')['ElButton']
     ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
@@ -91,6 +92,9 @@ declare module 'vue' {
     UnifiedCard: typeof import('./components/UnifiedCard.vue')['default']
     UserAvatar: typeof import('./components/UserAvatar.vue')['default']
     UserProfileDialog: typeof import('./components/UserProfileDialog.vue')['default']
+    WorkCopyrightFields: typeof import('./components/WorkCopyrightFields.vue')['default']
+    WorkLmsFields: typeof import('./components/WorkLmsFields.vue')['default']
+    ZipFileTreeViewer: typeof import('./components/ZipFileTreeViewer.vue')['default']
   }
   export interface GlobalDirectives {
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']

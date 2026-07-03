@@ -29,8 +29,6 @@ import { getApiErrorMessage, logError } from '@/utils/error';
 import { parseTags } from './resourceUtils';
 import { useLabel } from '@/utils/i18n';
 import PluginPageHeader from './components/PluginPageHeader.vue';
-import PluginMarketOverview from './components/PluginMarketOverview.vue';
-import PluginStatsStrip from './components/PluginStatsStrip.vue';
 import PluginFiltersPanel from './components/PluginFiltersPanel.vue';
 import PluginToolbar from './components/PluginToolbar.vue';
 import PluginCatalog from './components/PluginCatalog.vue';
@@ -338,6 +336,42 @@ const handleBulkDeletePlugins = async () => {
   } catch (err: any) {
     if (err !== 'cancel') {
       ElMessage.error(getApiErrorMessage(err, label('批量删除失败', 'Failed to bulk delete plugins')));
+    }
+  }
+};
+
+const handleBulkUnfavoritePlugins = async () => {
+  if (selectedPluginIds.value.size === 0) {
+    ElMessage.warning(label('请选择要取消收藏的插件', 'Please select plugins to unfavorite'));
+    return;
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      label(
+        `确定要批量取消收藏选中的 ${selectedPluginIds.value.size} 个插件吗？`,
+        `Are you sure you want to unfavorite ${selectedPluginIds.value.size} selected plugins?`,
+      ),
+      label('批量取消收藏确认', 'Confirm Bulk Unfavorite'),
+      {
+        confirmButtonText: label('确定', 'Confirm'),
+        cancelButtonText: label('取消', 'Cancel'),
+        type: 'warning',
+      },
+    );
+
+    const ids = Array.from(selectedPluginIds.value);
+    await api.post('/api/plugins/bulk/favorite', { ids, favorite: false });
+
+    ElMessage.success(label(`成功取消收藏 ${ids.length} 个插件`, `Successfully unfavorited ${ids.length} plugins`));
+    selectedPluginIds.value = new Set();
+    isBatchMode.value = false;
+    fetchPlugins();
+    fetchInsights();
+    fetchFavorites();
+  } catch (err: any) {
+    if (err !== 'cancel') {
+      ElMessage.error(getApiErrorMessage(err, label('批量取消收藏失败', 'Failed to bulk unfavorite plugins')));
     }
   }
 };
@@ -771,7 +805,22 @@ const resetFilters = () => {
   fetchPlugins();
 };
 
+const handleContainerClick = (e: MouseEvent) => {
+  if (!isBatchMode.value) return;
+  const target = e.target as HTMLElement;
+  if (!target) return;
+  if (target.closest('article, .unified-card, button, input, .el-select, .el-popper, a, select')) {
+    return;
+  }
+  isBatchMode.value = false;
+  selectedPluginIds.value = new Set();
+};
+
 const openDetail = (plugin: PluginItem) => {
+  if (isBatchMode.value) {
+    togglePluginSelect(plugin.id);
+    return;
+  }
   selectedPlugin.value = plugin;
   isDetailDialogOpen.value = true;
 };
@@ -1185,8 +1234,8 @@ const startFromTemplate = (template: StarterPluginTemplate) => {
   isUploadDialogOpen.value = true;
 };
 
-const isStatsExpanded = ref(false);
 const isFilterOpen = ref(false);
+const isFilterCollapsed = ref(false);
 
 const downloadSelectedPlugin = () => {
   if (selectedPlugin.value) handleDownload(selectedPlugin.value);
@@ -1335,12 +1384,10 @@ watch(
 </script>
 
 <template>
-  <div class="plugins-page mobile-adaptive flex flex-col h-full overflow-hidden">
+  <div class="plugins-page mobile-adaptive flex flex-col h-full overflow-hidden" @click="handleContainerClick">
     <PluginPageHeader
       v-model:search-query="searchQuery"
       :is-loading="isLoading"
-      :is-stats-expanded="isStatsExpanded"
-      @toggle-stats="isStatsExpanded = !isStatsExpanded"
       @refresh="
         fetchPlugins();
         fetchInsights();
@@ -1349,26 +1396,12 @@ watch(
     />
 
     <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">
-      <PluginMarketOverview
-        :is-visible="isStatsExpanded"
-        :spotlight-plugin="spotlightPlugin"
-        :starter-templates="starterTemplates"
-        :marketplace-signals="marketplaceSignals"
-        @open-detail="openDetail"
-        @start-from-template="startFromTemplate"
-      />
 
-      <PluginStatsStrip
-        :is-visible="isStatsExpanded"
-        :total="stats.total"
-        :downloads="stats.downloads"
-        :favorites="stats.favorites"
-        :categories="stats.categories"
-      />
-
-      <div class="workspace-shell">
+      <div class="workspace-shell" :class="{ 'single-col': activeTab === 'requests', 'collapsed-shell': isFilterCollapsed }">
         <PluginFiltersPanel
+          v-if="activeTab !== 'requests'"
           :is-open="isFilterOpen"
+          v-model:collapsed="isFilterCollapsed"
           :active-category="activeCategory"
           :active-tab="activeTab"
           :my-status-filter="myStatusFilter"
@@ -1397,6 +1430,8 @@ watch(
             :view-mode-options="viewModeOptions"
             :show-favorites-only="showFavoritesOnly"
             :is-filter-open="isFilterOpen"
+            :is-filter-collapsed="isFilterCollapsed"
+            @toggle-filter-collapse="isFilterCollapsed = false"
             :is-batch-mode="isBatchMode"
             :selected-ids="Array.from(selectedPluginIds)"
             :visible-plugins-count="visiblePlugins.length"
@@ -1406,116 +1441,21 @@ watch(
             @update:is-batch-mode="isBatchMode = $event; if (!$event) selectedPluginIds = new Set();"
             @select-all="selectAllPlugins"
             @bulk-delete="handleBulkDeletePlugins"
+            @bulk-unfavorite="handleBulkUnfavoritePlugins"
             @toggle-favorites="showFavoritesOnly = !showFavoritesOnly"
             @toggle-filter="isFilterOpen = !isFilterOpen"
           />
 
           <!-- Request Help forum list -->
-          <div v-if="activeTab === 'requests'" class="flex-1 flex flex-col gap-4 text-left">
-            <div
-              class="flex justify-between items-center bg-white/[0.01] border border-white/5 p-4 rounded-2xl shrink-0"
-            >
-              <div>
-                <h3 class="text-sm font-bold text-[var(--text-primary)]">
-                  {{ label('插件求助论坛', 'Plugin Help Requests Forum') }}
-                </h3>
-                <p class="text-xs text-[var(--text-muted)] mt-0.5">
-                  {{
-                    label(
-                      '找不到需要的插件？发布求助帖，让社区开发者和爱好者来帮助您！',
-                      "Can't find a plugin? Ask the community for help.",
-                    )
-                  }}
-                </p>
-              </div>
-              <Button
-                variant="primary"
-                size="sm"
-                class="flex items-center gap-1 cursor-pointer"
-                @click="showHelpRequestPostDialog = true"
-              >
-                <Plus class="w-3.5 h-3.5" />
-                <span>{{ label('发布求助', 'Post Help Request') }}</span>
-              </Button>
-            </div>
-
-            <!-- List of posts -->
-            <div v-if="isHelpRequestsLoading" class="flex justify-center py-12">
-              <RefreshCw class="w-8 h-8 animate-spin text-indigo-400" />
-            </div>
-            <div
-              v-else-if="helpRequests.length === 0"
-              class="text-center py-12 bg-white/[0.01] border border-dashed border-white/5 rounded-2xl font-semibold text-xs text-[var(--text-muted)]"
-            >
-              {{ label('当前没有求助帖，去发布一个吧！', 'No help requests yet. Post one!') }}
-            </div>
-            <div
-              v-else
-              class="grid grid-cols-1 gap-3 overflow-y-auto max-h-[70vh] pr-1.5 custom-scrollbar"
-            >
-              <div
-                v-for="req in helpRequests"
-                :key="req.id"
-                class="p-5 rounded-2xl bg-white/[0.01] hover:bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all flex justify-between items-center gap-4 cursor-pointer"
-                @click="openHelpRequestDetail(req)"
-              >
-                <div class="flex-1 flex flex-col gap-1 min-w-0">
-                  <div class="flex items-center gap-2">
-                    <span
-                      class="px-2 py-0.5 rounded text-[10px] font-bold"
-                      :class="
-                        req.status === 'RESOLVED'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : 'bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse'
-                      "
-                    >
-                      {{
-                        req.status === 'RESOLVED'
-                          ? label('已解决', 'Resolved')
-                          : label('求助中', 'Open')
-                      }}
-                    </span>
-                    <h4 class="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
-                      {{ req.title }}
-                    </h4>
-                  </div>
-
-                  <p class="text-xs text-[var(--text-muted)] line-clamp-2 mt-1">
-                    {{ req.description }}
-                  </p>
-
-                  <div class="flex items-center gap-3 mt-3 text-[10px] text-[var(--text-muted)]">
-                    <div class="flex items-center gap-1.5">
-                      <div
-                        class="w-4 h-4 rounded-full overflow-hidden border border-white/10 bg-slate-900 flex items-center justify-center shrink-0"
-                      >
-                        <img
-                          v-if="req.user?.avatarUrl"
-                          :src="getAssetUrl(req.user.avatarUrl)"
-                          class="w-full h-full object-cover"
-                        />
-                        <span v-else class="text-[8px] font-bold text-slate-400">{{
-                          req.user?.name?.slice(0, 1) || 'U'
-                        }}</span>
-                      </div>
-                      <span>{{ req.user?.name }}</span>
-                    </div>
-                    <span>•</span>
-                    <span>{{ new Date(req.createdAt).toLocaleDateString() }}</span>
-                  </div>
-                </div>
-
-                <div class="flex flex-col items-end gap-1 font-semibold shrink-0">
-                  <span class="text-base text-indigo-400 font-mono">{{
-                    req._count?.replies || 0
-                  }}</span>
-                  <span class="text-[10px] text-[var(--text-muted)]">{{
-                    label('个回复', 'Replies')
-                  }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <HelpRequestsForum
+            v-if="activeTab === 'requests'"
+            :forum-title="label('插件求助论坛', 'Plugin Help Requests Forum')"
+            :forum-desc="label('找不到需要的插件？发布求助帖，让社区开发者和爱好者来帮助您！', 'Can\'t find a plugin? Ask the community for help.')"
+            :requests="helpRequests"
+            :is-loading="isHelpRequestsLoading"
+            @open-detail="openHelpRequestDetail"
+            @create-request="showHelpRequestPostDialog = true"
+          />
 
           <PluginCatalog
             v-else
@@ -1910,8 +1850,17 @@ watch(
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: 156px minmax(0, 1fr);
   gap: 12px;
+  transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.workspace-shell.collapsed-shell {
+  grid-template-columns: 1fr;
+}
+
+.workspace-shell.single-col {
+  grid-template-columns: 1fr;
 }
 
 .content-panel {

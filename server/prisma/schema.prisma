@@ -111,6 +111,10 @@ model User {
   pluginRequests            PluginRequest[]
   pluginRequestReplies      PluginRequestReply[]
   pluginFavorites           PluginFavorite[]
+  assetRequests             AssetRequest[]
+  assetRequestReplies       AssetRequestReply[]
+  materialRequests          MaterialRequest[]
+  materialRequestReplies    MaterialRequestReply[]
 
   // Indexes for frequently-filtered columns (admin user list, dashboard stats)
   @@index([role])
@@ -389,6 +393,7 @@ model Asset {
   isFree        Boolean           @default(true)
   assetShare    AssetShare?
   comments      AssetComment[]
+  linkedReplies AssetRequestReply[]
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
@@ -833,6 +838,7 @@ model Material {
   team         Team?              @relation(fields: [teamId], references: [id], onDelete: SetNull, map: "Material_teamId_fk")
   favorites    MaterialFavorite[]
   comments     MaterialComment[]
+  linkedReplies MaterialRequestReply[]
   materialShare MaterialShare?
   linkedShowcases Showcase[]     @relation("ShowcaseLinkedMaterials")
   createdAt    DateTime           @default(now())
@@ -1865,5 +1871,65 @@ model PluginShare {
   @@index([pluginId])
   @@index([userId])
   @@index([expiresAt])
+}
+
+model AssetRequest {
+  id          String               @id @default(uuid())
+  title       String
+  description String               @db.Text
+  status      String               @default("OPEN") // 'OPEN' | 'RESOLVED'
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replies     AssetRequestReply[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model AssetRequestReply {
+  id             String        @id @default(uuid())
+  requestId      String
+  request        AssetRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content        String        @db.Text
+  linkedAssetId  String?
+  linkedAsset    Asset?        @relation(fields: [linkedAssetId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+
+  @@index([requestId])
+  @@index([userId])
+}
+
+model MaterialRequest {
+  id          String               @id @default(uuid())
+  title       String
+  description String               @db.Text
+  status      String               @default("OPEN") // 'OPEN' | 'RESOLVED'
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replies     MaterialRequestReply[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model MaterialRequestReply {
+  id               String          @id @default(uuid())
+  requestId        String
+  request          MaterialRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content          String          @db.Text
+  linkedMaterialId String?
+  linkedMaterial   Material?       @relation(fields: [linkedMaterialId], references: [id], onDelete: SetNull)
+  createdAt        DateTime        @default(now())
+
+  @@index([requestId])
+  @@index([userId])
 }
 

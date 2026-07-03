@@ -332,6 +332,18 @@ export const generateImage = async (req: AuthRequest, res: Response, next: NextF
     }
     const size = type === 'cover' ? '1792x768' : '1024x1024';
     const result = await generateImageWithFailover(safePrompt, modelId, undefined, size);
+
+    if (result.url && !result.b64_json) {
+      try {
+        const axios = (await import('axios')).default;
+        const response = await axios.get(result.url, { responseType: 'arraybuffer' });
+        const buffer = Buffer.from(response.data);
+        result.b64_json = buffer.toString('base64');
+      } catch (err) {
+        logger.error(`[AI Image Generator] Failed to download and convert remote URL ${result.url} to base64:`, err);
+      }
+    }
+
     res.json(result);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

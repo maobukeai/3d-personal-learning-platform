@@ -18,7 +18,6 @@ const PublishWorkDialog = defineAsyncComponent(() => import('@/components/Publis
 import ResourceCenterHeader from './components/ResourceCenterHeader.vue';
 import ResourceFeedPanel from './components/ResourceFeedPanel.vue';
 import ResourceInsightRail from './components/ResourceInsightRail.vue';
-import ResourceStatsPanel from './components/ResourceStatsPanel.vue';
 import {
   type KindFilter,
   type ResourceFeedMeta,
@@ -48,7 +47,6 @@ const viewMode = ref<'grid' | 'list'>('grid');
 const feedItems = ref<ResourceItem[]>([]);
 const feedMeta = ref<ResourceFeedMeta | null>(null);
 const currentPage = ref(1);
-const isStatsExpanded = ref(false);
 const pageSize = 40;
 let overviewRequestId = 0;
 let feedRequestId = 0;
@@ -233,19 +231,11 @@ onUnmounted(() => {
       v-model:search-query="searchQuery"
       :is-loading="isLoading"
       :is-feed-loading="isFeedLoading"
-      :is-stats-expanded="isStatsExpanded"
-      @toggle-stats="isStatsExpanded = !isStatsExpanded"
       @refresh="refreshAll"
       @publish="openPublishDialog('work')"
     />
 
     <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">
-      <ResourceStatsPanel
-        :overview="overview"
-        :is-stats-expanded="isStatsExpanded"
-        @open-library="openLibrary"
-        @review-cta="(path) => router.push(path)"
-      />
 
       <section class="resource-workbench">
         <ResourceFeedPanel

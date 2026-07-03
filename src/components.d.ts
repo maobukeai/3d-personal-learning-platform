@@ -92,8 +92,6 @@ declare module 'vue' {
     UnifiedCard: typeof import('./components/UnifiedCard.vue')['default']
     UserAvatar: typeof import('./components/UserAvatar.vue')['default']
     UserProfileDialog: typeof import('./components/UserProfileDialog.vue')['default']
-    WorkCopyrightFields: typeof import('./components/WorkCopyrightFields.vue')['default']
-    WorkLmsFields: typeof import('./components/WorkLmsFields.vue')['default']
     ZipFileTreeViewer: typeof import('./components/ZipFileTreeViewer.vue')['default']
   }
   export interface GlobalDirectives {

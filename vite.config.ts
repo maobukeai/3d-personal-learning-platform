@@ -185,6 +185,8 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       chunkSizeWarningLimit: 800,
+      // Use esbuild for CSS minification to prevent LightningCSS bugs with backdrop-filter
+      cssMinify: 'esbuild',
       // Split CSS per chunk so lazy-loaded routes only pull in their own styles.
       cssCodeSplit: true,
       // Inject a polyfill for <link rel="modulepreload"> so older Safari versions

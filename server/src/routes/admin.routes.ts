@@ -193,6 +193,7 @@ router.post('/storage-configs', storageController.createConfig);
 router.put('/storage-configs/:id', storageController.updateConfig);
 router.delete('/storage-configs/:id', storageController.deleteConfig);
 router.post('/storage-configs/test', storageController.testConfig);
+router.get('/storage-configs/:id/reveal-secrets', storageController.revealConfigSecrets);
 router.get('/storage-configs/:id/files', storageController.listBucketFiles);
 router.patch('/storage-configs/:id/files/rename', storageController.renameBucketFile);
 router.post('/storage-configs/:id/files/bulk-delete', storageController.deleteBucketFilesBulk);

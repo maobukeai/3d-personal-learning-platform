@@ -275,6 +275,21 @@ export const deleteConfig = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
+export const revealConfigSecrets = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const raw = await prisma.storageConfig.findUnique({ where: { id } });
+    if (!raw) return next(new AppError('配置未找到', 404));
+
+    res.json({
+      secretAccessKey: decryptSecretIfNeeded(raw.secretAccessKey),
+      cloudflareApiToken: decryptSecretIfNeeded(raw.cloudflareApiToken),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const testConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { endpoint, accessKeyId, secretAccessKey, bucketName, publicUrl } = req.body;

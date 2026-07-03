@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { Play, Check } from 'lucide-vue-next';
+import { ref } from 'vue';
+import { Play, Check, Eye, EyeOff } from 'lucide-vue-next';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 import Checkbox from '@/components/ui/Checkbox.vue';
 import FormDialog from '@/components/FormDialog.vue';
+import api from '@/utils/api';
+import { getApiErrorMessage } from '@/utils/error';
+import { ElMessage } from 'element-plus';
 import type { StorageConfigForm, AssetTypeOption } from './StorageSettingsTab.types';
 
 interface Props {
@@ -22,6 +26,30 @@ const emit = defineEmits<{
   (e: 'submit'): void;
   (e: 'test-connection'): void;
 }>();
+
+const loadingRevealedSecrets = ref(false);
+const showPlaintextSecrets = ref(false);
+
+const handleRevealSecrets = async () => {
+  if (showPlaintextSecrets.value) {
+    showPlaintextSecrets.value = false;
+    return;
+  }
+
+  if (!form.value.id) return;
+  loadingRevealedSecrets.value = true;
+  try {
+    const { data } = await api.get(`/api/admin/storage-configs/${form.value.id}/reveal-secrets`);
+    form.value.secretAccessKey = data.secretAccessKey || '';
+    form.value.cloudflareApiToken = data.cloudflareApiToken || '';
+    showPlaintextSecrets.value = true;
+    ElMessage.success('已成功解密并解封显示该云存储的真实密钥与 Token！');
+  } catch (err) {
+    ElMessage.error(getApiErrorMessage(err, '读取或解密密钥失败'));
+  } finally {
+    loadingRevealedSecrets.value = false;
+  }
+};
 </script>
 
 <template>
@@ -29,7 +57,6 @@ const emit = defineEmits<{
     v-model:visible="visible"
     :title="props.isEdit ? '编辑云端存储配置' : '添加云端存储配置'"
     width="920px"
-    :show-footer="false"
   >
     <div class="space-y-4 py-1">
       <!-- Section: Basic Information -->
@@ -86,7 +113,18 @@ const emit = defineEmits<{
 
       <!-- Section: Credentials -->
       <div class="border-b pb-3" style="border-color: var(--border-base)">
-        <h3 class="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-2">连接凭证</h3>
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-xs font-bold text-indigo-500 uppercase tracking-wider">连接凭证</h3>
+          <button
+            v-if="props.isEdit"
+            type="button"
+            class="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer bg-transparent border-none p-0 font-medium transition-colors"
+            @click="handleRevealSecrets"
+          >
+            <component :is="showPlaintextSecrets ? EyeOff : Eye" class="w-3.5 h-3.5" />
+            <span>{{ loadingRevealedSecrets ? '正在解密...' : (showPlaintextSecrets ? '隐藏明文密钥' : '管理员查看已存密钥') }}</span>
+          </button>
+        </div>
         <div class="grid grid-cols-4 gap-3 mobile-grid">
           <div class="col-span-2">
             <Input
@@ -109,9 +147,9 @@ const emit = defineEmits<{
           <div>
             <Input
               v-model="form.secretAccessKey"
-              type="password"
+              :type="showPlaintextSecrets ? 'text' : 'password'"
               label="Secret Access Key"
-              :placeholder="props.isEdit ? '留空则不修改已保存的密钥' : 'R2 机密存取密钥'"
+              :placeholder="props.isEdit ? '已加密（留空保持原值，点右上角解密查看）' : 'R2 机密存取密钥'"
               input-class="!py-2.5 font-mono text-xs"
               :required="!props.isEdit"
             />
@@ -119,9 +157,9 @@ const emit = defineEmits<{
           <div class="col-span-4">
             <Input
               v-model="form.cloudflareApiToken"
-              type="password"
+              :type="showPlaintextSecrets ? 'text' : 'password'"
               label="Cloudflare API Token（可选，推荐）"
-              placeholder="此 Cloudflare 账号的 R2 只读 API Token"
+              :placeholder="props.isEdit ? '已加密（留空保持原值，点右上角解密查看）' : '此 Cloudflare 账号的 R2 只读 API Token'"
               input-class="!py-2.5 font-mono text-xs"
             />
             <p class="text-[9px] leading-relaxed mt-1" style="color: var(--text-secondary)">

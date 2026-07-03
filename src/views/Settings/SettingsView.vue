@@ -20,6 +20,7 @@ import { preferences } from '@/utils/preferences';
 // Settings-shared CSS is only needed on this route — importing it here keeps
 // it out of the critical-path CSS bundle (saves ~164 lines on first paint).
 import '@/styles/settings-shared.css';
+import UserAvatar from '@/components/UserAvatar.vue';
 
 import ProfileSection from './components/ProfileSection.vue';
 import NotificationSection from './components/NotificationSection.vue';
@@ -205,10 +206,7 @@ const activeSectionMeta = computed(
   () => sections.value.find((section) => section.id === activeSection.value) || sections.value[0],
 );
 
-const initials = computed(() => {
-  const source = authStore.user?.name || authStore.user?.email || 'U';
-  return source.slice(0, 1).toUpperCase();
-});
+
 
 const setSection = (sectionId: SectionId) => {
   activeSection.value = sectionId;
@@ -256,7 +254,7 @@ watch(filteredSections, (next) => {
       </div>
 
       <div class="account-strip">
-        <div class="avatar-chip">{{ initials }}</div>
+        <UserAvatar :user="authStore.user" size="md" />
         <div>
           <strong>{{ authStore.user?.name || label('未命名用户', 'Unnamed User') }}</strong>
           <span>{{ authStore.user?.email || label('未登录', 'Not signed in') }}</span>

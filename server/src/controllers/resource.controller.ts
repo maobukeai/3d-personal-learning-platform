@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { Prisma } from '@prisma/client';
 import type { AuthRequest } from '../middlewares/auth.middleware';
 import prisma from '../services/prisma';
+import { callLLMWithFailover } from '../services/ai.service';
 import { parseTags } from '../utils/tags';
 import redisService from '../services/redis.service';
 import axios from 'axios';
@@ -1485,7 +1486,8 @@ const IMAGE_SKIP_DOMAINS: string[] = [];
 
 async function performFallbackSearchAndScrape(
   title: string,
-  originalUrl: string
+  originalUrl: string,
+  type: string
 ): Promise<{ imageUrls: string[]; textParagraphs: string[]; fallbackUrl?: string } | null> {
   try {
     const cleanQuery = title
@@ -1499,7 +1501,16 @@ async function performFallbackSearchAndScrape(
 
     if (!cleanQuery) return null;
 
-    const searchUrl = `https://cn.bing.com/search?q=${encodeURIComponent(cleanQuery + ' Blender')}&first=1`;
+    let querySuffix = '';
+    if (type === 'plugin') {
+      querySuffix = ' plugin';
+    } else if (type === 'material') {
+      querySuffix = ' material';
+    } else if (type === 'asset') {
+      querySuffix = ' 3d model';
+    }
+
+    const searchUrl = `https://cn.bing.com/search?q=${encodeURIComponent(cleanQuery + querySuffix)}&first=1`;
     const searchResponse = await axios.get(searchUrl, {
       headers: {
         'User-Agent':
@@ -1507,7 +1518,7 @@ async function performFallbackSearchAndScrape(
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
       },
-      timeout: 5000,
+      timeout: 2500,
     });
 
     const $search = cheerio.load(searchResponse.data);
@@ -1539,7 +1550,7 @@ async function performFallbackSearchAndScrape(
     const candidateResults: CandidateResult[] = [];
 
     await Promise.allSettled(
-      candidateLinks.slice(0, 5).map(async (link) => {
+      candidateLinks.slice(0, 3).map(async (link) => {
         try {
           const response = await axios.get(link, {
             headers: {
@@ -1548,7 +1559,7 @@ async function performFallbackSearchAndScrape(
               Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
               'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
             },
-            timeout: 5000,
+            timeout: 2500,
           });
 
           const $ = cheerio.load(response.data);
@@ -1648,6 +1659,73 @@ async function performFallbackSearchAndScrape(
   return null;
 }
 
+/**
+ * Uses LLM to extract metadata such as version, compatibility, tags, and category
+ * from scraped webpage text.
+ */
+async function parseResourceWithAI(
+  title: string,
+  snippet: string | undefined,
+  textParagraphs: string[],
+  type: string
+) {
+  try {
+    const textSnippet = [
+      `标题: ${title}`,
+      snippet ? `引言: ${snippet}` : '',
+      `正文段落:`,
+      ...textParagraphs.slice(0, 10)
+    ].filter(Boolean).join('\n');
+
+    const systemPrompt = `You are a helper that extracts metadata and translates content from webpage text snippets for a 3D learning platform database.
+You must respond with a strictly formatted JSON object containing the metadata.
+Do not include any markdown styling like \`\`\`json or explanations. Return ONLY the raw JSON string.
+Important: If the title, description, or tags are in English, please translate/localize them to natural, clean Chinese. The tags should be translated to Chinese comma-separated keywords (e.g. '建模,材质,动画' instead of 'modeling,texture,animation').
+
+For type: "plugin", return:
+{
+  "version": "string (e.g. '1.2.0', default '1.0.0')",
+  "compatibility": "string (e.g. 'Blender 3.x / 4.x', default '')",
+  "tags": "string (comma-separated Chinese tag names, e.g. '建模,优化,材质', default '')",
+  "category": "string (must be one of: 'Blender 插件', 'Three.js 插件', 'Substance 工具', '游戏引擎插件', 'Photoshop 脚本', '其他工具')",
+  "translatedDescription": "string (A clean, localized Chinese translation/summary of the description. Max 300 words)"
+}
+
+For type: "asset" (3D Model), return:
+{
+  "tags": "string (comma-separated Chinese tag names, e.g. '科幻,机器人,角色', default '')",
+  "meshType": "string (must be one of: 'LOW_POLY', 'HIGH_POLY', 'CAD', 'UNKNOWN', default 'UNKNOWN')",
+  "translatedDescription": "string (A clean, localized Chinese translation/summary of the description. Max 300 words)"
+}
+
+For type: "material", return:
+{
+  "tags": "string (comma-separated Chinese tag names, e.g. '木质,程序化,写实', default '')",
+  "resolution": "string (e.g. '4K', '8K', '1024x1024', default null)",
+  "isProcedural": "boolean (default false)",
+  "translatedDescription": "string (A clean, localized Chinese translation/summary of the description. Max 300 words)"
+}
+`;
+
+    const userPrompt = `Extract metadata for type "${type}" from the following webpage snippet:\n\n${textSnippet}`;
+
+    const responseText = await callLLMWithFailover(userPrompt, systemPrompt);
+    logger.info(`[AI Scraper Parser] LLM raw response: ${responseText}`);
+
+    // Parse JSON safely
+    const cleanedJson = responseText
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim();
+
+    const parsed = JSON.parse(cleanedJson);
+    return parsed;
+  } catch (error: any) {
+    logger.warn(`[AI Scraper Parser] Failed to parse resource with AI: ${error.message}`);
+    return null;
+  }
+}
+
 export const importExternalResource = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { url: rawUrl, title, type, snippet } = req.body;
@@ -1660,11 +1738,10 @@ export const importExternalResource = async (req: AuthRequest, res: Response, ne
     const { normalizeResourceUrl } = await import('../services/external-search.service');
     const url = normalizeResourceUrl(rawUrl);
 
-    // 1. Build initial Markdown description block
-    let descriptionMarkdown = `### ${title}\n\n来自源站的资源详情页面：[直接访问源站](${url})\n\n`;
-    if (snippet) {
-      descriptionMarkdown += `> ${snippet}\n\n`;
-    }
+    let scrapedTextParagraphs: string[] = [];
+    let scrapedImageUrls: string[] = [];
+    let isFallbackScraped = false;
+    let fallbackSourceUrl = '';
 
     try {
       const response = await axios.get(url, {
@@ -1678,7 +1755,7 @@ export const importExternalResource = async (req: AuthRequest, res: Response, ne
           'Upgrade-Insecure-Requests': '1',
           'Referer': 'https://www.google.com/',
         },
-        timeout: 6000,
+        timeout: 3000,
         proxy: false,
         httpAgent: new http.Agent({ keepAlive: true }),
         httpsAgent: new https.Agent({ keepAlive: true, rejectUnauthorized: false }),
@@ -1781,33 +1858,17 @@ export const importExternalResource = async (req: AuthRequest, res: Response, ne
         }
       }
 
-      // Format preview images and body text
-      if (localImageUrls.length > 0) {
-        descriptionMarkdown += `### 🖼️ 资源预览图\n\n`;
-        descriptionMarkdown += `![主预览图](${localImageUrls[0]})\n\n`;
-      }
-
-      if (textParagraphs.length > 0) {
-        descriptionMarkdown += `### 📝 资源描述与介绍\n\n`;
-        textParagraphs.forEach((p) => {
-          descriptionMarkdown += `${p}\n\n`;
-        });
-      }
-
-      if (localImageUrls.length > 1) {
-        descriptionMarkdown += `### 🔍 更多细节截图\n\n`;
-        localImageUrls.slice(1).forEach((imgUrl, index) => {
-          descriptionMarkdown += `![细节截图 ${index + 1}](${imgUrl})\n\n`;
-        });
-      }
+      scrapedTextParagraphs = textParagraphs;
+      scrapedImageUrls = localImageUrls;
     } catch (fetchErr: any) {
       logger.error(`[Import External] Failed to scrape webpage ${url}: ${fetchErr.message}`);
       
-      logger.info(`[Import External] Triggering fallback search & scrape for title: "${title}"`);
-      const fallbackData = await performFallbackSearchAndScrape(title, url);
+      logger.info(`[Import External] Triggering fallback search & scrape for title: "${title}" (type: ${type})`);
+      const fallbackData = await performFallbackSearchAndScrape(title, url, type);
       
       if (fallbackData) {
-        descriptionMarkdown += `*(注：由于原源站防爬虫限制，系统已自动从公开网络备用站点 [直接访问备用源站](${fallbackData.fallbackUrl}) 抓取并补充了以下介绍与预览图)*\n\n`;
+        isFallbackScraped = true;
+        fallbackSourceUrl = fallbackData.fallbackUrl || '';
         
         const localFallbackImageUrls: string[] = [];
         for (const imgUrl of fallbackData.imageUrls) {
@@ -1817,41 +1878,62 @@ export const importExternalResource = async (req: AuthRequest, res: Response, ne
           }
         }
 
-        if (localFallbackImageUrls.length > 0) {
-          descriptionMarkdown += `### 🖼️ 资源预览图\n\n`;
-          descriptionMarkdown += `![主预览图](${localFallbackImageUrls[0]})\n\n`;
-        }
-
-        if (fallbackData.textParagraphs.length > 0) {
-          descriptionMarkdown += `### 📝 资源描述与介绍\n\n`;
-          fallbackData.textParagraphs.forEach((p) => {
-            descriptionMarkdown += `${p}\n\n`;
-          });
-        }
-
-        if (localFallbackImageUrls.length > 1) {
-          descriptionMarkdown += `### 🔍 更多细节截图\n\n`;
-          localFallbackImageUrls.slice(1).forEach((imgUrl, index) => {
-            descriptionMarkdown += `![细节截图 ${index + 1}](${imgUrl})\n\n`;
-          });
-        }
-      } else {
-        descriptionMarkdown += `*(由于源站防爬虫或网络原因限制，未能成功抓取文章内部正文与图片，请点击上方源站链接手动编辑补充)*\n\n`;
+        scrapedTextParagraphs = fallbackData.textParagraphs;
+        scrapedImageUrls = localFallbackImageUrls;
       }
     }
 
-    // Extract cover image from downloaded images (first image)
-    let coverUrl: string | null = null;
-    const bodyContent = descriptionMarkdown;
-    const imagePattern = /!\[.*?\]\((.*?)\)/g;
-    const matches = [...bodyContent.matchAll(imagePattern)];
-    if (matches && matches.length > 0 && matches[0] && matches[0][1]) {
-      coverUrl = matches[0][1];
+    // Call AI to parse metadata and translate English to Chinese
+    const aiData = await parseResourceWithAI(title, snippet, scrapedTextParagraphs, type);
+
+    // 1. Build initial Markdown description block
+    let descriptionMarkdown = `### ${title}\n\n来自源站的资源详情页面：[直接访问源站](${url})\n\n`;
+    if (snippet) {
+      descriptionMarkdown += `> ${snippet}\n\n`;
     }
 
-    // 2. Create the resource as a draft (status: PENDING)
+    if (isFallbackScraped) {
+      descriptionMarkdown += `*(注：由于原源站防爬虫限制，系统已自动从公开网络备用站点 [直接访问备用源站](${fallbackSourceUrl || url}) 抓取并补充了以下介绍与预览图)*\n\n`;
+    }
+
+    // 2. Add description text (AI translated/summarized or fallback scraped paragraphs)
+    if (aiData?.translatedDescription) {
+      descriptionMarkdown += `### 📝 资源描述与介绍 (AI 翻译/润色)\n\n${aiData.translatedDescription}\n\n`;
+    } else if (scrapedTextParagraphs.length > 0) {
+      descriptionMarkdown += `### 📝 资源描述与介绍\n\n`;
+      scrapedTextParagraphs.forEach((p) => {
+        descriptionMarkdown += `${p}\n\n`;
+      });
+    } else {
+      descriptionMarkdown += `*(由于源站防爬虫或网络原因限制，未能成功抓取文章内部正文与图片，请点击上方源站链接手动编辑补充)*\n\n`;
+    }
+
+    // 3. Append images
+    if (scrapedImageUrls.length > 0) {
+      descriptionMarkdown += `### 🖼️ 资源预览图\n\n`;
+      descriptionMarkdown += `![主预览图](${scrapedImageUrls[0]})\n\n`;
+    }
+    if (scrapedImageUrls.length > 1) {
+      descriptionMarkdown += `### 🔍 更多细节截图\n\n`;
+      scrapedImageUrls.slice(1).forEach((imgUrl, index) => {
+        descriptionMarkdown += `![细节截图 ${index + 1}](${imgUrl})\n\n`;
+      });
+    }
+
+    // Extract cover image from downloaded images (first image)
+    const coverUrl = scrapedImageUrls.length > 0 ? scrapedImageUrls[0] : null;
+
+    // 4. Create the resource as a draft (status: PENDING)
     let createdItem: any;
     if (type === 'asset') {
+      let tagsJson: string | null = null;
+      if (aiData?.tags) {
+        const tagList = aiData.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+        if (tagList.length > 0) {
+          tagsJson = JSON.stringify(tagList);
+        }
+      }
+
       createdItem = await prisma.asset.create({
         data: {
           title,
@@ -1861,8 +1943,8 @@ export const importExternalResource = async (req: AuthRequest, res: Response, ne
           status: 'PENDING',
           type: 'EXTERNAL',
           userId,
-          // 外部抓取的资源无法确定网格规格，用未知默认值，由用户在草稿箱编辑时补充
-          meshType: 'UNKNOWN',
+          meshType: aiData?.meshType || 'UNKNOWN',
+          tags: tagsJson,
           uvUnwrapped: false,
           uvOverlapping: false,
           pbrChannels: '[]',
@@ -1875,10 +1957,10 @@ export const importExternalResource = async (req: AuthRequest, res: Response, ne
         data: {
           title,
           description: descriptionMarkdown,
-          // 外部导入的资源无法自动识别分类，用户可在草稿箱编辑时修改
           category: '外部导入',
-          // 分辨率未知，不确定就不设置默认值
-          resolution: null,
+          resolution: aiData?.resolution || null,
+          isProcedural: typeof aiData?.isProcedural === 'boolean' ? aiData.isProcedural : false,
+          tags: aiData?.tags || null,
           fileUrl: url,
           previewUrl: coverUrl,
           status: 'PENDING',
@@ -1890,8 +1972,10 @@ export const importExternalResource = async (req: AuthRequest, res: Response, ne
         data: {
           title,
           description: descriptionMarkdown,
-          category: '其他工具',
-          version: '1.0.0',
+          category: aiData?.category || '其他工具',
+          version: aiData?.version || '1.0.0',
+          compatibility: aiData?.compatibility || '',
+          tags: aiData?.tags || '',
           fileUrl: url,
           previewUrl: coverUrl,
           status: 'PENDING',

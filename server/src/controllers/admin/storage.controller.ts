@@ -37,12 +37,14 @@ interface ImportedStorageConfig {
  * is already configured, while the actual value stays server-side only.
  */
 function prepareConfigResponse(config: StorageConfig) {
+  const decryptedSecret = decryptSecretIfNeeded(config.secretAccessKey);
+  const decryptedToken = decryptSecretIfNeeded(config.cloudflareApiToken);
   return {
     ...config,
     secretAccessKey: '',
     cloudflareApiToken: '',
-    hasSecretAccessKey: Boolean(config.secretAccessKey),
-    hasCloudflareApiToken: Boolean(config.cloudflareApiToken),
+    hasSecretAccessKey: Boolean(decryptedSecret),
+    hasCloudflareApiToken: Boolean(decryptedToken),
   };
 }
 

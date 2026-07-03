@@ -157,7 +157,7 @@ export function decryptSecretIfNeeded(raw: string | null | undefined): string {
     return decrypt(raw);
   } catch (err) {
     logger.error('[Crypto] Failed to decrypt secret:', err);
-    return raw;
+    return '';
   }
 }
 

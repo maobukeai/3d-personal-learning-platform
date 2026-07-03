@@ -53,7 +53,48 @@ const isLoading = ref(false);
 const isEditDialogOpen = ref(false);
 const isSaving = ref(false);
 const selectedWork = ref<UnifiedWork | null>(null);
-const editForm = ref({
+interface EditFormType {
+  title: string;
+  description: string;
+  tags: string;
+  categoryId: string;
+  materialCategory: string;
+  resolution: string;
+  isProcedural: boolean;
+  pluginCategory: string;
+  pluginVersion: string;
+  pluginCompatibility: string;
+  showcaseType: string;
+  videoUrl: string;
+  originality: string;
+  originalAuthor: string;
+  originalLink: string;
+  license: string;
+  isFree: boolean;
+  meshType: string;
+  uvUnwrapped: boolean;
+  uvOverlapping: boolean;
+  pbrChannels: string[];
+  rigged: boolean;
+  gameReady: boolean;
+  linkedCourseId: string;
+  linkedLessonId: string;
+  installGuide: string;
+  file: File | null;
+  packageFile: File | null;
+  thumbnail: File | null;
+  downloadType: 'local' | 'external';
+  externalUrl: string;
+  extractionCode: string;
+  tempAssetPath?: string;
+  tempPackagePath?: string;
+  tempThumbnailPath?: string;
+  tempMaterialPath?: string;
+  tempPluginPath?: string;
+  tempPreviewPath?: string;
+}
+
+const editForm = ref<EditFormType>({
   title: '',
   description: '',
   tags: '',
@@ -74,15 +115,18 @@ const editForm = ref({
   meshType: 'LOW_POLY',
   uvUnwrapped: true,
   uvOverlapping: false,
-  pbrChannels: [] as string[],
+  pbrChannels: [],
   rigged: false,
   gameReady: false,
   linkedCourseId: '',
   linkedLessonId: '',
   installGuide: '',
-  file: null as File | null,
-  packageFile: null as File | null,
-  thumbnail: null as File | null,
+  file: null,
+  packageFile: null,
+  thumbnail: null,
+  downloadType: 'local',
+  externalUrl: '',
+  extractionCode: '',
 });
 const isUploadDialogOpen = ref(false);
 
@@ -117,7 +161,7 @@ const categories = ref<AssetInsightCategory[]>([]);
 const insights = ref<AssetInsights | null>(null);
 const searchTimer = ref<number | undefined>();
 
-type LibraryTab = 'explore' | 'favorites' | 'mine';
+type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts';
 type StatusFilter = 'all' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 const activeTab = ref<LibraryTab>('explore');
@@ -138,6 +182,11 @@ const libraryTabs = computed(() => [
     key: 'mine' as const,
     label: label('我的资源', 'My Uploads'),
     count: insights.value?.summary.myUploads || 0,
+  },
+  {
+    key: 'drafts' as const,
+    label: label('草稿箱', 'Drafts'),
+    count: insights.value?.summary.myDrafts || 0,
   },
 ]);
 
@@ -262,8 +311,65 @@ watch([activeCategoryId, sortKey, activeTab, myStatusFilter, selectedFavoriteCat
   fetchAssets();
 });
 
+const isBatchMode = ref(false);
+const selectedAssetIds = ref<Set<string>>(new Set());
+
+const toggleAssetSelect = (id: string) => {
+  const next = new Set(selectedAssetIds.value);
+  if (next.has(id)) {
+    next.delete(id);
+  } else {
+    next.add(id);
+  }
+  selectedAssetIds.value = next;
+};
+
+const selectAllAssets = () => {
+  if (selectedAssetIds.value.size === assets.value.length && assets.value.length > 0) {
+    selectedAssetIds.value = new Set();
+  } else {
+    selectedAssetIds.value = new Set(assets.value.map((a) => a.id));
+  }
+};
+
+const handleBulkDelete = async () => {
+  if (selectedAssetIds.value.size === 0) {
+    ElMessage.warning(label('请选择要删除的资源', 'Please select assets to delete'));
+    return;
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      label(
+        `确定要物理删除选中的 ${selectedAssetIds.value.size} 个资源/草稿吗？关联文件也将被同步清除，此操作不可撤销！`,
+        `Are you sure you want to delete ${selectedAssetIds.value.size} selected assets? Associated files will also be deleted!`,
+      ),
+      label('批量删除确认', 'Confirm Bulk Delete'),
+      {
+        confirmButtonText: label('确定删除', 'Delete'),
+        cancelButtonText: label('取消', 'Cancel'),
+        type: 'warning',
+      },
+    );
+
+    const ids = Array.from(selectedAssetIds.value);
+    await api.post('/api/assets/bulk-delete', { ids });
+
+    ElMessage.success(label(`成功删除 ${ids.length} 个资源`, `Successfully deleted ${ids.length} assets`));
+    selectedAssetIds.value = new Set();
+    fetchAssets();
+    fetchInsights();
+  } catch (err: any) {
+    if (err !== 'cancel') {
+      ElMessage.error(getApiErrorMessage(err, label('批量删除失败', 'Failed to bulk delete assets')));
+    }
+  }
+};
+
 watch(activeTab, () => {
   selectedFavoriteCategory.value = 'all';
+  isBatchMode.value = false;
+  selectedAssetIds.value = new Set();
 });
 
 watch(searchQuery, () => {
@@ -284,16 +390,18 @@ const fetchAssets = async () => {
         search: searchQuery.value.trim() || undefined,
         categoryId: activeCategoryId.value,
         sort: sortKey.value,
-        mine: activeTab.value === 'mine' ? 'true' : undefined,
+        mine: activeTab.value === 'mine' || activeTab.value === 'drafts' ? 'true' : undefined,
         favoritesOnly: activeTab.value === 'favorites' ? 'true' : undefined,
         favoriteCategory:
           activeTab.value === 'favorites' && selectedFavoriteCategory.value !== 'all'
             ? selectedFavoriteCategory.value
             : undefined,
         status:
-          activeTab.value === 'mine' && myStatusFilter.value !== 'all'
-            ? myStatusFilter.value
-            : undefined,
+          activeTab.value === 'drafts'
+            ? 'PENDING'
+            : activeTab.value === 'mine' && myStatusFilter.value !== 'all'
+              ? myStatusFilter.value
+              : undefined,
       },
     });
     assets.value = data.assets || [];
@@ -393,6 +501,21 @@ const handleDetailEdit = (asset: any) => {
   const work = normalizeAssetWork(asset);
   selectedWork.value = work;
   const rawAsset = work.raw as any;
+
+  const fileUrl = rawAsset.url || '';
+  const isExternal = fileUrl.startsWith('http://') || fileUrl.startsWith('https://') ? !fileUrl.includes('/uploads/') : false;
+  let extUrl = '';
+  let extCode = '';
+  if (isExternal) {
+    const match = fileUrl.match(/(.*?)(?:\s+提取码[:：]\s*(\w+)|提取码[:：]\s*(\w+)|$)/i);
+    if (match) {
+      extUrl = match[1].trim();
+      extCode = (match[2] || match[3] || '').trim();
+    } else {
+      extUrl = fileUrl.trim();
+    }
+  }
+
   editForm.value = {
     title: work.title,
     description: work.description || '',
@@ -423,6 +546,9 @@ const handleDetailEdit = (asset: any) => {
     file: null,
     packageFile: null,
     thumbnail: null,
+    downloadType: isExternal ? 'external' : 'local',
+    externalUrl: extUrl,
+    extractionCode: extCode,
   };
   isEditDialogOpen.value = true;
 };
@@ -430,6 +556,10 @@ const handleDetailEdit = (asset: any) => {
 const handleSaveEdit = async () => {
   if (!selectedWork.value || !editForm.value.title.trim()) {
     ElMessage.warning(label('请填写作品名称', 'Please fill in the work name'));
+    return;
+  }
+  if (editForm.value.downloadType === 'external' && !editForm.value.externalUrl.trim()) {
+    ElMessage.warning('请填写网盘链接或外部下载链接');
     return;
   }
   isSaving.value = true;
@@ -454,13 +584,27 @@ const handleSaveEdit = async () => {
     formData.append('linkedCourseId', editForm.value.linkedCourseId || '');
     formData.append('linkedLessonId', editForm.value.linkedLessonId || '');
 
-    if (editForm.value.file) {
-      formData.append('asset', editForm.value.file);
+    if (editForm.value.downloadType === 'local') {
+      if (editForm.value.tempAssetPath) {
+        formData.append('tempAssetPath', editForm.value.tempAssetPath);
+      } else if (editForm.value.file) {
+        formData.append('asset', editForm.value.file);
+      }
+    } else {
+      let finalUrl = editForm.value.externalUrl.trim();
+      if (editForm.value.extractionCode?.trim()) {
+        finalUrl += ` 提取码: ${editForm.value.extractionCode.trim()}`;
+      }
+      formData.append('externalUrl', finalUrl);
     }
-    if (editForm.value.packageFile) {
+    if (editForm.value.tempPackagePath) {
+      formData.append('tempPackagePath', editForm.value.tempPackagePath);
+    } else if (editForm.value.packageFile) {
       formData.append('package', editForm.value.packageFile);
     }
-    if (editForm.value.thumbnail) {
+    if (editForm.value.tempThumbnailPath) {
+      formData.append('tempThumbnailPath', editForm.value.tempThumbnailPath);
+    } else if (editForm.value.thumbnail) {
       formData.append('thumbnail', editForm.value.thumbnail);
     }
 
@@ -688,9 +832,15 @@ onUnmounted(() => {
           :library-tab-options="libraryTabOptions"
           :view-mode-options="viewModeOptions"
           :active-filter-chips="activeFilterChips"
+          :is-batch-mode="isBatchMode"
+          :selected-ids="Array.from(selectedAssetIds)"
           @update:active-tab="activeTab = $event"
           @update:sort-key="sortKey = $event"
           @update:view-mode="viewMode = $event"
+          @update:is-batch-mode="isBatchMode = $event; if (!$event) selectedAssetIds = new Set();"
+          @select="toggleAssetSelect"
+          @select-all="selectAllAssets"
+          @bulk-delete="handleBulkDelete"
           @toggle-filter="isFilterOpen = !isFilterOpen"
           @page-change="handlePageChange"
           @clear-filter="clearFilter"

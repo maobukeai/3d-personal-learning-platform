@@ -125,23 +125,62 @@ async function searchBudeco(query: string): Promise<ExternalSearchResult[]> {
   }
 }
 
+export function normalizeResourceUrl(urlStr: string): string {
+  if (!urlStr || typeof urlStr !== 'string') return urlStr;
+  try {
+    const urlObj = new URL(urlStr);
+    
+    // 处理 superhivemarket / blendermarket 的 /products/slug 子路径
+    if (urlObj.hostname.includes('superhivemarket.com') || urlObj.hostname.includes('blendermarket.com')) {
+      const match = urlObj.pathname.match(/^(\/products\/[^\/]+)/);
+      if (match && match[1]) {
+        return `${urlObj.origin}${match[1]}`;
+      }
+    }
+    
+    // 清除常见的子功能后缀: /ratings, /docs, /changelog, /reviews, /comments, /faq
+    let cleanPath = urlObj.pathname.replace(/\/(ratings|docs|changelog|reviews|comments|faq|discussion)\/?$/i, '');
+    cleanPath = cleanPath.replace(/\/+$/, '');
+    
+    return `${urlObj.origin}${cleanPath}`;
+  } catch {
+    return urlStr;
+  }
+}
+
 // 4. superhivemarket.com (Fallback site search)
 async function searchSuperHive(query: string): Promise<ExternalSearchResult[]> {
   try {
     const results = await performWebSearch(`site:superhivemarket.com ${query}`, {
-      maxResults: 6,
+      maxResults: 10,
       includePageContent: false,
       maxSearchEngines: 2,
       enableFallbackSearch: false,
     });
-    return results
+    
+    const uniqueMap = new Map<string, ExternalSearchResult>();
+
+    results
       .filter((r) => r.link.includes('superhivemarket.com') || r.link.includes('blendermarket.com'))
-      .map((r) => ({
-        title: r.title,
-        link: r.link,
-        snippet: r.snippet,
-        site: 'superhivemarket.com',
-      }));
+      .forEach((r) => {
+        const normalizedLink = normalizeResourceUrl(r.link);
+        if (!uniqueMap.has(normalizedLink)) {
+          // 清理标题中的多余后缀
+          let cleanTitle = r.title
+            .replace(/\s*-\s*Ratings\s*-\s*Superhive.*/i, '')
+            .replace(/\s*-\s*Docs\s*-\s*Superhive.*/i, '')
+            .replace(/\s*-\s*Changelog\s*-\s*Superhive.*/i, '');
+
+          uniqueMap.set(normalizedLink, {
+            title: cleanTitle,
+            link: normalizedLink,
+            snippet: r.snippet,
+            site: 'superhivemarket.com',
+          });
+        }
+      });
+
+    return Array.from(uniqueMap.values());
   } catch (err: any) {
     logger.error(`[External Search] superhivemarket.com search error: ${err.message}`);
     return [];

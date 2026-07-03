@@ -74,6 +74,16 @@ async function loadData() {
     mirrorStore.fetchCategories(sourceId.value),
   ]);
 
+  if (mirrorStore.isNotFound || !mirrorStore.currentStation) {
+    await mirrorStore.fetchStations();
+    const validStation =
+      mirrorStore.stations.find((s) => s.status === 'ACTIVE') || mirrorStore.stations[0];
+    if (validStation && validStation.id !== sourceId.value) {
+      router.replace(`/mirror/sources/${validStation.id}`);
+      return;
+    }
+  }
+
   const initialCategory = route.query.categoryId as string | undefined;
   if (initialCategory !== undefined) {
     mirrorStore.setActiveCategory(initialCategory || null);

@@ -1,5 +1,5 @@
 export const sidebarZh = {
-  assets: '资源库',
+  assets: '模型库',
   myWorks: '我的作品',
   work: '任务看板',
   teamTasks: '项目管理',

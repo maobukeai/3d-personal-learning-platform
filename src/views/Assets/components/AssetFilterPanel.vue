@@ -14,7 +14,7 @@ interface HotTag {
   label: string;
 }
 
-type LibraryTab = 'explore' | 'favorites' | 'mine';
+type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts';
 
 const props = defineProps<{
   isOpen: boolean;

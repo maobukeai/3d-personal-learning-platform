@@ -76,6 +76,7 @@ router.patch(
 router.patch('/:id/metadata', assetController.updateAssetMetadata);
 router.patch('/:id/thumbnail', uploadLimiter, assetController.updateAssetThumbnail);
 router.delete('/:id', assetController.deleteAsset);
+router.post('/bulk-delete', assetController.bulkDeleteAssets);
 
 // Versions and 3D Annotations
 router.post(

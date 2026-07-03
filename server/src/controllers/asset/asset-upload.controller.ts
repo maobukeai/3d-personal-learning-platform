@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import { process3DAsset } from '../../utils/asset-processor';
 import { checkAssetQuota, checkStorageQuota, gbToBytes } from '../../utils/quota';
-import { deleteCloudOrLocalFileByUrl, parseZipLocal, getUploadedFileUrl } from '../../utils/file';
+import { deleteCloudOrLocalFileByUrl, parseZipLocal, getUploadedFileUrl, urlToPath, moveTempFileToDestination } from '../../utils/file';
 import { auditService, AuditAction, AuditModule } from '../../services/audit.service';
 import { redisService } from '../../services/redis.service';
 import { storageService } from '../../services/storage.service';
@@ -35,7 +35,11 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
     const packageFile = files?.package?.[0];
     const externalUrl = req.body.externalUrl;
 
-    if (!assetFile && !externalUrl) {
+    let tempAssetPath = req.body.tempAssetPath;
+    let tempPackagePath = req.body.tempPackagePath;
+    let tempThumbnailPath = req.body.tempThumbnailPath;
+
+    if (!assetFile && !tempAssetPath && !externalUrl) {
       return next(new AppError('No asset file or external link provided', 400));
     }
 
@@ -57,6 +61,17 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
       }
     }
 
+    // Move temp files to assets directory if present
+    if (tempAssetPath) {
+      tempAssetPath = moveTempFileToDestination(req, tempAssetPath, 'assets');
+    }
+    if (tempPackagePath) {
+      tempPackagePath = moveTempFileToDestination(req, tempPackagePath, 'assets');
+    }
+    if (tempThumbnailPath) {
+      tempThumbnailPath = moveTempFileToDestination(req, tempThumbnailPath, 'assets');
+    }
+
     // Check quotas with workspace context
     const assetQuota = await checkAssetQuota(userId, workspaceId);
     if (!assetQuota.allowed) {
@@ -65,10 +80,22 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
       return next(new AppError(assetQuota.message || 'Asset quota exceeded', 403));
     }
 
-    const fileSizeMB = assetFile ? parseFloat((assetFile.size / (1024 * 1024)).toFixed(2)) : 0;
-    const packageSizeMB = packageFile
-      ? parseFloat((packageFile.size / (1024 * 1024)).toFixed(2))
-      : 0;
+    let fileSizeMB = assetFile ? parseFloat((assetFile.size / (1024 * 1024)).toFixed(2)) : 0;
+    if (!assetFile && tempAssetPath) {
+      const localPath = urlToPath(tempAssetPath);
+      if (localPath && fs.existsSync(localPath)) {
+        fileSizeMB = parseFloat((fs.statSync(localPath).size / (1024 * 1024)).toFixed(2));
+      }
+    }
+
+    let packageSizeMB = packageFile ? parseFloat((packageFile.size / (1024 * 1024)).toFixed(2)) : 0;
+    if (!packageFile && tempPackagePath) {
+      const localPath = urlToPath(tempPackagePath);
+      if (localPath && fs.existsSync(localPath)) {
+        packageSizeMB = parseFloat((fs.statSync(localPath).size / (1024 * 1024)).toFixed(2));
+      }
+    }
+
     const totalSizeMB = fileSizeMB + packageSizeMB;
 
     const storageQuota = await checkStorageQuota(userId, totalSizeMB, workspaceId);
@@ -122,6 +149,9 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
       await fs.promises.mkdir(assetsDir, { recursive: true });
       url = getUploadedFileUrl(req, assetFile, 'assets');
       type = 'GLB';
+    } else if (tempAssetPath) {
+      url = tempAssetPath;
+      type = 'GLB';
     }
 
     let packageUrl = null;
@@ -131,11 +161,20 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
       packageUrl = getUploadedFileUrl(req, packageFile, 'assets');
       packageSize = packageSizeMB;
       packageFilesList = await parseZipLocal(packageFile.path);
+    } else if (tempPackagePath) {
+      packageUrl = tempPackagePath;
+      packageSize = packageSizeMB;
+      const localPath = urlToPath(tempPackagePath);
+      if (localPath && fs.existsSync(localPath)) {
+        packageFilesList = await parseZipLocal(localPath);
+      }
     }
 
     let thumbnailUrl = null;
     if (files?.thumbnail?.[0]) {
       thumbnailUrl = getUploadedFileUrl(req, files.thumbnail[0], 'assets');
+    } else if (tempThumbnailPath) {
+      thumbnailUrl = tempThumbnailPath;
     }
 
     let parsedFormats = formats;
@@ -306,6 +345,20 @@ export const updateAsset = async (req: AuthRequest, res: Response, next: NextFun
   } = req.body;
 
   try {
+    let tempAssetPath = req.body.tempAssetPath;
+    let tempPackagePath = req.body.tempPackagePath;
+    let tempThumbnailPath = req.body.tempThumbnailPath;
+
+    if (tempAssetPath) {
+      tempAssetPath = moveTempFileToDestination(req, tempAssetPath, 'assets');
+    }
+    if (tempPackagePath) {
+      tempPackagePath = moveTempFileToDestination(req, tempPackagePath, 'assets');
+    }
+    if (tempThumbnailPath) {
+      tempThumbnailPath = moveTempFileToDestination(req, tempThumbnailPath, 'assets');
+    }
+
     const existingAsset = await prisma.asset.findFirst({
       where: req.user?.role === 'ADMIN' ? { id } : { id, userId: req.userId },
     });
@@ -384,6 +437,15 @@ export const updateAsset = async (req: AuthRequest, res: Response, next: NextFun
       updateData.size = fileSizeMB;
       updateData.type = 'GLB';
       updateData.url = getUploadedFileUrl(req, assetFile, 'assets');
+    } else if (tempAssetPath) {
+      let fileSizeMB = 0;
+      const localPath = urlToPath(tempAssetPath);
+      if (localPath && fs.existsSync(localPath)) {
+        fileSizeMB = parseFloat((fs.statSync(localPath).size / (1024 * 1024)).toFixed(2));
+      }
+      updateData.size = fileSizeMB;
+      updateData.type = 'GLB';
+      updateData.url = tempAssetPath;
     } else if (externalUrl !== undefined) {
       updateData.url = externalUrl;
       updateData.type = 'LINK';
@@ -401,10 +463,24 @@ export const updateAsset = async (req: AuthRequest, res: Response, next: NextFun
       updateData.packageUrl = getUploadedFileUrl(req, packageFile, 'assets');
       updateData.packageFilesList =
         packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null;
+    } else if (tempPackagePath) {
+      let packageSizeMB = 0;
+      let packageFilesList: string[] = [];
+      const localPath = urlToPath(tempPackagePath);
+      if (localPath && fs.existsSync(localPath)) {
+        packageSizeMB = parseFloat((fs.statSync(localPath).size / (1024 * 1024)).toFixed(2));
+        packageFilesList = await parseZipLocal(localPath);
+      }
+      updateData.packageSize = packageSizeMB;
+      updateData.packageUrl = tempPackagePath;
+      updateData.packageFilesList =
+        packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null;
     }
 
     if (thumbnailFile) {
       updateData.thumbnail = getUploadedFileUrl(req, thumbnailFile, 'assets');
+    } else if (tempThumbnailPath) {
+      updateData.thumbnail = tempThumbnailPath;
     }
 
     if (existingAsset.userId === req.userId && req.user?.role !== 'ADMIN') {
@@ -1253,6 +1329,55 @@ export const deleteAsset = async (req: AuthRequest, res: Response, next: NextFun
     });
 
     res.json({ message: 'Asset deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkDeleteAssets = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: '请提供要删除的资产 ID 列表' });
+    }
+
+    const whereCondition: any = {
+      id: { in: ids },
+    };
+    if (req.user?.role !== 'ADMIN') {
+      whereCondition.userId = req.userId;
+    }
+
+    const assetsToDelete = await prisma.asset.findMany({
+      where: whereCondition,
+    });
+
+    if (assetsToDelete.length === 0) {
+      return res.status(404).json({ error: '未找到可删除的资产或无权操作' });
+    }
+
+    for (const asset of assetsToDelete) {
+      deleteCloudOrLocalFileByUrl(asset.url).catch((err) => {
+        logger.error(`[AssetController] Bulk delete: failed to delete file ${asset.url}:`, err);
+      });
+      if (asset.thumbnail) {
+        deleteCloudOrLocalFileByUrl(asset.thumbnail).catch((err) => {
+          logger.error(`[AssetController] Bulk delete: failed to delete thumbnail ${asset.thumbnail}:`, err);
+        });
+      }
+    }
+
+    const deleteIds = assetsToDelete.map((a) => a.id);
+    await prisma.asset.deleteMany({
+      where: { id: { in: deleteIds } },
+    });
+
+    res.json({
+      success: true,
+      message: `成功批量删除 ${deleteIds.length} 个资产`,
+      count: deleteIds.length,
+      deletedIds: deleteIds,
+    });
   } catch (error) {
     next(error);
   }

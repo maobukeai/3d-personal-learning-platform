@@ -72,6 +72,7 @@ router.put(
 );
 router.patch('/:id/status', materialController.reviewMaterial);
 router.delete('/:id', materialController.deleteMaterial);
+router.post('/bulk-delete', materialController.bulkDeleteMaterials);
 router.post('/:id/download', downloadLimiter, materialController.recordDownload);
 router.post('/:id/favorite', materialController.toggleFavorite);
 

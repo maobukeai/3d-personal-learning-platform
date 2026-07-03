@@ -2,7 +2,7 @@
 import { useLabel } from '@/utils/i18n';
 import ResourceGridPanel from './ResourceGridPanel.vue';
 
-type LibraryTab = 'explore' | 'favorites' | 'mine';
+type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts';
 type PluginStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 interface PluginUser {
@@ -41,6 +41,7 @@ defineProps<{
   downloadingIds: Record<string, boolean>;
   activeFilterChips: Array<{ key: string; label: string }>;
   totalCount: number;
+  selectedIds?: string[];
 }>();
 
 const emit = defineEmits<{
@@ -50,6 +51,7 @@ const emit = defineEmits<{
   (e: 'resetFilters'): void;
   (e: 'clearFilter', key: string): void;
   (e: 'upload'): void;
+  (e: 'select', id: string): void;
 }>();
 
 const label = useLabel();
@@ -66,12 +68,14 @@ const label = useLabel();
     :total-count="totalCount"
     :favorited-ids="favoritedIds"
     :downloading-ids="downloadingIds"
+    :selected-ids="selectedIds"
     :empty-title="label('还没有匹配的插件', 'No Matching Plugins')"
     :empty-body="
       label('可以调整筛选条件，也可以上传一个新的插件。', 'Adjust filters or upload a new plugin.')
     "
     :empty-action-text="label('上传插件', 'Upload Plugin')"
     @click="emit('openDetail', $event)"
+    @select="emit('select', $event)"
     @like="(item, event) => emit('toggleFavorite', item.id, event)"
     @download="(item, event) => emit('download', item, event)"
     @create="emit('upload')"

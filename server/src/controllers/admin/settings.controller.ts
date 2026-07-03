@@ -565,6 +565,16 @@ export const testAi = async (req: AuthRequest, res: Response, next: NextFunction
       return next(new AppError('API 密钥不能为空', 400));
     }
 
+    const targetModelName =
+      String(modelName || '')
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)[0] || '';
+
+    if (!targetModelName) {
+      return next(new AppError('模型标识符不能为空', 400));
+    }
+
     const testPrompt = '请简短回复OK，这是一次接口连接测试。';
     const testSystemPrompt = '你是一个连接性测试助手。请只回复OK，不要有任何其他多余字符或标点。';
 
@@ -573,7 +583,7 @@ export const testAi = async (req: AuthRequest, res: Response, next: NextFunction
       AI_PROVIDER: provider,
       AI_API_KEY: apiKey,
       AI_API_ENDPOINT: endpoint,
-      AI_MODEL_NAME: modelName,
+      AI_MODEL_NAME: targetModelName,
       capabilities: Array.isArray(capabilities)
         ? capabilities
         : typeof capabilities === 'string'
@@ -586,7 +596,8 @@ export const testAi = async (req: AuthRequest, res: Response, next: NextFunction
 
     res.json({
       success: true,
-      message: `AI 接口测试成功！模型响应: "${responseText.trim()}"`,
+      testedModel: targetModelName,
+      message: `AI 接口测试成功！模型 [${targetModelName}] 响应: "${responseText.trim()}"`,
     });
   } catch (error: unknown) {
     logger.error('[AI Test Error]:', error);

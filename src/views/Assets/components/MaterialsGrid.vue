@@ -3,7 +3,7 @@ import { useLabel } from '@/utils/i18n';
 import ResourceGridPanel from './ResourceGridPanel.vue';
 
 type ViewMode = 'grid' | 'list';
-type LibraryTab = 'explore' | 'favorites' | 'mine';
+type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts';
 type MaterialStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 interface MaterialUser {

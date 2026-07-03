@@ -37,7 +37,7 @@ import { useLabel } from '@/utils/i18n';
 
 type ViewMode = 'grid' | 'list';
 type SortMode = 'latest' | 'popular' | 'favorited' | 'largest' | 'smallest';
-type LibraryTab = 'explore' | 'favorites' | 'mine';
+type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts';
 type MaterialStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 type StatusFilter = 'all' | MaterialStatus;
 type ProceduralFilter = 'all' | 'true' | 'false';
@@ -253,6 +253,11 @@ const libraryTabs = computed(() => [
     label: label('我的材质', 'My Uploads'),
     count: insights.value?.summary.myUploads || myMaterials.value.length,
   },
+  {
+    key: 'drafts' as const,
+    label: label('草稿箱', 'Drafts'),
+    count: insights.value?.summary.myPending || 0,
+  },
 ]);
 
 const libraryTabOptions = computed(() => {
@@ -462,11 +467,13 @@ function getListParams() {
       activeTab.value === 'favorites' && selectedFavoriteCategory.value !== 'all'
         ? selectedFavoriteCategory.value
         : undefined,
-    mine: activeTab.value === 'mine' ? 'true' : undefined,
+    mine: activeTab.value === 'mine' || activeTab.value === 'drafts' ? 'true' : undefined,
     status:
-      activeTab.value === 'mine' && myStatusFilter.value !== 'all'
-        ? myStatusFilter.value
-        : undefined,
+      activeTab.value === 'drafts'
+        ? 'PENDING'
+        : activeTab.value === 'mine' && myStatusFilter.value !== 'all'
+          ? myStatusFilter.value
+          : undefined,
     limit: 120,
     paginated: 'true',
   };
@@ -549,7 +556,48 @@ function openCreateDialog() {
 const isEditDialogOpen = ref(false);
 const isSaving = ref(false);
 const selectedWork = ref<UnifiedWork | null>(null);
-const editForm = ref({
+interface EditFormType {
+  title: string;
+  description: string;
+  tags: string;
+  categoryId: string;
+  materialCategory: string;
+  resolution: string;
+  isProcedural: boolean;
+  pluginCategory: string;
+  pluginVersion: string;
+  pluginCompatibility: string;
+  showcaseType: string;
+  videoUrl: string;
+  originality: string;
+  originalAuthor: string;
+  originalLink: string;
+  license: string;
+  isFree: boolean;
+  meshType: string;
+  uvUnwrapped: boolean;
+  uvOverlapping: boolean;
+  pbrChannels: string[];
+  rigged: boolean;
+  gameReady: boolean;
+  linkedCourseId: string;
+  linkedLessonId: string;
+  installGuide: string;
+  file: File | null;
+  packageFile: File | null;
+  thumbnail: File | null;
+  downloadType: 'local' | 'external';
+  externalUrl: string;
+  extractionCode: string;
+  tempAssetPath?: string;
+  tempPackagePath?: string;
+  tempThumbnailPath?: string;
+  tempMaterialPath?: string;
+  tempPluginPath?: string;
+  tempPreviewPath?: string;
+}
+
+const editForm = ref<EditFormType>({
   title: '',
   description: '',
   tags: '',
@@ -570,15 +618,18 @@ const editForm = ref({
   meshType: 'LOW_POLY',
   uvUnwrapped: true,
   uvOverlapping: false,
-  pbrChannels: [] as string[],
+  pbrChannels: [],
   rigged: false,
   gameReady: false,
   linkedCourseId: '',
   linkedLessonId: '',
   installGuide: '',
-  file: null as File | null,
-  packageFile: null as File | null,
-  thumbnail: null as File | null,
+  file: null,
+  packageFile: null,
+  thumbnail: null,
+  downloadType: 'local',
+  externalUrl: '',
+  extractionCode: '',
 });
 
 const materialCategories = computed(() =>
@@ -592,6 +643,21 @@ function openEditDialog(material: NormalizedMaterial) {
   const work = normalizeMaterialWork(material as any);
   selectedWork.value = work;
   const rawMaterial = work.raw as any;
+
+  const fileUrl = rawMaterial.fileUrl || '';
+  const isExternal = fileUrl.startsWith('http://') || fileUrl.startsWith('https://') ? !fileUrl.includes('/uploads/') : false;
+  let extUrl = '';
+  let extCode = '';
+  if (isExternal) {
+    const match = fileUrl.match(/(.*?)(?:\s+提取码[:：]\s*(\w+)|提取码[:：]\s*(\w+)|$)/i);
+    if (match) {
+      extUrl = match[1].trim();
+      extCode = (match[2] || match[3] || '').trim();
+    } else {
+      extUrl = fileUrl.trim();
+    }
+  }
+
   editForm.value = {
     title: work.title,
     description: work.description || '',
@@ -622,6 +688,9 @@ function openEditDialog(material: NormalizedMaterial) {
     file: null,
     packageFile: null,
     thumbnail: null,
+    downloadType: isExternal ? 'external' : 'local',
+    externalUrl: extUrl,
+    extractionCode: extCode,
   };
   isEditDialogOpen.value = true;
 }
@@ -629,6 +698,10 @@ function openEditDialog(material: NormalizedMaterial) {
 const handleSaveEdit = async () => {
   if (!selectedWork.value || !editForm.value.title.trim()) {
     ElMessage.warning(label('请填写作品名称', 'Please fill in the work name'));
+    return;
+  }
+  if (editForm.value.downloadType === 'external' && !editForm.value.externalUrl.trim()) {
+    ElMessage.warning('请填写网盘链接或外部下载链接');
     return;
   }
   isSaving.value = true;
@@ -649,10 +722,22 @@ const handleSaveEdit = async () => {
     formData.append('linkedCourseId', editForm.value.linkedCourseId || '');
     formData.append('linkedLessonId', editForm.value.linkedLessonId || '');
 
-    if (editForm.value.file) {
-      formData.append('material', editForm.value.file);
+    if (editForm.value.downloadType === 'local') {
+      if (editForm.value.tempMaterialPath) {
+        formData.append('tempMaterialPath', editForm.value.tempMaterialPath);
+      } else if (editForm.value.file) {
+        formData.append('material', editForm.value.file);
+      }
+    } else {
+      let finalUrl = editForm.value.externalUrl.trim();
+      if (editForm.value.extractionCode?.trim()) {
+        finalUrl += ` 提取码: ${editForm.value.extractionCode.trim()}`;
+      }
+      formData.append('externalUrl', finalUrl);
     }
-    if (editForm.value.thumbnail) {
+    if (editForm.value.tempThumbnailPath) {
+      formData.append('tempPreviewPath', editForm.value.tempThumbnailPath);
+    } else if (editForm.value.thumbnail) {
       formData.append('preview', editForm.value.thumbnail);
     }
 
@@ -961,6 +1046,39 @@ async function bulkFavorite(favorite: boolean) {
     );
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, label('批量操作失败', 'Bulk operation failed')));
+  } finally {
+    isBulkBusy.value = false;
+  }
+}
+
+async function bulkDeleteMaterials() {
+  if (!selectedIds.value.length) return;
+
+  try {
+    await ElMessageBox.confirm(
+      label(
+        `确定要物理删除选中的 ${selectedIds.value.length} 个材质/草稿吗？关联文件也将被同步清除，此操作不可撤销！`,
+        `Are you sure you want to delete ${selectedIds.value.length} selected materials? Associated files will also be deleted!`,
+      ),
+      label('批量删除确认', 'Confirm Bulk Delete'),
+      {
+        confirmButtonText: label('确定删除', 'Delete'),
+        cancelButtonText: label('取消', 'Cancel'),
+        type: 'warning',
+      },
+    );
+
+    isBulkBusy.value = true;
+    const ids = [...selectedIds.value];
+    await api.post('/api/materials/bulk-delete', { ids });
+
+    ElMessage.success(label(`成功删除 ${ids.length} 个材质`, `Successfully deleted ${ids.length} materials`));
+    selectedIds.value = [];
+    await Promise.all([fetchMaterials(), fetchInsights()]);
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(getApiErrorMessage(error, label('批量删除失败', 'Failed to bulk delete materials')));
+    }
   } finally {
     isBulkBusy.value = false;
   }
@@ -1281,6 +1399,7 @@ onUnmounted(() => {
             @toggle-select-all="toggleSelectAllVisible"
             @bulk-favorite="bulkFavorite"
             @download-selected="downloadSelected"
+            @bulk-delete="bulkDeleteMaterials"
           />
 
           <section class="workbench" :class="{ 'with-detail': selectedMaterial }">

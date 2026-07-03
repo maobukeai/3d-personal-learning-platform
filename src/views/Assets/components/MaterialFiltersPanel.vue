@@ -3,7 +3,7 @@ import { Layers, PackageCheck, Tags, SlidersHorizontal, FolderOpen } from 'lucid
 import { useLabel } from '@/utils/i18n';
 import Tabs from '@/components/ui/Tabs.vue';
 
-type LibraryTab = 'explore' | 'favorites' | 'mine';
+type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts';
 type StatusFilter = 'all' | 'PENDING' | 'APPROVED' | 'REJECTED';
 type ProceduralFilter = 'all' | 'true' | 'false';
 

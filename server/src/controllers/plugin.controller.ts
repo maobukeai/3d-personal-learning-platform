@@ -8,7 +8,7 @@ import { logger } from '../utils/logger';
 import { getPaginationParams, createPaginationMeta } from '../utils/pagination';
 import path from 'path';
 import fs from 'fs';
-import { deleteCloudOrLocalFileByUrl, getZipFileNames, parseZipLocal } from '../utils/file';
+import { deleteCloudOrLocalFileByUrl, getZipFileNames, parseZipLocal, urlToPath, moveTempFileToDestination } from '../utils/file';
 import { parseTags } from '../utils/tags';
 import { UploadedFile } from '../types/upload';
 
@@ -160,7 +160,7 @@ export const getPluginInsights = async (req: AuthRequest, res: Response, next: N
     });
     const favoriteIds = userFavs.map((f) => f.pluginId);
 
-    const [approvedPlugins, pendingCount, myUploadsCount] = await Promise.all([
+    const [approvedPlugins, pendingCount, myUploadsCount, myDraftsCount] = await Promise.all([
       prisma.plugin.findMany({
         where: { status: 'APPROVED' },
         orderBy: { createdAt: 'desc' },
@@ -181,6 +181,7 @@ export const getPluginInsights = async (req: AuthRequest, res: Response, next: N
       }),
       prisma.plugin.count({ where: { status: 'PENDING' } }),
       prisma.plugin.count({ where: { userId } }),
+      prisma.plugin.count({ where: { userId, status: 'PENDING' } }),
     ]);
 
     const categoryMap = new Map<string, { name: string; count: number; downloads: number }>();
@@ -223,6 +224,7 @@ export const getPluginInsights = async (req: AuthRequest, res: Response, next: N
       summary: {
         total: approvedPlugins.length,
         pending: pendingCount,
+        myPending: myDraftsCount,
         downloads: totalDownloads,
         categories: categories.length,
         favoriteCount: favoriteIds.length,
@@ -511,8 +513,10 @@ export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFu
   const previewFile = files?.plugin_preview?.[0] || files?.preview?.[0];
 
   const externalUrl = req.body.externalUrl;
+  let tempPluginPath = req.body.tempPluginPath;
+  let tempPreviewPath = req.body.tempPreviewPath;
 
-  if (!pluginFile && !externalUrl) {
+  if (!pluginFile && !tempPluginPath && !externalUrl) {
     return next(new AppError('请上传插件文件或提供外部链接', 400));
   }
 
@@ -538,21 +542,44 @@ export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFu
       return next(new AppError('插件名称为必填项', 400));
     }
 
+    if (tempPluginPath) {
+      tempPluginPath = moveTempFileToDestination(req, tempPluginPath, 'plugins');
+    }
+    if (tempPreviewPath) {
+      tempPreviewPath = moveTempFileToDestination(req, tempPreviewPath, 'plugins');
+    }
+
     let packageFilesList: string[] = [];
     if (pluginFile) {
       const ext = path.extname(pluginFile.originalname).toLowerCase();
       if (ext === '.zip') {
         packageFilesList = await parseZipLocal(pluginFile.path);
       }
+    } else if (tempPluginPath) {
+      const localPath = urlToPath(tempPluginPath);
+      if (localPath && fs.existsSync(localPath)) {
+        const ext = path.extname(localPath).toLowerCase();
+        if (ext === '.zip') {
+          packageFilesList = await parseZipLocal(localPath);
+        }
+      }
     }
 
     const fileUrl = pluginFile
       ? (pluginFile as UploadedFile).url || `/uploads/plugins/${pluginFile.filename}`
-      : externalUrl;
-    const fileSizeMb = pluginFile ? pluginFile.size / (1024 * 1024) : 0;
+      : tempPluginPath || externalUrl;
+
+    let fileSizeMb = pluginFile ? pluginFile.size / (1024 * 1024) : 0;
+    if (!pluginFile && tempPluginPath) {
+      const localPath = urlToPath(tempPluginPath);
+      if (localPath && fs.existsSync(localPath)) {
+        fileSizeMb = fs.statSync(localPath).size / (1024 * 1024);
+      }
+    }
+
     const previewUrl = previewFile
       ? (previewFile as UploadedFile).url || `/uploads/plugins/${previewFile.filename}`
-      : null;
+      : tempPreviewPath || null;
 
     const plugin = await prisma.plugin.create({
       data: {
@@ -623,6 +650,16 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
 
   try {
     const { id } = req.params as { id: string };
+    let tempPluginPath = req.body.tempPluginPath;
+    let tempPreviewPath = req.body.tempPreviewPath;
+
+    if (tempPluginPath) {
+      tempPluginPath = moveTempFileToDestination(req, tempPluginPath, 'plugins');
+    }
+    if (tempPreviewPath) {
+      tempPreviewPath = moveTempFileToDestination(req, tempPreviewPath, 'plugins');
+    }
+
     const existing = await prisma.plugin.findUnique({ where: { id } });
 
     if (!existing) {
@@ -715,6 +752,39 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
           fs.unlinkSync(pluginFile.path);
         } catch (_e) {}
       }
+    } else if (tempPluginPath) {
+      if (existing.fileUrl) {
+        const targetVersion = req.body.version || existing.version;
+        const isFileReferenced = await prisma.pluginVersion.findFirst({
+          where: {
+            pluginId: id,
+            fileUrl: existing.fileUrl,
+            version: { not: targetVersion },
+          },
+        });
+        if (!isFileReferenced) {
+          deleteCloudOrLocalFileByUrl(existing.fileUrl).catch(() => {});
+        }
+      }
+
+      let fileSizeMb = 0;
+      const localPath = urlToPath(tempPluginPath);
+      if (localPath && fs.existsSync(localPath)) {
+        fileSizeMb = fs.statSync(localPath).size / (1024 * 1024);
+      }
+
+      updateData.fileUrl = tempPluginPath;
+      updateData.fileSize = fileSizeMb;
+
+      let packageFilesList: string[] = [];
+      if (localPath && fs.existsSync(localPath)) {
+        const ext = path.extname(localPath).toLowerCase();
+        if (ext === '.zip') {
+          packageFilesList = await parseZipLocal(localPath);
+        }
+      }
+      updateData.packageFilesList =
+        packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null;
     } else if (externalUrl !== undefined) {
       if (externalUrl && existing.fileUrl) {
         const targetVersion = req.body.version || existing.version;
@@ -750,6 +820,11 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
           fs.unlinkSync(previewFile.path);
         } catch (_e) {}
       }
+    } else if (tempPreviewPath) {
+      if (existing.previewUrl) {
+        deleteCloudOrLocalFileByUrl(existing.previewUrl).catch(() => {});
+      }
+      updateData.previewUrl = tempPreviewPath;
     }
 
     // Editing resets to PENDING for re-review unless editor is ADMIN
@@ -1745,6 +1820,54 @@ export const resolvePluginRequest = async (req: AuthRequest, res: Response, next
     });
 
     res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkDeletePlugins = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: '请提供要删除的插件 ID 列表' });
+    }
+
+    const whereCondition: any = {
+      id: { in: ids },
+    };
+    if (req.user?.role !== 'ADMIN') {
+      whereCondition.userId = req.userId;
+    }
+
+    const pluginsToDelete = await prisma.plugin.findMany({
+      where: whereCondition,
+    });
+
+    if (pluginsToDelete.length === 0) {
+      return res.status(404).json({ error: '未找到可删除的插件或无权操作' });
+    }
+
+    for (const plugin of pluginsToDelete) {
+      for (const urlField of [plugin.fileUrl, plugin.previewUrl]) {
+        if (urlField) {
+          deleteCloudOrLocalFileByUrl(urlField).catch((err) => {
+            logger.error(`[PluginController] Bulk delete: failed to delete file ${urlField}:`, err);
+          });
+        }
+      }
+    }
+
+    const deleteIds = pluginsToDelete.map((p) => p.id);
+    await prisma.plugin.deleteMany({
+      where: { id: { in: deleteIds } },
+    });
+
+    res.json({
+      success: true,
+      message: `成功批量删除 ${deleteIds.length} 个插件`,
+      count: deleteIds.length,
+      deletedIds: deleteIds,
+    });
   } catch (error) {
     next(error);
   }

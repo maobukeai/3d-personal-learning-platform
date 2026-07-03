@@ -12,6 +12,7 @@ import {
   Sparkles,
   Compass,
   ArrowRight,
+  DownloadCloud,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import Modal from '@/components/ui/Modal.vue';
@@ -169,6 +170,57 @@ async function handleSearch() {
     simulatedIntervals.value.forEach(clearInterval);
     simulatedIntervals.value = [];
   }
+}
+
+// 用 Set 追踪每个条目的导入状态，避免并发冲突和静默丢弃
+const importingLinks = ref<Set<string>>(new Set());
+// 用 Set 追踪当前展开选择面板的条目，支持多个独立展开
+const activeImportLinks = ref<Set<string>>(new Set());
+
+async function handleImport(item: { title: string; link: string; snippet: string }, type: string) {
+  if (importingLinks.value.has(item.link)) return;
+
+  importingLinks.value = new Set([...importingLinks.value, item.link]);
+  activeImportLinks.value = new Set([...activeImportLinks.value].filter((l) => l !== item.link));
+
+  const loadingMsg = ElMessage({
+    message: label('正在自动分析网页排图并导入...', 'Importing and parsing images...'),
+    type: 'info',
+    duration: 0,
+  });
+
+  try {
+    await api.post('/api/resources/import-external', {
+      url: item.link,
+      title: item.title,
+      type,
+      snippet: item.snippet,
+    });
+    loadingMsg.close();
+    ElMessage.success(label('导入成功！已存入对应板块的草稿箱中', 'Import success! Saved to drafts.'));
+  } catch (error) {
+    loadingMsg.close();
+    ElMessage.error(
+      getApiErrorMessage(
+        error,
+        label('导入失败，请稍后重试', 'Import failed, please try again'),
+      ),
+    );
+  } finally {
+    const next = new Set(importingLinks.value);
+    next.delete(item.link);
+    importingLinks.value = next;
+  }
+}
+
+function toggleImportPanel(link: string) {
+  const next = new Set(activeImportLinks.value);
+  if (next.has(link)) {
+    next.delete(link);
+  } else {
+    next.add(link);
+  }
+  activeImportLinks.value = next;
 }
 
 function handleClose() {
@@ -401,15 +453,66 @@ function handleClose() {
                         {{ item.snippet || '暂无详细描述。' }}
                       </p>
                     </div>
-                    <a
-                      :href="item.link"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold shrink-0 flex items-center gap-0.5 hover:underline"
-                    >
-                      <span>打开链接</span>
-                      <ExternalLink class="w-3 h-3" />
-                    </a>
+                    <!-- 正在导入：显示加载态 -->
+                    <div v-if="importingLinks.has(item.link)" class="flex items-center gap-1.5 shrink-0 text-[10px] text-amber-400">
+                      <Loader2 class="w-3 h-3 animate-spin" />
+                      <span>导入中...</span>
+                    </div>
+                    <!-- 展开目标选择面板 -->
+                    <div v-else-if="activeImportLinks.has(item.link)" class="flex items-center gap-2 shrink-0 text-[10px]">
+                      <span class="text-[var(--text-muted)]">导入至:</span>
+                      <button
+                        type="button"
+                        class="text-emerald-400 hover:text-emerald-300 font-bold hover:underline cursor-pointer bg-transparent border-none p-0"
+                        @click="handleImport(item, 'asset')"
+                      >
+                        资产库
+                      </button>
+                      <span class="text-white/10">|</span>
+                      <button
+                        type="button"
+                        class="text-amber-400 hover:text-amber-300 font-bold hover:underline cursor-pointer bg-transparent border-none p-0"
+                        @click="handleImport(item, 'material')"
+                      >
+                        材质库
+                      </button>
+                      <span class="text-white/10">|</span>
+                      <button
+                        type="button"
+                        class="text-blue-400 hover:text-blue-300 font-bold hover:underline cursor-pointer bg-transparent border-none p-0"
+                        @click="handleImport(item, 'plugin')"
+                      >
+                        插件库
+                      </button>
+                      <span class="text-white/10">|</span>
+                      <button
+                        type="button"
+                        class="text-rose-400 hover:text-rose-300 font-bold hover:underline cursor-pointer bg-transparent border-none p-0"
+                        @click="toggleImportPanel(item.link)"
+                      >
+                        取消
+                      </button>
+                    </div>
+                    <!-- 默认状态 -->
+                    <div v-else class="flex items-center gap-3 shrink-0">
+                      <a
+                        :href="item.link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-0.5 hover:underline"
+                      >
+                        <span>打开链接</span>
+                        <ExternalLink class="w-3 h-3" />
+                      </a>
+                      <button
+                        type="button"
+                        class="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-0.5 cursor-pointer hover:underline bg-transparent border-none p-0"
+                        @click="toggleImportPanel(item.link)"
+                      >
+                        <span>一键导入</span>
+                        <DownloadCloud class="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

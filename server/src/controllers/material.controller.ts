@@ -12,6 +12,8 @@ import {
   parseZipLocal,
   getZipFileDirectory,
   getUploadedFileUrl,
+  urlToPath,
+  moveTempFileToDestination,
 } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../utils/error';
@@ -375,11 +377,27 @@ export const uploadMaterial = async (req: AuthRequest, res: Response, next: Next
       linkedLessonId,
     } = req.body;
 
-    if (!materialFile && !externalUrl) {
+    let tempMaterialPath = req.body.tempMaterialPath;
+    let tempPreviewPath = req.body.tempPreviewPath;
+
+    if (!materialFile && !tempMaterialPath && !externalUrl) {
       return next(new AppError('No material file or external link provided', 400));
     }
 
-    const fileSizeMB = materialFile ? materialFile.size / (1024 * 1024) : 0;
+    if (tempMaterialPath) {
+      tempMaterialPath = moveTempFileToDestination(req, tempMaterialPath, 'materials');
+    }
+    if (tempPreviewPath) {
+      tempPreviewPath = moveTempFileToDestination(req, tempPreviewPath, 'materials');
+    }
+
+    let fileSizeMB = materialFile ? materialFile.size / (1024 * 1024) : 0;
+    if (!materialFile && tempMaterialPath) {
+      const localPath = urlToPath(tempMaterialPath);
+      if (localPath && fs.existsSync(localPath)) {
+        fileSizeMB = fs.statSync(localPath).size / (1024 * 1024);
+      }
+    }
 
     // Check quota
     const storageQuota = await checkStorageQuota(userId, fileSizeMB, workspaceId);
@@ -403,13 +421,28 @@ export const uploadMaterial = async (req: AuthRequest, res: Response, next: Next
       if (ext === '.zip') {
         packageFilesList = await parseZipLocal(materialFile.path);
       }
+    } else if (tempMaterialPath) {
+      const localPath = urlToPath(tempMaterialPath);
+      if (localPath && fs.existsSync(localPath)) {
+        const ext = path.extname(localPath).toLowerCase();
+        if (ext === '.zip') {
+          packageFilesList = await parseZipLocal(localPath);
+        }
+      }
     }
 
-    const fileUrl = materialFile ? getUploadedFileUrl(req, materialFile, 'materials') : externalUrl;
+    let fileUrl = externalUrl;
+    if (materialFile) {
+      fileUrl = getUploadedFileUrl(req, materialFile, 'materials');
+    } else if (tempMaterialPath) {
+      fileUrl = tempMaterialPath;
+    }
 
     let previewUrl = null;
     if (previewFile) {
       previewUrl = getUploadedFileUrl(req, previewFile, 'materials');
+    } else if (tempPreviewPath) {
+      previewUrl = tempPreviewPath;
     }
 
     const material = await prisma.material.create({
@@ -477,6 +510,16 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
   const materialFile = files?.material?.[0];
   const previewFile = files?.preview?.[0];
   try {
+    let tempMaterialPath = req.body.tempMaterialPath;
+    let tempPreviewPath = req.body.tempPreviewPath;
+
+    if (tempMaterialPath) {
+      tempMaterialPath = moveTempFileToDestination(req, tempMaterialPath, 'materials');
+    }
+    if (tempPreviewPath) {
+      tempPreviewPath = moveTempFileToDestination(req, tempPreviewPath, 'materials');
+    }
+
     const existing = await prisma.material.findFirst({
       where: { id, teamId: req.workspaceId },
     });
@@ -591,6 +634,39 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
           fs.unlinkSync(materialFile.path);
         } catch (_e) {}
       }
+    } else if (tempMaterialPath) {
+      let fileSizeMB = 0;
+      const localPath = urlToPath(tempMaterialPath);
+      if (localPath && fs.existsSync(localPath)) {
+        fileSizeMB = fs.statSync(localPath).size / (1024 * 1024);
+      }
+
+      const storageQuota = await checkStorageQuota(
+        req.userId as string,
+        fileSizeMB,
+        req.workspaceId,
+      );
+      if (!storageQuota.allowed) {
+        return next(new AppError(storageQuota.message || 'Quota exceeded', 403));
+      }
+
+      // Delete old file
+      if (existing.fileUrl && !existing.fileUrl.startsWith('http')) {
+        deleteCloudOrLocalFileByUrl(existing.fileUrl).catch(() => {});
+      }
+
+      updateData.fileUrl = tempMaterialPath;
+      updateData.fileSize = Math.round(fileSizeMB * 100) / 100;
+
+      let packageFilesList: string[] = [];
+      if (localPath && fs.existsSync(localPath)) {
+        const ext = path.extname(localPath).toLowerCase();
+        if (ext === '.zip') {
+          packageFilesList = await parseZipLocal(localPath);
+        }
+      }
+      updateData.packageFilesList =
+        packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null;
     } else if (externalUrl !== undefined) {
       if (externalUrl && existing.fileUrl && !existing.fileUrl.startsWith('http')) {
         deleteCloudOrLocalFileByUrl(existing.fileUrl).catch(() => {});
@@ -615,6 +691,11 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
           fs.unlinkSync(previewFile.path);
         } catch (_e) {}
       }
+    } else if (tempPreviewPath) {
+      if (existing.previewUrl && !existing.previewUrl.startsWith('http')) {
+        deleteCloudOrLocalFileByUrl(existing.previewUrl).catch(() => {});
+      }
+      updateData.previewUrl = tempPreviewPath;
     }
 
     const material = await prisma.material.update({
@@ -1459,6 +1540,55 @@ export const getPublicSharedMaterial = async (
     }
 
     res.json(share);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkDeleteMaterials = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: '请提供要删除的材质 ID 列表' });
+    }
+
+    const whereCondition: any = {
+      id: { in: ids },
+    };
+    if (req.user?.role !== 'ADMIN') {
+      whereCondition.userId = req.userId;
+    }
+
+    const materialsToDelete = await prisma.material.findMany({
+      where: whereCondition,
+    });
+
+    if (materialsToDelete.length === 0) {
+      return res.status(404).json({ error: '未找到可删除的材质或无权操作' });
+    }
+
+    for (const material of materialsToDelete) {
+      deleteCloudOrLocalFileByUrl(material.fileUrl).catch((err) => {
+        logger.error(`[MaterialController] Bulk delete: failed to delete file ${material.fileUrl}:`, err);
+      });
+      if (material.previewUrl) {
+        deleteCloudOrLocalFileByUrl(material.previewUrl).catch((err) => {
+          logger.error(`[MaterialController] Bulk delete: failed to delete preview ${material.previewUrl}:`, err);
+        });
+      }
+    }
+
+    const deleteIds = materialsToDelete.map((m) => m.id);
+    await prisma.material.deleteMany({
+      where: { id: { in: deleteIds } },
+    });
+
+    res.json({
+      success: true,
+      message: `成功批量删除 ${deleteIds.length} 个材质`,
+      count: deleteIds.length,
+      deletedIds: deleteIds,
+    });
   } catch (error) {
     next(error);
   }

@@ -25,6 +25,7 @@ import {
   Settings,
   ChevronDown,
   ChevronRight,
+  ExternalLink,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
@@ -65,6 +66,7 @@ export interface NormalizedMaterial {
   favorites: number;
   isFavorited?: boolean;
   originality?: string;
+  originalLink?: string | null;
   license?: string;
   isProcedural?: boolean;
   tags: string[];
@@ -115,6 +117,21 @@ const parsedFileTree = computed(() => {
   const tree = buildFileTree(packageFiles.value);
   return flattenFileTree(tree);
 });
+
+const handleApprove = () => {
+  console.log('MaterialDetailPanel: Emitting review-approved event for material', props.material);
+  emit('review-approved');
+};
+
+const handleReject = () => {
+  console.log('MaterialDetailPanel: Emitting review-rejected event for material', props.material);
+  emit('review-rejected');
+};
+
+const handleDelete = () => {
+  console.log('MaterialDetailPanel: Emitting delete event for material', props.material);
+  emit('delete');
+};
 
 const { expandedFolders, toggleFolder, visibleFileNodes, resetExpansion } =
   useFileTree(parsedFileTree);
@@ -208,14 +225,42 @@ const pbrChannels = computed(() => {
 const { isDownloading, downloadProgress, downloadSpeedStr, cancelDownload, runDownload } =
   useMultiThreadDownload();
 
+const isExternal = computed(() => {
+  const originality = props.material.originality;
+  const fileUrl = props.material.fileUrl;
+  if (originality === 'AUTHORIZED' || originality === 'REMIX') {
+    return true;
+  }
+  if (fileUrl && (fileUrl.startsWith('http://') || fileUrl.startsWith('https://'))) {
+    const lowerUrl = fileUrl.toLowerCase();
+    const isArchive = lowerUrl.endsWith('.zip') || lowerUrl.includes('.zip?') ||
+                      lowerUrl.endsWith('.rar') || lowerUrl.includes('.rar?') ||
+                      lowerUrl.endsWith('.7z') || lowerUrl.includes('.7z?');
+    return !isArchive;
+  }
+  return false;
+});
+
 const handleMaterialDownload = async () => {
+  const downloadUrl = props.material.fileUrl;
+  if (isExternal.value) {
+    const targetUrl = props.material.originalLink || downloadUrl;
+    if (targetUrl) {
+      window.open(targetUrl, '_blank');
+      await api.post(`/api/materials/${props.material.id}/download`).catch(() => {});
+      emit('download');
+    } else {
+      ElMessage.warning(label('源站链接不存在', 'Source link not found'));
+    }
+    return;
+  }
+
   if (!props.canDownload) {
     ElMessage.warning(
       label('该材质审核通过后才能下载', 'This material can be downloaded after approval'),
     );
     return;
   }
-  const downloadUrl = props.material.fileUrl;
   if (!downloadUrl) {
     ElMessage.warning(label('文件不存在', 'File not found'));
     return;
@@ -711,12 +756,18 @@ watch(
             <Button
               variant="primary"
               size="md"
-              :disabled="!canDownload || isDownloading"
+              :disabled="!isExternal && (!canDownload || isDownloading)"
               class="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-bold shadow-[0_0_20px_rgba(99,102,241,0.2)] hover:shadow-[0_0_25px_rgba(99,102,241,0.3)] transition-all duration-300"
               @click="handleMaterialDownload"
             >
-              <Download v-if="!isDownloading" class="h-4.5 w-4.5 animate-bounce-slow" />
-              <span>{{ label('下载材质包', 'Download Material') }}</span>
+              <template v-if="isExternal">
+                <ExternalLink class="h-4.5 w-4.5" />
+                <span>{{ label('前往源站获取下载', 'Visit Source Site') }}</span>
+              </template>
+              <template v-else>
+                <Download v-if="!isDownloading" class="h-4.5 w-4.5 animate-bounce-slow" />
+                <span>{{ label('下载材质包', 'Download Material') }}</span>
+              </template>
             </Button>
 
             <!-- Quick Statistics -->
@@ -768,7 +819,7 @@ watch(
                 variant="secondary"
                 size="sm"
                 class="flex items-center justify-center gap-1.5 hover:bg-rose-500/10 hover:text-rose-400"
-                @click="emit('delete')"
+                @click="handleDelete"
               >
                 <Trash2 class="h-3.5 w-3.5 text-rose-400" />
                 <span>{{ label('删除', 'Delete') }}</span>
@@ -818,7 +869,7 @@ watch(
                   size="sm"
                   :disabled="isSavingReview"
                   class="flex-1 flex items-center justify-center gap-1 bg-emerald-500 hover:bg-emerald-600 border-0"
-                  @click="emit('review-approved')"
+                  @click="handleApprove"
                 >
                   <CheckCircle2 class="h-3.5 w-3.5 text-white" />
                   <span>{{ label('通过', 'Approve') }}</span>
@@ -828,7 +879,7 @@ watch(
                   size="sm"
                   :disabled="isSavingReview"
                   class="flex-1 flex items-center justify-center gap-1"
-                  @click="emit('review-rejected')"
+                  @click="handleReject"
                 >
                   <XCircle class="h-3.5 w-3.5 text-white" />
                   <span>{{ label('驳回', 'Reject') }}</span>

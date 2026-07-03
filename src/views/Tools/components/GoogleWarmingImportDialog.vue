@@ -228,6 +228,7 @@ const removeParsedAccount = (idx: number) => {
             :placeholder="t('tools.googleWarming.defaultCategoryPlaceholder')"
             size="small"
             style="width: 160px"
+            class="custom-dialog-input"
           >
             <el-option
               v-for="cat in categoriesList.filter((c) => c !== 'all')"

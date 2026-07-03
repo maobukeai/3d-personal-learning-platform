@@ -445,6 +445,16 @@ router.beforeEach(async (to) => {
   }
 });
 
+router.afterEach(() => {
+  if (typeof document !== 'undefined') {
+    document.querySelectorAll('.el-overlay').forEach((el) => {
+      el.remove();
+    });
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('width');
+  }
+});
+
 // Prefetch key views when idle to achieve instant page transitions
 // Only prefetch auth-required views when the user is already logged in
 router.isReady().then(() => {

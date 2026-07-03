@@ -60,6 +60,9 @@ interface InitialPublishData {
   materialCategory?: string;
   materialResolution?: string;
   materialIsProcedural?: boolean;
+  downloadType?: 'local' | 'external';
+  externalUrl?: string;
+  extractionCode?: string;
 }
 
 const props = defineProps<{
@@ -136,6 +139,9 @@ const publishForm = ref({
   pbrChannels: [] as string[],
   rigged: false,
   gameReady: false,
+  downloadType: 'local' as 'local' | 'external',
+  externalUrl: '',
+  extractionCode: '',
 });
 
 const label = useLabel();
@@ -156,7 +162,88 @@ const togglePbrChannel = (map: string) => {
 const packageFileList = ref<string[]>([]);
 const isParsingZip = ref(false);
 
+const tempAssetPath = ref<string | null>(null);
+const assetUploadProgress = ref<number | null>(null);
+
+const tempPluginPath = ref<string | null>(null);
+const pluginUploadProgress = ref<number | null>(null);
+
+const tempPluginPreviewPath = ref<string | null>(null);
+const pluginPreviewUploadProgress = ref<number | null>(null);
+
+const tempMaterialPath = ref<string | null>(null);
+const materialUploadProgress = ref<number | null>(null);
+
+const tempThumbnailPath = ref<string | null>(null);
+const thumbnailUploadProgress = ref<number | null>(null);
+
+const uploadFile = async (
+  file: File,
+  progressRef: typeof assetUploadProgress,
+  pathRef: typeof tempAssetPath
+) => {
+  if (pathRef.value) {
+    cancelUpload(pathRef.value);
+  }
+
+  progressRef.value = 0;
+  pathRef.value = null;
+
+  const formData = new FormData();
+  formData.append('temp', file);
+
+  try {
+    const response = await api.post('/api/resources/upload-temp', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          progressRef.value = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        }
+      }
+    });
+    pathRef.value = response.data.filePath;
+  } catch (error) {
+    logError(error, { operation: 'Temp file upload' });
+    ElMessage.error(t('publishDialog.uploadFailed') || '文件上传失败');
+    progressRef.value = null;
+  }
+};
+
+const cancelUpload = async (filePath: string) => {
+  try {
+    await api.post('/api/resources/upload-temp-cancel', { filePath });
+  } catch (error) {
+    // Silent fail
+  }
+};
+
+const cancelAllTempUploads = () => {
+  const paths = [
+    tempAssetPath.value,
+    tempPluginPath.value,
+    tempPluginPreviewPath.value,
+    tempMaterialPath.value,
+    tempThumbnailPath.value
+  ].filter(Boolean) as string[];
+
+  for (const path of paths) {
+    cancelUpload(path);
+  }
+
+  tempAssetPath.value = null;
+  assetUploadProgress.value = null;
+  tempPluginPath.value = null;
+  pluginUploadProgress.value = null;
+  tempPluginPreviewPath.value = null;
+  pluginPreviewUploadProgress.value = null;
+  tempMaterialPath.value = null;
+  materialUploadProgress.value = null;
+  tempThumbnailPath.value = null;
+  thumbnailUploadProgress.value = null;
+};
+
 const activeUploadFile = computed(() => {
+  if (publishForm.value.downloadType === 'external') return null;
   if (publishCategory.value === 'asset') return publishForm.value.assetFile;
   if (publishCategory.value === 'material') return publishForm.value.materialFile;
   if (publishCategory.value === 'plugin') return publishForm.value.pluginFile;
@@ -260,45 +347,52 @@ watch(
   },
 );
 
-const handleThumbnailChange = (e: Event) => {
+const handleThumbnailChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     publishForm.value.thumbnail = file;
+    await uploadFile(file, thumbnailUploadProgress, tempThumbnailPath);
   }
 };
 
-const handleAssetFileChange = (e: Event) => {
+const handleAssetFileChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     publishForm.value.assetFile = file;
     if (!publishForm.value.title) {
       publishForm.value.title = file.name.split('.')[0];
     }
+    await uploadFile(file, assetUploadProgress, tempAssetPath);
   }
 };
 
-const handlePluginFileChange = (e: Event) => {
+const handlePluginFileChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     publishForm.value.pluginFile = file;
     if (!publishForm.value.title) {
       publishForm.value.title = file.name.replace(/\.[^.]+$/, '');
     }
+    await uploadFile(file, pluginUploadProgress, tempPluginPath);
   }
 };
 
-const handlePluginPreviewChange = (e: Event) => {
+const handlePluginPreviewChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
-  if (file) publishForm.value.pluginPreview = file;
+  if (file) {
+    publishForm.value.pluginPreview = file;
+    await uploadFile(file, pluginPreviewUploadProgress, tempPluginPreviewPath);
+  }
 };
 
-const handleMaterialFileChange = (e: Event) => {
+const handleMaterialFileChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     publishForm.value.materialFile = file;
     if (!publishForm.value.title) {
       publishForm.value.title = file.name.replace(/\.[^.]+$/, '');
     }
+    await uploadFile(file, materialUploadProgress, tempMaterialPath);
   }
 };
 
@@ -312,10 +406,18 @@ const handlePublish = async () => {
 
   try {
     if (publishCategory.value === 'asset') {
-      if (!publishForm.value.assetFile) {
-        ElMessage.warning(t('publishDialog.modelRequired'));
-        isPublishing.value = false;
-        return;
+      if (publishForm.value.downloadType === 'local') {
+        if (!publishForm.value.assetFile && !tempAssetPath.value) {
+          ElMessage.warning(t('publishDialog.modelRequired'));
+          isPublishing.value = false;
+          return;
+        }
+      } else {
+        if (!publishForm.value.externalUrl.trim()) {
+          ElMessage.warning('请填写网盘链接 or 外部下载链接');
+          isPublishing.value = false;
+          return;
+        }
       }
       if (!publishForm.value.assetCategory) {
         ElMessage.warning(t('publishDialog.categoryRequired'));
@@ -324,8 +426,23 @@ const handlePublish = async () => {
       }
 
       const uploadFormData = new FormData();
-      uploadFormData.append('asset', publishForm.value.assetFile);
-      if (publishForm.value.thumbnail) {
+      if (publishForm.value.downloadType === 'local') {
+        if (tempAssetPath.value) {
+          uploadFormData.append('tempAssetPath', tempAssetPath.value);
+        } else if (publishForm.value.assetFile) {
+          uploadFormData.append('asset', publishForm.value.assetFile);
+        }
+      } else {
+        let finalUrl = publishForm.value.externalUrl.trim();
+        if (publishForm.value.extractionCode?.trim()) {
+          finalUrl += ` 提取码: ${publishForm.value.extractionCode.trim()}`;
+        }
+        uploadFormData.append('externalUrl', finalUrl);
+      }
+
+      if (tempThumbnailPath.value) {
+        uploadFormData.append('tempThumbnailPath', tempThumbnailPath.value);
+      } else if (publishForm.value.thumbnail) {
         uploadFormData.append('thumbnail', publishForm.value.thumbnail);
       }
       uploadFormData.append('title', publishForm.value.title);
@@ -352,10 +469,18 @@ const handlePublish = async () => {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
     } else if (publishCategory.value === 'plugin') {
-      if (!publishForm.value.pluginFile) {
-        ElMessage.warning(t('publishDialog.pluginRequired') || '请上传插件文件');
-        isPublishing.value = false;
-        return;
+      if (publishForm.value.downloadType === 'local') {
+        if (!publishForm.value.pluginFile && !tempPluginPath.value) {
+          ElMessage.warning(t('publishDialog.pluginRequired') || '请上传插件文件');
+          isPublishing.value = false;
+          return;
+        }
+      } else {
+        if (!publishForm.value.externalUrl.trim()) {
+          ElMessage.warning('请填写网盘链接 or 外部下载链接');
+          isPublishing.value = false;
+          return;
+        }
       }
       if (!publishForm.value.title.trim()) {
         ElMessage.warning('请填写插件名称');
@@ -363,8 +488,23 @@ const handlePublish = async () => {
         return;
       }
       const pluginFormData = new FormData();
-      pluginFormData.append('plugin_file', publishForm.value.pluginFile);
-      if (publishForm.value.pluginPreview) {
+      if (publishForm.value.downloadType === 'local') {
+        if (tempPluginPath.value) {
+          pluginFormData.append('tempPluginPath', tempPluginPath.value);
+        } else if (publishForm.value.pluginFile) {
+          pluginFormData.append('plugin_file', publishForm.value.pluginFile);
+        }
+      } else {
+        let finalUrl = publishForm.value.externalUrl.trim();
+        if (publishForm.value.extractionCode?.trim()) {
+          finalUrl += ` 提取码: ${publishForm.value.extractionCode.trim()}`;
+        }
+        pluginFormData.append('externalUrl', finalUrl);
+      }
+
+      if (tempPluginPreviewPath.value) {
+        pluginFormData.append('tempPreviewPath', tempPluginPreviewPath.value);
+      } else if (publishForm.value.pluginPreview) {
         pluginFormData.append('plugin_preview', publishForm.value.pluginPreview);
       }
       pluginFormData.append('title', publishForm.value.title);
@@ -381,10 +521,18 @@ const handlePublish = async () => {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
     } else if (publishCategory.value === 'material') {
-      if (!publishForm.value.materialFile) {
-        ElMessage.warning(t('publishDialog.materialRequired') || '请上传材质包文件');
-        isPublishing.value = false;
-        return;
+      if (publishForm.value.downloadType === 'local') {
+        if (!publishForm.value.materialFile && !tempMaterialPath.value) {
+          ElMessage.warning(t('publishDialog.materialRequired') || '请上传材质包文件');
+          isPublishing.value = false;
+          return;
+        }
+      } else {
+        if (!publishForm.value.externalUrl.trim()) {
+          ElMessage.warning('请填写网盘链接 or 外部下载链接');
+          isPublishing.value = false;
+          return;
+        }
       }
       if (!publishForm.value.materialCategory) {
         ElMessage.warning('请选择材质分类');
@@ -393,8 +541,23 @@ const handlePublish = async () => {
       }
 
       const materialFormData = new FormData();
-      materialFormData.append('material', publishForm.value.materialFile);
-      if (publishForm.value.thumbnail) {
+      if (publishForm.value.downloadType === 'local') {
+        if (tempMaterialPath.value) {
+          materialFormData.append('tempMaterialPath', tempMaterialPath.value);
+        } else if (publishForm.value.materialFile) {
+          materialFormData.append('material', publishForm.value.materialFile);
+        }
+      } else {
+        let finalUrl = publishForm.value.externalUrl.trim();
+        if (publishForm.value.extractionCode?.trim()) {
+          finalUrl += ` 提取码: ${publishForm.value.extractionCode.trim()}`;
+        }
+        materialFormData.append('externalUrl', finalUrl);
+      }
+
+      if (tempThumbnailPath.value) {
+        materialFormData.append('tempPreviewPath', tempThumbnailPath.value);
+      } else if (publishForm.value.thumbnail) {
         materialFormData.append('preview', publishForm.value.thumbnail);
       }
       materialFormData.append('title', publishForm.value.title);
@@ -413,6 +576,12 @@ const handlePublish = async () => {
     }
 
     ElMessage.success(t('publishDialog.publishSuccess') || '发布成功');
+    // Clear temp paths so they aren't deleted in closeDialog
+    tempAssetPath.value = null;
+    tempPluginPath.value = null;
+    tempPluginPreviewPath.value = null;
+    tempMaterialPath.value = null;
+    tempThumbnailPath.value = null;
     closeDialog();
     emit('published');
   } catch (error) {
@@ -424,6 +593,7 @@ const handlePublish = async () => {
 };
 
 const closeDialog = () => {
+  cancelAllTempUploads();
   emit('update:modelValue', false);
   // Reset form
   publishForm.value = {
@@ -455,6 +625,9 @@ const closeDialog = () => {
     pbrChannels: [],
     rigged: false,
     gameReady: false,
+    downloadType: 'local',
+    externalUrl: '',
+    extractionCode: '',
   };
   publishCategory.value = 'asset';
 };
@@ -496,18 +669,72 @@ onMounted(() => {
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
                 >{{ t('publishDialog.assetFileLabel') }}</label
               >
-              <FileDropZone
-                v-model="publishForm.assetFile"
-                accept=".glb,.gltf,.fbx,.obj,.stl,.dae,.3ds,.blend,.usdz,.abc,.zip"
-                height-class="h-20"
-                :label="
-                  publishForm.assetFile
-                    ? publishForm.assetFile.name
-                    : t('publishDialog.dragAssetFile')
-                "
-                :sublabel="t('publishDialog.supportedAssetFiles')"
-                @change="handleAssetFileChange"
-              />
+              <!-- Segment Switcher for Download Type -->
+              <div class="flex p-0.5 mb-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-805/80">
+                <button
+                  type="button"
+                  @click="publishForm.downloadType = 'local'"
+                  :class="[
+                    'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
+                    publishForm.downloadType === 'local'
+                      ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
+                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
+                  ]"
+                >
+                  本地文件上传
+                </button>
+                <button
+                  type="button"
+                  @click="publishForm.downloadType = 'external'"
+                  :class="[
+                    'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
+                    publishForm.downloadType === 'external'
+                      ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
+                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
+                  ]"
+                >
+                  网盘链接 / 网页直达
+                </button>
+              </div>
+
+              <!-- Local Upload Zone -->
+              <div v-show="publishForm.downloadType === 'local'">
+                <FileDropZone
+                  v-model="publishForm.assetFile"
+                  accept=".glb,.gltf,.fbx,.obj,.stl,.dae,.3ds,.blend,.usdz,.abc,.zip"
+                  height-class="h-20"
+                  :progress="assetUploadProgress"
+                  :label="
+                    publishForm.assetFile
+                      ? publishForm.assetFile.name
+                      : t('publishDialog.dragAssetFile')
+                  "
+                  :sublabel="t('publishDialog.supportedAssetFiles')"
+                  @change="handleAssetFileChange"
+                />
+              </div>
+
+              <!-- External URL Inputs -->
+              <div v-show="publishForm.downloadType === 'external'" class="space-y-2">
+                <div class="grid grid-cols-3 gap-2">
+                  <div class="col-span-2">
+                    <input
+                      v-model="publishForm.externalUrl"
+                      type="text"
+                      placeholder="如：https://pan.baidu.com/s/..."
+                      class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800 text-[var(--text-primary)] outline-none transition-all focus:border-violet-500 focus:bg-white dark:focus:bg-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      v-model="publishForm.extractionCode"
+                      type="text"
+                      placeholder="提取码 (可选)"
+                      class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800 text-[var(--text-primary)] outline-none transition-all focus:border-violet-500 focus:bg-white dark:focus:bg-slate-800"
+                    />
+                  </div>
+                </div>
+              </div>
 
               <!-- ZIP File Explorer / Package Contents Preview (Asset) -->
               <div
@@ -1034,16 +1261,70 @@ onMounted(() => {
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
                 >插件文件 *</label
               >
-              <FileDropZone
-                v-model="publishForm.pluginFile"
-                accept=".zip,.rar,.7z,.blend,.js,.ts,.py,.lua,.mjs"
-                height-class="h-20"
-                hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
-                icon-type="puzzle"
-                :label="publishForm.pluginFile ? publishForm.pluginFile.name : '点击上传插件文件'"
-                sublabel=".zip .blend .js .ts .py 等格式"
-                @change="handlePluginFileChange"
-              />
+              <!-- Segment Switcher for Download Type -->
+              <div class="flex p-0.5 mb-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-805/80">
+                <button
+                  type="button"
+                  @click="publishForm.downloadType = 'local'"
+                  :class="[
+                    'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
+                    publishForm.downloadType === 'local'
+                      ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
+                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
+                  ]"
+                >
+                  本地文件上传
+                </button>
+                <button
+                  type="button"
+                  @click="publishForm.downloadType = 'external'"
+                  :class="[
+                    'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
+                    publishForm.downloadType === 'external'
+                      ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
+                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
+                  ]"
+                >
+                  网盘链接 / 网页直达
+                </button>
+              </div>
+
+              <!-- Local Upload Zone -->
+              <div v-show="publishForm.downloadType === 'local'">
+                <FileDropZone
+                  v-model="publishForm.pluginFile"
+                  accept=".zip,.rar,.7z,.blend,.js,.ts,.py,.lua,.mjs"
+                  height-class="h-20"
+                  hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
+                  icon-type="puzzle"
+                  :progress="pluginUploadProgress"
+                  :label="publishForm.pluginFile ? publishForm.pluginFile.name : '点击上传插件文件'"
+                  sublabel=".zip .blend .js .ts .py 等格式"
+                  @change="handlePluginFileChange"
+                />
+              </div>
+
+              <!-- External URL Inputs -->
+              <div v-show="publishForm.downloadType === 'external'" class="space-y-2">
+                <div class="grid grid-cols-3 gap-2">
+                  <div class="col-span-2">
+                    <input
+                      v-model="publishForm.externalUrl"
+                      type="text"
+                      placeholder="如：https://pan.baidu.com/s/..."
+                      class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800 text-[var(--text-primary)] outline-none transition-all focus:border-violet-500 focus:bg-white dark:focus:bg-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      v-model="publishForm.extractionCode"
+                      type="text"
+                      placeholder="提取码 (可选)"
+                      class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800 text-[var(--text-primary)] outline-none transition-all focus:border-violet-500 focus:bg-white dark:focus:bg-slate-800"
+                    />
+                  </div>
+                </div>
+              </div>
 
               <!-- ZIP File Explorer / Package Contents Preview (Plugin) -->
               <div
@@ -1229,6 +1510,7 @@ onMounted(() => {
                 accept="image/*"
                 height-class="h-16"
                 hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
+                :progress="pluginPreviewUploadProgress"
                 :label="
                   publishForm.pluginPreview ? publishForm.pluginPreview.name : '点击上传封面图'
                 "
@@ -1593,17 +1875,71 @@ onMounted(() => {
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
                 >材质包文件 *</label
               >
-              <FileDropZone
-                v-model="publishForm.materialFile"
-                accept=".zip,.sbsar"
-                height-class="h-20"
-                hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
-                :label="
-                  publishForm.materialFile ? publishForm.materialFile.name : '点击上传材质包文件'
-                "
-                sublabel="支持 .zip .sbsar 格式"
-                @change="handleMaterialFileChange"
-              />
+              <!-- Segment Switcher for Download Type -->
+              <div class="flex p-0.5 mb-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-805/80">
+                <button
+                  type="button"
+                  @click="publishForm.downloadType = 'local'"
+                  :class="[
+                    'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
+                    publishForm.downloadType === 'local'
+                      ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
+                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
+                  ]"
+                >
+                  本地文件上传
+                </button>
+                <button
+                  type="button"
+                  @click="publishForm.downloadType = 'external'"
+                  :class="[
+                    'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
+                    publishForm.downloadType === 'external'
+                      ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
+                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
+                  ]"
+                >
+                  网盘链接 / 网页直达
+                </button>
+              </div>
+
+              <!-- Local Upload Zone -->
+              <div v-show="publishForm.downloadType === 'local'">
+                <FileDropZone
+                  v-model="publishForm.materialFile"
+                  accept=".zip,.sbsar"
+                  height-class="h-20"
+                  hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
+                  :progress="materialUploadProgress"
+                  :label="
+                    publishForm.materialFile ? publishForm.materialFile.name : '点击上传材质包文件'
+                  "
+                  sublabel="支持 .zip .sbsar 格式"
+                  @change="handleMaterialFileChange"
+                />
+              </div>
+
+              <!-- External URL Inputs -->
+              <div v-show="publishForm.downloadType === 'external'" class="space-y-2">
+                <div class="grid grid-cols-3 gap-2">
+                  <div class="col-span-2">
+                    <input
+                      v-model="publishForm.externalUrl"
+                      type="text"
+                      placeholder="如：https://pan.baidu.com/s/..."
+                      class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800 text-[var(--text-primary)] outline-none transition-all focus:border-violet-500 focus:bg-white dark:focus:bg-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      v-model="publishForm.extractionCode"
+                      type="text"
+                      placeholder="提取码 (可选)"
+                      class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800 text-[var(--text-primary)] outline-none transition-all focus:border-violet-500 focus:bg-white dark:focus:bg-slate-800"
+                    />
+                  </div>
+                </div>
+              </div>
 
               <!-- ZIP File Explorer / Package Contents Preview (Material) -->
               <div
@@ -1785,6 +2121,7 @@ onMounted(() => {
                 accept="image/*"
                 height-class="h-16"
                 hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
+                :progress="thumbnailUploadProgress"
                 :label="publishForm.thumbnail ? publishForm.thumbnail.name : '点击上传封面图'"
                 @change="handleThumbnailChange"
               />

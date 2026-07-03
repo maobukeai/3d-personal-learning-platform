@@ -29,6 +29,7 @@ export interface AssetInsights {
     likes: number;
     myLikes: number;
     myUploads: number;
+    myDrafts?: number;
     pending: number;
     animated: number;
     optimized: number;

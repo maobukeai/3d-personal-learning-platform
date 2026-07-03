@@ -203,7 +203,7 @@ export function normalizeAssetWork(item: AssetWork): UnifiedWork {
     description: item.description || '',
     status: item.status,
     rejectReason: item.rejectReason,
-    surface: '资源库',
+    surface: '模型库',
     typeLabel: item.category?.name || '3D 资源',
     format,
     thumbnail: resolvePreviewUrl(item.thumbnail, format),

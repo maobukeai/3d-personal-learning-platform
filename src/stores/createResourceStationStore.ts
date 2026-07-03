@@ -57,6 +57,7 @@ export function createResourceStationStore<TStation, TCategory, TResource>(
     const isLoadingStations = ref(false);
     const isLoadingResources = ref(false);
     const isLoadingCategories = ref(false);
+    const isNotFound = ref(false);
     const searchQuery = ref('');
     const activeCategoryId = ref<string | null>(null);
     const sortBy = ref('newest');
@@ -79,10 +80,14 @@ export function createResourceStationStore<TStation, TCategory, TResource>(
     }
 
     async function fetchStation(stationId: string) {
+      isNotFound.value = false;
       try {
         const res = await api.get(`${apiBaseUrl}/${entitiesPath}/${stationId}`);
         currentStation.value = res.data;
-      } catch (e) {
+      } catch (e: any) {
+        if (e?.response?.status === 404) {
+          isNotFound.value = true;
+        }
         logError(e, {
           operation: 'resourceStation.fetchStation',
           stationType: label,
@@ -198,6 +203,7 @@ export function createResourceStationStore<TStation, TCategory, TResource>(
       isLoadingStations,
       isLoadingResources,
       isLoadingCategories,
+      isNotFound,
       searchQuery,
       activeCategoryId,
       sortBy,

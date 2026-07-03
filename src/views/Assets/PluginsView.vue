@@ -75,6 +75,7 @@ interface PluginInsights {
   summary: {
     total: number;
     pending: number;
+    myPending?: number;
     downloads: number;
     categories: number;
     favoriteCount: number;
@@ -159,7 +160,7 @@ const showFavoritesOnly = ref(false);
 const favoritedIds = ref<string[]>([]);
 const insights = ref<PluginInsights | null>(null);
 
-type LibraryTab = 'explore' | 'favorites' | 'mine' | 'requests';
+type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts' | 'requests';
 type StatusFilter = 'all' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 const activeTab = ref<LibraryTab>('explore');
@@ -250,6 +251,11 @@ const libraryTabs = computed(() => [
     count: insights.value?.summary.myUploads || 0,
   },
   {
+    key: 'drafts' as const,
+    label: label('草稿箱', 'Drafts'),
+    count: insights.value?.summary.myPending || 0,
+  },
+  {
     key: 'requests' as const,
     label: label('插件求助', 'Help Requests'),
     count: helpRequestsCount.value,
@@ -281,11 +287,112 @@ watch(isUploadDialogOpen, (val) => {
 });
 const isDetailDialogOpen = ref(false);
 
+const isBatchMode = ref(false);
+const selectedPluginIds = ref<Set<string>>(new Set());
+
+const togglePluginSelect = (id: string) => {
+  const next = new Set(selectedPluginIds.value);
+  if (next.has(id)) {
+    next.delete(id);
+  } else {
+    next.add(id);
+  }
+  selectedPluginIds.value = next;
+};
+
+const selectAllPlugins = () => {
+  if (selectedPluginIds.value.size === visiblePlugins.value.length && visiblePlugins.value.length > 0) {
+    selectedPluginIds.value = new Set();
+  } else {
+    selectedPluginIds.value = new Set(visiblePlugins.value.map((p) => p.id));
+  }
+};
+
+const handleBulkDeletePlugins = async () => {
+  if (selectedPluginIds.value.size === 0) {
+    ElMessage.warning(label('请选择要删除的插件', 'Please select plugins to delete'));
+    return;
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      label(
+        `确定要物理删除选中的 ${selectedPluginIds.value.size} 个插件/草稿吗？关联文件也将被同步清除，此操作不可撤销！`,
+        `Are you sure you want to delete ${selectedPluginIds.value.size} selected plugins? Associated files will also be deleted!`,
+      ),
+      label('批量删除确认', 'Confirm Bulk Delete'),
+      {
+        confirmButtonText: label('确定删除', 'Delete'),
+        cancelButtonText: label('取消', 'Cancel'),
+        type: 'warning',
+      },
+    );
+
+    const ids = Array.from(selectedPluginIds.value);
+    await api.post('/api/plugins/bulk-delete', { ids });
+
+    ElMessage.success(label(`成功删除 ${ids.length} 个插件`, `Successfully deleted ${ids.length} plugins`));
+    selectedPluginIds.value = new Set();
+    fetchPlugins();
+    fetchInsights();
+  } catch (err: any) {
+    if (err !== 'cancel') {
+      ElMessage.error(getApiErrorMessage(err, label('批量删除失败', 'Failed to bulk delete plugins')));
+    }
+  }
+};
+
+watch(activeTab, () => {
+  isBatchMode.value = false;
+  selectedPluginIds.value = new Set();
+});
+
 // Local EditWorkDialog state
 const isEditDialogOpen = ref(false);
 const isSaving = ref(false);
 const selectedWork = ref<UnifiedWork | null>(null);
-const editForm = ref({
+interface EditFormType {
+  title: string;
+  description: string;
+  tags: string;
+  categoryId: string;
+  materialCategory: string;
+  resolution: string;
+  isProcedural: boolean;
+  pluginCategory: string;
+  pluginVersion: string;
+  pluginCompatibility: string;
+  showcaseType: string;
+  videoUrl: string;
+  originality: string;
+  originalAuthor: string;
+  originalLink: string;
+  license: string;
+  isFree: boolean;
+  meshType: string;
+  uvUnwrapped: boolean;
+  uvOverlapping: boolean;
+  pbrChannels: string[];
+  rigged: boolean;
+  gameReady: boolean;
+  linkedCourseId: string;
+  linkedLessonId: string;
+  installGuide: string;
+  file: File | null;
+  packageFile: File | null;
+  thumbnail: File | null;
+  downloadType: 'local' | 'external';
+  externalUrl: string;
+  extractionCode: string;
+  tempAssetPath?: string;
+  tempPackagePath?: string;
+  tempThumbnailPath?: string;
+  tempMaterialPath?: string;
+  tempPluginPath?: string;
+  tempPreviewPath?: string;
+}
+
+const editForm = ref<EditFormType>({
   title: '',
   description: '',
   tags: '',
@@ -306,15 +413,18 @@ const editForm = ref({
   meshType: 'LOW_POLY',
   uvUnwrapped: true,
   uvOverlapping: false,
-  pbrChannels: [] as string[],
+  pbrChannels: [],
   rigged: false,
   gameReady: false,
   linkedCourseId: '',
   linkedLessonId: '',
   installGuide: '',
-  file: null as File | null,
-  packageFile: null as File | null,
-  thumbnail: null as File | null,
+  file: null,
+  packageFile: null,
+  thumbnail: null,
+  downloadType: 'local',
+  externalUrl: '',
+  extractionCode: '',
 });
 
 const pluginCategories = computed(() =>
@@ -456,16 +566,18 @@ const fetchPlugins = async () => {
         pageSize: 80,
         search: searchQuery.value.trim() || undefined,
         category: activeCategory.value === CATEGORY_ALL ? undefined : activeCategory.value,
-        mine: activeTab.value === 'mine' ? 'true' : undefined,
+        mine: activeTab.value === 'mine' || activeTab.value === 'drafts' ? 'true' : undefined,
         favoritesOnly: activeTab.value === 'favorites' ? 'true' : undefined,
         favoriteCategory:
           activeTab.value === 'favorites' && selectedFavoriteCategory.value !== 'all'
             ? selectedFavoriteCategory.value
             : undefined,
         status:
-          activeTab.value === 'mine' && myStatusFilter.value !== 'all'
-            ? myStatusFilter.value
-            : undefined,
+          activeTab.value === 'drafts'
+            ? 'PENDING'
+            : activeTab.value === 'mine' && myStatusFilter.value !== 'all'
+              ? myStatusFilter.value
+              : undefined,
       },
     });
     const source = Array.isArray(data) ? data : data.plugins || [];
@@ -669,6 +781,21 @@ const handleDetailEdit = (plugin: any) => {
   const work = normalizePluginWork(plugin);
   selectedWork.value = work;
   const rawPlugin = work.raw as any;
+
+  const fileUrl = rawPlugin.fileUrl || '';
+  const isExternal = fileUrl.startsWith('http://') || fileUrl.startsWith('https://') ? !fileUrl.includes('/uploads/') : false;
+  let extUrl = '';
+  let extCode = '';
+  if (isExternal) {
+    const match = fileUrl.match(/(.*?)(?:\s+提取码[:：]\s*(\w+)|提取码[:：]\s*(\w+)|$)/i);
+    if (match) {
+      extUrl = match[1].trim();
+      extCode = (match[2] || match[3] || '').trim();
+    } else {
+      extUrl = fileUrl.trim();
+    }
+  }
+
   editForm.value = {
     title: work.title,
     description: work.description || '',
@@ -699,6 +826,9 @@ const handleDetailEdit = (plugin: any) => {
     file: null,
     packageFile: null,
     thumbnail: null,
+    downloadType: isExternal ? 'external' : 'local',
+    externalUrl: extUrl,
+    extractionCode: extCode,
   };
   isEditDialogOpen.value = true;
 };
@@ -706,6 +836,10 @@ const handleDetailEdit = (plugin: any) => {
 const handleSaveEdit = async () => {
   if (!selectedWork.value || !editForm.value.title.trim()) {
     ElMessage.warning(label('请填写作品名称', 'Please fill in the work name'));
+    return;
+  }
+  if (editForm.value.downloadType === 'external' && !editForm.value.externalUrl.trim()) {
+    ElMessage.warning('请填写网盘链接或外部下载链接');
     return;
   }
   isSaving.value = true;
@@ -727,10 +861,22 @@ const handleSaveEdit = async () => {
     formData.append('linkedCourseId', editForm.value.linkedCourseId || '');
     formData.append('linkedLessonId', editForm.value.linkedLessonId || '');
 
-    if (editForm.value.file) {
-      formData.append('plugin_file', editForm.value.file);
+    if (editForm.value.downloadType === 'local') {
+      if (editForm.value.tempPluginPath) {
+        formData.append('tempPluginPath', editForm.value.tempPluginPath);
+      } else if (editForm.value.file) {
+        formData.append('plugin_file', editForm.value.file);
+      }
+    } else {
+      let finalUrl = editForm.value.externalUrl.trim();
+      if (editForm.value.extractionCode?.trim()) {
+        finalUrl += ` 提取码: ${editForm.value.extractionCode.trim()}`;
+      }
+      formData.append('externalUrl', finalUrl);
     }
-    if (editForm.value.thumbnail) {
+    if (editForm.value.tempPreviewPath) {
+      formData.append('tempPreviewPath', editForm.value.tempPreviewPath);
+    } else if (editForm.value.thumbnail) {
       formData.append('plugin_preview', editForm.value.thumbnail);
     }
 
@@ -1251,9 +1397,15 @@ watch(
             :view-mode-options="viewModeOptions"
             :show-favorites-only="showFavoritesOnly"
             :is-filter-open="isFilterOpen"
+            :is-batch-mode="isBatchMode"
+            :selected-ids="Array.from(selectedPluginIds)"
+            :visible-plugins-count="visiblePlugins.length"
             @update:active-tab="activeTab = $event"
             @update:sort-by="sortBy = $event"
             @update:view-mode="viewMode = $event"
+            @update:is-batch-mode="isBatchMode = $event; if (!$event) selectedPluginIds = new Set();"
+            @select-all="selectAllPlugins"
+            @bulk-delete="handleBulkDeletePlugins"
             @toggle-favorites="showFavoritesOnly = !showFavoritesOnly"
             @toggle-filter="isFilterOpen = !isFilterOpen"
           />
@@ -1375,7 +1527,9 @@ watch(
             :downloading-ids="downloadingIds"
             :active-filter-chips="activeFilterChips"
             :total-count="stats.total || visiblePlugins.length"
+            :selected-ids="Array.from(selectedPluginIds)"
             @open-detail="openDetail"
+            @select="togglePluginSelect"
             @toggle-favorite="toggleFavorite"
             @download="handleDownload"
             @reset-filters="resetFilters"

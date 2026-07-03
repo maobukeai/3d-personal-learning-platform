@@ -1,9 +1,18 @@
-import type { NextFunction, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import type { Prisma } from '@prisma/client';
 import type { AuthRequest } from '../middlewares/auth.middleware';
 import prisma from '../services/prisma';
 import { parseTags } from '../utils/tags';
 import redisService from '../services/redis.service';
+import axios from 'axios';
+import http from 'http';
+import https from 'https';
+import * as cheerio from 'cheerio';
+import { logger } from '../utils/logger';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { storageService, decryptSecretIfNeeded } from '../services/storage.service';
 
 type ResourceKind = 'asset' | 'material' | 'plugin' | 'showcase';
 type ResourceStatus = 'APPROVED' | 'PENDING' | 'REJECTED';
@@ -1169,5 +1178,782 @@ export const searchExternal = async (req: AuthRequest, res: Response, next: Next
     res.json(result);
   } catch (error) {
     next(error);
+  }
+};
+
+function getImageDimensions(buffer: Buffer): { width: number; height: number } | null {
+  try {
+    if (!buffer || buffer.length < 24) return null;
+
+    // PNG
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+      return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+    }
+
+    // GIF
+    if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+      return { width: buffer.readUInt16LE(6), height: buffer.readUInt16LE(8) };
+    }
+
+    // JPEG
+    if (buffer[0] === 0xff && buffer[1] === 0xd8) {
+      let offset = 2;
+      while (offset < buffer.length - 8) {
+        if (buffer[offset] !== 0xff) break;
+        const marker = buffer[offset + 1] ?? 0;
+        if (marker >= 0xc0 && marker <= 0xc3) {
+          const height = buffer.readUInt16BE(offset + 5);
+          const width = buffer.readUInt16BE(offset + 7);
+          return { width, height };
+        }
+        const length = buffer.readUInt16BE(offset + 2);
+        offset += 1 + length;
+      }
+    }
+
+    // WEBP
+    if (
+      buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+      buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50
+    ) {
+      if (buffer[12] === 0x56 && buffer[13] === 0x50 && buffer[14] === 0x38 && buffer[15] === 0x58) {
+        const width = 1 + ((buffer[24] ?? 0) | ((buffer[25] ?? 0) << 8) | ((buffer[26] ?? 0) << 16));
+        const height = 1 + ((buffer[27] ?? 0) | ((buffer[28] ?? 0) << 8) | ((buffer[29] ?? 0) << 16));
+        return { width, height };
+      }
+      if (buffer[12] === 0x56 && buffer[13] === 0x50 && buffer[14] === 0x38 && buffer[15] === 0x20) {
+        const width = buffer.readUInt16LE(26) & 0x3fff;
+        const height = buffer.readUInt16LE(28) & 0x3fff;
+        return { width, height };
+      }
+      if (buffer[12] === 0x56 && buffer[13] === 0x50 && buffer[14] === 0x38 && buffer[15] === 0x4c) {
+        const b0 = buffer[21] ?? 0;
+        const b1 = buffer[22] ?? 0;
+        const b2 = buffer[23] ?? 0;
+        const b3 = buffer[24] ?? 0;
+        const width = 1 + (b0 | ((b1 & 0x3f) << 8));
+        const height = 1 + (((b1 >> 6) | (b2 << 2) | ((b3 & 0xf) << 10)));
+        return { width, height };
+      }
+    }
+  } catch {}
+  return null;
+}
+
+function isProbablyQrOrJunkDimensions(dim: { width: number; height: number } | null): boolean {
+  if (!dim || !dim.width || !dim.height) return false;
+
+  // 尺寸极小：小于 200px 的图标/小图
+  if (dim.width < 200 || dim.height < 200) return true;
+
+  const aspectRatio = dim.width / dim.height;
+
+  // 接近 1:1 正方形 且 小于 640px——覆盖博文内常见二维码尺寸
+  // jb51等站微信 QR 码通常 300~600px 正方形；产品预览图通常是横向大图 (16:9 / 4:3)
+  if (aspectRatio >= 0.88 && aspectRatio <= 1.14 && dim.width <= 640) {
+    return true;
+  }
+
+  return false;
+}
+
+async function downloadAndSaveImage(imageUrl: string, parentUrl?: string): Promise<string | null> {
+  if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.startsWith('data:')) {
+    return null;
+  }
+
+  try {
+    const crawledDir = path.join(process.cwd(), 'uploads', 'crawled');
+    if (!fs.existsSync(crawledDir)) {
+      fs.mkdirSync(crawledDir, { recursive: true });
+    }
+
+    let refererHeader = '';
+    if (parentUrl) {
+      try {
+        refererHeader = new URL(parentUrl).origin + '/';
+      } catch {}
+    }
+
+    const requestHeaders: Record<string, string> = {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+    };
+    if (refererHeader) {
+      requestHeaders['Referer'] = refererHeader;
+    }
+
+    const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+
+    let response: any;
+    try {
+      response = await axios.get(imageUrl, {
+        responseType: 'arraybuffer',
+        timeout: 10000,
+        maxContentLength: 10 * 1024 * 1024,
+        maxBodyLength: 10 * 1024 * 1024,
+        headers: requestHeaders,
+        httpsAgent,
+      });
+    } catch (firstErr: any) {
+      // 第一次失败后，尝试不带 Referer 重新下载一次（很多 CDN 允许无 Referer 访问）
+      delete requestHeaders['Referer'];
+      response = await axios.get(imageUrl, {
+        responseType: 'arraybuffer',
+        timeout: 10000,
+        maxContentLength: 10 * 1024 * 1024,
+        maxBodyLength: 10 * 1024 * 1024,
+        headers: requestHeaders,
+        httpsAgent,
+      });
+    }
+
+    const buffer = Buffer.from(response.data);
+    if (!buffer || buffer.length === 0) {
+      return null;
+    }
+
+    // 物理级别尺寸检测：如果是接近 1:1 的正方形小图或极小图片（典型二维码/打赏码/小图标特征），直接丢弃！
+    const dim = getImageDimensions(buffer);
+    if (isProbablyQrOrJunkDimensions(dim)) {
+      logger.info(`[Download Crawled Image] Skipped QR/junk image by dimensions (${dim?.width}x${dim?.height}): ${imageUrl}`);
+      return null;
+    }
+
+    let ext = '.png';
+    let rawMimetype = 'image/png';
+    const rawContentType = response.headers['content-type'];
+    const contentType = Array.isArray(rawContentType) ? rawContentType[0] : rawContentType;
+    if (contentType && typeof contentType === 'string') {
+      rawMimetype = (contentType.split(';')[0] || '').trim();
+      if (contentType.includes('image/jpeg') || contentType.includes('image/jpg')) {
+        ext = '.jpg';
+      } else if (contentType.includes('image/png')) {
+        ext = '.png';
+      } else if (contentType.includes('image/webp')) {
+        ext = '.webp';
+      } else if (contentType.includes('image/gif')) {
+        ext = '.gif';
+      } else if (contentType.includes('image/svg+xml')) {
+        ext = '.svg';
+      }
+    } else {
+      try {
+        const parsedPath = path.extname(new URL(imageUrl).pathname);
+        if (parsedPath) {
+          ext = parsedPath.toLowerCase();
+        }
+      } catch {}
+    }
+
+    const hash = crypto.createHash('md5').update(imageUrl).digest('hex');
+    const filename = `${hash}${ext}`;
+    const filePath = path.join(crawledDir, filename);
+
+    fs.writeFileSync(filePath, buffer);
+
+    // 检查是否有启用的云存储配置 (优先匹配 ASSET，其次匹配 ALL)
+    let activeConfigs = await prisma.storageConfig.findMany({
+      where: {
+        status: 'ACTIVE',
+        assetType: 'ASSET',
+      },
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    if (activeConfigs.length === 0) {
+      activeConfigs = await prisma.storageConfig.findMany({
+        where: {
+          status: 'ACTIVE',
+          assetType: 'ALL',
+        },
+        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+      });
+    }
+
+    if (activeConfigs.length > 0) {
+      const config = activeConfigs[0];
+      if (config) {
+        try {
+          const stats = fs.statSync(filePath);
+          const fileBytes = stats.size;
+          const limitBytes = config.limitGb * 1024 * 1024 * 1024;
+
+          // 执行占用容量配额
+          const updateResult = await prisma.storageConfig.updateMany({
+            where: {
+              id: config.id,
+              status: 'ACTIVE',
+              usedBytes: { lte: limitBytes - fileBytes },
+            },
+            data: {
+              usedBytes: { increment: fileBytes },
+            },
+          });
+
+          if (updateResult.count > 0) {
+            const cloudKey = `crawled/${filename}`;
+            const r2Url = await storageService.uploadFile(
+              {
+                endpoint: config.endpoint,
+                accessKeyId: config.accessKeyId,
+                secretAccessKey: decryptSecretIfNeeded(config.secretAccessKey),
+                bucketName: config.bucketName,
+                publicUrl: config.publicUrl,
+              },
+              filePath,
+              cloudKey,
+              rawMimetype,
+            );
+
+            // 上传成功，删除本地临时文件，返回云存储 R2 的 URL
+            fs.unlinkSync(filePath);
+            return r2Url;
+          } else {
+            logger.warn(`[Download Crawled Image] Storage limit exceeded for R2 config ${config.name}, falling back to local storage.`);
+          }
+        } catch (uploadError: any) {
+          logger.error(
+            `[Download Crawled Image] Failed to upload crawled image to R2: ${uploadError.message}. Falling back to local storage.`,
+          );
+        }
+      }
+    }
+
+    // 云存储未配置，或者上传报错、容量限制，降级使用本地存储路径
+    return `/uploads/crawled/${filename}`;
+  } catch (err: any) {
+    logger.error(`[Download Crawled Image] Failed to download ${imageUrl}: ${err.message}`);
+    return null;
+  }
+}
+
+// 已知会在文章顶部/内容区放置微信/公众号大型二维码的站点图片 CDN 域名黑名单
+// 注意：不包含 jb51.net——依靠物理尺寸检测拦截其 QR 码
+const QR_IMAGE_DOMAIN_BLOCKLIST: string[] = [];
+
+function isJunkOrQrImage(src: string, el?: any): boolean {
+  if (!src || !src.startsWith('http')) return true;
+  const lower = src.toLowerCase();
+
+  // 不接受 GIF 和 SVG
+  if (lower.endsWith('.gif') || lower.endsWith('.svg')) return true;
+
+  // 域名级黑名单：对已知会把大型二维码作为头图的站点，完全跳过其图片
+  try {
+    const srcHost = new URL(src).hostname;
+    if (QR_IMAGE_DOMAIN_BLOCKLIST.some((d) => srcHost === d || srcHost.endsWith('.' + d))) {
+      return true;
+    }
+  } catch {}
+
+  const junkKeywords = [
+    'avatar', 'logo', 'icon', 'loading', 'favorite', 'fav',
+    'qr', 'qrcode', 'weixin', 'wechat', 'gongzhonghao', 'reward', 'dashang',
+    'saoma', 'alipay', 'kefu', 'wxcode', 'qqgroup',
+    'jbscript', 'jb-script', 'gzh',
+    'erweima', 'erwm', 'qr_code', 'qr-code', 'wx_qr', 'weixin_qr',
+    // jb51.net 特有的侧边栏缩略图 CDN 路径（不是文章正文图片）
+    'litimg', '/skin/',
+  ];
+
+  if (junkKeywords.some((kw) => lower.includes(kw))) return true;
+
+  if (el) {
+    const attrText = (
+      (el.attr('alt') || '') +
+      ' ' +
+      (el.attr('title') || '') +
+      ' ' +
+      (el.attr('class') || '') +
+      ' ' +
+      (el.attr('id') || '')
+    ).toLowerCase();
+
+    if (/二维码|微信|公众号|扫码|打赏|qq群|关注|群二维码|qrcode|weixin|gongzhonghao|gzh|saoma|erweima/i.test(attrText)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// 备用抓取时，这些站点的图片直接跳过（只取文字）
+// 以下只保留确实不提供任何商品图片的窾争站点
+const IMAGE_SKIP_DOMAINS: string[] = [];
+
+async function performFallbackSearchAndScrape(
+  title: string,
+  originalUrl: string
+): Promise<{ imageUrls: string[]; textParagraphs: string[]; fallbackUrl?: string } | null> {
+  try {
+    const cleanQuery = title
+      .replace(/- Superhive.*/i, '')
+      .replace(/- Blender Market.*/i, '')
+      .replace(/\(formerly Blender Market\)/i, '')
+      .replace(/\[.*?\]/g, '')
+      .replace(/v?\d+(\.\d+)+/gi, '')
+      .replace(/[-_]/g, ' ')
+      .trim();
+
+    if (!cleanQuery) return null;
+
+    const searchUrl = `https://cn.bing.com/search?q=${encodeURIComponent(cleanQuery + ' Blender')}&first=1`;
+    const searchResponse = await axios.get(searchUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+      },
+      timeout: 5000,
+    });
+
+    const $search = cheerio.load(searchResponse.data);
+    const candidateLinks: string[] = [];
+
+    let originalDomain = '';
+    try {
+      originalDomain = new URL(originalUrl).hostname.replace(/^www\./, '');
+    } catch {}
+
+    $search('.b_algo').each((_, element) => {
+      const anchor = $search(element).find('h2 a').first();
+      if (!anchor.length) return;
+      const link = anchor.attr('href') || '';
+      if (!link || link.startsWith('/') || link.includes('bing.com')) return;
+
+      try {
+        const linkDomain = new URL(link).hostname.replace(/^www\./, '');
+        if (linkDomain === originalDomain || linkDomain.includes('blendermarket.com')) return;
+      } catch {
+        return;
+      }
+
+      candidateLinks.push(link);
+    });
+
+    // 收集所有候选站结果，优先返回既有文字又有图片的
+    type CandidateResult = { imageUrls: string[]; textParagraphs: string[]; fallbackUrl: string };
+    const candidateResults: CandidateResult[] = [];
+
+    await Promise.allSettled(
+      candidateLinks.slice(0, 5).map(async (link) => {
+        try {
+          const response = await axios.get(link, {
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+              'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            },
+            timeout: 5000,
+          });
+
+          const $ = cheerio.load(response.data);
+          const imageUrls: string[] = [];
+          const textParagraphs: string[] = [];
+
+          // 判断当前备用站点是否属于图片跳过域名
+          let skipImages = false;
+          try {
+            const linkHost = new URL(link).hostname;
+            skipImages = IMAGE_SKIP_DOMAINS.some((d) => linkHost === d || linkHost.endsWith('.' + d));
+          } catch {}
+
+          if (!skipImages) {
+            const imageSelectors = [
+              '.entry-content img', '.post-content img', '.article-content img',
+              '.entry img', '.entry-inner img', '.post-inner img', 'article img', 'main img'
+            ];
+            let imgElements = $(imageSelectors.join(', '));
+            if (imgElements.length === 0) imgElements = $('img');
+
+            imgElements.each((_, el) => {
+              const parent = $(el).parents('footer, header, sidebar, .sidebar, #sidebar, .widget, .comments, #comments, nav, .nav, .menu, #footer, #header, .author-avatar, .widget-postlist');
+              if (parent.length > 0) return;
+
+              let src = $(el).attr('data-src') || $(el).attr('data-original-src') || $(el).attr('data-lazy-src') || $(el).attr('src');
+              if (!src || src.startsWith('data:')) {
+                const srcset = $(el).attr('srcset') || $(el).attr('data-srcset');
+                if (srcset) {
+                  const match = srcset.match(/(https?:\/\/[^\s,]+)/);
+                  if (match) src = match[1];
+                }
+              }
+              if (src && imageUrls.length < 5) {
+                if (src.startsWith('//')) src = 'https:' + src;
+                else if (src.startsWith('/')) {
+                  try {
+                    const urlObj = new URL(link);
+                    src = urlObj.origin + src;
+                  } catch {}
+                }
+                if (!isJunkOrQrImage(src, $(el))) {
+                  imageUrls.push(src);
+                }
+              }
+            });
+          }
+
+          const articleSelectors = [
+            '.entry-content p', '.post-content p', '.article-content p',
+            '.entry p', '.entry-inner p', '.post-inner p', 'article p', 'main p'
+          ];
+          let pElements = $(articleSelectors.join(', '));
+          if (pElements.length === 0) pElements = $('p');
+
+          pElements.each((_, el) => {
+            const parent = $(el).parents('footer, header, sidebar, .sidebar, #sidebar, .widget, .comments, #comments, nav, .nav, .menu, #footer, #header');
+            if (parent.length > 0) return;
+
+            const txt = $(el).text().trim();
+            if (txt && txt.length > 20 && textParagraphs.length < 10) {
+              if (
+                txt.includes('Copyright') ||
+                txt.includes('©') ||
+                txt.includes('备案号') ||
+                txt.includes('All rights reserved')
+              ) {
+                return;
+              }
+              textParagraphs.push(txt);
+            }
+          });
+
+          if (textParagraphs.length > 0) {
+            logger.info(`[Import External Fallback] Candidate scraped: ${link} (images: ${imageUrls.length}, texts: ${textParagraphs.length})`);
+            candidateResults.push({ imageUrls, textParagraphs, fallbackUrl: link });
+          }
+        } catch (err: any) {
+          logger.debug(`[Import External Fallback] Failed to scrape ${link}: ${err.message}`);
+        }
+      })
+    );
+
+    if (candidateResults.length === 0) return null;
+
+    // 优先选择有图片的结果（图片数最多的）；否则退而求其次用纯文字结果
+    const withImages = candidateResults.filter((r) => r.imageUrls.length > 0);
+    const best = withImages.length > 0
+      ? withImages.sort((a, b) => b.imageUrls.length - a.imageUrls.length)[0]!
+      : candidateResults[0]!;
+
+    logger.info(`[Import External Fallback] Best fallback: ${best.fallbackUrl} (images: ${best.imageUrls.length})`);
+    return best;
+  } catch (err: any) {
+    logger.error(`[Import External Fallback] Failed search and scrape: ${err.message}`);
+  }
+  return null;
+}
+
+export const importExternalResource = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { url: rawUrl, title, type, snippet } = req.body;
+    const userId = req.userId as string;
+
+    if (!rawUrl || !title || !type) {
+      return res.status(400).json({ error: 'Missing required fields: url, title, type' });
+    }
+
+    const { normalizeResourceUrl } = await import('../services/external-search.service');
+    const url = normalizeResourceUrl(rawUrl);
+
+    // 1. Build initial Markdown description block
+    let descriptionMarkdown = `### ${title}\n\n来自源站的资源详情页面：[直接访问源站](${url})\n\n`;
+    if (snippet) {
+      descriptionMarkdown += `> ${snippet}\n\n`;
+    }
+
+    try {
+      const response = await axios.get(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Upgrade-Insecure-Requests': '1',
+          'Referer': 'https://www.google.com/',
+        },
+        timeout: 6000,
+        proxy: false,
+        httpAgent: new http.Agent({ keepAlive: true }),
+        httpsAgent: new https.Agent({ keepAlive: true, rejectUnauthorized: false }),
+      });
+      const $ = cheerio.load(response.data);
+
+      // Extract main page images (up to 5 images)
+      const imageUrls: string[] = [];
+      const imageSelectors = [
+        '.entry-content img',
+        '.post-content img',
+        '.article-content img',
+        '.entry img',
+        '.entry-inner img',
+        '.post-inner img',
+        'article img',
+        '.post img',
+        'main img',
+        '#content img',
+        '.single-content img',
+      ];
+      let imgElements = $(imageSelectors.join(', '));
+      if (imgElements.length === 0) {
+        imgElements = $('img');
+      }
+
+      imgElements.each((i, el) => {
+        const parent = $(el).parents('footer, header, sidebar, .sidebar, #sidebar, .widget, .comments, #comments, nav, .nav, .menu, #footer, #header, .author-avatar, .widget-postlist');
+        if (parent.length > 0) return;
+
+        let src = $(el).attr('data-src') || $(el).attr('data-original-src') || $(el).attr('data-lazy-src') || $(el).attr('src');
+        if (!src || src.startsWith('data:')) {
+          const srcset = $(el).attr('srcset') || $(el).attr('data-srcset');
+          if (srcset) {
+            const match = srcset.match(/(https?:\/\/[^\s,]+)/);
+            if (match) src = match[1];
+          }
+        }
+        if (src && imageUrls.length < 5) {
+          if (src.startsWith('//')) {
+            src = 'https:' + src;
+          } else if (src.startsWith('/')) {
+            try {
+              const urlObj = new URL(url);
+              src = urlObj.origin + src;
+            } catch {}
+          }
+          if (!isJunkOrQrImage(src, $(el))) {
+            imageUrls.push(src);
+          }
+        }
+      });
+
+      // Extract text content paragraphs (up to 15 paragraphs)
+      const textParagraphs: string[] = [];
+      const articleSelectors = [
+        '.entry-content p',
+        '.post-content p',
+        '.article-content p',
+        '.entry p',
+        '.entry-inner p',
+        '.post-inner p',
+        'article p',
+        '.post p',
+        'main p',
+        '#content p',
+        '.single-content p',
+      ];
+      let pElements = $(articleSelectors.join(', '));
+      if (pElements.length === 0) {
+        pElements = $('p');
+      }
+
+      pElements.each((i, el) => {
+        const parent = $(el).parents('footer, header, sidebar, .sidebar, #sidebar, .widget, .comments, #comments, nav, .nav, .menu, #footer, #header');
+        if (parent.length > 0) return;
+
+        const txt = $(el).text().trim();
+        if (txt && txt.length > 20 && textParagraphs.length < 15) {
+          if (
+            txt.includes('Copyright') ||
+            txt.includes('©') ||
+            txt.includes('备案号') ||
+            txt.includes('All rights reserved')
+          ) {
+            return;
+          }
+          if (!snippet || !snippet.includes(txt.substring(0, 15))) {
+            textParagraphs.push(txt);
+          }
+        }
+      });
+
+      // Download and save crawled images locally to avoid hotlinking issues
+      const localImageUrls: string[] = [];
+      for (const imgUrl of imageUrls) {
+        const localPath = await downloadAndSaveImage(imgUrl, url);
+        if (localPath) {
+          localImageUrls.push(localPath);
+        }
+      }
+
+      // Format preview images and body text
+      if (localImageUrls.length > 0) {
+        descriptionMarkdown += `### 🖼️ 资源预览图\n\n`;
+        descriptionMarkdown += `![主预览图](${localImageUrls[0]})\n\n`;
+      }
+
+      if (textParagraphs.length > 0) {
+        descriptionMarkdown += `### 📝 资源描述与介绍\n\n`;
+        textParagraphs.forEach((p) => {
+          descriptionMarkdown += `${p}\n\n`;
+        });
+      }
+
+      if (localImageUrls.length > 1) {
+        descriptionMarkdown += `### 🔍 更多细节截图\n\n`;
+        localImageUrls.slice(1).forEach((imgUrl, index) => {
+          descriptionMarkdown += `![细节截图 ${index + 1}](${imgUrl})\n\n`;
+        });
+      }
+    } catch (fetchErr: any) {
+      logger.error(`[Import External] Failed to scrape webpage ${url}: ${fetchErr.message}`);
+      
+      logger.info(`[Import External] Triggering fallback search & scrape for title: "${title}"`);
+      const fallbackData = await performFallbackSearchAndScrape(title, url);
+      
+      if (fallbackData) {
+        descriptionMarkdown += `*(注：由于原源站防爬虫限制，系统已自动从公开网络备用站点 [直接访问备用源站](${fallbackData.fallbackUrl}) 抓取并补充了以下介绍与预览图)*\n\n`;
+        
+        const localFallbackImageUrls: string[] = [];
+        for (const imgUrl of fallbackData.imageUrls) {
+          const localPath = await downloadAndSaveImage(imgUrl, fallbackData.fallbackUrl || url);
+          if (localPath) {
+            localFallbackImageUrls.push(localPath);
+          }
+        }
+
+        if (localFallbackImageUrls.length > 0) {
+          descriptionMarkdown += `### 🖼️ 资源预览图\n\n`;
+          descriptionMarkdown += `![主预览图](${localFallbackImageUrls[0]})\n\n`;
+        }
+
+        if (fallbackData.textParagraphs.length > 0) {
+          descriptionMarkdown += `### 📝 资源描述与介绍\n\n`;
+          fallbackData.textParagraphs.forEach((p) => {
+            descriptionMarkdown += `${p}\n\n`;
+          });
+        }
+
+        if (localFallbackImageUrls.length > 1) {
+          descriptionMarkdown += `### 🔍 更多细节截图\n\n`;
+          localFallbackImageUrls.slice(1).forEach((imgUrl, index) => {
+            descriptionMarkdown += `![细节截图 ${index + 1}](${imgUrl})\n\n`;
+          });
+        }
+      } else {
+        descriptionMarkdown += `*(由于源站防爬虫或网络原因限制，未能成功抓取文章内部正文与图片，请点击上方源站链接手动编辑补充)*\n\n`;
+      }
+    }
+
+    // Extract cover image from downloaded images (first image)
+    let coverUrl: string | null = null;
+    const bodyContent = descriptionMarkdown;
+    const imagePattern = /!\[.*?\]\((.*?)\)/g;
+    const matches = [...bodyContent.matchAll(imagePattern)];
+    if (matches && matches.length > 0 && matches[0] && matches[0][1]) {
+      coverUrl = matches[0][1];
+    }
+
+    // 2. Create the resource as a draft (status: PENDING)
+    let createdItem: any;
+    if (type === 'asset') {
+      createdItem = await prisma.asset.create({
+        data: {
+          title,
+          description: descriptionMarkdown,
+          url,
+          thumbnail: coverUrl,
+          status: 'PENDING',
+          type: 'EXTERNAL',
+          userId,
+          // 外部抓取的资源无法确定网格规格，用未知默认值，由用户在草稿箱编辑时补充
+          meshType: 'UNKNOWN',
+          uvUnwrapped: false,
+          uvOverlapping: false,
+          pbrChannels: '[]',
+          rigged: false,
+          gameReady: false,
+        },
+      });
+    } else if (type === 'material') {
+      createdItem = await prisma.material.create({
+        data: {
+          title,
+          description: descriptionMarkdown,
+          // 外部导入的资源无法自动识别分类，用户可在草稿箱编辑时修改
+          category: '外部导入',
+          // 分辨率未知，不确定就不设置默认值
+          resolution: null,
+          fileUrl: url,
+          previewUrl: coverUrl,
+          status: 'PENDING',
+          userId,
+        },
+      });
+    } else if (type === 'plugin') {
+      createdItem = await prisma.plugin.create({
+        data: {
+          title,
+          description: descriptionMarkdown,
+          category: '其他工具',
+          version: '1.0.0',
+          fileUrl: url,
+          previewUrl: coverUrl,
+          status: 'PENDING',
+          userId,
+        },
+      });
+    } else {
+      return res.status(400).json({ error: 'Invalid resource type' });
+    }
+
+    res.json({
+      success: true,
+      message: '一键导入草稿箱成功！',
+      item: createdItem,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadTempFile = async (req: Request, res: Response) => {
+  if (!req.file) {
+    return res.status(400).json({ error: '请选择要上传的文件' });
+  }
+  
+  const tempPath = (req.file as any).url || `/uploads/temp/${req.file.filename}`;
+  res.json({
+    success: true,
+    filePath: tempPath,
+    originalName: req.file.originalname,
+  });
+};
+
+export const cancelTempUpload = async (req: Request, res: Response) => {
+  const { filePath } = req.body;
+  if (!filePath || typeof filePath !== 'string') {
+    return res.status(400).json({ error: '无效的文件路径' });
+  }
+
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    const { deleteCloudOrLocalFileByUrl } = await import('../utils/file');
+    deleteCloudOrLocalFileByUrl(filePath).catch((err) => {
+      logger.error(`[Cancel Temp Upload] Failed to delete cloud file ${filePath}:`, err);
+    });
+    return res.json({ success: true, message: '临时文件已删除' });
+  }
+
+  // Security check: only allow deleting files under uploads/temp to prevent directory traversal
+  const resolvedPath = path.resolve(process.cwd(), filePath.replace(/^\/+/, ''));
+  const tempDir = path.resolve(process.cwd(), 'uploads', 'temp');
+  
+  if (!resolvedPath.startsWith(tempDir)) {
+    return res.status(403).json({ error: '拒绝访问：只能删除临时文件夹中的文件' });
+  }
+
+  try {
+    if (fs.existsSync(resolvedPath)) {
+      fs.unlinkSync(resolvedPath);
+    }
+    res.json({ success: true, message: '临时文件已删除' });
+  } catch (err: any) {
+    logger.error(`[Cancel Temp Upload] Failed to delete file ${resolvedPath}: ${err.message}`);
+    res.status(500).json({ error: '删除文件失败' });
   }
 };

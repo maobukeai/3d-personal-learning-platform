@@ -3,7 +3,7 @@ import { SlidersHorizontal, Layers, Tags, FolderOpen } from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
 import Tabs from '@/components/ui/Tabs.vue';
 
-type LibraryTab = 'explore' | 'favorites' | 'mine' | 'requests';
+type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts' | 'requests';
 type StatusFilter = 'all' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 defineProps<{

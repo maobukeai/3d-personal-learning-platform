@@ -112,7 +112,7 @@ async function postCloudflareGraphql<T>(
 }
 
 const R2_STORAGE_GRAPHQL_QUERY = `
-  query R2BucketStorage($accountTag: string!, $bucketName: string!, $startDate: Time!, $endDate: Time!) {
+  query R2BucketStorage($accountTag: String!, $bucketName: String!, $startDate: Time!, $endDate: Time!) {
     viewer {
       accounts(filter: { accountTag: $accountTag }) {
         r2StorageAdaptiveGroups(
@@ -130,6 +130,9 @@ const R2_STORAGE_GRAPHQL_QUERY = `
             objectCount
             uploadCount
           }
+          dimensions {
+            datetime
+          }
         }
       }
     }
@@ -137,10 +140,10 @@ const R2_STORAGE_GRAPHQL_QUERY = `
 `;
 
 type GraphqlStorageResponse = {
-  viewer: {
-    accounts: Array<{
-      r2StorageAdaptiveGroups: Array<{
-        max: {
+  viewer?: {
+    accounts?: Array<{
+      r2StorageAdaptiveGroups?: Array<{
+        max?: {
           payloadSize?: string | number | null;
           metadataSize?: string | number | null;
           objectCount?: string | number | null;
@@ -170,7 +173,7 @@ export async function fetchCloudflareR2BucketUsageFromGraphQL(
     },
   );
 
-  const max = data.viewer.accounts[0]?.r2StorageAdaptiveGroups[0]?.max;
+  const max = data.viewer?.accounts?.[0]?.r2StorageAdaptiveGroups?.[0]?.max;
   if (!max) {
     throw new Error(`Cloudflare GraphQL returned no storage data for bucket ${bucketName}`);
   }

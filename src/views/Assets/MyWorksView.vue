@@ -309,6 +309,15 @@ const editForm = ref<{
   file: File | null;
   packageFile: File | null;
   thumbnail: File | null;
+  downloadType: 'local' | 'external';
+  externalUrl: string;
+  extractionCode: string;
+  tempAssetPath?: string;
+  tempPackagePath?: string;
+  tempThumbnailPath?: string;
+  tempMaterialPath?: string;
+  tempPluginPath?: string;
+  tempPreviewPath?: string;
 }>({
   title: '',
   description: '',
@@ -341,6 +350,15 @@ const editForm = ref<{
   file: null,
   packageFile: null,
   thumbnail: null,
+  downloadType: 'local',
+  externalUrl: '',
+  extractionCode: '',
+  tempAssetPath: undefined,
+  tempPackagePath: undefined,
+  tempThumbnailPath: undefined,
+  tempMaterialPath: undefined,
+  tempPluginPath: undefined,
+  tempPreviewPath: undefined,
 });
 
 const showcaseForm = ref({
@@ -373,7 +391,7 @@ const activeFilterChips = computed(() => {
 
   if (sourceFilter.value !== 'ALL') {
     const kindLabels: Record<string, string> = {
-      asset: label('资源库', 'Assets'),
+      asset: label('模型库', 'Models'),
       material: label('材料库', 'Materials'),
       plugin: label('插件库', 'Plugins'),
       showcase: label('展示作品', 'Showcase'),
@@ -709,6 +727,28 @@ const openEditDialog = (work: UnifiedWork) => {
     }
   }
 
+  let fileUrl = '';
+  if (work.kind === 'asset') {
+    fileUrl = (raw as AssetWork).url || '';
+  } else if (work.kind === 'material') {
+    fileUrl = (raw as MaterialWork).fileUrl || '';
+  } else if (work.kind === 'plugin') {
+    fileUrl = (raw as PluginWork).fileUrl || '';
+  }
+
+  const isExternal = fileUrl.startsWith('http://') || fileUrl.startsWith('https://') ? !fileUrl.includes('/uploads/') : false;
+  let extUrl = '';
+  let extCode = '';
+  if (isExternal) {
+    const match = fileUrl.match(/(.*?)(?:\s+提取码[:：]\s*(\w+)|提取码[:：]\s*(\w+)|$)/i);
+    if (match) {
+      extUrl = match[1].trim();
+      extCode = (match[2] || match[3] || '').trim();
+    } else {
+      extUrl = fileUrl.trim();
+    }
+  }
+
   editForm.value = {
     title: work.title,
     description: work.description,
@@ -744,6 +784,9 @@ const openEditDialog = (work: UnifiedWork) => {
     file: null,
     packageFile: null,
     thumbnail: null,
+    downloadType: isExternal ? 'external' : 'local',
+    externalUrl: extUrl,
+    extractionCode: extCode,
   };
   isEditDialogOpen.value = true;
 };
@@ -755,6 +798,13 @@ const handleSaveEdit = async () => {
   }
 
   const work = selectedWork.value;
+  if (['asset', 'material', 'plugin'].includes(work.kind) && editForm.value.downloadType === 'external') {
+    if (!editForm.value.externalUrl.trim()) {
+      ElMessage.warning('请填写网盘链接或外部下载链接');
+      return;
+    }
+  }
+
   isSaving.value = true;
   try {
     if (work.kind === 'asset') {
@@ -777,13 +827,27 @@ const handleSaveEdit = async () => {
       formData.append('linkedCourseId', editForm.value.linkedCourseId || '');
       formData.append('linkedLessonId', editForm.value.linkedLessonId || '');
 
-      if (editForm.value.file) {
-        formData.append('asset', editForm.value.file);
+      if (editForm.value.downloadType === 'local') {
+        if (editForm.value.tempAssetPath) {
+          formData.append('tempAssetPath', editForm.value.tempAssetPath);
+        } else if (editForm.value.file) {
+          formData.append('asset', editForm.value.file);
+        }
+      } else {
+        let finalUrl = editForm.value.externalUrl.trim();
+        if (editForm.value.extractionCode?.trim()) {
+          finalUrl += ` 提取码: ${editForm.value.extractionCode.trim()}`;
+        }
+        formData.append('externalUrl', finalUrl);
       }
-      if (editForm.value.packageFile) {
+      if (editForm.value.tempPackagePath) {
+        formData.append('tempPackagePath', editForm.value.tempPackagePath);
+      } else if (editForm.value.packageFile) {
         formData.append('package', editForm.value.packageFile);
       }
-      if (editForm.value.thumbnail) {
+      if (editForm.value.tempThumbnailPath) {
+        formData.append('tempThumbnailPath', editForm.value.tempThumbnailPath);
+      } else if (editForm.value.thumbnail) {
         formData.append('thumbnail', editForm.value.thumbnail);
       }
 
@@ -808,10 +872,22 @@ const handleSaveEdit = async () => {
       formData.append('linkedCourseId', editForm.value.linkedCourseId || '');
       formData.append('linkedLessonId', editForm.value.linkedLessonId || '');
 
-      if (editForm.value.file) {
-        formData.append('material', editForm.value.file);
+      if (editForm.value.downloadType === 'local') {
+        if (editForm.value.tempMaterialPath) {
+          formData.append('tempMaterialPath', editForm.value.tempMaterialPath);
+        } else if (editForm.value.file) {
+          formData.append('material', editForm.value.file);
+        }
+      } else {
+        let finalUrl = editForm.value.externalUrl.trim();
+        if (editForm.value.extractionCode?.trim()) {
+          finalUrl += ` 提取码: ${editForm.value.extractionCode.trim()}`;
+        }
+        formData.append('externalUrl', finalUrl);
       }
-      if (editForm.value.thumbnail) {
+      if (editForm.value.tempThumbnailPath) {
+        formData.append('tempPreviewPath', editForm.value.tempThumbnailPath);
+      } else if (editForm.value.thumbnail) {
         formData.append('preview', editForm.value.thumbnail);
       }
 
@@ -837,10 +913,22 @@ const handleSaveEdit = async () => {
       formData.append('linkedCourseId', editForm.value.linkedCourseId || '');
       formData.append('linkedLessonId', editForm.value.linkedLessonId || '');
 
-      if (editForm.value.file) {
-        formData.append('plugin_file', editForm.value.file);
+      if (editForm.value.downloadType === 'local') {
+        if (editForm.value.tempPluginPath) {
+          formData.append('tempPluginPath', editForm.value.tempPluginPath);
+        } else if (editForm.value.file) {
+          formData.append('plugin_file', editForm.value.file);
+        }
+      } else {
+        let finalUrl = editForm.value.externalUrl.trim();
+        if (editForm.value.extractionCode?.trim()) {
+          finalUrl += ` 提取码: ${editForm.value.extractionCode.trim()}`;
+        }
+        formData.append('externalUrl', finalUrl);
       }
-      if (editForm.value.thumbnail) {
+      if (editForm.value.tempPreviewPath) {
+        formData.append('tempPreviewPath', editForm.value.tempPreviewPath);
+      } else if (editForm.value.thumbnail) {
         formData.append('plugin_preview', editForm.value.thumbnail);
       }
 

@@ -89,6 +89,7 @@ const FIELD_TO_DIR: Record<string, string> = {
   banner: './uploads/banners',
   banner_image: './uploads/banners',
   task_image: './uploads/tasks',
+  temp: './uploads/temp',
 };
 
 const storage = multer.diskStorage({
@@ -745,7 +746,7 @@ export const validateSingleFileContent = async (file: Express.Multer.File) => {
   if (
     model3dExtensions.includes(ext) ||
     documentExtensions.includes(ext) ||
-    (file.fieldname === 'plugin_file' && ['.js', '.ts', '.py', '.lua', '.mjs'].includes(ext))
+    ((file.fieldname === 'plugin_file' || file.fieldname === 'temp') && ['.js', '.ts', '.py', '.lua', '.mjs'].includes(ext))
   ) {
     return;
   }

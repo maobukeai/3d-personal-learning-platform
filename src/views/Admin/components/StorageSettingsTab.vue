@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { AlertCircle } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -383,6 +383,12 @@ const handleImportFile = async (event: Event) => {
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 
+watch(fileDrawerVisible, (val) => {
+  if (!val) {
+    currentStorage.value = null;
+  }
+});
+
 onMounted(() => {
   fetchConfigs();
   fetchForceR2Setting();
@@ -457,6 +463,7 @@ onMounted(() => {
     />
 
     <StorageFileExplorer
+      v-if="fileDrawerVisible && currentStorage"
       v-model="fileDrawerVisible"
       :current-storage="currentStorage"
       @refresh="fetchConfigs"

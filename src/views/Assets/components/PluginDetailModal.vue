@@ -158,6 +158,26 @@ const formatSize = (size?: number | null) => {
   if (size >= 1) return `${size.toFixed(1)} MB`;
   return `${Math.max(1, Math.round(size * 1024))} KB`;
 };
+const handleApprove = () => {
+  console.log('PluginDetailModal: Emitting review-approved event for plugin', props.plugin);
+  if (props.plugin) {
+    emit('review-approved', props.plugin);
+  }
+};
+
+const handleReject = () => {
+  console.log('PluginDetailModal: Emitting review-rejected event for plugin', props.plugin);
+  if (props.plugin) {
+    emit('review-rejected', props.plugin);
+  }
+};
+
+const handleDelete = () => {
+  console.log('PluginDetailModal: Emitting delete event for plugin', props.plugin);
+  if (props.plugin) {
+    emit('delete', props.plugin);
+  }
+};
 
 const getTagsList = (tags?: string) =>
   (tags || '')
@@ -207,10 +227,40 @@ const {
   runDownload,
 } = useMultiThreadDownload();
 
+const isExternal = computed(() => {
+  if (!props.plugin) return false;
+  const originality = props.plugin.originality;
+  const fileUrl = props.plugin.fileUrl;
+  if (originality === 'AUTHORIZED' || originality === 'REMIX') {
+    return true;
+  }
+  if (fileUrl && (fileUrl.startsWith('http://') || fileUrl.startsWith('https://'))) {
+    const lowerUrl = fileUrl.toLowerCase();
+    const isArchive = lowerUrl.endsWith('.zip') || lowerUrl.includes('.zip?') ||
+                      lowerUrl.endsWith('.rar') || lowerUrl.includes('.rar?') ||
+                      lowerUrl.endsWith('.7z') || lowerUrl.includes('.7z?');
+    return !isArchive;
+  }
+  return false;
+});
+
 const handlePluginDownload = async () => {
   if (!props.plugin) return;
   const plugin = props.plugin;
   const downloadUrl = plugin.fileUrl;
+
+  if (isExternal.value) {
+    const targetUrl = plugin.originalLink || downloadUrl;
+    if (targetUrl) {
+      window.open(targetUrl, '_blank');
+      await api.post(`/api/plugins/${plugin.id}/download`).catch(() => {});
+      emit('download');
+    } else {
+      ElMessage.warning(label('源站链接不存在', 'Source link not found'));
+    }
+    return;
+  }
+
   if (!downloadUrl) {
     ElMessage.warning(label('该插件暂未提供下载文件', 'This plugin has no download file yet'));
     return;
@@ -1598,12 +1648,18 @@ const copyIntegrationCode = async () => {
           <Button
             variant="primary"
             size="md"
-            :loading="localDownloading"
+            :loading="!isExternal && localDownloading"
             class="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-bold shadow-[0_0_20px_rgba(99,102,241,0.2)] hover:shadow-[0_0_25px_rgba(99,102,241,0.3)] transition-all duration-300"
             @click="handlePluginDownload"
           >
-            <Download v-if="!localDownloading" class="h-4.5 w-4.5 animate-bounce-slow" />
-            <span>{{ label('下载插件资源', 'Download Add-on') }}</span>
+            <template v-if="isExternal">
+              <ExternalLink class="h-4.5 w-4.5" />
+              <span>{{ label('前往源站获取下载', 'Visit Source Site') }}</span>
+            </template>
+            <template v-else>
+              <Download v-if="!localDownloading" class="h-4.5 w-4.5 animate-bounce-slow" />
+              <span>{{ label('下载插件资源', 'Download Add-on') }}</span>
+            </template>
           </Button>
 
           <!-- Quick Statistics -->
@@ -1654,7 +1710,7 @@ const copyIntegrationCode = async () => {
               variant="secondary"
               size="sm"
               class="flex items-center justify-center gap-1.5 hover:bg-rose-500/10 hover:text-rose-400"
-              @click="emit('delete', plugin)"
+              @click="handleDelete"
             >
               <Trash2 class="h-3.5 w-3.5 text-rose-400" />
               <span>{{ label('删除', 'Delete') }}</span>
@@ -1757,7 +1813,7 @@ const copyIntegrationCode = async () => {
                 size="sm"
                 :disabled="isSavingReview"
                 class="flex-1 flex items-center justify-center gap-1 bg-emerald-500 hover:bg-emerald-600 border-0"
-                @click="emit('review-approved', plugin)"
+                @click="handleApprove"
               >
                 <CheckCircle2 class="h-3.5 w-3.5 text-white" />
                 <span>{{ label('通过', 'Approve') }}</span>
@@ -1767,7 +1823,7 @@ const copyIntegrationCode = async () => {
                 size="sm"
                 :disabled="isSavingReview"
                 class="flex-1 flex items-center justify-center gap-1"
-                @click="emit('review-rejected', plugin)"
+                @click="handleReject"
               >
                 <XCircle class="h-3.5 w-3.5 text-white" />
                 <span>{{ label('驳回', 'Reject') }}</span>

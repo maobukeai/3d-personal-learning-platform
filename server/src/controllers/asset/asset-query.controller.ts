@@ -131,7 +131,7 @@ export const getPublicAssets = async (req: AuthRequest, res: Response, next: Nex
 export const getAssetInsights = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId as string;
-    const [assets, categories, likedCount, myUploads, pendingCount] = await Promise.all([
+    const [assets, categories, likedCount, myUploads, pendingCount, myDrafts] = await Promise.all([
       prisma.asset.findMany({
         where: { status: 'APPROVED' },
         orderBy: { createdAt: 'desc' },
@@ -150,6 +150,7 @@ export const getAssetInsights = async (req: AuthRequest, res: Response, next: Ne
       }),
       prisma.asset.count({ where: { userId } }),
       prisma.asset.count({ where: { status: 'PENDING', teamId: req.workspaceId } }),
+      prisma.asset.count({ where: { userId, status: 'PENDING' } }),
     ]);
 
     const typeCounts = new Map<string, number>();
@@ -199,6 +200,7 @@ export const getAssetInsights = async (req: AuthRequest, res: Response, next: Ne
         likes: totalLikes,
         myLikes: likedCount,
         myUploads,
+        myDrafts,
         pending: pendingCount,
         animated,
         optimized,

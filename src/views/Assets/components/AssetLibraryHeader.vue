@@ -30,7 +30,7 @@ const isSearchOpen = ref(false);
 
 <template>
   <PageHeader
-    :title="label('资源库', 'Asset Library')"
+    :title="label('模型库', 'Model Library')"
     :subtitle="
       label(
         '模型、工程文件、贴图包与外链资产统一分发。',

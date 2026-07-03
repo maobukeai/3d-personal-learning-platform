@@ -920,7 +920,12 @@ const testAi = async (model?: AiModelConfig) => {
   const provider = model?.provider || localSettings.AI_PROVIDER;
   const apiKey = model?.apiKey || localSettings.AI_API_KEY;
   const endpoint = model?.endpoint || localSettings.AI_API_ENDPOINT;
-  const modelName = model?.modelName || localSettings.AI_MODEL_NAME;
+  const rawModelName = model?.modelName || localSettings.AI_MODEL_NAME;
+  const modelName =
+    String(rawModelName || '')
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean)[0] || '';
 
   if (!provider) {
     return ElMessage.warning(t('admin.please_select_an_ai'));
@@ -943,13 +948,28 @@ const testAi = async (model?: AiModelConfig) => {
       capabilities: model?.capabilities,
     });
     if (data.success) {
-      ElMessage.success(data.message || t('admin.ai_interface_test_successful'));
+      const msg = data.message || t('admin.ai_interface_test_successful');
+      ElMessage.success({
+        message: msg,
+        duration: 4000,
+        showClose: true,
+      });
     } else {
-      ElMessage.error(t('admin.the_test_failed_and'));
+      const msg = data.message || t('admin.the_test_failed_and');
+      ElMessage.error({
+        message: msg,
+        duration: 5000,
+        showClose: true,
+      });
     }
   } catch (error: unknown) {
     logError(error, { operation: 'admin.testAi', component: 'AiSettingsTab' });
-    ElMessage.error(getApiErrorMessage(error, t('admin.ai_connection_test_failed')));
+    const errMsg = getApiErrorMessage(error, t('admin.ai_connection_test_failed'));
+    ElMessage.error({
+      message: errMsg,
+      duration: 5000,
+      showClose: true,
+    });
   } finally {
     isTestingAi.value = false;
     testingAiModelId.value = '';

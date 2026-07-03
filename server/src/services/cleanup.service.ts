@@ -135,6 +135,40 @@ export const cleanupMessageFiles = async () => {
   }
 };
 
+export const cleanupTempUploads = async (forceAll = false) => {
+  const tempDir = path.join(process.cwd(), 'uploads', 'temp');
+  if (!fs.existsSync(tempDir)) return;
+
+  try {
+    const entries = fs.readdirSync(tempDir);
+    let deletedCount = 0;
+    const thresholdMs = 30 * 60 * 1000; // 30 minutes
+
+    for (const entry of entries) {
+      const fullPath = path.join(tempDir, entry);
+      const stat = fs.statSync(fullPath);
+
+      if (stat.isFile()) {
+        const ageMs = Date.now() - stat.mtimeMs;
+        if (forceAll || ageMs > thresholdMs) {
+          try {
+            fs.unlinkSync(fullPath);
+            deletedCount++;
+          } catch (unlinkErr) {
+            logger.error(`[Cleanup Error] Failed to delete temp file ${fullPath}:`, unlinkErr);
+          }
+        }
+      }
+    }
+
+    if (deletedCount > 0) {
+      logger.info(`[Cleanup] Auto-deleted ${deletedCount} expired files from uploads/temp.`);
+    }
+  } catch (err) {
+    logger.error('[Cleanup Error] Failed to cleanup temp files:', err);
+  }
+};
+
 export const cleanupExpiredData = async (forceAll = false) => {
   const now = new Date();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -143,6 +177,8 @@ export const cleanupExpiredData = async (forceAll = false) => {
     await cleanupMirrorTempDirectories(forceAll);
     // Clean up leftover uploaded zip files
     await cleanupLeftoverUploads(forceAll);
+    // Clean up temporary uploads
+    await cleanupTempUploads(forceAll);
     const [
       deletedCodes,
       deletedTokens,

@@ -6,7 +6,7 @@ import Tabs from '@/components/ui/Tabs.vue';
 
 type SortMode = 'latest' | 'popular' | 'name';
 type ViewMode = 'grid' | 'list';
-type LibraryTab = 'explore' | 'favorites' | 'mine' | 'requests';
+type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts' | 'requests';
 
 defineProps<{
   activeTab: LibraryTab;
@@ -16,14 +16,20 @@ defineProps<{
   viewModeOptions: { value: ViewMode; icon: Component }[];
   showFavoritesOnly: boolean;
   isFilterOpen: boolean;
+  selectedIds?: string[];
+  isBatchMode?: boolean;
+  visiblePluginsCount?: number;
 }>();
 
 const emit = defineEmits<{
   (e: 'update:activeTab', value: LibraryTab): void;
   (e: 'update:sortBy', value: SortMode): void;
   (e: 'update:viewMode', value: ViewMode): void;
+  (e: 'update:isBatchMode', value: boolean): void;
   (e: 'toggleFavorites'): void;
   (e: 'toggleFilter'): void;
+  (e: 'selectAll'): void;
+  (e: 'bulkDelete'): void;
 }>();
 
 const label = useLabel();
@@ -54,6 +60,45 @@ const onViewModeChange = (value: string | number | null) => {
     </div>
 
     <div class="toolbar-right">
+      <!-- 当处于 'mine' 或 'drafts' 时提供批量管理功能 -->
+      <template v-if="activeTab === 'mine' || activeTab === 'drafts'">
+        <div v-if="isBatchMode" class="flex items-center gap-2">
+          <span class="text-xs text-[var(--text-muted)] font-mono">
+            已选 {{ selectedIds?.length || 0 }} 项
+          </span>
+          <button
+            type="button"
+            class="px-2 py-1 text-xs rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-[var(--text-primary)] transition-colors"
+            @click="emit('selectAll')"
+          >
+            {{ (selectedIds?.length || 0) === (visiblePluginsCount || 0) && (visiblePluginsCount || 0) > 0 ? '取消全选' : '全选本页' }}
+          </button>
+          <button
+            type="button"
+            class="px-2.5 py-1 text-xs rounded-lg bg-rose-500 hover:bg-rose-600 text-white font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            :disabled="!selectedIds?.length"
+            @click="emit('bulkDelete')"
+          >
+            批量删除
+          </button>
+          <button
+            type="button"
+            class="px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            @click="emit('update:isBatchMode', false)"
+          >
+            退出
+          </button>
+        </div>
+        <button
+          v-else
+          type="button"
+          class="px-2.5 py-1 text-xs rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-medium transition-colors"
+          @click="emit('update:isBatchMode', true)"
+        >
+          批量管理
+        </button>
+      </template>
+
       <el-select
         :model-value="sortBy"
         class="custom-sort-select"

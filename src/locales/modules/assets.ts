@@ -1,6 +1,6 @@
 export const assetsZh = {
-  title: '3D 资源库',
-  libraryTitle: '3D 资源库',
+  title: '3D 模型库',
+  libraryTitle: '3D 模型库',
   noAssetsFound: '没有找到匹配的资源',
   modelAssets: '模型资产',
   searchPlaceholder: '在资源中搜索...',

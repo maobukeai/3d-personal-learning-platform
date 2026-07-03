@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { Heart, X, Download } from 'lucide-vue-next';
+import { Heart, X, Download, Trash2 } from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
 
-type LibraryTab = 'explore' | 'favorites' | 'mine';
+type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts';
 
 interface FilterLabel {
   key: string;
@@ -23,6 +23,7 @@ const emit = defineEmits<{
   (e: 'toggleSelectAll'): void;
   (e: 'bulkFavorite', favorite: boolean): void;
   (e: 'downloadSelected'): void;
+  (e: 'bulkDelete'): void;
 }>();
 
 const label = useLabel();
@@ -83,6 +84,16 @@ const label = useLabel();
       >
         <X class="icon-sm" />
         {{ label('移出', 'Remove') }}
+      </button>
+      <button
+        v-if="activeTab === 'mine' || activeTab === 'drafts'"
+        type="button"
+        class="danger-button compact-button"
+        :disabled="isBulkBusy"
+        @click="emit('bulkDelete')"
+      >
+        <Trash2 class="icon-sm" />
+        {{ label('批量删除', 'Delete') }}
       </button>
       <button type="button" class="primary-button compact-button" @click="emit('downloadSelected')">
         <Download class="icon-sm" />
@@ -188,6 +199,27 @@ const label = useLabel();
 
 .primary-button:hover {
   background: #c26702;
+  transform: translateY(-0.5px);
+}
+
+.danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: #f43f5e;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.danger-button:hover {
+  background: #e11d48;
   transform: translateY(-0.5px);
 }
 

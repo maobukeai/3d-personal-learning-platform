@@ -17,6 +17,7 @@ import {
 } from 'lucide-vue-next';
 import Input from '@/components/ui/Input.vue';
 import Checkbox from '@/components/ui/Checkbox.vue';
+import FileDropZone from '@/components/FileDropZone.vue';
 import api from '@/utils/api';
 import { useLabel } from '@/utils/i18n';
 import type { CategoryType, UnifiedWork } from '../myWorksModel';
@@ -62,9 +63,18 @@ interface EditForm {
   linkedLessonId?: string;
   installGuide?: string;
   // asset files
-  file?: File | null;
-  packageFile?: File | null;
-  thumbnail?: File | null;
+  file: File | null;
+  packageFile: File | null;
+  thumbnail: File | null;
+  downloadType?: 'local' | 'external';
+  externalUrl?: string;
+  extractionCode?: string;
+  tempAssetPath?: string;
+  tempPackagePath?: string;
+  tempThumbnailPath?: string;
+  tempMaterialPath?: string;
+  tempPluginPath?: string;
+  tempPreviewPath?: string;
 }
 
 const show = defineModel<boolean>('show', { required: true });
@@ -186,24 +196,125 @@ function emitUpdate(patch: Partial<EditForm>) {
 const fileUploadedName = computed(() => form.value.file?.name || '');
 const packageUploadedName = computed(() => form.value.packageFile?.name || '');
 
-const handleFileChange = (event: Event) => {
+const downloadType = computed({
+  get: () => form.value.downloadType || 'local',
+  set: (v) => emitUpdate({ downloadType: v }),
+});
+
+const externalUrl = computed({
+  get: () => form.value.externalUrl || '',
+  set: (v) => emitUpdate({ externalUrl: v }),
+});
+
+const extractionCode = computed({
+  get: () => form.value.extractionCode || '',
+  set: (v) => emitUpdate({ extractionCode: v }),
+});
+
+const fileProgress = ref<number | null>(null);
+const packageProgress = ref<number | null>(null);
+const thumbnailProgress = ref<number | null>(null);
+const isSaved = ref(false);
+
+const uploadFile = async (
+  file: File,
+  progressRef: typeof fileProgress,
+  tempField: 'tempAssetPath' | 'tempPackagePath' | 'tempThumbnailPath' | 'tempMaterialPath' | 'tempPluginPath' | 'tempPreviewPath'
+) => {
+  const prevPath = form.value[tempField];
+  if (prevPath) {
+    cancelUpload(prevPath);
+  }
+
+  progressRef.value = 0;
+  emitUpdate({ [tempField]: undefined });
+
+  const formData = new FormData();
+  formData.append('temp', file);
+
+  try {
+    const response = await api.post('/api/resources/upload-temp', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          progressRef.value = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        }
+      }
+    });
+    emitUpdate({ [tempField]: response.data.filePath });
+  } catch (error) {
+    logError(error, { operation: 'Edit dialog temp file upload' });
+    progressRef.value = null;
+  }
+};
+
+const cancelUpload = async (filePath: string) => {
+  try {
+    await api.post('/api/resources/upload-temp-cancel', { filePath });
+  } catch (error) {
+    // Silent fail
+  }
+};
+
+const cancelAllTempUploads = () => {
+  const tempFields: ('tempAssetPath' | 'tempPackagePath' | 'tempThumbnailPath' | 'tempMaterialPath' | 'tempPluginPath' | 'tempPreviewPath')[] = [
+    'tempAssetPath', 'tempPackagePath', 'tempThumbnailPath', 'tempMaterialPath', 'tempPluginPath', 'tempPreviewPath'
+  ];
+  for (const field of tempFields) {
+    const path = form.value[field];
+    if (path) {
+      cancelUpload(path);
+    }
+  }
+  
+  fileProgress.value = null;
+  packageProgress.value = null;
+  thumbnailProgress.value = null;
+  
+  emitUpdate({
+    tempAssetPath: undefined,
+    tempPackagePath: undefined,
+    tempThumbnailPath: undefined,
+    tempMaterialPath: undefined,
+    tempPluginPath: undefined,
+    tempPreviewPath: undefined
+  });
+};
+
+watch(show, (newVal) => {
+  if (!newVal) {
+    if (!isSaved.value) {
+      cancelAllTempUploads();
+    }
+    isSaved.value = false;
+  }
+});
+
+const handleFileChange = async (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (file) {
     emitUpdate({ file });
+    const kind = props.work?.kind;
+    const tempField = kind === 'asset' ? 'tempAssetPath' : kind === 'material' ? 'tempMaterialPath' : 'tempPluginPath';
+    await uploadFile(file, fileProgress, tempField);
   }
 };
 
-const handlePackageChange = (event: Event) => {
+const handlePackageChange = async (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (file) {
     emitUpdate({ packageFile: file });
+    await uploadFile(file, packageProgress, 'tempPackagePath');
   }
 };
 
-const handleThumbnailChange = (event: Event) => {
+const handleThumbnailChange = async (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (file) {
     emitUpdate({ thumbnail: file });
+    const kind = props.work?.kind;
+    const tempField = kind === 'plugin' ? 'tempPreviewPath' : 'tempThumbnailPath';
+    await uploadFile(file, thumbnailProgress, tempField);
   }
 };
 
@@ -400,71 +511,108 @@ watch(
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           <!-- Left Column: File dropzones & Metadata -->
           <div class="space-y-3">
-            <!-- ASSET file uploaders -->
-            <div v-if="work.kind === 'asset'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <!-- GLB model dropzone -->
-              <label
-                class="drop-zone block border-dashed border-indigo-500/30 hover:border-indigo-500/60 bg-indigo-500/[0.02]"
+            <!-- Segment Switcher for Download Type -->
+            <div class="flex p-0.5 mb-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-800/80">
+              <button
+                type="button"
+                @click="form.downloadType = 'local'"
+                :class="[
+                  'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
+                  form.downloadType === 'local'
+                    ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
+                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
+                ]"
               >
-                <input type="file" accept=".glb" @change="handleFileChange" />
-                <UploadCloud class="drop-icon" />
-                <strong>{{ fileUploadedName || '重新上传主预览模型 (.glb)' }}</strong>
-                <span class="text-[9px] text-[var(--text-muted)] mt-0.5">
-                  {{ form.file ? '已选择新模型' : '当前已有模型。留空将保留原模型。仅支持 .glb' }}
-                </span>
-              </label>
-
-              <!-- Optional ZIP resource package -->
-              <label
-                class="drop-zone block border-dashed border-teal-500/30 hover:border-teal-500/60 bg-teal-500/[0.02]"
+                本地文件上传
+              </button>
+              <button
+                type="button"
+                @click="form.downloadType = 'external'"
+                :class="[
+                  'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
+                  form.downloadType === 'external'
+                    ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
+                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
+                ]"
               >
-                <input type="file" accept=".zip" @change="handlePackageChange" />
-                <UploadCloud class="drop-icon text-teal-400" />
-                <strong>{{ packageUploadedName || '重新上传可选资源包 (.zip)' }}</strong>
-                <span class="text-[9px] text-[var(--text-muted)] mt-0.5">
-                  {{
-                    form.packageFile
-                      ? '已选择新资源包'
-                      : '当前已有资源包。留空将保留原资源包。仅支持 .zip'
-                  }}
-                </span>
-              </label>
+                网盘链接 / 网页直达
+              </button>
             </div>
 
-            <!-- MATERIAL file uploaders -->
-            <div v-else-if="work.kind === 'material'" class="grid grid-cols-1 gap-4">
-              <label
-                class="drop-zone block border-dashed border-indigo-500/30 hover:border-indigo-500/60 bg-indigo-500/[0.02]"
-              >
-                <input type="file" accept=".zip,.sbsar" @change="handleFileChange" />
-                <UploadCloud class="drop-icon" />
-                <strong>{{ fileUploadedName || '重新上传材质包 (.zip, .sbsar)' }}</strong>
-                <span class="text-[9px] text-[var(--text-muted)] mt-0.5">
-                  {{
-                    form.file
-                      ? '已选择新材质包'
-                      : '当前已有材质包。留空将保留原文件。支持 .zip, .sbsar'
-                  }}
-                </span>
-              </label>
+            <!-- Local Upload Zone -->
+            <div v-show="form.downloadType === 'local'">
+              <!-- ASSET file uploaders -->
+              <div v-if="work.kind === 'asset'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- GLB model dropzone -->
+                <FileDropZone
+                  v-model="form.file"
+                  accept=".glb"
+                  height-class="h-24"
+                  :progress="fileProgress"
+                  :label="form.file ? form.file.name : (fileUploadedName || '重新上传主预览模型 (.glb)')"
+                  sublabel="当前已有模型。留空将保留原模型。仅支持 .glb"
+                  @change="handleFileChange"
+                />
+
+                <!-- Optional ZIP resource package -->
+                <FileDropZone
+                  v-model="form.packageFile"
+                  accept=".zip"
+                  height-class="h-24"
+                  :progress="packageProgress"
+                  :label="form.packageFile ? form.packageFile.name : (packageUploadedName || '重新上传可选资源包 (.zip)')"
+                  sublabel="当前已有资源包。留空将保留原资源包。仅支持 .zip"
+                  @change="handlePackageChange"
+                />
+              </div>
+
+              <!-- MATERIAL file uploaders -->
+              <div v-else-if="work.kind === 'material'" class="grid grid-cols-1 gap-4">
+                <FileDropZone
+                  v-model="form.file"
+                  accept=".zip,.sbsar"
+                  height-class="h-24"
+                  :progress="fileProgress"
+                  :label="form.file ? form.file.name : (fileUploadedName || '重新上传材质包 (.zip, .sbsar)')"
+                  sublabel="当前已有材质包。留空将保留原文件。支持 .zip, .sbsar"
+                  @change="handleFileChange"
+                />
+              </div>
+
+              <!-- PLUGIN file uploaders -->
+              <div v-else-if="work.kind === 'plugin'" class="grid grid-cols-1 gap-4">
+                <FileDropZone
+                  v-model="form.file"
+                  accept=".zip,.py"
+                  height-class="h-24"
+                  :progress="fileProgress"
+                  :label="form.file ? form.file.name : (fileUploadedName || '重新上传插件文件 (.zip, .py)')"
+                  sublabel="当前已有插件文件。留空将保留原文件。支持 .zip, .py"
+                  @change="handleFileChange"
+                />
+              </div>
             </div>
 
-            <!-- PLUGIN file uploaders -->
-            <div v-else-if="work.kind === 'plugin'" class="grid grid-cols-1 gap-4">
-              <label
-                class="drop-zone block border-dashed border-indigo-500/30 hover:border-indigo-500/60 bg-indigo-500/[0.02]"
-              >
-                <input type="file" accept=".zip,.py" @change="handleFileChange" />
-                <UploadCloud class="drop-icon" />
-                <strong>{{ fileUploadedName || '重新上传插件文件 (.zip, .py)' }}</strong>
-                <span class="text-[9px] text-[var(--text-muted)] mt-0.5">
-                  {{
-                    form.file
-                      ? '已选择新插件文件'
-                      : '当前已有插件文件。留空将保留原文件。支持 .zip, .py'
-                  }}
-                </span>
-              </label>
+            <!-- External Link Inputs -->
+            <div v-show="form.downloadType === 'external'" class="space-y-2">
+              <div class="grid grid-cols-3 gap-2">
+                <div class="col-span-2">
+                  <input
+                    v-model="form.externalUrl"
+                    type="text"
+                    placeholder="如：https://pan.baidu.com/s/..."
+                    class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800 text-[var(--text-primary)] outline-none transition-all focus:border-violet-500 focus:bg-white dark:focus:bg-slate-800"
+                  />
+                </div>
+                <div>
+                  <input
+                    v-model="form.extractionCode"
+                    type="text"
+                    placeholder="提取码 (可选)"
+                    class="w-full px-3 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-800 text-[var(--text-primary)] outline-none transition-all focus:border-violet-500 focus:bg-white dark:focus:bg-slate-800"
+                  />
+                </div>
+              </div>
             </div>
 
             <!-- ZIP File Explorer inside Edit Modal (Asset only) -->
@@ -649,26 +797,20 @@ watch(
                 </el-select>
               </label>
 
-              <label class="file-picker flex flex-col text-left">
+              <div class="flex flex-col text-left">
                 <span
                   class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
                   >封面图</span
                 >
-                <div class="relative w-full">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                    @change="handleThumbnailChange"
-                  />
-                  <div
-                    class="glass-input text-xs h-10 rounded-xl text-center font-bold tracking-tight text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-300 flex items-center justify-center gap-1.5 border border-white/10 bg-white/[0.02] hover:bg-white/[0.05] cursor-pointer"
-                  >
-                    <ImageIcon class="h-3.5 w-3.5 text-teal-400" />
-                    {{ form.thumbnail?.name || '重新上传可选预览图' }}
-                  </div>
-                </div>
-              </label>
+                <FileDropZone
+                  v-model="form.thumbnail"
+                  accept="image/*"
+                  height-class="h-16"
+                  :progress="thumbnailProgress"
+                  :label="form.thumbnail ? form.thumbnail.name : '重新上传可选预览图'"
+                  @change="handleThumbnailChange"
+                />
+              </div>
             </div>
 
             <!-- MATERIAL specifications -->
@@ -1014,7 +1156,7 @@ watch(
     <template #footer>
       <div class="flex justify-end gap-2">
         <Button variant="secondary" size="sm" @click="show = false"> 取消 </Button>
-        <Button variant="primary" size="sm" :loading="isSaving" @click="emit('save')">
+        <Button variant="primary" size="sm" :loading="isSaving" @click="() => { isSaved = true; emit('save'); }">
           保存并提交审核
         </Button>
       </div>

@@ -28,9 +28,9 @@ interface ViewModeOption {
   icon: Component;
 }
 
-type LibraryTab = 'explore' | 'favorites' | 'mine';
+type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts';
 
-const props = defineProps<{
+interface Props {
   activeTab: LibraryTab;
   sortKey: AssetSortKey;
   viewMode: AssetViewMode;
@@ -41,12 +41,17 @@ const props = defineProps<{
   libraryTabOptions: TabOption[];
   viewModeOptions: ViewModeOption[];
   activeFilterChips: FilterChip[];
-}>();
+  selectedIds?: string[];
+  isBatchMode?: boolean;
+}
+
+const props = defineProps<Props>();
 
 const emit = defineEmits<{
   (e: 'update:activeTab', value: LibraryTab): void;
   (e: 'update:sortKey', value: AssetSortKey): void;
   (e: 'update:viewMode', value: AssetViewMode): void;
+  (e: 'update:isBatchMode', value: boolean): void;
   (e: 'toggleFilter'): void;
   (e: 'pageChange', value: number): void;
   (e: 'clearFilter', key: string): void;
@@ -55,6 +60,9 @@ const emit = defineEmits<{
   (e: 'like', asset: AssetListItem, event?: Event): void;
   (e: 'download', asset: AssetListItem, event?: Event): void;
   (e: 'upload'): void;
+  (e: 'select', id: string): void;
+  (e: 'selectAll'): void;
+  (e: 'bulkDelete'): void;
 }>();
 
 const label = useLabel();
@@ -86,6 +94,45 @@ const localView = computed({
       </div>
 
       <div class="toolbar-right">
+        <!-- 当处于 'mine' 或 'drafts' 时提供批量管理功能 -->
+        <template v-if="activeTab === 'mine' || activeTab === 'drafts'">
+          <div v-if="isBatchMode" class="flex items-center gap-2">
+            <span class="text-xs text-[var(--text-muted)] font-mono">
+              已选 {{ selectedIds?.length || 0 }} 项
+            </span>
+            <button
+              type="button"
+              class="px-2 py-1 text-xs rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-[var(--text-primary)] transition-colors"
+              @click="emit('selectAll')"
+            >
+              {{ (selectedIds?.length || 0) === visibleAssets.length && visibleAssets.length > 0 ? '取消全选' : '全选本页' }}
+            </button>
+            <button
+              type="button"
+              class="px-2.5 py-1 text-xs rounded-lg bg-rose-500 hover:bg-rose-600 text-white font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              :disabled="!selectedIds?.length"
+              @click="emit('bulkDelete')"
+            >
+              批量删除
+            </button>
+            <button
+              type="button"
+              class="px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+              @click="emit('update:isBatchMode', false)"
+            >
+              退出
+            </button>
+          </div>
+          <button
+            v-else
+            type="button"
+            class="px-2.5 py-1 text-xs rounded-lg border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 font-medium transition-colors"
+            @click="emit('update:isBatchMode', true)"
+          >
+            批量管理
+          </button>
+        </template>
+
         <el-select v-model="localSort" class="!w-32 custom-select" aria-label="排序方式">
           <el-option value="latest" :label="label('最新发布', 'Newest')" />
           <el-option value="popular" :label="label('下载最多', 'Most Downloaded')" />
@@ -106,6 +153,7 @@ const localView = computed({
       :active-filter-chips="activeFilterChips"
       :total-count="pagination.total || visibleAssets.length"
       :pagination="pagination"
+      :selected-ids="selectedIds"
       :empty-title="label('没有匹配的资源', 'No Matching Assets')"
       :empty-body="
         label(
@@ -115,6 +163,7 @@ const localView = computed({
       "
       :empty-action-text="label('上传资源', 'Upload Asset')"
       @click="emit('goToDetail', $event)"
+      @select="emit('select', $event)"
       @like="(item, event) => emit('like', item, event)"
       @download="(item, event) => emit('download', item, event)"
       @create="emit('upload')"

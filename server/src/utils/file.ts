@@ -30,6 +30,29 @@ export function getUploadedFileUrl(
   );
 }
 
+/**
+ * Moves a temporary file from uploads/temp to a target subfolder inside uploads.
+ * If the file is a remote URL or not found locally, returns it unmodified.
+ */
+export function moveTempFileToDestination(req: Request, urlOrPath: string, subfolder: string): string {
+  if (!urlOrPath) return '';
+  
+  const localPath = urlToPath(urlOrPath);
+  if (localPath && fs.existsSync(localPath)) {
+    const filename = path.basename(localPath);
+    const destDir = path.resolve(process.cwd(), 'uploads', subfolder);
+    if (!fs.existsSync(destDir)) {
+      fs.mkdirSync(destDir, { recursive: true });
+    }
+    const destPath = path.join(destDir, filename);
+    fs.renameSync(localPath, destPath);
+    
+    return `${req.protocol}://${req.get('host')}/uploads/${subfolder}/${filename}`;
+  }
+  
+  return urlOrPath;
+}
+
 const uploadsRoot = path.resolve(process.cwd(), 'uploads');
 
 /**
@@ -233,6 +256,13 @@ export const getZipFileDirectory = async (
     }
 
     if (packageUrl.startsWith('http://') || packageUrl.startsWith('https://')) {
+      const lowerUrl = packageUrl.toLowerCase();
+      const isZip = lowerUrl.endsWith('.zip') || lowerUrl.includes('.zip?') ||
+                    lowerUrl.endsWith('.rar') || lowerUrl.includes('.rar?') ||
+                    lowerUrl.endsWith('.7z') || lowerUrl.includes('.7z?');
+      if (!isZip) {
+        return null;
+      }
       logger.info(`[FileUtil] Fetching remote ZIP: ${packageUrl}`);
       const response = await axios.get(packageUrl, { responseType: 'arraybuffer', timeout: 15000 });
       return await unzipper.Open.buffer(response.data);

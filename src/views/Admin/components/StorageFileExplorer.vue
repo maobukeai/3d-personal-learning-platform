@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import {
   Database,
   RefreshCw,
@@ -287,7 +287,8 @@ const copyFileUrl = async (url?: string) => {
   }
 };
 
-const isImage = (key: string) => {
+const isImage = (key?: string) => {
+  if (typeof key !== 'string') return false;
   const ext = key.split('.').pop()?.toLowerCase();
   return ext && ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'ico'].includes(ext);
 };
@@ -443,6 +444,11 @@ const submitRename = async () => {
     renamingFile.value = false;
   }
 };
+onMounted(() => {
+  resetState();
+  fetchBucketFiles();
+  fetchActualSize();
+});
 </script>
 
 <template>
@@ -470,12 +476,10 @@ const submitRename = async () => {
               <strong style="color: var(--text-primary)">{{ storage?.bucketName }}</strong></span
             >
             <span class="text-slate-300 dark:text-white/10">|</span>
-            <span
-              >限制大小:
+            <span>限制大小:
               <strong style="color: var(--text-primary)"
-                >{{ storage?.limitGb.toFixed(2) }} GB</strong
-              ></span
-            >
+                >{{ (storage?.limitGb ?? 0).toFixed(2) }} GB</strong
+              ></span>
             <span class="text-slate-300 dark:text-white/10">|</span>
             <span class="flex items-center gap-1">
               <span>当前容量使用:</span>

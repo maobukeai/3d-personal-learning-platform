@@ -461,6 +461,7 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
             "
             placeholder="gpt-4o-mini"
             @dragstart.stop
+            @input="(e: Event) => update({ modelName: (e.target as HTMLTextAreaElement).value })"
             @blur="handleModelNameBlur"
           ></textarea>
         </div>

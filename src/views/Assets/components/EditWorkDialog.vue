@@ -36,6 +36,23 @@ import {
   ASSET_PBR_MAPS_OPTIONS,
 } from '../assetLibraryModel';
 
+const blenderVersions = [
+  'Blender 5.2',
+  'Blender 5.1',
+  'Blender 5.0',
+  'Blender 4.3',
+  'Blender 4.2',
+  'Blender 4.1',
+  'Blender 4.0',
+  'Blender 3.6',
+  'Blender 3.5',
+  'Blender 3.3',
+  'Blender 3.0',
+  'Blender 2.93',
+  'Blender 4.x / 5.x',
+  'Blender 3.x / 4.x',
+];
+
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
 const label = useLabel();
@@ -803,7 +820,26 @@ watch(
                 </div>
               </div>
               <div class="flex flex-col text-left col-span-1">
-                <Input v-model="pluginCompatibility" type="text" label="兼容版本" />
+                <span
+                  class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
+                  >兼容版本</span
+                >
+                <el-select
+                  v-model="pluginCompatibility"
+                  filterable
+                  allow-create
+                  default-first-option
+                  placeholder="选择或输入兼容版本"
+                  class="w-full custom-dialog-input"
+                  size="large"
+                >
+                  <el-option
+                    v-for="ver in blenderVersions"
+                    :key="ver"
+                    :label="ver"
+                    :value="ver"
+                  />
+                </el-select>
               </div>
             </div>
 

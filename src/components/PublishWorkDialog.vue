@@ -42,6 +42,23 @@ import {
   ASSET_PBR_MAPS_OPTIONS,
 } from '@/views/Assets/assetLibraryModel';
 
+const blenderVersions = [
+  'Blender 5.2',
+  'Blender 5.1',
+  'Blender 5.0',
+  'Blender 4.3',
+  'Blender 4.2',
+  'Blender 4.1',
+  'Blender 4.0',
+  'Blender 3.6',
+  'Blender 3.5',
+  'Blender 3.3',
+  'Blender 3.0',
+  'Blender 2.93',
+  'Blender 4.x / 5.x',
+  'Blender 3.x / 4.x',
+];
+
 const { t } = useI18n();
 
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
@@ -1190,13 +1207,26 @@ onMounted(() => {
 
             <!-- Compatibility & Tags -->
             <div class="grid grid-cols-2 gap-3">
-              <div>
-                <Input
+              <div class="flex flex-col">
+                <span
+                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
+                  >兼容性</span
+                >
+                <el-select
                   v-model="publishForm.pluginCompatibility"
-                  type="text"
-                  label="兼容性"
-                  placeholder="如 Blender 3.x / 4.x"
-                />
+                  filterable
+                  allow-create
+                  default-first-option
+                  placeholder="选择或输入兼容版本"
+                  class="w-full custom-select-v2"
+                >
+                  <el-option
+                    v-for="ver in blenderVersions"
+                    :key="ver"
+                    :label="ver"
+                    :value="ver"
+                  />
+                </el-select>
               </div>
               <div>
                 <Input

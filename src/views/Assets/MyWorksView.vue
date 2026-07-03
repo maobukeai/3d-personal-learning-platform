@@ -1100,6 +1100,7 @@ onMounted(async () => {
       :is-loading="isLoading"
       @refresh="fetchWorks"
       @publish="isPublishWorkDialogOpen = true"
+      @success="fetchWorks"
     />
 
     <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">

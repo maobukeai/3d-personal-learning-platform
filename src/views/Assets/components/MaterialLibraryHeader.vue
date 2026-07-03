@@ -14,6 +14,7 @@ const emit = defineEmits<{
   (e: 'update:searchQuery', value: string): void;
   (e: 'showFavorites'): void;
   (e: 'upload'): void;
+  (e: 'success'): void;
 }>();
 
 const label = useLabel();
@@ -70,5 +71,5 @@ const isSearchOpen = ref(false);
     </div>
   </PageHeader>
 
-  <ResourceSearchDialog v-model="isSearchOpen" />
+  <ResourceSearchDialog v-model="isSearchOpen" @success="emit('success')" />
 </template>

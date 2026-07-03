@@ -30,6 +30,7 @@ interface Props {
 const props = defineProps<Props>();
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
+  (e: 'success'): void;
 }>();
 
 const label = useLabel();
@@ -198,6 +199,7 @@ async function handleImport(item: { title: string; link: string; snippet: string
     });
     loadingMsg.close();
     ElMessage.success(label('导入成功！已存入对应板块的草稿箱中', 'Import success! Saved to drafts.'));
+    emit('success');
   } catch (error) {
     loadingMsg.close();
     ElMessage.error(

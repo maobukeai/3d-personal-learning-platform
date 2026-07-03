@@ -1530,6 +1530,7 @@ onUnmounted(() => {
       v-model:search-query="searchQuery"
       @show-favorites="activeTab = 'favorites'"
       @upload="openCreateDialog"
+      @success="fetchMaterials"
     />
 
     <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">

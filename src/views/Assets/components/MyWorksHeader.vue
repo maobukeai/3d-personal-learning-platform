@@ -18,6 +18,7 @@ defineProps<{
 const emit = defineEmits<{
   refresh: [];
   publish: [];
+  success: [];
 }>();
 
 const isSearchOpen = ref(false);
@@ -84,5 +85,5 @@ const isSearchOpen = ref(false);
     </div>
   </PageHeader>
 
-  <ResourceSearchDialog v-model="isSearchOpen" />
+  <ResourceSearchDialog v-model="isSearchOpen" @success="emit('success')" />
 </template>

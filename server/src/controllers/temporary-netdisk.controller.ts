@@ -15,16 +15,7 @@ import fs from 'fs';
  */
 export const uploadFile = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    let activeConfig = await prisma.storageConfig.findFirst({
-      where: { status: 'ACTIVE', assetType: 'TEMPORARY_NETDISK' },
-      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-    });
-    if (!activeConfig) {
-      activeConfig = await prisma.storageConfig.findFirst({
-        where: { status: 'ACTIVE', assetType: 'ALL' },
-        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-      });
-    }
+    const activeConfig = await getActiveStorage();
     if (!activeConfig) {
       return next(new AppError('未配置或未启用云存储配置（Cloudflare R2），禁止上传文件', 400));
     }
@@ -59,16 +50,7 @@ export const uploadFile = async (req: AuthRequest, res: Response, next: NextFunc
  */
 export const getMyFiles = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    let activeConfig = await prisma.storageConfig.findFirst({
-      where: { status: 'ACTIVE', assetType: 'TEMPORARY_NETDISK' },
-      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-    });
-    if (!activeConfig) {
-      activeConfig = await prisma.storageConfig.findFirst({
-        where: { status: 'ACTIVE', assetType: 'ALL' },
-        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-      });
-    }
+    const activeConfig = await getActiveStorage();
 
     if (!activeConfig) {
       const settings = await settingsService.getAll();
@@ -134,7 +116,7 @@ export const deleteFile = async (req: AuthRequest, res: Response, next: NextFunc
     }
 
     // Safely delete physical file (from R2 or local disk)
-    await deleteCloudOrLocalFileByUrl(file.url);
+    await deleteCloudOrLocalFileByUrl(file.url, file.size);
 
     // Decrement storage quota on the target storage config
     const targetConfigId = file.storageConfigId;
@@ -441,6 +423,9 @@ const getActiveStorage = async () => {
       where: { status: 'ACTIVE', assetType: 'ALL' },
       orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
     });
+  }
+  if (activeConfig) {
+    activeConfig.usedBytes = Math.max(0, activeConfig.usedBytes);
   }
   return activeConfig;
 };

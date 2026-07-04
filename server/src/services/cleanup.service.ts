@@ -315,7 +315,7 @@ export const cleanupTemporaryNetdiskFiles = async () => {
     let deletedCount = 0;
     for (const file of files) {
       try {
-        await deleteCloudOrLocalFileByUrl(file.url);
+        await deleteCloudOrLocalFileByUrl(file.url, file.size);
         deletedCount++;
 
         // Decrement storage quota on target storage config

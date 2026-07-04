@@ -620,7 +620,7 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response, next
 
     await fs.promises.writeFile(filePath, Buffer.from(base64Data, 'base64'));
 
-    let thumbnailUrl = getUploadedFileUrl(req, req.file!, 'assets');
+    let thumbnailUrl = `${req.protocol}://${req.get('host')}/uploads/assets/${fileName}`;
 
     // Upload generated thumbnail to R2 if active storage is set up: prioritize ASSET over ALL fallback
     let activeConfigs = await prisma.storageConfig.findMany({

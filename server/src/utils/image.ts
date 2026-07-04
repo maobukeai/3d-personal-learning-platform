@@ -16,6 +16,7 @@ const FIELD_CONFIGS: Record<string, FieldConfig> = {
   logo: { maxWidth: 512, maxHeight: 512, quality: 85 },
   favicon: { maxWidth: 64, maxHeight: 64, quality: 90 },
   plugin_preview: { maxWidth: 512, maxHeight: 512, quality: 80 },
+  software_preview: { maxWidth: 512, maxHeight: 512, quality: 80 },
   cover: { maxWidth: 1280, maxHeight: 720, quality: 80 },
   thumbnail: { maxWidth: 640, maxHeight: 360, quality: 80 },
   banner: { maxWidth: 1920, maxHeight: 480, quality: 80 },

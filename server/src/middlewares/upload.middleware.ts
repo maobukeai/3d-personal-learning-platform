@@ -63,6 +63,7 @@ const IMAGE_FIELD_NAMES = [
   'preview',
   'plugin_preview',
   'task_image',
+  'software_preview',
 ] as const;
 type ImageFieldName = (typeof IMAGE_FIELD_NAMES)[number];
 
@@ -89,6 +90,8 @@ const FIELD_TO_DIR: Record<string, string> = {
   image: './uploads/ai',
   plugin_file: './uploads/plugins',
   plugin_preview: './uploads/plugins',
+  software_file: './uploads/softwares',
+  software_preview: './uploads/softwares',
   banner: './uploads/banners',
   banner_image: './uploads/banners',
   task_image: './uploads/tasks',
@@ -428,11 +431,14 @@ const createUploadMiddleware = (config: {
                   '.svg',
                 ].includes(ext);
 
-                // Optimize if it is a standard image field OR a general file field carrying an image
+                const isBucketUpload = req.path.includes('storage-configs') || req.baseUrl.includes('storage-configs');
+
+                // Optimize if it is a standard image field OR a general file field carrying an image, AND it's not a raw bucket direct upload
                 const shouldOptimize =
-                  (isImageField(file.fieldname) && isImageExtension) ||
-                  (['message_file', 'attachment', 'file', 'files'].includes(file.fieldname) &&
-                    isImageExtension);
+                  !isBucketUpload &&
+                  ((isImageField(file.fieldname) && isImageExtension) ||
+                  (['message_file', 'attachment', 'file', 'files', 'temp'].includes(file.fieldname) &&
+                    isImageExtension));
 
                 if (shouldOptimize) {
                   // Validate first (before compression to avoid wasting CPU/memory)

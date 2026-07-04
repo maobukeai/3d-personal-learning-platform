@@ -2140,11 +2140,12 @@ export const importExternalResource = async (req: AuthRequest, res: Response, ne
         },
       });
     } else if (type === 'plugin') {
+      const isBlenderExtensionsOrg = url.includes('extensions.blender.org');
       createdItem = await prisma.plugin.create({
         data: {
           title,
           description: descriptionMarkdown,
-          category: aiData?.category || '其他工具',
+          category: isBlenderExtensionsOrg ? '官方库插件' : (aiData?.category || '其他工具'),
           version: aiData?.version || '1.0.0',
           compatibility: aiData?.compatibility || '',
           tags: aiData?.tags || '',

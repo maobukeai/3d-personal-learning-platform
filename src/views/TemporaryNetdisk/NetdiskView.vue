@@ -63,6 +63,10 @@ const usedBytes = ref(0);
 
 // Uploading states
 const uploadProgress = ref(0);
+const uploadLoadedBytes = ref(0);
+const uploadTotalBytes = ref(0);
+const uploadSpeedStr = ref('');
+const uploadStatusText = ref('');
 const isUploading = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 

@@ -434,10 +434,12 @@ export const downloadFile = async (req: AuthRequest, res: Response, next: NextFu
 const getActiveStorage = async () => {
   let activeConfig = await prisma.storageConfig.findFirst({
     where: { status: 'ACTIVE', assetType: 'TEMPORARY_NETDISK' },
+    orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
   });
   if (!activeConfig) {
     activeConfig = await prisma.storageConfig.findFirst({
       where: { status: 'ACTIVE', assetType: 'ALL' },
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
     });
   }
   return activeConfig;

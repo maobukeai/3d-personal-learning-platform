@@ -33,7 +33,7 @@ import StorageSettingsTab from './components/StorageSettingsTab.vue';
 import AdminHeader from './components/AdminHeader.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
-import { AlertTriangle, Download, Upload, RotateCcw, Save } from 'lucide-vue-next';
+import { AlertTriangle, Download, RotateCcw, Save } from 'lucide-vue-next';
 import AdminSettingsTabs from './components/AdminSettingsTabs.vue';
 import AdminSettingsSignalCards from './components/AdminSettingsSignalCards.vue';
 

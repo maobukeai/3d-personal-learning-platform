@@ -5,6 +5,7 @@ import {
   UploadCloud,
   Layers,
   Puzzle,
+  Laptop,
   FileArchive,
   FolderOpen,
   Folder,
@@ -63,7 +64,7 @@ const { t } = useI18n();
 
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
-type PublishCategory = 'asset' | 'material' | 'plugin';
+type PublishCategory = 'asset' | 'material' | 'plugin' | 'software';
 
 interface InitialPublishData {
   title?: string;
@@ -113,20 +114,23 @@ const systemStore = useSystemStore();
 const activeCategoryLabel = computed(() => {
   switch (publishCategory.value) {
     case 'asset':
-      return t('publishDialog.uploadModel') || '上传3D模型';
+      return label('上传3D模型', 'Upload 3D Model');
     case 'material':
-      return t('publishDialog.uploadMaterial') || '上传材质';
+      return label('上传材质', 'Upload Material');
     case 'plugin':
-      return t('publishDialog.uploadPlugin') || '上传插件';
+      return label('上传插件', 'Upload Plugin');
+    case 'software':
+      return label('上传软件', 'Upload Software');
     default:
       return '';
   }
 });
 
 const categoryTabs = computed(() => [
-  { value: 'asset', label: t('publishDialog.uploadModel') || '上传3D模型', icon: UploadCloud },
-  { value: 'material', label: t('publishDialog.uploadMaterial') || '上传材质', icon: Layers },
-  { value: 'plugin', label: t('publishDialog.uploadPlugin') || '上传插件', icon: Puzzle },
+  { value: 'asset', label: label('上传3D模型', 'Upload 3D Model'), icon: UploadCloud },
+  { value: 'material', label: label('上传材质', 'Upload Material'), icon: Layers },
+  { value: 'plugin', label: label('上传插件', 'Upload Plugin'), icon: Puzzle },
+  { value: 'software', label: label('上传软件', 'Upload Software'), icon: Laptop },
 ]);
 
 const publishForm = ref({
@@ -339,7 +343,7 @@ const fetchCategories = async () => {
 
 const initDialog = async () => {
   const cat = props.defaultCategory;
-  if (cat === 'asset' || cat === 'material' || cat === 'plugin') {
+  if (cat === 'asset' || cat === 'material' || cat === 'plugin' || cat === 'software') {
     publishCategory.value = cat;
   } else {
     publishCategory.value = 'asset';
@@ -366,7 +370,7 @@ watch(
   () => props.defaultCategory,
   (category) => {
     if (props.modelValue && category) {
-      if (category === 'asset' || category === 'material' || category === 'plugin') {
+      if (category === 'asset' || category === 'material' || category === 'plugin' || category === 'software') {
         publishCategory.value = category;
       } else {
         publishCategory.value = 'asset';
@@ -492,14 +496,18 @@ const handlePublish = async () => {
       uploadFormData.append('pbrChannels', JSON.stringify(publishForm.value.pbrChannels || []));
       uploadFormData.append('rigged', String(publishForm.value.rigged ?? false));
       uploadFormData.append('gameReady', String(publishForm.value.gameReady ?? false));
+      if (publishForm.value.bilibiliUrl) {
+        uploadFormData.append('bilibiliUrl', publishForm.value.bilibiliUrl);
+      }
 
       await api.post('/api/assets/upload', uploadFormData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-    } else if (publishCategory.value === 'plugin') {
+    } else if (publishCategory.value === 'plugin' || publishCategory.value === 'software') {
+      const isPlugin = publishCategory.value === 'plugin';
       if (publishForm.value.downloadType === 'local') {
         if (!publishForm.value.pluginFile && !tempPluginPath.value) {
-          ElMessage.warning(t('publishDialog.pluginRequired') || '请上传插件文件');
+          ElMessage.warning(isPlugin ? (t('publishDialog.pluginRequired') || '请上传插件文件') : '请上传软件文件');
           isPublishing.value = false;
           return;
         }
@@ -511,16 +519,16 @@ const handlePublish = async () => {
         }
       }
       if (!publishForm.value.title.trim()) {
-        ElMessage.warning('请填写插件名称');
+        ElMessage.warning(isPlugin ? '请填写插件名称' : '请填写软件名称');
         isPublishing.value = false;
         return;
       }
       const pluginFormData = new FormData();
       if (publishForm.value.downloadType === 'local') {
         if (tempPluginPath.value) {
-          pluginFormData.append('tempPluginPath', tempPluginPath.value);
+          pluginFormData.append(isPlugin ? 'tempPluginPath' : 'tempSoftwarePath', tempPluginPath.value);
         } else if (publishForm.value.pluginFile) {
-          pluginFormData.append('plugin_file', publishForm.value.pluginFile);
+          pluginFormData.append(isPlugin ? 'plugin_file' : 'software_file', publishForm.value.pluginFile);
         }
       } else {
         let finalUrl = publishForm.value.externalUrl.trim();
@@ -531,9 +539,9 @@ const handlePublish = async () => {
       }
 
       if (tempPluginPreviewPath.value) {
-        pluginFormData.append('tempPreviewPath', tempPluginPreviewPath.value);
+        pluginFormData.append(isPlugin ? 'tempPreviewPath' : 'tempPreviewPath', tempPluginPreviewPath.value);
       } else if (publishForm.value.pluginPreview) {
-        pluginFormData.append('plugin_preview', publishForm.value.pluginPreview);
+        pluginFormData.append(isPlugin ? 'plugin_preview' : 'software_preview', publishForm.value.pluginPreview);
       }
       pluginFormData.append('title', publishForm.value.title);
       pluginFormData.append('description', publishForm.value.description);
@@ -545,7 +553,8 @@ const handlePublish = async () => {
       if (publishForm.value.bilibiliUrl) {
         pluginFormData.append('bilibiliUrl', publishForm.value.bilibiliUrl);
       }
-      await api.post('/api/plugins/upload', pluginFormData, {
+      const endpoint = isPlugin ? '/api/plugins/upload' : '/api/softwares/upload';
+      await api.post(endpoint, pluginFormData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
     } else if (publishCategory.value === 'material') {
@@ -597,6 +606,9 @@ const handlePublish = async () => {
       materialFormData.append('originality', 'ORIGINAL');
       materialFormData.append('license', 'CC_BY');
       materialFormData.append('isFree', 'true');
+      if (publishForm.value.bilibiliUrl) {
+        materialFormData.append('bilibiliUrl', publishForm.value.bilibiliUrl);
+      }
 
       await api.post('/api/materials/upload', materialFormData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -763,26 +775,15 @@ onMounted(() => {
                     AI 生成封面
                   </button>
                 </div>
-                <div class="relative group h-11">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    @change="handleThumbnailChange"
-                  />
-                  <div
-                    class="w-full h-full border rounded-xl flex items-center justify-center gap-1 transition-all group-hover:border-indigo-500 bg-slate-100 dark:bg-white/5"
-                    style="border-color: var(--border-base)"
-                  >
-                    <p class="text-xs truncate px-2" style="color: var(--text-secondary)">
-                      {{
-                        publishForm.thumbnail
-                          ? publishForm.thumbnail.name
-                          : t('publishDialog.uploadPreview')
-                      }}
-                    </p>
-                  </div>
-                </div>
+                <FileDropZone
+                  v-model="publishForm.thumbnail"
+                  accept="image/*"
+                  height-class="h-16"
+                  hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
+                  :progress="thumbnailUploadProgress"
+                  :label="publishForm.thumbnail ? publishForm.thumbnail.name : '点击上传封面图'"
+                  @change="handleThumbnailChange"
+                />
               </div>
             </div>
 
@@ -792,6 +793,16 @@ onMounted(() => {
                 type="text"
                 :label="t('publishDialog.tagsLabel')"
                 :placeholder="t('publishDialog.tagsCommaPlaceholder')"
+              />
+            </div>
+
+            <!-- B站视频或分享链接 -->
+            <div>
+              <Input
+                v-model="publishForm.bilibiliUrl"
+                type="text"
+                label="B站分享视频或主页链接（可选）"
+                placeholder="如：https://www.bilibili.com/video/BV1xx... 或个人主页"
               />
             </div>
           </div>
@@ -1131,7 +1142,7 @@ onMounted(() => {
     </template>
 
     <!-- Plugin Category: Upload plugin file -->
-    <template v-if="publishCategory === 'plugin'">
+    <template v-if="publishCategory === 'plugin' || publishCategory === 'software'">
       <div class="space-y-4">
         <!-- Top Row: Form Inputs (Left) and Description (Right) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
@@ -1140,7 +1151,7 @@ onMounted(() => {
             <div>
               <label
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
-                >插件文件 *</label
+                >{{ publishCategory === 'plugin' ? '插件文件 *' : '软件文件 *' }}</label
               >
               <DownloadTypeSegment
                 v-model:downloadType="publishForm.downloadType"
@@ -1148,13 +1159,15 @@ onMounted(() => {
                 v-model:externalUrl="publishForm.externalUrl"
                 v-model:extractionCode="publishForm.extractionCode"
                 :progress="pluginUploadProgress"
-                accept=".zip,.rar,.7z,.blend,.js,.ts,.py,.lua,.mjs"
-                supported-label=".zip .blend .js .ts .py 等格式"
+                :accept="publishCategory === 'plugin' ? '.zip,.rar,.7z,.blend,.js,.ts,.py,.lua,.mjs' : '.exe,.msi,.dmg,.pkg,.deb,.rpm,.zip,.rar,.7z'"
+                :supported-label="publishCategory === 'plugin' ? '.zip .blend .js .ts .py 等格式' : '.exe .msi .dmg .zip 等安装包或压缩包'"
+                :drag-label="publishCategory === 'plugin' ? '点击或拖拽上传插件文件' : '点击或拖拽上传软件文件'"
                 @change="handlePluginFileChange"
               />
 
               <!-- ZIP File Explorer / Package Contents Preview (Plugin) -->
               <ZipFileTreeViewer
+                v-if="publishCategory === 'plugin'"
                 :file="publishForm.pluginFile"
                 :is-parsing-zip="isParsingZip"
                 :parsed-file-tree="parsedFileTree"
@@ -1169,8 +1182,8 @@ onMounted(() => {
               <Input
                 v-model="publishForm.title"
                 type="text"
-                label="插件名称"
-                placeholder="如：材质批量导出工具"
+                :label="publishCategory === 'plugin' ? '插件名称' : '软件名称'"
+                :placeholder="publishCategory === 'plugin' ? '如：材质批量导出工具' : '如：Blender 官方正式版'"
                 required
               />
             </div>
@@ -1180,15 +1193,15 @@ onMounted(() => {
               <div class="flex flex-col">
                 <span
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
-                  >插件分类</span
+                  >{{ publishCategory === 'plugin' ? '插件分类' : '软件分类' }}</span
                 >
                 <el-select
                   v-model="publishForm.pluginCategory"
-                  placeholder="请选择插件分类"
+                  :placeholder="publishCategory === 'plugin' ? '请选择插件分类' : '请选择软件分类'"
                   class="w-full custom-select-v2"
                 >
                   <el-option
-                    v-for="cat in systemStore.settings.PLUGIN_CATEGORIES"
+                    v-for="cat in (publishCategory === 'plugin' ? systemStore.settings.PLUGIN_CATEGORIES : ['3D 建模与雕刻软件', '渲染引擎与渲染器', '后期与图像处理', '游戏与交互引擎', '其他工具'])"
                     :key="cat"
                     :label="cat"
                     :value="cat"
@@ -1221,7 +1234,7 @@ onMounted(() => {
                   class="w-full custom-select-v2"
                 >
                   <el-option
-                    v-for="ver in blenderVersions"
+                    v-for="ver in (publishCategory === 'plugin' ? blenderVersions : ['Windows 10/11', 'macOS', 'Linux', 'Android', 'iOS', '跨平台'])"
                     :key="ver"
                     :label="ver"
                     :value="ver"
@@ -1282,11 +1295,11 @@ onMounted(() => {
           <div>
             <label
               class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
-              >插件简介</label
+              >{{ publishCategory === 'plugin' ? '插件简介' : '软件简介' }}</label
             >
             <MarkdownEditor
               v-model="publishForm.description"
-              placeholder="简单描述插件的功能和用途"
+              :placeholder="publishCategory === 'plugin' ? '简单描述插件的功能和用途' : '简单描述软件的功能和用途'"
               :height="isMobile ? '300px' : '400px'"
               simple
             />
@@ -1736,6 +1749,16 @@ onMounted(() => {
                 type="text"
                 label="标签"
                 placeholder="用逗号分隔，如：PBR, 金属, 4K, 游戏资产"
+              />
+            </div>
+
+            <!-- B站视频或分享链接 -->
+            <div>
+              <Input
+                v-model="publishForm.bilibiliUrl"
+                type="text"
+                label="B站分享视频或主页链接（可选）"
+                placeholder="如：https://www.bilibili.com/video/BV1xx... 或个人主页"
               />
             </div>
           </div>

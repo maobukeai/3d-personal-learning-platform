@@ -80,6 +80,10 @@ export const getAdminStats = async (req: AuthRequest, res: Response, next: NextF
       approvedPlugins,
       pendingPlugins,
       rejectedPlugins,
+      softwareCount,
+      approvedSoftwares,
+      pendingSoftwares,
+      rejectedSoftwares,
       courseCount,
       publishedCourses,
       draftCourses,
@@ -125,6 +129,10 @@ export const getAdminStats = async (req: AuthRequest, res: Response, next: NextF
       prisma.plugin.count({ where: { status: 'APPROVED' } }),
       prisma.plugin.count({ where: { status: 'PENDING' } }),
       prisma.plugin.count({ where: { status: 'REJECTED' } }),
+      prisma.software.count(),
+      prisma.software.count({ where: { status: 'APPROVED' } }),
+      prisma.software.count({ where: { status: 'PENDING' } }),
+      prisma.software.count({ where: { status: 'REJECTED' } }),
       prisma.course.count(),
       prisma.course.count({ where: { status: 'PUBLISHED' } }),
       prisma.course.count({ where: { status: 'DRAFT' } }),
@@ -158,6 +166,7 @@ export const getAdminStats = async (req: AuthRequest, res: Response, next: NextF
       pendingMaterialItems,
       pendingShowcaseItems,
       pendingPluginItems,
+      pendingSoftwareItems,
       topCourses,
       latestBroadcasts,
     ] = await Promise.all([
@@ -218,6 +227,12 @@ export const getAdminStats = async (req: AuthRequest, res: Response, next: NextF
         orderBy: { createdAt: 'asc' },
         include: { user: { select: { name: true, email: true } } },
       }),
+      prisma.software.findMany({
+        where: { status: 'PENDING' },
+        take: 5,
+        orderBy: { createdAt: 'asc' },
+        include: { user: { select: { name: true, email: true } } },
+      }),
       prisma.course.findMany({
         take: 5,
         orderBy: [{ enrollments: { _count: 'desc' } }, { updatedAt: 'desc' }],
@@ -229,7 +244,7 @@ export const getAdminStats = async (req: AuthRequest, res: Response, next: NextF
       prisma.broadcast.findMany({ take: 5, orderBy: { createdAt: 'desc' } }),
     ]);
 
-    const reviewQueueTotal = pendingAssets + pendingMaterials + pendingShowcases + pendingPlugins;
+    const reviewQueueTotal = pendingAssets + pendingMaterials + pendingShowcases + pendingPlugins + pendingSoftwares;
 
     const stats = {
       counts: {
@@ -255,6 +270,10 @@ export const getAdminStats = async (req: AuthRequest, res: Response, next: NextF
         approvedPlugins,
         pendingPlugins,
         rejectedPlugins,
+        softwares: softwareCount,
+        approvedSoftwares,
+        pendingSoftwares,
+        rejectedSoftwares,
         courses: courseCount,
         publishedCourses,
         draftCourses,
@@ -296,6 +315,7 @@ export const getAdminStats = async (req: AuthRequest, res: Response, next: NextF
         materials: { total: pendingMaterials, items: pendingMaterialItems },
         showcases: { total: pendingShowcases, items: pendingShowcaseItems },
         plugins: { total: pendingPlugins, items: pendingPluginItems },
+        softwares: { total: pendingSoftwares, items: pendingSoftwareItems },
       },
       recentUsers,
       recentAssets,

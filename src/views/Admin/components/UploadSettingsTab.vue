@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref } from 'vue';
-import { Upload, FileText, Trash2, AlertTriangle, RefreshCw } from 'lucide-vue-next';
+import { Upload, FileText, Trash2, AlertTriangle, RefreshCw, Clock } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
@@ -12,6 +12,7 @@ const props = defineProps<{
   settings: {
     MAX_UPLOAD_SIZE_MB: string;
     ALLOWED_FILE_TYPES: string;
+    TEMPORARY_NETDISK_CLEANUP_TIME: string;
   };
 }>();
 
@@ -129,6 +130,30 @@ const handleCleanupStorage = async () => {
             仅允许上传指定扩展名的文件，留空则不限制
           </p>
         </div>
+
+        <div class="space-y-2">
+          <label
+            class="text-xs font-bold px-1 flex items-center gap-2"
+            style="color: var(--text-secondary)"
+          >
+            <Clock class="w-3.5 h-3.5" />
+            临时网盘每日自动清理时间 (HH:MM)
+          </label>
+          <el-select
+            v-model="localSettings.TEMPORARY_NETDISK_CLEANUP_TIME"
+            class="w-full custom-dialog-input"
+          >
+            <el-option
+              v-for="hour in Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`)"
+              :key="hour"
+              :label="hour"
+              :value="hour"
+            />
+          </el-select>
+          <p class="text-[10px] px-1" style="color: var(--text-muted)">
+            设定系统每日几点自动清空临时网盘内的所有文件与分享记录，仅支持整点自动执行（如：03:00 表示凌晨三点）
+          </p>
+        </div>
       </div>
     </section>
 
@@ -186,3 +211,13 @@ const handleCleanupStorage = async () => {
     </section>
   </div>
 </template>
+
+<style scoped>
+.custom-dialog-input :deep(.el-input__wrapper) {
+  background-color: var(--bg-app) !important;
+  border-color: var(--border-base) !important;
+  box-shadow: none !important;
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+</style>

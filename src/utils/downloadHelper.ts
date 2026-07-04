@@ -1,4 +1,5 @@
 import axios from 'axios';
+import api from '@/utils/api';
 import { logError } from '@/utils/error';
 
 /**
@@ -20,6 +21,11 @@ export async function downloadFileMultiThreaded(
   let totalSize = totalSizeOverride || 0;
   let useMultiThread = false;
 
+  const isSameOrigin =
+    url.startsWith('/') ||
+    (api.defaults.baseURL && url.startsWith(api.defaults.baseURL)) ||
+    url.includes(window.location.host);
+
   try {
     // 1. Perform HEAD request to query content length and range support.
     // Some endpoints may require CORS settings to expose Content-Length and Accept-Ranges.
@@ -27,7 +33,10 @@ export async function downloadFileMultiThreaded(
     let acceptRanges: string | undefined;
 
     try {
-      const headRes = await axios.head(url, { signal });
+      const headRes = await axios.head(url, {
+        signal,
+        ...(isSameOrigin ? { withCredentials: true } : {}),
+      });
       const lenVal = headRes.headers['content-length'];
       contentLength = lenVal ? String(lenVal) : undefined;
       const rangeVal = headRes.headers['accept-ranges'];
@@ -47,6 +56,7 @@ export async function downloadFileMultiThreaded(
           headers: { Range: 'bytes=0-0' },
           responseType: 'arraybuffer',
           signal,
+          ...(isSameOrigin ? { withCredentials: true } : {}),
         });
         if (probeRes.status === 206) {
           useMultiThread = true;
@@ -120,6 +130,7 @@ export async function downloadFileMultiThreaded(
               Range: `bytes=${start}-${end}`,
             },
             signal,
+            ...(isSameOrigin ? { withCredentials: true } : {}),
             onDownloadProgress: (progressEvent) => {
               loadedBytes[i] = progressEvent.loaded || 0;
               updateProgress();
@@ -152,6 +163,7 @@ export async function downloadFileMultiThreaded(
       const response = await axios.get(url, {
         responseType: 'blob',
         signal,
+        ...(isSameOrigin ? { withCredentials: true } : {}),
         onDownloadProgress: (progressEvent) => {
           const loaded = progressEvent.loaded || 0;
           const total = progressEvent.total || totalSize;

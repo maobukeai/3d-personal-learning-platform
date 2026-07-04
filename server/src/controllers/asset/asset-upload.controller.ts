@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import { process3DAsset } from '../../utils/asset-processor';
 import { checkAssetQuota, checkStorageQuota, gbToBytes } from '../../utils/quota';
-import { deleteCloudOrLocalFileByUrl, parseZipLocal, getUploadedFileUrl, urlToPath, moveTempFileToDestination } from '../../utils/file';
+import { deleteCloudOrLocalFileByUrl, parseZipLocal, getUploadedFileUrl, urlToPath, moveTempFileToDestination, getFileSizeInMb } from '../../utils/file';
 import { auditService, AuditAction, AuditModule } from '../../services/audit.service';
 import { redisService } from '../../services/redis.service';
 import { storageService } from '../../services/storage.service';
@@ -82,18 +82,12 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
 
     let fileSizeMB = assetFile ? parseFloat((assetFile.size / (1024 * 1024)).toFixed(2)) : 0;
     if (!assetFile && tempAssetPath) {
-      const localPath = urlToPath(tempAssetPath);
-      if (localPath && fs.existsSync(localPath)) {
-        fileSizeMB = parseFloat((fs.statSync(localPath).size / (1024 * 1024)).toFixed(2));
-      }
+      fileSizeMB = await getFileSizeInMb(tempAssetPath);
     }
 
     let packageSizeMB = packageFile ? parseFloat((packageFile.size / (1024 * 1024)).toFixed(2)) : 0;
     if (!packageFile && tempPackagePath) {
-      const localPath = urlToPath(tempPackagePath);
-      if (localPath && fs.existsSync(localPath)) {
-        packageSizeMB = parseFloat((fs.statSync(localPath).size / (1024 * 1024)).toFixed(2));
-      }
+      packageSizeMB = await getFileSizeInMb(tempPackagePath);
     }
 
     const totalSizeMB = fileSizeMB + packageSizeMB;
@@ -132,6 +126,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
       // 关联关系
       linkedCourseId,
       linkedLessonId,
+      bilibiliUrl,
     } = req.body;
 
     if (!categoryId) {
@@ -206,6 +201,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
         isFree: parseBool(isFree, true),
         formats: parsedFormats ? JSON.stringify(parsedFormats) : null,
         tags: parsedTags.length > 0 ? JSON.stringify(parsedTags) : null,
+        bilibiliUrl: bilibiliUrl || null,
         // 版权
         originality: originality || 'ORIGINAL',
         originalAuthor,
@@ -342,6 +338,7 @@ export const updateAsset = async (req: AuthRequest, res: Response, next: NextFun
     linkedCourseId,
     linkedLessonId,
     externalUrl,
+    bilibiliUrl,
   } = req.body;
 
   try {
@@ -424,6 +421,7 @@ export const updateAsset = async (req: AuthRequest, res: Response, next: NextFun
     if (linkedCourseId !== undefined) updateData.linkedCourseId = linkedCourseId || null;
     if (linkedLessonId !== undefined) updateData.linkedLessonId = linkedLessonId || null;
     if (isFree !== undefined) updateData.isFree = parseBool(isFree, true);
+    if (bilibiliUrl !== undefined) updateData.bilibiliUrl = bilibiliUrl || null;
 
     // Process new file uploads if present
     if (assetFile) {
@@ -438,11 +436,7 @@ export const updateAsset = async (req: AuthRequest, res: Response, next: NextFun
       updateData.type = 'GLB';
       updateData.url = getUploadedFileUrl(req, assetFile, 'assets');
     } else if (tempAssetPath) {
-      let fileSizeMB = 0;
-      const localPath = urlToPath(tempAssetPath);
-      if (localPath && fs.existsSync(localPath)) {
-        fileSizeMB = parseFloat((fs.statSync(localPath).size / (1024 * 1024)).toFixed(2));
-      }
+      const fileSizeMB = await getFileSizeInMb(tempAssetPath);
       updateData.size = fileSizeMB;
       updateData.type = 'GLB';
       updateData.url = tempAssetPath;
@@ -464,15 +458,15 @@ export const updateAsset = async (req: AuthRequest, res: Response, next: NextFun
       updateData.packageFilesList =
         packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null;
     } else if (tempPackagePath) {
-      let packageSizeMB = 0;
+      const packageSizeMB = await getFileSizeInMb(tempPackagePath);
+      updateData.packageSize = packageSizeMB;
+      updateData.packageUrl = tempPackagePath;
+
       let packageFilesList: string[] = [];
       const localPath = urlToPath(tempPackagePath);
       if (localPath && fs.existsSync(localPath)) {
-        packageSizeMB = parseFloat((fs.statSync(localPath).size / (1024 * 1024)).toFixed(2));
         packageFilesList = await parseZipLocal(localPath);
       }
-      updateData.packageSize = packageSizeMB;
-      updateData.packageUrl = tempPackagePath;
       updateData.packageFilesList =
         packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null;
     }
@@ -1300,7 +1294,8 @@ export const deleteAsset = async (req: AuthRequest, res: Response, next: NextFun
     }
 
     // Delete files from disk or cloud (run in background)
-    deleteCloudOrLocalFileByUrl(asset.url).catch((err) => {
+    const fileSizeBytes = asset.packageSize ? Math.round(asset.packageSize * 1024 * 1024) : undefined;
+    deleteCloudOrLocalFileByUrl(asset.url, fileSizeBytes).catch((err) => {
       logger.error(
         `[AssetController] Failed to delete asset file ${asset.url} in background:`,
         err,

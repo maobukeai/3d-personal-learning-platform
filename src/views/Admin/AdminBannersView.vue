@@ -12,10 +12,11 @@ import {
 import api, { getAssetUrl } from '@/utils/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { fetchManagementInsights } from './adminManagementInsights';
-import PageHeader from '@/components/PageHeader.vue';
+
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
+import AdminHeader from './components/AdminHeader.vue';
 import Modal from '@/components/ui/Modal.vue';
 import AiImageGeneratorDialog from '@/components/AiImageGeneratorDialog.vue';
 
@@ -274,20 +275,26 @@ onMounted(() => {
     class="admin-banners-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)] mobile-adaptive"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
-      <!-- Page Header -->
-      <PageHeader
+      <!-- Ultra-Compact Single Row Header -->
+      <AdminHeader
         title="工作台轮播管理"
         subtitle="配置主页首屏的精美广告宣传以及社区挑战活动位"
-        variant="card"
+        :cards="consolidatedCards"
+        :show-search="false"
       >
-        <template #center>
-          <div class="flex flex-wrap items-center gap-1.5 ml-2">
+        <template #title-badge>
+          <div class="flex flex-wrap items-center gap-1.5">
             <Badge variant="info"> 轮播图数: {{ banners.length }} </Badge>
           </div>
         </template>
 
-        <!-- Actions -->
-        <Button variant="primary" size="sm" :icon="Plus" @click="openCreateDialog">
+        <Button
+          variant="primary"
+          size="sm"
+          :icon="Plus"
+          @click="openCreateDialog"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
           新建轮播图
         </Button>
         <Button
@@ -296,56 +303,11 @@ onMounted(() => {
           :icon="RefreshCw"
           :loading="isLoading"
           @click="fetchBanners"
+          class="!h-7.5 !text-xs !px-2.5"
         >
           刷新
         </Button>
-      </PageHeader>
-
-      <!-- KPI Metrics Grid -->
-      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mobile-grid">
-        <Card
-          v-for="card in consolidatedCards"
-          :key="card.label"
-          hoverable
-          glow
-          class="group !p-2 px-2.5"
-        >
-          <div class="flex items-center justify-between w-full gap-3">
-            <!-- Left: Icon & Info -->
-            <div class="flex items-center gap-2.5 min-w-0">
-              <span
-                class="panel-icon border border-base rounded-lg p-1.5 transition-transform group-hover:scale-105 shrink-0"
-                :class="card.color"
-              >
-                <component :is="card.icon" class="h-3.5 w-3.5" />
-              </span>
-              <div class="min-w-0">
-                <p
-                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
-                >
-                  {{ card.label }}
-                </p>
-                <p
-                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
-                  :title="card.hint"
-                >
-                  {{ card.hint }}
-                </p>
-              </div>
-            </div>
-
-            <!-- Right: Metric & Health Badge -->
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="text-base font-black text-[var(--text-primary)] leading-none">
-                {{ card.value }}
-              </span>
-              <Badge :variant="getBadgeVariant(card.health.label)">
-                {{ card.health.label }}
-              </Badge>
-            </div>
-          </div>
-        </Card>
-      </section>
+      </AdminHeader>
 
       <!-- Workspace layout: Single Column Workspace -->
       <div class="mt-3 w-full min-w-0">

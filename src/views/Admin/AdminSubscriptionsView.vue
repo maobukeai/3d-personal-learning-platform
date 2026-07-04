@@ -9,9 +9,9 @@ import SubscriptionPlansTab from './components/SubscriptionPlansTab.vue';
 import UserSubscriptionsTab from './components/UserSubscriptionsTab.vue';
 import ActivationCodesTab from './components/ActivationCodesTab.vue';
 import { fetchManagementInsights } from './adminManagementInsights';
-import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
+import AdminHeader from './components/AdminHeader.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 
@@ -207,17 +207,20 @@ onMounted(() => {
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
       <!-- Page Header -->
-      <PageHeader title="订阅管理" variant="card">
-        <template #center>
-          <!-- Compact Search Box (Centered) -->
-          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
-            <Search />
-            <input v-model="searchQuery" type="search" placeholder="搜索当前列表..." />
-          </label>
-        </template>
-
-        <!-- Actions -->
-        <Button variant="primary" size="sm" :icon="Plus" @click="handleCreateAction">
+      <!-- Ultra-Compact Single Row Header -->
+      <AdminHeader
+        title="订阅管理"
+        :cards="consolidatedCards"
+        v-model="searchQuery"
+        placeholder="搜索当前列表..."
+      >
+        <Button
+          variant="primary"
+          size="sm"
+          :icon="Plus"
+          @click="handleCreateAction"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
           {{
             activeTab === 'plans'
               ? t('admin.new_plan')
@@ -232,56 +235,11 @@ onMounted(() => {
           :icon="RefreshCw"
           :loading="isLoading"
           @click="fetchData"
+          class="!h-7.5 !text-xs !px-2.5"
         >
           刷新
         </Button>
-      </PageHeader>
-
-      <!-- KPI Metrics Grid -->
-      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mobile-grid">
-        <Card
-          v-for="card in consolidatedCards"
-          :key="card.label"
-          hoverable
-          glow
-          class="group !p-2 px-2.5"
-        >
-          <div class="flex items-center justify-between w-full gap-3">
-            <!-- Left: Icon & Info -->
-            <div class="flex items-center gap-2.5 min-w-0">
-              <span
-                class="panel-icon border border-base rounded-lg p-1.5 transition-transform group-hover:scale-105 shrink-0"
-                :class="card.color"
-              >
-                <component :is="card.icon" class="h-3.5 w-3.5" />
-              </span>
-              <div class="min-w-0">
-                <p
-                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
-                >
-                  {{ card.label }}
-                </p>
-                <p
-                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
-                  :title="card.hint"
-                >
-                  {{ card.hint }}
-                </p>
-              </div>
-            </div>
-
-            <!-- Right: Metric & Health Badge -->
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="text-base font-black text-[var(--text-primary)] leading-none">
-                {{ card.value }}
-              </span>
-              <Badge :variant="getBadgeVariant(card.health.label)">
-                {{ card.health.label }}
-              </Badge>
-            </div>
-          </div>
-        </Card>
-      </section>
+      </AdminHeader>
 
       <!-- Tabs Switcher Card in Main Body -->
       <Card padding="sm" class="mt-3">

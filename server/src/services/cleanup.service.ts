@@ -2,6 +2,8 @@ import { logger } from '../utils/logger';
 import prisma from './prisma';
 import fs from 'fs';
 import path from 'path';
+import { deleteCloudOrLocalFileByUrl } from '../utils/file';
+import { settingsService } from './settings.service';
 
 export const cleanupMirrorTempDirectories = async (forceAll = false) => {
   const mirrorDir = path.join(process.cwd(), 'uploads', 'mirror');
@@ -179,6 +181,25 @@ export const cleanupExpiredData = async (forceAll = false) => {
     await cleanupLeftoverUploads(forceAll);
     // Clean up temporary uploads
     await cleanupTempUploads(forceAll);
+
+    // Daily Temporary Netdisk Cleanup
+    try {
+      const settings = await settingsService.getAll();
+      const targetTime = settings.TEMPORARY_NETDISK_CLEANUP_TIME || '03:00';
+      const lastCleanupDate = settings.LAST_NETDISK_CLEANUP_DATE || '';
+
+      const nowLocal = new Date();
+      const currentDateStr = nowLocal.toISOString().slice(0, 10);
+      const currentHour = nowLocal.getHours();
+      const targetHour = parseInt(targetTime.split(':')[0] || '3', 10);
+
+      if (currentHour >= targetHour && lastCleanupDate !== currentDateStr) {
+        await cleanupTemporaryNetdiskFiles();
+        await settingsService.update('LAST_NETDISK_CLEANUP_DATE', currentDateStr);
+      }
+    } catch (settErr) {
+      logger.error('[Cleanup Error] Failed to check temporary netdisk daily cleanup:', settErr);
+    }
     const [
       deletedCodes,
       deletedTokens,
@@ -281,5 +302,46 @@ export const stopMessageCleanupJob = () => {
     clearInterval(messageCleanupInterval);
     messageCleanupInterval = null;
     logger.info('[Cleanup] Background message file cleanup job stopped.');
+  }
+};
+
+export const cleanupTemporaryNetdiskFiles = async () => {
+  logger.info('[Cleanup] Starting daily temporary netdisk files cleanup...');
+  try {
+    const files = await prisma.temporaryFile.findMany({
+      select: { id: true, url: true, storageConfigId: true, size: true },
+    });
+
+    let deletedCount = 0;
+    for (const file of files) {
+      try {
+        await deleteCloudOrLocalFileByUrl(file.url);
+        deletedCount++;
+
+        // Decrement storage quota on target storage config
+        if (file.storageConfigId) {
+          const configToUpdate = await prisma.storageConfig.findUnique({
+            where: { id: file.storageConfigId },
+          });
+          if (configToUpdate) {
+            await prisma.storageConfig.update({
+              where: { id: file.storageConfigId },
+              data: { usedBytes: Math.max(0, configToUpdate.usedBytes - file.size) },
+            });
+          }
+        }
+      } catch (err) {
+        logger.error(`[Cleanup Error] Failed to delete temporary file ${file.id} url ${file.url}:`, err);
+      }
+    }
+
+    // Delete records from database
+    const deleteResult = await prisma.temporaryFile.deleteMany();
+
+    logger.info(
+      `[Cleanup] Daily temporary netdisk cleanup complete: Deleted ${deletedCount} files from storage, and ${deleteResult.count} records from database.`
+    );
+  } catch (error) {
+    logger.error('[Cleanup Error] Failed to cleanup temporary netdisk files:', error);
   }
 };

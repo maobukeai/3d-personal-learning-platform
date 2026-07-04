@@ -33,7 +33,7 @@ import PluginFiltersPanel from './components/PluginFiltersPanel.vue';
 import PluginToolbar from './components/PluginToolbar.vue';
 import PluginCatalog from './components/PluginCatalog.vue';
 
-const PluginDetailModal = defineAsyncComponent(() => import('./components/PluginDetailModal.vue'));
+const UnifiedDetailModal = defineAsyncComponent(() => import('./components/UnifiedDetailModal.vue'));
 const PublishWorkDialog = defineAsyncComponent(() => import('@/components/PublishWorkDialog.vue'));
 const EditWorkDialog = defineAsyncComponent(() => import('./components/EditWorkDialog.vue'));
 import { normalizePluginWork } from './myWorksModel';
@@ -1484,10 +1484,11 @@ watch(
       </div>
     </div>
 
-    <PluginDetailModal
+    <UnifiedDetailModal
       v-if="isDetailDialogOpen"
       :show="isDetailDialogOpen"
-      :plugin="selectedPlugin"
+      :item="selectedPlugin"
+      kind="plugin"
       :is-favorited="selectedPlugin ? isFavorited(selectedPlugin.id) : false"
       :is-downloading="selectedPlugin ? !!downloadingIds[selectedPlugin.id] : false"
       :is-admin="isAdmin"

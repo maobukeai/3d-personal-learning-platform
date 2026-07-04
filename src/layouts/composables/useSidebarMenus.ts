@@ -18,6 +18,7 @@ import {
   GraduationCap,
   Image as ImageIcon,
   Layers,
+  Laptop,
   LayoutDashboard,
   Mail,
   MapPin,
@@ -36,6 +37,7 @@ import {
   KeyRound,
   FolderCog,
   Globe2,
+  HardDrive,
 } from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
 import { useAuthStore } from '@/stores/auth';
@@ -368,6 +370,7 @@ export function useSidebarMenus() {
           { name: t('sidebar.assets'), icon: ImageIcon, path: '/assets' },
           { name: t('sidebar.materials'), icon: Layers, path: '/materials' },
           { name: t('sidebar.plugins'), icon: Cpu, path: '/plugins' },
+          { name: t('sidebar.softwares'), icon: Laptop, path: '/softwares' },
         ],
       },
       {
@@ -390,6 +393,7 @@ export function useSidebarMenus() {
           { name: t('sidebar.emailSystem'), icon: Mail, path: '/tools/email' },
           { name: t('sidebar.googleWarming'), icon: ShieldCheck, path: '/tools/google-warming' },
           { name: t('sidebar.twoFactorAuth'), icon: KeyRound, path: '/tools/two-factor' },
+          { name: t('sidebar.temporaryNetdisk'), icon: HardDrive, path: '/temporary-netdisk' },
         ],
       },
     ];

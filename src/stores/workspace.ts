@@ -35,6 +35,7 @@ export const useWorkspaceStore = defineStore('workspace', {
       pendingMaterials: 0,
       pendingShowcases: 0,
       pendingPlugins: 0,
+      pendingSoftwares: 0,
     },
     selectedAsset: null as Asset | null,
     isDetailDrawerOpen: false,
@@ -55,7 +56,8 @@ export const useWorkspaceStore = defineStore('workspace', {
             state.adminStats.openFeedbacks +
             state.adminStats.pendingMaterials +
             state.adminStats.pendingShowcases +
-            state.adminStats.pendingPlugins;
+            state.adminStats.pendingPlugins +
+            state.adminStats.pendingSoftwares;
           return { ...ws, badgeCount: total };
         }
         return ws;
@@ -179,6 +181,7 @@ export const useWorkspaceStore = defineStore('workspace', {
           pendingMaterials: counts.pendingMaterials || 0,
           pendingShowcases: counts.pendingShowcases || 0,
           pendingPlugins: counts.pendingPlugins || 0,
+          pendingSoftwares: counts.pendingSoftwares || 0,
         };
       } catch {
         // Silently fail if not admin or error
@@ -273,6 +276,7 @@ export const useWorkspaceStore = defineStore('workspace', {
         pendingMaterials: 0,
         pendingShowcases: 0,
         pendingPlugins: 0,
+        pendingSoftwares: 0,
       };
     },
   },

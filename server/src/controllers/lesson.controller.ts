@@ -4,6 +4,8 @@ import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../utils/error';
 
+import { deleteCloudOrLocalFileByUrl } from '../utils/file';
+
 export const getLessonsByCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const courseId = req.params.courseId as string;
   try {
@@ -80,7 +82,12 @@ export const updateLesson = async (req: AuthRequest, res: Response, next: NextFu
     const updateData: Prisma.LessonUpdateInput = {};
     if (title !== undefined) updateData.title = title;
     if (content !== undefined) updateData.content = content;
-    if (videoUrl !== undefined) updateData.videoUrl = videoUrl;
+    if (videoUrl !== undefined) {
+      if (lessonExists.videoUrl && videoUrl !== lessonExists.videoUrl) {
+        deleteCloudOrLocalFileByUrl(lessonExists.videoUrl).catch(() => {});
+      }
+      updateData.videoUrl = videoUrl;
+    }
     if (order !== undefined) {
       updateData.order = typeof order === 'number' ? order : parseInt(order, 10);
     }
@@ -111,6 +118,10 @@ export const deleteLesson = async (req: AuthRequest, res: Response, next: NextFu
     const lessonExists = await prisma.lesson.findUnique({ where: { id } });
     if (!lessonExists) {
       return next(new AppError('Lesson not found', 404));
+    }
+
+    if (lessonExists.videoUrl) {
+      deleteCloudOrLocalFileByUrl(lessonExists.videoUrl).catch(() => {});
     }
 
     await prisma.lesson.delete({ where: { id } });

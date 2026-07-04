@@ -12,7 +12,7 @@ import { AppError } from '../../utils/error';
 import { redisService } from '../../services/redis.service';
 import { getShanghaiStartOfDay, getShanghaiEndOfDay } from '../../utils/date';
 import { TaskStatus } from '../../types/task';
-import { getUploadedFileUrl } from '../../utils/file';
+import { getUploadedFileUrl, deleteCloudOrLocalFileByUrl } from '../../utils/file';
 
 const ACCOUNT_EXPORT_ITEM_LIMIT = 200;
 
@@ -426,10 +426,23 @@ export const uploadAvatar = async (req: AuthRequest, res: Response, next: NextFu
       return next(new AppError('No file uploaded', 400));
     }
 
+    const userId = req.userId as string;
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarUrl: true },
+    });
+
     const avatarUrl = getUploadedFileUrl(req, req.file, 'avatars');
 
+    // Unlink old avatar if it existed
+    if (currentUser?.avatarUrl) {
+      deleteCloudOrLocalFileByUrl(currentUser.avatarUrl).catch((err) => {
+        logger.error('[ProfileController] Failed to delete old avatar file:', err);
+      });
+    }
+
     const updatedUser = await prisma.user.update({
-      where: { id: req.userId as string },
+      where: { id: userId },
       data: { avatarUrl },
       select: {
         id: true,
@@ -445,7 +458,7 @@ export const uploadAvatar = async (req: AuthRequest, res: Response, next: NextFu
       },
     });
 
-    await redisService.invalidateUserCache(req.userId as string);
+    await redisService.invalidateUserCache(userId);
     res.json(updatedUser);
   } catch (error) {
     next(error);
@@ -458,10 +471,23 @@ export const uploadCover = async (req: AuthRequest, res: Response, next: NextFun
       return next(new AppError('No file uploaded', 400));
     }
 
+    const userId = req.userId as string;
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { coverUrl: true },
+    });
+
     const coverUrl = getUploadedFileUrl(req, req.file, 'covers');
 
+    // Unlink old cover if it existed
+    if (currentUser?.coverUrl) {
+      deleteCloudOrLocalFileByUrl(currentUser.coverUrl).catch((err) => {
+        logger.error('[ProfileController] Failed to delete old cover file:', err);
+      });
+    }
+
     const updatedUser = await prisma.user.update({
-      where: { id: req.userId as string },
+      where: { id: userId },
       data: { coverUrl },
       select: {
         id: true,
@@ -477,7 +503,7 @@ export const uploadCover = async (req: AuthRequest, res: Response, next: NextFun
       },
     });
 
-    await redisService.invalidateUserCache(req.userId as string);
+    await redisService.invalidateUserCache(userId);
     res.json(updatedUser);
   } catch (error) {
     next(error);

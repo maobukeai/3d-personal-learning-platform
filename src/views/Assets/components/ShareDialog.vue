@@ -21,7 +21,7 @@ import Switch from '@/components/ui/Switch.vue';
 import { useSystemStore } from '@/stores/system';
 
 const props = defineProps<{
-  type: 'asset' | 'material' | 'plugin';
+  type: 'asset' | 'material' | 'plugin' | 'software';
 }>();
 
 interface Resource {
@@ -119,7 +119,22 @@ const typeLabels = {
     shortcuts: [
       { tpl: '💡 强大的编辑器插件，欢迎安装体验！', label: '💡 强烈推荐' },
       { tpl: '🎨 个人精心开发的插件资产。', label: '🎨 精心制作' },
-      { tpl: '🎯 欢迎大家来预览我们的插件。', label: '🎯 欢迎预览' },
+      { tpl: '🎯 欢迎大家来预览我们的插件. ', label: '🎯 欢迎预览' },
+    ],
+  },
+  software: {
+    name: '软件',
+    urlKey: 'software',
+    apiPath: 'softwares',
+    qrSubtitle: '扫码下载与浏览 软件库',
+    watermarkSub: '软件库',
+    themeClass: 'from-blue-600 to-sky-600 dark:from-blue-400 dark:to-sky-400',
+    logoBg: 'bg-gradient-to-tr from-blue-500 to-sky-500 shadow-sm',
+    badgeClass: 'bg-sky-500/10 text-sky-500',
+    shortcuts: [
+      { tpl: '💡 强大的软件/工具，欢迎下载体验！', label: '💡 强烈推荐' },
+      { tpl: '🎨 个人收集与推荐的实用软件。', label: '🎨 实用工具' },
+      { tpl: '🎯 欢迎大家来下载我们的软件。', label: '🎯 欢迎下载' },
     ],
   },
 };

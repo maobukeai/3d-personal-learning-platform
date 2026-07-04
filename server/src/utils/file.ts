@@ -92,6 +92,7 @@ export function urlToPath(url: string | null | undefined): string | null {
  */
 export async function deleteCloudOrLocalFileByUrl(
   url: string | null | undefined,
+  knownSizeBytes?: number,
 ): Promise<boolean> {
   if (!url) return false;
 
@@ -103,8 +104,8 @@ export async function deleteCloudOrLocalFileByUrl(
       const parsedUrl = new URL(url);
       const urlHost = parsedUrl.host.toLowerCase();
 
-      // Query only configs whose publicUrl host matches the URL host, avoiding a full table scan
-      const configs = await prisma.storageConfig.findMany({
+      // Query configs matching host, fallback to all active configs if direct host match is empty
+      let configs = await prisma.storageConfig.findMany({
         where: {
           status: 'ACTIVE',
           publicUrl: {
@@ -112,6 +113,12 @@ export async function deleteCloudOrLocalFileByUrl(
           },
         },
       });
+
+      if (configs.length === 0) {
+        configs = await prisma.storageConfig.findMany({
+          where: { status: 'ACTIVE' },
+        });
+      }
 
       for (const config of configs) {
         let baseUrl = config.publicUrl.endsWith('/')
@@ -123,24 +130,26 @@ export async function deleteCloudOrLocalFileByUrl(
 
         const baseUrlLower = baseUrl.toLowerCase();
 
-        // If the URL matches this cloud storage public URL prefix
-        if (urlLower.startsWith(baseUrlLower)) {
+        // If the URL matches this cloud storage public URL prefix or key matches
+        if (urlLower.startsWith(baseUrlLower) || configs.length === 1) {
           const pathname = parsedUrl.pathname;
           const key = pathname.startsWith('/') ? pathname.slice(1) : pathname;
 
           if (key) {
             try {
-              // 1. Get object metadata to find size
-              let size = 0;
+              // 1. Get object metadata to find size if not provided
+              let size = knownSizeBytes || 0;
               const decryptedConfig = buildDecryptedStorageConfig(config);
-              try {
-                const meta = await storageService.getObjectMetadata(decryptedConfig, key);
-                size = meta.ContentLength || 0;
-              } catch (metaErr) {
-                logger.warn(
-                  `[FileUtil] Failed to fetch object metadata for key ${key} before deletion:`,
-                  metaErr,
-                );
+              if (!size) {
+                try {
+                  const meta = await storageService.getObjectMetadata(decryptedConfig, key);
+                  size = meta.ContentLength || 0;
+                } catch (metaErr) {
+                  logger.warn(
+                    `[FileUtil] Failed to fetch object metadata for key ${key} before deletion:`,
+                    metaErr,
+                  );
+                }
               }
 
               // 2. Delete file from S3 bucket
@@ -149,12 +158,17 @@ export async function deleteCloudOrLocalFileByUrl(
                 `[FileUtil] Deleted file from R2 bucket ${config.bucketName}: key=${key}`,
               );
 
-              // 3. Decrement usedBytes
+              // 3. Decrement usedBytes safely
               if (size > 0) {
-                await prisma.storageConfig.update({
+                const currentConfig = await prisma.storageConfig.findUnique({
                   where: { id: config.id },
-                  data: { usedBytes: { decrement: size } },
                 });
+                if (currentConfig) {
+                  await prisma.storageConfig.update({
+                    where: { id: config.id },
+                    data: { usedBytes: Math.max(0, currentConfig.usedBytes - size) },
+                  });
+                }
               }
               return true;
             } catch (r2Err) {
@@ -323,3 +337,113 @@ export const getZipFileNames = async (packageUrl: string | null): Promise<string
   }
   return [];
 };
+
+/**
+ * Resolves the file size in MB of a local path or a remote URL (including cloud storage URLs).
+ */
+export async function getFileSizeInMb(urlOrPath: string | null | undefined): Promise<number> {
+  if (!urlOrPath) return 0;
+
+  const urlLower = urlOrPath.toLowerCase().trim();
+  if (urlLower.startsWith('http://') || urlLower.startsWith('https://')) {
+    try {
+      const parsedUrl = new URL(urlOrPath);
+      const urlHost = parsedUrl.host.toLowerCase();
+
+      // Find if we have a matching active cloud storage configuration
+      const configs = await prisma.storageConfig.findMany({
+        where: {
+          status: 'ACTIVE',
+          publicUrl: {
+            contains: urlHost,
+          },
+        },
+      });
+
+      for (const config of configs) {
+        let baseUrl = config.publicUrl.endsWith('/')
+          ? config.publicUrl.slice(0, -1)
+          : config.publicUrl;
+        if (!/^https?:\/\//i.test(baseUrl) && !baseUrl.startsWith('/')) {
+          baseUrl = `https://${baseUrl}`;
+        }
+
+        const baseUrlLower = baseUrl.toLowerCase();
+
+        if (urlLower.startsWith(baseUrlLower)) {
+          const pathname = parsedUrl.pathname;
+          const key = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+
+          if (key) {
+            try {
+              const decryptedConfig = buildDecryptedStorageConfig(config);
+              const meta = await storageService.getObjectMetadata(decryptedConfig, key);
+              const sizeBytes = meta.ContentLength || 0;
+              if (sizeBytes > 0) {
+                return parseFloat((sizeBytes / (1024 * 1024)).toFixed(2));
+              }
+            } catch (r2Err) {
+              logger.warn(`[FileUtil] Failed to fetch object metadata from R2 config ${config.name} for key ${key}:`, r2Err);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      logger.error('[FileUtil] Error checking cloud storage for size:', err);
+    }
+
+    // Fallback: Perform a HEAD request using Axios to fetch Content-Length header
+    try {
+      const response = await axios.head(urlOrPath, { timeout: 5000 });
+      const contentLength = response.headers['content-length'];
+      if (contentLength) {
+        const sizeBytes = parseInt(String(contentLength), 10);
+        if (!isNaN(sizeBytes) && sizeBytes > 0) {
+          return parseFloat((sizeBytes / (1024 * 1024)).toFixed(2));
+        }
+      }
+    } catch (axiosErr) {
+      logger.warn(`[FileUtil] Axios HEAD request failed for ${urlOrPath}:`, axiosErr);
+      // Try GET request with a range header to avoid downloading the whole file if HEAD is not supported
+      try {
+        const response = await axios.get(urlOrPath, {
+          headers: { Range: 'bytes=0-0' },
+          timeout: 5000,
+        });
+        const contentRange = response.headers['content-range'];
+        if (contentRange) {
+          const match = String(contentRange).match(/\/(\d+)$/);
+          if (match) {
+            const sizeBytes = parseInt(match[1] || '0', 10);
+            if (!isNaN(sizeBytes) && sizeBytes > 0) {
+              return parseFloat((sizeBytes / (1024 * 1024)).toFixed(2));
+            }
+          }
+        }
+        const contentLength = response.headers['content-length'];
+        if (contentLength) {
+          const sizeBytes = parseInt(String(contentLength), 10);
+          if (!isNaN(sizeBytes) && sizeBytes > 0) {
+            return parseFloat((sizeBytes / (1024 * 1024)).toFixed(2));
+          }
+        }
+      } catch (getErr) {
+        logger.warn(`[FileUtil] Axios GET range request failed for ${urlOrPath}:`, getErr);
+      }
+    }
+  }
+
+  // 2. If it's a local file path or resolved from URL
+  const localPath = urlToPath(urlOrPath) || urlOrPath;
+  try {
+    if (fs.existsSync(localPath)) {
+      const sizeBytes = fs.statSync(localPath).size;
+      return parseFloat((sizeBytes / (1024 * 1024)).toFixed(2));
+    }
+  } catch (err) {
+    logger.error(`[FileUtil] Error getting local file size for ${localPath}:`, err);
+  }
+
+  return 0;
+}
+

@@ -182,6 +182,12 @@ export const deleteFeedback = async (req: AuthRequest, res: Response, next: Next
       return next(new AppError('反馈不存在', 404));
     }
 
+    if (feedback.attachmentUrl) {
+      deleteCloudOrLocalFileByUrl(feedback.attachmentUrl).catch((err) => {
+        logger.error('[ContentController] Failed to delete feedback attachment file:', err);
+      });
+    }
+
     await prisma.feedback.delete({ where: { id } });
     res.json({ message: 'Feedback deleted successfully' });
   } catch (error) {
@@ -201,11 +207,19 @@ export const batchDeleteFeedback = async (req: AuthRequest, res: Response, next:
   try {
     const feedbacks = await prisma.feedback.findMany({
       where: { id: { in: uniqueIds } },
-      select: { id: true, title: true, userId: true, status: true },
+      select: { id: true, title: true, userId: true, status: true, attachmentUrl: true },
     });
 
     if (feedbacks.length === 0) {
       return next(new AppError('Feedback not found', 404));
+    }
+
+    for (const item of feedbacks) {
+      if (item.attachmentUrl) {
+        deleteCloudOrLocalFileByUrl(item.attachmentUrl).catch((err) => {
+          logger.error('[ContentController] Failed to delete feedback attachment file:', err);
+        });
+      }
     }
 
     const result = await prisma.feedback.deleteMany({

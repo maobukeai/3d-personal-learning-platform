@@ -70,6 +70,7 @@ export interface NormalizedMaterial {
   license?: string;
   isProcedural?: boolean;
   tags: string[];
+  bilibiliUrl?: string | null;
 }
 
 const props = withDefaults(
@@ -345,6 +346,22 @@ watch(
   },
   { immediate: true },
 );
+
+const activePreviewTab = ref<'image' | 'video'>('image');
+watch(
+  () => props.material?.id,
+  () => {
+    activePreviewTab.value = 'image';
+  }
+);
+const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
+  if (!url) return undefined;
+  const match = url.match(/video\/(BV[a-zA-Z0-9]+)/i) || url.match(/bvid=(BV[a-zA-Z0-9]+)/i);
+  if (match && match[1]) {
+    return `//player.bilibili.com/player.html?bvid=${match[1]}&page=1&high_quality=1&as_wide=1&autoplay=0&danmaku=0`;
+  }
+  return undefined;
+};
 </script>
 
 <template>
@@ -434,18 +451,52 @@ watch(
           class="xl:col-span-7 flex flex-col gap-6 text-left"
           :class="inline ? '' : 'overflow-y-auto max-h-[75vh] pr-1.5 custom-scrollbar'"
         >
+          <!-- Preview Mode Selector -->
+          <div
+            v-if="material.bilibiliUrl"
+            class="flex items-center gap-1 p-0.5 bg-black/20 dark:bg-white/5 backdrop-blur-md rounded-lg border border-white/10 self-start"
+          >
+            <button
+              type="button"
+              class="px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer border-none"
+              :class="activePreviewTab === 'image' ? 'bg-teal-500 text-white shadow-sm' : 'bg-transparent text-slate-400 hover:text-white'"
+              @click="activePreviewTab = 'image'"
+            >
+              图片预览
+            </button>
+            <button
+              type="button"
+              class="px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer border-none"
+              :class="activePreviewTab === 'video' ? 'bg-teal-500 text-white shadow-sm' : 'bg-transparent text-slate-400 hover:text-white'"
+              @click="activePreviewTab = 'video'"
+            >
+              视频演示
+            </button>
+          </div>
+
           <!-- Prominent Square Preview Container -->
           <div
             class="relative w-full aspect-square sm:max-h-[480px] rounded-2xl overflow-hidden border border-white/10 bg-slate-950/40 flex items-center justify-center group shrink-0"
           >
+            <iframe
+              v-if="activePreviewTab === 'video' && getBilibiliEmbedUrl(material.bilibiliUrl)"
+              :src="getBilibiliEmbedUrl(material.bilibiliUrl)"
+              scrolling="no"
+              border="0"
+              frameborder="no"
+              framespacing="0"
+              allowfullscreen="true"
+              class="w-full h-full absolute inset-0 z-20"
+            ></iframe>
+
             <img
-              v-if="selectedPreviewUrl || material.preview"
+              v-if="activePreviewTab === 'image' && (selectedPreviewUrl || material.preview)"
               :src="selectedPreviewUrl || material.preview"
               class="w-full h-full object-cover filter blur-md opacity-25 absolute inset-0 scale-105"
               alt="Background blur"
             />
             <img
-              v-if="selectedPreviewUrl || material.preview"
+              v-if="activePreviewTab === 'image' && (selectedPreviewUrl || material.preview)"
               :src="selectedPreviewUrl || material.preview"
               class="w-full h-full object-contain relative z-10"
               alt="Material Preview"

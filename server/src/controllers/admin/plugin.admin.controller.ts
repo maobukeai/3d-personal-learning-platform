@@ -3,8 +3,6 @@ import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../utils/error';
 import prisma from '../../services/prisma';
 import { logger } from '../../utils/logger';
-import path from 'path';
-import fs from 'fs';
 import { auditService } from '../../services/audit.service';
 
 // ── List all plugins (admin) ───────────────────────────────────────────────────
@@ -170,6 +168,8 @@ export const adminBatchUpdatePlugins = async (
   }
 };
 
+import { deleteCloudOrLocalFileByUrl } from '../../utils/file';
+
 // ── Delete plugin (admin) ─────────────────────────────────────────────────────
 export const adminDeletePlugin = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -177,16 +177,16 @@ export const adminDeletePlugin = async (req: AuthRequest, res: Response, next: N
     const existing = await prisma.plugin.findUnique({ where: { id } });
     if (!existing) return next(new AppError('插件不存在', 404));
 
-    for (const urlField of [existing.fileUrl, existing.previewUrl]) {
-      if (!urlField) continue;
-      const filePath = path.join(process.cwd(), urlField.replace(/^\//, ''));
-      if (fs.existsSync(filePath)) {
-        try {
-          fs.unlinkSync(filePath);
-        } catch (error) {
-          logger.warn(`[AdminPlugin] Failed to remove plugin file ${filePath}`, error);
-        }
-      }
+    const fileSizeBytes = existing.fileSize ? Math.round(existing.fileSize * 1024 * 1024) : undefined;
+    if (existing.fileUrl) {
+      deleteCloudOrLocalFileByUrl(existing.fileUrl, fileSizeBytes).catch((error) => {
+        logger.warn(`[AdminPlugin] Failed to remove plugin file ${existing.fileUrl}`, error);
+      });
+    }
+    if (existing.previewUrl) {
+      deleteCloudOrLocalFileByUrl(existing.previewUrl).catch((error) => {
+        logger.warn(`[AdminPlugin] Failed to remove plugin preview ${existing.previewUrl}`, error);
+      });
     }
 
     await prisma.plugin.delete({ where: { id } });

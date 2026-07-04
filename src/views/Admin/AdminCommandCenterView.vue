@@ -25,7 +25,7 @@ import {
 } from './adminManagementInsights';
 
 // UI components
-import PageHeader from '@/components/PageHeader.vue';
+import AdminHeader from './components/AdminHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -135,13 +135,13 @@ void Gauge;
   <div class="admin-command-center mobile-adaptive flex flex-1 min-h-0 flex-col overflow-hidden">
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
       <div class="space-y-3">
-        <!-- Reusable PageHeader component -->
-        <PageHeader
+        <!-- Ultra-Compact Single Row Header -->
+        <AdminHeader
           title="管理指挥中心"
           subtitle="统一调度 SLA、风险队列、系统信号和运营动作"
-          variant="card"
+          :show-search="false"
         >
-          <template #center>
+          <template #title-badge>
             <Badge
               v-if="overview"
               :variant="
@@ -157,12 +157,12 @@ void Gauge;
             </Badge>
           </template>
 
-          <!-- Standard header buttons -->
           <Button
             variant="secondary"
             size="sm"
             :icon="BarChart3"
             @click="router.push('/admin/audit-logs')"
+            class="!h-7.5 !text-xs !px-2.5"
           >
             审计日志
           </Button>
@@ -171,6 +171,7 @@ void Gauge;
             size="sm"
             :icon="Settings2"
             @click="router.push('/admin/settings')"
+            class="!h-7.5 !text-xs !px-2.5"
           >
             系统设置
           </Button>
@@ -180,10 +181,11 @@ void Gauge;
             :icon="RefreshCw"
             :loading="isLoadingManagementInsights"
             @click="fetchManagementInsights(true)"
+            class="!h-7.5 !text-xs !px-2.5"
           >
             刷新
           </Button>
-        </PageHeader>
+        </AdminHeader>
         <!-- Overview Grid (5-Column Flat Layout) -->
         <section
           class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mobile-grid"

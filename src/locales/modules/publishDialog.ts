@@ -51,6 +51,7 @@ export const publishDialogZh = {
   uploadModel: '上传3D模型',
   uploadMaterial: '上传材质',
   uploadPlugin: '上传插件',
+  uploadSoftware: '上传软件',
   pluginRequired: '请上传插件文件',
   materialRequired: '请上传材质包文件',
 };
@@ -110,6 +111,7 @@ export const publishDialogEn = {
   uploadModel: 'Upload 3D Model',
   uploadMaterial: 'Upload Material',
   uploadPlugin: 'Upload Plugin',
+  uploadSoftware: 'Upload Software',
   pluginRequired: 'Please upload plugin file',
   materialRequired: 'Please upload material package file',
 };

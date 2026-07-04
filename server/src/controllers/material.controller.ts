@@ -14,6 +14,7 @@ import {
   getUploadedFileUrl,
   urlToPath,
   moveTempFileToDestination,
+  getFileSizeInMb,
 } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../utils/error';
@@ -375,6 +376,7 @@ export const uploadMaterial = async (req: AuthRequest, res: Response, next: Next
       isFree,
       linkedCourseId,
       linkedLessonId,
+      bilibiliUrl,
     } = req.body;
 
     let tempMaterialPath = req.body.tempMaterialPath;
@@ -393,10 +395,7 @@ export const uploadMaterial = async (req: AuthRequest, res: Response, next: Next
 
     let fileSizeMB = materialFile ? materialFile.size / (1024 * 1024) : 0;
     if (!materialFile && tempMaterialPath) {
-      const localPath = urlToPath(tempMaterialPath);
-      if (localPath && fs.existsSync(localPath)) {
-        fileSizeMB = fs.statSync(localPath).size / (1024 * 1024);
-      }
+      fileSizeMB = await getFileSizeInMb(tempMaterialPath);
     }
 
     // Check quota
@@ -467,6 +466,7 @@ export const uploadMaterial = async (req: AuthRequest, res: Response, next: Next
         isFree: parseBool(isFree, true),
         linkedCourseId: linkedCourseId || null,
         linkedLessonId: linkedLessonId || null,
+        bilibiliUrl: bilibiliUrl || null,
       },
     });
 
@@ -567,6 +567,7 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
       isFree,
       linkedCourseId,
       linkedLessonId,
+      bilibiliUrl,
     } = req.body;
     const updateData: Prisma.MaterialUncheckedUpdateInput = {};
     if (title !== undefined) updateData.title = title;
@@ -586,6 +587,7 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
     }
     if (linkedCourseId !== undefined) updateData.linkedCourseId = linkedCourseId || null;
     if (linkedLessonId !== undefined) updateData.linkedLessonId = linkedLessonId || null;
+    if (bilibiliUrl !== undefined) updateData.bilibiliUrl = bilibiliUrl || null;
     if (existing.userId === req.userId && req.user?.role !== 'ADMIN') {
       updateData.status = 'PENDING';
       updateData.rejectReason = null;
@@ -612,7 +614,7 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
       }
 
       // Delete old file
-      if (existing.fileUrl && !existing.fileUrl.startsWith('http')) {
+      if (existing.fileUrl) {
         deleteCloudOrLocalFileByUrl(existing.fileUrl).catch(() => {});
       }
 
@@ -635,11 +637,7 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
         } catch (_e) {}
       }
     } else if (tempMaterialPath) {
-      let fileSizeMB = 0;
-      const localPath = urlToPath(tempMaterialPath);
-      if (localPath && fs.existsSync(localPath)) {
-        fileSizeMB = fs.statSync(localPath).size / (1024 * 1024);
-      }
+      const fileSizeMB = await getFileSizeInMb(tempMaterialPath);
 
       const storageQuota = await checkStorageQuota(
         req.userId as string,
@@ -651,12 +649,14 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
       }
 
       // Delete old file
-      if (existing.fileUrl && !existing.fileUrl.startsWith('http')) {
+      if (existing.fileUrl) {
         deleteCloudOrLocalFileByUrl(existing.fileUrl).catch(() => {});
       }
 
       updateData.fileUrl = tempMaterialPath;
       updateData.fileSize = Math.round(fileSizeMB * 100) / 100;
+
+      const localPath = urlToPath(tempMaterialPath);
 
       let packageFilesList: string[] = [];
       if (localPath && fs.existsSync(localPath)) {
@@ -668,7 +668,7 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
       updateData.packageFilesList =
         packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null;
     } else if (externalUrl !== undefined) {
-      if (externalUrl && existing.fileUrl && !existing.fileUrl.startsWith('http')) {
+      if (externalUrl && existing.fileUrl) {
         deleteCloudOrLocalFileByUrl(existing.fileUrl).catch(() => {});
         updateData.fileSize = 0;
         updateData.packageFilesList = null;
@@ -679,7 +679,7 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
     }
 
     if (previewFile) {
-      if (existing.previewUrl && !existing.previewUrl.startsWith('http')) {
+      if (existing.previewUrl) {
         deleteCloudOrLocalFileByUrl(existing.previewUrl).catch(() => {});
       }
       const previewUrl = getUploadedFileUrl(req, previewFile, 'materials');
@@ -692,7 +692,7 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
         } catch (_e) {}
       }
     } else if (tempPreviewPath) {
-      if (existing.previewUrl && !existing.previewUrl.startsWith('http')) {
+      if (existing.previewUrl) {
         deleteCloudOrLocalFileByUrl(existing.previewUrl).catch(() => {});
       }
       updateData.previewUrl = tempPreviewPath;
@@ -749,7 +749,8 @@ export const deleteMaterial = async (req: AuthRequest, res: Response, next: Next
       }
     }
 
-    deleteCloudOrLocalFileByUrl(material.fileUrl).catch((err) => {
+    const fileSizeBytes = material.fileSize ? Math.round(material.fileSize * 1024 * 1024) : undefined;
+    deleteCloudOrLocalFileByUrl(material.fileUrl, fileSizeBytes).catch((err) => {
       logger.error(
         `[MaterialController] Failed to delete material file ${material.fileUrl} in background:`,
         err,

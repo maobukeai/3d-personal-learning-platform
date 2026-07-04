@@ -9,7 +9,7 @@ import FilterStatusStrip from './FilterStatusStrip.vue';
 
 const props = defineProps<{
   items: any[];
-  kind: 'asset' | 'material' | 'plugin' | 'work';
+  kind: 'asset' | 'material' | 'plugin' | 'software' | 'work';
   isLoading: boolean;
   viewMode: 'grid' | 'list';
   activeTab: string;
@@ -55,6 +55,7 @@ const getUnitLabel = () => {
   if (props.kind === 'asset') return label('个资源', 'assets');
   if (props.kind === 'material') return label('个材料', 'materials');
   if (props.kind === 'plugin') return label('个插件', 'plugins');
+  if (props.kind === 'software') return label('个软件', 'softwares');
   return label('个作品', 'works');
 };
 
@@ -63,6 +64,7 @@ const getEmptyChipsLabel = () => {
   if (props.kind === 'material')
     return label('当前显示全部公开材料', 'Showing all public materials');
   if (props.kind === 'plugin') return label('当前显示全部公开插件', 'Showing all public plugins');
+  if (props.kind === 'software') return label('当前显示全部公开软件', 'Showing all public softwares');
   return label('当前显示全部作品', 'Showing all works');
 };
 </script>

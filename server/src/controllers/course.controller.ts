@@ -7,6 +7,7 @@ import { parseBilibiliUrl } from '../utils/bilibili';
 import { AppError } from '../utils/error';
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
 import redisService from '../services/redis.service';
+import { deleteCloudOrLocalFileByUrl } from '../utils/file';
 
 export const getAllCourses = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { categoryId, search, difficulty, sort } = req.query;
@@ -279,8 +280,23 @@ export const updateCourse = async (req: AuthRequest, res: Response, next: NextFu
 export const deleteCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
-    const course = await prisma.course.findUnique({ where: { id } });
+    const course = await prisma.course.findUnique({
+      where: { id },
+      include: { lessons: true },
+    });
     if (!course) return next(new AppError('Course not found', 404));
+
+    if (course.thumbnail) {
+      deleteCloudOrLocalFileByUrl(course.thumbnail).catch(() => {});
+    }
+
+    if (course.lessons && course.lessons.length > 0) {
+      for (const lesson of course.lessons) {
+        if (lesson.videoUrl) {
+          deleteCloudOrLocalFileByUrl(lesson.videoUrl).catch(() => {});
+        }
+      }
+    }
 
     await prisma.course.delete({ where: { id } });
 

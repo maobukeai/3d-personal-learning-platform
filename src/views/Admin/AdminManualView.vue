@@ -22,9 +22,9 @@ import {
 import api, { getAssetUrl } from '@/utils/api';
 import { logError } from '@/utils/error';
 import { fetchManagementInsights } from './adminManagementInsights';
-import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
+import AdminHeader from './components/AdminHeader.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import ManualStationDialog from './components/ManualStationDialog.vue';
@@ -294,28 +294,26 @@ onMounted(async () => {
     class="admin-manual-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)] mobile-adaptive"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
-      <!-- Page Header -->
-      <PageHeader title="手动资源站管理" variant="card">
+      <!-- Ultra-Compact Single Row Header -->
+      <AdminHeader
+        title="手动资源站管理"
+        :cards="consolidatedCards"
+        v-model="stationSearchQuery"
+        :placeholder="$t('admin.search_sites_by_name')"
+      >
         <template #title-badge>
-          <div class="flex flex-wrap items-center gap-1.5 ml-2">
+          <div class="flex flex-wrap items-center gap-1.5">
             <Badge variant="info"> 站点数: {{ stations.length }} </Badge>
           </div>
         </template>
 
-        <template #center>
-          <!-- Compact Search Box (Centered) -->
-          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
-            <Search />
-            <input
-              v-model="stationSearchQuery"
-              type="text"
-              :placeholder="$t('admin.search_sites_by_name')"
-            />
-          </label>
-        </template>
-
-        <!-- Actions -->
-        <Button variant="primary" size="sm" :icon="Plus" @click="openCreate">
+        <Button
+          variant="primary"
+          size="sm"
+          :icon="Plus"
+          @click="openCreate"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
           {{ $t('admin.create_a_manual_resource') }}
         </Button>
         <Button
@@ -324,56 +322,11 @@ onMounted(async () => {
           :icon="RefreshCw"
           :loading="isLoading"
           @click="fetchStations"
+          class="!h-7.5 !text-xs !px-2.5"
         >
           {{ $t('admin.refresh') }}
         </Button>
-      </PageHeader>
-
-      <!-- KPI Metrics Grid -->
-      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mobile-grid">
-        <Card
-          v-for="card in consolidatedCards"
-          :key="card.label"
-          hoverable
-          glow
-          class="group !p-2 px-2.5"
-        >
-          <div class="flex items-center justify-between w-full gap-3">
-            <!-- Left: Icon & Info -->
-            <div class="flex items-center gap-2.5 min-w-0">
-              <span
-                class="panel-icon border border-base rounded-lg p-1.5 transition-transform group-hover:scale-105 shrink-0"
-                :class="card.color"
-              >
-                <component :is="card.icon" class="h-3.5 w-3.5" />
-              </span>
-              <div class="min-w-0">
-                <p
-                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
-                >
-                  {{ card.label }}
-                </p>
-                <p
-                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
-                  :title="card.hint"
-                >
-                  {{ card.hint }}
-                </p>
-              </div>
-            </div>
-
-            <!-- Right: Metric & Health Badge -->
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="text-base font-black text-[var(--text-primary)] leading-none">
-                {{ card.value }}
-              </span>
-              <Badge :variant="getBadgeVariant(card.health.label)">
-                {{ card.health.label }}
-              </Badge>
-            </div>
-          </div>
-        </Card>
-      </section>
+      </AdminHeader>
 
       <!-- Workspace layout: Single Column Workspace -->
       <div class="mt-3 w-full min-w-0">

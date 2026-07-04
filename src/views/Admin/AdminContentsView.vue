@@ -26,10 +26,9 @@ import { getApiErrorMessage, logError } from '@/utils/error';
 import Modal from '@/components/ui/Modal.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import Card from '@/components/ui/Card.vue';
-import PageHeader from '@/components/PageHeader.vue';
 import UiButton from '@/components/ui/Button.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
-import AdminStatCards from './components/AdminStatCards.vue';
+import AdminHeader from './components/AdminHeader.vue';
 import AdminContentStatusBadge from './components/AdminContentStatusBadge.vue';
 import ContentDetailModal from './components/ContentDetailModal.vue';
 
@@ -780,40 +779,34 @@ onMounted(() => {
     class="admin-contents-page mobile-adaptive flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
-      <!-- Reusable PageHeader -->
-      <PageHeader :title="pageConfig.title" subtitle="平台管理 · 资源清单" variant="card">
-        <template #center>
-          <!-- Compact Search Box (Centered) -->
-          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
-            <Search />
-            <input
-              v-model="searchQuery"
-              type="search"
-              placeholder="搜索关键字或创作者..."
-              @keyup.enter="handleSearch"
-            />
-          </label>
-        </template>
-
-        <div class="flex items-center gap-2 mobile-row">
-          <UiButton
-            variant="secondary"
-            size="sm"
-            :icon="RefreshCw"
-            :loading="isLoading"
-            @click="fetchItems(false)"
-          >
-            刷新
-          </UiButton>
-          <UiButton variant="primary" size="sm" :icon="Plus" @click="openCreate">
-            发布{{ pageConfig.label }}
-          </UiButton>
-        </div>
-      </PageHeader>
-
-      <!-- KPI Metrics Grid -->
-      <AdminStatCards :cards="consolidatedCards" />
-
+      <!-- Ultra-Compact Single Row Header -->
+      <AdminHeader
+        :title="pageConfig.title"
+        subtitle="平台管理 · 资源清单"
+        :cards="consolidatedCards"
+        v-model="searchQuery"
+        placeholder="搜索关键字或创作者..."
+      >
+        <UiButton
+          variant="secondary"
+          size="sm"
+          :icon="RefreshCw"
+          :loading="isLoading"
+          @click="fetchItems(false)"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
+          刷新
+        </UiButton>
+        <UiButton
+          variant="primary"
+          size="sm"
+          :icon="Plus"
+          @click="openCreate"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
+          发布{{ pageConfig.label }}
+        </UiButton>
+      </AdminHeader>
       <!-- Filters & Search Toolbar -->
       <Card padding="sm">
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

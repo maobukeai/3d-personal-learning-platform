@@ -14,6 +14,7 @@ import {
   ListChecks,
   MoreHorizontal,
   Puzzle,
+  Laptop,
   RefreshCw,
   Search,
   Sparkles,
@@ -31,11 +32,11 @@ import Tabs from '@/components/ui/Tabs.vue';
 import UiButton from '@/components/ui/Button.vue';
 import UiInput from '@/components/ui/Input.vue';
 import Card from '@/components/ui/Card.vue';
-import PageHeader from '@/components/PageHeader.vue';
-import AdminStatCards from './components/AdminStatCards.vue';
 import AdminContentStatusBadge from './components/AdminContentStatusBadge.vue';
+import Badge from '@/components/ui/Badge.vue';
+import AdminHeader from './components/AdminHeader.vue';
 
-type AuditTab = 'assets' | 'materials' | 'showcases' | 'plugins';
+type AuditTab = 'assets' | 'materials' | 'showcases' | 'plugins' | 'softwares';
 type AuditStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 type StatusFilter = AuditStatus | 'ALL';
 
@@ -104,7 +105,13 @@ const router = useRouter();
 const workspaceStore = useWorkspaceStore();
 
 const getValidTab = (value: unknown): AuditTab => {
-  if (value === 'assets' || value === 'materials' || value === 'showcases' || value === 'plugins') {
+  if (
+    value === 'assets' ||
+    value === 'materials' ||
+    value === 'showcases' ||
+    value === 'plugins' ||
+    value === 'softwares'
+  ) {
     return value;
   }
   return 'assets';
@@ -172,6 +179,20 @@ const pageConfigs: Record<AuditTab, PageConfig> = {
       '功能描述与实际资源不一致',
     ],
   },
+  softwares: {
+    label: '软件',
+    title: '软件资源审核',
+    apiPath: '/api/admin/softwares',
+    icon: Laptop,
+    emptyLabel: '暂无软件记录',
+    reasons: [
+      '文件无法下载或链接失效',
+      '版本说明或兼容性说明缺失',
+      '软件图标或界面截图缺失或模糊',
+      '版权归属不清晰',
+      '含有违规、广告或恶意代码',
+    ],
+  },
 };
 
 const activeTab = ref<AuditTab>(getValidTab(route.query.tab || route.meta.auditType));
@@ -236,6 +257,11 @@ const moderationTabs = computed(() => [
     id: 'plugins' as const,
     badge: workspaceStore.adminStats.pendingPlugins,
     ...pageConfigs.plugins,
+  },
+  {
+    id: 'softwares' as const,
+    badge: workspaceStore.adminStats.pendingSoftwares,
+    ...pageConfigs.softwares,
   },
 ]);
 
@@ -451,6 +477,7 @@ const itemKind = (item: AuditItem) => {
   if (activeTab.value === 'assets') return item.type || 'MODEL';
   if (activeTab.value === 'materials') return item.category || '材质';
   if (activeTab.value === 'plugins') return item.category || '插件';
+  if (activeTab.value === 'softwares') return item.category || '软件';
   return item.type || '作品';
 };
 
@@ -458,7 +485,7 @@ const metricLine = (item: AuditItem) => {
   if (activeTab.value === 'assets') return `${item.size || item.fileSize || 0} MB`;
   if (activeTab.value === 'materials') return item.resolution || `${item.fileSize || 0} MB`;
   if (activeTab.value === 'showcases') return `${item.views || 0} 浏览 · ${item.likes || 0} 喜欢`;
-  if (activeTab.value === 'plugins')
+  if (activeTab.value === 'plugins' || activeTab.value === 'softwares')
     return `${item.version || 'v1.0.0'} · ${item.compatibility || '未填兼容性'}`;
   return '待审核';
 };
@@ -597,7 +624,7 @@ const handleUpdate = async () => {
       payload.type = editForm.value.type;
       payload.tags = editForm.value.tags;
     }
-    if (activeTab.value === 'plugins') {
+    if (activeTab.value === 'plugins' || activeTab.value === 'softwares') {
       payload.category = editForm.value.category;
       payload.tags = editForm.value.tags;
       payload.version = editForm.value.version;
@@ -665,16 +692,21 @@ onBeforeUnmount(() => {
     class="admin-audits-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)] mobile-adaptive"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
-      <PageHeader :title="pageConfig.title" subtitle="内容审核" variant="card">
-        <template #center>
-          <!-- Compact Search Box (Centered) -->
-          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
-            <Search />
-            <input v-model="searchQuery" type="search" placeholder="搜索当前队列..." />
-          </label>
-        </template>
-
-        <UiButton variant="secondary" size="sm" :icon="FolderCog" @click="openCategoryManager">
+      <!-- Ultra-Compact Single Row Header -->
+      <AdminHeader
+        :title="pageConfig.title"
+        subtitle="内容审核"
+        :cards="consolidatedCards"
+        v-model="searchQuery"
+        placeholder="搜索当前队列..."
+      >
+        <UiButton
+          variant="secondary"
+          size="sm"
+          :icon="FolderCog"
+          @click="openCategoryManager"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
           分类管理
         </UiButton>
         <UiButton
@@ -683,13 +715,11 @@ onBeforeUnmount(() => {
           :icon="RefreshCw"
           :loading="isLoading"
           @click="refreshQueue"
+          class="!h-7.5 !text-xs !px-2.5"
         >
           刷新
         </UiButton>
-      </PageHeader>
-      <!-- KPI Metrics Grid -->
-      <AdminStatCards :cards="consolidatedCards" />
-
+      </AdminHeader>
       <!-- Filters & Search Toolbar -->
       <Card padding="sm">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1077,7 +1107,7 @@ onBeforeUnmount(() => {
               </option>
             </select>
           </label>
-          <label v-if="activeTab === 'materials' || activeTab === 'plugins'">
+          <label v-if="activeTab === 'materials' || activeTab === 'plugins' || activeTab === 'softwares'">
             分类
             <UiInput v-model="editForm.category" :glass="false" />
           </label>
@@ -1091,7 +1121,7 @@ onBeforeUnmount(() => {
             </select>
           </label>
         </div>
-        <div v-if="activeTab === 'plugins'" class="form-grid">
+        <div v-if="activeTab === 'plugins' || activeTab === 'softwares'" class="form-grid">
           <label>版本<UiInput v-model="editForm.version" :glass="false" /></label>
           <label>兼容性<UiInput v-model="editForm.compatibility" :glass="false" /></label>
         </div>

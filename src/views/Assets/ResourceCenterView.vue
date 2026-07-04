@@ -9,7 +9,7 @@ import {
   defineAsyncComponent,
 } from 'vue';
 import { useRouter } from 'vue-router';
-import { Box, Cpu, Grid3X3, Layers, LayoutList, MonitorPlay } from 'lucide-vue-next';
+import { Box, Cpu, Grid3X3, Layers, LayoutList, Laptop, MonitorPlay } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
@@ -32,7 +32,7 @@ import {
 
 const router = useRouter();
 
-type PublishCategory = 'model' | 'asset' | 'work' | 'plugin';
+type PublishCategory = 'model' | 'asset' | 'work' | 'plugin' | 'software';
 
 const overview = ref<ResourceOverview | null>(null);
 const isLoading = ref(false);
@@ -59,6 +59,7 @@ const kindMeta: Record<
   asset: { label: '资源', icon: Box, tone: 'blue', path: '/assets' },
   material: { label: '材质', icon: Layers, tone: 'amber', path: '/materials' },
   plugin: { label: '插件', icon: Cpu, tone: 'violet', path: '/plugins' },
+  software: { label: '软件', icon: Laptop, tone: 'sky', path: '/softwares' },
   showcase: { label: '展示', icon: MonitorPlay, tone: 'green', path: '/showcase' },
 };
 

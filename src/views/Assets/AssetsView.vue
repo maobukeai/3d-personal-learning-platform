@@ -1125,7 +1125,7 @@ onUnmounted(() => {
         showHelpRequestDetailModal = false;
         selectedHelpRequest = null;
       "
-      @post-reply="handlePostReplyFromComponent"
+      @post-reply="handlePostReply"
       @resolve="handleResolveRequest"
       @open-linked-item="openLinkedAsset"
     />
@@ -1138,7 +1138,7 @@ onUnmounted(() => {
       :title-placeholder="label('例如：寻找写实科幻飞船模型', 'e.g. looking for sci-fi spaceship model')"
       :desc-placeholder="label('请详细描述您需要的模型规格、格式或参考，让大家能更精准地帮您找到！', 'Describe model details...')"
       @close="showHelpRequestPostDialog = false"
-      @submit="handlePostHelpRequestFromComponent"
+      @submit="handlePostHelpRequest"
     />
 
     <!-- Favorite Category Create/Rename Modal -->

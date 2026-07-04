@@ -22,6 +22,9 @@ const safeUnlink = (p: string): Promise<void> =>
 
 const getStorageTypeForField = (file: Express.Multer.File, req: Request): string => {
   const fieldname = file.fieldname;
+  if (fieldname === 'temporary_file') {
+    return 'TEMPORARY_NETDISK';
+  }
   if (req.originalUrl.includes('/showcase') || req.baseUrl.includes('showcase')) {
     return 'SHOWCASE';
   }
@@ -90,6 +93,7 @@ const FIELD_TO_DIR: Record<string, string> = {
   banner_image: './uploads/banners',
   task_image: './uploads/tasks',
   temp: './uploads/temp',
+  temporary_file: './uploads/temporary',
 };
 
 const storage = multer.diskStorage({
@@ -173,7 +177,7 @@ const createUploadMiddleware = (config: {
           files: 100,
         },
         fileFilter: (req, file, cb) => {
-          if (file.fieldname === 'message_file') {
+          if (file.fieldname === 'message_file' || file.fieldname === 'temporary_file') {
             return cb(null, true);
           }
 
@@ -272,6 +276,12 @@ const createUploadMiddleware = (config: {
               '.rar',
               '.7z',
               '.blend',
+              '.exe',
+              '.msi',
+              '.dmg',
+              '.pkg',
+              '.deb',
+              '.rpm',
             ];
           }
 
@@ -364,7 +374,11 @@ const createUploadMiddleware = (config: {
               if (!file) continue;
 
               let finalMaxFileSize = maxFileSize;
-              if (isImageField(file.fieldname)) {
+              const ext = path.extname(file.originalname).toLowerCase();
+              const isSoftwareInstaller = ['.exe', '.msi', '.dmg', '.pkg', '.deb', '.rpm'].includes(ext);
+              if (isSoftwareInstaller) {
+                finalMaxFileSize = 200 * 1024 * 1024; // 200MB
+              } else if (isImageField(file.fieldname)) {
                 finalMaxFileSize = 5 * 1024 * 1024;
               }
 
@@ -376,9 +390,11 @@ const createUploadMiddleware = (config: {
                     req.baseUrl.includes('mirror'));
                 const displayLimit = isMirrorImport
                   ? '5GB'
-                  : isImageField(file.fieldname)
-                    ? '5MB'
-                    : `${settings.MAX_FILE_SIZE || 100}MB`;
+                  : isSoftwareInstaller
+                    ? '200MB'
+                    : isImageField(file.fieldname)
+                      ? '5MB'
+                      : `${settings.MAX_FILE_SIZE || 100}MB`;
                 logger.error(
                   `[UploadError] File ${file.originalname} size ${file.size} exceeded limit ${displayLimit}`,
                 );
@@ -507,6 +523,7 @@ const createUploadMiddleware = (config: {
                 const sharedFolderName = `${mainBaseName}-${uniqueSuffix}`;
 
                 const getFolderPrefix = (fieldname: string): string => {
+                  if (fieldname === 'temporary_file') return 'temporary';
                   if (req.originalUrl.includes('/showcase') || req.baseUrl.includes('showcase'))
                     return 'showcase';
                   if (fieldname === 'asset' || fieldname === 'thumbnail') return 'asset';

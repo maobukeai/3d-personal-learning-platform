@@ -205,6 +205,25 @@ export class StorageService {
   }
 
   /**
+   * Generates a presigned download GET URL for a key with custom response header overrides.
+   */
+  public async getPresignedDownloadUrl(
+    config: StorageConfigData,
+    key: string,
+    filename: string,
+    expiresIn = 3600,
+  ): Promise<string> {
+    const client = this.getS3Client(config);
+    const safeName = encodeURIComponent(filename);
+    const command = new GetObjectCommand({
+      Bucket: config.bucketName,
+      Key: key,
+      ResponseContentDisposition: `attachment; filename="${safeName}"; filename*=UTF-8''${safeName}`,
+    });
+    return getSignedUrl(client, command, { expiresIn });
+  }
+
+  /**
    * Completes a multipart upload on R2.
    */
   public async completeMultipartUpload(

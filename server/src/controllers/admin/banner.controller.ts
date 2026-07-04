@@ -3,8 +3,7 @@ import prisma from '../../services/prisma';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../utils/error';
 import { logger } from '../../utils/logger';
-import fs from 'fs';
-import path from 'path';
+import { deleteCloudOrLocalFileByUrl } from '../../utils/file';
 
 export const getAllBanners = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -57,19 +56,11 @@ export const updateBanner = async (req: AuthRequest, res: Response, next: NextFu
       return next(new AppError('Banner not found', 404));
     }
 
-    // If banner image is being updated, we optionally clean up the old file
+    // If banner image is being updated, clean up the old file (local or R2)
     if (imageUrl && imageUrl !== existing.imageUrl && existing.imageUrl) {
-      const relativePath = existing.imageUrl.startsWith('/')
-        ? existing.imageUrl.substring(1)
-        : existing.imageUrl;
-      const oldLocalPath = path.join(process.cwd(), relativePath);
-      if (existing.imageUrl.includes('/uploads/banners/') && fs.existsSync(oldLocalPath)) {
-        try {
-          fs.unlinkSync(oldLocalPath);
-        } catch (err) {
-          logger.error('Failed to remove old banner image file:', err);
-        }
-      }
+      deleteCloudOrLocalFileByUrl(existing.imageUrl).catch((err) => {
+        logger.error('Failed to remove old banner image file:', err);
+      });
     }
 
     const banner = await prisma.banner.update({
@@ -102,19 +93,11 @@ export const deleteBanner = async (req: AuthRequest, res: Response, next: NextFu
       return next(new AppError('Banner not found', 404));
     }
 
-    // Unlink the local file if it exists
+    // Unlink the file from local disk or R2
     if (existing.imageUrl) {
-      const relativePath = existing.imageUrl.startsWith('/')
-        ? existing.imageUrl.substring(1)
-        : existing.imageUrl;
-      const localPath = path.join(process.cwd(), relativePath);
-      if (existing.imageUrl.includes('/uploads/banners/') && fs.existsSync(localPath)) {
-        try {
-          fs.unlinkSync(localPath);
-        } catch (err) {
-          logger.error('Failed to delete banner image file:', err);
-        }
-      }
+      deleteCloudOrLocalFileByUrl(existing.imageUrl).catch((err) => {
+        logger.error('Failed to delete banner image file:', err);
+      });
     }
 
     await prisma.banner.delete({ where: { id } });

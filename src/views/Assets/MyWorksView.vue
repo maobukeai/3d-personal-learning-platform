@@ -30,11 +30,13 @@ import {
   normalizeAssetWork,
   normalizeMaterialWork,
   normalizePluginWork,
+  normalizeSoftwareWork,
   normalizeShowcaseWork,
   type AssetWork,
   type CategoryType,
   type MaterialWork,
   type PluginWork,
+  type SoftwareWork,
   type ShowcaseWork,
   type UnifiedWork,
   type WorkKind,
@@ -57,7 +59,7 @@ const AssetDetailModal = defineAsyncComponent(() => import('./components/AssetDe
 const MaterialDetailPanel = defineAsyncComponent(
   () => import('./components/MaterialDetailPanel.vue'),
 );
-const PluginDetailModal = defineAsyncComponent(() => import('./components/PluginDetailModal.vue'));
+const UnifiedDetailModal = defineAsyncComponent(() => import('./components/UnifiedDetailModal.vue'));
 const ShowcaseDetail = defineAsyncComponent(
   () => import('../Community/components/ShowcaseDetail.vue'),
 );
@@ -78,6 +80,10 @@ const isMaterialLoading = ref(false);
 const isPluginDetailOpen = ref(false);
 const selectedPlugin = ref<any | null>(null);
 const isPluginLoading = ref(false);
+
+const isSoftwareDetailOpen = ref(false);
+const selectedSoftware = ref<any | null>(null);
+const isSoftwareLoading = ref(false);
 
 const isShowcaseDetailOpen = ref(false);
 const selectedShowcase = ref<any | null>(null);
@@ -132,6 +138,19 @@ async function showPluginDetail(pluginId: string) {
   }
 }
 
+async function showSoftwareDetail(softwareId: string) {
+  isSoftwareLoading.value = true;
+  try {
+    const { data } = await api.get(`/api/softwares/${softwareId}`);
+    selectedSoftware.value = data.software || data;
+    isSoftwareDetailOpen.value = true;
+  } catch {
+    ElMessage.error('加载软件详情失败');
+  } finally {
+    isSoftwareLoading.value = false;
+  }
+}
+
 async function showShowcaseDetail(showcaseId: string) {
   isShowcaseLoading.value = true;
   try {
@@ -145,10 +164,11 @@ async function showShowcaseDetail(showcaseId: string) {
   }
 }
 
-function handleDetailEdit(item: any, kind: 'asset' | 'material' | 'plugin' | 'showcase') {
+function handleDetailEdit(item: any, kind: 'asset' | 'material' | 'plugin' | 'software' | 'showcase') {
   isAssetDetailOpen.value = false;
   isMaterialDetailOpen.value = false;
   isPluginDetailOpen.value = false;
+  isSoftwareDetailOpen.value = false;
   isShowcaseDetailOpen.value = false;
 
   let work: UnifiedWork | null = null;
@@ -161,6 +181,9 @@ function handleDetailEdit(item: any, kind: 'asset' | 'material' | 'plugin' | 'sh
   } else if (kind === 'plugin') {
     const raw = plugins.value.find((p) => p.id === item.id);
     if (raw) work = normalizePluginWork(raw);
+  } else if (kind === 'software') {
+    const raw = softwares.value.find((s) => s.id === item.id);
+    if (raw) work = normalizeSoftwareWork(raw);
   } else if (kind === 'showcase') {
     const raw = showcases.value.find((s) => s.id === item.id);
     if (raw) work = normalizeShowcaseWork(raw);
@@ -198,10 +221,11 @@ function handleDetailEdit(item: any, kind: 'asset' | 'material' | 'plugin' | 'sh
   }
 }
 
-function handleDetailDelete(item: any, kind: 'asset' | 'material' | 'plugin' | 'showcase') {
+function handleDetailDelete(item: any, kind: 'asset' | 'material' | 'plugin' | 'software' | 'showcase') {
   isAssetDetailOpen.value = false;
   isMaterialDetailOpen.value = false;
   isPluginDetailOpen.value = false;
+  isSoftwareDetailOpen.value = false;
   isShowcaseDetailOpen.value = false;
 
   const work: UnifiedWork = {
@@ -220,7 +244,9 @@ function handleDetailDelete(item: any, kind: 'asset' | 'material' | 'plugin' | '
           ? '材质'
           : kind === 'plugin'
             ? '插件'
-            : '展示',
+            : kind === 'software'
+              ? '软件'
+              : '展示',
     format: '',
     thumbnail: item.previewUrl || item.preview || '',
     size: item.fileSize || 0,
@@ -250,6 +276,7 @@ const selectedWork = ref<UnifiedWork | null>(null);
 const assets = ref<AssetWork[]>([]);
 const materials = ref<MaterialWork[]>([]);
 const plugins = ref<PluginWork[]>([]);
+const softwares = ref<SoftwareWork[]>([]);
 const showcases = ref<ShowcaseWork[]>([]);
 const assetCategories = ref<CategoryType[]>([]);
 const workbenchSummary = ref<WorkbenchSummary | null>(null);
@@ -585,24 +612,28 @@ const fetchWorks = async (silent = false) => {
       assets.value = data.assets || [];
       materials.value = data.materials || [];
       plugins.value = data.plugins || [];
+      softwares.value = data.softwares || [];
       showcases.value = data.showcases || [];
       workbenchSummary.value = data.summary || null;
       mySubmissionsCount.value =
         (data.assets || []).length +
         (data.materials || []).length +
         (data.plugins || []).length +
+        (data.softwares || []).length +
         (data.showcases || []).length;
     } else {
-      const [assetsRes, materialsRes, pluginsRes] = await Promise.all([
+      const [assetsRes, materialsRes, pluginsRes, softwaresRes] = await Promise.all([
         api.get('/api/assets/public', { params: { favoritesOnly: 'true', limit: 100 } }),
         api.get('/api/materials', { params: { favoritesOnly: 'true', limit: 100 } }),
         api.get('/api/plugins/favorites'),
+        api.get('/api/softwares/favorites'),
       ]);
       assets.value = assetsRes.data?.assets || [];
       materials.value = Array.isArray(materialsRes.data)
         ? materialsRes.data
         : materialsRes.data?.items || [];
       plugins.value = pluginsRes.data?.plugins || [];
+      softwares.value = softwaresRes.data?.favorites?.map((f: any) => f.software) || [];
       showcases.value = [];
       workbenchSummary.value = null;
 
@@ -612,7 +643,8 @@ const fetchWorks = async (silent = false) => {
         ? materialsRes.data.length
         : materialsRes.data?.total || materialsRes.data?.items?.length || 0;
       const pluginsCount = pluginsRes.data?.plugins?.length || 0;
-      myFavoritesCount.value = assetsCount + materialsCount + pluginsCount;
+      const softwaresCount = softwaresRes.data?.favorites?.length || 0;
+      myFavoritesCount.value = assetsCount + materialsCount + pluginsCount + softwaresCount;
     }
   } catch (error) {
     if (!silent) {
@@ -647,6 +679,8 @@ const openWork = (work: UnifiedWork) => {
     showMaterialDetail(work.id);
   } else if (work.kind === 'plugin') {
     showPluginDetail(work.id);
+  } else if (work.kind === 'software') {
+    showSoftwareDetail(work.id);
   } else if (work.kind === 'showcase') {
     showShowcaseDetail(work.id);
   } else {
@@ -895,7 +929,7 @@ const handleSaveEdit = async () => {
           'Content-Type': 'multipart/form-data',
         },
       });
-    } else if (work.kind === 'plugin') {
+    } else if (work.kind === 'plugin' || work.kind === 'software') {
       const formData = new FormData();
       formData.append('title', editForm.value.title);
       formData.append('description', editForm.value.description);
@@ -912,11 +946,12 @@ const handleSaveEdit = async () => {
       formData.append('linkedCourseId', editForm.value.linkedCourseId || '');
       formData.append('linkedLessonId', editForm.value.linkedLessonId || '');
 
+      const isPlugin = work.kind === 'plugin';
       if (editForm.value.downloadType === 'local') {
         if (editForm.value.tempPluginPath) {
-          formData.append('tempPluginPath', editForm.value.tempPluginPath);
+          formData.append(isPlugin ? 'tempPluginPath' : 'tempSoftwarePath', editForm.value.tempPluginPath);
         } else if (editForm.value.file) {
-          formData.append('plugin_file', editForm.value.file);
+          formData.append(isPlugin ? 'plugin_file' : 'software_file', editForm.value.file);
         }
       } else {
         let finalUrl = editForm.value.externalUrl.trim();
@@ -926,12 +961,13 @@ const handleSaveEdit = async () => {
         formData.append('externalUrl', finalUrl);
       }
       if (editForm.value.tempPreviewPath) {
-        formData.append('tempPreviewPath', editForm.value.tempPreviewPath);
+        formData.append(isPlugin ? 'tempPreviewPath' : 'tempPreviewPath', editForm.value.tempPreviewPath);
       } else if (editForm.value.thumbnail) {
-        formData.append('plugin_preview', editForm.value.thumbnail);
+        formData.append(isPlugin ? 'plugin_preview' : 'software_preview', editForm.value.thumbnail);
       }
 
-      await api.put(`/api/plugins/${work.id}`, formData, {
+      const endpoint = isPlugin ? `/api/plugins/${work.id}` : `/api/softwares/${work.id}`;
+      await api.put(endpoint, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -968,6 +1004,7 @@ const handleDeleteWork = async (work: UnifiedWork) => {
     const oldAssets = [...assets.value];
     const oldMaterials = [...materials.value];
     const oldPlugins = [...plugins.value];
+    const oldSoftwares = [...softwares.value];
     const oldShowcases = [...showcases.value];
 
     // 乐观更新：立刻在前端移除该作品
@@ -977,6 +1014,8 @@ const handleDeleteWork = async (work: UnifiedWork) => {
       materials.value = materials.value.filter((x) => x.id !== work.id);
     } else if (work.kind === 'plugin') {
       plugins.value = plugins.value.filter((x) => x.id !== work.id);
+    } else if (work.kind === 'software') {
+      softwares.value = softwares.value.filter((x) => x.id !== work.id);
     } else if (work.kind === 'showcase') {
       showcases.value = showcases.value.filter((x) => x.id !== work.id);
     }
@@ -989,6 +1028,7 @@ const handleDeleteWork = async (work: UnifiedWork) => {
       if (work.kind === 'asset') return api.delete(`/api/assets/${work.id}`);
       if (work.kind === 'material') return api.delete(`/api/materials/${work.id}`);
       if (work.kind === 'plugin') return api.delete(`/api/plugins/${work.id}`);
+      if (work.kind === 'software') return api.delete(`/api/softwares/${work.id}`);
       if (work.kind === 'showcase') return api.delete(`/api/showcase/${work.id}`);
       return Promise.resolve();
     })();
@@ -1002,6 +1042,7 @@ const handleDeleteWork = async (work: UnifiedWork) => {
         assets.value = oldAssets;
         materials.value = oldMaterials;
         plugins.value = oldPlugins;
+        softwares.value = oldSoftwares;
         showcases.value = oldShowcases;
         ElMessage.error(getApiErrorMessage(err, '删除失败'));
       });
@@ -1194,10 +1235,11 @@ onMounted(async () => {
       @update="fetchWorks"
     />
 
-    <PluginDetailModal
+    <UnifiedDetailModal
       v-if="isPluginDetailOpen"
       :show="isPluginDetailOpen"
-      :plugin="selectedPlugin"
+      :item="selectedPlugin"
+      kind="plugin"
       :is-favorited="false"
       :is-downloading="isPluginLoading"
       :is-admin="isAdmin"
@@ -1209,6 +1251,25 @@ onMounted(async () => {
       "
       @edit="handleDetailEdit($event, 'plugin')"
       @delete="handleDetailDelete($event, 'plugin')"
+      @update="fetchWorks"
+    />
+
+    <UnifiedDetailModal
+      v-if="isSoftwareDetailOpen"
+      :show="isSoftwareDetailOpen"
+      :item="selectedSoftware"
+      kind="software"
+      :is-favorited="false"
+      :is-downloading="isSoftwareLoading"
+      :is-admin="isAdmin"
+      :can-edit="true"
+      :is-saving-review="false"
+      @close="
+        isSoftwareDetailOpen = false;
+        selectedSoftware = null;
+      "
+      @edit="handleDetailEdit($event, 'software')"
+      @delete="handleDetailDelete($event, 'software')"
       @update="fetchWorks"
     />
 

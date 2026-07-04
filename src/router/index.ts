@@ -63,6 +63,16 @@ const router = createRouter({
       component: () => import('@/views/Assets/PluginShareView.vue'),
     },
     {
+      path: '/share/software/:shareId',
+      name: 'SoftwareShare',
+      component: () => import('@/views/Assets/SoftwareShareView.vue'),
+    },
+    {
+      path: '/share/temporary/:shareId',
+      name: 'TemporaryShare',
+      component: () => import('@/views/TemporaryNetdisk/ShareView.vue'),
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/404',
     },
@@ -129,9 +139,19 @@ const router = createRouter({
               component: () => import('@/views/Assets/PluginDetailView.vue'),
             },
             {
+              path: 'softwares/:id',
+              name: 'SoftwareDetail',
+              component: () => import('@/views/Assets/SoftwareDetailView.vue'),
+            },
+            {
               path: 'my-works',
               name: 'MyWorks',
               component: () => import('@/views/Assets/MyWorksView.vue'),
+            },
+            {
+              path: 'temporary-netdisk',
+              name: 'TemporaryNetdisk',
+              component: () => import('@/views/TemporaryNetdisk/NetdiskView.vue'),
             },
             {
               path: 'work',
@@ -189,6 +209,11 @@ const router = createRouter({
               path: 'plugins',
               name: 'Plugins',
               component: () => import('@/views/Assets/PluginsView.vue'),
+            },
+            {
+              path: 'softwares',
+              name: 'Softwares',
+              component: () => import('@/views/Assets/SoftwaresView.vue'),
             },
             {
               path: 'messages',

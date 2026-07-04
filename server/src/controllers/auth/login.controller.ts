@@ -54,6 +54,7 @@ export const getPublicSettings = async (req: Request, res: Response, next: NextF
       MATERIAL_CATEGORIES: settings.MATERIAL_CATEGORIES,
       TEAM_CATEGORIES: settings.TEAM_CATEGORIES,
       PLUGIN_CATEGORIES: settings.PLUGIN_CATEGORIES,
+      SOFTWARE_CATEGORIES: settings.SOFTWARE_CATEGORIES,
       SHOWCASE_CATEGORIES: settings.SHOWCASE_CATEGORIES,
       FOOTER_TEXT: settings.FOOTER_TEXT,
       OAUTH_GOOGLE_ENABLED: settings.OAUTH_GOOGLE_ENABLED,

@@ -10,6 +10,7 @@ export const sidebarZh = {
   projects: '项目',
   materials: '材料库',
   plugins: '插件库',
+  softwares: '软件库',
   messages: '消息',
   showcase: '作品展示',
   settings: '设置',
@@ -34,6 +35,7 @@ export const sidebarZh = {
   exploreTeams: '探索团队',
   resourceCenter: '资源中心',
   aiRobotAccess: 'AI 助手',
+  temporaryNetdisk: '临时网盘',
 };
 
 export const sidebarEn = {
@@ -48,6 +50,7 @@ export const sidebarEn = {
   projects: 'Projects',
   materials: 'Materials',
   plugins: 'Plugins',
+  softwares: 'Softwares',
   messages: 'Messages',
   showcase: 'Showcase',
   settings: 'Settings',
@@ -72,4 +75,5 @@ export const sidebarEn = {
   teamSpace: 'Team Space',
   exploreTeams: 'Explore Teams',
   resourceCenter: 'Resource Center',
+  temporaryNetdisk: 'Temporary Netdisk',
 };

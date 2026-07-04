@@ -115,6 +115,12 @@ model User {
   assetRequestReplies       AssetRequestReply[]
   materialRequests          MaterialRequest[]
   materialRequestReplies    MaterialRequestReply[]
+  softwares                  Software[]
+  softwareComments           SoftwareComment[]
+  softwareShares             SoftwareShare[]
+  softwareFavorites          SoftwareFavorite[]
+  temporaryFiles             TemporaryFile[]
+  temporaryShares            TemporaryShare[]
 
   // Indexes for frequently-filtered columns (admin user list, dashboard stats)
   @@index([role])
@@ -377,6 +383,7 @@ model Asset {
   downloads     Int     @default(0)
   likes         Int     @default(0)
   viewCount     Int     @default(0)
+  bilibiliUrl   String?
 
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -429,6 +436,7 @@ model Course {
   linkedAssets Asset[]      @relation("CourseAssets")
   linkedMaterials Material[]   @relation("CourseMaterials")
   linkedPlugins   Plugin[]     @relation("CoursePlugins")
+  linkedSoftwares Software[]   @relation("CourseSoftwares")
   discussions Discussion[]
   reviews     CourseReview[]
   categoryId  String?
@@ -465,6 +473,7 @@ model Lesson {
   linkedAssets Asset[]          @relation("LessonAssets")
   linkedMaterials Material[]    @relation("LessonMaterials")
   linkedPlugins   Plugin[]      @relation("LessonPlugins")
+  linkedSoftwares Software[]    @relation("LessonSoftwares")
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
@@ -843,6 +852,7 @@ model Material {
   linkedShowcases Showcase[]     @relation("ShowcaseLinkedMaterials")
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
+  bilibiliUrl  String?
 
   // 版权与授权
   originality     String?            @default("ORIGINAL")
@@ -900,6 +910,7 @@ model Showcase {
   linkedAssets Asset[]           @relation("ShowcaseLinkedAssets")
   linkedMaterials Material[]     @relation("ShowcaseLinkedMaterials")
   linkedPlugins   Plugin[]       @relation("ShowcaseLinkedPlugins")
+  linkedSoftwares Software[]     @relation("ShowcaseLinkedSoftwares")
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 
@@ -1932,4 +1943,146 @@ model MaterialRequestReply {
   @@index([requestId])
   @@index([userId])
 }
+
+model Software {
+  id            String   @id @default(uuid())
+  title         String
+  description   String?  @db.Text
+  category      String   @default("其他") // '3D 建模与雕刻软件' | '渲染引擎与渲染器' | '后期与图像处理' | '游戏与交互引擎' | '其他工具'
+  version       String   @default("1.0.0")
+  compatibility String   @default("") // e.g. "Windows 10/11"
+  tags          String?  @db.Text
+  fileUrl       String
+  fileSize      Float?   // in MB
+  packageFilesList String?            @db.Text
+  previewUrl    String?
+  installGuide  String?  @db.Text // Markdown
+  status        String   @default("PENDING") // 'PENDING' | 'APPROVED' | 'REJECTED'
+  rejectReason  String?
+  downloads     Int      @default(0)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments      SoftwareComment[]
+  softwareShare SoftwareShare?
+  linkedShowcases Showcase[]     @relation("ShowcaseLinkedSoftwares")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 版权与授权
+  originality     String?  @default("ORIGINAL")
+  originalAuthor  String?
+  originalLink    String?
+  license         String?  @default("CC_BY")
+  isFree          Boolean  @default(true)
+
+  // 关联教学与课时
+  linkedCourseId  String?
+  linkedCourse    Course?  @relation("CourseSoftwares", fields: [linkedCourseId], references: [id], onDelete: SetNull)
+  linkedLessonId  String?
+  linkedLesson    Lesson?  @relation("LessonSoftwares", fields: [linkedLessonId], references: [id], onDelete: SetNull)
+
+  // B站分享与开发者工具
+  bilibiliUrl     String?
+  favorites       SoftwareFavorite[]
+  versions        SoftwareVersion[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([category])
+  @@index([linkedCourseId])
+  @@index([linkedLessonId])
+}
+
+model SoftwareVersion {
+  id              String   @id @default(uuid())
+  softwareId      String
+  software        Software @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  version         String
+  changelog       String?  @db.Text
+  fileUrl         String
+  fileSize        Float?
+  packageFilesList String?            @db.Text
+  downloads       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([softwareId])
+}
+
+model SoftwareComment {
+  id         String   @id @default(uuid())
+  content    String   @db.Text
+  softwareId String
+  software   Software @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([softwareId])
+  @@index([userId])
+}
+
+model SoftwareShare {
+  id         String    @id @default(uuid())
+  softwareId String    @unique
+  userId     String
+  expiresAt  DateTime?
+  customText String?   @db.Text
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  software   Software  @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([softwareId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model SoftwareFavorite {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  softwareId String
+  software   Software @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  category   String   @default("默认")
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, softwareId])
+  @@index([userId])
+}
+
+model TemporaryFile {
+  id              String           @id @default(uuid())
+  name            String
+  url             String
+  size            Float
+  mimeType        String
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storageConfigId String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  shares          TemporaryShare[]
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model TemporaryShare {
+  id             String        @id @default(uuid())
+  fileId         String
+  file           TemporaryFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  password       String?
+  expiresAt      DateTime?
+  downloadsCount Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([fileId])
+  @@index([userId])
+}
+
 

@@ -29,6 +29,7 @@ export interface SystemSettings {
   TEAM_CATEGORIES: string[];
   SHOWCASE_CATEGORIES: string[];
   PLUGIN_CATEGORIES: string[];
+  SOFTWARE_CATEGORIES: string[];
   FOOTER_TEXT: string;
   OAUTH_GOOGLE_ENABLED: boolean;
   OAUTH_GOOGLE_CLIENT_ID: string;
@@ -53,6 +54,8 @@ export interface SystemSettings {
   AI_MODEL_OPTIONS: string;
   AI_MODEL_CUSTOM_CATEGORIES: string;
   FORCE_R2_STORAGE: boolean;
+  TEMPORARY_NETDISK_CLEANUP_TIME: string;
+  LAST_NETDISK_CLEANUP_DATE: string;
 }
 
 export interface AIModelOption {
@@ -98,6 +101,8 @@ const DEFAULT_SETTINGS: SystemSettings = {
   ALLOW_REGISTRATION: true,
   MAINTENANCE_MODE: false,
   FORCE_R2_STORAGE: true,
+  TEMPORARY_NETDISK_CLEANUP_TIME: '03:00',
+  LAST_NETDISK_CLEANUP_DATE: '',
 
   MAX_FILE_SIZE: 100,
   MAX_UPLOAD_SIZE_MB: 100,
@@ -185,6 +190,13 @@ const DEFAULT_SETTINGS: SystemSettings = {
     '动画与骨骼',
     '导入与导出',
     '物理与特效',
+    '其他工具',
+  ],
+  SOFTWARE_CATEGORIES: [
+    '3D 建模与雕刻软件',
+    '渲染引擎与渲染器',
+    '后期与图像处理',
+    '游戏与交互引擎',
     '其他工具',
   ],
   FOOTER_TEXT: '',

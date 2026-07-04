@@ -16,8 +16,10 @@ import { getApiErrorMessage, logError } from '@/utils/error';
 import { fetchManagementInsights, formatCompactNumber } from './adminManagementInsights';
 import UserDetailDrawer from './components/UserDetailDrawer.vue';
 import UserQuotaDialog from './components/UserQuotaDialog.vue';
-import UserPageHeader from './components/UserPageHeader.vue';
-import UserStatsCards from './components/UserStatsCards.vue';
+import AdminHeader from './components/AdminHeader.vue';
+import Badge from '@/components/ui/Badge.vue';
+import Button from '@/components/ui/Button.vue';
+import { RefreshCw } from 'lucide-vue-next';
 import UserToolbar from './components/UserToolbar.vue';
 import UserTable from './components/UserTable.vue';
 import UserFormDialog from './components/UserFormDialog.vue';
@@ -856,21 +858,42 @@ void consolidatedCards.value;
 <template>
   <div class="admin-users-page flex flex-1 min-h-0 flex-col overflow-hidden mobile-adaptive">
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
-      <UserPageHeader
-        v-model:search-query="searchQuery"
-        :user-overview="userOverview"
-        :is-loading="isLoading"
-        :is-overview-loading="isOverviewLoading"
-        :subtitle="
-          userOverview
-            ? `覆盖 ${compact(userOverview.totals.total)} 个账号，${compact(userOverview.security.activeSessions)} 个活跃会话`
-            : '正在同步账号、会话与订阅数据'
-        "
-        @refresh="refreshDashboard()"
-        @create="openCreateDialog"
-      />
+      <!-- Ultra-Compact Single Row Header -->
+      <AdminHeader
+        title="用户管理"
+        :subtitle="userOverview ? `覆盖 ${compact(userOverview.totals.total)} 个账号，${compact(userOverview.security.activeSessions)} 个活跃会话` : '正在同步账号、会话与订阅数据'"
+        :cards="consolidatedCards"
+        v-model="searchQuery"
+        placeholder="搜索姓名、邮箱..."
+      >
+        <template #title-badge>
+          <div v-if="userOverview" class="flex flex-wrap items-center gap-1.5">
+            <Badge variant="info">封禁: {{ userOverview.totals.banned }}</Badge>
+            <Badge variant="info">管理员: {{ userOverview.totals.admins }}</Badge>
+            <Badge variant="info">活跃订阅: {{ userOverview.commerce.activeSubscriptions }}</Badge>
+          </div>
+        </template>
 
-      <UserStatsCards :cards="consolidatedCards" />
+        <Button
+          variant="secondary"
+          size="sm"
+          :loading="isLoading || isOverviewLoading"
+          :icon="RefreshCw"
+          @click="refreshDashboard()"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
+          刷新
+        </Button>
+        <Button
+          variant="primary"
+          size="sm"
+          :icon="Plus"
+          @click="openCreateDialog"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
+          新建用户
+        </Button>
+      </AdminHeader>
 
       <!-- Workspace layout: Single Column Workspace -->
       <div class="mt-3 w-full min-w-0">

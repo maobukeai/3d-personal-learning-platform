@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { formatDate } from '@/utils/format';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { Boxes, Briefcase, CheckCircle2, Users } from 'lucide-vue-next';
+import { Boxes, Briefcase, CheckCircle2, Users, RefreshCw, Download, Plus } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import { useWorkspaceStore } from '@/stores/workspace';
 import AdminTeamDetailDialog from './components/AdminTeamDetailDialog.vue';
 import AdminTeamFormDialog from './components/AdminTeamFormDialog.vue';
-import AdminTeamsHeader from './components/AdminTeamsHeader.vue';
-import AdminTeamsStats from './components/AdminTeamsStats.vue';
+import AdminHeader from './components/AdminHeader.vue';
+import Badge from '@/components/ui/Badge.vue';
+import UiButton from '@/components/ui/Button.vue';
 import AdminTeamsFilters from './components/AdminTeamsFilters.vue';
 import AdminTeamsBatchBar from './components/AdminTeamsBatchBar.vue';
 import AdminTeamsTable from './components/AdminTeamsTable.vue';
@@ -30,7 +31,7 @@ import type {
   SortBy,
   SortOrder,
 } from './components/adminTeamsTypes';
-import { ownerName, visibilityLabel } from './components/adminTeamsUtils';
+import { ownerName, visibilityLabel, compactNumber } from './components/adminTeamsUtils';
 
 const workspaceStore = useWorkspaceStore();
 
@@ -584,18 +585,51 @@ void consolidatedCards.value;
 <template>
   <div class="admin-teams-page flex flex-1 min-h-0 flex-col overflow-hidden mobile-adaptive">
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
-      <AdminTeamsHeader
-        :search-query="searchQuery"
-        :is-loading="isLoading"
-        :summary="summary"
-        :total-pending="totalPending"
-        @update:search-query="searchQuery = $event"
-        @refresh="refreshAll"
-        @export="exportCsv"
-        @create="openCreateModal"
-      />
+      <!-- Ultra-Compact Single Row Header -->
+      <AdminHeader
+        title="团队管理"
+        subtitle="全站团队组织、协作规范及数据资产的合规统计与治理"
+        :cards="consolidatedCards"
+        v-model="searchQuery"
+        placeholder="搜索团队、负责人..."
+      >
+        <template #title-badge>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <Badge variant="info">团队数: {{ compactNumber(summary.totalTeams) }}</Badge>
+            <Badge variant="info">成员数: {{ compactNumber(summary.totalMembers) }}</Badge>
+            <Badge variant="info">待处理: {{ compactNumber(totalPending) }}</Badge>
+          </div>
+        </template>
 
-      <AdminTeamsStats :cards="consolidatedCards" />
+        <UiButton
+          variant="secondary"
+          size="sm"
+          :icon="RefreshCw"
+          :loading="isLoading"
+          @click="refreshAll"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
+          刷新
+        </UiButton>
+        <UiButton
+          variant="secondary"
+          size="sm"
+          :icon="Download"
+          @click="exportCsv"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
+          导出
+        </UiButton>
+        <UiButton
+          variant="primary"
+          size="sm"
+          :icon="Plus"
+          @click="openCreateModal"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
+          新建团队
+        </UiButton>
+      </AdminHeader>
 
       <AdminTeamsFilters
         :visibility-filter="visibilityFilter"

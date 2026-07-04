@@ -21,7 +21,7 @@ import { ElMessage } from 'element-plus';
  *            canDeleteComment, resetComments }`
  */
 export function useResourceComments(
-  resourceType: 'assets' | 'materials' | 'plugins',
+  resourceType: any,
   getResourceId: () => string | undefined,
 ) {
   const authStore = useAuthStore();
@@ -35,9 +35,10 @@ export function useResourceComments(
   const fetchComments = async () => {
     const targetId = getResourceId();
     if (!targetId) return;
+    const type = typeof resourceType === 'function' ? resourceType() : (typeof resourceType === 'object' && 'value' in resourceType ? (resourceType as any).value : resourceType);
     isCommentsLoading.value = true;
     try {
-      const { data } = await api.get(`/api/${resourceType}/${targetId}/comments`);
+      const { data } = await api.get(`/api/${type}/${targetId}/comments`);
       // Race guard: only apply if still viewing the same resource (prevents
       // stale data when the user switches resources while a fetch is in flight).
       if (getResourceId() === targetId) {
@@ -55,9 +56,10 @@ export function useResourceComments(
   const handlePostComment = async () => {
     const targetId = getResourceId();
     if (!targetId || !newCommentContent.value.trim()) return;
+    const type = typeof resourceType === 'function' ? resourceType() : (typeof resourceType === 'object' && 'value' in resourceType ? (resourceType as any).value : resourceType);
     isSubmittingComment.value = true;
     try {
-      const { data } = await api.post(`/api/${resourceType}/${targetId}/comments`, {
+      const { data } = await api.post(`/api/${type}/${targetId}/comments`, {
         content: newCommentContent.value.trim(),
       });
       comments.value.unshift(data);
@@ -73,7 +75,8 @@ export function useResourceComments(
 
   const handleDeleteComment = async (commentId: string) => {
     try {
-      await api.delete(`/api/${resourceType}/comments/${commentId}`);
+      const type = typeof resourceType === 'function' ? resourceType() : (typeof resourceType === 'object' && 'value' in resourceType ? (resourceType as any).value : resourceType);
+      await api.delete(`/api/${type}/comments/${commentId}`);
       comments.value = comments.value.filter((c) => c.id !== commentId);
       ElMessage.success(label('评论已删除', 'Comment deleted'));
     } catch (err: any) {

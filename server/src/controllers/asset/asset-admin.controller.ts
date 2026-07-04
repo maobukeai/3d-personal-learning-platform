@@ -248,7 +248,8 @@ export const adminDeleteAsset = async (req: AuthRequest, res: Response, next: Ne
     }
 
     // Delete files from disk or cloud if they exist (run in background)
-    deleteCloudOrLocalFileByUrl(asset.url).catch((err) => {
+    const fileSizeBytes = asset.packageSize ? Math.round(asset.packageSize * 1024 * 1024) : undefined;
+    deleteCloudOrLocalFileByUrl(asset.url, fileSizeBytes).catch((err) => {
       logger.error(
         `[AssetController] Failed to delete asset file ${asset.url} in background:`,
         err,

@@ -26,6 +26,7 @@ import Checkbox from '@/components/ui/Checkbox.vue';
 import FileDropZone from '@/components/FileDropZone.vue';
 import api from '@/utils/api';
 import { useLabel } from '@/utils/i18n';
+import { useSystemStore } from '@/stores/system';
 import type { CategoryType, UnifiedWork } from '../myWorksModel';
 import { parseZipFileNames, buildFileTree, flattenFileTree } from '@/utils/zipHelper';
 import { useFileTree } from '@/composables/useFileTree';
@@ -56,6 +57,7 @@ const blenderVersions = [
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
 const label = useLabel();
+const systemStore = useSystemStore();
 
 interface EditForm {
   title: string;
@@ -98,6 +100,7 @@ interface EditForm {
   tempMaterialPath?: string;
   tempPluginPath?: string;
   tempPreviewPath?: string;
+  tempSoftwarePath?: string;
 }
 
 const show = defineModel<boolean>('show', { required: true });
@@ -244,7 +247,7 @@ const { uploadFile: doUpload, cancelUpload } = useTempUpload();
 const uploadFile = async (
   file: File,
   progressRef: Ref<number | null>,
-  tempField: 'tempAssetPath' | 'tempPackagePath' | 'tempThumbnailPath' | 'tempMaterialPath' | 'tempPluginPath' | 'tempPreviewPath'
+  tempField: 'tempAssetPath' | 'tempPackagePath' | 'tempThumbnailPath' | 'tempMaterialPath' | 'tempPluginPath' | 'tempPreviewPath' | 'tempSoftwarePath'
 ): Promise<boolean> => {
   return doUpload(
     file,
@@ -257,8 +260,8 @@ const uploadFile = async (
 };
 
 const cancelAllTempUploads = () => {
-  const tempFields: ('tempAssetPath' | 'tempPackagePath' | 'tempThumbnailPath' | 'tempMaterialPath' | 'tempPluginPath' | 'tempPreviewPath')[] = [
-    'tempAssetPath', 'tempPackagePath', 'tempThumbnailPath', 'tempMaterialPath', 'tempPluginPath', 'tempPreviewPath'
+  const tempFields: ('tempAssetPath' | 'tempPackagePath' | 'tempThumbnailPath' | 'tempMaterialPath' | 'tempPluginPath' | 'tempPreviewPath' | 'tempSoftwarePath')[] = [
+    'tempAssetPath', 'tempPackagePath', 'tempThumbnailPath', 'tempMaterialPath', 'tempPluginPath', 'tempPreviewPath', 'tempSoftwarePath'
   ];
   for (const field of tempFields) {
     const path = form.value[field];
@@ -295,7 +298,7 @@ const handleFileChange = async (event: Event) => {
   if (file) {
     emitUpdate({ file });
     const kind = props.work?.kind;
-    const tempField = kind === 'asset' ? 'tempAssetPath' : kind === 'material' ? 'tempMaterialPath' : 'tempPluginPath';
+    const tempField = kind === 'asset' ? 'tempAssetPath' : kind === 'material' ? 'tempMaterialPath' : kind === 'plugin' ? 'tempPluginPath' : 'tempSoftwarePath';
     await uploadFile(file, fileProgress, tempField);
   }
 };
@@ -315,7 +318,7 @@ const handleThumbnailChange = async (event: Event) => {
   if (file) {
     emitUpdate({ thumbnail: file });
     const kind = props.work?.kind;
-    const tempField = kind === 'plugin' ? 'tempPreviewPath' : 'tempThumbnailPath';
+    const tempField = (kind === 'plugin' || kind === 'software') ? 'tempPreviewPath' : 'tempThumbnailPath';
     const success = await uploadFile(file, thumbnailProgress, tempField);
     if (success) {
       ElMessage.success('封面图上传成功！');
@@ -328,7 +331,7 @@ const handleThumbnailChange = async (event: Event) => {
 const handleAiCoverSave = async (file: File) => {
   emitUpdate({ thumbnail: file });
   const kind = props.work?.kind;
-  const tempField = kind === 'plugin' ? 'tempPreviewPath' : 'tempThumbnailPath';
+  const tempField = (kind === 'plugin' || kind === 'software') ? 'tempPreviewPath' : 'tempThumbnailPath';
   const success = await uploadFile(file, thumbnailProgress, tempField);
   if (success) {
     ElMessage.success('已自动应用 AI 生成的封面图！');
@@ -381,9 +384,10 @@ const existingVersions = ref<any[]>([]);
 const isAddingNewVersion = ref(false);
 
 const fetchExistingVersions = async () => {
-  if (props.work?.kind === 'plugin' && props.work?.id) {
+  if ((props.work?.kind === 'plugin' || props.work?.kind === 'software') && props.work?.id) {
     try {
-      const { data } = await api.get(`/api/plugins/${props.work.id}/versions`);
+      const pathSegment = props.work.kind === 'plugin' ? 'plugins' : 'softwares';
+      const { data } = await api.get(`/api/${pathSegment}/${props.work.id}/versions`);
       existingVersions.value = data || [];
       if (existingVersions.value.length > 0) {
         const currentVer = form.value.pluginVersion;
@@ -413,7 +417,7 @@ watch(
       if (form.value.linkedCourseId) {
         fetchLessons(form.value.linkedCourseId);
       }
-      if (props.work?.kind === 'plugin') {
+      if (props.work?.kind === 'plugin' || props.work?.kind === 'software') {
         fetchExistingVersions();
       }
     }
@@ -493,7 +497,7 @@ watch(
 <template>
   <Modal
     :show="show && !!work"
-    :size="['asset', 'material', 'plugin'].includes(work?.kind || '') ? 'xxl' : 'xl'"
+    :size="['asset', 'material', 'plugin', 'software'].includes(work?.kind || '') ? 'xxl' : 'xl'"
     glass-card
     @close="show = false"
   >
@@ -505,14 +509,14 @@ watch(
               ? '编辑资源库作品'
               : work?.kind === 'material'
                 ? '编辑材质库作品'
-                : work?.kind === 'plugin'
+                : (work?.kind === 'plugin' || work?.kind === 'software')
                   ? '更新插件版本'
                   : '编辑作品'
           }}
         </h3>
         <p class="text-xs text-[var(--text-muted)] mt-1">
           {{
-            work?.kind === 'plugin'
+            (work?.kind === 'plugin' || work?.kind === 'software')
               ? '您可以在此上传新版插件文件并更新版本号，保存后将重新提交审核。'
               : '保存后会根据内容类型重新提交审核。'
           }}
@@ -522,10 +526,10 @@ watch(
 
     <div
       v-if="work"
-      :class="['asset', 'material', 'plugin'].includes(work.kind) ? 'modal-scroll-container' : ''"
+      :class="['asset', 'material', 'plugin', 'software'].includes(work.kind) ? 'modal-scroll-container' : ''"
     >
       <!-- 2-column layout for assets, materials, plugins -->
-      <div v-if="['asset', 'material', 'plugin'].includes(work.kind)" class="space-y-4 text-left">
+      <div v-if="['asset', 'material', 'plugin', 'software'].includes(work.kind)" class="space-y-4 text-left">
         <!-- Top Row: Inputs (Left) and Description (Right) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           <!-- Left Column: File dropzones & Metadata -->
@@ -599,14 +603,14 @@ watch(
               </div>
 
               <!-- PLUGIN file uploaders -->
-              <div v-else-if="work.kind === 'plugin'" class="grid grid-cols-1 gap-4">
+              <div v-else-if="work.kind === 'plugin' || work.kind === 'software'" class="grid grid-cols-1 gap-4">
                 <FileDropZone
                   v-model="form.file"
-                  accept=".zip,.py"
+                  :accept="work.kind === 'plugin' ? '.zip,.py' : '.exe,.msi,.dmg,.pkg,.deb,.rpm,.zip,.rar,.7z'"
                   height-class="h-24"
                   :progress="fileProgress"
-                  :label="form.file ? form.file.name : (fileUploadedName || '重新上传插件文件 (.zip, .py)')"
-                  sublabel="当前已有插件文件。留空将保留原文件。支持 .zip, .py"
+                  :label="form.file ? form.file.name : (fileUploadedName || (work.kind === 'plugin' ? '重新上传插件文件 (.zip, .py)' : '重新上传软件文件 (.exe, .msi, .dmg, .zip)'))"
+                  :sublabel="work.kind === 'plugin' ? '当前已有插件文件。留空将保留原文件。支持 .zip, .py' : '当前已有软件文件。留空将保留原文件。支持 .exe, .msi, .dmg, .zip'"
                   @change="handleFileChange"
                 />
               </div>
@@ -694,10 +698,10 @@ watch(
                 </el-select>
               </label>
 
-              <label v-else-if="work.kind === 'plugin'" class="form-field flex flex-col text-left">
+              <label v-else-if="work.kind === 'plugin' || work.kind === 'software'" class="form-field flex flex-col text-left">
                 <span
                   class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
-                  >插件分类</span
+                  >{{ work.kind === 'plugin' ? '插件分类' : '软件分类' }}</span
                 >
                 <el-select
                   v-model="pluginCategory"
@@ -706,7 +710,7 @@ watch(
                   placeholder="选择分类"
                 >
                   <el-option
-                    v-for="category in pluginCategories"
+                    v-for="category in (work.kind === 'plugin' ? pluginCategories : (systemStore.settings.SOFTWARE_CATEGORIES || ['3D 建模与雕刻软件', '渲染引擎与渲染器', '后期与图像处理', '游戏与交互引擎', '其他工具']))"
                     :key="category"
                     :label="category"
                     :value="category"
@@ -762,7 +766,7 @@ watch(
             </div>
 
             <!-- PLUGIN specifications -->
-            <div v-if="work.kind === 'plugin'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div v-if="work.kind === 'plugin' || work.kind === 'software'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div class="flex flex-col text-left col-span-1">
                 <div
                   v-if="existingVersions.length > 0 && !isAddingNewVersion"
@@ -834,7 +838,7 @@ watch(
                   size="large"
                 >
                   <el-option
-                    v-for="ver in blenderVersions"
+                    v-for="ver in (work?.kind === 'plugin' ? blenderVersions : ['Windows 10/11', 'macOS', 'Linux', 'Android', 'iOS', '跨平台'])"
                     :key="ver"
                     :label="ver"
                     :value="ver"
@@ -860,7 +864,7 @@ watch(
               <MarkdownEditor
                 v-model="description"
                 placeholder="描述作品用途、制作说明、安装方式或更新内容"
-                :height="work?.kind === 'plugin' ? '400px' : '340px'"
+                :height="(work?.kind === 'plugin' || work?.kind === 'software') ? '400px' : '340px'"
                 simple
               />
             </div>

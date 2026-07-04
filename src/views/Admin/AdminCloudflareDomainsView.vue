@@ -16,12 +16,11 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import { fetchManagementInsights } from './adminManagementInsights';
-import PageHeader from '@/components/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import UiButton from '@/components/ui/Button.vue';
 import UiInput from '@/components/ui/Input.vue';
-import AdminStatCards from './components/AdminStatCards.vue';
+import AdminHeader from './components/AdminHeader.vue';
 import DnsRecordList from './components/DnsRecordList.vue';
 import DnsRecordForm, {
   type CloudflareDnsRecord,
@@ -407,28 +406,25 @@ onMounted(async () => {
     class="admin-cloudflare-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)] mobile-adaptive"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
-      <!-- Page Header -->
-      <PageHeader title="Cloudflare 域名管理" variant="card">
+      <!-- Ultra-Compact Single Row Header -->
+      <AdminHeader
+        title="Cloudflare 域名管理"
+        :cards="consolidatedCards"
+        v-model="searchQuery"
+        placeholder="搜索域名/DNS记录..."
+      >
         <template #title-badge>
-          <div class="flex flex-wrap items-center gap-1.5 ml-2">
+          <div class="flex flex-wrap items-center gap-1.5">
             <Badge variant="info"> 域名数: {{ zones.length }} </Badge>
           </div>
         </template>
 
-        <template #center>
-          <!-- Compact Search Box (Centered) -->
-          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
-            <Search />
-            <input v-model="searchQuery" type="text" placeholder="搜索域名/DNS记录..." />
-          </label>
-        </template>
-
-        <!-- Actions -->
         <UiButton
           variant="outline"
           size="sm"
           :icon="ExternalLink"
           @click="openCloudflareDashboard()"
+          class="!h-7.5 !text-xs !px-2.5"
         >
           <span class="hidden sm:inline">控制台</span>
         </UiButton>
@@ -439,14 +435,11 @@ onMounted(async () => {
           :loading="loadingZones"
           :disabled="!hasToken"
           @click="fetchZones"
+          class="!h-7.5 !text-xs !px-2.5"
         >
           刷新
         </UiButton>
-      </PageHeader>
-
-      <!-- KPI Metrics Grid -->
-      <AdminStatCards :cards="consolidatedCards" />
-
+      </AdminHeader>
       <!-- Workspace layout: Single Column Workspace -->
       <div class="mt-3 w-full min-w-0">
         <div class="space-y-3 min-w-0">

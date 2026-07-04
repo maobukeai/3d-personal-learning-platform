@@ -7,6 +7,7 @@ import { createNotification } from '../../utils/notification';
 import { createPaginationMeta, getPaginationParams } from '../../utils/pagination';
 import { auditService, AuditAction, AuditModule } from '../../services/audit.service';
 import { TaskStatus } from '../../types/task';
+import { deleteCloudOrLocalFileByUrl } from '../../utils/file';
 
 type TeamRiskFilter = 'ALL' | 'PENDING' | 'OVERDUE' | 'UNASSIGNED' | 'EMPTY';
 type SortDirection = 'asc' | 'desc';
@@ -1022,6 +1023,13 @@ export const updateTeam = async (req: AuthRequest, res: Response, next: NextFunc
       const oldTeam = await tx.team.findUnique({ where: { id: id } });
       if (!oldTeam) throw new AppError('Team not found', 404);
 
+      if (avatarUrl && avatarUrl !== oldTeam.avatarUrl && oldTeam.avatarUrl) {
+        deleteCloudOrLocalFileByUrl(oldTeam.avatarUrl).catch(() => {});
+      }
+      if (coverUrl && coverUrl !== oldTeam.coverUrl && oldTeam.coverUrl) {
+        deleteCloudOrLocalFileByUrl(oldTeam.coverUrl).catch(() => {});
+      }
+
       const updatedTeam = await tx.team.update({
         where: { id: id },
         data: { name, description, avatarUrl, coverUrl, visibility, category, ownerId },
@@ -1063,6 +1071,12 @@ export const updateTeam = async (req: AuthRequest, res: Response, next: NextFunc
 export const deleteTeam = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
+    const team = await prisma.team.findUnique({ where: { id } });
+    if (team) {
+      if (team.avatarUrl) deleteCloudOrLocalFileByUrl(team.avatarUrl).catch(() => {});
+      if (team.coverUrl) deleteCloudOrLocalFileByUrl(team.coverUrl).catch(() => {});
+    }
+
     await prisma.team.delete({ where: { id: id } });
     res.json({ message: 'Team deleted successfully' });
   } catch (error) {

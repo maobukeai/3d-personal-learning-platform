@@ -1,4 +1,4 @@
-export type ResourceKind = 'asset' | 'material' | 'plugin' | 'showcase';
+export type ResourceKind = 'asset' | 'material' | 'plugin' | 'showcase' | 'software';
 export type KindFilter = ResourceKind | 'all';
 export type StatusFilter = 'all' | 'APPROVED' | 'PENDING' | 'REJECTED';
 export type SortMode = 'updated' | 'created' | 'metric' | 'title' | 'review';

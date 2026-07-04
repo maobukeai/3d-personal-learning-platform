@@ -434,6 +434,22 @@ watch(
   },
   { immediate: true },
 );
+
+const activePreviewTab = ref<'3d' | 'video'>('3d');
+watch(
+  () => asset.value?.id,
+  () => {
+    activePreviewTab.value = '3d';
+  }
+);
+const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
+  if (!url) return undefined;
+  const match = url.match(/video\/(BV[a-zA-Z0-9]+)/i) || url.match(/bvid=(BV[a-zA-Z0-9]+)/i);
+  if (match && match[1]) {
+    return `//player.bilibili.com/player.html?bvid=${match[1]}&page=1&high_quality=1&as_wide=1&autoplay=0&danmaku=0`;
+  }
+  return undefined;
+};
 </script>
 
 <template>
@@ -519,12 +535,46 @@ watch(
     <div v-else-if="asset" class="grid grid-cols-1 xl:grid-cols-12 gap-6">
       <!-- Left Column: 3D model viewer and Telemetry stats -->
       <div class="xl:col-span-7 flex flex-col gap-4">
+        <!-- Preview Mode Selector -->
+        <div
+          v-if="asset.bilibiliUrl"
+          class="flex items-center gap-1 p-0.5 bg-black/20 dark:bg-white/5 backdrop-blur-md rounded-lg border border-white/10 self-start"
+        >
+          <button
+            type="button"
+            class="px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer border-none"
+            :class="activePreviewTab === '3d' ? 'bg-teal-500 text-white shadow-sm' : 'bg-transparent text-slate-400 hover:text-white'"
+            @click="activePreviewTab = '3d'"
+          >
+            3D 互动预览
+          </button>
+          <button
+            type="button"
+            class="px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer border-none"
+            :class="activePreviewTab === 'video' ? 'bg-teal-500 text-white shadow-sm' : 'bg-transparent text-slate-400 hover:text-white'"
+            @click="activePreviewTab = 'video'"
+          >
+            视频演示
+          </button>
+        </div>
+
         <!-- 3D Preview area -->
         <div
           class="relative w-full aspect-video sm:h-[400px] rounded-xl overflow-hidden border border-white/10 bg-slate-950/40 flex items-center justify-center group"
         >
+          <iframe
+            v-if="activePreviewTab === 'video' && getBilibiliEmbedUrl(asset.bilibiliUrl)"
+            :src="getBilibiliEmbedUrl(asset.bilibiliUrl)"
+            scrolling="no"
+            border="0"
+            frameborder="no"
+            framespacing="0"
+            allowfullscreen="true"
+            class="w-full h-full absolute inset-0 z-20"
+          ></iframe>
+
           <ModelViewer
-            v-if="isModelAsset && asset.url"
+            v-if="activePreviewTab === '3d' && isModelAsset && asset.url"
             ref="modelViewerRef"
             :model-url="getAssetUrl(asset.url)"
             :auto-rotate="autoRotate"

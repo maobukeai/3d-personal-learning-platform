@@ -15,6 +15,7 @@ interface SystemSettings {
   TEAM_CATEGORIES: string[];
   SHOWCASE_CATEGORIES: string[];
   PLUGIN_CATEGORIES: string[];
+  SOFTWARE_CATEGORIES: string[];
   PASSWORD_MIN_LENGTH: string;
   SESSION_TIMEOUT: string;
   AUTO_APPROVE_MATERIALS: boolean;
@@ -27,6 +28,7 @@ interface SystemSettings {
   OAUTH_GITHUB_ENABLED: boolean;
   AI_IMPORT_ENABLED: boolean;
   AI_MODEL_OPTIONS: PublicAIModelOption[];
+  TEMPORARY_NETDISK_CLEANUP_TIME: string;
 }
 
 export interface PublicAIModelOption {
@@ -63,6 +65,13 @@ const DEFAULT_PLUGIN_CATEGORIES = [
   '物理与特效',
   '其他工具',
 ];
+const DEFAULT_SOFTWARE_CATEGORIES = [
+  '3D 建模与雕刻软件',
+  '渲染引擎与渲染器',
+  '后期与图像处理',
+  '游戏与交互引擎',
+  '其他工具',
+];
 const DEFAULT_ALLOWED_FILE_TYPES = ['.glb', '.gltf', '.fbx', '.obj', '.stl', '.zip'];
 
 const DEFAULT_SETTINGS: SystemSettings = {
@@ -78,6 +87,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   TEAM_CATEGORIES: DEFAULT_TEAM_CATEGORIES,
   SHOWCASE_CATEGORIES: DEFAULT_SHOWCASE_CATEGORIES,
   PLUGIN_CATEGORIES: DEFAULT_PLUGIN_CATEGORIES,
+  SOFTWARE_CATEGORIES: DEFAULT_SOFTWARE_CATEGORIES,
   PASSWORD_MIN_LENGTH: '6',
   SESSION_TIMEOUT: '7d',
   AUTO_APPROVE_MATERIALS: false,
@@ -90,6 +100,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   OAUTH_GITHUB_ENABLED: false,
   AI_IMPORT_ENABLED: false,
   AI_MODEL_OPTIONS: [],
+  TEMPORARY_NETDISK_CLEANUP_TIME: '03:00',
 };
 
 let pendingSettingsFetch: Promise<void> | null = null;
@@ -225,6 +236,7 @@ export const useSystemStore = defineStore('system', {
               DEFAULT_SHOWCASE_CATEGORIES,
             ),
             PLUGIN_CATEGORIES: safeParseArray(data.PLUGIN_CATEGORIES, DEFAULT_PLUGIN_CATEGORIES),
+            SOFTWARE_CATEGORIES: safeParseArray(data.SOFTWARE_CATEGORIES, DEFAULT_SOFTWARE_CATEGORIES),
             PASSWORD_MIN_LENGTH: String(data.PASSWORD_MIN_LENGTH || '6'),
             SESSION_TIMEOUT: data.SESSION_TIMEOUT || '7d',
             AUTO_APPROVE_MATERIALS: toBool(data.AUTO_APPROVE_MATERIALS),
@@ -237,6 +249,7 @@ export const useSystemStore = defineStore('system', {
             OAUTH_GITHUB_ENABLED: toBool(data.OAUTH_GITHUB_ENABLED),
             AI_IMPORT_ENABLED: toBool(data.AI_IMPORT_ENABLED),
             AI_MODEL_OPTIONS: safeParseModels(data.AI_MODEL_OPTIONS),
+            TEMPORARY_NETDISK_CLEANUP_TIME: data.TEMPORARY_NETDISK_CLEANUP_TIME || '03:00',
           };
         } catch (error) {
           logError(error, { operation: 'system.fetchSettings', component: 'systemStore' });

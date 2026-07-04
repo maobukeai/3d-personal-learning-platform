@@ -32,10 +32,9 @@ import CategoryFormDialog from './components/CategoryFormDialog.vue';
 import CourseImportDialog from './components/CourseImportDialog.vue';
 import LessonEditDialog from './components/LessonEditDialog.vue';
 import { fetchManagementInsights } from './adminManagementInsights';
-import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';
 import Tabs from '@/components/ui/Tabs.vue';
-import AdminStatCards from './components/AdminStatCards.vue';
+import AdminHeader from './components/AdminHeader.vue';
 
 const router = useRouter();
 
@@ -362,30 +361,30 @@ onMounted(() => {
     class="admin-courses-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)] mobile-adaptive"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
-      <!-- 奢华顶栏 (PageHeader card variant) -->
-      <PageHeader title="学院课程" subtitle="系统课程与课时资源管理" variant="card">
-        <template #center>
-          <!-- Compact Search Box (Centered) -->
-          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
-            <Search />
-            <input
-              v-model="searchQuery"
-              type="search"
-              :placeholder="$t('admin.search_course_title_or')"
-            />
-          </label>
-        </template>
-
-        <!-- Action Buttons -->
+      <!-- Ultra-Compact Single Row Header -->
+      <AdminHeader
+        title="学院课程"
+        subtitle="系统课程与课时资源管理"
+        :cards="consolidatedCards"
+        v-model="searchQuery"
+        :placeholder="$t('admin.search_course_title_or')"
+      >
         <Button
           variant="secondary"
           size="sm"
           :icon="LinkIcon"
           @click="courseImportDialogRef?.open()"
+          class="!h-7.5 !text-xs !px-2.5"
         >
           导入
         </Button>
-        <Button variant="primary" size="sm" :icon="Plus" @click="courseEditDialogRef?.open()">
+        <Button
+          variant="primary"
+          size="sm"
+          :icon="Plus"
+          @click="courseEditDialogRef?.open()"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
           新建课程
         </Button>
         <Button
@@ -394,14 +393,11 @@ onMounted(() => {
           :icon="RefreshCw"
           :loading="isLoading"
           @click="fetchCourses"
+          class="!h-7.5 !text-xs !px-2.5"
         >
           刷新
         </Button>
-      </PageHeader>
-
-      <!-- KPI Metrics Grid -->
-      <AdminStatCards :cards="consolidatedCards" />
-
+      </AdminHeader>
       <!-- Workspace layout: Single Column Workspace -->
       <div class="mt-3 w-full min-w-0">
         <div class="space-y-3 min-w-0">

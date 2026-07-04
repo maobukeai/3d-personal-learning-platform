@@ -24,10 +24,10 @@ import type { User } from '@/types';
 import { useAuditLogHelpers, AUDIT_MODULES } from '@/composables/useAuditLogHelpers';
 
 // UI components
-import PageHeader from '@/components/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
+import AdminHeader from './components/AdminHeader.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import AuditLogDetailModal, { type AuditLog } from './components/AuditLogDetailModal.vue';
 
@@ -250,29 +250,24 @@ onBeforeUnmount(() => {
 <template>
   <div class="audit-console flex flex-1 min-h-0 flex-col overflow-hidden mobile-adaptive">
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
-      <PageHeader
+      <!-- Ultra-Compact Single Row Header -->
+      <AdminHeader
         title="审计日志"
-        subtitle="追踪后台关键操作、来源、风险动作与操作者行为。"
-        variant="card"
+        subtitle="追踪后台关键操作、来源、风险动作与操作者行为"
+        v-model="searchFilter"
+        placeholder="搜索描述、 IP、操作者..."
       >
         <template #title-badge>
-          <div class="flex flex-wrap items-center gap-1.5 ml-2">
+          <div class="flex flex-wrap items-center gap-1.5">
             <Badge variant="info">匹配: {{ total }}</Badge>
-            <Badge :variant="highRiskCount > 0 ? 'danger' : 'info'"
-              >高风险: {{ highRiskCount }}</Badge
-            >
+            <Badge :variant="highRiskCount > 0 ? 'danger' : 'info'">
+              高风险: {{ highRiskCount }}
+            </Badge>
             <Badge variant="info">最新事件: {{ latestLogTime }}</Badge>
-            <Badge :variant="activeFilters > 0 ? 'warning' : 'info'"
-              >筛选: {{ activeFilters }}</Badge
-            >
+            <Badge :variant="activeFilters > 0 ? 'warning' : 'info'">
+              筛选: {{ activeFilters }}
+            </Badge>
           </div>
-        </template>
-
-        <template #center>
-          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
-            <Search />
-            <input v-model="searchFilter" type="text" placeholder="搜索描述、 IP、操作者..." />
-          </label>
         </template>
 
         <Button
@@ -281,6 +276,7 @@ onBeforeUnmount(() => {
           :class="{ active: showAdvancedFilters }"
           :icon="SlidersHorizontal"
           @click="showAdvancedFilters = !showAdvancedFilters"
+          class="!h-7.5 !text-xs !px-2.5"
         >
           高级筛选
         </Button>
@@ -290,6 +286,7 @@ onBeforeUnmount(() => {
           :class="{ active: autoRefresh }"
           :icon="autoRefresh ? Pause : Play"
           @click="toggleAutoRefresh"
+          class="!h-7.5 !text-xs !px-2.5"
         >
           {{ autoRefresh ? '实时中' : '实时' }}
         </Button>
@@ -299,6 +296,7 @@ onBeforeUnmount(() => {
           :disabled="isExporting"
           :icon="Download"
           @click="exportCsv"
+          class="!h-7.5 !text-xs !px-2.5"
         >
           {{ isExporting ? '导出中' : '导出 CSV' }}
         </Button>
@@ -308,10 +306,11 @@ onBeforeUnmount(() => {
           :icon="RefreshCw"
           :loading="isLoading"
           @click="fetchLogs"
+          class="!h-7.5 !text-xs !px-2.5"
         >
           刷新
         </Button>
-      </PageHeader>
+      </AdminHeader>
       <!-- Sub-header for Search & Quick Strip inside a Card -->
       <Card padding="sm" class="audit-command-card">
         <div v-show="showAdvancedFilters" class="advanced-filters-grid mb-3">

@@ -8,11 +8,12 @@ import { logger } from '../utils/logger';
 import { getPaginationParams, createPaginationMeta } from '../utils/pagination';
 import path from 'path';
 import fs from 'fs';
-import { deleteCloudOrLocalFileByUrl, getZipFileNames, parseZipLocal, urlToPath, moveTempFileToDestination } from '../utils/file';
+import { deleteCloudOrLocalFileByUrl, getZipFileNames, parseZipLocal, urlToPath, moveTempFileToDestination, getFileSizeInMb } from '../utils/file';
 import { parseTags } from '../utils/tags';
 import { UploadedFile } from '../types/upload';
 
 import { parseBool } from '../utils/parser';
+import { createCommentController, type AccessResult } from './commentController.factory';
 
 const PLUGIN_FAVORITES_SETTING_KEY = 'favorite_plugins';
 
@@ -571,10 +572,7 @@ export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFu
 
     let fileSizeMb = pluginFile ? pluginFile.size / (1024 * 1024) : 0;
     if (!pluginFile && tempPluginPath) {
-      const localPath = urlToPath(tempPluginPath);
-      if (localPath && fs.existsSync(localPath)) {
-        fileSizeMb = fs.statSync(localPath).size / (1024 * 1024);
-      }
+      fileSizeMb = await getFileSizeInMb(tempPluginPath);
     }
 
     const previewUrl = previewFile
@@ -767,14 +765,12 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
         }
       }
 
-      let fileSizeMb = 0;
-      const localPath = urlToPath(tempPluginPath);
-      if (localPath && fs.existsSync(localPath)) {
-        fileSizeMb = fs.statSync(localPath).size / (1024 * 1024);
-      }
+      const fileSizeMb = await getFileSizeInMb(tempPluginPath);
 
       updateData.fileUrl = tempPluginPath;
       updateData.fileSize = fileSizeMb;
+
+      const localPath = urlToPath(tempPluginPath);
 
       let packageFilesList: string[] = [];
       if (localPath && fs.existsSync(localPath)) {
@@ -905,15 +901,16 @@ export const deletePlugin = async (req: AuthRequest, res: Response, next: NextFu
     if (existing.userId !== req.userId) return next(new AppError('无权删除此插件', 403));
 
     // Remove files (run in background)
-    for (const urlField of [existing.fileUrl, existing.previewUrl]) {
-      if (urlField) {
-        deleteCloudOrLocalFileByUrl(urlField).catch((err) => {
-          logger.error(
-            `[PluginController] Failed to delete plugin file ${urlField} in background:`,
-            err,
-          );
-        });
-      }
+    const fileSizeBytes = existing.fileSize ? Math.round(existing.fileSize * 1024 * 1024) : undefined;
+    if (existing.fileUrl) {
+      deleteCloudOrLocalFileByUrl(existing.fileUrl, fileSizeBytes).catch((err) => {
+        logger.error(`[PluginController] Failed to delete plugin file in background:`, err);
+      });
+    }
+    if (existing.previewUrl) {
+      deleteCloudOrLocalFileByUrl(existing.previewUrl).catch((err) => {
+        logger.error(`[PluginController] Failed to delete plugin preview in background:`, err);
+      });
     }
 
     await prisma.plugin.delete({ where: { id } });
@@ -1005,108 +1002,46 @@ export const getPluginPackageFiles = async (
 };
 
 // GET /api/plugins/:id/comments
-export const getPluginComments = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const pluginId = req.params.id as string;
-  try {
-    const plugin = await prisma.plugin.findFirst({
-      where: {
-        id: pluginId,
-        OR:
-          req.user?.role === 'ADMIN'
-            ? undefined
-            : [{ status: 'APPROVED' }, { userId: req.userId as string }],
-      },
-    });
-    if (!plugin) {
-      return next(new AppError('Plugin not found or access denied', 404));
-    }
-    const comments = await prisma.pluginComment.findMany({
-      where: { pluginId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: { select: { id: true, name: true, avatarUrl: true } },
-      },
-    });
-    res.json(comments);
-  } catch (error) {
-    next(error);
+const verifyPluginAccess = async (
+  req: AuthRequest,
+  pluginId: string,
+  operation: 'list' | 'create',
+): Promise<AccessResult> => {
+  const plugin = await prisma.plugin.findFirst({
+    where: {
+      id: pluginId,
+      OR:
+        req.user?.role === 'ADMIN'
+          ? undefined
+          : [{ status: 'APPROVED' }, { userId: req.userId as string }],
+    },
+  });
+
+  if (!plugin) {
+    return { ok: false, status: 404, message: 'Plugin not found or access denied' };
   }
+
+  return { ok: true };
 };
 
-// POST /api/plugins/:id/comments
-export const createPluginComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const pluginId = req.params.id as string;
-  const userId = req.user?.id;
-  const { content } = req.body;
+const pluginCommentController = createCommentController({
+  verifyAccess: verifyPluginAccess,
+  commentModel: prisma.pluginComment,
+  parentField: 'pluginId',
+  resourceIdParam: 'id',
+  messages: {
+    commentEmpty: 'Comment content cannot be empty',
+    commentNotFound: 'Comment not found',
+    commentDeleteForbidden: 'Forbidden',
+    commentDeleted: 'Comment deleted successfully',
+    internalError: 'Internal server error',
+  },
+  logPrefix: 'Plugin comment',
+});
 
-  if (!userId) {
-    return next(new AppError('Unauthorized', 401));
-  }
-  if (!content || !content.trim()) {
-    return next(new AppError('Comment content cannot be empty', 400));
-  }
-
-  try {
-    const plugin = await prisma.plugin.findFirst({
-      where: {
-        id: pluginId,
-        OR:
-          req.user?.role === 'ADMIN'
-            ? undefined
-            : [{ status: 'APPROVED' }, { userId: req.userId as string }],
-      },
-    });
-    if (!plugin) {
-      return next(new AppError('Plugin not found or access denied', 404));
-    }
-    const comment = await prisma.pluginComment.create({
-      data: {
-        content: content.trim(),
-        pluginId,
-        userId,
-      },
-      include: {
-        user: { select: { id: true, name: true, avatarUrl: true } },
-      },
-    });
-    res.status(201).json(comment);
-  } catch (error) {
-    next(error);
-  }
-};
-
-// DELETE /api/plugins/comments/:commentId
-export const deletePluginComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const commentId = req.params.commentId as string;
-  const userId = req.user?.id;
-  const userRole = req.user?.role;
-
-  if (!userId) {
-    return next(new AppError('Unauthorized', 401));
-  }
-
-  try {
-    const comment = await prisma.pluginComment.findUnique({
-      where: { id: commentId },
-    });
-
-    if (!comment) {
-      return next(new AppError('Comment not found', 404));
-    }
-
-    if (comment.userId !== userId && userRole !== 'ADMIN') {
-      return next(new AppError('Forbidden', 403));
-    }
-
-    await prisma.pluginComment.delete({
-      where: { id: commentId },
-    });
-
-    res.json({ success: true, message: 'Comment deleted successfully' });
-  } catch (error) {
-    next(error);
-  }
-};
+export const getPluginComments = pluginCommentController.list;
+export const createPluginComment = pluginCommentController.create;
+export const deletePluginComment = pluginCommentController.remove;
 
 // GET /api/plugins/:id/share
 export const getPluginShare = async (req: AuthRequest, res: Response, next: NextFunction) => {

@@ -17,13 +17,14 @@ import {
   Users,
   RefreshCw,
   Puzzle,
+  Laptop,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { fetchManagementInsights } from './adminManagementInsights';
-import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
+import AdminHeader from './components/AdminHeader.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Modal from '@/components/ui/Modal.vue';
@@ -47,7 +48,7 @@ interface SettingItem {
   value: string | string[];
 }
 
-const activeTab = ref<'assets' | 'courses' | 'materials' | 'plugins' | 'showcases' | 'teams'>(
+const activeTab = ref<'assets' | 'courses' | 'materials' | 'plugins' | 'softwares' | 'showcases' | 'teams'>(
   'assets',
 );
 const isLoading = ref(false);
@@ -57,6 +58,7 @@ const assetCategories = ref<Category[]>([]);
 const courseCategories = ref<Category[]>([]);
 const materialCategories = ref<string[]>([]);
 const pluginCategories = ref<string[]>([]);
+const softwareCategories = ref<string[]>([]);
 const showcaseCategories = ref<string[]>([]);
 const teamCategories = ref<string[]>([]);
 
@@ -128,6 +130,13 @@ const fetchSettingsCategories = async () => {
     } catch {
       pluginCategories.value = [];
     }
+
+    try {
+      const softwareVal = getVal('SOFTWARE_CATEGORIES');
+      softwareCategories.value = typeof softwareVal === 'string' ? JSON.parse(softwareVal) : softwareVal;
+    } catch {
+      softwareCategories.value = [];
+    }
   } catch (error) {
     logError(error, {
       operation: 'admin.fetchSettingsCategories',
@@ -174,6 +183,12 @@ const filteredCategories = computed(() => {
           c.toLowerCase().includes(searchQuery.value.toLowerCase()),
         )
       : pluginCategories.value;
+  } else if (activeTab.value === 'softwares') {
+    return searchQuery.value
+      ? softwareCategories.value.filter((c) =>
+          c.toLowerCase().includes(searchQuery.value.toLowerCase()),
+        )
+      : softwareCategories.value;
   } else {
     return searchQuery.value
       ? teamCategories.value.filter((c) =>
@@ -195,6 +210,7 @@ const categoryTabOptions = computed(() => [
   { label: `课程 (${courseCategories.value.length})`, value: 'courses', icon: GraduationCap },
   { label: `材质 (${materialCategories.value.length})`, value: 'materials', icon: Layers },
   { label: `插件 (${pluginCategories.value.length})`, value: 'plugins', icon: Puzzle },
+  { label: `软件 (${softwareCategories.value.length})`, value: 'softwares', icon: Laptop },
   { label: `作品展示 (${showcaseCategories.value.length})`, value: 'showcases', icon: Sparkles },
   { label: `团队分类 (${teamCategories.value.length})`, value: 'teams', icon: Users },
 ]);
@@ -205,6 +221,7 @@ const consolidatedCards = computed(() => {
   const others =
     materialCategories.value.length +
     pluginCategories.value.length +
+    softwareCategories.value.length +
     showcaseCategories.value.length +
     teamCategories.value.length;
   const total = assets + courses + others;
@@ -306,17 +323,21 @@ const handleSaveCategory = async () => {
         ? 'MATERIAL_CATEGORIES'
         : activeTab.value === 'plugins'
           ? 'PLUGIN_CATEGORIES'
-          : activeTab.value === 'showcases'
-            ? 'SHOWCASE_CATEGORIES'
-            : 'TEAM_CATEGORIES';
+          : activeTab.value === 'softwares'
+            ? 'SOFTWARE_CATEGORIES'
+            : activeTab.value === 'showcases'
+              ? 'SHOWCASE_CATEGORIES'
+              : 'TEAM_CATEGORIES';
     const list =
       activeTab.value === 'materials'
         ? [...materialCategories.value]
         : activeTab.value === 'plugins'
           ? [...pluginCategories.value]
-          : activeTab.value === 'showcases'
-            ? [...showcaseCategories.value]
-            : [...teamCategories.value];
+          : activeTab.value === 'softwares'
+            ? [...softwareCategories.value]
+            : activeTab.value === 'showcases'
+              ? [...showcaseCategories.value]
+              : [...teamCategories.value];
 
     if (currentCategory.value) {
       const idx = list.indexOf(currentCategory.value as string);
@@ -388,17 +409,21 @@ const handleDeleteCategory = async (category: Category | string) => {
           ? 'MATERIAL_CATEGORIES'
           : activeTab.value === 'plugins'
             ? 'PLUGIN_CATEGORIES'
-            : activeTab.value === 'showcases'
-              ? 'SHOWCASE_CATEGORIES'
-              : 'TEAM_CATEGORIES';
+            : activeTab.value === 'softwares'
+              ? 'SOFTWARE_CATEGORIES'
+              : activeTab.value === 'showcases'
+                ? 'SHOWCASE_CATEGORIES'
+                : 'TEAM_CATEGORIES';
       const list =
         activeTab.value === 'materials'
           ? materialCategories.value
           : activeTab.value === 'plugins'
             ? pluginCategories.value
-            : activeTab.value === 'showcases'
-              ? showcaseCategories.value
-              : teamCategories.value;
+            : activeTab.value === 'softwares'
+              ? softwareCategories.value
+              : activeTab.value === 'showcases'
+                ? showcaseCategories.value
+                : teamCategories.value;
       const newList = list.filter((c) => c !== category);
 
       await api.post('/api/admin/settings', {
@@ -423,82 +448,38 @@ onMounted(() => {
     class="admin-categories-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)] mobile-adaptive"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
-      <!-- 平台分类管理 (PageHeader card variant) -->
-      <PageHeader
+      <!-- Ultra-Compact Single Row Header -->
+      <AdminHeader
         title="平台分类管理"
         subtitle="全局业务分类、显示权重与 Emoji 标识设计"
-        variant="card"
+        :cards="consolidatedCards"
+        v-model="searchQuery"
+        placeholder="搜索当前分类..."
       >
         <template #title-badge>
-          <Badge variant="info" class="ml-1.5"> 当前类目数: {{ filteredCategories.length }} </Badge>
+          <Badge variant="info"> 当前类目数: {{ filteredCategories.length }} </Badge>
         </template>
 
-        <template #center>
-          <!-- Compact Search Box (Centered) -->
-          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
-            <Search />
-            <input v-model="searchQuery" type="search" placeholder="搜索当前分类..." />
-          </label>
-        </template>
-
-        <!-- Action Buttons -->
-        <Button variant="primary" size="sm" :icon="Plus" @click="openModal()"> 新建分类 </Button>
+        <Button
+          variant="primary"
+          size="sm"
+          :icon="Plus"
+          @click="openModal()"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
+          新建分类
+        </Button>
         <Button
           variant="secondary"
           size="sm"
           :icon="RefreshCw"
           :loading="isLoading"
           @click="fetchData"
+          class="!h-7.5 !text-xs !px-2.5"
         >
           刷新
         </Button>
-      </PageHeader>
-
-      <!-- KPI Metrics Grid -->
-      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mobile-grid">
-        <Card
-          v-for="card in consolidatedCards"
-          :key="card.label"
-          hoverable
-          glow
-          class="group !p-2 px-2.5"
-        >
-          <div class="flex items-center justify-between w-full gap-3">
-            <!-- Left: Icon & Info -->
-            <div class="flex items-center gap-2.5 min-w-0">
-              <span
-                class="panel-icon border border-base rounded-lg p-1.5 transition-transform group-hover:scale-105 shrink-0"
-                :class="card.color"
-              >
-                <component :is="card.icon" class="h-3.5 w-3.5" />
-              </span>
-              <div class="min-w-0">
-                <p
-                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
-                >
-                  {{ card.label }}
-                </p>
-                <p
-                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
-                  :title="card.hint"
-                >
-                  {{ card.hint }}
-                </p>
-              </div>
-            </div>
-
-            <!-- Right: Metric & Health Badge -->
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="text-base font-black text-[var(--text-primary)] leading-none">
-                {{ card.value }}
-              </span>
-              <Badge :variant="getBadgeVariant(card.health.label)">
-                {{ card.health.label }}
-              </Badge>
-            </div>
-          </div>
-        </Card>
-      </section>
+      </AdminHeader>
 
       <!-- Workspace layout: Single Column Workspace -->
       <div class="mt-3 w-full min-w-0">

@@ -30,7 +30,10 @@ import SocialSettingsTab from './components/SocialSettingsTab.vue';
 import TemplateSettingsTab from './components/TemplateSettingsTab.vue';
 import AiSettingsTab from './components/AiSettingsTab.vue';
 import StorageSettingsTab from './components/StorageSettingsTab.vue';
-import AdminSettingsHeader from './components/AdminSettingsHeader.vue';
+import AdminHeader from './components/AdminHeader.vue';
+import Button from '@/components/ui/Button.vue';
+import Badge from '@/components/ui/Badge.vue';
+import { AlertTriangle, Download, Upload, RotateCcw, Save } from 'lucide-vue-next';
 import AdminSettingsTabs from './components/AdminSettingsTabs.vue';
 import AdminSettingsSignalCards from './components/AdminSettingsSignalCards.vue';
 
@@ -120,6 +123,7 @@ const defaultSettings = {
   AI_MODEL_NAME: 'deepseek-chat',
   AI_MODEL_OPTIONS: '[]',
   AI_MODEL_CUSTOM_CATEGORIES: '[]',
+  TEMPORARY_NETDISK_CLEANUP_TIME: '03:00',
 };
 
 type SettingValue = string | boolean;
@@ -642,6 +646,11 @@ const applyImportedSettings = (value: unknown) => {
   });
 };
 
+const importFileInputRef = ref<HTMLInputElement | null>(null);
+const triggerImport = () => {
+  importFileInputRef.value?.click();
+};
+
 const importSettingsFile = (event: Event) => {
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
@@ -743,14 +752,70 @@ onMounted(() => {
 <template>
   <div v-loading="isLoading" class="h-full flex flex-col min-w-0 mobile-adaptive">
     <!-- Top Action Bar -->
-    <AdminSettingsHeader
-      :is-saving="isSaving"
-      :has-unsaved-changes="hasUnsavedChanges"
-      @save="saveSettings"
-      @reset-to-defaults="resetToDefaults"
-      @export="exportSettings"
-      @import-file="importSettingsFile"
-    />
+    <!-- Ultra-Compact Single Row Header -->
+    <AdminHeader
+      :title="$t('admin.system_control_center')"
+      :subtitle="$t('admin.manage_global_variables_mail')"
+      :show-search="false"
+    >
+      <template #title-badge>
+        <div
+          v-if="hasUnsavedChanges"
+          class="flex items-center gap-1.5 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-lg text-[10px] font-bold animate-pulse"
+        >
+          <AlertTriangle class="w-3 h-3" />
+          <span>{{ $t('admin.there_are_unsaved_changes') }}</span>
+        </div>
+      </template>
+
+      <input
+        ref="importFileInputRef"
+        type="file"
+        accept=".json"
+        class="hidden"
+        @change="importSettingsFile"
+      />
+      <Button
+        variant="secondary"
+        size="sm"
+        :icon="Download"
+        title="一键导出所有系统配置"
+        @click="exportSettings"
+        class="!h-7.5 !text-xs !px-2.5"
+      >
+        导出配置
+      </Button>
+      <Button
+        variant="secondary"
+        size="sm"
+        :icon="Upload"
+        title="一键从文件导入配置"
+        @click="triggerImport"
+        class="!h-7.5 !text-xs !px-2.5"
+      >
+        导入配置
+      </Button>
+      <Button
+        variant="secondary"
+        size="sm"
+        :icon="RotateCcw"
+        :title="$t('admin.restore_default')"
+        @click="resetToDefaults"
+        class="!h-7.5 !text-xs !px-2.5"
+      >
+        {{ $t('admin.restore_default') }}
+      </Button>
+      <Button
+        variant="primary"
+        size="sm"
+        :loading="isSaving"
+        :icon="Save"
+        @click="saveSettings"
+        class="!h-7.5 !text-xs !px-2.5"
+      >
+        保存配置
+      </Button>
+    </AdminHeader>
 
     <!-- Main Workspace -->
     <div class="flex-1 grid grid-cols-1 xl:grid-cols-[13.5rem_minmax(0,1fr)] overflow-hidden">

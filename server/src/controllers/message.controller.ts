@@ -13,6 +13,7 @@ import { storageService } from '../services/storage.service';
 import { buildDecryptedStorageConfig } from '../utils/crypto';
 import { getActiveStorageConfig } from '../mirror/services/metadata.helper';
 import { gbToBytes } from '../utils/quota';
+import { deleteCloudOrLocalFileByUrl } from '../utils/file';
 
 type ConversationParticipant = {
   id: string;
@@ -520,6 +521,19 @@ export const deleteMessage = async (req: AuthRequest, res: Response, next: NextF
 
     if (message.senderId !== userId && req.user?.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Access denied' });
+    }
+
+    if (
+      message.content &&
+      (message.type === 'FILE' ||
+        message.type === 'IMAGE' ||
+        message.type === 'VOICE' ||
+        message.content.includes('/uploads/') ||
+        message.content.startsWith('http'))
+    ) {
+      deleteCloudOrLocalFileByUrl(message.content).catch((err) => {
+        logger.error('[MessageController] Failed to delete message attachment file:', err);
+      });
     }
 
     await prisma.message.delete({

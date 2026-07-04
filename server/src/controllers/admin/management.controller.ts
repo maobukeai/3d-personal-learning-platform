@@ -731,14 +731,19 @@ export const getManagementInsights = async (
       pendingPlugins,
       approvedPlugins,
       rejectedPlugins,
+      pendingSoftwares,
+      approvedSoftwares,
+      rejectedSoftwares,
       staleAssets,
       staleMaterials,
       staleShowcases,
       stalePlugins,
+      staleSoftwares,
       recentPendingAssets,
       recentPendingMaterials,
       recentPendingShowcases,
       recentPendingPlugins,
+      recentPendingSoftwares,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { status: 'ACTIVE' } }),
@@ -869,10 +874,14 @@ export const getManagementInsights = async (
       prisma.plugin.count({ where: { status: 'PENDING' } }),
       prisma.plugin.count({ where: { status: 'APPROVED' } }),
       prisma.plugin.count({ where: { status: 'REJECTED' } }),
+      prisma.software.count({ where: { status: 'PENDING' } }),
+      prisma.software.count({ where: { status: 'APPROVED' } }),
+      prisma.software.count({ where: { status: 'REJECTED' } }),
       prisma.asset.count({ where: { status: 'PENDING', createdAt: { lt: staleAuditAt } } }),
       prisma.material.count({ where: { status: 'PENDING', createdAt: { lt: staleAuditAt } } }),
       prisma.showcase.count({ where: { status: 'PENDING', createdAt: { lt: staleAuditAt } } }),
       prisma.plugin.count({ where: { status: 'PENDING', createdAt: { lt: staleAuditAt } } }),
+      prisma.software.count({ where: { status: 'PENDING', createdAt: { lt: staleAuditAt } } }),
       prisma.asset.findMany({
         where: { status: 'PENDING' },
         take: 4,
@@ -921,6 +930,18 @@ export const getManagementInsights = async (
           user: { select: { id: true, name: true, email: true } },
         },
       }),
+      prisma.software.findMany({
+        where: { status: 'PENDING' },
+        take: 4,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          category: true,
+          createdAt: true,
+          user: { select: { id: true, name: true, email: true } },
+        },
+      }),
     ]);
 
     const [
@@ -929,6 +950,7 @@ export const getManagementInsights = async (
       auditDueSoonMaterials,
       auditDueSoonShowcases,
       auditDueSoonPlugins,
+      auditDueSoonSoftwares,
       staleTeamApplications,
       teamDueSoonApplications,
       pendingTeamApplicationItems,
@@ -940,6 +962,7 @@ export const getManagementInsights = async (
       trendMaterials,
       trendShowcases,
       trendPlugins,
+      trendSoftwares,
       trendFeedbacks,
       trendAuditLogs,
       recentHighRiskAuditLogs,
@@ -969,6 +992,12 @@ export const getManagementInsights = async (
         },
       }),
       prisma.plugin.count({
+        where: {
+          status: 'PENDING',
+          createdAt: { gte: staleAuditAt, lte: auditDueSoonAt },
+        },
+      }),
+      prisma.software.count({
         where: {
           status: 'PENDING',
           createdAt: { gte: staleAuditAt, lte: auditDueSoonAt },
@@ -1028,6 +1057,10 @@ export const getManagementInsights = async (
         where: { createdAt: { gte: trendStart } },
         select: { createdAt: true },
       }),
+      prisma.software.findMany({
+        where: { createdAt: { gte: trendStart } },
+        select: { createdAt: true },
+      }),
       prisma.feedback.findMany({
         where: { createdAt: { gte: trendStart } },
         select: { createdAt: true },
@@ -1055,6 +1088,9 @@ export const getManagementInsights = async (
     const settingMap = new Map(categorySettings.map((item) => [item.key, item.value]));
     const materialCategories = parseSettingList(settingMap.get('MATERIAL_CATEGORIES'));
     const showcaseCategories = parseSettingList(settingMap.get('SHOWCASE_CATEGORIES'));
+    const pluginCategories = parseSettingList(settingMap.get('PLUGIN_CATEGORIES'));
+    const softwareCategories = parseSettingList(settingMap.get('SOFTWARE_CATEGORIES'));
+    const teamCategories = parseSettingList(settingMap.get('TEAM_CATEGORIES'));
 
     const activeSubscriptions = subscriptions.filter((item) => item.status === 'ACTIVE');
     const cancelAtPeriodEnd = activeSubscriptions.filter((item) => item.cancelAtPeriodEnd).length;
@@ -1081,7 +1117,6 @@ export const getManagementInsights = async (
         lessons: course._count.lessons,
         reviews: course._count.reviews,
       }));
-
     const activeMirrorSources = mirrorSources.filter((source) => source.status === 'ACTIVE');
     const mirrorErrors = mirrorSources.filter(
       (source) => source.status === 'ERROR' || source.syncStatus === 'ERROR',
@@ -1130,12 +1165,12 @@ export const getManagementInsights = async (
     const totalTeamProjects = teamsForHealth.reduce((sum, team) => sum + team._count.projects, 0);
     const totalTeamTasks = teamsForHealth.reduce((sum, team) => sum + team._count.tasks, 0);
     const totalPendingContent =
-      pendingAssets + pendingMaterials + pendingShowcases + pendingPlugins;
+      pendingAssets + pendingMaterials + pendingShowcases + pendingPlugins + pendingSoftwares;
     const totalApprovedContent =
-      approvedAssets + approvedMaterials + approvedShowcases + approvedPlugins;
+      approvedAssets + approvedMaterials + approvedShowcases + approvedPlugins + approvedSoftwares;
     const totalRejectedContent =
-      rejectedAssets + rejectedMaterials + rejectedShowcases + rejectedPlugins;
-    const staleAuditItems = staleAssets + staleMaterials + staleShowcases + stalePlugins;
+      rejectedAssets + rejectedMaterials + rejectedShowcases + rejectedPlugins + rejectedSoftwares;
+    const staleAuditItems = staleAssets + staleMaterials + staleShowcases + stalePlugins + staleSoftwares;
     const recentPendingContent = [
       ...recentPendingAssets.map((item) => ({
         id: item.id,
@@ -1173,12 +1208,21 @@ export const getManagementInsights = async (
         createdAt: item.createdAt,
         user: item.user,
       })),
+      ...recentPendingSoftwares.map((item) => ({
+        id: item.id,
+        title: item.title,
+        kind: '软件',
+        channel: item.category || 'Software',
+        route: '/admin/audits?tab=softwares',
+        createdAt: item.createdAt,
+        user: item.user,
+      })),
     ]
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, 8);
 
     const auditDueSoon =
-      auditDueSoonAssets + auditDueSoonMaterials + auditDueSoonShowcases + auditDueSoonPlugins;
+      auditDueSoonAssets + auditDueSoonMaterials + auditDueSoonShowcases + auditDueSoonPlugins + auditDueSoonSoftwares;
     const ownerName = (user?: { name?: string | null; email?: string | null } | null) =>
       user?.name || user?.email || '未分配';
     const severityWeight: Record<IssueSeverity, number> = { critical: 3, warning: 2, info: 1 };
@@ -1301,7 +1345,7 @@ export const getManagementInsights = async (
 
     const userTrendByDay = countByDay(trendUsers, (item) => item.createdAt);
     const contentTrendByDay = countByDay(
-      [...trendAssets, ...trendMaterials, ...trendShowcases, ...trendPlugins],
+      [...trendAssets, ...trendMaterials, ...trendShowcases, ...trendPlugins, ...trendSoftwares],
       (item) => item.createdAt,
     );
     const feedbackTrendByDay = countByDay(trendFeedbacks, (item) => item.createdAt);
@@ -1714,7 +1758,10 @@ export const getManagementInsights = async (
           course: courseCategories.length,
           asset: assetCategories.length,
           material: materialCategories.length,
+          plugin: pluginCategories.length,
+          software: softwareCategories.length,
           showcase: showcaseCategories.length,
+          team: teamCategories.length,
           emptyCourseCategories: courseCategories.filter((item) => item._count.courses === 0)
             .length,
           emptyAssetCategories: assetCategories.filter((item) => item._count.assets === 0).length,
@@ -1744,6 +1791,11 @@ export const getManagementInsights = async (
           pending: pendingPlugins,
           approved: approvedPlugins,
           rejected: rejectedPlugins,
+        },
+        softwares: {
+          pending: pendingSoftwares,
+          approved: approvedSoftwares,
+          rejected: rejectedSoftwares,
         },
         recentPending: recentPendingContent,
       },

@@ -10,6 +10,7 @@ import { AppError } from '../../utils/error';
 import { callLLM } from '../../services/ai.service';
 import { configureAxiosProxy } from '../../utils/axios-proxy';
 
+import { deleteCloudOrLocalFileByUrl } from '../../utils/file';
 import { config as envConfig } from '../../config/env';
 
 const modelListHttp = axios.create();
@@ -122,6 +123,13 @@ const validateSettings = (
     }
   }
 
+  if (settingsObj.TEMPORARY_NETDISK_CLEANUP_TIME !== undefined) {
+    const time = settingsObj.TEMPORARY_NETDISK_CLEANUP_TIME as string;
+    if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time)) {
+      errors.push('TEMPORARY_NETDISK_CLEANUP_TIME格式不正确，应为 HH:MM 格式(如: 03:00)');
+    }
+  }
+
   if (settingsObj.AI_MODEL_OPTIONS !== undefined) {
     try {
       const raw =
@@ -197,6 +205,7 @@ export const updateSettings = async (req: AuthRequest, res: Response, next: Next
       'TEAM_CATEGORIES',
       'SHOWCASE_CATEGORIES',
       'PLUGIN_CATEGORIES',
+      'SOFTWARE_CATEGORIES',
     ];
     arrayFields.forEach((field) => {
       if (settingsObj[field] !== undefined) {
@@ -231,6 +240,19 @@ export const updateSettings = async (req: AuthRequest, res: Response, next: Next
         }
       }
     });
+
+    const imageFields = ['PLATFORM_LOGO_URL', 'PLATFORM_FAVICON_URL', 'HERO_BG_IMAGE'];
+    const oldSettingsRecord = oldSettings as Record<string, any>;
+    for (const imgField of imageFields) {
+      if (
+        settingsObj[imgField] !== undefined &&
+        settingsObj[imgField] !== oldSettingsRecord[imgField] &&
+        oldSettingsRecord[imgField] &&
+        typeof oldSettingsRecord[imgField] === 'string'
+      ) {
+        deleteCloudOrLocalFileByUrl(oldSettingsRecord[imgField] as string).catch(() => {});
+      }
+    }
 
     await settingsService.updateMany(settingsObj);
 

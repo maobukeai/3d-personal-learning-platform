@@ -18,6 +18,7 @@ import {
   Play,
   Image as ImageIcon,
   Sparkles,
+  Laptop,
 } from 'lucide-vue-next';
 import { getAssetUrl } from '@/utils/api';
 import { useLabel } from '@/utils/i18n';
@@ -66,7 +67,7 @@ interface CardItem {
 
 interface Props {
   item: CardItem;
-  kind: 'asset' | 'material' | 'plugin' | 'work' | 'showcase' | 'feed';
+  kind: 'asset' | 'material' | 'plugin' | 'software' | 'work' | 'showcase' | 'feed';
   viewMode?: 'grid' | 'list';
   isSelected?: boolean;
   isFavorited?: boolean;
@@ -97,6 +98,7 @@ const kindMeta = {
   asset: { label: label('资源', 'Asset'), tone: 'blue', icon: Box },
   material: { label: label('材质', 'Material'), tone: 'teal', icon: Sparkles },
   plugin: { label: label('插件', 'Plugin'), tone: 'purple', icon: Play },
+  software: { label: label('软件', 'Software'), tone: 'sky', icon: Laptop },
   showcase: { label: label('展示', 'Showcase'), tone: 'orange', icon: ImageIcon },
 };
 
@@ -150,7 +152,7 @@ const categoryLabel = computed(() => {
 
 // Format/version label
 const formatOrVersion = computed(() => {
-  if (props.kind === 'plugin') return `v${props.item?.version || '1.0.0'}`;
+  if (props.kind === 'plugin' || props.kind === 'software') return `v${props.item?.version || '1.0.0'}`;
   return props.item?.format || props.item?.resolution || '';
 });
 
@@ -197,7 +199,7 @@ const compatibilityInfo = computed(() => {
   >
     <!-- Multi-select dot (Material, Asset, Plugin specific for mine/drafts/favorites) -->
     <button
-      v-if="(kind === 'material' || kind === 'asset' || kind === 'plugin') && (activeTab === 'mine' || activeTab === 'drafts' || activeTab === 'favorites')"
+      v-if="(kind === 'material' || kind === 'asset' || kind === 'plugin' || kind === 'software') && (activeTab === 'mine' || activeTab === 'drafts' || activeTab === 'favorites')"
       type="button"
       :class="[
         viewMode === 'list'
@@ -258,7 +260,7 @@ const compatibilityInfo = computed(() => {
 
       <!-- Favorite overlay button (Assets, Materials, Plugins) -->
       <button
-        v-if="viewMode === 'grid' && (kind === 'asset' || kind === 'material' || kind === 'plugin')"
+        v-if="viewMode === 'grid' && (kind === 'asset' || kind === 'material' || kind === 'plugin' || kind === 'software')"
         type="button"
         :class="[
           'absolute right-2 top-2 z-20 w-7 h-7 flex items-center justify-center rounded-full bg-black/40 border border-white/10 text-white backdrop-blur-sm transition-all duration-300 hover:scale-110 shadow-md',
@@ -296,7 +298,7 @@ const compatibilityInfo = computed(() => {
         </h2>
         <!-- Version or secondary format text if work -->
         <span
-          v-if="kind === 'plugin'"
+          v-if="kind === 'plugin' || kind === 'software'"
           class="text-[9px] font-bold text-indigo-500 bg-indigo-500/15 border border-indigo-500/20 px-1 py-0.2 rounded-md"
         >
           v{{ item?.version }}
@@ -310,7 +312,7 @@ const compatibilityInfo = computed(() => {
 
       <!-- Compatibility Info for Plugins -->
       <div
-        v-if="kind === 'plugin' && compatibilityInfo"
+        v-if="(kind === 'plugin' || kind === 'software') && compatibilityInfo"
         class="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500 mb-2"
       >
         <CheckCircle2 class="w-3.5 h-3.5 text-emerald-500" />
@@ -366,7 +368,7 @@ const compatibilityInfo = computed(() => {
         class="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2 mt-2"
       >
         <div class="flex items-center gap-2.5 text-[10px] text-slate-500 dark:text-slate-400">
-          <span v-if="downloadsCount > 0 || kind === 'plugin'" class="flex items-center gap-1">
+          <span v-if="downloadsCount > 0 || kind === 'plugin' || kind === 'software'" class="flex items-center gap-1">
             <ArrowDownToLine class="w-3.5 h-3.5 stroke-[1.8]" />
             {{ downloadsCount }}
           </span>
@@ -421,7 +423,7 @@ const compatibilityInfo = computed(() => {
 
           <!-- Normal download button -->
           <button
-            v-else-if="kind === 'asset' || kind === 'material' || kind === 'plugin'"
+            v-else-if="kind === 'asset' || kind === 'material' || kind === 'plugin' || kind === 'software'"
             type="button"
             class="px-2.5 py-1 rounded-lg text-[10px] font-semibold flex items-center gap-1 bg-accent hover:bg-accent-hover text-white transition-all shadow-sm"
             :disabled="downloading"
@@ -429,7 +431,7 @@ const compatibilityInfo = computed(() => {
           >
             <Loader2 v-if="downloading" class="w-3 h-3 spinning" />
             <Download v-else class="w-3 h-3" />
-            {{ kind === 'plugin' ? label('下载', 'Get') : label('下载', 'Download') }}
+            {{ (kind === 'plugin' || kind === 'software') ? label('下载', 'Get') : label('下载', 'Download') }}
           </button>
         </div>
       </div>
@@ -486,7 +488,7 @@ const compatibilityInfo = computed(() => {
         <div
           class="hidden md:flex items-center gap-3 text-[10px] text-slate-500 dark:text-slate-400"
         >
-          <span v-if="downloadsCount > 0 || kind === 'plugin'" class="flex items-center gap-1">
+          <span v-if="downloadsCount > 0 || kind === 'plugin' || kind === 'software'" class="flex items-center gap-1">
             <ArrowDownToLine class="w-3.5 h-3.5 stroke-[1.8]" />
             {{ downloadsCount }}
           </span>
@@ -537,7 +539,7 @@ const compatibilityInfo = computed(() => {
 
           <!-- Normal download button -->
           <button
-            v-else-if="kind === 'asset' || kind === 'material' || kind === 'plugin'"
+            v-else-if="kind === 'asset' || kind === 'material' || kind === 'plugin' || kind === 'software'"
             type="button"
             class="px-2 py-0.5 rounded-lg text-[9px] font-semibold flex items-center gap-0.5 bg-accent hover:bg-accent-hover text-white transition-all shadow-sm"
             :disabled="downloading"
@@ -545,7 +547,7 @@ const compatibilityInfo = computed(() => {
           >
             <Loader2 v-if="downloading" class="w-3 h-3 spinning" />
             <Download v-else class="w-3 h-3" />
-            {{ kind === 'plugin' ? label('下载', 'Get') : label('下载', 'Download') }}
+            {{ (kind === 'plugin' || kind === 'software') ? label('下载', 'Get') : label('下载', 'Download') }}
           </button>
         </div>
       </div>

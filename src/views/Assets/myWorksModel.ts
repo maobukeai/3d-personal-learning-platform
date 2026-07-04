@@ -1,6 +1,6 @@
 import { parseTags, resolvePreviewUrl } from './resourceUtils';
 
-export type WorkKind = 'asset' | 'material' | 'plugin' | 'showcase';
+export type WorkKind = 'asset' | 'material' | 'plugin' | 'showcase' | 'software';
 export type WorkStatus = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
 export type WorkViewMode = 'grid' | 'list';
 export type WorkSortKey = 'newest' | 'oldest' | 'name' | 'status';
@@ -97,6 +97,33 @@ export interface PluginWork {
   linkedLessonId?: string | null;
 }
 
+export interface SoftwareWork {
+  id: string;
+  title: string;
+  description?: string | null;
+  category?: string | null;
+  version?: string | null;
+  compatibility?: string | null;
+  tags?: string | null;
+  fileUrl?: string | null;
+  fileSize?: number | null;
+  previewUrl?: string | null;
+  installGuide?: string | null;
+  downloads?: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  rejectReason?: string | null;
+  createdAt: string;
+
+  // Advanced fields
+  originality?: string | null;
+  originalAuthor?: string | null;
+  originalLink?: string | null;
+  license?: string | null;
+  isFree?: boolean;
+  linkedCourseId?: string | null;
+  linkedLessonId?: string | null;
+}
+
 export interface ShowcaseWork {
   id: string;
   title: string;
@@ -113,7 +140,7 @@ export interface ShowcaseWork {
   _count?: { likes?: number; comments?: number };
 }
 
-export type RawWork = AssetWork | MaterialWork | PluginWork | ShowcaseWork;
+export type RawWork = AssetWork | MaterialWork | PluginWork | SoftwareWork | ShowcaseWork;
 
 export interface UnifiedWork {
   uid: string;
@@ -260,6 +287,28 @@ export function normalizePluginWork(item: PluginWork): UnifiedWork {
   };
 }
 
+export function normalizeSoftwareWork(item: SoftwareWork): UnifiedWork {
+  return {
+    uid: `software:${item.id}`,
+    id: item.id,
+    kind: 'software',
+    title: item.title,
+    description: item.description || '',
+    status: item.status,
+    rejectReason: item.rejectReason,
+    surface: '软件库',
+    typeLabel: item.category || '软件',
+    format: item.version ? `v${String(item.version).replace(/^v/i, '')}` : '软件',
+    thumbnail: resolvePreviewUrl(item.previewUrl, 'GLB'),
+    size: Number(item.fileSize || 0),
+    metric: item.downloads || 0,
+    metricLabel: '下载',
+    tags: parseTags(item.tags || ''),
+    createdAt: item.createdAt,
+    raw: item,
+  };
+}
+
 export function normalizeShowcaseWork(item: ShowcaseWork): UnifiedWork {
   return {
     uid: `showcase:${item.id}`,
@@ -286,12 +335,14 @@ export function normalizeWorkbenchWorks(sources: {
   assets: AssetWork[];
   materials: MaterialWork[];
   plugins: PluginWork[];
+  softwares?: SoftwareWork[];
   showcases: ShowcaseWork[];
 }) {
   return [
     ...sources.assets.map(normalizeAssetWork),
     ...sources.materials.map(normalizeMaterialWork),
     ...sources.plugins.map(normalizePluginWork),
+    ...(sources.softwares || []).map(normalizeSoftwareWork),
     ...sources.showcases.map(normalizeShowcaseWork),
   ];
 }

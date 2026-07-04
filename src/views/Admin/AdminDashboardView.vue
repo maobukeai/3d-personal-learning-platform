@@ -29,7 +29,7 @@ import { useSystemStore } from '@/stores/system';
 import type { Asset, User } from '@/types';
 
 // UI components
-import PageHeader from '@/components/PageHeader.vue';
+import AdminHeader from './components/AdminHeader.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import AdminDashboardStats, { type AdminStatCard } from './components/AdminDashboardStats.vue';
@@ -656,24 +656,24 @@ onMounted(fetchAdminStats);
   <div class="admin-dashboard mobile-adaptive flex flex-1 min-h-0 flex-col overflow-hidden">
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
       <div class="space-y-3">
-        <!-- Reusable PageHeader component -->
-        <PageHeader
+        <!-- Ultra-Compact Single Row Header -->
+        <AdminHeader
           title="平台运营概览"
-          subtitle="把用户、内容、审核、教学和运营状态放在同一个驾驶舱里。"
-          variant="card"
+          subtitle="把用户、内容、审核、教学和运营状态放在同一个驾驶舱里"
+          :show-search="false"
         >
-          <template #center>
+          <template #title-badge>
             <Badge :variant="platformStatus.variant" dot>
               {{ platformStatus.label }}
             </Badge>
           </template>
 
-          <!-- Standard buttons reusing project button components -->
           <Button
             variant="secondary"
             size="sm"
             :icon="Clock"
             @click="router.push('/admin/audit-logs')"
+            class="!h-7.5 !text-xs !px-2.5"
           >
             审计日志
           </Button>
@@ -682,6 +682,7 @@ onMounted(fetchAdminStats);
             size="sm"
             :icon="Megaphone"
             @click="showBroadcastModal = true"
+            class="!h-7.5 !text-xs !px-2.5"
           >
             全站广播
           </Button>
@@ -691,10 +692,11 @@ onMounted(fetchAdminStats);
             :icon="RefreshCw"
             :loading="isLoading"
             @click="fetchAdminStats"
+            class="!h-7.5 !text-xs !px-2.5"
           >
             刷新
           </Button>
-        </PageHeader>
+        </AdminHeader>
         <AdminDashboardStats :cards="consolidatedCards" @navigate="router.push($event)" />
 
         <AdminDashboardBroadcast

@@ -35,7 +35,10 @@ import aiBotRoutes from './routes/ai-bot.routes';
 import bannerRoutes from './routes/banner.routes';
 import pluginRoutes from './routes/plugin.routes';
 import adminPluginRoutes from './routes/plugin.admin.routes';
+import softwareRoutes from './routes/software.routes';
+import adminSoftwareRoutes from './routes/software.admin.routes';
 import backupRoutes from './routes/backup.routes';
+import temporaryNetdiskRoutes from './routes/temporary-netdisk.routes';
 
 import rateLimit from 'express-rate-limit';
 import { errorHandler } from './middlewares/error.middleware';
@@ -169,8 +172,10 @@ app.use('/api', globalLimiter);
 app.use('/api/auth', authRoutes);
 // General admin routes: /api/admin/*
 app.use('/api/admin', adminRoutes);
-// Plugin admin sub-routes: /api/admin/plugins/* (registered under same /api/admin prefix; plugin.admin.routes internally prefixes /plugins)
+// Plugin admin sub-routes: /api/admin/plugins/*
 app.use('/api/admin', adminPluginRoutes);
+// Software admin sub-routes: /api/admin/softwares/*
+app.use('/api/admin', adminSoftwareRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/lessons', lessonRoutes);
@@ -198,7 +203,9 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/ai-bots', aiBotRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/plugins', pluginRoutes);
+app.use('/api/softwares', softwareRoutes);
 app.use('/api/backup', backupRoutes);
+app.use('/api/temporary-netdisk', temporaryNetdiskRoutes);
 
 // Validate proxy image URL to prevent SSRF attacks
 const isAllowedProxyUrl = (rawUrl: string): boolean => {

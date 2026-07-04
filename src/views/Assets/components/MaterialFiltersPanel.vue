@@ -4,7 +4,7 @@ import { useLabel } from '@/utils/i18n';
 import Tabs from '@/components/ui/Tabs.vue';
 import CollapsibleFilterShell from './CollapsibleFilterShell.vue';
 
-type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts';
+type LibraryTab = 'explore' | 'favorites' | 'mine' | 'drafts' | 'requests';
 type StatusFilter = 'all' | 'PENDING' | 'APPROVED' | 'REJECTED';
 type ProceduralFilter = 'all' | 'true' | 'false';
 

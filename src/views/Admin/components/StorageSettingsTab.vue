@@ -69,6 +69,7 @@ const assetTypes: AssetTypeOption[] = [
   { label: '工具插件 (PLUGIN)', value: 'PLUGIN' },
   { label: '案例展示 (SHOWCASE)', value: 'SHOWCASE' },
   { label: '镜像同步资源 (MIRROR)', value: 'MIRROR' },
+  { label: '临时网盘 (TEMPORARY_NETDISK)', value: 'TEMPORARY_NETDISK' },
 ];
 
 // ─── Config CRUD ──────────────────────────────────────────────────────────────

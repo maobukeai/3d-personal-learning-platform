@@ -25,7 +25,7 @@ import UiButton from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Tabs from '@/components/ui/Tabs.vue';
-import PageHeader from '@/components/PageHeader.vue';
+import AdminHeader from './components/AdminHeader.vue';
 
 type FeedbackStatus = Feedback['status'];
 type FeedbackPriority = Feedback['priority'];
@@ -367,70 +367,25 @@ onMounted(fetchFeedbacks);
     class="admin-feedback-page mobile-adaptive flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
-      <PageHeader title="用户反馈" subtitle="用户与团队" variant="card">
-        <template #center>
-          <!-- Compact Search Box (Centered) -->
-          <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
-            <Search />
-            <input v-model="searchQuery" type="search" placeholder="搜索当前反馈..." />
-          </label>
-        </template>
-
+      <!-- Ultra-Compact Single Row Header -->
+      <AdminHeader
+        title="用户反馈"
+        subtitle="用户与团队"
+        :cards="consolidatedCards"
+        v-model="searchQuery"
+        placeholder="搜索当前反馈..."
+      >
         <UiButton
           variant="secondary"
           size="sm"
           :icon="RefreshCw"
           :loading="isLoading"
           @click="fetchFeedbacks"
+          class="!h-7.5 !text-xs !px-2.5"
         >
           刷新
         </UiButton>
-      </PageHeader>
-      <!-- KPI Metrics Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mobile-grid">
-        <Card
-          v-for="card in consolidatedCards"
-          :key="card.label"
-          hoverable
-          glow
-          class="group !p-2 px-2.5"
-        >
-          <div class="flex items-center justify-between w-full gap-3">
-            <!-- Left: Icon & Info -->
-            <div class="flex items-center gap-2 min-w-0">
-              <span
-                class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-slate-100/10"
-                :class="card.color"
-              >
-                <component :is="card.icon" class="h-3.5 w-3.5" />
-              </span>
-              <div class="min-w-0">
-                <p
-                  class="text-[11px] font-bold text-[var(--text-secondary)] truncate leading-tight"
-                >
-                  {{ card.label }}
-                </p>
-                <p
-                  class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
-                  :title="card.hint"
-                >
-                  {{ card.hint }}
-                </p>
-              </div>
-            </div>
-
-            <!-- Right: Metric & Health Badge -->
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="text-base font-black text-[var(--text-primary)] leading-none">
-                {{ card.value }}
-              </span>
-              <Badge :variant="card.health.variant">
-                {{ card.health.label }}
-              </Badge>
-            </div>
-          </div>
-        </Card>
-      </div>
+      </AdminHeader>
 
       <!-- Filters & Search Toolbar -->
       <Card padding="sm">

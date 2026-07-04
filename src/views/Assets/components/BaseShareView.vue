@@ -9,7 +9,7 @@ import Button from '@/components/ui/Button.vue';
 import GlassCard from '@/components/ui/GlassCard.vue';
 import { applyThemeToDocument } from '@/composables/useAppearance';
 
-type ResourceType = 'assets' | 'materials' | 'plugins';
+type ResourceType = 'assets' | 'materials' | 'plugins' | 'softwares';
 
 interface Props {
   // Drives API path, response field, theme colors and resource noun.
@@ -29,11 +29,13 @@ const responseFieldMap: Record<ResourceType, string> = {
   assets: 'asset',
   materials: 'material',
   plugins: 'plugin',
+  softwares: 'software',
 };
 const nounMap: Record<ResourceType, string> = {
   assets: '资源',
   materials: '材质',
   plugins: '插件',
+  softwares: '软件',
 };
 const themeMap: Record<
   ResourceType,
@@ -65,6 +67,13 @@ const themeMap: Record<
     bannerBg: 'from-amber-500/[0.04] to-orange-500/[0.04]',
     bannerBorder: 'border-amber-500/10',
     bannerText: 'text-amber-600 dark:text-amber-400',
+  },
+  softwares: {
+    logoGradient: 'from-blue-500 to-sky-500',
+    nameGradient: 'from-blue-600 to-sky-600 dark:from-blue-400 dark:to-sky-400',
+    bannerBg: 'from-blue-500/[0.04] to-sky-500/[0.04]',
+    bannerBorder: 'border-blue-500/10',
+    bannerText: 'text-blue-600 dark:text-blue-400',
   },
 };
 

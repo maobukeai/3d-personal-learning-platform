@@ -90,12 +90,15 @@ interface PluginItem {
   linkedLesson?: { id: string; title: string } | null;
   bilibiliUrl?: string | null;
   developerToken?: string | null;
+  kind?: 'plugin' | 'software';
 }
 
 const props = withDefaults(
   defineProps<{
     show?: boolean;
-    plugin: PluginItem | null;
+    plugin?: PluginItem | null;
+    item?: PluginItem | null;
+    kind?: 'plugin' | 'software';
     isFavorited?: boolean;
     isDownloading?: boolean;
     isAdmin?: boolean;
@@ -105,6 +108,9 @@ const props = withDefaults(
   }>(),
   {
     show: false,
+    plugin: null,
+    item: null,
+    kind: 'plugin',
     isFavorited: false,
     isDownloading: false,
     isAdmin: false,
@@ -128,10 +134,18 @@ const emit = defineEmits<{
 const label = useLabel();
 const { locale } = useI18n();
 
+const activeItem = computed(() => props.item || props.plugin);
+const activeKind = computed(() => props.kind || activeItem.value?.kind || 'plugin');
+const plugin = computed(() => activeItem.value);
+
+const apiPrefix = computed(() => activeKind.value === 'plugin' ? '/api/plugins' : '/api/softwares');
+const uploadFieldName = computed(() => activeKind.value === 'plugin' ? 'plugin_file' : 'software_file');
+const itemLabel = computed(() => activeKind.value === 'plugin' ? label('插件', 'Plugin') : label('软件', 'Software'));
+
 const categoryLabel = (category?: string | null) => {
   const normalized = category || CATEGORY_OTHER;
   const englishLabels: Record<string, string> = {
-    [CATEGORY_ALL]: 'All Add-ons',
+    [CATEGORY_ALL]: activeKind.value === 'plugin' ? 'All Add-ons' : 'All Software',
     [CATEGORY_OTHER]: 'Other Utilities',
     建模: 'Modeling',
     材质与纹理: 'Materials & Texturing',
@@ -139,18 +153,23 @@ const categoryLabel = (category?: string | null) => {
     动画与骨骼: 'Animation & Rigging',
     导入与导出: 'Import & Export',
     物理与特效: 'Physics & FX',
+    '3D 建模与雕刻软件': '3D Modeling & Sculpting',
+    '渲染引擎与渲染器': 'Render Engines & Renderers',
+    '后期与图像处理': 'Post-production & Imaging',
+    '游戏与交互引擎': 'Game & Interactive Engines',
   };
   return locale.value === 'en-US' ? englishLabels[normalized] || normalized : normalized;
 };
 
 const getCategoryIcon = (category?: string | null): Component => {
   const cat = category || '';
-  if (cat.includes('建模')) return Box;
-  if (cat.includes('材质')) return Layers;
-  if (cat.includes('渲染')) return Sun;
-  if (cat.includes('骨骼')) return Bone;
-  if (cat.includes('导入')) return Import;
-  return Package;
+  if (cat.includes('建模') || cat.includes('雕刻')) return Box;
+  if (cat.includes('材质') || cat.includes('纹理') || cat.includes('后期') || cat.includes('图像')) return Layers;
+  if (cat.includes('渲染') || cat.includes('灯光')) return Sun;
+  if (cat.includes('动画') || cat.includes('骨骼')) return Bone;
+  if (cat.includes('导入') || cat.includes('导出')) return Import;
+  if (cat.includes('游戏') || cat.includes('交互')) return Activity;
+  return Folder;
 };
 
 const formatSize = (size?: number | null) => {
@@ -159,23 +178,20 @@ const formatSize = (size?: number | null) => {
   return `${Math.max(1, Math.round(size * 1024))} KB`;
 };
 const handleApprove = () => {
-  console.log('PluginDetailModal: Emitting review-approved event for plugin', props.plugin);
-  if (props.plugin) {
-    emit('review-approved', props.plugin);
+  if (plugin.value) {
+    emit('review-approved', plugin.value);
   }
 };
 
 const handleReject = () => {
-  console.log('PluginDetailModal: Emitting review-rejected event for plugin', props.plugin);
-  if (props.plugin) {
-    emit('review-rejected', props.plugin);
+  if (plugin.value) {
+    emit('review-rejected', plugin.value);
   }
 };
 
 const handleDelete = () => {
-  console.log('PluginDetailModal: Emitting delete event for plugin', props.plugin);
-  if (props.plugin) {
-    emit('delete', props.plugin);
+  if (plugin.value) {
+    emit('delete', plugin.value);
   }
 };
 
@@ -202,17 +218,17 @@ const fetchPackageFiles = async (id: string) => {
   if (!id) return;
   isPackageFilesLoading.value = true;
   try {
-    const { data } = await api.get(`/api/plugins/${id}/package-files`);
-    if (props.plugin?.id === id) {
+    const { data } = await api.get(`${apiPrefix.value}/${id}/package-files`);
+    if (plugin.value?.id === id) {
       packageFiles.value = data.packageFiles || [];
     }
   } catch (err) {
     logError(err, { operation: 'fetch plugin package files' });
-    if (props.plugin?.id === id) {
+    if (plugin.value?.id === id) {
       packageFiles.value = [];
     }
   } finally {
-    if (props.plugin?.id === id) {
+    if (plugin.value?.id === id) {
       isPackageFilesLoading.value = false;
     }
   }
@@ -245,15 +261,15 @@ const isExternal = computed(() => {
 });
 
 const handlePluginDownload = async () => {
-  if (!props.plugin) return;
-  const plugin = props.plugin;
-  const downloadUrl = plugin.fileUrl;
+  const activeItemVal = plugin.value;
+  if (!activeItemVal) return;
+  const downloadUrl = activeItemVal.fileUrl;
 
   if (isExternal.value) {
-    const targetUrl = plugin.originalLink || downloadUrl;
+    const targetUrl = activeItemVal.originalLink || downloadUrl;
     if (targetUrl) {
       window.open(targetUrl, '_blank');
-      await api.post(`/api/plugins/${plugin.id}/download`).catch(() => {});
+      await api.post(`${apiPrefix.value}/${activeItemVal.id}/download`).catch(() => {});
       emit('download');
     } else {
       ElMessage.warning(label('源站链接不存在', 'Source link not found'));
@@ -262,15 +278,15 @@ const handlePluginDownload = async () => {
   }
 
   if (!downloadUrl) {
-    ElMessage.warning(label('该插件暂未提供下载文件', 'This plugin has no download file yet'));
+    ElMessage.warning(label(activeKind.value === 'plugin' ? '该插件暂未提供下载文件' : '该软件暂未提供下载文件', activeKind.value === 'plugin' ? 'This plugin has no download file yet' : 'This software has no download file yet'));
     return;
   }
 
   const ext = downloadUrl.split('.').pop()?.split('?')[0] || 'zip';
-  const safeTitle = (plugin.title || 'plugin').replace(/[^a-zA-Z0-9\u4e00-\u9fff._-]/g, '_');
+  const safeTitle = (activeItemVal.title || 'file').replace(/[^a-zA-Z0-9\u4e00-\u9fff._-]/g, '_');
   const resolvedUrl = getAssetUrl(downloadUrl);
 
-  const totalSizeOverrideBytes = (plugin.fileSize || 0) * 1024 * 1024;
+  const totalSizeOverrideBytes = (activeItemVal.fileSize || 0) * 1024 * 1024;
 
   await runDownload({
     url: resolvedUrl,
@@ -278,7 +294,7 @@ const handlePluginDownload = async () => {
     totalSizeOverrideBytes,
     onSuccess: async () => {
       // Record download on backend (only after successful download)
-      await api.post(`/api/plugins/${plugin.id}/download`);
+      await api.post(`${apiPrefix.value}/${activeItemVal.id}/download`);
       emit('download');
       emit('update');
     },
@@ -298,8 +314,8 @@ const handlePluginDownload = async () => {
 };
 
 const handleVersionDownload = async (v: VersionItem) => {
-  if (!props.plugin) return;
-  const plugin = props.plugin;
+  const activeItemVal = plugin.value;
+  if (!activeItemVal) return;
   const downloadUrl = v.fileUrl;
   if (!downloadUrl) {
     ElMessage.warning(label('该版本暂未提供下载文件', 'This version has no download file yet'));
@@ -307,7 +323,7 @@ const handleVersionDownload = async (v: VersionItem) => {
   }
 
   const ext = downloadUrl.split('.').pop()?.split('?')[0] || 'zip';
-  const safeTitle = (plugin.title || 'plugin').replace(/[^a-zA-Z0-9\u4e00-\u9fff._-]/g, '_');
+  const safeTitle = (activeItemVal.title || 'file').replace(/[^a-zA-Z0-9\u4e00-\u9fff._-]/g, '_');
   const resolvedUrl = getAssetUrl(downloadUrl);
 
   const totalSizeOverrideBytes = (v.fileSize || 0) * 1024 * 1024;
@@ -318,7 +334,7 @@ const handleVersionDownload = async (v: VersionItem) => {
     totalSizeOverrideBytes,
     onSuccess: async () => {
       // Record download on backend (only after successful download)
-      await api.post(`/api/plugins/${plugin.id}/download`);
+      await api.post(`${apiPrefix.value}/${activeItemVal.id}/download`);
       emit('download');
       emit('update');
     },
@@ -352,16 +368,16 @@ const {
   handlePostComment,
   handleDeleteComment,
   canDeleteComment,
-} = useResourceComments('plugins', () => props.plugin?.id);
+} = useResourceComments(() => activeKind.value === 'plugin' ? 'plugins' : 'softwares', () => plugin.value?.id);
 
 const handleShare = () => {
-  if (!props.plugin) return;
+  if (!plugin.value) return;
   shareDialogRef.value?.open({
-    id: props.plugin.id,
-    title: props.plugin.title,
-    userId: props.plugin.user?.id || '',
-    createdAt: props.plugin.createdAt || '',
-    previewUrl: props.plugin.previewUrl || null,
+    id: plugin.value.id,
+    title: plugin.value.title,
+    userId: plugin.value.user?.id || '',
+    createdAt: plugin.value.createdAt || '',
+    previewUrl: plugin.value.previewUrl || null,
   });
 };
 
@@ -369,10 +385,10 @@ const handleShare = () => {
 const activeDetailTab = ref<any>('detail');
 const detailTabOptions = computed(() => {
   const options = [
-    { label: label('插件详情', 'Plugin Details'), value: 'detail' },
+    { label: label(activeKind.value === 'plugin' ? '插件详情' : '软件详情', activeKind.value === 'plugin' ? 'Plugin Details' : 'Software Details'), value: 'detail' },
     { label: label('版本历史', 'Release History'), value: 'versions', icon: History },
   ];
-  if (props.canEdit) {
+  if (props.canEdit && activeKind.value === 'plugin') {
     options.push({
       label: label('开发者中心', 'Developer Panel'),
       value: 'developer',
@@ -396,18 +412,18 @@ const versionsList = ref<VersionItem[]>([]);
 const isVersionsLoading = ref(false);
 
 const fetchVersions = async () => {
-  const currentId = props.plugin?.id;
+  const currentId = plugin.value?.id;
   if (!currentId) return;
   isVersionsLoading.value = true;
   try {
-    const { data } = await api.get(`/api/plugins/${currentId}/versions`);
-    if (props.plugin?.id === currentId) {
+    const { data } = await api.get(`${apiPrefix.value}/${currentId}/versions`);
+    if (plugin.value?.id === currentId) {
       versionsList.value = data;
     }
   } catch (err) {
-    logError(err, { operation: 'fetch plugin versions' });
+    logError(err, { operation: 'fetch versions' });
   } finally {
-    if (props.plugin?.id === currentId) {
+    if (plugin.value?.id === currentId) {
       isVersionsLoading.value = false;
     }
   }
@@ -421,30 +437,30 @@ const isGeneratingToken = ref(false);
 const isBlenderCodeExpanded = ref(false);
 
 const fetchTokenAndFeedbacks = async () => {
-  const currentId = props.plugin?.id;
-  if (!currentId || !props.canEdit) return;
+  const currentId = plugin.value?.id;
+  if (!currentId || !props.canEdit || activeKind.value !== 'plugin') return;
   isFeedbacksLoading.value = true;
   try {
     const { data } = await api.get(`/api/plugins/${currentId}`);
     const res = await api.get(`/api/plugins/${currentId}/feedbacks`);
-    if (props.plugin?.id === currentId) {
+    if (plugin.value?.id === currentId) {
       developerToken.value = data.developerToken || '';
       feedbacks.value = res.data;
     }
   } catch (err) {
     logError(err, { operation: 'fetch developer details' });
   } finally {
-    if (props.plugin?.id === currentId) {
+    if (plugin.value?.id === currentId) {
       isFeedbacksLoading.value = false;
     }
   }
 };
 
 const handleGenerateToken = async () => {
-  if (!props.plugin?.id) return;
+  if (!plugin.value?.id) return;
   isGeneratingToken.value = true;
   try {
-    const { data } = await api.post(`/api/plugins/${props.plugin.id}/token`);
+    const { data } = await api.post(`/api/plugins/${plugin.value.id}/token`);
     developerToken.value = data.developerToken;
     ElMessage.success(label('Token 生成成功', 'Token generated successfully'));
   } catch (err) {
@@ -456,7 +472,8 @@ const handleGenerateToken = async () => {
 };
 
 const handleDeleteFeedback = async (feedbackId: string) => {
-  if (!props.plugin?.id) return;
+  const activeItemVal = plugin.value;
+  if (!activeItemVal?.id) return;
   try {
     await ElMessageBox.confirm(
       label('确定要删除这条反馈日志吗？', 'Are you sure you want to delete this feedback log?'),
@@ -472,7 +489,7 @@ const handleDeleteFeedback = async (feedbackId: string) => {
   }
 
   try {
-    await api.delete(`/api/plugins/${props.plugin.id}/feedbacks/${feedbackId}`);
+    await api.delete(`/api/plugins/${activeItemVal.id}/feedbacks/${feedbackId}`);
     ElMessage.success(label('反馈已删除', 'Feedback deleted'));
     await fetchTokenAndFeedbacks();
   } catch (err) {
@@ -482,7 +499,8 @@ const handleDeleteFeedback = async (feedbackId: string) => {
 };
 
 const handleClearFeedbacks = async () => {
-  if (!props.plugin?.id) return;
+  const activeItemVal = plugin.value;
+  if (!activeItemVal?.id) return;
   try {
     await ElMessageBox.confirm(
       label(
@@ -501,7 +519,7 @@ const handleClearFeedbacks = async () => {
   }
 
   try {
-    await api.delete(`/api/plugins/${props.plugin.id}/feedbacks`);
+    await api.delete(`/api/plugins/${activeItemVal.id}/feedbacks`);
     ElMessage.success(label('所有反馈已清空', 'All feedbacks cleared'));
     await fetchTokenAndFeedbacks();
   } catch (err) {
@@ -529,17 +547,17 @@ const handlePublishVersionFileChange = (e: Event) => {
 };
 
 const handlePublishVersionSubmit = async () => {
-  if (!props.plugin?.id || !publishVersionFile.value || !publishVersionForm.value.version.trim()) {
+  if (!plugin.value?.id || !publishVersionFile.value || !publishVersionForm.value.version.trim()) {
     ElMessage.warning(label('请上传文件并填写版本号', 'Please upload file and fill version'));
     return;
   }
   isPublishingVersion.value = true;
   const formData = new FormData();
-  formData.append('plugin_file', publishVersionFile.value);
+  formData.append(uploadFieldName.value, publishVersionFile.value);
   formData.append('version', publishVersionForm.value.version.trim());
   formData.append('changelog', publishVersionForm.value.changelog.trim());
   try {
-    await api.post(`/api/plugins/${props.plugin.id}/versions`, formData, {
+    await api.post(`${apiPrefix.value}/${plugin.value.id}/versions`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     ElMessage.success(label('新版本已上传', 'New version uploaded successfully'));
@@ -570,10 +588,10 @@ const handleEditVersion = (v: VersionItem) => {
 };
 
 const handleUpdateVersionSubmit = async (versionId: string) => {
-  if (!props.plugin?.id || !editingVersionForm.value.version.trim()) return;
+  if (!plugin.value?.id || !editingVersionForm.value.version.trim()) return;
   isUpdatingVersion.value = true;
   try {
-    await api.put(`/api/plugins/${props.plugin.id}/versions/${versionId}`, {
+    await api.put(`${apiPrefix.value}/${plugin.value.id}/versions/${versionId}`, {
       version: editingVersionForm.value.version.trim(),
       changelog: editingVersionForm.value.changelog.trim(),
     });
@@ -590,7 +608,8 @@ const handleUpdateVersionSubmit = async (versionId: string) => {
 };
 
 const handleDeleteVersion = async (v: VersionItem) => {
-  if (!props.plugin?.id) return;
+  const activeItemVal = plugin.value;
+  if (!activeItemVal?.id) return;
   try {
     await ElMessageBox.confirm(
       label(
@@ -609,7 +628,7 @@ const handleDeleteVersion = async (v: VersionItem) => {
   }
 
   try {
-    await api.delete(`/api/plugins/${props.plugin.id}/versions/${v.id}`);
+    await api.delete(`${apiPrefix.value}/${activeItemVal.id}/versions/${v.id}`);
     ElMessage.success(label('版本已删除', 'Version deleted'));
     await fetchVersions();
     emit('update');
@@ -638,11 +657,11 @@ const pluginFavCategory = ref('');
 
 const fetchFavoriteCategories = async () => {
   try {
-    const { data } = await api.get('/api/plugins/favorites');
+    const { data } = await api.get(`${apiPrefix.value}/favorites`);
     favoriteCategories.value = data.categories || ['默认'];
-    const pluginId = props.plugin?.id;
+    const pluginId = plugin.value?.id;
     if (pluginId) {
-      const match = data.favorites?.find((f: any) => f.plugin?.id === pluginId);
+      const match = data.favorites?.find((f: any) => (f.plugin?.id || f.software?.id) === pluginId);
       pluginFavCategory.value = match ? match.category : '';
     }
   } catch (err) {
@@ -651,9 +670,10 @@ const fetchFavoriteCategories = async () => {
 };
 
 const handleFavoriteWithCategory = async (categoryName: string) => {
-  if (!props.plugin) return;
+  const activeItemVal = plugin.value;
+  if (!activeItemVal) return;
   try {
-    const { data } = await api.post(`/api/plugins/${props.plugin.id}/favorite`, {
+    const { data } = await api.post(`${apiPrefix.value}/${activeItemVal.id}/favorite`, {
       category: categoryName,
     });
     emit('favorite');
@@ -678,7 +698,7 @@ const handleCreateAndFavorite = () => {
 };
 
 watch(
-  [() => props.plugin?.id, () => props.show, () => props.plugin?.version],
+  [() => plugin.value?.id, () => props.show, () => plugin.value?.version],
   ([newId, newShow]) => {
     if (newId && newShow) {
       resetExpansion();
@@ -1987,7 +2007,7 @@ const copyIntegrationCode = async () => {
     </div>
   </component>
 
-  <ShareDialog ref="shareDialogRef" type="plugin" />
+  <ShareDialog ref="shareDialogRef" :type="activeKind" />
 
   <!-- Downloading Progress Dialog Overlay -->
   <DownloadProgressOverlay

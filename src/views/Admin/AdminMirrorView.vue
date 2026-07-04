@@ -9,7 +9,10 @@ import { fetchManagementInsights } from './adminManagementInsights';
 import MirrorSourceDialog from './components/MirrorSourceDialog.vue';
 import MirrorSyncLogsDialog from './components/MirrorSyncLogsDialog.vue';
 import CategoryFormDialog from './components/CategoryFormDialog.vue';
-import MirrorHeaderStats from './components/MirrorHeaderStats.vue';
+import AdminHeader from './components/AdminHeader.vue';
+import Badge from '@/components/ui/Badge.vue';
+import Button from '@/components/ui/Button.vue';
+import { Search, Plus, Upload, RefreshCw, Globe, Loader2, X, Layers } from 'lucide-vue-next';
 import MirrorSourceToolbar from './components/MirrorSourceToolbar.vue';
 import MirrorSourceList from './components/MirrorSourceList.vue';
 import MirrorMatchDialog from './components/MirrorMatchDialog.vue';
@@ -204,6 +207,53 @@ async function deleteSource(source: MirrorSource) {
     }
   }
 }
+
+const consolidatedCards = computed(() => {
+  const activeCount = sources.value.filter((s) => s.status === 'ACTIVE').length;
+  const totalCount = sources.value.length;
+  const totalResources = sources.value.reduce(
+    (sum, s) => sum + (s._count?.resources || s.totalResources || 0),
+    0,
+  );
+  const syncingCount = sources.value.filter((s) => s.syncStatus === 'SYNCING').length;
+  const errorCount = sources.value.filter((s) => s.status === 'ERROR').length;
+  const totalCategories = sources.value.reduce((sum, s) => sum + (s._count?.categories || 0), 0);
+
+  return [
+    {
+      label: '可用镜像',
+      value: `${activeCount}/${totalCount}`,
+      hint: `${totalResources} 个资源`,
+      icon: Globe,
+      color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      health: { label: '运行中' },
+    },
+    {
+      label: '同步中',
+      value: syncingCount,
+      hint: '当前后台镜像站同步中数',
+      icon: Loader2,
+      color: 'text-indigo-600 bg-indigo-500/10 border-indigo-500/20',
+      health: { label: syncingCount > 0 ? '同步中' : '空闲' },
+    },
+    {
+      label: '异常源',
+      value: errorCount,
+      hint: '需查看网络或日志',
+      icon: X,
+      color: 'text-rose-600 bg-rose-500/10 border-rose-500/20',
+      health: { label: errorCount > 0 ? '有异常' : '无异常' },
+    },
+    {
+      label: '镜像分类',
+      value: totalCategories,
+      hint: '同步至系统内的分类数',
+      icon: Layers,
+      color: 'text-purple-600 bg-purple-500/10 border-purple-500/20',
+      health: { label: '资源目录' },
+    },
+  ];
+});
 
 async function triggerSync(sourceId: string, type: 'FULL' | 'INCREMENTAL') {
   try {
@@ -894,15 +944,57 @@ onUnmounted(() => {
     class="admin-mirror-page mobile-adaptive flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
   >
     <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
-      <MirrorHeaderStats
-        v-model:search-query="mirrorSearchQuery"
-        :sources="sources"
-        :is-loading="isLoading"
-        @create="openCreate"
-        @import-file="triggerImportFile"
-        @scan-cloud="openScanCloudDialog"
-        @refresh="fetchSources"
-      />
+      <!-- Ultra-Compact Single Row Header -->
+      <AdminHeader
+        title="镜像源管理"
+        :cards="consolidatedCards"
+        v-model="mirrorSearchQuery"
+        placeholder="搜索镜像源..."
+      >
+        <template #title-badge>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <Badge variant="info"> 镜像源数: {{ sources.length }} </Badge>
+          </div>
+        </template>
+
+        <Button
+          variant="primary"
+          size="sm"
+          :icon="Plus"
+          @click="openCreate"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
+          添加镜像源
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          :icon="Upload"
+          @click="triggerImportFile"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
+          导入镜像源
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          :icon="Search"
+          @click="openScanCloudDialog"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
+          扫描云端镜像源
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          :icon="RefreshCw"
+          :loading="isLoading"
+          @click="fetchSources"
+          class="!h-7.5 !text-xs !px-2.5"
+        >
+          刷新
+        </Button>
+      </AdminHeader>
 
       <MirrorSourceToolbar
         v-model:status-filter="statusFilter"

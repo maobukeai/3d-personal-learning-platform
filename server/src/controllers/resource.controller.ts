@@ -15,7 +15,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { storageService, decryptSecretIfNeeded } from '../services/storage.service';
 
-type ResourceKind = 'asset' | 'material' | 'plugin' | 'showcase';
+type ResourceKind = 'asset' | 'material' | 'plugin' | 'showcase' | 'software';
 type ResourceStatus = 'APPROVED' | 'PENDING' | 'REJECTED';
 type KindFilter = ResourceKind | 'all';
 type StatusFilter = ResourceStatus | 'all';
@@ -48,7 +48,7 @@ interface ResourceFeedItem {
 
 const APPROVED_STATUS = 'APPROVED';
 const REVIEW_STATUSES = ['PENDING', 'REJECTED'];
-const RESOURCE_KINDS: ResourceKind[] = ['asset', 'material', 'plugin', 'showcase'];
+const RESOURCE_KINDS: ResourceKind[] = ['asset', 'material', 'plugin', 'showcase', 'software'];
 const RESOURCE_STATUSES: ResourceStatus[] = ['APPROVED', 'PENDING', 'REJECTED'];
 const STALE_REVIEW_HOURS = 48;
 
@@ -232,6 +232,35 @@ const buildPluginWhere = ({
   return withAnd(...clauses);
 };
 
+const buildSoftwareWhere = ({
+  userId,
+  isAdminScope,
+  status,
+  query,
+}: BuildWhereInput): Prisma.SoftwareWhereInput => {
+  const clauses: Prisma.SoftwareWhereInput[] = [];
+  if (!isAdminScope) {
+    clauses.push({
+      OR: [{ status: APPROVED_STATUS }, { userId }],
+    });
+  }
+  if (status) clauses.push({ status });
+  if (query) {
+    clauses.push({
+      OR: [
+        { title: { contains: query } },
+        { description: { contains: query } },
+        { tags: { contains: query } },
+        { category: { contains: query } },
+        { compatibility: { contains: query } },
+        { user: { is: { name: { contains: query } } } },
+        { user: { is: { email: { contains: query } } } },
+      ],
+    });
+  }
+  return withAnd(...clauses);
+};
+
 const buildShowcaseWhere = ({
   userId,
   teamFilter,
@@ -302,6 +331,20 @@ type MaterialRow = {
   user?: { name?: string | null; email?: string | null } | null;
 };
 type PluginRow = {
+  id: string;
+  title: string;
+  category?: string | null;
+  version?: string | null;
+  status: string;
+  previewUrl?: string | null;
+  tags?: string | null;
+  rejectReason?: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  downloads?: number;
+  user?: { name?: string | null; email?: string | null } | null;
+};
+type SoftwareRow = {
   id: string;
   title: string;
   category?: string | null;
@@ -398,6 +441,25 @@ const normalizePluginItem = (plugin: PluginRow, metricLabel = '下载'): Resourc
   reviewAgeHours: getReviewAgeHours(plugin.createdAt, plugin.status),
 });
 
+const normalizeSoftwareItem = (software: SoftwareRow, metricLabel = '下载'): ResourceFeedItem => ({
+  id: software.id,
+  kind: 'software',
+  title: software.title,
+  subtitle: `${software.category} / v${String(software.version).replace(/^v/i, '')}`,
+  metric: software.downloads ?? 0,
+  metricLabel,
+  status: software.status,
+  previewUrl: software.previewUrl ?? null,
+  createdAt: toIso(software.createdAt),
+  updatedAt: toIso(software.updatedAt),
+  path: `/softwares?software=${software.id}`,
+  reviewPath: `/admin/audits?tab=softwares&item=${software.id}`,
+  author: getAuthorName(software.user),
+  tags: parseTags(software.tags),
+  rejectReason: software.rejectReason || null,
+  reviewAgeHours: getReviewAgeHours(software.createdAt, software.status),
+});
+
 const normalizeShowcaseItem = (showcase: ShowcaseRow, metricLabel = '互动'): ResourceFeedItem => ({
   id: showcase.id,
   kind: 'showcase',
@@ -464,6 +526,7 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
     const assetOwnershipWhere = isAdminScope ? {} : { userId, ...teamFilter };
     const materialOwnershipWhere = isAdminScope ? {} : { userId, ...teamFilter };
     const pluginOwnershipWhere = isAdminScope ? {} : { userId };
+    const softwareOwnershipWhere = isAdminScope ? {} : { userId };
     const showcaseOwnershipWhere = isAdminScope ? {} : { userId, ...teamFilter };
     const assetVisibleWhere = isAdminScope
       ? {}
@@ -474,6 +537,9 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
     const pluginVisibleWhere = isAdminScope
       ? {}
       : { OR: [{ status: APPROVED_STATUS }, { userId }] };
+    const softwareVisibleWhere = isAdminScope
+      ? {}
+      : { OR: [{ status: APPROVED_STATUS }, { userId }] };
     const showcaseVisibleWhere = isAdminScope
       ? {}
       : { OR: [{ status: APPROVED_STATUS }, { userId, ...teamFilter }] };
@@ -481,6 +547,7 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
     const assetReviewWhere = { ...assetOwnershipWhere, status: { in: reviewQueueStatuses } };
     const materialReviewWhere = { ...materialOwnershipWhere, status: { in: reviewQueueStatuses } };
     const pluginReviewWhere = { ...pluginOwnershipWhere, status: { in: reviewQueueStatuses } };
+    const softwareReviewWhere = { ...softwareOwnershipWhere, status: { in: reviewQueueStatuses } };
     const showcaseReviewWhere = { ...showcaseOwnershipWhere, status: { in: reviewQueueStatuses } };
 
     const [
@@ -503,6 +570,13 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
       pluginRejected,
       pluginWeek,
       pluginAggregate,
+      softwareTotal,
+      softwareMine,
+      softwarePending,
+      softwareRejected,
+      softwareWeek,
+      softwareAggregate,
+      softwareFavorites,
       showcaseTotal,
       showcaseMine,
       showcasePending,
@@ -514,21 +588,26 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
       assetStorage,
       materialStorage,
       pluginStorage,
+      softwareStorage,
       recentAssets,
       recentMaterials,
       recentPlugins,
+      recentSoftwares,
       recentShowcases,
       topAssets,
       topMaterials,
       topPlugins,
+      topSoftwares,
       topShowcases,
       reviewAssets,
       reviewMaterials,
       reviewPlugins,
+      reviewSoftwares,
       reviewShowcases,
       assetTagRows,
       materialTagRows,
       pluginTagRows,
+      softwareTagRows,
       showcaseTagRows,
     ] = await Promise.all([
       prisma.asset.count({ where: { status: APPROVED_STATUS } }),
@@ -559,6 +638,16 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
         where: { status: APPROVED_STATUS },
         _sum: { downloads: true, fileSize: true },
       }),
+      prisma.software.count({ where: { status: APPROVED_STATUS } }),
+      prisma.software.count({ where: softwareOwnershipWhere }),
+      prisma.software.count({ where: { ...softwareOwnershipWhere, status: 'PENDING' } }),
+      prisma.software.count({ where: { ...softwareOwnershipWhere, status: 'REJECTED' } }),
+      prisma.software.count({ where: { status: APPROVED_STATUS, createdAt: { gte: sinceWeek } } }),
+      prisma.software.aggregate({
+        where: { status: APPROVED_STATUS },
+        _sum: { downloads: true, fileSize: true },
+      }),
+      prisma.softwareFavorite.count({ where: { software: { status: APPROVED_STATUS } } }),
       prisma.showcase.count({ where: { status: APPROVED_STATUS } }),
       prisma.showcase.count({ where: showcaseOwnershipWhere }),
       prisma.showcase.count({ where: { ...showcaseOwnershipWhere, status: 'PENDING' } }),
@@ -573,6 +662,7 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
       prisma.asset.aggregate({ where: assetOwnershipWhere, _sum: { size: true } }),
       prisma.material.aggregate({ where: materialOwnershipWhere, _sum: { fileSize: true } }),
       prisma.plugin.aggregate({ where: pluginOwnershipWhere, _sum: { fileSize: true } }),
+      prisma.software.aggregate({ where: softwareOwnershipWhere, _sum: { fileSize: true } }),
       prisma.asset.findMany({
         where: assetVisibleWhere,
         orderBy: { updatedAt: 'desc' },
@@ -593,6 +683,12 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
       }),
       prisma.plugin.findMany({
         where: pluginVisibleWhere,
+        orderBy: { updatedAt: 'desc' },
+        take: 8,
+        include: { user: { select: { name: true, email: true } } },
+      }),
+      prisma.software.findMany({
+        where: softwareVisibleWhere,
         orderBy: { updatedAt: 'desc' },
         take: 8,
         include: { user: { select: { name: true, email: true } } },
@@ -622,6 +718,12 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
         },
       }),
       prisma.plugin.findMany({
+        where: { status: APPROVED_STATUS },
+        orderBy: { downloads: 'desc' },
+        take: 6,
+        include: { user: { select: { name: true, email: true } } },
+      }),
+      prisma.software.findMany({
         where: { status: APPROVED_STATUS },
         orderBy: { downloads: 'desc' },
         take: 6,
@@ -657,6 +759,12 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
         take: 6,
         include: { user: { select: { name: true, email: true } } },
       }),
+      prisma.software.findMany({
+        where: softwareReviewWhere,
+        orderBy: isAdminScope ? { createdAt: 'asc' } : { updatedAt: 'desc' },
+        take: 6,
+        include: { user: { select: { name: true, email: true } } },
+      }),
       prisma.showcase.findMany({
         where: showcaseReviewWhere,
         orderBy: isAdminScope ? { createdAt: 'asc' } : { updatedAt: 'desc' },
@@ -681,6 +789,11 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
         select: { tags: true },
         take: 400,
       }),
+      prisma.software.findMany({
+        where: { status: APPROVED_STATUS, tags: { not: null } },
+        select: { tags: true },
+        take: 400,
+      }),
       prisma.showcase.findMany({
         where: { status: APPROVED_STATUS, tags: { not: null } },
         select: { tags: true },
@@ -701,6 +814,11 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
       metricLabel: string,
     ): ResourceFeedItem[] => items.map((plugin) => normalizePluginItem(plugin, metricLabel));
 
+    const normalizeSoftwares = (
+      items: typeof recentSoftwares,
+      metricLabel: string,
+    ): ResourceFeedItem[] => items.map((software) => normalizeSoftwareItem(software, metricLabel));
+
     const normalizeShowcases = (
       items: typeof recentShowcases,
       metricLabel: string,
@@ -710,6 +828,7 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
       ...normalizeAssets(recentAssets, '触达'),
       ...normalizeMaterials(recentMaterials, '收藏'),
       ...normalizePlugins(recentPlugins, '下载'),
+      ...normalizeSoftwares(recentSoftwares, '下载'),
       ...normalizeShowcases(recentShowcases, '互动'),
     ]
       .sort(
@@ -721,6 +840,7 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
       ...normalizeAssets(topAssets, '下载'),
       ...normalizeMaterials(topMaterials, '下载'),
       ...normalizePlugins(topPlugins, '下载'),
+      ...normalizeSoftwares(topSoftwares, '下载'),
       ...normalizeShowcases(topShowcases, '浏览'),
     ]
       .sort((a, b) => b.metric - a.metric)
@@ -730,6 +850,7 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
       ...normalizeAssets(reviewAssets, '触达'),
       ...normalizeMaterials(reviewMaterials, '收藏'),
       ...normalizePlugins(reviewPlugins, '下载'),
+      ...normalizeSoftwares(reviewSoftwares, '下载'),
       ...normalizeShowcases(reviewShowcases, '互动'),
     ]
       .sort((a, b) => {
@@ -781,6 +902,19 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
         storageMb: pluginStorage._sum.fileSize ?? 0,
       },
       {
+        key: 'softwares',
+        label: '软件库',
+        path: '/softwares',
+        total: softwareTotal,
+        mine: softwareMine,
+        pending: softwarePending,
+        rejected: softwareRejected,
+        weekAdded: softwareWeek,
+        metric: sumNumbers(softwareAggregate._sum.downloads, softwareFavorites),
+        metricLabel: '下载 / 收藏',
+        storageMb: softwareStorage._sum.fileSize ?? 0,
+      },
+      {
         key: 'showcase',
         label: '作品展示',
         path: '/showcase',
@@ -795,18 +929,19 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
       },
     ];
 
-    const pendingReview = sumNumbers(assetPending, materialPending, pluginPending, showcasePending);
+    const pendingReview = sumNumbers(assetPending, materialPending, pluginPending, softwarePending, showcasePending);
     const rejectedReview = sumNumbers(
       assetRejected,
       materialRejected,
       pluginRejected,
+      softwareRejected,
       showcaseRejected,
     );
-    const myItems = sumNumbers(assetMine, materialMine, pluginMine, showcaseMine);
+    const myItems = sumNumbers(assetMine, materialMine, pluginMine, softwareMine, showcaseMine);
     const readyMine = Math.max(0, myItems - pendingReview - rejectedReview);
     const readyRate = myItems > 0 ? Math.round((readyMine / myItems) * 100) : 100;
     const staleReviewAt = new Date(Date.now() - STALE_REVIEW_HOURS * 60 * 60 * 1000);
-    const [staleAssets, staleMaterials, stalePlugins, staleShowcases] = await Promise.all([
+    const [staleAssets, staleMaterials, stalePlugins, staleSoftwares, staleShowcases] = await Promise.all([
       prisma.asset.count({
         where: { ...assetOwnershipWhere, status: 'PENDING', createdAt: { lt: staleReviewAt } },
       }),
@@ -816,11 +951,14 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
       prisma.plugin.count({
         where: { ...pluginOwnershipWhere, status: 'PENDING', createdAt: { lt: staleReviewAt } },
       }),
+      prisma.software.count({
+        where: { ...softwareOwnershipWhere, status: 'PENDING', createdAt: { lt: staleReviewAt } },
+      }),
       prisma.showcase.count({
         where: { ...showcaseOwnershipWhere, status: 'PENDING', createdAt: { lt: staleReviewAt } },
       }),
     ]);
-    const staleReview = sumNumbers(staleAssets, staleMaterials, stalePlugins, staleShowcases);
+    const staleReview = sumNumbers(staleAssets, staleMaterials, stalePlugins, staleSoftwares, staleShowcases);
     const oldestReviewHours = reviewQueue.reduce(
       (max, item) => Math.max(max, item.reviewAgeHours || 0),
       0,
@@ -835,14 +973,14 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
     const result = {
       scope: isAdminScope ? 'admin' : 'workspace',
       summary: {
-        totalPublic: sumNumbers(assetTotal, materialTotal, pluginTotal, showcaseTotal),
+        totalPublic: sumNumbers(assetTotal, materialTotal, pluginTotal, softwareTotal, showcaseTotal),
         myItems,
         pendingReview,
         rejectedReview,
         reviewPressure: pendingReview + rejectedReview,
         readyRate,
         libraryCount: libraries.length,
-        weekAdded: sumNumbers(assetWeek, materialWeek, pluginWeek, showcaseWeek),
+        weekAdded: sumNumbers(assetWeek, materialWeek, pluginWeek, softwareWeek, showcaseWeek),
         interactions: sumNumbers(
           assetAggregate._sum.downloads,
           assetAggregate._sum.viewCount,
@@ -850,6 +988,7 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
           materialAggregate._sum.downloads,
           materialFavorites,
           pluginAggregate._sum.downloads,
+          softwareAggregate._sum.downloads,
           showcaseAggregate._sum.views,
           showcaseLikes,
           showcaseComments,
@@ -858,6 +997,7 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
           assetStorage._sum.size,
           materialStorage._sum.fileSize,
           pluginStorage._sum.fileSize,
+          softwareStorage._sum.fileSize,
         ),
       },
       reviewPressure: {
@@ -885,6 +1025,7 @@ export const getResourceOverview = async (req: AuthRequest, res: Response, next:
         assetTagRows.flatMap((row) => parseTags(row.tags)),
         materialTagRows.flatMap((row) => parseTags(row.tags)),
         pluginTagRows.flatMap((row) => parseTags(row.tags)),
+        softwareTagRows.flatMap((row) => parseTags(row.tags)),
         showcaseTagRows.flatMap((row) => parseTags(row.tags)),
       ),
       recentItems,
@@ -932,6 +1073,7 @@ export const getResourceFeed = async (req: AuthRequest, res: Response, next: Nex
         return prisma.material.count({ where: buildMaterialWhere(input) });
       }
       if (resourceKind === 'plugin') return prisma.plugin.count({ where: buildPluginWhere(input) });
+      if (resourceKind === 'software') return prisma.software.count({ where: buildSoftwareWhere(input) });
       return prisma.showcase.count({ where: buildShowcaseWhere(input) });
     };
 
@@ -964,6 +1106,15 @@ export const getResourceFeed = async (req: AuthRequest, res: Response, next: Nex
     const pluginOrderBy = ():
       | Prisma.PluginOrderByWithRelationInput
       | Prisma.PluginOrderByWithRelationInput[] => {
+      if (sortMode === 'title') return { title: 'asc' };
+      if (sortMode === 'created' || sortMode === 'review')
+        return { createdAt: sortMode === 'review' ? 'asc' : 'desc' };
+      if (sortMode === 'metric') return [{ downloads: 'desc' }, { updatedAt: 'desc' }];
+      return { updatedAt: 'desc' };
+    };
+    const softwareOrderBy = ():
+      | Prisma.SoftwareOrderByWithRelationInput
+      | Prisma.SoftwareOrderByWithRelationInput[] => {
       if (sortMode === 'title') return { title: 'asc' };
       if (sortMode === 'created' || sortMode === 'review')
         return { createdAt: sortMode === 'review' ? 'asc' : 'desc' };
@@ -1017,6 +1168,16 @@ export const getResourceFeed = async (req: AuthRequest, res: Response, next: Nex
           include: { user: { select: { name: true, email: true } } },
         });
         return plugins.map((item) => normalizePluginItem(item));
+      }
+
+      if (resourceKind === 'software') {
+        const softwares = await prisma.software.findMany({
+          where: buildSoftwareWhere(input),
+          orderBy: softwareOrderBy(),
+          take: fetchTake,
+          include: { user: { select: { name: true, email: true } } },
+        });
+        return softwares.map((item) => normalizeSoftwareItem(item));
       }
 
       const showcases = await prisma.showcase.findMany({
@@ -1090,7 +1251,7 @@ export const getMyResourceWorkbench = async (
     const userId = req.userId as string;
     const limit = parseLimit(req.query.limit);
 
-    const [assets, materials, plugins, showcases] = await Promise.all([
+    const [assets, materials, plugins, softwares, showcases] = await Promise.all([
       prisma.asset.findMany({
         where: { userId },
         orderBy: { updatedAt: 'desc' },
@@ -1113,6 +1274,11 @@ export const getMyResourceWorkbench = async (
         orderBy: { updatedAt: 'desc' },
         take: limit,
       }),
+      prisma.software.findMany({
+        where: { userId },
+        orderBy: { updatedAt: 'desc' },
+        take: limit,
+      }),
       prisma.showcase.findMany({
         where: { userId },
         orderBy: { updatedAt: 'desc' },
@@ -1127,6 +1293,7 @@ export const getMyResourceWorkbench = async (
       ...assets.map((item) => item.status),
       ...materials.map((item) => item.status),
       ...plugins.map((item) => item.status),
+      ...softwares.map((item) => item.status),
       ...showcases.map((item) => item.status),
     ];
     const countStatus = (status: string) => allStatuses.filter((item) => item === status).length;
@@ -1138,11 +1305,13 @@ export const getMyResourceWorkbench = async (
       assets.reduce((sum, item) => sum + Number(item.size || 0), 0),
       materials.reduce((sum, item) => sum + Number(item.fileSize || 0), 0),
       plugins.reduce((sum, item) => sum + Number(item.fileSize || 0), 0),
+      softwares.reduce((sum, item) => sum + Number(item.fileSize || 0), 0),
     );
     const totalReach = sumNumbers(
       assets.reduce((sum, item) => sum + Number(item.downloads || item.viewCount || 0), 0),
       materials.reduce((sum, item) => sum + Number(item.downloads || 0), 0),
       plugins.reduce((sum, item) => sum + Number(item.downloads || 0), 0),
+      softwares.reduce((sum, item) => sum + Number(item.downloads || 0), 0),
       showcases.reduce((sum, item) => sum + Number(item.views || 0), 0),
     );
 
@@ -1150,6 +1319,7 @@ export const getMyResourceWorkbench = async (
       assets,
       materials,
       plugins,
+      softwares,
       showcases,
       summary: {
         total,
@@ -1969,6 +2139,21 @@ export const importExternalResource = async (req: AuthRequest, res: Response, ne
       });
     } else if (type === 'plugin') {
       createdItem = await prisma.plugin.create({
+        data: {
+          title,
+          description: descriptionMarkdown,
+          category: aiData?.category || '其他工具',
+          version: aiData?.version || '1.0.0',
+          compatibility: aiData?.compatibility || '',
+          tags: aiData?.tags || '',
+          fileUrl: url,
+          previewUrl: coverUrl,
+          status: 'PENDING',
+          userId,
+        },
+      });
+    } else if (type === 'software') {
+      createdItem = await prisma.software.create({
         data: {
           title,
           description: descriptionMarkdown,

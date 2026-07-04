@@ -85,7 +85,7 @@ const copied = ref(false);
 
 // Format file size
 const formatSize = (bytes: number) => {
-  if (bytes === 0) return '0 B';
+  if (bytes <= 0) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -491,7 +491,7 @@ const totalFilesSize = computed(() => {
 });
 
 const quotaPercentage = computed(() => {
-  if (limitGb.value === 0) return 0;
+  if (limitGb.value === 0 || usedBytes.value <= 0) return 0;
   const limitBytes = limitGb.value * 1024 * 1024 * 1024;
   return Math.min(100, parseFloat(((usedBytes.value / limitBytes) * 100).toFixed(1)));
 });

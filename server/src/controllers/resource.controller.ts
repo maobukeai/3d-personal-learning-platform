@@ -1625,6 +1625,8 @@ function isJunkOrQrImage(src: string, el?: any): boolean {
     'saoma', 'alipay', 'kefu', 'wxcode', 'qqgroup',
     'jbscript', 'jb-script', 'gzh',
     'erweima', 'erwm', 'qr_code', 'qr-code', 'wx_qr', 'weixin_qr',
+    'profile-pic', 'profile_pic', 'profile-picture', 'blank-profile-pic',
+    '/static/',
     // jb51.net 特有的侧边栏缩略图 CDN 路径（不是文章正文图片）
     'litimg', '/skin/',
   ];

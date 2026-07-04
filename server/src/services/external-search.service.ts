@@ -52,7 +52,7 @@ async function searchBlenderExtensions(query: string): Promise<ExternalSearchRes
 
     return matches.slice(0, 10).map((item) => {
       const typePlural = item.type === 'add-on' ? 'add-ons' : 'themes';
-      const cleanSlug = (item.id || '').replace(/_/g, '-');
+      const cleanSlug = (item.id || '').replace(/_/g, '-').toLowerCase();
       return {
         title: `[${item.type}] ${item.name} - ${item.tagline || ''}`,
         link: `https://extensions.blender.org/${typePlural}/${cleanSlug}/`,
@@ -139,11 +139,11 @@ export function normalizeResourceUrl(urlStr: string): string {
       }
     }
 
-    // 处理 extensions.blender.org URL 格式，将 ID 部分的下划线 (_) 替换为连字符 (-)
+    // 处理 extensions.blender.org URL 格式，将 ID 部分的下划线 (_) 替换为连字符 (-) 并转为小写
     if (urlObj.hostname.includes('extensions.blender.org')) {
       const match = urlObj.pathname.match(/^(\/(?:add-ons|themes)\/)([^\/]+)(.*)$/);
       if (match && match[2]) {
-        const cleanSlug = match[2].replace(/_/g, '-');
+        const cleanSlug = match[2].replace(/_/g, '-').toLowerCase();
         urlObj.pathname = `${match[1]}${cleanSlug}${match[3] || ''}`;
       }
     }

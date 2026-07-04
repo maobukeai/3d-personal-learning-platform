@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import axios from 'axios';
 import {
   UploadCloud,
   File,
@@ -140,28 +141,192 @@ const fetchFiles = async () => {
 const handleUpload = async (fileList: FileList | null) => {
   if (!fileList || fileList.length === 0) return;
   const file = fileList[0];
-
-  // Perform upload
-  const formData = new FormData();
-  formData.append('temporary_file', file);
+  const size = file.size;
+  const filename = file.name;
+  const mimetype = file.type || 'application/octet-stream';
 
   isUploading.value = true;
   uploadProgress.value = 0;
   uploadLoadedBytes.value = 0;
-  uploadTotalBytes.value = file.size;
+  uploadTotalBytes.value = size;
   uploadSpeedStr.value = '0 KB/s';
-  uploadStatusText.value = '正在传输数据到服务器...';
+  uploadStatusText.value = '正在筹备上传...';
 
   const uploadStartTime = Date.now();
+  let lastLoaded = 0;
+  let lastTime = Date.now();
+
+  const updateSpeed = (loaded: number) => {
+    const now = Date.now();
+    const duration = (now - lastTime) / 1000;
+    if (duration >= 0.5) {
+      const bytesPerSec = (loaded - lastLoaded) / duration;
+      if (bytesPerSec > 1024 * 1024) {
+        uploadSpeedStr.value = `${(bytesPerSec / (1024 * 1024)).toFixed(2)} MB/s`;
+      } else {
+        uploadSpeedStr.value = `${(bytesPerSec / 1024).toFixed(0)} KB/s`;
+      }
+      lastLoaded = loaded;
+      lastTime = now;
+    }
+  };
+
+  let activeMultipart: { key: string; uploadId: string } | null = null;
 
   try {
+    if (hasConfig.value) {
+      // 5MB threshold for S3 multipart multi-threaded upload
+      const multipartThreshold = 5 * 1024 * 1024;
+
+      if (size >= multipartThreshold) {
+        uploadStatusText.value = '正在创建分片上传会话...';
+        const initRes = await api.post('/api/temporary-netdisk/multipart/initiate', {
+          filename,
+          mimetype,
+          size,
+        });
+
+        if (initRes.data.isDirect) {
+          const { uploadId, key } = initRes.data;
+          activeMultipart = { key, uploadId };
+
+          const chunkSize = 5 * 1024 * 1024;
+          const totalChunks = Math.ceil(size / chunkSize);
+          const partNumbers = Array.from({ length: totalChunks }, (_, i) => i + 1);
+
+          uploadStatusText.value = '获取分片授权中...';
+          const partsRes = await api.post('/api/temporary-netdisk/multipart/presign-parts', {
+            key,
+            uploadId,
+            partNumbers,
+          });
+
+          const urls = partsRes.data.urls;
+          const loadedParts = new Array(totalChunks).fill(0);
+          const completedParts: { ETag: string; PartNumber: number }[] = [];
+
+          const uploadChunk = async (partNum: number) => {
+            const start = (partNum - 1) * chunkSize;
+            const end = Math.min(start + chunkSize, size);
+            const chunk = file.slice(start, end);
+            const presignedUrl = urls[partNum];
+
+            const res = await axios.put(presignedUrl, chunk, {
+              headers: {
+                'Content-Type': mimetype,
+              },
+              onUploadProgress: (progressEvent) => {
+                loadedParts[partNum - 1] = progressEvent.loaded || 0;
+                const totalLoaded = loadedParts.reduce((sum, val) => sum + val, 0);
+                uploadLoadedBytes.value = totalLoaded;
+                const percent = Math.min(Math.round((totalLoaded * 100) / size), 99);
+                uploadProgress.value = percent;
+                updateSpeed(totalLoaded);
+                uploadStatusText.value = `正在多线程加速上传：第 ${partNum}/${totalChunks} 分片...`;
+              },
+            });
+
+            const etag = res.headers.etag || res.headers.ETag || '';
+            completedParts.push({
+              ETag: etag.replace(/"/g, ''),
+              PartNumber: partNum,
+            });
+          };
+
+          // Limit concurrency to 3 parallel uploads
+          const queue = [...partNumbers];
+          const workers: Promise<void>[] = [];
+          const executeWorker = async () => {
+            while (queue.length > 0) {
+              const partNum = queue.shift();
+              if (partNum !== undefined) {
+                await uploadChunk(partNum);
+              }
+            }
+          };
+
+          for (let w = 0; w < Math.min(3, totalChunks); w++) {
+            workers.push(executeWorker());
+          }
+          await Promise.all(workers);
+
+          uploadStatusText.value = '数据传输完成，正在校验合并分片...';
+          const completeRes = await api.post('/api/temporary-netdisk/multipart/complete', {
+            key,
+            uploadId,
+            parts: completedParts,
+            filename,
+            mimetype,
+            size,
+          });
+
+          activeMultipart = null;
+          uploadProgress.value = 100;
+          uploadStatusText.value = '上传完成！';
+          ElMessage.success('文件多线程分片直传成功');
+          fetchFiles();
+          return;
+        }
+      } else {
+        // Simple presigned URL upload for files < 5MB
+        uploadStatusText.value = '请求单文件直传授权...';
+        const presignedRes = await api.post('/api/temporary-netdisk/presigned-url', {
+          filename,
+          mimetype,
+          size,
+        });
+
+        if (presignedRes.data.isDirect) {
+          const { uploadUrl, key } = presignedRes.data;
+
+          uploadStatusText.value = '正在直传文件到云端...';
+          await axios.put(uploadUrl, file, {
+            headers: {
+              'Content-Type': mimetype,
+            },
+            onUploadProgress: (progressEvent) => {
+              const loaded = progressEvent.loaded || 0;
+              uploadLoadedBytes.value = loaded;
+              if (progressEvent.total) {
+                const percent = Math.min(
+                  Math.round((loaded * 100) / progressEvent.total),
+                  99,
+                );
+                uploadProgress.value = percent;
+                updateSpeed(loaded);
+              }
+            },
+          });
+
+          uploadStatusText.value = '写入记录并校验中...';
+          await api.post('/api/temporary-netdisk/complete-single', {
+            filename,
+            key,
+            size,
+            mimetype,
+          });
+
+          uploadProgress.value = 100;
+          uploadStatusText.value = '上传完成！';
+          ElMessage.success('文件直传成功');
+          fetchFiles();
+          return;
+        }
+      }
+    }
+
+    // Fallback path: Multer upload to backend server
+    uploadStatusText.value = '正在传输数据到服务器...';
+    const formData = new FormData();
+    formData.append('temporary_file', file);
+
     await api.post('/api/temporary-netdisk/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
       onUploadProgress: (progressEvent) => {
         const loaded = progressEvent.loaded || 0;
-        const total = progressEvent.total || file.size;
+        const total = progressEvent.total || size;
         uploadLoadedBytes.value = loaded;
         uploadTotalBytes.value = total;
 
@@ -183,7 +348,7 @@ const handleUpload = async (fileList: FileList | null) => {
 
         if (loaded >= total) {
           uploadProgress.value = 99;
-          uploadStatusText.value = '数据传输完成，正在同步转存至 Cloudflare R2...';
+          uploadStatusText.value = '数据传输完成，正在转存...';
         } else {
           uploadStatusText.value = '正在传输数据到服务器...';
         }
@@ -195,6 +360,12 @@ const handleUpload = async (fileList: FileList | null) => {
     ElMessage.success('文件上传成功');
     fetchFiles();
   } catch (error) {
+    if (activeMultipart) {
+      await api.post('/api/temporary-netdisk/multipart/abort', {
+        key: activeMultipart.key,
+        uploadId: activeMultipart.uploadId,
+      }).catch(() => {});
+    }
     ElMessage.error(getApiErrorMessage(error, '文件上传失败'));
   } finally {
     setTimeout(() => {

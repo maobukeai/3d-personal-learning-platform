@@ -5,6 +5,9 @@ import { getUploadedFileUrl, deleteCloudOrLocalFileByUrl, urlToPath } from '../u
 import { AppError } from '../utils/error';
 import { settingsService } from '../services/settings.service';
 import { storageService } from '../services/storage.service';
+import { logger } from '../utils/logger';
+import { buildDecryptedStorageConfig } from '../utils/crypto';
+import { gbToBytes } from '../utils/quota';
 import fs from 'fs';
 
 /**
@@ -14,10 +17,12 @@ export const uploadFile = async (req: AuthRequest, res: Response, next: NextFunc
   try {
     let activeConfig = await prisma.storageConfig.findFirst({
       where: { status: 'ACTIVE', assetType: 'TEMPORARY_NETDISK' },
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
     });
     if (!activeConfig) {
       activeConfig = await prisma.storageConfig.findFirst({
         where: { status: 'ACTIVE', assetType: 'ALL' },
+        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
       });
     }
     if (!activeConfig) {
@@ -56,10 +61,12 @@ export const getMyFiles = async (req: AuthRequest, res: Response, next: NextFunc
   try {
     let activeConfig = await prisma.storageConfig.findFirst({
       where: { status: 'ACTIVE', assetType: 'TEMPORARY_NETDISK' },
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
     });
     if (!activeConfig) {
       activeConfig = await prisma.storageConfig.findFirst({
         where: { status: 'ACTIVE', assetType: 'ALL' },
+        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
       });
     }
 
@@ -145,6 +152,7 @@ export const deleteFile = async (req: AuthRequest, res: Response, next: NextFunc
       // Fallback: update active TEMPORARY_NETDISK or ALL config
       const activeConfig = await prisma.storageConfig.findFirst({
         where: { status: 'ACTIVE', assetType: { in: ['TEMPORARY_NETDISK', 'ALL'] } },
+        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
       });
       if (activeConfig) {
         await prisma.storageConfig.update({
@@ -416,6 +424,281 @@ export const downloadFile = async (req: AuthRequest, res: Response, next: NextFu
     const fileStream = fs.createReadStream(localPath);
     fileStream.pipe(res);
   } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Shared storage configuration helper
+ */
+const getActiveStorage = async () => {
+  let activeConfig = await prisma.storageConfig.findFirst({
+    where: { status: 'ACTIVE', assetType: 'TEMPORARY_NETDISK' },
+  });
+  if (!activeConfig) {
+    activeConfig = await prisma.storageConfig.findFirst({
+      where: { status: 'ACTIVE', assetType: 'ALL' },
+    });
+  }
+  return activeConfig;
+};
+
+const getDecryptedActiveStorage = async () => {
+  const raw = await getActiveStorage();
+  if (!raw) return null;
+  return {
+    raw,
+    config: buildDecryptedStorageConfig(raw),
+  };
+};
+
+/**
+ * Get simple presigned PUT upload URL
+ */
+export const getUploadPresignedUrl = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const { filename, mimetype, size } = req.body;
+  if (!filename || !mimetype) {
+    return res.status(400).json({ error: 'filename and mimetype are required' });
+  }
+
+  try {
+    const active = await getDecryptedActiveStorage();
+    if (!active) {
+      return res.json({ isDirect: false });
+    }
+    const { raw, config } = active;
+
+    const limitBytes = gbToBytes(raw.limitGb);
+    if (size && raw.usedBytes + size > limitBytes) {
+      return res.status(400).json({ error: '云端存储容量已满，无法上传' });
+    }
+
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const sanitized = filename
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
+      .replace(/\s+/g, '_');
+    const key = `temporary/${uniqueSuffix}/${sanitized}`;
+
+    const uploadUrl = await storageService.getPresignedUploadUrl(config, key, mimetype);
+    const publicUrlBase = config.publicUrl.replace(/\/$/, '');
+    const publicUrl = `${publicUrlBase}/${key}`;
+
+    res.json({
+      isDirect: true,
+      uploadUrl,
+      publicUrl,
+      key,
+    });
+  } catch (error) {
+    logger.error('Get netdisk presigned url error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Complete single PUT upload (create record & allocate quota)
+ */
+export const completeSingleUpload = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const { filename, key, size, mimetype } = req.body;
+  if (!filename || !key || !size || !mimetype) {
+    return res.status(400).json({ error: 'filename, key, size, and mimetype are required' });
+  }
+
+  try {
+    const active = await getDecryptedActiveStorage();
+    if (!active) {
+      return res.status(400).json({ error: '未启用云存储配置' });
+    }
+    const { raw } = active;
+
+    // Check capacity quota again
+    const limitBytes = gbToBytes(raw.limitGb);
+    if (raw.usedBytes + size > limitBytes) {
+      return res.status(400).json({ error: '云端存储容量已满，无法上传' });
+    }
+
+    // Atomically increment storage used bytes
+    await prisma.storageConfig.update({
+      where: { id: raw.id },
+      data: { usedBytes: { increment: size } },
+    });
+
+    const publicUrlBase = raw.publicUrl.replace(/\/$/, '');
+    const fileUrl = `${publicUrlBase}/${key}`;
+
+    const userId = req.userId!;
+    const temporaryFile = await prisma.temporaryFile.create({
+      data: {
+        name: filename,
+        url: fileUrl,
+        size: size,
+        mimeType: mimetype,
+        userId,
+        storageConfigId: raw.id,
+      },
+    });
+
+    res.status(201).json(temporaryFile);
+  } catch (error) {
+    logger.error('Complete single upload error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Initiate S3 multipart upload
+ */
+export const initiateNetdiskMultipartUpload = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { filename, mimetype, size } = req.body;
+  if (!filename || !mimetype) {
+    return res.status(400).json({ error: 'filename and mimetype are required' });
+  }
+
+  try {
+    const active = await getDecryptedActiveStorage();
+    if (!active) {
+      return res.json({ isDirect: false });
+    }
+    const { raw, config } = active;
+
+    const limitBytes = gbToBytes(raw.limitGb);
+    if (size && raw.usedBytes + size > limitBytes) {
+      return res.status(400).json({ error: '云端存储容量已满，无法上传' });
+    }
+
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const sanitized = filename
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
+      .replace(/\s+/g, '_');
+    const key = `temporary/${uniqueSuffix}/${sanitized}`;
+
+    const uploadId = await storageService.initiateMultipartUpload(config, key, mimetype);
+    res.json({
+      isDirect: true,
+      uploadId,
+      key,
+    });
+  } catch (error) {
+    logger.error('Initiate netdisk multipart upload error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Get S3 presigned part upload URLs
+ */
+export const getNetdiskMultipartUploadPartUrls = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { key, uploadId, partNumbers } = req.body;
+  if (!key || !uploadId || !Array.isArray(partNumbers)) {
+    return res.status(400).json({ error: 'key, uploadId, and partNumbers are required' });
+  }
+
+  try {
+    const active = await getDecryptedActiveStorage();
+    if (!active) {
+      return res.status(400).json({ error: 'Storage configuration not active' });
+    }
+    const { config } = active;
+
+    const urls: Record<number, string> = {};
+    for (const partNum of partNumbers) {
+      const url = await storageService.getPresignedUploadPartUrl(config, key, uploadId, partNum);
+      urls[partNum] = url;
+    }
+    res.json({ urls });
+  } catch (error) {
+    logger.error('Get netdisk presigned upload part urls error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Complete S3 multipart upload (finalize upload & create record & allocate quota)
+ */
+export const completeNetdiskMultipartUpload = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { key, uploadId, parts, filename, mimetype, size } = req.body;
+  if (!key || !uploadId || !Array.isArray(parts) || !filename || !mimetype || !size) {
+    return res.status(400).json({ error: 'key, uploadId, parts, filename, mimetype, and size are required' });
+  }
+
+  try {
+    const active = await getDecryptedActiveStorage();
+    if (!active) {
+      return res.status(400).json({ error: 'Storage configuration not active' });
+    }
+    const { raw, config } = active;
+
+    // Check capacity quota again
+    const limitBytes = gbToBytes(raw.limitGb);
+    if (raw.usedBytes + size > limitBytes) {
+      return res.status(400).json({ error: '云端存储容量已满，无法上传' });
+    }
+
+    const finalUrl = await storageService.completeMultipartUpload(config, key, uploadId, parts);
+
+    // Atomically increment storage used bytes
+    await prisma.storageConfig.update({
+      where: { id: raw.id },
+      data: { usedBytes: { increment: size } },
+    });
+
+    const userId = req.userId!;
+    const temporaryFile = await prisma.temporaryFile.create({
+      data: {
+        name: filename,
+        url: finalUrl,
+        size: size,
+        mimeType: mimetype,
+        userId,
+        storageConfigId: raw.id,
+      },
+    });
+
+    res.status(201).json(temporaryFile);
+  } catch (error) {
+    logger.error('Complete netdisk multipart upload error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Abort S3 multipart upload
+ */
+export const abortNetdiskMultipartUpload = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { key, uploadId } = req.body;
+  if (!key || !uploadId) {
+    return res.status(400).json({ error: 'key and uploadId are required' });
+  }
+
+  try {
+    const active = await getDecryptedActiveStorage();
+    if (!active) {
+      return res.status(400).json({ error: 'Storage configuration not active' });
+    }
+    const { config } = active;
+
+    await storageService.abortMultipartUpload(config, key, uploadId);
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Abort netdisk multipart upload error:', error);
     next(error);
   }
 };

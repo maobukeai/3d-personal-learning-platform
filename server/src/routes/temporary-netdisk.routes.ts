@@ -33,6 +33,12 @@ router.post(
   validateFileContent,
   netdiskController.uploadFile,
 );
+router.post('/presigned-url', netdiskController.getUploadPresignedUrl);
+router.post('/complete-single', netdiskController.completeSingleUpload);
+router.post('/multipart/initiate', netdiskController.initiateNetdiskMultipartUpload);
+router.post('/multipart/presign-parts', netdiskController.getNetdiskMultipartUploadPartUrls);
+router.post('/multipart/complete', netdiskController.completeNetdiskMultipartUpload);
+router.post('/multipart/abort', netdiskController.abortNetdiskMultipartUpload);
 router.delete('/files/:id', netdiskController.deleteFile);
 router.get('/files/:id/download', netdiskController.downloadFile);
 router.post('/shares', netdiskController.createShare);

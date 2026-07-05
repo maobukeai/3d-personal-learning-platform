@@ -30,6 +30,7 @@ html.theme-glass {
 
   /* Glass specifics */
   --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-dialog-bg: rgba(255, 255, 255, 0.72);
   --glass-sidebar-bg: rgba(248, 250, 252, 0.42);
   --glass-border-color: rgba(255, 255, 255, 0.6);
   --glass-border: 1px solid var(--glass-border-color);
@@ -66,6 +67,7 @@ html.dark.theme-glass {
 
   /* Glass specifics */
   --glass-bg: rgba(20, 24, 33, 0.48);
+  --glass-dialog-bg: rgba(20, 24, 33, 0.82);
   --glass-header-bg: rgba(12, 15, 22, 0.85);
   --glass-sidebar-bg: rgba(12, 16, 22, 0.52);
   --glass-border-color: rgba(255, 255, 255, 0.08);

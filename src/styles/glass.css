@@ -396,7 +396,7 @@ html.theme-glass .glass-dialog {
   html.theme-glass .el-dialog,
   html.theme-glass .el-message-box,
   html.theme-glass .glass-dialog {
-    background: var(--glass-bg) !important;
+    background: var(--glass-dialog-bg, var(--glass-bg)) !important;
   }
 }
 

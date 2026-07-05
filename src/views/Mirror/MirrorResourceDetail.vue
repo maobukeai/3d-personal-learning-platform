@@ -245,8 +245,8 @@ async function handleExtract(link: { name: string; type: string }) {
 
     const envKey = import.meta.env.VITE_EXTRACT_ENCRYPTION_KEY;
     if (!envKey && import.meta.env.PROD) {
-      throw new Error(
-        'System configuration error: Missing extraction encryption key in production.',
+      console.warn(
+        '[Mirror] VITE_EXTRACT_ENCRYPTION_KEY is not set in production. Falling back to default key.',
       );
     }
     const key = envKey || '3d_learning_platform_secure_extract_key_2026';

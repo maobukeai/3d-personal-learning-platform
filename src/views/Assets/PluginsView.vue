@@ -424,6 +424,9 @@ interface EditFormType {
   tempMaterialPath?: string;
   tempPluginPath?: string;
   tempPreviewPath?: string;
+  packageFilesList?: string;
+  fileSize?: number;
+  packageSize?: number;
 }
 
 const editForm = ref<EditFormType>({
@@ -927,6 +930,12 @@ const handleSaveEdit = async () => {
       formData.append('tempPreviewPath', editForm.value.tempPreviewPath);
     } else if (editForm.value.thumbnail) {
       formData.append('plugin_preview', editForm.value.thumbnail);
+    }
+    if (editForm.value.fileSize !== undefined) {
+      formData.append('fileSize', String(editForm.value.fileSize));
+    }
+    if (editForm.value.packageFilesList) {
+      formData.append('packageFilesList', editForm.value.packageFilesList);
     }
 
     await api.put(`/api/plugins/${work.id}`, formData, {

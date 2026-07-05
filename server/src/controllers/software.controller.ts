@@ -481,17 +481,27 @@ export const uploadSoftware = async (req: AuthRequest, res: Response, next: Next
     }
 
     let packageFilesList: string[] = [];
-    if (softwareFile) {
-      const ext = path.extname(softwareFile.originalname).toLowerCase();
-      if (ext === '.zip') {
-        packageFilesList = await parseZipLocal(softwareFile.path);
+    if (req.body.packageFilesList) {
+      try {
+        packageFilesList = JSON.parse(req.body.packageFilesList);
+      } catch (err) {
+        // ignore
       }
-    } else if (tempSoftwarePath) {
-      const localPath = urlToPath(tempSoftwarePath);
-      if (localPath && fs.existsSync(localPath)) {
-        const ext = path.extname(localPath).toLowerCase();
+    }
+
+    if (packageFilesList.length === 0) {
+      if (softwareFile) {
+        const ext = path.extname(softwareFile.originalname).toLowerCase();
         if (ext === '.zip') {
-          packageFilesList = await parseZipLocal(localPath);
+          packageFilesList = await parseZipLocal(softwareFile.path);
+        }
+      } else if (tempSoftwarePath) {
+        const localPath = urlToPath(tempSoftwarePath);
+        if (localPath && fs.existsSync(localPath)) {
+          const ext = path.extname(localPath).toLowerCase();
+          if (ext === '.zip') {
+            packageFilesList = await parseZipLocal(localPath);
+          }
         }
       }
     }
@@ -500,9 +510,12 @@ export const uploadSoftware = async (req: AuthRequest, res: Response, next: Next
       ? (softwareFile as UploadedFile).url || `/uploads/softwares/${softwareFile.filename}`
       : tempSoftwarePath || externalUrl;
 
-    let fileSizeMb = softwareFile ? softwareFile.size / (1024 * 1024) : 0;
-    if (!softwareFile && tempSoftwarePath) {
-      fileSizeMb = await getFileSizeInMb(tempSoftwarePath);
+    let fileSizeMb = req.body.fileSize ? parseFloat(req.body.fileSize) / (1024 * 1024) : 0;
+    if (fileSizeMb === 0) {
+      fileSizeMb = softwareFile ? softwareFile.size / (1024 * 1024) : 0;
+      if (!softwareFile && tempSoftwarePath) {
+        fileSizeMb = await getFileSizeInMb(tempSoftwarePath);
+      }
     }
 
     const previewUrl = previewFile
@@ -628,24 +641,39 @@ export const updateSoftware = async (req: AuthRequest, res: Response, next: Next
     }
 
     let packageFilesList: string[] = [];
+    if (req.body.packageFilesList) {
+      try {
+        packageFilesList = JSON.parse(req.body.packageFilesList);
+      } catch (err) {
+        // ignore
+      }
+    }
+
     if (softwareFile) {
-      const ext = path.extname(softwareFile.originalname).toLowerCase();
-      if (ext === '.zip') {
-        packageFilesList = await parseZipLocal(softwareFile.path);
+      if (packageFilesList.length === 0) {
+        const ext = path.extname(softwareFile.originalname).toLowerCase();
+        if (ext === '.zip') {
+          packageFilesList = await parseZipLocal(softwareFile.path);
+        }
       }
       updateData.fileUrl = (softwareFile as UploadedFile).url || `/uploads/softwares/${softwareFile.filename}`;
-      updateData.fileSize = softwareFile.size / (1024 * 1024);
+      updateData.fileSize = req.body.fileSize ? parseFloat(req.body.fileSize) / (1024 * 1024) : softwareFile.size / (1024 * 1024);
       updateData.packageFilesList = packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null;
     } else if (tempSoftwarePath) {
-      const fileSizeMb = await getFileSizeInMb(tempSoftwarePath);
+      let fileSizeMb = req.body.fileSize ? parseFloat(req.body.fileSize) / (1024 * 1024) : 0;
+      if (fileSizeMb === 0) {
+        fileSizeMb = await getFileSizeInMb(tempSoftwarePath);
+      }
       updateData.fileSize = fileSizeMb;
       updateData.fileUrl = tempSoftwarePath;
 
-      const localPath = urlToPath(tempSoftwarePath);
-      if (localPath && fs.existsSync(localPath)) {
-        const ext = path.extname(localPath).toLowerCase();
-        if (ext === '.zip') {
-          packageFilesList = await parseZipLocal(localPath);
+      if (packageFilesList.length === 0) {
+        const localPath = urlToPath(tempSoftwarePath);
+        if (localPath && fs.existsSync(localPath)) {
+          const ext = path.extname(localPath).toLowerCase();
+          if (ext === '.zip') {
+            packageFilesList = await parseZipLocal(localPath);
+          }
         }
       }
       updateData.packageFilesList = packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null;
@@ -691,7 +719,7 @@ export const updateSoftware = async (req: AuthRequest, res: Response, next: Next
             version: { not: existingVersionRecord.version },
           },
         });
-        if (!isFileReferenced && existingVersionRecord.fileUrl.startsWith('/uploads/')) {
+        if (!isFileReferenced) {
           deleteCloudOrLocalFileByUrl(existingVersionRecord.fileUrl).catch(() => {});
         }
       }

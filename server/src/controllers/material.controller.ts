@@ -393,9 +393,12 @@ export const uploadMaterial = async (req: AuthRequest, res: Response, next: Next
       tempPreviewPath = moveTempFileToDestination(req, tempPreviewPath, 'materials');
     }
 
-    let fileSizeMB = materialFile ? materialFile.size / (1024 * 1024) : 0;
-    if (!materialFile && tempMaterialPath) {
-      fileSizeMB = await getFileSizeInMb(tempMaterialPath);
+    let fileSizeMB = req.body.fileSize ? parseFloat(req.body.fileSize) / (1024 * 1024) : 0;
+    if (fileSizeMB === 0) {
+      fileSizeMB = materialFile ? materialFile.size / (1024 * 1024) : 0;
+      if (!materialFile && tempMaterialPath) {
+        fileSizeMB = await getFileSizeInMb(tempMaterialPath);
+      }
     }
 
     // Check quota
@@ -415,17 +418,27 @@ export const uploadMaterial = async (req: AuthRequest, res: Response, next: Next
     }
 
     let packageFilesList: string[] = [];
-    if (materialFile) {
-      const ext = path.extname(materialFile.originalname).toLowerCase();
-      if (ext === '.zip') {
-        packageFilesList = await parseZipLocal(materialFile.path);
+    if (req.body.packageFilesList) {
+      try {
+        packageFilesList = JSON.parse(req.body.packageFilesList);
+      } catch (err) {
+        // ignore
       }
-    } else if (tempMaterialPath) {
-      const localPath = urlToPath(tempMaterialPath);
-      if (localPath && fs.existsSync(localPath)) {
-        const ext = path.extname(localPath).toLowerCase();
+    }
+
+    if (packageFilesList.length === 0) {
+      if (materialFile) {
+        const ext = path.extname(materialFile.originalname).toLowerCase();
         if (ext === '.zip') {
-          packageFilesList = await parseZipLocal(localPath);
+          packageFilesList = await parseZipLocal(materialFile.path);
+        }
+      } else if (tempMaterialPath) {
+        const localPath = urlToPath(tempMaterialPath);
+        if (localPath && fs.existsSync(localPath)) {
+          const ext = path.extname(localPath).toLowerCase();
+          if (ext === '.zip') {
+            packageFilesList = await parseZipLocal(localPath);
+          }
         }
       }
     }
@@ -593,9 +606,18 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
       updateData.rejectReason = null;
     }
 
+    let packageFilesList: string[] = [];
+    if (req.body.packageFilesList) {
+      try {
+        packageFilesList = JSON.parse(req.body.packageFilesList);
+      } catch (err) {
+        // ignore
+      }
+    }
+
     // Process new file uploads if present
     if (materialFile) {
-      const fileSizeMB = materialFile.size / (1024 * 1024);
+      const fileSizeMB = req.body.fileSize ? parseFloat(req.body.fileSize) / (1024 * 1024) : materialFile.size / (1024 * 1024);
       const storageQuota = await checkStorageQuota(
         req.userId as string,
         fileSizeMB,
@@ -622,10 +644,11 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
       updateData.fileUrl = fileUrl;
       updateData.fileSize = Math.round(fileSizeMB * 100) / 100;
 
-      let packageFilesList: string[] = [];
-      const ext = path.extname(materialFile.originalname).toLowerCase();
-      if (ext === '.zip') {
-        packageFilesList = await parseZipLocal(materialFile.path);
+      if (packageFilesList.length === 0) {
+        const ext = path.extname(materialFile.originalname).toLowerCase();
+        if (ext === '.zip') {
+          packageFilesList = await parseZipLocal(materialFile.path);
+        }
       }
       updateData.packageFilesList =
         packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null;
@@ -637,7 +660,10 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
         } catch (_e) {}
       }
     } else if (tempMaterialPath) {
-      const fileSizeMB = await getFileSizeInMb(tempMaterialPath);
+      let fileSizeMB = req.body.fileSize ? parseFloat(req.body.fileSize) / (1024 * 1024) : 0;
+      if (fileSizeMB === 0) {
+        fileSizeMB = await getFileSizeInMb(tempMaterialPath);
+      }
 
       const storageQuota = await checkStorageQuota(
         req.userId as string,
@@ -656,13 +682,13 @@ export const updateMaterial = async (req: AuthRequest, res: Response, next: Next
       updateData.fileUrl = tempMaterialPath;
       updateData.fileSize = Math.round(fileSizeMB * 100) / 100;
 
-      const localPath = urlToPath(tempMaterialPath);
-
-      let packageFilesList: string[] = [];
-      if (localPath && fs.existsSync(localPath)) {
-        const ext = path.extname(localPath).toLowerCase();
-        if (ext === '.zip') {
-          packageFilesList = await parseZipLocal(localPath);
+      if (packageFilesList.length === 0) {
+        const localPath = urlToPath(tempMaterialPath);
+        if (localPath && fs.existsSync(localPath)) {
+          const ext = path.extname(localPath).toLowerCase();
+          if (ext === '.zip') {
+            packageFilesList = await parseZipLocal(localPath);
+          }
         }
       }
       updateData.packageFilesList =

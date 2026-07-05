@@ -551,17 +551,27 @@ export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFu
     }
 
     let packageFilesList: string[] = [];
-    if (pluginFile) {
-      const ext = path.extname(pluginFile.originalname).toLowerCase();
-      if (ext === '.zip') {
-        packageFilesList = await parseZipLocal(pluginFile.path);
+    if (req.body.packageFilesList) {
+      try {
+        packageFilesList = JSON.parse(req.body.packageFilesList);
+      } catch (err) {
+        // ignore
       }
-    } else if (tempPluginPath) {
-      const localPath = urlToPath(tempPluginPath);
-      if (localPath && fs.existsSync(localPath)) {
-        const ext = path.extname(localPath).toLowerCase();
+    }
+
+    if (packageFilesList.length === 0) {
+      if (pluginFile) {
+        const ext = path.extname(pluginFile.originalname).toLowerCase();
         if (ext === '.zip') {
-          packageFilesList = await parseZipLocal(localPath);
+          packageFilesList = await parseZipLocal(pluginFile.path);
+        }
+      } else if (tempPluginPath) {
+        const localPath = urlToPath(tempPluginPath);
+        if (localPath && fs.existsSync(localPath)) {
+          const ext = path.extname(localPath).toLowerCase();
+          if (ext === '.zip') {
+            packageFilesList = await parseZipLocal(localPath);
+          }
         }
       }
     }
@@ -570,9 +580,12 @@ export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFu
       ? (pluginFile as UploadedFile).url || `/uploads/plugins/${pluginFile.filename}`
       : tempPluginPath || externalUrl;
 
-    let fileSizeMb = pluginFile ? pluginFile.size / (1024 * 1024) : 0;
-    if (!pluginFile && tempPluginPath) {
-      fileSizeMb = await getFileSizeInMb(tempPluginPath);
+    let fileSizeMb = req.body.fileSize ? parseFloat(req.body.fileSize) / (1024 * 1024) : 0;
+    if (fileSizeMb === 0) {
+      fileSizeMb = pluginFile ? pluginFile.size / (1024 * 1024) : 0;
+      if (!pluginFile && tempPluginPath) {
+        fileSizeMb = await getFileSizeInMb(tempPluginPath);
+      }
     }
 
     const previewUrl = previewFile
@@ -716,6 +729,15 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
       updateData.isFree = parseBool(req.body.isFree, true);
     }
 
+    let packageFilesList: string[] = [];
+    if (req.body.packageFilesList) {
+      try {
+        packageFilesList = JSON.parse(req.body.packageFilesList);
+      } catch (err) {
+        // ignore
+      }
+    }
+
     // Check if new plugin file is uploaded
     if (pluginFile) {
       if (existing.fileUrl) {
@@ -732,14 +754,15 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
         }
       }
       const fileUrl = (pluginFile as UploadedFile).url || `/uploads/plugins/${pluginFile.filename}`;
-      const fileSizeMb = pluginFile.size / (1024 * 1024);
+      const fileSizeMb = req.body.fileSize ? parseFloat(req.body.fileSize) / (1024 * 1024) : pluginFile.size / (1024 * 1024);
       updateData.fileUrl = fileUrl;
       updateData.fileSize = fileSizeMb;
 
-      let packageFilesList: string[] = [];
-      const ext = path.extname(pluginFile.originalname).toLowerCase();
-      if (ext === '.zip') {
-        packageFilesList = await parseZipLocal(pluginFile.path);
+      if (packageFilesList.length === 0) {
+        const ext = path.extname(pluginFile.originalname).toLowerCase();
+        if (ext === '.zip') {
+          packageFilesList = await parseZipLocal(pluginFile.path);
+        }
       }
       updateData.packageFilesList =
         packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null;
@@ -765,18 +788,21 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
         }
       }
 
-      const fileSizeMb = await getFileSizeInMb(tempPluginPath);
+      let fileSizeMb = req.body.fileSize ? parseFloat(req.body.fileSize) / (1024 * 1024) : 0;
+      if (fileSizeMb === 0) {
+        fileSizeMb = await getFileSizeInMb(tempPluginPath);
+      }
 
       updateData.fileUrl = tempPluginPath;
       updateData.fileSize = fileSizeMb;
 
-      const localPath = urlToPath(tempPluginPath);
-
-      let packageFilesList: string[] = [];
-      if (localPath && fs.existsSync(localPath)) {
-        const ext = path.extname(localPath).toLowerCase();
-        if (ext === '.zip') {
-          packageFilesList = await parseZipLocal(localPath);
+      if (packageFilesList.length === 0) {
+        const localPath = urlToPath(tempPluginPath);
+        if (localPath && fs.existsSync(localPath)) {
+          const ext = path.extname(localPath).toLowerCase();
+          if (ext === '.zip') {
+            packageFilesList = await parseZipLocal(localPath);
+          }
         }
       }
       updateData.packageFilesList =

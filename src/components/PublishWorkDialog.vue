@@ -280,7 +280,7 @@ const activeUploadFile = computed(() => {
   if (publishForm.value.downloadType === 'external') return null;
   if (publishCategory.value === 'asset') return publishForm.value.assetFile;
   if (publishCategory.value === 'material') return publishForm.value.materialFile;
-  if (publishCategory.value === 'plugin') return publishForm.value.pluginFile;
+  if (publishCategory.value === 'plugin' || publishCategory.value === 'software') return publishForm.value.pluginFile;
   return null;
 });
 
@@ -501,6 +501,12 @@ const handlePublish = async () => {
       if (publishForm.value.bilibiliUrl) {
         uploadFormData.append('bilibiliUrl', publishForm.value.bilibiliUrl);
       }
+      if (publishForm.value.assetFile) {
+        uploadFormData.append('fileSize', String(publishForm.value.assetFile.size));
+      }
+      if (packageFileList.value && packageFileList.value.length > 0) {
+        uploadFormData.append('packageFilesList', JSON.stringify(packageFileList.value));
+      }
 
       await api.post('/api/assets/upload', uploadFormData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -554,6 +560,12 @@ const handlePublish = async () => {
       pluginFormData.append('installGuide', '');
       if (publishForm.value.bilibiliUrl) {
         pluginFormData.append('bilibiliUrl', publishForm.value.bilibiliUrl);
+      }
+      if (publishForm.value.pluginFile) {
+        pluginFormData.append('fileSize', String(publishForm.value.pluginFile.size));
+      }
+      if (packageFileList.value && packageFileList.value.length > 0) {
+        pluginFormData.append('packageFilesList', JSON.stringify(packageFileList.value));
       }
       const endpoint = isPlugin ? '/api/plugins/upload' : '/api/softwares/upload';
       await api.post(endpoint, pluginFormData, {
@@ -610,6 +622,12 @@ const handlePublish = async () => {
       materialFormData.append('isFree', 'true');
       if (publishForm.value.bilibiliUrl) {
         materialFormData.append('bilibiliUrl', publishForm.value.bilibiliUrl);
+      }
+      if (publishForm.value.materialFile) {
+        materialFormData.append('fileSize', String(publishForm.value.materialFile.size));
+      }
+      if (packageFileList.value && packageFileList.value.length > 0) {
+        materialFormData.append('packageFilesList', JSON.stringify(packageFileList.value));
       }
 
       await api.post('/api/materials/upload', materialFormData, {
@@ -1169,7 +1187,7 @@ onMounted(() => {
 
               <!-- ZIP File Explorer / Package Contents Preview (Plugin) -->
               <ZipFileTreeViewer
-                v-if="publishCategory === 'plugin'"
+                v-if="publishCategory === 'plugin' || publishCategory === 'software'"
                 :file="publishForm.pluginFile"
                 :is-parsing-zip="isParsingZip"
                 :parsed-file-tree="parsedFileTree"

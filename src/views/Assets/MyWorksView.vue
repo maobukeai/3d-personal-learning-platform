@@ -344,6 +344,9 @@ const editForm = ref<{
   tempMaterialPath?: string;
   tempPluginPath?: string;
   tempPreviewPath?: string;
+  packageFilesList?: string;
+  fileSize?: number;
+  packageSize?: number;
 }>({
   title: '',
   description: '',
@@ -883,6 +886,15 @@ const handleSaveEdit = async () => {
       } else if (editForm.value.thumbnail) {
         formData.append('thumbnail', editForm.value.thumbnail);
       }
+      if (editForm.value.fileSize !== undefined) {
+        formData.append('fileSize', String(editForm.value.fileSize));
+      }
+      if (editForm.value.packageSize !== undefined) {
+        formData.append('packageSize', String(editForm.value.packageSize));
+      }
+      if (editForm.value.packageFilesList) {
+        formData.append('packageFilesList', editForm.value.packageFilesList);
+      }
 
       await api.patch(`/api/assets/${work.id}`, formData, {
         headers: {
@@ -922,6 +934,12 @@ const handleSaveEdit = async () => {
         formData.append('tempPreviewPath', editForm.value.tempThumbnailPath);
       } else if (editForm.value.thumbnail) {
         formData.append('preview', editForm.value.thumbnail);
+      }
+      if (editForm.value.fileSize !== undefined) {
+        formData.append('fileSize', String(editForm.value.fileSize));
+      }
+      if (editForm.value.packageFilesList) {
+        formData.append('packageFilesList', editForm.value.packageFilesList);
       }
 
       await api.put(`/api/materials/${work.id}`, formData, {
@@ -964,6 +982,12 @@ const handleSaveEdit = async () => {
         formData.append(isPlugin ? 'tempPreviewPath' : 'tempPreviewPath', editForm.value.tempPreviewPath);
       } else if (editForm.value.thumbnail) {
         formData.append(isPlugin ? 'plugin_preview' : 'software_preview', editForm.value.thumbnail);
+      }
+      if (editForm.value.fileSize !== undefined) {
+        formData.append('fileSize', String(editForm.value.fileSize));
+      }
+      if (editForm.value.packageFilesList) {
+        formData.append('packageFilesList', editForm.value.packageFilesList);
       }
 
       const endpoint = isPlugin ? `/api/plugins/${work.id}` : `/api/softwares/${work.id}`;

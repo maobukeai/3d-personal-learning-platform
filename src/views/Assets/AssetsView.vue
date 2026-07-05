@@ -92,6 +92,9 @@ interface EditFormType {
   tempMaterialPath?: string;
   tempPluginPath?: string;
   tempPreviewPath?: string;
+  packageFilesList?: string;
+  fileSize?: number;
+  packageSize?: number;
 }
 
 const editForm = ref<EditFormType>({
@@ -704,6 +707,15 @@ const handleSaveEdit = async () => {
       formData.append('tempThumbnailPath', editForm.value.tempThumbnailPath);
     } else if (editForm.value.thumbnail) {
       formData.append('thumbnail', editForm.value.thumbnail);
+    }
+    if (editForm.value.fileSize !== undefined) {
+      formData.append('fileSize', String(editForm.value.fileSize));
+    }
+    if (editForm.value.packageSize !== undefined) {
+      formData.append('packageSize', String(editForm.value.packageSize));
+    }
+    if (editForm.value.packageFilesList) {
+      formData.append('packageFilesList', editForm.value.packageFilesList);
     }
 
     await api.patch(`/api/assets/${work.id}`, formData, {

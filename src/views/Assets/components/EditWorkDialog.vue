@@ -101,6 +101,9 @@ interface EditForm {
   tempPluginPath?: string;
   tempPreviewPath?: string;
   tempSoftwarePath?: string;
+  packageFilesList?: string;
+  fileSize?: number;
+  packageSize?: number;
 }
 
 const show = defineModel<boolean>('show', { required: true });
@@ -306,7 +309,7 @@ watch(show, (newVal) => {
 const handleFileChange = async (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (file) {
-    emitUpdate({ file });
+    emitUpdate({ file, fileSize: file.size });
     const kind = props.work?.kind;
     const tempField = kind === 'asset' ? 'tempAssetPath' : kind === 'material' ? 'tempMaterialPath' : kind === 'plugin' ? 'tempPluginPath' : 'tempSoftwarePath';
     await uploadFile(file, fileProgress, tempField);
@@ -316,7 +319,7 @@ const handleFileChange = async (event: Event) => {
 const handlePackageChange = async (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (file) {
-    emitUpdate({ packageFile: file });
+    emitUpdate({ packageFile: file, packageSize: file.size });
     await uploadFile(file, packageProgress, 'tempPackagePath');
   }
 };
@@ -449,8 +452,13 @@ watch(
 const packageFileList = ref<string[]>([]);
 const isParsingZip = ref(false);
 
+const activeZipFile = computed(() => {
+  if (props.work?.kind === 'asset') return form.value.packageFile;
+  return form.value.file;
+});
+
 const parsedFileTree = computed(() => {
-  if (form.value.packageFile) {
+  if (activeZipFile.value) {
     const tree = buildFileTree(packageFileList.value);
     return flattenFileTree(tree);
   }
@@ -476,28 +484,37 @@ const { expandedFolders, toggleFolder, visibleFileNodes, resetExpansion } =
   useFileTree(parsedFileTree);
 
 const hasPackageFiles = computed(() => {
-  if (form.value.packageFile) return true;
+  if (activeZipFile.value) return true;
   const rawAsset = props.work?.raw as any;
-  return !!(rawAsset && (rawAsset.packageUrl || rawAsset.packageFilesList));
+  return !!(rawAsset && (rawAsset.packageUrl || rawAsset.fileUrl || rawAsset.packageFilesList));
 });
 
 watch(
-  () => form.value.packageFile,
+  activeZipFile,
   async (newFile) => {
     resetExpansion();
     if (!newFile) {
       packageFileList.value = [];
+      emitUpdate({ packageFilesList: undefined });
       return;
     }
-    isParsingZip.value = true;
-    try {
-      const list = await parseZipFileNames(newFile);
-      packageFileList.value = list;
-    } catch (err) {
-      logError(err, { operation: 'parse zip file' });
+    const isZip = newFile.name.toLowerCase().endsWith('.zip');
+    if (isZip) {
+      isParsingZip.value = true;
+      try {
+        const list = await parseZipFileNames(newFile);
+        packageFileList.value = list;
+        emitUpdate({ packageFilesList: JSON.stringify(list) });
+      } catch (err) {
+        logError(err, { operation: 'parse zip file' });
+        packageFileList.value = [];
+        emitUpdate({ packageFilesList: undefined });
+      } finally {
+        isParsingZip.value = false;
+      }
+    } else {
       packageFileList.value = [];
-    } finally {
-      isParsingZip.value = false;
+      emitUpdate({ packageFilesList: undefined });
     }
   },
   { immediate: true },
@@ -649,8 +666,8 @@ watch(
             </div>
 
             <ZipFileTreeViewer
-              :show="work.kind === 'asset' && (isParsingZip || hasPackageFiles)"
-              :file="form.packageFile"
+              :show="['asset', 'material', 'plugin', 'software'].includes(work.kind) && (isParsingZip || hasPackageFiles)"
+              :file="activeZipFile"
               :is-parsing-zip="isParsingZip"
               :parsed-file-tree="parsedFileTree"
               :visible-file-nodes="visibleFileNodes"

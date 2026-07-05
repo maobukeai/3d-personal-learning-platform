@@ -80,14 +80,20 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
       return next(new AppError(assetQuota.message || 'Asset quota exceeded', 403));
     }
 
-    let fileSizeMB = assetFile ? parseFloat((assetFile.size / (1024 * 1024)).toFixed(2)) : 0;
-    if (!assetFile && tempAssetPath) {
-      fileSizeMB = await getFileSizeInMb(tempAssetPath);
+    let fileSizeMB = req.body.fileSize ? parseFloat(req.body.fileSize) / (1024 * 1024) : 0;
+    if (fileSizeMB === 0) {
+      fileSizeMB = assetFile ? parseFloat((assetFile.size / (1024 * 1024)).toFixed(2)) : 0;
+      if (!assetFile && tempAssetPath) {
+        fileSizeMB = await getFileSizeInMb(tempAssetPath);
+      }
     }
 
-    let packageSizeMB = packageFile ? parseFloat((packageFile.size / (1024 * 1024)).toFixed(2)) : 0;
-    if (!packageFile && tempPackagePath) {
-      packageSizeMB = await getFileSizeInMb(tempPackagePath);
+    let packageSizeMB = req.body.packageSize ? parseFloat(req.body.packageSize) / (1024 * 1024) : 0;
+    if (packageSizeMB === 0) {
+      packageSizeMB = packageFile ? parseFloat((packageFile.size / (1024 * 1024)).toFixed(2)) : 0;
+      if (!packageFile && tempPackagePath) {
+        packageSizeMB = await getFileSizeInMb(tempPackagePath);
+      }
     }
 
     const totalSizeMB = fileSizeMB + packageSizeMB;
@@ -152,16 +158,28 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
     let packageUrl = null;
     let packageSize = null;
     let packageFilesList: string[] = [];
+    if (req.body.packageFilesList) {
+      try {
+        packageFilesList = JSON.parse(req.body.packageFilesList);
+      } catch (err) {
+        // ignore
+      }
+    }
+
     if (packageFile) {
       packageUrl = getUploadedFileUrl(req, packageFile, 'assets');
       packageSize = packageSizeMB;
-      packageFilesList = await parseZipLocal(packageFile.path);
+      if (packageFilesList.length === 0) {
+        packageFilesList = await parseZipLocal(packageFile.path);
+      }
     } else if (tempPackagePath) {
       packageUrl = tempPackagePath;
       packageSize = packageSizeMB;
-      const localPath = urlToPath(tempPackagePath);
-      if (localPath && fs.existsSync(localPath)) {
-        packageFilesList = await parseZipLocal(localPath);
+      if (packageFilesList.length === 0) {
+        const localPath = urlToPath(tempPackagePath);
+        if (localPath && fs.existsSync(localPath)) {
+          packageFilesList = await parseZipLocal(localPath);
+        }
       }
     }
 
@@ -423,6 +441,15 @@ export const updateAsset = async (req: AuthRequest, res: Response, next: NextFun
     if (isFree !== undefined) updateData.isFree = parseBool(isFree, true);
     if (bilibiliUrl !== undefined) updateData.bilibiliUrl = bilibiliUrl || null;
 
+    let packageFilesList: string[] = [];
+    if (req.body.packageFilesList) {
+      try {
+        packageFilesList = JSON.parse(req.body.packageFilesList);
+      } catch (err) {
+        // ignore
+      }
+    }
+
     // Process new file uploads if present
     if (assetFile) {
       const ext = path.extname(assetFile.originalname).toLowerCase();
@@ -431,12 +458,15 @@ export const updateAsset = async (req: AuthRequest, res: Response, next: NextFun
         if (packageFile && fs.existsSync(packageFile.path)) fs.unlinkSync(packageFile.path);
         return next(new AppError('Main asset file must be in GLB format (.glb)', 400));
       }
-      const fileSizeMB = parseFloat((assetFile.size / (1024 * 1024)).toFixed(2));
+      const fileSizeMB = req.body.fileSize ? parseFloat(req.body.fileSize) / (1024 * 1024) : parseFloat((assetFile.size / (1024 * 1024)).toFixed(2));
       updateData.size = fileSizeMB;
       updateData.type = 'GLB';
       updateData.url = getUploadedFileUrl(req, assetFile, 'assets');
     } else if (tempAssetPath) {
-      const fileSizeMB = await getFileSizeInMb(tempAssetPath);
+      let fileSizeMB = req.body.fileSize ? parseFloat(req.body.fileSize) / (1024 * 1024) : 0;
+      if (fileSizeMB === 0) {
+        fileSizeMB = await getFileSizeInMb(tempAssetPath);
+      }
       updateData.size = fileSizeMB;
       updateData.type = 'GLB';
       updateData.url = tempAssetPath;
@@ -451,21 +481,27 @@ export const updateAsset = async (req: AuthRequest, res: Response, next: NextFun
         if (fs.existsSync(packageFile.path)) fs.unlinkSync(packageFile.path);
         return next(new AppError('Resource package file must be in ZIP format (.zip)', 400));
       }
-      const packageSizeMB = parseFloat((packageFile.size / (1024 * 1024)).toFixed(2));
-      const packageFilesList = await parseZipLocal(packageFile.path);
+      const packageSizeMB = req.body.packageSize ? parseFloat(req.body.packageSize) / (1024 * 1024) : parseFloat((packageFile.size / (1024 * 1024)).toFixed(2));
+      if (packageFilesList.length === 0) {
+        packageFilesList = await parseZipLocal(packageFile.path);
+      }
       updateData.packageSize = packageSizeMB;
       updateData.packageUrl = getUploadedFileUrl(req, packageFile, 'assets');
       updateData.packageFilesList =
         packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null;
     } else if (tempPackagePath) {
-      const packageSizeMB = await getFileSizeInMb(tempPackagePath);
+      let packageSizeMB = req.body.packageSize ? parseFloat(req.body.packageSize) / (1024 * 1024) : 0;
+      if (packageSizeMB === 0) {
+        packageSizeMB = await getFileSizeInMb(tempPackagePath);
+      }
       updateData.packageSize = packageSizeMB;
       updateData.packageUrl = tempPackagePath;
 
-      let packageFilesList: string[] = [];
-      const localPath = urlToPath(tempPackagePath);
-      if (localPath && fs.existsSync(localPath)) {
-        packageFilesList = await parseZipLocal(localPath);
+      if (packageFilesList.length === 0) {
+        const localPath = urlToPath(tempPackagePath);
+        if (localPath && fs.existsSync(localPath)) {
+          packageFilesList = await parseZipLocal(localPath);
+        }
       }
       updateData.packageFilesList =
         packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null;

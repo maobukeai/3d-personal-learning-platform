@@ -79,9 +79,13 @@ async function loadData() {
     const validStation =
       mirrorStore.stations.find((s) => s.status === 'ACTIVE') || mirrorStore.stations[0];
     if (validStation && validStation.id !== sourceId.value) {
-      router.replace(`/mirror/sources/${validStation.id}`);
+      router.replace(`/mirror/source/${validStation.id}`);
       return;
     }
+  }
+
+  if (!mirrorStore.currentStation) {
+    return;
   }
 
   const initialCategory = route.query.categoryId as string | undefined;
@@ -97,6 +101,7 @@ async function loadData() {
 }
 
 function goToPage(page: number) {
+  if (!mirrorStore.currentStation) return;
   mirrorStore.currentPage = page;
   mirrorStore.fetchResources(sourceId.value, {
     page,
@@ -107,6 +112,7 @@ function goToPage(page: number) {
 }
 
 function selectCategory(categoryId: string | null) {
+  if (!mirrorStore.currentStation) return;
   mirrorStore.setActiveCategory(categoryId);
   mirrorStore.fetchResources(sourceId.value, {
     page: 1,
@@ -117,6 +123,7 @@ function selectCategory(categoryId: string | null) {
 }
 
 function doSearch() {
+  if (!mirrorStore.currentStation) return;
   mirrorStore.currentPage = 1;
   mirrorStore.fetchResources(sourceId.value, {
     page: 1,
@@ -137,7 +144,7 @@ onMounted(() => {
 watch(
   () => route.params.id,
   () => {
-    if (route.params.id) {
+    if (route.name === 'MirrorSource' && route.params.id) {
       mirrorStore.reset();
       loadData();
     }

@@ -298,7 +298,7 @@ export class StorageService {
               AllowedHeaders: ['*'],
               AllowedMethods: ['GET', 'HEAD', 'PUT', 'POST'],
               AllowedOrigins: ['*'],
-              ExposeHeaders: ['ETag', 'Content-Length', 'Accept-Ranges'],
+              ExposeHeaders: ['ETag', 'Content-Length', 'Accept-Ranges', 'Content-Range'],
               MaxAgeSeconds: 3000,
             },
           ],

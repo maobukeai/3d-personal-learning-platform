@@ -931,7 +931,7 @@ watch(resourceId, () => {
           class="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none"
         >
           <div
-            class="modal-content glass-card relative w-full max-w-md p-6 sm:p-8 rounded-3xl shadow-2xl border space-y-5 overflow-hidden flex flex-col pointer-events-auto"
+            class="modal-content glass-dialog relative w-full max-w-md p-6 sm:p-8 rounded-3xl shadow-2xl border space-y-5 overflow-hidden flex flex-col pointer-events-auto"
             style="border-color: var(--border-base)"
           >
             <!-- Header -->
@@ -1002,7 +1002,7 @@ watch(resourceId, () => {
                     type="text"
                     readonly
                     :value="activeLink.url"
-                    class="flex-1 min-w-0 px-4 py-2.5 rounded-xl border text-xs bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                    class="flex-1 min-w-0 px-4 py-2.5 rounded-xl border text-xs bg-slate-50/50 dark:bg-white/[0.02] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
                     style="border-color: var(--border-base); color: var(--text-primary)"
                   />
 

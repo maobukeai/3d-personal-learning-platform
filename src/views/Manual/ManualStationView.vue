@@ -64,6 +64,10 @@ async function loadData() {
     manualStore.fetchCategories(stationId.value),
   ]);
 
+  if (!manualStore.currentStation) {
+    return;
+  }
+
   const initialCategory = route.query.categoryId as string | undefined;
   if (initialCategory !== undefined) {
     manualStore.setActiveCategory(initialCategory || null);
@@ -77,6 +81,7 @@ async function loadData() {
 }
 
 function goToPage(page: number) {
+  if (!manualStore.currentStation) return;
   manualStore.currentPage = page;
   manualStore.fetchResources(stationId.value, {
     page,
@@ -87,6 +92,7 @@ function goToPage(page: number) {
 }
 
 function selectCategory(categoryId: string | null) {
+  if (!manualStore.currentStation) return;
   manualStore.setActiveCategory(categoryId);
   manualStore.fetchResources(stationId.value, {
     page: 1,
@@ -97,6 +103,7 @@ function selectCategory(categoryId: string | null) {
 }
 
 function doSearch() {
+  if (!manualStore.currentStation) return;
   manualStore.currentPage = 1;
   manualStore.fetchResources(stationId.value, {
     page: 1,
@@ -117,7 +124,7 @@ onMounted(() => {
 watch(
   () => route.params.id,
   () => {
-    if (route.params.id) {
+    if (route.name === 'ManualStation' && route.params.id) {
       manualStore.reset();
       loadData();
     }

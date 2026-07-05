@@ -469,7 +469,7 @@ const getMetricsForStep = (step: RoadmapStep, index: number) => {
 watch(
   () => route.params.id,
   (newId) => {
-    if (newId) fetchProject();
+    if (route.name === 'ProjectDetail' && newId) fetchProject();
   },
 );
 

@@ -91,6 +91,7 @@ interface PluginItem {
   bilibiliUrl?: string | null;
   developerToken?: string | null;
   kind?: 'plugin' | 'software';
+  packageFilesList?: string | string[] | null;
 }
 
 const props = withDefaults(
@@ -219,16 +220,16 @@ const fetchPackageFiles = async (id: string) => {
   isPackageFilesLoading.value = true;
   try {
     const { data } = await api.get(`${apiPrefix.value}/${id}/package-files`);
-    if (plugin.value?.id === id) {
+    if (activeItem.value?.id === id) {
       packageFiles.value = data.packageFiles || [];
     }
   } catch (err) {
     logError(err, { operation: 'fetch plugin package files' });
-    if (plugin.value?.id === id) {
+    if (activeItem.value?.id === id) {
       packageFiles.value = [];
     }
   } finally {
-    if (plugin.value?.id === id) {
+    if (activeItem.value?.id === id) {
       isPackageFilesLoading.value = false;
     }
   }
@@ -697,13 +698,36 @@ const handleCreateAndFavorite = () => {
   }
 };
 
+const loadInitialPackageFiles = () => {
+  const item = activeItem.value;
+  if (item && item.packageFilesList) {
+    try {
+      const parsed = typeof item.packageFilesList === 'string'
+        ? JSON.parse(item.packageFilesList)
+        : item.packageFilesList;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        packageFiles.value = parsed;
+        return true;
+      }
+    } catch (_e) {
+      // ignore
+    }
+  }
+  return false;
+};
+
 watch(
-  [() => plugin.value?.id, () => props.show, () => plugin.value?.version],
+  [() => activeItem.value?.id, () => props.show, () => activeItem.value?.version],
   ([newId, newShow]) => {
     if (newId && newShow) {
       resetExpansion();
       packageFiles.value = [];
-      fetchPackageFiles(newId);
+      const loaded = loadInitialPackageFiles();
+      if (!loaded) {
+        fetchPackageFiles(newId);
+      } else {
+        isPackageFilesLoading.value = false;
+      }
       fetchComments();
       fetchVersions();
       activeDetailTab.value = 'detail';

@@ -2229,3 +2229,218 @@ export const cancelTempUpload = async (req: Request, res: Response) => {
     res.status(500).json({ error: '删除文件失败' });
   }
 };
+
+import {
+  getDecryptedActiveStorageConfig,
+  getStorageTypeForField,
+  generateS3Key,
+  checkQuota,
+  incrementConfigUsedBytes,
+} from '../utils/s3-upload-helper';
+
+/**
+ * Get simple presigned PUT upload URL for resources
+ */
+export const getUploadPresignedUrl = async (req: Request, res: Response, next: NextFunction) => {
+  const { filename, mimetype, size, fieldname } = req.body;
+  if (!filename || !mimetype) {
+    return res.status(400).json({ error: 'filename and mimetype are required' });
+  }
+
+  try {
+    const storageType = getStorageTypeForField(fieldname);
+    const active = await getDecryptedActiveStorageConfig(storageType);
+    if (!active) {
+      return res.json({ isDirect: false });
+    }
+    const { raw, config } = active;
+
+    const allowed = await checkQuota(raw, size);
+    if (!allowed) {
+      return res.status(400).json({ error: '云端存储容量已满，无法上传' });
+    }
+
+    const folderPrefix = fieldname || 'temp';
+    const key = generateS3Key(filename, folderPrefix);
+
+    const uploadUrl = await storageService.getPresignedUploadUrl(config, key, mimetype);
+    const publicUrlBase = config.publicUrl.replace(/\/$/, '');
+    const publicUrl = `${publicUrlBase}/${key}`;
+
+    res.json({
+      isDirect: true,
+      uploadUrl,
+      publicUrl,
+      key,
+    });
+  } catch (error) {
+    logger.error('Get resource presigned url error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Complete single PUT upload for resources
+ */
+export const completeSingleUpload = async (req: Request, res: Response, next: NextFunction) => {
+  const { filename, key, size, mimetype, fieldname } = req.body;
+  if (!filename || !key || !size || !mimetype) {
+    return res.status(400).json({ error: 'filename, key, size, and mimetype are required' });
+  }
+
+  try {
+    const storageType = getStorageTypeForField(fieldname);
+    const active = await getDecryptedActiveStorageConfig(storageType);
+    if (!active) {
+      return res.status(400).json({ error: '未启用云存储配置' });
+    }
+    const { raw } = active;
+
+    const allowed = await checkQuota(raw, size);
+    if (!allowed) {
+      return res.status(400).json({ error: '云端存储容量已满，无法上传' });
+    }
+
+    await incrementConfigUsedBytes(raw.id, size);
+
+    const publicUrlBase = raw.publicUrl.replace(/\/$/, '');
+    const fileUrl = `${publicUrlBase}/${key}`;
+
+    res.status(201).json({
+      success: true,
+      filePath: fileUrl,
+      originalName: filename,
+    });
+  } catch (error) {
+    logger.error('Complete single resource upload error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Initiate S3 multipart upload for resources
+ */
+export const initiateMultipartUpload = async (req: Request, res: Response, next: NextFunction) => {
+  const { filename, mimetype, size, fieldname } = req.body;
+  if (!filename || !mimetype) {
+    return res.status(400).json({ error: 'filename and mimetype are required' });
+  }
+
+  try {
+    const storageType = getStorageTypeForField(fieldname);
+    const active = await getDecryptedActiveStorageConfig(storageType);
+    if (!active) {
+      return res.json({ isDirect: false });
+    }
+    const { raw, config } = active;
+
+    const allowed = await checkQuota(raw, size);
+    if (!allowed) {
+      return res.status(400).json({ error: '云端存储容量已满，无法上传' });
+    }
+
+    const folderPrefix = fieldname || 'temp';
+    const key = generateS3Key(filename, folderPrefix);
+
+    const uploadId = await storageService.initiateMultipartUpload(config, key, mimetype);
+    res.json({
+      isDirect: true,
+      uploadId,
+      key,
+    });
+  } catch (error) {
+    logger.error('Initiate resource multipart upload error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Get S3 presigned part upload URLs for resources
+ */
+export const getMultipartUploadPartUrls = async (req: Request, res: Response, next: NextFunction) => {
+  const { key, uploadId, partNumbers, fieldname } = req.body;
+  if (!key || !uploadId || !Array.isArray(partNumbers)) {
+    return res.status(400).json({ error: 'key, uploadId, and partNumbers are required' });
+  }
+
+  try {
+    const storageType = getStorageTypeForField(fieldname);
+    const active = await getDecryptedActiveStorageConfig(storageType);
+    if (!active) {
+      return res.status(400).json({ error: 'Storage configuration not active' });
+    }
+    const { config } = active;
+
+    const urls: Record<number, string> = {};
+    for (const partNum of partNumbers) {
+      const url = await storageService.getPresignedUploadPartUrl(config, key, uploadId, partNum);
+      urls[partNum] = url;
+    }
+    res.json({ urls });
+  } catch (error) {
+    logger.error('Get resource presigned upload part urls error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Complete S3 multipart upload for resources
+ */
+export const completeMultipartUpload = async (req: Request, res: Response, next: NextFunction) => {
+  const { key, uploadId, parts, filename, mimetype, size, fieldname } = req.body;
+  if (!key || !uploadId || !Array.isArray(parts) || !filename || !mimetype || !size) {
+    return res.status(400).json({ error: 'key, uploadId, parts, filename, mimetype, and size are required' });
+  }
+
+  try {
+    const storageType = getStorageTypeForField(fieldname);
+    const active = await getDecryptedActiveStorageConfig(storageType);
+    if (!active) {
+      return res.status(400).json({ error: 'Storage configuration not active' });
+    }
+    const { raw, config } = active;
+
+    const allowed = await checkQuota(raw, size);
+    if (!allowed) {
+      return res.status(400).json({ error: '云端存储容量已满，无法上传' });
+    }
+
+    const finalUrl = await storageService.completeMultipartUpload(config, key, uploadId, parts);
+
+    await incrementConfigUsedBytes(raw.id, size);
+
+    res.status(201).json({
+      success: true,
+      filePath: finalUrl,
+      originalName: filename,
+    });
+  } catch (error) {
+    logger.error('Complete resource multipart upload error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Abort S3 multipart upload for resources
+ */
+export const abortMultipartUpload = async (req: Request, res: Response, next: NextFunction) => {
+  const { key, uploadId, fieldname } = req.body;
+  if (!key || !uploadId) {
+    return res.status(400).json({ error: 'key and uploadId are required' });
+  }
+
+  try {
+    const storageType = getStorageTypeForField(fieldname);
+    const active = await getDecryptedActiveStorageConfig(storageType);
+    if (!active) {
+      return res.status(400).json({ error: 'Storage configuration not active' });
+    }
+    const { config } = active;
+
+    await storageService.abortMultipartUpload(config, key, uploadId);
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Abort resource multipart upload error:', error);
+    next(error);
+  }
+};

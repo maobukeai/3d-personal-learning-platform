@@ -215,7 +215,7 @@ const openAiCoverGenerator = (target: 'thumbnail' | 'pluginPreview' = 'thumbnail
 const handleAiCoverSave = async (file: File) => {
   if (activeCoverTarget.value === 'pluginPreview') {
     publishForm.value.pluginPreview = file;
-    const success = await uploadFile(file, pluginPreviewUploadProgress, tempPluginPreviewPath);
+    const success = await uploadFile(file, pluginPreviewUploadProgress, tempPluginPreviewPath, 'plugin_preview');
     if (success) {
       ElMessage.success('已自动应用 AI 生成的封面图！');
     } else {
@@ -223,7 +223,7 @@ const handleAiCoverSave = async (file: File) => {
     }
   } else {
     publishForm.value.thumbnail = file;
-    const success = await uploadFile(file, thumbnailUploadProgress, tempThumbnailPath);
+    const success = await uploadFile(file, thumbnailUploadProgress, tempThumbnailPath, 'thumbnail');
     if (success) {
       ElMessage.success('已自动应用 AI 生成的封面图！');
     } else {
@@ -237,7 +237,8 @@ const { uploadFile: doUpload, cancelUpload } = useTempUpload();
 const uploadFile = async (
   file: File,
   progressRef: Ref<number | null>,
-  pathRef: Ref<string | null>
+  pathRef: Ref<string | null>,
+  fieldname?: string
 ): Promise<boolean> => {
   return doUpload(
     file,
@@ -245,7 +246,8 @@ const uploadFile = async (
     (filePath) => {
       pathRef.value = filePath;
     },
-    () => pathRef.value
+    () => pathRef.value,
+    fieldname
   );
 };
 
@@ -383,7 +385,7 @@ const handleThumbnailChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     publishForm.value.thumbnail = file;
-    await uploadFile(file, thumbnailUploadProgress, tempThumbnailPath);
+    await uploadFile(file, thumbnailUploadProgress, tempThumbnailPath, 'thumbnail');
   }
 };
 
@@ -394,7 +396,7 @@ const handleAssetFileChange = async (e: Event) => {
     if (!publishForm.value.title) {
       publishForm.value.title = file.name.split('.')[0];
     }
-    await uploadFile(file, assetUploadProgress, tempAssetPath);
+    await uploadFile(file, assetUploadProgress, tempAssetPath, 'asset');
   }
 };
 
@@ -405,7 +407,7 @@ const handlePluginFileChange = async (e: Event) => {
     if (!publishForm.value.title) {
       publishForm.value.title = file.name.replace(/\.[^.]+$/, '');
     }
-    await uploadFile(file, pluginUploadProgress, tempPluginPath);
+    await uploadFile(file, pluginUploadProgress, tempPluginPath, 'plugin');
   }
 };
 
@@ -413,7 +415,7 @@ const handlePluginPreviewChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     publishForm.value.pluginPreview = file;
-    await uploadFile(file, pluginPreviewUploadProgress, tempPluginPreviewPath);
+    await uploadFile(file, pluginPreviewUploadProgress, tempPluginPreviewPath, 'plugin_preview');
   }
 };
 
@@ -424,7 +426,7 @@ const handleMaterialFileChange = async (e: Event) => {
     if (!publishForm.value.title) {
       publishForm.value.title = file.name.replace(/\.[^.]+$/, '');
     }
-    await uploadFile(file, materialUploadProgress, tempMaterialPath);
+    await uploadFile(file, materialUploadProgress, tempMaterialPath, 'material');
   }
 };
 

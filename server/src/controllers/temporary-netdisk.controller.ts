@@ -6,8 +6,6 @@ import { AppError } from '../utils/error';
 import { settingsService } from '../services/settings.service';
 import { storageService } from '../services/storage.service';
 import { logger } from '../utils/logger';
-import { buildDecryptedStorageConfig } from '../utils/crypto';
-import { gbToBytes } from '../utils/quota';
 import fs from 'fs';
 
 /**
@@ -413,31 +411,16 @@ export const downloadFile = async (req: AuthRequest, res: Response, next: NextFu
 /**
  * Shared storage configuration helper
  */
-const getActiveStorage = async () => {
-  let activeConfig = await prisma.storageConfig.findFirst({
-    where: { status: 'ACTIVE', assetType: 'TEMPORARY_NETDISK' },
-    orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-  });
-  if (!activeConfig) {
-    activeConfig = await prisma.storageConfig.findFirst({
-      where: { status: 'ACTIVE', assetType: 'ALL' },
-      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-    });
-  }
-  if (activeConfig) {
-    activeConfig.usedBytes = Math.max(0, activeConfig.usedBytes);
-  }
-  return activeConfig;
-};
+import {
+  getActiveStorageConfig,
+  getDecryptedActiveStorageConfig,
+  generateS3Key,
+  checkQuota,
+  incrementConfigUsedBytes,
+} from '../utils/s3-upload-helper';
 
-const getDecryptedActiveStorage = async () => {
-  const raw = await getActiveStorage();
-  if (!raw) return null;
-  return {
-    raw,
-    config: buildDecryptedStorageConfig(raw),
-  };
-};
+const getActiveStorage = () => getActiveStorageConfig('TEMPORARY_NETDISK');
+const getDecryptedActiveStorage = () => getDecryptedActiveStorageConfig('TEMPORARY_NETDISK');
 
 /**
  * Get simple presigned PUT upload URL
@@ -455,17 +438,12 @@ export const getUploadPresignedUrl = async (req: AuthRequest, res: Response, nex
     }
     const { raw, config } = active;
 
-    const limitBytes = gbToBytes(raw.limitGb);
-    if (size && raw.usedBytes + size > limitBytes) {
+    const allowed = await checkQuota(raw, size);
+    if (!allowed) {
       return res.status(400).json({ error: '云端存储容量已满，无法上传' });
     }
 
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const sanitized = filename
-      // eslint-disable-next-line no-control-regex
-      .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
-      .replace(/\s+/g, '_');
-    const key = `temporary/${uniqueSuffix}/${sanitized}`;
+    const key = generateS3Key(filename, 'temporary');
 
     const uploadUrl = await storageService.getPresignedUploadUrl(config, key, mimetype);
     const publicUrlBase = config.publicUrl.replace(/\/$/, '');
@@ -499,17 +477,12 @@ export const completeSingleUpload = async (req: AuthRequest, res: Response, next
     }
     const { raw } = active;
 
-    // Check capacity quota again
-    const limitBytes = gbToBytes(raw.limitGb);
-    if (raw.usedBytes + size > limitBytes) {
+    const allowed = await checkQuota(raw, size);
+    if (!allowed) {
       return res.status(400).json({ error: '云端存储容量已满，无法上传' });
     }
 
-    // Atomically increment storage used bytes
-    await prisma.storageConfig.update({
-      where: { id: raw.id },
-      data: { usedBytes: { increment: size } },
-    });
+    await incrementConfigUsedBytes(raw.id, size);
 
     const publicUrlBase = raw.publicUrl.replace(/\/$/, '');
     const fileUrl = `${publicUrlBase}/${key}`;
@@ -553,17 +526,12 @@ export const initiateNetdiskMultipartUpload = async (
     }
     const { raw, config } = active;
 
-    const limitBytes = gbToBytes(raw.limitGb);
-    if (size && raw.usedBytes + size > limitBytes) {
+    const allowed = await checkQuota(raw, size);
+    if (!allowed) {
       return res.status(400).json({ error: '云端存储容量已满，无法上传' });
     }
 
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const sanitized = filename
-      // eslint-disable-next-line no-control-regex
-      .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
-      .replace(/\s+/g, '_');
-    const key = `temporary/${uniqueSuffix}/${sanitized}`;
+    const key = generateS3Key(filename, 'temporary');
 
     const uploadId = await storageService.initiateMultipartUpload(config, key, mimetype);
     res.json({
@@ -629,19 +597,14 @@ export const completeNetdiskMultipartUpload = async (
     }
     const { raw, config } = active;
 
-    // Check capacity quota again
-    const limitBytes = gbToBytes(raw.limitGb);
-    if (raw.usedBytes + size > limitBytes) {
+    const allowed = await checkQuota(raw, size);
+    if (!allowed) {
       return res.status(400).json({ error: '云端存储容量已满，无法上传' });
     }
 
     const finalUrl = await storageService.completeMultipartUpload(config, key, uploadId, parts);
 
-    // Atomically increment storage used bytes
-    await prisma.storageConfig.update({
-      where: { id: raw.id },
-      data: { usedBytes: { increment: size } },
-    });
+    await incrementConfigUsedBytes(raw.id, size);
 
     const userId = req.userId!;
     const temporaryFile = await prisma.temporaryFile.create({

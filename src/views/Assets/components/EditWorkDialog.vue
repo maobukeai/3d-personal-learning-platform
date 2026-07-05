@@ -249,13 +249,23 @@ const uploadFile = async (
   progressRef: Ref<number | null>,
   tempField: 'tempAssetPath' | 'tempPackagePath' | 'tempThumbnailPath' | 'tempMaterialPath' | 'tempPluginPath' | 'tempPreviewPath' | 'tempSoftwarePath'
 ): Promise<boolean> => {
+  let fieldname = 'temp';
+  if (tempField === 'tempAssetPath') fieldname = 'asset';
+  else if (tempField === 'tempPackagePath') fieldname = 'package';
+  else if (tempField === 'tempThumbnailPath') fieldname = 'thumbnail';
+  else if (tempField === 'tempMaterialPath') fieldname = 'material';
+  else if (tempField === 'tempPluginPath') fieldname = 'plugin';
+  else if (tempField === 'tempPreviewPath') fieldname = 'preview';
+  else if (tempField === 'tempSoftwarePath') fieldname = 'software';
+
   return doUpload(
     file,
     progressRef,
     (filePath) => {
       emitUpdate({ [tempField]: filePath });
     },
-    () => form.value[tempField]
+    () => form.value[tempField],
+    fieldname
   );
 };
 

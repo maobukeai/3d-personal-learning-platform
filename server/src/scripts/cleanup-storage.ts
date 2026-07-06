@@ -196,6 +196,18 @@ export async function cleanupOrphanedFiles() {
       banner: ['imageUrl'],
       assetVersion: ['url', 'thumbnail'],
       plugin: ['fileUrl', 'previewUrl', 'installGuide'],
+      pluginComment: ['content'],
+      pluginShare: ['customText'],
+      assetComment: ['content'],
+      materialComment: ['content'],
+      assetRequest: ['description'],
+      assetRequestReply: ['content'],
+      materialRequest: ['description'],
+      materialRequestReply: ['content'],
+      software: ['fileUrl', 'previewUrl', 'installGuide', 'description'],
+      softwareVersion: ['fileUrl', 'changelog'],
+      softwareComment: ['content'],
+      softwareShare: ['customText'],
     };
 
     // Dynamically parse the schema to find all referencing fields

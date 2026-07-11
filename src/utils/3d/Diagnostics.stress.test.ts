@@ -103,6 +103,7 @@ describe('3D Platform Diagnostics & Stress Tests', () => {
   it('Diagnostic 3: Asynchronous HDR Loader Leak during Unmount/Disposal', async () => {
     let activeEnvTexture: any = null;
     let scene: Scene | null = new Scene();
+    // eslint-disable-next-line no-useless-assignment
     let isDisposed = false;
 
     const mockLoadCallback = vi.fn();

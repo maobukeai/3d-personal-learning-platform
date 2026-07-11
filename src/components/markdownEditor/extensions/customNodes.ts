@@ -61,7 +61,7 @@ export const KatexBlock = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    let rendered = '';
+    let rendered: string;
     try {
       rendered = katex.renderToString(HTMLAttributes.math || '', {
         displayMode: true,
@@ -106,7 +106,7 @@ export const KatexInline = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    let rendered = '';
+    let rendered: string;
     try {
       rendered = katex.renderToString(HTMLAttributes.math || '', {
         displayMode: false,

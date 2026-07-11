@@ -103,7 +103,6 @@ vi.mock('@tiptap/vue-3', async (importOriginal) => {
 
 // Mock MarkdownEditor using a Proxy module target to bypass strict undefined export checks in Vitest
 vi.mock('@/components/MarkdownEditor.vue', () => {
-  const { h } = require('vue');
   const moduleTarget = {
     __esModule: true,
     default: {

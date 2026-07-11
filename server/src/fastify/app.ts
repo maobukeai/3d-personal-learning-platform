@@ -65,6 +65,7 @@ import { fastifyMaintenance } from './middlewares/maintenance.hook';
  */
 export const fapp = Fastify({
   logger: { level: 'info' },
+  trustProxy: true,
 });
 
 fapp.setValidatorCompiler(validatorCompiler);

@@ -57,7 +57,7 @@ export class VramManager {
   public registerTexture(tex: Texture) {
     if (this.textures.has(tex)) return;
 
-    let bytes = 0;
+    let bytes: number;
     if (tex.image) {
       const img = tex.image as any;
       const width = img.width || 512;

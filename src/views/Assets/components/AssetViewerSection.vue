@@ -94,8 +94,11 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
     <button
       type="button"
       class="px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer border-none"
-      :
-      class="activePreviewTab === '3d' ? 'bg-teal-500 text-white shadow-sm' : 'bg-transparent text-slate-400 hover:text-white'"
+      :class="
+        activePreviewTab === '3d'
+          ? 'bg-teal-500 text-white shadow-sm'
+          : 'bg-transparent text-slate-400 hover:text-white'
+      "
       @click="activePreviewTab = '3d'"
     >
       3D 互动预览
@@ -103,8 +106,11 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
     <button
       type="button"
       class="px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer border-none"
-      :
-      class="activePreviewTab === 'video' ? 'bg-teal-500 text-white shadow-sm' : 'bg-transparent text-slate-400 hover:text-white'"
+      :class="
+        activePreviewTab === 'video'
+          ? 'bg-teal-500 text-white shadow-sm'
+          : 'bg-transparent text-slate-400 hover:text-white'
+      "
       @click="activePreviewTab = 'video'"
     >
       视频演示
@@ -187,8 +193,11 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
       <Tooltip :content="label('白模模式 (Clay)', 'Clay Mode')" placement="top">
         <button
           class="w-8 h-8 flex items-center justify-center rounded-full transition-colors cursor-pointer"
-          :
-          class="isClayMode ? 'bg-indigo-500 text-white' : 'hover:bg-white/10 text-white/80 hover:text-white'"
+          :class="
+            isClayMode
+              ? 'bg-indigo-500 text-white'
+              : 'hover:bg-white/10 text-white/80 hover:text-white'
+          "
           @click="toggleClay"
         >
           <Box class="h-4 w-4" />
@@ -207,29 +216,25 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
             <DropdownMenu>
               <DropdownItem
                 command="studio"
-                :
-                class="{ 'text-indigo-400 font-bold': currentEnvironment === 'studio' }"
+                :class="{ 'text-indigo-400 font-bold': currentEnvironment === 'studio' }"
               >
                 {{ label('写字楼影棚 (Studio)', 'Studio') }}
               </DropdownItem>
               <DropdownItem
                 command="sunset"
-                :
-                class="{ 'text-indigo-400 font-bold': currentEnvironment === 'sunset' }"
+                :class="{ 'text-indigo-400 font-bold': currentEnvironment === 'sunset' }"
               >
                 {{ label('威尼斯日落 (Sunset)', 'Venice Sunset') }}
               </DropdownItem>
               <DropdownItem
                 command="forest"
-                :
-                class="{ 'text-indigo-400 font-bold': currentEnvironment === 'forest' }"
+                :class="{ 'text-indigo-400 font-bold': currentEnvironment === 'forest' }"
               >
                 {{ label('户外森林 (Forest)', 'Forest') }}
               </DropdownItem>
               <DropdownItem
                 command="room"
-                :
-                class="{ 'text-indigo-400 font-bold': currentEnvironment === 'room' }"
+                :class="{ 'text-indigo-400 font-bold': currentEnvironment === 'room' }"
               >
                 {{ label('采石场室内 (Room)', 'Room') }}
               </DropdownItem>
@@ -260,11 +265,14 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
       <Tooltip :content="label('自动旋转', 'Auto Rotate')" placement="top">
         <button
           class="w-8 h-8 flex items-center justify-center rounded-full transition-colors cursor-pointer"
-          :
-          class="autoRotate ? 'bg-indigo-500 text-white' : 'hover:bg-white/10 text-white/80 hover:text-white'"
+          :class="
+            autoRotate
+              ? 'bg-indigo-500 text-white'
+              : 'hover:bg-white/10 text-white/80 hover:text-white'
+          "
           @click="toggleAutoRotate"
         >
-          <RefreshCw class="h-4 w-4 animate-spin-slow" : class="{ 'animate-none': !autoRotate }" />
+          <RefreshCw class="h-4 w-4 animate-spin-slow" :class="{ 'animate-none': !autoRotate }" />
         </button>
       </Tooltip>
       <div class="w-[1px] h-4 bg-white/10"></div>

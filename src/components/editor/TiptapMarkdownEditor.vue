@@ -75,6 +75,7 @@ const badgeText = computed(() => {
     case 'error':
       return '保存失败，请检查网络';
   }
+  return '';
 });
 
 const badgeColorClass = computed(() => {
@@ -89,6 +90,7 @@ const badgeColorClass = computed(() => {
     case 'error':
       return 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]';
   }
+  return '';
 });
 
 // Configure DOMPurify hook to secure clipboard paste:

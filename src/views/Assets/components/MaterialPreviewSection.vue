@@ -3,14 +3,116 @@ import { ref, watch, computed } from 'vue';
 import { CheckCircle2, Image as ImageIcon } from 'lucide-vue-next';
 import { getAssetUrl } from '@/utils/api';
 import { useLabel } from '@/utils/i18n';
-import type { NormalizedMaterial } from '../materialAdapter'; /** * Left-column preview for MaterialDetailPanel: bilibili/image tab switcher, * prominent square preview, and the PBR texture-channel explorer grid. * * Owns preview-only UI state (active tab, channel selection) so the parent * only needs to supply the material + the fetched package file list. */
-const props = defineProps<{ material: NormalizedMaterial; packageFiles: string[];
-}>(); const label = useLabel(); const activePreviewTab = ref<'image' | 'video'>('image');
-const selectedPreviewUrl = ref<string | null>(null); watch( () => props.material?.id, () => { activePreviewTab.value = 'image'; selectedPreviewUrl.value = null; },
-); const getBilibiliEmbedUrl = (url?: string | null): string | undefined => { if (!url) return undefined; const match = url.match(/video\/(BV[a-zA-Z0-9]+)/i) || url.match(/bvid=(BV[a-zA-Z0-9]+)/i); if (match && match[1]) { return `//player.bilibili.com/player.html?bvid=${match[1]}&page=1&high_quality=1&as_wide=1&autoplay=0&danmaku=0`; } return undefined;
-}; interface PbrChannel { name: string; key: string; patterns: string[]; matchedFile: string | null;
-} const pbrChannels = computed<PbrChannel[]>(() => { const files = props.packageFiles || []; const channelsList: PbrChannel[] = [ { name: label('基础颜色 (Base Color / Albedo)', 'Albedo / Diffuse'), key: 'albedo', patterns: ['albedo', 'diffuse', 'color', 'basecolor', 'col', 'diff'], matchedFile: null, }, { name: label('法线贴图 (Normal GL/DX)', 'Normal Map'), key: 'normal', patterns: ['normal', 'nor', 'nrm', 'gl', 'dx'], matchedFile: null, }, { name: label('粗糙度 (Roughness)', 'Roughness'), key: 'roughness', patterns: ['roughness', 'rough', 'rgh'], matchedFile: null, }, { name: label('金属感 (Metallic)', 'Metallic'), key: 'metallic', patterns: ['metallic', 'metal', 'met'], matchedFile: null, }, { name: label('高度/置换 (Height / Displacement)', 'Displacement'), key: 'height', patterns: ['height', 'displacement', 'disp', 'hgt'], matchedFile: null, }, { name: label('环境光遮蔽 (Ambient Occlusion)', 'AO Map'), key: 'ao', patterns: ['ao', 'occlusion', 'ambient'], matchedFile: null, }, ]; for (const channel of channelsList) { const match = files.find((filePath) => { const fileName = filePath.split('/').pop()?.toLowerCase() || ''; const isImg = /\.(png|jpg|jpeg|tga|dds|exr|hdr|tiff|bmp)$/i.test(filePath); if (!isImg) return false; return channel.patterns.some((pattern) => { if (pattern === 'ao' && fileName.includes('albedo')) return false; if (pattern === 'gl' && fileName.includes('roughness')) return false; return fileName.includes(pattern); }); }); if (match) { channel.matchedFile = match.split('/').pop() || match; } } return channelsList;
-}); const handleChannelClick = (channel: PbrChannel) => { if (!channel.matchedFile) return; const pathPart = encodeURIComponent(channel.matchedFile); const targetUrl = getAssetUrl(`/api/materials/${props.material.id}/zip-entry?path=${pathPart}`); if (selectedPreviewUrl.value === targetUrl) { selectedPreviewUrl.value = null; // Toggle off if clicked again } else { selectedPreviewUrl.value = targetUrl; }
+import type { NormalizedMaterial } from '../materialAdapter';
+
+/**
+ * Left-column preview for MaterialDetailPanel: bilibili/image tab switcher,
+ * prominent square preview, and the PBR texture-channel explorer grid.
+ *
+ * Owns preview-only UI state (active tab, channel selection) so the parent
+ * only needs to supply the material + the fetched package file list.
+ */
+const props = defineProps<{
+  material: NormalizedMaterial;
+  packageFiles: string[];
+}>();
+
+const label = useLabel();
+const activePreviewTab = ref<'image' | 'video'>('image');
+const selectedPreviewUrl = ref<string | null>(null);
+
+watch(
+  () => props.material?.id,
+  () => {
+    activePreviewTab.value = 'image';
+    selectedPreviewUrl.value = null;
+  },
+);
+
+const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
+  if (!url) return undefined;
+  const match = url.match(/video\/(BV[a-zA-Z0-9]+)/i) || url.match(/bvid=(BV[a-zA-Z0-9]+)/i);
+  if (match && match[1]) {
+    return `//player.bilibili.com/player.html?bvid=${match[1]}&page=1&high_quality=1&as_wide=1&autoplay=0&danmaku=0`;
+  }
+  return undefined;
+};
+
+interface PbrChannel {
+  name: string;
+  key: string;
+  patterns: string[];
+  matchedFile: string | null;
+}
+
+const pbrChannels = computed<PbrChannel[]>(() => {
+  const files = props.packageFiles || [];
+  const channelsList: PbrChannel[] = [
+    {
+      name: label('基础颜色 (Base Color / Albedo)', 'Albedo / Diffuse'),
+      key: 'albedo',
+      patterns: ['albedo', 'diffuse', 'color', 'basecolor', 'col', 'diff'],
+      matchedFile: null,
+    },
+    {
+      name: label('法线贴图 (Normal GL/DX)', 'Normal Map'),
+      key: 'normal',
+      patterns: ['normal', 'nor', 'nrm', 'gl', 'dx'],
+      matchedFile: null,
+    },
+    {
+      name: label('粗糙度 (Roughness)', 'Roughness'),
+      key: 'roughness',
+      patterns: ['roughness', 'rough', 'rgh'],
+      matchedFile: null,
+    },
+    {
+      name: label('金属感 (Metallic)', 'Metallic'),
+      key: 'metallic',
+      patterns: ['metallic', 'metal', 'met'],
+      matchedFile: null,
+    },
+    {
+      name: label('高度/置换 (Height / Displacement)', 'Displacement'),
+      key: 'height',
+      patterns: ['height', 'displacement', 'disp', 'hgt'],
+      matchedFile: null,
+    },
+    {
+      name: label('环境光遮蔽 (Ambient Occlusion)', 'AO Map'),
+      key: 'ao',
+      patterns: ['ao', 'occlusion', 'ambient'],
+      matchedFile: null,
+    },
+  ];
+
+  for (const channel of channelsList) {
+    const match = files.find((filePath) => {
+      const fileName = filePath.split('/').pop()?.toLowerCase() || '';
+      const isImg = /\.(png|jpg|jpeg|tga|dds|exr|hdr|tiff|bmp)$/i.test(filePath);
+      if (!isImg) return false;
+      return channel.patterns.some((pattern) => {
+        if (pattern === 'ao' && fileName.includes('albedo')) return false;
+        if (pattern === 'gl' && fileName.includes('roughness')) return false;
+        return fileName.includes(pattern);
+      });
+    });
+    if (match) {
+      channel.matchedFile = match.split('/').pop() || match;
+    }
+  }
+  return channelsList;
+});
+
+const handleChannelClick = (channel: PbrChannel) => {
+  if (!channel.matchedFile) return;
+  const pathPart = encodeURIComponent(channel.matchedFile);
+  const targetUrl = getAssetUrl(`/api/materials/${props.material.id}/zip-entry?path=${pathPart}`);
+  if (selectedPreviewUrl.value === targetUrl) {
+    selectedPreviewUrl.value = null; // Toggle off if clicked again
+  } else {
+    selectedPreviewUrl.value = targetUrl;
+  }
 };
 </script>
 <template>

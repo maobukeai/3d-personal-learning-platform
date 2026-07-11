@@ -55,21 +55,21 @@ const clayMaterial = new MeshStandardMaterial({
 class MockDOMElement {
   public clientWidth: number;
   public clientHeight: number;
-  private listeners: Record<string, Function[]> = {};
+  private listeners: Record<string, ((...args: any[]) => void)[]> = {};
 
   constructor(width: number, height: number) {
     this.clientWidth = width;
     this.clientHeight = height;
   }
 
-  addEventListener(type: string, listener: Function, options?: any) {
+  addEventListener(type: string, listener: (...args: any[]) => void, options?: any) {
     if (!this.listeners[type]) {
       this.listeners[type] = [];
     }
     this.listeners[type].push(listener);
   }
 
-  removeEventListener(type: string, listener: Function, options?: any) {
+  removeEventListener(type: string, listener: (...args: any[]) => void, options?: any) {
     if (!this.listeners[type]) return;
     this.listeners[type] = this.listeners[type].filter((l) => l !== listener);
   }

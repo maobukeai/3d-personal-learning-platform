@@ -97,7 +97,7 @@ export function useSoftwaresQuery() {
     ].filter((name) => name !== CATEGORY_ALL);
     const names = [CATEGORY_ALL, ...Array.from(new Set([...configured, ...fromData]))];
     return names.map((name) => {
-      let badge: number | string = '';
+      let badge: number | string;
       if (name === CATEGORY_ALL) {
         badge = stats.value.total;
       } else {

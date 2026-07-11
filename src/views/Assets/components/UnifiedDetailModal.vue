@@ -97,7 +97,6 @@ interface PluginItem {
 const props = withDefaults(
   defineProps<{
     show?: boolean;
-    plugin?: PluginItem | null;
     item?: PluginItem | null;
     kind?: 'plugin' | 'software';
     isFavorited?: boolean;
@@ -109,7 +108,6 @@ const props = withDefaults(
   }>(),
   {
     show: false,
-    plugin: null,
     item: null,
     kind: 'plugin',
     isFavorited: false,
@@ -135,7 +133,7 @@ const emit = defineEmits<{
 const label = useLabel();
 const { locale } = useI18n();
 
-const activeItem = computed(() => props.item || props.plugin);
+const activeItem = computed(() => props.item);
 const activeKind = computed(() => props.kind || activeItem.value?.kind || 'plugin');
 const plugin = computed(() => activeItem.value);
 
@@ -252,9 +250,10 @@ const {
 } = useMultiThreadDownload();
 
 const isExternal = computed(() => {
-  if (!props.plugin) return false;
-  const originality = props.plugin.originality;
-  const fileUrl = props.plugin.fileUrl;
+  const item = activeItem.value;
+  if (!item) return false;
+  const originality = item.originality;
+  const fileUrl = item.fileUrl;
   if (originality === 'AUTHORIZED' || originality === 'REMIX') {
     return true;
   }

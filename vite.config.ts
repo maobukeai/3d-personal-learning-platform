@@ -165,7 +165,9 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       vue(),
-      tailwindcss(),
+      tailwindcss({
+        optimize: false,
+      }),
       AutoImport({
         imports: ['vue', 'vue-router', 'pinia'],
         dts: 'src/auto-imports.d.ts',
@@ -215,6 +217,8 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       chunkSizeWarningLimit: 800,
+      // Revert CSS minifier to esbuild to prevent LightningCSS from stripping standard backdrop-filter properties.
+      cssMinify: 'esbuild',
       // 生成 manifest.json，供 scripts/assert-bundle-size.mjs 读取入口依赖树、
       // 计算每条路由 gzip/brotli 体积并检测 3D/编辑器 chunk 是否泄漏到首屏。
       manifest: 'manifest.json',

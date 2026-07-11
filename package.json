@@ -83,6 +83,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "@vue/tsconfig": "^0.9.1",
     "autoprefixer": "^10.5.0",
+    "esbuild": "^0.28.1",
     "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
@@ -103,5 +104,10 @@
     "vitest": "^4.1.10",
     "vue-eslint-parser": "^10.4.0",
     "vue-tsc": "^3.2.7"
-  }
+  },
+  "browserslist": [
+    "> 0.2%",
+    "last 2 versions",
+    "not dead"
+  ]
 }

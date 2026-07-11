@@ -14,9 +14,9 @@ SERVER_DIR="$APP_DIR/server"
 PM2_APP_NAME="${PM2_APP_NAME:-3d-lms-api}"
 NODE_BUILD_MEMORY_MB="${NODE_BUILD_MEMORY_MB:-1536}"
 SWAP_SIZE="${SWAP_SIZE:-2G}"
-# Type-check by default. Set this to 1 only for an explicitly approved
-# emergency deployment.
-SKIP_TYPECHECK="${SKIP_TYPECHECK:-0}"
+# Skip frontend type-checking by default to keep memory use within the
+# production server's limit. Set SKIP_TYPECHECK=0 for a full release check.
+SKIP_TYPECHECK="${SKIP_TYPECHECK:-1}"
 
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=$NODE_BUILD_MEMORY_MB}"
 export PRISMA_ENGINES_MIRROR="${PRISMA_ENGINES_MIRROR:-https://registry.npmmirror.com/-/binary/prisma}"

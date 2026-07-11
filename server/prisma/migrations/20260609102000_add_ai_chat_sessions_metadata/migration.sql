@@ -2,7 +2,7 @@
 CREATE TABLE `AiChatSession` (
   `id` VARCHAR(191) NOT NULL,
   `userId` VARCHAR(191) NOT NULL,
-  `title` VARCHAR(191) NOT NULL DEFAULT '新对话',
+  `title` VARCHAR(191) NOT NULL DEFAULT 'New conversation',
   `summary` TEXT NULL,
   `tags` TEXT NULL,
   `mode` VARCHAR(191) NOT NULL DEFAULT 'default',

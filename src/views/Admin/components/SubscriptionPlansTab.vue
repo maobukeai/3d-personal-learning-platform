@@ -17,7 +17,7 @@ import {
   Box,
   Save,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import { getApiErrorMessage } from '@/utils/error';
 import api from '@/utils/api';
 import Button from '@/components/ui/Button.vue';
@@ -297,7 +297,7 @@ const getPlanIcon = (name: string) => {
     </div>
 
     <!-- Plan Edit/Create Dialog -->
-    <Modal :show="showPlanDialog" size="lg" glass-card @close="showPlanDialog = false">
+    <Modal :show="showPlanDialog" size="lg" @close="showPlanDialog = false">
       <template #header>
         <div>
           <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">

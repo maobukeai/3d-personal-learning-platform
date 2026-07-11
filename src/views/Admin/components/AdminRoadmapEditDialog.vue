@@ -15,7 +15,7 @@ import {
   RefreshCw,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
 import { parseMarkdownToPlanJson } from '@/utils/planParser';
 import { logError } from '@/utils/error';
@@ -323,7 +323,7 @@ const handleSaveRoadmap = async () => {
 </script>
 
 <template>
-  <Modal :show="show" size="xxl" padding="none" glass-card @close="close">
+  <Modal :show="show" size="xxl" padding="none" @close="close">
     <div
       class="w-full p-6 sm:p-8 transition-colors duration-300 flex flex-col max-h-[90vh] overflow-hidden relative"
     >

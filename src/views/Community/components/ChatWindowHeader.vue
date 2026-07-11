@@ -119,7 +119,7 @@ const formatDuration = (seconds: number) => {
     </div>
 
     <div class="flex items-center gap-1 md:gap-2 mobile-row">
-      <el-popover
+      <GlassPopover
         placement="bottom-end"
         :width="280"
         trigger="click"
@@ -144,7 +144,7 @@ const formatDuration = (seconds: number) => {
             @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
           />
         </div>
-      </el-popover>
+      </GlassPopover>
       <button
         type="button"
         class="hidden sm:block p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all cursor-pointer"

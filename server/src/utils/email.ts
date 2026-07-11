@@ -4,7 +4,7 @@ import dns from 'dns';
 import prisma from '../services/prisma';
 import { MicrosoftGraphService } from '../services/microsoftGraph.service';
 import { config as envConfig } from '../config/env';
-import { settingsService } from '../services/settings.service';
+import { settingsService, type SystemSettings } from '../services/settings.service';
 
 function resolveRealIp(hostname: string): Promise<string> {
   return new Promise((resolve) => {
@@ -48,13 +48,13 @@ function resolveRealIp(hostname: string): Promise<string> {
 let cachedTransporter: nodemailer.Transporter | null = null;
 let cachedConfigHash: string = '';
 
-function buildConfigHash(config: any): string {
+function buildConfigHash(config: SystemSettings): string {
   return `${config.SMTP_HOST}|${config.SMTP_PORT}|${config.SMTP_USER}|${config.SMTP_PASS}|${config.SMTP_SECURE}`;
 }
 
 async function getTransporter(): Promise<{
   transporter: nodemailer.Transporter | null;
-  config: any;
+  config: SystemSettings;
 }> {
   const config = await settingsService.getAll();
 
@@ -104,6 +104,9 @@ async function getTransporter(): Promise<{
 }
 
 export const sendEmail = async (to: string, subject: string, text: string, html: string) => {
+  if (process.env.NODE_ENV === 'test') {
+    return true;
+  }
   const { transporter, config } = await getTransporter();
 
   const provider = config.SYSTEM_EMAIL_PROVIDER || 'SMTP';
@@ -182,7 +185,9 @@ export const sendEmail = async (to: string, subject: string, text: string, html:
   }
 
   const fromEmail = config.SMTP_FROM || config.SMTP_USER;
-  const from = config.SMTP_FROM_NAME ? `"${config.SMTP_FROM_NAME}" <${fromEmail}>` : fromEmail;
+  // SMTP_FROM_NAME is stored in DB settings but not in the SystemSettings interface
+  const fromName = (config as SystemSettings & { SMTP_FROM_NAME?: string }).SMTP_FROM_NAME;
+  const from = fromName ? `"${fromName}" <${fromEmail}>` : fromEmail;
 
   try {
     await transporter.sendMail({

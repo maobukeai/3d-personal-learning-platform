@@ -26,13 +26,7 @@ const form = computed({
 </script>
 
 <template>
-  <Modal
-    :show="show"
-    :title="$t('tools.email.batch_import')"
-    size="lg"
-    glass-card
-    @close="$emit('close')"
-  >
+  <Modal :show="show" :title="$t('tools.email.batch_import')" size="lg" @close="$emit('close')">
     <div class="flex flex-col gap-4 text-left">
       <div
         class="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-950 text-amber-800 dark:text-amber-300 rounded-xl text-xs flex items-start gap-2.5 leading-relaxed"
@@ -85,7 +79,7 @@ example2@hotmail.com----00000000-0000-0000-0000-000000000000----MC...9a"
             <label class="text-[11px] font-semibold text-slate-400">{{
               $t('tools.email.daily_limit_label')
             }}</label>
-            <el-input-number
+            <Input-number
               v-model="form.dailyLimit"
               :min="1"
               :max="1000"
@@ -98,26 +92,14 @@ example2@hotmail.com----00000000-0000-0000-0000-000000000000----MC...9a"
             <label class="text-[11px] font-semibold text-slate-400">{{
               $t('tools.email.min_delay_label')
             }}</label>
-            <el-input-number
-              v-model="form.minDelay"
-              :min="1"
-              :max="120"
-              size="small"
-              class="w-full"
-            />
+            <Input-number v-model="form.minDelay" :min="1" :max="120" size="small" class="w-full" />
           </div>
 
           <div class="flex flex-col gap-1">
             <label class="text-[11px] font-semibold text-slate-400">{{
               $t('tools.email.max_delay_label')
             }}</label>
-            <el-input-number
-              v-model="form.maxDelay"
-              :min="5"
-              :max="300"
-              size="small"
-              class="w-full"
-            />
+            <Input-number v-model="form.maxDelay" :min="5" :max="300" size="small" class="w-full" />
           </div>
         </div>
       </div>

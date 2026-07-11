@@ -2,7 +2,7 @@
 import { ref, watch, onUnmounted } from 'vue';
 import { useCommunityI18n } from '@/composables/useCommunityI18n';
 import { Trash2 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { getApiErrorMessage } from '@/utils/error';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
@@ -85,7 +85,7 @@ const confirmDeleteTeam = async () => {
 </script>
 
 <template>
-  <Modal :show="show" size="sm" glass-card @close="$emit('close')">
+  <Modal :show="show" size="sm" @close="$emit('close')">
     <template #header>
       <div class="p-3 bg-rose-50 dark:bg-rose-500/10 rounded-2xl text-rose-500 w-fit">
         <Trash2 class="w-6 h-6" />

@@ -162,7 +162,7 @@ async function main() {
         version: '1.0.5',
         compatibility: 'Blender 3.6 / 4.0 / 4.1',
         tags: 'retopo, modeling, blender, tool',
-        fileUrl: '/uploads/plugins/auto_retopo_v1.zip',
+        fileUrl: 'https://placehold.co/placeholder/auto_retopo_v1.zip',
         fileSize: 4.2,
         previewUrl:
           'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&auto=format&fit=crop&q=60',
@@ -179,7 +179,7 @@ async function main() {
         version: '2.1.0',
         compatibility: 'Three.js r140+',
         tags: 'three.js, particles, effect, webgl',
-        fileUrl: '/uploads/plugins/sparkles_particles.zip',
+        fileUrl: 'https://placehold.co/placeholder/sparkles_particles.zip',
         fileSize: 1.8,
         previewUrl:
           'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=500&auto=format&fit=crop&q=60',
@@ -195,7 +195,7 @@ async function main() {
         version: '1.4',
         compatibility: 'Substance Painter 9.x+',
         tags: 'rust, generator, substance, smart-material',
-        fileUrl: '/uploads/plugins/rusted_generator.sbsar',
+        fileUrl: 'https://placehold.co/placeholder/rusted_generator.sbsar',
         fileSize: 8.5,
         previewUrl:
           'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?w=500&auto=format&fit=crop&q=60',

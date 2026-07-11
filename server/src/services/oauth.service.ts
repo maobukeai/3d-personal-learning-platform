@@ -9,6 +9,13 @@ export interface OAuthUserInfo {
   avatarUrl: string;
 }
 
+interface GitHubEmail {
+  email: string;
+  primary: boolean;
+  verified: boolean;
+  visibility?: string | null;
+}
+
 export class OAuthService {
   private static async getSetting(key: string): Promise<string | null> {
     const setting = await prisma.systemSetting.findUnique({
@@ -124,7 +131,9 @@ export class OAuthService {
     });
 
     const primaryEmail =
-      emailsRes.data.find((e: any) => e.primary && e.verified)?.email || emailsRes.data[0].email;
+      (emailsRes.data as GitHubEmail[]).find((e) => e.primary && e.verified)?.email ||
+      (emailsRes.data as GitHubEmail[])[0]?.email ||
+      '';
 
     return {
       id: String(userRes.data.id),

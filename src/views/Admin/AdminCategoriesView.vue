@@ -20,7 +20,7 @@ import {
   Laptop,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import { fetchManagementInsights } from './adminManagementInsights';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
@@ -48,9 +48,9 @@ interface SettingItem {
   value: string | string[];
 }
 
-const activeTab = ref<'assets' | 'courses' | 'materials' | 'plugins' | 'softwares' | 'showcases' | 'teams'>(
-  'assets',
-);
+const activeTab = ref<
+  'assets' | 'courses' | 'materials' | 'plugins' | 'softwares' | 'showcases' | 'teams'
+>('assets');
 const isLoading = ref(false);
 const searchQuery = ref('');
 
@@ -133,7 +133,8 @@ const fetchSettingsCategories = async () => {
 
     try {
       const softwareVal = getVal('SOFTWARE_CATEGORIES');
-      softwareCategories.value = typeof softwareVal === 'string' ? JSON.parse(softwareVal) : softwareVal;
+      softwareCategories.value =
+        typeof softwareVal === 'string' ? JSON.parse(softwareVal) : softwareVal;
     } catch {
       softwareCategories.value = [];
     }
@@ -677,7 +678,7 @@ onMounted(() => {
     </main>
 
     <!-- Category Modal -->
-    <Modal :show="showModal" size="md" glass-card @close="showModal = false">
+    <Modal :show="showModal" size="md" @close="showModal = false">
       <template #header>
         <div>
           <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
@@ -773,6 +774,6 @@ onMounted(() => {
 }
 
 .admin-categories-page {
-  background: transparent !important;
+  background: transparent;
 }
 </style>

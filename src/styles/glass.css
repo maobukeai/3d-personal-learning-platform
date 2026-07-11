@@ -1,981 +1,566 @@
 /* ============================================================
-   Glassmorphism Styles and Overrides
+   Glass surface — RESTRICTED SCOPE (design-foundation §6)
+   ------------------------------------------------------------
+   Glass is reserved for overlay primitives: Modal, Drawer, Select,
+   Dropdown, Popover and Tooltip. Content cards, tables and form fields
+   remain opaque so text and editing controls stay legible.
+
+   The legacy html.theme-glass .x .y override system, the
+   @supports backdrop-filter blocks, the Tailwind class
+   overrides, and the body gradient rules have been REMOVED.
+   Low-end device degradation is achieved by switching the
+   --glass-blur token to none — never by override CSS.
    ============================================================ */
 
-/* Notification Center – Glassmorphism Panel */
-.notification-panel {
-  background: var(--bg-card);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 1px solid var(--border-base);
-  box-shadow: var(--shadow-enterprise-hover);
-}
-
-.dark .notification-panel {
-  background: var(--bg-card);
-  border-color: var(--border-base);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.48);
-}
-
-.notification-header {
-  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
-}
-
-.dark .notification-header {
-  border-bottom-color: rgba(63, 63, 70, 0.35);
-}
-
-.notification-item {
-  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-}
-
-.notification-item:last-child {
-  border-bottom: none;
-}
-
-.notification-item:hover {
-  background: rgba(148, 163, 184, 0.12);
-  backdrop-filter: blur(4px);
-}
-
-.dark .notification-item {
-  border-bottom-color: rgba(63, 63, 70, 0.25);
-}
-
-.dark .notification-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(4px);
-}
-
-/* Glassmorphism Cards */
-.glass-card {
-  background: var(--bg-card);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 1px solid var(--border-base);
-  box-shadow: var(--shadow-enterprise);
-  border-radius: var(--radius-md);
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.dark .glass-card {
-  background: var(--bg-card);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 1px solid var(--border-base);
-  box-shadow: var(--card-shadow);
-}
-
-/* Hover Lift Effect */
-.glass-card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-enterprise-hover);
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-base));
-}
-
-.dark .glass-card-hover:hover {
-  box-shadow: var(--card-shadow-hover);
-  border-color: rgba(245, 121, 42, 0.25);
-}
-
-/* ============================================================
-   Blender Platform — Dark Deep Card Styles
-   ============================================================ */
-
-/* Premium dark content card with Blender aesthetic */
-.blender-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-base);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--card-shadow);
-  transition:
-    border-color 0.25s ease,
-    box-shadow 0.25s ease,
-    transform 0.25s ease;
-  overflow: hidden;
+/* ── Compatibility definitions (translucent glassmorphism) ── */
+.glass-card,
+.glass-dialog,
+.glass-panel {
+  background: var(--glass-modal-surface) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  box-shadow: var(--glass-border), var(--glass-shadow) !important;
+  border: 1px solid var(--glass-border-color) !important;
+  border-radius: var(--radius-section);
   position: relative;
+  isolation: isolate;
+  overflow: hidden;
 }
 
-.blender-card::before {
+/* Frosted grain overlay for legacy glass classes */
+.glass-card::after,
+.glass-dialog::after,
+.glass-panel::after {
   content: '';
   position: absolute;
   inset: 0;
+  z-index: 2;
   border-radius: inherit;
-  opacity: 0;
   pointer-events: none;
-  transition: opacity 0.25s ease;
-  background: linear-gradient(135deg, rgba(245, 121, 42, 0.04) 0%, transparent 60%);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.68' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  mix-blend-mode: soft-light;
+  opacity: 0.04;
+}
+.dark .glass-card::after,
+.dark .glass-dialog::after,
+.dark .glass-panel::after {
+  opacity: 0.06;
 }
 
-.blender-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--card-shadow-hover);
-  border-color: rgba(245, 121, 42, 0.2);
-}
-
-.blender-card:hover::before {
-  opacity: 1;
-}
-
-/* Stat cards with icon glow */
-.blender-stat-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-base);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--card-shadow);
-  transition:
-    border-color 0.25s ease,
-    box-shadow 0.25s ease;
+/* Unified popover glass style for Dropdowns, Selects, Tooltips
+   Uses IDENTICAL physical glass parameters as modal-surface--glass.
+   Single source of truth: edit tokens to change all glass surfaces. */
+.glass-popover {
+  background: var(--glass-modal-surface) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  box-shadow: var(--glass-border), var(--glass-shadow) !important;
+  border-radius: var(--radius-xl) !important;
+  border: 1px solid var(--glass-border-color) !important;
   position: relative;
-  overflow: hidden;
+  isolation: isolate;
+  /* overflow:clip clips the glass box edge without blocking internal scroll */
+  overflow: clip;
 }
 
-.dark .blender-stat-card {
-  background: linear-gradient(145deg, #16181e 0%, #12141a 100%);
-}
-
-/* Top-left accent line */
-.blender-stat-card::after {
+/* Specular highlight overlay — same ::before trick as modal-surface--glass */
+.glass-popover::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 40px;
-  height: 2px;
-  background: var(--accent);
-  border-radius: 0 0 2px 0;
-  opacity: 0.7;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: var(--glass-specular);
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: 0.85;
 }
 
-/* Sidebar active indicator */
-.sidebar-item-active {
-  background: var(--bg-active) !important;
-  color: var(--accent) !important;
-  position: relative;
-}
-
-/* Top nav tab active */
-.topbar-tab {
-  position: relative;
-  transition:
-    color 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.topbar-tab.active {
-  color: var(--accent);
-}
-
-.dark .topbar-tab.active::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 24px;
-  height: 2px;
-  border-radius: 2px 2px 0 0;
-  background: var(--accent);
-  box-shadow: var(--glow-orange);
-}
-
-/* Glassmorphism Layout utilities */
 .glass-header {
-  background-color: var(--bg-card) !important;
+  background-color: var(--bg-card);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  border-bottom: 1px solid var(--border-base) !important;
-  transform: translateZ(0);
-}
-.dark .glass-header {
-  background-color: var(--bg-sidebar) !important;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border-bottom: 1px solid var(--border-base) !important;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4) !important;
 }
 
 .glass-sidebar {
-  background-color: var(--bg-sidebar) !important;
+  background-color: var(--bg-sidebar);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  border-right: 1px solid var(--border-base) !important;
-  transform: translateZ(0);
-}
-.dark .glass-sidebar {
-  background-color: var(--bg-sidebar) !important;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border-right: 1px solid var(--border-base) !important;
-}
-
-.glass-dialog {
-  background-color: var(--bg-card) !important;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 1px solid var(--border-base) !important;
-  box-shadow: 0 24px 56px rgba(16, 24, 40, 0.16) !important;
-  transform: translateZ(0);
-}
-.dark .glass-dialog {
-  background-color: var(--bg-card) !important;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 1px solid var(--border-base) !important;
-  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.62) !important;
-}
-
-/* Fallback selectors for modal glass styling */
-.fixed.inset-0.z-50 > div[class*='bg-white'],
-.fixed.inset-0.z-50 > div[class*='bg-slate-800'],
-.fixed.inset-0.z-50 > div[style*='background-color: var(--bg-card)'],
-.fixed.inset-0.z-\[60\] > div[class*='bg-white'],
-.fixed.inset-0.z-\[60\] > div[class*='bg-slate-800'],
-.fixed.inset-0.z-\[70\] > div[class*='bg-white'],
-.fixed.inset-0.z-\[100\] > div[class*='bg-white'],
-.fixed.inset-0.z-\[100\] > div[class*='bg-slate-800'] {
-  background-color: rgba(255, 255, 255, 0.82) !important;
-  backdrop-filter: blur(8px) saturate(135%) !important;
-  -webkit-backdrop-filter: blur(8px) saturate(135%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.5) !important;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08) !important;
-  transform: translateZ(0);
-}
-
-.dark .fixed.inset-0.z-50 > div[class*='bg-white'],
-.dark .fixed.inset-0.z-50 > div[class*='bg-slate-800'],
-.dark .fixed.inset-0.z-50 > div[style*='background-color: var(--bg-card)'],
-.dark .fixed.inset-0.z-\[60\] > div[class*='bg-white'],
-.dark .fixed.inset-0.z-\[60\] > div[class*='bg-slate-800'],
-.dark .fixed.inset-0.z-\[70\] > div[class*='bg-white'],
-.dark .fixed.inset-0.z-\[100\] > div[class*='bg-white'],
-.dark .fixed.inset-0.z-\[100\] > div[class*='bg-slate-800'] {
-  background-color: rgba(9, 9, 11, 0.75) !important;
-  backdrop-filter: blur(8px) saturate(135%) !important;
-  -webkit-backdrop-filter: blur(8px) saturate(135%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.04) !important;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6) !important;
-}
-
-/* Glass element styles - Tier 1: Frosted Layout & Teleported Overlays */
-html.theme-glass .notification-panel,
-html.theme-glass .el-popper,
-html.theme-glass .el-popper.is-dark,
-html.theme-glass .el-popper.is-light,
-html.theme-glass .el-dropdown__popper,
-html.theme-glass .el-select__popper,
-html.theme-glass .el-cascader__dropdown,
-html.theme-glass .el-popover {
-  background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
-  -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
-  backdrop-filter: blur(10px) saturate(145%) !important;
-  border: var(--glass-border) !important;
-  box-shadow: var(--glass-shadow) !important;
-  color: var(--text-primary) !important;
-}
-
-@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
-  html.theme-glass .notification-panel,
-  html.theme-glass .el-popper,
-  html.theme-glass .el-popper.is-dark,
-  html.theme-glass .el-popper.is-light,
-  html.theme-glass .el-dropdown__popper,
-  html.theme-glass .el-select__popper,
-  html.theme-glass .el-cascader__dropdown,
-  html.theme-glass .el-popover {
-    background: var(--glass-bg) !important;
-  }
-}
-
-/* Reusable glass card style */
-html.theme-glass .glass-card {
-  background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
-  border: var(--glass-border) !important;
-  box-shadow: var(--glass-shadow) !important;
-}
-
-@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
-  html.theme-glass .glass-card {
-    background: var(--glass-bg) !important;
-    -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
-    backdrop-filter: blur(10px) saturate(145%) !important;
-  }
-}
-
-html.theme-glass .glass-header {
-  background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
-  backdrop-filter: blur(10px) saturate(145%) !important;
-  -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
-  border: var(--glass-border) !important;
-  box-shadow: var(--glass-shadow) !important;
-  transform: translateZ(0);
-  will-change: auto !important;
-}
-
-@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
-  html.theme-glass .glass-header {
-    background: var(--glass-header-bg, var(--glass-bg)) !important;
-  }
-}
-
-html.theme-glass .glass-sidebar {
-  background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
-  backdrop-filter: blur(20px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
-  border: var(--glass-border) !important;
-  box-shadow: var(--glass-shadow) !important;
-  transform: translateZ(0);
-  will-change: auto !important;
-}
-
-@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
-  html.theme-glass .glass-sidebar {
-    background: var(--glass-sidebar-bg, var(--glass-bg)) !important;
-  }
-}
-
-/* Mobile sidebar drawer — promoted to global CSS with high specificity so that
-   dev/prod and scoped/global styles cannot silently disable its backdrop-filter. */
-html.theme-glass .mobile-sidebar-drawer {
-  background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.5) !important;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04) !important;
-}
-
-@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
-  html.theme-glass .mobile-sidebar-drawer {
-    background: rgba(255, 255, 255, 0.45) !important;
-  }
-}
-
-html.theme-glass.dark .mobile-sidebar-drawer {
-  background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
-  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25) !important;
-}
-
-@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
-  html.theme-glass.dark .mobile-sidebar-drawer {
-    background: rgba(28, 33, 41, 0.45) !important;
-  }
-}
-
-/* Highest-specificity guard for mobile sidebar drawer: some deployed environments override
-   or disable the backdrop-filter via lower-level rules, so we double-declare it with a selector
-   that is extremely unlikely to be beaten by third-party / scoped styles. */
-html.theme-glass body .mobile-sidebar-drawer.mobile-sidebar-drawer {
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-}
-
-/* Mobile sidebar reuses .glass-card appearance; reset its radius since it is a full-height drawer. */
-html.theme-glass .mobile-sidebar-drawer.glass-card,
-html.theme-glass .mobile-sidebar-drawer {
-  border-radius: 0 !important;
-}
-
-/* Glass element styles - Tier 2: Dialog Modules */
-html.theme-glass .el-dialog,
-html.theme-glass .el-message-box,
-html.theme-glass .glass-dialog {
-  background: var(--bg-elevated) !important; /* Semi-opaque fallback to prevent pure transparency */
-  backdrop-filter: blur(12px) saturate(145%) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(145%) !important;
-  border: var(--glass-border) !important;
-  box-shadow: var(--glass-shadow) !important;
-  transform: translateZ(0);
-}
-
-@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
-  html.theme-glass .el-dialog,
-  html.theme-glass .el-message-box,
-  html.theme-glass .glass-dialog {
-    background: var(--glass-dialog-bg, var(--glass-bg)) !important;
-  }
-}
-
-/* Glass element styles - Tier 3: Content Cards & Background Blocks (High Performance: Filter Disabled) */
-html.theme-glass .el-card,
-.theme-glass .bg-white,
-.theme-glass .bg-white\/50,
-.theme-glass .bg-white\/60,
-.theme-glass .bg-slate-50,
-.theme-glass .bg-slate-100,
-.theme-glass .bg-slate-800,
-.theme-glass .bg-slate-900,
-.theme-glass .bg-slate-800\/50,
-.theme-glass .bg-slate-900\/50,
-.theme-glass .bg-zinc-50,
-.theme-glass .bg-zinc-800,
-.theme-glass .bg-zinc-900,
-.theme-glass .bg-gray-50,
-.theme-glass .bg-gray-100,
-.theme-glass .bg-gray-800,
-.theme-glass .bg-gray-900,
-.theme-glass .bg-neutral-50,
-.theme-glass .bg-neutral-800,
-.theme-glass .bg-neutral-900,
-.theme-glass .bg-black,
-.theme-glass .dark\:bg-slate-800,
-.theme-glass .dark\:bg-slate-900,
-.theme-glass .dark\:bg-slate-950,
-.theme-glass .dark\:bg-slate-800\/50,
-.theme-glass .dark\:bg-slate-900\/50,
-.theme-glass .dark\:bg-slate-900\/40,
-.theme-glass .dark\:bg-slate-950\/50,
-.theme-glass .dark\:bg-zinc-800,
-.theme-glass .dark\:bg-zinc-900,
-.theme-glass .dark\:bg-gray-800,
-.theme-glass .dark\:bg-gray-900,
-.theme-glass .dark\:bg-neutral-800,
-.theme-glass .dark\:bg-neutral-900,
-.theme-glass .dark\:bg-black,
-.theme-glass [style*='background-color'][style*='--bg-card)'] {
-  background: var(--glass-bg) !important;
-  border: var(--glass-border) !important;
-  box-shadow: var(--glass-shadow) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  transform: none !important;
-}
-
-/* Prevent double-layer glass nesting inside teleported poppers */
-html.theme-glass .el-dropdown-menu,
-html.theme-glass .el-select-dropdown,
-html.theme-glass .el-picker-panel,
-html.theme-glass .el-popper .el-dropdown-menu,
-html.theme-glass .el-popper .el-select-dropdown,
-html.theme-glass .el-popper .el-picker-panel,
-html.theme-glass .glass-card .el-dropdown-menu {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-/* Arrow styling */
-html.theme-glass .el-popper__arrow::before {
-  background: rgba(255, 255, 255, 0.5) !important;
-  border-color: var(--glass-border-color) !important;
-}
-html.theme-glass.dark .el-popper__arrow::before,
-html.dark.theme-glass .el-popper__arrow::before {
-  background: rgba(18, 18, 24, 0.5) !important;
-  border-color: var(--glass-border-color) !important;
-}
-
-/* Dark Glass Mode text legibility overrides */
-html.dark.theme-glass .text-slate-500,
-html.dark.theme-glass .text-slate-600,
-html.dark.theme-glass .text-slate-700 {
-  color: var(--text-secondary) !important;
-}
-html.dark.theme-glass .text-slate-400 {
-  color: var(--text-muted) !important;
-}
-
-/* Hover overrides for glass */
-.theme-glass .hover\:bg-slate-50:hover,
-.theme-glass .hover\:bg-slate-100:hover,
-.theme-glass .hover\:bg-gray-50:hover,
-.theme-glass .hover\:bg-gray-100:hover,
-.theme-glass .hover\:bg-white:hover {
-  background-color: rgba(255, 255, 255, 0.22) !important;
-}
-
-.theme-glass .dark\:hover\:bg-slate-800:hover,
-.theme-glass .dark\:hover\:bg-slate-900:hover,
-.theme-glass .dark\:hover\:bg-zinc-800:hover,
-.theme-glass .dark\:hover\:bg-zinc-900:hover,
-.theme-glass .dark\:hover\:bg-white\/10:hover,
-.theme-glass .dark\:hover\:bg-white\/5:hover,
-.theme-glass .hover\:bg-slate-800:hover,
-.theme-glass .hover\:bg-slate-900:hover,
-.theme-glass .hover\:bg-zinc-800:hover,
-.theme-glass .hover\:bg-zinc-900:hover,
-.theme-glass .hover\:bg-black:hover {
-  background-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-/* Ensure the body has the base canvas with premium mesh gradient blobs for glass themes */
-html.theme-glass body {
-  background:
-    radial-gradient(at 0% 20%, rgba(245, 121, 42, 0.15) 0px, transparent 50%),
-    radial-gradient(at 90% 10%, rgba(59, 130, 246, 0.18) 0px, transparent 50%),
-    radial-gradient(at 0% 80%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
-    radial-gradient(at 70% 80%, rgba(34, 197, 94, 0.1) 0px, transparent 50%), var(--bg-app) !important;
-  background-attachment: fixed !important;
-  background-size: cover !important;
-}
-
-html.theme-glass.dark body,
-html.dark.theme-glass body {
-  background:
-    radial-gradient(at 0% 20%, rgba(245, 121, 42, 0.15) 0px, transparent 50%),
-    radial-gradient(at 90% 10%, rgba(37, 99, 235, 0.22) 0px, transparent 50%),
-    radial-gradient(at 0% 80%, rgba(124, 58, 237, 0.15) 0px, transparent 50%),
-    radial-gradient(at 70% 80%, rgba(16, 185, 129, 0.1) 0px, transparent 50%), var(--bg-app) !important;
-  background-attachment: fixed !important;
-  background-size: cover !important;
-}
-
-/* Override content surface background in glass mode so the body gradients show through */
-html.theme-glass .content-surface {
-  background: transparent !important;
-}
-
-/* Make all inner elements transparent so neon background blobs shine through */
-.theme-glass [style*='background-color: var(--bg-app)'],
-.theme-glass [style*='background-color:var(--bg-app)'] {
-  background-color: transparent !important;
-}
-
-/* Ensure all standard Tailwind border colors in glass mode use the glass border color */
-.theme-glass .border,
-.theme-glass .border-slate-50,
-.theme-glass .border-slate-100,
-.theme-glass .border-slate-200,
-.theme-glass .border-slate-300,
-.theme-glass .border-slate-700,
-.theme-glass .border-slate-800,
-.theme-glass .border-slate-900,
-.theme-glass .border-zinc-100,
-.theme-glass .border-zinc-200,
-.theme-glass .border-zinc-700,
-.theme-glass .border-zinc-800,
-.theme-glass .border-zinc-900,
-.theme-glass .border-gray-100,
-.theme-glass .border-gray-200,
-.theme-glass .border-gray-700,
-.theme-glass .border-gray-800,
-.theme-glass .border-gray-900,
-.theme-glass .border-neutral-100,
-.theme-glass .border-neutral-200,
-.theme-glass .border-neutral-700,
-.theme-glass .border-neutral-800,
-.theme-glass .border-neutral-900,
-.theme-glass .dark\:border-slate-700,
-.theme-glass .dark\:border-slate-800,
-.theme-glass .dark\:border-slate-900,
-.theme-glass .dark\:border-zinc-700,
-.theme-glass .dark\:border-zinc-800,
-.theme-glass .dark\:border-zinc-900,
-.theme-glass .dark\:border-gray-700,
-.theme-glass .dark\:border-gray-800,
-.theme-glass .dark\:border-gray-900,
-.theme-glass .dark\:border-neutral-700,
-.theme-glass .dark\:border-neutral-800,
-.theme-glass .dark\:border-neutral-900 {
-  border-color: var(--glass-border-color) !important;
-}
-
-/* Glass Input overrides */
-html.theme-glass .el-input__wrapper {
-  background-color: rgba(255, 255, 255, 0.06) !important;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2) inset !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  border: none !important;
-}
-html.theme-glass.dark .el-input__wrapper {
-  background-color: rgba(255, 255, 255, 0.06) !important;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2) inset !important;
-}
-html.theme-glass:not(.dark) .el-input__wrapper {
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1) inset !important;
-}
-html.theme-glass .el-input__wrapper:hover {
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset !important;
-}
-html.theme-glass.dark .el-input__wrapper:hover {
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset !important;
-}
-html.theme-glass .el-input__wrapper.is-focus {
-  box-shadow:
-    0 0 0 2px rgba(var(--accent-rgb), 0.4) inset,
-    0 0 5px rgba(var(--accent-rgb), 0.12) !important;
-}
-
-/* Native input style overrides under glass */
-html.theme-glass input[type='text'],
-html.theme-glass input[type='password'],
-html.theme-glass input[type='email'],
-html.theme-glass input[type='number'],
-html.theme-glass textarea {
-  background-color: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  color: var(--text-primary) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-html.theme-glass.dark input[type='text'],
-html.theme-glass.dark input[type='password'],
-html.theme-glass.dark input[type='email'],
-html.theme-glass.dark input[type='number'],
-html.theme-glass.dark textarea {
-  background-color: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-}
-html.theme-glass:not(.dark) input[type='text'],
-html.theme-glass:not(.dark) input[type='password'],
-html.theme-glass:not(.dark) input[type='email'],
-html.theme-glass:not(.dark) input[type='number'],
-html.theme-glass:not(.dark) textarea {
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  border: 1px solid rgba(0, 0, 0, 0.1) !important;
-}
-html.theme-glass input[type='text']:focus,
-html.theme-glass input[type='password']:focus,
-html.theme-glass input[type='email']:focus,
-html.theme-glass input[type='number']:focus,
-html.theme-glass textarea:focus {
-  border-color: rgba(var(--accent-rgb), 0.4) !important;
-  box-shadow: 0 0 5px rgba(var(--accent-rgb), 0.12) !important;
-  outline: none !important;
-}
-
-/* Glass Dialog Overlay & Shortcuts */
-html.theme-glass .el-overlay {
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  background-color: rgba(0, 0, 0, 0.55) !important;
-}
-
-html.theme-glass kbd {
-  background: rgba(255, 255, 255, 0.15) !important;
-  border: 1px solid rgba(255, 255, 255, 0.35) !important;
-  color: var(--text-primary) !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15) !important;
-}
-html.theme-glass.dark kbd {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border: 1px solid rgba(255, 255, 255, 0.25) !important;
-  color: var(--text-primary) !important;
-}
-
-/* NOTE: The el-input__wrapper / el-overlay backdrop-filter overrides were intentionally removed.
-   The blur rules above for .el-input__wrapper and .el-overlay are correct and should not be reset. */
-
-html.theme-glass .shadow-2xl,
-html.theme-glass .hover\:shadow-2xl:hover {
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1) !important;
-}
-
-html.dark.theme-glass .shadow-2xl,
-html.dark.theme-glass .hover\:shadow-2xl:hover {
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45) !important;
-}
-
-/* Mobile responsive and low-power hardware performance budgets (all filters disabled) */
-@media (max-width: 768px) {
-  html.theme-glass .glass-header,
-  html.theme-glass .glass-sidebar,
-  html.theme-glass .notification-panel,
-  html.theme-glass .el-dialog,
-  html.theme-glass .glass-dialog,
-  html.theme-glass .el-overlay,
-  html.theme-glass .el-overlay-dialog,
-  html.theme-glass .backdrop-blur,
-  html.theme-glass .backdrop-blur-sm,
-  html.theme-glass .backdrop-blur-md,
-  html.theme-glass .backdrop-blur-lg,
-  html.theme-glass .backdrop-blur-xl,
-  html.theme-glass .backdrop-blur-2xl,
-  html.theme-glass .backdrop-blur-3xl,
-  .glass-header,
-  .glass-sidebar,
-  .glass-dialog,
-  .notification-panel,
-  .el-dialog,
-  .el-overlay,
-  .el-overlay-dialog,
-  .backdrop-blur,
-  .backdrop-blur-sm,
-  .backdrop-blur-md,
-  .backdrop-blur-lg,
-  .backdrop-blur-xl,
-  .backdrop-blur-2xl,
-  .backdrop-blur-3xl {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  .glass-glow-sm,
-  .glass-glow-md,
-  .glass-glow-lg,
-  .glass-glow-xl {
-    display: none !important;
-  }
-}
-
-/* Glass Glow blobs */
-.glass-glow-sm {
-  filter: blur(40px);
-}
-.glass-glow-md {
-  filter: blur(80px);
-}
-.glass-glow-lg {
-  filter: blur(100px);
-}
-.glass-glow-xl {
-  filter: blur(120px);
-}
-
-/* Base Glassmorphism Panels and Primitives (available everywhere) */
-.glass-panel {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.76) 0%,
-    rgba(255, 255, 255, 0.66) 100%
-  ) !important;
-  backdrop-filter: blur(20px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.65) !important;
-  box-shadow:
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.55),
-    0 8px 32px 0 rgba(31, 38, 135, 0.06) !important;
-}
-
-.dark .glass-panel {
-  background: linear-gradient(
-    135deg,
-    rgba(28, 35, 48, 0.88) 0%,
-    rgba(18, 22, 30, 0.8) 100%
-  ) !important;
-  backdrop-filter: blur(20px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  box-shadow:
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.15),
-    0 12px 40px 0 rgba(0, 0, 0, 0.35) !important;
 }
 
 .glass-input {
-  background: rgba(255, 255, 255, 0.3) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+  background-color: var(--surface-solid);
+  border: 1px solid var(--border-base);
+  color: var(--text-primary);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* ── Global Overlay Normalization ──────────────────────────────
+   All raw handwritten overlay divs (bg-black/40, bg-black/60 etc.)
+   are normalized so they match the premium Apple-style overlay.
+   This covers all non-Modal.vue dialogs that use fixed+inset-0. */
+
+/* Normalize glass-dialog text so it uses system tokens, not hard-coded white */
+.glass-dialog {
+  color: var(--text-primary);
+}
+.glass-dialog h1,
+.glass-dialog h2,
+.glass-dialog h3,
+.glass-dialog h4,
+.glass-dialog h5 {
+  color: var(--text-primary);
+}
+.glass-dialog p,
+.glass-dialog span:not([class*='text-']) {
+  color: var(--text-secondary);
+}
+
+/* ── Apple-style Glassmorphism Refinements ─────────────────── */
+
+/* 1. Translucent Dividers & Borders inside Glass Panels */
+.modal-surface--glass .border-b,
+.modal-surface--glass .border-t,
+.modal-surface--glass .border-r,
+.modal-surface--glass .border-l,
+.modal-surface--glass .border,
+.modal-surface--glass hr,
+.modal-surface--glass .modal-header,
+.modal-surface--glass .modal-footer,
+.glass-dialog .border-b,
+.glass-dialog .border-t,
+.glass-dialog .border-r,
+.glass-dialog .border-l,
+.glass-dialog .border,
+.glass-dialog hr,
+.glass-card .border-b,
+.glass-card .border-t,
+.glass-card .border-r,
+.glass-card .border-l,
+.glass-card .border,
+.glass-card hr {
+  border-color: var(--glass-border-color) !important;
+}
+
+/* 2. Translucent Text Inputs, Textareas and Selects inside Glass */
+.modal-surface--glass input:not([type='checkbox']):not([type='radio']),
+.modal-surface--glass textarea,
+.modal-surface--glass select,
+.modal-surface--glass .select-trigger,
+.modal-surface--glass .custom-select-small,
+.glass-dialog input:not([type='checkbox']):not([type='radio']),
+.glass-dialog textarea,
+.glass-dialog select,
+.glass-dialog .select-trigger,
+.glass-card input:not([type='checkbox']):not([type='radio']),
+.glass-card textarea,
+.glass-card select,
+.glass-card .select-trigger {
+  /* Light mode: slightly more opaque than surface for legibility */
+  background-color: rgba(255, 255, 255, 0.6) !important;
+  border-color: var(--border-base) !important;
   color: var(--text-primary) !important;
-  transition: all 0.2s ease !important;
+}
+.dark .modal-surface--glass input:not([type='checkbox']):not([type='radio']),
+.dark .modal-surface--glass textarea,
+.dark .modal-surface--glass select,
+.dark .modal-surface--glass .select-trigger,
+.dark .glass-dialog input:not([type='checkbox']):not([type='radio']),
+.dark .glass-dialog textarea,
+.dark .glass-dialog select,
+.dark .glass-dialog .select-trigger,
+.dark .glass-card input:not([type='checkbox']):not([type='radio']),
+.dark .glass-card textarea,
+.dark .glass-card select,
+.dark .glass-card .select-trigger {
+  /* Dark mode: semi-dark translucent field */
+  background-color: rgba(0, 0, 0, 0.2) !important;
+  border-color: var(--border-base) !important;
+  color: var(--text-primary) !important;
 }
 
-.dark .glass-input {
-  background: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+/* Hover States for Inputs inside Glass */
+.modal-surface--glass input:not([type='checkbox']):not([type='radio']):hover,
+.modal-surface--glass textarea:hover,
+.modal-surface--glass select:hover,
+.modal-surface--glass .select-trigger:hover,
+.glass-dialog input:not([type='checkbox']):not([type='radio']):hover,
+.glass-dialog textarea:hover,
+.glass-dialog select:hover,
+.glass-dialog .select-trigger:hover,
+.glass-card input:not([type='checkbox']):not([type='radio']):hover,
+.glass-card textarea:hover,
+.glass-card select:hover,
+.glass-card .select-trigger:hover {
+  border-color: var(--border-strong) !important;
+}
+.dark .modal-surface--glass input:not([type='checkbox']):not([type='radio']):hover,
+.dark .modal-surface--glass textarea:hover,
+.dark .modal-surface--glass select:hover,
+.dark .modal-surface--glass .select-trigger:hover,
+.dark .glass-dialog input:not([type='checkbox']):not([type='radio']):hover,
+.dark .glass-dialog textarea:hover,
+.dark .glass-dialog select:hover,
+.dark .glass-dialog .select-trigger:hover,
+.dark .glass-card input:not([type='checkbox']):not([type='radio']):hover,
+.dark .glass-card textarea:hover,
+.dark .glass-card select:hover,
+.dark .glass-card .select-trigger:hover {
+  border-color: var(--border-strong) !important;
 }
 
-.glass-input:focus {
-  border-color: rgba(var(--accent-rgb), 0.4) !important;
-  box-shadow: 0 0 5px rgba(var(--accent-rgb), 0.12) !important;
+/* Focus States for Inputs inside Glass */
+.modal-surface--glass input:not([type='checkbox']):not([type='radio']):focus,
+.modal-surface--glass textarea:focus,
+.modal-surface--glass select:focus,
+.modal-surface--glass .select-trigger[data-state='open'],
+.glass-dialog input:not([type='checkbox']):not([type='radio']):focus,
+.glass-dialog textarea:focus,
+.glass-dialog select:focus,
+.glass-dialog .select-trigger[data-state='open'],
+.glass-card input:not([type='checkbox']):not([type='radio']):focus,
+.glass-card textarea:focus,
+.glass-card select:focus,
+.glass-card .select-trigger[data-state='open'] {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent) !important;
 }
 
-/* Premium Page Header Toolbar Glassmorphism style */
-.enterprise-toolbar {
-  background: rgba(255, 255, 255, 0.45) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+/* 3. Translucent Nested Cards/Lists inside Glass (Prevent Opaque Patches) */
+.modal-surface--glass .bg-slate-50,
+.modal-surface--glass .bg-slate-100,
+.modal-surface--glass .bg-slate-50\/50,
+.modal-surface--glass .bg-slate-100\/50,
+.modal-surface--glass .bg-white,
+.glass-dialog .bg-slate-50,
+.glass-dialog .bg-slate-100,
+.glass-dialog .bg-white,
+.glass-card .bg-slate-50,
+.glass-card .bg-slate-100,
+.glass-card .bg-white {
+  /* Light: white at ~40% — clearly lighter than glass surface (18%) but not opaque */
+  background-color: rgba(255, 255, 255, 0.42) !important;
+}
+.dark .modal-surface--glass .bg-slate-50,
+.dark .modal-surface--glass .bg-slate-100,
+.dark .modal-surface--glass .bg-white,
+.dark .glass-dialog .bg-slate-50,
+.dark .glass-dialog .bg-slate-100,
+.dark .glass-dialog .bg-white,
+.dark .glass-card .bg-slate-50,
+.dark .glass-card .bg-slate-100,
+.dark .glass-card .bg-white {
+  /* Dark: very faint white wash */
+  background-color: rgba(255, 255, 255, 0.05) !important;
 }
 
-.dark .enterprise-toolbar {
-  background: rgba(18, 22, 30, 0.55) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-}
-
-/* Premium default glass-card styles globally - Shared with all Element Plus dropdowns/popovers to guarantee 100% style alignment */
-.glass-card,
-html body .el-popper,
-html body .el-popper.is-light,
-html body .el-popper.is-dark,
-html body .el-popper.glass-popover,
-html body .el-popper.glass-card,
-html body .el-select__popper,
-html body .el-dropdown__popper,
-html body .el-cascader__dropdown,
-html body .el-popover {
-  background: rgba(255, 255, 255, 0.45) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  backdrop-filter: blur(16px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.5) !important;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04) !important;
-  border-radius: 20px !important;
-  transition:
-    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-    border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-    background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
-}
-
-.dark .glass-card,
-html.dark body .el-popper,
-html.dark body .el-popper.is-light,
-html.dark body .el-popper.is-dark,
-html.dark body .el-popper.glass-popover,
-html.dark body .el-popper.glass-card,
-html.dark body .el-select__popper,
-html.dark body .el-dropdown__popper,
-html.dark body .el-cascader__dropdown,
-html.dark body .el-popover {
-  background: rgba(28, 33, 41, 0.45) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25) !important;
-}
-
-/* Make el-dropdown-menu transparent so the outer popper's glass effect shows through.
-   This mirrors GlassDropdown.vue's internal .glass-dropdown-menu override and ensures
-   native el-dropdown popovers look identical in dev and prod builds (EP's default
-   menu background fails to resolve in prod, leaving only the 0.45 outer layer). */
-html.theme-glass .el-dropdown-menu {
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-/* AI Assistant Message Bubble Compaction Overrides */
-html body .ai-assistant-bubble,
-html body .ai-assistant-bubble *,
-html body .ai-user-bubble,
-html body .ai-user-bubble * {
-  font-size: 12px !important;
-}
-
-html body .ai-assistant-bubble .md-editor-preview,
-html body .ai-user-bubble .md-editor-preview {
-  line-height: 1.55 !important;
-}
-
-/* Table horizontal overflow scroll styling for AI assistant */
-html body .ai-assistant-bubble .md-editor-preview table,
-html body .ai-user-bubble .md-editor-preview table {
-  display: block !important;
-  width: 100% !important;
-  overflow-x: auto !important;
-  border-collapse: collapse !important;
-}
-
-/* AI Assistant Sidebar Subscription Button overrides */
-html body .subscription-btn {
-  background-color: #0f172a !important;
-  color: #ffffff !important;
-}
-
-html body .dark .subscription-btn {
-  background-color: #f5792a !important;
-  color: #ffffff !important;
-}
-
-html body .dark .subscription-btn:hover {
-  background-color: #e0661b !important;
-}
-
-/* Fast fade transition for poppers to avoid lag/stutter caused by backdrop-filter scaling */
-.fast-fade-enter-active,
-.fast-fade-leave-active {
-  transition: opacity 0.08s cubic-bezier(0, 0, 0.2, 1) !important;
-}
-.fast-fade-enter-from,
-.fast-fade-leave-to {
-  opacity: 0 !important;
-}
-
-/* Optimize default zoom-in transition for glass poppers to avoid scaling stutter with backdrop-filter */
-.el-popper.glass-card.el-zoom-in-top-enter-active,
-.el-popper.glass-card.el-zoom-in-top-leave-active {
-  transition: opacity 0.08s cubic-bezier(0, 0, 0.2, 1) !important;
-}
-.el-popper.glass-card.el-zoom-in-top-enter-from,
-.el-popper.glass-card.el-zoom-in-top-leave-to {
-  opacity: 0 !important;
-}
-
-/* GPU Hardware Acceleration for core Glassmorphism elements.
-   Intentionally limited to the three main structural elements to avoid
-   creating excessive GPU compositor layers (one per matched element).
-   Do NOT add wildcard selectors like div[class*='backdrop-blur-'] here —
-   that would create a compositor layer for every blurred element on the page. */
-.glass-card,
-.glass-sidebar,
-.glass-header {
+/* 4. Glass panel hardware acceleration */
+.glass-panel-extreme {
   will-change: transform;
   transform: translateZ(0);
-  backface-visibility: hidden;
 }
 
-/* ============================================================
-   Premium Glassmorphic Popper and Option Style Unification
-   ============================================================ */
-html.theme-glass .el-popper,
-html.theme-glass .el-select__popper,
-html.theme-glass .el-dropdown__popper {
-  border-radius: 16px !important;
-  overflow: hidden !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+/* Make content-surface background transparent in glass theme to let background canvas shine through */
+.theme-glass .content-surface {
+  background: transparent !important;
 }
 
-html.theme-glass.dark .el-popper,
-html.theme-glass.dark .el-select__popper,
-html.theme-glass.dark .el-dropdown__popper {
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.45) !important;
+/* Frosted glass effect for sidebar in glass theme */
+.theme-glass .glass-sidebar {
+  background-color: rgba(248, 250, 252, 0.22) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
 }
 
-/* Style select dropdown list container */
-html.theme-glass .el-select-dropdown__wrap {
-  padding: 4px !important;
+.theme-glass.dark .glass-sidebar {
+  background-color: rgba(7, 10, 19, 0.42) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
 }
 
-/* Style select options in glass mode */
-html.theme-glass .el-select-dropdown__item {
-  color: var(--text-secondary) !important;
-  font-size: 13px !important;
-  font-weight: 550 !important;
-  border-radius: 8px !important;
-  padding: 0 12px !important;
-  height: 34px !important;
-  line-height: 34px !important;
-  margin: 2px 4px !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+/* Frosted glass effect for header in glass theme */
+.theme-glass .glass-header {
+  background-color: rgba(248, 250, 252, 0.55) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow:
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.8),
+    0 4px 24px rgba(0, 0, 0, 0.1),
+    0 1px 6px rgba(0, 0, 0, 0.08) !important;
 }
 
-html.theme-glass .el-select-dropdown__item.hover,
-html.theme-glass .el-select-dropdown__item:hover {
-  background-color: var(--bg-hover) !important;
-  color: var(--text-primary) !important;
+.theme-glass.dark .glass-header {
+  background-color: rgba(11, 15, 25, 0.65) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+  box-shadow:
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.06),
+    0 4px 24px rgba(0, 0, 0, 0.38),
+    0 1px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
-html.theme-glass .el-select-dropdown__item.is-selected {
-  background-color: var(--bg-active) !important;
-  color: var(--accent) !important;
-  font-weight: 700 !important;
-}
-
-/* Style dropdown items in glass mode */
-html.theme-glass .el-dropdown-menu__item {
-  color: var(--text-secondary) !important;
-  font-size: 13px !important;
-  font-weight: 550 !important;
-  border-radius: 8px !important;
-  padding: 6px 12px !important;
-  margin: 2px 4px !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-}
-
-html.theme-glass .el-dropdown-menu__item:hover,
-html.theme-glass .el-dropdown-menu__item:focus {
-  background-color: var(--bg-hover) !important;
-  color: var(--text-primary) !important;
-}
-
-html.theme-glass .el-dropdown-menu__item.is-disabled {
-  opacity: 0.4 !important;
+/* Ensure the page-level root component container is transparent to show the layout canvas background */
+html.theme-glass .content-surface > div,
+html.theme-glass .content-surface > main {
   background-color: transparent !important;
+  background: transparent !important;
+}
+
+/* 1. Translucent variable overrides for light & dark glass modes (increased opacity for better legibility) */
+html.theme-glass {
+  --bg-app: transparent !important;
+  --bg-card: rgba(255, 255, 255, 0.68) !important;
+  --bg-elevated: rgba(255, 255, 255, 0.78) !important;
+  --bg-sidebar: rgba(248, 250, 252, 0.35) !important;
+  --surface-solid: rgba(255, 255, 255, 0.68) !important;
+  --surface-solid-secondary: rgba(245, 247, 250, 0.55) !important;
+  --surface-overlay: rgba(255, 255, 255, 0.78) !important;
+  --surface-glass: rgba(255, 255, 255, 0.68) !important;
+  --border-base: rgba(0, 0, 0, 0.12) !important;
+  --border-card: rgba(0, 0, 0, 0.1) !important;
+  --card-border-rest: rgba(0, 0, 0, 0.1) !important;
+  --border-strong: rgba(0, 0, 0, 0.16) !important;
+}
+
+html.theme-glass.dark {
+  --bg-app: transparent !important;
+  --bg-card: rgba(20, 26, 38, 0.68) !important;
+  --bg-elevated: rgba(28, 36, 50, 0.78) !important;
+  --bg-sidebar: rgba(7, 10, 19, 0.55) !important;
+  --surface-solid: rgba(20, 26, 38, 0.68) !important;
+  --surface-solid-secondary: rgba(14, 18, 24, 0.55) !important;
+  --surface-overlay: rgba(28, 36, 50, 0.78) !important;
+  --surface-glass: rgba(20, 26, 38, 0.68) !important;
+  --border-base: rgba(255, 255, 255, 0.1) !important;
+  --border-card: rgba(255, 255, 255, 0.08) !important;
+  --card-border-rest: rgba(255, 255, 255, 0.08) !important;
+  --border-strong: rgba(255, 255, 255, 0.14) !important;
+}
+
+/* 2. Global backdrop-filter, border, and caustic shadow overrides for glass elements */
+html.theme-glass .bg-card,
+html.theme-glass .bg-elevated,
+html.theme-glass .surface-solid,
+html.theme-glass .modal-surface--solid,
+html.theme-glass .settings-overview,
+html.theme-glass .settings-card,
+html.theme-glass .settings-actions-footer,
+html.theme-glass .stat-card,
+html.theme-glass .unified-card,
+html.theme-glass .task-board-column,
+html.theme-glass .glass-panel,
+html.theme-glass .glass-card,
+html.theme-glass .el-dialog,
+html.theme-glass .el-drawer,
+html.theme-glass .el-message-box,
+html.theme-glass .mobile-sidebar-drawer,
+html.theme-glass .task-card,
+html.theme-glass .discussion-card,
+html.theme-glass .course-card,
+html.theme-glass .team-card,
+html.theme-glass .roadmap-card,
+html.theme-glass .card,
+html.theme-glass .glass-real-physical {
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  border: 1px solid var(--glass-border-color) !important;
+}
+
+/* Light mode: soft white/light layered drop shadow, minimal and clean */
+html.theme-glass .bg-card,
+html.theme-glass .bg-elevated,
+html.theme-glass .surface-solid,
+html.theme-glass .modal-surface--solid,
+html.theme-glass .settings-overview,
+html.theme-glass .settings-card,
+html.theme-glass .settings-actions-footer,
+html.theme-glass .stat-card,
+html.theme-glass .unified-card,
+html.theme-glass .task-board-column,
+html.theme-glass .glass-panel,
+html.theme-glass .glass-card,
+html.theme-glass .el-dialog,
+html.theme-glass .el-drawer,
+html.theme-glass .el-message-box,
+html.theme-glass .mobile-sidebar-drawer,
+html.theme-glass .task-card,
+html.theme-glass .discussion-card,
+html.theme-glass .course-card,
+html.theme-glass .team-card,
+html.theme-glass .roadmap-card,
+html.theme-glass .card,
+html.theme-glass .glass-real-physical {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
+    0 2px 8px rgba(255, 255, 255, 0.18),
+    0 8px 24px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Dark mode: soft white top sheen + gentle ambient lift */
+html.theme-glass.dark .bg-card,
+html.theme-glass.dark .bg-elevated,
+html.theme-glass.dark .surface-solid,
+html.theme-glass.dark .modal-surface--solid,
+html.theme-glass.dark .settings-overview,
+html.theme-glass.dark .settings-card,
+html.theme-glass.dark .settings-actions-footer,
+html.theme-glass.dark .stat-card,
+html.theme-glass.dark .unified-card,
+html.theme-glass.dark .task-board-column,
+html.theme-glass.dark .glass-panel,
+html.theme-glass.dark .glass-card,
+html.theme-glass.dark .el-dialog,
+html.theme-glass.dark .el-drawer,
+html.theme-glass.dark .el-message-box,
+html.theme-glass.dark .mobile-sidebar-drawer,
+html.theme-glass.dark .task-card,
+html.theme-glass.dark .discussion-card,
+html.theme-glass.dark .course-card,
+html.theme-glass.dark .team-card,
+html.theme-glass.dark .roadmap-card,
+html.theme-glass.dark .card,
+html.theme-glass.dark .glass-real-physical {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
+    0 2px 8px rgba(255, 255, 255, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.28) !important;
+}
+
+/* Collaboration Space (chat view) glass theme overrides */
+html.theme-glass .content-surface .mobile-adaptive {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+/* Chat input bar bottom wrapper (Applies to both MessagesView ChatInputArea and CollaborationSpace) */
+html.theme-glass .chat-input-wrapper {
+  background-color: var(--bg-card) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  box-shadow: var(--glass-border), var(--glass-shadow) !important;
+  border-top: 1px solid var(--glass-border-color) !important;
+}
+
+/* Other users' message bubbles */
+html.theme-glass .content-surface .mobile-adaptive .rounded-tl-sm {
+  background-color: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  border: 1px solid var(--glass-border-color) !important;
+}
+
+html.theme-glass.dark .content-surface .mobile-adaptive .rounded-tl-sm {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Element Plus DatePicker panel — glass override
+   Applies the SAME glass-popover tokens to all el-picker panels
+   so they are visually identical to every other glass popover.
+   ══════════════════════════════════════════════════════════════ */
+.el-picker-panel,
+.el-date-range-picker {
+  background: var(--glass-modal-surface) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  box-shadow: var(--glass-border), var(--glass-shadow) !important;
+  border-radius: var(--radius-xl) !important;
+  border: 1px solid var(--glass-border-color) !important;
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  color: var(--text-primary) !important;
+}
+
+/* Specular highlight — identical to glass-popover::before */
+.el-picker-panel::before,
+.el-date-range-picker::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: var(--glass-specular);
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: 0.85;
+}
+
+/* Panel interior: make all bg areas transparent to let glass show through */
+.el-picker-panel__body,
+.el-date-range-picker__content,
+.el-date-picker__header,
+.el-date-range-picker__header {
+  background: transparent !important;
+}
+
+/* Footer bar */
+.el-picker-panel__footer {
+  background: transparent !important;
+  border-top: 1px solid var(--glass-border-color) !important;
+}
+
+/* Month/Year navigation header text */
+.el-date-picker__header-label,
+.el-date-range-picker__header span {
+  color: var(--text-primary) !important;
+}
+
+/* Navigation arrow buttons */
+.el-picker-panel button.el-picker-panel__icon-btn,
+.el-date-range-picker .el-picker-panel__icon-btn {
+  color: var(--text-secondary) !important;
+}
+.el-picker-panel button.el-picker-panel__icon-btn:hover,
+.el-date-range-picker .el-picker-panel__icon-btn:hover {
+  color: var(--text-primary) !important;
+}
+
+/* Day-of-week header row */
+.el-date-table th {
+  color: var(--text-muted, var(--text-secondary)) !important;
+  border-bottom: 1px solid var(--glass-border-color) !important;
+  background: transparent !important;
+}
+
+/* Individual date cells */
+.el-date-table td .el-date-table-cell__text {
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-control, 8px);
+}
+.el-date-table td.disabled .el-date-table-cell__text {
+  color: var(--text-muted, rgba(120, 120, 120, 0.5)) !important;
+  background: transparent !important;
+}
+.el-date-table td:hover .el-date-table-cell__text {
+  background: var(--bg-hover) !important;
+}
+.el-date-table td.today .el-date-table-cell__text {
+  color: var(--accent) !important;
+  font-weight: 700;
+}
+.el-date-table td.current:not(.disabled) .el-date-table-cell__text,
+.el-date-table td.start-date .el-date-table-cell__text,
+.el-date-table td.end-date .el-date-table-cell__text {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-radius: var(--radius-control, 8px);
+}
+
+/* In-range highlight */
+.el-date-table td.in-range .el-date-table-cell {
+  background: color-mix(in srgb, var(--accent) 12%, transparent) !important;
+}
+
+/* Footer buttons */
+.el-picker-panel__link-btn {
+  color: var(--accent) !important;
+}
+.el-picker-panel__link-btn:hover {
+  color: var(--accent) !important;
+  opacity: 0.8;
 }

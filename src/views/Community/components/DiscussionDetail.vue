@@ -2,7 +2,7 @@
 import { ref, watch, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Eye, Heart, MessageCircle } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api, { getAssetUrl } from '@/utils/api';
 import type { Discussion, DiscussionComment } from '../DiscussionsView.vue';
 import Modal from '@/components/ui/Modal.vue';
@@ -215,7 +215,7 @@ const deleteComment = async (comment: DiscussionComment, parentComment?: Discuss
 </script>
 
 <template>
-  <Modal :show="true" size="xxl" glass-card padding="none" @close="emit('close')">
+  <Modal :show="true" size="xxl" padding="none" @close="emit('close')">
     <section class="detail-modal mobile-adaptive">
       <DiscussionDetailHeader
         :discussion="localDiscussion"
@@ -337,7 +337,7 @@ const deleteComment = async (comment: DiscussionComment, parentComment?: Discuss
 
 @media (max-width: 767px) {
   .detail-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
 }
 
@@ -454,11 +454,11 @@ const deleteComment = async (comment: DiscussionComment, parentComment?: Discuss
 
 .discussion-preview {
   color: var(--text-primary);
-  background: transparent !important;
-  border: none !important;
-  border-radius: 0 !important;
-  padding: 0 !important;
-  box-shadow: none !important;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
   line-height: 1.6;
   font-size: 13.5px;
   margin-bottom: 14px;
@@ -467,9 +467,9 @@ const deleteComment = async (comment: DiscussionComment, parentComment?: Discuss
 .discussion-preview :deep(.md-editor),
 .discussion-preview :deep(.md-editor-preview-wrapper),
 .discussion-preview :deep(.md-editor-preview) {
-  background: transparent !important;
-  padding: 0 !important;
-  border: none !important;
+  background: transparent;
+  padding: 0;
+  border: none;
 }
 
 .detail-images {

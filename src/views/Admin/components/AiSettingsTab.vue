@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, reactive, watch, computed, onMounted } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import {

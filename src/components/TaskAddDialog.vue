@@ -119,7 +119,7 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <Modal :show="modelValue" title="新建学习任务" size="xl" glass-card @close="handleClose">
+  <Modal :show="modelValue" title="新建学习任务" size="xl" @close="handleClose">
     <div class="space-y-4">
       <div>
         <label
@@ -166,14 +166,14 @@ const handleSubmit = () => {
           >
             优先级
           </label>
-          <el-select v-model="localNewTask.priority" class="!w-full custom-select">
-            <el-option v-for="p in priorityOptions" :key="p.id" :label="p.label" :value="p.id">
+          <Select v-model="localNewTask.priority" class="!w-full custom-select">
+            <SelectOption v-for="p in priorityOptions" :key="p.id" :label="p.label" :value="p.id">
               <div class="flex items-center gap-2">
                 <div class="w-2 h-2 rounded-full" :class="p.color"></div>
                 <span class="text-xs sm:text-sm">{{ p.label }}</span>
               </div>
-            </el-option>
-          </el-select>
+            </SelectOption>
+          </Select>
         </div>
         <div>
           <label
@@ -181,7 +181,7 @@ const handleSubmit = () => {
           >
             截止日期
           </label>
-          <el-date-picker
+          <DatePicker
             v-model="localNewTask.dueDate"
             type="date"
             placeholder="日期"
@@ -195,14 +195,14 @@ const handleSubmit = () => {
           >
             关联项目
           </label>
-          <el-select
+          <Select
             v-model="localNewTask.projectId"
             clearable
             placeholder="项目"
             class="!w-full custom-select"
           >
-            <el-option v-for="p in projects" :key="p.id" :label="p.title" :value="p.id" />
-          </el-select>
+            <SelectOption v-for="p in projects" :key="p.id" :label="p.title" :value="p.id" />
+          </Select>
         </div>
       </div>
 
@@ -213,7 +213,7 @@ const handleSubmit = () => {
           >
             负责人
           </label>
-          <el-select
+          <Select
             v-model="localNewTask.participantIds"
             multiple
             collapse-tags
@@ -221,7 +221,7 @@ const handleSubmit = () => {
             placeholder="选择负责人"
             class="!w-full custom-select"
           >
-            <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
+            <SelectOption v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
               <div class="flex items-center gap-2">
                 <img
                   v-if="m.avatarUrl"
@@ -231,8 +231,8 @@ const handleSubmit = () => {
                 />
                 <span>{{ m.name }}</span>
               </div>
-            </el-option>
-          </el-select>
+            </SelectOption>
+          </Select>
         </div>
 
         <!-- Tags -->

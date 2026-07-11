@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import { generateTOTP } from '@/utils/totp';
@@ -781,7 +781,7 @@ async function handleImportFile(event: Event) {
 
 .gw-page {
   min-height: 100vh;
-  background: transparent !important;
+  background: transparent;
   color: var(--text-primary);
   padding: 12px 16px;
 }
@@ -1164,17 +1164,17 @@ async function handleImportFile(event: Event) {
   --el-table-border-color: var(--border-base);
   --el-table-header-bg-color: var(--bg-app);
   --el-table-row-hover-bg-color: var(--bg-hover);
-  background-color: transparent !important;
+  background-color: transparent;
 }
 .custom-el-table tr {
-  background-color: var(--bg-card) !important;
+  background-color: var(--bg-card);
 }
 .custom-el-table th {
-  color: var(--text-secondary) !important;
-  font-weight: 650 !important;
-  border-bottom: 1px solid var(--border-base) !important;
+  color: var(--text-secondary);
+  font-weight: 650;
+  border-bottom: 1px solid var(--border-base);
 }
 .custom-el-table td {
-  border-bottom: 1px solid var(--border-base) !important;
+  border-bottom: 1px solid var(--border-base);
 }
 </style>

@@ -139,7 +139,7 @@ const riskClass = (user: AdminUser) => ({
 </script>
 
 <template>
-  <Modal :show="modelValue" size="xl" glass-card @close="emit('update:modelValue', false)">
+  <Modal :show="modelValue" size="xl" @close="emit('update:modelValue', false)">
     <template #header>
       <div v-if="user" class="drawer-hero text-left">
         <UserAvatar :user="user" size="xl" />

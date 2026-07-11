@@ -35,7 +35,7 @@ export interface CloudflareDnsRecord {
   proxied: boolean;
   ttl: number;
   priority?: number;
-  data?: any;
+  data?: Record<string, unknown>;
   createdOn: string;
   modifiedOn: string;
 }
@@ -255,7 +255,7 @@ class CloudflareAdminService {
           proxied: Boolean(record.proxied),
           ttl: Number(record.ttl || 1),
           priority: record.priority !== undefined ? Number(record.priority) : undefined,
-          data: record.data,
+          data: record.data as Record<string, unknown> | undefined,
           createdOn: String(record.created_on || ''),
           modifiedOn: String(record.modified_on || ''),
         });
@@ -266,7 +266,7 @@ class CloudflareAdminService {
     return records;
   }
 
-  async createDnsRecord(zoneId: string, payload: any) {
+  async createDnsRecord(zoneId: string, payload: Record<string, unknown>) {
     const apiToken = await this.requireToken();
     return cloudflareRequest(apiToken, `/zones/${zoneId}/dns_records`, {
       method: 'POST',
@@ -274,7 +274,7 @@ class CloudflareAdminService {
     });
   }
 
-  async updateDnsRecord(zoneId: string, recordId: string, payload: any) {
+  async updateDnsRecord(zoneId: string, recordId: string, payload: Record<string, unknown>) {
     const apiToken = await this.requireToken();
     return cloudflareRequest(apiToken, `/zones/${zoneId}/dns_records/${recordId}`, {
       method: 'PATCH',

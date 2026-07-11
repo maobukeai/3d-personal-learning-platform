@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref } from 'vue';
 import { Palette, Image, Upload, RefreshCw, Sparkles } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api, { getAssetUrl } from '@/utils/api';
 import { logError } from '@/utils/error';
 import { useSettingsSync } from '@/composables/useSettingsSync';

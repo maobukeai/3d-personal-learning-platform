@@ -192,14 +192,14 @@ const statusDotClass = computed(() => {
           <span>导入</span>
         </button>
 
-        <el-button
-          type="primary"
+        <Button
+          variant="primary"
           class="bg-indigo-600 hover:bg-indigo-500 border-none font-semibold px-2.5 py-1 rounded-lg transition-all flex items-center gap-0.5 cursor-pointer text-[11px]"
           @click="emit('add')"
         >
           <Plus class="h-3.5 w-3.5" />
           <span>添加</span>
-        </el-button>
+        </Button>
       </div>
     </div>
   </div>

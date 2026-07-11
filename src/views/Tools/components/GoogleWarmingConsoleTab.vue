@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Modal from '@/components/ui/Modal.vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import {
   Calendar,
   Check,
@@ -850,13 +850,10 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
           <label class="block text-xs font-semibold mb-1" style="color: var(--text-primary)">
             生成语言
           </label>
-          <select
-            v-model="appealLanguage"
-            class="gw-input w-full !py-1.5 !px-3 !text-xs bg-slate-50 dark:bg-slate-900"
-          >
-            <option value="zh">中文 (适合中文申诉)</option>
-            <option value="en">英文 (适合境外账号或英文申诉)</option>
-          </select>
+          <Select v-model="appealLanguage" class="w-full" size="large">
+            <SelectOption value="zh" label="中文 (适合中文申诉)" />
+            <SelectOption value="en" label="英文 (适合境外账号或英文申诉)" />
+          </Select>
         </div>
       </div>
 
@@ -867,29 +864,29 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
         <div
           class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 bg-slate-50/50 dark:bg-slate-900/40 p-3 rounded-xl border border-slate-200/50 dark:border-slate-800/50"
         >
-          <el-checkbox v-model="appealReasons.liveHere" size="small"
-            >我住在这里 (I live here)</el-checkbox
+          <Checkbox v-model="appealReasons.liveHere" size="small"
+            >我住在这里 (I live here)</Checkbox
           >
-          <el-checkbox v-model="appealReasons.movedHere" size="small"
-            >我在过去一年内搬到了这里</el-checkbox
+          <Checkbox v-model="appealReasons.movedHere" size="small"
+            >我在过去一年内搬到了这里</Checkbox
           >
-          <el-checkbox v-model="appealReasons.nearBorder" size="small"
-            >我工作/居住地在领土边界附近</el-checkbox
+          <Checkbox v-model="appealReasons.nearBorder" size="small"
+            >我工作/居住地在领土边界附近</Checkbox
           >
-          <el-checkbox v-model="appealReasons.differentRegions" size="small"
-            >工作地/学习地和居住地分属不同地区</el-checkbox
+          <Checkbox v-model="appealReasons.differentRegions" size="small"
+            >工作地/学习地和居住地分属不同地区</Checkbox
           >
-          <el-checkbox v-model="appealReasons.frequentTravel" size="small"
-            >我经常往返于该地区进行旅行/出差</el-checkbox
+          <Checkbox v-model="appealReasons.frequentTravel" size="small"
+            >我经常往返于该地区进行旅行/出差</Checkbox
           >
-          <el-checkbox v-model="appealReasons.paymentMethod" size="small"
-            >我的主要支付方式/账单地址属于该地区</el-checkbox
+          <Checkbox v-model="appealReasons.paymentMethod" size="small"
+            >我的主要支付方式/账单地址属于该地区</Checkbox
           >
-          <el-checkbox v-model="appealReasons.familyReside" size="small"
-            >我的家庭成员/配偶居住在该地区</el-checkbox
+          <Checkbox v-model="appealReasons.familyReside" size="small"
+            >我的家庭成员/配偶居住在该地区</Checkbox
           >
-          <el-checkbox v-model="appealReasons.relocating" size="small"
-            >我计划长期搬迁至该地区并已租房/买房</el-checkbox
+          <Checkbox v-model="appealReasons.relocating" size="small"
+            >我计划长期搬迁至该地区并已租房/买房</Checkbox
           >
         </div>
       </div>

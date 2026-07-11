@@ -1,8 +1,16 @@
-import { Response } from 'express';
-import { AuthRequest } from '../../middlewares/auth.middleware';
+import type { FastifyRequest, FastifyReply } from 'fastify';
+import { Prisma } from '@prisma/client';
 import prisma from '../../services/prisma';
 import { clampLimit, clampPage } from '../../utils/pagination';
 import { config } from '../../config/env';
+import { UploadedFile } from '../../types/upload';
+
+type ManualRequest = FastifyRequest & {
+  body: any;
+  query: any;
+  params: any;
+  file?: any;
+};
 
 // Helper to check user plan priority vs station priority
 const getUserPlanPriority = async (userId: string): Promise<number> => {
@@ -19,7 +27,7 @@ const getUserPlanPriority = async (userId: string): Promise<number> => {
   return user.subscription.plan?.priority || 0;
 };
 
-const checkStationAccess = async (stationId: string, req: AuthRequest) => {
+const checkStationAccess = async (stationId: string, userId?: string) => {
   const station = await prisma.manualStation.findUnique({
     where: { id: stationId },
     select: { minPlanPriority: true },
@@ -31,8 +39,8 @@ const checkStationAccess = async (stationId: string, req: AuthRequest) => {
 
   if (station.minPlanPriority > 0) {
     let userPlanPriority = 0;
-    if (req.userId) {
-      userPlanPriority = await getUserPlanPriority(req.userId);
+    if (userId) {
+      userPlanPriority = await getUserPlanPriority(userId);
     }
     if (userPlanPriority < station.minPlanPriority) {
       return {
@@ -52,7 +60,7 @@ const checkStationAccess = async (stationId: string, req: AuthRequest) => {
 // USER FACING CONTROLLERS
 // -------------------------------------------------------------
 
-export const getStations = async (req: AuthRequest, res: Response) => {
+export const getStations = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const userId = req.userId;
     const stations = await prisma.manualStation.findMany({
@@ -69,13 +77,13 @@ export const getStations = async (req: AuthRequest, res: Response) => {
       hasAccess: userPlanPriority >= s.minPlanPriority,
     }));
 
-    res.json(result);
+    reply.send(result);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const getStation = async (req: AuthRequest, res: Response) => {
+export const getStation = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const station = await prisma.manualStation.findUnique({
@@ -83,7 +91,7 @@ export const getStation = async (req: AuthRequest, res: Response) => {
     });
 
     if (!station) {
-      return res.status(404).json({ error: '站点不存在' });
+      return reply.status(404).send({ error: '站点不存在' });
     }
 
     let userPlanPriority = 0;
@@ -91,39 +99,39 @@ export const getStation = async (req: AuthRequest, res: Response) => {
       userPlanPriority = await getUserPlanPriority(req.userId);
     }
 
-    res.json({
+    reply.send({
       ...station,
       hasAccess: userPlanPriority >= station.minPlanPriority,
     });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const getCategories = async (req: AuthRequest, res: Response) => {
+export const getCategories = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const stationId = req.params.stationId as string;
     const stationExists = await prisma.manualStation.findUnique({ where: { id: stationId } });
     if (!stationExists) {
-      return res.status(404).json({ error: '站点不存在' });
+      return reply.status(404).send({ error: '站点不存在' });
     }
 
     const categories = await prisma.manualCategory.findMany({
       where: { stationId },
       orderBy: { order: 'asc' },
     });
-    res.json(categories);
+    reply.send(categories);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const getResources = async (req: AuthRequest, res: Response) => {
+export const getResources = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const stationId = req.params.stationId as string;
     const stationExists = await prisma.manualStation.findUnique({ where: { id: stationId } });
     if (!stationExists) {
-      return res.status(404).json({ error: '站点不存在' });
+      return reply.status(404).send({ error: '站点不存在' });
     }
 
     const page = clampPage(req.query.page);
@@ -132,7 +140,7 @@ export const getResources = async (req: AuthRequest, res: Response) => {
     const search = (req.query.search as string) || undefined;
     const sort = (req.query.sort as string) || undefined;
 
-    const where: any = { stationId };
+    const where: Prisma.ManualResourceWhereInput = { stationId };
     if (categoryId) {
       const childCategories = await prisma.manualCategory.findMany({
         where: { parentId: categoryId },
@@ -145,7 +153,7 @@ export const getResources = async (req: AuthRequest, res: Response) => {
       where.OR = [{ title: { contains: search } }, { description: { contains: search } }];
     }
 
-    let orderBy: any = { createdAt: 'desc' };
+    let orderBy: Prisma.ManualResourceOrderByWithRelationInput = { createdAt: 'desc' };
     if (sort === 'oldest') {
       orderBy = { createdAt: 'asc' };
     } else if (sort === 'views') {
@@ -167,7 +175,7 @@ export const getResources = async (req: AuthRequest, res: Response) => {
       prisma.manualResource.count({ where }),
     ]);
 
-    res.json({
+    reply.send({
       resources,
       total,
       page,
@@ -175,11 +183,11 @@ export const getResources = async (req: AuthRequest, res: Response) => {
       totalPages: Math.ceil(total / pageSize),
     });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const getResource = async (req: AuthRequest, res: Response) => {
+export const getResource = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
 
@@ -198,12 +206,12 @@ export const getResource = async (req: AuthRequest, res: Response) => {
     });
 
     if (!resource) {
-      return res.status(404).json({ error: '资源不存在' });
+      return reply.status(404).send({ error: '资源不存在' });
     }
 
-    const access = await checkStationAccess(resource.stationId, req);
+    const access = await checkStationAccess(resource.stationId, req.userId);
     if (!access.hasAccess && access.error === '站点不存在') {
-      return res.status(404).json({ error: '站点不存在' });
+      return reply.status(404).send({ error: '站点不存在' });
     }
 
     // Host url mapping for local media files
@@ -256,7 +264,7 @@ export const getResource = async (req: AuthRequest, res: Response) => {
 
     const hasLiked = req.userId ? resource.likes.some((l) => l.userId === req.userId) : false;
 
-    res.json({
+    reply.send({
       id: resource.id,
       stationId: resource.stationId,
       categoryId: resource.categoryId,
@@ -277,11 +285,11 @@ export const getResource = async (req: AuthRequest, res: Response) => {
       minPlanPriority: access.requiredPlan,
     });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const extractDownloadLink = async (req: AuthRequest, res: Response) => {
+export const extractDownloadLink = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const resource = await prisma.manualResource.findUnique({
@@ -290,37 +298,37 @@ export const extractDownloadLink = async (req: AuthRequest, res: Response) => {
     });
 
     if (!resource) {
-      return res.status(404).json({ error: '资源不存在' });
+      return reply.status(404).send({ error: '资源不存在' });
     }
 
-    const access = await checkStationAccess(resource.stationId, req);
+    const access = await checkStationAccess(resource.stationId, req.userId);
     if (!access.hasAccess) {
       if (access.error === '站点不存在') {
-        return res.status(404).json({ error: '站点不存在' });
+        return reply.status(404).send({ error: '站点不存在' });
       }
-      return res.status(403).json({
+      return reply.status(403).send({
         error: '权限不足',
         message: '您的会员权限不足，无法提取此资源链接',
       });
     }
 
     if (!resource.contentUrl) {
-      return res.status(404).json({ error: '此资源未配置下载链接' });
+      return reply.status(404).send({ error: '此资源未配置下载链接' });
     }
 
-    res.json({ downloadUrl: resource.contentUrl });
+    reply.send({ downloadUrl: resource.contentUrl });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const createComment = async (req: AuthRequest, res: Response) => {
+export const createComment = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const resourceId = req.params.id as string;
     const { content } = req.body;
 
     if (!content || content.trim() === '') {
-      return res.status(400).json({ error: '评论内容不能为空' });
+      return reply.status(400).send({ error: '评论内容不能为空' });
     }
 
     const resource = await prisma.manualResource.findUnique({
@@ -328,7 +336,7 @@ export const createComment = async (req: AuthRequest, res: Response) => {
     });
 
     if (!resource) {
-      return res.status(404).json({ error: '资源不存在' });
+      return reply.status(404).send({ error: '资源不存在' });
     }
 
     const comment = await prisma.manualResourceComment.create({
@@ -342,13 +350,13 @@ export const createComment = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    res.status(201).json(comment);
+    reply.status(201).send(comment);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const toggleLike = async (req: AuthRequest, res: Response) => {
+export const toggleLike = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const resourceId = req.params.id as string;
     const userId = req.userId!;
@@ -363,15 +371,15 @@ export const toggleLike = async (req: AuthRequest, res: Response) => {
       await prisma.manualResourceLike.delete({
         where: { id: existingLike.id },
       });
-      return res.json({ liked: false });
+      return reply.send({ liked: false });
     } else {
       await prisma.manualResourceLike.create({
         data: { resourceId, userId },
       });
-      return res.json({ liked: true });
+      return reply.send({ liked: true });
     }
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -379,17 +387,17 @@ export const toggleLike = async (req: AuthRequest, res: Response) => {
 // ADMIN CRUD CONTROLLERS
 // -------------------------------------------------------------
 
-export const createStation = async (req: AuthRequest, res: Response) => {
+export const createStation = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const { name, displayName, minPlanPriority, description, iconUrl } = req.body;
 
     if (!name || !displayName) {
-      return res.status(400).json({ error: '标识与名称为必填项' });
+      return reply.status(400).send({ error: '标识与名称为必填项' });
     }
 
     const exists = await prisma.manualStation.findUnique({ where: { name } });
     if (exists) {
-      return res.status(400).json({ error: '此站点英文标识已被占用' });
+      return reply.status(400).send({ error: '此站点英文标识已被占用' });
     }
 
     const station = await prisma.manualStation.create({
@@ -402,19 +410,19 @@ export const createStation = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    res.status(201).json(station);
+    reply.status(201).send(station);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const updateStation = async (req: AuthRequest, res: Response) => {
+export const updateStation = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const { name, displayName, minPlanPriority, description, iconUrl, status } = req.body;
 
     if (!displayName) {
-      return res.status(400).json({ error: '显示名称为必填项' });
+      return reply.status(400).send({ error: '显示名称为必填项' });
     }
 
     const station = await prisma.manualStation.update({
@@ -429,29 +437,29 @@ export const updateStation = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    res.json(station);
+    reply.send(station);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const deleteStation = async (req: AuthRequest, res: Response) => {
+export const deleteStation = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     await prisma.manualStation.delete({ where: { id } });
-    res.json({ message: '站点删除成功' });
+    reply.send({ message: '站点删除成功' });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const createCategory = async (req: AuthRequest, res: Response) => {
+export const createCategory = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const stationId = req.params.stationId as string;
     const { name, slug, order, parentId, childIds } = req.body;
 
     if (!name) {
-      return res.status(400).json({ error: '分类名称为必填项' });
+      return reply.status(400).send({ error: '分类名称为必填项' });
     }
 
     const category = await prisma.manualCategory.create({
@@ -476,13 +484,13 @@ export const createCategory = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    res.status(201).json(category);
+    reply.status(201).send(category);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const updateCategory = async (req: AuthRequest, res: Response) => {
+export const updateCategory = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const catId = req.params.catId as string;
     const { name, slug, order, parentId, childIds } = req.body;
@@ -521,13 +529,13 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    res.json(category);
+    reply.send(category);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const deleteCategory = async (req: AuthRequest, res: Response) => {
+export const deleteCategory = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const catId = req.params.catId as string;
 
@@ -538,13 +546,13 @@ export const deleteCategory = async (req: AuthRequest, res: Response) => {
     });
 
     await prisma.manualCategory.delete({ where: { id: catId } });
-    res.json({ message: '分类删除成功' });
+    reply.send({ message: '分类删除成功' });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const createResource = async (req: AuthRequest, res: Response) => {
+export const createResource = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const stationId = req.params.stationId as string;
     const {
@@ -559,7 +567,7 @@ export const createResource = async (req: AuthRequest, res: Response) => {
     } = req.body;
 
     if (!title) {
-      return res.status(400).json({ error: '资源标题为必填项' });
+      return reply.status(400).send({ error: '资源标题为必填项' });
     }
 
     const resource = await prisma.manualResource.create({
@@ -583,13 +591,13 @@ export const createResource = async (req: AuthRequest, res: Response) => {
       data: { totalResources: total },
     });
 
-    res.status(201).json(resource);
+    reply.status(201).send(resource);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const updateResource = async (req: AuthRequest, res: Response) => {
+export const updateResource = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const resId = req.params.resId as string;
     const {
@@ -617,13 +625,13 @@ export const updateResource = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    res.json(resource);
+    reply.send(resource);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const deleteResource = async (req: AuthRequest, res: Response) => {
+export const deleteResource = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     const resId = req.params.resId as string;
 
@@ -643,20 +651,23 @@ export const deleteResource = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    res.json({ message: '资源删除成功' });
+    reply.send({ message: '资源删除成功' });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
-export const uploadImage = async (req: AuthRequest, res: Response) => {
+export const uploadImage = async (req: ManualRequest, reply: FastifyReply) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: '请选择要上传的图片文件' });
+      return reply.status(400).send({ error: '请选择要上传的图片文件' });
     }
-    const relativePath = `/uploads/manual/${req.file.filename}`;
-    res.json({ url: relativePath });
+    const relativePath = (req.file as unknown as UploadedFile).url;
+    if (!relativePath) {
+      return reply.status(400).send({ error: '文件上传失败，未获取到云存储地址' });
+    }
+    reply.send({ url: relativePath });
   } catch (_error) {
-    res.status(500).json({ error: '图片上传失败' });
+    reply.status(500).send({ error: '图片上传失败' });
   }
 };

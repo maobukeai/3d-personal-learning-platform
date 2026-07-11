@@ -1,36 +1,23 @@
+/**
+ * Fastify API 主进程入口。
+ *
+ * 注意（铁律六·2）：BullMQ Worker、DB 轮询 JobWorker handler、mirror 同步调度器、
+ * 清理任务、私信邮件调度器等后台逻辑已全部移至 `worker.entry.ts` 独立进程运行。
+ * 本文件只负责 Fastify HTTP server + Socket.io。
+ */
 import { logger } from './utils/logger';
-import http from 'http';
-import app from './app';
-import { config } from './config/env';
-import { initSocket } from './services/socket.service';
-import { syncEngine } from './mirror/services/sync-engine.service';
 import { runManualStationMigration } from './manual/services/migration.service';
-import {
-  startCleanupJob,
-  stopCleanupJob,
-  startMessageCleanupJob,
-  stopMessageCleanupJob,
-} from './services/cleanup.service';
 import { settingsService } from './services/settings.service';
-import {
-  startDirectMessageEmailScheduler,
-  stopDirectMessageEmailScheduler,
-} from './services/direct-message-email.service';
 import { stopAiCleanupTimer } from './services/ai.service';
 import './services/redis.service';
 import prisma from './services/prisma';
 import { storageService, decryptSecretIfNeeded } from './services/storage.service';
+import { startFastify, fapp } from './fastify/app';
+import { initSocket } from './services/socket.service';
 
-const port = config.PORT;
-
-const server = http.createServer(app);
+const server = fapp.server;
 
 initSocket(server);
-
-syncEngine.startScheduler();
-startCleanupJob(); // Clean up expired data hourly
-startMessageCleanupJob(); // Clean up message uploads every 3 days
-startDirectMessageEmailScheduler();
 
 // Configure CORS for all active buckets on startup to prevent cross-origin issues
 const initActiveBucketsCors = async () => {
@@ -74,33 +61,32 @@ runManualStationMigration().catch((err) => {
   logger.error('[Startup] Migration error:', err);
 });
 
-server.listen(port, () => {
-  logger.info(`Server is running at http://localhost:${port}`);
-  logger.info(`Environment: ${config.NODE_ENV}`);
-});
+// Start Fastify server (Fastify will listen on PORT, default 3001)
+startFastify()
+  .then(() => {
+    logger.info('[Startup] Fastify server started successfully.');
+    if (typeof process.send === 'function') {
+      process.send('ready');
+      logger.info('[Startup] Sent ready signal to PM2.');
+    }
+  })
+  .catch((err) => {
+    logger.error('[Startup] Failed to start Fastify server:', err);
+    process.exit(1);
+  });
 
 const gracefulShutdown = async (signal: string) => {
   logger.info(`[Shutdown] Received system signal: ${signal}. Initiating graceful shutdown...`);
   try {
-    syncEngine.stopScheduler();
-    stopCleanupJob();
-    stopDirectMessageEmailScheduler();
-    stopMessageCleanupJob();
     stopAiCleanupTimer();
 
-    // Wait for the HTTP server to stop accepting new connections before
-    // disconnecting the database — avoids forceful mid-request disconnections.
-    await new Promise<void>((resolve, reject) => {
-      server.close((err) => {
-        if (err) {
-          logger.warn('[Shutdown] HTTP server close error:', err);
-          reject(err);
-        } else {
-          logger.info('[Shutdown] HTTP server closed.');
-          resolve();
-        }
-      });
-    });
+    // 关闭 Fastify 并停止接收新连接
+    try {
+      await fapp.close();
+      logger.info('[Shutdown] Fastify server closed.');
+    } catch (err) {
+      logger.warn('[Shutdown] Fastify server close error:', err);
+    }
 
     await prisma.$disconnect();
     logger.info('[Shutdown] Prisma database client disconnected successfully.');

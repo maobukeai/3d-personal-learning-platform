@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, defineAsyncComponent } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { Plus, Trash2, Edit2, Box, Info, Layers, Camera, Sun, Palette } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
@@ -253,126 +253,122 @@ defineExpose({ open });
 </script>
 
 <template>
-  <div
-    v-if="visible"
-    class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
+  <Modal
+    :show="visible"
+    :title="currentLesson ? t('admin.edit_lesson') : $t('admin.create_new_class_hours')"
+    size="lg"
+    @close="visible = false"
   >
-    <div
-      class="w-full max-w-2xl rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300 animate-fade-in"
-      style="background-color: var(--bg-card)"
-    >
-      <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary)">
-        {{ currentLesson ? t('admin.edit_lesson') : $t('admin.create_new_class_hours') }}
-      </h3>
-      <div class="space-y-4">
-        <div class="grid grid-cols-4 gap-4 mobile-grid">
-          <div class="col-span-2">
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
-              $t('admin.lesson_title')
-            }}</label>
-            <input
-              v-model="lessonForm.title"
-              type="text"
-              :placeholder="$t('admin.enter_class_title')"
-              class="w-full px-4 py-3 rounded-2xl border transition-all outline-none"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            />
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
-              $t('admin.sort')
-            }}</label>
-            <input
-              v-model="lessonForm.order"
-              type="number"
-              class="w-full px-4 py-3 rounded-2xl border transition-all outline-none text-center font-bold"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            />
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
-              $t('admin.duration_minutes')
-            }}</label>
-            <input
-              v-model="lessonForm.duration"
-              type="number"
-              class="w-full px-4 py-3 rounded-2xl border transition-all outline-none text-center font-bold"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            />
-          </div>
-        </div>
-        <div>
+    <div class="space-y-4">
+      <div class="grid grid-cols-4 gap-4 mobile-grid">
+        <div class="col-span-2">
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
-            $t('admin.video_link')
+            $t('admin.lesson_title')
           }}</label>
-          <div class="flex gap-2 mobile-row">
-            <input
-              v-model="lessonForm.videoUrl"
-              type="text"
-              placeholder="https://..."
-              class="flex-1 px-4 py-3 rounded-2xl border transition-all outline-none"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            />
-            <button
-              v-if="is3DModel(lessonForm.videoUrl)"
-              type="button"
-              class="px-4 py-3 rounded-2xl bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 hover:bg-indigo-600 transition-colors cursor-pointer"
-              @click="openHotspotEditor"
-            >
-              <Box class="w-4 h-4" />
-              设计热点
-            </button>
-            <button
-              v-if="is3DModel(lessonForm.videoUrl)"
-              type="button"
-              class="px-4 py-3 rounded-2xl bg-amber-500 text-white font-bold text-xs flex items-center gap-2 hover:bg-amber-600 transition-colors cursor-pointer"
-              @click="openSceneSettings"
-            >
-              <Sun class="w-4 h-4" />
-              场景设置
-            </button>
-          </div>
-          <p
-            v-if="lessonForm.hotspots.length > 0"
-            class="text-[10px] text-emerald-500 font-bold mt-1 ml-1"
-          >
-            已配置 {{ lessonForm.hotspots.length }} 个交互热点
-          </p>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
-            $t('admin.lesson_content_markdown')
-          }}</label>
-          <textarea
-            v-model="lessonForm.content"
-            rows="6"
-            :placeholder="$t('admin.enter_class_details')"
-            class="w-full px-4 py-3 rounded-2xl border transition-all outline-none resize-none"
+          <input
+            v-model="lessonForm.title"
+            type="text"
+            :placeholder="$t('admin.enter_class_title')"
+            class="w-full px-4 py-3 rounded-2xl border transition-all outline-none"
             style="
               background-color: var(--bg-app);
               border-color: var(--border-base);
               color: var(--text-primary);
             "
-          ></textarea>
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+            $t('admin.sort')
+          }}</label>
+          <input
+            v-model="lessonForm.order"
+            type="number"
+            class="w-full px-4 py-3 rounded-2xl border transition-all outline-none text-center font-bold"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-primary);
+            "
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+            $t('admin.duration_minutes')
+          }}</label>
+          <input
+            v-model="lessonForm.duration"
+            type="number"
+            class="w-full px-4 py-3 rounded-2xl border transition-all outline-none text-center font-bold"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-primary);
+            "
+          />
         </div>
       </div>
-      <div class="flex items-center gap-4 mt-8">
+      <div>
+        <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+          $t('admin.video_link')
+        }}</label>
+        <div class="flex gap-2 mobile-row">
+          <input
+            v-model="lessonForm.videoUrl"
+            type="text"
+            placeholder="https://..."
+            class="flex-1 px-4 py-3 rounded-2xl border transition-all outline-none"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-primary);
+            "
+          />
+          <button
+            v-if="is3DModel(lessonForm.videoUrl)"
+            type="button"
+            class="px-4 py-3 rounded-2xl bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 hover:bg-indigo-600 transition-colors cursor-pointer"
+            @click="openHotspotEditor"
+          >
+            <Box class="w-4 h-4" />
+            设计热点
+          </button>
+          <button
+            v-if="is3DModel(lessonForm.videoUrl)"
+            type="button"
+            class="px-4 py-3 rounded-2xl bg-amber-500 text-white font-bold text-xs flex items-center gap-2 hover:bg-amber-600 transition-colors cursor-pointer"
+            @click="openSceneSettings"
+          >
+            <Sun class="w-4 h-4" />
+            场景设置
+          </button>
+        </div>
+        <p
+          v-if="lessonForm.hotspots.length > 0"
+          class="text-[10px] text-emerald-500 font-bold mt-1 ml-1"
+        >
+          已配置 {{ lessonForm.hotspots.length }} 个交互热点
+        </p>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+          $t('admin.lesson_content_markdown')
+        }}</label>
+        <textarea
+          v-model="lessonForm.content"
+          rows="6"
+          :placeholder="$t('admin.enter_class_details')"
+          class="w-full px-4 py-3 rounded-2xl border transition-all outline-none resize-none"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
+        ></textarea>
+      </div>
+    </div>
+    <template #footer>
+      <div class="flex items-center gap-4">
         <button
           type="button"
           class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
@@ -388,7 +384,7 @@ defineExpose({ open });
           保存课时
         </button>
       </div>
-    </div>
+    </template>
 
     <!-- Hotspot Editor Dialog -->
     <Modal
@@ -601,12 +597,12 @@ defineExpose({ open });
               class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
               >{{ $t('admin.rendering_environment_hdr') }}</label
             >
-            <el-select v-model="sceneConfigForm.environment" class="w-full">
-              <el-option :label="$t('admin.sunset_default')" value="sunset" />
-              <el-option :label="$t('admin.professional_photo_studio')" value="studio" />
-              <el-option :label="$t('admin.outdoor_natural_light')" value="forest" />
-              <el-option :label="$t('admin.indoor_workshop')" value="room" />
-            </el-select>
+            <Select v-model="sceneConfigForm.environment" class="w-full">
+              <SelectOption :label="$t('admin.sunset_default')" value="sunset" />
+              <SelectOption :label="$t('admin.professional_photo_studio')" value="studio" />
+              <SelectOption :label="$t('admin.outdoor_natural_light')" value="forest" />
+              <SelectOption :label="$t('admin.indoor_workshop')" value="room" />
+            </Select>
           </div>
 
           <div>
@@ -618,7 +614,7 @@ defineExpose({ open });
                 sceneConfigForm.exposure.toFixed(1)
               }}</span>
             </div>
-            <el-slider v-model="sceneConfigForm.exposure" :min="0.1" :max="3.0" :step="0.1" />
+            <Slider v-model="sceneConfigForm.exposure" :min="0.1" :max="3.0" :step="0.1" />
           </div>
 
           <div class="h-[1px] bg-slate-100 dark:bg-white/5"></div>
@@ -632,7 +628,7 @@ defineExpose({ open });
                 sceneConfigForm.lights.intensity.toFixed(1)
               }}</span>
             </div>
-            <el-slider v-model="sceneConfigForm.lights.intensity" :min="0" :max="5.0" :step="0.1" />
+            <Slider v-model="sceneConfigForm.lights.intensity" :min="0" :max="5.0" :step="0.1" />
           </div>
 
           <div>
@@ -641,7 +637,7 @@ defineExpose({ open });
               >{{ $t('admin.light_tone') }}</label
             >
             <div class="flex items-center gap-3">
-              <el-color-picker v-model="sceneConfigForm.lights.color" />
+              <ColorPicker v-model="sceneConfigForm.lights.color" />
               <input
                 v-model="sceneConfigForm.lights.color"
                 type="text"
@@ -671,7 +667,7 @@ defineExpose({ open });
         </div>
       </template>
     </Modal>
-  </div>
+  </Modal>
 </template>
 
 <style scoped>

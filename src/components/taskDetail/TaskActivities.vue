@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import type { TaskActivity } from '@/types/task';
-import { formatActivityTime } from './helpers';
+import { formatActivityTime, parseCommentContent } from './helpers';
 
 const props = defineProps<{
   taskId: string | undefined;
@@ -39,6 +39,10 @@ watch(
   },
   { immediate: true },
 );
+
+const emit = defineEmits<{
+  (e: 'image-click', url: string): void;
+}>();
 
 defineExpose({
   refresh: fetchActivities,
@@ -89,8 +93,21 @@ defineExpose({
             </span>
           </div>
           <p class="text-slate-500 dark:text-slate-400 leading-normal mt-0.5 break-all">
-            {{ act.description }}
+            {{ parseCommentContent(act.description).text }}
           </p>
+          <div
+            v-if="parseCommentContent(act.description).images.length > 0"
+            class="flex flex-wrap gap-1 mt-1.5"
+          >
+            <img
+              v-for="img in parseCommentContent(act.description).images"
+              :key="img"
+              :src="img"
+              class="w-12 h-12 rounded-lg border object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
+              style="border-color: var(--border-base)"
+              @click.stop="emit('image-click', img)"
+            />
+          </div>
         </div>
       </div>
     </div>

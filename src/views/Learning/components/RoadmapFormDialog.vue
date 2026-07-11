@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Map, Plus, Trash2, ChevronUp, ChevronDown, X, Zap } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { Map, Plus, Trash2, ChevronUp, ChevronDown, X, Zap, CheckCircle2 } from 'lucide-vue-next';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import Modal from '@/components/ui/Modal.vue';
@@ -159,7 +159,7 @@ const submitCustomRoadmap = async () => {
 </script>
 
 <template>
-  <Modal :show="show" size="lg" glass-card @close="close">
+  <Modal :show="show" size="lg" @close="close">
     <template #header>
       <div class="flex items-center gap-2">
         <div class="p-1.5 rounded-lg bg-accent text-white">

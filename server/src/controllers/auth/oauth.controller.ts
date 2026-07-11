@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import prisma from '../../services/prisma';
@@ -12,72 +12,81 @@ import { provisionUserWorkspaces } from '../../services/user-workspace.service';
 const frontendLoginUrl = (query: string) =>
   `${config.FRONTEND_URL.replace(/\/$/, '')}/login?${query}`;
 
-const setAuthCookies = (res: Response, accessToken: string, refreshToken: string) => {
+const setAuthCookies = (reply: FastifyReply, accessToken: string, refreshToken: string) => {
   const cookieOptions = {
     httpOnly: true,
     secure: config.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
+    sameSite: 'lax' as const,
   };
 
-  res.cookie('token', accessToken, { ...cookieOptions, maxAge: 60 * 60 * 1000 });
-  res.cookie('refreshToken', refreshToken, {
+  reply.setCookie('token', accessToken, { ...cookieOptions, maxAge: 60 * 60 * 1000 });
+  reply.setCookie('refreshToken', refreshToken, {
     ...cookieOptions,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
   const csrfToken = crypto.randomBytes(32).toString('hex');
-  res.cookie('csrfToken', csrfToken, {
+  reply.setCookie('csrfToken', csrfToken, {
     secure: config.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
+    sameSite: 'lax' as const,
     httpOnly: false,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 };
 
-export const googleLogin = async (req: Request, res: Response, next: NextFunction) => {
+export const googleLogin = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
   try {
     const settings = await settingsService.getAll();
     if (!settings.OAUTH_GOOGLE_ENABLED) {
-      return next(new AppError('Google OAuth is not enabled', 400));
+      throw new AppError('Google OAuth is not enabled', 400);
     }
     const state = crypto.randomBytes(16).toString('hex');
-    res.cookie('oauth_state', state, {
+    reply.setCookie('oauth_state', state, {
       httpOnly: true,
       secure: config.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 5 * 60 * 1000,
     });
     const url = await OAuthService.getGoogleAuthUrl(state);
-    res.redirect(url);
+    reply.redirect(url);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const googleCallback = async (req: Request, res: Response) => {
-  const { code, state } = req.query;
-  const cookieState = req.cookies?.oauth_state;
-  res.clearCookie('oauth_state');
+export const googleCallback = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { code, state } = request.query as { code?: string; state?: string };
+  const cookieState = (request.cookies as { oauth_state?: string } | undefined)?.oauth_state;
+  reply.clearCookie('oauth_state');
 
   if (!state || state !== cookieState) {
-    return res.redirect(frontendLoginUrl('error=csrf_detected'));
+    reply.redirect(frontendLoginUrl('error=csrf_detected'));
+    return;
   }
 
-  if (!code) return res.redirect(frontendLoginUrl('error=no_code'));
+  if (!code) {
+    reply.redirect(frontendLoginUrl('error=no_code'));
+    return;
+  }
 
   try {
     const settings = await settingsService.getAll();
     if (!settings.OAUTH_GOOGLE_ENABLED) {
-      return res.redirect(frontendLoginUrl('error=oauth_not_enabled'));
+      reply.redirect(frontendLoginUrl('error=oauth_not_enabled'));
+      return;
     }
-    const oauthUser = await OAuthService.getGoogleUser(code as string);
+    const oauthUser = await OAuthService.getGoogleUser(code);
     let user = await prisma.user.findUnique({ where: { googleId: oauthUser.id } });
 
     if (!user) {
       // Try by email for automatic linking
       user = await prisma.user.findUnique({ where: { email: oauthUser.email } });
       if (user) {
-        return res.redirect(frontendLoginUrl('error=email_exists'));
+        reply.redirect(frontendLoginUrl('error=email_exists'));
+        return;
       } else {
         // Create new user
         const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
@@ -103,56 +112,65 @@ export const googleCallback = async (req: Request, res: Response) => {
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
-    setAuthCookies(res, accessToken, refreshToken);
-    res.redirect(frontendLoginUrl('oauth=success'));
+    setAuthCookies(reply, accessToken, refreshToken);
+    reply.redirect(frontendLoginUrl('oauth=success'));
   } catch (_error) {
-    res.redirect(frontendLoginUrl('error=oauth_failed'));
+    reply.redirect(frontendLoginUrl('error=oauth_failed'));
   }
 };
 
-export const githubLogin = async (req: Request, res: Response, next: NextFunction) => {
+export const githubLogin = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
   try {
     const settings = await settingsService.getAll();
     if (!settings.OAUTH_GITHUB_ENABLED) {
-      return next(new AppError('GitHub OAuth is not enabled', 400));
+      throw new AppError('GitHub OAuth is not enabled', 400);
     }
     const state = crypto.randomBytes(16).toString('hex');
-    res.cookie('oauth_state', state, {
+    reply.setCookie('oauth_state', state, {
       httpOnly: true,
       secure: config.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 5 * 60 * 1000,
     });
     const url = await OAuthService.getGithubAuthUrl(state);
-    res.redirect(url);
+    reply.redirect(url);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const githubCallback = async (req: Request, res: Response) => {
-  const { code, state } = req.query;
-  const cookieState = req.cookies?.oauth_state;
-  res.clearCookie('oauth_state');
+export const githubCallback = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { code, state } = request.query as { code?: string; state?: string };
+  const cookieState = (request.cookies as { oauth_state?: string } | undefined)?.oauth_state;
+  reply.clearCookie('oauth_state');
 
   if (!state || state !== cookieState) {
-    return res.redirect(frontendLoginUrl('error=csrf_detected'));
+    reply.redirect(frontendLoginUrl('error=csrf_detected'));
+    return;
   }
 
-  if (!code) return res.redirect(frontendLoginUrl('error=no_code'));
+  if (!code) {
+    reply.redirect(frontendLoginUrl('error=no_code'));
+    return;
+  }
 
   try {
     const settings = await settingsService.getAll();
     if (!settings.OAUTH_GITHUB_ENABLED) {
-      return res.redirect(frontendLoginUrl('error=oauth_not_enabled'));
+      reply.redirect(frontendLoginUrl('error=oauth_not_enabled'));
+      return;
     }
-    const oauthUser = await OAuthService.getGithubUser(code as string);
+    const oauthUser = await OAuthService.getGithubUser(code);
     let user = await prisma.user.findUnique({ where: { githubId: oauthUser.id } });
 
     if (!user) {
       user = await prisma.user.findUnique({ where: { email: oauthUser.email } });
       if (user) {
-        return res.redirect(frontendLoginUrl('error=email_exists'));
+        reply.redirect(frontendLoginUrl('error=email_exists'));
+        return;
       } else {
         const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
         user = await prisma.$transaction(async (tx) => {
@@ -177,9 +195,9 @@ export const githubCallback = async (req: Request, res: Response) => {
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
-    setAuthCookies(res, accessToken, refreshToken);
-    res.redirect(frontendLoginUrl('oauth=success'));
+    setAuthCookies(reply, accessToken, refreshToken);
+    reply.redirect(frontendLoginUrl('oauth=success'));
   } catch (_error) {
-    res.redirect(frontendLoginUrl('error=oauth_failed'));
+    reply.redirect(frontendLoginUrl('error=oauth_failed'));
   }
 };

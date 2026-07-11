@@ -1,5 +1,4 @@
 import { logger } from '../utils/logger';
-import { Request } from 'express';
 import prisma from './prisma';
 import { Prisma } from '@prisma/client';
 
@@ -63,6 +62,12 @@ export enum AuditAction {
   REJECT_SOFTWARE = 'REJECT_SOFTWARE',
 }
 
+export interface AuditRequest {
+  headers: Record<string, string | string[] | undefined>;
+  ip?: string;
+  socket?: { remoteAddress?: string | null };
+}
+
 interface AuditParams {
   userId?: string;
   action: AuditAction | string;
@@ -70,7 +75,7 @@ interface AuditParams {
   description?: string;
   oldValue?: unknown;
   newValue?: unknown;
-  req?: Request;
+  req?: AuditRequest;
   tx?: Prisma.TransactionClient; // Add optional transaction client
 }
 
@@ -153,6 +158,7 @@ class AuditService {
       });
     } catch (error) {
       logger.error('[AuditService] Failed to create audit log:', error);
+      if (tx) throw error;
     }
   }
 }

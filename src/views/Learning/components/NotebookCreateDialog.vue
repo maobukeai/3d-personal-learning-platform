@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
@@ -37,7 +37,7 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" title="新建笔记本" size="sm" glass-card @close="visible = false">
+  <Modal :show="visible" title="新建笔记本" size="sm" @close="visible = false">
     <div class="mobile-adaptive space-y-4">
       <div>
         <label

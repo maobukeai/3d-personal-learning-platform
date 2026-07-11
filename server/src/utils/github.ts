@@ -25,7 +25,7 @@ export async function parseGithubUrl(url: string): Promise<GithubMetadata> {
   const repo = match[2]!.replace(/\.git$/, '');
   const apiUrl = `https://api.github.com/repos/${owner}/${repo}`;
 
-  const headers: any = {
+  const headers: Record<string, string> = {
     Accept: 'application/vnd.github.v3+json',
     'User-Agent': '3d-learning-platform-server',
   };

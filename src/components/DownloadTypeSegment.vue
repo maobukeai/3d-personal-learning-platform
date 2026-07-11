@@ -13,7 +13,7 @@ const props = withDefaults(
   {
     accept: '.glb,.gltf,.fbx,.obj,.stl,.dae,.3ds,.blend,.usdz,.abc,.zip',
     progress: null,
-  }
+  },
 );
 
 const downloadType = defineModel<'local' | 'external'>('downloadType', { required: true });
@@ -41,7 +41,9 @@ const handleFileChange = (e: Event) => {
       {{ fileLabel }}
     </label>
     <!-- Segment Switcher for Download Type -->
-    <div class="flex p-0.5 mb-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-800/80">
+    <div
+      class="flex p-0.5 mb-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-800/80"
+    >
       <button
         type="button"
         @click="downloadType = 'local'"
@@ -49,7 +51,7 @@ const handleFileChange = (e: Event) => {
           'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
           downloadType === 'local'
             ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
-            : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
+            : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400',
         ]"
       >
         本地文件上传
@@ -61,7 +63,7 @@ const handleFileChange = (e: Event) => {
           'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
           downloadType === 'external'
             ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
-            : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
+            : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400',
         ]"
       >
         网盘链接 / 网页直达
@@ -75,7 +77,7 @@ const handleFileChange = (e: Event) => {
         :accept="accept"
         height-class="h-20"
         :progress="progress"
-        :label="file ? file.name : (dragLabel || t('publishDialog.dragAssetFile'))"
+        :label="file ? file.name : dragLabel || t('publishDialog.dragAssetFile')"
         :sublabel="supportedLabel"
         @change="handleFileChange"
       />

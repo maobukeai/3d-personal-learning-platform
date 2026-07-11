@@ -22,7 +22,7 @@ import {
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import { useRouter } from 'vue-router';
 import type { Category, Course } from '@/types';
 
@@ -442,11 +442,11 @@ onMounted(() => {
 
               <div class="toolbar-actions mobile-row">
                 <div class="text-[10px] font-bold text-slate-400 shrink-0">排序:</div>
-                <el-select v-model="sortBy" size="small" style="width: 100px">
-                  <el-option value="newest" :label="$t('admin.latest_creation')" />
-                  <el-option value="enrollments" :label="$t('admin.most_registrations')" />
-                  <el-option value="rating" :label="$t('admin.top_rated')" />
-                </el-select>
+                <Select v-model="sortBy" size="small" style="width: 100px">
+                  <SelectOption value="newest" :label="$t('admin.latest_creation')" />
+                  <SelectOption value="enrollments" :label="$t('admin.most_registrations')" />
+                  <SelectOption value="rating" :label="$t('admin.top_rated')" />
+                </Select>
 
                 <div class="text-[10px] font-bold text-[var(--text-muted)] shrink-0 ml-2">
                   匹配:
@@ -462,16 +462,12 @@ onMounted(() => {
                 已选 <strong>{{ selectedCourseCount }}</strong> 门课程
               </div>
               <div class="batch-actions mobile-row">
-                <el-button size="small" @click="batchUpdateCourseStatus('PUBLISHED')">
-                  批量发布
-                </el-button>
-                <el-button size="small" @click="batchUpdateCourseStatus('DRAFT')">
-                  转为草稿
-                </el-button>
-                <el-button size="small" type="danger" plain @click="batchDeleteCourses">
+                <Button size="sm" @click="batchUpdateCourseStatus('PUBLISHED')"> 批量发布 </Button>
+                <Button size="sm" @click="batchUpdateCourseStatus('DRAFT')"> 转为草稿 </Button>
+                <Button size="sm" variant="danger" plain @click="batchDeleteCourses">
                   批量删除
-                </el-button>
-                <el-button size="small" text @click="clearCourseSelection">取消选择</el-button>
+                </Button>
+                <Button size="sm" text @click="clearCourseSelection">取消选择</Button>
               </div>
             </div>
           </Card>

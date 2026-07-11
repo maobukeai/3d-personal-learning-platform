@@ -5,7 +5,7 @@ import { Search, Plus, Users, X } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import type { User } from '@/types';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';

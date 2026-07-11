@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { Sparkles, Clock } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
@@ -188,7 +188,6 @@ onUnmounted(() => {
     :show="visible"
     :title="isEdit ? '修改 2FA 备注信息' : '安全添加 2FA 账号'"
     size="md"
-    glass-card
     @close="visible = false"
   >
     <div class="mobile-adaptive space-y-4 text-left">
@@ -209,7 +208,7 @@ onUnmounted(() => {
         <label class="text-xs font-bold" style="color: var(--text-secondary)"
           >账号名称 / 标签 *</label
         >
-        <el-input
+        <Input
           v-model="form.label"
           placeholder="如: Github, Google, ChatGPT"
           class="custom-dialog-input"
@@ -220,7 +219,7 @@ onUnmounted(() => {
         <label class="text-xs font-bold" style="color: var(--text-secondary)"
           >账号邮箱 / 用户名</label
         >
-        <el-input
+        <Input
           v-model="form.email"
           placeholder="如: user@example.com (可选)"
           class="custom-dialog-input"
@@ -232,7 +231,7 @@ onUnmounted(() => {
           <label class="text-xs font-bold" style="color: var(--text-secondary)">分类 / 分组</label>
           <span class="text-[9px] text-slate-500">用于分类过滤</span>
         </div>
-        <el-select
+        <Select
           v-model="form.category"
           placeholder="点击选择分组，或输入新分组名称"
           class="custom-dialog-input w-full"
@@ -241,8 +240,8 @@ onUnmounted(() => {
           clearable
           default-first-option
         >
-          <el-option v-for="cat in allCategories" :key="cat" :label="cat" :value="cat" />
-        </el-select>
+          <SelectOption v-for="cat in allCategories" :key="cat" :label="cat" :value="cat" />
+        </Select>
       </div>
 
       <!-- Secret and Preview fields (Add mode only) -->
@@ -250,7 +249,7 @@ onUnmounted(() => {
         <label class="text-xs font-bold" style="color: var(--text-secondary)"
           >2FA 密匙 (Base32 Key) *</label
         >
-        <el-input
+        <Input
           v-model="form.secret"
           placeholder="支持包含空格，如: JBSW Y3DP EHPK 3PXP"
           class="custom-dialog-input"
@@ -282,7 +281,7 @@ onUnmounted(() => {
 
       <div class="flex flex-col gap-1.5">
         <label class="text-xs font-bold" style="color: var(--text-secondary)">备注说明</label>
-        <el-input
+        <Input
           v-model="form.note"
           type="textarea"
           :rows="isEdit ? 3 : 2"

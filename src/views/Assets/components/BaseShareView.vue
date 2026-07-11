@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Sparkles, Home, Info } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
@@ -7,7 +7,9 @@ import { useSystemStore } from '@/stores/system';
 import { useAuthStore } from '@/stores/auth';
 import Button from '@/components/ui/Button.vue';
 import GlassCard from '@/components/ui/GlassCard.vue';
-import { applyThemeToDocument } from '@/composables/useAppearance';
+import { useThemeManager } from '@/layouts/composables/useThemeManager';
+
+const { currentTheme, currentBackground, initTheme, cleanupTheme } = useThemeManager();
 
 type ResourceType = 'assets' | 'materials' | 'plugins' | 'softwares';
 
@@ -158,17 +160,25 @@ const loadShared = async () => {
 };
 
 onMounted(() => {
-  applyThemeToDocument('glass-light');
+  initTheme();
   void loadShared();
 });
+
+onUnmounted(cleanupTheme);
 </script>
 
 <template>
   <div
     class="mobile-adaptive min-h-screen flex flex-col font-sans antialiased share-page-bg text-[var(--text-primary)] overflow-x-hidden relative"
   >
-    <!-- Enterprise grid background decoration -->
-    <div class="enterprise-canvas absolute inset-0 overflow-hidden pointer-events-none z-0"></div>
+    <!-- Enterprise canvas background decoration -->
+    <div
+      v-show="currentTheme.startsWith('glass')"
+      :class="[
+        'enterprise-canvas absolute inset-0 overflow-hidden pointer-events-none z-0',
+        'bg-style-' + currentBackground,
+      ]"
+    ></div>
     <!-- Clean Minimalist Header -->
     <header
       class="mobile-row fixed top-0 left-0 right-0 z-[100] backdrop-blur-md px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between border-b shadow-xs transition-colors bg-[var(--bg-card)]/80 border-[var(--border-base)]"

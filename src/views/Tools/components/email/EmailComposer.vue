@@ -63,23 +63,16 @@ const composeForm = computed({
           $t('tools.email.sender_account')
         }}</label>
         <div class="col-span-5 flex items-center gap-2">
-          <select
-            v-model="composeForm.accountId"
-            class="flex-1 text-xs px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all duration-200"
-          >
-            <option value="round-robin">{{ $t('tools.email.random_robin') }}</option>
-            <option
+          <Select v-model="composeForm.accountId" class="flex-1" size="large">
+            <SelectOption value="round-robin" :label="$t('tools.email.random_robin')" />
+            <SelectOption
               v-for="acc in accounts"
               :key="acc.id"
               :value="acc.id"
               :disabled="acc.status !== 'ACTIVE'"
-            >
-              {{ acc.email }}
-              {{
-                acc.status !== 'ACTIVE' ? `(异常:${acc.status})` : `(今日发:${acc.sentCountToday})`
-              }}
-            </option>
-          </select>
+              :label="`${acc.email} ${acc.status !== 'ACTIVE' ? '(异常:' + acc.status + ')' : '(今日发:' + acc.sentCountToday + ')'}`"
+            />
+          </Select>
         </div>
       </div>
 

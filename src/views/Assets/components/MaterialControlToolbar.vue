@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { type Component } from 'vue';
-import { SlidersHorizontal, ListChecks, CheckCheck, Trash2, HeartOff, PanelLeftOpen } from 'lucide-vue-next';
+import {
+  SlidersHorizontal,
+  ListChecks,
+  CheckCheck,
+  Trash2,
+  HeartOff,
+  PanelLeftOpen,
+} from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
 import Tabs from '@/components/ui/Tabs.vue';
 
@@ -66,7 +73,12 @@ const label = useLabel();
           <button
             type="button"
             class="p-1.5 text-xs rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-[var(--text-primary)] transition-colors flex items-center justify-center"
-            :title="(selectedIds?.length || 0) === (visibleMaterialsCount || 0) && (visibleMaterialsCount || 0) > 0 ? '取消全选' : '全选本页'"
+            :title="
+              (selectedIds?.length || 0) === (visibleMaterialsCount || 0) &&
+              (visibleMaterialsCount || 0) > 0
+                ? '取消全选'
+                : '全选本页'
+            "
             @click="emit('selectAll')"
           >
             <CheckCheck class="w-3.5 h-3.5" />
@@ -74,7 +86,11 @@ const label = useLabel();
           <button
             type="button"
             class="p-1.5 text-xs rounded-lg text-white font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-            :class="activeTab === 'favorites' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-rose-500 hover:bg-rose-600'"
+            :class="
+              activeTab === 'favorites'
+                ? 'bg-amber-500 hover:bg-amber-600'
+                : 'bg-rose-500 hover:bg-rose-600'
+            "
             :disabled="!selectedIds?.length"
             :title="activeTab === 'favorites' ? '批量取消收藏' : '批量删除'"
             @click="activeTab === 'favorites' ? emit('bulkUnfavorite') : emit('bulkDelete')"
@@ -97,18 +113,18 @@ const label = useLabel();
       <button type="button" class="icon-button mobile-filter" @click="emit('toggleFilter')">
         <SlidersHorizontal class="icon-sm" />
       </button>
-      <el-select
+      <Select
         :model-value="sortBy"
         class="!w-28 custom-select"
         aria-label="排序方式"
         @change="(v: SortMode) => emit('update:sortBy', v)"
       >
-        <el-option value="latest" :label="label('最新', 'Newest')" />
-        <el-option value="popular" :label="label('下载', 'Downloads')" />
-        <el-option value="favorited" :label="label('收藏', 'Favorites')" />
-        <el-option value="largest" :label="label('体积大', 'Largest')" />
-        <el-option value="smallest" :label="label('体积小', 'Smallest')" />
-      </el-select>
+        <SelectOption value="latest" :label="label('最新', 'Newest')" />
+        <SelectOption value="popular" :label="label('下载', 'Downloads')" />
+        <SelectOption value="favorited" :label="label('收藏', 'Favorites')" />
+        <SelectOption value="largest" :label="label('体积大', 'Largest')" />
+        <SelectOption value="smallest" :label="label('体积小', 'Smallest')" />
+      </Select>
       <Tabs
         :model-value="viewMode"
         :options="viewModeOptions"

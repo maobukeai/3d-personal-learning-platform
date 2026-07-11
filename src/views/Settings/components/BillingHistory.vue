@@ -53,27 +53,27 @@ const mobileStatusText = (status?: string) => {
         <thead>
           <tr class="bg-[var(--bg-app)]/50 border-b border-[var(--border-base)]">
             <th
-              class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+              class="px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
             >
               日期
             </th>
             <th
-              class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+              class="px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
             >
               项目描述
             </th>
             <th
-              class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+              class="px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
             >
               金额
             </th>
             <th
-              class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+              class="px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
             >
               状态
             </th>
             <th
-              class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+              class="px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
             >
               发票号
             </th>
@@ -85,19 +85,19 @@ const mobileStatusText = (status?: string) => {
             :key="tx.id"
             class="hover:bg-[var(--bg-app)]/30 transition-colors"
           >
-            <td class="px-8 py-5 text-sm font-medium text-[var(--text-primary)]">
+            <td class="px-6 py-3.5 text-sm font-medium text-[var(--text-primary)]">
               {{ new Date(tx.createdAt).toLocaleDateString() }}
             </td>
-            <td class="px-8 py-5">
+            <td class="px-6 py-3.5">
               <p class="text-sm font-bold text-[var(--text-primary)]">{{ tx.description }}</p>
               <p class="text-[10px] text-[var(--text-muted)] mt-0.5">
                 {{ tx.paymentMethod || '-' }}
               </p>
             </td>
-            <td class="px-8 py-5 text-sm font-black text-[var(--text-primary)]">
+            <td class="px-6 py-3.5 text-sm font-black text-[var(--text-primary)]">
               ￥{{ tx.amount }}
             </td>
-            <td class="px-8 py-5">
+            <td class="px-6 py-3.5">
               <span
                 class="px-2 py-0.5 rounded-full text-[10px] font-bold"
                 :class="
@@ -111,7 +111,7 @@ const mobileStatusText = (status?: string) => {
                 {{ statusText(tx.status) }}
               </span>
             </td>
-            <td class="px-8 py-5 text-xs text-[var(--text-muted)] font-mono">
+            <td class="px-6 py-3.5 text-xs text-[var(--text-muted)] font-mono">
               {{ tx.invoiceNo || '-' }}
             </td>
           </tr>

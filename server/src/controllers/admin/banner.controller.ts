@@ -1,29 +1,35 @@
-import { Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import prisma from '../../services/prisma';
-import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../utils/error';
 import { logger } from '../../utils/logger';
 import { deleteCloudOrLocalFileByUrl } from '../../utils/file';
 
-export const getAllBanners = async (req: AuthRequest, res: Response, next: NextFunction) => {
+type AdminRequest = FastifyRequest & {
+  body: any;
+  query: any;
+  params: any;
+  file?: any;
+};
+
+export const getAllBanners = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const banners = await prisma.banner.findMany({
       orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
     });
-    res.json(banners);
+    reply.send(banners);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createBanner = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createBanner = async (req: AdminRequest, reply: FastifyReply) => {
   const { title, subtitle, imageUrl, route, tag, tagColor, buttonText, order, isActive } = req.body;
 
   if (!title) {
-    return next(new AppError('Banner title is required', 400));
+    throw new AppError('Banner title is required', 400);
   }
   if (!imageUrl) {
-    return next(new AppError('Banner image URL is required', 400));
+    throw new AppError('Banner image URL is required', 400);
   }
 
   try {
@@ -40,20 +46,20 @@ export const createBanner = async (req: AuthRequest, res: Response, next: NextFu
         isActive: isActive !== undefined ? Boolean(isActive) : true,
       },
     });
-    res.status(201).json(banner);
+    reply.status(201).send(banner);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateBanner = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateBanner = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { title, subtitle, imageUrl, route, tag, tagColor, buttonText, order, isActive } = req.body;
 
   try {
     const existing = await prisma.banner.findUnique({ where: { id } });
     if (!existing) {
-      return next(new AppError('Banner not found', 404));
+      throw new AppError('Banner not found', 404);
     }
 
     // If banner image is being updated, clean up the old file (local or R2)
@@ -78,19 +84,19 @@ export const updateBanner = async (req: AuthRequest, res: Response, next: NextFu
       },
     });
 
-    res.json(banner);
+    reply.send(banner);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteBanner = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteBanner = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
 
   try {
     const existing = await prisma.banner.findUnique({ where: { id } });
     if (!existing) {
-      return next(new AppError('Banner not found', 404));
+      throw new AppError('Banner not found', 404);
     }
 
     // Unlink the file from local disk or R2
@@ -101,27 +107,25 @@ export const deleteBanner = async (req: AuthRequest, res: Response, next: NextFu
     }
 
     await prisma.banner.delete({ where: { id } });
-    res.json({ message: 'Banner deleted successfully' });
+    reply.send({ message: 'Banner deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const uploadBannerImage = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const uploadBannerImage = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     if (!req.file) {
-      return next(new AppError('No file uploaded', 400));
+      throw new AppError('No file uploaded', 400);
     }
 
-    // Standard URL format: /uploads/banners/filename
-    const fileUrl =
-      (req.file as any).url ||
-      (req.file.path.replace(/\\/g, '/').startsWith('/')
-        ? req.file.path.replace(/\\/g, '/')
-        : `/${req.file.path.replace(/\\/g, '/')}`);
+    const fileUrl = req.file?.url;
+    if (!fileUrl) {
+      throw new AppError('文件上传失败，未获取到云存储地址', 400);
+    }
 
-    res.status(200).json({ url: fileUrl });
+    reply.status(200).send({ url: fileUrl });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };

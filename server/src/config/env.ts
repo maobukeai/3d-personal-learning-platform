@@ -20,8 +20,17 @@ if (dotenvPath) {
   dotenv.config();
 }
 
+/**
+ * Parse a positive integer from an env string, falling back when missing/invalid.
+ * Shared by app.ts and route files to avoid duplicate implementations.
+ */
+export const readPositiveInt = (value: string | undefined, fallback: number): number => {
+  const parsed = Number.parseInt(value || '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
 export const config = {
-  PORT: process.env.PORT || 3001,
+  PORT: readPositiveInt(process.env.PORT, 3001),
   JWT_SECRET: (() => {
     const secret = process.env.JWT_SECRET;
     if (
@@ -42,7 +51,10 @@ export const config = {
   DATABASE_URL: process.env.DATABASE_URL,
   NODE_ENV: process.env.NODE_ENV || 'development',
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
-  BACKEND_URL: process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`,
+  BACKEND_URL:
+    process.env.BACKEND_URL || `http://localhost:${readPositiveInt(process.env.PORT, 3001)}`,
+  // P4：R2 Event Notification Webhook HMAC 密钥 —— 缺失时 webhook 端点直接 throw（铁律：密钥不允许硬编码兜底）
+  R2_WEBHOOK_SECRET: process.env.R2_WEBHOOK_SECRET || '',
   ALIPAY: {
     APP_ID: process.env.ALIPAY_APP_ID,
     PRIVATE_KEY: process.env.ALIPAY_PRIVATE_KEY,
@@ -54,12 +66,3 @@ export const config = {
 if (!config.DATABASE_URL) {
   console.warn('WARNING: DATABASE_URL is not set. Prisma will use the default from schema.prisma');
 }
-
-/**
- * Parse a positive integer from an env string, falling back when missing/invalid.
- * Shared by app.ts and route files to avoid duplicate implementations.
- */
-export const readPositiveInt = (value: string | undefined, fallback: number): number => {
-  const parsed = Number.parseInt(value || '', 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-};

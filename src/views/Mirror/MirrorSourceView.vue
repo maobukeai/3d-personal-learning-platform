@@ -101,7 +101,7 @@ async function loadData() {
 }
 
 function goToPage(page: number) {
-  if (!mirrorStore.currentStation) return;
+  if (!mirrorStore.currentStation || !sourceId.value) return;
   mirrorStore.currentPage = page;
   mirrorStore.fetchResources(sourceId.value, {
     page,
@@ -112,7 +112,7 @@ function goToPage(page: number) {
 }
 
 function selectCategory(categoryId: string | null) {
-  if (!mirrorStore.currentStation) return;
+  if (!mirrorStore.currentStation || !sourceId.value) return;
   mirrorStore.setActiveCategory(categoryId);
   mirrorStore.fetchResources(sourceId.value, {
     page: 1,
@@ -123,7 +123,7 @@ function selectCategory(categoryId: string | null) {
 }
 
 function doSearch() {
-  if (!mirrorStore.currentStation) return;
+  if (!mirrorStore.currentStation || !sourceId.value) return;
   mirrorStore.currentPage = 1;
   mirrorStore.fetchResources(sourceId.value, {
     page: 1,
@@ -154,6 +154,10 @@ watch(
 watch(
   () => route.query.categoryId,
   (newId) => {
+    // Guard: sourceId must be resolved before we can fetch resources.
+    // During WorkspaceSwitcher navigation the query watcher can fire
+    // before route.params.id is fully committed, leaving sourceId undefined.
+    if (!sourceId.value) return;
     const newCategoryId = (newId as string) || null;
     if (mirrorStore.activeCategoryId !== newCategoryId) {
       selectCategory(newCategoryId);

@@ -2,7 +2,7 @@
 import { ref, computed, watch, defineAsyncComponent, onUnmounted } from 'vue';
 import { logError } from '@/utils/error';
 import { UploadCloud, Film, X, Plus, Sparkles } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
@@ -221,7 +221,7 @@ const handlePublish = async () => {
 </script>
 
 <template>
-  <Modal :show="modelValue" size="xxl" glass-card @close="closeDialog">
+  <Modal :show="modelValue" size="xxl" @close="closeDialog">
     <template #header>
       <div class="flex items-center gap-2">
         <Sparkles class="w-5 h-5 text-indigo-500 animate-pulse" />
@@ -258,13 +258,13 @@ const handlePublish = async () => {
             >
               作品类型 *
             </label>
-            <el-select v-model="type" class="w-full custom-select-v2" placeholder="选择类型">
-              <el-option label="图集作品 (Image)" value="IMAGE" />
-              <el-option label="视频作品 (Video)" value="VIDEO" />
-              <el-option label="3D模型作品 (Model)" value="MODEL" />
-              <el-option label="图文说明 (Text)" value="TEXT" />
-              <el-option label="其他分类 (Other)" value="OTHER" />
-            </el-select>
+            <Select v-model="type" class="w-full custom-select-v2" placeholder="选择类型">
+              <SelectOption label="图集作品 (Image)" value="IMAGE" />
+              <SelectOption label="视频作品 (Video)" value="VIDEO" />
+              <SelectOption label="3D模型作品 (Model)" value="MODEL" />
+              <SelectOption label="图文说明 (Text)" value="TEXT" />
+              <SelectOption label="其他分类 (Other)" value="OTHER" />
+            </Select>
           </div>
 
           <!-- Video URL Input -->
@@ -280,9 +280,7 @@ const handlePublish = async () => {
           <!-- Cover Upload -->
           <div>
             <div class="flex items-center justify-between mb-1.5 ml-1">
-              <label
-                class="block text-[10px] font-black uppercase tracking-widest text-slate-400"
-              >
+              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400">
                 封面缩略图 *
               </label>
               <button
@@ -348,7 +346,7 @@ const handlePublish = async () => {
               >
                 嵌入关联的 3D 作品
               </label>
-              <el-select
+              <Select
                 v-model="selectedAssetIds"
                 multiple
                 filterable
@@ -357,13 +355,13 @@ const handlePublish = async () => {
                 placeholder="支持搜索已审核模型"
                 class="w-full custom-select-v2"
               >
-                <el-option
+                <SelectOption
                   v-for="asset in myApprovedAssets"
                   :key="asset.id"
                   :label="asset.title"
                   :value="asset.id"
                 />
-              </el-select>
+              </Select>
             </div>
 
             <div>
@@ -372,7 +370,7 @@ const handlePublish = async () => {
               >
                 嵌入关联的材质作品
               </label>
-              <el-select
+              <Select
                 v-model="selectedMaterialIds"
                 multiple
                 filterable
@@ -381,13 +379,13 @@ const handlePublish = async () => {
                 placeholder="支持搜索已审核材质"
                 class="w-full custom-select-v2"
               >
-                <el-option
+                <SelectOption
                   v-for="mat in myApprovedMaterials"
                   :key="mat.id"
                   :label="mat.title"
                   :value="mat.id"
                 />
-              </el-select>
+              </Select>
             </div>
 
             <div>
@@ -396,7 +394,7 @@ const handlePublish = async () => {
               >
                 嵌入关联的插件作品
               </label>
-              <el-select
+              <Select
                 v-model="selectedPluginIds"
                 multiple
                 filterable
@@ -405,13 +403,13 @@ const handlePublish = async () => {
                 placeholder="支持搜索已审核插件"
                 class="w-full custom-select-v2"
               >
-                <el-option
+                <SelectOption
                   v-for="plugin in myApprovedPlugins"
                   :key="plugin.id"
                   :label="plugin.title"
                   :value="plugin.id"
                 />
-              </el-select>
+              </Select>
             </div>
           </div>
         </div>
@@ -536,18 +534,6 @@ const handlePublish = async () => {
 </template>
 
 <style scoped>
-.custom-select-v2 :deep(.el-input__wrapper),
-.custom-select-v2 :deep(.el-select__wrapper) {
-  border-radius: 12px !important;
-  background-color: var(--bg-surface) !important;
-  box-shadow: 0 0 0 1px var(--border-base) inset !important;
-  padding: 4px 10px !important;
-  min-height: 38px !important;
-  height: 38px !important;
-}
-.custom-select-v2 :deep(.el-input__inner) {
-  height: 100% !important;
-}
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }

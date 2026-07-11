@@ -7,6 +7,7 @@ import {
   AdapterConfig,
 } from './base.adapter';
 import type { CheerioAPI } from 'cheerio';
+import type { AnyNode } from 'domhandler';
 
 interface WpApiPost {
   id: number;
@@ -692,7 +693,7 @@ export class ZyckuAdapter extends BaseAdapter {
       )
       .remove();
 
-    $content.find('img').each((_: any, el: any) => {
+    $content.find('img').each((_: number, el: AnyNode) => {
       const dataSrc = $(el).attr('data-src');
       if (dataSrc) {
         $(el).attr('src', dataSrc);

@@ -36,6 +36,11 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: preferences.getUser<User>(),
     deviceToken: preferences.getDeviceToken(),
+    // In-memory access token. Set after login/refresh so api.ts can attach
+    // it as a Bearer header without depending on the async cookie-write race.
+    accessToken: null as string | null,
+    // Controls the guest login modal shown by useRequireAuth.
+    showLoginModal: false,
     // Plain object instead of Set: Vue 3 makes object key additions/removals
     // reactive automatically, so we no longer rebuild the whole collection on
     // every presence update (was O(n) per event with the prior Set pattern).
@@ -66,6 +71,12 @@ export const useAuthStore = defineStore('auth', {
     incrementUnreadMessagesCount() {
       this.unreadMessagesCount++;
     },
+    setAccessToken(token: string | null) {
+      this.accessToken = token;
+    },
+    setShowLoginModal(show: boolean) {
+      this.showLoginModal = show;
+    },
     setOnlineUsers(ids: string[]) {
       this.onlineUserIds = Object.fromEntries(ids.map((id) => [id, true as const]));
     },
@@ -84,6 +95,11 @@ export const useAuthStore = defineStore('auth', {
       if (response.data.user) {
         this.user = response.data.user;
         preferences.setUser(this.user);
+      }
+      // Store the access token returned by the server so subsequent requests
+      // attach the Authorization header immediately (no 401 round-trip).
+      if (response.data.accessToken) {
+        this.accessToken = response.data.accessToken;
       }
       return response.data;
     },
@@ -174,7 +190,17 @@ export const useAuthStore = defineStore('auth', {
     async refreshAccessToken() {
       try {
         const response = await api.post('/api/auth/refresh');
-        return response.data;
+        // The server returns the new access token in response.data.accessToken
+        // (or bare response.data when the body is the token string directly).
+        const token: string | null =
+          typeof response.data === 'string' ? response.data : (response.data?.accessToken ?? null);
+        this.accessToken = token;
+        // Reconnect the socket with the fresh token so the handshake succeeds.
+        if (token) {
+          const { socketService } = await import('@/utils/socket');
+          socketService.reconnectWithToken(token);
+        }
+        return token;
       } catch (error) {
         this.logout();
         throw error;
@@ -225,9 +251,11 @@ export const useAuthStore = defineStore('auth', {
       workspaceStore.reset();
 
       this.user = null;
+      this.accessToken = null;
       this.deviceToken = '';
       this.onlineUserIds = {};
       this.unreadMessagesCount = 0;
+      this.showLoginModal = false;
       preferences.clearUser();
       preferences.clearDeviceToken();
       preferences.clearLegacyAuthTokens();

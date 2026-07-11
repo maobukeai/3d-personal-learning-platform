@@ -10,7 +10,7 @@ import {
 } from 'vue';
 import { useRouter } from 'vue-router';
 import { Box, Cpu, Grid3X3, Layers, LayoutList, Laptop, MonitorPlay } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 
@@ -238,7 +238,6 @@ onUnmounted(() => {
     />
 
     <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">
-
       <section class="resource-workbench">
         <ResourceFeedPanel
           v-model:active-kind="activeKind"
@@ -285,7 +284,7 @@ onUnmounted(() => {
 <style scoped>
 .resource-center-page {
   height: 100%;
-  background: transparent !important;
+  background: transparent;
   color: var(--text-primary);
 }
 

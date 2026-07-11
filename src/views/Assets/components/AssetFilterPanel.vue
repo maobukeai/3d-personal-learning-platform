@@ -178,12 +178,7 @@ const localStatus = computed({
         <Layers class="icon-sm" />
         {{ label('分类', 'Categories') }}
       </div>
-      <Tabs
-        v-model="localCategory"
-        :options="categoryTabOptions"
-        direction="vertical"
-        size="sm"
-      />
+      <Tabs v-model="localCategory" :options="categoryTabOptions" direction="vertical" size="sm" />
     </div>
 
     <div v-if="activeTab !== 'favorites'" class="panel-section">
@@ -208,11 +203,7 @@ const localStatus = computed({
         {{ label('热标签', 'Hot Tags') }}
       </div>
       <div class="tag-cloud">
-        <button
-          type="button"
-          :class="{ active: localTag === 'all' }"
-          @click="localTag = 'all'"
-        >
+        <button type="button" :class="{ active: localTag === 'all' }" @click="localTag = 'all'">
           {{ label('全部', 'All') }}
         </button>
         <button

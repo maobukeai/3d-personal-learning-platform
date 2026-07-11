@@ -10,6 +10,49 @@ export interface BilibiliMetadata {
   }[];
 }
 
+interface BilibiliPage {
+  part?: string;
+  page: number;
+  cid: number;
+}
+
+interface BilibiliVideoData {
+  bvid?: string;
+  title?: string;
+  desc?: string;
+  pic?: string;
+  cid?: number;
+  owner?: { mid?: number };
+  ugc_season?: {
+    title?: string;
+    intro?: string;
+    cover?: string;
+    sections: Array<{
+      episodes: Array<{
+        title: string;
+        bvid: string;
+        cid: number;
+      }>;
+    }>;
+  };
+  archive_series?: {
+    series_id: number;
+  };
+  pages?: BilibiliPage[];
+}
+
+interface BilibiliArchive {
+  title: string;
+  bvid: string;
+  cid: number;
+}
+
+interface BilibiliMedia {
+  title: string;
+  bv_id: string;
+  id: number;
+}
+
 export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
   logger.info(`[Bilibili] Parsing input: ${url}`);
 
@@ -171,7 +214,10 @@ async function fetchFromApi(bvid: string | null, avid: string | null): Promise<B
   return await parseFromBilibiliData(viewJson.data, bvid || viewJson.data.bvid);
 }
 
-async function parseFromBilibiliData(data: any, bvid: string): Promise<BilibiliMetadata> {
+async function parseFromBilibiliData(
+  data: BilibiliVideoData,
+  bvid: string,
+): Promise<BilibiliMetadata> {
   const currentBvid = bvid || data.bvid;
   logger.info(
     `[Bilibili] Parsing Data: bvid=${currentBvid}, ugc_season=${!!data.ugc_season}, archive_series=${!!data.archive_series}, pages=${data.pages?.length}`,
@@ -205,20 +251,25 @@ async function parseFromBilibiliData(data: any, bvid: string): Promise<BilibiliM
     return await fetchBilibiliSeries(
       data.archive_series.series_id,
       data.owner?.mid || 0,
-      data.title,
-      data.pic,
+      data.title as string,
+      data.pic as string,
     );
   }
 
   // C. Multi-part Video (Pages)
   if (data.pages && data.pages.length > 1) {
     logger.info(`[Bilibili] Handling as Multi-part Video (${data.pages.length} pages)`);
-    const lessons = data.pages.map((page: any) => ({
+    const lessons = data.pages.map((page: BilibiliPage) => ({
       title: page.part || data.title + ` (P${page.page})`,
       videoUrl: `https://player.bilibili.com/player.html?bvid=${currentBvid}&cid=${page.cid}&page=${page.page}&high_quality=1&as_wide=1&danmaku=0`,
       order: page.page,
     }));
-    return { title: data.title, description: data.desc, thumbnail: fixPic(data.pic), lessons };
+    return {
+      title: data.title as string,
+      description: data.desc as string,
+      thumbnail: fixPic(data.pic),
+      lessons,
+    };
   }
 
   // D. Single Video (Fallback)
@@ -228,12 +279,12 @@ async function parseFromBilibiliData(data: any, bvid: string): Promise<BilibiliM
     logger.warn('[Bilibili] No CID found in data:', JSON.stringify(data).substring(0, 500));
   }
   return {
-    title: data.title,
-    description: data.desc,
+    title: data.title as string,
+    description: data.desc as string,
     thumbnail: fixPic(data.pic),
     lessons: [
       {
-        title: data.title,
+        title: data.title as string,
         videoUrl: `https://player.bilibili.com/player.html?bvid=${currentBvid}&cid=${cid}&page=1&high_quality=1&as_wide=1&danmaku=0`,
         order: 1,
       },
@@ -241,7 +292,7 @@ async function parseFromBilibiliData(data: any, bvid: string): Promise<BilibiliM
   };
 }
 
-function fixPic(pic: string) {
+function fixPic(pic: string | undefined) {
   if (!pic) return '';
   return pic.startsWith('//') ? 'https:' + pic : pic;
 }
@@ -268,7 +319,7 @@ async function fetchBilibiliSeries(
     throw new Error('获取系列列表失败');
   }
 
-  const lessons = seriesJson.data.archives.map((archive: any, index: number) => ({
+  const lessons = seriesJson.data.archives.map((archive: BilibiliArchive, index: number) => ({
     title: archive.title,
     videoUrl: `https://player.bilibili.com/player.html?bvid=${archive.bvid}&cid=${archive.cid}&page=1&high_quality=1&as_wide=1&danmaku=0`,
     order: index + 1,
@@ -299,7 +350,7 @@ async function fetchBilibiliMediaList(mlid: string): Promise<BilibiliMetadata> {
     throw new Error('获取播放列表失败');
   }
 
-  const lessons = json.data.medias.map((media: any, index: number) => ({
+  const lessons = json.data.medias.map((media: BilibiliMedia, index: number) => ({
     title: media.title,
     videoUrl: `https://player.bilibili.com/player.html?bvid=${media.bv_id}&cid=${media.id}&page=1&high_quality=1&as_wide=1&danmaku=0`,
     order: index + 1,

@@ -230,7 +230,7 @@ const activateOperationalLane = (lane: InsightOperationalLane) => {
 <style scoped>
 @media (max-width: 767px) {
   .overview-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
 }
 </style>

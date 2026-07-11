@@ -1,16 +1,15 @@
-import { Request, Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import prisma from '../services/prisma';
 
-export const getActiveBanners = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const banners = await prisma.banner.findMany({
-      where: {
-        isActive: true,
-      },
-      orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
-    });
-    res.json(banners);
-  } catch (error) {
-    next(error);
-  }
+export const getActiveBanners = async (
+  _request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const banners = await prisma.banner.findMany({
+    where: {
+      isActive: true,
+    },
+    orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
+  });
+  reply.send(banners);
 };

@@ -1,27 +1,38 @@
 import { logger } from '../../utils/logger';
-import { Request, Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
+
 import bcrypt from 'bcryptjs';
 import prisma from '../../services/prisma';
 import { sendEmail } from '../../utils/email';
 import { sanitizeUser } from '../../utils/auth';
-import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
+import {
+  auditService,
+  AuditModule,
+  AuditAction,
+  type AuditRequest,
+} from '../../services/audit.service';
 import { AppError } from '../../utils/error';
 import { provisionUserWorkspaces } from '../../services/user-workspace.service';
 
-export const register = async (req: Request, res: Response, next: NextFunction) => {
-  const { email, password, name, verificationCode } = req.body;
+export const register = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { email, password, name, verificationCode } = request.body as {
+    email: string;
+    password: string;
+    name: string;
+    verificationCode: string;
+  };
   try {
     // Check if registration is allowed
     const allowReg = await prisma.systemSetting.findUnique({
       where: { key: 'ALLOW_REGISTRATION' },
     });
     if (allowReg && (allowReg.value === 'false' || allowReg.value === '0')) {
-      return next(new AppError('目前平台已关闭新用户注册', 403));
+      throw new AppError('目前平台已关闭新用户注册', 403);
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return next(new AppError('该邮箱已被注册', 400));
+      throw new AppError('该邮箱已被注册', 400);
     }
 
     // Verify code
@@ -31,7 +42,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     });
 
     if (!record) {
-      return next(new AppError('验证码错误或已过期', 400));
+      throw new AppError('验证码错误或已过期', 400);
     }
 
     // Delete the used code immediately to prevent reuse attack
@@ -62,7 +73,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
           module: AuditModule.AUTH,
           description: `新用户注册: ${user.email}`,
           newValue: sanitizeUser(user),
-          req,
+          req: request as unknown as AuditRequest,
           tx, // Pass transaction client
         });
 
@@ -73,22 +84,21 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       },
     );
 
-    res.status(201).json({ message: 'User created successfully' });
+    reply.status(201).send({ message: 'User created successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 export const sendPublicVerificationCode = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { email } = req.body;
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { email } = request.body as { email: string };
   try {
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return next(new AppError('该邮箱已被注册', 400));
+      throw new AppError('该邮箱已被注册', 400);
     }
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -99,7 +109,7 @@ export const sendPublicVerificationCode = async (
     });
 
     const settings = await prisma.systemSetting.findMany();
-    const configData = settings.reduce((acc: any, curr: any) => {
+    const configData = settings.reduce<Record<string, string>>((acc, curr) => {
       acc[curr.key] = curr.value;
       return acc;
     }, {});
@@ -119,15 +129,18 @@ export const sendPublicVerificationCode = async (
 
     await sendEmail(email, subject, text, html);
 
-    res.json({ message: '验证码已发送到您的邮箱' });
+    reply.send({ message: '验证码已发送到您的邮箱' });
   } catch (error) {
     logger.error('Email send error:', error);
-    next(new AppError('无法发送邮件，请检查后端配置', 500));
+    throw new AppError('无法发送邮件，请检查后端配置', 500);
   }
 };
 
-export const verifyPublicEmail = async (req: Request, res: Response, next: NextFunction) => {
-  const { email, code } = req.body;
+export const verifyPublicEmail = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { email, code } = request.body as { email: string; code: string };
   try {
     const record = await prisma.verificationCode.findFirst({
       where: {
@@ -139,14 +152,14 @@ export const verifyPublicEmail = async (req: Request, res: Response, next: NextF
     });
 
     if (!record) {
-      return next(new AppError('验证码错误或已过期', 400));
+      throw new AppError('验证码错误或已过期', 400);
     }
 
     // Delete the used code to prevent reuse
     await prisma.verificationCode.delete({ where: { id: record.id } });
 
-    res.json({ message: '邮箱验证成功' });
+    reply.send({ message: '邮箱验证成功' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };

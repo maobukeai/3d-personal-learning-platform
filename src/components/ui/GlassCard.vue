@@ -30,13 +30,11 @@ const paddingClass = computed(() => {
 
 <template>
   <div
-    class="glass-card rounded-2xl relative flex flex-col overflow-hidden border transition-all duration-500 cubic-bezier-card"
+    class="glass-card rounded-xl relative flex flex-col overflow-hidden border transition-all duration-300"
     :class="[
       paddingClass,
-      hoverable
-        ? 'hover:-translate-y-1 hover:shadow-card-hover hover:border-strong dark:hover:border-slate-700'
-        : '',
-      clickable ? 'cursor-pointer select-none active:scale-[0.99]' : '',
+      hoverable ? 'hover:border-accent dark:hover:border-accent' : '',
+      clickable ? 'cursor-pointer select-none active:translate-y-[1px]' : '',
     ]"
   >
     <div class="relative z-10 flex-1 flex flex-col">

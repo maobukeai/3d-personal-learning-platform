@@ -109,6 +109,7 @@ export const useSystemStore = defineStore('system', {
   state: () => ({
     settings: { ...DEFAULT_SETTINGS } as SystemSettings,
     isInitialized: false,
+    isGlassDegraded: false,
   }),
   actions: {
     updateBrowserBranding() {
@@ -236,7 +237,10 @@ export const useSystemStore = defineStore('system', {
               DEFAULT_SHOWCASE_CATEGORIES,
             ),
             PLUGIN_CATEGORIES: safeParseArray(data.PLUGIN_CATEGORIES, DEFAULT_PLUGIN_CATEGORIES),
-            SOFTWARE_CATEGORIES: safeParseArray(data.SOFTWARE_CATEGORIES, DEFAULT_SOFTWARE_CATEGORIES),
+            SOFTWARE_CATEGORIES: safeParseArray(
+              data.SOFTWARE_CATEGORIES,
+              DEFAULT_SOFTWARE_CATEGORIES,
+            ),
             PASSWORD_MIN_LENGTH: String(data.PASSWORD_MIN_LENGTH || '6'),
             SESSION_TIMEOUT: data.SESSION_TIMEOUT || '7d',
             AUTO_APPROVE_MATERIALS: toBool(data.AUTO_APPROVE_MATERIALS),

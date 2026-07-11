@@ -18,7 +18,7 @@ import { computed, watch, onActivated, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { Flame, ArrowUp, Minus, ArrowDown } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 // Always-visible skeleton/empty state components — keep eager
 import TaskBoardHeader from './components/TaskBoardHeader.vue';
 import TaskBoardSkeleton from './components/TaskBoardSkeleton.vue';
@@ -40,7 +40,6 @@ const TaskFilterBar = defineAsyncComponent(() => import('@/components/TaskFilter
 const TaskBoardView = defineAsyncComponent(() => import('./components/TaskBoardView.vue'));
 const TaskListView = defineAsyncComponent(() => import('./components/TaskListView.vue'));
 const TaskCalendarView = defineAsyncComponent(() => import('./components/TaskCalendarView.vue'));
-
 
 const { t } = useI18n();
 const workspaceStore = useWorkspaceStore();

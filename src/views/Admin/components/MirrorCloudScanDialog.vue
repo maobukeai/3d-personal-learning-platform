@@ -30,7 +30,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <Modal :show="show" size="xl" glass-card @close="show = false">
+  <Modal :show="show" size="xl" @close="show = false">
     <template #header>
       <div class="flex items-center gap-2">
         <Search class="w-5 h-5 text-blue-500" />

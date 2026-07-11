@@ -16,6 +16,17 @@ export interface ExternalSearchResponse {
   results: Record<string, ExternalSearchResult[]>;
 }
 
+interface BlenderExtensionItem {
+  name?: string;
+  tagline?: string;
+  tags?: string[];
+  type?: string;
+  id?: string;
+  version?: string;
+  maintainer?: string;
+  license?: string;
+}
+
 /**
  * Scrapes/searches Blender resources from 6 major platforms:
  * 1. extensions.blender.org (API + local search)
@@ -33,7 +44,7 @@ async function searchBlenderExtensions(query: string): Promise<ExternalSearchRes
     if (!res.ok) {
       throw new Error(`extensions.blender.org API responded with status ${res.status}`);
     }
-    const json = (await res.json()) as { version: string; data: any[] };
+    const json = (await res.json()) as { version: string; data: BlenderExtensionItem[] };
     if (!json.data || !Array.isArray(json.data)) return [];
 
     const keyword = query.toLowerCase().trim();
@@ -60,8 +71,10 @@ async function searchBlenderExtensions(query: string): Promise<ExternalSearchRes
         site: 'extensions.blender.org',
       };
     });
-  } catch (err: any) {
-    logger.error(`[External Search] extensions.blender.org search error: ${err.message}`);
+  } catch (err: unknown) {
+    logger.error(
+      `[External Search] extensions.blender.org search error: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return [];
   }
 }
@@ -97,8 +110,10 @@ async function searchBlenderX(query: string): Promise<ExternalSearchResult[]> {
       });
 
     return results;
-  } catch (err: any) {
-    logger.error(`[External Search] blenderx.cn search error: ${err.message}`);
+  } catch (err: unknown) {
+    logger.error(
+      `[External Search] blenderx.cn search error: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return [];
   }
 }
@@ -120,8 +135,10 @@ async function searchBudeco(query: string): Promise<ExternalSearchResult[]> {
         snippet: r.snippet,
         site: 'budeco.top',
       }));
-  } catch (err: any) {
-    logger.error(`[External Search] budeco.top search error: ${err.message}`);
+  } catch (err: unknown) {
+    logger.error(
+      `[External Search] budeco.top search error: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return [];
   }
 }
@@ -130,9 +147,12 @@ export function normalizeResourceUrl(urlStr: string): string {
   if (!urlStr || typeof urlStr !== 'string') return urlStr;
   try {
     const urlObj = new URL(urlStr);
-    
+
     // 处理 superhivemarket / blendermarket 的 /products/slug 子路径
-    if (urlObj.hostname.includes('superhivemarket.com') || urlObj.hostname.includes('blendermarket.com')) {
+    if (
+      urlObj.hostname.includes('superhivemarket.com') ||
+      urlObj.hostname.includes('blendermarket.com')
+    ) {
       const match = urlObj.pathname.match(/^(\/products\/[^\/]+)/);
       if (match && match[1]) {
         return `${urlObj.origin}${match[1]}`;
@@ -147,11 +167,14 @@ export function normalizeResourceUrl(urlStr: string): string {
         urlObj.pathname = `${match[1]}${cleanSlug}${match[3] || ''}`;
       }
     }
-    
+
     // 清除常见的子功能后缀: /ratings, /docs, /changelog, /reviews, /comments, /faq
-    let cleanPath = urlObj.pathname.replace(/\/(ratings|docs|changelog|reviews|comments|faq|discussion)\/?$/i, '');
+    let cleanPath = urlObj.pathname.replace(
+      /\/(ratings|docs|changelog|reviews|comments|faq|discussion)\/?$/i,
+      '',
+    );
     cleanPath = cleanPath.replace(/\/+$/, '');
-    
+
     return `${urlObj.origin}${cleanPath}`;
   } catch {
     return urlStr;
@@ -167,7 +190,7 @@ async function searchSuperHive(query: string): Promise<ExternalSearchResult[]> {
       maxSearchEngines: 2,
       enableFallbackSearch: false,
     });
-    
+
     const uniqueMap = new Map<string, ExternalSearchResult>();
 
     results
@@ -191,8 +214,10 @@ async function searchSuperHive(query: string): Promise<ExternalSearchResult[]> {
       });
 
     return Array.from(uniqueMap.values());
-  } catch (err: any) {
-    logger.error(`[External Search] superhivemarket.com search error: ${err.message}`);
+  } catch (err: unknown) {
+    logger.error(
+      `[External Search] superhivemarket.com search error: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return [];
   }
 }
@@ -249,8 +274,10 @@ async function searchGfxCamp(query: string): Promise<ExternalSearchResult[]> {
     }
 
     return results;
-  } catch (err: any) {
-    logger.error(`[External Search] gfxcamp.com search error: ${err.message}`);
+  } catch (err: unknown) {
+    logger.error(
+      `[External Search] gfxcamp.com search error: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return [];
   }
 }
@@ -286,8 +313,10 @@ async function searchBlenderMX(query: string): Promise<ExternalSearchResult[]> {
       });
 
     return results;
-  } catch (err: any) {
-    logger.error(`[External Search] blendermx.com search error: ${err.message}`);
+  } catch (err: unknown) {
+    logger.error(
+      `[External Search] blendermx.com search error: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return [];
   }
 }
@@ -364,8 +393,10 @@ ${formattedResults}
   let aiAnalysis: string;
   try {
     aiAnalysis = await callLLMWithFailover(prompt, systemPrompt);
-  } catch (err: any) {
-    logger.error(`[External Search] AI analysis failover error: ${err.message}`);
+  } catch (err: unknown) {
+    logger.error(
+      `[External Search] AI analysis failover error: ${err instanceof Error ? err.message : String(err)}`,
+    );
     aiAnalysis =
       `资源抓取成功，但 AI 分析暂时不可用。以下是检索到的推荐链接：\n\n` +
       Object.entries(results)

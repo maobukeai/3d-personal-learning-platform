@@ -44,7 +44,7 @@ const handleMove = (val: string) => {
       style="border-color: rgba(99, 102, 241, 0.25); background: rgba(99, 102, 241, 0.04)"
     >
       <div class="flex items-center gap-3">
-        <el-checkbox
+        <Checkbox
           :model-value="props.isAllSelected"
           :indeterminate="props.indeterminate"
           class="shrink-0"
@@ -90,20 +90,20 @@ const handleMove = (val: string) => {
         >
           禁用
         </button>
-        <el-select
+        <Select
           :model-value="''"
           size="small"
           placeholder="移动到分类..."
           class="w-36 shrink-0"
           @change="handleMove"
         >
-          <el-option
+          <SelectOption
             v-for="family in props.families"
             :key="family.key"
             :label="`${family.label} (${family.count})`"
             :value="family.key"
           />
-        </el-select>
+        </Select>
         <button
           type="button"
           class="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 cursor-pointer shrink-0"

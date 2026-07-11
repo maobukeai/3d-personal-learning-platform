@@ -1,6 +1,6 @@
 import { onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElNotification } from 'element-plus';
+import { ElNotification } from '@/utils/feedbackBridge';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
 import type { AppNotification } from '@/services/notification.service';
@@ -181,7 +181,9 @@ export function useLayoutSocket(options: {
       if (isDisposed || !authStore.isAuthenticated) return;
 
       socketService = socketModule.socketService;
-      socketService.connect();
+      // Pass the current access token so the Socket.IO handshake auth object
+      // includes it — the server's fastifyAuthenticate checks auth.token first.
+      socketService.connect(authStore.accessToken);
 
       socketService.on('new_notification', onNewNotification);
       socketService.on('online_users_list', onOnlineUsersList);
@@ -205,16 +207,26 @@ export function useLayoutSocket(options: {
     }
   };
 
-  onMounted(() => {
-    void startRealtime();
-  });
+  // Watch the access token rather than onMounted.
+  // Reason: composable onMounted hooks run BEFORE the host component's
+  // onMounted, so authStore.accessToken is still null when this composable
+  // would fire — the socket handshake would fail immediately with
+  // "No token provided". By watching the token, we connect the moment it
+  // becomes non-null (after fetchMe → refresh cycle completes).
+  watch(
+    () => authStore.accessToken,
+    (token) => {
+      if (token) {
+        void startRealtime();
+      }
+    },
+    { immediate: true },
+  );
 
   watch(
     () => authStore.isAuthenticated,
     (isAuthenticated) => {
-      if (isAuthenticated) {
-        void startRealtime();
-      } else {
+      if (!isAuthenticated) {
         stopRealtime(true);
       }
     },

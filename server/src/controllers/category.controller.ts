@@ -1,10 +1,16 @@
-import { Request, Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
-import { AuthRequest } from '../middlewares/auth.middleware';
 import { auditService } from '../services/audit.service';
 import { AppError } from '../utils/error';
 import { redisService } from '../services/redis.service';
+
+type AdminRequest = FastifyRequest & {
+  body: any;
+  query: any;
+  params: any;
+  file?: any;
+};
 
 const CATEGORIES_CACHE_KEY = 'categories:all';
 const CATEGORIES_CACHE_TTL = 300; // 5 minutes
@@ -17,11 +23,11 @@ const invalidateCategoriesCache = async () => {
   await redisService.del(CATEGORIES_CACHE_KEY);
 };
 
-export const getAllCategories = async (req: Request, res: Response, next: NextFunction) => {
+export const getAllCategories = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const cached = await redisService.get<CategoryWithCount[]>(CATEGORIES_CACHE_KEY);
     if (cached) {
-      return res.json(cached);
+      return reply.send(cached);
     }
 
     const categories = await prisma.category.findMany({
@@ -34,16 +40,20 @@ export const getAllCategories = async (req: Request, res: Response, next: NextFu
     });
 
     await redisService.set(CATEGORIES_CACHE_KEY, categories, CATEGORIES_CACHE_TTL);
-    res.json(categories);
+    reply.send(categories);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const adminCreateCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { name, icon, order } = req.body;
+export const adminCreateCategory = async (req: AdminRequest, reply: FastifyReply) => {
+  const { name, icon, order } = req.body as {
+    name?: string;
+    icon?: string | null;
+    order?: string;
+  };
   if (!name) {
-    return next(new AppError('Name is required', 400));
+    throw new AppError('Name is required', 400);
   }
 
   try {
@@ -66,23 +76,27 @@ export const adminCreateCategory = async (req: AuthRequest, res: Response, next:
       req,
     });
 
-    res.status(201).json(category);
+    reply.status(201).send(category);
   } catch (error) {
     if ((error as { code?: string }).code === 'P2002') {
-      return next(new AppError('Category name already exists', 400));
+      throw new AppError('Category name already exists', 400);
     }
-    next(error);
+    throw error;
   }
 };
 
-export const adminUpdateCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const adminUpdateCategory = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
-  const { name, icon, order } = req.body;
+  const { name, icon, order } = req.body as {
+    name?: string;
+    icon?: string | null;
+    order?: string;
+  };
 
   try {
     const oldCategory = await prisma.category.findUnique({ where: { id } });
     if (!oldCategory) {
-      return next(new AppError('Category not found', 404));
+      throw new AppError('Category not found', 404);
     }
 
     const category = await prisma.category.update({
@@ -106,25 +120,25 @@ export const adminUpdateCategory = async (req: AuthRequest, res: Response, next:
       req,
     });
 
-    res.json(category);
+    reply.send(category);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const adminDeleteCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const adminDeleteCategory = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
 
   try {
     const category = await prisma.category.findUnique({ where: { id } });
     if (!category) {
-      return next(new AppError('Category not found', 404));
+      throw new AppError('Category not found', 404);
     }
 
     // Check if category has assets
     const assetCount = await prisma.asset.count({ where: { categoryId: id } });
     if (assetCount > 0) {
-      return next(new AppError('Cannot delete category with associated assets', 400));
+      throw new AppError('Cannot delete category with associated assets', 400);
     }
 
     await prisma.category.delete({ where: { id } });
@@ -140,8 +154,8 @@ export const adminDeleteCategory = async (req: AuthRequest, res: Response, next:
       req,
     });
 
-    res.json({ message: 'Category deleted successfully' });
+    reply.send({ message: 'Category deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };

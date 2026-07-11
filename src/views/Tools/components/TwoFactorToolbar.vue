@@ -35,11 +35,11 @@ const localPrivacyMode = computed({
   <div class="mobile-row flex flex-wrap items-center justify-between gap-2 mb-2 w-full">
     <div class="mobile-row flex items-center gap-2 w-full sm:w-auto flex-1 sm:flex-initial">
       <div class="shrink-0 w-24 sm:w-28">
-        <el-select v-model="localSortBy" placeholder="排序方式" class="custom-sort-select">
-          <el-option label="默认排序" value="pinned_first" />
-          <el-option label="名称 A-Z" value="label_asc" />
-          <el-option label="最新添加" value="created_desc" />
-        </el-select>
+        <Select v-model="localSortBy" placeholder="排序方式" class="custom-sort-select">
+          <SelectOption label="默认排序" value="pinned_first" />
+          <SelectOption label="名称 A-Z" value="label_asc" />
+          <SelectOption label="最新添加" value="created_desc" />
+        </Select>
       </div>
     </div>
 

@@ -101,7 +101,6 @@ const updateForm = (patch: Partial<BroadcastForm>) => {
       :show="showBroadcastModal"
       title="全站广播"
       size="lg"
-      glass-card
       @close="emit('update:showBroadcastModal', false)"
     >
       <div class="space-y-4">

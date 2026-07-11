@@ -13,6 +13,7 @@ import {
 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import Tabs from '@/components/ui/Tabs.vue';
+import CustomDatePicker from '@/components/ui/CustomDatePicker.vue';
 import type { Project, Task, UserType } from '@/types/task';
 import { isTaskOverdue } from '@/utils/taskDisplay';
 import type {
@@ -201,26 +202,21 @@ const activityDotClass = (type: string) => {
               @keydown.enter="emit('create-task')"
             />
             <div class="grid grid-cols-2 gap-2">
-              <el-select
-                v-model="quickTaskProjectId"
-                clearable
-                placeholder="关联项目"
-                class="!w-full"
-              >
-                <el-option
+              <Select v-model="quickTaskProjectId" clearable placeholder="关联项目" class="!w-full">
+                <SelectOption
                   v-for="project in projects"
                   :key="project.id"
                   :label="project.title"
                   :value="project.id"
                 />
-              </el-select>
-              <el-select
+              </Select>
+              <Select
                 v-model="quickTaskAssigneeId"
                 clearable
                 placeholder="指派负责人"
                 class="!w-full"
               >
-                <el-option
+                <SelectOption
                   v-for="member in teamMembers"
                   :key="member.id"
                   :label="member.name || member.email"
@@ -230,21 +226,15 @@ const activityDotClass = (type: string) => {
                     <UserAvatar :user="member" size="xs" />
                     <span class="text-xs font-bold">{{ member.name || member.email }}</span>
                   </div>
-                </el-option>
-              </el-select>
+                </SelectOption>
+              </Select>
             </div>
             <div class="grid grid-cols-[minmax(0,1fr)_84px] gap-2">
-              <input
+              <CustomDatePicker
                 v-model="quickTaskDueDate"
-                type="date"
-                class="min-w-0 px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-accent/15 transition-all cursor-pointer"
-                style="border-color: var(--border-base); color: var(--text-primary)"
-                @click="
-                  (e) => {
-                    const target = e.target as HTMLInputElement & { showPicker?: () => void };
-                    target.showPicker?.();
-                  }
-                "
+                placeholder="截止日期"
+                size="sm"
+                clearable
               />
               <button
                 type="button"
@@ -552,7 +542,7 @@ const activityDotClass = (type: string) => {
 
 @media (max-width: 767px) {
   .activity-grid {
-    grid-template-columns: 8px minmax(0, 1fr) auto !important;
+    grid-template-columns: 8px minmax(0, 1fr) auto;
   }
 }
 </style>

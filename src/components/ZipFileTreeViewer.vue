@@ -33,30 +33,16 @@ const { t } = useI18n();
     v-if="show !== false && (file || parsedFileTree.length > 0 || isParsingZip)"
     class="border border-white/10 rounded-xl overflow-hidden bg-white/[0.01] dark:bg-white/[0.02] text-left mt-3 shrink-0"
   >
-    <div
-      class="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-white/[0.02]"
-    >
+    <div class="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-white/[0.02]">
       <FileArchive class="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
-      <span
-        class="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]"
-      >
+      <span class="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
         {{ t('publishDialog.packageContents') || '压缩包包含' }}
-        <span v-if="!isParsingZip && parsedFileTree.length > 0"
-          >({{ parsedFileTree.length }})</span
-        >
+        <span v-if="!isParsingZip && parsedFileTree.length > 0">({{ parsedFileTree.length }})</span>
       </span>
-      <RefreshCw
-        v-if="isParsingZip"
-        class="h-3 w-3 text-amber-400 animate-spin ml-auto shrink-0"
-      />
+      <RefreshCw v-if="isParsingZip" class="h-3 w-3 text-amber-400 animate-spin ml-auto shrink-0" />
     </div>
-    <div
-      v-if="isParsingZip"
-      class="p-4 flex items-center gap-2 text-xs text-[var(--text-muted)]"
-    >
-      <span>{{
-        t('publishDialog.readingPackageContents') || '正在读取压缩包目录...'
-      }}</span>
+    <div v-if="isParsingZip" class="p-4 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+      <span>{{ t('publishDialog.readingPackageContents') || '正在读取压缩包目录...' }}</span>
     </div>
     <div
       v-else-if="parsedFileTree.length > 0"
@@ -139,7 +125,9 @@ const { t } = useI18n();
       </div>
     </div>
     <div v-else class="p-4 text-center text-xs text-[var(--text-muted)]">
-      <span>{{ emptyLabel || t('publishDialog.packageEmpty') || '压缩包无文件目录或已被清空' }}</span>
+      <span>{{
+        emptyLabel || t('publishDialog.packageEmpty') || '压缩包无文件目录或已被清空'
+      }}</span>
     </div>
   </div>
 </template>

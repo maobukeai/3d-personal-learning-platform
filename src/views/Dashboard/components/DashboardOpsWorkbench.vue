@@ -565,7 +565,7 @@ function getSeverityClass(severity: string) {
 
 @media (max-width: 767px) {
   .ops-workbench-grid.ops-workbench-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
 }
 </style>

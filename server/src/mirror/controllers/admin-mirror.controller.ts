@@ -1,31 +1,37 @@
 import { Prisma, MirrorResource, type StorageConfig } from '@prisma/client';
 import { logger } from '../../utils/logger';
-import { Response, NextFunction } from 'express';
-import { AuthRequest } from '../../middlewares/auth.middleware';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import { getActiveStorageConfig, uploadSourceMetadataToR2 } from '../services/metadata.helper';
 import { syncEngine } from '../services/sync-engine.service';
 import { mirrorService } from '../services/mirror.service';
 import { thumbnailLocalizer } from '../services/thumbnail-localizer.service';
 import prisma from '../../services/prisma';
+import { QueueService } from '../../services/queue.service';
+import { z } from 'zod';
+import { redisService } from '../../services/redis.service';
+import { cancelBullMQJob } from '../../services/bullmq.service';
 import { readSheet } from 'read-excel-file/node';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import archiver from 'archiver';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
 import { gbToBytes } from '../../utils/quota';
+import { safeUnlink } from '../../utils/file';
+import { UploadedFile } from '../../types/upload';
 import { clampLimit, clampPage } from '../../utils/pagination';
 import unzipper from 'unzipper';
 import { storageService } from '../../services/storage.service';
 import { buildDecryptedStorageConfig } from '../../utils/crypto';
 
-const safeUnlink = (p: string) =>
-  fs.promises.unlink(p).catch((err) => {
-    const code = (err as NodeJS.ErrnoException)?.code;
-    if (code !== 'ENOENT') {
-      logger.warn(`[safeUnlink] Failed to unlink ${p}:`, err);
-    }
-  });
+type MirrorRequest = FastifyRequest & {
+  body: any;
+  query: any;
+  params: any;
+  file?: any;
+  files?: any;
+};
 
 type SpreadsheetRow = Record<string, string>;
 
@@ -89,9 +95,8 @@ interface DiscoveredCloudSource {
 const emptyInlineStringCellPattern =
   /<c\b(?=[^>]*\bt="inlineStr")(?=[^>]*\br="[^"]+")[^>]*>\s*<\/c>|<c\b(?=[^>]*\bt="inlineStr")(?=[^>]*\br="[^"]+")[^>]*\/>/g;
 
-const sanitizeXlsxEmptyInlineStrings = async (filePath: string): Promise<Buffer> => {
-  const buf = await fs.promises.readFile(filePath);
-  const archive = unzipSync(new Uint8Array(buf));
+const sanitizeXlsxEmptyInlineStrings = async (input: Buffer): Promise<Buffer> => {
+  const archive = unzipSync(new Uint8Array(input));
 
   for (const [entryName, content] of Object.entries(archive)) {
     if (!/^xl\/worksheets\/sheet\d+\.xml$/i.test(entryName)) continue;
@@ -107,20 +112,20 @@ const sanitizeXlsxEmptyInlineStrings = async (filePath: string): Promise<Buffer>
   return Buffer.from(zipSync(archive));
 };
 
-const readSpreadsheetRows = async (filePath: string): Promise<SpreadsheetRow[]> => {
+const readSpreadsheetRows = async (input: Buffer): Promise<SpreadsheetRow[]> => {
   let sheetRows;
 
   try {
-    sheetRows = await readSheet(filePath);
+    sheetRows = await readSheet(input);
   } catch (error) {
     if (
       error instanceof Error &&
       error.message.includes('Unsupported "inline string" cell value structure')
     ) {
       logger.warn(
-        `[MirrorLinkMatch] Sanitizing empty inline string cells before reading ${path.basename(filePath)}`,
+        `[MirrorLinkMatch] Sanitizing empty inline string cells before reading spreadsheet buffer`,
       );
-      sheetRows = await readSheet(await sanitizeXlsxEmptyInlineStrings(filePath));
+      sheetRows = await readSheet(await sanitizeXlsxEmptyInlineStrings(input));
     } else {
       throw error;
     }
@@ -154,7 +159,7 @@ const readSpreadsheetRows = async (filePath: string): Promise<SpreadsheetRow[]> 
   return rows;
 };
 
-export const createSource = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createSource = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const {
       name,
@@ -166,15 +171,25 @@ export const createSource = async (req: AuthRequest, res: Response, next: NextFu
       syncConfig,
       iconUrl,
       description,
-    } = req.body;
+    } = req.body as {
+      name: string;
+      displayName: string;
+      baseUrl: string;
+      adapterType?: string;
+      syncInterval?: number;
+      minPlanPriority?: number;
+      syncConfig?: unknown;
+      iconUrl?: string;
+      description?: string;
+    };
 
     if (!name || !displayName || !baseUrl) {
-      return res.status(400).json({ error: 'name, displayName 和 baseUrl 为必填项' });
+      return reply.status(400).send({ error: 'name, displayName 和 baseUrl 为必填项' });
     }
 
     const existing = await prisma.mirrorSource.findUnique({ where: { name } });
     if (existing) {
-      return res.status(400).json({ error: '镜像源名称已存在' });
+      return reply.status(400).send({ error: '镜像源名称已存在' });
     }
 
     const source = await prisma.mirrorSource.create({
@@ -194,13 +209,13 @@ export const createSource = async (req: AuthRequest, res: Response, next: NextFu
     // Schedule the newly created source
     syncEngine.reloadSourceScheduler(source.id, source.status, source.syncInterval);
 
-    res.status(201).json(source);
+    reply.status(201).send(source);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateSource = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateSource = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const updateData: Record<string, unknown> = {};
@@ -236,9 +251,9 @@ export const updateSource = async (req: AuthRequest, res: Response, next: NextFu
     // Reload the scheduler with the updated status and interval
     syncEngine.reloadSourceScheduler(source.id, source.status, source.syncInterval);
 
-    res.json(source);
+    reply.send(source);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
@@ -375,7 +390,7 @@ const runDeleteSourceFilesInBackground = async (
   }
 };
 
-export const deleteSource = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteSource = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
 
@@ -386,7 +401,7 @@ export const deleteSource = async (req: AuthRequest, res: Response, next: NextFu
     });
 
     if (!source) {
-      return res.status(404).json({ error: '镜像源不存在' });
+      return reply.status(404).send({ error: '镜像源不存在' });
     }
 
     const resources = await prisma.mirrorResource.findMany({
@@ -421,13 +436,13 @@ export const deleteSource = async (req: AuthRequest, res: Response, next: NextFu
       logger.error('[DeleteSource] Background file deletion failed:', err);
     });
 
-    res.json({ message: '镜像源已删除' });
+    reply.send({ message: '镜像源已删除' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getAllSources = async (_req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAllSources = async (_req: MirrorRequest, reply: FastifyReply) => {
   try {
     const sources = await prisma.mirrorSource.findMany({
       orderBy: { createdAt: 'desc' },
@@ -436,13 +451,13 @@ export const getAllSources = async (_req: AuthRequest, res: Response, next: Next
       },
     });
 
-    res.json(sources);
+    reply.send(sources);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getSourceDetail = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getSourceDetail = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const source = await prisma.mirrorSource.findUnique({
@@ -453,7 +468,7 @@ export const getSourceDetail = async (req: AuthRequest, res: Response, next: Nex
     });
 
     if (!source) {
-      return res.status(404).json({ error: '镜像源不存在' });
+      return reply.status(404).send({ error: '镜像源不存在' });
     }
 
     const latestSync = await prisma.syncLog.findFirst({
@@ -461,106 +476,174 @@ export const getSourceDetail = async (req: AuthRequest, res: Response, next: Nex
       orderBy: { startedAt: 'desc' },
     });
 
-    res.json({ ...source, latestSync });
+    reply.send({ ...source, latestSync });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const triggerSync = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const triggerSync = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
-    const id = req.params.id as string;
-    const type = ((req.query.type as string) || 'FULL') as 'FULL' | 'INCREMENTAL';
+    // 1. Instantly validate parameters via Zod
+    const { id } = z.object({ id: z.string().min(1) }).parse(req.params);
+    const { type } = z
+      .object({
+        type: z.enum(['FULL', 'INCREMENTAL']).optional().default('FULL'),
+      })
+      .parse(req.query);
 
     const source = await prisma.mirrorSource.findUnique({ where: { id } });
     if (!source) {
-      return res.status(404).json({ error: '镜像源不存在' });
+      return reply.status(404).send({ error: '镜像源不存在' });
     }
 
-    if (syncEngine.isSyncing(id)) {
-      return res.status(400).json({ error: '同步已在运行中，请等待完成' });
-    }
+    const idempotencyKey = `sync:${id}`;
+    const lockKey = `lock:sync:${id}`;
 
-    res.json({ message: '同步已触发，正在后台执行', type });
+    // 2. Enforce idempotency check using a Redis lock
+    const lockAcquired = await redisService.acquireLock(lockKey, 30);
+    if (!lockAcquired) {
+      const activeJob = await prisma.job.findFirst({
+        where: {
+          idempotencyKey,
+          status: { in: ['PENDING', 'RUNNING'] },
+        },
+      });
+      if (activeJob) {
+        return reply.status(202).send({
+          jobId: activeJob.id,
+          status: activeJob.status,
+        });
+      }
+      return reply.status(409).send({ error: 'Concurrent sync request already in progress' });
+    }
 
     try {
-      if (type === 'INCREMENTAL') {
-        await syncEngine.incrementalSync(id);
-      } else {
-        await syncEngine.fullSync(id);
+      const activeJob = await prisma.job.findFirst({
+        where: {
+          idempotencyKey,
+          status: { in: ['PENDING', 'RUNNING'] },
+        },
+      });
+      if (activeJob) {
+        return reply.status(202).send({
+          jobId: activeJob.id,
+          status: activeJob.status,
+        });
       }
-    } catch (e) {
-      logger.error(`Sync failed for source ${id}:`, e instanceof Error ? e.message : e);
+
+      // Enqueue the mirror-sync job
+      const job = await QueueService.enqueue(
+        'mirror-sync',
+        { sourceId: id, type },
+        { idempotencyKey, type: 'mirror-sync' },
+      );
+
+      reply.status(202).send({
+        jobId: job?.id,
+        status: 'PENDING',
+      });
+    } finally {
+      await redisService.releaseLock(lockKey);
     }
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const cancelSync = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const cancelSync = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
+    const idempotencyKey = `sync:${id}`;
 
-    if (!syncEngine.isSyncing(id)) {
-      return res.status(400).json({ error: '没有正在运行的同步任务' });
+    const activeJob = await prisma.job.findFirst({
+      where: {
+        idempotencyKey,
+        status: { in: ['PENDING', 'RUNNING'] },
+      },
+    });
+
+    if (!activeJob) {
+      return reply.status(400).send({ error: '没有正在运行或排队的同步任务' });
     }
 
+    // Mark job as CANCELLED in DB
+    await prisma.job.update({
+      where: { id: activeJob.id },
+      data: {
+        status: 'CANCELLED',
+        finishedAt: new Date(),
+      },
+    });
+
+    // Cancel the job in BullMQ
+    if (redisService.isRedisEnabled) {
+      await cancelBullMQJob(activeJob.id);
+    }
+
+    // Also tell the syncEngine to cancel
     syncEngine.cancelSync(id);
-    res.json({ message: '同步已取消' });
+
+    reply.send({ message: '同步任务已取消', jobId: activeJob.id });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getSyncStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getSyncStatus = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
-    const isSyncing = syncEngine.isSyncing(id);
-    const progress = syncEngine.getProgress(id);
+    const idempotencyKey = `sync:${id}`;
+
+    // Find the latest job for this mirror source
+    const latestJob = await prisma.job.findFirst({
+      where: { idempotencyKey },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const isSyncing = latestJob ? ['PENDING', 'RUNNING'].includes(latestJob.status) : false;
 
     const source = await prisma.mirrorSource.findUnique({
       where: { id },
       select: { syncStatus: true, lastSyncAt: true, lastSyncDuration: true, totalResources: true },
     });
 
-    res.json({
+    reply.send({
       isSyncing,
       ...source,
-      progress: progress
+      job: latestJob
         ? {
-            type: progress.type,
-            status: progress.status,
-            currentCategory: progress.currentCategory,
-            currentCategoryIndex: progress.currentCategoryIndex,
-            totalCategories: progress.totalCategories,
-            currentPage: progress.currentPage,
-            resourcesFound: progress.resourcesFound,
-            resourcesCreated: progress.resourcesCreated,
-            resourcesUpdated: progress.resourcesUpdated,
-            startedAt: progress.startedAt,
-            estimatedProgress: progress.estimatedProgress,
+            id: latestJob.id,
+            status: latestJob.status,
+            progress: latestJob.progress,
+            retryCount: latestJob.retryCount,
+            error: latestJob.error,
+            result: latestJob.result ? JSON.parse(latestJob.result) : null,
+            createdAt: latestJob.createdAt,
+            startedAt: latestJob.startedAt,
+            finishedAt: latestJob.finishedAt,
           }
         : null,
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getSyncLogs = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getSyncLogs = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const limit = clampLimit(req.query.limit, 20, 100);
 
     const logs = await mirrorService.getSyncLogs(id, limit);
-    res.json(logs);
+    reply.send(logs);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const matchLinks = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const filesArray: Express.Multer.File[] = [];
+export const matchLinks = async (req: MirrorRequest, reply: FastifyReply) => {
+  const filesArray: UploadedFile[] = [];
 
   if (req.file) {
     filesArray.push(req.file);
@@ -570,7 +653,7 @@ export const matchLinks = async (req: AuthRequest, res: Response, next: NextFunc
     if (Array.isArray(req.files)) {
       filesArray.push(...req.files);
     } else {
-      const dictionary = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const dictionary = req.files as { [fieldname: string]: UploadedFile[] };
       if (dictionary['file']) {
         filesArray.push(...dictionary['file']);
       }
@@ -580,15 +663,9 @@ export const matchLinks = async (req: AuthRequest, res: Response, next: NextFunc
     }
   }
 
-  const cleanUpFiles = (filesList: Express.Multer.File[]) => {
+  const cleanUpFiles = async (filesList: UploadedFile[]) => {
     for (const f of filesList) {
-      if (f.path && fs.existsSync(f.path)) {
-        try {
-          fs.unlinkSync(f.path);
-        } catch (err) {
-          logger.error(`Failed to delete temp file ${f.path}:`, err);
-        }
-      }
+      await safeUnlink(f.path);
     }
   };
 
@@ -596,15 +673,15 @@ export const matchLinks = async (req: AuthRequest, res: Response, next: NextFunc
     const sourceId = req.params.id as string;
 
     if (filesArray.length === 0) {
-      return res.status(400).json({ error: '请上传Excel文件' });
+      return reply.status(400).send({ error: '请上传Excel文件' });
     }
 
     const unsupportedFile = filesArray.find(
       (file) => path.extname(file.originalname).toLowerCase() !== '.xlsx',
     );
     if (unsupportedFile) {
-      cleanUpFiles(filesArray);
-      return res.status(400).json({ error: '仅支持 .xlsx 文件' });
+      await cleanUpFiles(filesArray);
+      return reply.status(400).send({ error: '仅支持 .xlsx 文件' });
     }
 
     // Verify the mirror source exists
@@ -612,8 +689,8 @@ export const matchLinks = async (req: AuthRequest, res: Response, next: NextFunc
       where: { id: sourceId },
     });
     if (!source) {
-      cleanUpFiles(filesArray);
-      return res.status(404).json({ error: '镜像源不存在' });
+      await cleanUpFiles(filesArray);
+      return reply.status(404).send({ error: '镜像源不存在' });
     }
 
     // Load all resources under this source to do clean in-memory name comparisons
@@ -638,7 +715,7 @@ export const matchLinks = async (req: AuthRequest, res: Response, next: NextFunc
 
     for (const file of filesArray) {
       try {
-        const rawData = await readSpreadsheetRows(file.path);
+        const rawData = await readSpreadsheetRows(file.buffer!);
 
         for (const row of rawData) {
           const courseName = (row['课程名称'] || row['名称'] || row['课程'] || '')
@@ -736,8 +813,8 @@ export const matchLinks = async (req: AuthRequest, res: Response, next: NextFunc
           `[MirrorLinkMatch] Failed to parse Excel file ${file.originalname}:`,
           fileError,
         );
-        cleanUpFiles(filesArray);
-        return res.status(400).json({
+        await cleanUpFiles(filesArray);
+        return reply.status(400).send({
           error: `解析文件 "${file.originalname}" 失败，请检查文件格式或是否损坏。错误信息: ${fileError instanceof Error ? fileError.message : String(fileError)}`,
         });
       }
@@ -759,8 +836,8 @@ export const matchLinks = async (req: AuthRequest, res: Response, next: NextFunc
         }
       } catch (dbError) {
         logger.error(`[MirrorLinkMatch] Database transaction failed:`, dbError);
-        cleanUpFiles(filesArray);
-        return res.status(500).json({
+        await cleanUpFiles(filesArray);
+        return reply.status(500).send({
           error: `更新数据库失败: ${dbError instanceof Error ? dbError.message : String(dbError)}`,
         });
       }
@@ -770,20 +847,20 @@ export const matchLinks = async (req: AuthRequest, res: Response, next: NextFunc
       `[MirrorLinkMatch] Source ID: ${sourceId}, Excel uploaded. Found ${totalLinks} records, successfully matched and updated ${matchedCount} resources across ${filesArray.length} files.`,
     );
 
-    cleanUpFiles(filesArray);
+    await cleanUpFiles(filesArray);
 
-    res.json({
+    reply.send({
       message: `自动匹配完成！共在 ${filesArray.length} 个文件中发现 ${totalLinks} 条记录，成功匹配并更新 ${matchedCount} 个课程资源的提取链接。`,
       totalLinks,
       matchedCount,
     });
   } catch (error) {
-    cleanUpFiles(filesArray);
-    next(error);
+    await cleanUpFiles(filesArray);
+    throw error;
   }
 };
 
-export const getSourceResources = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getSourceResources = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const sourceId = req.params.sourceId as string;
     const page = clampPage(req.query.page);
@@ -839,7 +916,7 @@ export const getSourceResources = async (req: AuthRequest, res: Response, next: 
       prisma.mirrorResource.count({ where }),
     ]);
 
-    res.json({
+    reply.send({
       resources,
       total,
       page,
@@ -847,11 +924,11 @@ export const getSourceResources = async (req: AuthRequest, res: Response, next: 
       totalPages: Math.ceil(total / pageSize),
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getResourceDetail = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getResourceDetail = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
 
@@ -863,16 +940,16 @@ export const getResourceDetail = async (req: AuthRequest, res: Response, next: N
     });
 
     if (!resource) {
-      return res.status(404).json({ error: '资源不存在' });
+      return reply.status(404).send({ error: '资源不存在' });
     }
 
-    res.json(resource);
+    reply.send(resource);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createResource = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createResource = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const sourceId = req.params.sourceId as string;
     const {
@@ -885,10 +962,20 @@ export const createResource = async (req: AuthRequest, res: Response, next: Next
       resourceType = 'COURSE',
       categoryId,
       externalId,
-    } = req.body;
+    } = req.body as {
+      title: string;
+      description?: string | null;
+      thumbnailUrl?: string | null;
+      contentUrl?: string | null;
+      tags?: string | null;
+      contentHtml?: string | null;
+      resourceType?: string;
+      categoryId?: string | null;
+      externalId?: string;
+    };
 
     if (!title) {
-      return res.status(400).json({ error: 'title 为必填项' });
+      return reply.status(400).send({ error: 'title 为必填项' });
     }
 
     const resource = await prisma.mirrorResource.create({
@@ -906,13 +993,13 @@ export const createResource = async (req: AuthRequest, res: Response, next: Next
       },
     });
 
-    res.status(201).json(resource);
+    reply.status(201).send(resource);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateResource = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateResource = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const updateData: Record<string, unknown> = {};
@@ -943,13 +1030,13 @@ export const updateResource = async (req: AuthRequest, res: Response, next: Next
       data: updateData as Prisma.MirrorResourceUpdateInput,
     });
 
-    res.json(resource);
+    reply.send(resource);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteResource = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteResource = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
 
@@ -959,47 +1046,59 @@ export const deleteResource = async (req: AuthRequest, res: Response, next: Next
       prisma.mirrorResource.delete({ where: { id } }),
     ]);
 
-    res.json({ message: '资源已删除' });
+    reply.send({ message: '资源已删除' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getSourceCategories = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getSourceCategories = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const sourceId = req.params.sourceId as string;
     const categories = await prisma.mirrorCategory.findMany({
       where: { sourceId },
       orderBy: { order: 'asc' },
     });
-    res.json(categories);
+    reply.send(categories);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getCategoryDetail = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getCategoryDetail = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const category = await prisma.mirrorCategory.findUnique({
       where: { id },
     });
     if (!category) {
-      return res.status(404).json({ error: '分类不存在' });
+      return reply.status(404).send({ error: '分类不存在' });
     }
-    res.json(category);
+    reply.send(category);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createCategory = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const sourceId = req.params.sourceId as string;
-    const { name, slug, parentExternalId, order = 0, childExternalIds } = req.body;
+    const {
+      name,
+      slug,
+      parentExternalId,
+      order = 0,
+      childExternalIds,
+    } = req.body as {
+      name: string;
+      slug?: string;
+      parentExternalId?: string;
+      order?: number | string;
+      childExternalIds?: string[];
+    };
 
     if (!name) {
-      return res.status(400).json({ error: 'name 为必填项' });
+      return reply.status(400).send({ error: 'name 为必填项' });
     }
 
     const category = await prisma.mirrorCategory.create({
@@ -1025,16 +1124,22 @@ export const createCategory = async (req: AuthRequest, res: Response, next: Next
       });
     }
 
-    res.status(201).json(category);
+    reply.status(201).send(category);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateCategory = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
-    const { name, slug, parentExternalId, order, childExternalIds } = req.body;
+    const { name, slug, parentExternalId, order, childExternalIds } = req.body as {
+      name?: string;
+      slug?: string;
+      parentExternalId?: string;
+      order?: number | string;
+      childExternalIds?: string[];
+    };
 
     const updateData: Prisma.MirrorCategoryUpdateInput = {};
     if (name !== undefined) updateData.name = name;
@@ -1073,13 +1178,13 @@ export const updateCategory = async (req: AuthRequest, res: Response, next: Next
       });
     }
 
-    res.json(category);
+    reply.send(category);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteCategory = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
 
@@ -1087,21 +1192,24 @@ export const deleteCategory = async (req: AuthRequest, res: Response, next: Next
       where: { id },
     });
 
-    res.json({ message: '分类已删除' });
+    reply.send({ message: '分类已删除' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const uploadImage = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const uploadImage = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: '请选择要上传的图片文件' });
+      return reply.status(400).send({ error: '请选择要上传的图片文件' });
     }
-    const relativePath = `/uploads/mirror/${req.file.filename}`;
-    res.json({ url: relativePath });
+    const fileUrl = (req.file as UploadedFile).url;
+    if (!fileUrl) {
+      return reply.status(400).send({ error: '文件上传失败，未获取到云存储地址' });
+    }
+    reply.send({ url: fileUrl });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
@@ -1145,7 +1253,7 @@ const startImportTaskCleanup = () => {
 
 startImportTaskCleanup();
 
-export const exportSource = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const exportSource = async (req: MirrorRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const exportFull = req.query.full === 'true';
 
@@ -1157,7 +1265,7 @@ export const exportSource = async (req: AuthRequest, res: Response, next: NextFu
     });
 
     if (!source) {
-      return res.status(404).json({ error: '镜像源不存在' });
+      return reply.status(404).send({ error: '镜像源不存在' });
     }
 
     const categories = await prisma.mirrorCategory.findMany({
@@ -1231,14 +1339,16 @@ export const exportSource = async (req: AuthRequest, res: Response, next: NextFu
     }
 
     // --- Streaming ZIP response using archiver ---
+    reply.hijack();
+    const raw = reply.raw;
     const safeFilename = encodeURIComponent(`${source.name}-mirror-export.zip`);
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader(
+    raw.setHeader('Content-Type', 'application/zip');
+    raw.setHeader(
       'Content-Disposition',
       `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`,
     );
-    // Disable Express response buffering so bytes flow immediately
-    res.setHeader('Transfer-Encoding', 'chunked');
+    // Disable response buffering so bytes flow immediately
+    raw.setHeader('Transfer-Encoding', 'chunked');
     headersSent = true;
 
     const archive = archiver('zip', {
@@ -1247,13 +1357,13 @@ export const exportSource = async (req: AuthRequest, res: Response, next: NextFu
     });
 
     // Pipe archive data directly to the response stream
-    archive.pipe(res);
+    archive.pipe(raw);
 
     // Handle archiver errors
     archive.on('error', (err) => {
       logger.error('[ExportMirror] Archiver error:', err);
       // Can't send error JSON once headers are sent; just destroy the response
-      res.destroy(err);
+      raw.destroy(err);
     });
 
     // 1. Append metadata.json as a buffer
@@ -1302,20 +1412,25 @@ export const exportSource = async (req: AuthRequest, res: Response, next: NextFu
   } catch (error) {
     logger.error('[ExportMirror] Failed to export mirror source:', error);
     if (!headersSent) {
-      next(error);
+      throw error;
     } else {
-      res.destroy(error instanceof Error ? error : new Error(String(error)));
+      reply.raw.destroy(error instanceof Error ? error : new Error(String(error)));
     }
   }
 };
 
-export const importSource = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const importSource = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: '请选择要导入的 ZIP 压缩包文件' });
+      return reply.status(400).send({ error: '请选择要导入的 ZIP 压缩包文件' });
     }
 
-    const zipFilePath = req.file.path;
+    // 铁律二·3：纯内存 Buffer 中转 —— 直接用 req.file.buffer 解析 ZIP，
+    // 不再写入临时文件。runImportInBackground 负责解压到临时目录后清理。
+    if (!req.file.buffer) {
+      return reply.status(400).send({ error: '上传文件内容缺失（memoryStorage 未启用）' });
+    }
+
     const taskId = crypto.randomUUID();
 
     // Initialize task state
@@ -1328,32 +1443,32 @@ export const importSource = async (req: AuthRequest, res: Response, next: NextFu
       message: '正在解压缩文件...',
     });
 
-    res.json({ taskId });
+    reply.send({ taskId });
 
     // Execute in background
-    runImportInBackground(taskId, zipFilePath).catch((err) => {
+    runImportInBackground(taskId, req.file.buffer).catch((err) => {
       logger.error(`[ImportMirror] Background import failed:`, err);
     });
   } catch (error) {
     logger.error('[ImportMirror] Failed to start import:', error);
-    next(error);
+    throw error;
   }
 };
 
-export const getImportStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getImportStatus = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const taskId = req.params.taskId as string;
     const task = importTasks.get(taskId);
     if (!task) {
-      return res.status(404).json({ error: '找不到该导入任务' });
+      return reply.status(404).send({ error: '找不到该导入任务' });
     }
-    res.json(task);
+    reply.send(task);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const cleanupSourceImages = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const cleanupSourceImages = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const source = await prisma.mirrorSource.findUnique({
@@ -1361,11 +1476,11 @@ export const cleanupSourceImages = async (req: AuthRequest, res: Response, next:
     });
 
     if (!source) {
-      return res.status(404).json({ error: '镜像源不存在' });
+      return reply.status(404).send({ error: '镜像源不存在' });
     }
 
     const { deletedCount, savedBytes } = await thumbnailLocalizer.cleanupOrphanedImages(id);
-    res.json({
+    reply.send({
       success: true,
       deletedCount,
       savedBytes,
@@ -1373,7 +1488,7 @@ export const cleanupSourceImages = async (req: AuthRequest, res: Response, next:
     });
   } catch (error) {
     logger.error('[CleanupMirror] Failed to cleanup mirror source images:', error);
-    next(error);
+    throw error;
   }
 };
 
@@ -1387,27 +1502,26 @@ const getMimetype = (filename: string): string => {
   return 'application/octet-stream';
 };
 
-const runImportInBackground = async (taskId: string, zipFilePath: string) => {
+const runImportInBackground = async (taskId: string, zipBuffer: Buffer) => {
   const task = importTasks.get(taskId);
   if (!task) return;
 
-  const tempImportDir = path.join(process.cwd(), 'uploads', 'mirror', `temp-import-${taskId}`);
-  const cleanupTempDir = () => {
-    try {
-      if (fs.existsSync(tempImportDir)) {
-        fs.rmSync(tempImportDir, { recursive: true, force: true });
+  const tempImportDir = path.join(os.tmpdir(), `mirror-import-${taskId}`);
+  const cleanupTempDir = async () => {
+    await fs.promises.rm(tempImportDir, { recursive: true, force: true }).catch((err: unknown) => {
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code !== 'ENOENT') {
+        logger.error('Failed to cleanup temp import dir:', err);
       }
-    } catch (err) {
-      logger.error('Failed to cleanup temp import dir:', err);
-    }
+    });
   };
 
   try {
     // Ensure temp directory exists
     await fs.promises.mkdir(tempImportDir, { recursive: true });
 
-    // Open zip archive
-    const directory = await unzipper.Open.file(zipFilePath);
+    // 铁律二·3：纯内存 Buffer 解析 ZIP —— 不再读取磁盘文件
+    const directory = await unzipper.Open.buffer(zipBuffer);
 
     // Extract all files into the temp directory
     task.status = 'extracting';
@@ -1561,9 +1675,16 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
 
     if (tempIconPath) {
       if (activeConfig) {
-        // Upload to Cloudflare R2
+        // Read the temp icon file into a buffer and upload to R2 (no local IO)
         const key = `mirror/icon/${iconFilename}`;
-        const fileBytes = (await fs.promises.stat(tempIconPath)).size;
+        let iconBuffer: Buffer;
+        try {
+          iconBuffer = await fs.promises.readFile(tempIconPath);
+        } catch (readErr) {
+          logger.error('[ImportMirror] Failed to read temp icon file for R2 upload:', readErr);
+          iconBuffer = Buffer.alloc(0);
+        }
+        const fileBytes = iconBuffer.byteLength;
         const limitBytes = gbToBytes(activeConfig.limitGb);
 
         // Try to reserve space
@@ -1580,45 +1701,29 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
 
         if (updateResult.count > 0) {
           try {
-            const r2Url = await storageService.uploadFile(
+            const r2Url = await storageService.uploadBuffer(
               buildDecryptedStorageConfig(activeConfig),
-              tempIconPath,
+              iconBuffer,
               key,
               getMimetype(iconFilename),
             );
             importedIconUrl = r2Url;
           } catch (uploadErr) {
-            logger.error(
-              '[ImportMirror] Failed to upload icon to R2, falling back to local storage:',
-              uploadErr,
-            );
+            logger.error('[ImportMirror] Failed to upload icon to R2:', uploadErr);
             // Revert reserved space
             await prisma.storageConfig.update({
               where: { id: activeConfig.id },
               data: { usedBytes: { decrement: fileBytes } },
             });
-            // Fall back to local storage
-            const localIconDestDir = path.join(process.cwd(), 'uploads', 'mirror');
-            await fs.promises.mkdir(localIconDestDir, { recursive: true });
-            await fs.promises.copyFile(tempIconPath, path.join(localIconDestDir, iconFilename));
-            importedIconUrl = `/uploads/mirror/${iconFilename}`;
+            // No local fallback — keep original iconUrl from metadata
           }
         } else {
-          // Space full, fall back to local storage
-          logger.warn(
-            '[ImportMirror] Cloud storage space full, falling back to local storage for icon',
-          );
-          const localIconDestDir = path.join(process.cwd(), 'uploads', 'mirror');
-          await fs.promises.mkdir(localIconDestDir, { recursive: true });
-          await fs.promises.copyFile(tempIconPath, path.join(localIconDestDir, iconFilename));
-          importedIconUrl = `/uploads/mirror/${iconFilename}`;
+          // Space full — keep original iconUrl from metadata (no local fallback)
+          logger.warn('[ImportMirror] Cloud storage space full; keeping original icon URL');
         }
       } else {
-        // Fall back to local storage
-        const localIconDestDir = path.join(process.cwd(), 'uploads', 'mirror');
-        await fs.promises.mkdir(localIconDestDir, { recursive: true });
-        await fs.promises.copyFile(tempIconPath, path.join(localIconDestDir, iconFilename));
-        importedIconUrl = `/uploads/mirror/${iconFilename}`;
+        // No active R2 config — keep original iconUrl from metadata (no local fallback)
+        logger.warn('[ImportMirror] No active R2 config; keeping original icon URL');
       }
 
       await prisma.mirrorSource.update({
@@ -1627,16 +1732,9 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
       });
     }
 
-    // Extract localized files
+    // Extract localized files — upload to R2 only (no local IO)
     task.status = 'copying_files';
-    task.message = '正在复制本地附件图片...';
-    const localDestDir = path.join(process.cwd(), 'uploads', 'mirror', targetSourceId);
-    const ensureLocalDestDir = () => {
-      if (!fs.existsSync(localDestDir)) {
-        fs.mkdirSync(localDestDir, { recursive: true });
-      }
-    };
-    ensureLocalDestDir();
+    task.message = '正在上传附件图片到云端...';
 
     const fileUrlMap = new Map<string, string>();
 
@@ -1677,7 +1775,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
       const limitBytes = gbToBytes(activeConfig.limitGb);
       if (actualBytes + totalSize > limitBytes) {
         logger.warn(
-          `[ImportMirror] Cloud storage space insufficient based on actual R2 occupancy (actual: ${actualBytes} bytes, need ${totalSize} bytes, limit: ${limitBytes} bytes). Falling back to local storage.`,
+          `[ImportMirror] Cloud storage space insufficient based on actual R2 occupancy (actual: ${actualBytes} bytes, need ${totalSize} bytes, limit: ${limitBytes} bytes). Files will not be uploaded.`,
         );
         useCloudStorage = false;
       }
@@ -1705,7 +1803,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
       const totalMb = (totalSize / (1024 * 1024)).toFixed(1);
       const speedMb = (speed / (1024 * 1024)).toFixed(2);
 
-      task.message = `正在复制附件图片 (${uploadedFiles}/${filesToExtract.length}) | ${uploadedMb}MB / ${totalMb}MB (${speedMb}MB/s)...`;
+      task.message = `正在上传附件图片 (${uploadedFiles}/${filesToExtract.length}) | ${uploadedMb}MB / ${totalMb}MB (${speedMb}MB/s)...`;
       task.progress = Math.round((task.currentStep / task.totalSteps) * 95);
     };
 
@@ -1718,37 +1816,31 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     const processFile = async (filename: string) => {
       const tempFilePath = path.join(filesDir, filename);
       const fileBytes = fileSizes.get(filename) || 0;
-      let finalUrl: string;
 
       if (useCloudStorage && activeConfig) {
-        // Upload to Cloudflare R2
+        // Read temp file into buffer and upload to R2 (no local IO)
         const key = `mirror/${targetSourceId}/${filename}`;
         try {
-          const r2Url = await storageService.uploadFile(
+          const fileBuffer = await fs.promises.readFile(tempFilePath);
+          const r2Url = await storageService.uploadBuffer(
             buildDecryptedStorageConfig(activeConfig),
-            tempFilePath,
+            fileBuffer,
             key,
             getMimetype(filename),
           );
-          finalUrl = r2Url;
+          fileUrlMap.set(filename, r2Url);
           successfullyUploadedBytes += fileBytes;
         } catch (uploadErr) {
           logger.error(
-            `[ImportMirror] Failed to upload ${filename} to R2, falling back to local storage:`,
+            `[ImportMirror] Failed to upload ${filename} to R2; file will keep its original URL:`,
             uploadErr,
           );
-          ensureLocalDestDir();
-          await fs.promises.copyFile(tempFilePath, path.join(localDestDir, filename));
-          finalUrl = `/uploads/mirror/${targetSourceId}/${filename}`;
+          // No local fallback — file is skipped (not added to fileUrlMap)
         }
       } else {
-        // Fall back to local storage
-        ensureLocalDestDir();
-        await fs.promises.copyFile(tempFilePath, path.join(localDestDir, filename));
-        finalUrl = `/uploads/mirror/${targetSourceId}/${filename}`;
+        // No active R2 config or space insufficient — skip upload
+        logger.warn(`[ImportMirror] Skipping upload of ${filename} — no cloud storage available`);
       }
-
-      fileUrlMap.set(filename, finalUrl);
 
       uploadedFiles++;
       uploadedSize += fileBytes;
@@ -1934,35 +2026,23 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     task.progress = 100;
     task.status = 'completed';
     task.message = '导入成功！';
-
-    // Delete temp ZIP if failed
-    if (
-      await fs.promises
-        .access(zipFilePath)
-        .then(() => true)
-        .catch(() => false)
-    ) {
-      try {
-        await fs.promises.unlink(zipFilePath);
-      } catch (unlinkErr) {
-        logger.error('Failed to unlink uploaded ZIP:', unlinkErr);
-      }
-    }
+    // 铁律二·3：ZIP Buffer 在内存中处理，无需清理临时 ZIP 文件。
+    // 解压目录 tempImportDir 由 cleanupTempDir() 统一清理。
   } catch (err) {
     logger.error('[ImportMirrorBackground] Error importing mirror archive:', err);
     task.status = 'failed';
     task.error = err instanceof Error ? err.message : '未知导入错误';
     task.message = '导入失败，请检查压缩包内容是否完整。';
   } finally {
-    cleanupTempDir();
+    await cleanupTempDir();
   }
 };
 
-export const scanCloudSources = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const scanCloudSources = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
     const activeConfig = await getActiveStorageConfig('MIRROR');
     if (!activeConfig) {
-      return res.status(400).json({ error: '未启用 Cloudflare R2 云端存储配置。' });
+      return reply.status(400).send({ error: '未启用 Cloudflare R2 云端存储配置。' });
     }
 
     // List all directories under mirror/
@@ -1996,7 +2076,9 @@ export const scanCloudSources = async (req: AuthRequest, res: Response, next: Ne
             metadata = JSON.parse(jsonStr) as MirrorMetadata;
           } catch (parseErr) {
             logger.error('[ConnectCloudSource] Failed to parse metadata.json:', parseErr);
-            return res.status(400).json({ error: 'metadata.json 解析失败，内容可能被篡改或损坏' });
+            return reply
+              .status(400)
+              .send({ error: 'metadata.json 解析失败，内容可能被篡改或损坏' });
           }
           const { source, resources = [] } = metadata;
           if (source && source.id && source.name) {
@@ -2026,23 +2108,23 @@ export const scanCloudSources = async (req: AuthRequest, res: Response, next: Ne
       }
     }
 
-    res.json(discoveredSources);
+    reply.send(discoveredSources);
   } catch (error) {
     logger.error('[ScanCloudSources] Failed to scan Cloudflare R2:', error);
-    next(error);
+    throw error;
   }
 };
 
-export const connectCloudSource = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const connectCloudSource = async (req: MirrorRequest, reply: FastifyReply) => {
   try {
-    const { metadataKey } = req.body;
+    const { metadataKey } = req.body as { metadataKey: string };
     if (!metadataKey) {
-      return res.status(400).json({ error: '缺少 metadataKey 参数' });
+      return reply.status(400).send({ error: '缺少 metadataKey 参数' });
     }
 
     const activeConfig = await getActiveStorageConfig('MIRROR');
     if (!activeConfig) {
-      return res.status(400).json({ error: '未启用 Cloudflare R2 云端存储配置。' });
+      return reply.status(400).send({ error: '未启用 Cloudflare R2 云端存储配置。' });
     }
 
     const jsonStr = await storageService.getObjectString(
@@ -2051,7 +2133,7 @@ export const connectCloudSource = async (req: AuthRequest, res: Response, next: 
     );
 
     if (!jsonStr) {
-      return res.status(404).json({ error: '未能在 R2 找到对应的 metadata.json 文件' });
+      return reply.status(404).send({ error: '未能在 R2 找到对应的 metadata.json 文件' });
     }
 
     let metadata: MirrorMetadata;
@@ -2059,12 +2141,12 @@ export const connectCloudSource = async (req: AuthRequest, res: Response, next: 
       metadata = JSON.parse(jsonStr) as MirrorMetadata;
     } catch (parseErr) {
       logger.error('[ConnectCloudSource] Failed to parse metadata.json:', parseErr);
-      return res.status(400).json({ error: 'metadata.json 解析失败，内容可能被篡改或损坏' });
+      return reply.status(400).send({ error: 'metadata.json 解析失败，内容可能被篡改或损坏' });
     }
     const { source, categories = [], resources = [] } = metadata;
 
     if (!source || !source.id || !source.name || !source.displayName) {
-      return res.status(400).json({ error: 'metadata.json 格式无效，缺少必要镜像源属性' });
+      return reply.status(400).send({ error: 'metadata.json 格式无效，缺少必要镜像源属性' });
     }
 
     const targetSourceId = source.id;
@@ -2078,7 +2160,7 @@ export const connectCloudSource = async (req: AuthRequest, res: Response, next: 
     });
 
     if (nameCollision) {
-      return res.status(400).json({
+      return reply.status(400).send({
         error: `连接失败：镜像源名称「${source.name}」已被另一个 ID 为「${nameCollision.id}」的镜像源占用。`,
       });
     }
@@ -2201,9 +2283,9 @@ export const connectCloudSource = async (req: AuthRequest, res: Response, next: 
       );
     }
 
-    res.json({ message: '成功接入云端镜像源！', sourceId: targetSourceId });
+    reply.send({ message: '成功接入云端镜像源！', sourceId: targetSourceId });
   } catch (error) {
     logger.error('[ConnectCloudSource] Failed to connect Cloudflare R2 mirror source:', error);
-    next(error);
+    throw error;
   }
 };

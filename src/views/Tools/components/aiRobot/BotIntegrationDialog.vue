@@ -82,11 +82,14 @@ const responseModeDescription = (mode?: string | null) =>
         </div>
         <div>
           <label class="field-label">平台</label>
-          <select v-model="form.platform" class="form-input">
-            <option v-for="option in platformOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
+          <Select v-model="form.platform" class="w-full" size="large">
+            <SelectOption
+              v-for="option in platformOptions"
+              :key="option.value"
+              :value="option.value"
+              :label="option.label"
+            />
+          </Select>
         </div>
       </div>
 
@@ -150,12 +153,15 @@ const responseModeDescription = (mode?: string | null) =>
       <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_8rem_9rem]">
         <div>
           <label class="field-label">AI 模型</label>
-          <select v-model="form.aiModelId" class="form-input">
-            <option value="">跟随系统默认</option>
-            <option v-for="model in modelOptions" :key="model.id" :value="model.id">
-              {{ model.name }} · {{ model.provider }}/{{ model.modelName }}
-            </option>
-          </select>
+          <Select v-model="form.aiModelId" class="w-full" size="large">
+            <SelectOption value="" label="跟随系统默认" />
+            <SelectOption
+              v-for="model in modelOptions"
+              :key="model.id"
+              :value="model.id"
+              :label="`${model.name} · ${model.provider}/${model.modelName}`"
+            />
+          </Select>
           <p
             v-if="formSelectedModel"
             class="mt-1 truncate text-[11px] font-semibold text-slate-400"
@@ -192,10 +198,10 @@ const responseModeDescription = (mode?: string | null) =>
       <div class="grid gap-3 md:grid-cols-[10rem_minmax(0,1fr)]">
         <div>
           <label class="field-label">状态</label>
-          <select v-model="form.status" class="form-input">
-            <option value="ACTIVE">启用</option>
-            <option value="PAUSED">暂停</option>
-          </select>
+          <Select v-model="form.status" class="w-full" size="large">
+            <SelectOption value="ACTIVE" label="启用" />
+            <SelectOption value="PAUSED" label="暂停" />
+          </Select>
         </div>
         <div>
           <label class="field-label">触发关键词</label>
@@ -205,11 +211,14 @@ const responseModeDescription = (mode?: string | null) =>
 
       <div>
         <label class="field-label">处理模式</label>
-        <select v-model="form.responseMode" class="form-input">
-          <option v-for="option in responseModeOptions" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </option>
-        </select>
+        <Select v-model="form.responseMode" class="w-full animate-none" size="large">
+          <SelectOption
+            v-for="option in responseModeOptions"
+            :key="option.value"
+            :value="option.value"
+            :label="option.label"
+          />
+        </Select>
         <p class="mt-1 text-[11px] font-semibold text-slate-400">
           {{ responseModeDescription(form.responseMode) }}
         </p>
@@ -227,13 +236,13 @@ const responseModeDescription = (mode?: string | null) =>
 
     <template #footer>
       <div class="flex justify-end gap-2">
-        <el-button @click="emit('close')">取消</el-button>
-        <el-button type="primary" :loading="isSaving" @click="emit('save')">
+        <Button @click="emit('close')">取消</Button>
+        <Button variant="primary" :loading="isSaving" @click="emit('save')">
           <span class="inline-flex items-center gap-1.5">
             <Save class="h-4 w-4" />
             保存
           </span>
-        </el-button>
+        </Button>
       </div>
     </template>
   </Modal>

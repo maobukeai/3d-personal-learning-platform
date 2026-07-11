@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import type { Course } from '@/types';
 import { getApiErrorMessage, logError } from '@/utils/error';
@@ -468,7 +468,6 @@ defineExpose({
   <Modal
     :show="isDetailDrawerOpen && !!projectDetail"
     size="xxl"
-    glass-card
     padding="none"
     @close="isDetailDrawerOpen = false"
   >

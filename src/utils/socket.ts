@@ -37,8 +37,12 @@ class SocketService {
   private listeners: StoredListener[] = [];
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
+  private currentToken: string | null = null;
 
-  connect() {
+  connect(token?: string | null) {
+    if (token !== undefined) {
+      this.currentToken = token;
+    }
     if (this.socket?.connected) return;
 
     if (this.socket) {
@@ -54,6 +58,9 @@ class SocketService {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 30000,
       timeout: 10000,
+      // Pass the access token in the Socket.IO auth handshake so the server's
+      // fastifyAuthenticate can find it (it reads Bearer header first, then cookie).
+      ...(this.currentToken ? { auth: { token: this.currentToken } } : {}),
     });
 
     // Bind pre-existing listeners that were registered before socket connection was created
@@ -92,6 +99,21 @@ class SocketService {
       this.socket = null;
       this.listeners = [];
     }
+    this.currentToken = null;
+  }
+
+  /**
+   * Called after a token refresh to reconnect the socket with the new token.
+   * Preserves all registered listeners across the reconnect cycle.
+   */
+  reconnectWithToken(token: string) {
+    this.currentToken = token;
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+      // listeners are preserved — connect() re-binds them
+    }
+    this.connect(token);
   }
 
   getSocket() {

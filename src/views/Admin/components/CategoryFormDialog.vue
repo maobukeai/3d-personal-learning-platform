@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { Layers } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
@@ -93,6 +93,22 @@ const localForm = ref({
   order: 0,
   parentId: null as string | null,
   childIds: [] as string[],
+});
+
+const parentExternalIdWrapper = computed({
+  get: () => formModel.value?.parentExternalId || '',
+  set: (val) => {
+    if (formModel.value) {
+      formModel.value.parentExternalId = val ? String(val) : null;
+    }
+  },
+});
+
+const parentIdWrapper = computed({
+  get: () => localForm.value.parentId || '',
+  set: (val) => {
+    localForm.value.parentId = val ? String(val) : null;
+  },
 });
 
 const { t } = useI18n();
@@ -310,7 +326,6 @@ defineExpose({
     v-if="mode === 'mirror' && formModel"
     :show="isVisible"
     size="sm"
-    glass-card
     padding="md"
     @close="isVisible = false"
   >
@@ -337,15 +352,15 @@ defineExpose({
         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
           父级分类 <span class="text-xs text-slate-400 font-normal">（可选，用于侧边栏分组）</span>
         </label>
-        <select
-          v-model="formModel.parentExternalId"
-          class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-        >
-          <option :value="null">无（作为一级分类/大类）</option>
-          <option v-for="cat in parentCategoryOptions" :key="cat.id" :value="cat.externalId">
-            {{ cat.name }}
-          </option>
-        </select>
+        <Select v-model="parentExternalIdWrapper" class="w-full" size="large">
+          <SelectOption value="" label="无（作为一级分类/大类）" />
+          <SelectOption
+            v-for="cat in parentCategoryOptions"
+            :key="cat.id"
+            :value="cat.externalId"
+            :label="cat.name"
+          />
+        </Select>
       </div>
       <div
         v-if="!formModel.parentExternalId && eligibleSubcategories.length > 0"
@@ -490,15 +505,15 @@ defineExpose({
         <label class="text-xs font-semibold text-slate-500">
           {{ t('admin.parent_category_optional_used') }}
         </label>
-        <select
-          v-model="localForm.parentId"
-          class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none text-slate-600 dark:text-slate-300"
-        >
-          <option :value="null">{{ t('admin.none_as_a_first') }}</option>
-          <option v-for="cat in manualParentOptions" :key="cat.id" :value="cat.id">
-            {{ cat.name }}
-          </option>
-        </select>
+        <Select v-model="parentIdWrapper" class="w-full" size="large">
+          <SelectOption value="" :label="t('admin.none_as_a_first')" />
+          <SelectOption
+            v-for="cat in manualParentOptions"
+            :key="cat.id"
+            :value="cat.id"
+            :label="cat.name"
+          />
+        </Select>
       </div>
 
       <!-- Manual Assign subcategories checkbox list -->

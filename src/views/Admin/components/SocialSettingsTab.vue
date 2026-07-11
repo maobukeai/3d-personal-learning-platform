@@ -51,7 +51,7 @@ const showGithubPassword = ref(false);
               </p>
             </div>
           </div>
-          <el-switch v-model="localSettings.OAUTH_GOOGLE_ENABLED" active-color="#4f46e5" />
+          <Switch v-model="localSettings.OAUTH_GOOGLE_ENABLED" active-color="#4f46e5" />
         </div>
 
         <div
@@ -134,7 +134,7 @@ const showGithubPassword = ref(false);
               </p>
             </div>
           </div>
-          <el-switch v-model="localSettings.OAUTH_GITHUB_ENABLED" active-color="#000" />
+          <Switch v-model="localSettings.OAUTH_GITHUB_ENABLED" active-color="#000" />
         </div>
 
         <div

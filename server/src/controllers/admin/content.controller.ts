@@ -1,17 +1,23 @@
 import { logger } from '../../utils/logger';
 import { Prisma } from '@prisma/client';
-import { Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import { deleteCloudOrLocalFileByUrl } from '../../utils/file';
 import prisma from '../../services/prisma';
-import { AuthRequest } from '../../middlewares/auth.middleware';
 import { createNotification, createNotificationBatch } from '../../utils/notification';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
 import { AppError } from '../../utils/error';
 import { clampLimit, clampPage } from '../../utils/pagination';
 
+type AdminRequest = FastifyRequest & {
+  body: any;
+  query: any;
+  params: any;
+  file?: any;
+};
+
 // --- Feedback Audit ---
 
-export const getAllFeedback = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAllFeedback = async (req: AdminRequest, reply: FastifyReply) => {
   const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
   const status =
     typeof req.query.status === 'string' && req.query.status !== 'ALL'
@@ -53,23 +59,23 @@ export const getAllFeedback = async (req: AuthRequest, res: Response, next: Next
       },
       orderBy: { createdAt: 'desc' },
     });
-    res.json(feedbacks);
+    reply.send(feedbacks);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateFeedbackStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateFeedbackStatus = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { status, adminReply } = req.body;
 
   const validStatuses = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
   if (status && !validStatuses.includes(status)) {
-    return next(new AppError('Invalid status value', 400));
+    throw new AppError('Invalid status value', 400);
   }
 
   if (typeof adminReply === 'string' && adminReply.length > 1000) {
-    return next(new AppError('Reply must be shorter than 1000 characters', 400));
+    throw new AppError('Reply must be shorter than 1000 characters', 400);
   }
 
   try {
@@ -107,26 +113,22 @@ export const updateFeedbackStatus = async (req: AuthRequest, res: Response, next
       });
     }
 
-    res.json(updatedFeedback);
+    reply.send(updatedFeedback);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const batchUpdateFeedbackStatus = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const batchUpdateFeedbackStatus = async (req: AdminRequest, reply: FastifyReply) => {
   const { ids, status } = req.body as { ids?: string[]; status?: string };
   const validStatuses = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
 
   if (!Array.isArray(ids) || ids.length === 0) {
-    return next(new AppError('Please select at least one feedback item', 400));
+    throw new AppError('Please select at least one feedback item', 400);
   }
 
   if (!status || !validStatuses.includes(status)) {
-    return next(new AppError('Invalid status value', 400));
+    throw new AppError('Invalid status value', 400);
   }
 
   const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
@@ -138,7 +140,7 @@ export const batchUpdateFeedbackStatus = async (
     });
 
     if (feedbacks.length === 0) {
-      return next(new AppError('Feedback not found', 404));
+      throw new AppError('Feedback not found', 404);
     }
 
     const result = await prisma.feedback.updateMany({
@@ -167,19 +169,19 @@ export const batchUpdateFeedbackStatus = async (
       req,
     });
 
-    res.json({ count: result.count });
+    reply.send({ count: result.count });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteFeedback = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteFeedback = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   try {
     // Check if feedback exists
     const feedback = await prisma.feedback.findUnique({ where: { id } });
     if (!feedback) {
-      return next(new AppError('反馈不存在', 404));
+      throw new AppError('反馈不存在', 404);
     }
 
     if (feedback.attachmentUrl) {
@@ -189,17 +191,17 @@ export const deleteFeedback = async (req: AuthRequest, res: Response, next: Next
     }
 
     await prisma.feedback.delete({ where: { id } });
-    res.json({ message: 'Feedback deleted successfully' });
+    reply.send({ message: 'Feedback deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const batchDeleteFeedback = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const batchDeleteFeedback = async (req: AdminRequest, reply: FastifyReply) => {
   const { ids } = req.body as { ids?: string[] };
 
   if (!Array.isArray(ids) || ids.length === 0) {
-    return next(new AppError('Please select at least one feedback item', 400));
+    throw new AppError('Please select at least one feedback item', 400);
   }
 
   const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
@@ -211,7 +213,7 @@ export const batchDeleteFeedback = async (req: AuthRequest, res: Response, next:
     });
 
     if (feedbacks.length === 0) {
-      return next(new AppError('Feedback not found', 404));
+      throw new AppError('Feedback not found', 404);
     }
 
     for (const item of feedbacks) {
@@ -235,19 +237,15 @@ export const batchDeleteFeedback = async (req: AuthRequest, res: Response, next:
       req,
     });
 
-    res.json({ count: result.count });
+    reply.send({ count: result.count });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // --- Material Audit ---
 
-export const getAllMaterialsForAdmin = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const getAllMaterialsForAdmin = async (req: AdminRequest, reply: FastifyReply) => {
   const { status, search, page: pageQuery, limit: limitQuery, response } = req.query;
   try {
     const q = typeof search === 'string' ? search.trim() : '';
@@ -281,7 +279,7 @@ export const getAllMaterialsForAdmin = async (
     });
 
     if (!usePaginatedResponse) {
-      res.json(materials);
+      reply.send(materials);
       return;
     }
 
@@ -293,7 +291,7 @@ export const getAllMaterialsForAdmin = async (
       statusSummary.map((item) => [item.status, item._count._all]),
     );
 
-    res.json({
+    reply.send({
       items: materials,
       total,
       page,
@@ -307,21 +305,21 @@ export const getAllMaterialsForAdmin = async (
       },
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateMaterialStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateMaterialStatus = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { status, rejectReason } = req.body;
 
   if (!['APPROVED', 'REJECTED'].includes(status)) {
-    return next(new AppError('Invalid status', 400));
+    throw new AppError('Invalid status', 400);
   }
 
   try {
     const oldMaterial = await prisma.material.findUnique({ where: { id } });
-    if (!oldMaterial) return next(new AppError('Material not found', 404));
+    if (!oldMaterial) throw new AppError('Material not found', 404);
 
     const updateData: Partial<Prisma.MaterialUpdateInput> = { status };
     if (status === 'REJECTED' && rejectReason) {
@@ -358,25 +356,21 @@ export const updateMaterialStatus = async (req: AuthRequest, res: Response, next
       category: 'SYSTEM',
     });
 
-    res.json(material);
+    reply.send(material);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const batchUpdateMaterialStatus = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const batchUpdateMaterialStatus = async (req: AdminRequest, reply: FastifyReply) => {
   const { ids, status, rejectReason } = req.body;
 
   if (!Array.isArray(ids) || ids.length === 0) {
-    return next(new AppError('请选择至少一个材料', 400));
+    throw new AppError('请选择至少一个材料', 400);
   }
 
   if (!['APPROVED', 'REJECTED'].includes(status)) {
-    return next(new AppError('Invalid status', 400));
+    throw new AppError('Invalid status', 400);
   }
 
   try {
@@ -421,18 +415,18 @@ export const batchUpdateMaterialStatus = async (
       req,
     });
 
-    res.json({ message: `成功更新 ${result.count} 个材料状态`, count: result.count });
+    reply.send({ message: `成功更新 ${result.count} 个材料状态`, count: result.count });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const adminUpdateMaterial = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const adminUpdateMaterial = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { title, description, category, tags, status } = req.body;
   try {
     const oldMaterial = await prisma.material.findUnique({ where: { id } });
-    if (!oldMaterial) return next(new AppError('Material not found', 404));
+    if (!oldMaterial) throw new AppError('Material not found', 404);
 
     const material = await prisma.material.update({
       where: { id },
@@ -449,17 +443,17 @@ export const adminUpdateMaterial = async (req: AuthRequest, res: Response, next:
       req,
     });
 
-    res.json(material);
+    reply.send(material);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const adminDeleteMaterial = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const adminDeleteMaterial = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   try {
     const material = await prisma.material.findUnique({ where: { id } });
-    if (!material) return next(new AppError('Material not found', 404));
+    if (!material) throw new AppError('Material not found', 404);
 
     // Delete files from disk or cloud in background
     deleteCloudOrLocalFileByUrl(material.fileUrl).catch((err) => {
@@ -488,19 +482,15 @@ export const adminDeleteMaterial = async (req: AuthRequest, res: Response, next:
       req,
     });
 
-    res.json({ message: 'Material deleted successfully' });
+    reply.send({ message: 'Material deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // --- Showcase Audit ---
 
-export const getAllShowcasesForAdmin = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const getAllShowcasesForAdmin = async (req: AdminRequest, reply: FastifyReply) => {
   const { status, search, page: pageQuery, limit: limitQuery, response } = req.query;
   try {
     const q = typeof search === 'string' ? search.trim() : '';
@@ -540,7 +530,7 @@ export const getAllShowcasesForAdmin = async (
     }));
 
     if (!usePaginatedResponse) {
-      res.json(normalizedShowcases);
+      reply.send(normalizedShowcases);
       return;
     }
 
@@ -552,7 +542,7 @@ export const getAllShowcasesForAdmin = async (
       statusSummary.map((item) => [item.status, item._count._all]),
     );
 
-    res.json({
+    reply.send({
       items: normalizedShowcases,
       total,
       page,
@@ -566,21 +556,21 @@ export const getAllShowcasesForAdmin = async (
       },
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateShowcaseStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateShowcaseStatus = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { status, rejectReason } = req.body;
 
   if (!['APPROVED', 'REJECTED'].includes(status)) {
-    return next(new AppError('Invalid status', 400));
+    throw new AppError('Invalid status', 400);
   }
 
   try {
     const oldShowcase = await prisma.showcase.findUnique({ where: { id } });
-    if (!oldShowcase) return next(new AppError('Showcase not found', 404));
+    if (!oldShowcase) throw new AppError('Showcase not found', 404);
 
     const showcase = await prisma.showcase.update({
       where: { id },
@@ -609,25 +599,21 @@ export const updateShowcaseStatus = async (req: AuthRequest, res: Response, next
       category: 'SYSTEM',
     });
 
-    res.json(showcase);
+    reply.send(showcase);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const batchUpdateShowcaseStatus = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const batchUpdateShowcaseStatus = async (req: AdminRequest, reply: FastifyReply) => {
   const { ids, status, rejectReason } = req.body;
 
   if (!Array.isArray(ids) || ids.length === 0) {
-    return next(new AppError('请选择至少一个作品', 400));
+    throw new AppError('请选择至少一个作品', 400);
   }
 
   if (!['APPROVED', 'REJECTED'].includes(status)) {
-    return next(new AppError('Invalid status', 400));
+    throw new AppError('Invalid status', 400);
   }
 
   try {
@@ -664,19 +650,19 @@ export const batchUpdateShowcaseStatus = async (
       req,
     });
 
-    res.json({ message: `成功更新 ${result.count} 个作品状态`, count: result.count });
+    reply.send({ message: `成功更新 ${result.count} 个作品状态`, count: result.count });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const adminUpdateShowcase = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const adminUpdateShowcase = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { title, description, tags, type, status } = req.body;
 
   try {
     const oldShowcase = await prisma.showcase.findUnique({ where: { id } });
-    if (!oldShowcase) return next(new AppError('Showcase not found', 404));
+    if (!oldShowcase) throw new AppError('Showcase not found', 404);
 
     const updateData: Prisma.ShowcaseUpdateInput = {};
     if (title !== undefined) updateData.title = title;
@@ -700,18 +686,18 @@ export const adminUpdateShowcase = async (req: AuthRequest, res: Response, next:
       req,
     });
 
-    res.json(showcase);
+    reply.send(showcase);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const adminDeleteShowcase = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const adminDeleteShowcase = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   try {
     const showcase = await prisma.showcase.findUnique({ where: { id } });
     if (!showcase) {
-      return next(new AppError('Showcase not found', 404));
+      throw new AppError('Showcase not found', 404);
     }
 
     // Delete files in background
@@ -758,9 +744,9 @@ export const adminDeleteShowcase = async (req: AuthRequest, res: Response, next:
       req,
     });
 
-    res.json({ message: 'Showcase deleted successfully' });
+    reply.send({ message: 'Showcase deleted successfully' });
   } catch (error) {
     logger.error('Admin delete showcase error:', error);
-    next(error);
+    throw error;
   }
 };

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { Sparkles, RefreshCw, Trash2 } from 'lucide-vue-next';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
@@ -194,13 +194,7 @@ const removeParsedAccount = (idx: number) => {
 </script>
 
 <template>
-  <Modal
-    :show="props.show"
-    :title="t('tools.googleWarming.bulkImport')"
-    size="lg"
-    glass-card
-    @close="cancel"
-  >
+  <Modal :show="props.show" :title="t('tools.googleWarming.bulkImport')" size="lg" @close="cancel">
     <div class="space-y-4">
       <div class="gw-import-hint">
         {{ t('tools.googleWarming.importPlaceholder') }}
@@ -220,7 +214,7 @@ const removeParsedAccount = (idx: number) => {
           <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
             {{ t('tools.googleWarming.importDefaultCategory') }}:
           </span>
-          <el-select
+          <Select
             v-model="importDefaultCategory"
             filterable
             allow-create
@@ -230,22 +224,22 @@ const removeParsedAccount = (idx: number) => {
             style="width: 160px"
             class="custom-dialog-input"
           >
-            <el-option
+            <SelectOption
               v-for="cat in categoriesList.filter((c) => c !== 'all')"
               :key="cat"
               :label="cat === '未分类' ? '未分类 (无分类)' : cat"
               :value="cat"
             />
-          </el-select>
+          </Select>
           <span class="text-[11px] text-slate-400 dark:text-slate-500">
             {{ t('tools.googleWarming.realtimeApplyTip') }}
           </span>
         </div>
 
         <div class="flex items-center">
-          <el-checkbox v-model="autoTranslateCountry" size="small">
+          <Checkbox v-model="autoTranslateCountry" size="small">
             {{ t('tools.googleWarming.autoTranslateCountry') }}
-          </el-checkbox>
+          </Checkbox>
         </div>
       </div>
 
@@ -314,21 +308,11 @@ const removeParsedAccount = (idx: number) => {
                   <input v-model="acc.category" class="gw-table-input" placeholder="未分类" />
                 </td>
                 <td class="p-2">
-                  <select
-                    v-model="acc.status"
-                    class="gw-table-input cursor-pointer"
-                    style="
-                      background: var(--bg-app);
-                      border: 1px solid var(--border-base);
-                      border-radius: 4px;
-                      padding: 2px 4px;
-                      font-size: 11px;
-                    "
-                  >
-                    <option value="warming">养号中</option>
-                    <option value="completed">已毕业</option>
-                    <option value="paused">已暂停</option>
-                  </select>
+                  <Select v-model="acc.status" size="small" class="w-24">
+                    <SelectOption value="warming" label="养号中" />
+                    <SelectOption value="completed" label="已毕业" />
+                    <SelectOption value="paused" label="已暂停" />
+                  </Select>
                 </td>
                 <td class="p-2"><input v-model="acc.note" class="gw-table-input" /></td>
                 <td class="p-2 text-right">

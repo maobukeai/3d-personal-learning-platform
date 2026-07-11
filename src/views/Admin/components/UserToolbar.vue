@@ -52,32 +52,32 @@ const emit = defineEmits<{
       </div>
 
       <div class="toolbar-actions mobile-row">
-        <el-select v-model="statusFilter" size="small" style="width: 100px">
-          <el-option
+        <Select v-model="statusFilter" size="small" style="width: 100px">
+          <SelectOption
             v-for="option in props.statusOptions"
             :key="option.value"
             :label="option.label"
             :value="option.value"
           />
-        </el-select>
+        </Select>
 
-        <el-select v-model="roleFilter" size="small" style="width: 110px">
-          <el-option
+        <Select v-model="roleFilter" size="small" style="width: 110px">
+          <SelectOption
             v-for="option in props.roleOptions"
             :key="option.value"
             :label="option.label"
             :value="option.value"
           />
-        </el-select>
+        </Select>
 
-        <el-select v-model="activityFilter" size="small" style="width: 110px">
-          <el-option
+        <Select v-model="activityFilter" size="small" style="width: 110px">
+          <SelectOption
             v-for="option in props.activityOptions"
             :key="option.value"
             :label="option.label"
             :value="option.value"
           />
-        </el-select>
+        </Select>
 
         <Button variant="secondary" size="sm" :icon="Download" @click="emit('export')">
           导出
@@ -90,37 +90,37 @@ const emit = defineEmits<{
         已选 <strong>{{ selectedCount }}</strong> 个用户
       </div>
       <div class="batch-actions mobile-row">
-        <el-button size="small" @click="emit('batchUpdate', { status: 'ACTIVE' })">
+        <Button size="sm" @click="emit('batchUpdate', { status: 'ACTIVE' })">
           <CheckCircle2 :size="14" />
           恢复
-        </el-button>
-        <el-button size="small" @click="emit('batchUpdate', { status: 'BANNED' })">
+        </Button>
+        <Button size="sm" @click="emit('batchUpdate', { status: 'BANNED' })">
           <Ban :size="14" />
           封禁
-        </el-button>
-        <el-dropdown
+        </Button>
+        <Dropdown
           trigger="click"
           @command="
             (command: unknown) => emit('batchUpdate', { role: String(command) as UserRole })
           "
         >
-          <el-button size="small">
+          <Button size="sm">
             <UserCog :size="14" />
             改角色
-          </el-button>
+          </Button>
           <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="USER">普通用户</el-dropdown-item>
-              <el-dropdown-item command="INSTRUCTOR">导师</el-dropdown-item>
-              <el-dropdown-item command="ADMIN">管理员</el-dropdown-item>
-            </el-dropdown-menu>
+            <DropdownMenu>
+              <DropdownItem command="USER">普通用户</DropdownItem>
+              <DropdownItem command="INSTRUCTOR">导师</DropdownItem>
+              <DropdownItem command="ADMIN">管理员</DropdownItem>
+            </DropdownMenu>
           </template>
-        </el-dropdown>
-        <el-button size="small" @click="emit('batchRevokeSessions')">
+        </Dropdown>
+        <Button size="sm" @click="emit('batchRevokeSessions')">
           <TimerReset :size="14" />
           清退会话
-        </el-button>
-        <el-button size="small" text @click="emit('clearSelection')">取消选择</el-button>
+        </Button>
+        <Button size="sm" text @click="emit('clearSelection')">取消选择</Button>
       </div>
     </div>
   </Card>
@@ -140,12 +140,6 @@ const emit = defineEmits<{
   flex-wrap: wrap;
   gap: 8px;
   flex: 0 0 auto;
-}
-
-.toolbar-actions :deep(.el-button) {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
 }
 
 .batch-bar {
@@ -169,22 +163,12 @@ const emit = defineEmits<{
   gap: 10px;
   flex-wrap: wrap;
 }
-
-.batch-actions :deep(.el-button),
-.drawer-actions :deep(.el-button),
-.drawer-danger :deep(.el-button) {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
 @media (max-width: 1100px) {
   .toolbar-top {
     align-items: stretch;
     flex-direction: column;
   }
 }
-
 @media (max-width: 720px) {
   .toolbar-top,
   .batch-bar {
@@ -194,12 +178,6 @@ const emit = defineEmits<{
 
   .toolbar-actions {
     width: 100%;
-  }
-
-  .toolbar-actions :deep(.el-button),
-  .toolbar-actions :deep(.el-select) {
-    flex: 1 1 calc(50% - 4px);
-    min-width: 100px;
   }
 }
 </style>

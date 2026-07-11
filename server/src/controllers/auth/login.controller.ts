@@ -1,11 +1,11 @@
 import { logger } from '../../utils/logger';
-import { Request, Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
+
 import bcrypt from 'bcryptjs';
 import speakeasy from 'speakeasy';
 import crypto from 'crypto';
 import prisma from '../../services/prisma';
 import { config } from '../../config/env';
-import { AuthRequest } from '../../middlewares/auth.middleware';
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -13,33 +13,41 @@ import {
   verifyRecoveryCode,
 } from '../../utils/auth';
 import { getPublicAIModels, settingsService } from '../../services/settings.service';
-import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
+import {
+  auditService,
+  AuditModule,
+  AuditAction,
+  type AuditRequest,
+} from '../../services/audit.service';
 import { AppError } from '../../utils/error';
 import { redisService } from '../../services/redis.service';
 
-const setAuthCookies = (res: Response, accessToken: string, refreshToken: string) => {
+const setAuthCookies = (reply: FastifyReply, accessToken: string, refreshToken: string) => {
   const cookieOptions = {
     httpOnly: true,
     secure: config.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
+    sameSite: 'lax' as const,
   };
 
-  res.cookie('token', accessToken, { ...cookieOptions, maxAge: 60 * 60 * 1000 });
-  res.cookie('refreshToken', refreshToken, {
+  reply.setCookie('token', accessToken, { ...cookieOptions, maxAge: 60 * 60 * 1000 });
+  reply.setCookie('refreshToken', refreshToken, {
     ...cookieOptions,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
   const csrfToken = crypto.randomBytes(32).toString('hex');
-  res.cookie('csrfToken', csrfToken, {
+  reply.setCookie('csrfToken', csrfToken, {
     secure: config.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
+    sameSite: 'lax' as const,
     httpOnly: false,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 };
 
-export const getPublicSettings = async (req: Request, res: Response, next: NextFunction) => {
+export const getPublicSettings = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
     const settings = await settingsService.getAll();
     const publicSettings = {
@@ -62,15 +70,19 @@ export const getPublicSettings = async (req: Request, res: Response, next: NextF
       AI_IMPORT_ENABLED: settings.AI_IMPORT_ENABLED,
       AI_MODEL_OPTIONS: getPublicAIModels(settings),
     };
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.json(publicSettings);
+    reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    reply.send(publicSettings);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const login = async (req: Request, res: Response, next: NextFunction) => {
-  const { email, password, deviceToken } = req.body;
+export const login = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { email, password, deviceToken } = request.body as {
+    email: string;
+    password: string;
+    deviceToken?: string;
+  };
   try {
     const user = await prisma.user.findUnique({
       where: { email },
@@ -81,16 +93,16 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       },
     });
     if (!user) {
-      return next(new AppError('邮箱或密码错误', 400));
+      throw new AppError('邮箱或密码错误', 400);
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return next(new AppError('邮箱或密码错误', 400));
+      throw new AppError('邮箱或密码错误', 400);
     }
 
     if (user.status === 'BANNED') {
-      return next(new AppError('您的账号已被封禁，请联系管理员。', 403));
+      throw new AppError('您的账号已被封禁，请联系管理员。', 403);
     }
 
     if (user.twoFactorEnabled) {
@@ -99,9 +111,17 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
           where: { userId: user.id, token: deviceToken },
         });
         if (trusted) {
+          await prisma.trustedDevice.update({
+            where: { id: trusted.id },
+            data: {
+              lastUsedAt: new Date(),
+              ipAddress: request.ip,
+              userAgent: request.headers['user-agent'] || null,
+            },
+          });
           const accessToken = generateAccessToken(user.id, user.role);
           const refreshToken = await generateRefreshToken(user.id);
-          setAuthCookies(res, accessToken, refreshToken);
+          setAuthCookies(reply, accessToken, refreshToken);
 
           await auditService.log({
             userId: user.id,
@@ -109,54 +129,60 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
             module: AuditModule.AUTH,
             description: `用户登录 (受信任设备): ${user.email}`,
             newValue: sanitizeUser(user),
-            req,
+            req: request as unknown as AuditRequest,
           });
 
-          return res.json({
+          reply.send({
             accessToken,
             refreshToken,
             user: sanitizeUser(user),
           });
+          return;
         }
       }
-      return res.json({ twoFactorRequired: true, userId: user.id });
+      reply.send({ twoFactorRequired: true, userId: user.id });
+      return;
     }
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
-    setAuthCookies(res, accessToken, refreshToken);
+    setAuthCookies(reply, accessToken, refreshToken);
 
     await auditService.log({
       userId: user.id,
       action: AuditAction.LOGIN,
       module: AuditModule.AUTH,
       description: `用户登录: ${user.email}`,
-      req,
+      req: request as unknown as AuditRequest,
     });
 
-    res.json({
+    reply.send({
       accessToken,
       refreshToken,
       user: sanitizeUser(user),
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const login2FA = async (req: Request, res: Response, next: NextFunction) => {
-  const { userId, code, rememberDevice } = req.body;
+export const login2FA = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { userId, code, rememberDevice } = request.body as {
+    userId: string;
+    code: string;
+    rememberDevice?: boolean;
+  };
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { subscription: { include: { plan: true } } },
     });
     if (!user || !user.twoFactorSecret) {
-      return next(new AppError('Invalid request', 400));
+      throw new AppError('Invalid request', 400);
     }
 
     if (user.status === 'BANNED') {
-      return next(new AppError('您的账号已被封禁，请联系管理员。', 403));
+      throw new AppError('您的账号已被封禁，请联系管理员。', 403);
     }
 
     let isValid = speakeasy.totp.verify({
@@ -181,43 +207,51 @@ export const login2FA = async (req: Request, res: Response, next: NextFunction) 
     }
 
     if (!isValid) {
-      return next(new AppError('验证码或恢复代码错误', 400));
+      throw new AppError('验证码或恢复代码错误', 400);
     }
 
     let deviceToken = null;
     if (rememberDevice) {
       deviceToken = crypto.randomUUID();
       await prisma.trustedDevice.create({
-        data: { userId: user.id, token: deviceToken },
+        data: {
+          userId: user.id,
+          token: deviceToken,
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'] || null,
+          lastUsedAt: new Date(),
+        },
       });
     }
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
-    setAuthCookies(res, accessToken, refreshToken);
+    setAuthCookies(reply, accessToken, refreshToken);
 
     await auditService.log({
       userId: user.id,
       action: AuditAction.LOGIN,
       module: AuditModule.AUTH,
       description: `用户登录 (2FA 验证): ${user.email}`,
-      req,
+      req: request as unknown as AuditRequest,
     });
 
-    res.json({
+    reply.send({
       accessToken,
       refreshToken,
       deviceToken,
       user: sanitizeUser(user),
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const refreshToken = async (req: Request, res: Response, next: NextFunction) => {
-  let token = req.body?.refreshToken || req.cookies?.refreshToken || null;
-  if (!token) return next(new AppError('Refresh token required', 400));
+export const refreshToken = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const body = (request.body as { refreshToken?: string } | null) ?? {};
+  const cookies = (request.cookies as { refreshToken?: string } | undefined) ?? {};
+  let token = body.refreshToken || cookies.refreshToken || null;
+  if (!token) throw new AppError('Refresh token required', 400);
 
   try {
     const storedToken = await prisma.refreshToken.findUnique({
@@ -229,31 +263,33 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
       if (storedToken) {
         await prisma.refreshToken.delete({ where: { id: storedToken.id } }).catch(() => {});
       }
-      res.clearCookie('token');
-      res.clearCookie('refreshToken');
-      res.clearCookie('csrfToken');
-      return next(new AppError('Invalid or expired refresh token', 401));
+      reply.clearCookie('token');
+      reply.clearCookie('refreshToken');
+      reply.clearCookie('csrfToken');
+      throw new AppError('Invalid or expired refresh token', 401);
     }
 
     const accessToken = generateAccessToken(storedToken.user.id, storedToken.user.role);
     const newRefreshToken = await generateRefreshToken(storedToken.user.id);
     await prisma.refreshToken.delete({ where: { id: storedToken.id } }).catch(() => {});
-    setAuthCookies(res, accessToken, newRefreshToken);
+    setAuthCookies(reply, accessToken, newRefreshToken);
 
-    res.json({ accessToken, refreshToken: newRefreshToken });
+    reply.send({ accessToken, refreshToken: newRefreshToken });
   } catch (error) {
     logger.error('[Auth] Refresh token error:', error);
-    next(error);
+    throw error;
   }
 };
 
-export const logout = async (req: Request, res: Response, next: NextFunction) => {
-  const refreshToken = req.body?.refreshToken || req.cookies?.refreshToken || null;
+export const logout = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const body = (request.body as { refreshToken?: string } | null) ?? {};
+  const cookies = (request.cookies as { refreshToken?: string } | undefined) ?? {};
+  const refreshToken = body.refreshToken || cookies.refreshToken || null;
 
   const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
+    secure: config.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
   };
 
   try {
@@ -269,26 +305,26 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
           action: AuditAction.LOGOUT,
           module: AuditModule.AUTH,
           description: '用户登出',
-          req,
+          req: request as unknown as AuditRequest,
         });
       }
 
       await prisma.refreshToken.delete({ where: { token: refreshToken } }).catch(() => {});
     }
 
-    res.clearCookie('token', cookieOptions);
-    res.clearCookie('refreshToken', cookieOptions);
-    res.clearCookie('csrfToken', { ...cookieOptions, httpOnly: false });
-    res.json({ message: 'Logged out' });
+    reply.clearCookie('token', cookieOptions);
+    reply.clearCookie('refreshToken', cookieOptions);
+    reply.clearCookie('csrfToken', { ...cookieOptions, httpOnly: false });
+    reply.send({ message: 'Logged out' });
   } catch (error) {
     logger.error('[Auth] Logout error:', error);
-    next(error);
+    throw error;
   }
 };
 
-export const getMe = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const user = req.user!;
-  if (!user) return next(new AppError('Unauthorized', 401));
+export const getMe = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const user = request.user!;
+  if (!user) throw new AppError('Unauthorized', 401);
 
   try {
     // Dynamically load user's subscription details separately to avoid redundant user query overhead
@@ -297,8 +333,8 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
       include: { plan: true },
     });
     const userWithSub = { ...user, subscription };
-    res.json(sanitizeUser(userWithSub));
+    reply.send(sanitizeUser(userWithSub));
   } catch (error) {
-    next(error);
+    throw error;
   }
 };

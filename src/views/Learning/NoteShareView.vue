@@ -8,8 +8,10 @@ import { useAuthStore } from '@/stores/auth';
 import Button from '@/components/ui/Button.vue';
 import GlassCard from '@/components/ui/GlassCard.vue';
 const NoteDetailDialog = defineAsyncComponent(() => import('./components/NoteDetailDialog.vue'));
-import { applyThemeToDocument } from '@/composables/useAppearance';
 import { formatDate } from '@/utils/format';
+import { useThemeManager } from '@/layouts/composables/useThemeManager';
+
+const { currentTheme, currentBackground, initTheme, cleanupTheme } = useThemeManager();
 
 const route = useRoute();
 const router = useRouter();
@@ -76,13 +78,14 @@ const loadSharedNote = async () => {
 };
 
 onMounted(() => {
-  applyThemeToDocument('glass-light');
+  initTheme();
   void loadSharedNote();
   window.addEventListener('scroll', onWindowScroll);
 });
 
 onUnmounted(() => {
   window.removeEventListener('scroll', onWindowScroll);
+  cleanupTheme();
 });
 </script>
 
@@ -98,8 +101,14 @@ onUnmounted(() => {
       />
     </div>
 
-    <!-- Enterprise grid background decoration -->
-    <div class="enterprise-canvas absolute inset-0 overflow-hidden pointer-events-none z-0"></div>
+    <!-- Enterprise canvas background decoration -->
+    <div
+      v-show="currentTheme.startsWith('glass')"
+      :class="[
+        'enterprise-canvas absolute inset-0 overflow-hidden pointer-events-none z-0',
+        'bg-style-' + currentBackground,
+      ]"
+    ></div>
 
     <!-- Clean Minimalist Header -->
     <header
@@ -228,14 +237,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.enterprise-canvas {
-  background-image:
-    linear-gradient(var(--border-base) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border-base) 1px, transparent 1px);
-  background-size: 32px 32px;
-  opacity: 0.15;
-}
-
 .share-page-bg {
   position: relative;
   background:
@@ -248,6 +249,6 @@ onUnmounted(() => {
 }
 
 .theme-glass .share-page-bg {
-  background: transparent !important;
+  background: transparent;
 }
 </style>

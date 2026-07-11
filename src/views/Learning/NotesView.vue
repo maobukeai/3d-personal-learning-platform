@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { getApiErrorMessage, logError } from '@/utils/error';
 import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import {
   Plus,
   Search,
@@ -30,12 +30,16 @@ import { usePagedList } from '@/composables/usePagedList';
 
 // Dialog components — all conditionally rendered, so lazy-load each independently
 const UserProfileDialog = defineAsyncComponent(() => import('@/components/UserProfileDialog.vue'));
-const NotebookCreateDialog = defineAsyncComponent(() => import('./components/NotebookCreateDialog.vue'));
+const NotebookCreateDialog = defineAsyncComponent(
+  () => import('./components/NotebookCreateDialog.vue'),
+);
 const NoteCloneDialog = defineAsyncComponent(() => import('./components/NoteCloneDialog.vue'));
 const NoteEditorDialog = defineAsyncComponent(() => import('./components/NoteEditorDialog.vue'));
 const NoteDetailDialog = defineAsyncComponent(() => import('./components/NoteDetailDialog.vue'));
 const NoteShareDialog = defineAsyncComponent(() => import('./components/NoteShareDialog.vue'));
-const NoteImportGithubDialog = defineAsyncComponent(() => import('./components/NoteImportGithubDialog.vue'));
+const NoteImportGithubDialog = defineAsyncComponent(
+  () => import('./components/NoteImportGithubDialog.vue'),
+);
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -645,16 +649,16 @@ onUnmounted(() => {
             class="flex flex-wrap flex-1 items-center gap-2 min-w-0 md:min-w-[280px] justify-start sm:justify-end"
           >
             <!-- Sort Select -->
-            <el-select
+            <Select
               v-model="sortBy"
               :placeholder="t('notes.sortLabel')"
               class="shrink-0 !w-24 sm:!w-24 note-filter-select"
               @change="loadNotes"
             >
-              <el-option :label="t('notes.sortLatest')" value="latest" />
-              <el-option :label="t('notes.sortMostViewed')" value="most_viewed" />
-              <el-option :label="t('notes.sortMostLiked')" value="most_liked" />
-            </el-select>
+              <SelectOption :label="t('notes.sortLatest')" value="latest" />
+              <SelectOption :label="t('notes.sortMostViewed')" value="most_viewed" />
+              <SelectOption :label="t('notes.sortMostLiked')" value="most_liked" />
+            </Select>
 
             <!-- Tags and Categories Selects -->
             <template
@@ -663,7 +667,7 @@ onUnmounted(() => {
               "
             >
               <!-- Mobile Notebook Dropdown Selector -->
-              <el-select
+              <Select
                 v-if="activeTab === 'MY'"
                 :model-value="
                   filterCategory === '__uncategorized__' ? 'UNCATEGORIZED' : filterCategory || 'ALL'
@@ -672,13 +676,13 @@ onUnmounted(() => {
                 class="md:hidden shrink-0 !w-24 sm:!w-24 note-filter-select"
                 @change="selectNotebook"
               >
-                <el-option :label="t('notes.allNotes')" value="ALL" />
-                <el-option :label="t('notes.uncategorized')" value="UNCATEGORIZED" />
-                <el-option v-for="cat in myNotebooksList" :key="cat" :label="cat" :value="cat" />
-              </el-select>
+                <SelectOption :label="t('notes.allNotes')" value="ALL" />
+                <SelectOption :label="t('notes.uncategorized')" value="UNCATEGORIZED" />
+                <SelectOption v-for="cat in myNotebooksList" :key="cat" :label="cat" :value="cat" />
+              </Select>
 
               <!-- Tag Select -->
-              <el-select
+              <Select
                 v-if="tags.length"
                 v-model="filterTag"
                 :placeholder="t('notes.tagLabel')"
@@ -686,16 +690,16 @@ onUnmounted(() => {
                 clearable
                 @change="loadNotes"
               >
-                <el-option
+                <SelectOption
                   v-for="tagName in tags"
                   :key="tagName"
                   :label="tagName"
                   :value="tagName"
                 />
-              </el-select>
+              </Select>
 
               <!-- Category Select (Only if not MY tab) -->
-              <el-select
+              <Select
                 v-if="activeTab !== 'MY' && categories.length"
                 v-model="filterCategory"
                 :placeholder="t('notes.categoryLabel')"
@@ -703,8 +707,8 @@ onUnmounted(() => {
                 clearable
                 @change="loadNotes"
               >
-                <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
-              </el-select>
+                <SelectOption v-for="c in categories" :key="c" :label="c" :value="c" />
+              </Select>
             </template>
 
             <!-- Batch Management Toggle Button -->
@@ -909,7 +913,7 @@ onUnmounted(() => {
 
             <!-- Pagination -->
             <div v-if="totalPages > 1" class="flex justify-center mt-12 mb-8">
-              <el-pagination
+              <Pagination
                 :current-page="currentPage"
                 :page-size="pageSize"
                 :total="totalNotes"
@@ -976,14 +980,14 @@ onUnmounted(() => {
         <p class="text-xs text-[var(--text-secondary)] mb-3">
           {{ t('notes.selectTargetNotebook') }}
         </p>
-        <el-select
+        <Select
           v-model="targetMoveCategory"
           :placeholder="t('notes.selectNotebookPlaceholder')"
           class="w-full note-filter-select"
         >
-          <el-option :label="t('notes.uncategorized')" value="" />
-          <el-option v-for="cat in myNotebooksList" :key="cat" :label="cat" :value="cat" />
-        </el-select>
+          <SelectOption :label="t('notes.uncategorized')" value="" />
+          <SelectOption v-for="cat in myNotebooksList" :key="cat" :label="cat" :value="cat" />
+        </Select>
       </div>
       <template #footer>
         <div class="flex justify-end gap-2">
@@ -1006,41 +1010,5 @@ onUnmounted(() => {
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: var(--border-base);
   border-radius: 10px;
-}
-
-/* Custom styling to make input and select compact and premium */
-:deep(.note-search-input .el-input__wrapper) {
-  border-radius: 8px !important;
-  background-color: var(--bg-card) !important;
-  box-shadow: 0 0 0 1px var(--border-base) inset !important;
-  height: 32px !important;
-  transition: all 0.2s ease !important;
-}
-:deep(.note-search-input .el-input__wrapper:hover),
-:deep(.note-search-input .el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--accent) inset !important;
-}
-
-:deep(.note-filter-select .el-select__wrapper) {
-  border-radius: 8px !important;
-  background-color: var(--bg-card) !important;
-  box-shadow: 0 0 0 1px var(--border-base) inset !important;
-  transition: all 0.2s ease !important;
-  height: 32px !important;
-  line-height: 32px !important;
-  padding: 0 10px !important;
-}
-:deep(.note-filter-select .el-select__wrapper:hover),
-:deep(.note-filter-select .el-select__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--accent) inset !important;
-}
-:deep(.note-filter-select .el-select__placeholder) {
-  font-size: 12px !important;
-  color: var(--text-muted) !important;
-}
-:deep(.note-filter-select .el-select__text) {
-  font-size: 12px !important;
-  color: var(--text-primary) !important;
-  font-weight: 600 !important;
 }
 </style>

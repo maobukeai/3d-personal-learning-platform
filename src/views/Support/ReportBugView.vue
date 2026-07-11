@@ -11,7 +11,7 @@ import {
   Plus,
   RefreshCw,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api, { getAssetUrl } from '@/utils/api';
 import Modal from '@/components/ui/Modal.vue';
 import UiButton from '@/components/ui/Button.vue';
@@ -482,7 +482,7 @@ onMounted(refreshAll);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: transparent !important;
+  background: transparent;
   color: var(--text-primary);
 }
 
@@ -653,25 +653,6 @@ onMounted(refreshAll);
 
 :deep(.form-group:focus-within .form-label) {
   color: var(--accent);
-}
-
-:deep(.custom-select .el-select__wrapper) {
-  width: 100%;
-  height: 48px;
-  min-height: 48px;
-  border: 1px solid var(--border-base);
-  border-radius: 12px;
-  background: var(--bg-card);
-  color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 500;
-  box-shadow: none !important;
-  transition: all 0.3s ease;
-}
-
-:deep(.custom-select .el-select__wrapper.is-focused) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent) !important;
 }
 
 :deep(.custom-textarea) {

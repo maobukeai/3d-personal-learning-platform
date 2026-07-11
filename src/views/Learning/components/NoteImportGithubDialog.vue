@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { Github, KeyRound, GitBranch, FolderOpen, Eye, Loader2 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
@@ -166,7 +166,7 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" title="GitHub 笔记同步" size="md" glass-card @close="visible = false">
+  <Modal :show="visible" title="GitHub 笔记同步" size="md" @close="visible = false">
     <!-- Custom Header Slot for Premium Branding -->
     <template #header>
       <div class="mobile-row flex items-center gap-3">
@@ -267,14 +267,19 @@ defineExpose({ open });
             <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5">
               {{ t('notes.githubImport.defaultNotebookLabel') }}
             </label>
-            <el-select
+            <Select
               v-model="form.category"
               :placeholder="t('notes.githubImport.selectNotebookPlaceholder')"
               class="w-full custom-select"
             >
-              <el-option :label="t('notes.githubImport.uncategorizedOption')" value="" />
-              <el-option v-for="item in myNotebooksList" :key="item" :label="item" :value="item" />
-            </el-select>
+              <SelectOption :label="t('notes.githubImport.uncategorizedOption')" value="" />
+              <SelectOption
+                v-for="item in myNotebooksList"
+                :key="item"
+                :label="item"
+                :value="item"
+              />
+            </Select>
           </div>
           <div class="space-y-1.5">
             <label

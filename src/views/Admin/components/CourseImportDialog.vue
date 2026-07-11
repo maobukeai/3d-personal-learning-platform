@@ -2,11 +2,12 @@
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref } from 'vue';
-import { ElMessage } from 'element-plus';
-import { Plus, Loader2, CheckCircle2 } from 'lucide-vue-next';
+import { ElMessage } from '@/utils/feedbackBridge';
+import { Loader2, CheckCircle2 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import type { Category, Lesson } from '@/types';
+import Modal from '@/components/ui/Modal.vue';
 
 interface ParsedCourseMetadata {
   title: string;
@@ -43,14 +44,11 @@ const handleParseExternal = async () => {
   try {
     isParsing.value = true;
     parsedMetadata.value = null;
-    const { data } = await api.post('/api/admin/courses/parse-external', {
-      url,
-    });
+    const { data } = await api.post('/api/admin/courses/parse-external', { url });
     parsedMetadata.value = data;
     ElMessage.success(t('admin.parsed_successfully'));
   } catch (error) {
-    const errorMsg = getApiErrorMessage(error, t('admin.parsing_failed_please_check'));
-    ElMessage.error(errorMsg);
+    ElMessage.error(getApiErrorMessage(error, t('admin.parsing_failed_please_check')));
   } finally {
     isParsing.value = false;
   }
@@ -71,8 +69,7 @@ const handleImportExternal = async () => {
     visible.value = false;
     emit('saved');
   } catch (error) {
-    const errorMsg = getApiErrorMessage(error, t('admin.import_failed'));
-    ElMessage.error(errorMsg);
+    ElMessage.error(getApiErrorMessage(error, t('admin.import_failed')));
   } finally {
     isParsing.value = false;
   }
@@ -82,127 +79,107 @@ defineExpose({ open });
 </script>
 
 <template>
-  <div
-    v-if="visible"
-    class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
+  <Modal
+    :show="visible"
+    :title="$t('admin.import_courses_from_external')"
+    size="lg"
+    @close="visible = false"
   >
-    <div
-      class="w-full max-w-2xl rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300 animate-fade-in"
-      style="background-color: var(--bg-card)"
-    >
-      <div class="flex items-center justify-between mb-6">
-        <h3 class="text-xl font-bold" style="color: var(--text-primary)">
-          {{ $t('admin.import_courses_from_external') }}
-        </h3>
-        <button
-          type="button"
-          class="text-slate-400 hover:text-slate-600 cursor-pointer"
-          @click="visible = false"
-        >
-          <Plus class="w-6 h-6 rotate-45" />
-        </button>
-      </div>
-
-      <div class="space-y-6">
-        <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
-            $t('admin.course_or_project_link')
-          }}</label>
-          <div class="flex gap-2 mobile-row">
-            <input
-              v-model="externalUrl"
-              type="text"
-              :placeholder="$t('admin.paste_bilibili_youtube_or')"
-              class="flex-1 px-4 py-3 rounded-2xl border transition-all outline-none"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-              @keyup.enter="handleParseExternal"
-            />
-            <button
-              type="button"
-              :disabled="isParsing || !externalUrl"
-              class="px-6 py-3 rounded-2xl bg-accent text-white font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer"
-              @click="handleParseExternal"
-            >
-              <Loader2 v-if="isParsing && !parsedMetadata" class="w-4 h-4 animate-spin" />
-              解析
-            </button>
-          </div>
-        </div>
-
-        <!-- Binding Category dropdown -->
-        <div v-if="parsedMetadata">
-          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
-            $t('admin.bind_and_import_course')
-          }}</label>
-          <select
-            v-model="selectedCategoryId"
-            class="w-full px-4 py-3 rounded-2xl border transition-all outline-none appearance-none"
+    <div class="space-y-6 py-1">
+      <div>
+        <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+          $t('admin.course_or_project_link')
+        }}</label>
+        <div class="flex gap-2 mobile-row">
+          <input
+            v-model="externalUrl"
+            type="text"
+            :placeholder="$t('admin.paste_bilibili_youtube_or')"
+            class="flex-1 px-4 py-3 rounded-xl border transition-all outline-none"
             style="
               background-color: var(--bg-app);
               border-color: var(--border-base);
               color: var(--text-primary);
             "
+            @keyup.enter="handleParseExternal"
+          />
+          <button
+            type="button"
+            :disabled="isParsing || !externalUrl"
+            class="px-6 py-3 rounded-xl bg-accent text-white font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+            @click="handleParseExternal"
           >
-            <option value="">{{ $t('admin.do_not_bind_categories') }}</option>
-            <option v-for="cat in props.categories" :key="cat.id" :value="cat.id">
-              {{ cat.name }}
-            </option>
-          </select>
-        </div>
-
-        <!-- Preview -->
-        <div
-          v-if="parsedMetadata"
-          class="rounded-2xl border p-4 space-y-4 transition-colors duration-300"
-          style="background-color: var(--bg-app); border-color: var(--border-base)"
-        >
-          <div class="flex gap-4">
-            <img
-              alt=""
-              :src="parsedMetadata.thumbnail || undefined"
-              referrerpolicy="no-referrer"
-              class="w-32 aspect-video rounded-lg object-cover shadow-sm"
-            />
-            <div class="flex-1 min-w-0">
-              <h4 class="font-bold text-sm mb-1 truncate" style="color: var(--text-primary)">
-                {{ parsedMetadata.title }}
-              </h4>
-              <p class="text-[10px] text-slate-400 line-clamp-2">
-                {{ parsedMetadata.description }}
-              </p>
-            </div>
-          </div>
-
-          <div class="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-            <div
-              v-for="lesson in parsedMetadata.lessons || []"
-              :key="lesson.order"
-              class="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-white/5 border border-transparent"
-            >
-              <span class="text-[10px] font-black text-slate-300 w-4">{{ lesson.order }}</span>
-              <span
-                class="text-xs font-medium truncate flex-1"
-                style="color: var(--text-primary)"
-                >{{ lesson.title }}</span
-              >
-              <CheckCircle2 class="w-3.5 h-3.5 text-emerald-500" />
-            </div>
-          </div>
-
-          <p class="text-[10px] text-center font-bold text-slate-400">
-            共解析出 {{ parsedMetadata.lessons?.length || 0 }} 个课时
-          </p>
+            <Loader2 v-if="isParsing && !parsedMetadata" class="w-4 h-4 animate-spin" />
+            解析
+          </button>
         </div>
       </div>
 
-      <div class="flex items-center gap-4 mt-8">
+      <!-- Binding Category dropdown -->
+      <div v-if="parsedMetadata">
+        <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
+          $t('admin.bind_and_import_course')
+        }}</label>
+        <Select v-model="selectedCategoryId" class="w-full" size="large">
+          <SelectOption value="" :label="$t('admin.do_not_bind_categories')" />
+          <SelectOption
+            v-for="cat in props.categories"
+            :key="cat.id"
+            :value="cat.id"
+            :label="cat.name"
+          />
+        </Select>
+      </div>
+
+      <!-- Preview -->
+      <div
+        v-if="parsedMetadata"
+        class="rounded-xl border p-4 space-y-4 transition-colors duration-300"
+        style="background-color: var(--bg-app); border-color: var(--border-base)"
+      >
+        <div class="flex gap-4">
+          <img
+            alt=""
+            :src="parsedMetadata.thumbnail || undefined"
+            referrerpolicy="no-referrer"
+            class="w-32 aspect-video rounded-lg object-cover shadow-sm"
+          />
+          <div class="flex-1 min-w-0">
+            <h4 class="font-bold text-sm mb-1 truncate" style="color: var(--text-primary)">
+              {{ parsedMetadata.title }}
+            </h4>
+            <p class="text-[10px] text-slate-400 line-clamp-2">
+              {{ parsedMetadata.description }}
+            </p>
+          </div>
+        </div>
+
+        <div class="max-h-48 overflow-y-auto space-y-2 pr-2">
+          <div
+            v-for="lesson in parsedMetadata.lessons || []"
+            :key="lesson.order"
+            class="flex items-center gap-3 p-2 rounded-lg border"
+            style="background-color: var(--bg-elevated); border-color: var(--border-base)"
+          >
+            <span class="text-[10px] font-black text-slate-300 w-4">{{ lesson.order }}</span>
+            <span class="text-xs font-medium truncate flex-1" style="color: var(--text-primary)">{{
+              lesson.title
+            }}</span>
+            <CheckCircle2 class="w-3.5 h-3.5 text-emerald-500" />
+          </div>
+        </div>
+
+        <p class="text-[10px] text-center font-bold text-slate-400">
+          共解析出 {{ parsedMetadata.lessons?.length || 0 }} 个课时
+        </p>
+      </div>
+    </div>
+
+    <template #footer>
+      <div class="flex items-center gap-3">
         <button
           type="button"
-          class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          class="flex-1 py-2.5 rounded-xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
           @click="visible = false"
         >
           取消
@@ -210,36 +187,13 @@ defineExpose({ open });
         <button
           type="button"
           :disabled="!parsedMetadata || isParsing"
-          class="flex-1 py-3 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+          class="flex-1 py-2.5 rounded-xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
           @click="handleImportExternal"
         >
           <Loader2 v-if="isParsing && parsedMetadata" class="w-4 h-4 animate-spin" />
           确认导入
         </button>
       </div>
-    </div>
-  </div>
+    </template>
+  </Modal>
 </template>
-
-<style scoped>
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-.animate-fade-in {
-  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--border-base);
-  border-radius: 10px;
-}
-</style>

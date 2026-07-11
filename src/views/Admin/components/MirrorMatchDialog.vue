@@ -36,7 +36,7 @@ function removeFile(index: number) {
 </script>
 
 <template>
-  <Modal :show="show" size="sm" glass-card padding="md" @close="show = false">
+  <Modal :show="show" size="sm" padding="md" @close="show = false">
     <template #header>
       <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
         <Link2 class="w-5 h-5 text-indigo-500" />

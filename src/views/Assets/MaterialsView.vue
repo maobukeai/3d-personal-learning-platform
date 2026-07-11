@@ -19,7 +19,7 @@ import {
   MessageSquare,
   Box,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import { useAuthStore } from '@/stores/auth';
@@ -196,7 +196,11 @@ const handleContainerClick = (e: MouseEvent) => {
   if (!isBatchMode.value) return;
   const target = e.target as HTMLElement;
   if (!target) return;
-  if (target.closest('article, .unified-card, button, input, .el-select, .el-popper, a, select')) {
+  if (
+    target.closest(
+      'article, .unified-card, button, input, .select-trigger, .glass-popover, [data-radix-popper-content-wrapper], a, select',
+    )
+  ) {
     return;
   }
   isBatchMode.value = false;
@@ -716,7 +720,10 @@ function openEditDialog(material: NormalizedMaterial) {
   const rawMaterial = work.raw as any;
 
   const fileUrl = rawMaterial.fileUrl || '';
-  const isExternal = fileUrl.startsWith('http://') || fileUrl.startsWith('https://') ? !fileUrl.includes('/uploads/') : false;
+  const isExternal =
+    fileUrl.startsWith('http://') || fileUrl.startsWith('https://')
+      ? !fileUrl.includes('/uploads/')
+      : false;
   let extUrl = '';
   let extCode = '';
   if (isExternal) {
@@ -1153,12 +1160,16 @@ async function bulkDeleteMaterials() {
     const ids = [...selectedIds.value];
     await api.post('/api/materials/bulk-delete', { ids });
 
-    ElMessage.success(label(`成功删除 ${ids.length} 个材质`, `Successfully deleted ${ids.length} materials`));
+    ElMessage.success(
+      label(`成功删除 ${ids.length} 个材质`, `Successfully deleted ${ids.length} materials`),
+    );
     selectedIds.value = [];
     await Promise.all([fetchMaterials(), fetchInsights()]);
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(error, label('批量删除失败', 'Failed to bulk delete materials')));
+      ElMessage.error(
+        getApiErrorMessage(error, label('批量删除失败', 'Failed to bulk delete materials')),
+      );
     }
   } finally {
     isBulkBusy.value = false;
@@ -1510,7 +1521,10 @@ const handlePostReplyFromComponent = (payload: { content: string; linkedItemId: 
   handlePostReply();
 };
 
-const handlePostHelpRequestFromComponent = (formPayload: { title: string; description: string }) => {
+const handlePostHelpRequestFromComponent = (formPayload: {
+  title: string;
+  description: string;
+}) => {
   newHelpRequestForm.value = formPayload;
   handlePostHelpRequest();
 };
@@ -1534,7 +1548,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="materials-page mobile-adaptive flex flex-col h-full overflow-hidden" @click="handleContainerClick">
+  <div
+    class="materials-page mobile-adaptive flex flex-col h-full overflow-hidden"
+    @click="handleContainerClick"
+  >
     <MaterialLibraryHeader
       v-model:search-query="searchQuery"
       @show-favorites="activeTab = 'favorites'"
@@ -1543,8 +1560,10 @@ onUnmounted(() => {
     />
 
     <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">
-
-      <div class="workspace-shell" :class="{ 'single-col': activeTab === 'requests', 'collapsed-shell': isFilterCollapsed }">
+      <div
+        class="workspace-shell"
+        :class="{ 'single-col': activeTab === 'requests', 'collapsed-shell': isFilterCollapsed }"
+      >
         <MaterialFiltersPanel
           v-if="activeTab !== 'requests'"
           :is-open="isFilterOpen"
@@ -1596,7 +1615,12 @@ onUnmounted(() => {
           <HelpRequestsForum
             v-if="activeTab === 'requests'"
             :forum-title="label('材质求助论坛', 'Material Help Requests Forum')"
-            :forum-desc="label('找不到需要的材质纹理？发布求助帖，让社区开发者和爱好者来帮助您！', 'Can\'t find a material texture? Ask the community for help.')"
+            :forum-desc="
+              label(
+                '找不到需要的材质纹理？发布求助帖，让社区开发者和爱好者来帮助您！',
+                'Can\'t find a material texture? Ask the community for help.',
+              )
+            "
             :requests="helpRequests"
             :is-loading="isHelpRequestsLoading"
             @open-detail="openHelpRequestDetail"
@@ -1706,8 +1730,15 @@ onUnmounted(() => {
       :show="showHelpRequestPostDialog"
       :is-submitting="isSubmittingHelpRequest"
       :modal-title="label('发布新材质求助帖', 'Create Help Request')"
-      :title-placeholder="label('例如：寻找写实红砖墙面 PBR 材质', 'e.g. looking for brick PBR material')"
-      :desc-placeholder="label('请详细描述您需要的材质规格、分辨率（如4K/8K）、是否需要程序化贴图或参考，让大家能更精准地帮您找到！', 'Describe material details...')"
+      :title-placeholder="
+        label('例如：寻找写实红砖墙面 PBR 材质', 'e.g. looking for brick PBR material')
+      "
+      :desc-placeholder="
+        label(
+          '请详细描述您需要的材质规格、分辨率（如4K/8K）、是否需要程序化贴图或参考，让大家能更精准地帮您找到！',
+          'Describe material details...',
+        )
+      "
       @close="showHelpRequestPostDialog = false"
       @submit="handlePostHelpRequestFromComponent"
     />
@@ -1758,7 +1789,7 @@ onUnmounted(() => {
 <style scoped>
 .materials-page {
   height: 100%;
-  background: transparent !important;
+  background: transparent;
   color: var(--text-primary);
 }
 
@@ -1880,7 +1911,7 @@ button:disabled {
 
 .workspace-shell {
   display: grid;
-  grid-template-columns: 156px minmax(0, 1fr);
+  grid-template-columns: 200px minmax(0, 1fr);
   gap: 12px;
   transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }

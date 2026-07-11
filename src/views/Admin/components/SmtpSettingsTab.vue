@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, onMounted, watch, computed } from 'vue';
 import { Mail, Settings, Sparkles, Shield, Eye, EyeOff } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import { useSettingsSync } from '@/composables/useSettingsSync';
@@ -87,7 +87,7 @@ const addNewSmtpConfig = async () => {
     const newId = 'cfg_' + Date.now();
     const newCfg: SmtpConfig = {
       id: newId,
-      name,
+      name: name || '',
       host: '',
       port: '465',
       user: '',
@@ -124,7 +124,7 @@ const renameSmtpConfig = async () => {
       },
     );
 
-    activeCfg.name = name;
+    activeCfg.name = name || '';
     localSettings.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
     ElMessage.success(t('admin.scheme_renamed_successfully'));
   } catch {
@@ -475,7 +475,7 @@ onMounted(async () => {
               </p>
             </div>
           </div>
-          <el-switch v-model="localSettings.MICROSOFT_POOL_FAILBACK" active-color="#6366f1" />
+          <Switch v-model="localSettings.MICROSOFT_POOL_FAILBACK" active-color="#6366f1" />
         </div>
       </div>
 
@@ -568,7 +568,7 @@ onMounted(async () => {
             <span class="font-bold text-slate-400 whitespace-nowrap">{{
               $t('admin.solution')
             }}</span>
-            <el-select
+            <Select
               v-model="activeConfigId"
               :placeholder="$t('admin.options')"
               size="small"
@@ -576,13 +576,13 @@ onMounted(async () => {
               class="shrink-0 cursor-pointer"
               @change="selectSmtpConfig"
             >
-              <el-option
+              <SelectOption
                 v-for="cfg in smtpConfigs"
                 :key="cfg.id"
                 :label="cfg.name"
                 :value="cfg.id"
               />
-            </el-select>
+            </Select>
 
             <button
               type="button"
@@ -726,7 +726,7 @@ onMounted(async () => {
           />
         </div>
         <div class="flex items-center gap-3 pt-4 md:col-span-2">
-          <el-switch
+          <Switch
             v-model="localSettings.SMTP_SECURE"
             :active-value="true"
             :inactive-value="false"

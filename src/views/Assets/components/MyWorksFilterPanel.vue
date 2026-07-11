@@ -24,10 +24,7 @@ defineProps<{
 </script>
 
 <template>
-  <CollapsibleFilterShell
-    v-model:collapsed="isCollapsed"
-    storage-key="myworks_filter_collapsed"
-  >
+  <CollapsibleFilterShell v-model:collapsed="isCollapsed" storage-key="myworks_filter_collapsed">
     <div class="panel-section">
       <div class="section-title">
         <Layers class="icon-sm" />

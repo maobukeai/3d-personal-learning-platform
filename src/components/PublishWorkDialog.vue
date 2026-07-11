@@ -26,7 +26,7 @@ import { useFileTree } from '@/composables/useFileTree';
 import { useTempUpload } from '@/composables/useTempUpload';
 import DownloadTypeSegment from '@/components/DownloadTypeSegment.vue';
 import ZipFileTreeViewer from '@/components/ZipFileTreeViewer.vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { useI18n } from 'vue-i18n';
 import { useMobile } from '@/composables/useMobile';
@@ -215,7 +215,12 @@ const openAiCoverGenerator = (target: 'thumbnail' | 'pluginPreview' = 'thumbnail
 const handleAiCoverSave = async (file: File) => {
   if (activeCoverTarget.value === 'pluginPreview') {
     publishForm.value.pluginPreview = file;
-    const success = await uploadFile(file, pluginPreviewUploadProgress, tempPluginPreviewPath, 'plugin_preview');
+    const success = await uploadFile(
+      file,
+      pluginPreviewUploadProgress,
+      tempPluginPreviewPath,
+      'plugin_preview',
+    );
     if (success) {
       ElMessage.success('已自动应用 AI 生成的封面图！');
     } else {
@@ -238,7 +243,7 @@ const uploadFile = async (
   file: File,
   progressRef: Ref<number | null>,
   pathRef: Ref<string | null>,
-  fieldname?: string
+  fieldname?: string,
 ): Promise<boolean> => {
   return doUpload(
     file,
@@ -247,7 +252,7 @@ const uploadFile = async (
       pathRef.value = filePath;
     },
     () => pathRef.value,
-    fieldname
+    fieldname,
   );
 };
 
@@ -257,7 +262,7 @@ const cancelAllTempUploads = () => {
     tempPluginPath.value,
     tempPluginPreviewPath.value,
     tempMaterialPath.value,
-    tempThumbnailPath.value
+    tempThumbnailPath.value,
   ].filter(Boolean) as string[];
 
   for (const path of paths) {
@@ -280,7 +285,8 @@ const activeUploadFile = computed(() => {
   if (publishForm.value.downloadType === 'external') return null;
   if (publishCategory.value === 'asset') return publishForm.value.assetFile;
   if (publishCategory.value === 'material') return publishForm.value.materialFile;
-  if (publishCategory.value === 'plugin' || publishCategory.value === 'software') return publishForm.value.pluginFile;
+  if (publishCategory.value === 'plugin' || publishCategory.value === 'software')
+    return publishForm.value.pluginFile;
   return null;
 });
 
@@ -372,7 +378,12 @@ watch(
   () => props.defaultCategory,
   (category) => {
     if (props.modelValue && category) {
-      if (category === 'asset' || category === 'material' || category === 'plugin' || category === 'software') {
+      if (
+        category === 'asset' ||
+        category === 'material' ||
+        category === 'plugin' ||
+        category === 'software'
+      ) {
         publishCategory.value = category;
       } else {
         publishCategory.value = 'asset';
@@ -515,7 +526,9 @@ const handlePublish = async () => {
       const isPlugin = publishCategory.value === 'plugin';
       if (publishForm.value.downloadType === 'local') {
         if (!publishForm.value.pluginFile && !tempPluginPath.value) {
-          ElMessage.warning(isPlugin ? (t('publishDialog.pluginRequired') || '请上传插件文件') : '请上传软件文件');
+          ElMessage.warning(
+            isPlugin ? t('publishDialog.pluginRequired') || '请上传插件文件' : '请上传软件文件',
+          );
           isPublishing.value = false;
           return;
         }
@@ -534,9 +547,15 @@ const handlePublish = async () => {
       const pluginFormData = new FormData();
       if (publishForm.value.downloadType === 'local') {
         if (tempPluginPath.value) {
-          pluginFormData.append(isPlugin ? 'tempPluginPath' : 'tempSoftwarePath', tempPluginPath.value);
+          pluginFormData.append(
+            isPlugin ? 'tempPluginPath' : 'tempSoftwarePath',
+            tempPluginPath.value,
+          );
         } else if (publishForm.value.pluginFile) {
-          pluginFormData.append(isPlugin ? 'plugin_file' : 'software_file', publishForm.value.pluginFile);
+          pluginFormData.append(
+            isPlugin ? 'plugin_file' : 'software_file',
+            publishForm.value.pluginFile,
+          );
         }
       } else {
         let finalUrl = publishForm.value.externalUrl.trim();
@@ -547,9 +566,15 @@ const handlePublish = async () => {
       }
 
       if (tempPluginPreviewPath.value) {
-        pluginFormData.append(isPlugin ? 'tempPreviewPath' : 'tempPreviewPath', tempPluginPreviewPath.value);
+        pluginFormData.append(
+          isPlugin ? 'tempPreviewPath' : 'tempPreviewPath',
+          tempPluginPreviewPath.value,
+        );
       } else if (publishForm.value.pluginPreview) {
-        pluginFormData.append(isPlugin ? 'plugin_preview' : 'software_preview', publishForm.value.pluginPreview);
+        pluginFormData.append(
+          isPlugin ? 'plugin_preview' : 'software_preview',
+          publishForm.value.pluginPreview,
+        );
       }
       pluginFormData.append('title', publishForm.value.title);
       pluginFormData.append('description', publishForm.value.description);
@@ -700,7 +725,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <Modal :show="modelValue" size="xxl" glass-card @close="closeDialog">
+  <Modal :show="modelValue" size="xxl" content-class="publish-work-modal" @close="closeDialog">
     <template #header>
       <div>
         <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">
@@ -767,18 +792,18 @@ onMounted(() => {
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
                   >{{ t('publishDialog.categoryLabel') }}</label
                 >
-                <el-select
+                <Select
                   v-model="publishForm.assetCategory"
                   :placeholder="t('publishDialog.selectCategoryPlaceholder')"
                   class="w-full custom-select-v2"
                 >
-                  <el-option
+                  <SelectOption
                     v-for="cat in assetCategories"
                     :key="cat.id"
                     :label="cat.name"
                     :value="cat.id"
                   />
-                </el-select>
+                </Select>
               </div>
               <div>
                 <div class="flex items-center justify-between mb-1.5 ml-1">
@@ -1179,9 +1204,19 @@ onMounted(() => {
                 v-model:externalUrl="publishForm.externalUrl"
                 v-model:extractionCode="publishForm.extractionCode"
                 :progress="pluginUploadProgress"
-                :accept="publishCategory === 'plugin' ? '.zip,.rar,.7z,.blend,.js,.ts,.py,.lua,.mjs' : '.exe,.msi,.dmg,.pkg,.deb,.rpm,.zip,.rar,.7z'"
-                :supported-label="publishCategory === 'plugin' ? '.zip .blend .js .ts .py 等格式' : '.exe .msi .dmg .zip 等安装包或压缩包'"
-                :drag-label="publishCategory === 'plugin' ? '点击或拖拽上传插件文件' : '点击或拖拽上传软件文件'"
+                :accept="
+                  publishCategory === 'plugin'
+                    ? '.zip,.rar,.7z,.blend,.js,.ts,.py,.lua,.mjs'
+                    : '.exe,.msi,.dmg,.pkg,.deb,.rpm,.zip,.rar,.7z'
+                "
+                :supported-label="
+                  publishCategory === 'plugin'
+                    ? '.zip .blend .js .ts .py 等格式'
+                    : '.exe .msi .dmg .zip 等安装包或压缩包'
+                "
+                :drag-label="
+                  publishCategory === 'plugin' ? '点击或拖拽上传插件文件' : '点击或拖拽上传软件文件'
+                "
                 @change="handlePluginFileChange"
               />
 
@@ -1203,7 +1238,9 @@ onMounted(() => {
                 v-model="publishForm.title"
                 type="text"
                 :label="publishCategory === 'plugin' ? '插件名称' : '软件名称'"
-                :placeholder="publishCategory === 'plugin' ? '如：材质批量导出工具' : '如：Blender 官方正式版'"
+                :placeholder="
+                  publishCategory === 'plugin' ? '如：材质批量导出工具' : '如：Blender 官方正式版'
+                "
                 required
               />
             </div>
@@ -1215,18 +1252,26 @@ onMounted(() => {
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
                   >{{ publishCategory === 'plugin' ? '插件分类' : '软件分类' }}</span
                 >
-                <el-select
+                <Select
                   v-model="publishForm.pluginCategory"
                   :placeholder="publishCategory === 'plugin' ? '请选择插件分类' : '请选择软件分类'"
                   class="w-full custom-select-v2"
                 >
-                  <el-option
-                    v-for="cat in (publishCategory === 'plugin' ? systemStore.settings.PLUGIN_CATEGORIES : ['3D 建模与雕刻软件', '渲染引擎与渲染器', '后期与图像处理', '游戏与交互引擎', '其他工具'])"
+                  <SelectOption
+                    v-for="cat in publishCategory === 'plugin'
+                      ? systemStore.settings.PLUGIN_CATEGORIES
+                      : [
+                          '3D 建模与雕刻软件',
+                          '渲染引擎与渲染器',
+                          '后期与图像处理',
+                          '游戏与交互引擎',
+                          '其他工具',
+                        ]"
                     :key="cat"
                     :label="cat"
                     :value="cat"
                   />
-                </el-select>
+                </Select>
               </div>
               <div>
                 <Input
@@ -1245,7 +1290,7 @@ onMounted(() => {
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
                   >兼容性</span
                 >
-                <el-select
+                <Select
                   v-model="publishForm.pluginCompatibility"
                   filterable
                   allow-create
@@ -1253,13 +1298,15 @@ onMounted(() => {
                   placeholder="选择或输入兼容版本"
                   class="w-full custom-select-v2"
                 >
-                  <el-option
-                    v-for="ver in (publishCategory === 'plugin' ? blenderVersions : ['Windows 10/11', 'macOS', 'Linux', 'Android', 'iOS', '跨平台'])"
+                  <SelectOption
+                    v-for="ver in publishCategory === 'plugin'
+                      ? blenderVersions
+                      : ['Windows 10/11', 'macOS', 'Linux', 'Android', 'iOS', '跨平台']"
                     :key="ver"
                     :label="ver"
                     :value="ver"
                   />
-                </el-select>
+                </Select>
               </div>
               <div>
                 <Input
@@ -1274,8 +1321,7 @@ onMounted(() => {
             <!-- Preview image -->
             <div>
               <div class="flex items-center justify-between mb-1 ml-1">
-                <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400"
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400"
                   >封面图（可选）</label
                 >
                 <button
@@ -1319,7 +1365,11 @@ onMounted(() => {
             >
             <MarkdownEditor
               v-model="publishForm.description"
-              :placeholder="publishCategory === 'plugin' ? '简单描述插件的功能和用途' : '简单描述软件的功能和用途'"
+              :placeholder="
+                publishCategory === 'plugin'
+                  ? '简单描述插件的功能和用途'
+                  : '简单描述软件的功能和用途'
+              "
               :height="isMobile ? '300px' : '400px'"
               simple
             />
@@ -1696,50 +1746,49 @@ onMounted(() => {
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
                   >材质分类</span
                 >
-                <el-select
+                <Select
                   v-model="publishForm.materialCategory"
                   placeholder="请选择材质分类"
                   class="w-full custom-select-v2"
                 >
-                  <el-option
+                  <SelectOption
                     v-for="cat in materialCategories"
                     :key="cat"
                     :label="cat"
                     :value="cat"
                   />
-                </el-select>
+                </Select>
               </div>
               <div class="flex flex-col">
                 <span
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
                   >材质分辨率</span
                 >
-                <el-select
+                <Select
                   v-model="publishForm.materialResolution"
                   placeholder="请选择分辨率"
                   class="w-full custom-select-v2"
                 >
-                  <el-option
+                  <SelectOption
                     v-for="res in resolutionOptions"
                     :key="res"
                     :label="res"
                     :value="res"
                   />
-                </el-select>
+                </Select>
               </div>
             </div>
 
             <!-- Procedural Switch -->
             <div class="flex items-center gap-3 py-0.5">
-              <el-switch v-model="publishForm.materialIsProcedural" active-color="var(--accent)" />
+              <Switch v-model="publishForm.materialIsProcedural" active-color="var(--accent)" />
               <span class="text-xs font-bold text-slate-400">程序化材质 / SBSAR</span>
             </div>
 
             <!-- Preview image (Cover) -->
             <div>
               <div class="flex items-center justify-between mb-1 ml-1">
-                <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400"
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400"
                   >封面图（可选）</label
                 >
                 <button
@@ -2117,18 +2166,19 @@ onMounted(() => {
       </div>
     </template>
 
-    <!-- Publish Button -->
-    <Button
-      type="button"
-      variant="primary"
-      size="lg"
-      full-width
-      :loading="isPublishing"
-      class="sticky bottom-0 z-10 mt-4 publish-submit"
-      @click="handlePublish"
-    >
-      {{ isPublishing ? t('publishDialog.publishing') : t('publishDialog.publishNow') }}
-    </Button>
+    <template #footer>
+      <Button
+        type="button"
+        variant="primary"
+        size="lg"
+        full-width
+        :loading="isPublishing"
+        class="publish-submit"
+        @click="handlePublish"
+      >
+        {{ isPublishing ? t('publishDialog.publishing') : t('publishDialog.publishNow') }}
+      </Button>
+    </template>
   </Modal>
 
   <!-- AI Cover Generator Dialog -->
@@ -2142,6 +2192,18 @@ onMounted(() => {
 </template>
 
 <style scoped>
+:global(.publish-work-modal) {
+  width: min(1280px, calc(100vw - 48px));
+  height: min(800px, calc(100dvh - 48px));
+}
+
+@media (max-width: 640px) {
+  :global(.publish-work-modal) {
+    width: calc(100vw - 24px);
+    height: calc(100dvh - 24px);
+  }
+}
+
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
@@ -2157,17 +2219,10 @@ onMounted(() => {
 .fade-leave-to {
   opacity: 0;
 }
-.custom-select-v2 :deep(.el-input__wrapper) {
-  border-radius: 1rem !important;
-  background-color: var(--bg-app) !important;
-  box-shadow: none !important;
-  border: 1px solid var(--border-base);
-  height: 44px;
-}
 .publish-dialog-shell {
   border: 1px solid var(--border-base);
 }
 .publish-submit {
-  box-shadow: 0 -8px 20px color-mix(in srgb, var(--bg-card) 86%, transparent);
+  min-height: 42px;
 }
 </style>

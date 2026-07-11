@@ -6,6 +6,7 @@ APP_DIR="${FAST_UPDATE_APP_DIR:-$SCRIPT_DIR}"
 TMP_ZIP="$APP_DIR/update.zip"
 TMP_DIR="${FAST_UPDATE_TMP_DIR:-/tmp/3d-lms-update-$$}"
 SRC_DIR="$TMP_DIR/3d-personal-learning-platform-main"
+BACKUP_DIR="$TMP_DIR/previous-release"
 
 URLS=(
   "https://gh-proxy.com/https://github.com/maobukeai/3d-personal-learning-platform/archive/refs/heads/main.zip"
@@ -33,6 +34,47 @@ cleanup() {
   fi
 }
 
+sync_excludes() {
+  cat <<'EOF'
+--exclude .git/
+--exclude .env
+--exclude server/.env
+--exclude node_modules/
+--exclude server/node_modules/
+--exclude logs/
+--exclude server/uploads/
+EOF
+}
+
+snapshot_current_release() {
+  mkdir -p "$BACKUP_DIR"
+  if ! command -v rsync >/dev/null 2>&1; then
+    echo "ERROR: rsync is required for safe updates and rollback."
+    return 1
+  fi
+  rsync -a --delete $(sync_excludes) "$APP_DIR/" "$BACKUP_DIR/"
+}
+
+restore_previous_release() {
+  if [ ! -d "$BACKUP_DIR" ]; then
+    return 1
+  fi
+  echo "Deployment failed; restoring the previous application files..."
+  rsync -a --delete $(sync_excludes) "$BACKUP_DIR/" "$APP_DIR/"
+}
+
+reload_previous_service() {
+  if ! command -v pm2 >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local app_name="${PM2_APP_NAME:-3d-lms-api}"
+  if pm2 list | grep -q "$app_name"; then
+    echo "Reloading the restored application version..."
+    (cd "$APP_DIR" && pm2 startOrReload ecosystem.config.cjs --update-env)
+  fi
+}
+
 download_latest_code() {
   echo "================================================"
   echo "📥 [1/3] 开始尝试通过多个备用加速节点下载最新代码..."
@@ -41,6 +83,11 @@ download_latest_code() {
   for url in "${URLS[@]}"; do
     echo "-> 尝试连接节点..."
     if wget -T 20 -t 1 -q --show-progress "$url" -O "$TMP_ZIP"; then
+      if ! unzip -tq "$TMP_ZIP" >/dev/null; then
+        echo "Downloaded file is not a valid ZIP archive."
+        rm -f "$TMP_ZIP"
+        continue
+      fi
       echo "✅ 下载成功！"
       return 0
     fi
@@ -61,6 +108,13 @@ replace_code() {
     echo "🚨 压缩包结构异常：找不到 $SRC_DIR"
     return 1
   fi
+
+  if [ ! -f "$SRC_DIR/package-lock.json" ] || [ ! -f "$SRC_DIR/server/package-lock.json" ]; then
+    echo "ERROR: update archive is missing required lockfiles."
+    return 1
+  fi
+
+  snapshot_current_release
 
   if command -v rsync >/dev/null 2>&1; then
     rsync -a --delete \
@@ -91,7 +145,11 @@ main() {
   echo "🚀 [3/3] 代码覆盖完成！开始拉起低内存热部署流程..."
   echo "================================================"
   chmod +x "$APP_DIR/deploy.sh"
-  "$APP_DIR/deploy.sh"
+  if ! "$APP_DIR/deploy.sh"; then
+    restore_previous_release
+    reload_previous_service
+    exit 1
+  fi
 }
 
 main "$@"

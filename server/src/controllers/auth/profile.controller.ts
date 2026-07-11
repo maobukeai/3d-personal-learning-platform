@@ -1,13 +1,18 @@
 import { logger } from '../../utils/logger';
-import { Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
+
 import type { Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import speakeasy from 'speakeasy';
 import prisma from '../../services/prisma';
-import { AuthRequest } from '../../middlewares/auth.middleware';
 import { sendEmail } from '../../utils/email';
 import { sanitizeUser } from '../../utils/auth';
-import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
+import {
+  auditService,
+  AuditModule,
+  AuditAction,
+  type AuditRequest,
+} from '../../services/audit.service';
 import { AppError } from '../../utils/error';
 import { redisService } from '../../services/redis.service';
 import { getShanghaiStartOfDay, getShanghaiEndOfDay } from '../../utils/date';
@@ -59,11 +64,20 @@ const buildRecentDayBuckets = (days = 14): RecentDayBucket[] => {
   });
 };
 
-export const updateProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { name, bio, location, website, defaultWorkspaceId } = req.body;
+export const updateProfile = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { name, bio, location, website, defaultWorkspaceId } = request.body as {
+    name?: string;
+    bio?: string;
+    location?: string;
+    website?: string;
+    defaultWorkspaceId?: string;
+  };
   try {
     const updatedUser = await prisma.user.update({
-      where: { id: req.userId as string },
+      where: { id: request.userId as string },
       data: { name, bio, location, website, defaultWorkspaceId },
       select: {
         id: true,
@@ -83,22 +97,28 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
       },
     });
 
-    await redisService.invalidateUserCache(req.userId as string);
-    res.json(updatedUser);
+    await redisService.invalidateUserCache(request.userId as string);
+    reply.send(updatedUser);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const changePassword = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { currentPassword, newPassword } = req.body;
+export const changePassword = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { currentPassword, newPassword } = request.body as {
+    currentPassword: string;
+    newPassword: string;
+  };
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
-    if (!user) return next(new AppError('User not found', 404));
+    const user = await prisma.user.findUnique({ where: { id: request.userId as string } });
+    if (!user) throw new AppError('User not found', 404);
 
     const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isPasswordValid) {
-      return next(new AppError('当前密码错误', 400));
+      throw new AppError('当前密码错误', 400);
     }
 
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
@@ -114,18 +134,21 @@ export const changePassword = async (req: AuthRequest, res: Response, next: Next
       action: AuditAction.RESET_PASSWORD,
       module: AuditModule.AUTH,
       description: '用户修改了登录密码',
-      req,
+      req: request as unknown as AuditRequest,
     });
 
-    res.json({ message: '密码已成功修改' });
+    reply.send({ message: '密码已成功修改' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const sendVerificationCode = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const sendVerificationCode = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
-    const user = req.user!;
+    const user = request.user!;
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
@@ -158,17 +181,17 @@ export const sendVerificationCode = async (req: AuthRequest, res: Response, next
 
     await sendEmail(user.email, subject, text, html);
 
-    res.json({ message: '验证码已发送到您的邮箱' });
+    reply.send({ message: '验证码已发送到您的邮箱' });
   } catch (error) {
     logger.error('Email send error:', error);
-    next(new AppError('无法发送邮件，请检查后端配置', 500));
+    throw new AppError('无法发送邮件，请检查后端配置', 500);
   }
 };
 
-export const verifyEmail = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { code } = req.body;
+export const verifyEmail = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { code } = request.body as { code: string };
   try {
-    const user = req.user!;
+    const user = request.user!;
     const record = await prisma.verificationCode.findFirst({
       where: {
         email: user.email,
@@ -179,7 +202,7 @@ export const verifyEmail = async (req: AuthRequest, res: Response, next: NextFun
     });
 
     if (!record) {
-      return next(new AppError('验证码错误或已过期', 400));
+      throw new AppError('验证码错误或已过期', 400);
     }
 
     await prisma.user.update({
@@ -200,19 +223,22 @@ export const verifyEmail = async (req: AuthRequest, res: Response, next: NextFun
       }),
     ]);
 
-    res.json({ message: '邮箱验证成功' });
+    reply.send({ message: '邮箱验证成功' });
   } catch (error) {
     logger.error('Verify email error:', error);
-    next(error);
+    throw error;
   }
 };
 
-export const sendCodeToNewEmail = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { newEmail } = req.body;
+export const sendCodeToNewEmail = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { newEmail } = request.body as { newEmail: string };
   try {
     const existingUser = await prisma.user.findUnique({ where: { email: newEmail } });
     if (existingUser) {
-      return next(new AppError('该邮箱已被占用', 400));
+      throw new AppError('该邮箱已被占用', 400);
     }
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -246,19 +272,19 @@ export const sendCodeToNewEmail = async (req: AuthRequest, res: Response, next: 
 
     await sendEmail(newEmail, subject, text, html);
 
-    res.json({ message: '验证码已发送到新邮箱' });
+    reply.send({ message: '验证码已发送到新邮箱' });
   } catch (error) {
     logger.error('Email send error:', error);
-    next(new AppError('无法发送邮件，请检查后端配置', 500));
+    throw new AppError('无法发送邮件，请检查后端配置', 500);
   }
 };
 
-export const changeEmail = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { newEmail, code } = req.body;
+export const changeEmail = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { newEmail, code } = request.body as { newEmail: string; code: string };
   try {
     const existingUser = await prisma.user.findUnique({ where: { email: newEmail } });
     if (existingUser) {
-      return next(new AppError('该邮箱已被占用', 400));
+      throw new AppError('该邮箱已被占用', 400);
     }
 
     const record = await prisma.verificationCode.findFirst({
@@ -271,18 +297,18 @@ export const changeEmail = async (req: AuthRequest, res: Response, next: NextFun
     });
 
     if (!record) {
-      return next(new AppError('验证码错误或已过期', 400));
+      throw new AppError('验证码错误或已过期', 400);
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: req.userId as string },
+      where: { id: request.userId as string },
       data: {
         email: newEmail,
         emailVerified: true,
       },
     });
 
-    await redisService.invalidateUserCache(req.userId as string);
+    await redisService.invalidateUserCache(request.userId as string);
 
     await auditService.log({
       userId: updatedUser.id,
@@ -290,12 +316,12 @@ export const changeEmail = async (req: AuthRequest, res: Response, next: NextFun
       module: AuditModule.AUTH,
       description: `用户更换了登录邮箱: ${newEmail}`,
       newValue: { email: newEmail },
-      req,
+      req: request as unknown as AuditRequest,
     });
 
     await prisma.verificationCode.delete({ where: { id: record.id } });
 
-    res.json({
+    reply.send({
       message: '邮箱已成功更换',
       user: {
         id: updatedUser.id,
@@ -304,12 +330,15 @@ export const changeEmail = async (req: AuthRequest, res: Response, next: NextFun
       },
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const forgotPasswordCheck = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { email } = req.body;
+export const forgotPasswordCheck = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { email } = request.body as { email: string };
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (user) {
@@ -321,7 +350,7 @@ export const forgotPasswordCheck = async (req: AuthRequest, res: Response, next:
       });
 
       const settings = await prisma.systemSetting.findMany();
-      const configData = settings.reduce((acc: any, curr: any) => {
+      const configData = settings.reduce<Record<string, string>>((acc, curr) => {
         acc[curr.key] = curr.value;
         return acc;
       }, {});
@@ -342,7 +371,7 @@ export const forgotPasswordCheck = async (req: AuthRequest, res: Response, next:
       await sendEmail(email, subject, text, html);
     }
 
-    res.json({
+    reply.send({
       message:
         'If the account exists and supports password reset, a verification code has been sent.',
       twoFactorEnabled: user ? user.twoFactorEnabled : false,
@@ -350,16 +379,24 @@ export const forgotPasswordCheck = async (req: AuthRequest, res: Response, next:
     });
   } catch (error) {
     logger.error('Forgot password check error:', error);
-    next(error);
+    throw error;
   }
 };
 
-export const resetPasswordWith2FA = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { email, resetCode, twoFactorCode, newPassword } = req.body;
+export const resetPasswordWith2FA = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { email, resetCode, twoFactorCode, newPassword } = request.body as {
+    email: string;
+    resetCode: string;
+    twoFactorCode?: string;
+    newPassword: string;
+  };
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      return next(new AppError('用户不存在', 404));
+      throw new AppError('用户不存在', 404);
     }
 
     const resetRecord = await prisma.verificationCode.findFirst({
@@ -372,15 +409,15 @@ export const resetPasswordWith2FA = async (req: AuthRequest, res: Response, next
     });
 
     if (!resetRecord) {
-      return next(new AppError('邮箱验证码错误或已过期', 400));
+      throw new AppError('邮箱验证码错误或已过期', 400);
     }
 
     if (user.twoFactorEnabled) {
       if (!twoFactorCode) {
-        return next(new AppError('请输入 2FA 验证码', 400));
+        throw new AppError('请输入 2FA 验证码', 400);
       }
       if (!user.twoFactorSecret) {
-        return next(new AppError('未找到 2FA 密钥，请联系管理员', 400));
+        throw new AppError('未找到 2FA 密钥，请联系管理员', 400);
       }
 
       const isValid = speakeasy.totp.verify({
@@ -391,7 +428,7 @@ export const resetPasswordWith2FA = async (req: AuthRequest, res: Response, next
       });
 
       if (!isValid) {
-        return next(new AppError('2FA 验证码错误', 400));
+        throw new AppError('2FA 验证码错误', 400);
       }
     }
 
@@ -411,28 +448,29 @@ export const resetPasswordWith2FA = async (req: AuthRequest, res: Response, next
       description: user.twoFactorEnabled
         ? `用户通过邮箱验证码和 2FA 重置了登录密码: ${user.email}`
         : `用户通过邮箱验证码重置了登录密码: ${user.email}`,
-      req,
+      req: request as unknown as AuditRequest,
     });
 
-    res.json({ message: '密码已成功重置' });
+    reply.send({ message: '密码已成功重置' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const uploadAvatar = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const uploadAvatar = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
   try {
-    if (!req.file) {
-      return next(new AppError('No file uploaded', 400));
+    const file = (request as unknown as { file?: Express.Multer.File }).file;
+    if (!file) {
+      throw new AppError('No file uploaded', 400);
     }
 
-    const userId = req.userId as string;
+    const userId = request.userId as string;
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { avatarUrl: true },
     });
 
-    const avatarUrl = getUploadedFileUrl(req, req.file, 'avatars');
+    const avatarUrl = getUploadedFileUrl(request, file, 'avatars');
 
     // Unlink old avatar if it existed
     if (currentUser?.avatarUrl) {
@@ -459,25 +497,26 @@ export const uploadAvatar = async (req: AuthRequest, res: Response, next: NextFu
     });
 
     await redisService.invalidateUserCache(userId);
-    res.json(updatedUser);
+    reply.send(updatedUser);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const uploadCover = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const uploadCover = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
   try {
-    if (!req.file) {
-      return next(new AppError('No file uploaded', 400));
+    const file = (request as unknown as { file?: Express.Multer.File }).file;
+    if (!file) {
+      throw new AppError('No file uploaded', 400);
     }
 
-    const userId = req.userId as string;
+    const userId = request.userId as string;
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { coverUrl: true },
     });
 
-    const coverUrl = getUploadedFileUrl(req, req.file, 'covers');
+    const coverUrl = getUploadedFileUrl(request, file, 'covers');
 
     // Unlink old cover if it existed
     if (currentUser?.coverUrl) {
@@ -504,28 +543,28 @@ export const uploadCover = async (req: AuthRequest, res: Response, next: NextFun
     });
 
     await redisService.invalidateUserCache(userId);
-    res.json(updatedUser);
+    reply.send(updatedUser);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getPublicUsers = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { search } = req.query;
+export const getPublicUsers = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { search } = request.query as { search?: string };
 
   // Only admins can see the full platform member list
-  if (req.user?.role !== 'ADMIN') {
-    return next(new AppError('只有管理员可以查看平台成员列表', 403));
+  if (request.user?.role !== 'ADMIN') {
+    throw new AppError('只有管理员可以查看平台成员列表', 403);
   }
 
   try {
     const users = await prisma.user.findMany({
       where: search
         ? {
-            OR: [
-              { name: { contains: search as string } },
-              { email: { contains: search as string } },
-            ],
+            OR: [{ name: { contains: search } }, { email: { contains: search } }],
           }
         : {},
       select: {
@@ -541,14 +580,17 @@ export const getPublicUsers = async (req: AuthRequest, res: Response, next: Next
       },
       take: 50, // Increased limit for admins
     });
-    res.json(users);
+    reply.send(users);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getUserProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
+export const getUserProfile = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { id } = request.params as { id: string };
   try {
     const user = await prisma.user.findUnique({
       where: { id },
@@ -574,24 +616,24 @@ export const getUserProfile = async (req: AuthRequest, res: Response, next: Next
     });
 
     if (!user) {
-      return next(new AppError('User not found', 404));
+      throw new AppError('User not found', 404);
     }
 
-    res.json(user);
+    reply.send(user);
   } catch (error) {
     logger.error('Get user profile error:', error);
-    next(error);
+    throw error;
   }
 };
 
-export const getActivity = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { date } = req.query;
+export const getActivity = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { date } = request.query as { date?: string };
   try {
     const where: { createdAt?: { gte?: Date; lte?: Date } } = {};
     if (date) {
-      const parsedDate = new Date(date as string);
+      const parsedDate = new Date(date);
       if (isNaN(parsedDate.getTime())) {
-        return next(new AppError('无效的日期格式', 400));
+        throw new AppError('无效的日期格式', 400);
       }
       const startOfDay = getShanghaiStartOfDay(parsedDate);
       const endOfDay = getShanghaiEndOfDay(parsedDate);
@@ -702,17 +744,20 @@ export const getActivity = async (req: AuthRequest, res: Response, next: NextFun
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 10);
 
-    res.json(activities);
+    reply.send(activities);
   } catch (error) {
     logger.error('[Auth] Get activity error:', error);
-    next(error);
+    throw error;
   }
 };
 
-export const getUserSettings = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getUserSettings = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
     const settings = await prisma.userSetting.findMany({
-      where: { userId: req.userId as string },
+      where: { userId: request.userId as string },
     });
     const config = settings.reduce(
       (acc: Record<string, string>, curr) => {
@@ -721,19 +766,22 @@ export const getUserSettings = async (req: AuthRequest, res: Response, next: Nex
       },
       {} as Record<string, string>,
     );
-    res.json(config);
+    reply.send(config);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateUserSettings = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { settings } = req.body;
+export const updateUserSettings = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { settings } = request.body as { settings: Array<{ key?: unknown; value?: unknown }> };
   try {
     if (!Array.isArray(settings)) {
-      return next(new AppError('设置数据格式错误', 400));
+      throw new AppError('设置数据格式错误', 400);
     }
-    const normalizedSettings = settings.map((s: { key?: unknown; value?: unknown }) => ({
+    const normalizedSettings = settings.map((s) => ({
       key: typeof s.key === 'string' ? s.key.trim() : '',
       value: typeof s.value === 'string' ? s.value : '',
     }));
@@ -743,55 +791,78 @@ export const updateUserSettings = async (req: AuthRequest, res: Response, next: 
     );
 
     if (hasInvalidSetting) {
-      return next(new AppError('Invalid user setting key or value', 400));
+      throw new AppError('Invalid user setting key or value', 400);
     }
 
     const updates = normalizedSettings.map((s) =>
       prisma.userSetting.upsert({
-        where: { userId_key: { userId: req.userId as string, key: s.key } },
+        where: { userId_key: { userId: request.userId as string, key: s.key } },
         update: { value: s.value },
-        create: { userId: req.userId as string, key: s.key, value: s.value },
+        create: { userId: request.userId as string, key: s.key, value: s.value },
       }),
     );
     await prisma.$transaction(updates);
-    res.json({ message: '设置已成功保存' });
+    reply.send({ message: '设置已成功保存' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getTrustedDevices = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getTrustedDevices = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
     const devices = await prisma.trustedDevice.findMany({
-      where: { userId: req.userId as string },
-      select: { id: true, createdAt: true },
+      where: { userId: request.userId as string },
+      select: {
+        id: true,
+        token: true,
+        createdAt: true,
+        lastUsedAt: true,
+        ipAddress: true,
+        userAgent: true,
+      },
+      orderBy: { lastUsedAt: 'desc' },
     });
-    res.json(devices);
+    const currentToken = (request.query as { currentToken?: string }).currentToken;
+    reply.send(
+      devices.map(({ token, ...device }) => ({
+        ...device,
+        isCurrent: Boolean(currentToken && token === currentToken),
+      })),
+    );
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const revokeTrustedDevice = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
+export const revokeTrustedDevice = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { id } = request.params as { id: string };
   try {
     const device = await prisma.trustedDevice.findUnique({ where: { id } });
     if (!device) {
-      return next(new AppError('设备不存在', 404));
+      throw new AppError('设备不存在', 404);
     }
-    if (device.userId !== req.userId) {
-      return next(new AppError('无权操作此设备', 403));
+    if (device.userId !== request.userId) {
+      throw new AppError('无权操作此设备', 403);
     }
     await prisma.trustedDevice.delete({ where: { id } });
-    res.json({ message: '设备已移除' });
+    reply.send({ message: '设备已移除' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const exportAccountData = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const exportAccountData = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
-    const userId = req.userId as string;
+    const userId = request.userId as string;
     const [
       profile,
       userSettings,
@@ -949,7 +1020,7 @@ export const exportAccountData = async (req: AuthRequest, res: Response, next: N
     ]);
 
     if (!profile) {
-      return next(new AppError('用户不存在', 404));
+      throw new AppError('用户不存在', 404);
     }
 
     const settingsMap = userSettings.reduce<Record<string, string>>((acc, item) => {
@@ -967,7 +1038,7 @@ export const exportAccountData = async (req: AuthRequest, res: Response, next: N
       project: membership.project,
     }));
 
-    res.json({
+    reply.send({
       exportDate: new Date().toISOString(),
       profile,
       userSettings: settingsMap,
@@ -1006,24 +1077,32 @@ export const exportAccountData = async (req: AuthRequest, res: Response, next: N
       },
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteAccount = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { twoFactorCode, password } = req.body;
+export const deleteAccount = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { twoFactorCode, password } =
+    (request.body as {
+      twoFactorCode?: string;
+      password?: string;
+    }) ?? {};
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
+    const user = await prisma.user.findUnique({ where: { id: request.userId as string } });
     if (!user) {
-      return next(new AppError('用户不存在', 404));
+      throw new AppError('用户不存在', 404);
     }
 
     if (user.twoFactorEnabled) {
       if (!twoFactorCode) {
-        return res.status(400).json({ error: '需要两步验证码', twoFactorRequired: true });
+        reply.status(400).send({ error: '需要两步验证码', twoFactorRequired: true });
+        return;
       }
       if (!user.twoFactorSecret) {
-        return next(new AppError('两步验证配置异常', 400));
+        throw new AppError('两步验证配置异常', 400);
       }
       const isValid = speakeasy.totp.verify({
         secret: user.twoFactorSecret,
@@ -1032,57 +1111,59 @@ export const deleteAccount = async (req: AuthRequest, res: Response, next: NextF
         window: 1,
       });
       if (!isValid) {
-        return next(new AppError('两步验证码错误', 400));
+        throw new AppError('两步验证码错误', 400);
       }
     } else {
       if (!password) {
-        return res.status(400).json({ error: '删除账号需要验证密码', passwordRequired: true });
+        reply.status(400).send({ error: '删除账号需要验证密码', passwordRequired: true });
+        return;
       }
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
-        return next(new AppError('密码错误', 400));
+        throw new AppError('密码错误', 400);
       }
     }
 
     if (user.role === 'ADMIN') {
       const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
       if (adminCount <= 1) {
-        return next(new AppError('不能删除最后一个管理员账户', 400));
+        throw new AppError('不能删除最后一个管理员账户', 400);
       }
     }
 
     await auditService.log({
-      userId: req.userId as string,
+      userId: request.userId as string,
       action: AuditAction.DELETE_USER,
       module: AuditModule.AUTH,
       description: `用户注销了账户: ${user.email}`,
       oldValue: sanitizeUser(user),
-      req,
+      req: request as unknown as AuditRequest,
     });
 
-    await prisma.user.delete({ where: { id: req.userId as string } });
-    await redisService.invalidateUserCache(req.userId as string);
-    res.json({ message: '账户已成功删除' });
+    await prisma.user.delete({ where: { id: request.userId as string } });
+    await redisService.invalidateUserCache(request.userId as string);
+    reply.send({ message: '账户已成功删除' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getStats = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
   try {
-    const userId = req.userId as string;
-    const selectedDate = typeof req.query.date === 'string' ? new Date(req.query.date) : new Date();
+    const userId = request.userId as string;
+    const query = request.query as { date?: string };
+    const selectedDate = query.date ? new Date(query.date) : new Date();
 
     if (Number.isNaN(selectedDate.getTime())) {
-      return next(new AppError('无效的日期格式', 400));
+      throw new AppError('无效的日期格式', 400);
     }
 
     const realWorkspaceId =
-      req.workspaceId &&
-      req.workspaceId !== 'admin-workspace' &&
-      !req.workspaceId.startsWith('mirror-') &&
-      !req.workspaceId.startsWith('manual-')
-        ? req.workspaceId
+      request.workspaceId &&
+      request.workspaceId !== 'admin-workspace' &&
+      !request.workspaceId.startsWith('mirror-') &&
+      !request.workspaceId.startsWith('manual-')
+        ? request.workspaceId
         : undefined;
 
     const selectedDayStart = getShanghaiStartOfDay(selectedDate);
@@ -1480,7 +1561,7 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
       });
     }
 
-    res.json({
+    reply.send({
       assetCount,
       taskCount,
       feedbackCount,
@@ -1546,14 +1627,14 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
     });
   } catch (error) {
     logger.error('[Auth] Get stats error:', error);
-    next(error);
+    throw error;
   }
 };
 
-export const getWorkbench = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getWorkbench = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
   try {
-    const userId = req.userId as string;
-    const workspaceId = req.workspaceId || null;
+    const userId = request.userId as string;
+    const workspaceId = request.workspaceId || null;
     const todayStart = getShanghaiStartOfDay(new Date());
     const todayEnd = getShanghaiEndOfDay(new Date());
     const sevenDaysAgo = new Date(todayStart.getTime() - 7 * MS_PER_DAY);
@@ -2082,7 +2163,7 @@ export const getWorkbench = async (req: AuthRequest, res: Response, next: NextFu
         : null,
     ].filter((item): item is NonNullable<typeof item> => Boolean(item));
 
-    res.json({
+    reply.send({
       generatedAt: new Date().toISOString(),
       workspace: {
         id: workspaceId,
@@ -2180,11 +2261,14 @@ export const getWorkbench = async (req: AuthRequest, res: Response, next: NextFu
     });
   } catch (error) {
     logger.error('[Auth] Get workbench error:', error);
-    next(error);
+    throw error;
   }
 };
 
-export const getLeaderboard = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getLeaderboard = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
     const topUsers = await prisma.user.findMany({
       where: {
@@ -2211,9 +2295,9 @@ export const getLeaderboard = async (req: AuthRequest, res: Response, next: Next
       rank: index + 1,
     }));
 
-    res.json(leaderboardData);
+    reply.send(leaderboardData);
   } catch (error) {
     logger.error('[Auth] Get leaderboard error:', error);
-    next(error);
+    throw error;
   }
 };

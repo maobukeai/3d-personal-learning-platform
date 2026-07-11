@@ -1,23 +1,29 @@
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import { logger } from '../utils/logger';
-import { Response } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
-import { AuthRequest } from '../middlewares/auth.middleware';
 import { createPaginationMeta, getPaginationParams } from '../utils/pagination';
 import { createNotificationBatch } from '../utils/notification';
 
-export const getAllRoadmaps = async (req: AuthRequest, res: Response) => {
+export const getAllRoadmaps = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
-    const { page, limit, skip } = getPaginationParams(req.query, 100, 200);
+    const { page, limit, skip } = getPaginationParams(
+      request.query as Record<string, unknown>,
+      100,
+      200,
+    );
     const where: Prisma.RoadmapWhereInput = {
       OR: [
         { creatorId: null },
-        { creatorId: req.userId as string },
+        { creatorId: request.userId as string },
         {
           project: {
             members: {
               some: {
-                userId: req.userId as string,
+                userId: request.userId as string,
               },
             },
           },
@@ -46,53 +52,67 @@ export const getAllRoadmaps = async (req: AuthRequest, res: Response) => {
       }),
     ]);
 
-    res.json({
+    reply.send({
       data: roadmaps,
       pagination: createPaginationMeta(page, limit, total),
     });
   } catch (_error) {
-    res.status(500).json({ error: 'Internal server error' });
+    reply.status(500).send({ error: 'Internal server error' });
   }
 };
 
-export const getMyRoadmapProgress = async (req: AuthRequest, res: Response) => {
+export const getMyRoadmapProgress = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
     const progress = await prisma.userRoadmapProgress.findMany({
-      where: { userId: req.userId as string },
+      where: { userId: request.userId as string },
     });
-    res.json(progress);
+    reply.send(progress);
   } catch (_error) {
-    res.status(500).json({ error: 'Internal server error' });
+    reply.status(500).send({ error: 'Internal server error' });
   }
 };
 
-export const updateStepProgress = async (req: AuthRequest, res: Response) => {
-  const { stepId, completed } = req.body;
+export const updateStepProgress = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { stepId, completed } = request.body as { stepId: string; completed: boolean };
   try {
     const progress = await prisma.userRoadmapProgress.upsert({
       where: {
         userId_roadmapStepId: {
-          userId: req.userId as string,
+          userId: request.userId as string,
           roadmapStepId: stepId,
         },
       },
       update: { completed },
       create: {
-        userId: req.userId as string,
+        userId: request.userId as string,
         roadmapStepId: stepId,
         completed,
       },
     });
-    res.json(progress);
+    reply.send(progress);
   } catch (_error) {
-    res.status(500).json({ error: 'Internal server error' });
+    reply.status(500).send({ error: 'Internal server error' });
   }
 };
 
-export const createRoadmap = async (req: AuthRequest, res: Response) => {
-  const { title, description, steps } = req.body;
+export const createRoadmap = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { title, description, steps } = request.body as {
+    title: string;
+    description?: string;
+    steps?: Array<{ title?: string; description?: string; subtasks?: unknown[] }>;
+  };
   if (!title) {
-    return res.status(400).json({ error: '标题是必填项' });
+    reply.status(400).send({ error: '标题是必填项' });
+    return;
   }
 
   try {
@@ -101,13 +121,14 @@ export const createRoadmap = async (req: AuthRequest, res: Response) => {
         data: {
           title,
           description: description || '',
-          creatorId: req.userId as string,
+          creatorId: request.userId as string,
         },
       });
 
       if (steps && Array.isArray(steps)) {
         for (let i = 0; i < steps.length; i++) {
           const step = steps[i];
+          if (!step) continue;
           const subtasksJson =
             step.subtasks && Array.isArray(step.subtasks) ? JSON.stringify(step.subtasks) : null;
           await tx.roadmapStep.create({
@@ -140,30 +161,40 @@ export const createRoadmap = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    res.status(201).json(fullRoadmap);
+    reply.status(201).send(fullRoadmap);
   } catch (error) {
     logger.error('Create custom roadmap error:', error);
-    res
+    reply
       .status(500)
-      .json({ error: error instanceof Error ? error.message : 'Internal server error' });
+      .send({ error: error instanceof Error ? error.message : 'Internal server error' });
   }
 };
 
-export const updateRoadmap = async (req: AuthRequest, res: Response) => {
-  const id = req.params.id as string;
-  const { title, description, steps } = req.body;
+export const updateRoadmap = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { id } = request.params as { id: string };
+  const { title, description, steps } = request.body as {
+    title: string;
+    description?: string;
+    steps?: Array<{ title?: string; description?: string; subtasks?: unknown[] }>;
+  };
   if (!title) {
-    return res.status(400).json({ error: '标题是必填项' });
+    reply.status(400).send({ error: '标题是必填项' });
+    return;
   }
 
   try {
     const existing = await prisma.roadmap.findUnique({ where: { id } });
     if (!existing) {
-      return res.status(404).json({ error: '学习路径不存在' });
+      reply.status(404).send({ error: '学习路径不存在' });
+      return;
     }
-    const userRole = req.user?.role;
-    if (existing.creatorId !== req.userId && userRole !== 'ADMIN') {
-      return res.status(403).json({ error: '权限不足，您无法编辑此学习路径' });
+    const userRole = request.user?.role;
+    if (existing.creatorId !== request.userId && userRole !== 'ADMIN') {
+      reply.status(403).send({ error: '权限不足，您无法编辑此学习路径' });
+      return;
     }
 
     await prisma.$transaction(async (tx) => {
@@ -181,6 +212,7 @@ export const updateRoadmap = async (req: AuthRequest, res: Response) => {
 
         for (let i = 0; i < steps.length; i++) {
           const step = steps[i];
+          if (!step) continue;
           const subtasksJson =
             step.subtasks && Array.isArray(step.subtasks) ? JSON.stringify(step.subtasks) : null;
           await tx.roadmapStep.create({
@@ -220,7 +252,7 @@ export const updateRoadmap = async (req: AuthRequest, res: Response) => {
         });
         const targetUserIds = projectMembers
           .map((m) => m.userId)
-          .filter((uid) => uid !== req.userId);
+          .filter((uid) => uid !== request.userId);
 
         if (targetUserIds.length > 0) {
           await createNotificationBatch(
@@ -239,33 +271,38 @@ export const updateRoadmap = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    res.json(fullRoadmap);
+    reply.send(fullRoadmap);
   } catch (error) {
     logger.error('Update custom roadmap error:', error);
-    res
+    reply
       .status(500)
-      .json({ error: error instanceof Error ? error.message : 'Internal server error' });
+      .send({ error: error instanceof Error ? error.message : 'Internal server error' });
   }
 };
 
-export const deleteRoadmap = async (req: AuthRequest, res: Response) => {
-  const id = req.params.id as string;
+export const deleteRoadmap = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { id } = request.params as { id: string };
   try {
     const existing = await prisma.roadmap.findUnique({ where: { id } });
     if (!existing) {
-      return res.status(404).json({ error: '学习路径不存在' });
+      reply.status(404).send({ error: '学习路径不存在' });
+      return;
     }
-    const userRole = req.user?.role;
-    if (existing.creatorId !== req.userId && userRole !== 'ADMIN') {
-      return res.status(403).json({ error: '权限不足，您无法删除此学习路径' });
+    const userRole = request.user?.role;
+    if (existing.creatorId !== request.userId && userRole !== 'ADMIN') {
+      reply.status(403).send({ error: '权限不足，您无法删除此学习路径' });
+      return;
     }
 
     await prisma.roadmap.delete({ where: { id } });
-    res.json({ message: '学习路径已成功删除' });
+    reply.send({ message: '学习路径已成功删除' });
   } catch (error) {
     logger.error('Delete custom roadmap error:', error);
-    res
+    reply
       .status(500)
-      .json({ error: error instanceof Error ? error.message : 'Internal server error' });
+      .send({ error: error instanceof Error ? error.message : 'Internal server error' });
   }
 };

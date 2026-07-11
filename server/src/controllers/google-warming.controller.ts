@@ -1,10 +1,22 @@
-import { Response, NextFunction } from 'express';
-import { AuthRequest } from '../middlewares/auth.middleware';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import prisma from '../services/prisma';
 import { callLLM } from '../services/ai.service';
 import { logger } from '../utils/logger';
 import { encryptSecret, decryptSecret } from '../utils/secret-field';
 import type { GoogleWarmingAccount } from '@prisma/client';
+
+interface UpdateAccountBody {
+  email?: string;
+  password?: string;
+  recoveryEmail?: string;
+  twoFASecret?: string;
+  country?: string;
+  note?: string;
+  backupCodes?: string;
+  category?: string;
+  status?: string;
+  currentDay?: number | string;
+}
 
 /**
  * Decrypts sensitive fields before returning account data to the client.
@@ -26,37 +38,29 @@ export class GoogleWarmingController {
   /**
    * Get all Google warming accounts for the logged-in user
    */
-  public static async getAccounts(
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> {
-    const userId = req.userId as string;
+  public static async getAccounts(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const userId = request.userId as string;
     try {
       const accounts = await prisma.googleWarmingAccount.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
       });
-      res.json(accounts.map(toPublicAccount));
+      reply.send(accounts.map(toPublicAccount));
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.getAccounts] error:', e);
-      next(e);
+      throw e;
     }
   }
 
   /**
    * Bulk imports Google accounts
    */
-  public static async importAccounts(
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> {
-    const userId = req.userId as string;
-    const { accounts } = req.body;
+  public static async importAccounts(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const userId = request.userId as string;
+    const { accounts } = request.body as { accounts: unknown };
 
     if (!accounts || !Array.isArray(accounts)) {
-      res.status(400).json({ error: '无效的账号数据，请提供账号数组' });
+      reply.status(400).send({ error: '无效的账号数据，请提供账号数组' });
       return;
     }
 
@@ -81,21 +85,24 @@ export class GoogleWarmingController {
         });
         imported.push(toPublicAccount(created));
       }
-      res.json({ success: true, count: imported.length, accounts: imported });
+      reply.send({ success: true, count: imported.length, accounts: imported });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.importAccounts] error:', e);
-      next(e);
+      throw e;
     }
   }
 
   /**
    * Parses raw account text using AI LLM
    */
-  public static async aiParse(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-    const { text, translateCountry } = req.body;
+  public static async aiParse(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const { text, translateCountry } = request.body as {
+      text?: string;
+      translateCountry?: unknown;
+    };
 
     if (!text || typeof text !== 'string' || !text.trim()) {
-      res.status(400).json({ error: '请提供待解析的文本内容' });
+      reply.status(400).send({ error: '请提供待解析的文本内容' });
       return;
     }
 
@@ -149,23 +156,19 @@ If any field is missing or not found, set it to null.`;
         throw new Error('AI 返回的不是一个 JSON 数组');
       }
 
-      res.json({ success: true, accounts: parsed });
+      reply.send({ success: true, accounts: parsed });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.aiParse] error:', e);
-      next(e);
+      throw e;
     }
   }
 
   /**
    * Updates a single account details
    */
-  public static async updateAccount(
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> {
-    const userId = req.userId as string;
-    const id = req.params.id as string;
+  public static async updateAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const userId = request.userId as string;
+    const { id } = request.params as { id: string };
     const {
       email,
       password,
@@ -177,7 +180,7 @@ If any field is missing or not found, set it to null.`;
       category,
       status,
       currentDay,
-    } = req.body;
+    } = request.body as UpdateAccountBody;
 
     try {
       const existing = await prisma.googleWarmingAccount.findFirst({
@@ -185,7 +188,7 @@ If any field is missing or not found, set it to null.`;
       });
 
       if (!existing) {
-        res.status(404).json({ error: '未找到该账号' });
+        reply.status(404).send({ error: '未找到该账号' });
         return;
       }
 
@@ -222,23 +225,19 @@ If any field is missing or not found, set it to null.`;
         },
       });
 
-      res.json(toPublicAccount(updated));
+      reply.send(toPublicAccount(updated));
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.updateAccount] error:', e);
-      next(e);
+      throw e;
     }
   }
 
   /**
    * Completes the current day's warming task
    */
-  public static async warmAccount(
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> {
-    const userId = req.userId as string;
-    const id = req.params.id as string;
+  public static async warmAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const userId = request.userId as string;
+    const { id } = request.params as { id: string };
 
     try {
       const account = await prisma.googleWarmingAccount.findFirst({
@@ -246,7 +245,7 @@ If any field is missing or not found, set it to null.`;
       });
 
       if (!account) {
-        res.status(404).json({ error: '未找到该账号' });
+        reply.status(404).send({ error: '未找到该账号' });
         return;
       }
 
@@ -262,23 +261,19 @@ If any field is missing or not found, set it to null.`;
         },
       });
 
-      res.json(updated);
+      reply.send(updated);
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.warmAccount] error:', e);
-      next(e);
+      throw e;
     }
   }
 
   /**
    * Deletes a warming account
    */
-  public static async deleteAccount(
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> {
-    const userId = req.userId as string;
-    const id = req.params.id as string;
+  public static async deleteAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const userId = request.userId as string;
+    const { id } = request.params as { id: string };
 
     try {
       const existing = await prisma.googleWarmingAccount.findFirst({
@@ -286,7 +281,7 @@ If any field is missing or not found, set it to null.`;
       });
 
       if (!existing) {
-        res.status(404).json({ error: '未找到该账号' });
+        reply.status(404).send({ error: '未找到该账号' });
         return;
       }
 
@@ -294,10 +289,10 @@ If any field is missing or not found, set it to null.`;
         where: { id },
       });
 
-      res.json({ success: true });
+      reply.send({ success: true });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.deleteAccount] error:', e);
-      next(e);
+      throw e;
     }
   }
 
@@ -305,15 +300,14 @@ If any field is missing or not found, set it to null.`;
    * Batch check-in (warm) multiple accounts
    */
   public static async batchWarmAccounts(
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
+    request: FastifyRequest,
+    reply: FastifyReply,
   ): Promise<void> {
-    const userId = req.userId as string;
-    const { ids } = req.body;
+    const userId = request.userId as string;
+    const { ids } = request.body as { ids?: unknown };
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      res.status(400).json({ error: '请提供要打卡的账号 ID 列表' });
+      reply.status(400).send({ error: '请提供要打卡的账号 ID 列表' });
       return;
     }
 
@@ -323,7 +317,7 @@ If any field is missing or not found, set it to null.`;
       });
 
       if (accounts.length === 0) {
-        res.status(404).json({ error: '未找到符合条件的账号' });
+        reply.status(404).send({ error: '未找到符合条件的账号' });
         return;
       }
 
@@ -341,10 +335,10 @@ If any field is missing or not found, set it to null.`;
       });
 
       const results = await prisma.$transaction(updates);
-      res.json({ success: true, count: results.length, accounts: results });
+      reply.send({ success: true, count: results.length, accounts: results });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.batchWarmAccounts] error:', e);
-      next(e);
+      throw e;
     }
   }
 
@@ -352,15 +346,14 @@ If any field is missing or not found, set it to null.`;
    * Batch delete multiple accounts
    */
   public static async batchDeleteAccounts(
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
+    request: FastifyRequest,
+    reply: FastifyReply,
   ): Promise<void> {
-    const userId = req.userId as string;
-    const { ids } = req.body;
+    const userId = request.userId as string;
+    const { ids } = request.body as { ids?: unknown };
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      res.status(400).json({ error: '请提供要删除的账号 ID 列表' });
+      reply.status(400).send({ error: '请提供要删除的账号 ID 列表' });
       return;
     }
 
@@ -369,10 +362,10 @@ If any field is missing or not found, set it to null.`;
         where: { id: { in: ids }, userId },
       });
 
-      res.json({ success: true, count: result.count });
+      reply.send({ success: true, count: result.count });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.batchDeleteAccounts] error:', e);
-      next(e);
+      throw e;
     }
   }
 
@@ -380,20 +373,19 @@ If any field is missing or not found, set it to null.`;
    * Batch update status for multiple accounts
    */
   public static async batchStatusAccounts(
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
+    request: FastifyRequest,
+    reply: FastifyReply,
   ): Promise<void> {
-    const userId = req.userId as string;
-    const { ids, status } = req.body;
+    const userId = request.userId as string;
+    const { ids, status } = request.body as { ids?: unknown; status?: string };
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      res.status(400).json({ error: '请提供账号 ID 列表' });
+      reply.status(400).send({ error: '请提供账号 ID 列表' });
       return;
     }
 
     if (!status || !['warming', 'completed', 'paused'].includes(status)) {
-      res.status(400).json({ error: '无效的状态值' });
+      reply.status(400).send({ error: '无效的状态值' });
       return;
     }
 
@@ -403,10 +395,10 @@ If any field is missing or not found, set it to null.`;
         data: { status },
       });
 
-      res.json({ success: true, count: result.count });
+      reply.send({ success: true, count: result.count });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.batchStatusAccounts] error:', e);
-      next(e);
+      throw e;
     }
   }
 
@@ -414,15 +406,14 @@ If any field is missing or not found, set it to null.`;
    * Batch updates category for multiple accounts
    */
   public static async batchCategoryAccounts(
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
+    request: FastifyRequest,
+    reply: FastifyReply,
   ): Promise<void> {
-    const userId = req.userId as string;
-    const { ids, category } = req.body;
+    const userId = request.userId as string;
+    const { ids, category } = request.body as { ids?: unknown; category?: string };
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      res.status(400).json({ error: '请提供账号 ID 列表' });
+      reply.status(400).send({ error: '请提供账号 ID 列表' });
       return;
     }
 
@@ -432,26 +423,25 @@ If any field is missing or not found, set it to null.`;
         data: { category: category || '未分类' },
       });
 
-      res.json({ success: true, count: result.count });
+      reply.send({ success: true, count: result.count });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.batchCategoryAccounts] error:', e);
-      next(e);
+      throw e;
     }
   }
 
   /**
    * Rename a category for all user's accounts
    */
-  public static async renameCategory(
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> {
-    const userId = req.userId as string;
-    const { oldCategory, newCategory } = req.body;
+  public static async renameCategory(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const userId = request.userId as string;
+    const { oldCategory, newCategory } = request.body as {
+      oldCategory?: string;
+      newCategory?: string;
+    };
 
     if (!oldCategory) {
-      res.status(400).json({ error: '请提供原分类名称' });
+      reply.status(400).send({ error: '请提供原分类名称' });
       return;
     }
 
@@ -471,26 +461,22 @@ If any field is missing or not found, set it to null.`;
         .filter((c) => c !== '未分类');
       await GoogleWarmingController.saveUserCategories(userId, updated);
 
-      res.json({ success: true, count: result.count });
+      reply.send({ success: true, count: result.count });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.renameCategory] error:', e);
-      next(e);
+      throw e;
     }
   }
 
   /**
    * Delete a category (resets accounts to '未分类')
    */
-  public static async deleteCategory(
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> {
-    const userId = req.userId as string;
-    const { category } = req.body;
+  public static async deleteCategory(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const userId = request.userId as string;
+    const { category } = request.body as { category?: string };
 
     if (!category) {
-      res.status(400).json({ error: '请提供要删除的分类名称' });
+      reply.status(400).send({ error: '请提供要删除的分类名称' });
       return;
     }
 
@@ -506,22 +492,18 @@ If any field is missing or not found, set it to null.`;
       const updated = current.filter((c) => c !== category);
       await GoogleWarmingController.saveUserCategories(userId, updated);
 
-      res.json({ success: true, count: result.count });
+      reply.send({ success: true, count: result.count });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.deleteCategory] error:', e);
-      next(e);
+      throw e;
     }
   }
 
   /**
    * Get all categories saved in settings + actual database categories
    */
-  public static async getCategories(
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> {
-    const userId = req.userId as string;
+  public static async getCategories(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const userId = request.userId as string;
     try {
       const settingsCats = await GoogleWarmingController.getUserCategories(userId);
 
@@ -540,49 +522,45 @@ If any field is missing or not found, set it to null.`;
         await GoogleWarmingController.saveUserCategories(userId, merged);
       }
 
-      res.json({ success: true, categories: merged });
+      reply.send({ success: true, categories: merged });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.getCategories] error:', e);
-      next(e);
+      throw e;
     }
   }
 
   /**
    * Add a new category to settings
    */
-  public static async addCategory(
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> {
-    const userId = req.userId as string;
-    const { category } = req.body;
+  public static async addCategory(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const userId = request.userId as string;
+    const { category } = request.body as { category?: string };
 
     if (!category || !category.trim()) {
-      res.status(400).json({ error: '分类名称不能为空' });
+      reply.status(400).send({ error: '分类名称不能为空' });
       return;
     }
 
     const catName = category.trim();
     if (catName === '未分类' || catName === 'all') {
-      res.status(400).json({ error: '无效的分类名称' });
+      reply.status(400).send({ error: '无效的分类名称' });
       return;
     }
 
     try {
       const current = await GoogleWarmingController.getUserCategories(userId);
       if (current.includes(catName)) {
-        res.status(400).json({ error: '分类已存在' });
+        reply.status(400).send({ error: '分类已存在' });
         return;
       }
 
       current.push(catName);
       await GoogleWarmingController.saveUserCategories(userId, current);
 
-      res.json({ success: true, categories: current });
+      reply.send({ success: true, categories: current });
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.addCategory] error:', e);
-      next(e);
+      throw e;
     }
   }
 

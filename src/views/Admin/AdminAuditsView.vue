@@ -21,7 +21,7 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import UserAvatar from '@/components/UserAvatar.vue';
@@ -740,12 +740,12 @@ onBeforeUnmount(() => {
             >
               <ArrowUpDown class="w-3.5 h-3.5" /> 最新提交优先
             </span>
-            <el-select v-model="pageSize" size="small" style="width: 100px">
-              <el-option :value="24" label="24 条" />
-              <el-option :value="36" label="36 条" />
-              <el-option :value="60" label="60 条" />
-              <el-option :value="100" label="100 条" />
-            </el-select>
+            <Select v-model="pageSize" size="small" style="width: 100px">
+              <SelectOption :value="24" label="24 条" />
+              <SelectOption :value="36" label="36 条" />
+              <SelectOption :value="60" label="60 条" />
+              <SelectOption :value="100" label="100 条" />
+            </Select>
           </div>
         </div>
       </Card>
@@ -770,14 +770,14 @@ onBeforeUnmount(() => {
         padding="none"
         class="table-shell-card overflow-hidden flex-1 flex flex-col min-h-[360px]"
       >
-        <el-table
+        <Table
           v-loading="isLoading"
           :data="filteredItems"
           class="user-table w-full flex-1 mobile-table"
           row-class-name="table-row"
           @row-click="openDetail"
         >
-          <el-table-column width="48">
+          <TableColumn width="48">
             <template #header>
               <input
                 type="checkbox"
@@ -794,9 +794,9 @@ onBeforeUnmount(() => {
                 @click.stop
               />
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="预览" width="80">
+          <TableColumn label="预览" width="80">
             <template #default="{ row }">
               <div
                 class="row-thumb w-10 h-10 rounded-lg border border-slate-100 dark:border-white/5 overflow-hidden flex items-center justify-center bg-slate-50 dark:bg-white/5"
@@ -810,9 +810,9 @@ onBeforeUnmount(() => {
                 <component :is="pageConfig.icon" v-else class="w-5 h-5 text-slate-400" />
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="资源名称" min-width="220">
+          <TableColumn label="资源名称" min-width="220">
             <template #default="{ row }">
               <div class="min-w-0">
                 <strong class="text-sm font-bold truncate text-[var(--text-primary)] block">{{
@@ -823,9 +823,9 @@ onBeforeUnmount(() => {
                 </small>
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="作者" width="180">
+          <TableColumn label="作者" width="180">
             <template #default="{ row }">
               <div class="user-cell flex items-center gap-2">
                 <UserAvatar :user="row.user" size="xs" />
@@ -834,31 +834,31 @@ onBeforeUnmount(() => {
                 </span>
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="规格参数" width="160">
+          <TableColumn label="规格参数" width="160">
             <template #default="{ row }">
               <span class="text-xs text-[var(--text-secondary)]">
                 {{ itemKind(row) }} · {{ metricLine(row) }}
               </span>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="状态" width="120">
+          <TableColumn label="状态" width="120">
             <template #default="{ row }">
               <AdminContentStatusBadge :status="row.status" />
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="提交时间" width="180">
+          <TableColumn label="提交时间" width="180">
             <template #default="{ row }">
               <span class="text-xs text-[var(--text-secondary)]">
                 {{ formatDate(row.createdAt) }}
               </span>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="操作" width="220" align="right">
+          <TableColumn label="操作" width="220" align="right">
             <template #default="{ row }">
               <div class="flex items-center justify-end gap-1.5" @click.stop>
                 <UiButton
@@ -879,7 +879,7 @@ onBeforeUnmount(() => {
                 >
                   打回
                 </UiButton>
-                <el-dropdown trigger="click">
+                <Dropdown trigger="click">
                   <button
                     type="button"
                     class="icon-btn p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
@@ -887,23 +887,23 @@ onBeforeUnmount(() => {
                     <MoreHorizontal class="w-4 h-4 text-slate-500" />
                   </button>
                   <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item @click="openDetail(row)">
+                    <DropdownMenu>
+                      <DropdownItem @click="openDetail(row)">
                         <Eye class="dropdown-icon" /> 查看详情
-                      </el-dropdown-item>
-                      <el-dropdown-item @click="openEdit(row)">
+                      </DropdownItem>
+                      <DropdownItem @click="openEdit(row)">
                         <Edit3 class="dropdown-icon" /> 编辑
-                      </el-dropdown-item>
-                      <el-dropdown-item divided @click="handleDelete(row)">
+                      </DropdownItem>
+                      <DropdownItem divided @click="handleDelete(row)">
                         <Trash2 class="dropdown-icon danger" /> 删除
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
+                      </DropdownItem>
+                    </DropdownMenu>
                   </template>
-                </el-dropdown>
+                </Dropdown>
               </div>
             </template>
-          </el-table-column>
-        </el-table>
+          </TableColumn>
+        </Table>
 
         <!-- Empty state inside ElTable wrapper or custom if filteredItems is empty -->
         <div
@@ -929,7 +929,7 @@ onBeforeUnmount(() => {
           <span class="text-xs text-[var(--text-secondary)]">
             显示 {{ visibleRange }} / 共 {{ totalItems }} 条记录
           </span>
-          <el-pagination
+          <Pagination
             v-model:current-page="currentPage"
             :page-size="pageSize"
             :total="totalItems"
@@ -942,7 +942,7 @@ onBeforeUnmount(() => {
       </Card>
     </main>
 
-    <el-drawer v-model="detailDrawerVisible" size="500px" :with-header="false">
+    <Drawer v-model="detailDrawerVisible" size="500px" :with-header="false">
       <aside
         v-if="activeItem"
         class="detail-drawer flex flex-col h-full p-4 overflow-y-auto space-y-4"
@@ -1078,7 +1078,7 @@ onBeforeUnmount(() => {
           </UiButton>
         </div>
       </aside>
-    </el-drawer>
+    </Drawer>
 
     <Modal
       :show="isEditOpen"
@@ -1092,33 +1092,38 @@ onBeforeUnmount(() => {
         <div class="form-grid">
           <label>
             状态
-            <select v-model="editForm.status">
-              <option value="PENDING">待审核</option>
-              <option value="APPROVED">已通过</option>
-              <option value="REJECTED">已打回</option>
-            </select>
+            <Select v-model="editForm.status" class="w-full mt-1.5" size="large">
+              <SelectOption value="PENDING" label="待审核" />
+              <SelectOption value="APPROVED" label="已通过" />
+              <SelectOption value="REJECTED" label="已打回" />
+            </Select>
           </label>
           <label v-if="activeTab === 'assets'">
             资产分类
-            <select v-model="editForm.categoryId">
-              <option value="">未分类</option>
-              <option v-for="cat in assetCategories" :key="cat.id" :value="cat.id">
-                {{ cat.name }}
-              </option>
-            </select>
+            <Select v-model="editForm.categoryId" class="w-full mt-1.5" size="large">
+              <SelectOption value="" label="未分类" />
+              <SelectOption
+                v-for="cat in assetCategories"
+                :key="cat.id"
+                :value="cat.id"
+                :label="cat.name"
+              />
+            </Select>
           </label>
-          <label v-if="activeTab === 'materials' || activeTab === 'plugins' || activeTab === 'softwares'">
+          <label
+            v-if="activeTab === 'materials' || activeTab === 'plugins' || activeTab === 'softwares'"
+          >
             分类
             <UiInput v-model="editForm.category" :glass="false" />
           </label>
           <label v-if="activeTab === 'showcases'">
             类型
-            <select v-model="editForm.type">
-              <option value="IMAGE">图文</option>
-              <option value="VIDEO">视频</option>
-              <option value="MODEL">模型</option>
-              <option value="OTHER">其他</option>
-            </select>
+            <Select v-model="editForm.type" class="w-full mt-1.5" size="large">
+              <SelectOption value="IMAGE" label="图文" />
+              <SelectOption value="VIDEO" label="视频" />
+              <SelectOption value="MODEL" label="模型" />
+              <SelectOption value="OTHER" label="其他" />
+            </Select>
           </label>
         </div>
         <div v-if="activeTab === 'plugins' || activeTab === 'softwares'" class="form-grid">
@@ -1178,10 +1183,6 @@ onBeforeUnmount(() => {
   color: var(--text-primary);
 }
 
-:deep(.el-drawer__body) {
-  padding: 0;
-}
-
 .detail-drawer {
   height: 100%;
   display: flex;
@@ -1229,23 +1230,6 @@ onBeforeUnmount(() => {
 .tone-amber {
   color: #b45309;
   background: rgba(245, 158, 11, 0.14);
-}
-
-.user-table :deep(.el-table__header th) {
-  height: 40px;
-  background: #f8fafc;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.user-table :deep(.el-table__row) {
-  height: 48px;
-  cursor: pointer;
-}
-
-.user-table :deep(.el-table__cell) {
-  padding: 4px 0;
 }
 
 .user-cell {

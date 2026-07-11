@@ -1,7 +1,6 @@
-import { Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import { Prisma } from '@prisma/client';
 import prisma from '../../services/prisma';
-import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../utils/error';
 import { logger } from '../../utils/logger';
 import { deleteCloudOrLocalFileByUrl } from '../../utils/file';
@@ -9,7 +8,16 @@ import { auditService, AuditAction, AuditModule } from '../../services/audit.ser
 import { createNotification } from '../../utils/notification';
 import { clampLimit, clampPage } from '../../utils/pagination';
 
-export const getAllAssetsForAdmin = async (req: AuthRequest, res: Response, next: NextFunction) => {
+type AdminRequest = FastifyRequest & {
+  body: any;
+  query: any;
+  params: any;
+  file?: any;
+  userId?: string;
+  user?: any;
+};
+
+export const getAllAssetsForAdmin = async (req: AdminRequest, reply: FastifyReply) => {
   const { status, search, page: pageQuery, limit: limitQuery, response } = req.query;
   try {
     const q = typeof search === 'string' ? search.trim() : '';
@@ -51,8 +59,7 @@ export const getAllAssetsForAdmin = async (req: AuthRequest, res: Response, next
     }));
 
     if (!usePaginatedResponse) {
-      res.json(normalizedAssets);
-      return;
+      return reply.send(normalizedAssets);
     }
 
     const [total, statusSummary] = await Promise.all([
@@ -64,7 +71,7 @@ export const getAllAssetsForAdmin = async (req: AuthRequest, res: Response, next
       statusSummary.map((item) => [item.status, item._count._all]),
     );
 
-    res.json({
+    reply.send({
       items: normalizedAssets,
       total,
       page,
@@ -78,16 +85,16 @@ export const getAllAssetsForAdmin = async (req: AuthRequest, res: Response, next
       },
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateAssetStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateAssetStatus = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { status, rejectReason } = req.body;
 
   if (!['APPROVED', 'REJECTED'].includes(status)) {
-    return next(new AppError('Invalid status', 400));
+    throw new AppError('Invalid status', 400);
   }
 
   try {
@@ -100,7 +107,7 @@ export const updateAssetStatus = async (req: AuthRequest, res: Response, next: N
     }
 
     const oldAsset = await prisma.asset.findUnique({ where: { id } });
-    if (!oldAsset) return next(new AppError('Asset not found', 404));
+    if (!oldAsset) throw new AppError('Asset not found', 404);
 
     const asset = await prisma.asset.update({
       where: { id },
@@ -129,25 +136,21 @@ export const updateAssetStatus = async (req: AuthRequest, res: Response, next: N
       category: 'SYSTEM',
     });
 
-    res.json(asset);
+    reply.send(asset);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const batchUpdateAssetStatus = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const batchUpdateAssetStatus = async (req: AdminRequest, reply: FastifyReply) => {
   const { ids, status, rejectReason } = req.body;
 
   if (!Array.isArray(ids) || ids.length === 0) {
-    return next(new AppError('请选择至少一个资产', 400));
+    throw new AppError('请选择至少一个资产', 400);
   }
 
   if (!['APPROVED', 'REJECTED'].includes(status)) {
-    return next(new AppError('Invalid status', 400));
+    throw new AppError('Invalid status', 400);
   }
 
   try {
@@ -192,19 +195,19 @@ export const batchUpdateAssetStatus = async (
       req,
     });
 
-    res.json({ message: `成功更新 ${result.count} 个资产状态`, count: result.count });
+    reply.send({ message: `成功更新 ${result.count} 个资产状态`, count: result.count });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const adminUpdateAsset = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const adminUpdateAsset = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { title, description, status, categoryId, formats, tags } = req.body;
 
   try {
     const oldAsset = await prisma.asset.findUnique({ where: { id } });
-    if (!oldAsset) return next(new AppError('Asset not found', 404));
+    if (!oldAsset) throw new AppError('Asset not found', 404);
 
     const updateData: Prisma.AssetUncheckedUpdateInput = {};
     if (title !== undefined) updateData.title = title;
@@ -233,22 +236,24 @@ export const adminUpdateAsset = async (req: AuthRequest, res: Response, next: Ne
       req,
     });
 
-    res.json(asset);
+    reply.send(asset);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const adminDeleteAsset = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const adminDeleteAsset = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   try {
     const asset = await prisma.asset.findUnique({ where: { id } });
     if (!asset) {
-      return next(new AppError('Asset not found', 404));
+      throw new AppError('Asset not found', 404);
     }
 
     // Delete files from disk or cloud if they exist (run in background)
-    const fileSizeBytes = asset.packageSize ? Math.round(asset.packageSize * 1024 * 1024) : undefined;
+    const fileSizeBytes = asset.packageSize
+      ? Math.round(asset.packageSize * 1024 * 1024)
+      : undefined;
     deleteCloudOrLocalFileByUrl(asset.url, fileSizeBytes).catch((err) => {
       logger.error(
         `[AssetController] Failed to delete asset file ${asset.url} in background:`,
@@ -275,8 +280,8 @@ export const adminDeleteAsset = async (req: AuthRequest, res: Response, next: Ne
       req,
     });
 
-    res.json({ message: 'Asset deleted successfully by admin' });
+    reply.send({ message: 'Asset deleted successfully by admin' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };

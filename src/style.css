@@ -1,12 +1,10 @@
-@import './styles/tokens.css';
+﻿@import './styles/tokens.css';
 @import './styles/themes.css';
-@import './styles/element-plus.css';
 @import './styles/glass.css';
 @import './styles/layout.css';
-@import './styles/mobile-density.css';
-@import './styles/mobile-compact.css';
+@import './styles/mobile.css';
 @import './styles/form.css';
-@import './styles/element-plus-override.css';
+@import './styles/markdown-preview-theme.css';
 /* settings-shared.css is intentionally NOT imported here — it's only needed on
    the /settings route, so it's imported from SettingsView.vue to keep it off
    the critical-path CSS bundle (saves ~164 lines from blocking first paint). */

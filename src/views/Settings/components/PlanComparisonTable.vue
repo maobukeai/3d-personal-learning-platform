@@ -66,14 +66,14 @@ const comparisonRows = computed(() => [
         <thead>
           <tr class="bg-[var(--bg-app)]/50 border-b border-[var(--border-base)]">
             <th
-              class="w-[28%] md:w-auto px-4 md:px-8 py-3 md:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+              class="w-[28%] md:w-auto px-4 md:px-6 py-2.5 md:py-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
             >
               功能
             </th>
             <th
               v-for="plan in plans"
               :key="plan.id"
-              class="px-4 md:px-8 py-3 md:py-4 text-[10px] font-black uppercase tracking-widest text-center"
+              class="px-4 md:px-6 py-2.5 md:py-3 text-[10px] font-black uppercase tracking-widest text-center"
               :class="getPlanColor(plan.name)"
             >
               {{ plan.displayName || plan.name }}
@@ -87,14 +87,14 @@ const comparisonRows = computed(() => [
             class="hover:bg-[var(--bg-app)]/30 transition-colors"
           >
             <td
-              class="px-4 md:px-8 py-3 md:py-4 text-xs md:text-sm font-bold text-[var(--text-primary)] truncate"
+              class="px-4 md:px-6 py-2.5 md:py-3 text-xs md:text-sm font-bold text-[var(--text-primary)] truncate"
             >
               {{ row.label }}
             </td>
             <td
               v-for="(val, idx) in row.values"
               :key="idx"
-              class="px-4 md:px-8 py-3 md:py-4 text-xs md:text-sm text-center text-[var(--text-secondary)]"
+              class="px-4 md:px-6 py-2.5 md:py-3 text-xs md:text-sm text-center text-[var(--text-secondary)]"
             >
               {{ val }}
             </td>

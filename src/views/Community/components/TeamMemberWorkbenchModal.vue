@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import { formatDate } from '@/utils/format';
 import { ClipboardCheck, Briefcase, BarChart3, ArrowRight } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { getApiErrorMessage } from '@/utils/error';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
@@ -145,7 +145,7 @@ const progressWidth = (percent: number) => {
 </script>
 
 <template>
-  <Modal :show="show" size="md" glass-card @close="$emit('close')">
+  <Modal :show="show" size="md" @close="$emit('close')">
     <template #header>
       <div class="flex items-center gap-3 min-w-0">
         <UserAvatar v-if="selectedMember" :user="selectedMember.user" size="md" />

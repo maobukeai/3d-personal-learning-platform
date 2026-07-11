@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { Globe, Upload, Loader2 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
@@ -128,7 +128,7 @@ async function submit() {
 </script>
 
 <template>
-  <Modal :show="visible" size="md" glass-card @close="visible = false">
+  <Modal :show="visible" size="md" @close="visible = false">
     <template #header>
       <div>
         <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
@@ -242,19 +242,14 @@ async function submit() {
           class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
           >适配器类型</label
         >
-        <select
-          v-model="formData.adapterType"
-          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-          style="
-            background-color: var(--bg-app);
-            border-color: var(--border-base);
-            color: var(--text-primary);
-          "
-        >
-          <option v-for="opt in adapterTypes" :key="opt.value" :value="opt.value">
-            {{ opt.label }}
-          </option>
-        </select>
+        <Select v-model="formData.adapterType" class="w-full" size="large">
+          <SelectOption
+            v-for="opt in adapterTypes"
+            :key="opt.value"
+            :value="opt.value"
+            :label="opt.label"
+          />
+        </Select>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mobile-grid">
         <div>
@@ -262,19 +257,11 @@ async function submit() {
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
             >访问权限</label
           >
-          <select
-            v-model="formData.minPlanPriority"
-            class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-          >
-            <option :value="0">免费版及以上</option>
-            <option :value="1">VIP及以上</option>
-            <option :value="2">SVIP及以上</option>
-          </select>
+          <Select v-model="formData.minPlanPriority" class="w-full" size="large">
+            <SelectOption :value="0" label="免费版及以上" />
+            <SelectOption :value="1" label="VIP及以上" />
+            <SelectOption :value="2" label="SVIP及以上" />
+          </Select>
         </div>
         <div>
           <label

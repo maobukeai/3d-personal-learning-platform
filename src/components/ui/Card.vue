@@ -1,12 +1,24 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { cn } from '@/utils/cn';
 
 interface Props {
   hoverable?: boolean;
   clickable?: boolean;
+  /**
+   * Legacy glass flag (dashboard panels).
+   * @deprecated Prefer `surface="glass"`. Internally mapped to `surface="glass"`.
+   */
   glass?: boolean;
+  /** @deprecated Ignore glow to prevent multiple feedback channels */
   glow?: boolean;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  /** Surface variant. 'glass' applies the frosted-glass surface. */
+  surface?: 'base' | 'raised' | 'glass';
+  /** Glass tier (only meaningful when surface="glass"). */
+  tier?: 'panel' | 'elevated';
+  /** Single-channel hover feedback type. Default is 'border'. */
+  hoverChannel?: 'border' | 'background' | 'offset';
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -15,7 +27,12 @@ const props = withDefaults(defineProps<Props>(), {
   glass: false,
   glow: false,
   padding: 'md',
+  surface: 'base',
+  tier: 'panel',
+  hoverChannel: 'border',
 });
+
+const isGlassSurface = computed(() => props.surface === 'glass' || props.glass);
 
 const paddingClass = computed(() => {
   switch (props.padding) {
@@ -30,38 +47,54 @@ const paddingClass = computed(() => {
       return 'p-4 sm:p-5';
   }
 });
+
+const cardClasses = computed(() => {
+  const base = 'relative flex flex-col overflow-hidden border transition-all duration-300 ease-out';
+
+  const hoverClass = (() => {
+    if (!props.hoverable) return '';
+    switch (props.hoverChannel) {
+      case 'background':
+        return 'card-hover-bg';
+      case 'offset':
+        return 'card-hover-offset';
+      case 'border':
+      default:
+        return 'card-hover-border';
+    }
+  })();
+
+  if (isGlassSurface.value) {
+    return cn(
+      base,
+      'rounded-xl glass-real-physical', // 12px rounding for glass floaters
+      paddingClass.value,
+      hoverClass,
+      props.clickable && 'cursor-pointer select-none active:translate-y-[1px]',
+    );
+  }
+
+  // base / raised surface card: border/radius/color come from utility styles
+  const surfaceClass =
+    props.surface === 'raised'
+      ? 'bg-card text-card-foreground border-[var(--border-strong)] shadow-md'
+      : 'bg-card text-card-foreground border-[var(--border-base)] shadow-sm';
+
+  return cn(
+    base,
+    'rounded-md', // 8px rounding for base cards
+    surfaceClass,
+    paddingClass.value,
+    hoverClass,
+    props.clickable && 'cursor-pointer select-none active:translate-y-[1px]',
+  );
+});
 </script>
 
 <template>
-  <div
-    class="premium-card rounded-xl relative flex flex-col overflow-hidden border transition-all duration-500 cubic-bezier-card"
-    :class="[
-      paddingClass,
-      glass ? 'glass-panel shadow-sm' : 'bg-card border-base shadow-card',
-      hoverable
-        ? 'hover:-translate-y-1 hover:shadow-card-hover hover:border-strong dark:hover:border-slate-700'
-        : '',
-      glow && hoverable
-        ? 'hover:border-accent/30 dark:hover:border-accent/40 hover:shadow-[0_12px_24px_-8px_rgba(var(--accent-rgb),0.15),_0_0_20px_-3px_rgba(var(--accent-rgb),0.1)] dark:hover:shadow-[0_12px_24px_-8px_rgba(var(--accent-rgb),0.25),_0_0_24px_-4px_rgba(var(--accent-rgb),0.15)]'
-        : '',
-      clickable ? 'cursor-pointer select-none active:scale-[0.99]' : '',
-    ]"
-  >
-    <!-- Spotlight reflection overlay -->
-    <div
-      class="absolute inset-0 pointer-events-none bg-gradient-to-br from-white/[0.03] to-transparent opacity-0 transition-opacity duration-500 mix-blend-overlay z-0"
-      :class="hoverable ? 'group-hover:opacity-100' : 'opacity-100'"
-    ></div>
-
-    <!-- Top accent glow line for hoverable/glow cards -->
-    <div
-      v-if="glow"
-      class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-accent/50 to-transparent opacity-0 transition-opacity duration-500 z-10"
-      :class="hoverable ? 'group-hover:opacity-100' : 'opacity-100'"
-    ></div>
-
+  <div :class="cardClasses">
     <div class="relative z-10 flex-1 flex flex-col">
-      <div v-if="$slots.header" class="premium-card__header mb-3 pb-3 border-b border-base/40">
+      <div v-if="$slots.header" class="premium-card__header mb-3 pb-3 border-b border-border/40">
         <slot name="header"></slot>
       </div>
 
@@ -69,27 +102,9 @@ const paddingClass = computed(() => {
         <slot></slot>
       </div>
 
-      <div v-if="$slots.footer" class="premium-card__footer mt-3 pt-3 border-t border-base/40">
+      <div v-if="$slots.footer" class="premium-card__footer mt-3 pt-3 border-t border-border/40">
         <slot name="footer"></slot>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.premium-card {
-  box-sizing: border-box;
-  /* Top bevel lighting effect (inner shadow) */
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.4),
-    var(--shadow-card);
-}
-
-.dark .premium-card {
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
-    var(--shadow-card);
-}
-
-/* .cubic-bezier-card provided globally by src/styles/components.css */
-</style>

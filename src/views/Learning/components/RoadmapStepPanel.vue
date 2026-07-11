@@ -144,12 +144,12 @@ const metrics = () => {
     <!-- Smart Companion box -->
     <div
       v-if="activeStep"
-      class="p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-900/50 backdrop-blur-md space-y-3 sm:space-y-5 shadow-xl relative overflow-hidden"
+      class="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-900/50 backdrop-blur-md space-y-2.5 sm:space-y-4 shadow-xl relative overflow-hidden"
     >
       <div class="absolute -right-12 -top-12 w-24 h-24 bg-accent/5 rounded-full blur-2xl"></div>
 
       <div
-        class="mobile-row flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 sm:pb-3 relative z-10"
+        class="mobile-row flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5 sm:pb-2.5 relative z-10"
       >
         <div class="flex items-center gap-1.5 sm:gap-2">
           <div
@@ -182,17 +182,17 @@ const metrics = () => {
           {{ activeStep.title }}
         </h3>
         <p
-          class="text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-white/[0.01] p-2 sm:p-3 rounded-lg sm:rounded-xl border border-slate-100 dark:border-slate-800"
+          class="text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-white/[0.01] p-2 rounded-lg border border-slate-100 dark:border-slate-800"
         >
           {{ activeStep.description || t('roadmaps.customStageDesc') }}
         </p>
       </div>
 
       <!-- Toggle Completion Action -->
-      <div class="pt-1 sm:pt-2 relative z-10">
+      <div class="pt-0.5 sm:pt-1 relative z-10">
         <button
           type="button"
-          class="w-full py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl text-[9px] sm:text-xs font-black text-white transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
+          class="w-full py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg text-[9px] sm:text-xs font-black text-white transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
           :class="
             isStepCompleted(activeStep.id)
               ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10'
@@ -211,7 +211,7 @@ const metrics = () => {
 
       <!-- Skill metrics quantizer -->
       <div
-        class="space-y-2.5 sm:space-y-3 pt-2 sm:pt-3 border-t border-slate-100 dark:border-slate-800/80 relative z-10"
+        class="space-y-2 sm:space-y-2.5 pt-1.5 sm:pt-2.5 border-t border-slate-100 dark:border-slate-800/80 relative z-10"
       >
         <div
           class="flex items-center gap-1 text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 sm:mb-1"
@@ -273,7 +273,7 @@ const metrics = () => {
       <!-- Sub-skills interactive checklist -->
       <div
         v-if="getSubTasksForStep(activeStep).length > 0"
-        class="space-y-1.5 sm:space-y-2.5 pt-2 sm:pt-4 border-t border-slate-100 dark:border-slate-800/80 relative z-10"
+        class="space-y-1 sm:space-y-2 pt-1.5 sm:pt-3 border-t border-slate-100 dark:border-slate-800/80 relative z-10"
       >
         <div
           class="flex items-center gap-1 text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest"
@@ -283,7 +283,7 @@ const metrics = () => {
         </div>
 
         <div
-          class="space-y-1.5 sm:space-y-2 bg-slate-50 dark:bg-slate-900/60 p-2 sm:p-3 rounded-lg sm:rounded-xl border border-slate-100 dark:border-slate-800/50"
+          class="space-y-1 sm:space-y-1.5 bg-slate-50 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-800/50"
         >
           <div
             v-for="task in getSubTasksForStep(activeStep)"
@@ -319,7 +319,7 @@ const metrics = () => {
       <!-- Mapped Courses list inside Sidebar -->
       <div
         v-if="getRelatedCourses(activeStep, allCourses).length > 0"
-        class="space-y-1.5 sm:space-y-2.5 pt-2 sm:pt-4 border-t border-slate-100 dark:border-slate-800/80 relative z-10"
+        class="space-y-1 sm:space-y-2 pt-1.5 sm:pt-3 border-t border-slate-100 dark:border-slate-800/80 relative z-10"
       >
         <div
           class="flex items-center gap-1 text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest"
@@ -328,11 +328,11 @@ const metrics = () => {
           {{ t('roadmaps.recommendCoursesTitle') }}
         </div>
 
-        <div class="space-y-1.5 sm:space-y-2.5">
+        <div class="space-y-1 sm:space-y-1.5">
           <div
             v-for="course in getRelatedCourses(activeStep, allCourses)"
             :key="course.id"
-            class="mobile-row flex gap-2 sm:gap-3 p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-500/[0.01] hover:border-accent/40 dark:hover:border-accent/40 hover:bg-white dark:hover:bg-slate-900/50 transition-all cursor-pointer group/card"
+            class="mobile-row flex gap-2 p-1.5 rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-500/[0.01] hover:border-accent/40 dark:hover:border-accent/40 hover:bg-white dark:hover:bg-slate-900/50 transition-all cursor-pointer group/card"
             @click="emit('navigate-to-course', course.id)"
           >
             <div

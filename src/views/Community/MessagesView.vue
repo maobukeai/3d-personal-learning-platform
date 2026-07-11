@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Trash2, Users } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';

@@ -71,7 +71,10 @@ const label = useLabel();
     :selected-ids="selectedIds"
     :empty-title="label('还没有匹配的软件', 'No Matching Softwares')"
     :empty-body="
-      label('可以调整筛选条件，也可以上传一个新的软件。', 'Adjust filters or upload a new software.')
+      label(
+        '可以调整筛选条件，也可以上传一个新的软件。',
+        'Adjust filters or upload a new software.',
+      )
     "
     :empty-action-text="label('上传软件', 'Upload Software')"
     @click="emit('openDetail', $event)"

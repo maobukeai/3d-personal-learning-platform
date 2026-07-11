@@ -9,7 +9,7 @@ import {
   defineAsyncComponent,
   nextTick,
 } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import {
   Sparkles,
   X,
@@ -693,19 +693,19 @@ onUnmounted(() => {
           <div class="aip__toolbar-actions">
             <!-- Language Select for Translate -->
             <Transition name="fade">
-              <el-select
+              <Select
                 v-if="aiAction === 'translate'"
                 v-model="targetLanguage"
                 class="aip__translate-select !w-32 custom-select"
                 :disabled="isGenerating"
               >
-                <el-option value="English" label="English" />
-                <el-option value="中文 (简体)" label="中文" />
-                <el-option value="日本語" label="日本語" />
-                <el-option value="Deutsch" label="Deutsch" />
-                <el-option value="Français" label="Français" />
-                <el-option value="Español" label="Español" />
-              </el-select>
+                <SelectOption value="English" label="English" />
+                <SelectOption value="中文 (简体)" label="中文" />
+                <SelectOption value="日本語" label="日本語" />
+                <SelectOption value="Deutsch" label="Deutsch" />
+                <SelectOption value="Français" label="Français" />
+                <SelectOption value="Español" label="Español" />
+              </Select>
             </Transition>
 
             <button
@@ -978,9 +978,9 @@ onUnmounted(() => {
   opacity: 0.94;
 }
 .aip--maximized {
-  border-radius: 0 !important;
-  border: none !important;
-  box-shadow: none !important;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
 }
 .aip-enter-active {
   transition:

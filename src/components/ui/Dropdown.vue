@@ -1,85 +1,85 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, provide, ref } from 'vue';
+import {
+  DropdownMenuContent,
+  DropdownMenuPortal,
+  DropdownMenuRoot,
+  DropdownMenuTrigger,
+} from 'radix-vue';
+import { dropdownContextKey } from './dropdownContext';
 
 interface Props {
+  placement?: 'bottom-start' | 'bottom-end' | 'top-start' | 'top-end';
   align?: 'left' | 'right';
   widthClass?: string;
+  disabled?: boolean;
+  trigger?: 'click' | 'hover' | 'contextmenu';
+  popperClass?: string;
 }
 
-withDefaults(defineProps<Props>(), {
-  align: 'right',
-  widthClass: 'w-48',
+const props = withDefaults(defineProps<Props>(), {
+  placement: 'bottom-end',
+  align: undefined,
+  widthClass: '',
+  disabled: false,
+  trigger: 'click',
+  popperClass: '',
 });
 
-interface DropdownRef {
-  handleClose: () => void;
-  handleOpen: () => void;
-}
+const emit = defineEmits<{
+  (event: 'visible-change', open: boolean): void;
+  (event: 'command', command: string | number | undefined): void;
+}>();
 
-const isOpen = ref(false);
-const dropdownRef = ref<DropdownRef | null>(null);
+const open = ref(false);
+const resolvedPlacement = computed(() => {
+  if (props.align) return props.align === 'left' ? 'bottom-start' : 'bottom-end';
+  return props.placement;
+});
+const side = computed(() => (resolvedPlacement.value.startsWith('top') ? 'top' : 'bottom'));
+const dropdownAlign = computed(() => (resolvedPlacement.value.endsWith('start') ? 'start' : 'end'));
 
-const toggle = () => {
-  if (dropdownRef.value) {
-    if (isOpen.value) dropdownRef.value.handleClose();
-    else dropdownRef.value.handleOpen();
-  }
+const updateOpen = (value: boolean) => {
+  open.value = value;
+  emit('visible-change', value);
 };
 
-const close = () => {
-  if (dropdownRef.value) {
-    dropdownRef.value.handleClose();
-  }
+const select = (command: string | number | undefined) => {
+  emit('command', command);
+  updateOpen(false);
 };
 
-const onVisibleChange = (val: boolean) => {
-  isOpen.value = val;
-};
+provide(dropdownContextKey, { select });
 
-defineExpose({ toggle, close, isOpen });
+defineExpose({
+  handleOpen: () => updateOpen(true),
+  handleClose: () => updateOpen(false),
+});
 </script>
 
 <template>
-  <el-dropdown
-    ref="dropdownRef"
-    trigger="click"
-    popper-class="dropdown-component-popper"
-    :placement="align === 'right' ? 'bottom-end' : 'bottom-start'"
-    @visible-change="onVisibleChange"
-  >
-    <div class="cursor-pointer outline-none">
-      <slot name="trigger" :is-open="isOpen"></slot>
-    </div>
-    <template #dropdown>
-      <el-dropdown-menu
-        class="!p-1.5 !rounded-2xl !shadow-lg !border !border-slate-200 dark:!border-slate-700 glass-panel !overflow-hidden max-w-[calc(100vw-16px)]"
-        :class="widthClass"
+  <DropdownMenuRoot :open="open" :modal="false" @update:open="updateOpen">
+    <DropdownMenuTrigger as-child :disabled="disabled" class="dropdown-trigger-btn">
+      <slot name="trigger">
+        <slot />
+      </slot>
+    </DropdownMenuTrigger>
+    <DropdownMenuPortal>
+      <DropdownMenuContent
+        :side="side"
+        :align="dropdownAlign"
+        :side-offset="6"
+        class="glass-popover z-[var(--z-dropdown)] min-w-40 p-1 outline-none"
+        :class="[popperClass, widthClass]"
       >
-        <div class="flex flex-col gap-0.5 outline-none" @click="close">
-          <slot name="content"></slot>
+        <div
+          class="max-h-72 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent"
+        >
+          <slot name="dropdown">
+            <slot name="content" />
+          </slot>
         </div>
-      </el-dropdown-menu>
-    </template>
-  </el-dropdown>
+      </DropdownMenuContent>
+    </DropdownMenuPortal>
+  </DropdownMenuRoot>
 </template>
-
-<style>
-/* Clean up Element Plus dropdown wrapper border-radius and outline effects */
-.dropdown-component-popper.el-popper {
-  border-radius: 1rem !important;
-  border: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
-}
-.dropdown-component-popper.el-popper .el-popper__arrow::before {
-  border: 1px solid var(--el-border-color-light) !important;
-  background: var(--el-bg-color-overlay) !important;
-}
-.dark .dropdown-component-popper.el-popper .el-popper__arrow::before {
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  background: #1e293b !important;
-}
-.el-dropdown-menu {
-  background-color: transparent !important;
-}
-</style>

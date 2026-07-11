@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { Trash2 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { useI18n } from 'vue-i18n';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
@@ -163,7 +163,6 @@ defineExpose({
     :show="isDrawerOpen"
     :title="isEditMode ? t('projects.configProject') : t('projects.startNewProject')"
     size="md"
-    glass-card
     @close="isDrawerOpen = false"
   >
     <div class="mobile-adaptive space-y-3.5 text-left max-h-[65vh] overflow-y-auto pr-1">
@@ -199,7 +198,7 @@ defineExpose({
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1 text-left"
             >{{ t('projects.deliverableDueDate') }}</label
           >
-          <el-date-picker
+          <DatePicker
             v-model="projectForm.dueDate"
             type="date"
             :placeholder="t('tasks.dueDate')"
@@ -211,18 +210,18 @@ defineExpose({
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1 text-left"
             >{{ t('projects.visualColor') }}</label
           >
-          <el-select
+          <Select
             v-model="projectForm.color"
             class="!w-full custom-select-compact"
             popper-class="custom-select-dropdown"
           >
-            <el-option v-for="c in colors" :key="c.value" :label="c.name" :value="c.value">
+            <SelectOption v-for="c in colors" :key="c.value" :label="c.name" :value="c.value">
               <div class="flex items-center gap-3">
                 <div class="w-4 h-4 rounded-full shadow-inner" :class="c.value"></div>
                 <span class="font-bold text-xs sm:text-sm">{{ c.name }}</span>
               </div>
-            </el-option>
-          </el-select>
+            </SelectOption>
+          </Select>
         </div>
       </div>
       <div
@@ -235,14 +234,14 @@ defineExpose({
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
             >{{ t('projects.currentStatus') }}</label
           >
-          <el-select v-model="projectForm.status" class="!w-full custom-select-compact">
-            <el-option
+          <Select v-model="projectForm.status" class="!w-full custom-select-compact">
+            <SelectOption
               v-for="s in statusOptions"
               :key="s.value"
               :label="s.label"
               :value="s.value"
             />
-          </el-select>
+          </Select>
         </div>
         <div>
           <div class="flex items-center justify-between mb-1">
@@ -268,17 +267,17 @@ defineExpose({
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1 text-left"
             >{{ t('projects.visibilityAndEnrollment') }}</label
           >
-          <el-select v-model="projectForm.visibility" class="!w-full custom-select-compact">
-            <el-option :label="t('projects.visibility.private')" value="PRIVATE" />
-            <el-option :label="t('projects.visibility.public')" value="PUBLIC" />
-          </el-select>
+          <Select v-model="projectForm.visibility" class="!w-full custom-select-compact">
+            <SelectOption :label="t('projects.visibility.private')" value="PRIVATE" />
+            <SelectOption :label="t('projects.visibility.public')" value="PUBLIC" />
+          </Select>
         </div>
         <div>
           <label
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1 text-left"
             >{{ t('projects.maxMembersLimit') }}</label
           >
-          <el-input-number
+          <Input-number
             v-model="projectForm.maxMembers"
             :min="1"
             :max="50"
@@ -348,13 +347,13 @@ defineExpose({
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
             >{{ t('projects.inviteNewMembers') }}</label
           >
-          <el-select
+          <Select
             v-model="projectForm.inviteUserIds"
             multiple
             :placeholder="t('projects.selectMembersToInvite')"
             class="!w-full custom-select-compact"
           >
-            <el-option
+            <SelectOption
               v-for="m in availableTeamMembers"
               :key="m.id"
               :label="m.name || m.email"
@@ -364,8 +363,8 @@ defineExpose({
                 <UserAvatar :user="m" size="sm" />
                 <span class="font-bold text-xs sm:text-sm">{{ m.name || m.email }}</span>
               </div>
-            </el-option>
-          </el-select>
+            </SelectOption>
+          </Select>
         </div>
       </div>
 
@@ -376,13 +375,13 @@ defineExpose({
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
             >{{ t('projects.directMembers') }}</label
           >
-          <el-select
+          <Select
             v-model="projectForm.memberIds"
             multiple
             :placeholder="t('projects.selectDirectMembers')"
             class="!w-full custom-select-compact"
           >
-            <el-option
+            <SelectOption
               v-for="m in props.teamMembers"
               :key="m.id"
               :label="m.name || m.email"
@@ -392,8 +391,8 @@ defineExpose({
                 <UserAvatar :user="m" size="sm" />
                 <span class="font-bold text-xs sm:text-sm">{{ m.name || m.email }}</span>
               </div>
-            </el-option>
-          </el-select>
+            </SelectOption>
+          </Select>
         </div>
 
         <div>
@@ -401,13 +400,13 @@ defineExpose({
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
             >{{ t('projects.invitedMembers') }}</label
           >
-          <el-select
+          <Select
             v-model="projectForm.inviteUserIds"
             multiple
             :placeholder="t('projects.selectMembersToInvite')"
             class="!w-full custom-select-compact"
           >
-            <el-option
+            <SelectOption
               v-for="m in props.teamMembers"
               :key="m.id"
               :label="m.name || m.email"
@@ -417,8 +416,8 @@ defineExpose({
                 <UserAvatar :user="m" size="sm" />
                 <span class="font-bold text-xs sm:text-sm">{{ m.name || m.email }}</span>
               </div>
-            </el-option>
-          </el-select>
+            </SelectOption>
+          </Select>
           <p class="text-[9px] sm:text-[10px] text-slate-400 mt-1.5 ml-1">
             {{ t('projects.inviteTip') }}
           </p>
@@ -440,64 +439,9 @@ defineExpose({
 </template>
 
 <style scoped>
-.custom-select-compact :deep(.el-select__wrapper) {
-  border-radius: 0.75rem !important;
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: none !important;
-  transition: all 0.2s ease !important;
-}
-.dark .custom-select-compact :deep(.el-select__wrapper) {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.custom-select-compact :deep(.el-select__wrapper.is-focused) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
-}
-
-.custom-date-picker-compact :deep(.el-input__wrapper) {
-  border-radius: 0.75rem !important;
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: none !important;
-  transition: all 0.2s ease !important;
-  height: 38px !important;
-}
-.dark .custom-date-picker-compact :deep(.el-input__wrapper) {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.custom-date-picker-compact :deep(.el-input__wrapper.is-focus) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
-}
-
-.custom-number-compact :deep(.el-input__wrapper) {
-  border-radius: 0.75rem !important;
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: none !important;
-  transition: all 0.2s ease !important;
-}
-.dark .custom-number-compact :deep(.el-input__wrapper) {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.custom-number-compact :deep(.el-input__wrapper.is-focus) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
-}
-
 @media (max-width: 767px) {
   .form-grid-2 {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
 }
 </style>

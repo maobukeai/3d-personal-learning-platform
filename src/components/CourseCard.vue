@@ -301,8 +301,8 @@ function handleBookmarkClick(event: Event) {
     </div>
 
     <!-- Course Info -->
-    <div class="p-1.5 sm:p-3.5">
-      <div class="flex items-center gap-1 sm:gap-1.5 mb-1.5">
+    <div class="p-1.5 sm:p-2.5">
+      <div class="flex items-center gap-1 sm:gap-1.5 mb-1">
         <span
           v-if="course.category"
           class="px-1.5 py-0.5 rounded bg-accent/10 text-accent text-[9px] font-bold"
@@ -315,18 +315,18 @@ function handleBookmarkClick(event: Event) {
         >
       </div>
       <h3
-        class="text-[10px] sm:text-sm font-bold mb-1.5 line-clamp-2 min-h-[24px] sm:min-h-[32px] leading-tight sm:leading-snug group-hover:text-accent transition-colors"
+        class="text-[10px] sm:text-xs font-bold mb-1 line-clamp-2 min-h-[20px] sm:min-h-[28px] leading-tight sm:leading-snug group-hover:text-accent transition-colors"
         style="color: var(--text-primary)"
       >
         {{ course.title }}
       </h3>
 
-      <div class="flex items-center gap-1.5 mb-2">
+      <div class="flex items-center gap-1.5 mb-1.5">
         <div class="hidden xs:flex items-center gap-0.5">
           <Star
             v-for="i in 5"
             :key="i"
-            class="w-3 h-3"
+            class="w-2.5 h-2.5"
             :class="
               i <= Math.round(course.avgRating || 0)
                 ? 'text-amber-400 fill-amber-400'
@@ -335,34 +335,33 @@ function handleBookmarkClick(event: Event) {
           />
         </div>
         <span class="xs:hidden"
-          ><Star class="w-3 h-3 text-amber-400 fill-amber-400 inline-block align-middle mr-0.5"
+          ><Star class="w-2.5 h-2.5 text-amber-400 fill-amber-400 inline-block align-middle mr-0.5"
         /></span>
         <span
-          class="text-[10px] font-bold inline-block align-middle"
+          class="text-[9px] sm:text-[10px] font-bold inline-block align-middle"
           style="color: var(--text-muted)"
           >{{ course.avgRating || '-' }}</span
         >
       </div>
 
       <div
-        class="flex items-center justify-between pt-2 border-t transition-colors duration-300"
+        class="flex items-center justify-between pt-1.5 border-t transition-colors duration-300"
         style="border-color: var(--border-base)"
       >
         <div
-          class="flex items-center gap-1.5 sm:gap-3 text-[8px] sm:text-[10px] font-bold"
+          class="flex items-center gap-1.5 sm:gap-2.5 text-[8px] sm:text-[9px] font-bold"
           style="color: var(--text-muted)"
         >
           <span class="flex items-center gap-0.5 sm:gap-1"
-            ><BookOpen class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" /> {{ course._count?.lessons || 0
+            ><BookOpen class="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {{ course._count?.lessons || 0
             }}<span class="hidden xs:inline"> 课时</span></span
           >
           <span class="flex items-center gap-0.5 sm:gap-1"
-            ><Users class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-            {{ course._count?.enrollments || 0 }}</span
+            ><Users class="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {{ course._count?.enrollments || 0 }}</span
           >
         </div>
         <ChevronRight
-          class="hidden sm:block w-4 h-4 text-slate-300 group-hover:text-accent transition-colors"
+          class="hidden sm:block w-3.5 h-3.5 text-slate-300 group-hover:text-accent transition-colors"
         />
       </div>
     </div>

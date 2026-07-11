@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { formatDate } from '@/utils/format';
 import { logError } from '@/utils/error';
 import { computed, defineAsyncComponent } from 'vue';
@@ -62,14 +62,14 @@ const handleDownload = () => {
 </script>
 
 <template>
-  <el-drawer
+  <Drawer
     v-model="isOpen"
     direction="rtl"
     size="400px"
     :with-header="false"
     class="asset-details-drawer"
   >
-    <div v-if="asset" class="h-full flex flex-col bg-slate-950 text-white overflow-hidden">
+    <div v-if="asset" class="h-full flex flex-col text-[var(--text-primary)] overflow-hidden">
       <!-- Top: Preview -->
       <div
         class="h-72 relative bg-slate-900 border-b border-white/10 shadow-2xl overflow-hidden shrink-0"
@@ -203,9 +203,8 @@ const handleDownload = () => {
         </div>
       </div>
 
-      <!-- Footer Actions -->
       <div
-        class="p-6 bg-slate-950/80 backdrop-blur-xl border-t border-white/10 flex gap-4 shrink-0 relative z-20"
+        class="p-6 bg-[var(--bg-elevated)]/40 border-t border-strong/30 flex gap-4 shrink-0 relative z-20"
       >
         <button
           type="button"
@@ -228,12 +227,5 @@ const handleDownload = () => {
         </button>
       </div>
     </div>
-  </el-drawer>
+  </Drawer>
 </template>
-
-<style>
-.asset-details-drawer .el-drawer__body {
-  padding: 0;
-  background-color: #020617;
-}
-</style>

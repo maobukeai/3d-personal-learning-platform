@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import { generateTOTP } from '@/utils/totp';
@@ -683,47 +683,44 @@ onUnmounted(() => {
 
 @media (max-width: 640px) {
   .two-fa-container {
-    padding: 10px 12px !important;
+    padding: 10px 12px;
   }
   .two-fa-header {
-    padding: 10px !important;
-    gap: 8px !important;
-    margin-bottom: 10px !important;
+    padding: 10px;
+    gap: 8px;
+    margin-bottom: 10px;
   }
 
   /* Filters & search adjustments */
   .two-fa-container .custom-search-input {
-    width: 100% !important;
+    width: 100%;
   }
   .two-fa-container .custom-sort-select {
-    width: 90px !important;
-  }
-  .two-fa-container .custom-sort-select .el-input__inner {
-    font-size: 11px !important;
+    width: 90px;
   }
 
   /* Grid card adjustments */
   .acc-card {
-    padding: 10px !important;
-    border-radius: 10px !important;
-    gap: 6px !important;
+    padding: 10px;
+    border-radius: 10px;
+    gap: 6px;
   }
   .acc-card .text-base.font-extrabold {
-    font-size: 13px !important;
-    letter-spacing: 0.08em !important;
+    font-size: 13px;
+    letter-spacing: 0.08em;
   }
   .acc-card .code-box {
-    padding: 4px 6px !important;
-    border-radius: 6px !important;
+    padding: 4px 6px;
+    border-radius: 6px;
   }
 
   /* List item adjustments */
   .two-fa-container .flex-col.lg\:flex-row {
-    padding: 10px !important;
-    gap: 8px !important;
+    padding: 10px;
+    gap: 8px;
   }
   .two-fa-container .flex-col.lg\:flex-row > div {
-    margin: 0 !important;
+    margin: 0;
   }
 }
 </style>

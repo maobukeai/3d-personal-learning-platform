@@ -9,7 +9,7 @@ import {
   X,
   FolderOpen,
 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { useI18n } from 'vue-i18n';
 import Dropdown from '@/components/ui/Dropdown.vue';
 import api from '@/utils/api';
@@ -1096,8 +1096,8 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
 <style scoped>
 @media (max-width: 767px) {
   .task-table-grid {
-    grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
-    min-width: 720px !important;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    min-width: 720px;
   }
 }
 </style>

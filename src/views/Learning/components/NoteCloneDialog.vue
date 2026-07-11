@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
@@ -72,7 +72,7 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" title="一键转存笔记" size="sm" glass-card @close="visible = false">
+  <Modal :show="visible" title="一键转存笔记" size="sm" @close="visible = false">
     <div v-if="cloningNote" class="mobile-adaptive space-y-4">
       <div class="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-[var(--border-base)]">
         <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-1">
@@ -89,7 +89,7 @@ defineExpose({ open });
           class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2 block"
           >选择目标笔记本</label
         >
-        <el-select
+        <Select
           v-model="targetCategory"
           placeholder="请选择或输入分类"
           class="!w-full note-filter-select"
@@ -97,9 +97,9 @@ defineExpose({ open });
           allow-create
           default-first-option
         >
-          <el-option label="默认笔记本" value="默认笔记本" />
-          <el-option v-for="cat in props.myNotebooksList" :key="cat" :label="cat" :value="cat" />
-        </el-select>
+          <SelectOption label="默认笔记本" value="默认笔记本" />
+          <SelectOption v-for="cat in props.myNotebooksList" :key="cat" :label="cat" :value="cat" />
+        </Select>
       </div>
     </div>
     <template #footer>

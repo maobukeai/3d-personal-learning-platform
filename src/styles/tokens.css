@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@plugin "tailwindcss-animate";
 
 /* ============================================================
    Dark mode: class-based (adds .dark to <html>)
@@ -21,6 +22,64 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-subtle: var(--accent-subtle);
+
+  /* Shadcn Vue semantic tokens — mapped to existing project tokens */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Spacing scale (maps to :root --space-*) */
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-7: var(--space-7);
+  --spacing-8: var(--space-8);
+  --spacing-9: var(--space-9);
+  --spacing-10: var(--space-10);
+
+  /* Typography scale (font-size utilities) */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 24px;
+
+  /* Z-index scale (z-* utilities) */
+  --z-index-base: var(--z-base);
+  --z-index-dropdown: var(--z-dropdown);
+  --z-index-popover: var(--z-popover);
+  --z-index-sticky: var(--z-sticky);
+  --z-index-overlay: var(--z-overlay);
+  --z-index-modal: var(--z-modal);
+  --z-index-modal-backdrop: var(--z-modal-backdrop);
+  --z-index-modal-content: var(--z-modal-content);
+  --z-index-modal-nested: var(--z-modal-nested);
+  --z-index-drawer-backdrop: var(--z-drawer-backdrop);
+  --z-index-drawer-content: var(--z-drawer-content);
+  --z-index-toast: var(--z-toast);
 }
 
 /* ============================================================
@@ -29,31 +88,75 @@
 :root {
   color-scheme: light;
 
-  /* Layout backgrounds */
-  --bg-app: #f1f5f9;
-  --bg-card: rgba(255, 255, 255, 0.7);
+  /* Physical glass tokens - light mode (Apple frosted/matte glass) */
+  --glass-modal-bg: rgba(255, 255, 255, 0.22);
+  --glass-popover-bg: rgba(255, 255, 255, 0.3);
+  /* Surface: milky white haze — frosted glass has more white diffusion than clear glass */
+  --glass-modal-surface: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.14) 100%
+  );
+  --glass-popover-surface: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.3) 0%,
+    rgba(255, 255, 255, 0.18) 100%
+  );
+  /* Specular: directional sheen from top-left corner — like machined/sandblasted surface */
+  --glass-specular:
+    linear-gradient(
+      130deg,
+      rgba(255, 255, 255, 0.6) 0%,
+      rgba(255, 255, 255, 0.12) 28%,
+      rgba(255, 255, 255, 0) 55%
+    ),
+    radial-gradient(ellipse at 15% 0%, rgba(255, 255, 255, 0.28) 0%, transparent 50%);
+  /* Border: bright 1px top highlight (glass thickness edge) + whisper outer ring */
+  --glass-border:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.85), inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  /* Shadow: layered depth with micro ambient ring */
+  --glass-shadow:
+    0 2px 4px rgb(0 0 0 / 0.07), 0 8px 20px rgb(0 0 0 / 0.07), 0 24px 64px rgb(0 0 0 / 0.12),
+    0 0 0 0.5px rgba(0, 0, 0, 0.1);
+  /* Frosted blur: 28px radius for light scatter + 160% saturation (muted vs clear glass) */
+  --glass-blur: blur(28px) saturate(160%) brightness(1.06) contrast(1.01);
+  --glass-overlay-bg: rgba(0, 0, 0, 0.22);
+  --glass-overlay-blur: blur(12px) saturate(150%);
+  /* A neutral outer edge is required on white canvases; pure white glass edges disappear. */
+  --glass-border-color: rgba(100, 116, 139, 0.24);
+
+  /* Layout backgrounds — Industrial Craft Workbench (opaque surfaces) */
+  --bg-app: #f5f7fa;
+  --bg-card: #ffffff;
   --bg-card-rgb: 255, 255, 255;
-  --bg-elevated: rgba(255, 255, 255, 0.85);
-  --bg-sidebar: rgba(248, 250, 252, 0.8);
-  --bg-subtle: #f9fafb;
+  --bg-elevated: #ffffff;
+  --bg-sidebar: #f5f7fa;
+  --bg-subtle: #eff2f6;
   --bg-hover: rgba(0, 0, 0, 0.04);
-  --bg-active: rgba(37, 99, 235, 0.08);
+  --bg-active: rgba(240, 120, 40, 0.12);
 
-  /* Text */
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #6b7280;
+  /* Text — WCAG AA on --surface-solid (#FFFFFF) */
+  --text-primary: #14202b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
 
-  /* Borders */
-  --border-base: rgba(223, 227, 232, 0.6);
-  --border-strong: rgba(196, 204, 214, 0.7);
-  --border-card: rgba(229, 231, 235, 0.5);
+  /* Borders — Industrial Craft Workbench (opaque) */
+  --border-base: #d8e0e8;
+  --border-strong: #c4ced8;
+  --border-card: #e2e8ee;
 
-  /* Accent */
-  --accent: #2563eb;
-  --accent-rgb: 37, 99, 235;
-  --accent-hover: color-mix(in srgb, var(--accent) 85%, black);
+  /* Accent — Craft orange is the canonical brand color in both light & dark.
+     --blender-orange is declared below; var() resolves lazily so order is fine. */
+  --accent: #f07828;
+  --accent-rgb: 240, 120, 40;
+  --accent-hover: #ff934a;
+  --accent-press: #d9651a;
+  --accent-on: #ffffff;
   --accent-subtle: color-mix(in srgb, var(--accent) 8%, white);
+
+  /* Links — blue is permitted ONLY for inline text links (spec §1.1). */
+  --link: #2563eb;
+  --link-hover: #1d4ed8;
 
   /* Enterprise semantic colors */
   --success: #059669;
@@ -61,24 +164,224 @@
   --danger: #dc2626;
   --info: #0f766e;
 
-  /* Shape and elevation */
-  --radius-xs: 4px;
+  /* Badge tone tokens — semantic replacements for hardcoded hex in components.css
+     (components.css .tone-* blocks should migrate to these). */
+  --tone-purple: #7c3aed;
+  --tone-blue: #0369a1;
+  --tone-green: #047857;
+  --tone-amber: #b45309;
+  --tone-red: #be123c;
+  --tone-slate: #475569;
+
+  /* Shadcn Vue semantic tokens — light mode (mapped to existing project values) */
+  --background: var(--bg-app);
+  --foreground: var(--text-primary);
+  --card: var(--bg-card);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--accent);
+  --primary-foreground: #ffffff;
+  --secondary: var(--bg-subtle);
+  --secondary-foreground: var(--text-secondary);
+  --muted: var(--bg-subtle);
+  --muted-foreground: var(--text-muted);
+  --destructive: var(--danger);
+  --destructive-foreground: #ffffff;
+  --border: var(--border-base);
+  --input: var(--border-strong);
+  --ring: var(--accent);
+  --radius: var(--radius-md);
+
   --radius-sm: 6px;
   --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 14px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Canonical 4-tier radius system (spec §4). Legacy --radius-sm/md/lg/xl are aliases. */
+  --radius-0: 0;
+  --radius-control: 6px;
+  --radius-field: 8px;
+  --radius-section: 16px;
+
+  /* Canonical single-layer shadows (spec §5). Legacy --shadow-card* are aliases. */
+  --shadow-rest: 0 1px 3px rgb(16 24 40 / 0.09);
+  --shadow-hover: 0 6px 16px rgb(16 24 40 / 0.12);
+  --shadow-overlay: 0 8px 24px rgb(16 24 40 / 0.14);
+
   --shadow-enterprise: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 1px rgb(16 24 40 / 0.04);
   --shadow-enterprise-hover: 0 10px 24px rgb(16 24 40 / 0.08);
 
-  /* Blender/3D platform specific */
-  --blender-orange: #f5792a;
-  --blender-orange-hover: #d16421;
-  --blender-orange-subtle: rgba(245, 121, 42, 0.1);
-  --glow-orange: 0 0 16px rgba(245, 121, 42, 0.2);
-  --glow-orange-strong: 0 0 24px rgba(245, 121, 42, 0.35);
+  /* Blender/3D platform specific — Craft orange (Industrial Craft Workbench) */
+  --blender-orange: #f07828;
+  --blender-orange-hover: #ff934a;
+  --blender-orange-subtle: rgba(240, 120, 40, 0.1);
+  /* 3D canvas glow — permitted ONLY on WebGL canvas overlays, never on content. */
+  --shadow-3d-glow: 0 0 16px rgba(240, 120, 40, 0.2);
   --topbar-height: 56px;
-  --card-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
-  --card-shadow-hover: 0 8px 24px rgba(16, 24, 40, 0.1);
+  /* @deprecated — alias of --shadow-card / --shadow-card-hover. New code MUST use --shadow-card*. */
+  --card-shadow: var(--shadow-card);
+  --card-shadow-hover: var(--shadow-card-hover);
+  /* Typography scale */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 24px;
+  --leading-tight: 1.3;
+  --leading-normal: 1.55;
+  --leading-relaxed: 1.7;
+
+  /* Font weights */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+
+  /* Spacing scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 36px;
+  --space-10: 40px;
+
+  /* Layout dimensions */
+  --page-max-width: 100%;
+  --page-gutter: 32px;
+  --page-gutter-mobile: 16px;
+  --sidebar-width: 260px;
+  --header-height: 56px;
+  --content-max-width: 1200px;
+
+  /* Z-index scale (use only for overlays).
+     --z-drawer mirrors --z-modal so drawers and modals share a base layer;
+     useOverlayManager layers individual overlays via stack position. */
+  --z-base: 0;
+  --z-dropdown: 1340;
+  --z-popover: 1350;
+  --z-sticky: 1150;
+  --z-modal-base: 1300;
+  --z-modal-backdrop: var(--z-modal-base);
+  --z-modal-content: calc(var(--z-modal-base) + 1);
+  --z-modal-nested: calc(var(--z-modal-base) + 10);
+  --z-drawer-backdrop: var(--z-modal-base);
+  --z-drawer-content: calc(var(--z-modal-base) + 1);
+  --z-toast: calc(var(--z-modal-base) + 100);
+  --z-modal: var(--z-modal-content);
+  --z-drawer: var(--z-modal-content);
+  --z-overlay: var(--z-modal-backdrop);
+
+  /* Animation tokens — Industrial Craft Workbench (2 durations only) */
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Surface tiers (for glass consolidation) */
+  --surface-base: var(--bg-card);
+  --surface-raised: var(--bg-elevated);
+  --surface-overlay: var(--bg-elevated);
+
+  /* ============================================================
+     MANDATORY — Typography hierarchy (5 levels)
+     ------------------------------------------------------------
+     Page-level text MUST consume these tokens (raw --typo-* vars or
+     the .typo-h1 … .typo-h5 / .typo-body / .typo-caption utilities).
+     Do NOT use Tailwind arbitrary font sizes (text-[13px], text-2xl…)
+     or scoped CSS font-size literals for page text.
+     Long Chinese / English / empty values must NOT truncate or
+     compress: the utilities set white-space:normal & overflow:visible.
+     Body vs auxiliary contrast meets WCAG AA (>= 4.5:1) on
+     --surface-solid in both light and dark.
+     ============================================================ */
+
+  /* Level 1 — Page title. Exactly one <h1> per page. */
+  --typo-h1-font-size: 1.5rem; /* 24px */
+  --typo-h1-line-height: 1.3;
+  --typo-h1-font-weight: 700;
+  --typo-h1-letter-spacing: -0.01em;
+
+  /* Level 2 — Section title (section / card group heading). */
+  --typo-h2-font-size: 1.125rem; /* 18px */
+  --typo-h2-line-height: 1.35;
+  --typo-h2-font-weight: 600;
+  --typo-h2-letter-spacing: 0;
+
+  /* Level 3 — Description / subtitle. */
+  --typo-h3-font-size: 0.9375rem; /* 15px */
+  --typo-h3-line-height: 1.45;
+  --typo-h3-font-weight: 500;
+  --typo-h3-letter-spacing: 0;
+
+  /* Level 3b — Statistical figure (numeric metrics / KPIs). */
+  --typo-stat-font-size: 1.75rem; /* 28px */
+  --typo-stat-line-height: 1.2;
+  --typo-stat-font-weight: 700;
+  --typo-stat-letter-spacing: 0;
+
+  /* Level 4 — Body text (default reading text). */
+  --typo-body-font-size: 0.875rem; /* 14px */
+  --typo-body-line-height: 1.55;
+  --typo-body-font-weight: 400;
+  --typo-body-letter-spacing: 0;
+
+  /* Level 5 — Auxiliary / caption text. */
+  --typo-caption-font-size: 0.75rem; /* 12px */
+  --typo-caption-line-height: 1.5;
+  --typo-caption-font-weight: 400;
+  --typo-caption-letter-spacing: 0;
+
+  /* Semantic text colors paired with the surface tokens below.
+     All pairs meet WCAG AA on --surface-solid. */
+  --text-on-solid-primary: var(--text-primary);
+  --text-on-solid-secondary: var(--text-secondary);
+  --text-on-solid-muted: var(--text-muted);
+
+  /* ============================================================
+     MANDATORY — Content surface tokens
+     ------------------------------------------------------------
+     Solid surface = DEFAULT for cards, tables, forms, resource
+     cards, and ContentSection. Always opaque — never translucent.
+     Glass surface = ONLY for navigation, overlays (modals/drawers/
+     popovers), and 3D overlays. Never use glass for content cards.
+     ============================================================ */
+
+  /* Solid (opaque) content surface. */
+  --surface-canvas: var(--bg-app);
+  --surface-solid: #ffffff;
+  --surface-solid-secondary: #f5f7fa;
+  --surface-solid-border: var(--border-base);
+  --surface-solid-radius: var(--radius-lg);
+
+  /* Glass (translucent) surface — nav / overlays / 3D only. */
+  --surface-glass: var(--bg-card);
+  --surface-glass-border: var(--border-base);
+  --surface-glass-radius: var(--radius-lg);
+
+  /* ============================================================
+     MANDATORY — Card feedback (single-channel rule)
+     ------------------------------------------------------------
+     A card may use EXACTLY ONE feedback channel on hover/active:
+     border OR background OR shadow — never several at once.
+     The default single channel is a border-color shift. Pages must
+     not stack border + background + shadow transitions on one card.
+     ============================================================ */
+  --card-border-rest: var(--border-base);
+  --card-border-hover: color-mix(in srgb, var(--accent) 30%, var(--border-base));
+  --card-radius: var(--radius-lg);
+  --card-padding: var(--space-4);
+
+  /* Vertical rhythm between Header / Toolbar / Content in PageFrame. */
+  --page-rhythm-gap: var(--space-4);
 }
 
 /* ============================================================
@@ -87,31 +390,73 @@
 .dark {
   color-scheme: dark;
 
-  /* Layout backgrounds — authentic warm carbon/charcoal grays from Blender */
-  --bg-app: #0f1319;
-  --bg-card: rgba(28, 33, 41, 0.75);
-  --bg-card-rgb: 28, 33, 41;
-  --bg-elevated: rgba(36, 42, 53, 0.82);
-  --bg-sidebar: rgba(18, 22, 30, 0.8);
-  --bg-subtle: #0f1319;
+  /* Physical glass tokens - dark mode (Apple dark frosted glass) */
+  --glass-modal-bg: rgba(22, 26, 32, 0.6);
+  --glass-popover-bg: rgba(18, 22, 28, 0.7);
+  /* Surface: dark milky tint — frosted glass in dark mode has soft dark haze */
+  --glass-modal-surface: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.09) 0%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  --glass-popover-surface: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.06) 100%
+  );
+  /* Specular: very subtle top-left sheen — dark frosted barely reflects */
+  --glass-specular:
+    linear-gradient(
+      130deg,
+      rgba(255, 255, 255, 0.16) 0%,
+      rgba(255, 255, 255, 0.05) 25%,
+      rgba(255, 255, 255, 0) 55%
+    ),
+    radial-gradient(ellipse at 15% 0%, rgba(255, 255, 255, 0.1) 0%, transparent 48%);
+  /* Border: visible 1px top rim + very faint outer edge */
+  --glass-border:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.26), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  /* Shadow: deeper, softly diffuse */
+  --glass-shadow:
+    0 2px 4px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.3), 0 24px 64px rgb(0 0 0 / 0.48),
+    0 0 0 0.5px rgba(0, 0, 0, 0.55);
+  /* Dark frosted blur: 28px, muted saturation */
+  --glass-blur: blur(28px) saturate(150%) brightness(0.86) contrast(1.08);
+  --glass-overlay-bg: rgba(0, 0, 0, 0.5);
+  --glass-overlay-blur: blur(12px) saturate(140%);
+  --glass-border-color: rgba(255, 255, 255, 0.1);
+
+  /* Layout backgrounds — Industrial Craft Workbench (opaque surfaces) */
+  --bg-app: #0e1218;
+  --bg-card: #151b23;
+  --bg-card-rgb: 21, 27, 35;
+  --bg-elevated: #1c2430;
+  --bg-sidebar: #151b23;
+  --bg-subtle: #0e1218;
   --bg-hover: rgba(36, 42, 53, 0.7);
-  --bg-active: rgba(245, 121, 42, 0.1);
+  --bg-active: rgba(240, 120, 40, 0.12);
 
-  /* Text — neutral light grays */
-  --text-primary: #f3f3f3;
-  --text-secondary: #c5c6c9;
-  --text-muted: #7d7e82;
+  /* Text — neutral light grays (WCAG AA on --surface-solid) */
+  --text-primary: #f2f5f8;
+  --text-secondary: #a7b0bb;
+  --text-muted: #7b8493;
 
-  /* Borders — subtle warm dark */
-  --border-base: #2a3342;
-  --border-strong: rgba(255, 255, 255, 0.11);
-  --border-card: #2a3342;
+  /* Borders — Industrial Craft Workbench */
+  --border-base: #2b3644;
+  --border-strong: #3a4658;
+  --border-card: #2b3644;
 
-  /* Accent — Orange for dark mode (Blender-inspired) */
-  --accent: #f5792a;
-  --accent-rgb: 245, 121, 42;
-  --accent-hover: #d16421;
-  --accent-subtle: rgba(245, 121, 42, 0.15);
+  /* Accent — Craft orange (Industrial Craft Workbench) */
+  --accent: #f07828;
+  --accent-rgb: 240, 120, 40;
+  --accent-hover: #ff934a;
+  --accent-press: #d9651a;
+  --accent-on: #ffffff;
+  --accent-subtle: rgba(240, 120, 40, 0.15);
+
+  /* Links — blue is permitted ONLY for inline text links (spec §1.1). */
+  --link: #60a5fa;
+  --link-hover: #93c5fd;
 
   /* Enterprise semantic colors */
   --success: #22c55e;
@@ -119,36 +464,237 @@
   --danger: #ef4444;
   --info: #22d3ee;
 
-  /* Glow effects */
-  --glow-orange: 0 0 16px rgba(224, 125, 46, 0.3);
-  --glow-orange-strong: 0 0 24px rgba(224, 125, 46, 0.5);
-  --card-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 20px rgba(0, 0, 0, 0.4);
-  --card-shadow-hover:
-    0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 32px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(224, 125, 46, 0.2);
+  /* Shadcn Vue semantic tokens — dark mode (mapped to existing project values) */
+  --background: var(--bg-app);
+  --foreground: var(--text-primary);
+  --card: var(--bg-card);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--accent);
+  --primary-foreground: #1a1a1a;
+  --secondary: var(--bg-subtle);
+  --secondary-foreground: var(--text-secondary);
+  --muted: var(--bg-subtle);
+  --muted-foreground: var(--text-muted);
+  --destructive: var(--danger);
+  --destructive-foreground: #ffffff;
+  --border: var(--border-base);
+  --input: var(--border-strong);
+  --ring: var(--accent);
+  --radius: var(--radius-md);
+
+  /* Single-layer shadows — dark overrides (Industrial Craft Workbench).
+     One box-shadow per floating layer; no comma-stacked glow+shadow combos. */
+  --shadow-rest: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-card: var(--shadow-rest);
+  --shadow-card-hover: var(--shadow-hover);
+  /* @deprecated — alias of --shadow-card / --shadow-card-hover. New code MUST use
+     --shadow-card* directly. */
+  --card-shadow: var(--shadow-card);
+  --card-shadow-hover: var(--shadow-card-hover);
+  /* 3D canvas glow — permitted ONLY on WebGL canvas overlays, never on content. */
+  --shadow-3d-glow: 0 0 16px rgba(240, 120, 40, 0.3);
+
+  /* Typography scale (kept consistent with :root) */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 24px;
+  --leading-tight: 1.3;
+  --leading-normal: 1.55;
+  --leading-relaxed: 1.7;
+
+  /* ── MANDATORY tokens — dark overrides (see :root for full docs) ── */
+
+  /* Typography: sizes/weights are theme-agnostic; only the on-solid text
+     colors are remapped so WCAG AA holds against the dark solid surface. */
+  --text-on-solid-primary: var(--text-primary); /* #F2F5F8 on #151B23 ≈ 15.9:1 */
+  --text-on-solid-secondary: var(--text-secondary); /* #A7B0BB on #151B23 ≈ 7.9:1 */
+  --text-on-solid-muted: var(--text-muted); /* #7B8493 on #151B23 ≈ 4.7:1 (AA) */
+
+  /* Solid (opaque) content surface — dark. */
+  --surface-canvas: var(--bg-app);
+  --surface-solid: #151b23;
+  --surface-solid-secondary: #0e1218;
+  --surface-solid-border: var(--border-base);
+  --surface-solid-radius: var(--radius-lg);
+
+  /* Glass surface — dark (nav / overlays / 3D only). */
+  --surface-glass: var(--bg-card);
+  --surface-glass-border: var(--border-base);
+  --surface-glass-radius: var(--radius-lg);
+
+  /* Card feedback — single border-color channel. */
+  --card-border-rest: var(--border-base);
+  --card-border-hover: color-mix(in srgb, var(--accent) 30%, var(--border-base));
+  --card-radius: var(--radius-lg);
+  --card-padding: var(--space-4);
+
+  --page-rhythm-gap: var(--space-4);
 }
 
 /* ============================================================
-   Accent Color Utilities
+   Accent Color Utilities (Tailwind v4 @utility directive)
    ============================================================ */
-.bg-accent {
-  background-color: var(--accent) !important;
+@utility bg-accent {
+  background-color: var(--accent);
 }
-.bg-accent-subtle {
-  background-color: var(--accent-subtle) !important;
+@utility bg-accent-subtle {
+  background-color: var(--accent-subtle);
 }
-.text-accent {
-  color: var(--accent) !important;
+@utility text-accent {
+  color: var(--accent);
 }
-.border-accent {
-  border-color: var(--accent) !important;
+@utility border-accent {
+  border-color: var(--accent);
+}
+@utility border-base {
+  border-color: var(--border-base);
+}
+@utility border-strong {
+  border-color: var(--border-strong);
+}
+@utility border-card {
+  border-color: var(--border-card);
+}
+@utility bg-subtle {
+  background-color: var(--bg-subtle);
+}
+@utility bg-hover {
+  background-color: var(--bg-hover);
 }
 
-.hover\:bg-accent:hover {
-  background-color: var(--accent) !important;
-  opacity: 0.9;
+/* ============================================================
+   Card Hover Feedback Channels (Single-channel rule)
+   ============================================================ */
+@utility card-hover-border {
+  &:hover {
+    border-color: var(--card-border-hover);
+  }
 }
-.hover\:text-accent:hover {
-  color: var(--accent) !important;
-  opacity: 0.9;
+@utility card-hover-bg {
+  &:hover {
+    background-color: var(--bg-hover);
+  }
+}
+@utility card-hover-offset {
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* ============================================================
+   MANDATORY typography & surface utilities (Tailwind v4 @utility)
+   ------------------------------------------------------------
+   Pages MUST use these instead of arbitrary Tailwind font sizes or
+   scoped font-size literals. Long text never truncates: utilities
+   force white-space:normal + overflow:visible (no line-clamp).
+   ============================================================ */
+@utility typo-h1 {
+  font-size: var(--typo-h1-font-size);
+  line-height: var(--typo-h1-line-height);
+  font-weight: var(--typo-h1-font-weight);
+  letter-spacing: var(--typo-h1-letter-spacing);
+  color: var(--text-on-solid-primary);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+@utility typo-h2 {
+  font-size: var(--typo-h2-font-size);
+  line-height: var(--typo-h2-line-height);
+  font-weight: var(--typo-h2-font-weight);
+  letter-spacing: var(--typo-h2-letter-spacing);
+  color: var(--text-on-solid-primary);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+@utility typo-h3 {
+  font-size: var(--typo-h3-font-size);
+  line-height: var(--typo-h3-line-height);
+  font-weight: var(--typo-h3-font-weight);
+  letter-spacing: var(--typo-h3-letter-spacing);
+  color: var(--text-on-solid-secondary);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+@utility typo-body {
+  font-size: var(--typo-body-font-size);
+  line-height: var(--typo-body-line-height);
+  font-weight: var(--typo-body-font-weight);
+  letter-spacing: var(--typo-body-letter-spacing);
+  color: var(--text-on-solid-primary);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+@utility typo-caption {
+  font-size: var(--typo-caption-font-size);
+  line-height: var(--typo-caption-line-height);
+  font-weight: var(--typo-caption-font-weight);
+  letter-spacing: var(--typo-caption-letter-spacing);
+  color: var(--text-on-solid-muted);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+@utility typo-stat {
+  font-size: var(--typo-stat-font-size);
+  line-height: var(--typo-stat-line-height);
+  font-weight: var(--typo-stat-font-weight);
+  letter-spacing: var(--typo-stat-letter-spacing);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-on-solid-primary);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* Solid content surface — default for cards/tables/forms/ContentSection. */
+@utility surface-solid {
+  background-color: var(--surface-solid);
+  border: 1px solid var(--surface-solid-border);
+  border-radius: var(--surface-solid-radius);
+  color: var(--text-on-solid-primary);
+}
+/* Glass surface — nav / overlays / 3D ONLY. */
+@utility surface-glass {
+  background-color: var(--surface-glass);
+  border: 1px solid var(--surface-glass-border);
+  border-radius: var(--surface-glass-radius);
+}
+
+/* ============================================================
+   Motion duration utilities (Tailwind v4 @utility)
+   ------------------------------------------------------------
+   Composite tokens binding transition-duration to the
+   --duration-* scale. Pair with transition-property utilities.
+   (--ease-spring already exists in the :root animation tokens.)
+   ============================================================ */
+@utility transition-fast {
+  transition-duration: var(--duration-fast);
+}
+@utility transition-base {
+  transition-duration: var(--duration-base);
+}
+@utility transition-slow {
+  /* --duration-slow is forbidden (only 2 durations allowed). Alias to base. */
+  transition-duration: var(--duration-base);
+}
+
+/* ============================================================
+   Reduced motion — disable animation durations
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+  }
 }

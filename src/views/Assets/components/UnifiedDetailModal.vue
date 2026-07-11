@@ -38,7 +38,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import { formatDate } from '@/utils/format';
 import { useLabel } from '@/utils/i18n';
 import api, { getAssetUrl } from '@/utils/api';
@@ -139,9 +139,15 @@ const activeItem = computed(() => props.item || props.plugin);
 const activeKind = computed(() => props.kind || activeItem.value?.kind || 'plugin');
 const plugin = computed(() => activeItem.value);
 
-const apiPrefix = computed(() => activeKind.value === 'plugin' ? '/api/plugins' : '/api/softwares');
-const uploadFieldName = computed(() => activeKind.value === 'plugin' ? 'plugin_file' : 'software_file');
-const itemLabel = computed(() => activeKind.value === 'plugin' ? label('插件', 'Plugin') : label('软件', 'Software'));
+const apiPrefix = computed(() =>
+  activeKind.value === 'plugin' ? '/api/plugins' : '/api/softwares',
+);
+const uploadFieldName = computed(() =>
+  activeKind.value === 'plugin' ? 'plugin_file' : 'software_file',
+);
+const itemLabel = computed(() =>
+  activeKind.value === 'plugin' ? label('插件', 'Plugin') : label('软件', 'Software'),
+);
 
 const categoryLabel = (category?: string | null) => {
   const normalized = category || CATEGORY_OTHER;
@@ -155,9 +161,9 @@ const categoryLabel = (category?: string | null) => {
     导入与导出: 'Import & Export',
     物理与特效: 'Physics & FX',
     '3D 建模与雕刻软件': '3D Modeling & Sculpting',
-    '渲染引擎与渲染器': 'Render Engines & Renderers',
-    '后期与图像处理': 'Post-production & Imaging',
-    '游戏与交互引擎': 'Game & Interactive Engines',
+    渲染引擎与渲染器: 'Render Engines & Renderers',
+    后期与图像处理: 'Post-production & Imaging',
+    游戏与交互引擎: 'Game & Interactive Engines',
   };
   return locale.value === 'en-US' ? englishLabels[normalized] || normalized : normalized;
 };
@@ -165,7 +171,8 @@ const categoryLabel = (category?: string | null) => {
 const getCategoryIcon = (category?: string | null): Component => {
   const cat = category || '';
   if (cat.includes('建模') || cat.includes('雕刻')) return Box;
-  if (cat.includes('材质') || cat.includes('纹理') || cat.includes('后期') || cat.includes('图像')) return Layers;
+  if (cat.includes('材质') || cat.includes('纹理') || cat.includes('后期') || cat.includes('图像'))
+    return Layers;
   if (cat.includes('渲染') || cat.includes('灯光')) return Sun;
   if (cat.includes('动画') || cat.includes('骨骼')) return Bone;
   if (cat.includes('导入') || cat.includes('导出')) return Import;
@@ -253,9 +260,13 @@ const isExternal = computed(() => {
   }
   if (fileUrl && (fileUrl.startsWith('http://') || fileUrl.startsWith('https://'))) {
     const lowerUrl = fileUrl.toLowerCase();
-    const isArchive = lowerUrl.endsWith('.zip') || lowerUrl.includes('.zip?') ||
-                      lowerUrl.endsWith('.rar') || lowerUrl.includes('.rar?') ||
-                      lowerUrl.endsWith('.7z') || lowerUrl.includes('.7z?');
+    const isArchive =
+      lowerUrl.endsWith('.zip') ||
+      lowerUrl.includes('.zip?') ||
+      lowerUrl.endsWith('.rar') ||
+      lowerUrl.includes('.rar?') ||
+      lowerUrl.endsWith('.7z') ||
+      lowerUrl.includes('.7z?');
     return !isArchive;
   }
   return false;
@@ -279,7 +290,14 @@ const handlePluginDownload = async () => {
   }
 
   if (!downloadUrl) {
-    ElMessage.warning(label(activeKind.value === 'plugin' ? '该插件暂未提供下载文件' : '该软件暂未提供下载文件', activeKind.value === 'plugin' ? 'This plugin has no download file yet' : 'This software has no download file yet'));
+    ElMessage.warning(
+      label(
+        activeKind.value === 'plugin' ? '该插件暂未提供下载文件' : '该软件暂未提供下载文件',
+        activeKind.value === 'plugin'
+          ? 'This plugin has no download file yet'
+          : 'This software has no download file yet',
+      ),
+    );
     return;
   }
 
@@ -369,7 +387,10 @@ const {
   handlePostComment,
   handleDeleteComment,
   canDeleteComment,
-} = useResourceComments(() => activeKind.value === 'plugin' ? 'plugins' : 'softwares', () => plugin.value?.id);
+} = useResourceComments(
+  () => (activeKind.value === 'plugin' ? 'plugins' : 'softwares'),
+  () => plugin.value?.id,
+);
 
 const handleShare = () => {
   if (!plugin.value) return;
@@ -386,7 +407,13 @@ const handleShare = () => {
 const activeDetailTab = ref<any>('detail');
 const detailTabOptions = computed(() => {
   const options = [
-    { label: label(activeKind.value === 'plugin' ? '插件详情' : '软件详情', activeKind.value === 'plugin' ? 'Plugin Details' : 'Software Details'), value: 'detail' },
+    {
+      label: label(
+        activeKind.value === 'plugin' ? '插件详情' : '软件详情',
+        activeKind.value === 'plugin' ? 'Plugin Details' : 'Software Details',
+      ),
+      value: 'detail',
+    },
     { label: label('版本历史', 'Release History'), value: 'versions', icon: History },
   ];
   if (props.canEdit && activeKind.value === 'plugin') {
@@ -702,9 +729,10 @@ const loadInitialPackageFiles = () => {
   const item = activeItem.value;
   if (item && item.packageFilesList) {
     try {
-      const parsed = typeof item.packageFilesList === 'string'
-        ? JSON.parse(item.packageFilesList)
-        : item.packageFilesList;
+      const parsed =
+        typeof item.packageFilesList === 'string'
+          ? JSON.parse(item.packageFilesList)
+          : item.packageFilesList;
       if (Array.isArray(parsed) && parsed.length > 0) {
         packageFiles.value = parsed;
         return true;
@@ -1761,7 +1789,7 @@ const copyIntegrationCode = async () => {
             </Button>
 
             <div class="flex-1">
-              <el-popover
+              <GlassPopover
                 v-model:visible="showFavoriteCategorySelect"
                 placement="top"
                 :width="200"
@@ -1828,7 +1856,7 @@ const copyIntegrationCode = async () => {
                     </button>
                   </div>
                 </div>
-              </el-popover>
+              </GlassPopover>
             </div>
 
             <Button
@@ -2067,60 +2095,60 @@ button:disabled {
 .plugin-markdown-content :deep(.md-preview),
 .plugin-markdown-content :deep(.mdw__preview-only) {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  font-size: 11px !important;
-  line-height: 1.6 !important;
-  background-color: transparent !important;
-  padding: 0 !important;
+  font-size: 11px;
+  line-height: 1.6;
+  background-color: transparent;
+  padding: 0;
 }
 
 .plugin-markdown-content :deep(.md-editor-preview h1),
 .plugin-markdown-content :deep(.md-preview h1) {
-  font-size: 14px !important;
-  margin-top: 14px !important;
-  margin-bottom: 8px !important;
-  font-weight: 800 !important;
-  color: var(--text-primary) !important;
+  font-size: 14px;
+  margin-top: 14px;
+  margin-bottom: 8px;
+  font-weight: 800;
+  color: var(--text-primary);
 }
 
 .plugin-markdown-content :deep(.md-editor-preview h2),
 .plugin-markdown-content :deep(.md-preview h2) {
-  font-size: 13px !important;
-  margin-top: 12px !important;
-  margin-bottom: 6px !important;
-  font-weight: 700 !important;
-  color: var(--text-primary) !important;
+  font-size: 13px;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .plugin-markdown-content :deep(.md-editor-preview h3),
 .plugin-markdown-content :deep(.md-preview h3) {
-  font-size: 12px !important;
-  margin-top: 10px !important;
-  margin-bottom: 4px !important;
-  font-weight: 700 !important;
-  color: var(--text-primary) !important;
+  font-size: 12px;
+  margin-top: 10px;
+  margin-bottom: 4px;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .plugin-markdown-content :deep(.md-editor-preview p),
 .plugin-markdown-content :deep(.md-preview p),
 .plugin-markdown-content :deep(.md-editor-preview li),
 .plugin-markdown-content :deep(.md-preview li) {
-  font-size: 11px !important;
-  line-height: 1.6 !important;
-  color: var(--text-secondary) !important;
-  margin-bottom: 6px !important;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
 }
 
 .plugin-markdown-content :deep(.md-editor-preview ul),
 .plugin-markdown-content :deep(.md-preview ul) {
-  list-style-type: disc !important;
-  padding-left: 16px !important;
-  margin-bottom: 8px !important;
+  list-style-type: disc;
+  padding-left: 16px;
+  margin-bottom: 8px;
 }
 
 .plugin-markdown-content :deep(.md-editor-preview ol),
 .plugin-markdown-content :deep(.md-preview ol) {
-  list-style-type: decimal !important;
-  padding-left: 16px !important;
-  margin-bottom: 8px !important;
+  list-style-type: decimal;
+  padding-left: 16px;
+  margin-bottom: 8px;
 }
 </style>

@@ -10,7 +10,7 @@ import {
   Sparkles,
 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import { fetchManagementInsights } from './adminManagementInsights';
 
 import Button from '@/components/ui/Button.vue';
@@ -320,7 +320,7 @@ onMounted(() => {
 
           <div v-else class="max-w-none">
             <Card padding="none" class="table-shell-card overflow-hidden">
-              <el-table
+              <Table
                 :data="banners"
                 style="
                   width: 100%;
@@ -330,7 +330,7 @@ onMounted(() => {
                 "
                 class="custom-el-table mobile-table"
               >
-                <el-table-column label="预览" width="160">
+                <TableColumn label="预览" width="160">
                   <template #default="{ row }">
                     <div
                       class="w-28 aspect-video rounded-lg overflow-hidden border border-white/10 bg-slate-800 flex items-center justify-center relative"
@@ -352,9 +352,9 @@ onMounted(() => {
                       </span>
                     </div>
                   </template>
-                </el-table-column>
+                </TableColumn>
 
-                <el-table-column label="标题信息" min-width="200">
+                <TableColumn label="标题信息" min-width="200">
                   <template #default="{ row }">
                     <div class="space-y-1">
                       <h4 class="font-bold text-xs sm:text-sm text-slate-100">{{ row.title }}</h4>
@@ -363,9 +363,9 @@ onMounted(() => {
                       </p>
                     </div>
                   </template>
-                </el-table-column>
+                </TableColumn>
 
-                <el-table-column label="链接路由" width="160">
+                <TableColumn label="链接路由" width="160">
                   <template #default="{ row }">
                     <div class="flex items-center gap-1.5 text-xs text-slate-300">
                       <LinkIcon class="w-3.5 h-3.5 text-slate-500 shrink-0" />
@@ -375,35 +375,35 @@ onMounted(() => {
                       >
                     </div>
                   </template>
-                </el-table-column>
+                </TableColumn>
 
-                <el-table-column label="按钮文本" width="100">
+                <TableColumn label="按钮文本" width="100">
                   <template #default="{ row }">
                     <span class="text-xs font-semibold text-slate-300">{{ row.buttonText }}</span>
                   </template>
-                </el-table-column>
+                </TableColumn>
 
-                <el-table-column label="排序值" width="90" align="center">
+                <TableColumn label="排序值" width="90" align="center">
                   <template #default="{ row }">
                     <span
                       class="text-xs font-mono font-bold bg-slate-100 dark:bg-white/5 border dark:border-white/5 px-2 py-0.5 rounded-md"
                       >{{ row.order }}</span
                     >
                   </template>
-                </el-table-column>
+                </TableColumn>
 
-                <el-table-column label="启用状态" width="100" align="center">
+                <TableColumn label="启用状态" width="100" align="center">
                   <template #default="{ row }">
-                    <el-switch
+                    <Switch
                       :model-value="row.isActive"
                       active-color="var(--accent)"
                       inactive-color="rgba(255,255,255,0.15)"
                       @change="handleToggleStatus(row)"
                     />
                   </template>
-                </el-table-column>
+                </TableColumn>
 
-                <el-table-column label="操作" width="120" align="right">
+                <TableColumn label="操作" width="120" align="right">
                   <template #default="{ row }">
                     <div class="flex items-center justify-end gap-1">
                       <button
@@ -422,8 +422,8 @@ onMounted(() => {
                       </button>
                     </div>
                   </template>
-                </el-table-column>
-              </el-table>
+                </TableColumn>
+              </Table>
 
               <div v-if="banners.length === 0" class="py-16 text-center">
                 <ImageIcon class="w-12 h-12 text-slate-600 mx-auto mb-3 opacity-30" />
@@ -442,7 +442,6 @@ onMounted(() => {
       :show="isDialogOpen"
       :title="dialogMode === 'create' ? '新建轮播广告图' : '编辑轮播广告图'"
       size="md"
-      glass-card
       @close="isDialogOpen = false"
     >
       <div class="space-y-4">
@@ -594,7 +593,7 @@ onMounted(() => {
               禁用后，创作者工作台将不会显示此轮播卡片
             </p>
           </div>
-          <el-switch v-model="form.isActive" active-color="var(--accent)" />
+          <Switch v-model="form.isActive" active-color="var(--accent)" />
         </div>
       </div>
 
@@ -628,23 +627,7 @@ onMounted(() => {
   scrollbar-width: none;
 }
 
-:deep(.custom-el-table) {
-  --el-table-border-color: rgba(255, 255, 255, 0.05);
-  --el-table-header-text-color: var(--text-secondary);
-  font-size: 12px;
-}
-:deep(.custom-el-table .el-table__row:hover td) {
-  background-color: rgba(255, 255, 255, 0.02) !important;
-}
-:deep(.custom-el-table th.el-table__cell) {
-  font-weight: 700 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-:deep(.custom-el-table td.el-table__cell) {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
-}
-
 .admin-banners-page {
-  background: transparent !important;
+  background: transparent;
 }
 </style>

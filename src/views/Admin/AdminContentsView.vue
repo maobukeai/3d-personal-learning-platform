@@ -20,7 +20,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox, ElTable } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import Modal from '@/components/ui/Modal.vue';
@@ -649,7 +649,7 @@ const handleDelete = (item: ContentItem) => {
 };
 
 // Batch Operations
-const tableRef = ref<InstanceType<typeof ElTable> | null>(null);
+const tableRef = ref<any>(null);
 const selectedItems = ref<ContentItem[]>([]);
 
 const handleSelectionChange = (val: ContentItem[]) => {
@@ -705,7 +705,7 @@ const handleBatchReject = () => {
         await api.put(`${pageConfig.value.apiPath}/batch-status`, {
           ids,
           status: 'REJECTED',
-          rejectReason: value.trim(),
+          rejectReason: value?.trim() || '',
         });
         ElMessage.success(`已批量打回 ${ids.length} 个资源`);
         clearSelection();
@@ -835,7 +835,7 @@ onMounted(() => {
           <!-- Page size selector -->
           <div class="flex items-center gap-2 self-end md:self-auto">
             <span class="text-xs text-[var(--text-muted)] font-medium">每页条数:</span>
-            <el-select
+            <Select
               v-model="pageSize"
               size="small"
               style="width: 80px"
@@ -846,11 +846,11 @@ onMounted(() => {
                 }
               "
             >
-              <el-option :value="10" label="10条" />
-              <el-option :value="12" label="12条" />
-              <el-option :value="20" label="20条" />
-              <el-option :value="50" label="50条" />
-            </el-select>
+              <SelectOption :value="10" label="10条" />
+              <SelectOption :value="12" label="12条" />
+              <SelectOption :value="20" label="20条" />
+              <SelectOption :value="50" label="50条" />
+            </Select>
           </div>
         </div>
       </Card>
@@ -885,7 +885,7 @@ onMounted(() => {
 
       <!-- Table Shell Card -->
       <Card padding="none" class="table-shell-card overflow-hidden">
-        <el-table
+        <Table
           ref="tableRef"
           v-loading="isLoading"
           :data="items"
@@ -895,10 +895,10 @@ onMounted(() => {
           @selection-change="handleSelectionChange"
         >
           <!-- Selection Column -->
-          <el-table-column type="selection" width="48" align="center" />
+          <TableColumn type="selection" width="48" align="center" />
 
           <!-- Thumbnail Preview -->
-          <el-table-column label="预览" width="80" align="center">
+          <TableColumn label="预览" width="80" align="center">
             <template #default="{ row }">
               <div
                 class="w-10 h-10 rounded-lg border border-base overflow-hidden flex items-center justify-center bg-[var(--bg-app)] shrink-0"
@@ -907,10 +907,10 @@ onMounted(() => {
                 <component :is="pageConfig.icon" v-else class="w-5 h-5 text-[var(--text-muted)]" />
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
           <!-- Resource Title and Description -->
-          <el-table-column label="资源名称" min-width="220">
+          <TableColumn label="资源名称" min-width="220">
             <template #default="{ row }">
               <div class="flex flex-col text-left">
                 <button
@@ -925,10 +925,10 @@ onMounted(() => {
                 </p>
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
           <!-- Creator -->
-          <el-table-column label="创作者" min-width="140">
+          <TableColumn label="创作者" min-width="140">
             <template #default="{ row }">
               <div class="flex items-center gap-2">
                 <UserAvatar :user="row.user" size="sm" />
@@ -939,10 +939,10 @@ onMounted(() => {
                 </span>
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
           <!-- Specifications / Meta properties -->
-          <el-table-column label="规格属性" min-width="140">
+          <TableColumn label="规格属性" min-width="140">
             <template #default="{ row }">
               <div class="flex flex-col text-left">
                 <span class="text-xs text-[var(--text-primary)] font-semibold">
@@ -962,26 +962,26 @@ onMounted(() => {
                 </span>
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
           <!-- Status badge -->
-          <el-table-column label="状态" width="100" align="center">
+          <TableColumn label="状态" width="100" align="center">
             <template #default="{ row }">
               <AdminContentStatusBadge :status="row.status" />
             </template>
-          </el-table-column>
+          </TableColumn>
 
           <!-- Created Date -->
-          <el-table-column label="提交时间" width="140" align="center">
+          <TableColumn label="提交时间" width="140" align="center">
             <template #default="{ row }">
               <span class="text-xs text-[var(--text-secondary)]">
                 {{ formatDate(row.createdAt).substring(0, 10) }}
               </span>
             </template>
-          </el-table-column>
+          </TableColumn>
 
           <!-- Actions column -->
-          <el-table-column label="操作" width="180" align="center">
+          <TableColumn label="操作" width="180" align="center">
             <template #default="{ row }">
               <div class="flex items-center justify-center gap-1.5" @click.stop>
                 <!-- Quick audit action buttons -->
@@ -1007,27 +1007,27 @@ onMounted(() => {
                 </UiButton>
 
                 <!-- More action dropdown -->
-                <el-dropdown trigger="click" @command="(cmd: any) => handleCommand(cmd, row)">
+                <Dropdown trigger="click" @command="(cmd: any) => handleCommand(cmd, row)">
                   <UiButton v-slot="{}" size="sm" variant="secondary" class="!p-1.5 !min-h-0">
                     <MoreHorizontal class="w-3.5 h-3.5" />
                   </UiButton>
                   <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="details">
+                    <DropdownMenu>
+                      <DropdownItem command="details">
                         <Eye class="w-3.5 h-3.5 mr-1" /> 查看详情
-                      </el-dropdown-item>
-                      <el-dropdown-item command="edit">
+                      </DropdownItem>
+                      <DropdownItem command="edit">
                         <Edit3 class="w-3.5 h-3.5 mr-1" /> 编辑资源
-                      </el-dropdown-item>
-                      <el-dropdown-item command="delete" class="!text-[var(--danger)]">
+                      </DropdownItem>
+                      <DropdownItem command="delete" class="!text-[var(--danger)]">
                         <Trash2 class="w-3.5 h-3.5 mr-1" /> 彻底删除
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
+                      </DropdownItem>
+                    </DropdownMenu>
                   </template>
-                </el-dropdown>
+                </Dropdown>
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
           <!-- Empty state slot inside el-table -->
           <template #empty>
@@ -1039,14 +1039,14 @@ onMounted(() => {
               <span class="text-xs">当前筛选条件下没有找到记录。</span>
             </div>
           </template>
-        </el-table>
+        </Table>
 
         <!-- Pagination Wrap -->
         <div class="pagination-wrap mobile-row">
           <span class="text-xs text-[var(--text-secondary)]"
             >当前显示 {{ items.length }} 条，共 {{ totalItems }} 条</span
           >
-          <el-pagination
+          <Pagination
             background
             :current-page="currentPage"
             :page-size="pageSize"
@@ -1073,7 +1073,6 @@ onMounted(() => {
       :show="isCreateOpen"
       :title="`发布新${pageConfig.label}`"
       size="md"
-      glass-card
       @close="isCreateOpen = false"
     >
       <div class="form-stack">
@@ -1091,11 +1090,14 @@ onMounted(() => {
           <div class="form-grid">
             <label>
               资产分类 *
-              <select v-model="createForm.categoryId">
-                <option v-for="cat in assetCategories" :key="cat.id" :value="cat.id">
-                  {{ cat.name }}
-                </option>
-              </select>
+              <Select v-model="createForm.categoryId" class="w-full mt-1.5" size="large">
+                <SelectOption
+                  v-for="cat in assetCategories"
+                  :key="cat.id"
+                  :value="cat.id"
+                  :label="cat.name"
+                />
+              </Select>
             </label>
           </div>
           <div class="file-uploader-box">
@@ -1133,13 +1135,13 @@ onMounted(() => {
             </label>
             <label>
               分辨率
-              <select v-model="createForm.resolution">
-                <option value="1K">1K</option>
-                <option value="2K">2K</option>
-                <option value="4K">4K</option>
-                <option value="8K">8K</option>
-                <option value="Procedural">Procedural 程序化</option>
-              </select>
+              <Select v-model="createForm.resolution" class="w-full mt-1.5" size="large">
+                <SelectOption value="1K" label="1K" />
+                <SelectOption value="2K" label="2K" />
+                <SelectOption value="4K" label="4K" />
+                <SelectOption value="8K" label="8K" />
+                <SelectOption value="Procedural" label="Procedural 程序化" />
+              </Select>
             </label>
           </div>
           <label class="checkbox-label">
@@ -1177,11 +1179,11 @@ onMounted(() => {
           <div class="form-grid">
             <label>
               作品媒体类型
-              <select v-model="createForm.type">
-                <option value="IMAGE">图文作品</option>
-                <option value="VIDEO">视频作品</option>
-                <option value="MODEL">3D展示作品</option>
-              </select>
+              <Select v-model="createForm.type" class="w-full mt-1.5" size="large">
+                <SelectOption value="IMAGE" label="图文作品" />
+                <SelectOption value="VIDEO" label="视频作品" />
+                <SelectOption value="MODEL" label="3D展示作品" />
+              </Select>
             </label>
           </div>
           <div class="file-uploader-box">
@@ -1269,7 +1271,6 @@ onMounted(() => {
       :show="isEditOpen"
       :title="`修改${pageConfig.label}`"
       size="md"
-      glass-card
       @close="isEditOpen = false"
     >
       <div class="form-stack">
@@ -1284,20 +1285,23 @@ onMounted(() => {
         <div class="form-grid">
           <label>
             状态
-            <select v-model="editForm.status">
-              <option value="PENDING">待审核</option>
-              <option value="APPROVED">已通过</option>
-              <option value="REJECTED">已打回</option>
-            </select>
+            <Select v-model="editForm.status" class="w-full mt-1.5" size="large">
+              <SelectOption value="PENDING" label="待审核" />
+              <SelectOption value="APPROVED" label="已通过" />
+              <SelectOption value="REJECTED" label="已打回" />
+            </Select>
           </label>
           <label v-if="activeTab === 'assets'">
             资产分类
-            <select v-model="editForm.categoryId">
-              <option value="">未分类</option>
-              <option v-for="cat in assetCategories" :key="cat.id" :value="cat.id">
-                {{ cat.name }}
-              </option>
-            </select>
+            <Select v-model="editForm.categoryId" class="w-full mt-1.5" size="large">
+              <SelectOption value="" label="未分类" />
+              <SelectOption
+                v-for="cat in assetCategories"
+                :key="cat.id"
+                :value="cat.id"
+                :label="cat.name"
+              />
+            </Select>
           </label>
           <label v-if="activeTab === 'materials' || activeTab === 'plugins'">
             分类
@@ -1305,12 +1309,12 @@ onMounted(() => {
           </label>
           <label v-if="activeTab === 'showcases'">
             类型
-            <select v-model="editForm.type">
-              <option value="IMAGE">图文</option>
-              <option value="VIDEO">视频</option>
-              <option value="MODEL">模型</option>
-              <option value="OTHER">其他</option>
-            </select>
+            <Select v-model="editForm.type" class="w-full mt-1.5" size="large">
+              <SelectOption value="IMAGE" label="图文" />
+              <SelectOption value="VIDEO" label="视频" />
+              <SelectOption value="MODEL" label="模型" />
+              <SelectOption value="OTHER" label="其他" />
+            </Select>
           </label>
         </div>
         <div v-if="activeTab === 'plugins'" class="form-grid">
@@ -1365,41 +1369,13 @@ onMounted(() => {
 }
 
 .danger-action {
-  background: rgba(220, 38, 38, 0.05) !important;
-  color: var(--danger) !important;
-  border-color: rgba(220, 38, 38, 0.15) !important;
+  background: rgba(220, 38, 38, 0.05);
+  color: var(--danger);
+  border-color: rgba(220, 38, 38, 0.15);
 }
 
 .danger-action:hover {
-  background: rgba(220, 38, 38, 0.1) !important;
-}
-
-:deep(.el-table) {
-  --el-table-border-color: var(--border-base);
-  --el-table-header-bg-color: var(--bg-app);
-  --el-table-row-hover-bg-color: var(--bg-hover);
-  background-color: transparent;
-}
-
-:deep(.el-table__row) {
-  cursor: pointer;
-}
-
-:deep(.el-drawer) {
-  background: var(--bg-card);
-  color: var(--text-primary);
-  border-left: 1px solid var(--border-base);
-}
-
-:deep(.el-drawer__header) {
-  margin-bottom: 12px;
-  padding: 16px 20px 0;
-  color: var(--text-primary);
-  font-weight: bold;
-}
-
-:deep(.el-drawer__body) {
-  padding: 20px;
+  background: rgba(220, 38, 38, 0.1);
 }
 
 /* Modal Form Styles */
@@ -1420,7 +1396,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--accent) !important;
+  color: var(--accent);
   font-weight: 900;
 }
 
@@ -1434,8 +1410,8 @@ onMounted(() => {
 }
 
 .checkbox-label {
-  display: flex !important;
-  flex-direction: row !important;
+  display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 8px;
   cursor: pointer;

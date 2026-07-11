@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import {
   Search,
   Plus,
@@ -28,6 +29,13 @@ const tab = defineModel<'resources' | 'categories'>('tab', { required: true });
 const resourceSearch = defineModel<string>('resourceSearch', { required: true });
 const resourceCategoryFilter = defineModel<string | null>('resourceCategoryFilter', {
   required: true,
+});
+
+const categoryFilterWrapper = computed({
+  get: () => resourceCategoryFilter.value || '',
+  set: (val) => {
+    resourceCategoryFilter.value = val ? String(val) : null;
+  },
 });
 
 const emit = defineEmits<{
@@ -115,16 +123,20 @@ function changePage(page: number) {
                 @keyup.enter="onSearchEnter"
               />
             </div>
-            <select
-              v-model="resourceCategoryFilter"
-              class="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-              @change="onCategoryChange"
+            <Select
+              v-model="categoryFilterWrapper"
+              size="small"
+              class="w-36"
+              @update:modelValue="onCategoryChange"
             >
-              <option :value="null">全部分类</option>
-              <option v-for="cat in formattedMirrorCategories" :key="cat.id" :value="cat.id">
-                {{ cat.name }}
-              </option>
-            </select>
+              <SelectOption value="" label="全部分类" />
+              <SelectOption
+                v-for="cat in formattedMirrorCategories"
+                :key="cat.id"
+                :value="cat.id"
+                :label="cat.name"
+              />
+            </Select>
             <button
               type="button"
               class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors"

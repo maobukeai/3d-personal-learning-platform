@@ -83,10 +83,10 @@ const isPaidPlan = computed(() => {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
     <!-- Card 1: Current Plan Status -->
     <div
-      class="premium-billing-card p-6 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm flex flex-col justify-between relative overflow-hidden group"
+      class="premium-billing-card p-4 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm flex flex-col justify-between relative overflow-hidden group"
     >
       <div>
         <div class="flex items-center justify-between mb-4 mobile-row">
@@ -167,7 +167,7 @@ const isPaidPlan = computed(() => {
 
     <!-- Card 2: Storage & Resource Usage -->
     <div
-      class="premium-billing-card p-6 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm flex flex-col justify-between group"
+      class="premium-billing-card p-4 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm flex flex-col justify-between group"
     >
       <div>
         <div class="flex items-center justify-between mb-4 mobile-row">
@@ -184,7 +184,7 @@ const isPaidPlan = computed(() => {
           </div>
         </div>
 
-        <div class="space-y-4">
+        <div class="space-y-3">
           <div class="space-y-1.5">
             <div class="flex items-center justify-between text-xs">
               <span class="text-[var(--text-secondary)]">存储空间</span>
@@ -210,13 +210,13 @@ const isPaidPlan = computed(() => {
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-4 pt-2">
+          <div class="grid grid-cols-2 gap-2 pt-1.5">
             <div
-              class="flex items-center gap-2 p-2 bg-[var(--bg-app)]/50 rounded-xl border border-[var(--border-base)]"
+              class="flex items-center gap-1.5 p-1.5 bg-[var(--bg-app)]/50 rounded-xl border border-[var(--border-base)]"
             >
-              <FolderOpen class="w-4 h-4 text-blue-500 shrink-0" />
+              <FolderOpen class="w-3.5 h-3.5 text-blue-500 shrink-0" />
               <div class="min-w-0">
-                <p class="text-[10px] text-[var(--text-secondary)]">协作项目</p>
+                <p class="text-[9px] text-[var(--text-secondary)]">协作项目</p>
                 <p class="text-xs font-bold text-[var(--text-primary)] truncate">
                   {{ subscriptionLimits?.currentProjects || 0 }} /
                   {{
@@ -228,11 +228,11 @@ const isPaidPlan = computed(() => {
               </div>
             </div>
             <div
-              class="flex items-center gap-2 p-2 bg-[var(--bg-app)]/50 rounded-xl border border-[var(--border-base)]"
+              class="flex items-center gap-1.5 p-1.5 bg-[var(--bg-app)]/50 rounded-xl border border-[var(--border-base)]"
             >
-              <Box class="w-4 h-4 text-purple-500 shrink-0" />
+              <Box class="w-3.5 h-3.5 text-purple-500 shrink-0" />
               <div class="min-w-0">
-                <p class="text-[10px] text-[var(--text-secondary)]">3D 资源数</p>
+                <p class="text-[9px] text-[var(--text-secondary)]">3D 资源数</p>
                 <p class="text-xs font-bold text-[var(--text-primary)] truncate">
                   {{ subscriptionLimits?.currentAssets || 0 }} /
                   {{
@@ -250,23 +250,23 @@ const isPaidPlan = computed(() => {
 
     <!-- Card 3: Activation Code Redemption -->
     <div
-      class="premium-billing-card p-6 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm flex flex-col justify-between group"
+      class="premium-billing-card p-4 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm flex flex-col justify-between group"
     >
-      <div class="space-y-4">
+      <div class="space-y-2">
         <div class="flex items-center justify-between mobile-row">
           <div class="min-w-0">
             <h3 class="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
               激活码兑换
             </h3>
-            <p class="text-xs text-[var(--text-secondary)] mt-1">激活或延长您的订阅计划</p>
+            <p class="text-xs text-[var(--text-secondary)] mt-0.5">激活或延长您的订阅计划</p>
           </div>
-          <div class="p-3 bg-violet-500/10 text-violet-500 rounded-2xl">
-            <KeyRound class="w-6 h-6" />
+          <div class="p-2 bg-violet-500/10 text-violet-500 rounded-2xl">
+            <KeyRound class="w-5 h-5" />
           </div>
         </div>
 
-        <div class="space-y-3">
-          <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+        <div class="space-y-2">
+          <p class="text-[10px] text-[var(--text-muted)] leading-relaxed">
             如果您拥有合作渠道提供的激活码，请在下方输入以兑换相应的订阅权益。
           </p>
           <div class="flex gap-2 items-center mobile-row">
@@ -274,7 +274,7 @@ const isPaidPlan = computed(() => {
               v-model="activationCode"
               type="text"
               class="flex-1 min-w-0"
-              input-class="!py-2 !h-9 text-xs"
+              input-class="!py-1.5 !h-8 text-xs"
               placeholder="输入激活码..."
               @keyup.enter="emit('redeem')"
             />
@@ -283,7 +283,7 @@ const isPaidPlan = computed(() => {
               size="sm"
               :disabled="isRedeeming"
               :loading="isRedeeming"
-              class="shrink-0 rounded-xl h-9 font-bold"
+              class="shrink-0 rounded-xl h-8 font-bold text-xs"
               @click="emit('redeem')"
             >
               兑换
@@ -308,7 +308,7 @@ const isPaidPlan = computed(() => {
   transform: translateY(-2px);
 }
 .premium-billing-card.border-accent:hover {
-  border-color: var(--accent) !important;
-  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15) !important;
+  border-color: var(--accent);
+  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15);
 }
 </style>

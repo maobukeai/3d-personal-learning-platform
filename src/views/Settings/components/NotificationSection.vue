@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import {
   Bell,
   CheckCircle2,
@@ -542,13 +542,13 @@ button svg {
 }
 
 .push-icon {
-  background: rgba(99, 102, 241, 0.12) !important;
-  color: #6366f1 !important;
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
 }
 
 .email-icon {
-  background: rgba(16, 185, 129, 0.12) !important;
-  color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
 }
 
 .panel-title {

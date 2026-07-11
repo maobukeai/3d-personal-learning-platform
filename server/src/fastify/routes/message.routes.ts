@@ -1,0 +1,1206 @@
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { z } from 'zod';
+import prisma from '../../services/prisma';
+import { AppError } from '../../utils/error';
+import { logger } from '../../utils/logger';
+import { clampLimit } from '../../utils/pagination';
+import { emitToConversation, emitToUser } from '../../services/socket.service';
+import { queueDirectMessageEmail } from '../../services/direct-message-email.service';
+import { createNotification } from '../../utils/notification';
+import { callLLM, callLLMWithFailover } from '../../services/ai.service';
+import { settingsService, AIModelOption } from '../../services/settings.service';
+import { storageService } from '../../services/storage.service';
+import { buildDecryptedStorageConfig } from '../../utils/crypto';
+import { getActiveStorageConfig } from '../../mirror/services/metadata.helper';
+import { gbToBytes } from '../../utils/quota';
+import { deleteCloudOrLocalFileByUrl } from '../../utils/file';
+import type { UploadedFile } from '../../types/upload';
+import { fastifyAuthenticate } from '../auth/fastify-auth';
+import { fastifyUpload } from '../middlewares/fastify-upload.middleware';
+import {
+  createConversationSchema,
+  updateConversationSchema,
+  sendMessageSchema,
+  translateMessageSchema,
+} from '../../utils/schemas';
+
+/**
+ * Fastify 消息路由（原生 handler，无 adaptHandler 桥接）。
+ *
+ * 挂载前缀: /api/messages
+ *
+ * 路由级限流：对齐 Express messageLimiter (60/min)。
+ */
+
+type ConversationParticipant = {
+  id: string;
+  name?: string | null;
+  email?: string;
+  avatarUrl?: string | null;
+};
+
+const requireUserId = (request: FastifyRequest): string => {
+  if (!request.userId) {
+    throw new AppError('登录会话已过期，请重新登录', 401, 'UNAUTHORIZED');
+  }
+  return request.userId;
+};
+
+// --- Params schemas ---
+
+const conversationIdParamsSchema = z.object({
+  conversationId: z.string().min(1),
+});
+
+const messageIdParamsSchema = z.object({
+  messageId: z.string().min(1),
+});
+
+const reactionParamsSchema = z.object({
+  messageId: z.string().min(1),
+  emoji: z.string().min(1),
+});
+
+// --- Body schemas ---
+
+const addParticipantSchema = z.object({
+  userId: z.string().min(1, 'User ID is required'),
+});
+
+const removeParticipantSchema = z.object({
+  userId: z.string().min(1, 'User ID is required'),
+});
+
+const addReactionSchema = z.object({
+  emoji: z.string().min(1, 'Emoji is required'),
+});
+
+const presignedUrlSchema = z.object({
+  filename: z.string().min(1, 'filename is required'),
+  mimetype: z.string().min(1, 'mimetype is required'),
+  size: z.number().optional(),
+});
+
+const initiateMultipartSchema = z.object({
+  filename: z.string().min(1, 'filename is required'),
+  mimetype: z.string().min(1, 'mimetype is required'),
+  size: z.number().optional(),
+});
+
+const presignPartsSchema = z.object({
+  key: z.string().min(1, 'key is required'),
+  uploadId: z.string().min(1, 'uploadId is required'),
+  partNumbers: z.array(z.number()).min(1, 'partNumbers is required'),
+});
+
+const completeMultipartSchema = z.object({
+  key: z.string().min(1, 'key is required'),
+  uploadId: z.string().min(1, 'uploadId is required'),
+  parts: z.array(z.any()).min(1, 'parts is required'),
+});
+
+const abortMultipartSchema = z.object({
+  key: z.string().min(1, 'key is required'),
+  uploadId: z.string().min(1, 'uploadId is required'),
+});
+
+const listMessagesQuerySchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.union([z.string(), z.number()]).optional(),
+});
+
+// --- Storage helpers (from message.controller.ts) ---
+
+const getActiveStorage = () => getActiveStorageConfig('ALL');
+
+const getDecryptedActiveStorage = async () => {
+  const raw = await getActiveStorage();
+  if (!raw) return null;
+  return {
+    raw,
+    config: buildDecryptedStorageConfig(raw),
+  };
+};
+
+// messageLimiter: 60/min（对齐 Express route-limiters）
+const MESSAGE_RATE_LIMIT = { max: 60, timeWindow: '1 minute' };
+
+const auth = { preHandler: [fastifyAuthenticate], config: { rateLimit: MESSAGE_RATE_LIMIT } };
+
+export const registerMessageRoutes = (app: FastifyInstance): void => {
+  // ── 会话 ──────────────────────────────────────────────────────────────
+
+  // GET /messages/conversations —— 获取会话列表
+  app.get('/messages/conversations', { ...auth }, async (request, reply) => {
+    const userId = requireUserId(request);
+    const conversations = await prisma.conversation.findMany({
+      where: {
+        participants: {
+          some: { id: userId },
+        },
+      },
+      include: {
+        participants: {
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: {
+            sender: { select: { id: true, name: true } },
+          },
+        },
+        _count: {
+          select: {
+            messages: {
+              where: {
+                NOT: { senderId: userId },
+                readBy: {
+                  none: { userId },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    const formatted = conversations.map((c) => ({
+      ...c,
+      unreadCount: c._count.messages,
+    }));
+
+    return reply.send(formatted);
+  });
+
+  // POST /messages/conversations —— 创建会话
+  app.post(
+    '/messages/conversations',
+    {
+      ...auth,
+      schema: { body: createConversationSchema },
+    },
+    async (request, reply) => {
+      const currentUserId = requireUserId(request);
+      const { participantIds, name, avatarUrl, isGroup } = request.body as {
+        participantIds: string[];
+        name?: string | null;
+        avatarUrl?: string | null;
+        isGroup?: boolean;
+      };
+
+      if (!isGroup && participantIds.length === 1) {
+        const existing = await prisma.conversation.findFirst({
+          where: {
+            isGroup: false,
+            AND: [
+              { participants: { some: { id: currentUserId } } },
+              { participants: { some: { id: participantIds[0] } } },
+            ],
+          },
+          include: {
+            participants: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
+        });
+        if (existing && existing.participants.length === 2) return reply.send(existing);
+      }
+
+      const conversation = await prisma.conversation.create({
+        data: {
+          name,
+          avatarUrl,
+          isGroup: !!isGroup,
+          participants: {
+            connect: [currentUserId, ...participantIds].map((id) => ({ id })),
+          },
+        },
+        include: {
+          participants: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
+        },
+      });
+
+      conversation.participants.forEach((p: ConversationParticipant) => {
+        emitToUser(p.id, 'conversation_created', conversation);
+      });
+
+      return reply.status(201).send(conversation);
+    },
+  );
+
+  // PATCH /messages/conversations/:conversationId —— 更新会话
+  app.patch(
+    '/messages/conversations/:conversationId',
+    {
+      ...auth,
+      schema: { params: conversationIdParamsSchema, body: updateConversationSchema },
+    },
+    async (request, reply) => {
+      const userId = requireUserId(request);
+      const { conversationId } = request.params as { conversationId: string };
+      const { name, avatarUrl } = request.body as {
+        name?: string | null;
+        avatarUrl?: string | null;
+      };
+
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          id: conversationId,
+          participants: { some: { id: userId } },
+        },
+      });
+
+      if (!conversation) {
+        throw new AppError('Access denied', 403);
+      }
+
+      const updated = await prisma.conversation.update({
+        where: { id: conversationId },
+        data: {
+          ...(name !== undefined && { name }),
+          ...(avatarUrl !== undefined && { avatarUrl }),
+        },
+        include: {
+          participants: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
+        },
+      });
+
+      emitToConversation(conversationId, 'conversation_updated', updated);
+
+      return reply.send(updated);
+    },
+  );
+
+  // PATCH /messages/conversations/:conversationId/read —— 标记已读
+  app.patch(
+    '/messages/conversations/:conversationId/read',
+    {
+      ...auth,
+      schema: { params: conversationIdParamsSchema },
+    },
+    async (request, reply) => {
+      const userId = requireUserId(request);
+      const { conversationId } = request.params as { conversationId: string };
+
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          id: conversationId,
+          participants: {
+            some: { id: userId },
+          },
+        },
+      });
+
+      if (!conversation) {
+        throw new AppError('Access denied to this conversation', 403);
+      }
+
+      const unreadMessages = await prisma.message.findMany({
+        where: {
+          conversationId,
+          readBy: {
+            none: { userId },
+          },
+          NOT: { senderId: userId },
+        },
+      });
+
+      if (unreadMessages.length > 0) {
+        await prisma.messageRead.createMany({
+          data: unreadMessages.map((m) => ({
+            messageId: m.id,
+            userId,
+          })),
+        });
+
+        emitToConversation(conversationId, 'messages_read', {
+          conversationId,
+          userId,
+          messageIds: unreadMessages.map((m) => m.id),
+          readAt: new Date(),
+        });
+      }
+
+      return reply.send({ message: 'Marked as read' });
+    },
+  );
+
+  // POST /messages/conversations/:conversationId/participants —— 添加参与者
+  app.post(
+    '/messages/conversations/:conversationId/participants',
+    {
+      ...auth,
+      schema: { params: conversationIdParamsSchema, body: addParticipantSchema },
+    },
+    async (request, reply) => {
+      const userId = requireUserId(request);
+      const { conversationId } = request.params as { conversationId: string };
+      const { userId: addUserId } = request.body as { userId: string };
+
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          id: conversationId,
+          participants: { some: { id: userId } },
+          isGroup: true,
+        },
+      });
+
+      if (!conversation) {
+        throw new AppError('Access denied or not a group', 403);
+      }
+
+      const updated = await prisma.conversation.update({
+        where: { id: conversationId },
+        data: {
+          participants: { connect: { id: addUserId } },
+        },
+        include: {
+          participants: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
+        },
+      });
+
+      emitToConversation(conversationId, 'conversation_updated', updated);
+      emitToUser(addUserId, 'conversation_created', updated);
+
+      return reply.send(updated);
+    },
+  );
+
+  // DELETE /messages/conversations/:conversationId/participants —— 移除参与者
+  app.delete(
+    '/messages/conversations/:conversationId/participants',
+    {
+      ...auth,
+      schema: { params: conversationIdParamsSchema, body: removeParticipantSchema },
+    },
+    async (request, reply) => {
+      const userId = requireUserId(request);
+      const { conversationId } = request.params as { conversationId: string };
+      const { userId: removeUserId } = request.body as { userId: string };
+
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          id: conversationId,
+          participants: { some: { id: userId } },
+          isGroup: true,
+        },
+      });
+
+      if (!conversation) {
+        throw new AppError('Access denied or not a group', 403);
+      }
+
+      const updated = await prisma.conversation.update({
+        where: { id: conversationId },
+        data: {
+          participants: { disconnect: { id: removeUserId } },
+        },
+        include: {
+          participants: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
+        },
+      });
+
+      emitToConversation(conversationId, 'conversation_updated', updated);
+      emitToUser(removeUserId, 'conversation_removed', { conversationId });
+
+      return reply.send(updated);
+    },
+  );
+
+  // POST /messages/conversations/:conversationId/leave —— 离开会话
+  app.post(
+    '/messages/conversations/:conversationId/leave',
+    {
+      ...auth,
+      schema: { params: conversationIdParamsSchema },
+    },
+    async (request, reply) => {
+      const userId = requireUserId(request);
+      const { conversationId } = request.params as { conversationId: string };
+
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          id: conversationId,
+          participants: { some: { id: userId } },
+          isGroup: true,
+        },
+      });
+
+      if (!conversation) {
+        throw new AppError('Access denied or not a group', 403);
+      }
+
+      const updated = await prisma.conversation.update({
+        where: { id: conversationId },
+        data: {
+          participants: { disconnect: { id: userId } },
+        },
+        include: {
+          participants: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
+        },
+      });
+
+      emitToConversation(conversationId, 'conversation_updated', updated);
+
+      const systemMsg = await prisma.message.create({
+        data: {
+          content: `${request.user?.name || '一位用户'} 离开了群聊`,
+          type: 'SYSTEM',
+          senderId: userId,
+          conversationId,
+        },
+        include: {
+          sender: { select: { id: true, name: true, avatarUrl: true } },
+          reactions: { include: { user: { select: { id: true, name: true } } } },
+        },
+      });
+
+      emitToConversation(conversationId, 'new_message', systemMsg);
+
+      return reply.send({ message: 'Left conversation' });
+    },
+  );
+
+  // DELETE /messages/conversations/:conversationId —— 删除会话
+  app.delete(
+    '/messages/conversations/:conversationId',
+    {
+      ...auth,
+      schema: { params: conversationIdParamsSchema },
+    },
+    async (request, reply) => {
+      const userId = requireUserId(request);
+      const { conversationId } = request.params as { conversationId: string };
+
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          id: conversationId,
+          participants: { some: { id: userId } },
+        },
+      });
+
+      if (!conversation) {
+        throw new AppError('Access denied', 403);
+      }
+
+      await prisma.conversation.update({
+        where: { id: conversationId },
+        data: {
+          participants: { disconnect: { id: userId } },
+        },
+      });
+
+      emitToUser(userId, 'conversation_removed', { conversationId });
+
+      return reply.send({ message: 'Conversation deleted' });
+    },
+  );
+
+  // GET /messages/conversations/:conversationId/messages —— 获取消息列表
+  app.get(
+    '/messages/conversations/:conversationId/messages',
+    {
+      ...auth,
+      schema: { params: conversationIdParamsSchema, querystring: listMessagesQuerySchema },
+    },
+    async (request, reply) => {
+      const userId = requireUserId(request);
+      const { conversationId } = request.params as { conversationId: string };
+      const query = request.query as { cursor?: string; limit?: string | number };
+      const cursor = query.cursor;
+      const limit = clampLimit(query.limit, 50, 100);
+
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          id: conversationId,
+          participants: {
+            some: { id: userId },
+          },
+        },
+      });
+
+      if (!conversation) {
+        throw new AppError('Access denied to this conversation', 403);
+      }
+
+      const messages = await prisma.message.findMany({
+        where: {
+          conversationId,
+          ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
+        },
+        include: {
+          sender: {
+            select: { id: true, name: true, avatarUrl: true },
+          },
+          readBy: true,
+          reactions: {
+            include: {
+              user: { select: { id: true, name: true } },
+            },
+          },
+          replyTo: {
+            include: {
+              sender: { select: { id: true, name: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit + 1,
+      });
+
+      const hasMore = messages.length > limit;
+      const items = hasMore ? messages.slice(0, -1) : messages;
+
+      return reply.send({
+        messages: items.reverse(),
+        hasMore,
+        nextCursor: hasMore ? items[0]?.createdAt : null,
+      });
+    },
+  );
+
+  // ── 消息 ──────────────────────────────────────────────────────────────
+
+  // POST /messages/messages —— 发送消息
+  app.post(
+    '/messages/messages',
+    {
+      ...auth,
+      schema: { body: sendMessageSchema },
+    },
+    async (request, reply) => {
+      const senderId = requireUserId(request);
+      const { conversationId, content, type, replyToId } = request.body as {
+        conversationId: string;
+        content?: string;
+        type?: string;
+        replyToId?: string | null;
+      };
+
+      const msgType = type || 'TEXT';
+      if (msgType === 'TEXT' && (!content || !content.trim())) {
+        throw new AppError('消息内容不能为空', 400);
+      }
+
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          id: conversationId,
+          participants: {
+            some: { id: senderId },
+          },
+        },
+        include: {
+          participants: {
+            select: { id: true },
+          },
+        },
+      });
+
+      if (!conversation) {
+        throw new AppError('Access denied to this conversation', 403);
+      }
+
+      if (replyToId) {
+        const replyMsg = await prisma.message.findFirst({
+          where: { id: replyToId, conversationId },
+        });
+        if (!replyMsg) {
+          throw new AppError('Reply message not found in this conversation', 400);
+        }
+      }
+
+      const message = await prisma.message.create({
+        data: {
+          content: content ?? '',
+          type: type || 'TEXT',
+          senderId,
+          conversationId,
+          ...(replyToId && { replyToId }),
+        },
+        include: {
+          sender: {
+            select: { id: true, name: true, avatarUrl: true },
+          },
+          replyTo: {
+            include: {
+              sender: { select: { id: true, name: true } },
+            },
+          },
+          reactions: {
+            include: {
+              user: { select: { id: true, name: true } },
+            },
+          },
+        },
+      });
+
+      // If it's a file or image upload, check if it was uploaded to our active R2 storage
+      if (msgType === 'FILE' || msgType === 'IMAGE') {
+        void (async () => {
+          try {
+            const activeStorage = await getActiveStorage();
+            if (activeStorage) {
+              const publicUrlBase = activeStorage.publicUrl.replace(/\/$/, '');
+              if (content && content.startsWith(publicUrlBase)) {
+                const key = content.replace(publicUrlBase, '').replace(/^\//, '');
+                const config = buildDecryptedStorageConfig(activeStorage);
+                const metadata = await storageService.getObjectMetadata(config, key);
+                const size = metadata.ContentLength || 0;
+                if (size > 0) {
+                  await prisma.storageConfig.update({
+                    where: { id: activeStorage.id },
+                    data: { usedBytes: { increment: size } },
+                  });
+                  logger.info(
+                    `[Message Storage] Incremented R2 storage usedBytes by ${size} for file: ${key}`,
+                  );
+                }
+              }
+            }
+          } catch (storageErr) {
+            logger.error(
+              '[Message Storage] Failed to update storage usedBytes for sent message:',
+              storageErr,
+            );
+          }
+        })();
+      }
+
+      await prisma.conversation.update({
+        where: { id: conversationId },
+        data: { updatedAt: new Date() },
+      });
+
+      emitToConversation(conversationId, 'new_message', message);
+
+      const senderName = request.user?.name || request.user?.email || '有人';
+      const groupContext =
+        conversation.isGroup && conversation.name ? `在「${conversation.name}」中` : '';
+      const notificationTitle = '收到新私信';
+      const notificationContent = groupContext
+        ? `${senderName} ${groupContext}发送了一条消息`
+        : `${senderName} 给你发送了一条消息`;
+      const messageLink = `/messages?conversationId=${encodeURIComponent(conversationId)}`;
+
+      conversation.participants.forEach((p: ConversationParticipant) => {
+        if (p.id !== senderId) {
+          emitToUser(p.id, 'message_received', {
+            conversationId,
+            message,
+          });
+
+          void (async () => {
+            try {
+              await createNotification({
+                type: 'MESSAGE',
+                title: notificationTitle,
+                content: notificationContent,
+                userId: p.id,
+                link: messageLink,
+                category: 'DIRECT_MESSAGE',
+              });
+            } catch (error) {
+              logger.error('[Message] Failed to create in-app message notification:', error);
+            }
+
+            try {
+              await queueDirectMessageEmail({
+                recipientId: p.id,
+                conversationId,
+                senderName,
+                conversationName: conversation.name,
+                isGroup: conversation.isGroup,
+                content,
+                messageType: msgType,
+              });
+            } catch (error) {
+              logger.error('[Message] Failed to queue message email reminder:', error);
+            }
+          })();
+        }
+      });
+
+      return reply.status(201).send(message);
+    },
+  );
+
+  // DELETE /messages/messages/:messageId —— 删除消息
+  app.delete(
+    '/messages/messages/:messageId',
+    {
+      ...auth,
+      schema: { params: messageIdParamsSchema },
+    },
+    async (request, reply) => {
+      const userId = requireUserId(request);
+      const { messageId } = request.params as { messageId: string };
+
+      const message = await prisma.message.findUnique({
+        where: { id: messageId },
+      });
+
+      if (!message) {
+        throw new AppError('Message not found', 404);
+      }
+
+      if (message.senderId !== userId && request.user?.role !== 'ADMIN') {
+        throw new AppError('Access denied', 403);
+      }
+
+      if (
+        message.content &&
+        (message.type === 'FILE' ||
+          message.type === 'IMAGE' ||
+          message.type === 'VOICE' ||
+          message.content.startsWith('http'))
+      ) {
+        deleteCloudOrLocalFileByUrl(message.content).catch((err) => {
+          logger.error('[MessageController] Failed to delete message attachment file:', err);
+        });
+      }
+
+      await prisma.message.delete({
+        where: { id: messageId },
+      });
+
+      emitToConversation(message.conversationId, 'message_deleted', {
+        messageId,
+        conversationId: message.conversationId,
+      });
+
+      return reply.send({ message: 'Message deleted' });
+    },
+  );
+
+  // ── 上传 / 分片上传（presigned-url / multipart 非文件上传端点）────────
+
+  // POST /messages/presigned-url —— 获取预签名上传 URL
+  app.post(
+    '/messages/presigned-url',
+    { ...auth, schema: { body: presignedUrlSchema } },
+    async (request, reply) => {
+      const { filename, mimetype, size } = request.body as {
+        filename: string;
+        mimetype: string;
+        size?: number;
+      };
+
+      const active = await getDecryptedActiveStorage();
+      if (!active) {
+        return reply.send({ isDirect: false });
+      }
+      const { raw, config } = active;
+
+      const limitBytes = gbToBytes(raw.limitGb);
+      if (size && raw.usedBytes + size > limitBytes) {
+        throw new AppError('云端存储容量已满，无法上传', 400);
+      }
+
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      const sanitized = filename
+        // eslint-disable-next-line no-control-regex
+        .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
+        .replace(/\s+/g, '_');
+      const key = `messages/${uniqueSuffix}/${sanitized}`;
+
+      const uploadUrl = await storageService.getPresignedUploadUrl(config, key, mimetype);
+      const publicUrlBase = config.publicUrl.replace(/\/$/, '');
+      const publicUrl = `${publicUrlBase}/${key}`;
+
+      return reply.send({
+        isDirect: true,
+        uploadUrl,
+        publicUrl,
+        key,
+      });
+    },
+  );
+
+  // POST /messages/multipart/initiate —— 发起分片上传
+  app.post(
+    '/messages/multipart/initiate',
+    { ...auth, schema: { body: initiateMultipartSchema } },
+    async (request, reply) => {
+      const { filename, mimetype, size } = request.body as {
+        filename: string;
+        mimetype: string;
+        size?: number;
+      };
+
+      const active = await getDecryptedActiveStorage();
+      if (!active) {
+        return reply.send({ isDirect: false });
+      }
+      const { raw, config } = active;
+
+      const limitBytes = gbToBytes(raw.limitGb);
+      if (size && raw.usedBytes + size > limitBytes) {
+        throw new AppError('云端存储容量已满，无法上传', 400);
+      }
+
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      const sanitized = filename
+        // eslint-disable-next-line no-control-regex
+        .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
+        .replace(/\s+/g, '_');
+      const key = `messages/${uniqueSuffix}/${sanitized}`;
+
+      const uploadId = await storageService.initiateMultipartUpload(config, key, mimetype);
+      return reply.send({
+        isDirect: true,
+        uploadId,
+        key,
+      });
+    },
+  );
+
+  // POST /messages/multipart/presign-parts —— 获取分片预签名 URL
+  app.post(
+    '/messages/multipart/presign-parts',
+    { ...auth, schema: { body: presignPartsSchema } },
+    async (request, reply) => {
+      const { key, uploadId, partNumbers } = request.body as {
+        key: string;
+        uploadId: string;
+        partNumbers: number[];
+      };
+
+      const active = await getDecryptedActiveStorage();
+      if (!active) {
+        throw new AppError('Storage configuration not active', 400);
+      }
+      const { config } = active;
+
+      const urls: Record<number, string> = {};
+      for (const partNum of partNumbers) {
+        const url = await storageService.getPresignedUploadPartUrl(config, key, uploadId, partNum);
+        urls[partNum] = url;
+      }
+      return reply.send({ urls });
+    },
+  );
+
+  // POST /messages/multipart/complete —— 完成分片上传
+  app.post(
+    '/messages/multipart/complete',
+    { ...auth, schema: { body: completeMultipartSchema } },
+    async (request, reply) => {
+      const { key, uploadId, parts } = request.body as {
+        key: string;
+        uploadId: string;
+        parts: unknown[];
+      };
+
+      const active = await getDecryptedActiveStorage();
+      if (!active) {
+        throw new AppError('Storage configuration not active', 400);
+      }
+      const { config } = active;
+
+      const finalUrl = await storageService.completeMultipartUpload(
+        config,
+        key,
+        uploadId,
+        parts as { ETag: string; PartNumber: number }[],
+      );
+      const isImage = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(key);
+
+      return reply.send({
+        url: finalUrl,
+        type: isImage ? 'IMAGE' : 'FILE',
+      });
+    },
+  );
+
+  // POST /messages/multipart/abort —— 中止分片上传
+  app.post(
+    '/messages/multipart/abort',
+    { ...auth, schema: { body: abortMultipartSchema } },
+    async (request, reply) => {
+      const { key, uploadId } = request.body as { key: string; uploadId: string };
+
+      const active = await getDecryptedActiveStorage();
+      if (!active) {
+        throw new AppError('Storage configuration not active', 400);
+      }
+      const { config } = active;
+
+      await storageService.abortMultipartUpload(config, key, uploadId);
+      return reply.send({ success: true });
+    },
+  );
+
+  // ── 表情反应 ──────────────────────────────────────────────────────────
+
+  // POST /messages/messages/:messageId/reactions —— 添加表情反应
+  app.post(
+    '/messages/messages/:messageId/reactions',
+    {
+      ...auth,
+      schema: { params: messageIdParamsSchema, body: addReactionSchema },
+    },
+    async (request, reply) => {
+      const userId = requireUserId(request);
+      const { messageId } = request.params as { messageId: string };
+      const { emoji } = request.body as { emoji: string };
+
+      const message = await prisma.message.findUnique({
+        where: { id: messageId },
+        include: { conversation: true },
+      });
+
+      if (!message) {
+        throw new AppError('Message not found', 404);
+      }
+
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          id: message.conversationId,
+          participants: { some: { id: userId } },
+        },
+      });
+
+      if (!conversation) {
+        throw new AppError('Access denied', 403);
+      }
+
+      const reaction = await prisma.messageReaction.upsert({
+        where: {
+          messageId_userId_emoji: { messageId, userId, emoji },
+        },
+        create: { messageId, userId, emoji },
+        update: {},
+        include: {
+          user: { select: { id: true, name: true } },
+        },
+      });
+
+      emitToConversation(message.conversationId, 'message_reaction', {
+        messageId,
+        reaction,
+      });
+
+      return reply.status(201).send(reaction);
+    },
+  );
+
+  // DELETE /messages/messages/:messageId/reactions/:emoji —— 移除表情反应
+  app.delete(
+    '/messages/messages/:messageId/reactions/:emoji',
+    {
+      ...auth,
+      schema: { params: reactionParamsSchema },
+    },
+    async (request, reply) => {
+      const userId = requireUserId(request);
+      const { messageId, emoji } = request.params as { messageId: string; emoji: string };
+
+      const reaction = await prisma.messageReaction.findUnique({
+        where: {
+          messageId_userId_emoji: {
+            messageId,
+            userId,
+            emoji,
+          },
+        },
+      });
+
+      if (!reaction) {
+        throw new AppError('Reaction not found', 404);
+      }
+
+      await prisma.messageReaction.delete({
+        where: { id: reaction.id },
+      });
+
+      const message = await prisma.message.findUnique({
+        where: { id: messageId },
+      });
+
+      if (message) {
+        emitToConversation(message.conversationId, 'message_reaction_removed', {
+          messageId,
+          userId,
+          emoji,
+        });
+      }
+
+      return reply.send({ message: 'Reaction removed' });
+    },
+  );
+
+  // ── 翻译 ──────────────────────────────────────────────────────────────
+
+  // POST /messages/translate —— 翻译消息
+  app.post(
+    '/messages/translate',
+    {
+      ...auth,
+      schema: { body: translateMessageSchema },
+    },
+    async (request, reply) => {
+      const { content, messages } = request.body as {
+        content?: string;
+        messages?: unknown[];
+      };
+
+      if (!content && (!messages || !Array.isArray(messages))) {
+        throw new AppError('Content or messages array is required', 400);
+      }
+
+      const settings = await settingsService.getAll();
+      let models: AIModelOption[] = [];
+      if (settings.AI_MODEL_OPTIONS) {
+        try {
+          const parsed = JSON.parse(settings.AI_MODEL_OPTIONS);
+          if (Array.isArray(parsed)) {
+            models = parsed as AIModelOption[];
+          }
+        } catch {
+          // ignore parse errors - fall back to empty models list
+        }
+      }
+
+      // 1. Find enabled translation model by capability, name or description
+      const translationModel = models.find(
+        (m) =>
+          m.enabled &&
+          ((m.capabilities &&
+            m.capabilities.some(
+              (c) =>
+                c.toLowerCase().includes('translate') || c.toLowerCase().includes('translation'),
+            )) ||
+            (m.name &&
+              (m.name.toLowerCase().includes('translate') ||
+                m.name.toLowerCase().includes('translation') ||
+                m.name.includes('翻译'))) ||
+            (m.modelName &&
+              (m.modelName.toLowerCase().includes('translate') ||
+                m.modelName.toLowerCase().includes('translation'))) ||
+            (m.description &&
+              (m.description.toLowerCase().includes('translate') ||
+                m.description.toLowerCase().includes('translation') ||
+                m.description.includes('翻译')))),
+      );
+
+      // 2. Prepare items to translate
+      const listToTranslate = content ? [{ id: 'single', content }] : messages;
+
+      const systemPrompt = `You are a professional translation assistant.
+Your task is to translate a list of chat messages between Chinese and English:
+- If a message is written in Chinese, translate it to natural, fluent English.
+- If a message is written in English or any other language, translate it to natural, fluent Chinese.
+- You MUST output the result as a raw JSON array matching this exact format:
+[
+  {
+    "id": "message_id",
+    "translation": "translated_text"
+  }
+]
+- Do NOT include any markdown code wrappers (like \`\`\`), preambles, notes, explanations, or quotes. Output ONLY the raw JSON string.`;
+
+      const userPrompt = `Please translate these chat messages:\n${JSON.stringify(listToTranslate, null, 2)}`;
+
+      let responseText: string;
+
+      if (translationModel) {
+        const overrides = {
+          AI_IMPORT_ENABLED: true,
+          AI_PROVIDER: translationModel.provider,
+          AI_API_KEY:
+            translationModel.apiKey ||
+            (translationModel.apiKeys && translationModel.apiKeys[0]) ||
+            settings.AI_API_KEY,
+          AI_API_ENDPOINT: translationModel.endpoint || settings.AI_API_ENDPOINT,
+          AI_MODEL_NAME: translationModel.modelName,
+          capabilities: translationModel.capabilities,
+        };
+
+        try {
+          logger.info(
+            `[Message Translate] Batch translating using translation model: ${translationModel.name || translationModel.modelName}`,
+          );
+          responseText = await callLLM(userPrompt, systemPrompt, overrides);
+        } catch (err) {
+          logger.warn(
+            `[Message Translate] Custom translation model call failed, falling back to auto model:`,
+            err,
+          );
+          responseText = await callLLMWithFailover(userPrompt, systemPrompt);
+        }
+      } else {
+        logger.info(
+          `[Message Translate] No translation model configured, using default auto model`,
+        );
+        responseText = await callLLMWithFailover(userPrompt, systemPrompt);
+      }
+
+      // 3. Robust JSON Parsing
+      let cleaned = responseText.trim();
+      if (cleaned.startsWith('```')) {
+        cleaned = cleaned
+          .replace(/^```[a-zA-Z]*\s*/, '')
+          .replace(/\s*```$/, '')
+          .trim();
+      }
+
+      let resultList: Array<{ id: string; translation: string }>;
+      try {
+        resultList = JSON.parse(cleaned);
+      } catch (e) {
+        logger.warn(`[Message Translate] Direct JSON parse failed, trying regex match:`, e);
+        const jsonMatch = cleaned.match(/\[\s*\{[\s\S]*\}\s*\]/);
+        if (jsonMatch) {
+          resultList = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('Failed to parse AI translation JSON response');
+        }
+      }
+
+      // 4. Return results
+      if (content) {
+        const singleTranslation =
+          resultList.find((item) => item.id === 'single')?.translation || '';
+        return reply.send({ translation: singleTranslation });
+      }
+
+      return reply.send({ translations: resultList });
+    },
+  );
+
+  // POST /messages/upload —— 上传聊天附件
+  app.post(
+    '/messages/upload',
+    {
+      preHandler: [fastifyAuthenticate, fastifyUpload([{ name: 'message_file', maxCount: 1 }])],
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const file = (request as FastifyRequest & { file?: UploadedFile }).file;
+      if (!file) {
+        throw new AppError('No file uploaded', 400);
+      }
+
+      const fileUrl = file.url;
+      if (!fileUrl) {
+        throw new AppError('文件上传失败，未获取到云存储地址', 400);
+      }
+      return reply.send({
+        url: fileUrl,
+        type: file.mimetype.startsWith('image/') ? 'IMAGE' : 'FILE',
+      });
+    },
+  );
+};

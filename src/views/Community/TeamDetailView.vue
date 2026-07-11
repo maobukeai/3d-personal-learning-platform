@@ -16,7 +16,7 @@ import {
   Briefcase,
 } from 'lucide-vue-next';
 import SegmentedControl from '@/components/ui/SegmentedControl.vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import TeamPeopleTab from './components/TeamPeopleTab.vue';
 import TeamInsightsTab from './components/TeamInsightsTab.vue';

@@ -64,7 +64,8 @@ const getEmptyChipsLabel = () => {
   if (props.kind === 'material')
     return label('当前显示全部公开材料', 'Showing all public materials');
   if (props.kind === 'plugin') return label('当前显示全部公开插件', 'Showing all public plugins');
-  if (props.kind === 'software') return label('当前显示全部公开软件', 'Showing all public softwares');
+  if (props.kind === 'software')
+    return label('当前显示全部公开软件', 'Showing all public softwares');
   return label('当前显示全部作品', 'Showing all works');
 };
 </script>

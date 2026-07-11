@@ -21,7 +21,7 @@ import {
   isOverdue,
 } from '@/utils/taskDisplay';
 import api from '@/utils/api';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import UserAvatar from '@/components/UserAvatar.vue';
 
 interface Task extends BaseTask {
@@ -303,16 +303,15 @@ const updateDueDate = async (val: string | Date | null | undefined) => {
           <span v-if="task.dueDate" class="hidden sm:inline">{{
             formatDueDate(task.dueDate)
           }}</span>
-          <span v-if="task.dueDate" class="sm:hidden"
-            >{{ new Date(task.dueDate).getMonth() + 1 }}/{{
-              new Date(task.dueDate).getDate()
-            }}</span
-          >
+          <span v-if="task.dueDate" class="sm:hidden">
+            {{ new Date(task.dueDate).getMonth() + 1 }}/{{ new Date(task.dueDate).getDate() }}
+          </span>
           <span
             v-else
             class="text-[8px] sm:text-[9px] text-slate-400 hover:text-accent font-semibold"
-            >+ 日期</span
           >
+            + 日期
+          </span>
         </div>
 
         <!-- Subtasks Progress -->
@@ -326,10 +325,10 @@ const updateDueDate = async (val: string | Date | null | undefined) => {
         </div>
 
         <!-- Priority Badge with Dropdown -->
-        <el-dropdown
+        <Dropdown
           v-if="task.priority && task.priority !== 'NONE' && config.priority"
           trigger="click"
-          @command="updatePriority"
+          @command="(cmd) => updatePriority(cmd as any)"
           @click.stop
         >
           <span
@@ -343,15 +342,15 @@ const updateDueDate = async (val: string | Date | null | undefined) => {
             <span>{{ getPriorityOption(task.priority).label }}</span>
           </span>
           <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="URGENT">紧急</el-dropdown-item>
-              <el-dropdown-item command="HIGH">高</el-dropdown-item>
-              <el-dropdown-item command="MEDIUM">中</el-dropdown-item>
-              <el-dropdown-item command="LOW">低</el-dropdown-item>
-              <el-dropdown-item command="NONE">无</el-dropdown-item>
-            </el-dropdown-menu>
+            <DropdownMenu>
+              <DropdownItem command="URGENT">紧急</DropdownItem>
+              <DropdownItem command="HIGH">高</DropdownItem>
+              <DropdownItem command="MEDIUM">中</DropdownItem>
+              <DropdownItem command="LOW">低</DropdownItem>
+              <DropdownItem command="NONE">无</DropdownItem>
+            </DropdownMenu>
           </template>
-        </el-dropdown>
+        </Dropdown>
       </div>
 
       <!-- Assignee Avatar Stack -->

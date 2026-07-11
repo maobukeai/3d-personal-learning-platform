@@ -1,11 +1,17 @@
-import { Response, NextFunction } from 'express';
+import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { ServerResponse } from 'http';
+
 import prisma from '../services/prisma';
-import { AuthRequest } from '../middlewares/auth.middleware';
 import { getShanghaiStartOfDay } from '../utils/date';
 import { TaskStatus } from '../types/task';
 import { checkProjectQuota } from '../utils/quota';
-import { auditService, AuditAction, AuditModule } from '../services/audit.service';
-import { AppError } from '../utils/error';
+import {
+  auditService,
+  AuditAction,
+  AuditModule,
+  type AuditRequest,
+} from '../services/audit.service';
+import { AppError, formatError } from '../utils/error';
 import { logger } from '../utils/logger';
 import {
   AIChatMessage as ServiceAIChatMessage,
@@ -34,6 +40,7 @@ import {
   AI_SPRITE_RESEARCH_OVERRIDE_RULES,
 } from '../config/prompts';
 import { checkTeamProjectPermission } from './project.controller';
+import { getUploadedFileUrl } from '../utils/file';
 import {
   buildSearchModeContext,
   mapSearchResultToResearchSource,
@@ -49,7 +56,6 @@ import {
   serializeAiChatTags,
   touchAiChatSession,
 } from '../services/ai-chat-session.service';
-import { UploadedFile } from '../types/upload';
 
 type AiChatMessage = {
   role: 'user' | 'assistant';
@@ -249,7 +255,7 @@ const parseJsonObject = <T extends object>(raw: string): Partial<T> => {
   }
 };
 
-const buildAiChatContextPrompt = (context: unknown, req: AuthRequest): string => {
+const buildAiChatContextPrompt = (context: unknown, req: FastifyRequest): string => {
   if (!context || typeof context !== 'object') return '';
 
   const requestContext = context as Record<string, unknown>;
@@ -391,25 +397,24 @@ const buildAiChatSessionMemoryPrompt = async (
 };
 
 export const aiGenerateProjectText = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { prompt } = req.body;
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { prompt } = request.body as { prompt?: string };
   if (!prompt || !prompt.trim()) {
-    return next(new AppError('输入设想不能为空', 400));
+    throw new AppError('输入设想不能为空', 400);
   }
 
-  const userId = req.userId as string;
+  const userId = request.userId as string;
 
   try {
-    const hasPermission = await checkTeamProjectPermission(userId, req.workspaceId);
+    const hasPermission = await checkTeamProjectPermission(userId, request.workspaceId);
     if (!hasPermission) {
-      return next(new AppError('只有团队创建人或管理员才能在团队中生成项目规划', 403));
+      throw new AppError('只有团队创建人或管理员才能在团队中生成项目规划', 403);
     }
 
     if (hasPromptInjection(prompt)) {
-      return next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
+      throw new AppError('检测到潜在的安全威胁或非法指令注入。', 400);
     }
 
     const settings = await settingsService.getAll();
@@ -431,32 +436,72 @@ export const aiGenerateProjectText = async (
 
     const generatedMarkdown = await callLLM(prompt.trim(), PROJECT_GENERATION_PROMPT, overrides);
 
-    res.json({
+    reply.send({
       success: true,
       data: generatedMarkdown,
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const aiChat = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  reply.hijack();
+  const raw = reply.raw;
+  const res = raw as unknown as ServerResponse;
+  const next = (err?: unknown): void => {
+    if (!err) return;
+    if (raw.headersSent) {
+      if (!raw.writableEnded) raw.end();
+      return;
+    }
+    if (err instanceof AppError) {
+      const body = formatError(err);
+      raw.statusCode = err.statusCode;
+      raw.setHeader('Content-Type', 'application/json');
+      raw.end(JSON.stringify(body));
+    } else {
+      logger.error('[aiChat] Unhandled error:', err);
+      raw.statusCode = 500;
+      raw.setHeader('Content-Type', 'application/json');
+      raw.end(
+        JSON.stringify({
+          status: 'error',
+          success: false,
+          error: 'Internal server error',
+          message: 'Internal server error',
+          code: 'INTERNAL_ERROR',
+        }),
+      );
+    }
+  };
+
   const { messages, context, modelId, sessionId, sessionTitle, searchEnabled, mode, clientRunId } =
-    req.body;
+    request.body as {
+      messages?: unknown;
+      context?: unknown;
+      modelId?: string;
+      sessionId?: string;
+      sessionTitle?: string;
+      searchEnabled?: boolean;
+      mode?: string;
+      clientRunId?: string;
+    };
   const normalizedMessages = normalizeAiChatMessages(messages);
 
   if (normalizedMessages.length === 0) {
-    return next(new AppError('对话内容不能为空', 400));
+    next(new AppError('对话内容不能为空', 400));
+    return;
   }
 
-  if (req.userId) {
+  if (request.userId) {
     try {
       const subscription = await prisma.subscription.findUnique({
-        where: { userId: req.userId },
+        where: { userId: request.userId },
         include: { plan: true },
       });
 
-      const role = req.user?.role;
+      const role = request.user?.role;
       const planName =
         subscription && subscription.status === 'ACTIVE' ? subscription.plan.name : 'FREE';
 
@@ -467,7 +512,7 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
 
       const count = await prisma.aiMessage.count({
         where: {
-          userId: req.userId,
+          userId: request.userId,
           role: 'user',
           createdAt: {
             gte: startOfDay,
@@ -476,37 +521,43 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
       });
 
       if (count >= limit) {
-        return next(
+        next(
           new AppError(
             `您的每日 AI 对话额度已用尽（今日已用: ${count}/${limit} 次）。请明天再试或升级计划。`,
             403,
           ),
         );
+        return;
       }
     } catch (err) {
       logger.error('[AI Chat] Quota verification failed:', err);
-      return next(err instanceof AppError ? err : new AppError('配额验证失败，请稍后重试', 500));
+      next(err instanceof AppError ? err : new AppError('配额验证失败，请稍后重试', 500));
+      return;
     }
   }
 
   const lastMessage = normalizedMessages[normalizedMessages.length - 1];
   if (!lastMessage || lastMessage.role !== 'user') {
-    return next(new AppError('最后一条对话内容必须来自用户', 400));
+    next(new AppError('最后一条对话内容必须来自用户', 400));
+    return;
   }
 
   for (const m of normalizedMessages) {
     const tokenCount = Math.round((m.content?.length || 0) * 0.45);
     if (m.role === 'user' && tokenCount > 5400) {
-      return next(new AppError('单个消息长度过长，请精简后再发送。', 400));
+      next(new AppError('单个消息长度过长，请精简后再发送。', 400));
+      return;
     }
     if (m.role === 'user' && hasPromptInjection(m.content)) {
-      return next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
+      next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
+      return;
     }
   }
 
   const totalChars = normalizedMessages.reduce((sum, m) => sum + m.content.length, 0);
   if (totalChars > MAX_AI_CHAT_TOTAL_CHARS) {
-    return next(new AppError('对话上下文过长，请清空历史或精简后再发送。', 400));
+    next(new AppError('对话上下文过长，请清空历史或精简后再发送。', 400));
+    return;
   }
 
   const chatMode: AiChatMode =
@@ -524,8 +575,8 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
   // '__AUTO__' triggers system-wide automatic failover across all configured models
   const isAutoMode = typeof modelId === 'string' && modelId.trim() === '__AUTO__';
 
-  if (req.userId && safeClientRunId) {
-    registerPersistentAiRun(req.userId, safeClientRunId);
+  if (request.userId && safeClientRunId) {
+    registerPersistentAiRun(request.userId, safeClientRunId);
   }
 
   const todayStr = new Intl.DateTimeFormat('en-CA', {
@@ -535,7 +586,7 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
     day: '2-digit',
   }).format(new Date());
 
-  const contextPrompt = buildAiChatContextPrompt(context, req);
+  const contextPrompt = buildAiChatContextPrompt(context, request);
   let systemPrompt = contextPrompt
     ? `${AI_SPRITE_CHAT_PROMPT}\n\n${contextPrompt}`
     : AI_SPRITE_CHAT_PROMPT;
@@ -544,7 +595,7 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
   systemPrompt = `Current Date: ${todayStr} (Asia/Shanghai)\n\n${systemPrompt}`;
 
   const sessionMemoryPrompt = await buildAiChatSessionMemoryPrompt(
-    req.userId,
+    request.userId,
     safeSessionId,
     normalizedMessages,
   );
@@ -566,7 +617,8 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
       typeof modelId === 'string' ? modelId.trim() : undefined,
     );
     if (!selectedModel || !selectedModel.enabled) {
-      return next(new AppError('当前没有可用的 AI 聊天模型，请联系管理员配置。', 503));
+      next(new AppError('当前没有可用的 AI 聊天模型，请联系管理员配置。', 503));
+      return;
     }
   }
 
@@ -682,8 +734,8 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
           },
           (update) => {
             sendSSE(res, { reasoning: update });
-            if (req.userId && safeClientRunId) {
-              appendPersistentAiRunReasoning(req.userId, safeClientRunId, update);
+            if (request.userId && safeClientRunId) {
+              appendPersistentAiRunReasoning(request.userId, safeClientRunId, update);
             }
           },
         );
@@ -709,11 +761,11 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
     }
   }
 
-  if (req.userId) {
+  if (request.userId) {
     try {
       await prisma.aiMessage.create({
         data: {
-          userId: req.userId,
+          userId: request.userId,
           role: 'user',
           content: redactSensitiveContent(lastMessage.content),
           sessionId: safeSessionId,
@@ -721,7 +773,7 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
         },
       });
       await touchAiChatSession({
-        userId: req.userId,
+        userId: request.userId,
         sessionId: safeSessionId,
         sessionTitle: safeSessionTitle,
         mode: safeSessionMode,
@@ -734,13 +786,13 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
   try {
     if (isAutoMode) {
       // Auto mode: use failover engine to automatically select and retry models
-      await streamLLMChatWithFailover(normalizedMessages, systemPrompt, res, next, req.userId, {
+      await streamLLMChatWithFailover(normalizedMessages, systemPrompt, res, next, request.userId, {
         sessionId: safeSessionId,
         sessionTitle: safeSessionTitle,
         mode: safeSessionMode,
         sources: researchSources,
         clientRunId: safeClientRunId,
-        continueOnClientDisconnect: Boolean(req.userId && safeClientRunId),
+        continueOnClientDisconnect: Boolean(request.userId && safeClientRunId),
       });
     } else {
       await streamLLMChat(
@@ -756,14 +808,14 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
           AI_MODEL_NAME: selectedModel!.modelName,
           capabilities: selectedModel!.capabilities,
         },
-        req.userId,
+        request.userId,
         {
           sessionId: safeSessionId,
           sessionTitle: safeSessionTitle,
           mode: safeSessionMode,
           sources: researchSources,
           clientRunId: safeClientRunId,
-          continueOnClientDisconnect: Boolean(req.userId && safeClientRunId),
+          continueOnClientDisconnect: Boolean(request.userId && safeClientRunId),
         },
       );
     }
@@ -778,8 +830,11 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
   }
 };
 
-export const getAiChatHistory = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const userId = req.userId as string;
+export const getAiChatHistory = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
   try {
     // 自动清理一周（7天）以前的聊天历史记录 (异步非阻塞)
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -803,7 +858,7 @@ export const getAiChatHistory = async (req: AuthRequest, res: Response, next: Ne
       buildAiChatSessionSnapshots(userId, true),
     ]);
     const orderedHistory = history.reverse();
-    res.json({
+    reply.send({
       success: true,
       data: orderedHistory.map((h) => ({
         id: h.id,
@@ -817,24 +872,27 @@ export const getAiChatHistory = async (req: AuthRequest, res: Response, next: Ne
       sessions,
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const stopAiChatRun = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const userId = req.userId as string;
+export const stopAiChatRun = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
   const runId =
-    typeof req.params.runId === 'string'
-      ? req.params.runId.replace(/[^\w:-]/g, '').slice(0, 120)
+    typeof (request.params as { runId?: string }).runId === 'string'
+      ? (request.params as { runId: string }).runId.replace(/[^\w:-]/g, '').slice(0, 120)
       : '';
 
   try {
     if (!runId) {
-      return next(new AppError('AI run id 不能为空', 400));
+      throw new AppError('AI run id 不能为空', 400);
     }
 
     const cancelled = cancelPersistentAiRun(userId, runId);
-    res.json({
+    reply.send({
       success: true,
       data: {
         runId,
@@ -842,26 +900,29 @@ export const stopAiChatRun = async (req: AuthRequest, res: Response, next: NextF
       },
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getAiChatRunStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const userId = req.userId as string;
+export const getAiChatRunStatus = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
   const runId =
-    typeof req.params.runId === 'string'
-      ? req.params.runId.replace(/[^\w:-]/g, '').slice(0, 120)
+    typeof (request.params as { runId?: string }).runId === 'string'
+      ? (request.params as { runId: string }).runId.replace(/[^\w:-]/g, '').slice(0, 120)
       : '';
 
   try {
     if (!runId) {
-      return next(new AppError('AI run id 不能为空', 400));
+      throw new AppError('AI run id 不能为空', 400);
     }
 
     const runStatus = getPersistentAiRunStatus(userId, runId);
     if (!runStatus) {
       // Run has been cleaned up from memory (DB write is guaranteed complete)
-      return res.json({
+      reply.send({
         success: true,
         data: {
           clientRunId: runId,
@@ -869,9 +930,10 @@ export const getAiChatRunStatus = async (req: AuthRequest, res: Response, next: 
           done: true,
         },
       });
+      return;
     }
 
-    res.json({
+    reply.send({
       success: true,
       data: {
         clientRunId: runId,
@@ -883,13 +945,16 @@ export const getAiChatRunStatus = async (req: AuthRequest, res: Response, next: 
       },
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const clearAiChatHistory = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const userId = req.userId as string;
-  const sessionId = req.query.sessionId as string | undefined;
+export const clearAiChatHistory = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
+  const sessionId = (request.query as { sessionId?: string }).sessionId;
   try {
     if (sessionId) {
       await prisma.aiMessage.deleteMany({
@@ -906,21 +971,28 @@ export const clearAiChatHistory = async (req: AuthRequest, res: Response, next: 
         where: { userId },
       });
     }
-    res.json({
+    reply.send({
       success: true,
       message: sessionId ? '对话会话已删除' : '聊天历史记录已清除',
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const cleanAiMessages = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const userId = req.userId as string;
-  const { sessionId, messageId, inclusive } = req.body;
+export const cleanAiMessages = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
+  const { sessionId, messageId, inclusive } = request.body as {
+    sessionId?: string;
+    messageId?: string;
+    inclusive?: boolean;
+  };
 
   if (!sessionId || !messageId) {
-    return next(new AppError('会话 ID 和消息 ID 不能为空', 400));
+    throw new AppError('会话 ID 和消息 ID 不能为空', 400);
   }
 
   try {
@@ -933,7 +1005,7 @@ export const cleanAiMessages = async (req: AuthRequest, res: Response, next: Nex
     });
 
     if (!targetMessage) {
-      return next(new AppError('找不到指定的消息', 404));
+      throw new AppError('找不到指定的消息', 404);
     }
 
     if (inclusive) {
@@ -958,41 +1030,50 @@ export const cleanAiMessages = async (req: AuthRequest, res: Response, next: Nex
       });
     }
 
-    res.json({
+    reply.send({
       success: true,
       message: '消息清理成功',
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getAiChatSessions = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const userId = req.userId as string;
+export const getAiChatSessions = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
   try {
-    const includeArchived = req.query.includeArchived === 'true';
+    const includeArchived =
+      (request.query as { includeArchived?: string }).includeArchived === 'true';
     const sessions = await buildAiChatSessionSnapshots(userId, includeArchived);
-    res.json({
+    reply.send({
       success: true,
       data: sessions,
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateAiChatSession = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const userId = req.userId as string;
-  const sessionId = normalizeAiChatSessionId(req.params.sessionId);
+export const updateAiChatSession = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
+  const sessionId = normalizeAiChatSessionId((request.params as { sessionId?: string }).sessionId);
   const body =
-    req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {};
+    request.body && typeof request.body === 'object'
+      ? (request.body as Record<string, unknown>)
+      : {};
 
   try {
     const messageCount = await prisma.aiMessage.count({
       where: { userId, sessionId },
     });
     if (messageCount === 0) {
-      return next(new AppError('未找到指定 AI 会话', 404));
+      throw new AppError('未找到指定 AI 会话', 404);
     }
 
     const data: {
@@ -1046,7 +1127,7 @@ export const updateAiChatSession = async (req: AuthRequest, res: Response, next:
       update: data,
     });
 
-    res.json({
+    reply.send({
       success: true,
       data: {
         id: session.id,
@@ -1060,56 +1141,55 @@ export const updateAiChatSession = async (req: AuthRequest, res: Response, next:
       },
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 export const summarizeAiChatSession = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
-  const userId = req.userId as string;
-  const sessionId = normalizeAiChatSessionId(req.params.sessionId);
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
+  const sessionId = normalizeAiChatSessionId((request.params as { sessionId: string }).sessionId);
+  const body = (request.body as { modelId?: string } | undefined) ?? {};
 
-  try {
-    const messages = await prisma.aiMessage.findMany({
-      where: { userId, sessionId },
-      orderBy: { createdAt: 'desc' },
-      take: MAX_AI_SESSION_SUMMARY_MESSAGES,
-    });
+  const messages = await prisma.aiMessage.findMany({
+    where: { userId, sessionId },
+    orderBy: { createdAt: 'desc' },
+    take: MAX_AI_SESSION_SUMMARY_MESSAGES,
+  });
 
-    if (!messages.length) {
-      return next(new AppError('未找到可总结的 AI 会话', 404));
-    }
+  if (!messages.length) {
+    throw new AppError('未找到可总结的 AI 会话', 404);
+  }
 
-    const transcript = messages
-      .reverse()
-      .map(
-        (message) =>
-          `${message.role === 'user' ? '用户' : '助手'}：${message.content.slice(0, 1200)}`,
-      )
-      .join('\n\n');
-    const settings = await settingsService.getAll();
-    const selectedModel = getAIModelById(
-      settings,
-      typeof req.body?.modelId === 'string' ? req.body.modelId.trim() : undefined,
-    );
-    const overrides: Partial<AIServiceConfig> | undefined = selectedModel
-      ? {
-          AI_IMPORT_ENABLED: true,
-          AI_PROVIDER: selectedModel.provider,
-          AI_API_KEY: selectedModel.apiKey || settings.AI_API_KEY,
-          AI_API_ENDPOINT: selectedModel.endpoint || settings.AI_API_ENDPOINT,
-          AI_MODEL_NAME: selectedModel.modelName,
-          capabilities: selectedModel.capabilities,
-          maxTokens: 1200,
-        }
-      : undefined;
+  const transcript = messages
+    .reverse()
+    .map(
+      (message) =>
+        `${message.role === 'user' ? '用户' : '助手'}：${message.content.slice(0, 1200)}`,
+    )
+    .join('\n\n');
+  const settings = await settingsService.getAll();
+  const selectedModel = getAIModelById(
+    settings,
+    typeof body.modelId === 'string' ? body.modelId.trim() : undefined,
+  );
+  const overrides: Partial<AIServiceConfig> | undefined = selectedModel
+    ? {
+        AI_IMPORT_ENABLED: true,
+        AI_PROVIDER: selectedModel.provider,
+        AI_API_KEY: selectedModel.apiKey || settings.AI_API_KEY,
+        AI_API_ENDPOINT: selectedModel.endpoint || settings.AI_API_ENDPOINT,
+        AI_MODEL_NAME: selectedModel.modelName,
+        capabilities: selectedModel.capabilities,
+        maxTokens: 1200,
+      }
+    : undefined;
 
-    const raw = await callLLM(
-      `请为以下 AI 会话生成产品内可展示的元数据：\n\n${transcript}`,
-      `你是 AI 学习平台的会话整理助手。请只返回 JSON，不要使用 Markdown。
+  const raw = await callLLM(
+    `请为以下 AI 会话生成产品内可展示的元数据：\n\n${transcript}`,
+    `你是 AI 学习平台的会话整理助手。请只返回 JSON，不要使用 Markdown。
 JSON 格式：
 {
   "title": "12 到 30 个中文字符的清晰标题",
@@ -1117,161 +1197,139 @@ JSON 格式：
   "tags": ["2 到 5 个短标签"]
 }
 要求：标题不能写“新对话”；不要泄露密钥、邮箱、手机号等敏感信息；如果会话内容不足，基于已有内容做保守总结。`,
-      overrides,
-      45_000,
-    );
+    overrides,
+    45_000,
+  );
 
-    const parsed = parseJsonObject<{ title: string; summary: string; tags: string[] }>(raw);
-    const title = normalizeAiChatSessionTitle(
-      parsed.title || messages[0]?.sessionTitle || '未命名对话',
-    );
-    const summary =
-      typeof parsed.summary === 'string' && parsed.summary.trim()
-        ? parsed.summary.trim().slice(0, 260)
-        : cleanSessionPreview(transcript).slice(0, 180);
-    const tags = normalizeAiChatTags(parsed.tags || []);
-    const latest = messages[messages.length - 1];
+  const parsed = parseJsonObject<{ title: string; summary: string; tags: string[] }>(raw);
+  const title = normalizeAiChatSessionTitle(
+    parsed.title || messages[0]?.sessionTitle || '未命名对话',
+  );
+  const summary =
+    typeof parsed.summary === 'string' && parsed.summary.trim()
+      ? parsed.summary.trim().slice(0, 260)
+      : cleanSessionPreview(transcript).slice(0, 180);
+  const tags = normalizeAiChatTags(parsed.tags || []);
+  const latest = messages[messages.length - 1];
 
-    const session = await prisma.aiChatSession.upsert({
-      where: {
-        userId_id: {
-          userId,
-          id: sessionId,
-        },
-      },
-      create: {
+  const session = await prisma.aiChatSession.upsert({
+    where: {
+      userId_id: {
         userId,
         id: sessionId,
-        title,
-        summary,
-        tags: serializeAiChatTags(tags),
-        mode: 'default',
-        lastMessageAt: latest?.createdAt || new Date(),
       },
-      update: {
-        title,
-        summary,
-        tags: serializeAiChatTags(tags),
-        lastMessageAt: latest?.createdAt || new Date(),
-      },
-    });
+    },
+    create: {
+      userId,
+      id: sessionId,
+      title,
+      summary,
+      tags: serializeAiChatTags(tags),
+      mode: 'default',
+      lastMessageAt: latest?.createdAt || new Date(),
+    },
+    update: {
+      title,
+      summary,
+      tags: serializeAiChatTags(tags),
+      lastMessageAt: latest?.createdAt || new Date(),
+    },
+  });
 
-    res.json({
-      success: true,
-      data: {
-        id: session.id,
-        title: session.title,
-        summary: session.summary,
-        tags: parseAiChatTags(session.tags),
-        mode: isAiChatMode(session.mode) ? session.mode : 'default',
-        pinned: session.pinned,
-        archived: session.archived,
-        lastMessageAt: session.lastMessageAt,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
+  reply.send({
+    success: true,
+    data: {
+      id: session.id,
+      title: session.title,
+      summary: session.summary,
+      tags: parseAiChatTags(session.tags),
+      mode: isAiChatMode(session.mode) ? session.mode : 'default',
+      pinned: session.pinned,
+      archived: session.archived,
+      lastMessageAt: session.lastMessageAt,
+    },
+  });
 };
 
-export const uploadAiChatImage = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  if (!req.file) {
-    return next(new AppError('请选择要上传的图片', 400));
-  }
-  try {
-    const fileUrl = (req.file as UploadedFile).url || `/uploads/ai/${req.file.filename}`;
-    res.json({
-      success: true,
-      url: fileUrl,
-      name: req.file.originalname,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const parseNetdiskLink = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { url, password } = req.body;
+export const parseNetdiskLink = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { url, password } = request.body as { url?: string; password?: string };
   if (!url) {
-    return next(new AppError('链接不能为空', 400));
+    throw new AppError('链接不能为空', 400);
   }
 
-  const userId = req.userId as string;
+  const userId = request.userId as string;
+
+  const hasPermission = await checkTeamProjectPermission(userId, request.workspaceId);
+  if (!hasPermission) {
+    throw new AppError('只有团队创建人或管理员才能在团队中生成项目规划', 403);
+  }
+
+  if (hasPromptInjection(url) || hasPromptInjection(password)) {
+    throw new AppError('检测到潜在的安全威胁或非法指令注入。', 400);
+  }
+
+  const urlTrimmed = url.trim();
+  const isBaiduNetdiskUrl =
+    /pan\.baidu\.com/i.test(urlTrimmed) &&
+    (urlTrimmed.includes('/s/') || urlTrimmed.includes('surl='));
+  if (!isBaiduNetdiskUrl) {
+    throw new AppError(
+      '链接格式不正确。请输入有效的百度网盘分享链接（如 https://pan.baidu.com/s/1xxxxx 或包含 surl= 参数的链接）。',
+      400,
+    );
+  }
+
+  let parsedData;
+  let isFallback = false;
 
   try {
-    const hasPermission = await checkTeamProjectPermission(userId, req.workspaceId);
-    if (!hasPermission) {
-      return next(new AppError('只有团队创建人或管理员才能在团队中生成项目规划', 403));
-    }
+    parsedData = await parseBaiduNetdiskLink(url, password);
+  } catch (err: unknown) {
+    logger.warn(
+      'Baidu Netdisk scraping failed. Falling back to LLM simulation. Reason:',
+      err instanceof Error ? err.message : String(err),
+    );
+    isFallback = true;
 
-    if (hasPromptInjection(url) || hasPromptInjection(password)) {
-      return next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
-    }
+    const userPrompt = `链接：${url}\n密码：${password || '无'}`;
+    const aiResponse = await callLLM(userPrompt, BAIDU_NETDISK_ANALYSIS_PROMPT);
 
-    const urlTrimmed = url.trim();
-    const isBaiduNetdiskUrl =
-      /pan\.baidu\.com/i.test(urlTrimmed) &&
-      (urlTrimmed.includes('/s/') || urlTrimmed.includes('surl='));
-    if (!isBaiduNetdiskUrl) {
-      return next(
-        new AppError(
-          '链接格式不正确。请输入有效的百度网盘分享链接（如 https://pan.baidu.com/s/1xxxxx 或包含 surl= 参数的链接）。',
-          400,
-        ),
-      );
-    }
-
-    let parsedData;
-    let isFallback = false;
+    let cleanedResponse = aiResponse.trim();
+    cleanedResponse = cleanedResponse
+      .replace(/^```json\s*/, '')
+      .replace(/\s*```$/, '')
+      .trim();
 
     try {
-      parsedData = await parseBaiduNetdiskLink(url, password);
-    } catch (err: unknown) {
-      logger.warn(
-        'Baidu Netdisk scraping failed. Falling back to LLM simulation. Reason:',
-        err instanceof Error ? err.message : String(err),
-      );
-      isFallback = true;
-
-      const userPrompt = `链接：${url}\n密码：${password || '无'}`;
-      const aiResponse = await callLLM(userPrompt, BAIDU_NETDISK_ANALYSIS_PROMPT);
-
-      let cleanedResponse = aiResponse.trim();
-      cleanedResponse = cleanedResponse
-        .replace(/^```json\s*/, '')
-        .replace(/\s*```$/, '')
-        .trim();
-
-      try {
-        parsedData = JSON.parse(cleanedResponse);
-      } catch (_parseErr) {
-        logger.error('Failed to parse AI fallback response as JSON. Raw response:', aiResponse);
-        parsedData = {
-          title: '百度网盘导入项目',
-          directories: [
-            {
-              name: '01-基础概念与环境搭建',
-              files: ['1.1 课程介绍与最终效果展示.mp4', '1.2 Vite与Three.js安装.mp4'],
-            },
-            {
-              name: '02-三维核心要素深入',
-              files: ['2.1 渲染器与场景配置.mp4', '2.2 正交与透视相机剖析.mp4'],
-            },
-          ],
-        };
-      }
+      parsedData = JSON.parse(cleanedResponse);
+    } catch (_parseErr) {
+      logger.error('Failed to parse AI fallback response as JSON. Raw response:', aiResponse);
+      parsedData = {
+        title: '百度网盘导入项目',
+        directories: [
+          {
+            name: '01-基础概念与环境搭建',
+            files: ['1.1 课程介绍与最终效果展示.mp4', '1.2 Vite与Three.js安装.mp4'],
+          },
+          {
+            name: '02-三维核心要素深入',
+            files: ['2.1 渲染器与场景配置.mp4', '2.2 正交与透视相机剖析.mp4'],
+          },
+        ],
+      };
     }
-
-    res.json({
-      success: true,
-      data: {
-        ...parsedData,
-        isFallback,
-      },
-    });
-  } catch (error) {
-    next(error);
   }
+
+  reply.send({
+    success: true,
+    data: {
+      ...parsedData,
+      isFallback,
+    },
+  });
 };
 
 const formatNetdiskInfoForPrompt = (netdiskInfo: BaiduNetdiskParsedData | unknown): string => {
@@ -1291,43 +1349,87 @@ const formatNetdiskInfoForPrompt = (netdiskInfo: BaiduNetdiskParsedData | unknow
   return result.slice(0, 30000);
 };
 
-export const coPlanChatStream = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { messages, netdiskInfo, currentPlan } = req.body;
+export const coPlanChatStream = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  reply.hijack();
+  const raw = reply.raw;
+  const res = raw as unknown as Response;
+  const next = (err?: unknown): void => {
+    if (!err) return;
+    if (raw.headersSent) {
+      if (!raw.writableEnded) raw.end();
+      return;
+    }
+    if (err instanceof AppError) {
+      const body = formatError(err);
+      raw.statusCode = err.statusCode;
+      raw.setHeader('Content-Type', 'application/json');
+      raw.end(JSON.stringify(body));
+    } else {
+      logger.error('[coPlanChatStream] Unhandled error:', err);
+      raw.statusCode = 500;
+      raw.setHeader('Content-Type', 'application/json');
+      raw.end(
+        JSON.stringify({
+          status: 'error',
+          success: false,
+          error: 'Internal server error',
+          message: 'Internal server error',
+          code: 'INTERNAL_ERROR',
+        }),
+      );
+    }
+  };
+
+  const { messages, netdiskInfo, currentPlan, modelId } = request.body as {
+    messages?: unknown;
+    netdiskInfo?: unknown;
+    currentPlan?: unknown;
+    modelId?: string;
+  };
   const normalizedMessages = normalizeAiChatMessages(messages);
 
   if (normalizedMessages.length === 0) {
-    return next(new AppError('对话内容不能为空', 400));
+    next(new AppError('对话内容不能为空', 400));
+    return;
   }
 
   if (Array.isArray(messages) && messages.length > 20) {
-    return next(new AppError('对话历史记录过长，请重置对话重新开始。', 400));
+    next(new AppError('对话历史记录过长，请重置对话重新开始。', 400));
+    return;
   }
 
   for (const m of normalizedMessages) {
     const tokenCount = Math.round((m.content?.length || 0) * 0.45);
     if (m.role === 'user' && tokenCount > 2000) {
-      return next(new AppError('单个消息长度不能超过 2000 tokens。', 400));
+      next(new AppError('单个消息长度不能超过 2000 tokens。', 400));
+      return;
     }
     if (m.role === 'user' && hasPromptInjection(m.content)) {
-      return next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
+      next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
+      return;
     }
   }
 
-  const userId = req.userId as string;
+  const userId = request.userId as string;
 
   try {
-    const hasPermission = await checkTeamProjectPermission(userId, req.workspaceId);
+    const hasPermission = await checkTeamProjectPermission(userId, request.workspaceId);
     if (!hasPermission) {
-      return next(new AppError('只有团队创建人或管理员才能在团队中生成项目规划', 403));
+      next(new AppError('只有团队创建人或管理员才能在团队中生成项目规划', 403));
+      return;
     }
 
     const settings = await settingsService.getAll();
     const selectedModel = getAIModelById(
       settings,
-      typeof req.body.modelId === 'string' ? req.body.modelId.trim() : undefined,
+      typeof modelId === 'string' ? modelId.trim() : undefined,
     );
     if (!selectedModel || !selectedModel.enabled) {
-      return next(new AppError('当前没有可用的 AI 聊天模型，请联系管理员配置。', 503));
+      next(new AppError('当前没有可用的 AI 聊天模型，请联系管理员配置。', 503));
+      return;
     }
 
     const isNetdisk = !!netdiskInfo;
@@ -1352,11 +1454,18 @@ export const coPlanChatStream = async (req: AuthRequest, res: Response, next: Ne
       maxTokens: 16384,
     };
 
-    await streamLLMChat(extendedMessages, systemPrompt, res, next, overrides, req.userId);
+    await streamLLMChat(
+      extendedMessages,
+      systemPrompt,
+      res as unknown as ServerResponse,
+      next,
+      overrides,
+      request.userId,
+    );
   } catch (error) {
-    if (res.headersSent) {
-      if (!res.writableEnded) {
-        res.end();
+    if (raw.headersSent) {
+      if (!raw.writableEnded) {
+        raw.end();
       }
     } else {
       next(error);
@@ -1364,13 +1473,39 @@ export const coPlanChatStream = async (req: AuthRequest, res: Response, next: Ne
   }
 };
 
+type ImportedProjectPlan = {
+  title?: string;
+  description?: string;
+  dueDate?: string;
+  color?: string;
+  tags?: string;
+  tasks?: Array<{
+    title?: string;
+    description?: string;
+    priority?: string;
+    dueDate?: string;
+    subtasks?: unknown;
+  }>;
+  roadmap?: {
+    title?: string;
+    description?: string;
+    steps?: Array<{
+      title?: string;
+      description?: string;
+      subtasks?: unknown;
+      order?: number;
+    }>;
+  };
+  plan?: ImportedProjectPlan;
+  project?: ImportedProjectPlan;
+};
+
 export const importProjectFromJson = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
-  let { plan } = req.body;
-  const userId = req.userId as string;
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  let { plan } = request.body as { plan?: ImportedProjectPlan };
+  const userId = request.userId as string;
 
   if (plan && !plan.title) {
     if (plan.plan && plan.plan.title) {
@@ -1381,170 +1516,181 @@ export const importProjectFromJson = async (
   }
 
   if (!plan || !plan.title) {
-    return next(new AppError('项目规划数据无效或缺失标题', 400));
+    throw new AppError('项目规划数据无效或缺失标题', 400);
   }
 
-  try {
-    const hasPermission = await checkTeamProjectPermission(userId, req.workspaceId);
-    if (!hasPermission) {
-      return next(new AppError('只有团队创建人或管理员才能在团队中导入项目', 403));
-    }
+  const hasPermission = await checkTeamProjectPermission(userId, request.workspaceId);
+  if (!hasPermission) {
+    throw new AppError('只有团队创建人或管理员才能在团队中导入项目', 403);
+  }
 
-    const quota = await checkProjectQuota(userId);
-    if (!quota.allowed) {
-      return next(new AppError(quota.message || '项目配额已满，无法导入新项目', 403));
-    }
+  const quota = await checkProjectQuota(userId);
+  if (!quota.allowed) {
+    throw new AppError(quota.message || '项目配额已满，无法导入新项目', 403);
+  }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const project = await tx.project.create({
-        data: {
-          title: plan.title,
-          description: plan.description || null,
-          dueDate: plan.dueDate ? new Date(plan.dueDate) : null,
-          color: plan.color || 'bg-accent',
-          tags: plan.tags || null,
-          visibility: 'PRIVATE',
-          maxMembers: 10,
-          teamId: req.workspaceId || null,
-          members: {
-            create: [
-              {
-                userId,
-                role: 'OWNER',
-              },
-            ],
+  const result = await prisma.$transaction(async (tx) => {
+    const project = await tx.project.create({
+      data: {
+        title: plan.title as string,
+        description: plan.description || null,
+        dueDate: plan.dueDate ? new Date(plan.dueDate) : null,
+        color: plan.color || 'bg-accent',
+        tags: plan.tags || null,
+        visibility: 'PRIVATE',
+        maxMembers: 10,
+        teamId: request.workspaceId || null,
+        members: {
+          create: [
+            {
+              userId,
+              role: 'OWNER',
+            },
+          ],
+        },
+      },
+    });
+
+    const createdTasks = [];
+    if (plan.tasks && Array.isArray(plan.tasks)) {
+      for (const t of plan.tasks) {
+        const task = await tx.task.create({
+          data: {
+            title: t.title as string,
+            description: t.description || null,
+            status: TaskStatus.TODO,
+            priority: t.priority || 'MEDIUM',
+            dueDate: t.dueDate ? new Date(t.dueDate) : null,
+            projectId: project.id,
+            userId,
+            teamId: request.workspaceId || null,
+            subtasks: t.subtasks && Array.isArray(t.subtasks) ? JSON.stringify(t.subtasks) : null,
           },
+        });
+        createdTasks.push(task);
+      }
+    }
+
+    let roadmap = null;
+    if (
+      plan.roadmap &&
+      plan.roadmap.steps &&
+      Array.isArray(plan.roadmap.steps) &&
+      plan.roadmap.steps.length > 0
+    ) {
+      const defaultTitles = ['学习路线', '学习规划', '学习大纲', 'Roadmap', 'ROADMAP'];
+      const isGenericTitle =
+        !plan.roadmap.title || defaultTitles.includes(plan.roadmap.title.trim());
+      const roadmapTitle = isGenericTitle ? `学习路线 - ${plan.title}` : plan.roadmap.title || '';
+      const roadmapDesc = plan.roadmap.description || `针对项目「${plan.title}」的专属学习路线`;
+
+      roadmap = await tx.roadmap.create({
+        data: {
+          title: roadmapTitle,
+          description: roadmapDesc,
+          creatorId: userId,
+          projectId: project.id,
         },
       });
 
-      const createdTasks = [];
-      if (plan.tasks && Array.isArray(plan.tasks)) {
-        for (const t of plan.tasks) {
-          const task = await tx.task.create({
-            data: {
-              title: t.title,
-              description: t.description || null,
-              status: TaskStatus.TODO,
-              priority: t.priority || 'MEDIUM',
-              dueDate: t.dueDate ? new Date(t.dueDate) : null,
-              projectId: project.id,
-              userId,
-              teamId: req.workspaceId || null,
-              subtasks: t.subtasks && Array.isArray(t.subtasks) ? JSON.stringify(t.subtasks) : null,
-            },
-          });
-          createdTasks.push(task);
-        }
-      }
-
-      let roadmap = null;
-      if (
-        plan.roadmap &&
-        plan.roadmap.steps &&
-        Array.isArray(plan.roadmap.steps) &&
-        plan.roadmap.steps.length > 0
-      ) {
-        const defaultTitles = ['学习路线', '学习规划', '学习大纲', 'Roadmap', 'ROADMAP'];
-        const isGenericTitle =
-          !plan.roadmap.title || defaultTitles.includes(plan.roadmap.title.trim());
-        const roadmapTitle = isGenericTitle ? `学习路线 - ${plan.title}` : plan.roadmap.title;
-        const roadmapDesc = plan.roadmap.description || `针对项目「${plan.title}」的专属学习路线`;
-
-        roadmap = await tx.roadmap.create({
+      for (const step of plan.roadmap.steps) {
+        await tx.roadmapStep.create({
           data: {
-            title: roadmapTitle,
-            description: roadmapDesc,
-            creatorId: userId,
-            projectId: project.id,
+            roadmapId: roadmap.id,
+            title: step.title as string,
+            description: step.description || '',
+            subtasks:
+              step.subtasks && Array.isArray(step.subtasks) ? JSON.stringify(step.subtasks) : null,
+            order: step.order as number,
           },
         });
-
-        for (const step of plan.roadmap.steps) {
-          await tx.roadmapStep.create({
-            data: {
-              roadmapId: roadmap.id,
-              title: step.title,
-              description: step.description || '',
-              subtasks:
-                step.subtasks && Array.isArray(step.subtasks)
-                  ? JSON.stringify(step.subtasks)
-                  : null,
-              order: step.order,
-            },
-          });
-        }
       }
+    }
 
-      return { project, tasksCount: createdTasks.length, roadmap };
-    });
+    return { project, tasksCount: createdTasks.length, roadmap };
+  });
 
-    await auditService.log({
-      userId,
-      action: AuditAction.CREATE_PROJECT,
-      module: AuditModule.PROJECT,
-      description: `导入解析项目JSON: ${result.project.title} (包含看板任务数: ${result.tasksCount})`,
-      newValue: result.project,
-      req,
-    });
+  await auditService.log({
+    userId,
+    action: AuditAction.CREATE_PROJECT,
+    module: AuditModule.PROJECT,
+    description: `导入解析项目JSON: ${result.project.title} (包含看板任务数: ${result.tasksCount})`,
+    newValue: result.project,
+    req: request as unknown as AuditRequest,
+  });
 
-    res.status(201).json({
-      success: true,
-      message: '项目及关联的看板任务、学习路线已成功解析导入！',
-      project: result.project,
-      roadmap: result.roadmap,
-      tasksCount: result.tasksCount,
-    });
-  } catch (error) {
-    next(error);
-  }
+  reply.status(201).send({
+    success: true,
+    message: '项目及关联的看板任务、学习路线已成功解析导入！',
+    project: result.project,
+    roadmap: result.roadmap,
+    tasksCount: result.tasksCount,
+  });
 };
 
-export const getAiUsage = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const userId = req.userId || req.user?.id;
+export const getAiUsage = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const userId = request.userId || request.user?.id;
   if (!userId) {
-    return res.status(401).json({ error: '未登录' });
+    reply.status(401).send({ error: '未登录' });
+    return;
   }
 
+  const subscription = await prisma.subscription.findUnique({
+    where: { userId },
+    include: { plan: true },
+  });
+
+  const role = request.user?.role;
+  const planName =
+    subscription && subscription.status === 'ACTIVE' ? subscription.plan.name : 'FREE';
+
+  const displayName =
+    subscription && subscription.status === 'ACTIVE'
+      ? subscription.plan.displayName || '专业版'
+      : '免费版';
+
+  const limit =
+    role === 'ADMIN' ? 10000 : planName === 'SVIP' ? 10000 : planName === 'VIP' ? 1000 : 100;
+
+  const startOfDay = getShanghaiStartOfDay();
+
+  const count = await prisma.aiMessage.count({
+    where: {
+      userId,
+      role: 'user',
+      createdAt: {
+        gte: startOfDay,
+      },
+    },
+  });
+
+  reply.send({
+    success: true,
+    data: {
+      usedToday: count,
+      dailyLimit: limit,
+      planName: planName,
+      planDisplayName: role === 'ADMIN' ? '系统管理员' : displayName,
+    },
+  });
+};
+
+export const uploadAiChatImage = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const file = (request as unknown as { file?: Express.Multer.File }).file;
+  if (!file) {
+    throw new AppError('请选择要上传的图片', 400);
+  }
   try {
-    const subscription = await prisma.subscription.findUnique({
-      where: { userId },
-      include: { plan: true },
-    });
-
-    const role = req.user?.role;
-    const planName =
-      subscription && subscription.status === 'ACTIVE' ? subscription.plan.name : 'FREE';
-
-    const displayName =
-      subscription && subscription.status === 'ACTIVE'
-        ? subscription.plan.displayName || '专业版'
-        : '免费版';
-
-    const limit =
-      role === 'ADMIN' ? 10000 : planName === 'SVIP' ? 10000 : planName === 'VIP' ? 1000 : 100;
-
-    const startOfDay = getShanghaiStartOfDay();
-
-    const count = await prisma.aiMessage.count({
-      where: {
-        userId,
-        role: 'user',
-        createdAt: {
-          gte: startOfDay,
-        },
-      },
-    });
-
-    res.json({
+    const fileUrl = getUploadedFileUrl(request, file, 'ai');
+    reply.send({
       success: true,
-      data: {
-        usedToday: count,
-        dailyLimit: limit,
-        planName: planName,
-        planDisplayName: role === 'ADMIN' ? '系统管理员' : displayName,
-      },
+      url: fileUrl,
+      name: file.originalname,
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };

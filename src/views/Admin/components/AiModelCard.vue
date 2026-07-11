@@ -126,7 +126,7 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
         <GripVertical class="w-3.5 h-3.5 text-slate-400" />
       </div>
 
-      <el-checkbox
+      <Checkbox
         :model-value="props.selected"
         class="shrink-0 transition-opacity duration-200"
         :class="
@@ -192,13 +192,13 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
       </div>
 
       <div class="flex items-center gap-1.5 shrink-0" @click.stop>
-        <el-switch
+        <Switch
           :model-value="props.model.enabled"
           size="small"
           style="--el-switch-on-color: #10b981; --el-switch-off-color: #e2e8f0"
           @change="(val: unknown) => update({ enabled: Boolean(val) })"
         />
-        <el-dropdown trigger="click" size="small">
+        <Dropdown trigger="click" size="small">
           <button
             type="button"
             class="w-6 h-6 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center text-slate-400 transition-colors border-none bg-transparent cursor-pointer"
@@ -216,23 +216,23 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
             </svg>
           </button>
           <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item :disabled="!props.model.enabled" @click="emit('set-default')">
+            <DropdownMenu>
+              <DropdownItem :disabled="!props.model.enabled" @click="emit('set-default')">
                 设为默认模型
-              </el-dropdown-item>
-              <el-dropdown-item @click="emit('clone')"> 复制模型 </el-dropdown-item>
-              <el-dropdown-item v-if="props.isPending" @click="emit('confirm-family')">
+              </DropdownItem>
+              <DropdownItem @click="emit('clone')"> 复制模型 </DropdownItem>
+              <DropdownItem v-if="props.isPending" @click="emit('confirm-family')">
                 确认分类
-              </el-dropdown-item>
-              <el-dropdown-item
+              </DropdownItem>
+              <DropdownItem
                 class="!text-rose-500 hover:!bg-rose-50 dark:hover:!bg-rose-950/20"
                 @click="emit('remove')"
               >
                 删除模型
-              </el-dropdown-item>
-            </el-dropdown-menu>
+              </DropdownItem>
+            </DropdownMenu>
           </template>
-        </el-dropdown>
+        </Dropdown>
       </div>
     </div>
 
@@ -263,19 +263,19 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
 
         <div class="space-y-1.5">
           <label class="text-[10px] font-bold text-slate-400">服务商/模型池</label>
-          <el-select
+          <Select
             :model-value="props.model.provider"
             size="default"
             class="w-full"
             @change="(val: string) => updateProvider(val)"
           >
-            <el-option
+            <SelectOption
               v-for="(metaData, key) in providerMeta"
               :key="key"
               :label="metaData.label"
               :value="key"
             />
-          </el-select>
+          </Select>
         </div>
 
         <div class="space-y-1.5 md:col-span-2">
@@ -494,22 +494,22 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
           <div class="space-y-1.5 md:col-span-2">
             <label class="text-[10px] font-bold text-slate-400">能力支持 (Capabilities)</label>
             <div class="flex items-center gap-3 mt-1 flex-wrap">
-              <el-checkbox
+              <Checkbox
                 :model-value="props.model.capabilities.includes('chat')"
                 label="对话 (Chat)"
                 @change="(checked: unknown) => updateCapability('chat', checked)"
               />
-              <el-checkbox
+              <Checkbox
                 :model-value="props.model.capabilities.includes('image')"
                 label="画图 (Image)"
                 @change="(checked: unknown) => updateCapability('image', checked)"
               />
-              <el-checkbox
+              <Checkbox
                 :model-value="props.model.capabilities.includes('video')"
                 label="视频 (Video)"
                 @change="(checked: unknown) => updateCapability('video', checked)"
               />
-              <el-checkbox
+              <Checkbox
                 :model-value="props.model.capabilities.includes('translate')"
                 label="翻译 (Translate)"
                 @change="(checked: unknown) => updateCapability('translate', checked)"
@@ -523,7 +523,7 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
                 >Temperature: {{ props.model.temperature }}</label
               >
             </div>
-            <el-slider
+            <Slider
               :model-value="props.model.temperature ?? 0.7"
               :min="0"
               :max="2"
@@ -591,7 +591,7 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
                 开启后，主密钥或模型失败时系统将自动切换至此模型/其他密钥
               </div>
             </div>
-            <el-switch
+            <Switch
               :model-value="props.model.failoverEnabled !== false"
               size="small"
               style="--el-switch-on-color: #6366f1; --el-switch-off-color: #94a3b8"

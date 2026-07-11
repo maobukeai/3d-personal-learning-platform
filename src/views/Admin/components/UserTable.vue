@@ -103,14 +103,14 @@ const handleRowCommand = (command: string, user: AdminUser) => {
 
 <template>
   <Card padding="none" class="table-shell-card overflow-hidden">
-    <el-table
+    <Table
       v-loading="isLoading"
       :data="users"
       class="user-table mobile-table"
       row-key="id"
       @row-dblclick="(row: AdminUser) => emit('rowDetail', row)"
     >
-      <el-table-column width="48">
+      <TableColumn width="48">
         <template #header>
           <input
             :checked="allPageSelected"
@@ -127,9 +127,9 @@ const handleRowCommand = (command: string, user: AdminUser) => {
             @change.stop="toggleSelect(row.id)"
           />
         </template>
-      </el-table-column>
+      </TableColumn>
 
-      <el-table-column label="用户" min-width="260">
+      <TableColumn label="用户" min-width="260">
         <template #default="{ row }">
           <div class="user-cell">
             <UserAvatar :user="row" size="md" />
@@ -150,25 +150,25 @@ const handleRowCommand = (command: string, user: AdminUser) => {
             </div>
           </div>
         </template>
-      </el-table-column>
+      </TableColumn>
 
-      <el-table-column label="角色" width="118">
+      <TableColumn label="角色" width="118">
         <template #default="{ row }">
           <span class="pill" :class="roleClass(row.role)">
             {{ roleLabel(row.role) }}
           </span>
         </template>
-      </el-table-column>
+      </TableColumn>
 
-      <el-table-column label="状态" width="104">
+      <TableColumn label="状态" width="104">
         <template #default="{ row }">
           <span class="pill" :class="statusClass(row.status)">
             {{ statusLabel(row.status) }}
           </span>
         </template>
-      </el-table-column>
+      </TableColumn>
 
-      <el-table-column label="最后登录" min-width="220">
+      <TableColumn label="最后登录" min-width="220">
         <template #default="{ row }">
           <div class="stack-cell">
             <span class="pill icon-pill" :class="loginClass(row)">
@@ -180,9 +180,9 @@ const handleRowCommand = (command: string, user: AdminUser) => {
             </span>
           </div>
         </template>
-      </el-table-column>
+      </TableColumn>
 
-      <el-table-column label="活跃 / 会话" min-width="220">
+      <TableColumn label="活跃 / 会话" min-width="220">
         <template #default="{ row }">
           <div class="activity-cell">
             <span>{{ activityText(row) }}</span>
@@ -198,9 +198,9 @@ const handleRowCommand = (command: string, user: AdminUser) => {
             </div>
           </div>
         </template>
-      </el-table-column>
+      </TableColumn>
 
-      <el-table-column label="内容贡献" min-width="190">
+      <TableColumn label="内容贡献" min-width="190">
         <template #default="{ row }">
           <div class="contrib-grid">
             <span>{{ row._count?.assets || 0 }} 资产</span>
@@ -209,17 +209,17 @@ const handleRowCommand = (command: string, user: AdminUser) => {
             <span>{{ row._count?.projects || 0 }} 项目</span>
           </div>
         </template>
-      </el-table-column>
+      </TableColumn>
 
-      <el-table-column label="订阅" width="132">
+      <TableColumn label="订阅" width="132">
         <template #default="{ row }">
           <button class="pill sub-button" type="button" @click.stop="emit('rowSubscription', row)">
             {{ planLabel(row) }}
           </button>
         </template>
-      </el-table-column>
+      </TableColumn>
 
-      <el-table-column label="安全" min-width="170">
+      <TableColumn label="安全" min-width="170">
         <template #default="{ row }">
           <div class="stack-cell">
             <span class="pill icon-pill" :class="riskClass(row)">
@@ -233,66 +233,66 @@ const handleRowCommand = (command: string, user: AdminUser) => {
             </span>
           </div>
         </template>
-      </el-table-column>
+      </TableColumn>
 
-      <el-table-column label="注册时间" width="132">
+      <TableColumn label="注册时间" width="132">
         <template #default="{ row }">
           {{ formatDateShort(row.createdAt) }}
         </template>
-      </el-table-column>
+      </TableColumn>
 
-      <el-table-column label="操作" width="94">
+      <TableColumn label="操作" width="94">
         <template #default="{ row }">
-          <el-dropdown
+          <Dropdown
             trigger="click"
             @command="(command: unknown) => handleRowCommand(String(command), row)"
           >
-            <el-button class="icon-button" text>
+            <Button class="icon-button" text>
               <MoreHorizontal :size="18" />
-            </el-button>
+            </Button>
             <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="detail">
+              <DropdownMenu>
+                <DropdownItem command="detail">
                   <Eye :size="14" />
                   查看画像
-                </el-dropdown-item>
-                <el-dropdown-item command="copy-email">
+                </DropdownItem>
+                <DropdownItem command="copy-email">
                   <Copy :size="14" />
                   复制邮箱
-                </el-dropdown-item>
-                <el-dropdown-item command="edit">
+                </DropdownItem>
+                <DropdownItem command="edit">
                   <UserCog :size="14" />
                   编辑资料
-                </el-dropdown-item>
-                <el-dropdown-item command="subscription">
+                </DropdownItem>
+                <DropdownItem command="subscription">
                   <CreditCard :size="14" />
                   订阅管理
-                </el-dropdown-item>
-                <el-dropdown-item command="reset">
+                </DropdownItem>
+                <DropdownItem command="reset">
                   <KeyRound :size="14" />
                   重置密码
-                </el-dropdown-item>
-                <el-dropdown-item command="revoke">
+                </DropdownItem>
+                <DropdownItem command="revoke">
                   <TimerReset :size="14" />
                   清退登录态
-                </el-dropdown-item>
-                <el-dropdown-item command="revoke-device">
+                </DropdownItem>
+                <DropdownItem command="revoke-device">
                   <Fingerprint :size="14" />
                   移除可信设备
-                </el-dropdown-item>
-                <el-dropdown-item command="status">
+                </DropdownItem>
+                <DropdownItem command="status">
                   <Ban :size="14" />
                   {{ row.status === 'BANNED' ? '恢复账号' : '封禁账号' }}
-                </el-dropdown-item>
-                <el-dropdown-item command="delete" divided>
+                </DropdownItem>
+                <DropdownItem command="delete" divided>
                   <Trash2 :size="14" />
                   永久删除
-                </el-dropdown-item>
-              </el-dropdown-menu>
+                </DropdownItem>
+              </DropdownMenu>
             </template>
-          </el-dropdown>
+          </Dropdown>
         </template>
-      </el-table-column>
+      </TableColumn>
 
       <template #empty>
         <div class="empty-state">
@@ -300,11 +300,11 @@ const handleRowCommand = (command: string, user: AdminUser) => {
           <span>暂无匹配用户</span>
         </div>
       </template>
-    </el-table>
+    </Table>
 
     <div class="pagination-wrap mobile-row">
       <span>当前筛选显示 {{ users.length }} 条</span>
-      <el-pagination
+      <Pagination
         background
         :current-page="pagination.page"
         :page-size="pagination.limit"
@@ -325,22 +325,6 @@ const handleRowCommand = (command: string, user: AdminUser) => {
 
 .user-table {
   width: 100%;
-}
-
-.user-table :deep(.el-table__header th) {
-  height: 40px;
-  background: #f8fafc;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.user-table :deep(.el-table__row) {
-  height: 48px;
-}
-
-.user-table :deep(.el-table__cell) {
-  padding: 4px 0;
 }
 
 .select-checkbox {
@@ -505,13 +489,6 @@ const handleRowCommand = (command: string, user: AdminUser) => {
   font-size: 13px;
   border-top: 1px solid #edf2f7;
 }
-
-:deep(.el-dropdown-menu__item) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 @media (max-width: 720px) {
   .pagination-wrap {
     align-items: stretch;

@@ -1,23 +1,13 @@
 import { logger } from '../../utils/logger';
 import prisma from '../../services/prisma';
 import { gbToBytes } from '../../utils/quota';
-import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import dns from 'dns/promises';
 import net from 'net';
 import { Readable } from 'stream';
-import { pipeline } from 'stream/promises';
 import * as cheerio from 'cheerio';
 import { storageService } from '../../services/storage.service';
-
-const safeUnlink = (p: string) =>
-  fs.promises.unlink(p).catch((err) => {
-    const code = (err as NodeJS.ErrnoException)?.code;
-    if (code !== 'ENOENT') {
-      logger.warn(`[safeUnlink] Failed to unlink ${p}:`, err);
-    }
-  });
 
 const MAX_REDIRECTS = 3;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -72,17 +62,6 @@ const isBlockedIp = (ip: string): boolean => {
 };
 
 class ThumbnailLocalizer {
-  private baseDir: string;
-  private baseUrl: string;
-
-  constructor() {
-    this.baseDir = path.join(process.cwd(), 'uploads', 'mirror');
-    this.baseUrl = '/uploads/mirror';
-    if (!fs.existsSync(this.baseDir)) {
-      fs.mkdirSync(this.baseDir, { recursive: true });
-    }
-  }
-
   private async assertPublicHttpUrl(url: URL): Promise<void> {
     if (url.protocol !== 'http:' && url.protocol !== 'https:') {
       throw new Error('Only HTTP(S) image URLs are allowed');
@@ -140,6 +119,77 @@ class ThumbnailLocalizer {
     throw new Error('Too many redirects');
   }
 
+  /**
+   * Downloads a response body into a Buffer while enforcing a hard size limit.
+   * Aborts early if the stream exceeds MAX_IMAGE_BYTES to avoid memory pressure.
+   */
+  private async downloadToBuffer(response: Response): Promise<Buffer> {
+    if (!response.body) {
+      const buf = Buffer.from(await response.arrayBuffer());
+      if (buf.byteLength > MAX_IMAGE_BYTES) {
+        throw new Error('Image exceeds maximum size');
+      }
+      return buf;
+    }
+
+    const chunks: Buffer[] = [];
+    let bytesWritten = 0;
+    const stream = Readable.fromWeb(
+      response.body as unknown as Parameters<typeof Readable.fromWeb>[0],
+    );
+
+    return new Promise<Buffer>((resolve, reject) => {
+      stream.on('data', (chunk) => {
+        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        bytesWritten += buf.byteLength;
+        if (bytesWritten > MAX_IMAGE_BYTES) {
+          stream.destroy(new Error('Image exceeds maximum size'));
+          return;
+        }
+        chunks.push(buf);
+      });
+      stream.on('end', () => resolve(Buffer.concat(chunks)));
+      stream.on('error', reject);
+    });
+  }
+
+  /**
+   * Resolves an active storage config for MIRROR assets, falling back to ALL.
+   * Returns null when no active config exists.
+   */
+  private async getActiveConfigs() {
+    let configs = await prisma.storageConfig.findMany({
+      where: {
+        status: 'ACTIVE',
+        assetType: 'MIRROR',
+      },
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    if (configs.length === 0) {
+      configs = await prisma.storageConfig.findMany({
+        where: {
+          status: 'ACTIVE',
+          assetType: 'ALL',
+        },
+        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+      });
+    }
+
+    return configs;
+  }
+
+  /**
+   * Derives the MIME type from a file extension.
+   */
+  private getMimetype(ext: string): string {
+    if (ext === '.png') return 'image/png';
+    if (ext === '.gif') return 'image/gif';
+    if (ext === '.webp') return 'image/webp';
+    if (ext === '.svg') return 'image/svg+xml';
+    return 'image/jpeg';
+  }
+
   async localize(originalUrl: string | null | undefined, sourceId: string): Promise<string | null> {
     if (!originalUrl) return null;
 
@@ -148,101 +198,14 @@ class ThumbnailLocalizer {
       await this.assertPublicHttpUrl(url);
       const ext = this.getExtension(url.pathname) || '.jpg';
       const hash = crypto.createHash('md5').update(originalUrl).digest('hex').slice(0, 12);
-      const sourceDir = path.join(this.baseDir, sourceId);
-
-      await fs.promises.mkdir(sourceDir, { recursive: true });
-
       const fileName = `${hash}${ext}`;
-      const filePath = path.join(sourceDir, fileName);
-      const localUrl = `${this.baseUrl}/${sourceId}/${fileName}`;
-
-      if (
-        await fs.promises
-          .access(filePath)
-          .then(() => true)
-          .catch(() => false)
-      ) {
-        // Check active configurations: prioritize MIRROR, then ALL fallback
-        let configs = await prisma.storageConfig.findMany({
-          where: {
-            status: 'ACTIVE',
-            assetType: 'MIRROR',
-          },
-          orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-        });
-
-        if (configs.length === 0) {
-          configs = await prisma.storageConfig.findMany({
-            where: {
-              status: 'ACTIVE',
-              assetType: 'ALL',
-            },
-            orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-          });
-        }
-
-        if (configs.length > 0) {
-          const stats = await fs.promises.stat(filePath);
-          const fileBytes = stats.size;
-
-          for (const config of configs) {
-            const limitBytes = gbToBytes(config.limitGb);
-            const updateResult = await prisma.storageConfig.updateMany({
-              where: {
-                id: config.id,
-                status: 'ACTIVE',
-                usedBytes: { lte: limitBytes - fileBytes },
-              },
-              data: {
-                usedBytes: { increment: fileBytes },
-              },
-            });
-
-            if (updateResult.count > 0) {
-              try {
-                const key = `mirror/${sourceId}/${fileName}`;
-                let mimetype = 'image/jpeg';
-                if (ext === '.png') mimetype = 'image/png';
-                else if (ext === '.gif') mimetype = 'image/gif';
-                else if (ext === '.webp') mimetype = 'image/webp';
-                else if (ext === '.svg') mimetype = 'image/svg+xml';
-
-                const r2Url = await storageService.uploadFile(
-                  {
-                    endpoint: config.endpoint,
-                    accessKeyId: config.accessKeyId,
-                    secretAccessKey: config.secretAccessKey,
-                    bucketName: config.bucketName,
-                    publicUrl: config.publicUrl,
-                  },
-                  filePath,
-                  key,
-                  mimetype,
-                );
-
-                await fs.promises.unlink(filePath);
-                return r2Url;
-              } catch (err) {
-                logger.error(
-                  `[ThumbnailLocalizer] Upload existing file to R2 config [${config.name}] failed:`,
-                  err,
-                );
-                await prisma.storageConfig.update({
-                  where: { id: config.id },
-                  data: { usedBytes: { decrement: fileBytes } },
-                });
-              }
-            }
-          }
-        }
-
-        return localUrl;
-      }
+      const key = `mirror/${sourceId}/${fileName}`;
+      const mimetype = this.getMimetype(ext);
 
       // Add Referer matching the origin domain to bypass hotlink protection
       const referer = `${url.protocol}//${url.host}`;
       let response: Response | null = null;
-      let lastError: any = null;
+      let lastError: unknown = null;
       const retries = 2;
 
       for (let attempt = 0; attempt <= retries; attempt++) {
@@ -269,7 +232,7 @@ class ThumbnailLocalizer {
 
       if (!response || !response.ok) {
         logger.warn(
-          `[ThumbnailLocalizer] Failed to download ${originalUrl} after ${retries + 1} attempts: ${lastError?.message}`,
+          `[ThumbnailLocalizer] Failed to download ${originalUrl} after ${retries + 1} attempts: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
         );
         return originalUrl;
       }
@@ -288,102 +251,74 @@ class ThumbnailLocalizer {
         return originalUrl;
       }
 
-      if (response.body) {
-        let bytesWritten = 0;
-        let limitedStream: Readable;
-        limitedStream = Readable.fromWeb(response.body as any).on('data', (chunk) => {
-          bytesWritten += Buffer.byteLength(chunk);
-          if (bytesWritten > MAX_IMAGE_BYTES) {
-            limitedStream.destroy(new Error('Image exceeds maximum size'));
-          }
-        });
-        await pipeline(limitedStream, fs.createWriteStream(filePath));
-      } else {
-        const buffer = Buffer.from(await response.arrayBuffer());
-        if (buffer.byteLength > MAX_IMAGE_BYTES) {
-          logger.warn(
-            `[ThumbnailLocalizer] Image too large: ${originalUrl} (${buffer.byteLength} bytes)`,
-          );
-          return originalUrl;
-        }
-        await fs.promises.writeFile(filePath, buffer);
+      // Download into an in-memory buffer (no local disk IO)
+      let buffer: Buffer;
+      try {
+        buffer = await this.downloadToBuffer(response);
+      } catch (downloadErr) {
+        logger.warn(
+          `[ThumbnailLocalizer] Download aborted for ${originalUrl}: ${downloadErr instanceof Error ? downloadErr.message : String(downloadErr)}`,
+        );
+        return originalUrl;
       }
 
-      // Check active configurations: prioritize MIRROR, then ALL fallback
-      let configs = await prisma.storageConfig.findMany({
-        where: {
-          status: 'ACTIVE',
-          assetType: 'MIRROR',
-        },
-        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-      });
+      // Find active R2 storage configs: prioritize MIRROR, then ALL fallback
+      const configs = await this.getActiveConfigs();
 
       if (configs.length === 0) {
-        configs = await prisma.storageConfig.findMany({
-          where: {
-            status: 'ACTIVE',
-            assetType: 'ALL',
-          },
-          orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-        });
+        logger.warn(
+          `[ThumbnailLocalizer] No active R2 storage config; returning original URL: ${originalUrl}`,
+        );
+        return originalUrl;
       }
 
-      if (configs.length > 0) {
-        const stats = await fs.promises.stat(filePath);
-        const fileBytes = stats.size;
+      const fileBytes = buffer.byteLength;
 
-        for (const config of configs) {
-          const limitBytes = gbToBytes(config.limitGb);
-          const updateResult = await prisma.storageConfig.updateMany({
-            where: {
-              id: config.id,
-              status: 'ACTIVE',
-              usedBytes: { lte: limitBytes - fileBytes },
-            },
-            data: {
-              usedBytes: { increment: fileBytes },
-            },
-          });
+      for (const config of configs) {
+        const limitBytes = gbToBytes(config.limitGb);
+        // Try to reserve space atomically
+        const updateResult = await prisma.storageConfig.updateMany({
+          where: {
+            id: config.id,
+            status: 'ACTIVE',
+            usedBytes: { lte: limitBytes - fileBytes },
+          },
+          data: {
+            usedBytes: { increment: fileBytes },
+          },
+        });
 
-          if (updateResult.count > 0) {
-            try {
-              const key = `mirror/${sourceId}/${fileName}`;
-              let mimetype = 'image/jpeg';
-              if (ext === '.png') mimetype = 'image/png';
-              else if (ext === '.gif') mimetype = 'image/gif';
-              else if (ext === '.webp') mimetype = 'image/webp';
-              else if (ext === '.svg') mimetype = 'image/svg+xml';
-
-              const r2Url = await storageService.uploadFile(
-                {
-                  endpoint: config.endpoint,
-                  accessKeyId: config.accessKeyId,
-                  secretAccessKey: config.secretAccessKey,
-                  bucketName: config.bucketName,
-                  publicUrl: config.publicUrl,
-                },
-                filePath,
-                key,
-                mimetype,
-              );
-
-              await safeUnlink(filePath);
-              return r2Url;
-            } catch (err) {
-              logger.error(
-                `[ThumbnailLocalizer] Upload downloaded to R2 config [${config.name}] failed:`,
-                err,
-              );
-              await prisma.storageConfig.update({
-                where: { id: config.id },
-                data: { usedBytes: { decrement: fileBytes } },
-              });
-            }
+        if (updateResult.count > 0) {
+          try {
+            const r2Url = await storageService.uploadBuffer(
+              {
+                endpoint: config.endpoint,
+                accessKeyId: config.accessKeyId,
+                secretAccessKey: config.secretAccessKey,
+                bucketName: config.bucketName,
+                publicUrl: config.publicUrl,
+              },
+              buffer,
+              key,
+              mimetype,
+            );
+            return r2Url;
+          } catch (err) {
+            logger.error(`[ThumbnailLocalizer] Upload to R2 config [${config.name}] failed:`, err);
+            // Revert reserved space
+            await prisma.storageConfig.update({
+              where: { id: config.id },
+              data: { usedBytes: { decrement: fileBytes } },
+            });
           }
         }
       }
 
-      return localUrl;
+      // All configs failed — return original URL (no local fallback)
+      logger.warn(
+        `[ThumbnailLocalizer] All R2 configs failed for ${originalUrl}; returning original URL`,
+      );
+      return originalUrl;
     } catch (e) {
       logger.warn(
         `[ThumbnailLocalizer] Error localizing ${originalUrl}: ${e instanceof Error ? e.message : String(e)}`,
@@ -478,85 +413,22 @@ class ThumbnailLocalizer {
     }
   }
 
-  deleteSourceFiles(sourceId: string): void {
-    const sourceDir = path.join(this.baseDir, sourceId);
-    if (fs.existsSync(sourceDir)) {
-      fs.rmSync(sourceDir, { recursive: true, force: true });
-    }
+  /**
+   * Previously deleted locally-cached files for a source. With zero-local-IO,
+   * thumbnails live only in R2 — this is now a no-op kept for API compatibility.
+   */
+  deleteSourceFiles(_sourceId: string): void {
+    // No-op: files are stored in R2, not on local disk.
   }
 
+  /**
+   * Previously scanned the local mirror directory and removed orphaned files.
+   * With zero-local-IO, there are no local files to clean — returns empty.
+   */
   async cleanupOrphanedImages(
-    sourceId: string,
+    _sourceId: string,
   ): Promise<{ deletedCount: number; savedBytes: number }> {
-    try {
-      const sourceDir = path.join(this.baseDir, sourceId);
-      if (
-        !(await fs.promises
-          .access(sourceDir)
-          .then(() => true)
-          .catch(() => false))
-      ) {
-        return { deletedCount: 0, savedBytes: 0 };
-      }
-
-      // 1. Get all resources belonging to this source from the database
-      const resources = await prisma.mirrorResource.findMany({
-        where: { sourceId },
-        select: { thumbnailUrl: true, contentHtml: true },
-      });
-
-      // 2. Extract referenced filenames
-      const referencedFiles = new Set<string>();
-      for (const r of resources) {
-        if (r.thumbnailUrl && r.thumbnailUrl.startsWith(`/uploads/mirror/${sourceId}/`)) {
-          referencedFiles.add(path.basename(r.thumbnailUrl));
-        }
-        if (r.contentHtml && r.contentHtml.includes(`/uploads/mirror/${sourceId}/`)) {
-          const regex = new RegExp(`/uploads/mirror/${sourceId}/([^"'\\s>)]+)`, 'g');
-          let match;
-          while ((match = regex.exec(r.contentHtml)) !== null) {
-            if (match[1]) {
-              const part = match[1].split(/[?#]/)[0];
-              if (part) {
-                referencedFiles.add(path.basename(part));
-              }
-            }
-          }
-        }
-      }
-
-      // 3. Scan directory and delete orphaned files
-      const filenames = await fs.promises.readdir(sourceDir);
-      let deletedCount = 0;
-      let savedBytes = 0;
-
-      for (const filename of filenames) {
-        const filePath = path.join(sourceDir, filename);
-        const stats = await fs.promises.stat(filePath);
-        if (stats.isFile()) {
-          if (!referencedFiles.has(filename)) {
-            const size = stats.size;
-            await fs.promises.unlink(filePath);
-            deletedCount++;
-            savedBytes += size;
-          }
-        }
-      }
-
-      if (deletedCount > 0) {
-        logger.info(
-          `[ThumbnailLocalizer] Cleaned up ${deletedCount} orphaned files for source ${sourceId}, saved ${(savedBytes / 1024 / 1024).toFixed(2)} MB.`,
-        );
-      }
-
-      return { deletedCount, savedBytes };
-    } catch (e) {
-      logger.error(
-        `[ThumbnailLocalizer] Failed to cleanup orphaned images for source ${sourceId}:`,
-        e instanceof Error ? e.message : String(e),
-      );
-      return { deletedCount: 0, savedBytes: 0 };
-    }
+    return { deletedCount: 0, savedBytes: 0 };
   }
 
   private getExtension(pathname: string): string {

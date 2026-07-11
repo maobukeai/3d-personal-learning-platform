@@ -72,6 +72,15 @@ const router = createRouter({
       name: 'TemporaryShare',
       component: () => import('@/views/TemporaryNetdisk/ShareView.vue'),
     },
+    ...(import.meta.env.DEV
+      ? [
+          {
+            path: '/dev/a11y',
+            name: 'A11yTest',
+            component: () => import('@/views/Dev/A11yTestView.vue'),
+          },
+        ]
+      : []),
     {
       path: '/:pathMatch(.*)*',
       redirect: '/404',
@@ -472,9 +481,6 @@ router.beforeEach(async (to) => {
 
 router.afterEach(() => {
   if (typeof document !== 'undefined') {
-    document.querySelectorAll('.el-overlay').forEach((el) => {
-      el.remove();
-    });
     document.body.style.removeProperty('overflow');
     document.body.style.removeProperty('width');
   }

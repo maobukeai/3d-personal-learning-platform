@@ -1,170 +1,330 @@
 <script setup lang="ts">
-import { onUnmounted, watch } from 'vue';
+import { computed, onUnmounted, ref, useSlots, watch } from 'vue';
+import {
+  DialogRoot,
+  DialogPortal,
+  DialogOverlay,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from 'radix-vue';
 import { X } from 'lucide-vue-next';
-import Card from './Card.vue';
-import GlassCard from './GlassCard.vue';
+import { useOverlayManager } from '@/composables/useOverlayManager';
+
+/**
+ * Modal — Industrial Craft Workbench dialog primitive (radix-vue Dialog).
+ *
+ * Variants:
+ *  - glass (default): standard business dialog with physical glass texture.
+ *  - immersive: glass surface — ONLY for 3D preview / command palette.
+ *  - solid: opaque surface (--surface-solid), 12px radius, no transparency.
+ *
+ * Structure: Header (title, optional description, close) → Body (only
+ * scrollable area) → Footer (fixed action area).
+ */
+type ModalVariant = 'glass' | 'immersive' | 'solid';
+type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'fullscreen' | 'presentation';
+type ModalPadding = 'none' | 'sm' | 'md' | 'lg';
+type InitialFocus = 'auto' | 'first' | 'title';
 
 interface Props {
   show: boolean;
   title?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
+  description?: string;
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | 'fullscreen' | 'presentation';
+  /** Surface variant. */
+  variant?: 'glass' | 'immersive' | 'solid';
   closeOnOutsideClick?: boolean;
-  padding?: 'none' | 'sm' | 'md' | 'lg';
+  closeOnEscape?: boolean;
+  padding?: ModalPadding;
+  /**
+   * Initial focus strategy on open.
+   *  - 'auto'  : radix default (first focusable in content)
+   *  - 'first' : first focusable element inside the body (default — skips
+   *              the close button so short forms land on the first field)
+   *  - 'title' : the dialog title (for long content / non-form dialogs)
+   */
+  initialFocus?: InitialFocus;
+  /** @deprecated Use size="fullscreen" instead. */
   fullscreen?: boolean;
+  /** Override z-index. */
   zIndex?: number;
-  glassCard?: boolean;
+  /** Whether to show the built-in close button. */
+  showClose?: boolean;
+  /** Optional class applied to the dialog surface for product-specific sizing. */
+  contentClass?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   title: '',
+  description: '',
   size: 'md',
+  variant: 'glass',
   closeOnOutsideClick: true,
+  closeOnEscape: true,
   padding: 'lg',
+  initialFocus: 'first',
   fullscreen: false,
-  zIndex: 1000,
-  glassCard: true,
+  showClose: true,
+  contentClass: '',
 });
 
 const emit = defineEmits<{
   (e: 'close'): void;
 }>();
 
-const close = () => {
-  emit('close');
+const slots = useSlots();
+
+const close = () => emit('close');
+
+const onOpenChange = (open: boolean) => {
+  if (!open) close();
 };
 
-const handleOutsideClick = (event: MouseEvent) => {
-  if (props.closeOnOutsideClick && event.target === event.currentTarget) {
-    close();
+const onInteractOutside = (event: Event) => {
+  if (!props.closeOnOutsideClick) {
+    event.preventDefault();
   }
 };
 
-const handleKeyDown = (event: KeyboardEvent) => {
-  if (event.key === 'Escape') {
-    close();
+const onEscapeKeyDown = (event: KeyboardEvent) => {
+  if (!props.closeOnEscape) {
+    event.preventDefault();
   }
 };
+
+// ── Overlay Stack Management ─────────────────────────────────────────
+const { register, unregister, activeOverlays } = useOverlayManager();
+const overlayId = ref<symbol | null>(null);
 
 watch(
   () => props.show,
-  (newVal) => {
-    if (newVal) {
-      document.body.style.overflow = 'hidden';
-      window.addEventListener('keydown', handleKeyDown);
+  (show) => {
+    if (show) {
+      if (!overlayId.value) {
+        overlayId.value = register('modal');
+      }
     } else {
-      document.body.style.overflow = '';
-      window.removeEventListener('keydown', handleKeyDown);
+      if (overlayId.value) {
+        unregister(overlayId.value);
+        overlayId.value = null;
+      }
     }
   },
+  { immediate: true },
+);
+
+watch(
+  () => activeOverlays.value.length,
+  (len) => {
+    if (typeof document === 'undefined') return;
+    const app = document.getElementById('app');
+    if (!app) return;
+    if (len > 0) {
+      app.setAttribute('inert', '');
+      app.setAttribute('aria-hidden', 'true');
+    } else {
+      app.removeAttribute('inert');
+      app.removeAttribute('aria-hidden');
+    }
+  },
+  { immediate: true },
 );
 
 onUnmounted(() => {
-  document.body.style.overflow = '';
-  window.removeEventListener('keydown', handleKeyDown);
+  if (overlayId.value) {
+    unregister(overlayId.value);
+    overlayId.value = null;
+  }
+  if (typeof document !== 'undefined') {
+    const app = document.getElementById('app');
+    if (app && activeOverlays.value.length === 0) {
+      app.removeAttribute('inert');
+      app.removeAttribute('aria-hidden');
+    }
+  }
 });
+
+const stackIndex = computed(() => {
+  if (!overlayId.value) return -1;
+  return activeOverlays.value.findIndex((entry) => entry.id === overlayId.value);
+});
+
+const calculatedZIndex = computed(() => {
+  if (props.zIndex != null) return props.zIndex;
+  const idx = stackIndex.value;
+  if (idx <= 0) return undefined;
+  // Nested overlay layering base
+  return 1300 + idx * 10;
+});
+
+const overlayStyle = computed(() => {
+  const z = calculatedZIndex.value;
+  return z ? { zIndex: z } : {};
+});
+
+const contentStyle = computed(() => {
+  const z = calculatedZIndex.value;
+  return z ? { zIndex: z + 1 } : {};
+});
+
+// ── Variant resolution ──────────────────────────────────────────────
+const resolvedVariant = computed<ModalVariant>(() => {
+  return props.variant === 'immersive' ? 'immersive' : 'glass';
+});
+
+const isFullscreen = computed(() => props.fullscreen || props.size === 'fullscreen');
+
+const resolvedSize = computed<ModalSize>(() => {
+  if (isFullscreen.value) return 'fullscreen';
+  if (props.size === 'xxl') return 'xl'; // backward-compat alias
+  return (props.size ?? 'md') as ModalSize;
+});
+
+const sizeMaxWidth = computed<string | undefined>(() => {
+  switch (resolvedSize.value) {
+    case 'sm':
+      return '440px';
+    case 'lg':
+      return '840px';
+    case 'xl':
+      return '1280px';
+    case 'presentation':
+      return '1440px';
+    case 'fullscreen':
+      return undefined;
+    case 'md':
+    default:
+      return '580px';
+  }
+});
+
+// ── a11y title / description visibility ─────────────────────────────
+const showVisibleTitle = computed(() => !!props.title && !slots.header);
+const showSrOnlyTitle = computed(() => !showVisibleTitle.value);
+const srOnlyTitleText = computed(() => props.title || 'Dialog');
+
+const showVisibleDescription = computed(() => !!props.description && !slots.header);
+const showSrOnlyDescription = computed(() => !showVisibleDescription.value);
+const srOnlyDescriptionText = computed(() => props.description || 'Dialog content');
+
+// ── Class / style bindings ──────────────────────────────────────────
+const surfaceClasses = computed(() => {
+  const classes = [
+    'modal-surface',
+    `modal-surface--${resolvedVariant.value}`,
+    `modal-surface--pad-${props.padding}`,
+    props.contentClass,
+  ];
+  if (isFullscreen.value) classes.push('modal-surface--fullscreen');
+  return classes;
+});
+
+const surfaceStyle = computed(() => {
+  const s: Record<string, string> = {};
+  if (sizeMaxWidth.value) s.maxWidth = sizeMaxWidth.value;
+  return s;
+});
+
+const contentClasses = computed(() => {
+  const classes = ['modal-content'];
+  if (isFullscreen.value) classes.push('modal-content--fullscreen');
+  return classes;
+});
+
+// ── Focus management ────────────────────────────────────────────────
+const titleRef = ref<HTMLElement | null>(null);
+const bodyRef = ref<HTMLElement | null>(null);
+
+const onOpenAutoFocus = (event: Event) => {
+  if (props.initialFocus === 'auto') return;
+
+  if (props.initialFocus === 'title') {
+    if (titleRef.value) {
+      event.preventDefault();
+      titleRef.value.focus();
+    }
+    return;
+  }
+
+  const body = bodyRef.value;
+  if (body) {
+    const selector =
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const focusable = body.querySelector<HTMLElement>(selector);
+    if (focusable) {
+      event.preventDefault();
+      focusable.focus();
+    }
+  }
+};
 </script>
 
 <template>
-  <Teleport to="body">
-    <!-- Frosted Glass Backdrop Overlay -->
-    <transition
-      enter-active-class="transition-opacity duration-150 ease-out"
-      leave-active-class="transition-opacity duration-100 ease-in"
-      enter-from-class="opacity-0"
-      leave-to-class="opacity-0"
-    >
-      <div
-        v-if="show"
-        class="fixed inset-0 bg-black/40 backdrop-blur-md dark:bg-black/60 modal-backdrop-overlay"
-        :style="{ zIndex: zIndex - 1 }"
-        @click="handleOutsideClick"
-      ></div>
-    </transition>
+  <DialogRoot :open="show" @update:open="onOpenChange">
+    <DialogPortal>
+      <DialogOverlay class="modal-overlay" :style="overlayStyle" />
 
-    <transition
-      enter-active-class="transition-all duration-150 ease-out"
-      leave-active-class="transition-all duration-100 ease-in"
-      enter-from-class="opacity-0 scale-98"
-      leave-to-class="opacity-0 scale-98"
-    >
-      <div
-        v-if="show"
-        class="fixed inset-0 flex justify-center pointer-events-none"
-        :style="{ zIndex: zIndex }"
-        :class="[
-          fullscreen
-            ? 'p-0 overflow-hidden items-stretch'
-            : 'p-3 sm:p-4 overflow-y-auto items-start',
-          fullscreen ? 'pointer-events-auto' : '',
-        ]"
+      <DialogContent
+        :class="contentClasses"
+        :style="contentStyle"
+        :aria-modal="true"
+        @interact-outside="onInteractOutside"
+        @escape-key-down="onEscapeKeyDown"
+        @open-auto-focus="onOpenAutoFocus"
       >
-        <!-- Modal Content Container -->
-        <div
-          class="relative z-10 transform transition-all duration-300 pointer-events-auto"
-          :class="[
-            fullscreen ? 'w-screen h-screen max-w-none m-0' : 'w-full my-auto',
-            !fullscreen &&
-              (size === 'sm'
-                ? 'max-w-md'
-                : size === 'lg'
-                  ? 'max-w-2xl'
-                  : size === 'xl'
-                    ? 'max-w-4xl'
-                    : size === 'xxl'
-                      ? 'max-w-6xl'
-                      : 'max-w-lg'),
-          ]"
-        >
-          <component
-            :is="glassCard ? GlassCard : Card"
-            :padding="padding"
-            v-bind="glassCard ? {} : { glass: true }"
-            class="shadow-[0_25px_60px_rgba(0,0,0,0.35)]"
-            :class="fullscreen ? 'rounded-none h-screen w-screen border-none max-w-none' : ''"
-          >
-            <!-- Header -->
-            <div
-              v-if="title || $slots.header"
-              class="premium-card-header flex items-center justify-between mb-5 pb-3 border-b border-strong/40"
-              :class="padding === 'none' ? 'px-6 pt-5' : ''"
-            >
-              <slot name="header">
-                <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">
-                  {{ title }}
-                </h3>
-              </slot>
+        <div :class="surfaceClasses" :style="surfaceStyle">
+          <!-- Screen-reader-only DialogTitle (renders when no visible title) -->
+          <DialogTitle v-if="showSrOnlyTitle" as-child>
+            <span class="sr-only">{{ srOnlyTitleText }}</span>
+          </DialogTitle>
 
-              <button
-                type="button"
-                class="rounded-full p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all duration-200"
-                @click="close"
-              >
-                <X class="w-5 h-5" />
+          <!-- Screen-reader-only DialogDescription (renders when no visible description) -->
+          <DialogDescription v-if="showSrOnlyDescription" as-child>
+            <span class="sr-only">{{ srOnlyDescriptionText }}</span>
+          </DialogDescription>
+
+          <!-- Header: title, optional description, close button -->
+          <header v-if="title || description || slots.header" class="modal-header">
+            <slot name="header">
+              <div class="modal-header-text">
+                <DialogTitle v-if="title" as-child>
+                  <h2 ref="titleRef" tabindex="-1" class="modal-title">
+                    {{ title }}
+                  </h2>
+                </DialogTitle>
+                <DialogDescription v-if="description" as-child>
+                  <p class="modal-description">{{ description }}</p>
+                </DialogDescription>
+              </div>
+            </slot>
+
+            <DialogClose v-if="showClose" as-child>
+              <button type="button" class="modal-close" aria-label="Close">
+                <X :size="20" />
               </button>
-            </div>
+            </DialogClose>
+          </header>
 
-            <!-- Body -->
-            <div class="modal-body text-sm text-[var(--text-secondary)]">
-              <slot></slot>
-            </div>
+          <!-- Floating close button when there is no header -->
+          <DialogClose v-else-if="showClose" as-child>
+            <button type="button" class="modal-close modal-close--floating" aria-label="Close">
+              <X :size="20" />
+            </button>
+          </DialogClose>
 
-            <!-- Footer -->
-            <div
-              v-if="$slots.footer"
-              class="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-white/10"
-            >
-              <slot name="footer"></slot>
-            </div>
-          </component>
+          <!-- Body: the only scrollable area -->
+          <div ref="bodyRef" class="modal-body">
+            <slot />
+          </div>
+
+          <!-- Footer: fixed action area -->
+          <footer v-if="slots.footer" class="modal-footer">
+            <slot name="footer" />
+          </footer>
         </div>
-      </div>
-    </transition>
-  </Teleport>
+      </DialogContent>
+    </DialogPortal>
+  </DialogRoot>
 </template>
-
-<style scoped>
-.modal-backdrop-overlay {
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-}
-</style>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import { Download, FileJson, KeyRound, ShieldAlert, ShieldCheck, Trash2 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import {

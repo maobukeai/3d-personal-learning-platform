@@ -1,8 +1,7 @@
 import { logger } from '../../utils/logger';
-import { Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import { Prisma } from '@prisma/client';
 import prisma from '../../services/prisma';
-import { AuthRequest } from '../../middlewares/auth.middleware';
 import { parseBilibiliUrl } from '../../utils/bilibili';
 import { parseYoutubeUrl } from '../../utils/youtube';
 import { parseGithubUrl } from '../../utils/github';
@@ -11,10 +10,17 @@ import { createPaginationMeta, getPaginationParams } from '../../utils/paginatio
 import { streamLLMChat, AIServiceConfig, AIChatMessage } from '../../services/ai.service';
 import { getAIModelById, settingsService } from '../../services/settings.service';
 
-export const parseExternalLink = async (req: AuthRequest, res: Response, next: NextFunction) => {
+type AdminRequest = FastifyRequest & {
+  body: any;
+  query: any;
+  params: any;
+  file?: any;
+};
+
+export const parseExternalLink = async (req: AdminRequest, reply: FastifyReply) => {
   const { url } = req.body;
   if (!url) {
-    return next(new AppError('URL is required', 400));
+    throw new AppError('URL is required', 400);
   }
 
   try {
@@ -26,20 +32,16 @@ export const parseExternalLink = async (req: AuthRequest, res: Response, next: N
     } else if (url.includes('github.com')) {
       metadata = await parseGithubUrl(url);
     } else {
-      return next(new AppError('不支持的平台，目前仅支持 B站、YouTube 和 GitHub。', 400));
+      throw new AppError('不支持的平台，目前仅支持 B站、YouTube 和 GitHub。', 400);
     }
-    res.json(metadata);
+    reply.send(metadata);
   } catch (error) {
     logger.error('Parse link error:', error);
-    next(new AppError(error instanceof Error ? error.message : '解析链接失败', 400));
+    throw new AppError(error instanceof Error ? error.message : '解析链接失败', 400);
   }
 };
 
-export const createCourseWithLessons = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const createCourseWithLessons = async (req: AdminRequest, reply: FastifyReply) => {
   const { title, description, thumbnail, lessons, categoryId } = req.body;
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -75,19 +77,15 @@ export const createCourseWithLessons = async (
       });
     });
 
-    res.status(201).json(result);
+    reply.status(201).send(result);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // --- Course Category Management ---
 
-export const getAllCourseCategories = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const getAllCourseCategories = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const categories = await prisma.courseCategory.findMany({
       orderBy: { order: 'asc' },
@@ -97,25 +95,25 @@ export const getAllCourseCategories = async (
         },
       },
     });
-    res.json(categories);
+    reply.send(categories);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createCourseCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createCourseCategory = async (req: AdminRequest, reply: FastifyReply) => {
   const { name, order } = req.body;
   try {
     const category = await prisma.courseCategory.create({
       data: { name, order: order ? parseInt(order) : 0 },
     });
-    res.status(201).json(category);
+    reply.status(201).send(category);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateCourseCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateCourseCategory = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { name, order } = req.body;
   try {
@@ -123,25 +121,25 @@ export const updateCourseCategory = async (req: AuthRequest, res: Response, next
       where: { id },
       data: { name, order: order !== undefined ? parseInt(order) : undefined },
     });
-    res.json(category);
+    reply.send(category);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteCourseCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteCourseCategory = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   try {
     await prisma.courseCategory.delete({ where: { id } });
-    res.json({ message: 'Category deleted successfully' });
+    reply.send({ message: 'Category deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // --- Course Management ---
 
-export const getAllCourses = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAllCourses = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const courses = await prisma.course.findMany({
       include: {
@@ -161,13 +159,13 @@ export const getAllCourses = async (req: AuthRequest, res: Response, next: NextF
           : 0;
       return { ...rest, avgRating: Math.round(avgRating * 10) / 10 };
     });
-    res.json(coursesWithStats);
+    reply.send(coursesWithStats);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createCourse = async (req: AdminRequest, reply: FastifyReply) => {
   const { title, description, thumbnail, categoryId, difficulty, status } = req.body;
   try {
     const course = await prisma.course.create({
@@ -180,13 +178,13 @@ export const createCourse = async (req: AuthRequest, res: Response, next: NextFu
         status: status || 'PUBLISHED',
       },
     });
-    res.status(201).json(course);
+    reply.status(201).send(course);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateCourse = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { title, description, thumbnail, categoryId, difficulty, status } = req.body;
   try {
@@ -194,34 +192,30 @@ export const updateCourse = async (req: AuthRequest, res: Response, next: NextFu
       where: { id },
       data: { title, description, thumbnail, categoryId: categoryId || null, difficulty, status },
     });
-    res.json(course);
+    reply.send(course);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteCourse = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   try {
     await prisma.course.delete({ where: { id } });
-    res.json({ message: 'Course deleted successfully' });
+    reply.send({ message: 'Course deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const batchUpdateCourseStatus = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const batchUpdateCourseStatus = async (req: AdminRequest, reply: FastifyReply) => {
   const { ids, status } = req.body as { ids?: string[]; status?: string };
   try {
     if (!Array.isArray(ids) || ids.length === 0) {
-      return next(new AppError('Course ids are required', 400));
+      throw new AppError('Course ids are required', 400);
     }
     if (!['PUBLISHED', 'DRAFT'].includes(status || '')) {
-      return next(new AppError('Invalid course status', 400));
+      throw new AppError('Invalid course status', 400);
     }
 
     const result = await prisma.course.updateMany({
@@ -229,30 +223,30 @@ export const batchUpdateCourseStatus = async (
       data: { status },
     });
 
-    res.json({ updated: result.count });
+    reply.send({ updated: result.count });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const batchDeleteCourses = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const batchDeleteCourses = async (req: AdminRequest, reply: FastifyReply) => {
   const { ids } = req.body as { ids?: string[] };
   try {
     if (!Array.isArray(ids) || ids.length === 0) {
-      return next(new AppError('Course ids are required', 400));
+      throw new AppError('Course ids are required', 400);
     }
 
     const result = await prisma.course.deleteMany({
       where: { id: { in: ids } },
     });
 
-    res.json({ deleted: result.count });
+    reply.send({ deleted: result.count });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createLesson = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createLesson = async (req: AdminRequest, reply: FastifyReply) => {
   const { courseId, title, content, videoUrl, order, duration, hotspots, sceneConfig } = req.body;
   try {
     const lesson = await prisma.lesson.create({
@@ -275,13 +269,13 @@ export const createLesson = async (req: AuthRequest, res: Response, next: NextFu
           : null,
       },
     });
-    res.status(201).json(lesson);
+    reply.status(201).send(lesson);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateLesson = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateLesson = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { title, content, videoUrl, order, duration, hotspots, sceneConfig } = req.body;
   try {
@@ -300,25 +294,25 @@ export const updateLesson = async (req: AuthRequest, res: Response, next: NextFu
       where: { id },
       data: updateData,
     });
-    res.json(lesson);
+    reply.send(lesson);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteLesson = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteLesson = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   try {
     await prisma.lesson.delete({ where: { id } });
-    res.json({ message: 'Lesson deleted successfully' });
+    reply.send({ message: 'Lesson deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // --- Roadmap Management ---
 
-export const getAllRoadmaps = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAllRoadmaps = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query, 50, 200);
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
@@ -344,16 +338,16 @@ export const getAllRoadmaps = async (req: AuthRequest, res: Response, next: Next
       }),
     ]);
 
-    res.json({
+    reply.send({
       data: roadmaps,
       pagination: createPaginationMeta(page, limit, total),
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createRoadmap = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createRoadmap = async (req: AdminRequest, reply: FastifyReply) => {
   const { title, description, steps } = req.body;
   try {
     const roadmap = await prisma.$transaction(async (tx) => {
@@ -388,13 +382,13 @@ export const createRoadmap = async (req: AuthRequest, res: Response, next: NextF
       },
     });
 
-    res.status(201).json(fullRoadmap);
+    reply.status(201).send(fullRoadmap);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateRoadmap = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateRoadmap = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { title, description, steps } = req.body;
   try {
@@ -467,35 +461,35 @@ export const updateRoadmap = async (req: AuthRequest, res: Response, next: NextF
       },
     });
 
-    res.json(fullRoadmap);
+    reply.send(fullRoadmap);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteRoadmap = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteRoadmap = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   try {
     await prisma.roadmap.delete({ where: { id } });
-    res.json({ message: 'Roadmap deleted successfully' });
+    reply.send({ message: 'Roadmap deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createRoadmapStep = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createRoadmapStep = async (req: AdminRequest, reply: FastifyReply) => {
   const { roadmapId, title, description, order } = req.body;
   try {
     const step = await prisma.roadmapStep.create({
       data: { roadmapId, title, description, order: parseInt(order) },
     });
-    res.status(201).json(step);
+    reply.status(201).send(step);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateRoadmapStep = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateRoadmapStep = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { title, description, order } = req.body;
   try {
@@ -506,33 +500,33 @@ export const updateRoadmapStep = async (req: AuthRequest, res: Response, next: N
       where: { id },
       data: updateData,
     });
-    res.json(step);
+    reply.send(step);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteRoadmapStep = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteRoadmapStep = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   try {
     await prisma.roadmapStep.delete({ where: { id } });
-    res.json({ message: 'Roadmap step deleted successfully' });
+    reply.send({ message: 'Roadmap step deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const aiGenerateRoadmap = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const aiGenerateRoadmap = async (req: AdminRequest, reply: FastifyReply) => {
   const { prompt } = req.body;
   if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
-    return next(new AppError('Prompt is required', 400));
+    throw new AppError('Prompt is required', 400);
   }
 
   try {
     const settings = await settingsService.getAll();
     const selectedModel = getAIModelById(settings, undefined);
     if (!selectedModel || !selectedModel.enabled) {
-      return next(new AppError('当前没有可用的 AI 聊天模型，请联系管理员配置。', 503));
+      throw new AppError('当前没有可用的 AI 聊天模型，请联系管理员配置。', 503);
     }
 
     const overrides: Partial<AIServiceConfig> = {
@@ -570,14 +564,19 @@ export const aiGenerateRoadmap = async (req: AuthRequest, res: Response, next: N
 4. 严格禁止输出任何任务看板相关的内容，不要输出 ## 任务看板 模块。`;
 
     const messages: AIChatMessage[] = [{ role: 'user', content: prompt.trim() }];
-    await streamLLMChat(messages, systemPrompt, res, next, overrides, req.userId);
+    reply.hijack();
+    const raw = reply.raw;
+    const next = (err: unknown) => {
+      throw err;
+    };
+    await streamLLMChat(messages, systemPrompt, raw, next, overrides, req.userId);
   } catch (error) {
-    if (res.headersSent) {
-      if (!res.writableEnded) {
-        res.end();
+    if (reply.raw.headersSent) {
+      if (!reply.raw.writableEnded) {
+        reply.raw.end();
       }
     } else {
-      next(error);
+      throw error;
     }
   }
 };

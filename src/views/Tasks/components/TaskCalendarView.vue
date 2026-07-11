@@ -13,7 +13,7 @@ import {
   PanelRightClose,
   FolderSearch,
 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import type { Task, UserType } from '@/types/task';
@@ -453,12 +453,12 @@ const onDropToSidebar = async (event: DragEvent) => {
     min-height: 360px;
   }
   .calendar-sidebar {
-    width: 100% !important;
+    width: 100%;
     margin-top: 12px;
     min-height: 200px;
   }
   .calendar-grid {
-    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
 }
 </style>

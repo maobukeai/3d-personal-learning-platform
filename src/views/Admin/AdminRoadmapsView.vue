@@ -20,7 +20,7 @@ import {
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import { fetchManagementInsights } from './adminManagementInsights';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';

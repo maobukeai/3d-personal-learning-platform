@@ -33,19 +33,22 @@ const api = axios.create({
 
 export const getAssetUrl = (url: string | null | undefined): string => {
   if (!url) return '';
-  // Fix corrupted 'undefined/' urls from previous bugs
+
+  /* Fix corrupted 'undefined/' urls from previous bugs */
   if (url.startsWith('undefined/')) {
     const clean = url.replace('undefined/', '/');
     return `${NORMALIZED_API_BASE_URL}${clean}`;
   }
-  // Return absolute urls as is
+
+  /* Return absolute urls as is */
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
     let normalized = normalizeLocalUploadUrl(url);
     if (normalized.startsWith('http://')) {
       try {
         const parsed = new URL(normalized);
         const host = parsed.hostname.toLowerCase();
-        // Do not upgrade local/dev addresses
+
+        /* Do not upgrade local/dev addresses */
         const isLocal =
           ['localhost', '127.0.0.1', '::1'].includes(host) ||
           /^192\.168\./.test(host) ||
@@ -62,7 +65,8 @@ export const getAssetUrl = (url: string | null | undefined): string => {
     }
     return normalized;
   }
-  // Prepend base url for relative paths
+
+  /* Prepend base url for relative paths */
   const cleanPath = url.startsWith('/') ? url : `/${url}`;
   return `${NORMALIZED_API_BASE_URL}${cleanPath}`;
 };
@@ -74,14 +78,26 @@ const getCookie = (name: string): string | undefined => {
   return undefined;
 };
 
-// 请求拦截器：自动注入 Workspace ID 和 CSRF Token
+/* 请求拦截器：自动注入 Workspace ID 和 CSRF Token */
 api.interceptors.request.use((config) => {
+  /* Inject in-memory access token as Bearer header on every request.
+     This is set after login/refresh and avoids the async browser cookie-write
+     race condition that causes 401s on requests fired immediately after refresh.
+     The auth refresh endpoint itself is excluded to avoid circular dependency. */
+  const isAuthRefresh = config.url?.includes('/auth/refresh');
+  if (!isAuthRefresh) {
+    const authStore = useAuthStore();
+    if (authStore.accessToken) {
+      config.headers['Authorization'] = `Bearer ${authStore.accessToken}`;
+    }
+  }
+
   const activeWorkspaceId = preferences.getActiveWorkspaceId();
   if (activeWorkspaceId) {
     config.headers['X-Workspace-Id'] = activeWorkspaceId;
   }
 
-  // Inject CSRF token for non-idempotent requests (POST, PUT, DELETE, PATCH)
+  /* Inject CSRF token for non-idempotent requests (POST, PUT, DELETE, PATCH) */
   const method = config.method?.toUpperCase();
   if (method && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
     const csrfToken = getCookie('csrfToken');
@@ -89,7 +105,6 @@ api.interceptors.request.use((config) => {
       config.headers['X-CSRF-Token'] = csrfToken;
     }
   }
-
   return config;
 });
 
@@ -98,41 +113,59 @@ type FailedRequest = {
   resolve: (token: string | null) => void;
   reject: (error: unknown) => void;
 };
-
 let failedQueue: FailedRequest[] = [];
 
 const processQueue = (error: unknown, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
+  const queue = failedQueue;
   failedQueue = [];
+  if (error) {
+    queue.forEach((prom) => prom.reject(error));
+  } else {
+    /* Stagger queued retries by 50ms per request to avoid a thundering-herd
+       burst that would immediately exhaust the rate limit after token refresh. */
+    queue.forEach((prom, i) => {
+      setTimeout(() => prom.resolve(token), i * 50);
+    });
+  }
 };
 
-// 响应拦截器：处理 Token 过期与系统维护
+const shouldBypassRefresh = (url: string | undefined): boolean => {
+  if (!url) return false;
+  return (
+    url.includes('/auth/login') ||
+    url.includes('/auth/refresh') ||
+    url.includes('/auth/logout') ||
+    url.includes('/auth/register') ||
+    url.includes('/auth/forgot-password') ||
+    url.includes('/auth/email/send-code-public') ||
+    url.includes('/auth/email/verify-public') ||
+    url.includes('/auth/settings') ||
+    url.includes('/auth/google') ||
+    url.includes('/auth/github')
+  );
+};
+
+/* 响应拦截器：处理 Token 过期与系统维护 */
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // Avoid infinite loop and deadlock for refresh token request
-    if (originalRequest.url?.includes('/api/auth/refresh')) {
+    /* Avoid infinite loop and deadlock for refresh token request or other public auth actions */
+    if (shouldBypassRefresh(originalRequest?.url)) {
       return Promise.reject(error);
     }
 
-    if (
-      getApiErrorStatus(error) === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url?.includes('/api/auth/settings')
-    ) {
+    if (getApiErrorStatus(error) === 401 && !originalRequest._retry) {
       if (isRefreshing) {
-        return new Promise((resolve, reject) => {
+        return new Promise<string | null>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-          .then(() => {
+          .then((accessToken) => {
+            originalRequest._retry = true;
+            if (accessToken) {
+              originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
+            }
             return api(originalRequest);
           })
           .catch((err) => {
@@ -142,24 +175,25 @@ api.interceptors.response.use(
 
       originalRequest._retry = true;
       isRefreshing = true;
-
       const authStore = useAuthStore();
 
       try {
-        await authStore.refreshAccessToken();
-        processQueue(null);
+        const accessToken = await authStore.refreshAccessToken();
+        /* Inject the new access token as a Bearer header so the retry does
+           not depend on the browser's async HTTP-only cookie write completing. */
+        if (accessToken) {
+          originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
+        }
+        processQueue(null, accessToken);
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
-
-        // Always logout to clear credentials on refresh token failure
+        /* Always logout to clear credentials on refresh token failure */
         authStore.logout();
-
-        // Redirect to login if on a route that requires authentication
+        /* Redirect to login if on a route that requires authentication */
         const requiresAuth =
           router.currentRoute.value.meta.requiresAuth ||
           router.currentRoute.value.matched.some((record) => record.meta.requiresAuth);
-
         if (requiresAuth) {
           router.push('/login');
         }
@@ -168,12 +202,8 @@ api.interceptors.response.use(
         isRefreshing = false;
       }
     } else if (getApiErrorStatus(error) === 503) {
-      // System Maintenance
-      if (
-        !originalRequest.url?.includes('/api/auth/settings') &&
-        !originalRequest.url?.includes('/api/auth/refresh') &&
-        !isRefreshing
-      ) {
+      /* System Maintenance */
+      if (!shouldBypassRefresh(originalRequest?.url) && !isRefreshing) {
         const systemStore = useSystemStore();
         await systemStore.fetchSettings();
         if (systemStore.settings.MAINTENANCE_MODE) {

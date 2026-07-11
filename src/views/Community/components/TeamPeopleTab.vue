@@ -636,7 +636,7 @@ const capacityClass = (score?: number) => {
                 </div>
               </td>
               <td>
-                <el-select
+                <Select
                   v-if="
                     canManageTeam && member.userId !== authStore.user?.id && member.role !== 'OWNER'
                   "
@@ -644,9 +644,9 @@ const capacityClass = (score?: number) => {
                   class="role-select"
                   @change="(role: unknown) => emit('update-role', member.userId, String(role))"
                 >
-                  <el-option label="管理员" value="ADMIN" />
-                  <el-option label="成员" value="MEMBER" />
-                </el-select>
+                  <SelectOption label="管理员" value="ADMIN" />
+                  <SelectOption label="成员" value="MEMBER" />
+                </Select>
                 <span
                   v-else
                   class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black"
@@ -823,13 +823,11 @@ const capacityClass = (score?: number) => {
 .member-table tbody tr:hover {
   background: rgb(148 163 184 / 0.07);
 }
-
 @media (max-width: 1024px) {
   .member-table {
     min-width: 720px;
   }
 }
-
 @media (max-width: 767px) {
   .member-table-wrap {
     overflow-x: hidden;
@@ -843,26 +841,5 @@ const capacityClass = (score?: number) => {
   .member-table td {
     word-break: break-word;
   }
-}
-
-.role-select :deep(.el-select__wrapper) {
-  min-height: 28px !important;
-  height: 28px !important;
-  width: 90px !important;
-  border-radius: 8px !important;
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: none !important;
-  transition: all 0.2s ease !important;
-}
-.dark .role-select :deep(.el-select__wrapper) {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.role-select :deep(.el-select__wrapper.is-focused) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.15) !important;
 }
 </style>

@@ -1,7 +1,7 @@
 import { type Ref } from 'vue';
 import api from '@/utils/api';
 import { logError, getApiErrorMessage } from '@/utils/error';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 
@@ -21,7 +21,7 @@ export function useTempUpload() {
     progressRef: Ref<number | null>,
     onSuccess: (filePath: string) => void,
     onBeforeUpload?: () => string | null | undefined,
-    fieldname?: string
+    fieldname?: string,
   ): Promise<boolean> => {
     const prevPath = onBeforeUpload ? onBeforeUpload() : null;
     if (prevPath) {
@@ -143,10 +143,7 @@ export function useTempUpload() {
             onUploadProgress: (progressEvent) => {
               const loaded = progressEvent.loaded || 0;
               if (progressEvent.total) {
-                const percent = Math.min(
-                  Math.round((loaded * 100) / progressEvent.total),
-                  99,
-                );
+                const percent = Math.min(Math.round((loaded * 100) / progressEvent.total), 99);
                 progressRef.value = percent;
               }
             },
@@ -192,7 +189,7 @@ export function useTempUpload() {
           if (progressEvent.total) {
             progressRef.value = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           }
-        }
+        },
       });
       onSuccess(response.data.filePath);
       return true;

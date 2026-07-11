@@ -31,13 +31,14 @@ import { useWorkspaceStore } from '@/stores/workspace';
 
 import SafeHtml from '@/components/SafeHtml.vue';
 
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 
 import api, { getAssetUrl } from '@/utils/api';
 
 import { decryptText } from '@/utils/crypto';
 
 import { getPlanName } from '@/utils/plans';
+import Modal from '@/components/ui/Modal.vue';
 import type { MirrorResource } from '@/stores/mirror';
 import type { User } from '@/types';
 
@@ -903,178 +904,118 @@ watch(resourceId, () => {
     </template>
 
     <!-- Extraction Link & Password Dialog -->
-
-    <Teleport to="body">
-      <!-- Backdrop Transition -->
-      <Transition
-        enter-active-class="transition-opacity duration-200 ease-out"
-        leave-active-class="transition-opacity duration-150 ease-in"
-        enter-from-class="opacity-0"
-        leave-to-class="opacity-0"
-      >
+    <Modal
+      :show="showLinkDialog && !!activeLink"
+      title="提取网盘资源"
+      size="md"
+      @close="showLinkDialog = false"
+    >
+      <div v-if="activeLink" class="space-y-4">
+        <!-- Drive Info Card -->
         <div
-          v-if="showLinkDialog && activeLink"
-          class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]"
-          @click="showLinkDialog = false"
-        ></div>
-      </Transition>
-
-      <!-- Modal Content Transition -->
-      <Transition
-        enter-active-class="transition-all duration-200 ease-out"
-        leave-active-class="transition-all duration-150 ease-in"
-        enter-from-class="opacity-0 scale-95"
-        leave-to-class="opacity-0 scale-95"
-      >
-        <div
-          v-if="showLinkDialog && activeLink"
-          class="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none"
+          class="p-4 bg-slate-50/50 dark:bg-white/[0.01] border rounded-2xl flex items-center justify-between mobile-row"
+          style="border-color: var(--border-base)"
         >
-          <div
-            class="modal-content glass-dialog relative w-full max-w-md p-6 sm:p-8 rounded-3xl shadow-2xl border space-y-5 overflow-hidden flex flex-col pointer-events-auto"
-            style="border-color: var(--border-base)"
-          >
-            <!-- Header -->
+          <div class="flex items-center gap-3 mobile-row">
             <div
-              class="flex items-center justify-between shrink-0 pb-4 border-b mobile-row"
-              style="border-color: var(--border-base)"
-            >
-              <div class="flex items-center gap-2 mobile-row">
-                <div
-                  class="p-1.5 bg-gradient-to-br from-accent to-indigo-600 rounded-lg text-white shrink-0"
-                >
-                  <Link2 class="w-4 h-4" />
-                </div>
-                <h3
-                  class="text-md sm:text-lg font-black tracking-tight truncate"
-                  style="color: var(--text-primary)"
-                >
-                  提取网盘资源
-                </h3>
+              class="w-2.5 h-2.5 rounded-full animate-pulse shrink-0"
+              :class="getLinkTypeColor(activeLink.type)"
+            ></div>
+
+            <div class="min-w-0">
+              <div class="text-sm font-bold truncate" style="color: var(--text-primary)">
+                {{ activeLink.name }}
               </div>
 
-              <button
-                type="button"
-                class="p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
-                style="color: var(--text-secondary)"
-                @click="showLinkDialog = false"
-              >
-                <X class="w-5 h-5" />
-              </button>
-            </div>
-
-            <!-- Body -->
-            <div class="space-y-4">
-              <!-- Drive Info Card -->
               <div
-                class="p-4 bg-slate-50/50 dark:bg-white/[0.01] border rounded-2xl flex items-center justify-between mobile-row"
-                style="border-color: var(--border-base)"
+                class="text-[10px] uppercase mt-0.5 font-black tracking-wider truncate"
+                style="color: var(--text-secondary)"
               >
-                <div class="flex items-center gap-3 mobile-row">
-                  <div
-                    class="w-2.5 h-2.5 rounded-full animate-pulse shrink-0"
-                    :class="getLinkTypeColor(activeLink.type)"
-                  ></div>
-
-                  <div class="min-w-0">
-                    <div class="text-sm font-bold truncate" style="color: var(--text-primary)">
-                      {{ activeLink.name }}
-                    </div>
-
-                    <div
-                      class="text-[10px] uppercase mt-0.5 font-black tracking-wider truncate"
-                      style="color: var(--text-secondary)"
-                    >
-                      {{ activeLink.type }} 资源
-                    </div>
-                  </div>
-                </div>
+                {{ activeLink.type }} 资源
               </div>
-
-              <!-- Download Link Field -->
-              <div class="space-y-1.5">
-                <label class="block text-[11px] font-black text-slate-500 uppercase tracking-wider"
-                  >下载链接</label
-                >
-
-                <div class="flex gap-2 mobile-row">
-                  <input
-                    type="text"
-                    readonly
-                    :value="activeLink.url"
-                    class="flex-1 min-w-0 px-4 py-2.5 rounded-xl border text-xs bg-slate-50/50 dark:bg-white/[0.02] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                    style="border-color: var(--border-base); color: var(--text-primary)"
-                  />
-
-                  <button
-                    type="button"
-                    class="px-4 py-2.5 rounded-xl border font-bold text-xs cursor-pointer text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all active:scale-[0.98] shrink-0"
-                    style="border-color: var(--border-base)"
-                    @click="
-                      copyToClipboard(activeLink.url);
-                      ElMessage.success('下载链接已复制到剪贴板！');
-                    "
-                  >
-                    复制链接
-                  </button>
-                </div>
-              </div>
-
-              <!-- Passcode Field (if present) -->
-              <div v-if="activeLink.code" class="space-y-1.5">
-                <label class="block text-[11px] font-black text-slate-500 uppercase tracking-wider"
-                  >提取密码 / 访问码</label
-                >
-
-                <div class="flex gap-2 mobile-row">
-                  <input
-                    type="text"
-                    readonly
-                    :value="activeLink.code"
-                    class="flex-1 min-w-0 px-4 py-2.5 text-sm font-bold rounded-xl border text-center tracking-wider focus:outline-none bg-rose-500/10 dark:bg-rose-500/5 text-rose-500"
-                    style="border-color: rgba(244, 63, 94, 0.2)"
-                  />
-
-                  <button
-                    type="button"
-                    class="px-4 py-2.5 rounded-xl border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 font-bold text-xs cursor-pointer transition-all active:scale-[0.98] shrink-0"
-                    @click="copyToClipboard(activeLink.code)"
-                  >
-                    复制密码
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Footer -->
-            <div
-              class="flex gap-3 pt-4 border-t mobile-row"
-              style="border-color: var(--border-base)"
-            >
-              <button
-                type="button"
-                class="flex-1 py-2.5 rounded-xl border font-bold text-xs cursor-pointer text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all active:scale-[0.98]"
-                style="border-color: var(--border-base)"
-                @click="showLinkDialog = false"
-              >
-                关闭
-              </button>
-
-              <a
-                :href="activeLink.url"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-accent to-indigo-600 hover:from-accent hover:to-indigo-500 text-white text-xs font-bold text-center flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-accent/20 hover:shadow-accent/35 active:scale-[0.99]"
-                @click="showLinkDialog = false"
-              >
-                <ExternalLink class="w-3.5 h-3.5 shrink-0" />
-                立即跳转网盘
-              </a>
             </div>
           </div>
         </div>
-      </Transition>
-    </Teleport>
+
+        <!-- Download Link Field -->
+        <div class="space-y-1.5">
+          <label class="block text-[11px] font-black text-slate-500 uppercase tracking-wider"
+            >下载链接</label
+          >
+
+          <div class="flex gap-2 mobile-row">
+            <input
+              type="text"
+              readonly
+              :value="activeLink.url"
+              class="flex-1 min-w-0 px-4 py-2.5 rounded-xl border text-xs bg-slate-50/50 dark:bg-white/[0.02] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+              style="border-color: var(--border-base); color: var(--text-primary)"
+            />
+
+            <button
+              type="button"
+              class="px-4 py-2.5 rounded-xl border font-bold text-xs cursor-pointer text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all active:scale-[0.98] shrink-0"
+              style="border-color: var(--border-base)"
+              @click="
+                copyToClipboard(activeLink.url);
+                ElMessage.success('下载链接已复制到剪贴板！');
+              "
+            >
+              复制链接
+            </button>
+          </div>
+        </div>
+
+        <!-- Passcode Field (if present) -->
+        <div v-if="activeLink.code" class="space-y-1.5">
+          <label class="block text-[11px] font-black text-slate-500 uppercase tracking-wider"
+            >提取密码 / 访问码</label
+          >
+
+          <div class="flex gap-2 mobile-row">
+            <input
+              type="text"
+              readonly
+              :value="activeLink.code"
+              class="flex-1 min-w-0 px-4 py-2.5 text-sm font-bold rounded-xl border text-center tracking-wider focus:outline-none bg-rose-500/10 dark:bg-rose-500/5 text-rose-500"
+              style="border-color: rgba(244, 63, 94, 0.2)"
+            />
+
+            <button
+              type="button"
+              class="px-4 py-2.5 rounded-xl border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 font-bold text-xs cursor-pointer transition-all active:scale-[0.98] shrink-0"
+              @click="copyToClipboard(activeLink.code)"
+            >
+              复制密码
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <template v-if="activeLink" #footer>
+        <div class="flex gap-3 mobile-row">
+          <button
+            type="button"
+            class="flex-1 py-2.5 rounded-xl border font-bold text-xs cursor-pointer text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all active:scale-[0.98]"
+            style="border-color: var(--border-base)"
+            @click="showLinkDialog = false"
+          >
+            关闭
+          </button>
+
+          <a
+            :href="activeLink.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-accent to-indigo-600 hover:from-accent hover:to-indigo-500 text-white text-xs font-bold text-center flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-accent/20 hover:shadow-accent/35 active:scale-[0.99]"
+            @click="showLinkDialog = false"
+          >
+            <ExternalLink class="w-3.5 h-3.5 shrink-0" />
+            立即跳转网盘
+          </a>
+        </div>
+      </template>
+    </Modal>
   </div>
 </template>
 

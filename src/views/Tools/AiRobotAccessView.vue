@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import type {
@@ -2531,7 +2531,7 @@ onUnmounted(stopAutoRefresh);
 
   .top-shell > div {
     gap: 0.5rem;
-    padding: 0.625rem 0.75rem 0.5rem !important;
+    padding: 0.625rem 0.75rem 0.5rem;
   }
 
   .brand-mark {
@@ -2588,7 +2588,7 @@ onUnmounted(stopAutoRefresh);
   }
 
   .ai-workbench main {
-    padding: 0.625rem 0.75rem !important;
+    padding: 0.625rem 0.75rem;
   }
 
   .lock-band,

@@ -1,20 +1,22 @@
 import { Prisma } from '@prisma/client';
-import { Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import prisma from '../../services/prisma';
-import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../utils/error';
 
-export const getAllSubscriptionPlans = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+type AdminRequest = FastifyRequest & {
+  body: any;
+  query: any;
+  params: any;
+  file?: any;
+};
+
+export const getAllSubscriptionPlans = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const plans = await prisma.subscriptionPlan.findMany({
       orderBy: { priority: 'asc' },
       include: { _count: { select: { subscriptions: true } } },
     });
-    res.json(
+    reply.send(
       plans.map((p) => ({
         ...p,
         features: JSON.parse(p.features || '[]'),
@@ -22,15 +24,11 @@ export const getAllSubscriptionPlans = async (
       })),
     );
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createSubscriptionPlan = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const createSubscriptionPlan = async (req: AdminRequest, reply: FastifyReply) => {
   const {
     name,
     displayName,
@@ -64,19 +62,14 @@ export const createSubscriptionPlan = async (
         badgeColor: badgeColor || null,
       },
     });
-    res.status(201).json({ ...plan, features: JSON.parse(plan.features || '[]') });
+    reply.status(201).send({ ...plan, features: JSON.parse(plan.features || '[]') });
   } catch (error) {
-    if ((error as { code?: string }).code === 'P2002')
-      return next(new AppError('计划名称已存在', 400));
-    next(error);
+    if ((error as { code?: string }).code === 'P2002') throw new AppError('计划名称已存在', 400);
+    throw error;
   }
 };
 
-export const updateSubscriptionPlan = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const updateSubscriptionPlan = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const {
     name,
@@ -114,33 +107,29 @@ export const updateSubscriptionPlan = async (
       where: { id },
       data: updateData,
     });
-    res.json({ ...plan, features: JSON.parse(plan.features || '[]') });
+    reply.send({ ...plan, features: JSON.parse(plan.features || '[]') });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteSubscriptionPlan = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const deleteSubscriptionPlan = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   try {
     const subscriberCount = await prisma.subscription.count({
       where: { planId: id, status: 'ACTIVE' },
     });
     if (subscriberCount > 0) {
-      return next(new AppError(`该计划仍有 ${subscriberCount} 名活跃订阅者，无法删除`, 400));
+      throw new AppError(`该计划仍有 ${subscriberCount} 名活跃订阅者，无法删除`, 400);
     }
     await prisma.subscriptionPlan.delete({ where: { id } });
-    res.json({ message: '订阅计划已删除' });
+    reply.send({ message: '订阅计划已删除' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getAllSubscriptions = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAllSubscriptions = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const subscriptions = await prisma.subscription.findMany({
       include: {
@@ -149,13 +138,13 @@ export const getAllSubscriptions = async (req: AuthRequest, res: Response, next:
       },
       orderBy: { createdAt: 'desc' },
     });
-    res.json(subscriptions);
+    reply.send(subscriptions);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createSubscription = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createSubscription = async (req: AdminRequest, reply: FastifyReply) => {
   const {
     userId,
     planId,
@@ -169,18 +158,18 @@ export const createSubscription = async (req: AuthRequest, res: Response, next: 
   } = req.body;
 
   if (!userId || !planId) {
-    return next(new AppError('用户ID和计划ID为必填项', 400));
+    throw new AppError('用户ID和计划ID为必填项', 400);
   }
 
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) return next(new AppError('用户不存在', 404));
+    if (!user) throw new AppError('用户不存在', 404);
 
     const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
-    if (!plan) return next(new AppError('订阅计划不存在', 404));
+    if (!plan) throw new AppError('订阅计划不存在', 404);
 
     const existingSub = await prisma.subscription.findUnique({ where: { userId } });
-    if (existingSub) return next(new AppError('该用户已有订阅，请使用编辑功能修改', 400));
+    if (existingSub) throw new AppError('该用户已有订阅，请使用编辑功能修改', 400);
 
     const subscription = await prisma.subscription.create({
       data: {
@@ -200,15 +189,14 @@ export const createSubscription = async (req: AuthRequest, res: Response, next: 
       },
     });
 
-    res.status(201).json(subscription);
+    reply.status(201).send(subscription);
   } catch (error) {
-    if ((error as { code?: string }).code === 'P2002')
-      return next(new AppError('该用户已有订阅', 400));
-    next(error);
+    if ((error as { code?: string }).code === 'P2002') throw new AppError('该用户已有订阅', 400);
+    throw error;
   }
 };
 
-export const updateSubscription = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateSubscription = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const {
     planId,
@@ -223,12 +211,12 @@ export const updateSubscription = async (req: AuthRequest, res: Response, next: 
 
   try {
     const existing = await prisma.subscription.findUnique({ where: { id } });
-    if (!existing) return next(new AppError('订阅不存在', 404));
+    if (!existing) throw new AppError('订阅不存在', 404);
 
     const updateData: Prisma.SubscriptionUpdateInput = {};
     if (planId !== undefined) {
       const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
-      if (!plan) return next(new AppError('订阅计划不存在', 404));
+      if (!plan) throw new AppError('订阅计划不存在', 404);
       updateData.plan = { connect: { id: planId } };
     }
     if (status !== undefined) updateData.status = status;
@@ -248,26 +236,26 @@ export const updateSubscription = async (req: AuthRequest, res: Response, next: 
       },
     });
 
-    res.json(subscription);
+    reply.send(subscription);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteSubscription = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteSubscription = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   try {
     const existing = await prisma.subscription.findUnique({ where: { id } });
-    if (!existing) return next(new AppError('订阅不存在', 404));
+    if (!existing) throw new AppError('订阅不存在', 404);
 
     await prisma.subscription.delete({ where: { id } });
-    res.json({ message: '订阅已删除' });
+    reply.send({ message: '订阅已删除' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getAllTransactions = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAllTransactions = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const transactions = await prisma.transaction.findMany({
       include: {
@@ -275,8 +263,8 @@ export const getAllTransactions = async (req: AuthRequest, res: Response, next: 
       },
       orderBy: { createdAt: 'desc' },
     });
-    res.json(transactions);
+    reply.send(transactions);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };

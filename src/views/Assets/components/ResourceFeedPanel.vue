@@ -66,13 +66,13 @@ function getMaterialFavorites(item: ResourceItem) {
       </div>
 
       <div class="toolbar-right">
-        <el-select v-model="sortMode" class="!w-32 custom-select" aria-label="资源排序">
-          <el-option value="updated" label="按最近更新" />
-          <el-option value="created" label="按发布时间" />
-          <el-option value="metric" label="按热度指标" />
-          <el-option value="review" label="按审核压力" />
-          <el-option value="title" label="按名称" />
-        </el-select>
+        <Select v-model="sortMode" class="!w-32 custom-select" aria-label="资源排序">
+          <SelectOption value="updated" label="按最近更新" />
+          <SelectOption value="created" label="按发布时间" />
+          <SelectOption value="metric" label="按热度指标" />
+          <SelectOption value="review" label="按审核压力" />
+          <SelectOption value="title" label="按名称" />
+        </Select>
         <Tabs v-model="viewMode" :options="viewModeOptions" size="sm" />
         <div class="result-count">
           <span>{{ resultTotal }} 条结果</span>

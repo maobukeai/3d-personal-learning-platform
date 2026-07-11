@@ -193,7 +193,7 @@ export class WebDAVClient {
 
       // WebDAV tags are case-sensitive and namespaces can vary (d:response, D:response, response, etc.)
       // We will look for elements matching response
-      $('response, d\\:response, D\\:response').each((_: number, elem: any) => {
+      $('response, d\\:response, D\\:response').each((_, elem) => {
         const href = $(elem).find('href, d\\:href, D\\:href').text();
         const decodedHref = decodeURIComponent(href);
         const basename = path.basename(decodedHref);

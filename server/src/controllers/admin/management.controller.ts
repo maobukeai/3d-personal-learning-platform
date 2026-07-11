@@ -1,6 +1,12 @@
-import { Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import prisma from '../../services/prisma';
-import { AuthRequest } from '../../middlewares/auth.middleware';
+
+type AdminRequest = FastifyRequest & {
+  body: any;
+  query: any;
+  params: any;
+  file?: any;
+};
 
 type IssueSeverity = 'critical' | 'warning' | 'info';
 type ControlTone = 'good' | 'warn' | 'risk' | 'info';
@@ -544,11 +550,7 @@ const buildActions = (stats: ManagementStats): ManagementAction[] => {
   return actions.slice(0, 8);
 };
 
-export const getManagementInsights = async (
-  _req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const getManagementInsights = async (_req: AdminRequest, reply: FastifyReply) => {
   try {
     const now = new Date();
     const soon = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
@@ -1170,7 +1172,8 @@ export const getManagementInsights = async (
       approvedAssets + approvedMaterials + approvedShowcases + approvedPlugins + approvedSoftwares;
     const totalRejectedContent =
       rejectedAssets + rejectedMaterials + rejectedShowcases + rejectedPlugins + rejectedSoftwares;
-    const staleAuditItems = staleAssets + staleMaterials + staleShowcases + stalePlugins + staleSoftwares;
+    const staleAuditItems =
+      staleAssets + staleMaterials + staleShowcases + stalePlugins + staleSoftwares;
     const recentPendingContent = [
       ...recentPendingAssets.map((item) => ({
         id: item.id,
@@ -1222,7 +1225,11 @@ export const getManagementInsights = async (
       .slice(0, 8);
 
     const auditDueSoon =
-      auditDueSoonAssets + auditDueSoonMaterials + auditDueSoonShowcases + auditDueSoonPlugins + auditDueSoonSoftwares;
+      auditDueSoonAssets +
+      auditDueSoonMaterials +
+      auditDueSoonShowcases +
+      auditDueSoonPlugins +
+      auditDueSoonSoftwares;
     const ownerName = (user?: { name?: string | null; email?: string | null } | null) =>
       user?.name || user?.email || '未分配';
     const severityWeight: Record<IssueSeverity, number> = { critical: 3, warning: 2, info: 1 };
@@ -1645,7 +1652,7 @@ export const getManagementInsights = async (
       dailyReviewPlaybook,
     ].slice(0, 8);
 
-    res.json({
+    reply.send({
       generatedAt: now.toISOString(),
       overview: {
         healthScore,
@@ -1858,6 +1865,6 @@ export const getManagementInsights = async (
       actions,
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };

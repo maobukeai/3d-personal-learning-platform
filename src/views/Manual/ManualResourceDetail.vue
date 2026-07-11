@@ -21,8 +21,9 @@ import {
 import { useManualStore } from '@/stores/manual';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api, { getAssetUrl } from '@/utils/api';
+import Modal from '@/components/ui/Modal.vue';
 import { getPlanName } from '@/utils/plans';
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 import { formatDateTime as formatDate } from '@/utils/format';
@@ -762,108 +763,97 @@ watch(resourceId, () => {
             </span>
             <button
               type="button"
-              :disabled="isTogglingLike"
-              class="flex items-center gap-1.5 px-4 py-2 rounded-xl transition-all duration-300 border font-bold text-xs cursor-pointer"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-colors"
               :class="
                 resource.hasLiked
-                  ? 'bg-rose-50 dark:bg-rose-950/20 text-rose-500 border-rose-500/20 shadow-sm shadow-rose-500/5'
-                  : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800 hover:bg-slate-50'
+                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-500 hover:bg-rose-500/20'
+                  : 'border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/40'
               "
+              :disabled="isTogglingLike"
               @click="toggleLike"
             >
-              <Heart
-                class="w-4 h-4"
-                :class="{ 'fill-current animate-pulse text-rose-500': resource.hasLiked }"
-              />
+              <Heart class="w-4 h-4" :class="{ 'fill-current': resource.hasLiked }" />
               <span>{{ resource.hasLiked ? '已点赞' : '点赞' }}</span>
             </button>
           </div>
         </div>
       </div>
-    </template>
 
-    <!-- Dialog Modal for Netdisk Download Links -->
-    <Teleport to="body">
-      <div
-        v-if="showLinkDialog && activeLink"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        @click.self="showLinkDialog = false"
+      <!-- Dialog Modal for Netdisk Download Links -->
+      <Modal
+        :show="showLinkDialog && !!activeLink"
+        title="已为您提取网盘下载地址"
+        size="md"
+        @close="showLinkDialog = false"
       >
-        <div
-          class="glass-dialog rounded-2xl w-full max-w-md mx-4 shadow-2xl overflow-hidden border border-white/10 bg-slate-900 text-white animate-in fade-in zoom-in-95 duration-200"
-        >
-          <!-- Header -->
-          <div class="flex items-center justify-between p-5 border-b border-white/5 mobile-row">
-            <h2
-              class="text-sm font-black flex items-center gap-2 text-cyan-400 uppercase tracking-wider mobile-row"
-            >
-              <Link2 class="w-5 h-5 text-cyan-400 shrink-0" />
-              已为您提取网盘下载地址
-            </h2>
-            <button
-              type="button"
-              class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
-              @click="showLinkDialog = false"
-            >
-              <X class="w-5 h-5" />
-            </button>
-          </div>
-
-          <!-- Body -->
-          <div class="p-5 space-y-5 bg-slate-950/40">
-            <!-- Drive Badge Card -->
-            <div
-              class="p-4 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between mobile-row"
-            >
-              <div class="flex items-center gap-3 mobile-row">
-                <div
-                  class="w-2.5 h-2.5 rounded-full animate-ping shrink-0"
-                  :class="getLinkTypeColor(activeLink.type)"
-                ></div>
-                <div class="min-w-0">
-                  <div class="text-xs font-bold text-slate-100 truncate">{{ activeLink.name }}</div>
-                  <div class="text-[10px] text-slate-400 uppercase mt-0.5 font-bold truncate">
-                    {{ activeLink.type }} 高速下载通道已激活
-                  </div>
+        <div v-if="activeLink" class="space-y-5">
+          <!-- Drive Badge Card -->
+          <div
+            class="p-4 rounded-xl border flex items-center justify-between mobile-row"
+            style="background-color: var(--bg-elevated); border-color: var(--border-base)"
+          >
+            <div class="flex items-center gap-3 mobile-row">
+              <div
+                class="w-2.5 h-2.5 rounded-full animate-ping shrink-0"
+                :class="getLinkTypeColor(activeLink.type)"
+              ></div>
+              <div class="min-w-0">
+                <div class="text-xs font-bold truncate" style="color: var(--text-primary)">
+                  {{ activeLink.name }}
+                </div>
+                <div class="text-[10px] text-slate-400 uppercase mt-0.5 font-bold truncate">
+                  {{ activeLink.type }} 高速下载通道已激活
                 </div>
               </div>
             </div>
-
-            <!-- Download link field -->
-            <div class="space-y-1.5">
-              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide"
-                >提取地址 / 下载链接</label
-              >
-              <div class="flex gap-2 mobile-row">
-                <input
-                  type="text"
-                  readonly
-                  :value="activeLink.url"
-                  class="flex-1 min-w-0 px-3 py-2 text-xs rounded-lg border border-white/10 bg-white/5 text-slate-300 focus:outline-none select-all font-mono"
-                />
-                <button
-                  type="button"
-                  class="px-4 py-2 text-xs font-bold rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white transition-all cursor-pointer shadow-md shadow-cyan-500/10 shrink-0"
-                  @click="copyToClipboard(activeLink.url)"
-                >
-                  复制地址
-                </button>
-              </div>
-            </div>
-
-            <p
-              class="text-[10px] text-slate-400 leading-normal bg-slate-900 p-3 rounded-lg border border-white/5"
-            >
-              💡 **温馨提示**:
-              网盘服务由第三方提供，如遇到“链接已失效”或“链接不存在”，请联系系统管理员进行手动补档。
-            </p>
           </div>
 
-          <!-- Footer -->
-          <div class="flex gap-3 p-5 border-t border-white/5 bg-slate-950/70 mobile-row">
+          <!-- Download link field -->
+          <div class="space-y-1.5">
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide"
+              >提取地址 / 下载链接</label
+            >
+            <div class="flex gap-2 mobile-row">
+              <input
+                type="text"
+                readonly
+                :value="activeLink.url"
+                class="flex-1 min-w-0 px-3 py-2 text-xs rounded-lg border focus:outline-none select-all font-mono"
+                style="
+                  background-color: var(--bg-app);
+                  border-color: var(--border-base);
+                  color: var(--text-primary);
+                "
+              />
+              <button
+                type="button"
+                class="px-4 py-2 text-xs font-bold rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white transition-all cursor-pointer shadow-md shadow-cyan-500/10 shrink-0"
+                @click="copyToClipboard(activeLink.url)"
+              >
+                复制地址
+              </button>
+            </div>
+          </div>
+
+          <p
+            class="text-[10px] leading-normal p-3 rounded-lg border"
+            style="
+              background-color: var(--bg-elevated);
+              border-color: var(--border-base);
+              color: var(--text-muted);
+            "
+          >
+            💡 **温馨提示**:
+            网盘服务由第三方提供，如遇到"链接已失效"或"链接不存在"，请联系系统管理员进行手动补档。
+          </p>
+        </div>
+
+        <template v-if="activeLink" #footer>
+          <div class="flex gap-3 mobile-row">
             <button
               type="button"
-              class="flex-1 py-2.5 rounded-xl border border-white/10 hover:border-white/20 text-xs text-slate-300 hover:text-white hover:bg-white/5 font-bold transition-all cursor-pointer"
+              class="flex-1 py-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer"
+              style="border-color: var(--border-base); color: var(--text-secondary)"
               @click="showLinkDialog = false"
             >
               关闭窗口
@@ -879,9 +869,9 @@ watch(resourceId, () => {
               跳转网盘下载
             </a>
           </div>
-        </div>
-      </div>
-    </Teleport>
+        </template>
+      </Modal>
+    </template>
   </div>
 </template>
 

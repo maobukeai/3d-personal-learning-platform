@@ -59,17 +59,17 @@ const label = useLabel();
       </div>
 
       <div class="toolbar-right">
-        <el-select
+        <Select
           v-model="sortBy"
           class="custom-sort-select"
           style="width: 100px"
           aria-label="排序方式"
         >
-          <el-option value="newest" label="最新更新" />
-          <el-option value="oldest" label="最早发布" />
-          <el-option value="name" label="名称排序" />
-          <el-option value="status" label="审核状态" />
-        </el-select>
+          <SelectOption value="newest" label="最新更新" />
+          <SelectOption value="oldest" label="最早发布" />
+          <SelectOption value="name" label="名称排序" />
+          <SelectOption value="status" label="审核状态" />
+        </Select>
         <Tabs v-model="viewMode" :options="viewModeOptions" size="sm" />
       </div>
     </section>

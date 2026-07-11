@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import type { Category, Course } from '@/types';
 import Modal from '@/components/ui/Modal.vue';
@@ -75,7 +75,7 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" size="md" glass-card @close="visible = false">
+  <Modal :show="visible" size="md" @close="visible = false">
     <template #header>
       <h3 class="text-lg font-bold text-[var(--text-primary)]">
         {{ currentCourse ? t('admin.edit_course') : $t('admin.create_new_course') }}
@@ -104,38 +104,25 @@ defineExpose({ open });
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
             $t('admin.course_classification')
           }}</label>
-          <select
-            v-model="courseForm.categoryId"
-            class="w-full px-4 py-3 rounded-2xl border transition-all outline-none appearance-none"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-          >
-            <option value="">{{ $t('admin.please_select_a_category') }}</option>
-            <option v-for="cat in props.categories" :key="cat.id" :value="cat.id">
-              {{ cat.name }}
-            </option>
-          </select>
+          <Select v-model="courseForm.categoryId" class="w-full" size="large">
+            <SelectOption value="" :label="$t('admin.please_select_a_category')" />
+            <SelectOption
+              v-for="cat in props.categories"
+              :key="cat.id"
+              :value="cat.id"
+              :label="cat.name"
+            />
+          </Select>
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
             $t('admin.difficulty_level')
           }}</label>
-          <select
-            v-model="courseForm.difficulty"
-            class="w-full px-4 py-3 rounded-2xl border transition-all outline-none appearance-none"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-          >
-            <option value="BEGINNER">{{ $t('admin.getting_started') }}</option>
-            <option value="INTERMEDIATE">{{ $t('admin.advanced') }}</option>
-            <option value="ADVANCED">{{ $t('admin.advanced_1') }}</option>
-          </select>
+          <Select v-model="courseForm.difficulty" class="w-full" size="large">
+            <SelectOption value="BEGINNER" :label="$t('admin.getting_started')" />
+            <SelectOption value="INTERMEDIATE" :label="$t('admin.advanced')" />
+            <SelectOption value="ADVANCED" :label="$t('admin.advanced_1')" />
+          </Select>
         </div>
       </div>
       <div>

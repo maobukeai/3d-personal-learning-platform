@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { Component } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import {
   Bell,
   ChevronRight,
@@ -206,8 +206,6 @@ const activeSectionMeta = computed(
   () => sections.value.find((section) => section.id === activeSection.value) || sections.value[0],
 );
 
-
-
 const setSection = (sectionId: SectionId) => {
   activeSection.value = sectionId;
   localStorage.setItem('user_settings_active_tab', sectionId);
@@ -355,7 +353,7 @@ watch(filteredSections, (next) => {
   gap: 14px;
   padding: 14px;
   overflow: hidden;
-  background: transparent !important;
+  background: transparent;
   color: var(--text-primary);
 }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useMultiThreadDownload } from '@/composables/useMultiThreadDownload';
@@ -22,10 +22,13 @@ import {
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { useSystemStore } from '@/stores/system';
 import Button from '@/components/ui/Button.vue';
 import GlassCard from '@/components/ui/GlassCard.vue';
+import { useThemeManager } from '@/layouts/composables/useThemeManager';
+
+const { currentTheme, currentBackground, initTheme, cleanupTheme } = useThemeManager();
 
 const route = useRoute();
 const router = useRouter();
@@ -33,7 +36,8 @@ const { t } = useI18n();
 const systemStore = useSystemStore();
 
 const siteTitle = computed(() => systemStore.settings.PLATFORM_NAME || '3D PLP');
-const { isDownloading, downloadProgress, downloadSpeedStr, cancelDownload, runDownload } = useMultiThreadDownload();
+const { isDownloading, downloadProgress, downloadSpeedStr, cancelDownload, runDownload } =
+  useMultiThreadDownload();
 
 const shareId = route.params.shareId as string;
 
@@ -75,7 +79,8 @@ const getFileIconColor = (filename: string) => {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
   if (['zip', 'rar', '7z'].includes(ext)) return 'text-amber-500 bg-amber-500/10';
   if (['glb', 'gltf', 'blend'].includes(ext)) return 'text-indigo-500 bg-indigo-500/10';
-  if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) return 'text-emerald-500 bg-emerald-500/10';
+  if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext))
+    return 'text-emerald-500 bg-emerald-500/10';
   if (['mp4', 'mov', 'avi'].includes(ext)) return 'text-rose-500 bg-rose-500/10';
   if (['pdf', 'doc', 'txt'].includes(ext)) return 'text-sky-500 bg-sky-500/10';
   return 'text-slate-500 bg-slate-500/10';
@@ -132,7 +137,7 @@ const handleDownload = () => {
   if (shareInfo.value.hasPassword) {
     downloadUrl += `?password=${encodeURIComponent(passwordInput.value.trim())}`;
   }
-  
+
   runDownload({
     url: downloadUrl,
     filename: shareInfo.value.fileName,
@@ -152,26 +157,41 @@ const copyShareUrl = async () => {
 };
 
 onMounted(() => {
+  initTheme();
   systemStore.fetchSettings();
   fetchShareInfo();
 });
+
+onUnmounted(cleanupTheme);
 </script>
 
 <template>
-  <div class="min-h-[100vh] w-full flex items-center justify-center bg-[var(--bg-app)] relative overflow-hidden py-12 px-4">
-    <!-- Background glowing aesthetics -->
-    <div class="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none"></div>
-    <div class="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-cyan-500/5 rounded-full blur-[100px] pointer-events-none"></div>
+  <div
+    class="min-h-[100vh] w-full flex items-center justify-center bg-[var(--bg-app)] relative overflow-hidden py-12 px-4"
+  >
+    <!-- Enterprise canvas background decoration -->
+    <div
+      v-show="currentTheme.startsWith('glass')"
+      :class="[
+        'enterprise-canvas absolute inset-0 overflow-hidden pointer-events-none z-0',
+        'bg-style-' + currentBackground,
+      ]"
+    ></div>
 
     <div class="w-full max-w-[500px] relative z-10 animate-in fade-in zoom-in-95 duration-500">
-      <GlassCard class="p-6 sm:p-10 shadow-2xl rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)]/80 backdrop-blur-xl">
-        
+      <GlassCard
+        class="p-6 sm:p-10 shadow-2xl rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)]/80 backdrop-blur-xl"
+      >
         <!-- Header Brand -->
         <div class="flex items-center justify-center gap-2 mb-8">
-          <div class="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 shadow-sm">
+          <div
+            class="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 shadow-sm"
+          >
             <HardDrive class="w-4 h-4" />
           </div>
-          <span class="text-sm font-bold tracking-wide text-[var(--text-primary)]">{{ siteTitle }} 临时中转站</span>
+          <span class="text-sm font-bold tracking-wide text-[var(--text-primary)]"
+            >{{ siteTitle }} 临时中转站</span
+          >
         </div>
 
         <!-- Loading spinner -->
@@ -182,7 +202,9 @@ onMounted(() => {
 
         <!-- Error / Expiration view -->
         <div v-else-if="errorMsg" class="text-center py-6 space-y-4 text-xs">
-          <div class="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto shadow-sm">
+          <div
+            class="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto shadow-sm"
+          >
             <Clock class="w-6 h-6" />
           </div>
           <h2 class="text-sm font-bold text-[var(--text-primary)]">链接失效或已过期</h2>
@@ -197,14 +219,29 @@ onMounted(() => {
         <!-- Share Info View -->
         <div v-else class="space-y-6 text-xs">
           <!-- File details card -->
-          <div class="flex flex-col items-center text-center p-6 bg-slate-50 dark:bg-white/5 rounded-2xl border border-[var(--border-base)]">
-            <div :class="['w-16 h-16 rounded-2xl flex items-center justify-center shadow-md mb-4', getFileIconColor(shareInfo.fileName)]">
-              <component :is="getFileIcon(shareInfo.mimeType, shareInfo.fileName)" class="w-8 h-8" />
+          <div
+            class="flex flex-col items-center text-center p-6 bg-slate-50 dark:bg-white/5 rounded-2xl border border-[var(--border-base)]"
+          >
+            <div
+              :class="[
+                'w-16 h-16 rounded-2xl flex items-center justify-center shadow-md mb-4',
+                getFileIconColor(shareInfo.fileName),
+              ]"
+            >
+              <component
+                :is="getFileIcon(shareInfo.mimeType, shareInfo.fileName)"
+                class="w-8 h-8"
+              />
             </div>
-            <h2 class="text-sm font-bold text-[var(--text-primary)] break-all max-w-full px-2" :title="shareInfo.fileName">
+            <h2
+              class="text-sm font-bold text-[var(--text-primary)] break-all max-w-full px-2"
+              :title="shareInfo.fileName"
+            >
               {{ shareInfo.fileName }}
             </h2>
-            <div class="flex items-center gap-3 text-[var(--text-muted)] font-mono text-[10px] mt-2">
+            <div
+              class="flex items-center gap-3 text-[var(--text-muted)] font-mono text-[10px] mt-2"
+            >
               <span>大小: {{ formatSize(shareInfo.fileSize) }}</span>
               <span class="w-1 h-1 rounded-full bg-[var(--border-base)]"></span>
               <span>分享者: {{ shareInfo.ownerName }}</span>
@@ -214,11 +251,15 @@ onMounted(() => {
           <!-- Password required / verify box -->
           <div v-if="!isVerified" class="space-y-4 animate-in fade-in duration-300">
             <div class="text-center space-y-1.5 mb-2">
-              <p class="font-bold text-[var(--text-primary)] flex items-center justify-center gap-1.5">
+              <p
+                class="font-bold text-[var(--text-primary)] flex items-center justify-center gap-1.5"
+              >
                 <Lock class="w-4 h-4 text-indigo-500" />
                 提取码保护
               </p>
-              <p class="text-[10px] text-[var(--text-muted)]">该文件已受密码保护，请输入提取密码以继续下载。</p>
+              <p class="text-[10px] text-[var(--text-muted)]">
+                该文件已受密码保护，请输入提取密码以继续下载。
+              </p>
             </div>
 
             <div class="flex gap-2">
@@ -243,7 +284,9 @@ onMounted(() => {
 
           <!-- Verified download details -->
           <div v-else class="space-y-4 animate-in fade-in duration-300">
-            <div class="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 text-amber-600 dark:text-amber-400 flex items-start gap-2.5">
+            <div
+              class="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 text-amber-600 dark:text-amber-400 flex items-start gap-2.5"
+            >
               <Clock class="w-4 h-4 mt-0.5 shrink-0 text-amber-500" />
               <p class="text-[10px] leading-relaxed opacity-95">
                 安全中转警告：该资源为临时资源，随时可能被每日系统自动擦除任务清理。提取后请在本地保存。
@@ -251,27 +294,18 @@ onMounted(() => {
             </div>
 
             <div class="flex gap-2.5">
-              <Button
-                variant="outline"
-                class="flex-1 py-3"
-                @click="copyShareUrl"
-              >
+              <Button variant="outline" class="flex-1 py-3" @click="copyShareUrl">
                 <component :is="copied ? Check : Copy" class="w-3.5 h-3.5 mr-1.5" />
                 复制网页链接
               </Button>
 
-              <Button
-                variant="primary"
-                class="flex-1 py-3"
-                @click="handleDownload"
-              >
+              <Button variant="primary" class="flex-1 py-3" @click="handleDownload">
                 <Download class="w-3.5 h-3.5 mr-1.5" />
                 立即下载
               </Button>
             </div>
           </div>
         </div>
-
       </GlassCard>
     </div>
 

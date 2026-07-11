@@ -19,7 +19,7 @@ import {
   Image as ImageIcon,
   Sparkles,
 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import AiImageGeneratorDialog from '@/components/AiImageGeneratorDialog.vue';
 import Input from '@/components/ui/Input.vue';
 import Checkbox from '@/components/ui/Checkbox.vue';
@@ -250,7 +250,14 @@ const { uploadFile: doUpload, cancelUpload } = useTempUpload();
 const uploadFile = async (
   file: File,
   progressRef: Ref<number | null>,
-  tempField: 'tempAssetPath' | 'tempPackagePath' | 'tempThumbnailPath' | 'tempMaterialPath' | 'tempPluginPath' | 'tempPreviewPath' | 'tempSoftwarePath'
+  tempField:
+    | 'tempAssetPath'
+    | 'tempPackagePath'
+    | 'tempThumbnailPath'
+    | 'tempMaterialPath'
+    | 'tempPluginPath'
+    | 'tempPreviewPath'
+    | 'tempSoftwarePath',
 ): Promise<boolean> => {
   let fieldname = 'temp';
   if (tempField === 'tempAssetPath') fieldname = 'asset';
@@ -268,13 +275,27 @@ const uploadFile = async (
       emitUpdate({ [tempField]: filePath });
     },
     () => form.value[tempField],
-    fieldname
+    fieldname,
   );
 };
 
 const cancelAllTempUploads = () => {
-  const tempFields: ('tempAssetPath' | 'tempPackagePath' | 'tempThumbnailPath' | 'tempMaterialPath' | 'tempPluginPath' | 'tempPreviewPath' | 'tempSoftwarePath')[] = [
-    'tempAssetPath', 'tempPackagePath', 'tempThumbnailPath', 'tempMaterialPath', 'tempPluginPath', 'tempPreviewPath', 'tempSoftwarePath'
+  const tempFields: (
+    | 'tempAssetPath'
+    | 'tempPackagePath'
+    | 'tempThumbnailPath'
+    | 'tempMaterialPath'
+    | 'tempPluginPath'
+    | 'tempPreviewPath'
+    | 'tempSoftwarePath'
+  )[] = [
+    'tempAssetPath',
+    'tempPackagePath',
+    'tempThumbnailPath',
+    'tempMaterialPath',
+    'tempPluginPath',
+    'tempPreviewPath',
+    'tempSoftwarePath',
   ];
   for (const field of tempFields) {
     const path = form.value[field];
@@ -282,18 +303,18 @@ const cancelAllTempUploads = () => {
       cancelUpload(path);
     }
   }
-  
+
   fileProgress.value = null;
   packageProgress.value = null;
   thumbnailProgress.value = null;
-  
+
   emitUpdate({
     tempAssetPath: undefined,
     tempPackagePath: undefined,
     tempThumbnailPath: undefined,
     tempMaterialPath: undefined,
     tempPluginPath: undefined,
-    tempPreviewPath: undefined
+    tempPreviewPath: undefined,
   });
 };
 
@@ -311,7 +332,14 @@ const handleFileChange = async (event: Event) => {
   if (file) {
     emitUpdate({ file, fileSize: file.size });
     const kind = props.work?.kind;
-    const tempField = kind === 'asset' ? 'tempAssetPath' : kind === 'material' ? 'tempMaterialPath' : kind === 'plugin' ? 'tempPluginPath' : 'tempSoftwarePath';
+    const tempField =
+      kind === 'asset'
+        ? 'tempAssetPath'
+        : kind === 'material'
+          ? 'tempMaterialPath'
+          : kind === 'plugin'
+            ? 'tempPluginPath'
+            : 'tempSoftwarePath';
     await uploadFile(file, fileProgress, tempField);
   }
 };
@@ -331,7 +359,8 @@ const handleThumbnailChange = async (event: Event) => {
   if (file) {
     emitUpdate({ thumbnail: file });
     const kind = props.work?.kind;
-    const tempField = (kind === 'plugin' || kind === 'software') ? 'tempPreviewPath' : 'tempThumbnailPath';
+    const tempField =
+      kind === 'plugin' || kind === 'software' ? 'tempPreviewPath' : 'tempThumbnailPath';
     const success = await uploadFile(file, thumbnailProgress, tempField);
     if (success) {
       ElMessage.success('封面图上传成功！');
@@ -344,7 +373,8 @@ const handleThumbnailChange = async (event: Event) => {
 const handleAiCoverSave = async (file: File) => {
   emitUpdate({ thumbnail: file });
   const kind = props.work?.kind;
-  const tempField = (kind === 'plugin' || kind === 'software') ? 'tempPreviewPath' : 'tempThumbnailPath';
+  const tempField =
+    kind === 'plugin' || kind === 'software' ? 'tempPreviewPath' : 'tempThumbnailPath';
   const success = await uploadFile(file, thumbnailProgress, tempField);
   if (success) {
     ElMessage.success('已自动应用 AI 生成的封面图！');
@@ -525,7 +555,6 @@ watch(
   <Modal
     :show="show && !!work"
     :size="['asset', 'material', 'plugin', 'software'].includes(work?.kind || '') ? 'xxl' : 'xl'"
-    glass-card
     @close="show = false"
   >
     <template #header>
@@ -536,14 +565,14 @@ watch(
               ? '编辑资源库作品'
               : work?.kind === 'material'
                 ? '编辑材质库作品'
-                : (work?.kind === 'plugin' || work?.kind === 'software')
+                : work?.kind === 'plugin' || work?.kind === 'software'
                   ? '更新插件版本'
                   : '编辑作品'
           }}
         </h3>
         <p class="text-xs text-[var(--text-muted)] mt-1">
           {{
-            (work?.kind === 'plugin' || work?.kind === 'software')
+            work?.kind === 'plugin' || work?.kind === 'software'
               ? '您可以在此上传新版插件文件并更新版本号，保存后将重新提交审核。'
               : '保存后会根据内容类型重新提交审核。'
           }}
@@ -553,16 +582,25 @@ watch(
 
     <div
       v-if="work"
-      :class="['asset', 'material', 'plugin', 'software'].includes(work.kind) ? 'modal-scroll-container' : ''"
+      :class="
+        ['asset', 'material', 'plugin', 'software'].includes(work.kind)
+          ? 'modal-scroll-container'
+          : ''
+      "
     >
       <!-- 2-column layout for assets, materials, plugins -->
-      <div v-if="['asset', 'material', 'plugin', 'software'].includes(work.kind)" class="space-y-4 text-left">
+      <div
+        v-if="['asset', 'material', 'plugin', 'software'].includes(work.kind)"
+        class="space-y-4 text-left"
+      >
         <!-- Top Row: Inputs (Left) and Description (Right) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           <!-- Left Column: File dropzones & Metadata -->
           <div class="space-y-3">
             <!-- Segment Switcher for Download Type -->
-            <div class="flex p-0.5 mb-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-800/80">
+            <div
+              class="flex p-0.5 mb-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-800/80"
+            >
               <button
                 type="button"
                 @click="form.downloadType = 'local'"
@@ -570,7 +608,7 @@ watch(
                   'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
                   form.downloadType === 'local'
                     ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
-                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
+                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400',
                 ]"
               >
                 本地文件上传
@@ -582,7 +620,7 @@ watch(
                   'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
                   form.downloadType === 'external'
                     ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
-                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'
+                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400',
                 ]"
               >
                 网盘链接 / 网页直达
@@ -599,7 +637,9 @@ watch(
                   accept=".glb"
                   height-class="h-24"
                   :progress="fileProgress"
-                  :label="form.file ? form.file.name : (fileUploadedName || '重新上传主预览模型 (.glb)')"
+                  :label="
+                    form.file ? form.file.name : fileUploadedName || '重新上传主预览模型 (.glb)'
+                  "
                   sublabel="当前已有模型。留空将保留原模型。仅支持 .glb"
                   @change="handleFileChange"
                 />
@@ -610,7 +650,11 @@ watch(
                   accept=".zip"
                   height-class="h-24"
                   :progress="packageProgress"
-                  :label="form.packageFile ? form.packageFile.name : (packageUploadedName || '重新上传可选资源包 (.zip)')"
+                  :label="
+                    form.packageFile
+                      ? form.packageFile.name
+                      : packageUploadedName || '重新上传可选资源包 (.zip)'
+                  "
                   sublabel="当前已有资源包。留空将保留原资源包。仅支持 .zip"
                   @change="handlePackageChange"
                 />
@@ -623,21 +667,41 @@ watch(
                   accept=".zip,.sbsar"
                   height-class="h-24"
                   :progress="fileProgress"
-                  :label="form.file ? form.file.name : (fileUploadedName || '重新上传材质包 (.zip, .sbsar)')"
+                  :label="
+                    form.file ? form.file.name : fileUploadedName || '重新上传材质包 (.zip, .sbsar)'
+                  "
                   sublabel="当前已有材质包。留空将保留原文件。支持 .zip, .sbsar"
                   @change="handleFileChange"
                 />
               </div>
 
               <!-- PLUGIN file uploaders -->
-              <div v-else-if="work.kind === 'plugin' || work.kind === 'software'" class="grid grid-cols-1 gap-4">
+              <div
+                v-else-if="work.kind === 'plugin' || work.kind === 'software'"
+                class="grid grid-cols-1 gap-4"
+              >
                 <FileDropZone
                   v-model="form.file"
-                  :accept="work.kind === 'plugin' ? '.zip,.py' : '.exe,.msi,.dmg,.pkg,.deb,.rpm,.zip,.rar,.7z'"
+                  :accept="
+                    work.kind === 'plugin'
+                      ? '.zip,.py'
+                      : '.exe,.msi,.dmg,.pkg,.deb,.rpm,.zip,.rar,.7z'
+                  "
                   height-class="h-24"
                   :progress="fileProgress"
-                  :label="form.file ? form.file.name : (fileUploadedName || (work.kind === 'plugin' ? '重新上传插件文件 (.zip, .py)' : '重新上传软件文件 (.exe, .msi, .dmg, .zip)'))"
-                  :sublabel="work.kind === 'plugin' ? '当前已有插件文件。留空将保留原文件。支持 .zip, .py' : '当前已有软件文件。留空将保留原文件。支持 .exe, .msi, .dmg, .zip'"
+                  :label="
+                    form.file
+                      ? form.file.name
+                      : fileUploadedName ||
+                        (work.kind === 'plugin'
+                          ? '重新上传插件文件 (.zip, .py)'
+                          : '重新上传软件文件 (.exe, .msi, .dmg, .zip)')
+                  "
+                  :sublabel="
+                    work.kind === 'plugin'
+                      ? '当前已有插件文件。留空将保留原文件。支持 .zip, .py'
+                      : '当前已有软件文件。留空将保留原文件。支持 .exe, .msi, .dmg, .zip'
+                  "
                   @change="handleFileChange"
                 />
               </div>
@@ -666,7 +730,10 @@ watch(
             </div>
 
             <ZipFileTreeViewer
-              :show="['asset', 'material', 'plugin', 'software'].includes(work.kind) && (isParsingZip || hasPackageFiles)"
+              :show="
+                ['asset', 'material', 'plugin', 'software'].includes(work.kind) &&
+                (isParsingZip || hasPackageFiles)
+              "
               :file="activeZipFile"
               :is-parsing-zip="isParsingZip"
               :parsed-file-tree="parsedFileTree"
@@ -686,20 +753,20 @@ watch(
                   class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
                   >资源分类</span
                 >
-                <el-select
+                <Select
                   v-model="categoryId"
                   size="large"
                   class="w-full custom-dialog-input"
                   placeholder="选择分类"
                 >
-                  <el-option value="" label="选择分类" />
-                  <el-option
+                  <SelectOption value="" label="选择分类" />
+                  <SelectOption
                     v-for="category in assetCategories"
                     :key="category.id"
                     :label="category.name"
                     :value="category.id"
                   />
-                </el-select>
+                </Select>
               </label>
 
               <label
@@ -710,39 +777,50 @@ watch(
                   class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
                   >材料分类</span
                 >
-                <el-select
+                <Select
                   v-model="materialCategory"
                   size="large"
                   class="w-full custom-dialog-input"
                   placeholder="选择分类"
                 >
-                  <el-option
+                  <SelectOption
                     v-for="category in materialCategories"
                     :key="category"
                     :label="category"
                     :value="category"
                   />
-                </el-select>
+                </Select>
               </label>
 
-              <label v-else-if="work.kind === 'plugin' || work.kind === 'software'" class="form-field flex flex-col text-left">
+              <label
+                v-else-if="work.kind === 'plugin' || work.kind === 'software'"
+                class="form-field flex flex-col text-left"
+              >
                 <span
                   class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
                   >{{ work.kind === 'plugin' ? '插件分类' : '软件分类' }}</span
                 >
-                <el-select
+                <Select
                   v-model="pluginCategory"
                   size="large"
                   class="w-full custom-dialog-input"
                   placeholder="选择分类"
                 >
-                  <el-option
-                    v-for="category in (work.kind === 'plugin' ? pluginCategories : (systemStore.settings.SOFTWARE_CATEGORIES || ['3D 建模与雕刻软件', '渲染引擎与渲染器', '后期与图像处理', '游戏与交互引擎', '其他工具']))"
+                  <SelectOption
+                    v-for="category in work.kind === 'plugin'
+                      ? pluginCategories
+                      : systemStore.settings.SOFTWARE_CATEGORIES || [
+                          '3D 建模与雕刻软件',
+                          '渲染引擎与渲染器',
+                          '后期与图像处理',
+                          '游戏与交互引擎',
+                          '其他工具',
+                        ]"
                     :key="category"
                     :label="category"
                     :value="category"
                   />
-                </el-select>
+                </Select>
               </label>
 
               <div class="flex flex-col text-left">
@@ -779,13 +857,13 @@ watch(
                   class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
                   >分辨率</span
                 >
-                <el-select v-model="resolution" size="large" class="w-full custom-dialog-input">
-                  <el-option value="2K" label="2K" />
-                  <el-option value="4K" label="4K" />
-                  <el-option value="8K" label="8K" />
-                  <el-option value="矢量" label="矢量" />
-                  <el-option value="程序化" label="程序化" />
-                </el-select>
+                <Select v-model="resolution" size="large" class="w-full custom-dialog-input">
+                  <SelectOption value="2K" label="2K" />
+                  <SelectOption value="4K" label="4K" />
+                  <SelectOption value="8K" label="8K" />
+                  <SelectOption value="矢量" label="矢量" />
+                  <SelectOption value="程序化" label="程序化" />
+                </Select>
               </label>
               <div class="flex items-center pt-6 pl-1">
                 <Checkbox v-model="isProcedural">程序化材质</Checkbox>
@@ -793,7 +871,10 @@ watch(
             </div>
 
             <!-- PLUGIN specifications -->
-            <div v-if="work.kind === 'plugin' || work.kind === 'software'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div
+              v-if="work.kind === 'plugin' || work.kind === 'software'"
+              class="grid grid-cols-1 sm:grid-cols-2 gap-4"
+            >
               <div class="flex flex-col text-left col-span-1">
                 <div
                   v-if="existingVersions.length > 0 && !isAddingNewVersion"
@@ -815,19 +896,19 @@ watch(
                       输入新版本
                     </button>
                   </div>
-                  <el-select
+                  <Select
                     v-model="pluginVersion"
                     size="large"
                     class="w-full custom-dialog-input"
                     placeholder="选择已发布版本"
                   >
-                    <el-option
+                    <SelectOption
                       v-for="v in existingVersions"
                       :key="v.id"
                       :label="v.version"
                       :value="v.version"
                     />
-                  </el-select>
+                  </Select>
                 </div>
                 <div v-else class="form-field flex flex-col text-left">
                   <div class="flex justify-between items-center mb-2">
@@ -855,7 +936,7 @@ watch(
                   class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
                   >兼容版本</span
                 >
-                <el-select
+                <Select
                   v-model="pluginCompatibility"
                   filterable
                   allow-create
@@ -864,13 +945,15 @@ watch(
                   class="w-full custom-dialog-input"
                   size="large"
                 >
-                  <el-option
-                    v-for="ver in (work?.kind === 'plugin' ? blenderVersions : ['Windows 10/11', 'macOS', 'Linux', 'Android', 'iOS', '跨平台'])"
+                  <SelectOption
+                    v-for="ver in work?.kind === 'plugin'
+                      ? blenderVersions
+                      : ['Windows 10/11', 'macOS', 'Linux', 'Android', 'iOS', '跨平台']"
                     :key="ver"
                     :label="ver"
                     :value="ver"
                   />
-                </el-select>
+                </Select>
               </div>
             </div>
 
@@ -891,7 +974,7 @@ watch(
               <MarkdownEditor
                 v-model="description"
                 placeholder="描述作品用途、制作说明、安装方式或更新内容"
-                :height="(work?.kind === 'plugin' || work?.kind === 'software') ? '400px' : '340px'"
+                :height="work?.kind === 'plugin' || work?.kind === 'software' ? '400px' : '340px'"
                 simple
               />
             </div>
@@ -929,14 +1012,14 @@ watch(
                 <span class="block text-xs font-semibold mb-1.5 text-[var(--text-secondary)]">
                   {{ label('原创属性', 'Originality') }}
                 </span>
-                <el-select v-model="originality" size="large" class="w-full custom-dialog-input">
-                  <el-option
+                <Select v-model="originality" size="large" class="w-full custom-dialog-input">
+                  <SelectOption
                     v-for="opt in ASSET_ORIGINALITY_OPTIONS"
                     :key="opt.value"
                     :label="label(opt.label_zh, opt.label_en)"
                     :value="opt.value"
                   />
-                </el-select>
+                </Select>
               </label>
 
               <!-- Attribution fields if not original -->
@@ -964,14 +1047,14 @@ watch(
                   <span class="block text-xs font-semibold mb-1.5 text-[var(--text-secondary)]">
                     {{ label('授权许可协议 (License)', 'Distribution License') }}
                   </span>
-                  <el-select v-model="license" size="large" class="w-full custom-dialog-input">
-                    <el-option
+                  <Select v-model="license" size="large" class="w-full custom-dialog-input">
+                    <SelectOption
                       v-for="opt in ASSET_LICENSE_OPTIONS"
                       :key="opt.value"
                       :label="label(opt.label_zh, opt.label_en)"
                       :value="opt.value"
                     />
-                  </el-select>
+                  </Select>
                 </label>
 
                 <!-- Download Permission -->
@@ -979,13 +1062,13 @@ watch(
                   <span class="block text-xs font-semibold mb-1.5 text-[var(--text-secondary)]">
                     {{ label('下载权限 (Download)', 'Download Permission') }}
                   </span>
-                  <el-select v-model="isFree" size="large" class="w-full custom-dialog-input">
-                    <el-option :label="label('免费下载', 'Free Download')" :value="true" />
-                    <el-option
+                  <Select v-model="isFree" size="large" class="w-full custom-dialog-input">
+                    <SelectOption :label="label('免费下载', 'Free Download')" :value="true" />
+                    <SelectOption
                       :label="label('会员专享 (VIP才能下载)', 'VIP Member Only')"
                       :value="false"
                     />
-                  </el-select>
+                  </Select>
                 </label>
               </div>
             </div>
@@ -1021,14 +1104,14 @@ watch(
                 <span class="block text-xs font-semibold mb-1.5 text-[var(--text-secondary)]">
                   {{ label('网格多边形类型', 'Mesh Type') }}
                 </span>
-                <el-select v-model="meshType" size="large" class="w-full custom-dialog-input">
-                  <el-option
+                <Select v-model="meshType" size="large" class="w-full custom-dialog-input">
+                  <SelectOption
                     v-for="opt in ASSET_MESHTYPE_OPTIONS"
                     :key="opt.value"
                     :label="label(opt.label_zh, opt.label_en)"
                     :value="opt.value"
                   />
-                </el-select>
+                </Select>
               </label>
 
               <!-- UV checkboxes -->
@@ -1052,7 +1135,7 @@ watch(
                 <span class="block text-xs font-semibold mb-1.5 text-[var(--text-secondary)]">
                   {{ label('包含 PBR 材质通道 (PBR Maps)', 'PBR Texture Channels') }}
                 </span>
-                <el-select
+                <Select
                   v-model="pbrChannels"
                   multiple
                   collapse-tags
@@ -1061,13 +1144,13 @@ watch(
                   class="w-full custom-dialog-input"
                   :placeholder="label('选择包含的贴图通道 (PBR)', 'Select included PBR maps')"
                 >
-                  <el-option
+                  <SelectOption
                     v-for="map in ASSET_PBR_MAPS_OPTIONS"
                     :key="map"
                     :label="map"
                     :value="map"
                   />
-                </el-select>
+                </Select>
               </label>
 
               <!-- Rigged & GameReady checkboxes -->
@@ -1099,13 +1182,13 @@ watch(
               class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
               >展示类型</span
             >
-            <el-select v-model="showcaseType" size="large" class="w-full custom-dialog-input">
-              <el-option value="IMAGE" label="图片作品" />
-              <el-option value="VIDEO" label="视频作品" />
-              <el-option value="MODEL" label="模型展示" />
-              <el-option value="TEXT" label="图文作品" />
-              <el-option value="OTHER" label="其他" />
-            </el-select>
+            <Select v-model="showcaseType" size="large" class="w-full custom-dialog-input">
+              <SelectOption value="IMAGE" label="图片作品" />
+              <SelectOption value="VIDEO" label="视频作品" />
+              <SelectOption value="MODEL" label="模型展示" />
+              <SelectOption value="TEXT" label="图文作品" />
+              <SelectOption value="OTHER" label="其他" />
+            </Select>
           </label>
           <div v-if="showcaseType === 'VIDEO'" class="col-span-2 sm:col-span-1">
             <Input v-model="videoUrl" type="text" label="视频链接" />
@@ -1134,7 +1217,17 @@ watch(
     <template #footer>
       <div class="flex justify-end gap-2">
         <Button variant="secondary" size="sm" @click="show = false"> 取消 </Button>
-        <Button variant="primary" size="sm" :loading="isSaving" @click="() => { isSaved = true; emit('save'); }">
+        <Button
+          variant="primary"
+          size="sm"
+          :loading="isSaving"
+          @click="
+            () => {
+              isSaved = true;
+              emit('save');
+            }
+          "
+        >
           保存并提交审核
         </Button>
       </div>
@@ -1209,10 +1302,10 @@ watch(
 }
 
 .editor-field :deep(.md-editor-toolbar) {
-  flex-wrap: wrap !important;
+  flex-wrap: wrap;
 }
 .editor-field :deep(.md-editor-toolbar-wrapper) {
-  height: auto !important;
+  height: auto;
 }
 
 .drop-zone input {
@@ -1280,8 +1373,8 @@ watch(
 
 .editor-field :deep(.mdw),
 .editor-field :deep(.md-editor) {
-  width: 100% !important;
-  min-width: 0 !important;
+  width: 100%;
+  min-width: 0;
 }
 
 @media (max-width: 680px) {

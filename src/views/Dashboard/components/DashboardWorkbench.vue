@@ -12,10 +12,6 @@ import type {
 } from '../types';
 
 import DashboardMetricStrip from './DashboardMetricStrip.vue';
-import DashboardTasksPanel from './DashboardTasksPanel.vue';
-import DashboardProjectsPanel from './DashboardProjectsPanel.vue';
-import DashboardOpsWorkbench from './DashboardOpsWorkbench.vue';
-import DashboardFocusCenter from './DashboardFocusCenter.vue';
 import DashboardAssetsPanel from './DashboardAssetsPanel.vue';
 
 const props = defineProps<{
@@ -160,12 +156,19 @@ function isProjectAtRisk(project: ProjectSummary) {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
+  <div
+    class="dashboard-workbench grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start"
+  >
     <!-- Main Column -->
     <div class="flex flex-col gap-4 min-w-0">
       <slot name="main-top"></slot>
 
-      <!-- Core Metric Strip -->
+      <slot name="main-bottom"></slot>
+    </div>
+
+    <!-- Sidebar Column -->
+    <aside class="dashboard-sidebar flex flex-col gap-4 min-w-0">
+      <!-- Core Metric Strip (moved to sidebar) -->
       <DashboardMetricStrip
         :workbench="workbench"
         :stats="stats"
@@ -173,49 +176,8 @@ function isProjectAtRisk(project: ProjectSummary) {
         :learning-progress="learningProgress"
         :task-summary="taskSummary"
         :content-summary="contentSummary"
+        is-sidebar
         @navigate="emit('navigate', $event)"
-      />
-
-      <!-- Core Work Grid (Tasks & Projects) -->
-      <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] gap-4">
-        <DashboardTasksPanel
-          :visible-tasks="visibleTasks"
-          :task-summary="taskSummary"
-          :completing-task-ids="completingTaskIds"
-          @navigate="emit('navigate', $event)"
-          @complete-task="emit('complete-task', $event)"
-        />
-
-        <DashboardProjectsPanel
-          :project-health="projectHealth"
-          @navigate="emit('navigate', $event)"
-        />
-      </div>
-
-      <!-- Operations Workbench -->
-      <DashboardOpsWorkbench
-        :workbench="workbench"
-        :is-loading="isLoading"
-        :workbench-error="workbenchError"
-        :command-headline="commandHeadline"
-        :momentum-score="momentumScore"
-        :task-summary="taskSummary"
-        :content-summary="contentSummary"
-        @navigate="emit('navigate', $event)"
-      />
-    </div>
-
-    <!-- Sidebar Column -->
-    <aside class="flex flex-col gap-4 min-w-0">
-      <!-- Focus Center Widget -->
-      <DashboardFocusCenter
-        :active-enrollment="activeEnrollment"
-        :momentum-score="momentumScore"
-        :task-summary="taskSummary"
-        :content-summary="contentSummary"
-        :project-count="projectHealth.length"
-        @navigate="emit('navigate', $event)"
-        @open-import-dialog="emit('open-import-dialog', $event)"
       />
 
       <slot name="sidebar-middle"></slot>
@@ -231,3 +193,16 @@ function isProjectAtRisk(project: ProjectSummary) {
     </aside>
   </div>
 </template>
+
+<style scoped>
+.dashboard-sidebar {
+  position: sticky;
+  top: 4px;
+}
+
+@media (max-width: 1279px) {
+  .dashboard-sidebar {
+    position: static;
+  }
+}
+</style>

@@ -109,20 +109,20 @@ const handleSubmit = () => {
 
       <label>
         角色
-        <select v-model="form.role">
-          <option value="USER">普通用户</option>
-          <option value="INSTRUCTOR">导师</option>
-          <option value="ADMIN">管理员</option>
-        </select>
+        <Select v-model="form.role" class="w-full mt-1.5" size="large">
+          <SelectOption value="USER" label="普通用户" />
+          <SelectOption value="INSTRUCTOR" label="导师" />
+          <SelectOption value="ADMIN" label="管理员" />
+        </Select>
       </label>
 
       <!-- Status field (only during editing) -->
       <label v-if="isEdit">
         状态
-        <select v-model="form.status">
-          <option value="ACTIVE">正常</option>
-          <option value="BANNED">封禁</option>
-        </select>
+        <Select v-model="form.status" class="w-full mt-1.5" size="large">
+          <SelectOption value="ACTIVE" label="正常" />
+          <SelectOption value="BANNED" label="封禁" />
+        </Select>
       </label>
     </div>
   </FormDialog>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import {
   Share2,
   Copy,
@@ -429,7 +429,7 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" size="lg" :z-index="1100" glass-card @close="visible = false">
+  <Modal :show="visible" size="lg" @close="visible = false">
     <template #header>
       <div class="mobile-row flex items-center gap-2.5">
         <div
@@ -518,7 +518,7 @@ defineExpose({ open });
               >
                 <Calendar class="w-3.5 h-3.5 text-[var(--text-secondary)]" /> 选择过期时间
               </label>
-              <el-date-picker
+              <DatePicker
                 v-model="customExpiresAt"
                 type="datetime"
                 placeholder="选择具体日期和时间"
@@ -742,34 +742,5 @@ defineExpose({ open });
 .fade-leave-to {
   opacity: 0;
   transform: translateY(-8px);
-}
-
-/* .custom-datepicker .el-input__wrapper overrides + .shortcut-list scrollbar
-   hiding provided globally by src/styles/components.css. */
-
-:deep(.custom-textarea .el-textarea__inner) {
-  background-color: var(--bg-subtle) !important;
-  border-radius: 8px !important;
-  box-shadow: none !important;
-  border: 1px solid var(--border-base) !important;
-  padding: 8px 12px !important;
-  font-family: inherit !important;
-  color: var(--text-primary) !important;
-  transition: all 0.25s ease !important;
-  font-size: 13px !important;
-}
-
-:deep(.custom-textarea .el-textarea__inner:focus) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 1px var(--accent) !important;
-  background-color: var(--bg-card) !important;
-}
-
-:deep(.custom-textarea .el-input__count) {
-  background: transparent !important;
-  bottom: 6px !important;
-  right: 10px !important;
-  font-size: 11px !important;
-  color: var(--text-muted) !important;
 }
 </style>

@@ -206,21 +206,21 @@ const emit = defineEmits<{
 
 @media (max-width: 900px) {
   .showcase-controls {
-    padding: 8px !important;
-    gap: 8px !important;
-    margin-top: 10px !important;
+    padding: 8px;
+    gap: 8px;
+    margin-top: 10px;
   }
 
   .controls-row {
     flex-direction: column;
     align-items: stretch;
-    gap: 6px !important;
+    gap: 6px;
   }
 
   .right-actions-group {
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 6px !important;
+    gap: 6px;
   }
 }
 

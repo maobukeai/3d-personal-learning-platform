@@ -15,7 +15,7 @@ import {
   Cloud,
   CheckCircle,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { useSystemStore } from '@/stores/system';
 import { getApiErrorMessage, logError } from '@/utils/error';
@@ -293,6 +293,18 @@ const tabs = [
   { id: 'template', label: t('admin.email_template'), icon: Layout },
   { id: 'ai', label: t('admin.ai_intelligent_assistance'), icon: Cpu },
 ];
+
+const tabDescriptions: Record<string, string> = {
+  general: '平台运行与默认策略',
+  branding: '品牌、站点名称与展示信息',
+  security: '账户、会话与访问安全',
+  upload: '文件类型、大小与审核规则',
+  storage: '对象存储与资源服务',
+  smtp: '发信渠道与通知服务',
+  social: '第三方账号登录',
+  template: '系统邮件内容模板',
+  ai: '模型、密钥与 AI 能力',
+};
 
 const activeTabMeta = computed(() => tabs.find((tab) => tab.id === activeTab.value) || tabs[0]);
 
@@ -750,7 +762,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-loading="isLoading" class="h-full flex flex-col min-w-0 mobile-adaptive">
+  <div
+    v-loading="isLoading"
+    class="admin-settings-page h-full flex flex-col min-w-0 mobile-adaptive"
+  >
     <!-- Top Action Bar -->
     <!-- Ultra-Compact Single Row Header -->
     <AdminHeader
@@ -818,7 +833,7 @@ onMounted(() => {
     </AdminHeader>
 
     <!-- Main Workspace -->
-    <div class="flex-1 grid grid-cols-1 xl:grid-cols-[13.5rem_minmax(0,1fr)] overflow-hidden">
+    <div class="admin-settings-workbench flex-1 min-h-0">
       <!-- Side Tab Navigation -->
       <AdminSettingsTabs
         :tabs="tabs"
@@ -829,8 +844,22 @@ onMounted(() => {
       />
 
       <!-- Tab Content Area -->
-      <div class="min-w-0 overflow-y-auto p-3 sm:p-4 lg:p-5 scrollbar-hide">
-        <div class="w-full max-w-none space-y-4 pb-8">
+      <section class="admin-settings-main">
+        <header class="admin-settings-toolbar">
+          <div class="admin-content-title">
+            <div class="admin-title-icon">
+              <component :is="activeTabMeta.icon" />
+            </div>
+            <div>
+              <p>系统设置</p>
+              <h2>{{ activeTabMeta.label }}</h2>
+              <span>{{ tabDescriptions[activeTab] }}</span>
+            </div>
+          </div>
+          <span class="admin-section-status">{{ configurationCompleteness }}% 已配置</span>
+        </header>
+
+        <div class="admin-settings-content scrollbar-hide">
           <!-- Signal Cards -->
           <AdminSettingsSignalCards
             :active-tab-meta="activeTabMeta"
@@ -883,32 +912,135 @@ onMounted(() => {
             </main>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   </div>
 </template>
 
 <style scoped>
+.admin-settings-page {
+  color: var(--text-primary);
+}
+
+.admin-settings-workbench {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px;
+  overflow: hidden;
+}
+
+.admin-settings-main {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-enterprise);
+}
+
+.admin-settings-toolbar {
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-base);
+}
+
+.admin-content-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-title-icon {
+  width: 42px;
+  height: 42px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-app));
+  color: var(--accent);
+}
+
+.admin-title-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.admin-content-title p,
+.admin-content-title h2,
+.admin-content-title span {
+  margin: 0;
+}
+
+.admin-content-title p,
+.admin-content-title span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.admin-content-title p {
+  font-weight: 900;
+}
+
+.admin-content-title h2 {
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.admin-section-status {
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 0 8px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.admin-settings-content {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  overflow-y: auto;
+  padding: 14px;
+}
+
 .settings-main-column .rounded-3xl,
 .settings-main-column .rounded-2xl,
 .settings-main-column .rounded-xl {
-  border-radius: 8px !important;
+  border-radius: 8px;
 }
 
 .settings-main-column > div > section {
-  padding: 18px !important;
+  padding: 18px;
 }
 
 .settings-main-column > div {
-  gap: 12px !important;
+  gap: 12px;
 }
 
 .settings-main-column section .grid {
-  gap: 12px !important;
+  gap: 12px;
 }
 
 .settings-main-column section > div:first-child.flex {
-  margin-bottom: 12px !important;
+  margin-bottom: 12px;
 }
 
 .scrollbar-hide::-webkit-scrollbar {
@@ -929,6 +1061,42 @@ onMounted(() => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (max-width: 1279px) {
+  .admin-settings-workbench {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+
+  .admin-settings-main {
+    min-height: 560px;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-settings-workbench {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .admin-settings-toolbar {
+    min-height: 68px;
+    padding: 12px;
+  }
+
+  .admin-content-title h2 {
+    font-size: 18px;
+  }
+
+  .admin-content-title span,
+  .admin-section-status {
+    display: none;
+  }
+
+  .admin-settings-content {
+    padding: 10px;
   }
 }
 </style>

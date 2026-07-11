@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatFileSize } from '@/utils/format';
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import {
   MessageSquare,
   AlignLeft,
@@ -10,6 +10,9 @@ import {
   Paperclip,
   Smile,
   Send,
+  Languages,
+  Loader2,
+  Trash2,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
@@ -223,6 +226,13 @@ const handleReaction = async (discussionId: string, emoji: string) => {
   }
 };
 
+const activeReactionMsgId = ref<string | null>(null);
+
+const handleReactionClick = async (discussionId: string, emoji: string) => {
+  activeReactionMsgId.value = null;
+  await handleReaction(discussionId, emoji);
+};
+
 const parseImages = (images: string | null | undefined): string[] => {
   if (!images) return [];
   try {
@@ -243,6 +253,45 @@ const hasReaction = (reactions: DiscussionReaction[] | undefined, emoji: string)
 const getReactionCount = (reactions: DiscussionReaction[] | undefined, emoji: string) => {
   return reactions?.filter((r) => r.emoji === emoji).length || 0;
 };
+const translations = ref<Record<string, string>>({});
+const translating = ref<Record<string, boolean>>({});
+
+const handleTranslate = async (message: ProjectDiscussion) => {
+  if (translations.value[message.id]) {
+    delete translations.value[message.id];
+    return;
+  }
+
+  translating.value[message.id] = true;
+  try {
+    const response = await api.post('/api/messages/translate', {
+      content: message.content || '',
+    });
+    translations.value[message.id] = response.data.translation;
+  } catch {
+    ElMessage.error('翻译失败，请稍后重试 / Translation failed');
+  } finally {
+    translating.value[message.id] = false;
+  }
+};
+
+const handleDeleteDiscussion = async (discussionId: string) => {
+  try {
+    await ElMessageBox.confirm('确定要删除这条讨论消息吗？/ Delete this discussion?', '提示', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+
+    await api.delete(`/api/projects/discussions/${discussionId}`);
+    ElMessage.success('讨论消息删除成功 / Deleted successfully');
+    emit('refresh');
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败，请稍后重试 / Delete failed');
+    }
+  }
+};
 </script>
 
 <template>
@@ -262,7 +311,10 @@ const getReactionCount = (reactions: DiscussionReaction[] | undefined, emoji: st
             @click="emit('open-profile', msg.user.id)"
           />
 
-          <div :class="msg.userId === authStore.user?.id ? 'items-end' : ''" class="flex flex-col">
+          <div
+            :class="msg.userId === authStore.user?.id ? 'items-end' : ''"
+            class="flex flex-col group relative"
+          >
             <div
               class="flex items-center gap-3 mb-2"
               :class="msg.userId === authStore.user?.id ? 'flex-row-reverse' : ''"
@@ -280,7 +332,7 @@ const getReactionCount = (reactions: DiscussionReaction[] | undefined, emoji: st
               }}</span>
             </div>
             <div
-              class="px-6 py-4 rounded-3xl text-sm leading-relaxed shadow-sm max-w-xl"
+              class="px-6 py-4 rounded-3xl text-sm leading-relaxed shadow-sm max-w-xl relative"
               :class="
                 msg.userId === authStore.user?.id
                   ? 'bg-accent text-white rounded-tr-sm'
@@ -288,6 +340,95 @@ const getReactionCount = (reactions: DiscussionReaction[] | undefined, emoji: st
               "
             >
               {{ msg.content && msg.content !== ' ' ? msg.content : '' }}
+
+              <!-- Translation Display -->
+              <div
+                v-if="translations[msg.id] || translating[msg.id]"
+                class="mt-1.5 pt-1.5 border-t border-white/20 dark:border-slate-800 flex flex-col gap-0.5"
+              >
+                <div class="flex items-center gap-1 text-[8px] font-bold opacity-60">
+                  <Loader2 v-if="translating[msg.id]" class="w-2.5 h-2.5 animate-spin" />
+                  <Languages v-else class="w-2.5 h-2.5" />
+                  <span>{{
+                    translating[msg.id] ? '正在翻译 / Translating...' : '翻译 / Translation'
+                  }}</span>
+                </div>
+                <p v-if="translations[msg.id]" class="text-[11px] italic opacity-90">
+                  {{ translations[msg.id] }}
+                </p>
+                <p v-else-if="translating[msg.id]" class="text-[11px] italic opacity-40">
+                  正在翻译，请稍候...
+                </p>
+              </div>
+            </div>
+
+            <!-- Message Actions (On Hover) -->
+            <div
+              class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-0 z-30"
+              :class="
+                msg.userId === authStore.user?.id
+                  ? 'right-full mr-2.5 flex-row-reverse'
+                  : 'left-full ml-2.5'
+              "
+            >
+              <!-- Translate button -->
+              <button
+                v-if="msg.content && msg.content.trim() !== ''"
+                type="button"
+                class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all cursor-pointer"
+                :class="translations[msg.id] ? 'text-accent' : 'text-slate-400'"
+                title="翻译"
+                :disabled="translating[msg.id]"
+                @click="handleTranslate(msg)"
+              >
+                <Loader2 v-if="translating[msg.id]" class="w-3 h-3 animate-spin text-accent" />
+                <Languages v-else class="w-3.5 h-3.5" />
+              </button>
+
+              <!-- Reaction Emoji Picker Trigger -->
+              <div class="relative">
+                <button
+                  type="button"
+                  class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-accent transition-all cursor-pointer"
+                  title="添加反应"
+                  @click.stop="activeReactionMsgId = activeReactionMsgId === msg.id ? null : msg.id"
+                >
+                  <Smile class="w-3.5 h-3.5" />
+                </button>
+                <!-- Reaction emojis selector picker popup -->
+                <div
+                  v-if="activeReactionMsgId === msg.id"
+                  class="absolute bottom-full mb-2 p-1 rounded-xl shadow-xl border z-50 flex gap-0.5"
+                  style="background-color: var(--bg-card); border-color: var(--border-base)"
+                  @click.stop
+                >
+                  <button
+                    v-for="emoji in quickEmojis.slice(0, 6)"
+                    :key="emoji"
+                    type="button"
+                    class="w-7 h-7 flex items-center justify-center text-sm hover:scale-125 hover:bg-accent/10 rounded-lg transition-all cursor-pointer"
+                    @click="handleReactionClick(msg.id, emoji)"
+                  >
+                    {{ emoji }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Delete button -->
+              <button
+                v-if="
+                  msg.userId === authStore.user?.id ||
+                  props.project.members?.some(
+                    (m) => m.userId === authStore.user?.id && m.role === 'OWNER',
+                  )
+                "
+                type="button"
+                class="p-1.5 hover:bg-slate-100 dark:hover:bg-rose-950/20 rounded-lg text-slate-400 hover:text-rose-500 transition-all cursor-pointer"
+                title="删除"
+                @click="handleDeleteDiscussion(msg.id)"
+              >
+                <Trash2 class="w-3.5 h-3.5" />
+              </button>
             </div>
 
             <div
@@ -324,24 +465,29 @@ const getReactionCount = (reactions: DiscussionReaction[] | undefined, emoji: st
               </a>
             </div>
 
-            <div class="flex items-center gap-1 mt-2 flex-wrap">
-              <button
-                v-for="emoji in quickEmojis.slice(0, 6)"
-                :key="emoji"
-                type="button"
-                class="px-2 py-0.5 rounded-full text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                :class="
-                  hasReaction(msg.reactions, emoji) ? 'bg-accent/10 ring-1 ring-accent/30' : ''
-                "
-                @click="handleReaction(msg.id, emoji)"
-              >
-                {{ emoji }}
-                <span
-                  v-if="getReactionCount(msg.reactions, emoji)"
-                  class="text-[10px] text-slate-400"
-                  >{{ getReactionCount(msg.reactions, emoji) }}</span
+            <!-- Active reactions list display -->
+            <div
+              v-if="msg.reactions && msg.reactions.length > 0"
+              class="flex items-center gap-1 mt-2 flex-wrap"
+            >
+              <template v-for="emoji in quickEmojis.slice(0, 6)" :key="emoji">
+                <button
+                  v-if="getReactionCount(msg.reactions, emoji) > 0"
+                  type="button"
+                  class="px-2 py-0.5 rounded-full text-xs transition-all cursor-pointer border"
+                  :class="
+                    hasReaction(msg.reactions, emoji)
+                      ? 'bg-accent/10 text-accent border-accent/30 ring-1 ring-accent/30 font-bold'
+                      : 'bg-white/40 dark:bg-slate-800/40 text-slate-500 border-slate-200 dark:border-slate-700'
+                  "
+                  @click="handleReaction(msg.id, emoji)"
                 >
-              </button>
+                  {{ emoji }}
+                  <span class="text-[10px] ml-0.5 font-bold">{{
+                    getReactionCount(msg.reactions, emoji)
+                  }}</span>
+                </button>
+              </template>
             </div>
           </div>
         </div>
@@ -357,7 +503,7 @@ const getReactionCount = (reactions: DiscussionReaction[] | undefined, emoji: st
 
       <!-- Input Area -->
       <div
-        class="p-6 bg-white dark:bg-slate-950 border-t shrink-0"
+        class="chat-input-wrapper p-6 bg-white dark:bg-slate-950 border-t shrink-0"
         style="border-color: var(--border-base)"
       >
         <!-- Image Preview -->
@@ -394,77 +540,91 @@ const getReactionCount = (reactions: DiscussionReaction[] | undefined, emoji: st
           </button>
         </div>
         <div class="max-w-4xl mx-auto relative">
-          <!-- Toolbar -->
-          <div class="flex items-center gap-1 mb-2 pl-2">
-            <label
-              class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all text-slate-400 hover:text-accent"
-            >
-              <ImageIcon class="w-4 h-4" />
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                class="hidden"
-                @change="handleImageSelect"
-              />
-            </label>
-            <label
-              class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all text-slate-400 hover:text-accent"
-            >
-              <Paperclip class="w-4 h-4" />
-              <input type="file" class="hidden" @change="handleFileSelect" />
-            </label>
-            <div class="relative">
-              <button
-                type="button"
-                class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-400 hover:text-accent cursor-pointer"
-                @click="showEmojiPicker = !showEmojiPicker"
-              >
-                <Smile class="w-4 h-4" />
-              </button>
-              <div
-                v-if="showEmojiPicker"
-                class="absolute bottom-full left-0 mb-2 p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border flex flex-wrap gap-1 w-64 z-20 animate-fade-in"
-                style="border-color: var(--border-base)"
-              >
-                <button
-                  v-for="emoji in quickEmojis"
-                  :key="emoji"
-                  type="button"
-                  class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-lg transition-all cursor-pointer"
-                  @click="insertEmoji(emoji)"
-                >
-                  {{ emoji }}
-                </button>
-              </div>
-            </div>
-          </div>
-          <textarea
-            v-model="newComment"
-            rows="1"
-            class="w-full pl-6 pr-16 py-4 bg-slate-100 dark:bg-slate-900 border-none rounded-full text-sm outline-none focus:ring-4 focus:ring-accent/20 transition-all resize-none overflow-hidden"
-            placeholder="输入消息，按 Enter 发送..."
-            style="color: var(--text-primary)"
-            @keydown.enter.prevent="handleSendComment"
-            @input="
-              (e) => {
-                (e.target as HTMLElement).style.height = 'auto';
-                (e.target as HTMLElement).style.height =
-                  (e.target as HTMLElement).scrollHeight + 'px';
-              }
-            "
-          ></textarea>
-          <button
-            type="button"
-            :disabled="
-              (!newComment.trim() && selectedImages.length === 0 && !selectedFile) ||
-              isSendingComment
-            "
-            class="absolute right-2 bottom-2 p-2 bg-accent text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
-            @click="handleSendComment"
+          <div
+            class="flex items-end gap-1 sm:gap-2 p-1.5 rounded-xl focus-within:ring-2 focus-within:ring-accent/20 transition-all border relative"
+            style="background-color: var(--bg-app); border-color: var(--border-base)"
           >
-            <Send class="w-5 h-5" />
-          </button>
+            <!-- Left Toolbar: Emoji, Image, File Upload -->
+            <div class="flex items-center gap-0.5 sm:gap-1 shrink-0 pb-1 pl-1">
+              <!-- Emoji Trigger -->
+              <div class="relative">
+                <button
+                  type="button"
+                  class="p-1.5 hover:text-accent transition-colors cursor-pointer text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg"
+                  @click="showEmojiPicker = !showEmojiPicker"
+                >
+                  <Smile class="w-4 h-4" />
+                </button>
+                <div
+                  v-if="showEmojiPicker"
+                  class="absolute bottom-full left-0 mb-3 p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border flex flex-wrap gap-1 w-64 z-50 animate-fade-in"
+                  style="border-color: var(--border-base)"
+                >
+                  <button
+                    v-for="emoji in quickEmojis"
+                    :key="emoji"
+                    type="button"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-lg transition-all cursor-pointer"
+                    @click="insertEmoji(emoji)"
+                  >
+                    {{ emoji }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Image selector -->
+              <label
+                class="p-1.5 hover:text-accent transition-colors cursor-pointer text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg flex items-center justify-center"
+              >
+                <ImageIcon class="w-4 h-4" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  class="hidden"
+                  @change="handleImageSelect"
+                />
+              </label>
+
+              <!-- File selector -->
+              <label
+                class="p-1.5 hover:text-accent transition-colors cursor-pointer text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg flex items-center justify-center"
+              >
+                <Paperclip class="w-4 h-4" />
+                <input type="file" class="hidden" @change="handleFileSelect" />
+              </label>
+            </div>
+
+            <!-- Main Input Textarea -->
+            <textarea
+              v-model="newComment"
+              rows="1"
+              class="flex-1 bg-transparent border-none focus:ring-0 text-xs sm:text-sm py-2 resize-none max-h-32 scrollbar-hide focus:outline-none"
+              placeholder="输入消息，按 Enter 发送..."
+              style="color: var(--text-primary)"
+              @keydown.enter.prevent="handleSendComment"
+              @input="
+                (e) => {
+                  (e.target as HTMLElement).style.height = 'auto';
+                  (e.target as HTMLElement).style.height =
+                    (e.target as HTMLElement).scrollHeight + 'px';
+                }
+              "
+            ></textarea>
+
+            <!-- Send Button -->
+            <button
+              type="button"
+              :disabled="
+                (!newComment.trim() && selectedImages.length === 0 && !selectedFile) ||
+                isSendingComment
+              "
+              class="p-2 bg-accent text-white rounded-lg hover:bg-accent transition-all shadow-md shadow-accent/20 disabled:opacity-50 flex items-center justify-center min-w-[32px] h-8 w-8 shrink-0 cursor-pointer"
+              @click="handleSendComment"
+            >
+              <Send class="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     </template>

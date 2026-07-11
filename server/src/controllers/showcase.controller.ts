@@ -1,14 +1,20 @@
-import { Response, NextFunction } from 'express';
+import type { FastifyReply, FastifyRequest } from 'fastify';
+
 import { logger } from '../utils/logger';
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
-import { AuthRequest } from '../middlewares/auth.middleware';
 import { createNotification } from '../utils/notification';
 import { deleteCloudOrLocalFileByUrl, getUploadedFileUrl } from '../utils/file';
-import { auditService, AuditAction, AuditModule } from '../services/audit.service';
+import {
+  auditService,
+  AuditAction,
+  AuditModule,
+  type AuditRequest,
+} from '../services/audit.service';
 import { AppError } from '../utils/error';
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
 import { parseTags } from '../utils/tags';
+import { withRowLock } from '../utils/dbLock';
 
 type ShowcaseSortKey = 'popular' | 'newest' | 'trending' | 'viewed' | 'discussed' | 'featured';
 type ShowcaseScope = 'all' | 'my' | 'liked';
@@ -132,10 +138,10 @@ const parseImages = (images?: string | null): string[] => {
   }
 };
 
-const getShowcaseAccessWhere = (id: string, req: AuthRequest): Prisma.ShowcaseWhereInput => {
+const getShowcaseAccessWhere = (id: string, request: FastifyRequest): Prisma.ShowcaseWhereInput => {
   const or: Prisma.ShowcaseWhereInput[] = [{ status: APPROVED_STATUS }];
-  if (req.userId) or.push({ userId: req.userId });
-  if (req.user?.role === 'ADMIN') or.push({});
+  if (request.userId) or.push({ userId: request.userId });
+  if (request.user?.role === 'ADMIN') or.push({});
   return { id, OR: or };
 };
 
@@ -174,18 +180,22 @@ const formatShowcaseListItem = (showcase: ShowcaseListItem, userId: string) => (
   commentsCount: showcase._count?.comments ?? 0,
 });
 
-export const getAllShowcases = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAllShowcases = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
-    const userId = req.userId as string;
-    const sort = normalizeSort(req.query.sort || req.query.filter);
-    const type = normalizeType(req.query.type);
-    const scope = normalizeScope(req.query.scope);
-    const bucket = normalizeBucket(req.query.bucket || req.query.segment);
-    const search = getQueryText(req.query.q || req.query.search || req.query.keyword);
-    const page = parsePositiveInt(req.query.page, 1, 500);
-    const limit = parsePositiveInt(req.query.limit, 48, 100);
+    const userId = request.userId as string;
+    const query = request.query as Record<string, unknown>;
+    const sort = normalizeSort(query.sort || query.filter);
+    const type = normalizeType(query.type);
+    const scope = normalizeScope(query.scope);
+    const bucket = normalizeBucket(query.bucket || query.segment);
+    const search = getQueryText(query.q || query.search || query.keyword);
+    const page = parsePositiveInt(query.page, 1, 500);
+    const limit = parsePositiveInt(query.limit, 48, 100);
     const skip = (page - 1) * limit;
-    const withMeta = ['true', '1', 'yes'].includes(getQueryText(req.query.withMeta).toLowerCase());
+    const withMeta = ['true', '1', 'yes'].includes(getQueryText(query.withMeta).toLowerCase());
     const sinceWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     let orderBy: Prisma.ShowcaseOrderByWithRelationInput[] = [{ createdAt: 'desc' }];
@@ -314,7 +324,7 @@ export const getAllShowcases = async (req: AuthRequest, res: Response, next: Nex
     }
 
     if (withMeta) {
-      res.json({
+      reply.send({
         items: formatted,
         meta: {
           page,
@@ -331,15 +341,18 @@ export const getAllShowcases = async (req: AuthRequest, res: Response, next: Nex
       return;
     }
 
-    res.json(formatted);
+    reply.send(formatted);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getShowcaseStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getShowcaseStats = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
-    const userId = req.userId as string;
+    const userId = request.userId as string;
     const now = Date.now();
     const sinceToday = new Date(new Date().setHours(0, 0, 0, 0));
     const sinceWeek = new Date(now - 7 * 24 * 60 * 60 * 1000);
@@ -458,7 +471,7 @@ export const getShowcaseStats = async (req: AuthRequest, res: Response, next: Ne
       creatorUsage.set(row.user.id, existing);
     });
 
-    res.json({
+    reply.send({
       totalWorks,
       totalViews: viewAggregate._sum.views ?? 0,
       totalLikes,
@@ -498,12 +511,15 @@ export const getShowcaseStats = async (req: AuthRequest, res: Response, next: Ne
       })),
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getShowcaseById = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
+export const getShowcaseById = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { id } = request.params as { id: string };
   try {
     const showcase = await prisma.showcase.findUnique({
       where: { id },
@@ -556,21 +572,21 @@ export const getShowcaseById = async (req: AuthRequest, res: Response, next: Nex
           select: { likes: true, comments: true },
         },
         likes: {
-          where: { userId: req.userId as string },
+          where: { userId: request.userId as string },
         },
       },
     });
 
     if (!showcase) {
-      return next(new AppError('Work not found', 404));
+      throw new AppError('Work not found', 404);
     }
 
     const canViewPrivate =
       showcase.status === APPROVED_STATUS ||
-      showcase.userId === req.userId ||
-      req.user?.role === 'ADMIN';
+      showcase.userId === request.userId ||
+      request.user?.role === 'ADMIN';
     if (!canViewPrivate) {
-      return next(new AppError('Work not found', 404));
+      throw new AppError('Work not found', 404);
     }
 
     await prisma.showcase.update({
@@ -578,7 +594,7 @@ export const getShowcaseById = async (req: AuthRequest, res: Response, next: Nex
       data: { views: { increment: 1 } },
     });
 
-    res.json({
+    reply.send({
       ...showcase,
       isLiked: showcase.likes.length > 0,
       likesCount: showcase._count.likes,
@@ -586,13 +602,16 @@ export const getShowcaseById = async (req: AuthRequest, res: Response, next: Nex
       views: showcase.views + 1,
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getRelatedShowcases = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
-  const userId = req.userId as string;
+export const getRelatedShowcases = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { id } = request.params as { id: string };
+  const userId = request.userId as string;
 
   try {
     const source = await prisma.showcase.findUnique({
@@ -601,13 +620,15 @@ export const getRelatedShowcases = async (req: AuthRequest, res: Response, next:
     });
 
     if (!source) {
-      return next(new AppError('Work not found', 404));
+      throw new AppError('Work not found', 404);
     }
 
     const canViewPrivate =
-      source.status === APPROVED_STATUS || source.userId === userId || req.user?.role === 'ADMIN';
+      source.status === APPROVED_STATUS ||
+      source.userId === userId ||
+      request.user?.role === 'ADMIN';
     if (!canViewPrivate) {
-      return next(new AppError('Work not found', 404));
+      throw new AppError('Work not found', 404);
     }
 
     const tags = parseTags(source.tags).slice(0, 8);
@@ -703,16 +724,19 @@ export const getRelatedShowcases = async (req: AuthRequest, res: Response, next:
       .slice(0, 8)
       .map((entry) => entry.item);
 
-    res.json(formatted);
+    reply.send(formatted);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getMyShowcases = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getMyShowcases = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
     const showcases = await prisma.showcase.findMany({
-      where: { userId: req.userId as string },
+      where: { userId: request.userId as string },
       include: {
         _count: {
           select: { likes: true, comments: true },
@@ -720,15 +744,22 @@ export const getMyShowcases = async (req: AuthRequest, res: Response, next: Next
       },
       orderBy: { createdAt: 'desc' },
     });
-    res.json(showcases);
+    reply.send(showcases);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createShowcase = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createShowcase = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const files = (
+      request as unknown as {
+        files?: { [fieldname: string]: Express.Multer.File[] };
+      }
+    ).files;
     const thumbnailFile = files?.thumbnail?.[0];
     const imageFiles = files?.images || [];
 
@@ -743,10 +774,21 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
       linkedAssetIds,
       linkedMaterialIds,
       linkedPluginIds,
-    } = req.body;
+    } = request.body as {
+      title: string;
+      description?: string;
+      tags?: string;
+      videoUrl?: string;
+      isVideo?: string;
+      type?: string;
+      assetId?: string;
+      linkedAssetIds?: string;
+      linkedMaterialIds?: string;
+      linkedPluginIds?: string;
+    };
 
     if (!title || !title.trim()) {
-      return next(new AppError('标题不能为空', 400));
+      throw new AppError('标题不能为空', 400);
     }
 
     let assetIdsArr: string[] = [];
@@ -802,7 +844,7 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
 
     let finalAssetId = assetId || null;
     if (!finalAssetId && assetIdsArr.length > 0) {
-      finalAssetId = assetIdsArr[0];
+      finalAssetId = assetIdsArr[0] ?? null;
     }
     if (finalAssetId && !assetIdsArr.includes(finalAssetId)) {
       assetIdsArr.unshift(finalAssetId);
@@ -818,7 +860,7 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
 
     let thumbnailUrl = '';
     if (thumbnailFile) {
-      thumbnailUrl = getUploadedFileUrl(req, thumbnailFile, 'showcase');
+      thumbnailUrl = getUploadedFileUrl(request, thumbnailFile, 'showcase');
     } else if (finalAssetId) {
       const asset = await prisma.asset.findUnique({
         where: { id: finalAssetId as string },
@@ -829,10 +871,10 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
     }
 
     if (!thumbnailUrl && showcaseType !== 'TEXT') {
-      return next(new AppError('Thumbnail is required', 400));
+      throw new AppError('Thumbnail is required', 400);
     }
 
-    const imageUrls = imageFiles.map((f) => getUploadedFileUrl(req, f, 'showcase'));
+    const imageUrls = imageFiles.map((f) => getUploadedFileUrl(request, f, 'showcase'));
 
     const showcase = await prisma.showcase.create({
       data: {
@@ -845,9 +887,9 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
         videoUrl: videoUrl || null,
         isVideo: isVideo === 'true',
         assetId: finalAssetId,
-        userId: req.userId as string,
-        teamId: req.workspaceId,
-        status: req.user?.role === 'ADMIN' ? APPROVED_STATUS : PENDING_STATUS,
+        userId: request.userId as string,
+        teamId: request.workspaceId,
+        status: request.user?.role === 'ADMIN' ? APPROVED_STATUS : PENDING_STATUS,
         linkedAssets:
           assetIdsArr.length > 0
             ? {
@@ -916,51 +958,54 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
     });
 
     await auditService.log({
-      userId: req.userId as string,
+      userId: request.userId as string,
       action: AuditAction.CREATE_SHOWCASE,
       module: AuditModule.SHOWCASE,
       description: `Created showcase: ${showcase.title}`,
       newValue: showcase,
-      req,
+      req: request as unknown as AuditRequest,
     });
 
-    await awardPoints(req.userId as string, PointsAction.PUBLISH_SHOWCASE);
+    await awardPoints(request.userId as string, PointsAction.PUBLISH_SHOWCASE);
 
-    res.status(201).json(showcase);
+    reply.status(201).send(showcase);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 export const publishAssetToShowcase = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { assetId } = req.body;
-  const { title, description, tags } = req.body;
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { assetId, title, description, tags } = request.body as {
+    assetId: string;
+    title?: string;
+    description?: string;
+    tags?: string;
+  };
 
   if (!assetId) {
-    return next(new AppError('Asset ID is required', 400));
+    throw new AppError('Asset ID is required', 400);
   }
 
   try {
     const asset = await prisma.asset.findFirst({
       where: {
         id: assetId,
-        userId: req.userId as string,
+        userId: request.userId as string,
       },
     });
 
     if (!asset) {
-      return next(new AppError('Asset not found or access denied', 404));
+      throw new AppError('Asset not found or access denied', 404);
     }
 
     const existingShowcase = await prisma.showcase.findFirst({
       where: { assetId },
     });
     if (existingShowcase) {
-      return next(new AppError('该作品已发布到展示墙', 400));
+      throw new AppError('该作品已发布到展示墙', 400);
     }
 
     const showcase = await prisma.showcase.create({
@@ -969,13 +1014,12 @@ export const publishAssetToShowcase = async (
         description: description || asset.description || null,
         tags: tags || null,
         type: 'MODEL',
-        thumbnailUrl:
-          asset.thumbnail || `${req.protocol}://${req.get('host')}/uploads/assets/placeholder.png`,
+        thumbnailUrl: asset.thumbnail || 'https://placehold.co/600x400?text=Showcase',
         assetId: asset.id,
         isVideo: false,
-        userId: req.userId as string,
-        teamId: req.workspaceId || asset.teamId,
-        status: req.user?.role === 'ADMIN' ? APPROVED_STATUS : PENDING_STATUS,
+        userId: request.userId as string,
+        teamId: request.workspaceId || asset.teamId,
+        status: request.user?.role === 'ADMIN' ? APPROVED_STATUS : PENDING_STATUS,
       },
       include: {
         user: {
@@ -988,35 +1032,38 @@ export const publishAssetToShowcase = async (
     });
 
     await auditService.log({
-      userId: req.userId as string,
+      userId: request.userId as string,
       action: AuditAction.CREATE_SHOWCASE,
       module: AuditModule.SHOWCASE,
       description: `Published asset to showcase: ${showcase.title}`,
       newValue: showcase,
-      req,
+      req: request as unknown as AuditRequest,
     });
 
-    await awardPoints(req.userId as string, PointsAction.PUBLISH_SHOWCASE);
+    await awardPoints(request.userId as string, PointsAction.PUBLISH_SHOWCASE);
 
-    res.status(201).json(showcase);
+    reply.status(201).send(showcase);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateShowcase = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
+export const updateShowcase = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { id } = request.params as { id: string };
   try {
     const showcase = await prisma.showcase.findUnique({
       where: { id },
     });
 
     if (!showcase) {
-      return next(new AppError('Work not found', 404));
+      throw new AppError('Work not found', 404);
     }
 
-    if (showcase.userId !== req.userId && req.user?.role !== 'ADMIN') {
-      return next(new AppError('Forbidden', 403));
+    if (showcase.userId !== request.userId && request.user?.role !== 'ADMIN') {
+      throw new AppError('Forbidden', 403);
     }
 
     const {
@@ -1029,15 +1076,29 @@ export const updateShowcase = async (req: AuthRequest, res: Response, next: Next
       linkedAssetIds,
       linkedMaterialIds,
       linkedPluginIds,
-    } = req.body;
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    } = request.body as {
+      title?: string;
+      description?: string;
+      tags?: string;
+      videoUrl?: string;
+      isVideo?: string;
+      type?: string;
+      linkedAssetIds?: string;
+      linkedMaterialIds?: string;
+      linkedPluginIds?: string;
+    };
+    const files = (
+      request as unknown as {
+        files?: { [fieldname: string]: Express.Multer.File[] };
+      }
+    ).files;
     const thumbnailFile = files?.thumbnail?.[0];
     const imageFiles = files?.images || [];
 
     const updateData: Prisma.ShowcaseUpdateInput = {};
     if (title !== undefined) {
       if (!String(title).trim()) {
-        return next(new AppError('标题不能为空', 400));
+        throw new AppError('标题不能为空', 400);
       }
       updateData.title = String(title).trim();
     }
@@ -1048,11 +1109,11 @@ export const updateShowcase = async (req: AuthRequest, res: Response, next: Next
     if (type !== undefined) {
       const nextType = String(type).toUpperCase();
       if (!SHOWCASE_TYPES.has(nextType)) {
-        return next(new AppError('不支持的作品类型', 400));
+        throw new AppError('不支持的作品类型', 400);
       }
       updateData.type = nextType;
     }
-    if (showcase.userId === req.userId && req.user?.role !== 'ADMIN') {
+    if (showcase.userId === request.userId && request.user?.role !== 'ADMIN') {
       updateData.status = PENDING_STATUS;
     }
     if (thumbnailFile) {
@@ -1062,10 +1123,10 @@ export const updateShowcase = async (req: AuthRequest, res: Response, next: Next
           logger.error('[ShowcaseController] Failed to delete old thumbnail in background:', err);
         });
       }
-      updateData.thumbnailUrl = getUploadedFileUrl(req, thumbnailFile, 'showcase');
+      updateData.thumbnailUrl = getUploadedFileUrl(request, thumbnailFile, 'showcase');
     }
     if (imageFiles.length > 0) {
-      const imageUrls = imageFiles.map((f) => getUploadedFileUrl(req, f, 'showcase'));
+      const imageUrls = imageFiles.map((f) => getUploadedFileUrl(request, f, 'showcase'));
       const existingImages = parseImages(showcase.images);
       updateData.images = JSON.stringify([...existingImages, ...imageUrls]);
     }
@@ -1193,41 +1254,44 @@ export const updateShowcase = async (req: AuthRequest, res: Response, next: Next
           select: { likes: true, comments: true },
         },
         likes: {
-          where: { userId: req.userId as string },
+          where: { userId: request.userId as string },
           select: { userId: true },
         },
       },
     });
 
     await auditService.log({
-      userId: req.userId as string,
-      action: AuditAction.UPDATE_SHOWCASE, // Updated to standard action name matching audit system if needed, or keeping REJECT_SHOWCASE/generic
+      userId: request.userId as string,
+      action: AuditAction.UPDATE_SHOWCASE,
       module: AuditModule.SHOWCASE,
       description: `Updated showcase: ${updated.title}`,
       oldValue: showcase,
       newValue: updated,
-      req,
+      req: request as unknown as AuditRequest,
     });
 
-    res.json(formatShowcaseListItem(updated, req.userId as string));
+    reply.send(formatShowcaseListItem(updated, request.userId as string));
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteShowcase = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
+export const deleteShowcase = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { id } = request.params as { id: string };
   try {
     const showcase = await prisma.showcase.findUnique({
       where: { id },
     });
 
     if (!showcase) {
-      return next(new AppError('Work not found', 404));
+      throw new AppError('Work not found', 404);
     }
 
-    if (showcase.userId !== req.userId && req.user?.role !== 'ADMIN') {
-      return next(new AppError('Forbidden', 403));
+    if (showcase.userId !== request.userId && request.user?.role !== 'ADMIN') {
+      throw new AppError('Forbidden', 403);
     }
 
     // Delete files (run in background)
@@ -1258,81 +1322,92 @@ export const deleteShowcase = async (req: AuthRequest, res: Response, next: Next
     await deductPoints(showcase.userId, PointsAction.PUBLISH_SHOWCASE);
 
     await auditService.log({
-      userId: req.userId as string,
+      userId: request.userId as string,
       action: AuditAction.DELETE_SHOWCASE,
       module: AuditModule.SHOWCASE,
       description: `Deleted showcase: ${showcase.title}`,
       oldValue: showcase,
-      req,
+      req: request as unknown as AuditRequest,
     });
 
-    res.json({ message: 'Deleted successfully' });
+    reply.send({ message: 'Deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const toggleLike = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
-  const userId = req.userId as string;
+export const toggleLike = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { id } = request.params as { id: string };
+  const userId = request.userId as string;
   try {
     const showcase = await prisma.showcase.findUnique({
       where: { id },
       select: { id: true, status: true },
     });
     if (!showcase || showcase.status !== APPROVED_STATUS) {
-      return next(new AppError('Work not found', 404));
+      throw new AppError('Work not found', 404);
     }
 
-    const existing = await prisma.showcaseLike.findUnique({
-      where: { showcaseId_userId: { showcaseId: id, userId } },
+    // 铁律六·3 — wrap the like toggle in a transaction with a row lock on
+    // the Showcase to prevent concurrent requests from creating duplicate
+    // likes or losing a toggle (the previous code had no transaction at all).
+    const result = await prisma.$transaction(async (tx) => {
+      return await withRowLock(tx, 'Showcase', id, async (lockedTx) => {
+        const existing = await lockedTx.showcaseLike.findUnique({
+          where: { showcaseId_userId: { showcaseId: id, userId } },
+        });
+
+        if (existing) {
+          await lockedTx.showcaseLike.delete({
+            where: { id: existing.id },
+          });
+          await deductPoints(userId, PointsAction.LIKE_CONTENT, lockedTx);
+          const likesCount = await lockedTx.showcaseLike.count({ where: { showcaseId: id } });
+          return { liked: false, likesCount };
+        } else {
+          const like = await lockedTx.showcaseLike.create({
+            data: { showcaseId: id, userId },
+            include: {
+              showcase: { select: { userId: true, title: true } },
+            },
+          });
+          return { liked: true, like };
+        }
+      });
     });
 
-    if (existing) {
-      await prisma.showcaseLike.delete({
-        where: { id: existing.id },
-      });
-      await deductPoints(userId, PointsAction.LIKE_CONTENT);
-      const likesCount = await prisma.showcaseLike.count({ where: { showcaseId: id } });
-      res.json({ liked: false, likesCount });
-    } else {
-      const like = await prisma.showcaseLike.create({
-        data: { showcaseId: id, userId },
-        include: {
-          showcase: { select: { userId: true, title: true } },
-        },
-      });
-
+    if (result.liked && result.like) {
+      const like = result.like;
       if (like.showcase.userId !== userId) {
         await createNotification({
           type: 'SYSTEM',
           title: '收到新的点赞',
-          content: `${req.user?.name || '有人'} 点赞了你的作品: ${like.showcase.title}`,
+          content: `${request.user?.name || '有人'} 点赞了你的作品: ${like.showcase.title}`,
           userId: like.showcase.userId,
           link: '/showcase',
           category: 'MENTION',
         });
       }
-
       await awardPoints(userId, PointsAction.LIKE_CONTENT);
-
       const likesCount = await prisma.showcaseLike.count({ where: { showcaseId: id } });
-      res.json({ liked: true, likesCount });
+      reply.send({ liked: true, likesCount });
+    } else {
+      reply.send(result);
     }
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getComments = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
+export const getComments = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { id } = request.params as { id: string };
   try {
     const showcase = await prisma.showcase.findFirst({
-      where: getShowcaseAccessWhere(id, req),
+      where: getShowcaseAccessWhere(id, request),
       select: { id: true },
     });
     if (!showcase) {
-      return next(new AppError('Work not found', 404));
+      throw new AppError('Work not found', 404);
     }
 
     const comments = await prisma.showcaseComment.findMany({
@@ -1342,69 +1417,72 @@ export const getComments = async (req: AuthRequest, res: Response, next: NextFun
       },
       orderBy: { createdAt: 'desc' },
     });
-    res.json(comments);
+    reply.send(comments);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const addComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
-  const { content } = req.body;
+export const addComment = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { id } = request.params as { id: string };
+  const { content } = request.body as { content: string };
   if (!content || !content.trim()) {
-    return next(new AppError('Comment content is required', 400));
+    throw new AppError('Comment content is required', 400);
   }
   try {
     const showcase = await prisma.showcase.findFirst({
-      where: getShowcaseAccessWhere(id, req),
+      where: getShowcaseAccessWhere(id, request),
       select: { id: true, userId: true, title: true },
     });
     if (!showcase) {
-      return next(new AppError('Work not found', 404));
+      throw new AppError('Work not found', 404);
     }
 
     const comment = await prisma.showcaseComment.create({
       data: {
         content: content.trim(),
         showcaseId: id,
-        userId: req.userId as string,
+        userId: request.userId as string,
       },
       include: {
         user: { select: { id: true, name: true, email: true, avatarUrl: true, bio: true } },
       },
     });
 
-    if (showcase.userId !== req.userId) {
+    if (showcase.userId !== request.userId) {
       await createNotification({
         type: 'REPLY',
         title: '作品收到新评论',
-        content: `${req.user?.name || '有人'} 评论了你的作品: ${showcase.title}`,
+        content: `${request.user?.name || '有人'} 评论了你的作品: ${showcase.title}`,
         userId: showcase.userId,
         link: '/showcase',
         category: 'MENTION',
       });
     }
 
-    await awardPoints(req.userId as string, PointsAction.CREATE_COMMENT);
-    res.status(201).json(comment);
+    await awardPoints(request.userId as string, PointsAction.CREATE_COMMENT);
+    reply.status(201).send(comment);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const commentId = req.params.commentId as string;
+export const deleteComment = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { commentId } = request.params as { commentId: string };
   try {
     const comment = await prisma.showcaseComment.findUnique({
       where: { id: commentId },
     });
 
     if (!comment) {
-      return next(new AppError('Comment not found', 404));
+      throw new AppError('Comment not found', 404);
     }
 
-    if (comment.userId !== req.userId && req.user?.role !== 'ADMIN') {
-      return next(new AppError('Forbidden', 403));
+    if (comment.userId !== request.userId && request.user?.role !== 'ADMIN') {
+      throw new AppError('Forbidden', 403);
     }
 
     await prisma.showcaseComment.delete({
@@ -1413,8 +1491,8 @@ export const deleteComment = async (req: AuthRequest, res: Response, next: NextF
 
     await deductPoints(comment.userId, PointsAction.CREATE_COMMENT);
 
-    res.json({ message: 'Comment deleted successfully' });
+    reply.send({ message: 'Comment deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };

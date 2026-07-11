@@ -131,7 +131,7 @@ const memberCount = computed(() => {
 </script>
 
 <template>
-  <Modal :show="props.visible" size="xl" padding="none" glass-card @close="handleClose">
+  <Modal :show="props.visible" size="xl" padding="none" @close="handleClose">
     <div v-if="props.group" class="relative group/panel overflow-hidden rounded-2xl outline-none">
       <!-- Custom Close Button -->
       <Button
@@ -313,13 +313,13 @@ const memberCount = computed(() => {
           <div
             class="pt-4 flex flex-wrap items-center justify-between gap-2 mt-auto bg-transparent outline-none"
             style="
-              border-top: 1px solid var(--border-base) !important;
-              border-left: none !important;
-              border-right: none !important;
-              border-bottom: none !important;
-              border-radius: 0 !important;
-              box-shadow: none !important;
-              outline: none !important;
+              border-top: 1px solid var(--border-base);
+              border-left: none;
+              border-right: none;
+              border-bottom: none;
+              border-radius: 0;
+              box-shadow: none;
+              outline: none;
             "
           >
             <div

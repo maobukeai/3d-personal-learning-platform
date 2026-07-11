@@ -16,7 +16,7 @@ import {
   Copy,
   AlertCircle,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import {
@@ -452,7 +452,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <el-drawer
+  <Drawer
     v-model="visible"
     :title="`云存储资源浏览器: ${storage?.name || ''}`"
     size="800px"
@@ -476,10 +476,12 @@ onMounted(() => {
               <strong style="color: var(--text-primary)">{{ storage?.bucketName }}</strong></span
             >
             <span class="text-slate-300 dark:text-white/10">|</span>
-            <span>限制大小:
+            <span
+              >限制大小:
               <strong style="color: var(--text-primary)"
                 >{{ (storage?.limitGb ?? 0).toFixed(2) }} GB</strong
-              ></span>
+              ></span
+            >
             <span class="text-slate-300 dark:text-white/10">|</span>
             <span class="flex items-center gap-1">
               <span>当前容量使用:</span>
@@ -514,13 +516,13 @@ onMounted(() => {
                   <span v-if="scannedObjectCount !== null" class="text-[9px] text-slate-400">
                     ({{ scannedObjectCount }} 对象)
                   </span>
-                  <el-tooltip
+                  <Tooltip
                     content="通过 S3 API 实时遍历桶内对象得到的大小。推荐以此为准进行容量限制同步。"
                     placement="top"
                     effect="dark"
                   >
                     <HelpCircle class="w-3.5 h-3.5 text-slate-400 cursor-help inline-block" />
-                  </el-tooltip>
+                  </Tooltip>
                   <Button
                     v-if="scannedBytes !== storage?.usedBytes"
                     variant="outline"
@@ -541,13 +543,13 @@ onMounted(() => {
                   >
                     计算实时大小
                   </Button>
-                  <el-tooltip
+                  <Tooltip
                     content="实时遍历整个 R2 存储桶文件计算大小。当文件特别多时，可能需要数秒至数十秒。"
                     placement="top"
                     effect="dark"
                   >
                     <HelpCircle class="w-3.5 h-3.5 text-slate-400 cursor-help inline-block" />
-                  </el-tooltip>
+                  </Tooltip>
                 </template>
               </span>
 
@@ -569,13 +571,13 @@ onMounted(() => {
                 <span v-if="actualObjectCount !== null" class="text-[9px] text-slate-400">
                   ({{ actualObjectCount }} 对象)
                 </span>
-                <el-tooltip
+                <Tooltip
                   content="Cloudflare 官方计量数据，通常有 2-24 小时的统计延迟，且包含多段上传或历史版本。"
                   placement="top"
                   effect="dark"
                 >
                   <HelpCircle class="w-3.5 h-3.5 text-slate-400 cursor-help inline-block" />
-                </el-tooltip>
+                </Tooltip>
                 <Button
                   v-if="actualBytes !== storage?.usedBytes"
                   variant="outline"
@@ -866,5 +868,5 @@ onMounted(() => {
       :loading="renamingFile"
       @confirm="submitRename"
     />
-  </el-drawer>
+  </Drawer>
 </template>

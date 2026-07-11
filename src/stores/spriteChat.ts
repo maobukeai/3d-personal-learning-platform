@@ -6,7 +6,7 @@ import { preferences } from '@/utils/preferences';
 import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 
 export interface Message {
   id: string;

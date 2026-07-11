@@ -16,7 +16,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'crypto';
-import fs from 'fs';
+import type { Readable } from 'stream';
 import { logger } from '../utils/logger';
 import { decryptSecretIfNeeded, ENCRYPTED_VALUE_RE } from '../utils/crypto';
 import {
@@ -81,71 +81,6 @@ export class StorageService {
       this.clients.set(cacheKey, client);
     }
     return client;
-  }
-
-  /**
-   * Uploads a local file to the configured S3/R2 bucket.
-   * Returns the public access URL of the uploaded file.
-   */
-  public async uploadFile(
-    config: StorageConfigData,
-    localFilePath: string,
-    key: string,
-    mimetype: string,
-    retries = 5,
-    delay = 1000,
-  ): Promise<string> {
-    let attempt = 0;
-    while (attempt < retries) {
-      try {
-        const client = this.getS3Client(config);
-        const stats = await fs.promises.stat(localFilePath);
-        const fileStream = fs.createReadStream(localFilePath);
-
-        const command = new PutObjectCommand({
-          Bucket: config.bucketName,
-          Key: key,
-          Body: fileStream,
-          ContentLength: stats.size,
-          ContentType: mimetype,
-        });
-
-        await client.send(command);
-
-        let baseUrl = config.publicUrl.endsWith('/')
-          ? config.publicUrl.slice(0, -1)
-          : config.publicUrl;
-        if (!/^https?:\/\//i.test(baseUrl) && !baseUrl.startsWith('/')) {
-          baseUrl = `https://${baseUrl}`;
-        }
-
-        // Ensure key doesn't start with leading slash to avoid double slash
-        const cleanKey = key.startsWith('/') ? key.slice(1) : key;
-
-        return `${baseUrl}/${cleanKey}`;
-      } catch (error) {
-        attempt++;
-        if (attempt >= retries) {
-          logger.error(
-            `[StorageService] Upload failed for key ${key} after ${retries} attempts:`,
-            error,
-          );
-          throw error;
-        }
-        const backoff = delay * Math.pow(2, attempt) + Math.random() * 500;
-        logger.warn(
-          `[StorageService] Upload failed for key ${key} (attempt ${attempt}/${retries}). Retrying in ${Math.round(
-            backoff,
-          )}ms... Error: ${error instanceof Error ? error.message : String(error)}`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, backoff));
-      }
-    }
-    // All paths above either return (success) or throw (max retries reached).
-    // This line is unreachable but keeps TypeScript happy.
-    throw new Error(
-      '[StorageService] Unexpected: uploadFile reached end without returning or throwing',
-    );
   }
 
   /**
@@ -215,12 +150,63 @@ export class StorageService {
   ): Promise<string> {
     const client = this.getS3Client(config);
     const safeName = encodeURIComponent(filename);
+    const enforcedExpiresIn = Math.min(expiresIn, 900);
     const command = new GetObjectCommand({
       Bucket: config.bucketName,
       Key: key,
       ResponseContentDisposition: `attachment; filename="${safeName}"; filename*=UTF-8''${safeName}`,
     });
-    return getSignedUrl(client, command, { expiresIn });
+    return getSignedUrl(client, command, { expiresIn: enforcedExpiresIn });
+  }
+
+  /**
+   * Generates a presigned view GET URL for a key (inline display, e.g. for image or 3D model).
+   */
+  public async getPresignedViewUrl(
+    config: StorageConfigData,
+    key: string,
+    expiresIn = 3600,
+  ): Promise<string> {
+    const client = this.getS3Client(config);
+    const enforcedExpiresIn = Math.min(expiresIn, 900);
+    const command = new GetObjectCommand({
+      Bucket: config.bucketName,
+      Key: key,
+      ResponseCacheControl: 'private, max-age=3600',
+    });
+    return getSignedUrl(client, command, { expiresIn: enforcedExpiresIn });
+  }
+
+  /**
+   * Retrieves an object as a stream from the bucket.
+   */
+  public async getObjectStream(
+    config: StorageConfigData,
+    key: string,
+    range?: string,
+  ): Promise<{
+    stream: Readable;
+    contentLength?: number;
+    contentType?: string;
+    contentRange?: string;
+    eTag?: string;
+    status: number;
+  }> {
+    const client = this.getS3Client(config);
+    const command = new GetObjectCommand({
+      Bucket: config.bucketName,
+      Key: key,
+      Range: range,
+    });
+    const response = await client.send(command);
+    return {
+      stream: response.Body as Readable,
+      contentLength: response.ContentLength,
+      contentType: response.ContentType,
+      contentRange: response.ContentRange,
+      eTag: response.ETag,
+      status: range ? 206 : 200,
+    };
   }
 
   /**
@@ -897,6 +883,38 @@ export class StorageService {
       return `${baseUrl}/${cleanKey}`;
     } catch (error) {
       logger.error(`[StorageService] Upload JSON string failed for key ${key}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Uploads a Buffer directly to the bucket.
+   */
+  public async uploadBuffer(
+    config: StorageConfigData,
+    buffer: Buffer,
+    key: string,
+    mimetype: string,
+  ): Promise<string> {
+    try {
+      const client = this.getS3Client(config);
+      const command = new PutObjectCommand({
+        Bucket: config.bucketName,
+        Key: key,
+        Body: buffer,
+        ContentType: mimetype,
+      });
+      await client.send(command);
+      let baseUrl = config.publicUrl.endsWith('/')
+        ? config.publicUrl.slice(0, -1)
+        : config.publicUrl;
+      if (!/^https?:\/\//i.test(baseUrl) && !baseUrl.startsWith('/')) {
+        baseUrl = `https://${baseUrl}`;
+      }
+      const cleanKey = key.startsWith('/') ? key.slice(1) : key;
+      return `${baseUrl}/${cleanKey}`;
+    } catch (error) {
+      logger.error(`[StorageService] Upload buffer failed for key ${key}:`, error);
       throw error;
     }
   }

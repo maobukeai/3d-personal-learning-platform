@@ -3,7 +3,7 @@ import api from '@/utils/api';
 import { logError } from '@/utils/error';
 import { useAuthStore } from '@/stores/auth';
 import { useLabel } from '@/utils/i18n';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 
 /**
  * Shared comment state + CRUD logic for resource detail modals.
@@ -20,10 +20,7 @@ import { ElMessage } from 'element-plus';
  *            fetchComments, handlePostComment, handleDeleteComment,
  *            canDeleteComment, resetComments }`
  */
-export function useResourceComments(
-  resourceType: any,
-  getResourceId: () => string | undefined,
-) {
+export function useResourceComments(resourceType: any, getResourceId: () => string | undefined) {
   const authStore = useAuthStore();
   const label = useLabel();
 
@@ -35,7 +32,12 @@ export function useResourceComments(
   const fetchComments = async () => {
     const targetId = getResourceId();
     if (!targetId) return;
-    const type = typeof resourceType === 'function' ? resourceType() : (typeof resourceType === 'object' && 'value' in resourceType ? (resourceType as any).value : resourceType);
+    const type =
+      typeof resourceType === 'function'
+        ? resourceType()
+        : typeof resourceType === 'object' && 'value' in resourceType
+          ? (resourceType as any).value
+          : resourceType;
     isCommentsLoading.value = true;
     try {
       const { data } = await api.get(`/api/${type}/${targetId}/comments`);
@@ -56,7 +58,12 @@ export function useResourceComments(
   const handlePostComment = async () => {
     const targetId = getResourceId();
     if (!targetId || !newCommentContent.value.trim()) return;
-    const type = typeof resourceType === 'function' ? resourceType() : (typeof resourceType === 'object' && 'value' in resourceType ? (resourceType as any).value : resourceType);
+    const type =
+      typeof resourceType === 'function'
+        ? resourceType()
+        : typeof resourceType === 'object' && 'value' in resourceType
+          ? (resourceType as any).value
+          : resourceType;
     isSubmittingComment.value = true;
     try {
       const { data } = await api.post(`/api/${type}/${targetId}/comments`, {
@@ -75,7 +82,12 @@ export function useResourceComments(
 
   const handleDeleteComment = async (commentId: string) => {
     try {
-      const type = typeof resourceType === 'function' ? resourceType() : (typeof resourceType === 'object' && 'value' in resourceType ? (resourceType as any).value : resourceType);
+      const type =
+        typeof resourceType === 'function'
+          ? resourceType()
+          : typeof resourceType === 'object' && 'value' in resourceType
+            ? (resourceType as any).value
+            : resourceType;
       await api.delete(`/api/${type}/comments/${commentId}`);
       comments.value = comments.value.filter((c) => c.id !== commentId);
       ElMessage.success(label('评论已删除', 'Comment deleted'));

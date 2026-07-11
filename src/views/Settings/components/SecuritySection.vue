@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatDateTime as formatDate } from '@/utils/format';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import {
   AtSign,
   CheckCircle2,
@@ -17,6 +17,7 @@ import {
   Trash2,
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
+import { preferences } from '@/utils/preferences';
 import { getApiErrorMessage } from '@/utils/error';
 import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
@@ -68,6 +69,31 @@ const isDisabling2FA = ref(false);
 const trustedDevices = ref<TrustedDevice[]>([]);
 const isLoadingDevices = ref(false);
 const trustedDevicesLoaded = ref(false);
+
+function getDeviceName(userAgent?: string | null) {
+  const ua = userAgent || '';
+  const browser = /edg\//i.test(ua)
+    ? 'Microsoft Edge'
+    : /firefox\//i.test(ua)
+      ? 'Firefox'
+      : /chrome\//i.test(ua)
+        ? 'Chrome'
+        : /safari\//i.test(ua)
+          ? 'Safari'
+          : '未知浏览器';
+  const system = /windows/i.test(ua)
+    ? 'Windows'
+    : /mac os|macintosh/i.test(ua)
+      ? 'macOS'
+      : /android/i.test(ua)
+        ? 'Android'
+        : /iphone|ipad/i.test(ua)
+          ? 'iOS'
+          : /linux/i.test(ua)
+            ? 'Linux'
+            : '未知系统';
+  return `${browser} · ${system}`;
+}
 
 const passwordStrength = computed(() => {
   const value = passwordForm.value.newPassword;
@@ -305,7 +331,7 @@ const disable2FA = async () => {
 const fetchTrustedDevices = async () => {
   isLoadingDevices.value = true;
   try {
-    trustedDevices.value = await fetchTrustedDevicesRequest();
+    trustedDevices.value = await fetchTrustedDevicesRequest(preferences.getDeviceToken());
     trustedDevicesLoaded.value = true;
   } catch {
     trustedDevices.value = [];
@@ -684,7 +710,18 @@ onUnmounted(() => {
         <div v-else-if="trustedDevices.length > 0" class="device-list">
           <article v-for="(device, index) in trustedDevices" :key="device.id" class="device-row">
             <Smartphone />
-            <div>
+            <div class="device-row__details">
+              <strong>
+                {{ getDeviceName(device.userAgent) }}
+                <em v-if="device.isCurrent">当前设备</em>
+              </strong>
+              <span>
+                {{ device.ipAddress || 'IP 未记录' }} · 最后使用：{{
+                  formatDate(device.lastUsedAt || device.createdAt)
+                }}
+              </span>
+            </div>
+            <div v-if="false">
               <strong>受信设备 #{{ index + 1 }}</strong>
               <span>添加时间：{{ formatDate(device.createdAt) }}</span>
             </div>
@@ -704,6 +741,40 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.settings-overview-info {
+  flex: 1 1 auto;
+}
+
+.check-strip {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 16px;
+  min-width: 0;
+}
+
+.check-strip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.check-strip span.done {
+  color: var(--text-secondary);
+}
+
+.check-strip svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
 .security-layout-main {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -914,6 +985,19 @@ onUnmounted(() => {
   font-weight: 900;
 }
 
+.device-row__details em {
+  display: inline-flex;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--success) 35%, var(--border-base));
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  color: var(--success);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+}
+
 .device-row span {
   font-size: 12px;
   color: var(--text-muted);
@@ -958,6 +1042,12 @@ onUnmounted(() => {
   .setup-grid,
   .enabled-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .check-strip {
+    justify-content: flex-start;
   }
 }
 

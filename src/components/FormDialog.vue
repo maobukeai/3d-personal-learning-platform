@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { Loader2 } from 'lucide-vue-next';
 import Modal from '@/components/ui/Modal.vue';
 
 interface Props {
   visible: boolean;
   title?: string;
-  width?: string | number;
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'fullscreen' | 'presentation';
   loading?: boolean;
   confirmText?: string;
   cancelText?: string;
@@ -15,14 +14,14 @@ interface Props {
   confirmDisabled?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   title: '',
-  width: '560px',
+  size: 'md',
   loading: false,
   confirmText: 'common.save',
   cancelText: 'common.cancel',
   showFooter: true,
-  closeOnClickModal: false,
+  closeOnClickModal: true,
   confirmDisabled: false,
 });
 
@@ -31,24 +30,13 @@ const emit = defineEmits<{
   (e: 'submit'): void;
   (e: 'cancel'): void;
 }>();
-
-const modalSize = computed(() => {
-  if (!props.width) return 'md';
-  const w = typeof props.width === 'number' ? props.width : parseInt(props.width, 10);
-  if (isNaN(w)) return 'md';
-  if (w <= 450) return 'sm';
-  if (w <= 650) return 'md';
-  if (w <= 900) return 'lg';
-  if (w <= 1200) return 'xl';
-  return 'xxl';
-});
 </script>
 
 <template>
   <Modal
     :show="visible"
     :title="title"
-    :size="modalSize"
+    :size="size"
     :close-on-outside-click="closeOnClickModal"
     @close="
       emit('cancel');

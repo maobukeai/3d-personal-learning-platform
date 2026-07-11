@@ -184,13 +184,7 @@ const roleClass = (role: string) => ({
 </script>
 
 <template>
-  <Modal
-    :show="modelValue"
-    size="xl"
-    padding="md"
-    glass-card
-    @close="emit('update:modelValue', false)"
-  >
+  <Modal :show="modelValue" size="xl" padding="md" @close="emit('update:modelValue', false)">
     <!-- Header Slot (direct child of Modal) -->
     <template #header>
       <div v-if="team && !isDetailLoading" class="flex items-center gap-3 w-full pr-8 mobile-row">
@@ -502,12 +496,10 @@ const roleClass = (role: string) => ({
                 <span>{{ relativeTime(member.metrics?.lastActiveAt || member.joinedAt) }}</span>
               </div>
               <div class="member-actions flex items-center gap-2 shrink-0">
-                <span
-                  class="pill text-xs px-1.5 py-0.5 font-bold"
-                  :class="roleClass(member.role)"
-                  >{{ roleLabel(member.role) }}</span
-                >
-                <el-dropdown v-if="member.role !== 'OWNER'" trigger="click">
+                <span class="pill text-xs px-1.5 py-0.5 font-bold" :class="roleClass(member.role)">
+                  {{ roleLabel(member.role) }}
+                </span>
+                <Dropdown v-if="member.role !== 'OWNER'" trigger="click">
                   <button
                     type="button"
                     class="icon-btn p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
@@ -515,8 +507,8 @@ const roleClass = (role: string) => ({
                     <MoreHorizontal class="w-4 h-4 text-slate-500" />
                   </button>
                   <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item
+                    <DropdownMenu>
+                      <DropdownItem
                         v-if="member.role !== 'ADMIN'"
                         @click="
                           emit('update-member-role', {
@@ -527,8 +519,8 @@ const roleClass = (role: string) => ({
                         "
                       >
                         <Shield class="dropdown-icon" /> 设为管理员
-                      </el-dropdown-item>
-                      <el-dropdown-item
+                      </DropdownItem>
+                      <DropdownItem
                         v-if="member.role !== 'MEMBER'"
                         @click="
                           emit('update-member-role', {
@@ -539,8 +531,8 @@ const roleClass = (role: string) => ({
                         "
                       >
                         <Users class="dropdown-icon" /> 设为成员
-                      </el-dropdown-item>
-                      <el-dropdown-item
+                      </DropdownItem>
+                      <DropdownItem
                         divided
                         @click="
                           emit('remove-member', {
@@ -551,10 +543,10 @@ const roleClass = (role: string) => ({
                         "
                       >
                         <UserMinus class="dropdown-icon danger" /> 移除成员
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
+                      </DropdownItem>
+                    </DropdownMenu>
                   </template>
-                </el-dropdown>
+                </Dropdown>
               </div>
             </article>
           </section>

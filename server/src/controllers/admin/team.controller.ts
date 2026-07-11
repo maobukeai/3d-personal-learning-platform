@@ -1,13 +1,19 @@
-import { Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import { Prisma } from '@prisma/client';
 import prisma from '../../services/prisma';
-import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../utils/error';
 import { createNotification } from '../../utils/notification';
 import { createPaginationMeta, getPaginationParams } from '../../utils/pagination';
 import { auditService, AuditAction, AuditModule } from '../../services/audit.service';
 import { TaskStatus } from '../../types/task';
 import { deleteCloudOrLocalFileByUrl } from '../../utils/file';
+
+type AdminRequest = FastifyRequest & {
+  body: any;
+  query: any;
+  params: any;
+  file?: any;
+};
 
 type TeamRiskFilter = 'ALL' | 'PENDING' | 'OVERDUE' | 'UNASSIGNED' | 'EMPTY';
 type SortDirection = 'asc' | 'desc';
@@ -120,7 +126,7 @@ const buildTeamOrderBy = (query: Record<string, unknown>): Prisma.TeamOrderByWit
   return { createdAt: direction };
 };
 
-export const getAllTeams = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAllTeams = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const now = new Date();
     const { page, limit, skip } = getPaginationParams(req.query, 30, 100);
@@ -365,7 +371,7 @@ export const getAllTeams = async (req: AuthRequest, res: Response, next: NextFun
       visibilityGroups.map((group) => [group.visibility, group._count._all]),
     );
 
-    res.json({
+    reply.send({
       data,
       pagination: createPaginationMeta(page, limit, total),
       summary: {
@@ -393,11 +399,11 @@ export const getAllTeams = async (req: AuthRequest, res: Response, next: NextFun
       },
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getTeamDetail = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getTeamDetail = async (req: AdminRequest, reply: FastifyReply) => {
   const teamId = req.params.id as string;
   const now = new Date();
   const nextSevenDays = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -436,7 +442,7 @@ export const getTeamDetail = async (req: AuthRequest, res: Response, next: NextF
       },
     });
 
-    if (!team) return next(new AppError('Team not found', 404));
+    if (!team) throw new AppError('Team not found', 404);
 
     const [projects, tasks, assets, materials, showcases] = await Promise.all([
       prisma.project.findMany({
@@ -730,7 +736,7 @@ export const getTeamDetail = async (req: AuthRequest, res: Response, next: NextF
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 16);
 
-    res.json({
+    reply.send({
       team,
       counts: {
         members: team.members.length,
@@ -772,11 +778,11 @@ export const getTeamDetail = async (req: AuthRequest, res: Response, next: NextF
       generatedAt: now,
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const batchUpdateTeams = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const batchUpdateTeams = async (req: AdminRequest, reply: FastifyReply) => {
   const { ids, visibility, category } = req.body as {
     ids?: string[];
     visibility?: string;
@@ -784,7 +790,7 @@ export const batchUpdateTeams = async (req: AuthRequest, res: Response, next: Ne
   };
 
   if (!Array.isArray(ids) || ids.length === 0) {
-    return next(new AppError('Team ids are required', 400));
+    throw new AppError('Team ids are required', 400);
   }
 
   const data: Prisma.TeamUpdateManyMutationInput = {};
@@ -792,7 +798,7 @@ export const batchUpdateTeams = async (req: AuthRequest, res: Response, next: Ne
   if (typeof category === 'string') data.category = category.trim() || null;
 
   if (Object.keys(data).length === 0) {
-    return next(new AppError('No valid update fields provided', 400));
+    throw new AppError('No valid update fields provided', 400);
   }
 
   try {
@@ -810,17 +816,17 @@ export const batchUpdateTeams = async (req: AuthRequest, res: Response, next: Ne
       req,
     });
 
-    res.json({ updated: result.count });
+    reply.send({ updated: result.count });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const batchDeleteTeams = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const batchDeleteTeams = async (req: AdminRequest, reply: FastifyReply) => {
   const { ids } = req.body as { ids?: string[] };
 
   if (!Array.isArray(ids) || ids.length === 0) {
-    return next(new AppError('Team ids are required', 400));
+    throw new AppError('Team ids are required', 400);
   }
 
   try {
@@ -842,17 +848,13 @@ export const batchDeleteTeams = async (req: AuthRequest, res: Response, next: Ne
       req,
     });
 
-    res.json({ deleted: result.count });
+    reply.send({ deleted: result.count });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const respondToTeamApplication = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const respondToTeamApplication = async (req: AdminRequest, reply: FastifyReply) => {
   const applicationId = req.params.applicationId as string;
   const { accept } = req.body as { accept?: boolean };
 
@@ -866,7 +868,7 @@ export const respondToTeamApplication = async (
     });
 
     if (!application || application.status !== 'PENDING') {
-      return next(new AppError('Application not found or already processed', 404));
+      throw new AppError('Application not found or already processed', 404);
     }
 
     if (accept) {
@@ -933,16 +935,16 @@ export const respondToTeamApplication = async (
       req,
     });
 
-    res.json({
+    reply.send({
       message: accept ? 'Application approved' : 'Application rejected',
       status: accept ? 'APPROVED' : 'REJECTED',
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const cancelTeamInvitation = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const cancelTeamInvitation = async (req: AdminRequest, reply: FastifyReply) => {
   const invitationId = req.params.invitationId as string;
 
   try {
@@ -951,7 +953,7 @@ export const cancelTeamInvitation = async (req: AuthRequest, res: Response, next
       include: { team: true },
     });
 
-    if (!invitation) return next(new AppError('Invitation not found', 404));
+    if (!invitation) throw new AppError('Invitation not found', 404);
 
     await prisma.teamInvitation.delete({ where: { id: invitationId } });
 
@@ -968,18 +970,18 @@ export const cancelTeamInvitation = async (req: AuthRequest, res: Response, next
       req,
     });
 
-    res.json({ message: 'Invitation cancelled' });
+    reply.send({ message: 'Invitation cancelled' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createTeam = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createTeam = async (req: AdminRequest, reply: FastifyReply) => {
   const { name, description, avatarUrl, coverUrl, visibility, category, ownerId } = req.body;
   const creatorId = ownerId || req.userId;
 
   if (!name) {
-    return next(new AppError('Team name is required', 400));
+    throw new AppError('Team name is required', 400);
   }
 
   try {
@@ -1008,13 +1010,13 @@ export const createTeam = async (req: AuthRequest, res: Response, next: NextFunc
       return newTeam;
     });
 
-    res.status(201).json(team);
+    reply.status(201).send(team);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateTeam = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateTeam = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { name, description, avatarUrl, coverUrl, visibility, category, ownerId } = req.body;
 
@@ -1062,13 +1064,13 @@ export const updateTeam = async (req: AuthRequest, res: Response, next: NextFunc
       return updatedTeam;
     });
 
-    res.json(team);
+    reply.send(team);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteTeam = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteTeam = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   try {
     const team = await prisma.team.findUnique({ where: { id } });
@@ -1078,22 +1080,22 @@ export const deleteTeam = async (req: AuthRequest, res: Response, next: NextFunc
     }
 
     await prisma.team.delete({ where: { id: id } });
-    res.json({ message: 'Team deleted successfully' });
+    reply.send({ message: 'Team deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const addTeamMember = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const addTeamMember = async (req: AdminRequest, reply: FastifyReply) => {
   const teamId = req.params.teamId as string;
   const { userId, role = 'MEMBER' } = req.body as { userId?: string; role?: string };
 
   if (!userId) {
-    return next(new AppError('User is required', 400));
+    throw new AppError('User is required', 400);
   }
 
   if (!['ADMIN', 'MEMBER'].includes(role)) {
-    return next(new AppError('Invalid role', 400));
+    throw new AppError('Invalid role', 400);
   }
 
   try {
@@ -1103,31 +1105,31 @@ export const addTeamMember = async (req: AuthRequest, res: Response, next: NextF
       prisma.teamMember.findUnique({ where: { teamId_userId: { teamId, userId } } }),
     ]);
 
-    if (!team) return next(new AppError('Team not found', 404));
+    if (!team) throw new AppError('Team not found', 404);
     if (team.type === 'PERSONAL') {
-      return next(new AppError('Cannot add members to a personal workspace', 400));
+      throw new AppError('Cannot add members to a personal workspace', 400);
     }
-    if (!user) return next(new AppError('User not found', 404));
-    if (existingMember) return next(new AppError('User is already a member', 400));
+    if (!user) throw new AppError('User not found', 404);
+    if (existingMember) throw new AppError('User is already a member', 400);
 
     const member = await prisma.teamMember.create({
       data: { teamId, userId, role },
       include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
     });
 
-    res.status(201).json(member);
+    reply.status(201).send(member);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateTeamMemberRole = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateTeamMemberRole = async (req: AdminRequest, reply: FastifyReply) => {
   const teamId = req.params.teamId as string;
   const userId = req.params.userId as string;
   const { role } = req.body;
 
   if (!['ADMIN', 'MEMBER'].includes(role)) {
-    return next(new AppError('Invalid role', 400));
+    throw new AppError('Invalid role', 400);
   }
 
   try {
@@ -1135,20 +1137,20 @@ export const updateTeamMemberRole = async (req: AuthRequest, res: Response, next
       where: { teamId_userId: { teamId, userId } },
     });
 
-    if (!member) return next(new AppError('Member not found', 404));
-    if (member.role === 'OWNER') return next(new AppError('Cannot change owner role', 400));
+    if (!member) throw new AppError('Member not found', 404);
+    if (member.role === 'OWNER') throw new AppError('Cannot change owner role', 400);
 
     const updated = await prisma.teamMember.update({
       where: { id: member.id },
       data: { role },
     });
-    res.json(updated);
+    reply.send(updated);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const removeTeamMember = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const removeTeamMember = async (req: AdminRequest, reply: FastifyReply) => {
   const teamId = req.params.teamId as string;
   const userId = req.params.userId as string;
   try {
@@ -1156,12 +1158,12 @@ export const removeTeamMember = async (req: AuthRequest, res: Response, next: Ne
       where: { teamId_userId: { teamId, userId } },
     });
 
-    if (!member) return next(new AppError('Member not found', 404));
-    if (member.role === 'OWNER') return next(new AppError('Cannot remove owner', 400));
+    if (!member) throw new AppError('Member not found', 404);
+    if (member.role === 'OWNER') throw new AppError('Cannot remove owner', 400);
 
     await prisma.teamMember.delete({ where: { id: member.id } });
-    res.json({ message: 'Member removed successfully' });
+    reply.send({ message: 'Member removed successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };

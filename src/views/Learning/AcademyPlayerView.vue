@@ -19,13 +19,14 @@ import {
   Trash2,
   Circle,
 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
 
 const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.vue'));
 
 import SafeHtml from '@/components/SafeHtml.vue';
+import Modal from '@/components/ui/Modal.vue';
 
 interface ModelHotspot {
   x: number;
@@ -983,22 +984,23 @@ onUnmounted(() => {
     </Transition>
 
     <!-- Course Completion Modal -->
-    <div
-      v-if="showCompletionModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+    <Modal
+      :show="showCompletionModal"
+      :title="t('academy.congratsFinishedTitle')"
+      size="sm"
+      @close="showCompletionModal = false"
     >
-      <div
-        class="glass-dialog w-full max-w-sm rounded-2xl p-6 text-center shadow-2xl border border-white/10"
-      >
+      <div class="text-center py-2">
         <div
           class="w-14 h-14 mx-auto mb-4 rounded-full bg-emerald-500/20 flex items-center justify-center"
         >
           <CheckCircle2 class="w-7 h-7 text-emerald-400" />
         </div>
-        <h2 class="text-lg font-bold text-white mb-2">{{ t('academy.congratsFinishedTitle') }}</h2>
-        <p class="text-xs text-slate-400 mb-6">
+        <p class="text-xs text-slate-400">
           {{ t('academy.congratsFinishedDesc', { title: course?.title }) }}
         </p>
+      </div>
+      <template #footer>
         <div class="flex gap-3">
           <button
             type="button"
@@ -1018,8 +1020,8 @@ onUnmounted(() => {
             {{ t('academy.continueReview') }}
           </button>
         </div>
-      </div>
-    </div>
+      </template>
+    </Modal>
   </div>
 </template>
 

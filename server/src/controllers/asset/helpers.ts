@@ -1,9 +1,10 @@
 import { Prisma } from '@prisma/client';
 import prisma from '../../services/prisma';
-import { AuthRequest } from '../../middlewares/auth.middleware';
+import { AuthRequest } from '../../types/auth-request';
 import { logger } from '../../utils/logger';
+import { AppError } from '../../utils/error';
 import { storageService } from '../../services/storage.service';
-import { decryptSecretIfNeeded } from '../../utils/crypto';
+import { decryptSecretIfNeeded, generateBackendSignedUrl } from '../../utils/crypto';
 import { UploadedFile } from '../../types/upload';
 import fs from 'fs';
 
@@ -274,11 +275,49 @@ export const checkIsUserVip = async (userId: string): Promise<boolean> => {
 export const getAssetAccessWhere = (id: string, req: AuthRequest): Prisma.AssetWhereInput => {
   const userId = req.userId as string | undefined;
   const workspaceId = req.workspaceId;
-  const or: Prisma.AssetWhereInput[] = [{ status: 'APPROVED' }];
+
+  if (!userId) {
+    // Guests can only see approved, public assets (assets not bound to a team/workspace)
+    return { id, status: 'APPROVED', teamId: null };
+  }
+
+  const or: Prisma.AssetWhereInput[] = [{ status: 'APPROVED', teamId: null }];
   if (workspaceId) or.push({ teamId: workspaceId });
-  if (userId) or.push({ userId });
+  or.push({ userId });
   if (req.user?.role === 'ADMIN') or.push({});
   return { id, OR: or };
+};
+
+export const checkAssetAccess = (
+  asset: { status: string; teamId: string | null; userId: string },
+  req: AuthRequest,
+): void => {
+  const isPublic = asset.status === 'APPROVED' && asset.teamId === null;
+  if (isPublic) {
+    return;
+  }
+
+  if (!req.userId) {
+    throw new AppError(
+      'Unauthorized: Authentication required to access private assets',
+      401,
+      'UNAUTHORIZED',
+    );
+  }
+
+  if (req.user?.role === 'ADMIN') {
+    return;
+  }
+
+  if (asset.userId === req.userId) {
+    return;
+  }
+
+  if (asset.teamId && req.workspaceId === asset.teamId) {
+    return;
+  }
+
+  throw new AppError('Forbidden: You do not have access to this asset', 403, 'FORBIDDEN');
 };
 
 export const getAssetCollaborationWhere = (
@@ -295,6 +334,11 @@ export const getAssetCollaborationWhere = (
 };
 
 // Re-upload compressed GLB to Cloudflare R2 and sync DB records
+/**
+ * @deprecated The unified 3D optimization pipeline (`processFull3DOptimization`
+ * + `storageService.uploadBuffer`) replaces all callers of this helper. Retained
+ * for any legacy references; new code should use the unified pipeline directly.
+ */
 export const syncCompressedAssetToR2 = async (
   assetId: string,
   fullPath: string,
@@ -302,28 +346,28 @@ export const syncCompressedAssetToR2 = async (
   isVersion = false,
   versionId?: string,
 ) => {
-  if (!assetFile.r2ConfigId || !assetFile.r2Key) {
-    // If it's stored locally (fallback config), just update the size to match compressed size
-    try {
-      const stats = fs.statSync(fullPath);
-      const sizeMB = parseFloat((stats.size / (1024 * 1024)).toFixed(2));
-
-      if (isVersion && versionId) {
-        await prisma.assetVersion.update({
-          where: { id: versionId },
-          data: { size: sizeMB },
-        });
-      }
-
-      await prisma.asset.update({
-        where: { id: assetId },
-        data: { size: sizeMB },
-      });
-      logger.info(`[AssetProcessor] Local GLB size updated to ${sizeMB}MB for asset: ${assetId}`);
-    } catch (err) {
-      logger.error(`[AssetProcessor] Failed to update local compressed file size:`, err);
-    }
+  // Read the compressed temp file into a buffer once — all subsequent
+  // operations (size calc + R2 upload) use the buffer, never local disk IO
+  // for persistence. The temp file itself is managed/cleaned by the caller.
+  let compressedBuffer: Buffer;
+  try {
+    compressedBuffer = await fs.promises.readFile(fullPath);
+  } catch (err) {
+    logger.error(
+      `[AssetProcessor] Failed to read compressed temp file ${fullPath} for asset ${assetId}:`,
+      err,
+    );
     return;
+  }
+
+  const sizeMB = parseFloat((compressedBuffer.length / (1024 * 1024)).toFixed(2));
+
+  if (!assetFile.r2ConfigId || !assetFile.r2Key) {
+    // R2 storage configuration is required — the "local fallback" that
+    // silently updated only the DB size has been removed. Fail loudly so the
+    // caller can surface the problem instead of leaving the asset without a
+    // cloud-hosted compressed artifact.
+    throw new Error('R2 storage configuration missing for asset');
   }
 
   try {
@@ -342,8 +386,8 @@ export const syncCompressedAssetToR2 = async (
       `[AssetProcessor] Re-uploading compressed GLB to R2 for asset: ${assetId}, key: ${assetFile.r2Key}`,
     );
 
-    // Upload compressed file (overwrites original)
-    const newUrl = await storageService.uploadFile(
+    // Upload compressed buffer (overwrites original)
+    const newUrl = await storageService.uploadBuffer(
       {
         endpoint: config.endpoint,
         accessKeyId: config.accessKeyId,
@@ -351,13 +395,10 @@ export const syncCompressedAssetToR2 = async (
         bucketName: config.bucketName,
         publicUrl: config.publicUrl,
       },
-      fullPath,
+      compressedBuffer,
       assetFile.r2Key,
       assetFile.mimetype || 'model/gltf-binary',
     );
-
-    const stats = fs.statSync(fullPath);
-    const sizeMB = parseFloat((stats.size / (1024 * 1024)).toFixed(2));
 
     if (isVersion && versionId) {
       await prisma.assetVersion.update({
@@ -387,3 +428,169 @@ export const syncCompressedAssetToR2 = async (
     );
   }
 };
+
+export async function signPrivateUrlIfNeeded(
+  url: string | null | undefined,
+  asset: { status: string; teamId: string | null; id: string },
+  fieldType: 'url' | 'packageUrl' | 'thumbnail',
+): Promise<string | null> {
+  if (!url) return null;
+
+  // PENDING/REJECTED assets must not expose any viewable URL — only APPROVED
+  // assets are eligible for signed/raw URLs.
+  if (asset.status !== 'APPROVED') {
+    return null;
+  }
+
+  // If the asset is PUBLIC/APPROVED (status === 'APPROVED' and teamId === null), return the raw URL (public)
+  if (asset.status === 'APPROVED' && !asset.teamId) {
+    return url;
+  }
+
+  // If it's a private asset, we must use a signed/authenticated URL.
+  // 1. If it's an R2 cloud URL (starting with http/https), we can sign it using storageService
+  const urlLower = url.toLowerCase().trim();
+  if (urlLower.startsWith('http://') || urlLower.startsWith('https://')) {
+    try {
+      const parsedUrl = new URL(url);
+      const urlHost = parsedUrl.host.toLowerCase();
+
+      // Find direct host match or active configs
+      let configs = await prisma.storageConfig.findMany({
+        where: {
+          status: 'ACTIVE',
+          publicUrl: { contains: urlHost },
+        },
+      });
+
+      if (configs.length === 0) {
+        configs = await prisma.storageConfig.findMany({
+          where: { status: 'ACTIVE' },
+        });
+      }
+
+      for (const config of configs) {
+        let baseUrl = config.publicUrl.endsWith('/')
+          ? config.publicUrl.slice(0, -1)
+          : config.publicUrl;
+        if (!/^https?:\/\//i.test(baseUrl) && !baseUrl.startsWith('/')) {
+          baseUrl = `https://${baseUrl}`;
+        }
+
+        const baseUrlLower = baseUrl.toLowerCase();
+        if (urlLower.startsWith(baseUrlLower)) {
+          const pathname = parsedUrl.pathname;
+          const key = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+          if (key) {
+            const decryptedConfig = {
+              endpoint: config.endpoint,
+              accessKeyId: config.accessKeyId ?? '',
+              secretAccessKey: decryptSecretIfNeeded(config.secretAccessKey),
+              bucketName: config.bucketName,
+              publicUrl: config.publicUrl,
+            };
+            // Generate presigned R2 URL with short 900s expiry
+            const signedUrl = await storageService.getPresignedViewUrl(decryptedConfig, key, 900);
+            return signedUrl;
+          }
+        }
+      }
+    } catch (err) {
+      logger.error(`[StorageService] Failed to sign R2 URL ${url}:`, err);
+    }
+  }
+
+  // 2. Fallback (e.g. local `/uploads/...` file path or parsed error):
+  // Return our unified backend authentication view route with signature & 900s expiry:
+  const typeMap = {
+    url: 'model',
+    packageUrl: 'package',
+    thumbnail: 'thumbnail',
+  };
+  return generateBackendSignedUrl(
+    `/api/assets/${asset.id}/view-file`,
+    {
+      type: typeMap[fieldType],
+    },
+    900,
+  );
+}
+
+interface SignableAssetVersion {
+  url?: string | null;
+  packageUrl?: string | null;
+  [key: string]: unknown;
+}
+
+interface SignableAsset {
+  id: string;
+  status: string;
+  teamId: string | null;
+  url?: string | null;
+  packageUrl?: string | null;
+  thumbnail?: string | null;
+  versions?: SignableAssetVersion[] | null;
+  [key: string]: unknown;
+}
+
+export async function signAssetUrls<T extends Record<string, unknown>>(asset: T): Promise<T>;
+export async function signAssetUrls<T extends Record<string, unknown>>(asset: T[]): Promise<T[]>;
+export async function signAssetUrls(asset: unknown): Promise<unknown>;
+export async function signAssetUrls(asset: unknown): Promise<unknown> {
+  if (!asset) return asset;
+
+  if (Array.isArray(asset)) {
+    return Promise.all(asset.map((a) => signAssetUrls(a)));
+  }
+
+  const signed = { ...(asset as Record<string, unknown>) } as SignableAsset;
+
+  // PENDING/REJECTED assets do not get signed (or raw) view URLs — only
+  // APPROVED assets are eligible. Null out every URL field (including nested
+  // version URLs) so pending/rejected content cannot be previewed.
+  if (signed.status && signed.status !== 'APPROVED') {
+    signed.url = null;
+    signed.packageUrl = null;
+    signed.thumbnail = null;
+    if (signed.versions && Array.isArray(signed.versions)) {
+      signed.versions = signed.versions.map((v) => ({
+        ...v,
+        url: null,
+        packageUrl: null,
+      }));
+    }
+    return signed;
+  }
+
+  if (signed.url) {
+    signed.url = (await signPrivateUrlIfNeeded(signed.url, signed, 'url')) ?? signed.url;
+  }
+  if (signed.packageUrl) {
+    signed.packageUrl =
+      (await signPrivateUrlIfNeeded(signed.packageUrl, signed, 'packageUrl')) ?? signed.packageUrl;
+  }
+  if (signed.thumbnail) {
+    signed.thumbnail =
+      (await signPrivateUrlIfNeeded(signed.thumbnail, signed, 'thumbnail')) ?? signed.thumbnail;
+  }
+
+  // Also sign versions if included
+  if (signed.versions && Array.isArray(signed.versions)) {
+    signed.versions = await Promise.all(
+      signed.versions.map(async (v) => {
+        const vSigned: SignableAssetVersion = { ...v };
+        if (vSigned.url) {
+          vSigned.url = (await signPrivateUrlIfNeeded(vSigned.url, signed, 'url')) ?? vSigned.url;
+        }
+        if (vSigned.packageUrl) {
+          vSigned.packageUrl =
+            (await signPrivateUrlIfNeeded(vSigned.packageUrl, signed, 'packageUrl')) ??
+            vSigned.packageUrl;
+        }
+        return vSigned;
+      }),
+    );
+  }
+
+  return signed;
+}

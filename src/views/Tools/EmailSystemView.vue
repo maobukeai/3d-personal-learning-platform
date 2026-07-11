@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
+import { ElMessage, ElMessageBox, ElNotification } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import EmailSidebar from './components/email/EmailSidebar.vue';
@@ -690,7 +690,7 @@ const closeCompose = () => {
 <style scoped>
 .email-system {
   height: calc(100vh - 3.5rem); /* offset MainLayout topbar height */
-  background: transparent !important;
+  background: transparent;
 }
 
 /* Custom scrolling classes */
@@ -740,7 +740,7 @@ const closeCompose = () => {
   .email-system > aside,
   .email-system > section,
   .email-system > main {
-    width: 100% !important;
+    width: 100%;
     min-width: 0;
     flex: none;
     border-right: 0;

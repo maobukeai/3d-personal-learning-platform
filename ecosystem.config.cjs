@@ -2,21 +2,40 @@ module.exports = {
   apps: [
     {
       name: '3d-lms-api',
-      // script 路径相对于 cwd（即 ./server 目录）
       script: 'dist/src/index.js',
-      // 以 server 子目录作为工作目录，确保相对路径（如 uploads/）正确解析
       cwd: './server',
-      instances: 1, // 如需多核集群模式可改为 'max'
+      instances: 2,
+      exec_mode: 'cluster',
+      wait_ready: true,
+      listen_timeout: 10000,
       autorestart: true,
-      watch: false, // 生产环境禁止 watch，否则每次文件变化都会重启
+      watch: false,
       max_memory_restart: '1G',
+      env: {
+        NODE_ENV: 'production',
+        PORT: '3001',
+      },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      error_file: '../logs/api-error.log',
+      out_file: '../logs/api-out.log',
+      merge_logs: true,
+      time: true,
+    },
+    {
+      name: '3d-lms-queue-worker',
+      script: 'npm',
+      args: 'run start:worker',
+      cwd: './server',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '2G',
       env: {
         NODE_ENV: 'production',
       },
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-      // 日志路径相对于项目根目录（cwd 的上一级）
-      error_file: '../logs/api-error.log',
-      out_file: '../logs/api-out.log',
+      error_file: '../logs/queue-worker-error.log',
+      out_file: '../logs/queue-worker-out.log',
       merge_logs: true,
       time: true,
     },

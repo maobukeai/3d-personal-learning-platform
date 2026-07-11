@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, onMounted, computed } from 'vue';
 import { CreditCard, Plus, RefreshCw, Users, Key, Search } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import SubscriptionPlansTab from './components/SubscriptionPlansTab.vue';
 import UserSubscriptionsTab from './components/UserSubscriptionsTab.vue';
@@ -300,6 +300,6 @@ onMounted(() => {
 }
 
 .admin-subscriptions-page {
-  background: transparent !important;
+  background: transparent;
 }
 </style>

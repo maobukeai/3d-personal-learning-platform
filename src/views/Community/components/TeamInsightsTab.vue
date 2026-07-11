@@ -451,18 +451,18 @@ const activityDotClass = (type: string) => {
 <style scoped>
 /* Tone variables inside the component scope */
 .tone-emerald {
-  color: rgb(16 185 129) !important;
-  background-color: rgb(16 185 129 / 0.1) !important;
+  color: rgb(16 185 129);
+  background-color: rgb(16 185 129 / 0.1);
 }
 
 .tone-amber {
-  color: rgb(245 158 11) !important;
-  background-color: rgb(245 158 11 / 0.12) !important;
+  color: rgb(245 158 11);
+  background-color: rgb(245 158 11 / 0.12);
 }
 
 .tone-rose {
-  color: rgb(244 63 94) !important;
-  background-color: rgb(244 63 94 / 0.1) !important;
+  color: rgb(244 63 94);
+  background-color: rgb(244 63 94 / 0.1);
 }
 
 /* Custom premium list items styling */
@@ -484,8 +484,8 @@ const activityDotClass = (type: string) => {
 
 .drawer-action:hover,
 .activity-row:hover {
-  background: var(--bg-card-hover) !important;
-  border-color: var(--accent-subtle) !important;
+  background: var(--bg-card-hover);
+  border-color: var(--accent-subtle);
   transform: translateX(4px);
   box-shadow: var(--shadow-sm);
 }

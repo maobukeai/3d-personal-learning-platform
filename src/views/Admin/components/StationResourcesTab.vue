@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import {
   Search,
   Loader2,
@@ -13,7 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api, { getAssetUrl } from '@/utils/api';
 import ManualResourceDialog from './ManualResourceDialog.vue';
 
@@ -69,6 +69,13 @@ const resourcePageSize = ref(20);
 const resourceTotalPages = ref(0);
 const resourceSearch = ref('');
 const resourceCategoryFilter = ref<string | null>(null);
+
+const categoryFilterWrapper = computed({
+  get: () => resourceCategoryFilter.value || '',
+  set: (val) => {
+    resourceCategoryFilter.value = val ? String(val) : null;
+  },
+});
 const isLoadingResources = ref(false);
 
 const manualResourceDialogRef = ref<ManualResourceDialogExpose | null>(null);
@@ -171,16 +178,20 @@ defineExpose({
           @keydown.enter="handleResourceSearch"
         />
       </div>
-      <select
-        v-model="resourceCategoryFilter"
-        class="px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 rounded-xl focus:border-cyan-500 outline-none bg-white dark:bg-slate-900/60 text-slate-600 dark:text-slate-300 min-w-[150px]"
-        @change="handleCategoryFilterChange"
+      <Select
+        v-model="categoryFilterWrapper"
+        size="small"
+        class="w-40"
+        @update:modelValue="handleCategoryFilterChange"
       >
-        <option :value="null">{{ $t('admin.all_categories_1') }}</option>
-        <option v-for="cat in props.formattedCategories" :key="cat.id" :value="cat.id">
-          {{ cat.name }}
-        </option>
-      </select>
+        <SelectOption value="" :label="$t('admin.all_categories_1')" />
+        <SelectOption
+          v-for="cat in props.formattedCategories"
+          :key="cat.id"
+          :value="cat.id"
+          :label="cat.name"
+        />
+      </Select>
     </div>
 
     <!-- Resource List Loading -->

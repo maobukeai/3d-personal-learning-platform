@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import {
   Share2,
   Copy,
@@ -576,7 +576,7 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" size="lg" :z-index="1100" glass-card @close="visible = false">
+  <Modal :show="visible" size="lg" @close="visible = false">
     <template #header>
       <div class="mobile-row flex items-center gap-2.5">
         <div
@@ -660,7 +660,7 @@ defineExpose({ open });
               >
                 <Calendar class="w-3.5 h-3.5 text-[var(--text-secondary)]" /> 选择过期时间
               </label>
-              <el-date-picker
+              <DatePicker
                 v-model="customExpiresAt"
                 type="datetime"
                 placeholder="选择具体日期和时间"

@@ -61,7 +61,7 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <Modal :show="visible" size="sm" glass-card @close="handleClose">
+  <Modal :show="visible" size="sm" @close="handleClose">
     <template #header>
       <h3 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary)">
         {{ title || t('projects.inviteMembersTitle') || '邀请加入项目' }}
@@ -86,19 +86,24 @@ const handleSubmit = () => {
         >
           {{ t('projects.selectTeamMembers') || '选择成员' }}
         </label>
-        <el-select
+        <Select
           v-model="selectedUserIds"
           multiple
           :placeholder="placeholder || t('projects.selectMember') || '选择要邀请的成员'"
           class="!w-full custom-select"
         >
-          <el-option v-for="m in users" :key="m.id" :label="m.name || m.email || ''" :value="m.id">
+          <SelectOption
+            v-for="m in users"
+            :key="m.id"
+            :label="m.name || m.email || ''"
+            :value="m.id"
+          >
             <div class="flex items-center gap-3">
               <UserAvatar :user="m" size="xs" />
               <span class="font-bold text-xs sm:text-sm">{{ m.name || m.email }}</span>
             </div>
-          </el-option>
-        </el-select>
+          </SelectOption>
+        </Select>
       </div>
     </div>
 
@@ -120,23 +125,4 @@ const handleSubmit = () => {
   </Modal>
 </template>
 
-<style scoped>
-.custom-select :deep(.el-select__wrapper) {
-  border-radius: 1rem !important;
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: none !important;
-  min-height: 48px;
-  transition: all 0.2s ease !important;
-}
-.dark .custom-select :deep(.el-select__wrapper) {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.custom-select :deep(.el-select__wrapper.is-focused) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
-}
-</style>
+<style scoped></style>

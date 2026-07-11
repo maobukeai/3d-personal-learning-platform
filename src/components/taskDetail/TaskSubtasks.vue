@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { CheckCircle2, Trash2, X, MessageSquare, Send, CheckSquare } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
@@ -329,7 +329,7 @@ defineExpose({
         <div class="flex items-center gap-2 shrink-0">
           <!-- Assignee Avatar -->
           <template v-if="sub.assigneeId && getMemberById(sub.assigneeId)">
-            <el-tooltip
+            <Tooltip
               :content="getMemberById(sub.assigneeId)?.name"
               placement="top"
               :show-after="500"
@@ -345,7 +345,7 @@ defineExpose({
               >
                 {{ getMemberById(sub.assigneeId)?.name?.[0] || 'U' }}
               </div>
-            </el-tooltip>
+            </Tooltip>
           </template>
 
           <!-- Comments count badge -->
@@ -420,13 +420,14 @@ defineExpose({
         <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
           负责人
         </label>
-        <el-select
+        <Select
           v-model="editingSubtask.assigneeId"
           clearable
           placeholder="选择负责人"
+          :options="teamMembers.map((m) => ({ label: m.name, value: m.id }))"
           class="!w-full custom-select-small"
         >
-          <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
+          <SelectOption v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
             <div class="flex items-center gap-2">
               <img
                 v-if="m.avatarUrl"
@@ -436,8 +437,8 @@ defineExpose({
               />
               <span class="text-xs">{{ m.name }}</span>
             </div>
-          </el-option>
-        </el-select>
+          </SelectOption>
+        </Select>
       </div>
 
       <!-- Description -->
@@ -658,8 +659,8 @@ defineExpose({
         class="flex justify-end gap-2 pt-2 border-t w-full"
         style="border-color: var(--border-base)"
       >
-        <el-button size="small" @click="handleCancelSubtaskEdit">取消</el-button>
-        <el-button type="primary" size="small" @click="handleSaveSubtaskAndClose">确定</el-button>
+        <Button size="sm" @click="handleCancelSubtaskEdit">取消</Button>
+        <Button variant="primary" size="sm" @click="handleSaveSubtaskAndClose">确定</Button>
       </div>
     </template>
   </Modal>

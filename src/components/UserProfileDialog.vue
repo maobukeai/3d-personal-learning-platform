@@ -2,7 +2,7 @@
 import { formatDate } from '@/utils/format';
 import { ref, watch } from 'vue';
 import { X, MapPin, Calendar, MessageSquare, Link as LinkIcon, Quote } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import UserAvatar from './UserAvatar.vue';
 import type { User } from '@/types';
@@ -65,7 +65,7 @@ const startChat = () => {
     :show="modelValue"
     size="sm"
     padding="none"
-    glass-card
+    :show-close="false"
     @close="emit('update:modelValue', false)"
   >
     <!-- Loader -->

@@ -5,7 +5,7 @@ import { Shield, Sparkles, Zap, Compass, Award } from 'lucide-vue-next';
 import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
 import { useSystemStore } from '@/stores/system';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { createJsonHeaders, readFetchErrorMessage } from '@/utils/aiHelpers';
 import { logError } from '@/utils/error';
 import { TEAM_CORE_VALUES_SEPARATOR } from '@/utils/team';
@@ -323,27 +323,27 @@ const handleAiGenerateDescription = async () => {
               class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1"
               >{{ t('team.category') }}</label
             >
-            <el-select
+            <Select
               v-model="localEditForm.category"
               class="w-full custom-select"
               :placeholder="t('team.categoryPlaceholder')"
             >
-              <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
-            </el-select>
+              <SelectOption v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
+            </Select>
           </div>
           <div v-if="!isPersonalSpace" class="space-y-2">
             <label
               class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1"
               >{{ t('teamDetail.privacyLabel') }}</label
             >
-            <el-select
+            <Select
               v-model="localEditForm.visibility"
               class="w-full custom-select"
               :placeholder="t('teamDetail.visibilityPlaceholder')"
             >
-              <el-option :label="t('teamDetail.visibilityPublic')" value="PUBLIC" />
-              <el-option :label="t('teamDetail.visibilityPrivate')" value="PRIVATE" />
-            </el-select>
+              <SelectOption :label="t('teamDetail.visibilityPublic')" value="PUBLIC" />
+              <SelectOption :label="t('teamDetail.visibilityPrivate')" value="PRIVATE" />
+            </Select>
           </div>
         </div>
       </div>
@@ -393,30 +393,4 @@ const handleAiGenerateDescription = async () => {
   </div>
 </template>
 
-<style scoped>
-.custom-select :deep(.el-select__wrapper) {
-  border-radius: 1rem !important;
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: none !important;
-  height: 52px;
-  transition: all 0.2s ease !important;
-}
-.dark .custom-select :deep(.el-select__wrapper) {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.custom-select :deep(.el-select__wrapper.is-focused) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
-}
-
-@media (max-width: 768px) {
-  .custom-select :deep(.el-select__wrapper) {
-    height: 44px !important;
-    border-radius: 0.75rem !important;
-  }
-}
-</style>
+<style scoped></style>

@@ -14,7 +14,7 @@ import {
   ArrowRight,
   DownloadCloud,
 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
 import { useLabel } from '@/utils/i18n';
@@ -198,15 +198,14 @@ async function handleImport(item: { title: string; link: string; snippet: string
       snippet: item.snippet,
     });
     loadingMsg.close();
-    ElMessage.success(label('导入成功！已存入对应板块的草稿箱中', 'Import success! Saved to drafts.'));
+    ElMessage.success(
+      label('导入成功！已存入对应板块的草稿箱中', 'Import success! Saved to drafts.'),
+    );
     emit('success');
   } catch (error) {
     loadingMsg.close();
     ElMessage.error(
-      getApiErrorMessage(
-        error,
-        label('导入失败，请稍后重试', 'Import failed, please try again'),
-      ),
+      getApiErrorMessage(error, label('导入失败，请稍后重试', 'Import failed, please try again')),
     );
   } finally {
     const next = new Set(importingLinks.value);
@@ -234,7 +233,6 @@ function handleClose() {
 <template>
   <Modal
     v-model:show="isOpen"
-    :glass-card="true"
     :title="label('全网 3D & Blender 资源 AI 搜索引擎', 'Global 3D & Blender Resource AI Search')"
     size="xl"
     :close-on-outside-click="!isSearching"
@@ -456,12 +454,18 @@ function handleClose() {
                       </p>
                     </div>
                     <!-- 正在导入：显示加载态 -->
-                    <div v-if="importingLinks.has(item.link)" class="flex items-center gap-1.5 shrink-0 text-[10px] text-amber-400">
+                    <div
+                      v-if="importingLinks.has(item.link)"
+                      class="flex items-center gap-1.5 shrink-0 text-[10px] text-amber-400"
+                    >
                       <Loader2 class="w-3 h-3 animate-spin" />
                       <span>导入中...</span>
                     </div>
                     <!-- 展开目标选择面板 -->
-                    <div v-else-if="activeImportLinks.has(item.link)" class="flex items-center gap-2 shrink-0 text-[10px]">
+                    <div
+                      v-else-if="activeImportLinks.has(item.link)"
+                      class="flex items-center gap-2 shrink-0 text-[10px]"
+                    >
                       <span class="text-[var(--text-muted)]">导入至:</span>
                       <button
                         type="button"
@@ -580,55 +584,55 @@ function handleClose() {
 }
 
 .ai-summary-card {
-  background-color: rgba(99, 102, 241, 0.02) !important;
+  background-color: rgba(99, 102, 241, 0.02);
 }
 
 .dark .ai-summary-card {
-  background-color: rgba(0, 0, 0, 0.45) !important;
-  border-color: rgba(99, 102, 241, 0.15) !important;
+  background-color: rgba(0, 0, 0, 0.45);
+  border-color: rgba(99, 102, 241, 0.15);
 }
 
 .markdown-container :deep(.md-editor-preview),
 .markdown-container :deep(.md-preview),
 .markdown-container :deep(.mdw__preview-only) {
-  padding: 0 !important;
-  font-size: 0.775rem !important;
-  color: var(--text-secondary) !important;
+  padding: 0;
+  font-size: 0.775rem;
+  color: var(--text-secondary);
 }
 
 .markdown-container :deep(.md-preview p) {
-  margin-bottom: 8px !important;
-  line-height: 1.6 !important;
+  margin-bottom: 8px;
+  line-height: 1.6;
 }
 
 .markdown-container :deep(.md-preview ul),
 .markdown-container :deep(.md-preview ol) {
-  margin-top: 4px !important;
-  margin-bottom: 8px !important;
-  padding-left: 16px !important;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  padding-left: 16px;
 }
 
 .markdown-container :deep(.md-preview li) {
-  margin-bottom: 4px !important;
+  margin-bottom: 4px;
 }
 
 .markdown-container :deep(.md-preview a) {
-  color: #818cf8 !important;
-  text-decoration: underline !important;
-  font-weight: 600 !important;
+  color: #818cf8;
+  text-decoration: underline;
+  font-weight: 600;
 }
 
 .markdown-container :deep(.md-preview a:hover) {
-  color: #c7d2fe !important;
+  color: #c7d2fe;
 }
 
 .markdown-container :deep(.md-preview h1),
 .markdown-container :deep(.md-preview h2),
 .markdown-container :deep(.md-preview h3) {
-  color: var(--text-primary) !important;
-  font-weight: 700 !important;
-  margin-top: 12px !important;
-  margin-bottom: 6px !important;
+  color: var(--text-primary);
+  font-weight: 700;
+  margin-top: 12px;
+  margin-bottom: 6px;
 }
 
 .animate-fade-in {

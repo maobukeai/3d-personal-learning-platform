@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { CreditCard } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
@@ -348,8 +348,8 @@ onMounted(() => {
   <div class="mobile-adaptive flex-1 flex flex-col h-full overflow-hidden bg-transparent">
     <PageHeader title="订阅与账单" :icon="CreditCard" />
 
-    <div class="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide">
-      <div class="max-w-none space-y-8 md:space-y-10">
+    <div class="flex-1 overflow-y-auto p-3 md:py-4 md:px-5 scrollbar-hide">
+      <div class="max-w-none space-y-4 md:space-y-5">
         <BillingOverview
           v-model:activation-code="activationCode"
           :my-subscription="mySubscription"
@@ -375,17 +375,17 @@ onMounted(() => {
         <BillingHistory :transactions="transactions" @export="handleExportBilling" />
 
         <div
-          class="p-6 md:p-8 rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-accent text-white flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 shadow-lg shadow-indigo-500/25"
+          class="p-4 md:py-4 md:px-6 rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-accent text-white flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 shadow-lg shadow-indigo-500/25"
         >
-          <div class="space-y-2 text-center md:text-left">
-            <h3 class="text-xl font-bold">对订阅有疑问？</h3>
-            <p class="text-sm text-blue-100 opacity-90">
+          <div class="space-y-1 text-center md:text-left">
+            <h3 class="text-lg font-bold">对订阅有疑问？</h3>
+            <p class="text-xs text-blue-100 opacity-90">
               如果您对计划选择或账单有任何疑问，我们的支持团队随时为您提供帮助。
             </p>
           </div>
           <button
             type="button"
-            class="w-full md:w-auto px-8 py-4 bg-white text-indigo-600 font-bold rounded-2xl hover:scale-105 active:scale-95 duration-200 transition-all shadow-lg cursor-pointer"
+            class="w-full md:w-auto px-6 py-2.5 bg-white text-indigo-600 font-bold rounded-2xl hover:scale-105 active:scale-95 duration-200 transition-all shadow-lg cursor-pointer"
             @click="$router.push('/report-bug')"
           >
             联系客户支持
@@ -447,8 +447,8 @@ onMounted(() => {
   transform: translateY(-2px);
 }
 .premium-billing-card.border-accent:hover {
-  border-color: var(--accent) !important;
-  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15) !important;
+  border-color: var(--accent);
+  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15);
 }
 
 @media (max-width: 767px) {

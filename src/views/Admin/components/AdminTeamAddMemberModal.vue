@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import Modal from '@/components/ui/Modal.vue';
 import UiButton from '@/components/ui/Button.vue';
 import type { AdminTeamUser } from './adminTeamsTypes';
@@ -17,6 +18,16 @@ const emit = defineEmits<{
   (e: 'update:selectedMemberRole', value: 'ADMIN' | 'MEMBER'): void;
   (e: 'add'): void;
 }>();
+
+const userId = computed({
+  get: () => props.selectedUserId,
+  set: (val) => emit('update:selectedUserId', val || ''),
+});
+
+const memberRole = computed({
+  get: () => props.selectedMemberRole,
+  set: (val) => emit('update:selectedMemberRole', (val || 'MEMBER') as 'ADMIN' | 'MEMBER'),
+});
 </script>
 
 <template>
@@ -29,44 +40,29 @@ const emit = defineEmits<{
     <div class="form-stack">
       <label>
         用户
-        <select
-          :value="props.selectedUserId"
-          @change="emit('update:selectedUserId', ($event.target as HTMLSelectElement).value)"
-        >
-          <option value="">请选择用户</option>
-          <option v-for="user in props.availableUsers" :key="user.id" :value="user.id">
-            {{ ownerName(user) }}（{{ user.email }}）
-          </option>
-        </select>
+        <Select v-model="userId" class="w-full mt-1.5" size="large">
+          <SelectOption value="" label="请选择用户" />
+          <SelectOption
+            v-for="user in props.availableUsers"
+            :key="user.id"
+            :value="user.id"
+            :label="`${ownerName(user)}（${user.email}）`"
+          />
+        </Select>
       </label>
       <label>
         角色
-        <select
-          :value="props.selectedMemberRole"
-          @change="
-            emit(
-              'update:selectedMemberRole',
-              ($event.target as HTMLSelectElement).value as 'ADMIN' | 'MEMBER',
-            )
-          "
-        >
-          <option value="MEMBER">成员</option>
-          <option value="ADMIN">管理员</option>
-        </select>
+        <Select v-model="memberRole" class="w-full mt-1.5" size="large">
+          <SelectOption value="MEMBER" label="成员" />
+          <SelectOption value="ADMIN" label="管理员" />
+        </Select>
       </label>
     </div>
     <template #footer>
-      <UiButton variant="secondary" class="ml-2" @click="emit('update:modelValue', false)">
+      <UiButton variant="secondary" size="md" @click="emit('update:modelValue', false)">
         取消
       </UiButton>
-      <UiButton
-        variant="primary"
-        class="ml-2"
-        :disabled="!props.selectedUserId"
-        @click="emit('add')"
-      >
-        添加
-      </UiButton>
+      <UiButton variant="primary" size="md" @click="emit('add')">确定</UiButton>
     </template>
   </Modal>
 </template>

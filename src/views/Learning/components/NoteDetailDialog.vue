@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { useRouter } from 'vue-router';
 import type { User } from '@/types';
 import {
@@ -230,6 +230,7 @@ onMounted(() => {
 
 const handleContentClick = (e: MouseEvent) => {
   const target = e.target as HTMLElement;
+  if (!target) return;
   const link = target.closest('a');
   if (link) {
     const href = link.getAttribute('href');
@@ -463,7 +464,7 @@ defineExpose({ open });
     v-bind="
       inline
         ? { class: 'w-full text-left bg-transparent' }
-        : { show: visible, size: 'xxl', padding: 'none', glassCard: true }
+        : { show: visible, size: 'xxl', padding: 'none', variant: 'glass', showClose: false }
     "
     @close="
       visible = false;
@@ -944,7 +945,7 @@ defineExpose({ open });
             </div>
 
             <!-- Comment Input -->
-            <div v-if="authStore.isAuthenticated" class="flex items-start gap-2.5">
+            <div v-if="authStore.isAuthenticated" class="comment-composer flex items-start gap-3">
               <UserAvatar :user="authStore.user" size="sm" class="shrink-0 w-6 h-6" />
               <div class="flex-1 space-y-2">
                 <textarea
@@ -952,7 +953,7 @@ defineExpose({ open });
                   rows="3"
                   :placeholder="t('notes.commentPlaceholder')"
                   maxlength="500"
-                  class="w-full text-sm font-medium rounded-xl transition-all duration-300 outline-none focus:outline-none bg-slate-50 dark:bg-zinc-900 border border-[var(--border-base)] text-[var(--text-primary)] focus:border-accent p-3 focus:ring-2 focus:ring-accent/20"
+                  class="comment-composer-textarea w-full text-sm font-medium rounded-xl transition-all duration-300 outline-none focus:outline-none text-[var(--text-primary)] p-3"
                 ></textarea>
                 <div class="text-[10px] text-[var(--text-muted)] text-right mt-0.5">
                   {{ commentContent.length }} / 500
@@ -1076,11 +1077,11 @@ defineExpose({ open });
 }
 @media (max-width: 767px) {
   .dialog-close-btn {
-    top: calc(12px + env(safe-area-inset-top, 0px)) !important;
-    right: 12px !important;
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    right: 12px;
   }
   .dialog-content-wrapper:not(.dialog-content-inline) {
-    padding-top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    padding-top: calc(56px + env(safe-area-inset-top, 0px));
   }
 }
 
@@ -1101,22 +1102,22 @@ defineExpose({ open });
 .modern-markdown-content :deep(.md-preview),
 .modern-markdown-content :deep(.mdw__preview-only) {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  font-size: inherit !important;
-  line-height: 1.8 !important;
-  background-color: transparent !important;
-  padding: 4px 8px !important;
+  font-size: inherit;
+  line-height: 1.8;
+  background-color: transparent;
+  padding: 4px 8px;
 }
 @media (min-width: 768px) {
   .modern-markdown-content :deep(.md-editor-preview),
   .modern-markdown-content :deep(.md-preview),
   .modern-markdown-content :deep(.mdw__preview-only) {
-    padding: 0 20px 20px 20px !important;
+    padding: 0 20px 20px 20px;
   }
 }
 .modern-markdown-content :deep(.md-editor-preview p),
 .modern-markdown-content :deep(.md-preview p),
 .modern-markdown-content :deep(.mdw__preview-only p) {
-  margin-bottom: 0.8em !important;
+  margin-bottom: 0.8em;
 }
 
 .modern-markdown-content :deep(.md-editor-preview p),
@@ -1134,60 +1135,60 @@ defineExpose({ open });
 .modern-markdown-content :deep(.mdw__preview-only span),
 .modern-markdown-content :deep(.mdw__preview-only a),
 .modern-markdown-content :deep(.mdw__preview-only code) {
-  font-size: inherit !important;
+  font-size: inherit;
 }
 
 /* Headings proportional scaling */
 .modern-markdown-content :deep(h1) {
-  font-size: 1.85em !important;
-  font-weight: 800 !important;
+  font-size: 1.85em;
+  font-weight: 800;
 }
 .modern-markdown-content :deep(h2) {
-  font-size: 1.55em !important;
-  font-weight: 800 !important;
-  border-bottom: 1px dashed var(--border-base) !important;
+  font-size: 1.55em;
+  font-weight: 800;
+  border-bottom: 1px dashed var(--border-base);
   padding-bottom: 0.3em;
 }
 .modern-markdown-content :deep(h3) {
-  font-size: 1.3em !important;
-  font-weight: 700 !important;
+  font-size: 1.3em;
+  font-weight: 700;
 }
 .modern-markdown-content :deep(h4) {
-  font-size: 1.15em !important;
-  font-weight: 700 !important;
+  font-size: 1.15em;
+  font-weight: 700;
 }
 
 /* Responsive scrollable tables with premium styling on mobile */
 .modern-markdown-content :deep(table) {
-  display: block !important;
-  width: 100% !important;
-  overflow-x: auto !important;
-  border-collapse: collapse !important;
-  margin: 1.5rem 0 !important;
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
   -webkit-overflow-scrolling: touch;
 }
 
 .modern-markdown-content :deep(table th),
 .modern-markdown-content :deep(table td) {
-  padding: 8px 14px !important;
-  border: 1px solid var(--border-base) !important;
-  font-size: 0.95em !important;
-  line-height: 1.6 !important;
+  padding: 8px 14px;
+  border: 1px solid var(--border-base);
+  font-size: 0.95em;
+  line-height: 1.6;
 }
 
 .modern-markdown-content :deep(table th) {
-  background-color: var(--bg-subtle) !important;
-  font-weight: 700 !important;
-  color: var(--text-primary) !important;
-  white-space: nowrap !important;
+  background-color: var(--bg-subtle);
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
 }
 
 @media (max-width: 767px) {
   .modern-markdown-content :deep(table th),
   .modern-markdown-content :deep(table td) {
     min-width: 85px;
-    white-space: nowrap !important;
-    word-break: keep-all !important;
+    white-space: nowrap;
+    word-break: keep-all;
   }
 }
 
@@ -1207,86 +1208,109 @@ defineExpose({ open });
 .modern-markdown-content :deep(.md-code-head),
 .modern-markdown-content :deep(.md-code-copy),
 .modern-markdown-content :deep(pre) {
-  z-index: 2 !important;
+  z-index: 2;
 }
 
 /* Enforce horizontal layout for action buttons */
 :deep(button > span) {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 6px !important;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 /* Premium Markdown Styling and Adaptation */
 .modern-markdown-content :deep(p) {
-  margin-bottom: 1.2rem !important;
-  line-height: 1.85 !important;
+  margin-bottom: 1.2rem;
+  line-height: 1.85;
 }
 
 .modern-markdown-content :deep(ul) {
-  list-style-type: disc !important;
-  padding-left: 1.6em !important;
-  margin-top: 0.4em !important;
-  margin-bottom: 1rem !important;
+  list-style-type: disc;
+  padding-left: 1.6em;
+  margin-top: 0.4em;
+  margin-bottom: 1rem;
 }
 
 .modern-markdown-content :deep(ol) {
-  list-style-type: decimal !important;
-  padding-left: 1.6em !important;
-  margin-top: 0.4em !important;
-  margin-bottom: 1rem !important;
+  list-style-type: decimal;
+  padding-left: 1.6em;
+  margin-top: 0.4em;
+  margin-bottom: 1rem;
 }
 
 .modern-markdown-content :deep(li) {
-  margin-bottom: 0.4em !important;
-  line-height: 1.75 !important;
+  margin-bottom: 0.4em;
+  line-height: 1.75;
 }
 
 .modern-markdown-content :deep(li p) {
-  margin-bottom: 0.2rem !important;
+  margin-bottom: 0.2rem;
 }
 
 .modern-markdown-content :deep(blockquote) {
-  border-left: 4px solid var(--accent, #6366f1) !important;
-  background-color: var(--bg-subtle, rgba(99, 102, 241, 0.04)) !important;
-  padding: 0.8em 1.2em !important;
-  margin: 1.2em 0 !important;
-  border-radius: 0 8px 8px 0 !important;
-  color: var(--text-secondary) !important;
+  border-left: 4px solid var(--accent, #6366f1);
+  background-color: var(--bg-subtle, rgba(99, 102, 241, 0.04));
+  padding: 0.8em 1.2em;
+  margin: 1.2em 0;
+  border-radius: 0 8px 8px 0;
+  color: var(--text-secondary);
 }
 
 .modern-markdown-content :deep(code:not(pre code)) {
-  background-color: var(--bg-subtle, rgba(0, 0, 0, 0.05)) !important;
-  color: var(--accent, #6366f1) !important;
-  padding: 0.2em 0.4em !important;
-  border-radius: 6px !important;
-  font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace !important;
-  font-size: 0.88em !important;
+  background-color: var(--bg-subtle, rgba(0, 0, 0, 0.05));
+  color: var(--accent, #6366f1);
+  padding: 0.2em 0.4em;
+  border-radius: 6px;
+  font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.88em;
 }
 
 .dark .modern-markdown-content :deep(code:not(pre code)) {
-  background-color: rgba(255, 255, 255, 0.08) !important;
-  color: #a5b4fc !important;
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #a5b4fc;
 }
 
 .modern-markdown-content :deep(img) {
-  max-width: 100% !important;
-  height: auto !important;
-  border-radius: 12px !important;
-  margin: 1.8rem auto !important;
-  display: block !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08) !important;
-  border: 1px solid var(--border-base) !important;
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 1.8rem auto;
+  display: block;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--border-base);
 }
 
 .modern-markdown-content :deep(pre) {
-  background-color: var(--bg-subtle, #1e1e2e) !important;
+  background-color: var(--bg-subtle, #1e1e2e);
+  border: 1px solid var(--border-base);
+  border-radius: 12px;
+  padding: 1.2rem;
+  margin: 1.8rem 0;
+  overflow-x: auto;
+}
+
+.comment-composer-textarea {
+  background: var(--bg-app) !important;
   border: 1px solid var(--border-base) !important;
-  border-radius: 12px !important;
-  padding: 1.2rem !important;
-  margin: 1.8rem 0 !important;
-  overflow-x: auto !important;
+  transition: all 0.25s ease !important;
+}
+
+.comment-composer {
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.comment-composer-textarea:hover {
+  border-color: var(--border-strong) !important;
+}
+
+.comment-composer-textarea:focus {
+  border-color: var(--accent) !important;
+  background: var(--bg-card) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent) !important;
 }
 </style>

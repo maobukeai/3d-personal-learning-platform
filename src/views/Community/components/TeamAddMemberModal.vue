@@ -2,7 +2,7 @@
 import { ref, watch, onUnmounted } from 'vue';
 import { useCommunityI18n } from '@/composables/useCommunityI18n';
 import { Search, Mail, Plus } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
@@ -85,7 +85,7 @@ const handleSendInvite = async () => {
 </script>
 
 <template>
-  <Modal :show="show" size="md" glass-card @close="$emit('close')">
+  <Modal :show="show" size="md" @close="$emit('close')">
     <template #header>
       <div>
         <h3

@@ -19,7 +19,7 @@ import {
   ShieldCheck,
   Bot,
 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import type {
   AiBotIntegration,
   AiBotKnowledgeSource,
@@ -215,7 +215,7 @@ const copyText = async (value: string, label = '内容') => {
                   <ExternalLink class="h-4 w-4" />
                   <span>链接</span>
                 </button>
-                <el-tooltip content="删除知识源" placement="top">
+                <Tooltip content="删除知识源" placement="top">
                   <button
                     type="button"
                     class="danger-icon-btn"
@@ -223,7 +223,7 @@ const copyText = async (value: string, label = '内容') => {
                   >
                     <Trash2 class="h-4 w-4" />
                   </button>
-                </el-tooltip>
+                </Tooltip>
               </div>
             </article>
           </div>

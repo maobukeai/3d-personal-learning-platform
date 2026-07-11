@@ -37,11 +37,11 @@ const selectStep = (stepId: string) => {
 </script>
 
 <template>
-  <div class="roadmap-left-panel col-span-5 md:col-span-7 lg:col-span-8 space-y-3 sm:space-y-4">
-    <div class="relative pl-[23px] sm:pl-10 space-y-3 sm:space-y-5 py-1 sm:py-2">
+  <div class="roadmap-left-panel col-span-5 md:col-span-7 lg:col-span-8 space-y-2.5 sm:space-y-3">
+    <div class="relative pl-[23px] sm:pl-10 space-y-2.5 sm:space-y-3.5 py-0.5 sm:py-1">
       <!-- Connective glowing neon line -->
       <div
-        class="absolute left-[10px] sm:left-[19px] top-5 sm:top-6 bottom-5 sm:bottom-6 w-0.5 rounded-full bg-slate-200 dark:bg-slate-800"
+        class="absolute left-[10px] sm:left-[19px] top-4.5 sm:top-5 bottom-4.5 sm:bottom-5 w-0.5 rounded-full bg-slate-200 dark:bg-slate-800"
       ></div>
 
       <div
@@ -53,12 +53,12 @@ const selectStep = (stepId: string) => {
         <!-- Connecting glowing track representing current progress -->
         <div
           v-if="Number(index) < steps.length - 1 && isStepCompleted(step.id)"
-          class="absolute left-[-13px] sm:left-[-28px] top-5 sm:top-6 bottom-[-18px] sm:bottom-[-24px] w-0.5 bg-emerald-500 z-0 opacity-80"
+          class="absolute left-[-13px] sm:left-[-28px] top-4.5 sm:top-5 bottom-[-14.5px] sm:bottom-[-19.5px] w-0.5 bg-emerald-500 z-0 opacity-80"
         ></div>
 
         <!-- Roadmap step indicator node -->
         <div
-          class="absolute -left-[23px] sm:-left-[47px] top-1 sm:top-2 w-5 h-5 sm:w-8 sm:h-8 rounded-md sm:rounded-2xl flex items-center justify-center z-10 border-2 border-white dark:border-slate-950 transition-all duration-300"
+          class="absolute -left-[23px] sm:-left-[47px] top-1 sm:top-1.5 w-5 h-5 sm:w-8 sm:h-8 rounded-md sm:rounded-2xl flex items-center justify-center z-10 border-2 border-white dark:border-slate-950 transition-all duration-300"
           :class="{
             'bg-emerald-500 text-white shadow-md shadow-emerald-500/20 scale-105 ring-4 ring-emerald-500/10':
               getStepStatus(step, index) === 'completed',
@@ -84,7 +84,7 @@ const selectStep = (stepId: string) => {
 
         <!-- Flow card block -->
         <div
-          class="p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border transition-all duration-300 relative group overflow-hidden"
+          class="p-2 sm:p-3.5 rounded-xl sm:rounded-2xl border transition-all duration-300 relative group overflow-hidden"
           :class="{
             'bg-emerald-500/[0.01] dark:bg-emerald-500/[0.02] border-emerald-500/20':
               getStepStatus(step, index) === 'completed' && activeStepId !== step.id,

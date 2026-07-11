@@ -14,6 +14,7 @@ import path from 'path';
 import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
 import sharp from 'sharp';
 import fs from 'fs';
+import { compressGltfDraco } from './draco-compressor';
 
 export interface AssetMetadata {
   vertices: number;
@@ -149,6 +150,85 @@ export async function executeAssetProcessing(filePath: string): Promise<AssetMet
   return executeAssetAnalysis(filePath);
 }
 
+export interface FullOptimizationResult {
+  buffer: Buffer; // The optimized + Draco-compressed buffer
+  analysis: {
+    // Metadata from executeAssetAnalysis
+    vertices: number;
+    faces: number;
+    materials: number;
+    animations: number;
+    hasAnimations: boolean;
+    // executeAssetAnalysis returns dimensions as a formatted string
+    // (e.g. "10.00 x 20.00 x 30.00"); preserved as-is for DB storage.
+    dimensions: string | null;
+    maxTextureRes: number | null;
+  } | null;
+  originalSizeBytes: number;
+  compressedSizeBytes: number;
+  compressionRatio: number; // compressedSizeBytes / originalSizeBytes
+}
+
+/**
+ * Unified 3D asset optimization pipeline:
+ * 1. optimize3DAsset (gltf-transform: weld, resample, prune, dedup, quantize, textureCompress)
+ * 2. compressGltfDraco (Draco compression)
+ * 3. executeAssetAnalysis (metadata extraction)
+ *
+ * Works with a temp file path (created by caller from buffer or multer file).
+ * Returns the optimized buffer and analysis metadata.
+ */
+export async function processFull3DOptimization(filePath: string): Promise<FullOptimizationResult> {
+  // 1. Read original file to get original size
+  const originalBuffer = await fs.promises.readFile(filePath);
+  const originalSizeBytes = originalBuffer.length;
+
+  // 2. optimize3DAsset(filePath) — modifies file in place
+  try {
+    await optimize3DAsset(filePath);
+  } catch (err) {
+    logger.error(`[AssetProcessor] optimize3DAsset failed during full pipeline:`, err);
+    // Continue with the un-optimized file — Draco compression + analysis can still run.
+  }
+
+  // 3. Read optimized file, compressGltfDraco(buffer, ext) — returns compressed buffer
+  const ext = path.extname(filePath).toLowerCase();
+  let compressedBuffer: Buffer;
+  if (ext === '.glb' || ext === '.gltf') {
+    const optimizedBuffer = await fs.promises.readFile(filePath);
+    compressedBuffer = await compressGltfDraco(optimizedBuffer, ext as '.glb' | '.gltf');
+    // 4. Write compressed buffer back to filePath (for analysis step)
+    await fs.promises.writeFile(filePath, compressedBuffer);
+  } else {
+    // Non-GLB/GLTF files: skip Draco compression, use the (optimized) buffer as-is.
+    compressedBuffer = await fs.promises.readFile(filePath);
+  }
+
+  // 5. executeAssetAnalysis(filePath) — extract metadata
+  const metadata = await executeAssetAnalysis(filePath);
+
+  const compressedSizeBytes = compressedBuffer.length;
+  const compressionRatio = originalSizeBytes > 0 ? compressedSizeBytes / originalSizeBytes : 0;
+
+  return {
+    buffer: compressedBuffer,
+    analysis: metadata
+      ? {
+          vertices: metadata.vertices,
+          faces: metadata.faces,
+          materials: metadata.materials,
+          animations: metadata.animations,
+          hasAnimations: metadata.hasAnimations,
+          dimensions: metadata.dimensions || null,
+          maxTextureRes: metadata.maxTextureRes || null,
+        }
+      : null,
+    originalSizeBytes,
+    compressedSizeBytes,
+    compressionRatio,
+  };
+}
+
 // Master Thread / API Entrypoint
 export async function process3DAsset(filePath: string): Promise<AssetMetadata | null> {
   const ext = path.extname(filePath).toLowerCase();
@@ -156,8 +236,10 @@ export async function process3DAsset(filePath: string): Promise<AssetMetadata | 
     return null;
   }
 
-  // Attempt to spawn Worker Thread to offload CPU-bound calculations and protect event loop
-  return new Promise((resolve) => {
+  // Attempt to spawn Worker Thread to offload CPU-bound calculations and protect event loop.
+  // Worker failures reject so the caller (background job) can retry, instead of falling back
+  // to blocking the main thread (铁律七·1 禁止主线程阻塞).
+  return new Promise((resolve, reject) => {
     try {
       const isTypeScript = __filename.endsWith('.ts');
       const worker = new Worker(__filename, {
@@ -171,9 +253,8 @@ export async function process3DAsset(filePath: string): Promise<AssetMetadata | 
       });
 
       worker.on('error', (err) => {
-        logger.error('Asset worker thread error, falling back to main thread:', err);
-        // Safe Fallback: execute in main thread if worker crashes
-        executeAssetProcessing(filePath).then(resolve);
+        logger.error('Asset worker thread error:', err);
+        reject(err);
       });
 
       worker.on('exit', (code) => {
@@ -182,9 +263,8 @@ export async function process3DAsset(filePath: string): Promise<AssetMetadata | 
         }
       });
     } catch (err) {
-      logger.error('Failed to spawn asset worker thread, falling back to main thread:', err);
-      // Safe Fallback: execute in main thread if spawning fails
-      executeAssetProcessing(filePath).then(resolve);
+      logger.error('Failed to spawn asset worker thread:', err);
+      reject(err);
     }
   });
 }

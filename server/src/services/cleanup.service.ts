@@ -7,10 +7,9 @@ import { settingsService } from './settings.service';
 
 export const cleanupMirrorTempDirectories = async (forceAll = false) => {
   const mirrorDir = path.join(process.cwd(), 'uploads', 'mirror');
-  if (!fs.existsSync(mirrorDir)) return;
 
   try {
-    const entries = fs.readdirSync(mirrorDir);
+    const entries = await fs.promises.readdir(mirrorDir);
     let deletedCount = 0;
 
     // Fetch active mirror source IDs to identify orphaned source directories
@@ -22,7 +21,7 @@ export const cleanupMirrorTempDirectories = async (forceAll = false) => {
 
     for (const entry of entries) {
       const fullPath = path.join(mirrorDir, entry);
-      const stat = fs.statSync(fullPath);
+      const stat = await fs.promises.stat(fullPath);
 
       if (stat.isDirectory()) {
         const isTempFolder = entry.startsWith('temp-import-') || entry.startsWith('temp-');
@@ -33,7 +32,7 @@ export const cleanupMirrorTempDirectories = async (forceAll = false) => {
           // Delete immediately if forceAll is true, or if folder is older than 2 hours
           if (forceAll || ageMs > 2 * 60 * 60 * 1000) {
             try {
-              fs.rmSync(fullPath, { recursive: true, force: true });
+              await fs.promises.rm(fullPath, { recursive: true, force: true });
               deletedCount++;
               if (isOrphanedSourceFolder) {
                 logger.info(`[Cleanup] Deleted orphaned mirror source directory: ${entry}`);
@@ -56,21 +55,20 @@ export const cleanupMirrorTempDirectories = async (forceAll = false) => {
 
 export const cleanupLeftoverUploads = async (forceAll = false) => {
   const feedbackDir = path.join(process.cwd(), 'uploads', 'feedback');
-  if (!fs.existsSync(feedbackDir)) return;
 
   try {
-    const entries = fs.readdirSync(feedbackDir);
+    const entries = await fs.promises.readdir(feedbackDir);
     let deletedCount = 0;
 
     for (const entry of entries) {
       const fullPath = path.join(feedbackDir, entry);
-      const stat = fs.statSync(fullPath);
+      const stat = await fs.promises.stat(fullPath);
 
       if (stat.isFile() && entry.startsWith('file-') && entry.endsWith('.zip')) {
         const ageMs = Date.now() - stat.mtimeMs;
         if (forceAll || ageMs > 2 * 60 * 60 * 1000) {
           try {
-            fs.unlinkSync(fullPath);
+            await fs.promises.unlink(fullPath);
             deletedCount++;
           } catch (unlinkErr) {
             logger.error(`[Cleanup Error] Failed to delete file ${fullPath}:`, unlinkErr);
@@ -91,16 +89,15 @@ export const cleanupLeftoverUploads = async (forceAll = false) => {
 
 export const cleanupMessageFiles = async () => {
   const messagesDir = path.join(process.cwd(), 'uploads', 'messages');
-  if (!fs.existsSync(messagesDir)) return;
 
   try {
-    const entries = fs.readdirSync(messagesDir);
+    const entries = await fs.promises.readdir(messagesDir);
     let deletedCount = 0;
     const threeDaysAgoMs = 3 * 24 * 60 * 60 * 1000;
 
     for (const entry of entries) {
       const fullPath = path.join(messagesDir, entry);
-      const stat = fs.statSync(fullPath);
+      const stat = await fs.promises.stat(fullPath);
       const ageMs = Date.now() - stat.mtimeMs;
 
       if (stat.isDirectory()) {
@@ -108,7 +105,7 @@ export const cleanupMessageFiles = async () => {
         // Delete the entire subfolder when it is older than 3 days
         if (ageMs > threeDaysAgoMs) {
           try {
-            fs.rmSync(fullPath, { recursive: true, force: true });
+            await fs.promises.rm(fullPath, { recursive: true, force: true });
             deletedCount++;
           } catch (rmErr) {
             logger.error(`[Cleanup Error] Failed to delete message directory ${fullPath}:`, rmErr);
@@ -118,7 +115,7 @@ export const cleanupMessageFiles = async () => {
         // Fallback: flat files uploaded via the local-server path
         if (ageMs > threeDaysAgoMs) {
           try {
-            fs.unlinkSync(fullPath);
+            await fs.promises.unlink(fullPath);
             deletedCount++;
           } catch (unlinkErr) {
             logger.error(`[Cleanup Error] Failed to delete message file ${fullPath}:`, unlinkErr);
@@ -139,22 +136,21 @@ export const cleanupMessageFiles = async () => {
 
 export const cleanupTempUploads = async (forceAll = false) => {
   const tempDir = path.join(process.cwd(), 'uploads', 'temp');
-  if (!fs.existsSync(tempDir)) return;
 
   try {
-    const entries = fs.readdirSync(tempDir);
+    const entries = await fs.promises.readdir(tempDir);
     let deletedCount = 0;
     const thresholdMs = 30 * 60 * 1000; // 30 minutes
 
     for (const entry of entries) {
       const fullPath = path.join(tempDir, entry);
-      const stat = fs.statSync(fullPath);
+      const stat = await fs.promises.stat(fullPath);
 
       if (stat.isFile()) {
         const ageMs = Date.now() - stat.mtimeMs;
         if (forceAll || ageMs > thresholdMs) {
           try {
-            fs.unlinkSync(fullPath);
+            await fs.promises.unlink(fullPath);
             deletedCount++;
           } catch (unlinkErr) {
             logger.error(`[Cleanup Error] Failed to delete temp file ${fullPath}:`, unlinkErr);
@@ -331,7 +327,10 @@ export const cleanupTemporaryNetdiskFiles = async () => {
           }
         }
       } catch (err) {
-        logger.error(`[Cleanup Error] Failed to delete temporary file ${file.id} url ${file.url}:`, err);
+        logger.error(
+          `[Cleanup Error] Failed to delete temporary file ${file.id} url ${file.url}:`,
+          err,
+        );
       }
     }
 
@@ -339,7 +338,7 @@ export const cleanupTemporaryNetdiskFiles = async () => {
     const deleteResult = await prisma.temporaryFile.deleteMany();
 
     logger.info(
-      `[Cleanup] Daily temporary netdisk cleanup complete: Deleted ${deletedCount} files from storage, and ${deleteResult.count} records from database.`
+      `[Cleanup] Daily temporary netdisk cleanup complete: Deleted ${deletedCount} files from storage, and ${deleteResult.count} records from database.`,
     );
   } catch (error) {
     logger.error('[Cleanup Error] Failed to cleanup temporary netdisk files:', error);

@@ -1,7 +1,5 @@
-import { Response, NextFunction } from 'express';
-import fs from 'fs';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import path from 'path';
-import { AuthRequest } from '../../middlewares/auth.middleware';
 import prisma from '../../services/prisma';
 import { storageService, decryptSecretIfNeeded } from '../../services/storage.service';
 import { logger } from '../../utils/logger';
@@ -9,8 +7,15 @@ import { auditService, AuditModule } from '../../services/audit.service';
 import { AppError } from '../../utils/error';
 import { encrypt, buildDecryptedStorageConfig } from '../../utils/crypto';
 import { gbToBytes } from '../../utils/quota';
-import { resolveCloudflareApiToken } from '../../utils/cloudflare-r2';
+import { QueueService } from '../../services/queue.service';
 import { Prisma, type StorageConfig } from '@prisma/client';
+
+type AdminRequest = FastifyRequest & {
+  body: any;
+  query: any;
+  params: any;
+  file?: any;
+};
 
 interface ImportedStorageConfig {
   name: string;
@@ -78,18 +83,18 @@ function buildUsageResponse(usage: Awaited<ReturnType<typeof storageService.getB
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
-export const getConfigs = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getConfigs = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const configs = await prisma.storageConfig.findMany({
       orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
     });
-    res.json(configs.map(prepareConfigResponse));
+    reply.send(configs.map(prepareConfigResponse));
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createConfig = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const {
       name,
@@ -117,7 +122,7 @@ export const createConfig = async (req: AuthRequest, res: Response, next: NextFu
       !publicUrl ||
       !assetType
     ) {
-      return next(new AppError('缺少必要参数', 400));
+      throw new AppError('缺少必要参数', 400);
     }
 
     const config = await prisma.storageConfig.create({
@@ -159,13 +164,13 @@ export const createConfig = async (req: AuthRequest, res: Response, next: NextFu
       newValue: { id: config.id, name: config.name, assetType: config.assetType },
     });
 
-    res.status(201).json(prepareConfigResponse(config));
+    reply.status(201).send(prepareConfigResponse(config));
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateConfig = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const {
@@ -187,7 +192,7 @@ export const updateConfig = async (req: AuthRequest, res: Response, next: NextFu
 
     const existing = await prisma.storageConfig.findUnique({ where: { id } });
     if (!existing) {
-      return next(new AppError('配置未找到', 404));
+      throw new AppError('配置未找到', 404);
     }
 
     const updateData: Record<string, unknown> = {
@@ -243,19 +248,19 @@ export const updateConfig = async (req: AuthRequest, res: Response, next: NextFu
       newValue: { id: config.id, name: config.name, assetType: config.assetType },
     });
 
-    res.json(prepareConfigResponse(config));
+    reply.send(prepareConfigResponse(config));
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteConfig = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
 
     const existing = await prisma.storageConfig.findUnique({ where: { id } });
     if (!existing) {
-      return next(new AppError('配置未找到', 404));
+      throw new AppError('配置未找到', 404);
     }
 
     await prisma.storageConfig.delete({ where: { id } });
@@ -269,33 +274,33 @@ export const deleteConfig = async (req: AuthRequest, res: Response, next: NextFu
       oldValue: { id, name: existing.name },
     });
 
-    res.json({ message: '配置已成功删除' });
+    reply.send({ message: '配置已成功删除' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const revealConfigSecrets = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const revealConfigSecrets = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
-    if (!raw) return next(new AppError('配置未找到', 404));
+    if (!raw) throw new AppError('配置未找到', 404);
 
-    res.json({
+    reply.send({
       secretAccessKey: decryptSecretIfNeeded(raw.secretAccessKey),
       cloudflareApiToken: decryptSecretIfNeeded(raw.cloudflareApiToken),
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const testConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const testConfig = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const { endpoint, accessKeyId, secretAccessKey, bucketName, publicUrl } = req.body;
 
     if (!endpoint || !accessKeyId || !secretAccessKey || !bucketName || !publicUrl) {
-      return next(new AppError('缺少必要参数', 400));
+      throw new AppError('缺少必要参数', 400);
     }
 
     // secretAccessKey from request body is always plaintext — no decryption needed
@@ -307,21 +312,21 @@ export const testConfig = async (req: AuthRequest, res: Response, next: NextFunc
       publicUrl,
     });
 
-    res.json({ success });
+    reply.send({ success });
   } catch (error: unknown) {
     logger.error('[StorageController] Test connection failed:', error);
-    res.status(400).json({
+    reply.status(400).send({
       success: false,
       error: (error instanceof Error ? error.message : '') || '连接测试失败，请检查配置参数',
     });
   }
 };
 
-export const listBucketFiles = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const listBucketFiles = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
-    if (!raw) return next(new AppError('配置未找到', 404));
+    if (!raw) throw new AppError('配置未找到', 404);
 
     const config = buildDecryptedStorageConfig(raw);
     const prefix = typeof req.query.prefix === 'string' ? req.query.prefix : '';
@@ -338,7 +343,7 @@ export const listBucketFiles = async (req: AuthRequest, res: Response, next: Nex
 
     if (search) {
       const objects = await storageService.searchBucketObjects(config, search, prefix);
-      res.json({
+      reply.send({
         prefix,
         search,
         truncated: objects.length >= 300,
@@ -356,7 +361,7 @@ export const listBucketFiles = async (req: AuthRequest, res: Response, next: Nex
 
     const { folders, files, truncated, nextContinuationToken } =
       await storageService.listFolderContents(config, prefix, { continuationToken });
-    res.json({
+    reply.send({
       prefix,
       search: null,
       truncated,
@@ -378,27 +383,27 @@ export const listBucketFiles = async (req: AuthRequest, res: Response, next: Nex
       ],
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const renameBucketFile = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const renameBucketFile = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const { oldKey, newKey } = req.body as { oldKey?: string; newKey?: string };
 
     if (!oldKey?.trim() || !newKey?.trim()) {
-      return next(new AppError('缺少 oldKey 或 newKey 参数', 400));
+      throw new AppError('缺少 oldKey 或 newKey 参数', 400);
     }
     if (oldKey.trim() === newKey.trim()) {
-      return next(new AppError('新文件名不能与旧文件名相同', 400));
+      throw new AppError('新文件名不能与旧文件名相同', 400);
     }
     if (newKey.includes('//') || newKey.startsWith('/')) {
-      return next(new AppError('新 Key 格式不合法', 400));
+      throw new AppError('新 Key 格式不合法', 400);
     }
 
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
-    if (!raw) return next(new AppError('配置未找到', 404));
+    if (!raw) throw new AppError('配置未找到', 404);
 
     const config = buildDecryptedStorageConfig(raw);
     await storageService.renameFile(config, oldKey.trim(), newKey.trim());
@@ -413,33 +418,29 @@ export const renameBucketFile = async (req: AuthRequest, res: Response, next: Ne
       newValue: { id, newKey },
     });
 
-    res.json({ success: true, key: newKey.trim() });
+    reply.send({ success: true, key: newKey.trim() });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteBucketFilesBulk = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const deleteBucketFilesBulk = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const keys = req.body?.keys;
 
     if (!Array.isArray(keys) || keys.length === 0) {
-      return next(new AppError('缺少 keys 参数', 400));
+      throw new AppError('缺少 keys 参数', 400);
     }
 
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
-    if (!raw) return next(new AppError('配置未找到', 404));
+    if (!raw) throw new AppError('配置未找到', 404);
 
     const config = buildDecryptedStorageConfig(raw);
     const validKeys = keys.filter((key: unknown) => typeof key === 'string' && key.trim());
 
     if (validKeys.length === 0) {
-      return next(new AppError('没有有效的文件 Key', 400));
+      throw new AppError('没有有效的文件 Key', 400);
     }
 
     // Fetch metadata in parallel to avoid sequential N+1 API calls
@@ -481,21 +482,21 @@ export const deleteBucketFilesBulk = async (
       oldValue: { id, keys: validKeys, totalBytes: totalDeletedBytes },
     });
 
-    res.json({ success: true, deleted: validKeys.length, totalBytes: totalDeletedBytes });
+    reply.send({ success: true, deleted: validKeys.length, totalBytes: totalDeletedBytes });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteBucketFile = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteBucketFile = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const { key } = req.body;
 
-    if (!key) return next(new AppError('缺少 Key 参数', 400));
+    if (!key) throw new AppError('缺少 Key 参数', 400);
 
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
-    if (!raw) return next(new AppError('配置未找到', 404));
+    if (!raw) throw new AppError('配置未找到', 404);
 
     const config = buildDecryptedStorageConfig(raw);
 
@@ -535,30 +536,29 @@ export const deleteBucketFile = async (req: AuthRequest, res: Response, next: Ne
       oldValue: { id, key, size: objectSize },
     });
 
-    res.json({ success: true });
+    reply.send({ success: true });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const uploadDirectFile = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const uploadDirectFile = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const file = req.file;
 
-    if (!file) return next(new AppError('请选择要上传的文件', 400));
+    if (!file) throw new AppError('请选择要上传的文件', 400);
+    if (!file.buffer) throw new AppError('文件缓冲区为空', 400);
 
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
     if (!raw) {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      return next(new AppError('配置未找到', 404));
+      throw new AppError('配置未找到', 404);
     }
 
     // Check capacity limit before uploading (read-only check, no write yet)
     const limitBytes = gbToBytes(raw.limitGb);
     if (raw.status !== 'ACTIVE' || raw.usedBytes + file.size > limitBytes) {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      return next(new AppError('云端存储容量已满，无法上传', 400));
+      throw new AppError('云端存储容量已满，无法上传', 400);
     }
 
     const config = buildDecryptedStorageConfig(raw);
@@ -577,10 +577,8 @@ export const uploadDirectFile = async (req: AuthRequest, res: Response, next: Ne
       ? `${normalizedPrefix}${sanitizedOriginalName}`
       : `manual/${baseName}-${uniqueSuffix}/${sanitizedOriginalName}`;
 
-    // Upload first — only increment usedBytes after a confirmed successful upload
-    const r2Url = await storageService.uploadFile(config, file.path, key, file.mimetype);
-
-    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+    // Upload from buffer — no local disk IO
+    const r2Url = await storageService.uploadBuffer(config, file.buffer, key, file.mimetype);
 
     // Increment usedBytes atomically, re-checking capacity to guard against concurrent uploads
     await prisma.storageConfig.updateMany({
@@ -603,165 +601,88 @@ export const uploadDirectFile = async (req: AuthRequest, res: Response, next: Ne
       newValue: { id, key, size: file.size, url: r2Url },
     });
 
-    res.json({ success: true, url: r2Url, key });
+    reply.send({ success: true, url: r2Url, key });
   } catch (error) {
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-    next(error);
+    throw error;
   }
 };
 
-export const getActualSize = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getActualSize = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const scan = req.query.scan === 'true';
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
-    if (!raw) return next(new AppError('配置未找到', 404));
+    if (!raw) throw new AppError('配置未找到', 404);
 
     const config = buildDecryptedStorageConfig(raw);
     const sharedApiTokens = await getSharedCloudflareApiTokens();
     const usage = await storageService.getBucketUsage(config, { sharedApiTokens, scan });
-    res.json(buildUsageResponse(usage));
+    reply.send(buildUsageResponse(usage));
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const syncActualSize = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const syncActualSize = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const id = req.params.id as string;
     const { type } = req.body as { type?: 'scanned' | 'official' };
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
-    if (!raw) return next(new AppError('配置未找到', 404));
+    if (!raw) throw new AppError('配置未找到', 404);
 
-    const config = buildDecryptedStorageConfig(raw);
-    const sharedApiTokens = await getSharedCloudflareApiTokens();
-    const usage = await storageService.getBucketUsage(config, {
-      sharedApiTokens,
-      scan: type === 'scanned',
-    });
+    const idempotencyKey = `sync-size:${id}-${Date.now()}`;
+    const job = await QueueService.enqueue(
+      'r2-storage-sync-single',
+      {
+        id,
+        type,
+        userId: req.userId,
+        ipAddress: req.ip || req.socket?.remoteAddress || null,
+        userAgent: req.headers['user-agent'] || null,
+      },
+      {
+        idempotencyKey,
+        type: 'r2-storage-sync-single',
+      },
+    );
 
-    const bytesToSync =
-      type === 'official' ? usage.dashboardBytes : (usage.scannedBytes ?? usage.dashboardBytes);
-
-    const updated = await prisma.storageConfig.update({
-      where: { id },
-      data: { usedBytes: bytesToSync },
-    });
-
-    await auditService.log({
-      req,
-      userId: req.userId!,
-      module: AuditModule.SETTINGS,
-      action: 'SYNC_STORAGE_SIZE',
-      description: `Synchronized storage config ${raw.name} capacity to ${type === 'official' ? 'official' : 'scanned'} size: ${bytesToSync} bytes (${usage.source})`,
-      newValue: { id, usedBytes: bytesToSync, source: usage.source, type },
-    });
-
-    res.json({
-      ...prepareConfigResponse(updated),
-      usage,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const syncAllActualSizes = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const configs = await prisma.storageConfig.findMany({
-      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-    });
-    const sharedApiTokens = await getSharedCloudflareApiTokens();
-
-    const results: Array<{
-      id: string;
-      name: string;
-      bucketName: string;
-      status: 'synced' | 'skipped' | 'failed';
-      reason?: string;
-      dashboardBytes?: number;
-      source?: string;
-    }> = [];
-
-    for (const raw of configs) {
-      const config = buildDecryptedStorageConfig(raw);
-      const apiToken = resolveCloudflareApiToken(config.cloudflareApiToken, sharedApiTokens);
-
-      if (!apiToken) {
-        results.push({
-          id: raw.id,
-          name: raw.name,
-          bucketName: raw.bucketName,
-          status: 'skipped',
-          reason: '未配置 Cloudflare API Token',
-        });
-        continue;
-      }
-
-      try {
-        const usage = await storageService.getOfficialBucketUsageOnly(config, { sharedApiTokens });
-        if (!usage) {
-          results.push({
-            id: raw.id,
-            name: raw.name,
-            bucketName: raw.bucketName,
-            status: 'skipped',
-            reason: 'Cloudflare 官方 API 不可用（Token 无权限或 Account ID 不匹配）',
-          });
-          continue;
-        }
-
-        await prisma.storageConfig.update({
-          where: { id: raw.id },
-          data: { usedBytes: usage.dashboardBytes },
-        });
-
-        results.push({
-          id: raw.id,
-          name: raw.name,
-          bucketName: raw.bucketName,
-          status: 'synced',
-          dashboardBytes: usage.dashboardBytes,
-          source: usage.source,
-        });
-      } catch (error) {
-        results.push({
-          id: raw.id,
-          name: raw.name,
-          bucketName: raw.bucketName,
-          status: 'failed',
-          reason: error instanceof Error ? error.message : '同步失败',
-        });
-      }
+    if (!job) {
+      throw new AppError('任务队列加入失败', 500);
     }
 
-    const synced = results.filter((item) => item.status === 'synced').length;
-    const skipped = results.filter((item) => item.status === 'skipped').length;
-    const failed = results.filter((item) => item.status === 'failed').length;
-
-    await auditService.log({
-      req,
-      userId: req.userId!,
-      module: AuditModule.SETTINGS,
-      action: 'SYNC_ALL_STORAGE_SIZE',
-      description: `Bulk synced R2 storage usage via Cloudflare API: synced=${synced}, skipped=${skipped}, failed=${failed}`,
-      newValue: { synced, skipped, failed },
-    });
-
-    res.json({
-      success: true,
-      synced,
-      skipped,
-      failed,
-      total: results.length,
-      results,
-    });
+    reply.status(202).send({ jobId: job.id, status: 'PENDING' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const exportConfigs = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const syncAllActualSizes = async (req: AdminRequest, reply: FastifyReply) => {
+  try {
+    const idempotencyKey = `sync-size-all:${Date.now()}`;
+    const job = await QueueService.enqueue(
+      'r2-storage-sync-all',
+      {
+        userId: req.userId,
+        ipAddress: req.ip || req.socket?.remoteAddress || null,
+        userAgent: req.headers['user-agent'] || null,
+      },
+      {
+        idempotencyKey,
+        type: 'r2-storage-sync-all',
+      },
+    );
+
+    if (!job) {
+      throw new AppError('任务队列加入失败', 500);
+    }
+
+    reply.status(202).send({ jobId: job.id, status: 'PENDING' });
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const exportConfigs = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const configs = await prisma.storageConfig.findMany({
       orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
@@ -786,19 +707,19 @@ export const exportConfigs = async (req: AuthRequest, res: Response, next: NextF
       };
     });
 
-    res.setHeader('Content-Disposition', 'attachment; filename=storage_configs_export.json');
-    res.setHeader('Content-Type', 'application/json');
-    res.json(exported);
+    reply.header('Content-Disposition', 'attachment; filename=storage_configs_export.json');
+    reply.header('Content-Type', 'application/json');
+    reply.send(exported);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const importConfigs = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const importConfigs = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const { configs } = req.body;
     if (!configs || !Array.isArray(configs)) {
-      return next(new AppError('无效的配置数据格式', 400));
+      throw new AppError('无效的配置数据格式', 400);
     }
 
     // Validate and filter configs first
@@ -814,7 +735,7 @@ export const importConfigs = async (req: AuthRequest, res: Response, next: NextF
     );
 
     if (validConfigs.length === 0) {
-      return res.json({ success: true, message: '导入配置完成：新增 0 个，更新 0 个。' });
+      return reply.send({ success: true, message: '导入配置完成：新增 0 个，更新 0 个。' });
     }
 
     // Batch query all existing configs to avoid N+1
@@ -901,11 +822,11 @@ export const importConfigs = async (req: AuthRequest, res: Response, next: NextF
     // Execute all upserts in a single atomic transaction
     await prisma.$transaction(ops);
 
-    res.json({
+    reply.send({
       success: true,
       message: `导入配置完成：新增 ${importedCount} 个，更新 ${updatedCount} 个。`,
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };

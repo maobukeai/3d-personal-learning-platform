@@ -381,7 +381,7 @@ watch(isExpanded, (val) => {
   >
     <div class="workspace-sidebar__rail">
       <div class="rail-top">
-        <el-tooltip
+        <Tooltip
           :content="isExpanded ? collapseNavigationLabel : expandNavigationLabel"
           placement="right"
           :show-after="120"
@@ -398,9 +398,9 @@ watch(isExpanded, (val) => {
             <ChevronsLeft v-if="isExpanded" class="rail-icon" />
             <ChevronsRight v-else class="rail-icon" />
           </button>
-        </el-tooltip>
+        </Tooltip>
 
-        <el-tooltip
+        <Tooltip
           :content="sidebarTitle"
           placement="right"
           :show-after="120"
@@ -410,7 +410,7 @@ watch(isExpanded, (val) => {
             <ShieldCheck v-if="isAdmin" />
             <Box v-else />
           </div>
-        </el-tooltip>
+        </Tooltip>
       </div>
 
       <nav class="rail-nav scrollbar-hide" aria-label="Primary">
@@ -418,7 +418,7 @@ watch(isExpanded, (val) => {
           <div v-if="groupIndex > 0" class="rail-divider"></div>
           <ul class="rail-list">
             <li v-for="item in group.items" :key="item.path">
-              <el-tooltip
+              <Tooltip
                 :content="item.tooltip"
                 placement="right"
                 :show-after="120"
@@ -437,14 +437,14 @@ watch(isExpanded, (val) => {
                     {{ item.badge > 99 ? '99+' : item.badge }}
                   </span>
                 </RouterLink>
-              </el-tooltip>
+              </Tooltip>
             </li>
           </ul>
         </div>
       </nav>
 
       <div class="rail-actions">
-        <el-tooltip
+        <Tooltip
           :content="$t('sidebar.settingsOption')"
           placement="right"
           :show-after="120"
@@ -459,9 +459,9 @@ watch(isExpanded, (val) => {
           >
             <Settings class="rail-icon" />
           </RouterLink>
-        </el-tooltip>
+        </Tooltip>
 
-        <el-tooltip
+        <Tooltip
           :content="$t('sidebar.feedbackOption')"
           placement="right"
           :show-after="120"
@@ -476,7 +476,7 @@ watch(isExpanded, (val) => {
           >
             <HelpCircle class="rail-icon" />
           </button>
-        </el-tooltip>
+        </Tooltip>
 
         <div class="rail-signature">
           {{ isAdmin ? 'ADMIN' : 'APP' }}
@@ -491,7 +491,7 @@ watch(isExpanded, (val) => {
         :class="{
           'is-very-narrow-sidebar': isVeryNarrowSidebar,
           'is-narrow-sidebar': isNarrowSidebar,
-          'is-wide-sidebar': isWideSidebar
+          'is-wide-sidebar': isWideSidebar,
         }"
         aria-label="Expanded navigation"
       >
@@ -520,7 +520,7 @@ watch(isExpanded, (val) => {
               </div>
             </div>
           </div>
-          <el-tooltip
+          <Tooltip
             :content="collapseNavigationLabel"
             placement="bottom"
             :show-after="120"
@@ -535,7 +535,7 @@ watch(isExpanded, (val) => {
             >
               <PanelLeftClose />
             </button>
-          </el-tooltip>
+          </Tooltip>
         </header>
 
         <div class="panel-groups scrollbar-hide">
@@ -623,7 +623,24 @@ watch(isExpanded, (val) => {
 </template>
 
 <style scoped>
+:global(.theme-glass) .workspace-sidebar {
+  background: rgba(248, 250, 252, 0.22) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+}
+
+:global(.theme-glass.dark) .workspace-sidebar {
+  background: rgba(7, 10, 19, 0.42) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+}
+
+:global(.theme-glass) .panel-footer {
+  background: transparent !important;
+}
+
 .workspace-sidebar {
+  position: relative;
   --sidebar-accent: var(--accent);
   --sidebar-accent-rgb: var(--accent-rgb, 245, 121, 42);
   --sidebar-rail-width: 60px;
@@ -888,8 +905,8 @@ watch(isExpanded, (val) => {
 }
 
 .panel-mark svg {
-  width: 12px !important;
-  height: 12px !important;
+  width: 12px;
+  height: 12px;
 }
 
 .panel-mark-avatar {
@@ -982,8 +999,8 @@ watch(isExpanded, (val) => {
 }
 
 .panel-icon-button svg {
-  width: 12px !important;
-  height: 12px !important;
+  width: 12px;
+  height: 12px;
 }
 
 .panel-icon-button:hover {
@@ -1052,8 +1069,8 @@ watch(isExpanded, (val) => {
 }
 
 .quick-tile__icon svg {
-  width: 13px !important;
-  height: 13px !important;
+  width: 13px;
+  height: 13px;
 }
 
 .quick-tile__copy {
@@ -1202,7 +1219,7 @@ watch(isExpanded, (val) => {
 .panel-list--resource-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2px !important;
+  gap: 2px;
   padding: 2px;
   border: 1px solid color-mix(in srgb, var(--text-primary) 5%, transparent);
   border-radius: 6px;
@@ -1217,15 +1234,15 @@ watch(isExpanded, (val) => {
 
 /* Remove all cell borders for Bento look */
 .panel-list--resource-grid li {
-  border-bottom: none !important;
-  border-right: none !important;
+  border-bottom: none;
+  border-right: none;
 }
 
 /* ==================== ODD ITEM COUNT LAYOUT ==================== */
 /* First child spans full width */
 .panel-list--resource-grid-odd li:first-child {
   grid-column: 1 / -1;
-  border-bottom: none !important;
+  border-bottom: none;
 }
 
 /* Centering styles for the first full-width header item in the grid */
@@ -1277,9 +1294,9 @@ watch(isExpanded, (val) => {
 }
 
 .active-indicator-bg--resource {
-  opacity: 1 !important;
-  border-radius: 5px !important;
-  background: color-mix(in srgb, var(--sidebar-accent) 9%, transparent) !important;
+  opacity: 1;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--sidebar-accent) 9%, transparent);
   border: 1px solid color-mix(in srgb, var(--sidebar-accent) 22%, transparent);
   box-shadow: 0 3px 8px -6px rgba(var(--sidebar-accent-rgb), 0.3);
 }
@@ -1339,13 +1356,13 @@ watch(isExpanded, (val) => {
 /* ==================== EVEN ITEM COUNT LAYOUT ==================== */
 /* Left column items are odd indices: 1, 3, 5... */
 .panel-list--resource-grid-even li:nth-child(2n-1) {
-  border-right: none !important;
+  border-right: none;
 }
 
 /* Remove bottom borders from last row */
 .panel-list--resource-grid-even li:last-child,
 .panel-list--resource-grid-even li:nth-last-child(2) {
-  border-bottom: none !important;
+  border-bottom: none;
 }
 
 .panel-link--resource {
@@ -1356,9 +1373,9 @@ watch(isExpanded, (val) => {
   align-items: center;
   gap: 3.5px;
   overflow: hidden;
-  border: 1px solid transparent !important;
-  border-radius: 4.5px !important;
-  background: color-mix(in srgb, var(--text-primary) 2%, transparent) !important;
+  border: 1px solid transparent;
+  border-radius: 4.5px;
+  background: color-mix(in srgb, var(--text-primary) 2%, transparent);
   color: var(--text-secondary);
   padding: 0 4px;
   transition: all 0.18s ease;
@@ -1367,8 +1384,12 @@ watch(isExpanded, (val) => {
 /* Style first child of odd layout as header bento card */
 .panel-list--resource-grid-odd li:first-child .panel-link--resource {
   height: 24px;
-  background: color-mix(in srgb, var(--sidebar-accent) 5%, color-mix(in srgb, var(--text-primary) 2.5%, transparent)) !important;
-  border-color: color-mix(in srgb, var(--sidebar-accent) 10%, transparent) !important;
+  background: color-mix(
+    in srgb,
+    var(--sidebar-accent) 5%,
+    color-mix(in srgb, var(--text-primary) 2.5%, transparent)
+  );
+  border-color: color-mix(in srgb, var(--sidebar-accent) 10%, transparent);
 }
 
 .panel-link--resource::before {
@@ -1391,8 +1412,8 @@ watch(isExpanded, (val) => {
 }
 
 .panel-link--resource .panel-link-icon {
-  width: 11px !important;
-  height: 11px !important;
+  width: 11px;
+  height: 11px;
   color: currentColor;
 }
 
@@ -1406,8 +1427,8 @@ watch(isExpanded, (val) => {
 
 .panel-link--resource:hover {
   color: var(--text-primary);
-  background: color-mix(in srgb, var(--sidebar-accent) 7%, transparent) !important;
-  border-color: color-mix(in srgb, var(--sidebar-accent) 18%, transparent) !important;
+  background: color-mix(in srgb, var(--sidebar-accent) 7%, transparent);
+  border-color: color-mix(in srgb, var(--sidebar-accent) 18%, transparent);
   transform: translateY(-0.5px);
 }
 
@@ -1421,8 +1442,8 @@ watch(isExpanded, (val) => {
 }
 
 .panel-link--resource.panel-link--active {
-  color: var(--sidebar-accent) !important;
-  background: transparent !important;
+  color: var(--sidebar-accent);
+  background: transparent;
 }
 
 .panel-link--resource.panel-link--active::before {
@@ -1430,13 +1451,13 @@ watch(isExpanded, (val) => {
 }
 
 .panel-link--resource.panel-link--active .panel-link-icon-wrap {
-  color: #ffffff !important;
-  background: var(--sidebar-accent) !important;
-  box-shadow: 0 4px 10px -6px rgba(var(--sidebar-accent-rgb), 0.8) !important;
+  color: #ffffff;
+  background: var(--sidebar-accent);
+  box-shadow: 0 4px 10px -6px rgba(var(--sidebar-accent-rgb), 0.8);
 }
 
 .panel-link--resource.panel-link--active .panel-link-label {
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
   font-weight: 800;
 }
 
@@ -1553,7 +1574,7 @@ watch(isExpanded, (val) => {
 }
 
 .sync-state__dot--saving {
-  background: #f59e0b !important;
+  background: #f59e0b;
   animation: sync-pulse 0.85s ease-in-out infinite;
 }
 
@@ -1595,7 +1616,7 @@ watch(isExpanded, (val) => {
 
 /* Sidebar manual resize styles */
 .workspace-sidebar.is-resizing {
-  transition: none !important;
+  transition: none;
 }
 
 .sidebar-resize-handle {
@@ -1618,42 +1639,42 @@ watch(isExpanded, (val) => {
 }
 
 .is-very-narrow-sidebar .panel-list--resource-grid {
-  grid-template-columns: 1fr !important;
+  grid-template-columns: 1fr;
 }
 .is-very-narrow-sidebar .panel-list--resource-grid-odd li:first-child .panel-link--resource {
-  height: 23px !important;
-  background: color-mix(in srgb, var(--text-primary) 2%, transparent) !important;
-  border-color: transparent !important;
+  height: 23px;
+  background: color-mix(in srgb, var(--text-primary) 2%, transparent);
+  border-color: transparent;
 }
 
 .is-narrow-sidebar .panel-link--resource {
-  padding: 0 2px !important;
-  gap: 2px !important;
+  padding: 0 2px;
+  gap: 2px;
 }
 .is-narrow-sidebar .panel-link--resource .panel-link-icon-wrap {
-  width: 13px !important;
-  height: 13px !important;
+  width: 13px;
+  height: 13px;
 }
 .is-narrow-sidebar .panel-link--resource .panel-link-icon {
-  width: 9px !important;
-  height: 9px !important;
+  width: 9px;
+  height: 9px;
 }
 .is-narrow-sidebar .panel-link--resource .panel-link-label {
-  font-size: 8.2px !important;
+  font-size: 8.2px;
 }
 
 .is-wide-sidebar .panel-list--resource-grid-odd {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .is-wide-sidebar .panel-list--resource-grid-odd li:first-child {
-  grid-column: auto !important;
+  grid-column: auto;
 }
 .is-wide-sidebar .panel-list--resource-grid-odd li:first-child .panel-link--resource {
-  height: 23px !important;
-  background: color-mix(in srgb, var(--text-primary) 2%, transparent) !important;
-  border-color: transparent !important;
+  height: 23px;
+  background: color-mix(in srgb, var(--text-primary) 2%, transparent);
+  border-color: transparent;
 }
 .is-wide-sidebar .panel-list--resource-grid-even {
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 </style>

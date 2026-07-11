@@ -870,46 +870,46 @@ defineExpose({
 <style scoped>
 /* Accent-based Send Button */
 .ai-send-btn {
-  background: var(--accent) !important;
-  box-shadow: 0 10px 20px -5px rgba(var(--accent-rgb), 0.3) !important;
+  background: var(--accent);
+  box-shadow: 0 10px 20px -5px rgba(var(--accent-rgb), 0.3);
 }
 
 .ai-send-btn:hover:not(:disabled) {
   opacity: 0.95;
-  box-shadow: 0 12px 24px -5px rgba(var(--accent-rgb), 0.45) !important;
+  box-shadow: 0 12px 24px -5px rgba(var(--accent-rgb), 0.45);
 }
 
 .ai-send-btn:disabled {
   opacity: 0.45;
-  box-shadow: none !important;
+  box-shadow: none;
 }
 
 .ai-preview {
-  background: transparent !important;
+  background: transparent;
 }
 
 .ai-preview :deep(.md-editor-preview) {
-  background: transparent !important;
-  color: inherit !important;
-  padding: 0 !important;
-  line-height: 1.6 !important;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  line-height: 1.6;
 }
 
 .ai-preview :deep(.md-editor-preview-wrapper) {
-  padding: 0 !important;
+  padding: 0;
 }
 
 .ai-preview :deep(.md-editor-preview p:first-child) {
-  margin-top: 0 !important;
+  margin-top: 0;
 }
 
 .ai-preview :deep(.md-editor-preview p:last-child) {
-  margin-bottom: 0 !important;
+  margin-bottom: 0;
 }
 
 .ai-preview :deep(.md-editor-preview p) {
-  margin-top: 4px !important;
-  margin-bottom: 4px !important;
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
 .ai-preview :deep(.md-editor-preview h1),
@@ -918,62 +918,62 @@ defineExpose({
 .ai-preview :deep(.md-editor-preview h4),
 .ai-preview :deep(.md-editor-preview h5),
 .ai-preview :deep(.md-editor-preview h6) {
-  margin-top: 10px !important;
-  margin-bottom: 4px !important;
-  font-weight: 600 !important;
+  margin-top: 10px;
+  margin-bottom: 4px;
+  font-weight: 600;
 }
 
 .ai-preview :deep(.md-editor-preview ul),
 .ai-preview :deep(.md-editor-preview ol) {
-  margin-top: 4px !important;
-  margin-bottom: 4px !important;
-  padding-left: 20px !important;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  padding-left: 20px;
 }
 
 .ai-preview :deep(.md-editor-preview li) {
-  margin-top: 2px !important;
-  margin-bottom: 2px !important;
+  margin-top: 2px;
+  margin-bottom: 2px;
 }
 
 .ai-preview :deep(.md-editor-preview img) {
-  max-width: 220px !important;
-  max-height: 150px !important;
-  border-radius: 12px !important;
-  object-fit: cover !important;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08) !important;
+  max-width: 220px;
+  max-height: 150px;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
 }
 
 .ai-preview :deep(.md-editor-code pre) {
-  border-radius: 16px !important;
-  padding: 14px 16px !important;
-  font-size: 11px !important;
+  border-radius: 16px;
+  padding: 14px 16px;
+  font-size: 11px;
 }
 
 .ai-preview :deep(.md-editor-preview blockquote) {
-  margin: 12px 0 !important;
-  border-left: 3px solid rgba(244, 114, 182, 0.5) !important;
-  background: rgba(255, 241, 242, 0.7) !important;
-  color: inherit !important;
-  border-radius: 14px !important;
-  padding: 12px 14px !important;
+  margin: 12px 0;
+  border-left: 3px solid rgba(244, 114, 182, 0.5);
+  background: rgba(255, 241, 242, 0.7);
+  color: inherit;
+  border-radius: 14px;
+  padding: 12px 14px;
 }
 
 .dark .ai-preview :deep(.md-editor-preview blockquote) {
-  background: rgba(30, 41, 59, 0.75) !important;
+  background: rgba(30, 41, 59, 0.75);
 }
 
 .ai-preview :deep(.md-editor-preview code) {
-  border-radius: 8px !important;
-  padding: 2px 6px !important;
+  border-radius: 8px;
+  padding: 2px 6px;
 }
 
 @media (max-width: 768px) {
   .ai-preview :deep(.md-editor-preview) {
-    line-height: 1.55 !important;
+    line-height: 1.55;
   }
   .ai-preview :deep(.md-editor-code pre) {
-    padding: 10px 12px !important;
-    border-radius: 10px !important;
+    padding: 10px 12px;
+    border-radius: 10px;
   }
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, onUnmounted, defineAsyncComponent } from 'vue';
+import { ref, onMounted, computed, watch, onUnmounted, defineAsyncComponent, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   Plus,
@@ -20,7 +20,7 @@ import {
   BookOpen,
   ArrowRight,
 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import api, { getAssetUrl } from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
@@ -31,13 +31,17 @@ import ProjectSidebar from './components/ProjectSidebar.vue';
 
 // Conditionally shown dialogs/drawers — lazy loaded to reduce initial chunk
 const UserProfileDialog = defineAsyncComponent(() => import('@/components/UserProfileDialog.vue'));
-const InviteMembersDialog = defineAsyncComponent(() => import('@/components/InviteMembersDialog.vue'));
+const InviteMembersDialog = defineAsyncComponent(
+  () => import('@/components/InviteMembersDialog.vue'),
+);
 const TaskAddDrawer = defineAsyncComponent(() => import('./components/TaskAddDrawer.vue'));
 const TaskEditDrawer = defineAsyncComponent(() => import('./components/TaskEditDrawer.vue'));
 
 // Tab-based content — only one active at a time, lazy-load each independently
 const KanbanBoard = defineAsyncComponent(() => import('./components/KanbanBoard.vue'));
-const CollaborationSpace = defineAsyncComponent(() => import('./components/CollaborationSpace.vue'));
+const CollaborationSpace = defineAsyncComponent(
+  () => import('./components/CollaborationSpace.vue'),
+);
 
 // Type-only imports for component ref typing (erased at runtime, safe alongside defineAsyncComponent)
 import type TaskAddDrawerType from './components/TaskAddDrawer.vue';
@@ -473,16 +477,89 @@ watch(
   },
 );
 
+// Segmented control sliding pill animation variables & helpers
+const tabButtons = ref<any[]>([]);
+const dateButtons = ref<any[]>([]);
+const assigneeButtons = ref<any[]>([]);
+const sortButtons = ref<any[]>([]);
+
+const pillStyles = ref({
+  tabs: { left: '0px', width: '0px', opacity: 0 },
+  date: { left: '0px', width: '0px', opacity: 0 },
+  assignee: { left: '0px', width: '0px', opacity: 0 },
+  sort: { left: '0px', width: '0px', opacity: 0 },
+});
+
+const updatePills = () => {
+  // Tabs
+  const tabIdx = projectTabs.value.findIndex((t: any) => t.id === activeTab.value);
+  if (tabIdx !== -1 && tabButtons.value[tabIdx]) {
+    const el = tabButtons.value[tabIdx];
+    pillStyles.value.tabs = {
+      left: `${el.offsetLeft}px`,
+      width: `${el.offsetWidth}px`,
+      opacity: 1,
+    };
+  }
+
+  // Date filter
+  const dates = ['all', 'overdue', 'today', 'week'];
+  const dateIdx = dates.indexOf(taskDateFilter.value);
+  if (dateIdx !== -1 && dateButtons.value[dateIdx]) {
+    const el = dateButtons.value[dateIdx];
+    pillStyles.value.date = {
+      left: `${el.offsetLeft}px`,
+      width: `${el.offsetWidth}px`,
+      opacity: 1,
+    };
+  }
+
+  // Assignee filter
+  const assignees = ['all', 'me'];
+  const assigneeIdx = assignees.indexOf(taskAssigneeFilter.value);
+  if (assigneeIdx !== -1 && assigneeButtons.value[assigneeIdx]) {
+    const el = assigneeButtons.value[assigneeIdx];
+    pillStyles.value.assignee = {
+      left: `${el.offsetLeft}px`,
+      width: `${el.offsetWidth}px`,
+      opacity: 1,
+    };
+  }
+
+  // Sort filter
+  const sorts = ['natural', 'createdAt_asc', 'createdAt_desc'];
+  const sortIdx = sorts.indexOf(taskSortBy.value);
+  if (sortIdx !== -1 && sortButtons.value[sortIdx]) {
+    const el = sortButtons.value[sortIdx];
+    pillStyles.value.sort = {
+      left: `${el.offsetLeft}px`,
+      width: `${el.offsetWidth}px`,
+      opacity: 1,
+    };
+  }
+};
+
+watch([activeTab, taskDateFilter, taskAssigneeFilter, taskSortBy], () => {
+  nextTick(() => {
+    updatePills();
+  });
+});
+
 onMounted(() => {
   window.addEventListener('resize', updateIsMobile);
+  window.addEventListener('resize', updatePills);
   fetchProject();
   fetchMyProgress();
   fetchAllCourses();
   loadCheckedSubTasks();
+  setTimeout(() => {
+    updatePills();
+  }, 150);
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateIsMobile);
+  window.removeEventListener('resize', updatePills);
 });
 </script>
 
@@ -524,16 +601,30 @@ onUnmounted(() => {
           <!-- Segmented Control + Mobile New Button -->
           <div class="flex items-center justify-between gap-2 md:flex-1 md:justify-start">
             <div
-              class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl overflow-x-auto scrollbar-hide"
+              class="relative flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl overflow-x-auto scrollbar-hide"
             >
+              <!-- Sliding active background pill -->
+              <div
+                class="absolute top-1 bottom-1 bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-all duration-300 ease-out pointer-events-none z-0"
+                :style="{
+                  left: pillStyles.tabs.left,
+                  width: pillStyles.tabs.width,
+                  opacity: pillStyles.tabs.opacity,
+                }"
+              ></div>
               <button
-                v-for="tab in projectTabs"
+                v-for="(tab, idx) in projectTabs"
                 :key="tab.id"
+                :ref="
+                  (el) => {
+                    if (el) tabButtons[idx] = el;
+                  }
+                "
                 type="button"
-                class="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-6 py-1.5 md:py-2.5 rounded-lg text-[11px] md:text-sm font-black transition-all whitespace-nowrap shrink-0 cursor-pointer"
+                class="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-6 py-1.5 md:py-2.5 rounded-lg text-[11px] md:text-sm font-black transition-all whitespace-nowrap shrink-0 cursor-pointer z-10"
                 :class="
                   activeTab === tab.id
-                    ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
+                    ? 'text-accent'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 "
                 @click="activeTab = tab.id"
@@ -589,22 +680,32 @@ onUnmounted(() => {
               class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
               >截止:</span
             >
-            <div class="flex p-0.5 md:p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <div class="relative flex p-0.5 md:p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+              <!-- Sliding active background pill -->
+              <div
+                class="absolute top-0.5 bottom-0.5 bg-white dark:bg-slate-700 rounded-md shadow-sm transition-all duration-300 ease-out pointer-events-none z-0"
+                :style="{
+                  left: pillStyles.date.left,
+                  width: pillStyles.date.width,
+                  opacity: pillStyles.date.opacity,
+                }"
+              ></div>
               <button
-                v-for="f in [
+                v-for="(f, idx) in [
                   { id: 'all', label: '全部' },
                   { id: 'overdue', label: '已逾期' },
                   { id: 'today', label: '今日' },
                   { id: 'week', label: '本周' },
                 ]"
                 :key="f.id"
-                type="button"
-                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer"
-                :class="
-                  taskDateFilter === f.id
-                    ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
-                    : 'text-slate-500'
+                :ref="
+                  (el) => {
+                    if (el) dateButtons[idx] = el;
+                  }
                 "
+                type="button"
+                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
+                :class="taskDateFilter === f.id ? 'text-accent' : 'text-slate-500'"
                 @click="taskDateFilter = f.id"
               >
                 {{ f.label }}
@@ -619,27 +720,38 @@ onUnmounted(() => {
               class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
               >执行人:</span
             >
-            <div class="flex p-0.5 md:p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <div class="relative flex p-0.5 md:p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+              <!-- Sliding active background pill -->
+              <div
+                class="absolute top-0.5 bottom-0.5 bg-white dark:bg-slate-700 rounded-md shadow-sm transition-all duration-300 ease-out pointer-events-none z-0"
+                :style="{
+                  left: pillStyles.assignee.left,
+                  width: pillStyles.assignee.width,
+                  opacity: pillStyles.assignee.opacity,
+                }"
+              ></div>
               <button
-                type="button"
-                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer"
-                :class="
-                  taskAssigneeFilter === 'all'
-                    ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
-                    : 'text-slate-500'
+                :ref="
+                  (el) => {
+                    if (el) assigneeButtons[0] = el;
+                  }
                 "
+                type="button"
+                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
+                :class="taskAssigneeFilter === 'all' ? 'text-accent' : 'text-slate-500'"
                 @click="taskAssigneeFilter = 'all'"
               >
                 全部
               </button>
               <button
-                type="button"
-                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer"
-                :class="
-                  taskAssigneeFilter === 'me'
-                    ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
-                    : 'text-slate-500'
+                :ref="
+                  (el) => {
+                    if (el) assigneeButtons[1] = el;
+                  }
                 "
+                type="button"
+                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
+                :class="taskAssigneeFilter === 'me' ? 'text-accent' : 'text-slate-500'"
                 @click="taskAssigneeFilter = 'me'"
               >
                 我的
@@ -654,25 +766,42 @@ onUnmounted(() => {
               class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
               >排序方式:</span
             >
-            <div class="flex p-0.5 md:p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <div class="relative flex p-0.5 md:p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+              <!-- Sliding active background pill -->
+              <div
+                class="absolute top-0.5 bottom-0.5 bg-white dark:bg-slate-700 rounded-md shadow-sm transition-all duration-300 ease-out pointer-events-none z-0"
+                :style="{
+                  left: pillStyles.sort.left,
+                  width: pillStyles.sort.width,
+                  opacity: pillStyles.sort.opacity,
+                }"
+              ></div>
               <button
+                :ref="
+                  (el) => {
+                    if (el) sortButtons[0] = el;
+                  }
+                "
                 type="button"
-                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer"
+                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
                 :class="
-                  taskSortBy === 'natural'
-                    ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
+                  taskSortBy === 'natural' ? 'text-accent' : 'text-slate-500 hover:text-slate-700'
                 "
                 @click="taskSortBy = 'natural'"
               >
                 按自然顺序
               </button>
               <button
+                :ref="
+                  (el) => {
+                    if (el) sortButtons[1] = el;
+                  }
+                "
                 type="button"
-                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer"
+                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
                 :class="
                   taskSortBy === 'createdAt_asc'
-                    ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
+                    ? 'text-accent'
                     : 'text-slate-500 hover:text-slate-700'
                 "
                 @click="taskSortBy = 'createdAt_asc'"
@@ -680,11 +809,16 @@ onUnmounted(() => {
                 最早创建
               </button>
               <button
+                :ref="
+                  (el) => {
+                    if (el) sortButtons[2] = el;
+                  }
+                "
                 type="button"
-                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer"
+                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
                 :class="
                   taskSortBy === 'createdAt_desc'
-                    ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
+                    ? 'text-accent'
                     : 'text-slate-500 hover:text-slate-700'
                 "
                 @click="taskSortBy = 'createdAt_desc'"

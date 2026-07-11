@@ -1,21 +1,36 @@
-import { Response, NextFunction } from 'express';
+import type { FastifyReply, FastifyRequest } from 'fastify';
+
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
-import { AuthRequest } from '../middlewares/auth.middleware';
-import { auditService, AuditAction, AuditModule } from '../services/audit.service';
+import {
+  auditService,
+  AuditAction,
+  AuditModule,
+  type AuditRequest,
+} from '../services/audit.service';
 import { parseBilibiliUrl } from '../utils/bilibili';
 import { AppError } from '../utils/error';
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
 import redisService from '../services/redis.service';
 import { deleteCloudOrLocalFileByUrl } from '../utils/file';
+import { withRowLock } from '../utils/dbLock';
+import { withRedlock } from '../utils/withRedlock';
 
-export const getAllCourses = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { categoryId, search, difficulty, sort } = req.query;
+export const getAllCourses = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { categoryId, search, difficulty, sort } = request.query as {
+    categoryId?: string;
+    search?: string;
+    difficulty?: string;
+    sort?: string;
+  };
   try {
     const cacheKey = `courses:list:${categoryId || 'all'}:${search || 'none'}:${difficulty || 'all'}:${sort || 'default'}`;
-    const cached = await redisService.get<any>(cacheKey);
+    const cached = await redisService.get<unknown>(cacheKey);
     if (cached) {
-      res.json(cached);
+      reply.send(cached);
       return;
     }
 
@@ -57,13 +72,16 @@ export const getAllCourses = async (req: AuthRequest, res: Response, next: NextF
 
     await redisService.set(cacheKey, coursesWithAvgRating, 30);
 
-    res.json(coursesWithAvgRating);
+    reply.send(coursesWithAvgRating);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getCourseCategories = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getCourseCategories = async (
+  _request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
     const categories = await prisma.courseCategory.findMany({
       orderBy: { order: 'asc' },
@@ -71,30 +89,37 @@ export const getCourseCategories = async (req: AuthRequest, res: Response, next:
         _count: { select: { courses: true } },
       },
     });
-    res.json(categories);
+    reply.send(categories);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const parseBilibili = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { url } = req.body;
+export const parseBilibili = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { url } = request.body as { url: string };
   if (!url) {
-    return next(new AppError('Bilibili URL is required', 400));
+    throw new AppError('Bilibili URL is required', 400);
   }
 
   try {
     const metadata = await parseBilibiliUrl(url);
-    res.json(metadata);
+    reply.send(metadata);
   } catch (error) {
-    next(
-      new AppError(error instanceof Error ? error.message : 'Failed to parse Bilibili URL', 400),
+    throw new AppError(
+      error instanceof Error ? error.message : 'Failed to parse Bilibili URL',
+      400,
     );
   }
 };
 
-export const getCourseById = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
+export const getCourseById = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { id } = request.params as { id: string };
   try {
     const course = await prisma.course.findUnique({
       where: { id },
@@ -114,7 +139,12 @@ export const getCourseById = async (req: AuthRequest, res: Response, next: NextF
         },
       },
     });
-    if (!course) return next(new AppError('Course not found', 404));
+    if (!course) throw new AppError('Course not found', 404);
+
+    // Guests can only access published courses
+    if (!request.userId && course.status !== 'PUBLISHED') {
+      throw new AppError('无权访问未发布课程', 403, 'COURSE_FORBIDDEN');
+    }
 
     const avgRating =
       course.reviews.length > 0
@@ -124,13 +154,13 @@ export const getCourseById = async (req: AuthRequest, res: Response, next: NextF
 
     let userEnrollment = null;
     let lessonProgressMap: Record<string, boolean> = {};
-    if (req.userId) {
+    if (request.userId) {
       userEnrollment = await prisma.enrollment.findFirst({
-        where: { userId: req.userId, courseId: id, teamId: req.workspaceId },
+        where: { userId: request.userId, courseId: id, teamId: request.workspaceId },
       });
 
       const progressRecords = await prisma.lessonProgress.findMany({
-        where: { userId: req.userId, lessonId: { in: course.lessons.map((l) => l.id) } },
+        where: { userId: request.userId, lessonId: { in: course.lessons.map((l) => l.id) } },
       });
       progressRecords.forEach((p) => {
         lessonProgressMap[p.lessonId] = p.completed;
@@ -142,7 +172,7 @@ export const getCourseById = async (req: AuthRequest, res: Response, next: NextF
       0,
     );
 
-    res.json({
+    reply.send({
       ...course,
       avgRating: Math.round(avgRating * 10) / 10,
       userEnrollment,
@@ -150,12 +180,19 @@ export const getCourseById = async (req: AuthRequest, res: Response, next: NextF
       totalDuration,
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { title, description, thumbnail, categoryId, difficulty, status } = req.body;
+export const createCourse = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { title, description, thumbnail, categoryId, difficulty, status } = request.body as {
+    title: string;
+    description: string;
+    thumbnail?: string;
+    categoryId?: string;
+    difficulty?: string;
+    status?: string;
+  };
   try {
     const course = await prisma.course.create({
       data: {
@@ -169,26 +206,38 @@ export const createCourse = async (req: AuthRequest, res: Response, next: NextFu
     });
 
     await auditService.log({
-      userId: req.userId as string,
+      userId: request.userId as string,
       action: AuditAction.CREATE_COURSE,
       module: AuditModule.COURSE,
       description: `Created course: ${course.title}`,
       newValue: course,
-      req,
+      req: request as unknown as AuditRequest,
     });
 
-    res.status(201).json(course);
+    reply.status(201).send(course);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 export const createCourseWithLessons = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { title, description, thumbnail, lessons, categoryId, difficulty } = req.body;
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { title, description, thumbnail, lessons, categoryId, difficulty } = request.body as {
+    title: string;
+    description: string;
+    thumbnail?: string;
+    lessons?: Array<{
+      title: string;
+      videoUrl?: string;
+      order: number;
+      content?: string;
+      duration?: number;
+    }>;
+    categoryId?: string;
+    difficulty?: string;
+  };
   try {
     const result = await prisma.$transaction(async (tx) => {
       const course = await tx.course.create({
@@ -231,30 +280,37 @@ export const createCourseWithLessons = async (
       });
 
       await auditService.log({
-        userId: req.userId as string,
+        userId: request.userId as string,
         action: AuditAction.CREATE_COURSE,
         module: AuditModule.COURSE,
         description: `Created course with lessons: ${course.title}`,
         newValue: finalCourse,
-        req,
+        req: request as unknown as AuditRequest,
         tx,
       });
 
       return finalCourse;
     });
 
-    res.status(201).json(result);
+    reply.status(201).send(result);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
-  const { title, description, thumbnail, categoryId, difficulty, status } = req.body;
+export const updateCourse = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { id } = request.params as { id: string };
+  const { title, description, thumbnail, categoryId, difficulty, status } = request.body as {
+    title: string;
+    description: string;
+    thumbnail?: string;
+    categoryId?: string;
+    difficulty?: string;
+    status?: string;
+  };
   try {
     const oldCourse = await prisma.course.findUnique({ where: { id } });
-    if (!oldCourse) return next(new AppError('Course not found', 404));
+    if (!oldCourse) throw new AppError('Course not found', 404);
 
     const course = await prisma.course.update({
       where: { id },
@@ -262,29 +318,29 @@ export const updateCourse = async (req: AuthRequest, res: Response, next: NextFu
     });
 
     await auditService.log({
-      userId: req.userId as string,
+      userId: request.userId as string,
       action: AuditAction.UPDATE_COURSE,
       module: AuditModule.COURSE,
       description: `Updated course: ${course.title}`,
       oldValue: oldCourse,
       newValue: course,
-      req,
+      req: request as unknown as AuditRequest,
     });
 
-    res.json(course);
+    reply.send(course);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
+export const deleteCourse = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { id } = request.params as { id: string };
   try {
     const course = await prisma.course.findUnique({
       where: { id },
       include: { lessons: true },
     });
-    if (!course) return next(new AppError('Course not found', 404));
+    if (!course) throw new AppError('Course not found', 404);
 
     if (course.thumbnail) {
       deleteCloudOrLocalFileByUrl(course.thumbnail).catch(() => {});
@@ -301,58 +357,77 @@ export const deleteCourse = async (req: AuthRequest, res: Response, next: NextFu
     await prisma.course.delete({ where: { id } });
 
     await auditService.log({
-      userId: req.userId as string,
+      userId: request.userId as string,
       action: AuditAction.DELETE_COURSE,
       module: AuditModule.COURSE,
       description: `Deleted course: ${course.title}`,
       oldValue: course,
-      req,
+      req: request as unknown as AuditRequest,
     });
 
-    res.json({ message: 'Course deleted successfully' });
+    reply.send({ message: 'Course deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const enrollInCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { courseId } = req.body;
+export const enrollInCourse = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { courseId } = request.body as { courseId: string };
   try {
-    const enrollment = await prisma.enrollment.create({
-      data: {
-        userId: req.userId as string,
-        courseId,
-        teamId: req.workspaceId,
-      },
-      include: {
-        course: { select: { title: true } },
-      },
-    });
+    // P-6.3：高并发报名（如秒杀课程）场景下，用 Redlock 串行化同一用户对
+    // 同一课程的报名操作，避免唯一约束竞态和重复入账。锁资源粒度为
+    // `course:enroll:${courseId}:${userId}`，不阻塞其他用户报名其他课程。
+    const enrollment = await withRedlock(
+      `course:enroll:${courseId}:${request.userId}`,
+      async () => {
+        return await prisma.$transaction(async (tx) => {
+          const created = await tx.enrollment.create({
+            data: {
+              userId: request.userId as string,
+              courseId,
+              teamId: request.workspaceId,
+            },
+            include: {
+              course: { select: { title: true } },
+            },
+          });
 
-    await auditService.log({
-      userId: req.userId as string,
-      action: 'ENROLL_COURSE',
-      module: AuditModule.COURSE,
-      description: `Enrolled in course: ${enrollment.course.title}`,
-      newValue: enrollment,
-      req,
-    });
+          await auditService.log({
+            userId: request.userId as string,
+            action: 'ENROLL_COURSE',
+            module: AuditModule.COURSE,
+            description: `Enrolled in course: ${created.course.title}`,
+            newValue: created,
+            req: request as unknown as AuditRequest,
+            tx,
+          });
 
-    res.status(201).json(enrollment);
+          return created;
+        });
+      },
+    );
+
+    reply.status(201).send(enrollment);
   } catch (error) {
     if ((error as { code?: string }).code === 'P2002') {
-      return next(new AppError('You are already enrolled in this course in this workspace', 400));
+      throw new AppError('You are already enrolled in this course in this workspace', 400);
     }
-    next(error);
+    throw error;
   }
 };
 
-export const getMyEnrollments = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getMyEnrollments = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
     const enrollments = await prisma.enrollment.findMany({
       where: {
-        userId: req.userId as string,
-        teamId: req.workspaceId,
+        userId: request.userId as string,
+        teamId: request.workspaceId,
       },
       include: {
         course: {
@@ -374,35 +449,41 @@ export const getMyEnrollments = async (req: AuthRequest, res: Response, next: Ne
       return { ...e, course: { ...courseRest, avgRating: Math.round(avgRating * 10) / 10 } };
     });
 
-    res.json(enrollmentsWithRating);
+    reply.send(enrollmentsWithRating);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateProgress = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { courseId, progress } = req.body;
+export const updateProgress = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { courseId, progress } = request.body as { courseId: string; progress: number };
   try {
     const enrollment = await prisma.enrollment.update({
       where: {
         userId_courseId_teamId: {
-          userId: req.userId as string,
+          userId: request.userId as string,
           courseId,
-          teamId: req.workspaceId as string,
+          teamId: request.workspaceId as string,
         },
       },
       data: { progress },
     });
-    res.json(enrollment);
+    reply.send(enrollment);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // --- Lesson Progress ---
 
-export const getLessonProgress = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const courseId = req.params.courseId as string;
+export const getLessonProgress = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { courseId } = request.params as { courseId: string };
   try {
     const lessons = await prisma.lesson.findMany({
       where: { courseId },
@@ -411,72 +492,88 @@ export const getLessonProgress = async (req: AuthRequest, res: Response, next: N
     const lessonIds = lessons.map((l) => l.id);
 
     const progress = await prisma.lessonProgress.findMany({
-      where: { userId: req.userId as string, lessonId: { in: lessonIds } },
+      where: { userId: request.userId as string, lessonId: { in: lessonIds } },
     });
-    res.json(progress);
+    reply.send(progress);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const toggleLessonComplete = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const lessonId = req.params.lessonId as string;
-  const { completed } = req.body;
+export const toggleLessonComplete = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { lessonId } = request.params as { lessonId: string };
+  const { completed } = request.body as { completed: boolean };
   try {
     const lesson = await prisma.lesson.findUnique({ where: { id: lessonId } });
-    if (!lesson) return next(new AppError('Lesson not found', 404));
+    if (!lesson) throw new AppError('Lesson not found', 404);
 
-    // Determine points change based on completion transition
-    const existingProgress = await prisma.lessonProgress.findUnique({
-      where: { userId_lessonId: { userId: req.userId as string, lessonId } },
-    });
-    const transitioningToComplete = completed && (!existingProgress || !existingProgress.completed);
-    const transitioningToIncomplete = !completed && existingProgress && existingProgress.completed;
+    const result = await prisma.$transaction(async (tx) =>
+      // 铁律六·3 — 锁定 User 行再读写积分，避免并发完成课时导致积分 lost update。
+      // withRowLock 在事务内执行 SELECT ... FOR UPDATE，持有行锁直到事务提交。
+      withRowLock(tx, 'User', request.userId as string, async (tx) => {
+        // Determine points change based on completion transition
+        const existingProgress = await tx.lessonProgress.findUnique({
+          where: { userId_lessonId: { userId: request.userId as string, lessonId } },
+        });
+        const transitioningToComplete =
+          completed && (!existingProgress || !existingProgress.completed);
+        const transitioningToIncomplete =
+          !completed && existingProgress && existingProgress.completed;
 
-    const progress = await prisma.lessonProgress.upsert({
-      where: {
-        userId_lessonId: { userId: req.userId as string, lessonId: lessonId },
-      },
-      update: { completed, completedAt: completed ? new Date() : null },
-      create: {
-        userId: req.userId as string,
-        lessonId: lessonId,
-        completed,
-        completedAt: completed ? new Date() : null,
-      },
-    });
+        const progress = await tx.lessonProgress.upsert({
+          where: {
+            userId_lessonId: { userId: request.userId as string, lessonId: lessonId },
+          },
+          update: { completed, completedAt: completed ? new Date() : null },
+          create: {
+            userId: request.userId as string,
+            lessonId: lessonId,
+            completed,
+            completedAt: completed ? new Date() : null,
+          },
+        });
 
-    if (transitioningToComplete) {
-      await awardPoints(req.userId as string, PointsAction.COMPLETE_LESSON);
-    } else if (transitioningToIncomplete) {
-      await deductPoints(req.userId as string, PointsAction.COMPLETE_LESSON);
-    }
+        if (transitioningToComplete) {
+          await awardPoints(request.userId as string, PointsAction.COMPLETE_LESSON, tx);
+        } else if (transitioningToIncomplete) {
+          await deductPoints(request.userId as string, PointsAction.COMPLETE_LESSON, tx);
+        }
 
-    const totalLessons = await prisma.lesson.count({ where: { courseId: lesson.courseId } });
-    const completedCount = await prisma.lessonProgress.count({
-      where: {
-        userId: req.userId as string,
-        lesson: { courseId: lesson.courseId },
-        completed: true,
-      },
-    });
-    const courseProgress = Math.round((completedCount / totalLessons) * 100);
+        const totalLessons = await tx.lesson.count({ where: { courseId: lesson.courseId } });
+        const completedCount = await tx.lessonProgress.count({
+          where: {
+            userId: request.userId as string,
+            lesson: { courseId: lesson.courseId },
+            completed: true,
+          },
+        });
+        const courseProgress = Math.round((completedCount / totalLessons) * 100);
 
-    await prisma.enrollment.updateMany({
-      where: { userId: req.userId as string, courseId: lesson.courseId },
-      data: { progress: courseProgress },
-    });
+        await tx.enrollment.updateMany({
+          where: { userId: request.userId as string, courseId: lesson.courseId },
+          data: { progress: courseProgress },
+        });
 
-    res.json({ lessonProgress: progress, courseProgress });
+        return { progress, courseProgress };
+      }),
+    );
+
+    reply.send({ lessonProgress: result.progress, courseProgress: result.courseProgress });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // --- Course Reviews ---
 
-export const getCourseReviews = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const courseId = req.params.courseId as string;
+export const getCourseReviews = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { courseId } = request.params as { courseId: string };
   try {
     const reviews = await prisma.courseReview.findMany({
       where: { courseId },
@@ -485,157 +582,174 @@ export const getCourseReviews = async (req: AuthRequest, res: Response, next: Ne
       },
       orderBy: { createdAt: 'desc' },
     });
-    res.json(reviews);
+    reply.send(reviews);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createReview = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { courseId, rating, comment } = req.body;
+export const createReview = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { courseId, rating, comment } = request.body as {
+    courseId: string;
+    rating: number;
+    comment?: string;
+  };
   if (!rating || rating < 1 || rating > 5) {
-    return next(new AppError('Rating must be between 1 and 5', 400));
+    throw new AppError('Rating must be between 1 and 5', 400);
   }
   try {
-    const review = await prisma.courseReview.create({
-      data: {
-        userId: req.userId as string,
-        courseId,
-        rating,
-        comment: comment || null,
-      },
-      include: {
-        user: { select: { id: true, name: true, avatarUrl: true } },
-      },
+    const review = await prisma.$transaction(async (tx) => {
+      return tx.courseReview.create({
+        data: {
+          userId: request.userId as string,
+          courseId,
+          rating,
+          comment: comment || null,
+        },
+        include: {
+          user: { select: { id: true, name: true, avatarUrl: true } },
+        },
+      });
     });
-    res.status(201).json(review);
+    reply.status(201).send(review);
   } catch (error) {
     if ((error as { code?: string }).code === 'P2002') {
-      return next(new AppError('You have already reviewed this course', 400));
+      throw new AppError('You have already reviewed this course', 400);
     }
-    next(error);
+    throw error;
   }
 };
 
-export const updateReview = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
-  const { rating, comment } = req.body;
+export const updateReview = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { id } = request.params as { id: string };
+  const { rating, comment } = request.body as { rating: number; comment?: string };
   try {
-    const existing = await prisma.courseReview.findUnique({
-      where: { id },
-      select: { userId: true },
-    });
+    const review = await prisma.$transaction(async (tx) => {
+      const existing = await tx.courseReview.findUnique({
+        where: { id },
+        select: { userId: true },
+      });
 
-    if (!existing) return next(new AppError('Review not found', 404));
-    if (existing.userId !== req.userId && req.user?.role !== 'ADMIN') {
-      return next(new AppError('Not authorized', 403));
-    }
+      if (!existing) throw new AppError('Review not found', 404);
+      if (existing.userId !== request.userId && request.user?.role !== 'ADMIN') {
+        throw new AppError('Not authorized', 403);
+      }
 
-    const review = await prisma.courseReview.update({
-      where: { id },
-      data: { rating, comment: comment || null },
-      include: {
-        user: { select: { id: true, name: true, avatarUrl: true } },
-      },
+      return tx.courseReview.update({
+        where: { id },
+        data: { rating, comment: comment || null },
+        include: {
+          user: { select: { id: true, name: true, avatarUrl: true } },
+        },
+      });
     });
-    res.json(review);
+    reply.send(review);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteReview = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
+export const deleteReview = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { id } = request.params as { id: string };
   try {
     const existing = await prisma.courseReview.findUnique({
       where: { id },
       select: { userId: true },
     });
 
-    if (!existing) return next(new AppError('Review not found', 404));
-    if (existing.userId !== req.userId && req.user?.role !== 'ADMIN') {
-      return next(new AppError('Not authorized', 403));
+    if (!existing) throw new AppError('Review not found', 404);
+    if (existing.userId !== request.userId && request.user?.role !== 'ADMIN') {
+      throw new AppError('Not authorized', 403);
     }
 
     await prisma.courseReview.delete({ where: { id } });
-    res.json({ message: 'Review deleted successfully' });
+    reply.send({ message: 'Review deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // --- Course Notes ---
 
-export const getLessonNotes = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const lessonId = req.params.lessonId as string;
+export const getLessonNotes = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { lessonId } = request.params as { lessonId: string };
   try {
     const notes = await prisma.courseNote.findMany({
-      where: { userId: req.userId as string, lessonId },
+      where: { userId: request.userId as string, lessonId },
       orderBy: { createdAt: 'desc' },
     });
-    res.json(notes);
+    reply.send(notes);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createNote = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { lessonId, content, timestamp } = req.body;
+export const createNote = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { lessonId, content, timestamp } = request.body as {
+    lessonId: string;
+    content: string;
+    timestamp?: number;
+  };
   try {
-    const note = await prisma.courseNote.create({
-      data: {
-        userId: req.userId as string,
-        lessonId,
-        content,
-        timestamp: timestamp || null,
-      },
+    const note = await prisma.$transaction(async (tx) => {
+      return tx.courseNote.create({
+        data: {
+          userId: request.userId as string,
+          lessonId,
+          content,
+          timestamp: timestamp || null,
+        },
+      });
     });
-    res.status(201).json(note);
+    reply.status(201).send(note);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateNote = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
-  const { content, timestamp } = req.body;
+export const updateNote = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { id } = request.params as { id: string };
+  const { content, timestamp } = request.body as { content: string; timestamp?: number };
   try {
     const existing = await prisma.courseNote.findUnique({
       where: { id },
       select: { userId: true },
     });
 
-    if (!existing) return next(new AppError('Note not found', 404));
-    if (existing.userId !== req.userId) {
-      return next(new AppError('Not authorized', 403));
+    if (!existing) throw new AppError('Note not found', 404);
+    if (existing.userId !== request.userId) {
+      throw new AppError('Not authorized', 403);
     }
 
     const note = await prisma.courseNote.update({
       where: { id },
       data: { content, timestamp: timestamp !== undefined ? timestamp : undefined },
     });
-    res.json(note);
+    reply.send(note);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteNote = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
+export const deleteNote = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { id } = request.params as { id: string };
   try {
     const existing = await prisma.courseNote.findUnique({
       where: { id },
       select: { userId: true },
     });
 
-    if (!existing) return next(new AppError('Note not found', 404));
-    if (existing.userId !== req.userId) {
-      return next(new AppError('Not authorized', 403));
+    if (!existing) throw new AppError('Note not found', 404);
+    if (existing.userId !== request.userId) {
+      throw new AppError('Not authorized', 403);
     }
 
     await prisma.courseNote.delete({ where: { id } });
-    res.json({ message: 'Note deleted successfully' });
+    reply.send({ message: 'Note deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };

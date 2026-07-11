@@ -76,7 +76,7 @@ function handlePageChange(page: number) {
   />
 
   <div v-if="pagination.totalPages > 1" class="pagination-row mobile-row">
-    <el-pagination
+    <Pagination
       :current-page="pagination.page"
       :page-size="pagination.limit"
       :total="pagination.total"

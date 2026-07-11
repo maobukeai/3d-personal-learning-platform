@@ -1,11 +1,26 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, type Component } from 'vue';
-import { ElMessage } from 'element-plus';
-import { CheckCircle2, Languages, Moon, RotateCcw, Save, Sun, SunMoon } from 'lucide-vue-next';
+import { ElMessage } from '@/utils/feedbackBridge';
+import {
+  CheckCircle2,
+  Languages,
+  Moon,
+  RotateCcw,
+  Save,
+  Sun,
+  SunMoon,
+  Grid,
+  Sparkles,
+  Infinity as InfinityIcon,
+  LayoutGrid,
+  Aperture,
+  Square,
+} from 'lucide-vue-next';
 import {
   preferences,
   type LocalePreference,
   type ThemePreference,
+  type ThemeBackgroundPreference,
   type AccentColorModePreference,
   type AccentColorIntervalPreference,
 } from '@/utils/preferences';
@@ -16,6 +31,7 @@ import { setLocale } from '@/i18n';
 import Button from '@/components/ui/Button.vue';
 
 const currentTheme = ref<ThemePreference>(preferences.getTheme());
+const currentBackground = ref<ThemeBackgroundPreference>(preferences.getBackground());
 const currentAccent = ref(preferences.getAccentColor());
 const activeAccentColor = ref(currentAccent.value);
 const currentLanguage = ref<LocalePreference>(preferences.getLanguage());
@@ -80,9 +96,54 @@ const themeOptions = computed<
   },
 ]);
 
+const backgroundOptions = computed<
+  Array<{ id: ThemeBackgroundPreference; label: string; description: string; icon: Component }>
+>(() => [
+  {
+    id: 'grid',
+    label: label('工业网格', 'Industrial Grid'),
+    description: label('经典网格线条背景', 'Classic grid line canvas'),
+    icon: Grid,
+  },
+  {
+    id: 'aurora',
+    label: label('极光幻影', 'Aurora Aura'),
+    description: label('现代暗色环境光晕', 'Modern ambient radial glow'),
+    icon: Sparkles,
+  },
+  {
+    id: 'blobs',
+    label: label('流光浮影', 'Neon Blobs'),
+    description: label('动感十足的炫彩浮动光斑', 'Dynamic flowing tech blobs'),
+    icon: InfinityIcon,
+  },
+  {
+    id: 'dots',
+    label: label('柔雾光影', 'Soft Atmosphere'),
+    description: label('低对比度的柔和光影画布', 'A calm, low-contrast ambient canvas'),
+    icon: LayoutGrid,
+  },
+  {
+    id: 'prism',
+    label: label('棱镜折光', 'Prism Refraction'),
+    description: label(
+      '具有空间感的玻璃折射光带',
+      'Layered glass refraction with dimensional light',
+    ),
+    icon: Aperture,
+  },
+  {
+    id: 'solid',
+    label: label('极简纯色', 'Minimalist Solid'),
+    description: label('去除多余视觉装饰', 'Clean and plain background'),
+    icon: Square,
+  },
+]);
+
 const snapshot = computed(() =>
   JSON.stringify({
     theme: currentTheme.value,
+    background: currentBackground.value,
     accent: currentAccent.value,
     language: currentLanguage.value,
     accentMode: currentAccentMode.value,
@@ -120,6 +181,12 @@ const applyTheme = (theme: ThemePreference) => {
   window.dispatchEvent(new CustomEvent('theme-changed', { detail: theme }));
 };
 
+const applyBackground = (bg: ThemeBackgroundPreference) => {
+  currentBackground.value = bg;
+  preferences.setBackground(bg);
+  window.dispatchEvent(new CustomEvent('background-changed', { detail: bg }));
+};
+
 const applyAccentColor = (color: string) => {
   currentAccent.value = color;
   currentAccentMode.value = 'static';
@@ -141,6 +208,21 @@ const applyAccentColor = (color: string) => {
 const applyAccentMode = (mode: AccentColorModePreference) => {
   currentAccentMode.value = mode;
   preferences.setAccentColorMode(mode);
+
+  if (mode === 'refresh') {
+    const backgrounds: ThemeBackgroundPreference[] = [
+      'grid',
+      'aurora',
+      'blobs',
+      'dots',
+      'prism',
+      'solid',
+    ];
+    const candidates = backgrounds.filter((background) => background !== currentBackground.value);
+    const next =
+      candidates[Math.floor(Math.random() * candidates.length)] || currentBackground.value;
+    applyBackground(next);
+  }
 
   window.dispatchEvent(
     new CustomEvent('accent-settings-changed', {
@@ -175,12 +257,20 @@ const applyLanguage = (lang: LocalePreference) => {
 
 const applyLoadedSettings = (settings: Record<string, string>) => {
   const theme = settings.appearanceTheme as ThemePreference | undefined;
+  const background = settings.appearanceBackground as ThemeBackgroundPreference | undefined;
   const accent = settings.appearanceAccent;
   const language = settings.appearanceLanguage as LocalePreference | undefined;
   const accentMode = settings.appearanceAccentMode as AccentColorModePreference | undefined;
   const accentInterval = settings.appearanceAccentInterval as
     | AccentColorIntervalPreference
     | undefined;
+  const hasValidBackground =
+    background === 'grid' ||
+    background === 'aurora' ||
+    background === 'blobs' ||
+    background === 'dots' ||
+    background === 'prism' ||
+    background === 'solid';
 
   if (theme === 'glass-light' || theme === 'glass-dark' || theme === 'glass-auto') {
     applyTheme(theme);
@@ -200,6 +290,12 @@ const applyLoadedSettings = (settings: Record<string, string>) => {
   } else {
     currentAccentMode.value = 'static';
     preferences.setAccentColorMode('static');
+  }
+
+  if (currentAccentMode.value === 'refresh') {
+    applyAccentMode('refresh');
+  } else if (hasValidBackground) {
+    applyBackground(background as ThemeBackgroundPreference);
   }
 
   if (
@@ -251,6 +347,7 @@ const saveAppearance = async () => {
     isSaving.value = true;
     await updateUserSettings([
       { key: 'appearanceTheme', value: currentTheme.value },
+      { key: 'appearanceBackground', value: currentBackground.value },
       { key: 'appearanceAccent', value: currentAccent.value },
       { key: 'appearanceLanguage', value: currentLanguage.value },
       { key: 'appearanceAccentMode', value: currentAccentMode.value },
@@ -267,6 +364,7 @@ const saveAppearance = async () => {
 
 const resetLocal = () => {
   applyTheme('glass-dark');
+  applyBackground('grid');
   applyAccentColor('#2563eb');
   applyAccentMode('static');
   applyAccentInterval('1m');
@@ -345,6 +443,31 @@ onUnmounted(() => {
             <strong>{{ theme.label }}</strong>
             <span>{{ theme.description }}</span>
             <CheckCircle2 v-if="currentTheme === theme.id" class="check-icon" />
+          </button>
+        </div>
+
+        <div
+          class="panel-title mobile-row mt-6 pt-6 border-t"
+          style="border-color: var(--border-base)"
+        >
+          <span>{{ label('背景画布', 'Background Canvas') }}</span>
+          <strong class="truncate">{{
+            backgroundOptions.find((item) => item.id === currentBackground)?.label
+          }}</strong>
+        </div>
+        <div class="theme-options background-options">
+          <button
+            v-for="bg in backgroundOptions"
+            :key="bg.id"
+            type="button"
+            :class="{ active: currentBackground === bg.id }"
+            @click="applyBackground(bg.id)"
+          >
+            <i class="background-preview" :class="`background-preview--${bg.id}`"></i>
+            <component :is="bg.icon" />
+            <strong>{{ bg.label }}</strong>
+            <span>{{ bg.description }}</span>
+            <CheckCircle2 v-if="currentBackground === bg.id" class="check-icon" />
           </button>
         </div>
       </div>
@@ -562,8 +685,8 @@ button svg {
 }
 
 .theme-options button.active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, var(--bg-app));
+  border-color: color-mix(in srgb, var(--accent) 72%, var(--border-base));
+  background: color-mix(in srgb, var(--accent) 3%, var(--bg-app));
 }
 
 .theme-options button > svg:first-child {
@@ -575,6 +698,107 @@ button svg {
 .theme-options strong {
   font-size: 12.5px;
   font-weight: 900;
+}
+
+.background-options button {
+  min-height: 122px;
+  align-content: start;
+}
+
+.background-preview {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 42px;
+  margin-bottom: 3px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border-base) 82%, transparent);
+  border-radius: var(--radius-control);
+  background: var(--bg-subtle);
+}
+
+.background-preview::before,
+.background-preview::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+}
+
+.background-preview--grid {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--accent) 20%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 20%, transparent) 1px, transparent 1px);
+  background-size: 10px 10px;
+}
+
+.background-preview--aurora {
+  background:
+    radial-gradient(
+      ellipse at 78% 20%,
+      color-mix(in srgb, var(--accent) 42%, transparent),
+      transparent 56%
+    ),
+    radial-gradient(
+      ellipse at 18% 85%,
+      color-mix(in srgb, #38bdf8 26%, transparent),
+      transparent 54%
+    ),
+    var(--bg-subtle);
+}
+
+.background-preview--blobs {
+  background:
+    radial-gradient(
+      circle at 22% 80%,
+      color-mix(in srgb, var(--accent) 52%, transparent),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 84% 18%,
+      color-mix(in srgb, #f472b6 38%, transparent),
+      transparent 34%
+    ),
+    var(--bg-subtle);
+}
+
+.background-preview--dots {
+  background:
+    radial-gradient(
+      ellipse at 88% 4%,
+      color-mix(in srgb, var(--accent) 30%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(128deg, color-mix(in srgb, var(--bg-subtle) 84%, white), var(--bg-subtle));
+}
+
+.background-preview--prism {
+  background:
+    conic-gradient(
+      from 210deg at 78% 24%,
+      color-mix(in srgb, var(--accent) 44%, transparent),
+      transparent 20%,
+      color-mix(in srgb, #38bdf8 36%, transparent),
+      transparent 48%,
+      color-mix(in srgb, var(--accent) 38%, transparent)
+    ),
+    var(--bg-subtle);
+}
+
+.background-preview--prism::after {
+  background: linear-gradient(
+    115deg,
+    transparent 28%,
+    rgba(255, 255, 255, 0.7) 46%,
+    transparent 58%
+  );
+}
+
+.background-preview--solid {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--bg-subtle) 92%, var(--accent)),
+    var(--bg-subtle)
+  );
 }
 
 .check-icon {

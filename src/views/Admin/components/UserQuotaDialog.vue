@@ -61,50 +61,50 @@ const handleSave = () => {
 
 <template>
   <Modal :show="modelValue" title="订阅管理" size="md" @close="emit('update:modelValue', false)">
-    <el-form label-position="top">
-      <el-form-item label="用户">
-        <el-input :model-value="user?.email || ''" disabled />
-      </el-form-item>
-      <el-form-item label="订阅计划">
-        <el-select v-model="subForm.planId" class="full-width" placeholder="选择订阅计划">
-          <el-option
+    <Form label-position="top">
+      <FormItem label="用户">
+        <Input :model-value="user?.email || ''" disabled />
+      </FormItem>
+      <FormItem label="订阅计划">
+        <Select v-model="subForm.planId" class="full-width" placeholder="选择订阅计划">
+          <SelectOption
             v-for="plan in plans"
             :key="plan.id"
             :label="plan.displayName || plan.name"
             :value="plan.id"
           />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="周期">
-        <el-select v-model="subForm.interval" class="full-width">
-          <el-option label="月付" value="MONTHLY" />
-          <el-option label="年付" value="YEARLY" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="状态">
-        <el-select v-model="subForm.status" class="full-width">
-          <el-option label="生效中" value="ACTIVE" />
-          <el-option label="已暂停" value="PAUSED" />
-          <el-option label="已取消" value="CANCELED" />
-          <el-option label="已过期" value="EXPIRED" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="到期日期">
-        <el-date-picker
+        </Select>
+      </FormItem>
+      <FormItem label="周期">
+        <Select v-model="subForm.interval" class="full-width">
+          <SelectOption label="月付" value="MONTHLY" />
+          <SelectOption label="年付" value="YEARLY" />
+        </Select>
+      </FormItem>
+      <FormItem label="状态">
+        <Select v-model="subForm.status" class="full-width">
+          <SelectOption label="生效中" value="ACTIVE" />
+          <SelectOption label="已暂停" value="PAUSED" />
+          <SelectOption label="已取消" value="CANCELED" />
+          <SelectOption label="已过期" value="EXPIRED" />
+        </Select>
+      </FormItem>
+      <FormItem label="到期日期">
+        <DatePicker
           v-model="subForm.endDate"
           class="full-width"
           placeholder="不填则长期有效"
           type="date"
           value-format="YYYY-MM-DD"
         />
-      </el-form-item>
-    </el-form>
+      </FormItem>
+    </Form>
     <template #footer>
-      <el-button v-if="user?.subscription" type="danger" plain @click="emit('cancel-sub')">
+      <Button v-if="user?.subscription" variant="danger" plain @click="emit('cancel-sub')">
         取消订阅
-      </el-button>
-      <el-button @click="emit('update:modelValue', false)">关闭</el-button>
-      <el-button type="primary" :loading="isSubLoading" @click="handleSave"> 保存订阅 </el-button>
+      </Button>
+      <Button @click="emit('update:modelValue', false)">关闭</Button>
+      <Button variant="primary" :loading="isSubLoading" @click="handleSave"> 保存订阅 </Button>
     </template>
   </Modal>
 </template>

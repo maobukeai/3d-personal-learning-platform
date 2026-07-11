@@ -159,19 +159,19 @@ const columnVisibilityLabel = (field: string): string => {
         class="!bg-transparent border-none shrink-0"
       />
 
-      <el-popover
+      <GlassPopover
         v-if="viewMode === 'board'"
         placement="bottom-end"
         :width="180"
         trigger="click"
-        popper-class="glass-card"
+        popper-class="glass-popover"
       >
         <template #reference>
           <button
             type="button"
-            class="px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all flex items-center gap-1 cursor-pointer shrink-0 animate-spin-hover"
+            class="px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all flex items-center gap-1 cursor-pointer shrink-0"
           >
-            <SlidersHorizontal class="w-3.5 h-3.5 text-slate-500" />
+            <SlidersHorizontal class="w-3.5 h-3.5 text-slate-500 animate-spin-hover" />
             <span>卡片设置</span>
           </button>
         </template>
@@ -195,21 +195,21 @@ const columnVisibilityLabel = (field: string): string => {
             <span>{{ cardSettingLabel(String(field)) }}</span>
           </label>
         </div>
-      </el-popover>
+      </GlassPopover>
 
-      <el-popover
+      <GlassPopover
         v-if="viewMode === 'list'"
         placement="bottom-end"
         :width="180"
         trigger="click"
-        popper-class="glass-card"
+        popper-class="glass-popover"
       >
         <template #reference>
           <button
             type="button"
-            class="px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all flex items-center gap-1 cursor-pointer shrink-0 animate-spin-hover"
+            class="px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all flex items-center gap-1 cursor-pointer shrink-0"
           >
-            <SlidersHorizontal class="w-3.5 h-3.5 text-slate-500" />
+            <SlidersHorizontal class="w-3.5 h-3.5 text-slate-500 animate-spin-hover" />
             <span>卡片设置</span>
           </button>
         </template>
@@ -233,7 +233,7 @@ const columnVisibilityLabel = (field: string): string => {
             <span>{{ columnVisibilityLabel(String(field)) }}</span>
           </label>
         </div>
-      </el-popover>
+      </GlassPopover>
 
       <button
         type="button"

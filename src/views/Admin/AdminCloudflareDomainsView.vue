@@ -12,7 +12,7 @@ import {
   Play,
   Lock,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import { fetchManagementInsights } from './adminManagementInsights';

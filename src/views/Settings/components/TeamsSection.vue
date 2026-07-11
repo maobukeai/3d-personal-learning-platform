@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { ExternalLink, RefreshCw, Search, ShieldCheck, Users } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { fetchTeams, type TeamWorkspaceResponse } from '@/services/workspace.service';

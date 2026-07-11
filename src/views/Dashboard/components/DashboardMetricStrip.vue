@@ -27,6 +27,7 @@ const props = defineProps<{
     approvedAssets: number;
     pendingAssets: number;
   };
+  isSidebar?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -92,7 +93,7 @@ function getTrendClass(trend?: string) {
 </script>
 
 <template>
-  <section class="metric-strip" aria-label="核心指标">
+  <section class="metric-strip" :class="{ 'sidebar-layout': isSidebar }" aria-label="核心指标">
     <Card
       v-for="metric in metricTiles"
       :key="metric.id"
@@ -216,5 +217,9 @@ function getTrendClass(trend?: string) {
   .metric-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.metric-strip.sidebar-layout {
+  grid-template-columns: 1fr !important;
 }
 </style>

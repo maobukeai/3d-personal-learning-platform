@@ -1,13 +1,19 @@
 import { logger } from '../utils/logger';
-import { Response } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import crypto from 'crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
-import { AuthRequest } from '../middlewares/auth.middleware';
 import { createPaginationMeta, getPaginationParams } from '../utils/pagination';
 
+type AdminRequest = FastifyRequest & {
+  body: any;
+  query: any;
+  params: any;
+  file?: any;
+};
+
 // Admin: Get all activation codes
-export const getAllActivationCodes = async (req: AuthRequest, res: Response) => {
+export const getAllActivationCodes = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query, 100, 500);
     const status =
@@ -50,39 +56,39 @@ export const getAllActivationCodes = async (req: AuthRequest, res: Response) => 
       }),
     ]);
 
-    res.json({
+    reply.send({
       data: codes,
       pagination: createPaginationMeta(page, limit, total),
     });
   } catch (error) {
     logger.error('Get all activation codes error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    reply.status(500).send({ error: 'Internal server error' });
   }
 };
 
 // Admin: Batch create activation codes
-export const createActivationCode = async (req: AuthRequest, res: Response) => {
+export const createActivationCode = async (req: AdminRequest, reply: FastifyReply) => {
   const { planId, durationDays, quantity, expiresAt, bindEmail, description, prefix } = req.body;
 
   if (!planId || !durationDays || !quantity) {
-    return res.status(400).json({ error: '请提供订阅计划、持续天数和生成数量' });
+    return reply.status(400).send({ error: '请提供订阅计划、持续天数和生成数量' });
   }
 
   const duration = parseInt(durationDays, 10);
   const qty = parseInt(quantity, 10);
 
   if (isNaN(duration) || duration <= 0) {
-    return res.status(400).json({ error: '天数必须为正整数' });
+    return reply.status(400).send({ error: '天数必须为正整数' });
   }
   if (isNaN(qty) || qty <= 0 || qty > 100) {
-    return res.status(400).json({ error: '生成数量必须在 1 到 100 之间' });
+    return reply.status(400).send({ error: '生成数量必须在 1 到 100 之间' });
   }
 
   let expiresAtDate: Date | null = null;
   if (expiresAt && typeof expiresAt === 'string' && expiresAt.trim() !== '') {
     expiresAtDate = new Date(expiresAt);
     if (isNaN(expiresAtDate.getTime())) {
-      return res.status(400).json({ error: '无效的过期日期格式' });
+      return reply.status(400).send({ error: '无效的过期日期格式' });
     }
   }
 
@@ -92,7 +98,7 @@ export const createActivationCode = async (req: AuthRequest, res: Response) => {
     });
 
     if (!plan) {
-      return res.status(404).json({ error: '指定的订阅计划不存在' });
+      return reply.status(404).send({ error: '指定的订阅计划不存在' });
     }
 
     const codesData = [];
@@ -123,18 +129,18 @@ export const createActivationCode = async (req: AuthRequest, res: Response) => {
       data: codesData,
     });
 
-    res.status(201).json({
+    reply.status(201).send({
       message: `成功生成 ${qty} 个激活码`,
       codes: codesData.map((c) => c.code),
     });
   } catch (error) {
     logger.error('Create activation codes error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    reply.status(500).send({ error: 'Internal server error' });
   }
 };
 
 // Admin: Delete/Invalidate an activation code
-export const deleteActivationCode = async (req: AuthRequest, res: Response) => {
+export const deleteActivationCode = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
 
   try {
@@ -143,31 +149,36 @@ export const deleteActivationCode = async (req: AuthRequest, res: Response) => {
     });
 
     if (!code) {
-      return res.status(404).json({ error: '激活码不存在' });
+      return reply.status(404).send({ error: '激活码不存在' });
     }
 
     await prisma.activationCode.delete({
       where: { id },
     });
 
-    res.json({ message: '激活码已成功删除' });
+    reply.send({ message: '激活码已成功删除' });
   } catch (error) {
     logger.error('Delete activation code error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    reply.status(500).send({ error: 'Internal server error' });
   }
 };
 
 // User: Redeem an activation code
-export const redeemActivationCode = async (req: AuthRequest, res: Response) => {
-  const userId = req.userId;
-  const { code } = req.body;
+export const redeemActivationCode = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId;
+  const { code } = request.body as { code?: string };
 
   if (!userId) {
-    return res.status(401).json({ error: '未授权访问' });
+    reply.status(401).send({ error: '未授权访问' });
+    return;
   }
 
   if (!code || typeof code !== 'string') {
-    return res.status(400).json({ error: '请输入有效的激活码' });
+    reply.status(400).send({ error: '请输入有效的激活码' });
+    return;
   }
 
   const cleanCode = code.trim().toUpperCase();
@@ -293,14 +304,14 @@ export const redeemActivationCode = async (req: AuthRequest, res: Response) => {
       };
     });
 
-    res.json({
+    reply.send({
       message: '兑换成功！您的权限已生效',
       planName: result.planName,
       endDate: result.endDate,
     });
   } catch (error) {
-    res
-      .status(400)
-      .json({ error: error instanceof Error ? error.message : '兑换失败，请稍后重试' });
+    reply.status(400).send({
+      error: error instanceof Error ? error.message : '兑换失败，请稍后重试',
+    });
   }
 };

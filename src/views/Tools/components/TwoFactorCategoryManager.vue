@@ -41,7 +41,7 @@ function isPendingEmpty(category: string): boolean {
 </script>
 
 <template>
-  <Modal :show="visible" title="管理分组" size="md" glass-card @close="visible = false">
+  <Modal :show="visible" title="管理分组" size="md" @close="visible = false">
     <div class="space-y-4">
       <!-- Create new category -->
       <div
@@ -50,7 +50,7 @@ function isPendingEmpty(category: string): boolean {
       >
         <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">新建分组</p>
         <div class="flex items-center gap-2">
-          <el-input
+          <Input
             v-model="localNewCategoryName"
             placeholder="输入新分组名称，如: 工作、金融、游戏..."
             class="custom-dialog-input flex-1"

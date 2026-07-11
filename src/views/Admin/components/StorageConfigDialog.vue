@@ -7,7 +7,7 @@ import Checkbox from '@/components/ui/Checkbox.vue';
 import FormDialog from '@/components/FormDialog.vue';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import type { StorageConfigForm, AssetTypeOption } from './StorageSettingsTab.types';
 
 interface Props {
@@ -56,7 +56,7 @@ const handleRevealSecrets = async () => {
   <FormDialog
     v-model:visible="visible"
     :title="props.isEdit ? '编辑云端存储配置' : '添加云端存储配置'"
-    width="920px"
+    size="xl"
   >
     <div class="space-y-4 py-1">
       <!-- Section: Basic Information -->
@@ -86,27 +86,27 @@ const handleRevealSecrets = async () => {
             >
               应用类型 <span class="text-red-500">*</span>
             </label>
-            <el-select
+            <Select
               v-model="form.assetType"
               class="w-full custom-dialog-input"
               placeholder="选择类型"
             >
-              <el-option
+              <SelectOption
                 v-for="type in props.assetTypes"
                 :key="type.value"
                 :label="type.label"
                 :value="type.value"
               />
-            </el-select>
+            </Select>
           </div>
           <div>
             <label
               class="block text-xs font-bold uppercase tracking-wider mb-2 ml-1 text-[var(--text-secondary)]"
               >提供商</label
             >
-            <el-select v-model="form.provider" disabled class="w-full custom-dialog-input">
-              <el-option value="CLOUDFLARE_R2" label="Cloudflare R2" />
-            </el-select>
+            <Select v-model="form.provider" disabled class="w-full custom-dialog-input">
+              <SelectOption value="CLOUDFLARE_R2" label="Cloudflare R2" />
+            </Select>
           </div>
         </div>
       </div>
@@ -122,7 +122,13 @@ const handleRevealSecrets = async () => {
             @click="handleRevealSecrets"
           >
             <component :is="showPlaintextSecrets ? EyeOff : Eye" class="w-3.5 h-3.5" />
-            <span>{{ loadingRevealedSecrets ? '正在解密...' : (showPlaintextSecrets ? '隐藏明文密钥' : '管理员查看已存密钥') }}</span>
+            <span>{{
+              loadingRevealedSecrets
+                ? '正在解密...'
+                : showPlaintextSecrets
+                  ? '隐藏明文密钥'
+                  : '管理员查看已存密钥'
+            }}</span>
           </button>
         </div>
         <div class="grid grid-cols-4 gap-3 mobile-grid">
@@ -149,7 +155,9 @@ const handleRevealSecrets = async () => {
               v-model="form.secretAccessKey"
               :type="showPlaintextSecrets ? 'text' : 'password'"
               label="Secret Access Key"
-              :placeholder="props.isEdit ? '已加密（留空保持原值，点右上角解密查看）' : 'R2 机密存取密钥'"
+              :placeholder="
+                props.isEdit ? '已加密（留空保持原值，点右上角解密查看）' : 'R2 机密存取密钥'
+              "
               input-class="!py-2.5 font-mono text-xs"
               :required="!props.isEdit"
             />
@@ -159,7 +167,11 @@ const handleRevealSecrets = async () => {
               v-model="form.cloudflareApiToken"
               :type="showPlaintextSecrets ? 'text' : 'password'"
               label="Cloudflare API Token（可选，推荐）"
-              :placeholder="props.isEdit ? '已加密（留空保持原值，点右上角解密查看）' : '此 Cloudflare 账号的 R2 只读 API Token'"
+              :placeholder="
+                props.isEdit
+                  ? '已加密（留空保持原值，点右上角解密查看）'
+                  : '此 Cloudflare 账号的 R2 只读 API Token'
+              "
               input-class="!py-2.5 font-mono text-xs"
             />
             <p class="text-[9px] leading-relaxed mt-1" style="color: var(--text-secondary)">

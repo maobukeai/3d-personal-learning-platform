@@ -39,7 +39,7 @@ function emitUpdate(patch: Partial<ShowcaseForm>) {
 </script>
 
 <template>
-  <Modal :show="show" size="lg" glass-card @close="show = false">
+  <Modal :show="show" size="lg" @close="show = false">
     <template #header>
       <div>
         <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">

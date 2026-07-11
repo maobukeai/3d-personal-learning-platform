@@ -1,6 +1,4 @@
 import request from 'supertest';
-import path from 'path';
-import fs from 'fs';
 import bcrypt from 'bcryptjs';
 
 // Mock asset-processor to avoid gltf-transform ESM issues
@@ -17,6 +15,7 @@ jest.mock('../../src/services/ai.service', () => ({
 import app from '../../src/app';
 import prisma from '../../src/services/prisma';
 import { callLLM } from '../../src/services/ai.service';
+import { resetFastifyDailyQuoteCacheForTesting } from '../../src/fastify/routes/note.routes';
 
 const mockCallLLM = callLLM as jest.Mock;
 
@@ -24,7 +23,6 @@ describe('Daily Quote API Integration Tests', () => {
   const email = 'quote-test-user@example.com';
   const password = 'password123';
   let authCookies: string[] = [];
-  const cacheFilePath = path.join(__dirname, '../../uploads/daily-quote.json');
 
   beforeAll(async () => {
     // Clean up test user just in case
@@ -41,9 +39,7 @@ describe('Daily Quote API Integration Tests', () => {
     });
 
     // Log in to get auth cookies
-    const loginRes = await request(app)
-      .post('/api/auth/login')
-      .send({ email, password });
+    const loginRes = await request(app).post('/api/auth/login').send({ email, password });
     authCookies = loginRes.get('Set-Cookie') || [];
   });
 
@@ -54,20 +50,13 @@ describe('Daily Quote API Integration Tests', () => {
 
   beforeEach(() => {
     mockCallLLM.mockReset();
-    if (fs.existsSync(cacheFilePath)) {
-      fs.unlinkSync(cacheFilePath);
-    }
+    resetFastifyDailyQuoteCacheForTesting();
   });
 
-  afterEach(() => {
-    if (fs.existsSync(cacheFilePath)) {
-      fs.unlinkSync(cacheFilePath);
-    }
-  });
-
-  it('requires authentication for GET', async () => {
+  it('allows guest to GET daily quote', async () => {
     const res = await request(app).get('/api/notes/daily-quote');
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ quote: null, generated: false });
   });
 
   it('requires authentication for POST /generate', async () => {
@@ -75,17 +64,14 @@ describe('Daily Quote API Integration Tests', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns ungenerated state if no cache file exists', async () => {
-    const res = await request(app)
-      .get('/api/notes/daily-quote')
-      .set('Cookie', authCookies);
+  it('returns ungenerated state when cache is empty', async () => {
+    const res = await request(app).get('/api/notes/daily-quote').set('Cookie', authCookies);
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ quote: null, generated: false });
-    expect(fs.existsSync(cacheFilePath)).toBe(false);
   });
 
-  it('returns the LLM-generated quote and saves it to cache when POST /generate is called successfully', async () => {
+  it('returns the LLM-generated quote and caches it in memory when POST /generate is called successfully', async () => {
     const testQuote = '保持好奇，勇于探索未知的3D领域！';
     mockCallLLM.mockResolvedValue(testQuote);
 
@@ -96,11 +82,14 @@ describe('Daily Quote API Integration Tests', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ quote: testQuote, generated: true });
 
-    // Verify cache file exists
-    expect(fs.existsSync(cacheFilePath)).toBe(true);
-    const cached = JSON.parse(fs.readFileSync(cacheFilePath, 'utf8'));
-    expect(cached.quote).toBe(testQuote);
-    expect(cached).toHaveProperty('date');
+    // Verify the in-memory cache is populated by issuing a follow-up GET,
+    // which should serve the cached quote without calling the LLM again.
+    mockCallLLM.mockReset();
+    const cachedRes = await request(app).get('/api/notes/daily-quote').set('Cookie', authCookies);
+
+    expect(cachedRes.status).toBe(200);
+    expect(cachedRes.body).toEqual({ quote: testQuote, generated: true });
+    expect(mockCallLLM).not.toHaveBeenCalled();
   });
 
   it('returns fallback quote if POST /generate is called but callLLM fails', async () => {
@@ -115,8 +104,11 @@ describe('Daily Quote API Integration Tests', () => {
     expect(typeof res.body.quote).toBe('string');
     expect(res.body.quote.length).toBeGreaterThan(0);
 
-    // Verify cache file exists
-    expect(fs.existsSync(cacheFilePath)).toBe(true);
+    // Verify the fallback quote was cached in memory.
+    const cachedRes = await request(app).get('/api/notes/daily-quote').set('Cookie', authCookies);
+
+    expect(cachedRes.status).toBe(200);
+    expect(cachedRes.body).toEqual({ quote: res.body.quote, generated: true });
   });
 
   it('serves the cached quote on GET visits once generated', async () => {
@@ -124,9 +116,7 @@ describe('Daily Quote API Integration Tests', () => {
     mockCallLLM.mockResolvedValue(testQuote);
 
     // 1. Initial state: ungenerated
-    const initialGet = await request(app)
-      .get('/api/notes/daily-quote')
-      .set('Cookie', authCookies);
+    const initialGet = await request(app).get('/api/notes/daily-quote').set('Cookie', authCookies);
     expect(initialGet.body).toEqual({ quote: null, generated: false });
 
     // 2. Generate
@@ -137,9 +127,7 @@ describe('Daily Quote API Integration Tests', () => {
 
     // 3. Subsequent GET hits cache, does not call LLM again
     mockCallLLM.mockReset(); // Clear calls count
-    const secondGet = await request(app)
-      .get('/api/notes/daily-quote')
-      .set('Cookie', authCookies);
+    const secondGet = await request(app).get('/api/notes/daily-quote').set('Cookie', authCookies);
     expect(secondGet.body).toEqual({ quote: testQuote, generated: true });
     expect(mockCallLLM).not.toHaveBeenCalled();
   });

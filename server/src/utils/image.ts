@@ -1,6 +1,5 @@
 import sharp from 'sharp';
 import { optimize } from 'svgo';
-import fs from 'fs/promises';
 import path from 'path';
 import { logger } from './logger';
 
@@ -27,42 +26,38 @@ const FIELD_CONFIGS: Record<string, FieldConfig> = {
 };
 
 /**
- * Optimizes an uploaded image file on disk.
+ * Optimizes an uploaded image file in memory (memoryStorage).
  * - Raster images (PNG, JPEG, BMP, TIFF, GIF) are converted to WebP and resized according to field rules.
  * - SVGs are optimized programmatically using svgo.
- * - The original file is deleted if the extension or name changes, and the file metadata is updated in place.
+ * - The file metadata (buffer, size, mimetype, originalname) is updated in place.
+ *
+ * Note: With multer.memoryStorage(), `file.buffer` is a Buffer and `file.path` is undefined.
  */
 export async function optimizeImage(file: Express.Multer.File): Promise<void> {
   const ext = path.extname(file.originalname).toLowerCase();
-  const filePath = file.path;
-
-  // Verify file exists on disk
-  try {
-    await fs.access(filePath);
-  } catch {
-    logger.error(`[ImageOptimize] File not found on disk: ${filePath}`);
-    return;
-  }
 
   // 1. Handle SVG Optimization
   if (ext === '.svg') {
     try {
-      logger.info(`[ImageOptimize] Optimizing SVG: ${filePath}`);
-      const svgContent = await fs.readFile(filePath, 'utf8');
+      if (!file.buffer) {
+        logger.error(`[ImageOptimize] SVG file buffer is missing: ${file.originalname}`);
+        return;
+      }
+      logger.info(`[ImageOptimize] Optimizing SVG: ${file.originalname}`);
+      const svgContent = file.buffer.toString('utf8');
       const result = optimize(svgContent, {
-        path: filePath,
+        path: file.originalname,
         multipass: true,
       });
 
       if (result.data) {
-        await fs.writeFile(filePath, result.data, 'utf8');
-        const stat = await fs.stat(filePath);
-        file.size = stat.size;
+        file.buffer = Buffer.from(result.data, 'utf8');
+        file.size = file.buffer.length;
         file.mimetype = 'image/svg+xml';
         logger.info(`[ImageOptimize] SVG optimized. New size: ${file.size} bytes`);
       }
     } catch (err) {
-      logger.error(`[ImageOptimize] Failed to optimize SVG: ${filePath}`, err);
+      logger.error(`[ImageOptimize] Failed to optimize SVG: ${file.originalname}`, err);
       // Keep SVG as-is if optimization fails (non-blocking fallback)
     }
     return;
@@ -76,6 +71,9 @@ export async function optimizeImage(file: Express.Multer.File): Promise<void> {
   }
 
   try {
+    if (!file.buffer) {
+      throw new Error('File buffer is missing');
+    }
     const config = FIELD_CONFIGS[file.fieldname] || FIELD_CONFIGS.default;
     if (!config) {
       throw new Error('Image config default fallback is missing');
@@ -84,8 +82,8 @@ export async function optimizeImage(file: Express.Multer.File): Promise<void> {
     // Check if GIF is animated to preserve animations
     const isGif = ext === '.gif';
 
-    // Set up sharp processing pipeline
-    let pipeline = sharp(filePath, isGif ? { animated: true } : {});
+    // Set up sharp processing pipeline from buffer
+    let pipeline = sharp(file.buffer, isGif ? { animated: true } : {});
 
     // Resize image to fit inside configured bounding box
     pipeline = pipeline.resize({
@@ -101,23 +99,12 @@ export async function optimizeImage(file: Express.Multer.File): Promise<void> {
       force: true,
     });
 
-    // Determine new file path and filename with .webp extension
-    const dir = path.dirname(filePath);
-    const originalBasename = path.basename(filePath, ext);
-    const newFilename = `${originalBasename}.webp`;
-    const newPath = path.join(dir, newFilename);
-
-    // Write optimized image to new WebP file
-    await pipeline.toFile(newPath);
-
-    // Delete old file if the path/extension has changed
-    if (newPath !== filePath) {
-      await fs.unlink(filePath);
-    }
+    // Write optimized image to a buffer
+    const resultBuffer = await pipeline.toBuffer();
 
     // Update Multer file metadata in place
-    file.path = newPath;
-    file.filename = newFilename;
+    file.buffer = resultBuffer;
+    file.size = resultBuffer.length;
     file.mimetype = 'image/webp';
 
     // Update originalname to match the new webp extension
@@ -125,15 +112,37 @@ export async function optimizeImage(file: Express.Multer.File): Promise<void> {
     const origBase = path.basename(file.originalname, origExt);
     file.originalname = `${origBase}.webp`;
 
-    // Fetch new size
-    const stat = await fs.stat(newPath);
-    file.size = stat.size;
-
     logger.info(
       `[ImageOptimize] Image compressed successfully. Formatted as WebP. New size: ${file.size} bytes`,
     );
   } catch (err) {
-    logger.error(`[ImageOptimize] Compression failed for file: ${filePath}`, err);
+    logger.error(`[ImageOptimize] Compression failed for file: ${file.originalname}`, err);
     throw new Error(`图片压缩处理失败: ${err instanceof Error ? err.message : String(err)}`);
   }
+}
+
+/**
+ * Downsamples an image buffer to fit within the given bounding box.
+ * Returns a new Buffer containing the downsampled image (same format as input).
+ *
+ * @param buffer   - Source image buffer
+ * @param maxWidth - Maximum width in pixels (default 1024)
+ * @param maxHeight- Maximum height in pixels (default 1024)
+ */
+export async function downsampleImageBuffer(
+  buffer: Buffer,
+  maxWidth = 1024,
+  maxHeight = 1024,
+): Promise<Buffer> {
+  if (!buffer) {
+    throw new Error('downsampleImageBuffer: buffer is required');
+  }
+  return sharp(buffer)
+    .resize({
+      width: maxWidth,
+      height: maxHeight,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .toBuffer();
 }

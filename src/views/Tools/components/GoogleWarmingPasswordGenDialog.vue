@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { Sparkles, Copy, RefreshCw } from 'lucide-vue-next';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
@@ -107,7 +107,7 @@ const close = () => {
 </script>
 
 <template>
-  <Modal :show="props.show" title="密码生成器" size="md" glass-card @close="close">
+  <Modal :show="props.show" title="密码生成器" size="md" @close="close">
     <div class="space-y-4">
       <div
         class="flex items-center gap-2 p-3 rounded-xl border relative group"

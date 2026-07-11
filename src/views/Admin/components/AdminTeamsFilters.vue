@@ -42,57 +42,57 @@ const sortOptions = [
 <template>
   <Card padding="sm">
     <div class="flex items-center gap-2 flex-wrap">
-      <el-select
+      <Select
         :model-value="props.visibilityFilter"
         size="small"
         style="width: 110px"
         @update:model-value="emit('update:visibilityFilter', $event as VisibilityFilter)"
       >
-        <el-option
+        <SelectOption
           v-for="option in visibilityOptions"
           :key="option.value"
           :label="option.label"
           :value="option.value"
         />
-      </el-select>
+      </Select>
 
-      <el-select
+      <Select
         :model-value="props.riskFilter"
         size="small"
         style="width: 120px"
         @update:model-value="emit('update:riskFilter', $event as RiskFilter)"
       >
-        <el-option
+        <SelectOption
           v-for="option in riskOptions"
           :key="option.value"
           :label="option.label"
           :value="option.value"
         />
-      </el-select>
+      </Select>
 
-      <el-select
+      <Select
         :model-value="props.categoryFilter"
         size="small"
         style="width: 110px"
         @update:model-value="emit('update:categoryFilter', $event as string)"
       >
-        <el-option label="全部分类" value="" />
-        <el-option v-for="cat in props.categories" :key="cat" :label="cat" :value="cat" />
-      </el-select>
+        <SelectOption label="全部分类" value="" />
+        <SelectOption v-for="cat in props.categories" :key="cat" :label="cat" :value="cat" />
+      </Select>
 
-      <el-select
+      <Select
         :model-value="props.sortBy"
         size="small"
         style="width: 110px"
         @update:model-value="emit('update:sortBy', $event as SortBy)"
       >
-        <el-option
+        <SelectOption
           v-for="option in sortOptions"
           :key="option.value"
           :label="option.label"
           :value="option.value"
         />
-      </el-select>
+      </Select>
     </div>
   </Card>
 </template>

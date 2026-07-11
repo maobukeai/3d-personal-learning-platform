@@ -336,7 +336,7 @@ export async function flushDirectMessageEmailBatch(batchId: string) {
 
 export async function schedulePendingDirectMessageEmails() {
   // Guard: if the model doesn't exist in this deployment's schema, skip silently
-  if (!(prisma as any).directMessageEmailBatch) {
+  if (!prisma.directMessageEmailBatch) {
     return 0;
   }
 

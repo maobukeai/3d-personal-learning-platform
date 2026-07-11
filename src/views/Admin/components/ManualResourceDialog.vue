@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import {
   ArrowLeft,
   Edit3,
@@ -259,39 +259,39 @@ defineExpose({
 
         <!-- Center: Preview Mode Toggle -->
         <div class="absolute left-1/2 -translate-x-1/2 hidden sm:block">
-          <el-radio-group v-model="previewMode" size="small" class="preview-mode-toggle">
-            <el-radio-button value="edit">
+          <RadioGroup v-model="previewMode" size="small" class="preview-mode-toggle">
+            <RadioButton value="edit">
               <div class="flex items-center gap-1.5 px-2">
                 <Edit3 class="w-3.5 h-3.5" /> <span>{{ $t('admin.edit') }}</span>
               </div>
-            </el-radio-button>
-            <el-radio-button value="live">
+            </RadioButton>
+            <RadioButton value="live">
               <div class="flex items-center gap-1.5 px-2">
                 <Layout class="w-3.5 h-3.5" /> <span>{{ $t('admin.real_time') }}</span>
               </div>
-            </el-radio-button>
-            <el-radio-button value="preview">
+            </RadioButton>
+            <RadioButton value="preview">
               <div class="flex items-center gap-1.5 px-2">
                 <Eye class="w-3.5 h-3.5" /> <span>{{ $t('admin.preview') }}</span>
               </div>
-            </el-radio-button>
-          </el-radio-group>
+            </RadioButton>
+          </RadioGroup>
         </div>
 
         <!-- Right: Sidebar Toggle + Save -->
         <div class="flex items-center gap-2">
           <!-- Mobile preview toggle -->
-          <el-radio-group v-model="previewMode" size="small" class="preview-mode-toggle sm:hidden">
-            <el-radio-button value="edit">
+          <RadioGroup v-model="previewMode" size="small" class="preview-mode-toggle sm:hidden">
+            <RadioButton value="edit">
               <Edit3 class="w-3.5 h-3.5" />
-            </el-radio-button>
-            <el-radio-button value="live">
+            </RadioButton>
+            <RadioButton value="live">
               <Layout class="w-3.5 h-3.5" />
-            </el-radio-button>
-            <el-radio-button value="preview">
+            </RadioButton>
+            <RadioButton value="preview">
               <Eye class="w-3.5 h-3.5" />
-            </el-radio-button>
-          </el-radio-group>
+            </RadioButton>
+          </RadioGroup>
 
           <button
             type="button"
@@ -329,7 +329,7 @@ defineExpose({
             <div
               class="bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-2xl min-h-[70vh] px-5 md:px-12 py-6 md:py-12 transition-all duration-300"
             >
-              <el-input
+              <Input
                 v-model="resourceForm.title"
                 :placeholder="$t('admin.please_enter_a_resource')"
                 class="editor-modern-title mb-6"
@@ -379,20 +379,20 @@ defineExpose({
                 <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 shrink-0"></span>
                 所属分类
               </label>
-              <el-select
+              <Select
                 v-model="resourceForm.categoryId"
                 :placeholder="$t('admin.select_category')"
                 size="small"
                 class="w-full"
               >
-                <el-option :label="$t('admin.no_classification_yet')" value="" />
-                <el-option
+                <SelectOption :label="$t('admin.no_classification_yet')" value="" />
+                <SelectOption
                   v-for="cat in props.formattedCategories"
                   :key="cat.id"
                   :label="cat.name"
                   :value="cat.id"
                 />
-              </el-select>
+              </Select>
             </div>
 
             <!-- Resource Type -->
@@ -401,18 +401,18 @@ defineExpose({
                 <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
                 资源类型
               </label>
-              <el-select
+              <Select
                 v-model="resourceForm.resourceType"
                 :placeholder="$t('admin.select_type')"
                 size="small"
                 class="w-full"
               >
-                <el-option :label="$t('admin.courses_tutorials')" value="COURSE" />
-                <el-option :label="$t('admin.3d_model')" value="MODEL" />
-                <el-option :label="$t('admin.material_map')" value="MATERIAL" />
-                <el-option :label="$t('admin.software_plug_in')" value="SOFTWARE" />
-                <el-option :label="$t('admin.other_resources')" value="OTHER" />
-              </el-select>
+                <SelectOption :label="$t('admin.courses_tutorials')" value="COURSE" />
+                <SelectOption :label="$t('admin.3d_model')" value="MODEL" />
+                <SelectOption :label="$t('admin.material_map')" value="MATERIAL" />
+                <SelectOption :label="$t('admin.software_plug_in')" value="SOFTWARE" />
+                <SelectOption :label="$t('admin.other_resources')" value="OTHER" />
+              </Select>
             </div>
 
             <!-- Download URL + Netdisk Badge -->
@@ -428,7 +428,7 @@ defineExpose({
                   {{ parsedNetdisk.name }}
                 </span>
               </label>
-              <el-input
+              <Input
                 v-model="resourceForm.contentUrl"
                 placeholder="https://pan.quark.cn/s/..."
                 size="small"
@@ -474,7 +474,7 @@ defineExpose({
                   />
                 </label>
               </div>
-              <el-input
+              <Input
                 v-model="resourceForm.thumbnailUrl"
                 :placeholder="$t('admin.or_enter_the_web_1')"
                 size="small"
@@ -488,7 +488,7 @@ defineExpose({
                 <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
                 资源标签
               </label>
-              <el-input
+              <Input
                 v-model="resourceForm.tags"
                 :placeholder="$t('admin.c4d_material_pack_renderer')"
                 size="small"
@@ -504,7 +504,7 @@ defineExpose({
                 <span class="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0"></span>
                 资源描述
               </label>
-              <el-input
+              <Input
                 v-model="resourceForm.description"
                 type="textarea"
                 :rows="3"

@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { ref, defineAsyncComponent } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { Edit3, Layout, Eye, Settings, Check, BookOpen, X } from 'lucide-vue-next';
 import api from '@/utils/api';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
+const TiptapMarkdownEditor = defineAsyncComponent(
+  () => import('@/components/editor/TiptapMarkdownEditor.vue'),
+);
+const useTiptapEditor = import.meta.env.VITE_USE_TIPTAP === 'true';
 
 interface Note {
   id: string;
@@ -133,7 +137,7 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" fullscreen padding="none" glass-card @close="visible = false">
+  <Modal :show="visible" fullscreen padding="none" @close="visible = false">
     <div class="h-screen flex flex-col bg-[var(--bg-app)] overflow-y-auto custom-scrollbar">
       <header
         class="sticky top-0 z-50 h-14 md:h-16 flex items-center justify-between px-3 md:px-8 bg-[var(--bg-app)]/80 backdrop-blur-md border-b border-[var(--border-base)]"
@@ -151,7 +155,7 @@ defineExpose({ open });
         <div class="mobile-row flex items-center gap-2 md:gap-3 min-w-0">
           <SegmentedControl v-model="previewMode" :options="modeOptions" size="sm" />
 
-          <el-dropdown trigger="click" class="lg:hidden">
+          <Dropdown trigger="click" class="lg:hidden">
             <Button
               variant="secondary"
               size="sm"
@@ -192,7 +196,7 @@ defineExpose({ open });
                   >
                     分类/笔记本
                   </p>
-                  <el-select
+                  <Select
                     v-model="formCategory"
                     placeholder="选择或输入笔记本"
                     size="small"
@@ -202,14 +206,14 @@ defineExpose({ open });
                     default-first-option
                     clearable
                   >
-                    <el-option label="默认笔记本" value="默认笔记本" />
-                    <el-option
+                    <SelectOption label="默认笔记本" value="默认笔记本" />
+                    <SelectOption
                       v-for="cat in props.myNotebooksList"
                       :key="cat"
                       :label="cat"
                       :value="cat"
                     />
-                  </el-select>
+                  </Select>
                 </div>
                 <div>
                   <p
@@ -221,7 +225,7 @@ defineExpose({ open });
                 </div>
               </div>
             </template>
-          </el-dropdown>
+          </Dropdown>
           <Button
             variant="primary"
             size="md"
@@ -246,7 +250,14 @@ defineExpose({ open });
               placeholder="无标题"
               class="w-full bg-transparent text-xl md:text-3xl font-extrabold text-[var(--text-primary)] outline-none border-none mb-4 placeholder-slate-300 dark:placeholder-zinc-700"
             />
+            <TiptapMarkdownEditor
+              v-if="useTiptapEditor"
+              v-model="formContent"
+              :auto-focus="true"
+              class="modern-paper-theme"
+            />
             <MarkdownEditor
+              v-else
               v-model="formContent"
               auto-height
               class="modern-paper-theme"
@@ -312,7 +323,7 @@ defineExpose({ open });
                 >
                   分类/笔记本
                 </p>
-                <el-select
+                <Select
                   v-model="formCategory"
                   placeholder="选择或输入笔记本"
                   size="small"
@@ -322,14 +333,14 @@ defineExpose({ open });
                   default-first-option
                   clearable
                 >
-                  <el-option label="默认笔记本" value="默认笔记本" />
-                  <el-option
+                  <SelectOption label="默认笔记本" value="默认笔记本" />
+                  <SelectOption
                     v-for="cat in props.myNotebooksList"
                     :key="cat"
                     :label="cat"
                     :value="cat"
                   />
-                </el-select>
+                </Select>
               </div>
               <div>
                 <p
@@ -348,40 +359,11 @@ defineExpose({ open });
 </template>
 
 <style scoped>
-.preview-mode-toggle :deep(.el-radio-button__inner) {
-  background-color: transparent !important;
-  border: none !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-  color: var(--text-muted) !important;
-}
-.preview-mode-toggle :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-  background-color: var(--bg-card) !important;
-  color: var(--accent) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
-  border-radius: 6px !important;
-}
 .preview-mode-toggle {
-  background-color: var(--bg-app) !important;
-  padding: 2px !important;
-  border-radius: 8px !important;
-  border: 1px solid var(--border-base) !important;
-}
-.editor-modern-title :deep(.el-input__wrapper) {
-  box-shadow: none !important;
-  background-color: transparent !important;
-  padding-left: 0 !important;
-}
-.editor-modern-title :deep(.el-input__inner) {
-  font-size: 1.25rem !important;
-  font-weight: 800 !important;
-  color: var(--text-primary) !important;
-  border: none !important;
-}
-@media (min-width: 768px) {
-  .editor-modern-title :deep(.el-input__inner) {
-    font-size: 1.75rem !important;
-  }
+  background-color: var(--bg-app);
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid var(--border-base);
 }
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;

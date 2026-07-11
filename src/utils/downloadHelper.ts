@@ -1,6 +1,8 @@
 import axios from 'axios';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
+import { useAuthStore } from '@/stores/auth';
+import { preferences } from '@/utils/preferences';
 
 /**
  * Downloads a file in parallel using HTTP Range requests if supported,
@@ -21,10 +23,49 @@ export async function downloadFileMultiThreaded(
   let totalSize = totalSizeOverride || 0;
   let useMultiThread = false;
 
+  const getCleanHost = (hostOrUrl: string) => {
+    let clean = hostOrUrl.trim().toLowerCase();
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+      try {
+        return new URL(clean).host;
+      } catch {
+        clean = clean.replace(/^https?:\/\//, '');
+      }
+    }
+    return clean.split('/')[0];
+  };
+
+  const getCleanHostname = (hostOrUrl: string) => {
+    const host = getCleanHost(hostOrUrl);
+    return host.split(':')[0];
+  };
+
+  const isLocal = (hostname: string) =>
+    ['localhost', '127.0.0.1', '::1'].includes(hostname) || hostname.endsWith('.local');
+
+  const urlHost = getCleanHost(url);
+  const urlHostname = getCleanHostname(url);
+
   const isSameOrigin =
     url.startsWith('/') ||
-    (api.defaults.baseURL && url.startsWith(api.defaults.baseURL)) ||
-    url.includes(window.location.host);
+    urlHost === window.location.host ||
+    (api.defaults.baseURL
+      ? url.startsWith(api.defaults.baseURL) ||
+        urlHost === getCleanHost(api.defaults.baseURL) ||
+        (isLocal(urlHostname) && isLocal(getCleanHostname(api.defaults.baseURL)))
+      : false);
+
+  const headers: Record<string, string> = {};
+  if (isSameOrigin) {
+    const authStore = useAuthStore();
+    if (authStore.accessToken) {
+      headers['Authorization'] = `Bearer ${authStore.accessToken}`;
+    }
+    const activeWorkspaceId = preferences.getActiveWorkspaceId();
+    if (activeWorkspaceId) {
+      headers['X-Workspace-Id'] = activeWorkspaceId;
+    }
+  }
 
   try {
     // 1. Perform HEAD request to query content length and range support.
@@ -35,6 +76,7 @@ export async function downloadFileMultiThreaded(
     try {
       const headRes = await axios.head(url, {
         signal,
+        headers,
         ...(isSameOrigin ? { withCredentials: true } : {}),
       });
       const lenVal = headRes.headers['content-length'];
@@ -53,7 +95,10 @@ export async function downloadFileMultiThreaded(
     if (acceptRanges !== 'none') {
       try {
         const probeRes = await axios.get(url, {
-          headers: { Range: 'bytes=0-0' },
+          headers: {
+            ...headers,
+            Range: 'bytes=0-0',
+          },
           responseType: 'arraybuffer',
           signal,
           ...(isSameOrigin ? { withCredentials: true } : {}),
@@ -127,6 +172,7 @@ export async function downloadFileMultiThreaded(
           .get(url, {
             responseType: 'arraybuffer',
             headers: {
+              ...headers,
               Range: `bytes=${start}-${end}`,
             },
             signal,
@@ -161,6 +207,7 @@ export async function downloadFileMultiThreaded(
       let lastTime = Date.now();
 
       const response = await axios.get(url, {
+        headers,
         responseType: 'blob',
         signal,
         ...(isSameOrigin ? { withCredentials: true } : {}),

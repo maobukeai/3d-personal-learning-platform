@@ -1,10 +1,9 @@
-import axios from 'axios';
-import { Response, NextFunction } from 'express';
+import axios, { type AxiosResponse } from 'axios';
+import type { ServerResponse } from 'http';
+
 import { settingsService } from './settings.service';
 import { logger } from '../utils/logger';
 import prisma from './prisma';
-import path from 'path';
-import fs from 'fs';
 import { configureAxiosProxy } from '../utils/axios-proxy';
 import { touchAiChatSession } from './ai-chat-session.service';
 
@@ -315,7 +314,7 @@ function isJsonResponseMode(responseFormat: unknown): boolean {
     responseFormat === 'json' ||
     (responseFormat != null &&
       typeof responseFormat === 'object' &&
-      (responseFormat as any).type === 'json_object')
+      (responseFormat as { type?: string }).type === 'json_object')
   );
 }
 
@@ -547,51 +546,8 @@ function toUserFacingAIError(error: unknown, provider: AIProvider): string {
   return `AI 服务调用失败: ${errMsg}`;
 }
 
-function getMimeType(filePath: string): string {
-  const ext = path.extname(filePath).toLowerCase();
-  if (ext === '.png') return 'image/png';
-  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
-  if (ext === '.webp') return 'image/webp';
-  return 'application/octet-stream';
-}
-
-const AI_UPLOAD_URL_PREFIX = '/uploads/ai/';
-const MAX_AI_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_AI_IMAGES_PER_MESSAGE = 4;
 const SUPPORTED_AI_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
-
-function resolveSafeAiImagePath(imageUrl: string): string | null {
-  let pathname: string;
-  try {
-    pathname = new URL(imageUrl, 'http://local').pathname;
-  } catch {
-    return null;
-  }
-
-  let decodedPathname: string;
-  try {
-    decodedPathname = decodeURIComponent(pathname);
-  } catch {
-    return null;
-  }
-
-  if (!decodedPathname.startsWith(AI_UPLOAD_URL_PREFIX)) {
-    return null;
-  }
-
-  const fileName = decodedPathname.slice(AI_UPLOAD_URL_PREFIX.length);
-  if (!fileName || fileName.includes('/') || fileName.includes('\\') || fileName.includes('..')) {
-    return null;
-  }
-
-  const uploadDir = path.resolve(process.cwd(), 'uploads', 'ai');
-  const diskPath = path.resolve(uploadDir, fileName);
-  if (!diskPath.startsWith(uploadDir + path.sep)) {
-    return null;
-  }
-
-  return diskPath;
-}
 
 async function fetchExternalImage(url: string): Promise<AIImagePayload | null> {
   try {
@@ -632,29 +588,6 @@ async function extractImagesAndText(
       }
       continue;
     }
-
-    const diskPath = resolveSafeAiImagePath(imgUrl);
-    if (!diskPath) continue;
-
-    try {
-      const stat = await fs.promises.stat(diskPath);
-      const mimeType = getMimeType(diskPath);
-
-      if (!stat.isFile()) continue;
-      if (stat.size > MAX_AI_IMAGE_BYTES) {
-        logger.warn(`[AI Content Parse] Skipped oversized image: ${path.basename(diskPath)}`);
-        continue;
-      }
-      if (!SUPPORTED_AI_IMAGE_MIME_TYPES.has(mimeType)) {
-        logger.warn(`[AI Content Parse] Skipped unsupported image type: ${mimeType}`);
-        continue;
-      }
-
-      const fileBuffer = await fs.promises.readFile(diskPath);
-      images.push({ mimeType, data: fileBuffer.toString('base64') });
-    } catch (e) {
-      logger.warn('[AI Content Parse] Failed to read local AI image:', e);
-    }
   }
 
   // Replace all matches of image markdown with a placeholder indicator
@@ -662,16 +595,58 @@ async function extractImagesAndText(
   return { text: cleanText, images };
 }
 
-function mergeToolCalls(existing: any[], deltas: any[]): any[] {
+interface ToolCallDelta {
+  index?: number;
+  id?: string;
+  type?: string;
+  function?: {
+    name?: string;
+    arguments?: string;
+  };
+}
+
+interface MergedToolCall {
+  id: string;
+  type: string;
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+interface AIToolDefinition {
+  type?: string;
+  function?: {
+    name?: string;
+    description?: string;
+    parameters?: Record<string, unknown>;
+  };
+}
+
+interface AnthropicContentPart {
+  type?: string;
+  text?: string;
+  id?: string;
+  name?: string;
+  input?: Record<string, unknown>;
+}
+
+type AnthropicContentItem =
+  | { type: 'image'; source: { type: string; media_type: string; data: string } }
+  | { type: 'text'; text: string };
+
+function mergeToolCalls(existing: MergedToolCall[], deltas: ToolCallDelta[]): MergedToolCall[] {
   const result = [...existing];
   for (const delta of deltas) {
     const idx = delta.index ?? 0;
     if (!result[idx]) {
       result[idx] = { id: '', type: 'function', function: { name: '', arguments: '' } };
     }
-    if (delta.id) result[idx].id += delta.id;
-    if (delta.function?.name) result[idx].function.name += delta.function.name;
-    if (delta.function?.arguments) result[idx].function.arguments += delta.function.arguments;
+    const target = result[idx];
+    if (delta.id) target.id += delta.id;
+    const fn = delta.function;
+    if (fn?.name) target.function.name += fn.name;
+    if (fn?.arguments) target.function.arguments += fn.arguments;
   }
   return result;
 }
@@ -704,7 +679,7 @@ async function formatAnthropicMessage(role: AIChatRole, content: string) {
     return { role, content };
   }
 
-  const contentArray: any[] = [];
+  const contentArray: AnthropicContentItem[] = [];
   for (const img of images) {
     contentArray.push({
       type: 'image',
@@ -752,17 +727,19 @@ async function formatOllamaMessages(
   return [{ role: 'system', content: systemPrompt }, ...normalizedMessages];
 }
 
-export function sendSSE(res: Response, payload: Record<string, unknown> | '[DONE]') {
-  const streamRes = res as Response & { destroyed?: boolean; closed?: boolean; flush?: () => void };
-  if (res.writableEnded || streamRes.destroyed || streamRes.closed) return;
+export function sendSSE(
+  res: ServerResponse & { flush?: () => void },
+  payload: Record<string, unknown> | '[DONE]',
+) {
+  if (res.writableEnded || res.destroyed || res.closed) return;
   try {
     if (payload === '[DONE]') {
       res.write('data: [DONE]\n\n');
     } else {
       res.write(`data: ${JSON.stringify(payload)}\n\n`);
     }
-    if (typeof streamRes.flush === 'function') {
-      streamRes.flush();
+    if (typeof res.flush === 'function') {
+      res.flush();
     }
   } catch (error) {
     logger.warn('[AI SSE] Failed to write to client stream', error);
@@ -781,9 +758,9 @@ async function prepareRequestConfig(
     temperature?: number;
     isSingleTurn?: boolean;
     promptText?: string;
-    responseFormat?: 'json' | { type: 'json_object' } | any;
-    tools?: any[];
-    toolChoice?: any;
+    responseFormat?: 'json' | { type: 'json_object' } | Record<string, unknown>;
+    tools?: AIToolDefinition[];
+    toolChoice?: Record<string, unknown> | string;
   } = {},
 ): Promise<PreparedAIRequest> {
   const settings = await settingsService.getAll();
@@ -925,7 +902,7 @@ async function prepareRequestConfig(
 
     let geminiTools: unknown[] | undefined;
     if (options.tools && Array.isArray(options.tools)) {
-      const functionDeclarations = options.tools.map((t: any) => {
+      const functionDeclarations = options.tools.map((t: AIToolDefinition) => {
         if (t.type === 'function' && t.function) {
           return {
             name: t.function.name,
@@ -1007,7 +984,7 @@ async function prepareRequestConfig(
 
       let formattedTools: unknown[] | undefined;
       if (options.tools && Array.isArray(options.tools)) {
-        formattedTools = options.tools.map((t: any) => {
+        formattedTools = options.tools.map((t: AIToolDefinition) => {
           if (t.type === 'function' && t.function) {
             return {
               name: t.function.name,
@@ -1127,9 +1104,11 @@ async function executeLLMRequest(
       return text;
     } else if (provider === 'AGNES') {
       if (Array.isArray(response.data?.content)) {
-        const toolUses = response.data.content.filter((part: any) => part.type === 'tool_use');
+        const toolUses = response.data.content.filter(
+          (part: AnthropicContentPart) => part.type === 'tool_use',
+        );
         if (toolUses.length > 0) {
-          const formattedToolCalls = toolUses.map((tu: any) => ({
+          const formattedToolCalls = toolUses.map((tu: AnthropicContentPart) => ({
             id: tu.id,
             type: 'function',
             function: {
@@ -1141,8 +1120,8 @@ async function executeLLMRequest(
         }
 
         const textParts = response.data.content
-          .filter((part: any) => part.type === 'text')
-          .map((part: any) => part.text)
+          .filter((part: AnthropicContentPart) => part.type === 'text')
+          .map((part: AnthropicContentPart) => part.text)
           .join('');
         return textParts;
       } else {
@@ -1283,8 +1262,8 @@ export async function callLLM(
 export async function streamLLMChat(
   messages: AIChatMessage[],
   systemPrompt: string,
-  res: Response,
-  next: NextFunction,
+  res: ServerResponse,
+  next: (err?: unknown) => void,
   overrides?: Partial<AIServiceConfig>,
   userId?: string,
   streamMeta?: Record<string, unknown>,
@@ -1436,7 +1415,7 @@ export async function streamLLMChat(
             );
 
             try {
-              let statusResponse: any = null;
+              let statusResponse: AxiosResponse | null = null;
               let gotValidUrl = false;
 
               // Iterate through target candidate URLs immediately on 404 without waiting
@@ -1451,8 +1430,9 @@ export async function streamLLMChat(
                   statusResponse = await aiHttp.get(currentUrl, { headers });
                   gotValidUrl = true;
                   taskStatusUrl = currentUrl;
-                } catch (pollErr: any) {
-                  if (pollErr.response?.status === 404 && urlIndex < taskUrls.length - 1) {
+                } catch (pollErr: unknown) {
+                  const axiosErr = pollErr as { response?: { status?: number } };
+                  if (axiosErr.response?.status === 404 && urlIndex < taskUrls.length - 1) {
                     logger.warn(`[AI Video Polling 404] url=${currentUrl}, trying fallback URL...`);
                     urlIndex++;
                   } else {
@@ -1482,8 +1462,10 @@ export async function streamLLMChat(
               } else if (status === 'failed') {
                 throw new Error(statusData.reason || statusData.message || '生成任务失败');
               }
-            } catch (pollErr: any) {
-              logger.warn(`[AI Video Polling Error] url=${taskStatusUrl}: ${pollErr.message}`);
+            } catch (pollErr: unknown) {
+              logger.warn(
+                `[AI Video Polling Error] url=${taskStatusUrl}: ${pollErr instanceof Error ? pollErr.message : String(pollErr)}`,
+              );
             }
           }
 
@@ -1593,7 +1575,7 @@ export async function streamLLMChat(
       );
 
       // 4. Request payload setup including Structure Preservation (结构保持) and High Information Density (高信息密度)
-      const imageBody: any = {
+      const imageBody: Record<string, unknown> = {
         model: modelName,
         prompt: cleanPrompt,
         n: 1,
@@ -1606,11 +1588,12 @@ export async function streamLLMChat(
         imageBody.high_density = true;
         imageBody.density = 'high';
         imageBody.quality = 'hd';
-        imageBody.extra_body = {
+        const extraBody: Record<string, unknown> = {
           high_density: true,
           density: 'high',
           quality: 'hd',
         };
+        imageBody.extra_body = extraBody;
 
         if (inputImage) {
           imageBody.image = inputImage;
@@ -1620,11 +1603,11 @@ export async function streamLLMChat(
           imageBody.keep_structure = true;
           imageBody.structure_strength = 0.8;
 
-          imageBody.extra_body.image = inputImage;
-          imageBody.extra_body.image_url = inputImage;
-          imageBody.extra_body.structure_preservation = true;
-          imageBody.extra_body.keep_structure = true;
-          imageBody.extra_body.structure_strength = 0.8;
+          extraBody.image = inputImage;
+          extraBody.image_url = inputImage;
+          extraBody.structure_preservation = true;
+          extraBody.keep_structure = true;
+          extraBody.structure_strength = 0.8;
         }
       } else {
         if (inputImage) {
@@ -1815,11 +1798,11 @@ export async function streamLLMChat(
     let assistantContent = '';
     let assistantReasoning = '';
 
-    let assistantToolCalls: any[] = [];
+    let assistantToolCalls: MergedToolCall[] = [];
     const appendAssistantChunk = (payload: {
       text?: string;
       reasoning?: string;
-      tool_calls?: any[];
+      tool_calls?: ToolCallDelta[];
     }) => {
       if (payload.reasoning) {
         assistantReasoning += payload.reasoning;
@@ -2156,8 +2139,8 @@ export async function callLLMWithFailover(
 export async function streamLLMChatWithFailover(
   messages: AIChatMessage[],
   systemPrompt: string,
-  res: Response,
-  next: NextFunction,
+  res: ServerResponse,
+  next: (err?: unknown) => void,
   userId?: string,
   streamMeta?: Record<string, unknown>,
 ): Promise<void> {
@@ -2303,7 +2286,7 @@ export async function generateImage(
     finalUrl = `${imgUrl}?key=${apiKey}`;
   }
 
-  const imageBody: any = {
+  const imageBody: Record<string, unknown> = {
     model: modelName,
     prompt: prompt,
     n: 1,

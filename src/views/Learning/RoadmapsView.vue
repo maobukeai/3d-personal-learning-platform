@@ -15,7 +15,7 @@ import { computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { Map, Plus, Compass, User, Flame } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
 import PageHeader from '@/components/PageHeader.vue';
@@ -538,11 +538,11 @@ onMounted(() => {
       </div>
 
       <!-- Roadmap Detail Timeline & Analytical Sidebar (Double Column Split Layout) -->
-      <div class="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 scrollbar-hide">
+      <div class="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4.5 scrollbar-hide">
         <div
           v-if="selectedRoadmap"
           :key="selectedRoadmap.id"
-          class="w-full max-w-none space-y-4 sm:space-y-6"
+          class="w-full max-w-none space-y-3 sm:space-y-4"
         >
           <RoadmapDetailHeader
             :roadmap="selectedRoadmap"

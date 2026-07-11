@@ -1,11 +1,23 @@
-import { Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
+
 import prisma from '../../services/prisma';
-import { AuthRequest } from '../../middlewares/auth.middleware';
 import { emitToAll } from '../../services/socket.service';
 import { createNotificationBatch } from '../../utils/notification';
 import { AppError } from '../../utils/error';
-import { auditService, AuditAction, AuditModule } from '../../services/audit.service';
+import {
+  auditService,
+  AuditAction,
+  AuditModule,
+  type AuditRequest,
+} from '../../services/audit.service';
 import { redisService } from '../../services/redis.service';
+
+type AdminRequest = FastifyRequest & {
+  body: any;
+  query: any;
+  params: any;
+  file?: any;
+};
 
 const DASHBOARD_STATS_CACHE_TTL = 30; // seconds
 
@@ -44,13 +56,13 @@ const getAuditSeverity = (action: string) => {
 
 const formatDayKey = (date: Date) => date.toISOString().slice(0, 10);
 
-export const getAdminStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAdminStats = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     // Return cached stats when available (no force-refresh requested)
     if (req.query.refresh !== '1') {
       const cached = await redisService.get<object>('admin_dashboard_stats');
       if (cached) {
-        return res.json(cached);
+        return reply.send(cached);
       }
     }
 
@@ -244,7 +256,8 @@ export const getAdminStats = async (req: AuthRequest, res: Response, next: NextF
       prisma.broadcast.findMany({ take: 5, orderBy: { createdAt: 'desc' } }),
     ]);
 
-    const reviewQueueTotal = pendingAssets + pendingMaterials + pendingShowcases + pendingPlugins + pendingSoftwares;
+    const reviewQueueTotal =
+      pendingAssets + pendingMaterials + pendingShowcases + pendingPlugins + pendingSoftwares;
 
     const stats = {
       counts: {
@@ -335,13 +348,13 @@ export const getAdminStats = async (req: AuthRequest, res: Response, next: NextF
     // Cache the response for 30 seconds to reduce database load
     redisService.set('admin_dashboard_stats', stats, DASHBOARD_STATS_CACHE_TTL).catch(() => {});
 
-    res.json(stats);
+    reply.send(stats);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getAuditLogs = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAuditLogs = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const {
       page = 1,
@@ -410,9 +423,9 @@ export const getAuditLogs = async (req: AuthRequest, res: Response, next: NextFu
         ]),
       ];
 
-      res.header('Content-Type', 'text/csv; charset=utf-8');
-      res.header('Content-Disposition', `attachment; filename="audit-logs-${Date.now()}.csv"`);
-      res.send(`\uFEFF${rows.map((row) => row.map(escapeCsv).join(',')).join('\n')}`);
+      reply.header('Content-Type', 'text/csv; charset=utf-8');
+      reply.header('Content-Disposition', `attachment; filename="audit-logs-${Date.now()}.csv"`);
+      reply.send(`\uFEFF${rows.map((row) => row.map(escapeCsv).join(',')).join('\n')}`);
       return;
     }
 
@@ -491,7 +504,7 @@ export const getAuditLogs = async (req: AuthRequest, res: Response, next: NextFu
       { high: 0, medium: 0, low: 0 },
     );
 
-    res.json({
+    reply.send({
       logs,
       total,
       pages: Math.ceil(total / take),
@@ -521,11 +534,11 @@ export const getAuditLogs = async (req: AuthRequest, res: Response, next: NextFu
       },
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getBroadcasts = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getBroadcasts = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const broadcasts = await prisma.broadcast.findMany({
       orderBy: { createdAt: 'desc' },
@@ -538,13 +551,13 @@ export const getBroadcasts = async (req: AuthRequest, res: Response, next: NextF
         isOffline,
       };
     });
-    res.json(mapped);
+    reply.send(mapped);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteBroadcast = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteBroadcast = async (req: AdminRequest, reply: FastifyReply) => {
   const { id } = req.params;
   try {
     const broadcast = await prisma.broadcast.delete({
@@ -557,20 +570,20 @@ export const deleteBroadcast = async (req: AuthRequest, res: Response, next: Nex
       module: AuditModule.SETTINGS,
       description: `撤回全站广播：${broadcast.title}`,
       oldValue: broadcast,
-      req,
+      req: req as unknown as AuditRequest,
     });
 
-    res.json({ message: '广播已成功撤回' });
+    reply.send({ message: '广播已成功撤回' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const sendBroadcast = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const sendBroadcast = async (req: AdminRequest, reply: FastifyReply) => {
   const { title, content, link } = req.body;
 
   if (!title || !content) {
-    return next(new AppError('标题和内容不能为空', 400));
+    throw new AppError('标题和内容不能为空', 400);
   }
 
   try {
@@ -609,20 +622,16 @@ export const sendBroadcast = async (req: AuthRequest, res: Response, next: NextF
       module: AuditModule.SETTINGS,
       description: `发送全站广播：${title}`,
       newValue: { title, content, link, recipients: users.length },
-      req,
+      req: req as unknown as AuditRequest,
     });
 
-    res.json({ message: `广播发送成功，共发送给 ${users.length} 名用户` });
+    reply.send({ message: `广播发送成功，共发送给 ${users.length} 名用户` });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const toggleBroadcastOffline = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const toggleBroadcastOffline = async (req: AdminRequest, reply: FastifyReply) => {
   const { id } = req.params;
   try {
     const broadcast = await prisma.broadcast.findUnique({
@@ -630,7 +639,7 @@ export const toggleBroadcastOffline = async (
     });
 
     if (!broadcast) {
-      return next(new AppError('该广播不存在', 404));
+      throw new AppError('该广播不存在', 404);
     }
 
     const isCurrentlyOffline = broadcast.title.startsWith('[OFFLINE]');
@@ -655,10 +664,10 @@ export const toggleBroadcastOffline = async (
         : `下架全站广播：${broadcast.title}`,
       newValue: updated,
       oldValue: broadcast,
-      req,
+      req: req as unknown as AuditRequest,
     });
 
-    res.json({
+    reply.send({
       message: isCurrentlyOffline ? '广播已重新发布（上架）' : '广播已下架',
       broadcast: {
         ...updated,
@@ -667,6 +676,6 @@ export const toggleBroadcastOffline = async (
       },
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };

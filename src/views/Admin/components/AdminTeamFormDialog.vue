@@ -90,19 +90,22 @@ const handleSave = () => {
       <label>团队名称<input v-model="form.name" placeholder="例如：角色资产制作组" /></label>
       <label>
         负责人
-        <select v-model="form.ownerId">
-          <option v-for="user in users" :key="user.id" :value="user.id">
-            {{ ownerName(user) }}（{{ user.email }}）
-          </option>
-        </select>
+        <Select v-model="form.ownerId" class="w-full mt-1.5" size="large">
+          <SelectOption
+            v-for="user in users"
+            :key="user.id"
+            :value="user.id"
+            :label="`${ownerName(user)}（${user.email}）`"
+          />
+        </Select>
       </label>
       <div class="form-grid mobile-grid">
         <label>
           可见性
-          <select v-model="form.visibility">
-            <option value="PRIVATE">私有</option>
-            <option value="PUBLIC">公开</option>
-          </select>
+          <Select v-model="form.visibility" class="w-full mt-1.5" size="large">
+            <SelectOption value="PRIVATE" label="私有" />
+            <SelectOption value="PUBLIC" label="公开" />
+          </Select>
         </label>
         <label>分类<input v-model="form.category" placeholder="建模 / 材质 / 教学" /></label>
       </div>

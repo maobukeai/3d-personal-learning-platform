@@ -61,7 +61,11 @@ export const getStorageTypeForField = (fieldname?: string): string => {
   if (fieldname === 'plugin_file' || fieldname === 'plugin_preview' || fieldname === 'plugin') {
     return 'PLUGIN';
   }
-  if (fieldname === 'software_file' || fieldname === 'software_preview' || fieldname === 'software') {
+  if (
+    fieldname === 'software_file' ||
+    fieldname === 'software_preview' ||
+    fieldname === 'software'
+  ) {
     return 'SOFTWARE';
   }
   return 'ALL';
@@ -79,10 +83,19 @@ export const generateS3Key = (filename: string, folderPrefix: string): string =>
   return `${folderPrefix}/${uniqueSuffix}/${sanitized}`;
 };
 
+/** Minimal shape of a storage config needed for quota validation. */
+export interface StorageQuotaConfig {
+  limitGb: number;
+  usedBytes: number;
+}
+
 /**
  * Validates if the file size fits within the cloud storage configuration limit.
  */
-export const checkQuota = async (rawConfig: any, size?: number): Promise<boolean> => {
+export const checkQuota = async (
+  rawConfig: StorageQuotaConfig,
+  size?: number,
+): Promise<boolean> => {
   if (!size) return true;
   const limitBytes = gbToBytes(rawConfig.limitGb);
   return rawConfig.usedBytes + size <= limitBytes;

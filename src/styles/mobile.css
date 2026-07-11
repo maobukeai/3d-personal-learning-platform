@@ -1,0 +1,418 @@
+/* ============================================================
+   Mobile layer
+   合并自 mobile-density + mobile-compact：统一移动端断点策略、
+   视口约束与语义化紧凑布局类。
+
+   设计原则：
+   - 不再通过属性选择器逆向覆盖 Tailwind 工具类（p-* | gap-* | grid-cols-*
+     | text-* | min-h-* 等）。组件应直接消费 --mobile-card-padding、
+     --mobile-section-gap 等令牌，或使用 .mobile-row / .mobile-grid /
+     .mobile-table / .mobile-adaptive 等 opt-in 语义类。
+   - 全文件不使用强制覆盖声明。
+   ============================================================ */
+
+/* 断点变量（仅作参考与一致性；@media 查询不支持 var()，必须使用字面量）。
+   --bp-lg 命名沿用审计约定，专用于 topbar 等中等屏幕场景。 */
+:root {
+  --bp-sm: 420px; /* 超小屏 */
+  --bp-lg: 640px; /* 中等屏（topbar 等特定场景） */
+  --bp-md: 768px; /* 主移动断点上界（查询使用 max-width: 767px） */
+}
+
+/* ============================================================
+   主移动断点：≤ 767px
+   ============================================================ */
+@media (max-width: 767px) {
+  :root {
+    --mobile-topbar-height: 44px;
+    --mobile-bottom-nav-height: 50px;
+    --mobile-page-gutter: 8px;
+    --mobile-card-padding: 10px;
+    --mobile-section-gap: 8px;
+  }
+
+  /* 视口约束，禁止横向滚动 */
+  html,
+  body {
+    overflow-x: hidden;
+    overscroll-behavior-y: auto;
+    max-width: 100vw;
+  }
+
+  html {
+    font-size: clamp(11px, 3.2vw, 14px);
+  }
+
+  body {
+    line-height: 1.45;
+  }
+
+  #app,
+  .app-shell {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  /* 页面根容器视口适配 */
+  .content-surface,
+  .enterprise-page,
+  .auth-shell,
+  .mobile-adaptive {
+    width: 100%;
+    max-width: 100vw;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .enterprise-page {
+    min-height: 100%;
+  }
+
+  /* auth-shell 保持自身内边距，不被 8px 规则覆盖 */
+  .auth-shell {
+    padding-left: inherit;
+    padding-right: inherit;
+  }
+
+  /* 内容区子元素默认可压缩 */
+  .content-surface > div,
+  .content-surface > section,
+  .content-surface > article,
+  .content-surface > main,
+  .enterprise-page > div,
+  .enterprise-page > section,
+  .enterprise-page > article,
+  .enterprise-page > main,
+  .mobile-adaptive > div,
+  .mobile-adaptive > section,
+  .mobile-adaptive > article,
+  .mobile-adaptive > main {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .content-surface :where(h1, h2, h3, h4, p, small, strong, label, th, td),
+  .enterprise-page :where(h1, h2, h3, h4, p, small, strong, label, th, td) {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .content-surface :where(button, a, input, textarea, select),
+  .enterprise-page :where(button, a, input, textarea, select) {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .content-surface :where(button > span, a > span),
+  .enterprise-page :where(button > span, a > span) {
+    min-width: 0;
+  }
+
+  /* 内边距压缩 */
+  .content-surface,
+  .enterprise-page,
+  .mobile-adaptive {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  /* 滚动容器内边距 */
+  .enterprise-page > .flex-1.overflow-y-auto,
+  .enterprise-page > .overflow-y-auto,
+  .content-surface > .overflow-y-auto {
+    padding: var(--mobile-page-gutter);
+  }
+
+  /* 工具栏 / 页头紧凑化 */
+  .enterprise-toolbar,
+  .page-header,
+  .toolbar {
+    min-height: 44px;
+    gap: var(--mobile-section-gap);
+    padding: 7px 9px;
+  }
+
+  .enterprise-toolbar h1,
+  .page-header h1,
+  .toolbar h1 {
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  .enterprise-toolbar p,
+  .page-header p,
+  .toolbar p {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  /* 常见横向结构：单行、不折行、可压缩 */
+  .content-surface
+    :where(
+      .page-header,
+      .toolbar,
+      .topbar,
+      .topbar-actions,
+      .header-actions,
+      .actions,
+      .filter-row,
+      .tabs-row,
+      .asset-filter-strip,
+      .dashboard-topbar
+    ),
+  .enterprise-page
+    :where(
+      .page-header,
+      .toolbar,
+      .topbar,
+      .topbar-actions,
+      .header-actions,
+      .actions,
+      .filter-row,
+      .tabs-row,
+      .asset-filter-strip,
+      .dashboard-topbar
+    ),
+  .mobile-adaptive
+    :where(
+      .page-header,
+      .toolbar,
+      .topbar,
+      .topbar-actions,
+      .header-actions,
+      .actions,
+      .filter-row,
+      .tabs-row,
+      .asset-filter-strip,
+      .dashboard-topbar
+    ) {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  /* 卡片 / 面板圆角与阴影统一 */
+  .blender-card,
+  .glass-card,
+  .enterprise-panel,
+  .auth-panel {
+    border-radius: 8px;
+    min-width: 0;
+  }
+
+  .blender-card,
+  .enterprise-panel,
+  .glass-card {
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  }
+
+  .dark .blender-card,
+  .dark .enterprise-panel,
+  .dark .glass-card {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.32);
+  }
+
+  .blender-card:hover,
+  .glass-card-hover:hover,
+  .btn-premium:hover {
+    transform: none;
+  }
+
+  /* 表格紧凑化 */
+  .enterprise-page table,
+  .content-surface table {
+    font-size: 11px;
+  }
+
+  .enterprise-page :where(.table-wrap, .table-container),
+  .content-surface :where(.table-wrap, .table-container) {
+    max-width: 100%;
+  }
+
+  .enterprise-page th,
+  .enterprise-page td,
+  .content-surface th,
+  .content-surface td {
+    padding: 5px 7px;
+  }
+
+  .enterprise-page .empty-state,
+  .content-surface .empty-state {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+
+  /* 图片 / 视频不溢出 */
+  .content-surface img,
+  .content-surface video,
+  .enterprise-page img,
+  .enterprise-page video,
+  .mobile-adaptive img,
+  .mobile-adaptive video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* 文本截断行数收紧 */
+  .enterprise-page .line-clamp-3,
+  .content-surface .line-clamp-3 {
+    -webkit-line-clamp: 2;
+  }
+
+  /* 防御性：常见工具/筛选/标签容器可压缩（0 特异性，不覆盖 Tailwind） */
+  .enterprise-page
+    :where([class*='filter'], [class*='toolbar'], [class*='tabs'], [class*='actions']),
+  .content-surface
+    :where([class*='filter'], [class*='toolbar'], [class*='tabs'], [class*='actions']) {
+    min-width: 0;
+  }
+
+  /* ---------- opt-in 语义布局类 ---------- */
+
+  /* 通用单行横向布局 */
+  .mobile-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .mobile-row.overflow-x-auto,
+  .mobile-row.overflow-x-scroll {
+    overflow-x: auto;
+  }
+
+  .mobile-row > * {
+    min-width: 0;
+    flex-shrink: 1;
+    max-width: 100%;
+  }
+
+  .mobile-row > .shrink-0,
+  .mobile-row > *.shrink-0 {
+    flex-shrink: 0;
+  }
+
+  /* 文字在一行内自动截断 */
+  .mobile-row .truncate,
+  .mobile-row > * > .truncate,
+  .mobile-row span:not(.badge):not(.tag),
+  .mobile-row p,
+  .mobile-row h1,
+  .mobile-row h2,
+  .mobile-row h3,
+  .mobile-row strong,
+  .mobile-row small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  /* 按钮与输入框在行内可收缩 */
+  .mobile-row button,
+  .mobile-row a,
+  .mobile-row input,
+  .mobile-row select {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  /* 通用网格：默认 2 列 */
+  .mobile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  /* 表格紧凑且禁止横向滚动 */
+  .mobile-table {
+    font-size: 10px;
+  }
+
+  .mobile-table table {
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .mobile-table th,
+  .mobile-table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 横向滚动工具类（隐藏滚动条） */
+  .mobile-density-scroll,
+  .toolbar-actions,
+  .filter-row,
+  .tabs-row {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .mobile-density-scroll::-webkit-scrollbar,
+  .toolbar-actions::-webkit-scrollbar,
+  .filter-row::-webkit-scrollbar,
+  .tabs-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .enterprise-page :where(.mobile-density-scroll, .toolbar-actions, .filter-row, .tabs-row) > *,
+  .content-surface :where(.mobile-density-scroll, .toolbar-actions, .filter-row, .tabs-row) > * {
+    flex-shrink: 0;
+  }
+
+  /* 隐藏非必要装饰动画 */
+  .mobile-adaptive .animate-float-blob,
+  .mobile-adaptive .animate-pulse-slow {
+    animation: none;
+  }
+}
+
+/* auth-shell 同时携带 .mobile-adaptive 时保持自身内边距（全局，确保特异性） */
+.auth-shell.mobile-adaptive {
+  padding-left: inherit;
+  padding-right: inherit;
+}
+
+/* ============================================================
+   超小屏断点：≤ 420px
+   ============================================================ */
+@media (max-width: 420px) {
+  .mobile-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  .mobile-row {
+    gap: 2px;
+  }
+
+  .mobile-row button {
+    padding-left: 6px;
+    padding-right: 6px;
+    font-size: 11px;
+  }
+
+  .mobile-row input,
+  .mobile-row select {
+    font-size: 11px;
+  }
+}
+
+/* ============================================================
+   中等屏断点：≤ 640px（仅 topbar 等特定场景）
+   ============================================================ */
+@media (max-width: 640px) {
+  .topbar {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}

@@ -1,76 +1,26 @@
 /* ============================================================
-   Glassmorphism Theme Style Definition
+   Theme overrides
+   ------------------------------------------------------------
+   Per docs/FRONTEND_OPTIMIZATION_EXECUTION_PLAN.md §2.2 and
+   docs/design-foundation.md §6, the glass theme system has been
+   removed. Business components must NOT be styled through
+   `html.theme-*` selectors — variants are exposed via typed
+   props on primitives instead.
+
+   The previous `html.theme-glass` / `html.dark.theme-glass`
+   blocks (translucent --glass-bg, --glass-dialog-bg,
+   --glass-border, --glass-sidebar-bg, --glass-header-bg,
+   --glass-shadow, and the glass-specific --bg-* / --text-* /
+   --border-* overrides) have been removed.
+
+   Glass is now strictly scoped (see design-foundation §6):
+     1. Top-level navigation
+     2. Command palette (variant="immersive")
+     3. 3D Canvas floating controls
+   All other surfaces (cards, tables, forms, modals, drawers)
+   use the opaque --surface-solid / --surface-overlay tokens
+   declared in tokens.css.
+
+   This file is intentionally kept (imported by src/style.css)
+   as the future home for any non-glass theme definitions.
    ============================================================ */
-/* Light Glassmorphism Style Definition */
-html.theme-glass {
-  color-scheme: light;
-
-  /* Layout backgrounds – translucent frosted white */
-  --bg-app: #f1f5f9;
-  --bg-card: rgba(255, 255, 255, 0.65);
-  --bg-card-rgb: 255, 255, 255;
-  --bg-sidebar: rgba(248, 250, 252, 0.65);
-  --bg-elevated: rgba(255, 255, 255, 0.7);
-  --bg-subtle: #f8fafc;
-  --bg-hover: rgba(0, 0, 0, 0.04);
-  --bg-active: rgba(37, 99, 235, 0.08);
-
-  /* Text */
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
-
-  /* Borders – visible light gray (not transparent white) */
-  --border-base: rgba(203, 213, 225, 0.8);
-  --border-strong: rgba(148, 163, 184, 0.7);
-  --border-card: rgba(203, 213, 225, 0.6);
-
-  /* Accent subtle - light */
-  --accent-subtle: color-mix(in srgb, var(--accent) 12%, rgba(255, 255, 255, 0.8));
-
-  /* Glass specifics */
-  --glass-bg: rgba(255, 255, 255, 0.45);
-  --glass-dialog-bg: rgba(255, 255, 255, 0.72);
-  --glass-sidebar-bg: rgba(248, 250, 252, 0.42);
-  --glass-border-color: rgba(255, 255, 255, 0.6);
-  --glass-border: 1px solid var(--glass-border-color);
-  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
-}
-
-/* Dark Glassmorphism Override Definition */
-html.dark.theme-glass {
-  color-scheme: dark;
-
-  /* Layout backgrounds – transparent/translucent frosted dark (Blender-inspired #0F1319 / #1C2129 / #12161E) */
-  --bg-app: #0f1319;
-  --bg-card: rgba(28, 33, 41, 0.62);
-  --bg-card-rgb: 28, 33, 41;
-  --bg-sidebar: rgba(18, 22, 30, 0.62);
-  --bg-elevated: rgba(36, 42, 53, 0.65);
-  --bg-subtle: #0f1319;
-  --bg-hover: rgba(36, 42, 53, 0.7);
-
-  /* Text — neutral light grays */
-  --text-primary: #f3f3f3;
-  --text-secondary: #c5c6c9;
-  --text-muted: #7d7e82;
-
-  /* Borders – very subtle semi-transparent white/zinc (#2A3342 base) */
-  --border-base: rgba(42, 51, 66, 0.4);
-  --border-strong: rgba(255, 255, 255, 0.15);
-  --border-card: rgba(42, 51, 66, 0.4);
-
-  /* Accent subtle - dark */
-  --accent: #f5792a;
-  --accent-rgb: 245, 121, 42;
-  --accent-subtle: rgba(245, 121, 42, 0.15);
-
-  /* Glass specifics */
-  --glass-bg: rgba(20, 24, 33, 0.48);
-  --glass-dialog-bg: rgba(20, 24, 33, 0.82);
-  --glass-header-bg: rgba(12, 15, 22, 0.85);
-  --glass-sidebar-bg: rgba(12, 16, 22, 0.52);
-  --glass-border-color: rgba(255, 255, 255, 0.08);
-  --glass-border: 1px solid var(--glass-border-color);
-  --glass-shadow: 0 10px 26px -22px rgba(0, 0, 0, 0.9);
-}

@@ -15,7 +15,7 @@ import {
   AtSign,
   Languages,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
 import SafeHtml from '@/components/SafeHtml.vue';

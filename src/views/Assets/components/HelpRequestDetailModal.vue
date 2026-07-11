@@ -98,9 +98,7 @@ const getNormalizedLinkedItem = (reply: HelpRequestReply) => {
           "
         >
           {{
-            request.status === 'RESOLVED'
-              ? label('已解决', 'Resolved')
-              : label('求助中', 'Open')
+            request.status === 'RESOLVED' ? label('已解决', 'Resolved') : label('求助中', 'Open')
           }}
         </span>
         <h3 class="text-sm sm:text-base font-bold text-[var(--text-primary)]">
@@ -119,7 +117,9 @@ const getNormalizedLinkedItem = (reply: HelpRequestReply) => {
           {{ request.description }}
         </p>
 
-        <div class="flex justify-between items-center text-xs text-[var(--text-muted)] border-t border-white/5 pt-3 mt-1">
+        <div
+          class="flex justify-between items-center text-xs text-[var(--text-muted)] border-t border-white/5 pt-3 mt-1"
+        >
           <div class="flex items-center gap-2">
             <div
               class="w-5 h-5 rounded-full overflow-hidden border border-white/10 bg-slate-900 flex items-center justify-center shrink-0"
@@ -133,10 +133,11 @@ const getNormalizedLinkedItem = (reply: HelpRequestReply) => {
                 request.user?.name?.slice(0, 1) || 'U'
               }}</span>
             </div>
-            <span class="font-bold text-[var(--text-primary)]">{{
-              request.user?.name
-            }}</span>
-            <span>{{ label('发布于', 'posted on') }} {{ new Date(request.createdAt).toLocaleString() }}</span>
+            <span class="font-bold text-[var(--text-primary)]">{{ request.user?.name }}</span>
+            <span
+              >{{ label('发布于', 'posted on') }}
+              {{ new Date(request.createdAt).toLocaleString() }}</span
+            >
           </div>
 
           <Button
@@ -192,7 +193,13 @@ const getNormalizedLinkedItem = (reply: HelpRequestReply) => {
                     class="w-full h-full object-cover"
                   />
                   <component
-                    :is="getNormalizedLinkedItem(reply)!.rawType === 'plugin' ? Puzzle : getNormalizedLinkedItem(reply)!.rawType === 'asset' ? Box : Layers"
+                    :is="
+                      getNormalizedLinkedItem(reply)!.rawType === 'plugin'
+                        ? Puzzle
+                        : getNormalizedLinkedItem(reply)!.rawType === 'asset'
+                          ? Box
+                          : Layers
+                    "
                     v-else
                     class="w-5 h-5 text-slate-400"
                   />
@@ -212,7 +219,9 @@ const getNormalizedLinkedItem = (reply: HelpRequestReply) => {
             </div>
 
             <!-- Reply author info -->
-            <div class="flex justify-between items-center border-t border-white/5 pt-2.5 mt-1 text-[10px] text-[var(--text-muted)]">
+            <div
+              class="flex justify-between items-center border-t border-white/5 pt-2.5 mt-1 text-[10px] text-[var(--text-muted)]"
+            >
               <div class="flex items-center gap-1.5">
                 <div
                   class="w-4 h-4 rounded-full overflow-hidden border border-white/10 bg-slate-900 flex items-center justify-center shrink-0"
@@ -226,10 +235,11 @@ const getNormalizedLinkedItem = (reply: HelpRequestReply) => {
                     reply.user?.name?.slice(0, 1) || 'U'
                   }}</span>
                 </div>
-                <span class="font-semibold text-[var(--text-primary)]">{{
-                  reply.user?.name
-                }}</span>
-                <span>{{ label('回复于', 'replied') }} {{ new Date(reply.createdAt).toLocaleString() }}</span>
+                <span class="font-semibold text-[var(--text-primary)]">{{ reply.user?.name }}</span>
+                <span
+                  >{{ label('回复于', 'replied') }}
+                  {{ new Date(reply.createdAt).toLocaleString() }}</span
+                >
               </div>
             </div>
           </div>
@@ -255,19 +265,15 @@ const getNormalizedLinkedItem = (reply: HelpRequestReply) => {
           <!-- Item Link Selection -->
           <div class="flex items-center gap-2 text-xs">
             <span class="text-[var(--text-muted)]">{{ linkLabel }}</span>
-            <select
-              v-model="linkedItemId"
-              class="rounded-lg bg-slate-950 border border-white/10 text-[var(--text-primary)] py-1 px-2 text-xs outline-none focus:border-indigo-500/50 cursor-pointer"
-            >
-              <option value="">{{ label('无', 'None') }}</option>
-              <option
+            <Select v-model="linkedItemId" size="small" class="w-48">
+              <SelectOption value="" :label="label('无', 'None')" />
+              <SelectOption
                 v-for="item in approvedItemsForLinking"
                 :key="item.id"
                 :value="item.id"
-              >
-                {{ item.title }}
-              </option>
-            </select>
+                :label="item.title"
+              />
+            </Select>
           </div>
 
           <Button

@@ -22,7 +22,7 @@ const emit = defineEmits<{
   <FormDialog
     v-model:visible="visible"
     title="重命名文件"
-    width="420px"
+    size="sm"
     :loading="props.loading"
     confirm-text="确认重命名"
     @submit="emit('confirm')"

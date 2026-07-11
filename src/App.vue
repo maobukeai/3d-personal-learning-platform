@@ -61,5 +61,10 @@ const reload = () => {
       class="w-10 h-10 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin"
     ></div>
   </div>
-  <RouterView v-else />
+  <template v-else>
+    <RouterView />
+    <ToastContainer />
+    <NotificationContainer />
+    <ConfirmContainer />
+  </template>
 </template>

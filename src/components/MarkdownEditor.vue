@@ -11,7 +11,7 @@ import {
 import { useI18n } from 'vue-i18n';
 import type { ToolbarNames } from 'md-editor-v3';
 import 'md-editor-v3/lib/style.css';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { Sparkles, Send, Square } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
@@ -569,9 +569,9 @@ onUnmounted(() => {
 
 /* 极简模式下取消编辑器顶部的多余边框和圆角 */
 .mdw--simple .md-editor {
-  border-top-left-radius: 0 !important;
-  border-top-right-radius: 0 !important;
-  border-top: none !important;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: none;
 }
 
 .mdw__ai-btns {
@@ -753,54 +753,54 @@ onUnmounted(() => {
 .mdw .md-editor {
   border-radius: 0.75rem;
   overflow: hidden;
-  border: 1px solid var(--border-base) !important;
-  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-base);
+  background-color: var(--bg-card);
   transition: border-color 0.2s ease;
 }
 .mdw .md-editor:focus-within {
-  border-color: var(--accent) !important;
+  border-color: var(--accent);
 }
 
 .mdw .md-editor-toolbar {
-  flex-wrap: wrap !important;
+  flex-wrap: wrap;
 }
 .mdw .md-editor-toolbar-wrapper {
-  background-color: var(--bg-card) !important;
-  border-bottom: 1px solid var(--border-base) !important;
-  height: auto !important;
+  background-color: var(--bg-card);
+  border-bottom: 1px solid var(--border-base);
+  height: auto;
 }
 .mdw .md-editor-content {
-  background-color: var(--bg-card) !important;
+  background-color: var(--bg-card);
 }
 .mdw .md-editor-input {
-  background-color: var(--bg-app) !important;
-  color: var(--text-primary) !important;
-  font-size: 15px !important;
-  line-height: 1.6 !important;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.6;
 }
 .mdw .md-editor-preview {
-  background-color: var(--bg-card) !important;
-  color: var(--text-primary) !important;
+  background-color: var(--bg-card);
+  color: var(--text-primary);
 }
 
 .mdw img {
-  max-width: 90% !important;
-  max-height: 55vh !important;
-  width: auto !important;
-  height: auto !important;
-  object-fit: contain !important;
-  border-radius: 12px !important;
-  margin: 24px auto !important;
-  display: block !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06) !important;
-  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  max-width: 90%;
+  max-height: 55vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 12px;
+  margin: 24px auto;
+  display: block;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.05);
   transition:
     transform 0.3s,
-    box-shadow 0.3s !important;
+    box-shadow 0.3s;
 }
 .mdw img:hover {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1);
 }
 
 .mdw .md-editor-content-wrapper::-webkit-scrollbar {
@@ -826,41 +826,41 @@ onUnmounted(() => {
 
 @media (max-width: 767px) {
   .mdw .md-editor-toolbar-wrapper {
-    padding: 4px 6px !important;
-    overflow-x: hidden !important;
+    padding: 4px 6px;
+    overflow-x: hidden;
   }
   .mdw .md-editor-toolbar {
-    display: flex !important;
-    justify-content: space-between !important;
-    flex-wrap: nowrap !important;
-    overflow-x: hidden !important;
-    width: 100% !important;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    overflow-x: hidden;
+    width: 100%;
   }
   .mdw .md-editor-toolbar-item {
-    min-width: 26px !important;
-    height: 26px !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex-shrink: 0 !important;
+    min-width: 26px;
+    height: 26px;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
   .mdw .md-editor-toolbar-item svg {
-    width: 14px !important;
-    height: 14px !important;
+    width: 14px;
+    height: 14px;
   }
 }
 
 .mdw__preview-only {
-  background: transparent !important;
+  background: transparent;
   font-size: 15px;
   line-height: 1.8;
-  color: var(--text-primary) !important;
-  border: none !important;
+  color: var(--text-primary);
+  border: none;
 }
 .mdw__preview-only .md-editor-preview-wrapper {
-  padding: 0 !important;
-  border: none !important;
+  padding: 0;
+  border: none;
 }
 </style>

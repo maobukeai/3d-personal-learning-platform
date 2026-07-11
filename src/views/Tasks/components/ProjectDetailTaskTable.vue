@@ -174,16 +174,16 @@ const { t } = useI18n();
             </span>
           </td>
           <td class="px-3.5 py-2">
-            <el-select
+            <Select
               v-model="task.status"
               size="small"
               class="!w-24 custom-select-small"
               @change="(val: string) => emit('update-status', task, val)"
             >
-              <el-option :label="t('tasks.todo')" value="TODO" />
-              <el-option :label="t('tasks.inProgress')" value="IN_PROGRESS" />
-              <el-option :label="t('tasks.done')" value="DONE" />
-            </el-select>
+              <SelectOption :label="t('tasks.todo')" value="TODO" />
+              <SelectOption :label="t('tasks.inProgress')" value="IN_PROGRESS" />
+              <SelectOption :label="t('tasks.done')" value="DONE" />
+            </Select>
           </td>
           <td class="px-3.5 py-2 text-right">
             <button

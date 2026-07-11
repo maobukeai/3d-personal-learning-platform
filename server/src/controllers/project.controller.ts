@@ -1,10 +1,15 @@
-import { Response, NextFunction } from 'express';
+import type { FastifyReply, FastifyRequest } from 'fastify';
+
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
-import { AuthRequest } from '../middlewares/auth.middleware';
 import { createNotification, createNotificationBatch } from '../utils/notification';
 import { checkProjectQuota } from '../utils/quota';
-import { auditService, AuditAction, AuditModule } from '../services/audit.service';
+import {
+  auditService,
+  AuditAction,
+  AuditModule,
+  type AuditRequest,
+} from '../services/audit.service';
 import { AppError } from '../utils/error';
 import { logger } from '../utils/logger';
 import { TaskStatus } from '../types/task';
@@ -58,43 +63,51 @@ export const checkTeamProjectPermission = async (
 type DiscussionUploadFiles = Partial<Record<'images' | 'message_file', Express.Multer.File[]>>;
 
 const getDiscussionUploadUrl = (file: Express.Multer.File) => {
-  if ((file as any).url) return (file as any).url;
-  if (file.fieldname === 'images') {
-    return `/uploads/discussions/${file.filename}`;
+  const url = (file as unknown as { url?: string }).url;
+  if (!url) {
+    throw new AppError('文件上传失败，未获取到云存储地址', 400);
   }
-
-  return `/uploads/messages/${file.filename}`;
+  return url;
 };
 
-export const uploadDiscussionAttachment = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const uploadDiscussionAttachment = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
-    const files = req.files as DiscussionUploadFiles | undefined;
-    const file = req.file ?? files?.images?.[0] ?? files?.message_file?.[0];
+    const files = (request as unknown as { files?: DiscussionUploadFiles }).files;
+    const file =
+      (request as unknown as { file?: Express.Multer.File }).file ??
+      files?.images?.[0] ??
+      files?.message_file?.[0];
 
     if (!file) {
-      return next(new AppError('No file uploaded', 400));
+      throw new AppError('No file uploaded', 400);
     }
 
-    res.status(201).json({
+    reply.status(201).send({
       url: getDiscussionUploadUrl(file),
       fileName: file.originalname,
       fileSize: file.size / (1024 * 1024),
       type: file.fieldname === 'images' ? 'IMAGE' : 'FILE',
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getAllProjects = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAllProjects = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
     const where: Prisma.ProjectWhereInput = {
-      teamId: req.workspaceId || null,
+      teamId: request.workspaceId || null,
       OR: [
         { visibility: 'PUBLIC' },
         {
           members: {
-            some: { userId: req.userId as string },
+            some: { userId: request.userId as string },
           },
         },
       ],
@@ -112,13 +125,16 @@ export const getAllProjects = async (req: AuthRequest, res: Response, next: Next
       },
       orderBy: { updatedAt: 'desc' },
     });
-    res.json(projects);
+    reply.send(projects);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createProject = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createProject = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   const {
     title,
     description,
@@ -129,24 +145,34 @@ export const createProject = async (req: AuthRequest, res: Response, next: NextF
     maxMembers,
     memberIds,
     inviteUserIds,
-  } = req.body;
-  const userId = req.userId as string;
+  } = request.body as {
+    title: string;
+    description?: string;
+    dueDate?: string;
+    color?: string;
+    tags?: string;
+    visibility?: string;
+    maxMembers?: string | number;
+    memberIds?: string[];
+    inviteUserIds?: string[];
+  };
+  const userId = request.userId as string;
 
   if (!title) {
-    return next(new AppError('Project title is required', 400));
+    throw new AppError('Project title is required', 400);
   }
 
   try {
     // Verify team workspace project creation permissions
-    const hasPermission = await checkTeamProjectPermission(userId, req.workspaceId);
+    const hasPermission = await checkTeamProjectPermission(userId, request.workspaceId);
     if (!hasPermission) {
-      return next(new AppError('只有团队创建人或管理员才能在团队中创建项目', 403));
+      throw new AppError('只有团队创建人或管理员才能在团队中创建项目', 403);
     }
 
     // Check quota
     const quota = await checkProjectQuota(userId);
     if (!quota.allowed) {
-      return next(new AppError(quota.message || 'Project quota exceeded', 403));
+      throw new AppError(quota.message || 'Project quota exceeded', 403);
     }
 
     const membersData: Prisma.ProjectMemberCreateWithoutProjectInput[] = [
@@ -177,8 +203,8 @@ export const createProject = async (req: AuthRequest, res: Response, next: NextF
         color: color || 'bg-accent',
         tags,
         visibility: visibility || 'PRIVATE',
-        maxMembers: maxMembers ? parseInt(maxMembers, 10) : 10,
-        teamId: req.workspaceId || null,
+        maxMembers: maxMembers ? parseInt(String(maxMembers), 10) : 10,
+        teamId: request.workspaceId || null,
         members: {
           create: membersData,
         },
@@ -200,7 +226,7 @@ export const createProject = async (req: AuthRequest, res: Response, next: NextF
       module: AuditModule.PROJECT,
       description: `Created project: ${project.title}`,
       newValue: project,
-      req,
+      req: request as unknown as AuditRequest,
     });
 
     if (inviteUserIds && Array.isArray(inviteUserIds) && inviteUserIds.length > 0) {
@@ -208,10 +234,10 @@ export const createProject = async (req: AuthRequest, res: Response, next: NextF
       expiresAt.setDate(expiresAt.getDate() + 7);
 
       const invitations = inviteUserIds
-        .filter((uid: string) => uid !== req.userId)
+        .filter((uid: string) => uid !== request.userId)
         .map((uid: string) => ({
           projectId: project.id,
-          inviterId: req.userId as string,
+          inviterId: request.userId as string,
           inviteeId: uid,
           status: 'PENDING',
           expiresAt,
@@ -224,7 +250,7 @@ export const createProject = async (req: AuthRequest, res: Response, next: NextF
         const createdInvitations = await prisma.projectInvitation.findMany({
           where: {
             projectId: project.id,
-            inviteeId: { in: inviteUserIds.filter((uid: string) => uid !== req.userId) },
+            inviteeId: { in: inviteUserIds.filter((uid: string) => uid !== request.userId) },
             status: 'PENDING',
           },
         });
@@ -242,29 +268,42 @@ export const createProject = async (req: AuthRequest, res: Response, next: NextF
       }
     }
 
-    res.status(201).json(project);
+    reply.status(201).send(project);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateProject = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
+export const updateProject = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const id = (request.params as { id: string }).id;
   const { title, description, progress, status, dueDate, color, tags, visibility, maxMembers } =
-    req.body;
+    request.body as {
+      title?: string;
+      description?: string;
+      progress?: string | number;
+      status?: string;
+      dueDate?: string;
+      color?: string;
+      tags?: string;
+      visibility?: string;
+      maxMembers?: string | number;
+    };
   try {
     const project = await prisma.project.findFirst({
-      where: { id, teamId: req.workspaceId || null },
+      where: { id, teamId: request.workspaceId || null },
     });
     if (!project) {
-      return next(new AppError('Project not found in this workspace', 404));
+      throw new AppError('Project not found in this workspace', 404);
     }
 
     const member = await prisma.projectMember.findFirst({
-      where: { projectId: id, userId: req.userId as string, role: 'OWNER' },
+      where: { projectId: id, userId: request.userId as string, role: 'OWNER' },
     });
     if (!member) {
-      return next(new AppError('Only owners can update project settings', 403));
+      throw new AppError('Only owners can update project settings', 403);
     }
 
     const updateData: Prisma.ProjectUpdateInput = {
@@ -274,10 +313,10 @@ export const updateProject = async (req: AuthRequest, res: Response, next: NextF
       color,
       tags,
       visibility,
-      maxMembers: maxMembers ? parseInt(maxMembers, 10) : undefined,
+      maxMembers: maxMembers ? parseInt(String(maxMembers), 10) : undefined,
     };
 
-    if (progress !== undefined) updateData.progress = parseInt(progress, 10);
+    if (progress !== undefined) updateData.progress = parseInt(String(progress), 10);
     if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
 
     const updated = await prisma.project.update({
@@ -286,13 +325,13 @@ export const updateProject = async (req: AuthRequest, res: Response, next: NextF
     });
 
     await auditService.log({
-      userId: req.userId as string,
+      userId: request.userId as string,
       action: AuditAction.UPDATE_PROJECT,
       module: AuditModule.PROJECT,
       description: `Updated project: ${updated.title}`,
       oldValue: project,
       newValue: updated,
-      req,
+      req: request as unknown as AuditRequest,
     });
 
     // Notify other project members about the update
@@ -301,7 +340,9 @@ export const updateProject = async (req: AuthRequest, res: Response, next: NextF
         where: { projectId: id },
         select: { userId: true },
       });
-      const targetUserIds = projectMembers.map((m) => m.userId).filter((uid) => uid !== req.userId);
+      const targetUserIds = projectMembers
+        .map((m) => m.userId)
+        .filter((uid) => uid !== request.userId);
 
       if (targetUserIds.length > 0) {
         await createNotificationBatch(
@@ -319,14 +360,17 @@ export const updateProject = async (req: AuthRequest, res: Response, next: NextF
       logger.error('Failed to send project update notifications:', notifErr);
     }
 
-    res.json(updated);
+    reply.send(updated);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getProjectById = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
+export const getProjectById = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const id = (request.params as { id: string }).id;
   try {
     const project = await prisma.project.findUnique({
       where: { id },
@@ -374,24 +418,24 @@ export const getProjectById = async (req: AuthRequest, res: Response, next: Next
       },
     });
 
-    if (!project || (project.teamId || null) !== (req.workspaceId || null)) {
-      return next(new AppError('Project not found', 404));
+    if (!project || (project.teamId || null) !== (request.workspaceId || null)) {
+      throw new AppError('Project not found', 404);
     }
 
-    const isMember = project.members.some((m) => m.userId === req.userId);
+    const isMember = project.members.some((m) => m.userId === request.userId);
     if (project.visibility !== 'PUBLIC' && !isMember) {
-      return next(new AppError('Access denied: private project', 403));
+      throw new AppError('Access denied: private project', 403);
     }
 
-    res.json(project);
+    reply.send(project);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const joinProject = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
-  const userId = req.userId as string;
+export const joinProject = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const id = (request.params as { id: string }).id;
+  const userId = request.userId as string;
 
   try {
     const project = await prisma.project.findUnique({
@@ -399,21 +443,21 @@ export const joinProject = async (req: AuthRequest, res: Response, next: NextFun
       include: { members: true },
     });
 
-    if (!project || (project.teamId || null) !== (req.workspaceId || null)) {
-      return next(new AppError('Project not found', 404));
+    if (!project || (project.teamId || null) !== (request.workspaceId || null)) {
+      throw new AppError('Project not found', 404);
     }
 
     if (project.visibility !== 'PUBLIC' || project.status === 'COMPLETED') {
-      return next(new AppError('Cannot join this project', 400));
+      throw new AppError('Cannot join this project', 400);
     }
 
     if (project.members.length >= project.maxMembers) {
-      return next(new AppError('Project is full', 400));
+      throw new AppError('Project is full', 400);
     }
 
     const existingMember = project.members.find((m) => m.userId === userId);
     if (existingMember) {
-      return next(new AppError('Already a member', 400));
+      throw new AppError('Already a member', 400);
     }
 
     const member = await prisma.projectMember.create({
@@ -431,7 +475,7 @@ export const joinProject = async (req: AuthRequest, res: Response, next: NextFun
         await createNotification({
           type: 'SYSTEM',
           title: '成员加入项目通知',
-          content: `用户「${req.user?.name || req.user?.email || '新成员'}」加入了你的项目「${project.title}」。`,
+          content: `用户「${request.user?.name || request.user?.email || '新成员'}」加入了你的项目「${project.title}」。`,
           userId: projectOwner.userId,
           link: `/project/${id}`,
           category: 'TEAM_ACTIVITY' as const,
@@ -441,29 +485,39 @@ export const joinProject = async (req: AuthRequest, res: Response, next: NextFun
       logger.error('Failed to send project join notification:', notifErr);
     }
 
-    res.status(201).json(member);
+    reply.status(201).send(member);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const addDiscussion = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
-  const { content, type, images, fileUrl, fileName, fileSize } = req.body;
-  const userId = req.userId as string;
+export const addDiscussion = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const id = (request.params as { id: string }).id;
+  const { content, type, images, fileUrl, fileName, fileSize } = request.body as {
+    content?: string;
+    type?: string;
+    images?: string;
+    fileUrl?: string;
+    fileName?: string;
+    fileSize?: number;
+  };
+  const userId = request.userId as string;
 
   if (!content) {
-    return next(new AppError('Content is required', 400));
+    throw new AppError('Content is required', 400);
   }
 
   try {
     // 首先检查项目是否在当前工作区
     const project = await prisma.project.findFirst({
-      where: { id, teamId: req.workspaceId || null },
+      where: { id, teamId: request.workspaceId || null },
     });
 
     if (!project) {
-      return next(new AppError('Project not found', 404));
+      throw new AppError('Project not found', 404);
     }
 
     // 再检查用户是否是项目成员
@@ -472,7 +526,7 @@ export const addDiscussion = async (req: AuthRequest, res: Response, next: NextF
     });
 
     if (!member) {
-      return next(new AppError('Only project members can participate in discussions', 403));
+      throw new AppError('Only project members can participate in discussions', 403);
     }
 
     const discussion = await prisma.projectDiscussion.create({
@@ -494,43 +548,52 @@ export const addDiscussion = async (req: AuthRequest, res: Response, next: NextF
       },
     });
 
-    res.status(201).json(discussion);
+    reply.status(201).send(discussion);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createProjectTask = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
-  const { title, description, assigneeId, dueDate, participantIds } = req.body;
+export const createProjectTask = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const id = (request.params as { id: string }).id;
+  const { title, description, assigneeId, dueDate, participantIds } = request.body as {
+    title?: string;
+    description?: string;
+    assigneeId?: string;
+    dueDate?: string;
+    participantIds?: string[];
+  };
 
   if (!title) {
-    return next(new AppError('Task title is required', 400));
+    throw new AppError('Task title is required', 400);
   }
 
   try {
     // 检查项目是否在当前工作区并且用户是项目成员
     const project = await prisma.project.findFirst({
-      where: { id, teamId: req.workspaceId || null },
+      where: { id, teamId: request.workspaceId || null },
       include: {
         members: {
-          where: { userId: req.userId },
+          where: { userId: request.userId },
         },
       },
     });
 
     if (!project) {
-      return next(new AppError('Project not found', 404));
+      throw new AppError('Project not found', 404);
     }
 
     if (!project.members || project.members.length === 0) {
-      return next(new AppError('Not authorized to create tasks in this project', 403));
+      throw new AppError('Not authorized to create tasks in this project', 403);
     }
 
     let targetParticipantIds = participantIds || [];
     let targetAssigneeId = assigneeId || null;
     if (participantIds && Array.isArray(participantIds) && participantIds.length > 0) {
-      targetAssigneeId = participantIds[0];
+      targetAssigneeId = participantIds[0] ?? null;
     } else if (targetAssigneeId) {
       targetParticipantIds = [targetAssigneeId];
     }
@@ -543,8 +606,8 @@ export const createProjectTask = async (req: AuthRequest, res: Response, next: N
         dueDate: dueDate ? new Date(dueDate) : null,
         projectId: id,
         assigneeId: targetAssigneeId,
-        userId: req.userId as string,
-        teamId: req.workspaceId || null,
+        userId: request.userId as string,
+        teamId: request.workspaceId || null,
         participants:
           targetParticipantIds.length > 0
             ? {
@@ -572,7 +635,9 @@ export const createProjectTask = async (req: AuthRequest, res: Response, next: N
         where: { projectId: id },
         select: { userId: true },
       });
-      const targetUserIds = projectMembers.map((m) => m.userId).filter((uid) => uid !== req.userId);
+      const targetUserIds = projectMembers
+        .map((m) => m.userId)
+        .filter((uid) => uid !== request.userId);
 
       if (targetUserIds.length > 0) {
         await createNotificationBatch(
@@ -590,41 +655,49 @@ export const createProjectTask = async (req: AuthRequest, res: Response, next: N
       logger.error('Failed to send task creation notifications:', notifErr);
     }
 
-    res.status(201).json(task);
+    reply.status(201).send(task);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 export const batchCreateProjectTasks = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
-  const id = req.params.id as string;
-  const { tasks } = req.body;
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const id = (request.params as { id: string }).id;
+  const { tasks } = request.body as {
+    tasks: Array<{
+      title: string;
+      description?: string;
+      priority?: string;
+      dueDate?: string;
+      assigneeId?: string;
+      participantIds?: string[];
+    }>;
+  };
 
   if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
-    return next(new AppError('Tasks array is required', 400));
+    throw new AppError('Tasks array is required', 400);
   }
 
   try {
     // 检查项目是否在当前工作区并且用户是项目成员
     const project = await prisma.project.findFirst({
-      where: { id, teamId: req.workspaceId || null },
+      where: { id, teamId: request.workspaceId || null },
       include: {
         members: {
-          where: { userId: req.userId },
+          where: { userId: request.userId },
         },
       },
     });
 
     if (!project) {
-      return next(new AppError('Project not found', 404));
+      throw new AppError('Project not found', 404);
     }
 
     if (!project.members || project.members.length === 0) {
-      return next(new AppError('Not authorized to create tasks in this project', 403));
+      throw new AppError('Not authorized to create tasks in this project', 403);
     }
 
     const tasksData = tasks
@@ -653,8 +726,8 @@ export const batchCreateProjectTasks = async (
             dueDate: t.dueDate ? new Date(t.dueDate) : null,
             projectId: id,
             assigneeId: targetAssigneeId,
-            userId: req.userId as string,
-            teamId: req.workspaceId || null,
+            userId: request.userId as string,
+            teamId: request.workspaceId || null,
             subtasks: null,
             participantIds: targetParticipantIds,
           };
@@ -704,7 +777,9 @@ export const batchCreateProjectTasks = async (
         where: { projectId: id },
         select: { userId: true },
       });
-      const targetUserIds = projectMembers.map((m) => m.userId).filter((uid) => uid !== req.userId);
+      const targetUserIds = projectMembers
+        .map((m) => m.userId)
+        .filter((uid) => uid !== request.userId);
 
       if (targetUserIds.length > 0) {
         await createNotificationBatch(
@@ -722,9 +797,9 @@ export const batchCreateProjectTasks = async (
       logger.error('Failed to send batch task creation notifications:', notifErr);
     }
 
-    res.status(201).json(createdTasks);
+    reply.status(201).send(createdTasks);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
@@ -743,22 +818,32 @@ async function recalcProjectProgress(projectId: string) {
   return progress;
 }
 
-export const updateProjectTask = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const taskId = req.params.taskId as string;
-  const { title, description, status, assigneeId, dueDate, participantIds } = req.body;
+export const updateProjectTask = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const taskId = (request.params as { taskId: string }).taskId;
+  const { title, description, status, assigneeId, dueDate, participantIds } = request.body as {
+    title?: string;
+    description?: string;
+    status?: string;
+    assigneeId?: string | null;
+    dueDate?: string;
+    participantIds?: string[];
+  };
 
   try {
     // 检查任务是否在当前工作区并且当前用户是项目成员
     const existingTask = await prisma.task.findFirst({
       where: {
         id: taskId,
-        teamId: req.workspaceId || null,
+        teamId: request.workspaceId || null,
       },
       include: {
         project: {
           include: {
             members: {
-              where: { userId: req.userId },
+              where: { userId: request.userId },
             },
           },
         },
@@ -769,12 +854,12 @@ export const updateProjectTask = async (req: AuthRequest, res: Response, next: N
     });
 
     if (!existingTask) {
-      return next(new AppError('Task not found', 404));
+      throw new AppError('Task not found', 404);
     }
 
     // 检查用户是否是项目成员
     if (!existingTask.project || existingTask.project.members.length === 0) {
-      return next(new AppError('Not authorized to update this task', 403));
+      throw new AppError('Not authorized to update this task', 403);
     }
 
     let targetAssigneeId = assigneeId !== undefined ? assigneeId || null : existingTask.assigneeId;
@@ -795,9 +880,9 @@ export const updateProjectTask = async (req: AuthRequest, res: Response, next: N
 
     if (status && (status === TaskStatus.IN_PROGRESS || status === TaskStatus.DONE)) {
       if (!targetAssigneeId) {
-        targetAssigneeId = req.userId;
-        if (!targetParticipantIds.includes(req.userId as string)) {
-          targetParticipantIds = [req.userId as string, ...targetParticipantIds];
+        targetAssigneeId = request.userId ?? null;
+        if (!targetParticipantIds.includes(request.userId as string)) {
+          targetParticipantIds = [request.userId as string, ...targetParticipantIds];
         }
       }
     }
@@ -846,7 +931,7 @@ export const updateProjectTask = async (req: AuthRequest, res: Response, next: N
         });
         const targetUserIds = projectMembers
           .map((m) => m.userId)
-          .filter((uid) => uid !== req.userId);
+          .filter((uid) => uid !== request.userId);
 
         if (targetUserIds.length > 0) {
           const detailMsg =
@@ -871,34 +956,39 @@ export const updateProjectTask = async (req: AuthRequest, res: Response, next: N
 
     if (status !== undefined && task.projectId) {
       const progress = await recalcProjectProgress(task.projectId);
-      res.json({ ...task, _projectProgress: progress });
+      reply.send({ ...task, _projectProgress: progress });
     } else {
-      res.json(task);
+      reply.send(task);
     }
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteProject = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
-  const { deleteTasks, deleteRoadmap } = req.query;
+export const deleteProject = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const id = (request.params as { id: string }).id;
+  const query = request.query as Record<string, unknown>;
+  const deleteTasks = query.deleteTasks;
+  const deleteRoadmap = query.deleteRoadmap;
   const shouldDeleteTasks = deleteTasks === 'true';
   const shouldDeleteRoadmap = deleteRoadmap === 'true';
 
   try {
     const project = await prisma.project.findFirst({
-      where: { id, teamId: req.workspaceId || null },
+      where: { id, teamId: request.workspaceId || null },
     });
     if (!project) {
-      return next(new AppError('Project not found in this workspace', 404));
+      throw new AppError('Project not found in this workspace', 404);
     }
 
     const member = await prisma.projectMember.findFirst({
-      where: { projectId: id, userId: req.userId as string, role: 'OWNER' },
+      where: { projectId: id, userId: request.userId as string, role: 'OWNER' },
     });
     if (!member) {
-      return next(new AppError('Only owners can delete projects', 403));
+      throw new AppError('Only owners can delete projects', 403);
     }
 
     // Fetch members before deletion
@@ -946,17 +1036,19 @@ export const deleteProject = async (req: AuthRequest, res: Response, next: NextF
     });
 
     await auditService.log({
-      userId: req.userId as string,
+      userId: request.userId as string,
       action: AuditAction.DELETE_PROJECT,
       module: AuditModule.PROJECT,
       description: `Deleted project: ${project.title} (Delete Tasks: ${shouldDeleteTasks}, Delete Roadmap: ${shouldDeleteRoadmap})`,
       oldValue: project,
-      req,
+      req: request as unknown as AuditRequest,
     });
 
     // Notify other project members about the deletion
     try {
-      const targetUserIds = projectMembers.map((m) => m.userId).filter((uid) => uid !== req.userId);
+      const targetUserIds = projectMembers
+        .map((m) => m.userId)
+        .filter((uid) => uid !== request.userId);
 
       if (targetUserIds.length > 0) {
         await createNotificationBatch(
@@ -974,33 +1066,36 @@ export const deleteProject = async (req: AuthRequest, res: Response, next: NextF
       logger.error('Failed to send project deletion notifications:', notifErr);
     }
 
-    res.json({ message: 'Project deleted successfully' });
+    reply.send({ message: 'Project deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const inviteToProject = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
-  const { userIds } = req.body;
-  const inviterId = req.userId as string;
+export const inviteToProject = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const id = (request.params as { id: string }).id;
+  const { userIds } = request.body as { userIds?: string[] };
+  const inviterId = request.userId as string;
 
   try {
     const project = await prisma.project.findFirst({
-      where: { id, teamId: req.workspaceId || null },
+      where: { id, teamId: request.workspaceId || null },
       include: { members: true },
     });
     if (!project) {
-      return next(new AppError('Project not found', 404));
+      throw new AppError('Project not found', 404);
     }
 
     const inviterMember = project.members.find((m) => m.userId === inviterId);
     if (!inviterMember) {
-      return next(new AppError('Only project members can invite', 403));
+      throw new AppError('Only project members can invite', 403);
     }
 
     if (!userIds || !Array.isArray(userIds) || !userIds.length) {
-      return next(new AppError('No users specified', 400));
+      throw new AppError('No users specified', 400);
     }
 
     const existingMemberIds = new Set(project.members.map((m) => m.userId));
@@ -1043,7 +1138,7 @@ export const inviteToProject = async (req: AuthRequest, res: Response, next: Nex
       }));
 
     if (invitations.length === 0) {
-      return next(new AppError('所有用户已是项目成员', 400));
+      throw new AppError('所有用户已是项目成员', 400);
     }
 
     await prisma.projectInvitation.createMany({ data: invitations });
@@ -1068,35 +1163,34 @@ export const inviteToProject = async (req: AuthRequest, res: Response, next: Nex
       })),
     );
 
-    res.status(201).json({ invited: invitations.length });
+    reply.status(201).send({ invited: invitations.length });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 export const acceptProjectInvitation = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
-  const invitationId = req.params.invitationId as string;
-  const userId = req.userId as string;
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const invitationId = (request.params as { invitationId: string }).invitationId;
+  const userId = request.userId as string;
 
   try {
     const invitation = await prisma.projectInvitation.findUnique({
       where: { id: invitationId },
     });
     if (!invitation) {
-      return next(new AppError('Invitation not found', 404));
+      throw new AppError('Invitation not found', 404);
     }
     if (invitation.inviteeId !== userId) {
-      return next(new AppError('Not your invitation', 403));
+      throw new AppError('Not your invitation', 403);
     }
     if (invitation.status !== 'PENDING') {
-      return next(new AppError('Invitation already processed', 400));
+      throw new AppError('Invitation already processed', 400);
     }
     if (invitation.expiresAt < new Date()) {
-      return next(new AppError('Invitation expired', 400));
+      throw new AppError('Invitation expired', 400);
     }
 
     const project = await prisma.project.findUnique({
@@ -1104,10 +1198,10 @@ export const acceptProjectInvitation = async (
       include: { members: true },
     });
     if (!project) {
-      return next(new AppError('Project not found', 404));
+      throw new AppError('Project not found', 404);
     }
     if (project.members.length >= project.maxMembers) {
-      return next(new AppError('Project is full', 400));
+      throw new AppError('Project is full', 400);
     }
 
     await prisma.$transaction([
@@ -1124,32 +1218,31 @@ export const acceptProjectInvitation = async (
       }),
     ]);
 
-    res.json({ message: 'Invitation accepted' });
+    reply.send({ message: 'Invitation accepted' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 export const rejectProjectInvitation = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
-  const invitationId = req.params.invitationId as string;
-  const userId = req.userId as string;
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const invitationId = (request.params as { invitationId: string }).invitationId;
+  const userId = request.userId as string;
 
   try {
     const invitation = await prisma.projectInvitation.findUnique({
       where: { id: invitationId },
     });
     if (!invitation) {
-      return next(new AppError('Invitation not found', 404));
+      throw new AppError('Invitation not found', 404);
     }
     if (invitation.inviteeId !== userId) {
-      return next(new AppError('Not your invitation', 403));
+      throw new AppError('Not your invitation', 403);
     }
     if (invitation.status !== 'PENDING') {
-      return next(new AppError('Invitation already processed', 400));
+      throw new AppError('Invitation already processed', 400);
     }
 
     await prisma.projectInvitation.update({
@@ -1157,23 +1250,22 @@ export const rejectProjectInvitation = async (
       data: { status: 'REJECTED' },
     });
 
-    res.json({ message: 'Invitation rejected' });
+    reply.send({ message: 'Invitation rejected' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 export const addDiscussionReaction = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
-  const discussionId = req.params.discussionId as string;
-  const { emoji } = req.body;
-  const userId = req.userId as string;
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const discussionId = (request.params as { discussionId: string }).discussionId;
+  const { emoji } = request.body as { emoji?: string };
+  const userId = request.userId as string;
 
   if (!emoji) {
-    return next(new AppError('Emoji is required', 400));
+    throw new AppError('Emoji is required', 400);
   }
 
   try {
@@ -1192,17 +1284,17 @@ export const addDiscussionReaction = async (
     });
 
     if (!discussion) {
-      return next(new AppError('Discussion not found', 404));
+      throw new AppError('Discussion not found', 404);
     }
 
     // 检查讨论所在的项目是否在当前工作区
-    if ((discussion.project.teamId || null) !== (req.workspaceId || null)) {
-      return next(new AppError('Discussion not found', 404));
+    if ((discussion.project.teamId || null) !== (request.workspaceId || null)) {
+      throw new AppError('Discussion not found', 404);
     }
 
     // 检查用户是否是项目成员
     if (!discussion.project.members || discussion.project.members.length === 0) {
-      return next(new AppError('Not authorized to add reactions', 403));
+      throw new AppError('Not authorized to add reactions', 403);
     }
 
     const existing = await prisma.projectDiscussionReaction.findUnique({
@@ -1211,48 +1303,51 @@ export const addDiscussionReaction = async (
 
     if (existing) {
       await prisma.projectDiscussionReaction.delete({ where: { id: existing.id } });
-      res.json({ removed: true });
+      reply.send({ removed: true });
     } else {
       const reaction = await prisma.projectDiscussionReaction.create({
         data: { discussionId, userId, emoji },
         include: { user: { select: { id: true, name: true, avatarUrl: true } } },
       });
-      res.status(201).json(reaction);
+      reply.status(201).send(reaction);
     }
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const removeProjectMember = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = req.params.id as string;
-  const { userId: targetUserId } = req.body;
-  const requesterId = req.userId as string;
+export const removeProjectMember = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const id = (request.params as { id: string }).id;
+  const { userId: targetUserId } = request.body as { userId?: string };
+  const requesterId = request.userId as string;
 
   if (!targetUserId) {
-    return next(new AppError('Target userId is required', 400));
+    throw new AppError('Target userId is required', 400);
   }
 
   try {
     const project = await prisma.project.findFirst({
-      where: { id, teamId: req.workspaceId || null },
+      where: { id, teamId: request.workspaceId || null },
       include: { members: true },
     });
     if (!project) {
-      return next(new AppError('Project not found', 404));
+      throw new AppError('Project not found', 404);
     }
 
     const requester = project.members.find((m) => m.userId === requesterId);
     if (!requester || requester.role !== 'OWNER') {
-      return next(new AppError('Only owners can remove members', 403));
+      throw new AppError('Only owners can remove members', 403);
     }
 
     const target = project.members.find((m) => m.userId === targetUserId);
     if (!target) {
-      return next(new AppError('Member not found', 404));
+      throw new AppError('Member not found', 404);
     }
     if (target.role === 'OWNER') {
-      return next(new AppError('Cannot remove owner', 400));
+      throw new AppError('Cannot remove owner', 400);
     }
 
     await prisma.projectMember.delete({ where: { id: target.id } });
@@ -1271,9 +1366,9 @@ export const removeProjectMember = async (req: AuthRequest, res: Response, next:
       logger.error('Failed to send project removal notification:', notifErr);
     }
 
-    res.json({ message: 'Member removed' });
+    reply.send({ message: 'Member removed' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
@@ -1521,27 +1616,26 @@ export function parseProjectImportText(text: string): ParsedProject {
 }
 
 export const importProjectFromText = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { text } = req.body;
-  const userId = req.userId as string;
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { text } = request.body as { text?: string };
+  const userId = request.userId as string;
 
   if (!text) {
-    return next(new AppError('导入内容不能为空', 400));
+    throw new AppError('导入内容不能为空', 400);
   }
 
   try {
     // Verify team workspace project creation permissions
-    const hasPermission = await checkTeamProjectPermission(userId, req.workspaceId);
+    const hasPermission = await checkTeamProjectPermission(userId, request.workspaceId);
     if (!hasPermission) {
-      return next(new AppError('只有团队创建人或管理员才能在团队中使用导入解析功能', 403));
+      throw new AppError('只有团队创建人或管理员才能在团队中使用导入解析功能', 403);
     }
 
     const quota = await checkProjectQuota(userId);
     if (!quota.allowed) {
-      return next(new AppError(quota.message || '项目配额已满，无法导入新项目', 403));
+      throw new AppError(quota.message || '项目配额已满，无法导入新项目', 403);
     }
 
     const parsed = parseProjectImportText(text);
@@ -1556,7 +1650,7 @@ export const importProjectFromText = async (
           tags: parsed.tags || null,
           visibility: 'PRIVATE',
           maxMembers: 10,
-          teamId: req.workspaceId || null,
+          teamId: request.workspaceId || null,
           members: {
             create: [
               {
@@ -1579,7 +1673,7 @@ export const importProjectFromText = async (
             dueDate: t.dueDate || null,
             projectId: project.id,
             userId,
-            teamId: req.workspaceId || null,
+            teamId: request.workspaceId || null,
             subtasks: t.subtasks && t.subtasks.length > 0 ? JSON.stringify(t.subtasks) : undefined,
           },
         });
@@ -1619,10 +1713,10 @@ export const importProjectFromText = async (
       module: AuditModule.PROJECT,
       description: `导入解析项目: ${result.project.title} (包含看板任务数: ${result.tasksCount})`,
       newValue: result.project,
-      req,
+      req: request as unknown as AuditRequest,
     });
 
-    res.status(201).json({
+    reply.status(201).send({
       success: true,
       message: '项目及关联的看板任务、学习路线已成功解析导入！',
       project: result.project,
@@ -1630,6 +1724,52 @@ export const importProjectFromText = async (
       tasksCount: result.tasksCount,
     });
   } catch (error) {
-    next(error);
+    throw error;
+  }
+};
+
+export const deleteDiscussion = async (request: FastifyRequest, reply: FastifyReply) => {
+  const userId = request.user?.id;
+  const discussionId = (request.params as { discussionId: string }).discussionId;
+
+  try {
+    const discussion = await prisma.projectDiscussion.findUnique({
+      where: { id: discussionId },
+    });
+
+    if (!discussion) {
+      throw new AppError('Discussion not found', 404);
+    }
+
+    // Verify ownership: message sender can delete their own message
+    const isSender = discussion.userId === userId;
+
+    if (isSender) {
+      await prisma.projectDiscussion.delete({
+        where: { id: discussionId },
+      });
+      return reply.status(200).send({ success: true });
+    }
+
+    // Otherwise, check if user is a member with OWNER role in the project
+    const member = await prisma.projectMember.findFirst({
+      where: {
+        projectId: discussion.projectId,
+        userId,
+        role: 'OWNER',
+      },
+    });
+
+    if (!member) {
+      throw new AppError('Permission denied', 403);
+    }
+
+    await prisma.projectDiscussion.delete({
+      where: { id: discussionId },
+    });
+
+    reply.status(200).send({ success: true });
+  } catch (error) {
+    throw error;
   }
 };

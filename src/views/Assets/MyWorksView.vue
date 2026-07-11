@@ -17,7 +17,7 @@ import {
   Sparkles,
   XCircle,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import { useSystemStore } from '@/stores/system';
@@ -59,7 +59,9 @@ const AssetDetailModal = defineAsyncComponent(() => import('./components/AssetDe
 const MaterialDetailPanel = defineAsyncComponent(
   () => import('./components/MaterialDetailPanel.vue'),
 );
-const UnifiedDetailModal = defineAsyncComponent(() => import('./components/UnifiedDetailModal.vue'));
+const UnifiedDetailModal = defineAsyncComponent(
+  () => import('./components/UnifiedDetailModal.vue'),
+);
 const ShowcaseDetail = defineAsyncComponent(
   () => import('../Community/components/ShowcaseDetail.vue'),
 );
@@ -164,7 +166,10 @@ async function showShowcaseDetail(showcaseId: string) {
   }
 }
 
-function handleDetailEdit(item: any, kind: 'asset' | 'material' | 'plugin' | 'software' | 'showcase') {
+function handleDetailEdit(
+  item: any,
+  kind: 'asset' | 'material' | 'plugin' | 'software' | 'showcase',
+) {
   isAssetDetailOpen.value = false;
   isMaterialDetailOpen.value = false;
   isPluginDetailOpen.value = false;
@@ -221,7 +226,10 @@ function handleDetailEdit(item: any, kind: 'asset' | 'material' | 'plugin' | 'so
   }
 }
 
-function handleDetailDelete(item: any, kind: 'asset' | 'material' | 'plugin' | 'software' | 'showcase') {
+function handleDetailDelete(
+  item: any,
+  kind: 'asset' | 'material' | 'plugin' | 'software' | 'showcase',
+) {
   isAssetDetailOpen.value = false;
   isMaterialDetailOpen.value = false;
   isPluginDetailOpen.value = false;
@@ -772,7 +780,10 @@ const openEditDialog = (work: UnifiedWork) => {
     fileUrl = (raw as PluginWork).fileUrl || '';
   }
 
-  const isExternal = fileUrl.startsWith('http://') || fileUrl.startsWith('https://') ? !fileUrl.includes('/uploads/') : false;
+  const isExternal =
+    fileUrl.startsWith('http://') || fileUrl.startsWith('https://')
+      ? !fileUrl.includes('/uploads/')
+      : false;
   let extUrl = '';
   let extCode = '';
   if (isExternal) {
@@ -834,7 +845,10 @@ const handleSaveEdit = async () => {
   }
 
   const work = selectedWork.value;
-  if (['asset', 'material', 'plugin'].includes(work.kind) && editForm.value.downloadType === 'external') {
+  if (
+    ['asset', 'material', 'plugin'].includes(work.kind) &&
+    editForm.value.downloadType === 'external'
+  ) {
     if (!editForm.value.externalUrl.trim()) {
       ElMessage.warning('请填写网盘链接或外部下载链接');
       return;
@@ -967,7 +981,10 @@ const handleSaveEdit = async () => {
       const isPlugin = work.kind === 'plugin';
       if (editForm.value.downloadType === 'local') {
         if (editForm.value.tempPluginPath) {
-          formData.append(isPlugin ? 'tempPluginPath' : 'tempSoftwarePath', editForm.value.tempPluginPath);
+          formData.append(
+            isPlugin ? 'tempPluginPath' : 'tempSoftwarePath',
+            editForm.value.tempPluginPath,
+          );
         } else if (editForm.value.file) {
           formData.append(isPlugin ? 'plugin_file' : 'software_file', editForm.value.file);
         }
@@ -979,7 +996,10 @@ const handleSaveEdit = async () => {
         formData.append('externalUrl', finalUrl);
       }
       if (editForm.value.tempPreviewPath) {
-        formData.append(isPlugin ? 'tempPreviewPath' : 'tempPreviewPath', editForm.value.tempPreviewPath);
+        formData.append(
+          isPlugin ? 'tempPreviewPath' : 'tempPreviewPath',
+          editForm.value.tempPreviewPath,
+        );
       } else if (editForm.value.thumbnail) {
         formData.append(isPlugin ? 'plugin_preview' : 'software_preview', editForm.value.thumbnail);
       }
@@ -1169,7 +1189,6 @@ onMounted(async () => {
     />
 
     <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">
-
       <section class="workspace-shell" :class="{ 'collapsed-shell': isFilterCollapsed }">
         <MyWorksFilterPanel
           v-model:source-filter="sourceFilter"
@@ -1311,7 +1330,7 @@ onMounted(async () => {
 <style scoped>
 .my-works-page {
   height: 100%;
-  background: transparent !important;
+  background: transparent;
   color: var(--text-primary);
 }
 
@@ -1319,12 +1338,18 @@ onMounted(async () => {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 156px minmax(0, 1fr);
+  grid-template-columns: 200px minmax(0, 1fr);
   gap: 12px;
   transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .workspace-shell.collapsed-shell {
   grid-template-columns: 1fr;
+}
+
+@media (max-width: 980px) {
+  .workspace-shell {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { Sparkles, Wand2, X, Check, Plus } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import AiGeneratorBase from '@/components/aiSprite/AiGeneratorBase.vue';
 import Button from '@/components/ui/Button.vue';
 import { logError } from '@/utils/error';

@@ -1,5 +1,7 @@
 import { logger } from '../../utils/logger';
 import prisma from '../../services/prisma';
+import { QueueService } from '../../services/queue.service';
+import type { Prisma } from '@prisma/client';
 
 export class MirrorService {
   async getUserPlanPriority(userId: string): Promise<number> {
@@ -66,7 +68,7 @@ export class MirrorService {
   ) {
     const { page = 1, pageSize = 20, categoryId, search, sort = 'newest' } = options;
 
-    const where: any = { sourceId };
+    const where: Prisma.MirrorResourceWhereInput = { sourceId };
 
     if (categoryId) {
       const targetCategory = await prisma.mirrorCategory.findUnique({
@@ -96,7 +98,7 @@ export class MirrorService {
       ];
     }
 
-    let orderBy: any = { publishedAt: 'desc' };
+    let orderBy: Prisma.MirrorResourceOrderByWithRelationInput = { publishedAt: 'desc' };
     if (sort === 'oldest') orderBy = { publishedAt: 'asc' };
     if (sort === 'title') orderBy = { title: 'asc' };
 
@@ -145,11 +147,12 @@ export class MirrorService {
       .update({ where: { id: resourceId }, data: { viewCount: { increment: 1 } } })
       .catch(() => {});
 
-    // If detail contentHtml is missing, fetch it on-demand with a timeout guard
+    // If detail contentHtml is missing, fetch it on-demand.
+    // Thumbnail localization is delegated to a background BullMQ job to avoid
+    // blocking the HTTP response.
     if (!resource.contentHtml && resource.source.adapterType !== 'MANUAL') {
       try {
         const { getAdapter } = require('../adapters');
-        const { thumbnailLocalizer } = require('./thumbnail-localizer.service');
 
         const adapter = getAdapter(resource.source.adapterType, {
           baseUrl: resource.source.baseUrl,
@@ -158,17 +161,15 @@ export class MirrorService {
             : undefined,
         });
 
-        const FETCH_TIMEOUT_MS = 8000;
-        const fetchPromise = adapter.fetchResourceDetail(resource.externalId);
-        const timeoutPromise = new Promise<null>((_, reject) =>
-          setTimeout(() => reject(new Error('On-demand fetch timeout')), FETCH_TIMEOUT_MS),
-        );
-
-        const detail = await Promise.race([fetchPromise, timeoutPromise]);
+        const detail = await adapter.fetchResourceDetail(resource.externalId);
         if (detail) {
-          const localHtml = await thumbnailLocalizer.localizeHtmlContent(
-            detail.contentHtml || '',
-            resource.sourceId,
+          const contentHtml = detail.contentHtml || '';
+
+          // Fire-and-forget: localize thumbnails in the background queue
+          await QueueService.enqueue(
+            'thumbnail-localize',
+            { htmlContent: contentHtml, sourceId: resource.sourceId, mirrorId: resourceId },
+            { type: 'thumbnail-localize', idempotencyKey: `thumb-${resource.sourceId}` },
           );
 
           let tags = resource.tags;
@@ -183,7 +184,7 @@ export class MirrorService {
               thumbnailUrl: detail.thumbnailUrl || resource.thumbnailUrl,
               tags: tags,
               publishedAt: detail.publishedAt || resource.publishedAt,
-              contentHtml: localHtml,
+              contentHtml: contentHtml,
             },
             include: {
               source: {

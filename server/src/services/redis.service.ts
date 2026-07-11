@@ -1,14 +1,25 @@
 import Redis from 'ioredis';
+import Redlock, { Lock, ResourceLockedError } from 'redlock';
 import { logger } from '../utils/logger';
 
 class RedisService {
   private redisClient: Redis | null = null;
-  private isRedisEnabled = false;
+  private redlock: Redlock | null = null;
+  public isRedisEnabled = false;
   private static readonly PRUNE_INTERVAL_MS = 60_000;
   private static readonly LOCAL_CACHE_MAX_SIZE = 1000;
   private lastPruneTime = 0;
   // Local fallback cache with TTL
-  private localCache = new Map<string, { value: any; expiresAt: number }>();
+  private localCache = new Map<string, { value: unknown; expiresAt: number }>();
+
+  public getNewRedisConnection() {
+    const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+    return new Redis(redisUrl, {
+      maxRetriesPerRequest: null,
+      connectTimeout: 2000,
+      lazyConnect: true,
+    });
+  }
 
   constructor() {
     const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
@@ -41,6 +52,15 @@ class RedisService {
         logger.warn(`Redis error: ${err.message}`);
         this.isRedisEnabled = false;
       });
+
+      // Create a Redlock instance sharing the existing redisClient connection.
+      // Redlock v5 accepts ioredis clients directly and uses Lua scripts (EVALSHA)
+      // to acquire/release locks atomically across the registered clients.
+      this.redlock = new Redlock([this.redisClient], {
+        retryCount: 3,
+        retryDelay: 200,
+        retryJitter: 100,
+      });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       logger.error('Failed to initialize Redis client:', msg);
@@ -66,7 +86,7 @@ class RedisService {
       const keysToKeep = Array.from(this.localCache.keys()).slice(
         -RedisService.LOCAL_CACHE_MAX_SIZE,
       );
-      const newCache = new Map<string, { value: any; expiresAt: number }>();
+      const newCache = new Map<string, { value: unknown; expiresAt: number }>();
       for (const k of keysToKeep) {
         const item = this.localCache.get(k);
         if (item) {
@@ -103,7 +123,7 @@ class RedisService {
     return null;
   }
 
-  async set(key: string, value: any, ttlSeconds: number): Promise<void> {
+  async set(key: string, value: unknown, ttlSeconds: number): Promise<void> {
     this.pruneCache();
     if (this.isRedisEnabled && this.redisClient) {
       try {
@@ -134,6 +154,62 @@ class RedisService {
     this.localCache.delete(key);
   }
 
+  /**
+   * Acquire a distributed lock using the Redlock algorithm.
+   *
+   * Redlock v5 uses a cryptographically-random lock value and Lua scripts to
+   * guarantee that locks are acquired/released atomically and that a lock can
+   * only be released by its owner. This is preferred over the simple
+   * `acquireLock` SET NX EX approach, which lacks ownership verification on
+   * release and is therefore vulnerable to accidental release by a non-owner.
+   *
+   * When Redis (and therefore the Redlock instance) is unavailable — e.g. in
+   * test or development environments — this method degrades gracefully to the
+   * local-cache fallback lock, mirroring the behaviour of every other method in
+   * this service. This keeps callers working without a Redis dependency while
+   * still providing mutual exclusion within a single process.
+   *
+   * @param resource Logical resource name (the `lock:` prefix is added automatically).
+   * @param ttl      Lock duration in milliseconds.
+   * @returns        A `Lock` object whose `release()` method must be called in a
+   *                 `finally` block once the protected work is done.
+   * @throws         `ResourceLockedError` when the lock cannot be acquired after
+   *                 the configured retry budget is exhausted.
+   */
+  async acquireRedlock(resource: string, ttl: number): Promise<Lock> {
+    if (this.redlock) {
+      return this.redlock.acquire(['lock:' + resource], ttl);
+    }
+
+    // Fallback for environments without Redis (test/dev): use the simple
+    // local-cache lock. Returns a Lock-compatible shim whose release() drops
+    // the local cache entry. This is consistent with the degradation strategy
+    // used by get/set/del/acquireLock above.
+    const key = 'lock:' + resource;
+    const ttlSeconds = Math.max(1, Math.ceil(ttl / 1000));
+    const acquired = await this.acquireLock(key, ttlSeconds);
+    if (!acquired) {
+      throw new ResourceLockedError(`Could not acquire lock on ${resource}`);
+    }
+    const expiration = Date.now() + ttl;
+    const fallbackLock = {
+      resources: [key],
+      value: `fallback-${expiration}`,
+      attempts: [] as ReadonlyArray<Promise<unknown>>,
+      expiration,
+      release: async () => {
+        await this.releaseLock(key);
+        return { attempts: [] as ReadonlyArray<Promise<unknown>> };
+      },
+    };
+    return fallbackLock as unknown as Lock;
+  }
+
+  /**
+   * @deprecated Use `acquireRedlock` instead. The simple SET NX EX lock does not
+   * verify ownership on release and is retained only for backwards compatibility
+   * with existing call sites and the local fallback cache.
+   */
   async acquireLock(key: string, ttlSeconds: number): Promise<boolean> {
     if (this.isRedisEnabled && this.redisClient) {
       try {
@@ -186,6 +262,21 @@ class RedisService {
   async invalidateUserCache(userId: string): Promise<void> {
     const key = `user_auth:${userId}`;
     await this.del(key);
+  }
+
+  async quit(): Promise<void> {
+    if (this.redisClient) {
+      try {
+        await this.redisClient.quit();
+        logger.info('Disconnected from Redis server.');
+      } catch (err) {
+        logger.warn('Failed to disconnect from Redis:', err);
+      } finally {
+        this.redisClient = null;
+        this.redlock = null;
+        this.isRedisEnabled = false;
+      }
+    }
   }
 }
 

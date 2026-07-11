@@ -14,7 +14,7 @@ import {
   Search,
   Save,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import { getApiErrorMessage } from '@/utils/error';
 import api from '@/utils/api';
 import Button from '@/components/ui/Button.vue';
@@ -559,7 +559,7 @@ const getStatusLabel = (status: string) => {
     </div>
 
     <!-- Subscription Edit/Create Dialog -->
-    <Modal :show="showSubDialog" size="lg" glass-card @close="showSubDialog = false">
+    <Modal :show="showSubDialog" size="lg" @close="showSubDialog = false">
       <template #header>
         <div>
           <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
@@ -704,37 +704,21 @@ const getStatusLabel = (status: string) => {
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
               $t('admin.subscription_status')
             }}</label>
-            <select
-              v-model="subForm.status"
-              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            >
-              <option value="ACTIVE">{{ $t('admin.active_1') }}</option>
-              <option value="CANCELED">{{ $t('admin.canceled') }}</option>
-              <option value="EXPIRED">{{ $t('admin.expired_1') }}</option>
-              <option value="PAST_DUE">{{ $t('admin.overdue') }}</option>
-            </select>
+            <Select v-model="subForm.status" class="w-full" size="large">
+              <SelectOption value="ACTIVE" :label="$t('admin.active_1')" />
+              <SelectOption value="CANCELED" :label="$t('admin.canceled')" />
+              <SelectOption value="EXPIRED" :label="$t('admin.expired_1')" />
+              <SelectOption value="PAST_DUE" :label="$t('admin.overdue')" />
+            </Select>
           </div>
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
               $t('admin.billing_cycle')
             }}</label>
-            <select
-              v-model="subForm.interval"
-              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            >
-              <option value="MONTHLY">{{ $t('admin.monthly_payment') }}</option>
-              <option value="YEARLY">{{ $t('admin.annual_payment') }}</option>
-            </select>
+            <Select v-model="subForm.interval" class="w-full" size="large">
+              <SelectOption value="MONTHLY" :label="$t('admin.monthly_payment')" />
+              <SelectOption value="YEARLY" :label="$t('admin.annual_payment')" />
+            </Select>
           </div>
         </div>
 
@@ -777,21 +761,13 @@ const getStatusLabel = (status: string) => {
           <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
             $t('admin.payment_method')
           }}</label>
-          <select
-            v-model="subForm.paymentMethod"
-            class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-          >
-            <option value="ADMIN_ASSIGN">{{ $t('admin.administrator_assignment') }}</option>
-            <option value="ALIPAY">{{ $t('admin.alipay') }}</option>
-            <option value="WECHAT">{{ $t('admin.wechat_pay') }}</option>
-            <option value="CARD">{{ $t('admin.bank_card') }}</option>
-            <option value="MOCK_PAYMENT">{{ $t('admin.simulate_payment') }}</option>
-          </select>
+          <Select v-model="subForm.paymentMethod" class="w-full" size="large">
+            <SelectOption value="ADMIN_ASSIGN" :label="$t('admin.administrator_assignment')" />
+            <SelectOption value="ALIPAY" :label="$t('admin.alipay')" />
+            <SelectOption value="WECHAT" :label="$t('admin.wechat_pay')" />
+            <SelectOption value="CARD" :label="$t('admin.bank_card')" />
+            <SelectOption value="MOCK_PAYMENT" :label="$t('admin.simulate_payment')" />
+          </Select>
         </div>
 
         <!-- Toggles -->

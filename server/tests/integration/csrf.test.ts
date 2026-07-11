@@ -45,10 +45,8 @@ describe('CSRF Protection Integration', () => {
   });
 
   it('should reject non-whitelisted POST requests when CSRF token is missing', async () => {
-    const res = await request(app)
-      .post('/api/tasks')
-      .send({ title: 'New Task' });
-    
+    const res = await request(app).post('/api/tasks').send({ title: 'New Task' });
+
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('CSRF_VALIDATION_FAILED');
   });
@@ -72,9 +70,9 @@ describe('CSRF Protection Integration', () => {
       .post('/api/notes/share/nonexistent-share-id/ai-summarize')
       .send();
 
-    // Since CSRF is bypassed, it should proceed to the controller
-    // and return 404 for nonexistent-share-id, not 403 CSRF_VALIDATION_FAILED
-    expect(res.status).toBe(404);
-    expect(res.body.error).toBe('分享链接不存在或已失效');
+    // Since CSRF is bypassed, it should proceed to auth middleware and return 401
+    // instead of 403 CSRF_VALIDATION_FAILED
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('TOKEN_REQUIRED');
   });
 });

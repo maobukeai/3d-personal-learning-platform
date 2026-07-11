@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { logError } from '@/utils/error';
 import {
   Menu,
@@ -52,6 +52,7 @@ import { useLayoutSocket } from './composables/useLayoutSocket';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import { useWorkspaceStore } from '@/stores/workspace';
+import { authReady } from '@/stores/authReady';
 import api, { getAssetUrl } from '@/utils/api';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
@@ -71,7 +72,74 @@ const workspaceStore = useWorkspaceStore();
 const { t } = useI18n();
 
 const { menuGroups, mobileNavItems } = useSidebarMenus();
-const { currentTheme, isDark, applyTheme, initTheme, cleanupTheme } = useThemeManager();
+const { currentTheme, currentBackground, isDark, applyTheme, initTheme, cleanupTheme } =
+  useThemeManager();
+
+const blobStyles = ref([
+  { style: {} as Record<string, string> },
+  { style: {} as Record<string, string> },
+  { style: {} as Record<string, string> },
+]);
+
+const randomizeBlobs = () => {
+  // Blob 1: Bottom-Left quadrant (do not appear in top-left to keep header/sidebar clean)
+  const bottom1 = Math.floor(Math.random() * 40) - 20; // -20% to 20%
+  const left1 = Math.floor(Math.random() * 40) - 20; // -20% to 20%
+  const size1 = Math.floor(Math.random() * 20) + 45; // 45% to 65%
+  const duration1 = Math.floor(Math.random() * 10) + 15; // 15s to 25s
+
+  // Blob 2: Bottom-Right quadrant
+  const bottom2 = Math.floor(Math.random() * 40) - 25; // -25% to 15%
+  const right2 = Math.floor(Math.random() * 40) - 25; // -25% to 15%
+  const size2 = Math.floor(Math.random() * 20) + 40; // 40% to 60%
+  const duration2 = Math.floor(Math.random() * 12) + 18; // 18s to 30s
+
+  // Blob 3: Top/Middle-Right
+  const top3 = Math.floor(Math.random() * 50) + 10; // 10% to 60%
+  const right3 = Math.floor(Math.random() * 40) - 10; // -10% to 30%
+  const size3 = Math.floor(Math.random() * 15) + 35; // 35% to 50%
+  const duration3 = Math.floor(Math.random() * 8) + 6; // 6s to 14s
+
+  blobStyles.value = [
+    {
+      style: {
+        bottom: `${bottom1}%`,
+        left: `${left1}%`,
+        width: `${size1}%`,
+        height: `${size1}%`,
+        animationDuration: `${duration1}s`,
+      },
+    },
+    {
+      style: {
+        bottom: `${bottom2}%`,
+        right: `${right2}%`,
+        width: `${size2}%`,
+        height: `${size2}%`,
+        animationDuration: `${duration2}s`,
+      },
+    },
+    {
+      style: {
+        top: `${top3}%`,
+        right: `${right3}%`,
+        width: `${size3}%`,
+        height: `${size3}%`,
+        animationDuration: `${duration3}s`,
+      },
+    },
+  ];
+};
+
+onMounted(() => {
+  randomizeBlobs();
+});
+
+watch(currentBackground, (bg) => {
+  if (bg === 'blobs') {
+    randomizeBlobs();
+  }
+});
 
 const toggleTheme = () => {
   const nextTheme = isDark.value ? 'glass-light' : 'glass-dark';
@@ -285,16 +353,32 @@ onMounted(async () => {
     systemStore.fetchSettings();
   }
 
-  // Initialize workspaces first (loads public mirror/manual sources for guests too)
-  await workspaceStore.initialize(route.path);
-
-  // Only verify session if there is a stored user (previously logged in).
-  // For anonymous guests (no stored user), skip fetchMe to avoid the race condition
-  // where fetchMe's 401 failure would trigger logout() → workspaceStore.reset(),
-  // which destroys the guest's freshly-loaded public workspace state.
+  // ── Auth bootstrap (MUST happen before workspace init) ──────────────────
+  // `authStore.accessToken` starts as null on every page load (it is never
+  // persisted). fetchMe() will 401 → the axios interceptor calls
+  // refreshAccessToken() → stores the token → retries fetchMe().
+  // Only after this cycle is `accessToken` non-null, so all subsequent
+  // requests (workspace, views) can attach the Authorization header.
   if (authStore.user) {
     await authStore.fetchMe();
+    // Explicit refresh as a safety net: if fetchMe succeeded via a still-valid
+    // access-token cookie but the interceptor didn't run (no 401), we still
+    // need an in-memory token for the Bearer-header injection in api.ts.
+    if (!authStore.accessToken) {
+      try {
+        await authStore.refreshAccessToken();
+      } catch {
+        // refresh failure → logout() already called inside refreshAccessToken
+      }
+    }
   }
+  // Signal that auth is settled. RouterView is gated behind this flag so
+  // child views (TaskBoard, MaterialsView, …) cannot mount until the
+  // Bearer token is in memory.
+  authReady.value = true;
+
+  // ── Workspace & data init (safe now — token is available) ───────────────
+  await workspaceStore.initialize(route.path);
 
   fetchNotifications();
   fetchUnreadMessagesCount();
@@ -323,6 +407,7 @@ watch(
   () => authStore.isAuthenticated,
   (isAuthenticated) => {
     if (isAuthenticated) {
+      authReady.value = true;
       workspaceStore.initialize(route.path);
       fetchLatestBroadcast();
     }
@@ -416,10 +501,32 @@ onUnmounted(() => {
   >
     <!-- Subtle enterprise canvas for glass mode -->
     <div
-      v-show="(currentTheme === 'glass-light' || currentTheme === 'glass-dark') && !isMobile"
-      class="enterprise-canvas absolute inset-0 overflow-hidden pointer-events-none z-0"
+      v-show="currentTheme.startsWith('glass') && !isMobile"
+      :class="[
+        'enterprise-canvas absolute inset-0 overflow-hidden pointer-events-none z-0',
+        'bg-style-' + currentBackground,
+      ]"
       style="contain: strict"
-    ></div>
+    >
+      <!-- Restored beautiful floating blobs -->
+      <div
+        v-if="currentBackground === 'blobs'"
+        class="absolute inset-0 overflow-hidden pointer-events-none"
+      >
+        <div
+          class="absolute bg-[var(--accent)]/18 blur-[120px] rounded-full animate-float-blob"
+          :style="blobStyles[0].style"
+        ></div>
+        <div
+          class="absolute bg-[var(--accent)]/14 blur-[100px] rounded-full animate-float-blob-reverse"
+          :style="blobStyles[1].style"
+        ></div>
+        <div
+          class="absolute bg-[var(--accent)]/10 blur-[100px] rounded-full animate-pulse-slow"
+          :style="blobStyles[2].style"
+        ></div>
+      </div>
+    </div>
 
     <!-- Top Navigation Bar -->
     <header
@@ -508,7 +615,7 @@ onUnmounted(() => {
 
       <!-- Right: Actions + Avatar -->
       <div
-        class="flex items-center justify-end gap-1.5 md:gap-2 lg:w-auto lg:min-w-[380px] xl:w-auto xl:min-w-[440px] shrink-0 min-w-0"
+        class="flex items-center justify-end gap-3 sm:gap-4 lg:w-auto lg:min-w-[380px] xl:w-auto xl:min-w-[440px] shrink-0 min-w-0"
       >
         <!-- Search bar for desktop mode when tabs are visible -->
         <div
@@ -618,7 +725,9 @@ onUnmounted(() => {
             >{{ $t('layout.goToDisable') }}</RouterLink
           >
         </div>
-        <RouterView v-slot="{ Component, route: routeSlot }">
+        <!-- Gate child views behind auth bootstrap so views like TaskBoard
+             don't fire authenticated requests before the Bearer token is set -->
+        <RouterView v-if="authReady" v-slot="{ Component, route: routeSlot }">
           <Transition name="page-fade" mode="out-in">
             <keep-alive
               :include="[
@@ -709,7 +818,6 @@ onUnmounted(() => {
     <Modal
       :show="showBroadcastPopup"
       size="lg"
-      glass-card
       :close-on-outside-click="true"
       @close="showBroadcastPopup = false"
     >
@@ -779,11 +887,19 @@ onUnmounted(() => {
 }
 
 .enterprise-canvas {
-  background-image:
-    linear-gradient(var(--border-base) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border-base) 1px, transparent 1px);
-  background-size: 32px 32px;
-  opacity: 0.2;
+  --canvas-line: color-mix(in srgb, var(--border-base) 74%, transparent);
+  --canvas-glow: color-mix(in srgb, var(--accent) 30%, transparent);
+  transition:
+    opacity 0.35s ease,
+    background 0.5s ease;
+}
+
+.enterprise-canvas::before,
+.enterprise-canvas::after {
+  content: '';
+  position: absolute;
+  inset: -18%;
+  pointer-events: none;
 }
 
 .topbar {
@@ -829,11 +945,11 @@ onUnmounted(() => {
 
 @media (max-width: 1023px) {
   .mobile-main-content {
-    padding-bottom: calc(3.25rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(3.25rem + env(safe-area-inset-bottom));
   }
   .mobile-bottom-nav {
-    height: calc(3.25rem + env(safe-area-inset-bottom)) !important;
-    padding-bottom: env(safe-area-inset-bottom) !important;
+    height: calc(3.25rem + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 </style>

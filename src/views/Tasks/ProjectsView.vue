@@ -15,7 +15,7 @@ import {
   KanbanSquare,
   FolderPlus,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { TaskStatus } from '@/types/task';
@@ -873,21 +873,6 @@ watch(viewMode, (newMode) => {
   z-index: 8;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
 }
-
-.team-projects :deep(.el-select__wrapper),
-.team-projects :deep(.el-input__wrapper) {
-  border-radius: 8px;
-  min-height: 30px;
-  box-shadow: 0 0 0 1px var(--border-base) inset;
-  background: var(--bg-app);
-}
-
-.team-projects :deep(.el-select__placeholder),
-.team-projects :deep(.el-select__selected-item) {
-  font-size: 11px;
-  font-weight: 800;
-}
-
 @media (max-width: 1440px) {
   .compact-metric-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -24,7 +24,7 @@ import {
   StickyNote,
   Share2,
 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';

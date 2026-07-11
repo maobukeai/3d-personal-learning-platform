@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Copy } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import UserAvatar from '@/components/UserAvatar.vue';
 import Modal from '@/components/ui/Modal.vue';
 import { useAuditLogHelpers } from '@/composables/useAuditLogHelpers';
@@ -50,7 +50,7 @@ const copyValue = async (value: string, label = '内容') => {
 </script>
 
 <template>
-  <Modal :show="modelValue" size="xl" glass-card @close="emit('update:modelValue', false)">
+  <Modal :show="modelValue" size="xl" @close="emit('update:modelValue', false)">
     <template #header>
       <div v-if="log" class="flex items-center justify-between w-full pr-8 text-left">
         <div>

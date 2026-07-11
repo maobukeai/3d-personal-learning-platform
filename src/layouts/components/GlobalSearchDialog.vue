@@ -158,12 +158,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Modal
-    :show="isSearchVisible"
-    :size="isMobile ? 'sm' : 'lg'"
-    glass-card
-    @close="isSearchVisible = false"
-  >
+  <Modal :show="isSearchVisible" :size="isMobile ? 'sm' : 'lg'" @close="isSearchVisible = false">
     <template #header>
       <h3 class="text-base sm:text-lg font-bold leading-6 text-[var(--text-primary)]">
         {{ isMobile ? '' : t('search.title') }}
@@ -171,7 +166,7 @@ onUnmounted(() => {
     </template>
 
     <div class="relative">
-      <el-input
+      <Input
         ref="searchInput"
         v-model="searchQuery"
         :placeholder="t('search.placeholder')"
@@ -192,7 +187,7 @@ onUnmounted(() => {
             class="w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin"
           ></div>
         </template>
-      </el-input>
+      </Input>
     </div>
 
     <div
@@ -386,9 +381,9 @@ onUnmounted(() => {
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{
               t('search.history')
             }}</span>
-            <el-button link size="small" class="text-[10px]" @click="clearHistory">{{
+            <Button link size="sm" class="text-[10px]" @click="clearHistory">{{
               t('search.clearHistory')
-            }}</el-button>
+            }}</Button>
           </div>
           <div class="flex flex-wrap gap-2 px-1">
             <button

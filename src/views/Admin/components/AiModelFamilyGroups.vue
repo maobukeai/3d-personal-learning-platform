@@ -189,7 +189,7 @@ const getGroupSelectedCount = (group: ModelFamilyGroup) =>
               <Plus class="w-3.5 h-3.5" />
               <span>{{ $t('admin.ai_add_family_model', { family: group.label }) }}</span>
             </button>
-            <el-switch
+            <Switch
               :model-value="isGroupEnabled(group.key)"
               inline-prompt
               active-text="启用"

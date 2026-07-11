@@ -51,14 +51,14 @@ const emit = defineEmits<{
   <div class="content-grid">
     <Card padding="none" class="table-shell-card overflow-hidden">
       <div class="table-wrap flex-1 min-h-0 overflow-auto">
-        <el-table
+        <Table
           v-loading="props.isLoading"
           :data="props.teams"
           class="user-table w-full mobile-table"
           row-class-name="table-row"
           @row-click="emit('row-click', $event)"
         >
-          <el-table-column width="48">
+          <TableColumn width="48">
             <template #header>
               <input
                 type="checkbox"
@@ -75,9 +75,9 @@ const emit = defineEmits<{
                 @click.stop
               />
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="团队" min-width="220">
+          <TableColumn label="团队" min-width="220">
             <template #default="{ row }">
               <div class="team-cell flex items-center gap-2.5">
                 <div
@@ -101,9 +101,9 @@ const emit = defineEmits<{
                 </div>
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="负责人" width="160">
+          <TableColumn label="负责人" width="160">
             <template #default="{ row }">
               <div class="owner-cell flex items-center gap-2">
                 <UserAvatar :user="row.owner" size="xs" />
@@ -112,9 +112,9 @@ const emit = defineEmits<{
                 }}</span>
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="健康" width="150">
+          <TableColumn label="健康" width="150">
             <template #default="{ row }">
               <div class="health-cell flex flex-col gap-1.5 w-full pr-2">
                 <div class="flex items-center justify-between gap-1 text-xs">
@@ -140,9 +140,9 @@ const emit = defineEmits<{
                 </div>
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="协作规模" width="180">
+          <TableColumn label="协作规模" width="180">
             <template #default="{ row }">
               <div
                 class="dense-metrics flex items-center gap-3 text-xs text-[var(--text-secondary)]"
@@ -160,33 +160,30 @@ const emit = defineEmits<{
                 >
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="内容资产" width="180">
+          <TableColumn label="内容资产" width="180">
             <template #default="{ row }">
               <div
                 class="dense-metrics flex items-center gap-3 text-xs text-[var(--text-secondary)]"
               >
-                <span class="inline-flex items-center gap-1" title="项目数"
-                  ><Briefcase class="w-3.5 h-3.5 text-slate-400" />{{
-                    row._count?.projects || 0
-                  }}</span
-                >
-                <span class="inline-flex items-center gap-1" title="任务数"
-                  ><ClipboardList class="w-3.5 h-3.5 text-slate-400" />{{
-                    row._count?.tasks || 0
-                  }}</span
-                >
-                <span class="inline-flex items-center gap-1" title="资源总数"
-                  ><Boxes class="w-3.5 h-3.5 text-slate-400" />{{
-                    row.metrics?.resourceTotal || 0
-                  }}</span
-                >
+                <span class="inline-flex items-center gap-1" title="项目数">
+                  <Briefcase class="w-3.5 h-3.5 text-slate-400" />
+                  {{ row._count?.projects || 0 }}
+                </span>
+                <span class="inline-flex items-center gap-1" title="任务数">
+                  <ClipboardList class="w-3.5 h-3.5 text-slate-400" />
+                  {{ row._count?.tasks || 0 }}
+                </span>
+                <span class="inline-flex items-center gap-1" title="资源总数">
+                  <Boxes class="w-3.5 h-3.5 text-slate-400" />
+                  {{ row.metrics?.resourceTotal || 0 }}
+                </span>
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="待处理" width="150">
+          <TableColumn label="待处理" width="150">
             <template #default="{ row }">
               <div class="flex items-center gap-2">
                 <span
@@ -209,9 +206,9 @@ const emit = defineEmits<{
                 </span>
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="最近活动" min-width="150">
+          <TableColumn label="最近活动" min-width="150">
             <template #default="{ row }">
               <div class="flex flex-col gap-0.5 text-xs">
                 <span class="font-bold text-[var(--text-primary)]">{{
@@ -228,12 +225,12 @@ const emit = defineEmits<{
                 </span>
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="操作" width="80" align="right">
+          <TableColumn label="操作" width="80" align="right">
             <template #default="{ row }">
               <div @click.stop>
-                <el-dropdown trigger="click">
+                <Dropdown trigger="click">
                   <button
                     type="button"
                     class="icon-btn p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
@@ -241,32 +238,32 @@ const emit = defineEmits<{
                     <MoreHorizontal class="w-4 h-4 text-slate-500" />
                   </button>
                   <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item @click="emit('row-click', row)">
+                    <DropdownMenu>
+                      <DropdownItem @click="emit('row-click', row)">
                         <Eye class="dropdown-icon" /> 查看详情
-                      </el-dropdown-item>
-                      <el-dropdown-item @click="emit('edit', row)">
+                      </DropdownItem>
+                      <DropdownItem @click="emit('edit', row)">
                         <Edit3 class="dropdown-icon" /> 编辑团队
-                      </el-dropdown-item>
-                      <el-dropdown-item @click="emit('add-member', row)">
+                      </DropdownItem>
+                      <DropdownItem @click="emit('add-member', row)">
                         <UserPlus class="dropdown-icon" /> 添加成员
-                      </el-dropdown-item>
-                      <el-dropdown-item divided @click="emit('delete', row)">
+                      </DropdownItem>
+                      <DropdownItem divided @click="emit('delete', row)">
                         <Trash2 class="dropdown-icon danger" /> 解散团队
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
+                      </DropdownItem>
+                    </DropdownMenu>
                   </template>
-                </el-dropdown>
+                </Dropdown>
               </div>
             </template>
-          </el-table-column>
-        </el-table>
+          </TableColumn>
+        </Table>
       </div>
 
       <div
         class="pagination-wrap mt-4 flex items-center justify-between p-3 border-t border-slate-100 dark:border-white/5 bg-white/40 dark:bg-transparent mobile-row"
       >
-        <el-pagination
+        <Pagination
           :current-page="props.pagination.page"
           :page-size="props.pagination.limit"
           :page-sizes="[20, 30, 50, 100]"
@@ -468,10 +465,5 @@ const emit = defineEmits<{
 .icon-btn:hover {
   color: #0f172a;
   background: #eef3f9;
-}
-
-:deep(.el-dropdown-menu__item) {
-  display: flex;
-  align-items: center;
 }
 </style>

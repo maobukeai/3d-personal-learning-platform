@@ -10,9 +10,33 @@ lerna-debug.log*
 # Server debug logs (may contain stack traces with sensitive data)
 server/error-debug.log
 server/error-debug.old.log
+server/tsc-errors.txt
 vite-dashboard.log
 vite-dashboard.err.log
 server/.codex-*.log
+
+# Generated reports and local compiler diagnostics
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/test-results/
+coverage/
+server/coverage/
+lint-output*.txt
+lint-warnings.txt
+tsc-errors.txt
+tsc-output.txt
+tsc_out.txt
+tsc-after-*.txt
+*.tsc-errors.txt
+eslint-report.txt
+recovered-*.vue
+*.bak
+/components.d.ts
+server/openapi.json
+server/openapi.yaml
+dist-tsbuildinfo/
+3d-learning-platform-design/
 
 node_modules
 dist

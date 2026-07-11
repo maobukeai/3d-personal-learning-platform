@@ -54,12 +54,7 @@ const handleSubmit = () => {
         <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
           {{ label('求助标题', 'Title') }}
         </label>
-        <Input
-          v-model="form.title"
-          type="text"
-          :placeholder="titlePlaceholder"
-          required
-        />
+        <Input v-model="form.title" type="text" :placeholder="titlePlaceholder" required />
       </div>
 
       <div class="flex flex-col gap-1.5">

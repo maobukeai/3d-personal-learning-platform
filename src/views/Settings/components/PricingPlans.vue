@@ -87,10 +87,10 @@ const isCurrentPlan = (plan: BillingPlan) => {
 </script>
 
 <template>
-  <div id="pricing-plans-section" class="space-y-6 scroll-mt-6">
-    <div class="text-center space-y-4 px-4">
-      <h2 class="text-2xl md:text-3xl font-black text-[var(--text-primary)]">选择适合您的方案</h2>
-      <p class="text-sm text-[var(--text-secondary)]">解锁更多 3D 资产、高级材质和无限协作空间</p>
+  <div id="pricing-plans-section" class="space-y-3 scroll-mt-6">
+    <div class="text-center space-y-1 px-4">
+      <h2 class="text-xl md:text-2xl font-black text-[var(--text-primary)]">选择适合您的方案</h2>
+      <p class="text-xs text-[var(--text-secondary)]">解锁更多 3D 资产、高级材质和无限协作空间</p>
 
       <div class="flex items-center justify-center gap-3 pt-2 mobile-row">
         <span
@@ -119,11 +119,11 @@ const isCurrentPlan = (plan: BillingPlan) => {
     </div>
 
     <!-- Responsive grid stacked on mobile, 3 columns on desktop -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 pt-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 pt-1">
       <div
         v-for="plan in plans"
         :key="plan.id"
-        class="relative p-6 md:p-8 rounded-3xl border transition-all duration-500 flex flex-col h-full overflow-hidden premium-billing-card"
+        class="relative p-4 md:p-5 rounded-3xl border transition-all duration-500 flex flex-col h-full overflow-hidden premium-billing-card"
         :class="[
           isCurrentPlan(plan)
             ? 'border-accent bg-accent/5 ring-1 ring-accent shadow-lg md:shadow-2xl'
@@ -138,19 +138,19 @@ const isCurrentPlan = (plan: BillingPlan) => {
           推荐
         </div>
 
-        <div class="mb-6 md:mb-8">
-          <div class="p-2.5 md:p-3 bg-[var(--bg-app)] w-fit rounded-2xl mb-4">
+        <div class="mb-2 md:mb-3">
+          <div class="p-1.5 bg-[var(--bg-app)] w-fit rounded-xl mb-2">
             <component
               :is="getPlanIcon(plan.name)"
-              class="w-5 h-5 md:w-6 md:h-6"
+              class="w-4 h-4 md:w-5 md:h-5"
               :class="getPlanColor(plan.name)"
             />
           </div>
-          <h3 class="text-lg md:text-xl font-black text-[var(--text-primary)] truncate">
+          <h3 class="text-base md:text-lg font-black text-[var(--text-primary)] truncate">
             {{ plan.displayName || plan.name }}
           </h3>
-          <div class="mt-4 flex items-baseline gap-1">
-            <span class="text-3xl md:text-4xl font-black text-[var(--text-primary)]"
+          <div class="mt-2 flex items-baseline gap-1">
+            <span class="text-2xl md:text-3xl font-black text-[var(--text-primary)]"
               >￥{{ getDisplayPrice(plan) }}</span
             >
             <span class="text-xs md:text-sm font-medium text-[var(--text-secondary)]"
@@ -160,22 +160,18 @@ const isCurrentPlan = (plan: BillingPlan) => {
         </div>
 
         <!-- Complete benefits features listing -->
-        <ul class="space-y-3.5 md:space-y-4 mb-6 md:mb-10 flex-1">
-          <li
-            v-for="feature in plan.features || []"
-            :key="feature"
-            class="flex items-start gap-2.5"
-          >
+        <ul class="space-y-1.5 md:space-y-2 mb-4 md:mb-5 flex-1">
+          <li v-for="feature in plan.features || []" :key="feature" class="flex items-start gap-2">
             <div class="p-0.5 bg-emerald-500/10 rounded-full text-emerald-500 shrink-0 mt-0.5">
-              <Check class="w-3 h-3" />
+              <Check class="w-2.5 h-2.5" />
             </div>
-            <span class="text-xs md:text-sm text-[var(--text-secondary)]">{{ feature }}</span>
+            <span class="text-xs text-[var(--text-secondary)]">{{ feature }}</span>
           </li>
         </ul>
 
         <button
           type="button"
-          class="w-full py-2.5 md:py-4 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer hover:-translate-y-0.5 active:scale-95"
+          class="w-full py-1.5 md:py-2.5 rounded-xl md:rounded-2xl font-bold text-xs transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer hover:-translate-y-0.5 active:scale-95"
           :class="[
             isCurrentPlan(plan)
               ? 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20'
@@ -211,7 +207,7 @@ const isCurrentPlan = (plan: BillingPlan) => {
   transform: translateY(-2px);
 }
 .premium-billing-card.border-accent:hover {
-  border-color: var(--accent) !important;
-  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15) !important;
+  border-color: var(--accent);
+  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15);
 }
 </style>

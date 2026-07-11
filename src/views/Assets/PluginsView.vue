@@ -18,7 +18,7 @@ import {
   ExternalLink,
   RefreshCw,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import { useI18n } from 'vue-i18n';
 import { useSystemStore } from '@/stores/system';
 import Modal from '@/components/ui/Modal.vue';
@@ -33,7 +33,9 @@ import PluginFiltersPanel from './components/PluginFiltersPanel.vue';
 import PluginToolbar from './components/PluginToolbar.vue';
 import PluginCatalog from './components/PluginCatalog.vue';
 
-const UnifiedDetailModal = defineAsyncComponent(() => import('./components/UnifiedDetailModal.vue'));
+const UnifiedDetailModal = defineAsyncComponent(
+  () => import('./components/UnifiedDetailModal.vue'),
+);
 const PublishWorkDialog = defineAsyncComponent(() => import('@/components/PublishWorkDialog.vue'));
 const EditWorkDialog = defineAsyncComponent(() => import('./components/EditWorkDialog.vue'));
 import { normalizePluginWork } from './myWorksModel';
@@ -299,7 +301,10 @@ const togglePluginSelect = (id: string) => {
 };
 
 const selectAllPlugins = () => {
-  if (selectedPluginIds.value.size === visiblePlugins.value.length && visiblePlugins.value.length > 0) {
+  if (
+    selectedPluginIds.value.size === visiblePlugins.value.length &&
+    visiblePlugins.value.length > 0
+  ) {
     selectedPluginIds.value = new Set();
   } else {
     selectedPluginIds.value = new Set(visiblePlugins.value.map((p) => p.id));
@@ -329,13 +334,17 @@ const handleBulkDeletePlugins = async () => {
     const ids = Array.from(selectedPluginIds.value);
     await api.post('/api/plugins/bulk-delete', { ids });
 
-    ElMessage.success(label(`成功删除 ${ids.length} 个插件`, `Successfully deleted ${ids.length} plugins`));
+    ElMessage.success(
+      label(`成功删除 ${ids.length} 个插件`, `Successfully deleted ${ids.length} plugins`),
+    );
     selectedPluginIds.value = new Set();
     fetchPlugins();
     fetchInsights();
   } catch (err: any) {
     if (err !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(err, label('批量删除失败', 'Failed to bulk delete plugins')));
+      ElMessage.error(
+        getApiErrorMessage(err, label('批量删除失败', 'Failed to bulk delete plugins')),
+      );
     }
   }
 };
@@ -363,7 +372,9 @@ const handleBulkUnfavoritePlugins = async () => {
     const ids = Array.from(selectedPluginIds.value);
     await api.post('/api/plugins/bulk/favorite', { ids, favorite: false });
 
-    ElMessage.success(label(`成功取消收藏 ${ids.length} 个插件`, `Successfully unfavorited ${ids.length} plugins`));
+    ElMessage.success(
+      label(`成功取消收藏 ${ids.length} 个插件`, `Successfully unfavorited ${ids.length} plugins`),
+    );
     selectedPluginIds.value = new Set();
     isBatchMode.value = false;
     fetchPlugins();
@@ -371,7 +382,9 @@ const handleBulkUnfavoritePlugins = async () => {
     fetchFavorites();
   } catch (err: any) {
     if (err !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(err, label('批量取消收藏失败', 'Failed to bulk unfavorite plugins')));
+      ElMessage.error(
+        getApiErrorMessage(err, label('批量取消收藏失败', 'Failed to bulk unfavorite plugins')),
+      );
     }
   }
 };
@@ -812,7 +825,11 @@ const handleContainerClick = (e: MouseEvent) => {
   if (!isBatchMode.value) return;
   const target = e.target as HTMLElement;
   if (!target) return;
-  if (target.closest('article, .unified-card, button, input, .el-select, .el-popper, a, select')) {
+  if (
+    target.closest(
+      'article, .unified-card, button, input, .select-trigger, .glass-popover, [data-radix-popper-content-wrapper], a, select',
+    )
+  ) {
     return;
   }
   isBatchMode.value = false;
@@ -835,7 +852,10 @@ const handleDetailEdit = (plugin: any) => {
   const rawPlugin = work.raw as any;
 
   const fileUrl = rawPlugin.fileUrl || '';
-  const isExternal = fileUrl.startsWith('http://') || fileUrl.startsWith('https://') ? !fileUrl.includes('/uploads/') : false;
+  const isExternal =
+    fileUrl.startsWith('http://') || fileUrl.startsWith('https://')
+      ? !fileUrl.includes('/uploads/')
+      : false;
   let extUrl = '';
   let extCode = '';
   if (isExternal) {
@@ -1335,7 +1355,7 @@ const handleReviewRejected = async (plugin: PluginItem) => {
           ),
         confirmButtonText: label('驳回', 'Reject'),
         cancelButtonText: label('取消', 'Cancel'),
-        inputValidator: (val) => {
+        inputValidator: (val: string | null) => {
           if (!val?.trim()) return label('请输入驳回原因', 'Please enter rejection reason');
           return true;
         },
@@ -1393,7 +1413,10 @@ watch(
 </script>
 
 <template>
-  <div class="plugins-page mobile-adaptive flex flex-col h-full overflow-hidden" @click="handleContainerClick">
+  <div
+    class="plugins-page mobile-adaptive flex flex-col h-full overflow-hidden"
+    @click="handleContainerClick"
+  >
     <PluginPageHeader
       v-model:search-query="searchQuery"
       :is-loading="isLoading"
@@ -1409,8 +1432,10 @@ watch(
     />
 
     <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">
-
-      <div class="workspace-shell" :class="{ 'single-col': activeTab === 'requests', 'collapsed-shell': isFilterCollapsed }">
+      <div
+        class="workspace-shell"
+        :class="{ 'single-col': activeTab === 'requests', 'collapsed-shell': isFilterCollapsed }"
+      >
         <PluginFiltersPanel
           v-if="activeTab !== 'requests'"
           :is-open="isFilterOpen"
@@ -1451,7 +1476,10 @@ watch(
             @update:active-tab="activeTab = $event"
             @update:sort-by="sortBy = $event"
             @update:view-mode="viewMode = $event"
-            @update:is-batch-mode="isBatchMode = $event; if (!$event) selectedPluginIds = new Set();"
+            @update:is-batch-mode="
+              isBatchMode = $event;
+              if (!$event) selectedPluginIds = new Set();
+            "
             @select-all="selectAllPlugins"
             @bulk-delete="handleBulkDeletePlugins"
             @bulk-unfavorite="handleBulkUnfavoritePlugins"
@@ -1463,7 +1491,12 @@ watch(
           <HelpRequestsForum
             v-if="activeTab === 'requests'"
             :forum-title="label('插件求助论坛', 'Plugin Help Requests Forum')"
-            :forum-desc="label('找不到需要的插件？发布求助帖，让社区开发者和爱好者来帮助您！', 'Can\'t find a plugin? Ask the community for help.')"
+            :forum-desc="
+              label(
+                '找不到需要的插件？发布求助帖，让社区开发者和爱好者来帮助您！',
+                'Can\'t find a plugin? Ask the community for help.',
+              )
+            "
             :requests="helpRequests"
             :is-loading="isHelpRequestsLoading"
             @open-detail="openHelpRequestDetail"
@@ -1726,20 +1759,20 @@ watch(
                 class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider shrink-0"
                 >{{ label('关联插件(可选)', 'Link Plugin') }}</span
               >
-              <el-select
+              <Select
                 v-model="linkedPluginIdForReply"
                 placeholder="选择推荐的已上架插件"
                 clearable
                 filterable
                 class="flex-1 custom-select-v2 text-xs"
               >
-                <el-option
+                <SelectOption
                   v-for="p in approvedPluginsForLinking"
                   :key="p.id"
                   :label="p.title"
                   :value="p.id"
                 />
-              </el-select>
+              </Select>
             </div>
 
             <Button
@@ -1856,7 +1889,7 @@ watch(
       rgba(20, 184, 166, 0.03) 200px,
       transparent 380px
     ),
-    transparent !important;
+    transparent;
   color: var(--text-primary);
 }
 
@@ -1864,7 +1897,7 @@ watch(
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 156px minmax(0, 1fr);
+  grid-template-columns: 200px minmax(0, 1fr);
   gap: 12px;
   transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }

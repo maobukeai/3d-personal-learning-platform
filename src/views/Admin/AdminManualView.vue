@@ -4,7 +4,7 @@ const { t } = useI18n();
 import { ref, onMounted, computed } from 'vue';
 import { isAxiosError } from 'axios';
 import { useRoute } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import {
   Plus,
   Trash2,
@@ -569,62 +569,15 @@ onMounted(async () => {
 
 <style scoped>
 .premium-dialog {
-  border-radius: 24px !important;
+  border-radius: 24px;
   overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
-}
-
-:deep(.immersive-editor-dialog) {
-  padding: 0 !important;
-}
-:deep(.immersive-editor-dialog .el-dialog__header) {
-  display: none;
-}
-:deep(.immersive-editor-dialog .el-dialog__body) {
-  padding: 0;
-  height: 100%;
-}
-
-/* Preview Mode Toggle */
-.preview-mode-toggle :deep(.el-radio-button__inner) {
-  background-color: transparent !important;
-  border: none !important;
-  padding: 8px 14px !important;
-  font-weight: 600 !important;
-  font-size: 12px !important;
-  color: var(--text-muted) !important;
-  transition: all 0.2s ease !important;
-}
-.preview-mode-toggle :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-  background-color: var(--bg-card) !important;
-  color: var(--accent, #06b6d4) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
-  border-radius: 8px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 .preview-mode-toggle {
-  background-color: var(--bg-app) !important;
-  padding: 3px !important;
-  border-radius: 10px !important;
-  border: 1px solid var(--border-base) !important;
-}
-
-/* Editor Title */
-.editor-modern-title :deep(.el-input__wrapper) {
-  box-shadow: none !important;
-  background-color: transparent !important;
-  padding-left: 0 !important;
-}
-.editor-modern-title :deep(.el-input__inner) {
-  font-size: 1.35rem !important;
-  font-weight: 800 !important;
-  color: var(--text-primary) !important;
-  border: none !important;
-  line-height: 1.4 !important;
-}
-@media (min-width: 768px) {
-  .editor-modern-title :deep(.el-input__inner) {
-    font-size: 2rem !important;
-  }
+  background-color: var(--bg-app);
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid var(--border-base);
 }
 
 /* Settings Sidebar Groups */

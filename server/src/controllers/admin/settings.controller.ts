@@ -1,9 +1,8 @@
 import { logger } from '../../utils/logger';
-import { Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import axios from 'axios';
 import dns from 'dns';
 import nodemailer from 'nodemailer';
-import { AuthRequest } from '../../middlewares/auth.middleware';
 import { settingsService } from '../../services/settings.service';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
 import { AppError } from '../../utils/error';
@@ -12,6 +11,17 @@ import { configureAxiosProxy } from '../../utils/axios-proxy';
 
 import { deleteCloudOrLocalFileByUrl } from '../../utils/file';
 import { config as envConfig } from '../../config/env';
+import prisma from '../../services/prisma';
+import { storageService } from '../../services/storage.service';
+import { decryptSecretIfNeeded } from '../../utils/crypto';
+import path from 'path';
+
+type AdminRequest = FastifyRequest & {
+  body: any;
+  query: any;
+  params: any;
+  file?: any;
+};
 
 const modelListHttp = axios.create();
 configureAxiosProxy(modelListHttp, { preferAiProxy: true });
@@ -91,7 +101,6 @@ const validateSettings = (
     'OAUTH_GITHUB_ENABLED',
     'MICROSOFT_POOL_FAILBACK',
     'AI_IMPORT_ENABLED',
-    'FORCE_R2_STORAGE',
   ];
   for (const field of booleanFields) {
     if (settingsObj[field] !== undefined) {
@@ -162,21 +171,21 @@ const validateSettings = (
   return { valid: errors.length === 0, errors };
 };
 
-export const getSettings = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getSettings = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const settings = await settingsService.getAll();
-    res.json(settings);
+    reply.send(settings);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateSettings = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateSettings = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const { settings } = req.body; // Expecting { key: value, ... } or [{key, value}, ...]
 
     if (!settings || (Array.isArray(settings) && settings.length === 0)) {
-      return next(new AppError('设置数据不能为空', 400));
+      throw new AppError('设置数据不能为空', 400);
     }
 
     const oldSettings = await settingsService.getAll();
@@ -194,7 +203,7 @@ export const updateSettings = async (req: AuthRequest, res: Response, next: Next
 
     const { valid, errors } = validateSettings(settingsObj);
     if (!valid) {
-      return next(new AppError(`设置验证失败: ${errors.join(', ')}`, 400));
+      throw new AppError(`设置验证失败: ${errors.join(', ')}`, 400);
     }
 
     // Ensure array fields are actually arrays before saving
@@ -242,7 +251,7 @@ export const updateSettings = async (req: AuthRequest, res: Response, next: Next
     });
 
     const imageFields = ['PLATFORM_LOGO_URL', 'PLATFORM_FAVICON_URL', 'HERO_BG_IMAGE'];
-    const oldSettingsRecord = oldSettings as Record<string, any>;
+    const oldSettingsRecord = oldSettings as unknown as Record<string, unknown>;
     for (const imgField of imageFields) {
       if (
         settingsObj[imgField] !== undefined &&
@@ -266,18 +275,18 @@ export const updateSettings = async (req: AuthRequest, res: Response, next: Next
       req,
     });
 
-    res.json({ message: '设置已成功保存' });
+    reply.send({ message: '设置已成功保存' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const testSmtp = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const testSmtp = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const { host, port, user, pass, from, secure, to } = req.body;
 
     if (!host || !user || !pass) {
-      return next(new AppError('SMTP 配置不完整', 400));
+      throw new AppError('SMTP 配置不完整', 400);
     }
 
     const isSecure = secure === true || secure === 'true';
@@ -322,7 +331,7 @@ export const testSmtp = async (req: AuthRequest, res: Response, next: NextFuncti
       html: `<h3>SMTP 配置测试成功</h3><p>如果您收到这封邮件，说明您的 SMTP 配置已成功！</p><p>测试时间: ${new Date().toLocaleString()}</p>`,
     });
 
-    res.json({ message: 'SMTP 连接测试成功，已向您的邮箱发送测试邮件' });
+    reply.send({ message: 'SMTP 连接测试成功，已向您的邮箱发送测试邮件' });
   } catch (error) {
     logger.error('SMTP Test Error Detail:', error);
     let errorMsg = (error instanceof Error ? error.message : String(error)) || '未知错误';
@@ -341,7 +350,7 @@ export const testSmtp = async (req: AuthRequest, res: Response, next: NextFuncti
     )
       errorMsg = 'TLS 握手失败。请尝试切换 465 (勾选 SSL) 或 587 (取消勾选 SSL)。';
 
-    next(new AppError(`SMTP 连接失败: ${errorMsg}`, 500));
+    throw new AppError(`SMTP 连接失败: ${errorMsg}`, 500);
   }
 };
 
@@ -462,22 +471,20 @@ const parseProviderModels = (data: unknown, provider: string): ProviderModelOpti
     .sort((a, b) => a.id.localeCompare(b.id));
 };
 
-export const listAiModels = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const listAiModels = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const provider = normalizeProvider(req.body.provider);
     const endpoint = String(req.body.endpoint || '').trim();
     const apiKey = String(req.body.apiKey || '').trim();
 
     if (!provider) {
-      return next(new AppError('提供商不能为空', 400));
+      throw new AppError('提供商不能为空', 400);
     }
     if (!apiKey && provider !== 'OLLAMA') {
-      return next(new AppError('API 密钥不能为空', 400));
+      throw new AppError('API 密钥不能为空', 400);
     }
     if (provider === 'AZURE') {
-      return next(
-        new AppError('Azure OpenAI 需要在 Azure 门户管理部署，暂不支持自动获取模型列表', 400),
-      );
+      throw new AppError('Azure OpenAI 需要在 Azure 门户管理部署，暂不支持自动获取模型列表', 400);
     }
 
     let url = '';
@@ -509,10 +516,10 @@ export const listAiModels = async (req: AuthRequest, res: Response, next: NextFu
       timeout: 20_000,
     });
     const models = parseProviderModels(data, provider);
-    res.json({ success: true, provider, models });
+    reply.send({ success: true, provider, models });
   } catch (error: unknown) {
     logger.error('[Admin AI Models Error]:', error);
-    if (error instanceof AppError) return next(error);
+    if (error instanceof AppError) throw error;
     const message = axios.isAxiosError(error)
       ? error.response?.data?.error?.message ||
         error.response?.data?.message ||
@@ -521,59 +528,117 @@ export const listAiModels = async (req: AuthRequest, res: Response, next: NextFu
       : error instanceof Error
         ? error.message
         : String(error);
-    next(new AppError(`获取模型列表失败: ${message}`, 500));
+    throw new AppError(`获取模型列表失败: ${message}`, 500);
   }
 };
 
-export const uploadBrandingLogo = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const uploadBrandingLogo = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     if (!req.file) {
-      return next(new AppError('No file uploaded', 400));
+      throw new AppError('No file uploaded', 400);
     }
 
-    const fileUrl = (req.file as any).url || `/uploads/branding/${req.file.filename}`;
-    res.json({ url: fileUrl });
+    let fileUrl = req.file?.url;
+
+    if (!fileUrl) {
+      const activeConfig = await prisma.storageConfig.findFirst({
+        where: { status: 'ACTIVE' },
+        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+      });
+
+      if (!activeConfig) {
+        throw new AppError('未配置可用的云存储账号', 400);
+      }
+
+      const config = {
+        endpoint: activeConfig.endpoint,
+        accessKeyId: activeConfig.accessKeyId,
+        secretAccessKey: decryptSecretIfNeeded(activeConfig.secretAccessKey),
+        bucketName: activeConfig.bucketName,
+        publicUrl: activeConfig.publicUrl,
+      };
+
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      const sanitizedOriginalName = req.file.originalname
+        // eslint-disable-next-line no-control-regex
+        .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
+        .replace(/\s+/g, '_');
+      const extName = path.extname(sanitizedOriginalName);
+      const baseName = path.basename(sanitizedOriginalName, extName) || 'logo';
+      const key = `branding/${baseName}-${uniqueSuffix}${extName}`;
+
+      // Upload from buffer — no local disk IO
+      fileUrl = await storageService.uploadBuffer(config, req.file.buffer!, key, req.file.mimetype);
+    }
+
+    reply.send({ url: fileUrl });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const uploadBrandingFavicon = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const uploadBrandingFavicon = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     if (!req.file) {
-      return next(new AppError('No file uploaded', 400));
+      throw new AppError('No file uploaded', 400);
     }
 
-    const fileUrl = (req.file as any).url || `/uploads/branding/${req.file.filename}`;
-    res.json({ url: fileUrl });
+    let fileUrl = req.file?.url;
+
+    if (!fileUrl) {
+      const activeConfig = await prisma.storageConfig.findFirst({
+        where: { status: 'ACTIVE' },
+        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+      });
+
+      if (!activeConfig) {
+        throw new AppError('未配置可用的云存储账号', 400);
+      }
+
+      const config = {
+        endpoint: activeConfig.endpoint,
+        accessKeyId: activeConfig.accessKeyId,
+        secretAccessKey: decryptSecretIfNeeded(activeConfig.secretAccessKey),
+        bucketName: activeConfig.bucketName,
+        publicUrl: activeConfig.publicUrl,
+      };
+
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      const sanitizedOriginalName = req.file.originalname
+        // eslint-disable-next-line no-control-regex
+        .replace(/[\x00-\x1f\x7f-\x9f\\/:*?"'<>|%#]/g, '_')
+        .replace(/\s+/g, '_');
+      const extName = path.extname(sanitizedOriginalName);
+      const baseName = path.basename(sanitizedOriginalName, extName) || 'favicon';
+      const key = `branding/${baseName}-${uniqueSuffix}${extName}`;
+
+      // Upload from buffer — no local disk IO
+      fileUrl = await storageService.uploadBuffer(config, req.file.buffer!, key, req.file.mimetype);
+    }
+
+    reply.send({ url: fileUrl });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const cleanupStorage = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const cleanupStorage = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const { cleanupOrphanedFiles } = await import('../../scripts/cleanup-storage');
     const stats = await cleanupOrphanedFiles();
-    res.json({
+    reply.send({
       message: '存储空间清理完成',
       stats,
     });
   } catch (error) {
-    next(
-      new AppError(
-        '清理存储空间失败: ' + (error instanceof Error ? error.message : String(error)),
-        500,
-      ),
+    throw new AppError(
+      '清理存储空间失败: ' + (error instanceof Error ? error.message : String(error)),
+      500,
     );
   }
 };
 
-export const testAi = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const testAi = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const { provider, endpoint, apiKey, modelName, capabilities } = req.body;
     logger.info(
@@ -581,10 +646,10 @@ export const testAi = async (req: AuthRequest, res: Response, next: NextFunction
     );
 
     if (!provider) {
-      return next(new AppError('提供商不能为空', 400));
+      throw new AppError('提供商不能为空', 400);
     }
     if (!apiKey && provider !== 'OLLAMA') {
-      return next(new AppError('API 密钥不能为空', 400));
+      throw new AppError('API 密钥不能为空', 400);
     }
 
     const targetModelName =
@@ -594,7 +659,7 @@ export const testAi = async (req: AuthRequest, res: Response, next: NextFunction
         .filter(Boolean)[0] || '';
 
     if (!targetModelName) {
-      return next(new AppError('模型标识符不能为空', 400));
+      throw new AppError('模型标识符不能为空', 400);
     }
 
     const testPrompt = '请简短回复OK，这是一次接口连接测试。';
@@ -616,13 +681,13 @@ export const testAi = async (req: AuthRequest, res: Response, next: NextFunction
           : undefined,
     });
 
-    res.json({
+    reply.send({
       success: true,
       testedModel: targetModelName,
       message: `AI 接口测试成功！模型 [${targetModelName}] 响应: "${responseText.trim()}"`,
     });
   } catch (error: unknown) {
     logger.error('[AI Test Error]:', error);
-    next(new AppError(error instanceof Error ? error.message : String(error), 500));
+    throw new AppError(error instanceof Error ? error.message : String(error), 500);
   }
 };

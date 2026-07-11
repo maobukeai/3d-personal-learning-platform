@@ -27,7 +27,7 @@ import {
   ChevronRight,
   ExternalLink,
 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api, { getAssetUrl } from '@/utils/api';
 import { buildFileTree, flattenFileTree } from '@/utils/zipHelper';
 import { useFileTree } from '@/composables/useFileTree';
@@ -234,9 +234,13 @@ const isExternal = computed(() => {
   }
   if (fileUrl && (fileUrl.startsWith('http://') || fileUrl.startsWith('https://'))) {
     const lowerUrl = fileUrl.toLowerCase();
-    const isArchive = lowerUrl.endsWith('.zip') || lowerUrl.includes('.zip?') ||
-                      lowerUrl.endsWith('.rar') || lowerUrl.includes('.rar?') ||
-                      lowerUrl.endsWith('.7z') || lowerUrl.includes('.7z?');
+    const isArchive =
+      lowerUrl.endsWith('.zip') ||
+      lowerUrl.includes('.zip?') ||
+      lowerUrl.endsWith('.rar') ||
+      lowerUrl.includes('.rar?') ||
+      lowerUrl.endsWith('.7z') ||
+      lowerUrl.includes('.7z?');
     return !isArchive;
   }
   return false;
@@ -352,7 +356,7 @@ watch(
   () => props.material?.id,
   () => {
     activePreviewTab.value = 'image';
-  }
+  },
 );
 const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
   if (!url) return undefined;
@@ -459,7 +463,11 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
             <button
               type="button"
               class="px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer border-none"
-              :class="activePreviewTab === 'image' ? 'bg-teal-500 text-white shadow-sm' : 'bg-transparent text-slate-400 hover:text-white'"
+              :class="
+                activePreviewTab === 'image'
+                  ? 'bg-teal-500 text-white shadow-sm'
+                  : 'bg-transparent text-slate-400 hover:text-white'
+              "
               @click="activePreviewTab = 'image'"
             >
               图片预览
@@ -467,7 +475,11 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
             <button
               type="button"
               class="px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer border-none"
-              :class="activePreviewTab === 'video' ? 'bg-teal-500 text-white shadow-sm' : 'bg-transparent text-slate-400 hover:text-white'"
+              :class="
+                activePreviewTab === 'video'
+                  ? 'bg-teal-500 text-white shadow-sm'
+                  : 'bg-transparent text-slate-400 hover:text-white'
+              "
               @click="activePreviewTab = 'video'"
             >
               视频演示

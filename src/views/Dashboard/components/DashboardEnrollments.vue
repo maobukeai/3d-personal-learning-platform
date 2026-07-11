@@ -166,8 +166,8 @@ onUnmounted(() => {
 .spotlight-card {
   position: relative;
   aspect-ratio: 21 / 9;
-  min-height: 180px;
-  max-height: 260px;
+  min-height: 248px;
+  max-height: 320px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -190,12 +190,14 @@ onUnmounted(() => {
 .spotlight-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    90deg,
-    rgba(15, 23, 42, 0.9) 0%,
-    rgba(15, 23, 42, 0.5) 60%,
-    rgba(15, 23, 42, 0.15) 100%
-  );
+  background:
+    radial-gradient(circle at 84% 18%, rgba(139, 92, 246, 0.32), transparent 30%),
+    linear-gradient(
+      100deg,
+      rgba(9, 16, 35, 0.96) 0%,
+      rgba(12, 23, 47, 0.82) 45%,
+      rgba(15, 23, 42, 0.18) 100%
+    );
   z-index: 1;
 }
 
@@ -205,32 +207,32 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 4px;
-  padding: 20px 24px;
+  gap: 7px;
+  padding: 28px 32px;
   height: 100%;
   box-sizing: border-box;
 }
 
 .spotlight-btn {
-  background: rgba(255, 255, 255, 0.12) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  color: #ffffff !important;
-  backdrop-filter: blur(8px) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
-  font-weight: 600 !important;
-  border-radius: 9999px !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.96), rgba(79, 70, 229, 0.96));
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 22px rgba(79, 70, 229, 0.3);
+  font-weight: 600;
+  border-radius: 9999px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .spotlight-btn:hover {
-  background: rgba(255, 255, 255, 0.22) !important;
-  border-color: rgba(255, 255, 255, 0.35) !important;
-  box-shadow: 0 6px 16px rgba(255, 255, 255, 0.15) !important;
+  background: linear-gradient(135deg, rgba(167, 139, 250, 1), rgba(99, 102, 241, 1));
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 12px 26px rgba(79, 70, 229, 0.45);
   transform: translateY(-1px);
 }
 
 .spotlight-btn:active {
-  transform: translateY(0) scale(0.97) !important;
+  transform: translateY(0) scale(0.97);
 }
 
 .spotlight-empty-state {
@@ -248,5 +250,15 @@ onUnmounted(() => {
 
 .empty-icon-wrapper {
   backdrop-filter: blur(8px);
+}
+
+@media (max-width: 640px) {
+  .spotlight-card {
+    min-height: 220px;
+  }
+
+  .spotlight-content {
+    padding: 24px;
+  }
 }
 </style>

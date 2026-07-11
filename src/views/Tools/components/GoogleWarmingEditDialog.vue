@@ -53,7 +53,6 @@ const close = () => {
     :show="props.show"
     :title="t('tools.googleWarming.editAccountTitle')"
     size="md"
-    glass-card
     @close="close"
   >
     <div class="space-y-2.5">
@@ -141,7 +140,7 @@ const close = () => {
         </div>
         <div class="gw-field !gap-1 text-left flex flex-col">
           <label class="gw-field-label !text-[10px]">分类</label>
-          <el-select
+          <Select
             :model-value="account.category || '未分类'"
             filterable
             allow-create
@@ -151,27 +150,27 @@ const close = () => {
             class="w-full custom-dialog-input"
             @change="updateField('category', $event)"
           >
-            <el-option
+            <SelectOption
               v-for="cat in (categoriesList || []).filter((c) => c !== 'all')"
               :key="cat"
               :label="cat === '未分类' ? '未分类' : cat"
               :value="cat"
             />
-          </el-select>
+          </Select>
         </div>
         <div class="gw-field !gap-1 text-left flex flex-col">
           <label class="gw-field-label !text-[10px]">状态</label>
-          <el-select
+          <Select
             :model-value="account.status"
             placeholder="选择状态"
             size="small"
             class="w-full custom-dialog-input"
             @change="updateField('status', $event as GoogleAccount['status'])"
           >
-            <el-option value="warming" label="养号中" />
-            <el-option value="completed" label="已毕业" />
-            <el-option value="paused" label="已暂停" />
-          </el-select>
+            <SelectOption value="warming" label="养号中" />
+            <SelectOption value="completed" label="已毕业" />
+            <SelectOption value="paused" label="已暂停" />
+          </Select>
         </div>
         <div class="gw-field col-span-2 !gap-1">
           <label class="gw-field-label !text-[10px]">备注/描述</label>

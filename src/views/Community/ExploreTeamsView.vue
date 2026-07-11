@@ -3,7 +3,7 @@ import { getApiErrorMessage, logError } from '@/utils/error';
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCommunityI18n } from '@/composables/useCommunityI18n';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import CreateTeamDialog from '@/components/CreateTeamDialog.vue';
 import GroupDetailDialog from '@/components/GroupDetailDialog.vue';
 import api from '@/utils/api';

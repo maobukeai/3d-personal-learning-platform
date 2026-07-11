@@ -2,7 +2,7 @@
 import { formatDate } from '@/utils/format';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Boxes, Briefcase, CheckCircle2, Users, RefreshCw, Download, Plus } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import { useWorkspaceStore } from '@/stores/workspace';

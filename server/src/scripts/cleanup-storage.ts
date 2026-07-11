@@ -7,6 +7,14 @@ import { storageService } from '../services/storage.service';
 import { buildDecryptedStorageConfig } from '../utils/crypto';
 
 /**
+ * Minimal interface for a Prisma model delegate, used for dynamic model access
+ * during storage cleanup. Only exposes the findMany method we actually call.
+ */
+interface PrismaModelDelegate {
+  findMany(args: { select: Record<string, boolean> }): Promise<Record<string, unknown>[]>;
+}
+
+/**
  * Helper to parse prisma schema and extract fields of type String/Json
  * that match upload resource naming patterns.
  */
@@ -213,32 +221,33 @@ export async function cleanupOrphanedFiles() {
     // Dynamically parse the schema to find all referencing fields
     let fieldsMap = FALLBACK_FIELDS;
     const schemaPath = path.resolve(__dirname, '../../prisma/schema.prisma');
-    if (fs.existsSync(schemaPath)) {
-      try {
-        const schemaContent = fs.readFileSync(schemaPath, 'utf8');
-        const parsed = parsePrismaSchema(schemaContent);
-        if (parsed && Object.keys(parsed).length > 0) {
-          fieldsMap = parsed;
-          logger.info(
-            `[CleanupEngine] Dynamically loaded ${Object.keys(fieldsMap).length} models from prisma schema.`,
-          );
-        }
-      } catch (schemaErr) {
+    try {
+      const schemaContent = await fs.promises.readFile(schemaPath, 'utf8');
+      const parsed = parsePrismaSchema(schemaContent);
+      if (parsed && Object.keys(parsed).length > 0) {
+        fieldsMap = parsed;
+        logger.info(
+          `[CleanupEngine] Dynamically loaded ${Object.keys(fieldsMap).length} models from prisma schema.`,
+        );
+      }
+    } catch (schemaErr) {
+      const code = (schemaErr as NodeJS.ErrnoException)?.code;
+      if (code === 'ENOENT') {
+        logger.warn(
+          `[CleanupEngine] schema.prisma not found at ${schemaPath}, using fallback fields.`,
+        );
+      } else {
         logger.error(
           '[CleanupEngine] Failed to dynamically parse schema, using fallback:',
           schemaErr,
         );
       }
-    } else {
-      logger.warn(
-        `[CleanupEngine] schema.prisma not found at ${schemaPath}, using fallback fields.`,
-      );
     }
 
     // Query each model and extract paths
     await Promise.all(
       Object.entries(fieldsMap).map(async ([modelName, fields]) => {
-        const delegate = (prisma as any)[modelName];
+        const delegate = (prisma as unknown as Record<string, PrismaModelDelegate>)[modelName];
         if (!delegate || typeof delegate.findMany !== 'function') {
           return;
         }
@@ -259,7 +268,7 @@ export async function cleanupOrphanedFiles() {
           for (const record of records) {
             // Special handling for mirrorSource ID
             if (modelName === 'mirrorSource' && record.id) {
-              activeMirrorSourceIds.add(record.id);
+              activeMirrorSourceIds.add(record.id as string);
             }
 
             for (const field of fields) {
@@ -419,39 +428,59 @@ export async function cleanupOrphanedFiles() {
     const baseDir = path.resolve(__dirname, '../../uploads');
     const uploadDirs: string[] = [];
 
-    if (fs.existsSync(baseDir)) {
-      try {
-        const entries = fs.readdirSync(baseDir);
-        for (const entry of entries) {
-          const fullPath = path.join(baseDir, entry);
-          if (fs.statSync(fullPath).isDirectory()) {
+    try {
+      const entries = await fs.promises.readdir(baseDir);
+      for (const entry of entries) {
+        const fullPath = path.join(baseDir, entry);
+        try {
+          const stat = await fs.promises.stat(fullPath);
+          if (stat.isDirectory()) {
             // Exclude temporary backups or system/hidden directories
             if (entry !== 'temp_backups' && !entry.startsWith('.')) {
               uploadDirs.push(entry);
             }
           }
+        } catch {
+          // Skip entries that cannot be stat'd
         }
-      } catch (dirErr) {
+      }
+    } catch (dirErr) {
+      const code = (dirErr as NodeJS.ErrnoException)?.code;
+      if (code !== 'ENOENT') {
         logger.error('[CleanupEngine] Failed to read uploads directory:', dirErr);
       }
     }
 
     for (const dir of uploadDirs) {
       const fullDir = path.join(baseDir, dir);
-      if (!fs.existsSync(fullDir)) continue;
+      let files: string[];
+      try {
+        files = await fs.promises.readdir(fullDir);
+      } catch (readErr) {
+        const code = (readErr as NodeJS.ErrnoException)?.code;
+        if (code !== 'ENOENT') {
+          logger.error(`[CleanupEngine] Error reading directory ${fullDir}:`, readErr);
+        }
+        continue;
+      }
 
-      const files = fs.readdirSync(fullDir);
       for (const file of files) {
         const filePath = path.resolve(path.join(fullDir, file));
 
         // Skip directories
-        if (fs.statSync(filePath).isDirectory()) continue;
+        try {
+          const stat = await fs.promises.stat(filePath);
+          if (stat.isDirectory()) continue;
+        } catch {
+          // Skip entries that cannot be stat'd
+          continue;
+        }
 
         stats.scanned++;
 
         if (!validPaths.has(filePath.toLowerCase())) {
           try {
-            fs.unlinkSync(filePath);
+            await fs.promises.unlink(filePath);
             stats.deleted++;
             logger.info(`[CleanupEngine] Deleted orphan: ${filePath}`);
           } catch (err) {

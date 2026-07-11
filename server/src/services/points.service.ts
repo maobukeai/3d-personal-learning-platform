@@ -1,6 +1,7 @@
 import prisma from './prisma';
 import { logger } from '../utils/logger';
 import { redisService } from './redis.service';
+import { withRowLock, TransactionClient } from '../utils/dbLock';
 
 export enum PointsAction {
   CREATE_DISCUSSION = 'CREATE_DISCUSSION',
@@ -29,59 +30,114 @@ const ACTION_NAMES: Record<PointsAction, string> = {
   [PointsAction.COMPLETE_TASK]: '完成协作任务',
 };
 
-export const awardPoints = async (userId: string, action: PointsAction): Promise<number> => {
+/**
+ * Awards points to a user. 铁律六·3 — 当调用方传入 `tx`（处于事务内）时，
+ * 先对 User 行加 FOR UPDATE 行级锁，避免并发积分增减导致 lost update。
+ * 当调用方未传入 `tx`（独立调用），内部自建一个短事务包裹行锁。
+ */
+export const awardPoints = async (
+  userId: string,
+  action: PointsAction,
+  tx?: TransactionClient,
+): Promise<number> => {
   const amount = POINTS_RULES[action];
   if (!amount) return 0;
 
   try {
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        points: {
-          increment: amount,
-        },
-      },
-      select: {
-        points: true,
-      },
+    if (tx) {
+      // Caller is already inside a transaction — lock the row and increment.
+      return await withRowLock(tx as TransactionClient, 'User', userId, async (lockedTx) => {
+        const user = await lockedTx.user.update({
+          where: { id: userId },
+          data: { points: { increment: amount } },
+          select: { points: true },
+        });
+        await redisService.invalidateUserCache(userId).catch(() => {});
+        logger.info(
+          `[Points] Awarded ${amount} points to user ${userId} for ${ACTION_NAMES[action]}. New total: ${user.points}`,
+        );
+        return user.points;
+      });
+    }
+    // Standalone call — wrap in a short transaction with row lock.
+    return await prisma.$transaction(async (innerTx) => {
+      return await withRowLock(innerTx, 'User', userId, async (lockedTx) => {
+        const user = await lockedTx.user.update({
+          where: { id: userId },
+          data: { points: { increment: amount } },
+          select: { points: true },
+        });
+        await redisService.invalidateUserCache(userId).catch(() => {});
+        logger.info(
+          `[Points] Awarded ${amount} points to user ${userId} for ${ACTION_NAMES[action]}. New total: ${user.points}`,
+        );
+        return user.points;
+      });
     });
-
-    await redisService.invalidateUserCache(userId).catch(() => {});
-    logger.info(
-      `[Points] Awarded ${amount} points to user ${userId} for ${ACTION_NAMES[action]}. New total: ${user.points}`,
-    );
-    return user.points;
   } catch (error) {
     logger.error(`[Points] Failed to award points to user ${userId} for ${action}:`, error);
+    if (tx) throw error;
     return 0;
   }
 };
 
-export const deductPoints = async (userId: string, action: PointsAction): Promise<number> => {
+/**
+ * Deducts points from a user. 铁律六·3 — 当调用方传入 `tx`（处于事务内）时，
+ * 先对 User 行加 FOR UPDATE 行级锁，避免并发扣减导致 lost update 或超扣。
+ * 当调用方未传入 `tx`（独立调用），内部自建一个短事务包裹行锁。
+ */
+export const deductPoints = async (
+  userId: string,
+  action: PointsAction,
+  tx?: TransactionClient,
+): Promise<number> => {
   const amount = POINTS_RULES[action];
   if (!amount) return 0;
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { points: true },
+    if (tx) {
+      return await withRowLock(tx as TransactionClient, 'User', userId, async (lockedTx) => {
+        const user = await lockedTx.user.findUnique({
+          where: { id: userId },
+          select: { points: true },
+        });
+        if (!user) return 0;
+        const newPoints = Math.max(0, user.points - amount);
+        const updated = await lockedTx.user.update({
+          where: { id: userId },
+          data: { points: newPoints },
+          select: { points: true },
+        });
+        await redisService.invalidateUserCache(userId).catch(() => {});
+        logger.info(
+          `[Points] Deducted ${amount} points from user ${userId} due to undoing ${ACTION_NAMES[action]}. New total: ${updated.points}`,
+        );
+        return updated.points;
+      });
+    }
+    return await prisma.$transaction(async (innerTx) => {
+      return await withRowLock(innerTx, 'User', userId, async (lockedTx) => {
+        const user = await lockedTx.user.findUnique({
+          where: { id: userId },
+          select: { points: true },
+        });
+        if (!user) return 0;
+        const newPoints = Math.max(0, user.points - amount);
+        const updated = await lockedTx.user.update({
+          where: { id: userId },
+          data: { points: newPoints },
+          select: { points: true },
+        });
+        await redisService.invalidateUserCache(userId).catch(() => {});
+        logger.info(
+          `[Points] Deducted ${amount} points from user ${userId} due to undoing ${ACTION_NAMES[action]}. New total: ${updated.points}`,
+        );
+        return updated.points;
+      });
     });
-    if (!user) return 0;
-
-    const newPoints = Math.max(0, user.points - amount);
-    const updated = await prisma.user.update({
-      where: { id: userId },
-      data: { points: newPoints },
-      select: { points: true },
-    });
-
-    await redisService.invalidateUserCache(userId).catch(() => {});
-    logger.info(
-      `[Points] Deducted ${amount} points from user ${userId} due to undoing ${ACTION_NAMES[action]}. New total: ${updated.points}`,
-    );
-    return updated.points;
   } catch (error) {
     logger.error(`[Points] Failed to deduct points from user ${userId} for ${action}:`, error);
+    if (tx) throw error;
     return 0;
   }
 };

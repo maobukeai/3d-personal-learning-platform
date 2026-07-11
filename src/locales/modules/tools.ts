@@ -156,6 +156,7 @@ export const toolsZh = {
     deleteConfirmText: '确定要删除账号 {email} 吗？此操作将永久移除该账号的养号状态与历史记录。',
     deleteConfirmBtn: '确定删除',
     deleteSuccess: '账号删除成功',
+    cancel_btn: '取消',
     questDays: {
       day1: '第一天：初始登录与信誉建立',
       day1Desc:
@@ -421,6 +422,7 @@ export const toolsEn = {
       'Are you sure you want to delete account {email}? This will permanently remove its warming progress and history.',
     deleteConfirmBtn: 'Delete',
     deleteSuccess: 'Account deleted successfully',
+    cancel_btn: 'Cancel',
     questDays: {
       day1: 'Day 1: Initial Login & Trust Building',
       day1Desc:

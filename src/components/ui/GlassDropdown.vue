@@ -1,35 +1,23 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import Dropdown from './Dropdown.vue';
+import DropdownMenu from './DropdownMenu.vue';
 
 interface Props {
   popperClass?: string;
   menuClass?: string;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   popperClass: '',
   menuClass: '',
 });
-
-const finalPopperClass = computed(() => `glass-card ${props.popperClass}`.trim());
-const finalMenuClass = computed(() => `glass-dropdown-menu ${props.menuClass}`.trim());
 </script>
 
 <template>
-  <el-dropdown transition="fast-fade" v-bind="$attrs" :popper-class="finalPopperClass">
-    <slot name="trigger"></slot>
+  <Dropdown v-bind="$attrs" :popper-class="popperClass">
+    <template #trigger><slot name="trigger" /></template>
     <template #dropdown>
-      <el-dropdown-menu :class="finalMenuClass">
-        <slot></slot>
-      </el-dropdown-menu>
+      <DropdownMenu :class="menuClass"><slot /></DropdownMenu>
     </template>
-  </el-dropdown>
+  </Dropdown>
 </template>
-
-<style scoped>
-.glass-dropdown-menu {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-</style>

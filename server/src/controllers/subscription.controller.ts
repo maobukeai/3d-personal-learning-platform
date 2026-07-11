@@ -1,11 +1,10 @@
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import { logger } from '../utils/logger';
-import { Request, Response } from 'express';
 import speakeasy from 'speakeasy';
 import bcrypt from 'bcryptjs';
 import prisma from '../services/prisma';
-import { AuthRequest } from '../middlewares/auth.middleware';
 
-export const getPlans = async (req: Request, res: Response) => {
+export const getPlans = async (_request: FastifyRequest, reply: FastifyReply): Promise<void> => {
   try {
     let plans = await prisma.subscriptionPlan.findMany({
       orderBy: { priority: 'asc' },
@@ -93,7 +92,7 @@ export const getPlans = async (req: Request, res: Response) => {
       });
     }
 
-    res.json(
+    reply.send(
       plans.map((p) => ({
         ...p,
         features: JSON.parse(p.features || '[]'),
@@ -102,12 +101,15 @@ export const getPlans = async (req: Request, res: Response) => {
       })),
     );
   } catch (_error) {
-    res.status(500).json({ error: '获取订阅计划失败' });
+    reply.status(500).send({ error: '获取订阅计划失败' });
   }
 };
 
-export const getMySubscription = async (req: AuthRequest, res: Response) => {
-  const userId = (req.user?.id || req.userId) as string;
+export const getMySubscription = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
   try {
     const subscription = await prisma.subscription.findUnique({
       where: { userId },
@@ -118,7 +120,7 @@ export const getMySubscription = async (req: AuthRequest, res: Response) => {
       const freePlan = await prisma.subscriptionPlan.findFirst({
         where: { name: 'FREE' },
       });
-      return res.json({
+      reply.send({
         plan: freePlan
           ? {
               ...freePlan,
@@ -132,6 +134,7 @@ export const getMySubscription = async (req: AuthRequest, res: Response) => {
         cancelAtPeriodEnd: false,
         autoRenew: true,
       });
+      return;
     }
 
     if (
@@ -146,7 +149,7 @@ export const getMySubscription = async (req: AuthRequest, res: Response) => {
       subscription.status = 'EXPIRED';
     }
 
-    res.json({
+    reply.send({
       ...subscription,
       plan: {
         ...subscription.plan,
@@ -154,43 +157,59 @@ export const getMySubscription = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (_error) {
-    res.status(500).json({ error: '获取订阅信息失败' });
+    reply.status(500).send({ error: '获取订阅信息失败' });
   }
 };
 
-export const createOrder = async (req: AuthRequest, res: Response) => {
-  return res.status(400).json({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
+export const createOrder = async (_request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  reply.status(400).send({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
 };
 
-export const payOrder = async (req: AuthRequest, res: Response) => {
-  return res.status(400).json({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
+export const payOrder = async (_request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  reply.status(400).send({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
 };
 
-export const verifyPayment = async (req: AuthRequest, res: Response) => {
-  return res.status(400).json({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
+export const verifyPayment = async (
+  _request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  reply.status(400).send({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
 };
 
-export const subscribe = async (req: AuthRequest, res: Response) => {
-  return res.status(400).json({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
+export const subscribe = async (_request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  reply.status(400).send({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
 };
 
-export const cancelSubscription = async (req: AuthRequest, res: Response) => {
+export const cancelSubscription = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
-    const userId = req.user?.id || req.userId;
+    const userId = request.userId;
     if (!userId) {
-      return res.status(401).json({ error: '未授权' });
+      reply.status(401).send({ error: '未授权' });
+      return;
     }
-    const { immediate, twoFactorCode, password } = req.body;
+    const { immediate, twoFactorCode, password } = request.body as {
+      immediate?: boolean;
+      twoFactorCode?: string;
+      password?: string;
+    };
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) return res.status(404).json({ error: '用户不存在' });
+    if (!user) {
+      reply.status(404).send({ error: '用户不存在' });
+      return;
+    }
 
     if (user.twoFactorEnabled) {
       if (!twoFactorCode) {
-        return res.status(400).json({ error: '需要两步验证码', twoFactorRequired: true });
+        reply.status(400).send({ error: '需要两步验证码', twoFactorRequired: true });
+        return;
       }
       if (!user.twoFactorSecret) {
-        return res.status(400).json({ error: '两步验证配置异常' });
+        reply.status(400).send({ error: '两步验证配置异常' });
+        return;
       }
       const isValid = speakeasy.totp.verify({
         secret: user.twoFactorSecret,
@@ -199,15 +218,18 @@ export const cancelSubscription = async (req: AuthRequest, res: Response) => {
         window: 1,
       });
       if (!isValid) {
-        return res.status(400).json({ error: '两步验证码错误' });
+        reply.status(400).send({ error: '两步验证码错误' });
+        return;
       }
     } else {
       if (!password) {
-        return res.status(400).json({ error: '取消订阅需要验证密码', passwordRequired: true });
+        reply.status(400).send({ error: '取消订阅需要验证密码', passwordRequired: true });
+        return;
       }
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
-        return res.status(400).json({ error: '密码错误' });
+        reply.status(400).send({ error: '密码错误' });
+        return;
       }
     }
 
@@ -217,41 +239,48 @@ export const cancelSubscription = async (req: AuthRequest, res: Response) => {
     });
 
     if (!subscription || subscription.status !== 'ACTIVE') {
-      return res.status(400).json({ error: '没有有效的订阅可取消' });
+      reply.status(400).send({ error: '没有有效的订阅可取消' });
+      return;
     }
 
     if (!subscription.plan || subscription.plan.name === 'FREE') {
-      return res.status(400).json({ error: '免费计划无需取消' });
+      reply.status(400).send({ error: '免费计划无需取消' });
+      return;
     }
 
     if (immediate) {
       const freePlan = await prisma.subscriptionPlan.findFirst({ where: { name: 'FREE' } });
-      if (!freePlan) return res.status(500).json({ error: '系统错误' });
+      if (!freePlan) {
+        reply.status(500).send({ error: '系统错误' });
+        return;
+      }
 
-      await prisma.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          planId: freePlan.id,
-          status: 'CANCELED',
-          cancelAtPeriodEnd: false,
-          autoRenew: false,
-          endDate: new Date(),
-        },
+      await prisma.$transaction(async (tx) => {
+        await tx.subscription.update({
+          where: { id: subscription.id },
+          data: {
+            planId: freePlan.id,
+            status: 'CANCELED',
+            cancelAtPeriodEnd: false,
+            autoRenew: false,
+            endDate: new Date(),
+          },
+        });
+
+        await tx.transaction.create({
+          data: {
+            userId,
+            amount: 0,
+            status: 'COMPLETED',
+            description: `取消 ${subscription.plan.displayName || subscription.plan.name} 订阅`,
+            paymentMethod: subscription.paymentMethod,
+            planName: subscription.plan.name,
+            invoiceNo: `CNL-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+          },
+        });
       });
 
-      await prisma.transaction.create({
-        data: {
-          userId,
-          amount: 0,
-          status: 'COMPLETED',
-          description: `取消 ${subscription.plan.displayName || subscription.plan.name} 订阅`,
-          paymentMethod: subscription.paymentMethod,
-          planName: subscription.plan.name,
-          invoiceNo: `CNL-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        },
-      });
-
-      res.json({ message: '订阅已立即取消', type: 'immediate' });
+      reply.send({ message: '订阅已立即取消', type: 'immediate' });
     } else {
       await prisma.subscription.update({
         where: { id: subscription.id },
@@ -261,7 +290,7 @@ export const cancelSubscription = async (req: AuthRequest, res: Response) => {
         },
       });
 
-      res.json({
+      reply.send({
         message: '订阅将在当前周期结束后取消',
         type: 'end_of_period',
         endDate: subscription.endDate,
@@ -269,27 +298,36 @@ export const cancelSubscription = async (req: AuthRequest, res: Response) => {
     }
   } catch (error) {
     logger.error('取消订阅失败:', error);
-    res.status(500).json({ error: '取消订阅失败' });
+    reply.status(500).send({ error: '取消订阅失败' });
   }
 };
 
-export const cancelSubscriptionWith2FA = async (req: AuthRequest, res: Response) => {
-  const userId = (req.user?.id || req.userId) as string;
-  const { immediate, twoFactorCode } = req.body;
+export const cancelSubscriptionWith2FA = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
+  const { immediate, twoFactorCode } = request.body as {
+    immediate?: boolean;
+    twoFactorCode?: string;
+  };
 
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      return res.status(401).json({ error: '用户不存在' });
+      reply.status(401).send({ error: '用户不存在' });
+      return;
     }
 
     if (user.twoFactorEnabled) {
       if (!twoFactorCode) {
-        return res.status(400).json({ error: '请提供两步验证码', requires2FA: true });
+        reply.status(400).send({ error: '请提供两步验证码', requires2FA: true });
+        return;
       }
 
       if (!user.twoFactorSecret) {
-        return res.status(400).json({ error: '两步验证未正确设置' });
+        reply.status(400).send({ error: '两步验证未正确设置' });
+        return;
       }
 
       const isValid = speakeasy.totp.verify({
@@ -300,7 +338,8 @@ export const cancelSubscriptionWith2FA = async (req: AuthRequest, res: Response)
       });
 
       if (!isValid) {
-        return res.status(400).json({ error: '两步验证码错误，请重新输入' });
+        reply.status(400).send({ error: '两步验证码错误，请重新输入' });
+        return;
       }
     }
 
@@ -310,41 +349,48 @@ export const cancelSubscriptionWith2FA = async (req: AuthRequest, res: Response)
     });
 
     if (!subscription || subscription.status !== 'ACTIVE') {
-      return res.status(400).json({ error: '没有有效的订阅可取消' });
+      reply.status(400).send({ error: '没有有效的订阅可取消' });
+      return;
     }
 
     if (subscription.plan.name === 'FREE') {
-      return res.status(400).json({ error: '免费计划无需取消' });
+      reply.status(400).send({ error: '免费计划无需取消' });
+      return;
     }
 
     if (immediate) {
       const freePlan = await prisma.subscriptionPlan.findFirst({ where: { name: 'FREE' } });
-      if (!freePlan) return res.status(500).json({ error: '系统错误' });
+      if (!freePlan) {
+        reply.status(500).send({ error: '系统错误' });
+        return;
+      }
 
-      await prisma.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          planId: freePlan.id,
-          status: 'CANCELED',
-          cancelAtPeriodEnd: false,
-          autoRenew: false,
-          endDate: new Date(),
-        },
+      await prisma.$transaction(async (tx) => {
+        await tx.subscription.update({
+          where: { id: subscription.id },
+          data: {
+            planId: freePlan.id,
+            status: 'CANCELED',
+            cancelAtPeriodEnd: false,
+            autoRenew: false,
+            endDate: new Date(),
+          },
+        });
+
+        await tx.transaction.create({
+          data: {
+            userId,
+            amount: 0,
+            status: 'COMPLETED',
+            description: `取消 ${subscription.plan.displayName || subscription.plan.name} 订阅（2FA验证）`,
+            paymentMethod: subscription.paymentMethod,
+            planName: subscription.plan.name,
+            invoiceNo: `CNL-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+          },
+        });
       });
 
-      await prisma.transaction.create({
-        data: {
-          userId,
-          amount: 0,
-          status: 'COMPLETED',
-          description: `取消 ${subscription.plan.displayName || subscription.plan.name} 订阅（2FA验证）`,
-          paymentMethod: subscription.paymentMethod,
-          planName: subscription.plan.name,
-          invoiceNo: `CNL-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        },
-      });
-
-      res.json({ message: '订阅已立即取消', type: 'immediate' });
+      reply.send({ message: '订阅已立即取消', type: 'immediate' });
     } else {
       await prisma.subscription.update({
         where: { id: subscription.id },
@@ -354,37 +400,44 @@ export const cancelSubscriptionWith2FA = async (req: AuthRequest, res: Response)
         },
       });
 
-      res.json({
+      reply.send({
         message: '订阅将在当前周期结束后取消',
         type: 'end_of_period',
         endDate: subscription.endDate,
       });
     }
   } catch (_error) {
-    res.status(500).json({ error: '取消订阅失败' });
+    reply.status(500).send({ error: '取消订阅失败' });
   }
 };
 
-export const checkCancelRequires2FA = async (req: AuthRequest, res: Response) => {
-  const userId = (req.user?.id || req.userId) as string;
+export const checkCancelRequires2FA = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      return res.status(401).json({ error: '用户不存在' });
+      reply.status(401).send({ error: '用户不存在' });
+      return;
     }
 
-    res.json({
+    reply.send({
       requires2FA: user.twoFactorEnabled || false,
       twoFactorEnabled: user.twoFactorEnabled || false,
     });
   } catch (_error) {
-    res.status(500).json({ error: '检查失败' });
+    reply.status(500).send({ error: '检查失败' });
   }
 };
 
-export const toggleAutoRenew = async (req: AuthRequest, res: Response) => {
-  const userId = (req.user?.id || req.userId) as string;
-  const { autoRenew } = req.body;
+export const toggleAutoRenew = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
+  const { autoRenew } = request.body as { autoRenew?: boolean };
 
   try {
     const subscription = await prisma.subscription.findUnique({
@@ -392,7 +445,8 @@ export const toggleAutoRenew = async (req: AuthRequest, res: Response) => {
     });
 
     if (!subscription || subscription.status !== 'ACTIVE') {
-      return res.status(400).json({ error: '没有有效的订阅' });
+      reply.status(400).send({ error: '没有有效的订阅' });
+      return;
     }
 
     await prisma.subscription.update({
@@ -403,30 +457,36 @@ export const toggleAutoRenew = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    res.json({
+    reply.send({
       message: autoRenew ? '已开启自动续费' : '已关闭自动续费',
       autoRenew,
     });
   } catch (_error) {
-    res.status(500).json({ error: '操作失败' });
+    reply.status(500).send({ error: '操作失败' });
   }
 };
 
-export const getTransactions = async (req: AuthRequest, res: Response) => {
-  const userId = (req.user?.id || req.userId) as string;
+export const getTransactions = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
   try {
     const transactions = await prisma.transaction.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
-    res.json(transactions);
+    reply.send(transactions);
   } catch (_error) {
-    res.status(500).json({ error: '获取交易记录失败' });
+    reply.status(500).send({ error: '获取交易记录失败' });
   }
 };
 
-export const getStorageUsage = async (req: AuthRequest, res: Response) => {
-  const userId = (req.user?.id || req.userId) as string;
+export const getStorageUsage = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
   try {
     const assets = await prisma.asset.findMany({
       where: { userId },
@@ -456,7 +516,7 @@ export const getStorageUsage = async (req: AuthRequest, res: Response) => {
 
     const maxStorage = subscription?.plan?.maxStorage || 1;
 
-    res.json({
+    reply.send({
       usedMB,
       usedGB,
       maxStorageGB: maxStorage,
@@ -466,12 +526,15 @@ export const getStorageUsage = async (req: AuthRequest, res: Response) => {
       showcaseCount: showcases.length,
     });
   } catch (_error) {
-    res.status(500).json({ error: '获取存储用量失败' });
+    reply.status(500).send({ error: '获取存储用量失败' });
   }
 };
 
-export const getSubscriptionLimits = async (req: AuthRequest, res: Response) => {
-  const userId = (req.user?.id || req.userId) as string;
+export const getSubscriptionLimits = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
   try {
     const subscription = await prisma.subscription.findUnique({
       where: { userId },
@@ -481,7 +544,10 @@ export const getSubscriptionLimits = async (req: AuthRequest, res: Response) => 
     const plan =
       subscription?.plan || (await prisma.subscriptionPlan.findFirst({ where: { name: 'FREE' } }));
 
-    if (!plan) return res.status(500).json({ error: '无法获取计划信息' });
+    if (!plan) {
+      reply.status(500).send({ error: '无法获取计划信息' });
+      return;
+    }
 
     const [teamCount, projectCount, assetCount] = await Promise.all([
       prisma.teamMember.count({ where: { userId } }),
@@ -489,7 +555,7 @@ export const getSubscriptionLimits = async (req: AuthRequest, res: Response) => 
       prisma.asset.count({ where: { userId } }),
     ]);
 
-    res.json({
+    reply.send({
       maxStorage: plan.maxStorage,
       maxTeams: plan.maxTeams,
       maxProjects: plan.maxProjects,
@@ -500,12 +566,15 @@ export const getSubscriptionLimits = async (req: AuthRequest, res: Response) => 
       planName: plan.name,
     });
   } catch (_error) {
-    res.status(500).json({ error: '获取订阅限制失败' });
+    reply.status(500).send({ error: '获取订阅限制失败' });
   }
 };
 
-export const checkSubscription = async (req: AuthRequest, res: Response) => {
-  const userId = (req.user?.id || req.userId) as string;
+export const checkSubscription = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
   try {
     const subscription = await prisma.subscription.findUnique({
       where: { userId },
@@ -513,7 +582,8 @@ export const checkSubscription = async (req: AuthRequest, res: Response) => {
     });
 
     if (!subscription) {
-      return res.json({ active: true, planName: 'FREE', needsUpgrade: false });
+      reply.send({ active: true, planName: 'FREE', needsUpgrade: false });
+      return;
     }
 
     if (subscription.endDate && new Date(subscription.endDate) < new Date()) {
@@ -523,16 +593,17 @@ export const checkSubscription = async (req: AuthRequest, res: Response) => {
           data: { status: 'EXPIRED' },
         });
       }
-      return res.json({
+      reply.send({
         active: false,
         expired: true,
         planName: subscription.plan.name,
         endDate: subscription.endDate,
         needsUpgrade: true,
       });
+      return;
     }
 
-    res.json({
+    reply.send({
       active: subscription.status === 'ACTIVE',
       planName: subscription.plan.name,
       cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
@@ -541,6 +612,6 @@ export const checkSubscription = async (req: AuthRequest, res: Response) => {
       needsUpgrade: false,
     });
   } catch (_error) {
-    res.status(500).json({ error: '检查订阅状态失败' });
+    reply.status(500).send({ error: '检查订阅状态失败' });
   }
 };

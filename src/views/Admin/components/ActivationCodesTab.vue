@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, watch, computed } from 'vue';
 import { Ticket, Trash2, Copy } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import { getApiErrorMessage } from '@/utils/error';
 import api from '@/utils/api';
 import Button from '@/components/ui/Button.vue';
@@ -525,7 +525,7 @@ const copyToClipboard = (text: string) => {
     </div>
 
     <!-- Code Generate Dialog -->
-    <Modal :show="showCodeDialog" size="md" glass-card @close="showCodeDialog = false">
+    <Modal :show="showCodeDialog" size="md" @close="showCodeDialog = false">
       <template #header>
         <div>
           <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
@@ -541,19 +541,14 @@ const copyToClipboard = (text: string) => {
           <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{
             $t('admin.subscription_plan')
           }}</label>
-          <select
-            v-model="codeForm.planId"
-            class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-          >
-            <option v-for="plan in plans" :key="plan.id" :value="plan.id">
-              {{ plan.displayName || plan.name }} (￥{{ plan.price }}/月)
-            </option>
-          </select>
+          <Select v-model="codeForm.planId" class="w-full" size="large">
+            <SelectOption
+              v-for="plan in plans"
+              :key="plan.id"
+              :value="plan.id"
+              :label="`${plan.displayName || plan.name} (￥${plan.price}/月)`"
+            />
+          </Select>
         </div>
 
         <!-- Duration Preset & Custom Days -->

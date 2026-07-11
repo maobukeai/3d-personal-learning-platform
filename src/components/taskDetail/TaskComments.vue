@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { MessageSquare, Trash2, X, Send } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';

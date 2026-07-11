@@ -1,8 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Activity, Box, FileArchive, Grid3X3, LayoutList, UsersRound, Plus, RefreshCw, Eye, EyeOff, MessageSquare } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import {
+  Activity,
+  Box,
+  FileArchive,
+  Grid3X3,
+  LayoutList,
+  UsersRound,
+  Plus,
+  RefreshCw,
+  Eye,
+  EyeOff,
+  MessageSquare,
+} from 'lucide-vue-next';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import type { Category } from '@/types';
@@ -405,13 +417,17 @@ const handleBulkDelete = async () => {
     const ids = Array.from(selectedAssetIds.value);
     await api.post('/api/assets/bulk-delete', { ids });
 
-    ElMessage.success(label(`成功删除 ${ids.length} 个资源`, `Successfully deleted ${ids.length} assets`));
+    ElMessage.success(
+      label(`成功删除 ${ids.length} 个资源`, `Successfully deleted ${ids.length} assets`),
+    );
     selectedAssetIds.value = new Set();
     fetchAssets();
     fetchInsights();
   } catch (err: any) {
     if (err !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(err, label('批量删除失败', 'Failed to bulk delete assets')));
+      ElMessage.error(
+        getApiErrorMessage(err, label('批量删除失败', 'Failed to bulk delete assets')),
+      );
     }
   }
 };
@@ -439,7 +455,9 @@ const handleBulkUnfavorite = async () => {
     const ids = Array.from(selectedAssetIds.value);
     await api.post('/api/assets/bulk/favorite', { ids, favorite: false });
 
-    ElMessage.success(label(`成功取消收藏 ${ids.length} 个资源`, `Successfully unfavorited ${ids.length} assets`));
+    ElMessage.success(
+      label(`成功取消收藏 ${ids.length} 个资源`, `Successfully unfavorited ${ids.length} assets`),
+    );
     selectedAssetIds.value = new Set();
     isBatchMode.value = false;
     fetchAssets();
@@ -447,7 +465,9 @@ const handleBulkUnfavorite = async () => {
     fetchFavorites();
   } catch (err: any) {
     if (err !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(err, label('批量取消收藏失败', 'Failed to bulk unfavorite assets')));
+      ElMessage.error(
+        getApiErrorMessage(err, label('批量取消收藏失败', 'Failed to bulk unfavorite assets')),
+      );
     }
   }
 };
@@ -575,7 +595,11 @@ const handleContainerClick = (e: MouseEvent) => {
   if (!isBatchMode.value) return;
   const target = e.target as HTMLElement;
   if (!target) return;
-  if (target.closest('article, .unified-card, button, input, .el-select, .el-popper, a, select')) {
+  if (
+    target.closest(
+      'article, .unified-card, button, input, .select-trigger, .glass-popover, [data-radix-popper-content-wrapper], a, select',
+    )
+  ) {
     return;
   }
   isBatchMode.value = false;
@@ -604,7 +628,10 @@ const handleDetailEdit = (asset: any) => {
   const rawAsset = work.raw as any;
 
   const fileUrl = rawAsset.url || '';
-  const isExternal = fileUrl.startsWith('http://') || fileUrl.startsWith('https://') ? !fileUrl.includes('/uploads/') : false;
+  const isExternal =
+    fileUrl.startsWith('http://') || fileUrl.startsWith('https://')
+      ? !fileUrl.includes('/uploads/')
+      : false;
   let extUrl = '';
   let extCode = '';
   if (isExternal) {
@@ -1016,7 +1043,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="asset-library-page mobile-adaptive flex flex-col h-full overflow-hidden" @click="handleContainerClick">
+  <div
+    class="asset-library-page mobile-adaptive flex flex-col h-full overflow-hidden"
+    @click="handleContainerClick"
+  >
     <AssetLibraryHeader
       v-model:search-query="searchQuery"
       @upload="isUploadDialogOpen = true"
@@ -1024,8 +1054,10 @@ onUnmounted(() => {
     />
 
     <div class="flex-1 overflow-y-auto p-4 pt-2.5 flex flex-col gap-3">
-
-      <section class="workspace-shell" :class="{ 'single-col': activeTab === 'requests', 'collapsed-shell': isFilterCollapsed }">
+      <section
+        class="workspace-shell"
+        :class="{ 'single-col': activeTab === 'requests', 'collapsed-shell': isFilterCollapsed }"
+      >
         <AssetFilterPanel
           v-if="activeTab !== 'requests'"
           :is-open="isFilterOpen"
@@ -1071,7 +1103,10 @@ onUnmounted(() => {
           @update:active-tab="activeTab = $event"
           @update:sort-key="sortKey = $event"
           @update:view-mode="viewMode = $event"
-          @update:is-batch-mode="isBatchMode = $event; if (!$event) selectedAssetIds = new Set();"
+          @update:is-batch-mode="
+            isBatchMode = $event;
+            if (!$event) selectedAssetIds = new Set();
+          "
           @select="toggleAssetSelect"
           @select-all="selectAllAssets"
           @bulk-delete="handleBulkDelete"
@@ -1147,8 +1182,15 @@ onUnmounted(() => {
       :show="showHelpRequestPostDialog"
       :is-submitting="isSubmittingHelpRequest"
       :modal-title="label('发布新模型求助帖', 'Create Help Request')"
-      :title-placeholder="label('例如：寻找写实科幻飞船模型', 'e.g. looking for sci-fi spaceship model')"
-      :desc-placeholder="label('请详细描述您需要的模型规格、格式或参考，让大家能更精准地帮您找到！', 'Describe model details...')"
+      :title-placeholder="
+        label('例如：寻找写实科幻飞船模型', 'e.g. looking for sci-fi spaceship model')
+      "
+      :desc-placeholder="
+        label(
+          '请详细描述您需要的模型规格、格式或参考，让大家能更精准地帮您找到！',
+          'Describe model details...',
+        )
+      "
       @close="showHelpRequestPostDialog = false"
       @submit="handlePostHelpRequest"
     />
@@ -1199,13 +1241,13 @@ onUnmounted(() => {
 <style scoped>
 .asset-library-page {
   height: 100%;
-  background: transparent !important;
+  background: transparent;
   color: var(--text-primary);
 }
 
 .workspace-shell {
   display: grid;
-  grid-template-columns: 156px minmax(0, 1fr);
+  grid-template-columns: 200px minmax(0, 1fr);
   gap: 12px;
   min-height: 0;
   flex: 1;
@@ -1220,7 +1262,7 @@ onUnmounted(() => {
   grid-template-columns: 1fr;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 980px) {
   .workspace-shell {
     grid-template-columns: 1fr;
   }

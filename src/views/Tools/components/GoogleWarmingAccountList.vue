@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { RefreshCw, Search, Copy, FileText } from 'lucide-vue-next';
 
 interface GoogleAccount {
@@ -166,10 +166,10 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
         />
         <span>全选 ({{ selectedAccountIds.length }})</span>
       </label>
-      <el-dropdown
+      <Dropdown
         trigger="click"
         :disabled="selectedAccountIds.length === 0"
-        @command="emit('batch-command', $event)"
+        @command="(cmd) => emit('batch-command', String(cmd))"
       >
         <button
           :disabled="selectedAccountIds.length === 0"
@@ -183,36 +183,36 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
           {{ t('tools.googleWarming.batchActions') }}
         </button>
         <template #dropdown>
-          <el-dropdown-menu class="dark:bg-slate-900 border-none">
-            <el-dropdown-item
+          <DropdownMenu class="dark:bg-slate-900 border-none">
+            <DropdownItem
               command="warm"
               class="text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >一键打卡</el-dropdown-item
+              >一键打卡</DropdownItem
             >
-            <el-dropdown-item
+            <DropdownItem
               command="status-warming"
               class="text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >设为 养号中</el-dropdown-item
+              >设为 养号中</DropdownItem
             >
-            <el-dropdown-item
+            <DropdownItem
               command="status-paused"
               class="text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >设为 已暂停</el-dropdown-item
+              >设为 已暂停</DropdownItem
             >
-            <el-dropdown-item
+            <DropdownItem
               command="status-completed"
               class="text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >设为 已毕业</el-dropdown-item
+              >设为 已毕业</DropdownItem
             >
-            <el-dropdown-item
+            <DropdownItem
               command="delete"
               divided
               class="text-red-600 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >批量删除</el-dropdown-item
+              >批量删除</DropdownItem
             >
-          </el-dropdown-menu>
+          </DropdownMenu>
         </template>
-      </el-dropdown>
+      </Dropdown>
     </div>
 
     <div

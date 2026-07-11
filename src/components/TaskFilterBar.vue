@@ -107,11 +107,11 @@ const toggleSortOrder = () => {
     <!-- Left Section: Search filters & Toggle views -->
     <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
       <!-- Project Filter Dropdown -->
-      <el-dropdown
+      <Dropdown
         trigger="click"
-        popper-class="glass-card"
+        popper-class="glass-popover"
         @command="
-          (val: string) => {
+          (val: any) => {
             selectedProjectId = val === 'all' ? null : val;
           }
         "
@@ -142,30 +142,30 @@ const toggleSortOrder = () => {
           <ChevronDown class="w-3 h-3 opacity-60" />
         </button>
         <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item
+          <DropdownMenu>
+            <DropdownItem
               command="all"
               :class="{ 'is-active text-accent font-bold': !selectedProjectId }"
             >
               全部项目
-            </el-dropdown-item>
-            <el-dropdown-item
+            </DropdownItem>
+            <DropdownItem
               command="unassigned"
               :class="{ 'is-active text-accent font-bold': selectedProjectId === 'unassigned' }"
             >
               未指定项目
-            </el-dropdown-item>
-            <el-dropdown-item
+            </DropdownItem>
+            <DropdownItem
               v-for="p in projects"
               :key="p.id"
               :command="p.id"
               :class="{ 'is-active text-accent font-bold': selectedProjectId === p.id }"
             >
               {{ p.title }}
-            </el-dropdown-item>
-          </el-dropdown-menu>
+            </DropdownItem>
+          </DropdownMenu>
         </template>
-      </el-dropdown>
+      </Dropdown>
 
       <!-- Me Mode Toggle -->
       <button
@@ -201,10 +201,10 @@ const toggleSortOrder = () => {
       <div class="h-4 w-[1px] bg-slate-200 dark:bg-slate-700 shrink-0"></div>
 
       <!-- Time Dropdown -->
-      <el-dropdown
+      <Dropdown
         trigger="click"
-        popper-class="glass-card"
-        @command="(val: string) => (dateFilter = val)"
+        popper-class="glass-popover"
+        @command="(val: any) => (dateFilter = val)"
       >
         <button
           type="button"
@@ -223,24 +223,24 @@ const toggleSortOrder = () => {
           <ChevronDown class="w-3 h-3 opacity-60" />
         </button>
         <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item
+          <DropdownMenu>
+            <DropdownItem
               v-for="opt in dateOptions"
               :key="opt.id"
               :command="opt.id"
               :class="{ 'is-active text-accent font-bold': dateFilter === opt.id }"
             >
               {{ opt.label }}
-            </el-dropdown-item>
-          </el-dropdown-menu>
+            </DropdownItem>
+          </DropdownMenu>
         </template>
-      </el-dropdown>
+      </Dropdown>
 
       <!-- Status Dropdown -->
-      <el-dropdown
+      <Dropdown
         trigger="click"
-        popper-class="glass-card"
-        @command="(val: string) => (statusFilter = val)"
+        popper-class="glass-popover"
+        @command="(val: any) => (statusFilter = val)"
       >
         <button
           type="button"
@@ -259,24 +259,24 @@ const toggleSortOrder = () => {
           <ChevronDown class="w-3 h-3 opacity-60" />
         </button>
         <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item
+          <DropdownMenu>
+            <DropdownItem
               v-for="opt in statusOptions"
               :key="opt.id"
               :command="opt.id"
               :class="{ 'is-active text-accent font-bold': statusFilter === opt.id }"
             >
               <span :class="opt.textColor">{{ opt.label }}</span>
-            </el-dropdown-item>
-          </el-dropdown-menu>
+            </DropdownItem>
+          </DropdownMenu>
         </template>
-      </el-dropdown>
+      </Dropdown>
 
       <!-- Priority Dropdown -->
-      <el-dropdown
+      <Dropdown
         trigger="click"
-        popper-class="glass-card"
-        @command="(val: string) => (priorityFilter = val)"
+        popper-class="glass-popover"
+        @command="(val: any) => (priorityFilter = val)"
       >
         <button
           type="button"
@@ -295,8 +295,8 @@ const toggleSortOrder = () => {
           <ChevronDown class="w-3 h-3 opacity-60" />
         </button>
         <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item
+          <DropdownMenu>
+            <DropdownItem
               v-for="opt in priorityOptions"
               :key="opt.id"
               :command="opt.id"
@@ -311,16 +311,16 @@ const toggleSortOrder = () => {
                 />
                 <span :class="opt.textColor">{{ opt.label }}</span>
               </div>
-            </el-dropdown-item>
-          </el-dropdown-menu>
+            </DropdownItem>
+          </DropdownMenu>
         </template>
-      </el-dropdown>
+      </Dropdown>
 
       <!-- Assignee Dropdown -->
-      <el-dropdown
+      <Dropdown
         trigger="click"
-        popper-class="glass-card"
-        @command="(val: string) => (assigneeFilter = val)"
+        popper-class="glass-popover"
+        @command="(val: any) => (assigneeFilter = val)"
       >
         <button
           type="button"
@@ -348,20 +348,20 @@ const toggleSortOrder = () => {
           <ChevronDown class="w-3 h-3 opacity-60" />
         </button>
         <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item
+          <DropdownMenu>
+            <DropdownItem
               command="all"
               :class="{ 'is-active text-accent font-bold': assigneeFilter === 'all' }"
             >
               全部成员
-            </el-dropdown-item>
-            <el-dropdown-item
+            </DropdownItem>
+            <DropdownItem
               command="unassigned"
               :class="{ 'is-active text-accent font-bold': assigneeFilter === 'unassigned' }"
             >
               未指派
-            </el-dropdown-item>
-            <el-dropdown-item
+            </DropdownItem>
+            <DropdownItem
               v-for="m in teamMembers"
               :key="m.id"
               :command="m.id"
@@ -375,16 +375,16 @@ const toggleSortOrder = () => {
                 />
                 <span>{{ m.name }}</span>
               </div>
-            </el-dropdown-item>
-          </el-dropdown-menu>
+            </DropdownItem>
+          </DropdownMenu>
         </template>
-      </el-dropdown>
+      </Dropdown>
 
       <!-- Tag Dropdown -->
-      <el-dropdown
+      <Dropdown
         trigger="click"
-        popper-class="glass-card"
-        @command="(val: string) => (tagFilter = val)"
+        popper-class="glass-popover"
+        @command="(val: any) => (tagFilter = val)"
       >
         <button
           type="button"
@@ -403,30 +403,30 @@ const toggleSortOrder = () => {
           <ChevronDown class="w-3 h-3 opacity-60" />
         </button>
         <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item
+          <DropdownMenu>
+            <DropdownItem
               command="all"
               :class="{ 'is-active text-accent font-bold': tagFilter === 'all' }"
             >
               全部标签
-            </el-dropdown-item>
-            <el-dropdown-item
+            </DropdownItem>
+            <DropdownItem
               v-for="tag in allTags"
               :key="tag"
               :command="tag"
               :class="{ 'is-active text-accent font-bold': tagFilter === tag }"
             >
               {{ tag }}
-            </el-dropdown-item>
-            <el-dropdown-item v-if="allTags.length === 0" disabled> 暂无标签 </el-dropdown-item>
-          </el-dropdown-menu>
+            </DropdownItem>
+            <DropdownItem v-if="allTags.length === 0" disabled> 暂无标签 </DropdownItem>
+          </DropdownMenu>
         </template>
-      </el-dropdown>
+      </Dropdown>
 
       <!-- Subtasks Display Dropdown -->
-      <el-dropdown
+      <Dropdown
         trigger="click"
-        popper-class="glass-card"
+        popper-class="glass-popover"
         @command="(val: any) => (subtaskDisplay = val)"
       >
         <button
@@ -455,36 +455,36 @@ const toggleSortOrder = () => {
           <ChevronDown class="w-3 h-3 opacity-60" />
         </button>
         <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item
+          <DropdownMenu>
+            <DropdownItem
               command="collapse"
               :class="{ 'is-active text-accent font-bold': subtaskDisplay === 'collapse' }"
             >
               折叠所有子任务
-            </el-dropdown-item>
-            <el-dropdown-item
+            </DropdownItem>
+            <DropdownItem
               command="expand"
               :class="{ 'is-active text-accent font-bold': subtaskDisplay === 'expand' }"
             >
               展开所有子任务
-            </el-dropdown-item>
-            <el-dropdown-item
+            </DropdownItem>
+            <DropdownItem
               command="separate"
               :class="{ 'is-active text-accent font-bold': subtaskDisplay === 'separate' }"
             >
               作为独立任务显示
-            </el-dropdown-item>
-          </el-dropdown-menu>
+            </DropdownItem>
+          </DropdownMenu>
         </template>
-      </el-dropdown>
+      </Dropdown>
     </div>
 
     <!-- Right Section: Grouping & Sorting in one line -->
     <div class="flex items-center gap-2 sm:gap-2.5 shrink-0 ml-auto">
       <!-- Group By Dropdown -->
-      <el-dropdown
+      <Dropdown
         trigger="click"
-        popper-class="glass-card"
+        popper-class="glass-popover"
         @command="(val: any) => (groupBy = val)"
       >
         <button
@@ -504,23 +504,23 @@ const toggleSortOrder = () => {
           <ChevronDown class="w-3 h-3 opacity-60" />
         </button>
         <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item
+          <DropdownMenu>
+            <DropdownItem
               v-for="opt in groupByOptions"
               :key="opt.id"
               :command="opt.id"
               :class="{ 'is-active text-accent font-bold': groupBy === opt.id }"
             >
               {{ opt.label }}
-            </el-dropdown-item>
-          </el-dropdown-menu>
+            </DropdownItem>
+          </DropdownMenu>
         </template>
-      </el-dropdown>
+      </Dropdown>
 
       <!-- Sort By Dropdown -->
-      <el-dropdown
+      <Dropdown
         trigger="click"
-        popper-class="glass-card"
+        popper-class="glass-popover"
         @command="(val: any) => (sortBy = val)"
       >
         <button
@@ -540,18 +540,18 @@ const toggleSortOrder = () => {
           <ChevronDown class="w-3 h-3 opacity-60" />
         </button>
         <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item
+          <DropdownMenu>
+            <DropdownItem
               v-for="opt in sortByOptions"
               :key="opt.id"
               :command="opt.id"
               :class="{ 'is-active text-accent font-bold': sortBy === opt.id }"
             >
               {{ opt.label }}
-            </el-dropdown-item>
-          </el-dropdown-menu>
+            </DropdownItem>
+          </DropdownMenu>
         </template>
-      </el-dropdown>
+      </Dropdown>
 
       <!-- Sort Direction Toggle Button -->
       <button

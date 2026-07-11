@@ -87,7 +87,7 @@ const handleSend = () => {
 
 <template>
   <div
-    class="p-2.5 sm:p-3 border-t relative shrink-0 mobile-adaptive"
+    class="chat-input-wrapper p-2.5 sm:p-3 border-t relative shrink-0 mobile-adaptive"
     style="background-color: var(--bg-card); border-color: var(--border-base)"
   >
     <!-- Uploading Progress overlay -->

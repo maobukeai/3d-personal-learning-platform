@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { Search, Users, ArrowRight, Loader2 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import GroupDetailDialog from '@/components/GroupDetailDialog.vue';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
@@ -96,7 +96,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <Modal :show="visible" size="xl" padding="none" glass-card @close="emit('update:visible', false)">
+  <Modal :show="visible" size="xl" padding="none" @close="emit('update:visible', false)">
     <template #header>
       <div class="flex items-center gap-3">
         <div

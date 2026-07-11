@@ -1,14 +1,20 @@
-import { Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import prisma from '../../services/prisma';
-import { AuthRequest } from '../../middlewares/auth.middleware';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
 import { sanitizeUser } from '../../utils/auth';
 import { AppError } from '../../utils/error';
 import { createPaginationMeta, getPaginationParams } from '../../utils/pagination';
 import { redisService } from '../../services/redis.service';
 import { provisionUserWorkspaces } from '../../services/user-workspace.service';
+
+type AdminRequest = FastifyRequest & {
+  body: any;
+  query: any;
+  params: any;
+  file?: any;
+};
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -237,7 +243,7 @@ const getRiskProfile = (user: AdminUserListItem & AdminUserActivity) => {
   };
 };
 
-export const getUsers = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getUsers = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query, 50, 200);
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
@@ -270,16 +276,16 @@ export const getUsers = async (req: AuthRequest, res: Response, next: NextFuncti
 
     const usersWithActivity = await attachUserActivity(users);
 
-    res.json({
+    reply.send({
       data: usersWithActivity,
       pagination: createPaginationMeta(page, limit, total),
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getUserOverview = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getUserOverview = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * DAY_MS);
@@ -404,7 +410,7 @@ export const getUserOverview = async (req: AuthRequest, res: Response, next: Nex
     const recentUsersWithActivity = await attachUserActivity(recentUsers);
     const planById = new Map(plans.map((plan) => [plan.id, plan]));
 
-    res.json({
+    reply.send({
       generatedAt: now,
       totals: {
         total,
@@ -460,21 +466,21 @@ export const getUserOverview = async (req: AuthRequest, res: Response, next: Nex
       recentUsers: recentUsersWithActivity,
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const createUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createUser = async (req: AdminRequest, reply: FastifyReply) => {
   const { name, email, password, role } = req.body;
 
   if (!email || !password) {
-    return next(new AppError('邮箱和密码为必填项', 400));
+    throw new AppError('邮箱和密码为必填项', 400);
   }
 
   try {
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return next(new AppError('该邮箱已被注册', 400));
+      throw new AppError('该邮箱已被注册', 400);
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -517,23 +523,23 @@ export const createUser = async (req: AuthRequest, res: Response, next: NextFunc
       req,
     });
 
-    res.status(201).json(result);
+    reply.status(201).send(result);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateUser = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { name, email, role, status } = req.body;
 
   try {
     const oldUser = await prisma.user.findUnique({ where: { id } });
-    if (!oldUser) return next(new AppError('用户不存在', 404));
+    if (!oldUser) throw new AppError('用户不存在', 404);
 
     // Prevent self-demotion or self-banning if you are an admin
     if (id === req.userId && (role !== 'ADMIN' || status === 'BANNED')) {
-      return next(new AppError('不能修改自己的管理员权限或封禁自己', 400));
+      throw new AppError('不能修改自己的管理员权限或封禁自己', 400);
     }
 
     const updatedUser = await prisma.user.update({
@@ -554,23 +560,23 @@ export const updateUser = async (req: AuthRequest, res: Response, next: NextFunc
       req,
     });
 
-    res.json(updatedUser);
+    reply.send(updatedUser);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const resetUserPassword = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const resetUserPassword = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { password } = req.body;
 
   if (!password || password.length < 6) {
-    return next(new AppError('密码长度至少为 6 位', 400));
+    throw new AppError('密码长度至少为 6 位', 400);
   }
 
   try {
     const user = await prisma.user.findUnique({ where: { id } });
-    if (!user) return next(new AppError('用户不存在', 404));
+    if (!user) throw new AppError('用户不存在', 404);
 
     const hashedPassword = await bcrypt.hash(password, 10);
     await prisma.user.update({
@@ -588,13 +594,13 @@ export const resetUserPassword = async (req: AuthRequest, res: Response, next: N
       req,
     });
 
-    res.json({ message: '用户密码已成功重置' });
+    reply.send({ message: '用户密码已成功重置' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const revokeUserSessions = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const revokeUserSessions = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const includeTrustedDevices = req.body?.includeTrustedDevices === true;
 
@@ -603,7 +609,7 @@ export const revokeUserSessions = async (req: AuthRequest, res: Response, next: 
       where: { id },
       select: { id: true, email: true },
     });
-    if (!user) return next(new AppError('用户不存在', 404));
+    if (!user) throw new AppError('用户不存在', 404);
 
     const result = await prisma.$transaction(async (tx) => {
       const sessions = await tx.refreshToken.deleteMany({ where: { userId: id } });
@@ -626,29 +632,25 @@ export const revokeUserSessions = async (req: AuthRequest, res: Response, next: 
       req,
     });
 
-    res.json(result);
+    reply.send(result);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const batchRevokeUserSessions = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const batchRevokeUserSessions = async (req: AdminRequest, reply: FastifyReply) => {
   const { ids, includeTrustedDevices } = req.body as {
     ids?: string[];
     includeTrustedDevices?: boolean;
   };
 
   if (!Array.isArray(ids) || ids.length === 0) {
-    return next(new AppError('Please select at least one user', 400));
+    throw new AppError('Please select at least one user', 400);
   }
 
   const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
   if (uniqueIds.length === 0) {
-    return next(new AppError('Please select at least one user', 400));
+    throw new AppError('Please select at least one user', 400);
   }
 
   try {
@@ -658,7 +660,7 @@ export const batchRevokeUserSessions = async (
     });
 
     if (users.length === 0) {
-      return next(new AppError('Users not found', 404));
+      throw new AppError('Users not found', 404);
     }
 
     const targetIds = users.map((user) => user.id);
@@ -692,27 +694,27 @@ export const batchRevokeUserSessions = async (
       req,
     });
 
-    res.json({
+    reply.send({
       users: users.length,
       ...result,
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const updateUserRole = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateUserRole = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   const { role } = req.body;
 
   const validRoles = ['USER', 'ADMIN', 'INSTRUCTOR'];
   if (!validRoles.includes(role)) {
-    return next(new AppError('Invalid role value', 400));
+    throw new AppError('Invalid role value', 400);
   }
 
   try {
     const oldUser = await prisma.user.findUnique({ where: { id } });
-    if (!oldUser) return next(new AppError('用户不存在', 404));
+    if (!oldUser) throw new AppError('用户不存在', 404);
 
     const updatedUser = await prisma.user.update({
       where: { id },
@@ -732,13 +734,13 @@ export const updateUserRole = async (req: AuthRequest, res: Response, next: Next
       req,
     });
 
-    res.json(updatedUser);
+    reply.send(updatedUser);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const batchUpdateUsers = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const batchUpdateUsers = async (req: AdminRequest, reply: FastifyReply) => {
   const { ids, role, status } = req.body as {
     ids?: string[];
     role?: string;
@@ -746,24 +748,24 @@ export const batchUpdateUsers = async (req: AuthRequest, res: Response, next: Ne
   };
 
   if (!Array.isArray(ids) || ids.length === 0) {
-    return next(new AppError('Please select at least one user', 400));
+    throw new AppError('Please select at least one user', 400);
   }
 
   const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
   if (uniqueIds.length === 0) {
-    return next(new AppError('Please select at least one user', 400));
+    throw new AppError('Please select at least one user', 400);
   }
 
   const validRoles = ['USER', 'ADMIN', 'INSTRUCTOR'];
   const validStatuses = ['ACTIVE', 'BANNED'];
   if (role !== undefined && !validRoles.includes(role)) {
-    return next(new AppError('Invalid role value', 400));
+    throw new AppError('Invalid role value', 400);
   }
   if (status !== undefined && !validStatuses.includes(status)) {
-    return next(new AppError('Invalid status value', 400));
+    throw new AppError('Invalid status value', 400);
   }
   if (role === undefined && status === undefined) {
-    return next(new AppError('No batch update field provided', 400));
+    throw new AppError('No batch update field provided', 400);
   }
 
   try {
@@ -773,12 +775,12 @@ export const batchUpdateUsers = async (req: AuthRequest, res: Response, next: Ne
     });
 
     if (users.length === 0) {
-      return next(new AppError('Users not found', 404));
+      throw new AppError('Users not found', 404);
     }
 
     const touchesSelf = uniqueIds.includes(req.userId as string);
     if (touchesSelf && (status === 'BANNED' || (role !== undefined && role !== 'ADMIN'))) {
-      return next(new AppError('Cannot demote or ban your own administrator account', 400));
+      throw new AppError('Cannot demote or ban your own administrator account', 400);
     }
 
     const affectedAdminIds = users.filter((user) => user.role === 'ADMIN').map((user) => user.id);
@@ -787,7 +789,7 @@ export const batchUpdateUsers = async (req: AuthRequest, res: Response, next: Ne
         where: { role: 'ADMIN', id: { notIn: affectedAdminIds } },
       });
       if (remainingAdmins < 1) {
-        return next(new AppError('Cannot remove the last administrator account', 400));
+        throw new AppError('Cannot remove the last administrator account', 400);
       }
     }
 
@@ -816,31 +818,31 @@ export const batchUpdateUsers = async (req: AuthRequest, res: Response, next: Ne
       req,
     });
 
-    res.json({ count: result.count });
+    reply.send({ count: result.count });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const deleteUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteUser = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   try {
     // Prevent self-deletion
     if (id === req.userId) {
-      return next(new AppError('不能删除自己的账户', 400));
+      throw new AppError('不能删除自己的账户', 400);
     }
 
     // Check if user exists
     const userToDelete = await prisma.user.findUnique({ where: { id } });
     if (!userToDelete) {
-      return next(new AppError('用户不存在', 404));
+      throw new AppError('用户不存在', 404);
     }
 
     // Prevent deleting the last admin
     if (userToDelete.role === 'ADMIN') {
       const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
       if (adminCount <= 1) {
-        return next(new AppError('不能删除最后一个管理员账户', 400));
+        throw new AppError('不能删除最后一个管理员账户', 400);
       }
     }
 
@@ -856,8 +858,8 @@ export const deleteUser = async (req: AuthRequest, res: Response, next: NextFunc
       req,
     });
 
-    res.json({ message: 'User deleted successfully' });
+    reply.send({ message: 'User deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };

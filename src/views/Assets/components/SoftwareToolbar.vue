@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { type Component } from 'vue';
-import { Heart, SlidersHorizontal, ListChecks, CheckCheck, Trash2, HeartOff, PanelLeftOpen } from 'lucide-vue-next';
+import {
+  Heart,
+  SlidersHorizontal,
+  ListChecks,
+  CheckCheck,
+  Trash2,
+  HeartOff,
+  PanelLeftOpen,
+} from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
 import Tabs from '@/components/ui/Tabs.vue';
 
@@ -81,7 +89,12 @@ const onViewModeChange = (value: string | number | null) => {
           <button
             type="button"
             class="p-1.5 text-xs rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-[var(--text-primary)] transition-colors flex items-center justify-center"
-            :title="(selectedIds?.length || 0) === (visibleSoftwaresCount || 0) && (visibleSoftwaresCount || 0) > 0 ? '取消全选' : '全选本页'"
+            :title="
+              (selectedIds?.length || 0) === (visibleSoftwaresCount || 0) &&
+              (visibleSoftwaresCount || 0) > 0
+                ? '取消全选'
+                : '全选本页'
+            "
             @click="emit('selectAll')"
           >
             <CheckCheck class="w-3.5 h-3.5" />
@@ -89,7 +102,11 @@ const onViewModeChange = (value: string | number | null) => {
           <button
             type="button"
             class="p-1.5 text-xs rounded-lg text-white font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-            :class="activeTab === 'favorites' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-rose-500 hover:bg-rose-600'"
+            :class="
+              activeTab === 'favorites'
+                ? 'bg-amber-500 hover:bg-amber-600'
+                : 'bg-rose-500 hover:bg-rose-600'
+            "
             :disabled="!selectedIds?.length"
             :title="activeTab === 'favorites' ? '批量取消收藏' : '批量删除'"
             @click="activeTab === 'favorites' ? emit('bulkUnfavorite') : emit('bulkDelete')"
@@ -109,17 +126,17 @@ const onViewModeChange = (value: string | number | null) => {
         </button>
       </template>
 
-      <el-select
+      <Select
         :model-value="sortBy"
         class="custom-sort-select"
         style="width: 100px"
         aria-label="排序方式"
         @update:model-value="(val) => emit('update:sortBy', val)"
       >
-        <el-option value="latest" :label="label('最新发布', 'Newest')" />
-        <el-option value="popular" :label="label('下载最多', 'Most Downloaded')" />
-        <el-option value="name" :label="label('名称排序', 'Name')" />
-      </el-select>
+        <SelectOption value="latest" :label="label('最新发布', 'Newest')" />
+        <SelectOption value="popular" :label="label('下载最多', 'Most Downloaded')" />
+        <SelectOption value="name" :label="label('名称排序', 'Name')" />
+      </Select>
       <button
         type="button"
         class="ghost-button"

@@ -1,17 +1,16 @@
-import { Response, NextFunction } from 'express';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import bcrypt from 'bcryptjs';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import prisma from '../../services/prisma';
-import { AuthRequest } from '../../middlewares/auth.middleware';
 import { generateRecoveryCodes, hashRecoveryCodes } from '../../utils/auth';
 import { AppError } from '../../utils/error';
 import { redisService } from '../../services/redis.service';
 
-export const setup2FA = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const setup2FA = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
   try {
-    const user = req.user!;
-    if (!user) return next(new AppError('Unauthorized', 401));
+    const user = request.user!;
+    if (!user) throw new AppError('Unauthorized', 401);
 
     const secret = speakeasy.generateSecret({
       length: 20,
@@ -24,52 +23,54 @@ export const setup2FA = async (req: AuthRequest, res: Response, next: NextFuncti
     const hashedCodes = await hashRecoveryCodes(codes);
 
     await prisma.user.update({
-      where: { id: req.userId as string },
+      where: { id: request.userId as string },
       data: {
         twoFactorSecret: secret.base32,
         twoFactorRecoveryCodes: JSON.stringify(hashedCodes),
       },
     });
 
-    await redisService.invalidateUserCache(req.userId as string);
-    res.json({ qrCodeUrl, secret: secret.base32, recoveryCodes: codes });
+    await redisService.invalidateUserCache(request.userId as string);
+    reply.send({ qrCodeUrl, secret: secret.base32, recoveryCodes: codes });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const getRecoveryCodes = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getRecoveryCodes = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.userId as string },
+      where: { id: request.userId as string },
       select: { twoFactorRecoveryCodes: true },
     });
 
     if (!user || !user.twoFactorRecoveryCodes) {
-      return next(new AppError('恢复码不存在', 404));
+      throw new AppError('恢复码不存在', 404);
     }
 
     const recoveryCodes = JSON.parse(user.twoFactorRecoveryCodes) as string[];
-    res.json({ count: recoveryCodes.length });
+    reply.send({ count: recoveryCodes.length });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 export const regenerateRecoveryCodes = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { password, code } = req.body;
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const { password, code } = (request.body as { password?: string; code?: string }) ?? {};
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
-    if (!user) return next(new AppError('用户不存在', 404));
+    const user = await prisma.user.findUnique({ where: { id: request.userId as string } });
+    if (!user) throw new AppError('用户不存在', 404);
 
     if (password) {
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
-        return next(new AppError('密码错误', 400));
+        throw new AppError('密码错误', 400);
       }
     } else if (code && user.twoFactorSecret) {
       const isValid = speakeasy.totp.verify({
@@ -79,41 +80,41 @@ export const regenerateRecoveryCodes = async (
         window: 1,
       });
       if (!isValid) {
-        return next(new AppError('验证码错误', 400));
+        throw new AppError('验证码错误', 400);
       }
     } else {
-      return next(new AppError('重新生成恢复码需要验证密码或 2FA 验证码', 400));
+      throw new AppError('重新生成恢复码需要验证密码或 2FA 验证码', 400);
     }
 
     const codes = generateRecoveryCodes();
     const hashedCodes = await hashRecoveryCodes(codes);
     await prisma.user.update({
-      where: { id: req.userId as string },
+      where: { id: request.userId as string },
       data: { twoFactorRecoveryCodes: JSON.stringify(hashedCodes) },
     });
 
-    await redisService.invalidateUserCache(req.userId as string);
-    res.json({ recoveryCodes: codes });
+    await redisService.invalidateUserCache(request.userId as string);
+    reply.send({ recoveryCodes: codes });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const enable2FA = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { code, password } = req.body;
+export const enable2FA = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { code, password } = request.body as { code: string; password: string };
   try {
     if (!password) {
-      return next(new AppError('启用双重验证需要验证当前密码', 400));
+      throw new AppError('启用双重验证需要验证当前密码', 400);
     }
 
-    const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
+    const user = await prisma.user.findUnique({ where: { id: request.userId as string } });
     if (!user || !user.twoFactorSecret) {
-      return next(new AppError('无效的双重验证设置请求', 400));
+      throw new AppError('无效的双重验证设置请求', 400);
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return next(new AppError('密码错误', 400));
+      throw new AppError('密码错误', 400);
     }
 
     const isValid = speakeasy.totp.verify({
@@ -124,7 +125,7 @@ export const enable2FA = async (req: AuthRequest, res: Response, next: NextFunct
     });
 
     if (!isValid) {
-      return next(new AppError('验证码错误', 400));
+      throw new AppError('验证码错误', 400);
     }
 
     await prisma.user.update({
@@ -133,25 +134,25 @@ export const enable2FA = async (req: AuthRequest, res: Response, next: NextFunct
     });
 
     await redisService.invalidateUserCache(user.id);
-    res.json({ message: '双重验证已启用' });
+    reply.send({ message: '双重验证已启用' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-export const disable2FA = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { code, password } = req.body;
+export const disable2FA = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const { code, password } = (request.body as { code?: string; password?: string }) ?? {};
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
-    if (!user) return next(new AppError('用户不存在', 404));
+    const user = await prisma.user.findUnique({ where: { id: request.userId as string } });
+    if (!user) throw new AppError('用户不存在', 404);
 
     if (!user.twoFactorEnabled) {
-      return next(new AppError('双重验证未启用', 400));
+      throw new AppError('双重验证未启用', 400);
     }
 
     if (code) {
       if (!user.twoFactorSecret) {
-        return next(new AppError('双重验证配置异常', 400));
+        throw new AppError('双重验证配置异常', 400);
       }
       const isValid = speakeasy.totp.verify({
         secret: user.twoFactorSecret,
@@ -160,25 +161,25 @@ export const disable2FA = async (req: AuthRequest, res: Response, next: NextFunc
         window: 1,
       });
       if (!isValid) {
-        return next(new AppError('验证码错误', 400));
+        throw new AppError('验证码错误', 400);
       }
     } else if (password) {
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
-        return next(new AppError('密码错误', 400));
+        throw new AppError('密码错误', 400);
       }
     } else {
-      return next(new AppError('禁用双重验证需要提供验证码或密码', 400));
+      throw new AppError('禁用双重验证需要提供验证码或密码', 400);
     }
 
     await prisma.user.update({
-      where: { id: req.userId as string },
+      where: { id: request.userId as string },
       data: { twoFactorEnabled: false, twoFactorSecret: null, twoFactorRecoveryCodes: null },
     });
 
-    await redisService.invalidateUserCache(req.userId as string);
-    res.json({ message: '双重验证已禁用' });
+    await redisService.invalidateUserCache(request.userId as string);
+    reply.send({ message: '双重验证已禁用' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };

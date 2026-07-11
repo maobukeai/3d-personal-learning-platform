@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '@/utils/error';
 import { ref, watch } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { Users, Check, Loader2 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import Modal from '@/components/ui/Modal.vue';
@@ -76,7 +76,6 @@ const handleRespond = async (accept: boolean) => {
   <Modal
     :show="visible"
     size="sm"
-    glass-card
     :close-on-outside-click="!processing"
     @close="emit('update:visible', false)"
   >

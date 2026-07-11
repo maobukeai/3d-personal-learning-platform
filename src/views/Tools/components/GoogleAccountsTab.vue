@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Modal from '@/components/ui/Modal.vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import {
   Shield,
   Settings,
@@ -207,7 +207,7 @@ const handleInlineCategory = (row: GoogleAccount, cmd: string) => {
   }
 };
 
-const handleBatchStatus = (status: 'warming' | 'completed' | 'paused') => {
+const handleBatchStatus = (status: any) => {
   emit('batch-status', { ids: selectedAccountIds.value, status });
   selectedAccountIds.value = [];
 };
@@ -324,7 +324,7 @@ const copyText = (text?: string) => {
             >
 
             <!-- Batch change status dropdown -->
-            <el-dropdown trigger="click" @command="handleBatchStatus">
+            <Dropdown trigger="click" @command="handleBatchStatus">
               <button
                 class="gw-btn-secondary !py-1 !px-2 !text-[10.5px] flex items-center gap-0.5 cursor-pointer"
               >
@@ -332,25 +332,25 @@ const copyText = (text?: string) => {
                 <ExternalLink class="w-3 h-3 opacity-60" />
               </button>
               <template #dropdown>
-                <el-dropdown-menu class="dark:bg-slate-900 dark:border-slate-800">
-                  <el-dropdown-item
+                <DropdownMenu class="dark:bg-slate-900 dark:border-slate-800">
+                  <DropdownItem
                     command="warming"
                     class="text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    >设为 养号中</el-dropdown-item
+                    >设为 养号中</DropdownItem
                   >
-                  <el-dropdown-item
+                  <DropdownItem
                     command="paused"
                     class="text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    >设为 已暂停</el-dropdown-item
+                    >设为 已暂停</DropdownItem
                   >
-                  <el-dropdown-item
+                  <DropdownItem
                     command="completed"
                     class="text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    >设为 已毕业</el-dropdown-item
+                    >设为 已毕业</DropdownItem
                   >
-                </el-dropdown-menu>
+                </DropdownMenu>
               </template>
-            </el-dropdown>
+            </Dropdown>
 
             <!-- Batch delete button -->
             <button
@@ -385,17 +385,17 @@ const copyText = (text?: string) => {
         class="overflow-x-auto border rounded-xl"
         style="border-color: var(--border-base); background: var(--bg-card)"
       >
-        <el-table
+        <Table
           v-loading="isLoading"
           :data="filteredAndCategorizedAccounts"
           style="width: 100%"
           class="custom-el-table mobile-table !text-xs"
           @selection-change="handleSelectionChange"
         >
-          <el-table-column type="selection" width="45" align="center" />
+          <TableColumn type="selection" width="45" align="center" />
 
           <!-- Email -->
-          <el-table-column label="邮箱账号" min-width="210">
+          <TableColumn label="邮箱账号" min-width="210">
             <template #default="{ row }">
               <div
                 draggable="true"
@@ -423,7 +423,7 @@ const copyText = (text?: string) => {
                 </button>
 
                 <!-- 2FA popover -->
-                <el-popover
+                <GlassPopover
                   v-if="row.twoFASecret"
                   trigger="click"
                   width="220"
@@ -452,13 +452,13 @@ const copyText = (text?: string) => {
                       </span>
                     </div>
                   </div>
-                </el-popover>
+                </GlassPopover>
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
           <!-- Password -->
-          <el-table-column label="密码" width="100">
+          <TableColumn label="密码" width="100">
             <template #default="{ row }">
               <div class="flex items-center gap-1 justify-between">
                 <span class="font-mono truncate max-w-[70px]" style="color: var(--text-muted)"
@@ -474,10 +474,10 @@ const copyText = (text?: string) => {
                 </button>
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
           <!-- Recovery Email -->
-          <el-table-column label="辅助邮箱" width="160">
+          <TableColumn label="辅助邮箱" width="160">
             <template #default="{ row }">
               <div v-if="row.recoveryEmail" class="flex items-center gap-1 justify-between">
                 <span
@@ -497,10 +497,10 @@ const copyText = (text?: string) => {
               </div>
               <span v-else style="color: var(--text-muted)">-</span>
             </template>
-          </el-table-column>
+          </TableColumn>
 
           <!-- Backup Codes -->
-          <el-table-column label="备用密码" width="160">
+          <TableColumn label="备用密码" width="160">
             <template #default="{ row }">
               <div v-if="row.backupCodes" class="flex items-center gap-1 justify-between">
                 <span
@@ -520,17 +520,17 @@ const copyText = (text?: string) => {
               </div>
               <span v-else style="color: var(--text-muted)">-</span>
             </template>
-          </el-table-column>
+          </TableColumn>
 
           <!-- Region -->
-          <el-table-column label="地区" width="110" align="center">
+          <TableColumn label="地区" width="110" align="center">
             <template #default="{ row }">
               <span style="color: var(--text-primary)">{{ row.country || '-' }}</span>
             </template>
-          </el-table-column>
+          </TableColumn>
 
           <!-- Status -->
-          <el-table-column label="状态" width="120" align="center">
+          <TableColumn label="状态" width="120" align="center">
             <template #default="{ row }">
               <span
                 v-if="row.status === 'warming'"
@@ -551,12 +551,12 @@ const copyText = (text?: string) => {
                 {{ t('tools.googleWarming.statusPaused') }}
               </span>
             </template>
-          </el-table-column>
+          </TableColumn>
 
           <!-- Category dropdown -->
-          <el-table-column label="分类" width="100">
+          <TableColumn label="分类" width="100">
             <template #default="{ row }">
-              <el-dropdown trigger="click" @command="(cmd: any) => handleInlineCategory(row, cmd)">
+              <Dropdown trigger="click" @command="(cmd: any) => handleInlineCategory(row, cmd)">
                 <span
                   class="px-2 py-0.5 rounded text-[10px] font-medium inline-block max-w-[90px] truncate border cursor-pointer hover:opacity-80 transition-opacity"
                   :style="
@@ -569,8 +569,8 @@ const copyText = (text?: string) => {
                   {{ row.category || '未分类' }}
                 </span>
                 <template #dropdown>
-                  <el-dropdown-menu class="dark:bg-slate-900 dark:border-slate-800">
-                    <el-dropdown-item
+                  <DropdownMenu class="dark:bg-slate-900 dark:border-slate-800">
+                    <DropdownItem
                       v-for="cat in categoriesList.filter((c) => c !== 'all')"
                       :key="cat"
                       :command="cat"
@@ -578,22 +578,22 @@ const copyText = (text?: string) => {
                       :disabled="row.category === cat || (!row.category && cat === '未分类')"
                     >
                       {{ cat === '未分类' ? t('tools.googleWarming.uncategorized') : cat }}
-                    </el-dropdown-item>
-                    <el-dropdown-item
+                    </DropdownItem>
+                    <DropdownItem
                       divided
                       command="custom-new-category"
                       class="text-xs hover:bg-slate-800 text-slate-700 dark:text-slate-200"
                     >
                       自定义新分类...
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
+                    </DropdownItem>
+                  </DropdownMenu>
                 </template>
-              </el-dropdown>
+              </Dropdown>
             </template>
-          </el-table-column>
+          </TableColumn>
 
           <!-- Note -->
-          <el-table-column label="备注" min-width="110">
+          <TableColumn label="备注" min-width="110">
             <template #default="{ row }">
               <span
                 class="truncate max-w-[150px] inline-block"
@@ -602,10 +602,10 @@ const copyText = (text?: string) => {
                 >{{ row.note || '-' }}</span
               >
             </template>
-          </el-table-column>
+          </TableColumn>
 
           <!-- Actions -->
-          <el-table-column label="操作" width="90" align="right">
+          <TableColumn label="操作" width="90" align="right">
             <template #default="{ row }">
               <div class="flex items-center justify-end gap-1">
                 <button
@@ -624,8 +624,8 @@ const copyText = (text?: string) => {
                 </button>
               </div>
             </template>
-          </el-table-column>
-        </el-table>
+          </TableColumn>
+        </Table>
       </div>
     </div>
   </div>

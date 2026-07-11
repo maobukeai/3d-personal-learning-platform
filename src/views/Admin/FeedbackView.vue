@@ -15,7 +15,7 @@ import {
   Send,
   Trash2,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import UserAvatar from '@/components/UserAvatar.vue';
@@ -394,22 +394,22 @@ onMounted(fetchFeedbacks);
             <Tabs v-model="statusFilter" :options="statusTabs" variant="solid" />
           </div>
           <div class="flex items-center gap-2 mobile-row">
-            <el-select v-model="priorityFilter" size="small" style="width: 120px">
-              <el-option
+            <Select v-model="priorityFilter" size="small" style="width: 120px">
+              <SelectOption
                 v-for="item in priorityOptions"
                 :key="item.value"
                 :label="item.label"
                 :value="item.value"
               />
-            </el-select>
-            <el-select v-model="typeFilter" size="small" style="width: 120px">
-              <el-option
+            </Select>
+            <Select v-model="typeFilter" size="small" style="width: 120px">
+              <SelectOption
                 v-for="item in typeOptions"
                 :key="item.value"
                 :label="item.label"
                 :value="item.value"
               />
-            </el-select>
+            </Select>
           </div>
         </div>
       </Card>
@@ -442,14 +442,14 @@ onMounted(fetchFeedbacks);
         padding="none"
         class="table-shell-card overflow-hidden flex-1 flex flex-col min-h-[360px]"
       >
-        <el-table
+        <Table
           v-loading="isLoading"
           :data="filteredFeedbacks"
           class="user-table w-full flex-1 mobile-table"
           row-class-name="table-row"
           @row-click="openDetail"
         >
-          <el-table-column width="48">
+          <TableColumn width="48">
             <template #header>
               <input
                 type="checkbox"
@@ -466,9 +466,9 @@ onMounted(fetchFeedbacks);
                 @click.stop
               />
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="反馈" min-width="260">
+          <TableColumn label="反馈" min-width="260">
             <template #default="{ row }">
               <div class="feedback-cell min-w-0">
                 <strong class="text-sm font-bold truncate text-[var(--text-primary)] block">{{
@@ -479,9 +479,9 @@ onMounted(fetchFeedbacks);
                 >
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="用户" width="180">
+          <TableColumn label="用户" width="180">
             <template #default="{ row }">
               <div class="user-cell flex items-center gap-2">
                 <UserAvatar :user="row.user" size="xs" />
@@ -490,9 +490,9 @@ onMounted(fetchFeedbacks);
                 }}</span>
               </div>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="优先级" width="120">
+          <TableColumn label="优先级" width="120">
             <template #default="{ row }">
               <span
                 class="pill text-xs px-1.5 py-0.5 font-bold"
@@ -501,17 +501,17 @@ onMounted(fetchFeedbacks);
                 {{ priorityLabel(row.priority) }}
               </span>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="状态" width="120">
+          <TableColumn label="状态" width="120">
             <template #default="{ row }">
               <span class="pill text-xs px-1.5 py-0.5 font-bold" :class="statusClass(row.status)">
                 {{ statusLabel(row.status) }}
               </span>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="附件" width="120">
+          <TableColumn label="附件" width="120">
             <template #default="{ row }">
               <UiButton
                 v-if="row.attachmentUrl"
@@ -523,20 +523,20 @@ onMounted(fetchFeedbacks);
               </UiButton>
               <span v-else class="text-xs text-[var(--text-secondary)]">无</span>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="更新时间" width="180">
+          <TableColumn label="更新时间" width="180">
             <template #default="{ row }">
               <span class="text-xs text-[var(--text-secondary)]">{{
                 formatDate(row.updatedAt || row.createdAt)
               }}</span>
             </template>
-          </el-table-column>
+          </TableColumn>
 
-          <el-table-column label="操作" width="80" align="right">
+          <TableColumn label="操作" width="80" align="right">
             <template #default="{ row }">
               <div @click.stop>
-                <el-dropdown trigger="click">
+                <Dropdown trigger="click">
                   <button
                     type="button"
                     class="icon-btn p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
@@ -544,33 +544,33 @@ onMounted(fetchFeedbacks);
                     <MoreHorizontal class="w-4 h-4 text-slate-500" />
                   </button>
                   <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item @click="openDetail(row)">
+                    <DropdownMenu>
+                      <DropdownItem @click="openDetail(row)">
                         <ChevronRight class="dropdown-icon" /> 查看详情
-                      </el-dropdown-item>
-                      <el-dropdown-item @click="openReplyDialog(row)">
+                      </DropdownItem>
+                      <DropdownItem @click="openReplyDialog(row)">
                         <MessageSquare class="dropdown-icon" />
                         {{ row.adminReply ? '编辑回复' : '回复用户' }}
-                      </el-dropdown-item>
-                      <el-dropdown-item @click="updateStatus(row.id, 'IN_PROGRESS')">
+                      </DropdownItem>
+                      <DropdownItem @click="updateStatus(row.id, 'IN_PROGRESS')">
                         标记处理中
-                      </el-dropdown-item>
-                      <el-dropdown-item @click="updateStatus(row.id, 'RESOLVED')">
+                      </DropdownItem>
+                      <DropdownItem @click="updateStatus(row.id, 'RESOLVED')">
                         标记已解决
-                      </el-dropdown-item>
-                      <el-dropdown-item @click="updateStatus(row.id, 'CLOSED')">
+                      </DropdownItem>
+                      <DropdownItem @click="updateStatus(row.id, 'CLOSED')">
                         关闭反馈
-                      </el-dropdown-item>
-                      <el-dropdown-item divided @click="deleteFeedback(row)">
+                      </DropdownItem>
+                      <DropdownItem divided @click="deleteFeedback(row)">
                         <Trash2 class="dropdown-icon danger" /> 删除
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
+                      </DropdownItem>
+                    </DropdownMenu>
                   </template>
-                </el-dropdown>
+                </Dropdown>
               </div>
             </template>
-          </el-table-column>
-        </el-table>
+          </TableColumn>
+        </Table>
 
         <div
           v-if="filteredFeedbacks.length === 0"
@@ -585,7 +585,7 @@ onMounted(fetchFeedbacks);
       </Card>
     </main>
 
-    <el-drawer v-model="detailDrawerVisible" size="500px" :with-header="false">
+    <Drawer v-model="detailDrawerVisible" size="500px" :with-header="false">
       <aside v-if="activeFeedback" class="detail-drawer">
         <div class="drawer-head">
           <div>
@@ -648,7 +648,7 @@ onMounted(fetchFeedbacks);
           </UiButton>
         </div>
       </aside>
-    </el-drawer>
+    </Drawer>
 
     <Modal
       :show="replyDialogVisible"
@@ -672,12 +672,12 @@ onMounted(fetchFeedbacks);
         </label>
         <label>
           同步状态
-          <el-select v-model="replyStatus" class="w-full custom-select">
-            <el-option value="IN_PROGRESS" label="处理中" />
-            <el-option value="RESOLVED" label="已解决" />
-            <el-option value="CLOSED" label="已关闭" />
-            <el-option value="OPEN" label="待处理" />
-          </el-select>
+          <Select v-model="replyStatus" class="w-full custom-select">
+            <SelectOption value="IN_PROGRESS" label="处理中" />
+            <SelectOption value="RESOLVED" label="已解决" />
+            <SelectOption value="CLOSED" label="已关闭" />
+            <SelectOption value="OPEN" label="待处理" />
+          </Select>
         </label>
       </div>
       <template #footer>
@@ -702,10 +702,6 @@ onMounted(fetchFeedbacks);
 <style scoped>
 .admin-feedback-page {
   min-height: 0;
-}
-
-:deep(.el-drawer__body) {
-  padding: 0;
 }
 
 .detail-drawer {

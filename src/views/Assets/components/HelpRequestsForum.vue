@@ -65,10 +65,7 @@ const emit = defineEmits<{
     >
       {{ label('当前没有求助帖，去发布一个吧！', 'No help requests yet. Post one!') }}
     </div>
-    <div
-      v-else
-      class="grid grid-cols-1 gap-3 overflow-y-auto max-h-[70vh] pr-1.5 custom-scrollbar"
-    >
+    <div v-else class="grid grid-cols-1 gap-3 overflow-y-auto max-h-[70vh] pr-1.5 custom-scrollbar">
       <div
         v-for="req in requests"
         :key="req.id"
@@ -86,9 +83,7 @@ const emit = defineEmits<{
               "
             >
               {{
-                req.status === 'RESOLVED'
-                  ? label('已解决', 'Resolved')
-                  : label('求助中', 'Open')
+                req.status === 'RESOLVED' ? label('已解决', 'Resolved') : label('求助中', 'Open')
               }}
             </span>
             <h4 class="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate">
@@ -122,12 +117,8 @@ const emit = defineEmits<{
         </div>
 
         <div class="flex flex-col items-end gap-1 font-semibold shrink-0">
-          <span class="text-base text-indigo-400 font-mono">{{
-            req._count?.replies || 0
-          }}</span>
-          <span class="text-[10px] text-[var(--text-muted)]">{{
-            label('个回复', 'Replies')
-          }}</span>
+          <span class="text-base text-indigo-400 font-mono">{{ req._count?.replies || 0 }}</span>
+          <span class="text-[10px] text-[var(--text-muted)]">{{ label('个回复', 'Replies') }}</span>
         </div>
       </div>
     </div>

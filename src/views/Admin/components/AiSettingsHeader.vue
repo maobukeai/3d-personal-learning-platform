@@ -45,7 +45,7 @@ const toggle = (value: boolean | string | number) => {
       </div>
       <div class="flex-shrink-0">
         <div class="flex flex-col items-center gap-1.5">
-          <el-switch
+          <Switch
             :model-value="props.enabled"
             inline-prompt
             :active-text="$t('admin.opened')"

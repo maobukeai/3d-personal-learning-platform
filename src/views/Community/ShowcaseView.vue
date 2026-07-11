@@ -30,7 +30,7 @@ import {
   Users,
   Video,
 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
 import { useAuthStore } from '@/stores/auth';
@@ -606,7 +606,7 @@ onUnmounted(() => {
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
-  background: transparent !important;
+  background: transparent;
 }
 
 .showcase-header-actions {
@@ -662,8 +662,8 @@ onUnmounted(() => {
 
 @media (max-width: 767px) {
   .showcase-view {
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .showcase-layout {

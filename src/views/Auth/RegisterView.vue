@@ -3,7 +3,7 @@ import { getApiErrorMessage } from '@/utils/error';
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { Mail, Lock, User, Chrome, Github, ArrowRight } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { useLabel } from '@/utils/i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';

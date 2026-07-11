@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { logError } from '@/utils/error';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import {
   Cloud,
   Database,
@@ -1130,10 +1130,10 @@ const formatDate = (dateStr: string) => {
 .actions-bar :deep(button > span),
 .actions-cell :deep(button > span),
 .enterprise-page :deep(button > span) {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  gap: 6px !important;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
 }
 
 /* Modal dialog CSS */

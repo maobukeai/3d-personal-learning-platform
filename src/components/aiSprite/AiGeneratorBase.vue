@@ -10,7 +10,7 @@ interface Props {
   errorMsg?: string;
   subtitle?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
-  glassCard?: boolean;
+  variant?: 'glass' | 'immersive' | 'solid';
 }
 
 withDefaults(defineProps<Props>(), {
@@ -18,7 +18,7 @@ withDefaults(defineProps<Props>(), {
   subtitle: '基于先进的人工智能模型为您量身定制',
   errorMsg: '',
   size: 'lg',
-  glassCard: true,
+  variant: 'glass',
 });
 
 const emit = defineEmits<{
@@ -27,7 +27,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <Modal :show="show" :size="size" :glass-card="glassCard" @close="emit('close')">
+  <Modal :show="show" :size="size" @close="emit('close')">
     <div class="relative p-6 max-h-[90vh] overflow-y-auto scrollbar-hide text-left">
       <!-- Close Button -->
       <button

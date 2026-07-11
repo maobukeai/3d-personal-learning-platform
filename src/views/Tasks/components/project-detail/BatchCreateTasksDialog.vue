@@ -64,7 +64,7 @@ const resetForm = () => {
 </script>
 
 <template>
-  <Modal :show="show" size="md" glass-card @close="handleClose">
+  <Modal :show="show" size="md" @close="handleClose">
     <template #header>
       <h3 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary)">
         {{ t('projects.batchAddTask') }}
@@ -117,13 +117,13 @@ const resetForm = () => {
             class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
             >{{ t('projects.batchAssignee') }}</label
           >
-          <el-select
+          <Select
             v-model="batchAssigneeId"
             clearable
             :placeholder="t('projects.selectAssignee')"
             class="!w-full custom-select"
           >
-            <el-option
+            <SelectOption
               v-for="m in teamMembers"
               :key="m.id"
               :label="m.name || m.email"
@@ -133,16 +133,16 @@ const resetForm = () => {
                 <UserAvatar :user="m" size="sm" />
                 <span class="text-xs sm:text-sm">{{ m.name || m.email }}</span>
               </div>
-            </el-option>
-          </el-select>
+            </SelectOption>
+          </Select>
         </div>
         <div>
           <label
             class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
             >{{ t('projects.batchPriority') }}</label
           >
-          <el-select v-model="batchPriority" class="!w-full custom-select">
-            <el-option
+          <Select v-model="batchPriority" class="!w-full custom-select">
+            <SelectOption
               v-for="p in priorityOptions"
               :key="p.value"
               :label="p.label"
@@ -155,8 +155,8 @@ const resetForm = () => {
                 ></div>
                 <span class="text-xs sm:text-sm font-bold">{{ p.label }}</span>
               </div>
-            </el-option>
-          </el-select>
+            </SelectOption>
+          </Select>
         </div>
       </div>
 
@@ -165,7 +165,7 @@ const resetForm = () => {
           class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
           >{{ t('projects.batchDueDate') }}</label
         >
-        <el-date-picker
+        <DatePicker
           v-model="batchDueDate"
           type="date"
           :placeholder="t('tasks.dueDate')"
@@ -184,49 +184,9 @@ const resetForm = () => {
 </template>
 
 <style scoped>
-.custom-select :deep(.el-select__wrapper),
-.custom-select :deep(.el-input__wrapper) {
-  border-radius: 0.75rem !important;
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: none !important;
-  transition: all 0.2s ease !important;
-}
-.dark .custom-select :deep(.el-select__wrapper),
-.dark .custom-select :deep(.el-input__wrapper) {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.custom-select :deep(.el-select__wrapper.is-focused),
-.custom-select :deep(.el-input__wrapper.is-focus) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
-}
-
-.custom-date-picker :deep(.el-input__wrapper) {
-  border-radius: 0.75rem !important;
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: none !important;
-  transition: all 0.2s ease !important;
-  height: 38px !important;
-}
-.dark .custom-date-picker :deep(.el-input__wrapper) {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.custom-date-picker :deep(.el-input__wrapper.is-focus) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
-}
-
 @media (max-width: 767px) {
   .batch-form-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
 }
 </style>

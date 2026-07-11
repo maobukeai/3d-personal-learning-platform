@@ -1,4 +1,5 @@
 export type ThemePreference = 'glass-light' | 'glass-dark' | 'glass-auto';
+export type ThemeBackgroundPreference = 'grid' | 'aurora' | 'blobs' | 'dots' | 'prism' | 'solid';
 export type LocalePreference = 'zh-CN' | 'en-US';
 export type SidebarMode = 'rail' | 'expanded';
 export type AccentColorModePreference = 'static' | 'refresh' | 'interval';
@@ -9,6 +10,7 @@ const storageKeys = {
   accentColor: 'accentColor',
   accentColorMode: 'accentColorMode',
   accentColorInterval: 'accentColorInterval',
+  background: 'background',
   deviceToken: 'deviceToken',
   language: 'language',
   lastBaseTheme: 'lastBaseTheme',
@@ -74,6 +76,14 @@ const parseJson = <T>(value: string | null, fallback: T): T => {
 const isThemePreference = (value: string | null): value is ThemePreference =>
   value === 'glass-light' || value === 'glass-dark' || value === 'glass-auto';
 
+const isThemeBackgroundPreference = (value: string | null): value is ThemeBackgroundPreference =>
+  value === 'grid' ||
+  value === 'aurora' ||
+  value === 'blobs' ||
+  value === 'dots' ||
+  value === 'prism' ||
+  value === 'solid';
+
 const isLocalePreference = (value: string | null): value is LocalePreference =>
   value === 'zh-CN' || value === 'en-US';
 
@@ -92,6 +102,12 @@ export const preferences = {
     return isThemePreference(theme) ? theme : 'glass-dark';
   },
   setTheme: (theme: ThemePreference) => setItem(storageKeys.theme, theme),
+
+  getBackground: (): ThemeBackgroundPreference => {
+    const bg = getItem(storageKeys.background);
+    return isThemeBackgroundPreference(bg) ? bg : 'aurora';
+  },
+  setBackground: (bg: ThemeBackgroundPreference) => setItem(storageKeys.background, bg),
 
   getLastBaseTheme: (): 'light' | 'dark' => {
     const theme = getItem(storageKeys.lastBaseTheme);

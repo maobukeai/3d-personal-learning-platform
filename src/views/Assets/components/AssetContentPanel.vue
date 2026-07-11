@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, type Component } from 'vue';
-import { SlidersHorizontal, ListChecks, CheckCheck, Trash2, HeartOff, PanelLeftOpen } from 'lucide-vue-next';
+import {
+  SlidersHorizontal,
+  ListChecks,
+  CheckCheck,
+  Trash2,
+  HeartOff,
+  PanelLeftOpen,
+} from 'lucide-vue-next';
 import Tabs from '@/components/ui/Tabs.vue';
 import ResourceGridPanel from './ResourceGridPanel.vue';
 import HelpRequestsForum from './HelpRequestsForum.vue';
@@ -112,7 +119,9 @@ const localView = computed({
 
       <div class="toolbar-right">
         <!-- 当处于 'mine'、'drafts' 或 'favorites' 时提供批量管理功能 -->
-        <template v-if="activeTab === 'mine' || activeTab === 'drafts' || activeTab === 'favorites'">
+        <template
+          v-if="activeTab === 'mine' || activeTab === 'drafts' || activeTab === 'favorites'"
+        >
           <div v-if="isBatchMode" class="flex items-center gap-1.5">
             <span class="text-xs text-[var(--text-muted)] font-mono mr-0.5">
               已选 {{ selectedIds?.length || 0 }} 项
@@ -120,7 +129,11 @@ const localView = computed({
             <button
               type="button"
               class="p-1.5 text-xs rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-[var(--text-primary)] transition-colors flex items-center justify-center"
-              :title="(selectedIds?.length || 0) === visibleAssets.length && visibleAssets.length > 0 ? '取消全选' : '全选本页'"
+              :title="
+                (selectedIds?.length || 0) === visibleAssets.length && visibleAssets.length > 0
+                  ? '取消全选'
+                  : '全选本页'
+              "
               @click="emit('selectAll')"
             >
               <CheckCheck class="w-3.5 h-3.5" />
@@ -128,7 +141,11 @@ const localView = computed({
             <button
               type="button"
               class="p-1.5 text-xs rounded-lg text-white font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-              :class="activeTab === 'favorites' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-rose-500 hover:bg-rose-600'"
+              :class="
+                activeTab === 'favorites'
+                  ? 'bg-amber-500 hover:bg-amber-600'
+                  : 'bg-rose-500 hover:bg-rose-600'
+              "
               :disabled="!selectedIds?.length"
               :title="activeTab === 'favorites' ? '批量取消收藏' : '批量删除'"
               @click="activeTab === 'favorites' ? emit('bulkUnfavorite') : emit('bulkDelete')"
@@ -148,13 +165,13 @@ const localView = computed({
           </button>
         </template>
 
-        <el-select v-model="localSort" class="!w-32 custom-select" aria-label="排序方式">
-          <el-option value="latest" :label="label('最新发布', 'Newest')" />
-          <el-option value="popular" :label="label('下载最多', 'Most Downloaded')" />
-          <el-option value="views" :label="label('浏览最多', 'Most Viewed')" />
-          <el-option value="size" :label="label('体积最大', 'Largest')" />
-          <el-option value="oldest" :label="label('最早发布', 'Oldest')" />
-        </el-select>
+        <Select v-model="localSort" class="!w-32 custom-select" aria-label="排序方式">
+          <SelectOption value="latest" :label="label('最新发布', 'Newest')" />
+          <SelectOption value="popular" :label="label('下载最多', 'Most Downloaded')" />
+          <SelectOption value="views" :label="label('浏览最多', 'Most Viewed')" />
+          <SelectOption value="size" :label="label('体积最大', 'Largest')" />
+          <SelectOption value="oldest" :label="label('最早发布', 'Oldest')" />
+        </Select>
         <Tabs v-model="localView" :options="viewModeOptions" size="sm" />
       </div>
     </section>
@@ -162,7 +179,12 @@ const localView = computed({
     <HelpRequestsForum
       v-if="activeTab === 'requests'"
       :forum-title="label('模型求助论坛', 'Model Help Requests Forum')"
-      :forum-desc="label('找不到需要的模型？发布求助帖，让社区开发者和爱好者来帮助您！', 'Can\'t find a model? Ask the community for help.')"
+      :forum-desc="
+        label(
+          '找不到需要的模型？发布求助帖，让社区开发者和爱好者来帮助您！',
+          'Can\'t find a model? Ask the community for help.',
+        )
+      "
       :requests="helpRequests || []"
       :is-loading="isHelpRequestsLoading || false"
       @open-detail="emit('openHelpRequestDetail', $event)"

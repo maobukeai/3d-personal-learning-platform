@@ -18,7 +18,7 @@ import {
   Activity,
   AlertTriangle,
 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import type { AiBotIntegration, AiBotEntitlement, AiBotMessage } from '../../aiRobotAccessModel';
 
@@ -272,12 +272,12 @@ const messageStatusCount = (status: string) =>
               <Settings class="h-4 w-4" />
               <span>配置</span>
             </button>
-            <el-tooltip content="轮换回调 Token" placement="top">
+            <Tooltip content="轮换回调 Token" placement="top">
               <button type="button" class="icon-btn" @click="emit('rotate-token')">
                 <RotateCcw class="h-4 w-4" />
               </button>
-            </el-tooltip>
-            <el-tooltip content="删除" placement="top">
+            </Tooltip>
+            <Tooltip content="删除" placement="top">
               <button
                 type="button"
                 class="danger-icon-btn"
@@ -285,7 +285,7 @@ const messageStatusCount = (status: string) =>
               >
                 <Trash2 class="h-4 w-4" />
               </button>
-            </el-tooltip>
+            </Tooltip>
           </div>
         </div>
 

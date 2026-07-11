@@ -7,6 +7,7 @@
  */
 import crypto from 'crypto';
 import { logger } from './logger';
+import { config } from '../config/env';
 
 // ─── Scheme 1: encryptText / decryptText (two-argument, used by mirror sources) ─
 
@@ -162,11 +163,25 @@ export function decryptSecretIfNeeded(raw: string | null | undefined): string {
 }
 
 /**
+ * Minimal shape of a Prisma StorageConfig record needed to build a decrypted config.
+ * Both required and optional (Cloudflare) fields are covered.
+ */
+interface StorageConfigRecord {
+  endpoint: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucketName: string;
+  publicUrl: string;
+  cloudflareAccountId?: string | null;
+  cloudflareApiToken?: string | null;
+}
+
+/**
  * Converts a raw Prisma StorageConfig record (with potentially encrypted credentials)
  * into a plain config object with decrypted secretAccessKey / cloudflareApiToken.
  * Cloudflare fields are included when present on the source record.
  */
-export function buildDecryptedStorageConfig(raw: Record<string, any>) {
+export function buildDecryptedStorageConfig(raw: StorageConfigRecord) {
   return {
     endpoint: raw.endpoint,
     accessKeyId: raw.accessKeyId ?? '',
@@ -176,4 +191,59 @@ export function buildDecryptedStorageConfig(raw: Record<string, any>) {
     cloudflareAccountId: raw.cloudflareAccountId ?? null,
     cloudflareApiToken: decryptSecretIfNeeded(raw.cloudflareApiToken),
   };
+}
+
+export function generateBackendSignedUrl(
+  path: string,
+  queryParams: Record<string, string>,
+  expiresInSeconds = 900,
+): string {
+  const expires = Math.floor(Date.now() / 1000) + expiresInSeconds;
+  const urlObj = new URL(path, 'http://localhost'); // dummy host
+  for (const [k, v] of Object.entries(queryParams)) {
+    urlObj.searchParams.set(k, v);
+  }
+  urlObj.searchParams.set('expires', String(expires));
+
+  // Sort search params for consistency
+  urlObj.searchParams.sort();
+
+  const message = urlObj.pathname + '?' + urlObj.searchParams.toString();
+  const signature = crypto.createHmac('sha256', config.JWT_SECRET).update(message).digest('hex');
+
+  urlObj.searchParams.set('signature', signature);
+  return urlObj.pathname + urlObj.search;
+}
+
+export function validateBackendSignedUrl(path: string, query: Record<string, unknown>): boolean {
+  const { signature, expires, ...rest } = query;
+  if (!signature || !expires) {
+    return false;
+  }
+
+  const expiresTime = parseInt(String(expires), 10);
+  if (isNaN(expiresTime) || expiresTime < Date.now() / 1000) {
+    return false; // Expired
+  }
+
+  // Enforce maximum lifetime limit (e.g. 1 hour / 3600 seconds)
+  const maxLifetime = 3600;
+  if (expiresTime > Date.now() / 1000 + maxLifetime) {
+    return false; // Exceeds lifetime limit enforcement
+  }
+
+  const urlObj = new URL(path, 'http://localhost');
+  for (const [k, v] of Object.entries(rest)) {
+    urlObj.searchParams.set(k, String(v));
+  }
+  urlObj.searchParams.set('expires', String(expires));
+  urlObj.searchParams.sort();
+
+  const message = urlObj.pathname + '?' + urlObj.searchParams.toString();
+  const expectedSignature = crypto
+    .createHmac('sha256', config.JWT_SECRET)
+    .update(message)
+    .digest('hex');
+
+  return signature === expectedSignature;
 }

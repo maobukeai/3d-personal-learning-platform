@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import { fetchManagementInsights, formatCompactNumber } from './adminManagementInsights';
@@ -861,7 +861,11 @@ void consolidatedCards.value;
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
         title="用户管理"
-        :subtitle="userOverview ? `覆盖 ${compact(userOverview.totals.total)} 个账号，${compact(userOverview.security.activeSessions)} 个活跃会话` : '正在同步账号、会话与订阅数据'"
+        :subtitle="
+          userOverview
+            ? `覆盖 ${compact(userOverview.totals.total)} 个账号，${compact(userOverview.security.activeSessions)} 个活跃会话`
+            : '正在同步账号、会话与订阅数据'
+        "
         :cards="consolidatedCards"
         v-model="searchQuery"
         placeholder="搜索姓名、邮箱..."

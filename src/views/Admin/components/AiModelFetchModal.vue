@@ -69,14 +69,14 @@ const filteredOptions = computed(() => {
         class="max-h-[420px] overflow-y-auto rounded-xl border"
         style="border-color: var(--border-base); background: var(--bg-app)"
       >
-        <el-checkbox-group v-model="localSelectedIds" class="block">
+        <CheckboxGroup v-model="localSelectedIds" class="block">
           <div
             v-for="option in filteredOptions"
             :key="option.id"
             class="flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 transition-colors hover:bg-white/60 dark:hover:bg-white/5"
             style="border-color: var(--border-base)"
           >
-            <el-checkbox :value="option.id" />
+            <Checkbox :value="option.id" />
             <span class="min-w-0 flex-1">
               <span
                 class="block text-xs font-bold font-mono truncate"
@@ -92,7 +92,7 @@ const filteredOptions = computed(() => {
               </span>
             </span>
           </div>
-        </el-checkbox-group>
+        </CheckboxGroup>
 
         <div
           v-if="filteredOptions.length === 0"

@@ -1,0 +1,279 @@
+/* ============================================================
+   MarkdownPreviewTheme
+   ------------------------------------------------------------
+   Shared md-editor-v3 preview overrides for the three duplicated
+   consumers (NoteDetailDialog / SpriteChatArea / MarkdownEditor).
+
+   Usage: add a semantic class on the preview wrapper element:
+     - .md-theme-prose    → reading density (note detail / full pages)
+     - .md-theme-compact  → chat density (ai sprite chat bubbles)
+
+   No forced overrides are used. Specificity is raised by prefixing
+   every md-editor-v3 selector (`.md-editor-preview …`, specificity
+   0,1,x) with the semantic class (`.md-theme-* .md-editor-preview …`,
+   specificity 0,2,x) so the overrides win against the library
+   defaults without resorting to forced overrides.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   Shared base — applies to BOTH densities.
+   Font family, transparent background, inline code, code blocks,
+   tables, and blockquote accent color are identical across
+   densities; only spacing/sizing differs (defined per-density
+   below).
+   ------------------------------------------------------------ */
+.md-theme-prose .md-editor-preview,
+.md-theme-compact .md-editor-preview {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+/* Headings — shared weight; size/margin per density below */
+.md-theme-prose .md-editor-preview h1,
+.md-theme-prose .md-editor-preview h2,
+.md-theme-prose .md-editor-preview h3,
+.md-theme-prose .md-editor-preview h4,
+.md-theme-compact .md-editor-preview h1,
+.md-theme-compact .md-editor-preview h2,
+.md-theme-compact .md-editor-preview h3,
+.md-theme-compact .md-editor-preview h4 {
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* List shared base */
+.md-theme-prose .md-editor-preview ul,
+.md-theme-prose .md-editor-preview ol,
+.md-theme-compact .md-editor-preview ul,
+.md-theme-compact .md-editor-preview ol {
+  margin: 0.4em 0;
+}
+
+.md-theme-prose .md-editor-preview li,
+.md-theme-compact .md-editor-preview li {
+  margin: 0.15em 0;
+}
+
+.md-theme-prose .md-editor-preview ul,
+.md-theme-compact .md-editor-preview ul {
+  list-style: disc;
+}
+
+.md-theme-prose .md-editor-preview ol,
+.md-theme-compact .md-editor-preview ol {
+  list-style: decimal;
+}
+
+/* Blockquote — shared border + accent; padding per density */
+.md-theme-prose .md-editor-preview blockquote,
+.md-theme-compact .md-editor-preview blockquote {
+  margin: 0.6em 0;
+  border-left: 3px solid rgba(99, 102, 241, 0.45);
+  border-radius: 0 6px 6px 0;
+  color: var(--text-secondary, #475569);
+  background: rgba(99, 102, 241, 0.06);
+}
+
+/* Inline code — shared (excludes code inside <pre>) */
+.md-theme-prose .md-editor-preview code:not(pre code),
+.md-theme-compact .md-editor-preview code:not(pre code) {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.9em;
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.18);
+  color: inherit;
+}
+
+/* Code block — shared base; padding per density */
+.md-theme-prose .md-editor-preview pre,
+.md-theme-compact .md-editor-preview pre {
+  margin: 0.6em 0;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.04);
+  overflow-x: auto;
+  font-size: 0.875em;
+  line-height: 1.5;
+}
+
+.md-theme-prose .md-editor-preview pre code,
+.md-theme-compact .md-editor-preview pre code {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+/* Tables — shared */
+.md-theme-prose .md-editor-preview table,
+.md-theme-compact .md-editor-preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.6em 0;
+  font-size: 0.92em;
+}
+
+.md-theme-prose .md-editor-preview th,
+.md-theme-prose .md-editor-preview td,
+.md-theme-compact .md-editor-preview th,
+.md-theme-compact .md-editor-preview td {
+  border: 1px solid var(--border-base, rgba(203, 213, 225, 0.8));
+  padding: 0.4em 0.6em;
+  text-align: left;
+}
+
+.md-theme-prose .md-editor-preview th,
+.md-theme-compact .md-editor-preview th {
+  background: rgba(148, 163, 184, 0.12);
+  font-weight: 600;
+}
+
+/* Links — shared */
+.md-theme-prose .md-editor-preview a,
+.md-theme-compact .md-editor-preview a {
+  color: var(--accent, #6366f1);
+  text-decoration: none;
+}
+
+.md-theme-prose .md-editor-preview a:hover,
+.md-theme-compact .md-editor-preview a:hover {
+  text-decoration: underline;
+}
+
+/* ------------------------------------------------------------
+   .md-theme-prose — reading density
+   (NoteDetailDialog and other full-page detail views)
+   ------------------------------------------------------------ */
+.md-theme-prose .md-editor-preview p {
+  margin: 0.75em 0;
+}
+
+.md-theme-prose .md-editor-preview h1 {
+  font-size: 1.5em;
+  margin: 1em 0 0.5em;
+}
+
+.md-theme-prose .md-editor-preview h2 {
+  font-size: 1.3em;
+  margin: 0.8em 0 0.4em;
+}
+
+.md-theme-prose .md-editor-preview h3 {
+  font-size: 1.15em;
+  margin: 0.6em 0 0.3em;
+}
+
+.md-theme-prose .md-editor-preview h4 {
+  font-size: 1em;
+  margin: 0.5em 0 0.25em;
+}
+
+.md-theme-prose .md-editor-preview ul,
+.md-theme-prose .md-editor-preview ol {
+  padding-left: 1.5em;
+}
+
+.md-theme-prose .md-editor-preview blockquote {
+  padding: 0.5em 1em;
+}
+
+.md-theme-prose .md-editor-preview img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+.md-theme-prose .md-editor-preview pre {
+  padding: 1em;
+}
+
+/* ------------------------------------------------------------
+   .md-theme-compact — chat density
+   (SpriteChatArea and other chat bubble previews)
+   ------------------------------------------------------------ */
+.md-theme-compact .md-editor-preview p {
+  margin: 0.4em 0;
+}
+
+.md-theme-compact .md-editor-preview p:first-child {
+  margin-top: 0;
+}
+
+.md-theme-compact .md-editor-preview p:last-child {
+  margin-bottom: 0;
+}
+
+.md-theme-compact .md-editor-preview h1 {
+  font-size: 1.2em;
+  margin: 0.5em 0 0.25em;
+}
+
+.md-theme-compact .md-editor-preview h2 {
+  font-size: 1.1em;
+  margin: 0.4em 0 0.2em;
+}
+
+.md-theme-compact .md-editor-preview h3 {
+  font-size: 1.05em;
+  margin: 0.3em 0 0.15em;
+}
+
+.md-theme-compact .md-editor-preview h4 {
+  font-size: 1em;
+  margin: 0.25em 0 0.1em;
+}
+
+.md-theme-compact .md-editor-preview ul,
+.md-theme-compact .md-editor-preview ol {
+  padding-left: 1.2em;
+}
+
+.md-theme-compact .md-editor-preview blockquote {
+  padding: 0.3em 0.8em;
+}
+
+.md-theme-compact .md-editor-preview img {
+  max-width: 220px;
+  max-height: 150px;
+  border-radius: 12px;
+}
+
+.md-theme-compact .md-editor-preview pre {
+  padding: 0.6em;
+}
+
+/* ============================================================
+   Dark theme color overrides
+   ============================================================ */
+.dark .md-theme-prose .md-editor-preview blockquote,
+.dark .md-theme-compact .md-editor-preview blockquote {
+  background: rgba(30, 41, 59, 0.55);
+  border-left-color: rgba(129, 140, 248, 0.5);
+  color: var(--text-secondary, #c5c6c9);
+}
+
+.dark .md-theme-prose .md-editor-preview code:not(pre code),
+.dark .md-theme-compact .md-editor-preview code:not(pre code) {
+  background: rgba(148, 163, 184, 0.22);
+}
+
+.dark .md-theme-prose .md-editor-preview pre,
+.dark .md-theme-compact .md-editor-preview pre {
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.dark .md-theme-prose .md-editor-preview th,
+.dark .md-theme-compact .md-editor-preview th {
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.dark .md-theme-prose .md-editor-preview th,
+.dark .md-theme-prose .md-editor-preview td,
+.dark .md-theme-compact .md-editor-preview th,
+.dark .md-theme-compact .md-editor-preview td {
+  border-color: var(--border-base, rgba(42, 51, 66, 0.4));
+}

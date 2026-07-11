@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { formatDate } from '@/utils/format';
 import { ref, computed } from 'vue';
-import { ElMessage } from 'element-plus';
-import { Loading } from '@element-plus/icons-vue';
+import { ElMessage } from '@/utils/feedbackBridge';
+import { LoaderCircle } from 'lucide-vue-next';
 import {
   ThumbsUp,
   MessageSquare,
@@ -332,7 +332,7 @@ const topContributors = computed(() => {
           >
             <!-- Loader -->
             <div v-if="commentsLoading[note.id]" class="flex justify-center py-2">
-              <el-icon class="is-loading" :size="16"><Loading /></el-icon>
+              <LoaderCircle class="h-4 w-4 animate-spin" />
             </div>
 
             <!-- Empty state -->
@@ -392,7 +392,7 @@ const topContributors = computed(() => {
 
             <!-- Write comment input box -->
             <div class="flex gap-2 items-center mt-0.5">
-              <el-input
+              <Input
                 v-model="commentInputText"
                 placeholder="写下你的想法，一起讨论交流..."
                 size="small"
@@ -400,15 +400,15 @@ const topContributors = computed(() => {
                 clearable
                 @keyup.enter="submitComment(note)"
               />
-              <el-button
-                type="primary"
-                size="small"
+              <Button
+                variant="primary"
+                size="sm"
                 round
                 class="font-bold shrink-0 shadow-sm shadow-accent/10"
                 @click="submitComment(note)"
               >
                 发送
-              </el-button>
+              </Button>
             </div>
           </div>
         </Transition>
@@ -456,7 +456,7 @@ const topContributors = computed(() => {
               @click="emit('generate-daily-quote')"
             >
               <template v-if="props.isGeneratingQuote">
-                <Loading class="w-3 h-3 animate-spin" />
+                <LoaderCircle class="w-3 h-3 animate-spin" />
                 <span>AI 生成中...</span>
               </template>
               <template v-else>

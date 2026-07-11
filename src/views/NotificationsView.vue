@@ -15,7 +15,7 @@ import {
   Inbox,
   Loader2,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
 

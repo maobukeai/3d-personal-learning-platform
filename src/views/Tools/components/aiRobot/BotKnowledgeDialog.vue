@@ -59,42 +59,39 @@ const knowledgeVisibilityOptions = [
         </div>
         <div>
           <label class="field-label">类型</label>
-          <select v-model="knowledgeForm.sourceType" class="form-input">
-            <option
+          <Select v-model="knowledgeForm.sourceType" class="w-full" size="large">
+            <SelectOption
               v-for="option in knowledgeTypeOptions"
               :key="option.value"
               :value="option.value"
-            >
-              {{ option.label }}
-            </option>
-          </select>
+              :label="option.label"
+            />
+          </Select>
         </div>
         <div>
           <label class="field-label">状态</label>
-          <select v-model="knowledgeForm.status" class="form-input">
-            <option
+          <Select v-model="knowledgeForm.status" class="w-full" size="large">
+            <SelectOption
               v-for="option in knowledgeStatusOptions"
               :key="option.value"
               :value="option.value"
-            >
-              {{ option.label }}
-            </option>
-          </select>
+              :label="option.label"
+            />
+          </Select>
         </div>
       </div>
 
       <div class="grid gap-3 md:grid-cols-[9rem_8rem_minmax(0,1fr)]">
         <div>
           <label class="field-label">可见范围</label>
-          <select v-model="knowledgeForm.visibility" class="form-input">
-            <option
+          <Select v-model="knowledgeForm.visibility" class="w-full" size="large">
+            <SelectOption
               v-for="option in knowledgeVisibilityOptions"
               :key="option.value"
               :value="option.value"
-            >
-              {{ option.label }}
-            </option>
-          </select>
+              :label="option.label"
+            />
+          </Select>
         </div>
         <div>
           <label class="field-label">优先级</label>
@@ -129,13 +126,13 @@ const knowledgeVisibilityOptions = [
 
     <template #footer>
       <div class="flex justify-end gap-2">
-        <el-button @click="emit('close')">取消</el-button>
-        <el-button type="primary" :loading="isKnowledgeSaving" @click="emit('save')">
+        <Button @click="emit('close')">取消</Button>
+        <Button variant="primary" :loading="isKnowledgeSaving" @click="emit('save')">
           <span class="inline-flex items-center gap-1.5">
             <Save class="h-4 w-4" />
             保存知识源
           </span>
-        </el-button>
+        </Button>
       </div>
     </template>
   </Modal>

@@ -33,7 +33,6 @@ const form = computed({
     :show="show"
     :title="isEdit ? '编辑/更新微软邮箱账号' : $t('tools.email.add_single_title')"
     size="md"
-    glass-card
     @close="$emit('close')"
   >
     <div class="flex flex-col gap-3.5 text-left">
@@ -131,7 +130,7 @@ const form = computed({
           <label class="text-[10px] font-semibold text-slate-400">
             {{ $t('tools.email.daily_limit_cap') }}
           </label>
-          <el-input-number
+          <Input-number
             v-model="form.dailyLimit"
             :min="1"
             :max="500"
@@ -143,7 +142,7 @@ const form = computed({
           <label class="text-[10px] font-semibold text-slate-400">
             {{ $t('tools.email.min_delay_sec') }}
           </label>
-          <el-input-number
+          <Input-number
             v-model="form.minDelay"
             :min="1"
             :max="60"
@@ -155,7 +154,7 @@ const form = computed({
           <label class="text-[10px] font-semibold text-slate-400">
             {{ $t('tools.email.max_delay_sec') }}
           </label>
-          <el-input-number
+          <Input-number
             v-model="form.maxDelay"
             :min="2"
             :max="300"

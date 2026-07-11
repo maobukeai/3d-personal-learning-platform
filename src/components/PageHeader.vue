@@ -131,18 +131,18 @@ const hasIcon = computed(() => !!props.icon);
 .premium-card,
 .premium-card > *,
 .premium-card .shrink-0 {
-  flex-shrink: 0 !important;
+  flex-shrink: 0;
 }
 
 .enterprise-toolbar :deep(button),
 .enterprise-toolbar :deep(a),
 .premium-card :deep(button),
 .premium-card :deep(a) {
-  flex-shrink: 0 !important;
+  flex-shrink: 0;
 }
 
 .enterprise-toolbar .min-w-0,
 .premium-card .min-w-0 {
-  flex-shrink: 1 !important;
+  flex-shrink: 1;
 }
 </style>

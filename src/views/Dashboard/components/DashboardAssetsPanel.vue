@@ -168,14 +168,14 @@ const emit = defineEmits<{
 }
 
 .asset-meta strong {
-  color: #fff !important;
-  font-size: 11px !important;
+  color: #fff;
+  font-size: 11px;
   line-height: 1.2;
 }
 
 .asset-meta small {
-  color: rgba(255, 255, 255, 0.7) !important;
-  font-size: 9px !important;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 9px;
 }
 
 .dashboard-panel-empty {

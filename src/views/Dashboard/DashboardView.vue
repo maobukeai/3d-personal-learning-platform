@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import {
@@ -18,9 +18,11 @@ import ProjectImportDialog from './components/ProjectImportDialog.vue';
 import DashboardWorkbench from './components/DashboardWorkbench.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';
+import CustomDatePicker from '@/components/ui/CustomDatePicker.vue';
 import DashboardEnrollments from './components/DashboardEnrollments.vue';
 import DashboardLeaderboard from './components/DashboardLeaderboard.vue';
 import DashboardActivityStream from './components/DashboardActivityStream.vue';
+import DashboardDiscoveryPanel from './components/DashboardDiscoveryPanel.vue';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
 import { formatRelativeTime as formatTime, formatDate } from '@/utils/format';
@@ -78,6 +80,11 @@ const isAddDialogOpen = ref(false);
 const importDialogMode = ref<'netdisk' | 'ai_assistant' | 'traditional'>('ai_assistant');
 const userTeamRole = ref<'OWNER' | 'ADMIN' | 'MEMBER' | null>(null);
 const completingTaskIds = ref<Set<string>>(new Set());
+const recentCourses = ref<any[]>([]);
+const discoveryAssets = ref<any[]>([]);
+const discoveryMaterials = ref<any[]>([]);
+const discoveryPlugins = ref<any[]>([]);
+const discoverySoftwares = ref<any[]>([]);
 
 const greeting = computed(() => {
   const hour = new Date().getHours();
@@ -185,6 +192,19 @@ function disabledDate(time: Date) {
   return time.getTime() < registeredAt.getTime() || time.getTime() > today.getTime();
 }
 
+// Bridge: CustomDatePicker works with YYYY-MM-DD strings; selectedDate is a Date ref
+const selectedDateString = computed({
+  get() {
+    const d = selectedDate.value;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  },
+  set(val: string | null) {
+    if (!val) return;
+    const d = new Date(val + 'T00:00:00');
+    if (!isNaN(d.getTime())) selectedDate.value = d;
+  },
+});
+
 function getDateParam() {
   const year = selectedDate.value.getFullYear();
   const month = String(selectedDate.value.getMonth() + 1).padStart(2, '0');
@@ -241,6 +261,8 @@ async function fetchDashboardData() {
       tasksRes,
       allTasksRes,
       projectsRes,
+      coursesRes,
+      resourcesRes,
     ] = await Promise.all([
       api.get<DashboardStatsResponse>('/api/auth/stats', { params: { date } }).catch(() => null),
       api.get<WorkbenchData>('/api/auth/workbench').catch((error) => {
@@ -254,6 +276,8 @@ async function fetchDashboardData() {
       api.get<DashboardTask[]>('/api/tasks', { params: { date } }).catch(() => null),
       api.get<DashboardTask[]>('/api/tasks').catch(() => null),
       api.get<ProjectRecord[]>('/api/projects').catch(() => null),
+      api.get<any[]>('/api/courses').catch(() => null),
+      api.get<any>('/api/resources/feed', { params: { limit: 80 } }).catch(() => null),
     ]);
 
     stats.value = statsRes?.data ?? null;
@@ -277,6 +301,26 @@ async function fetchDashboardData() {
       updatedAt: project.updatedAt,
       memberCount: project.members?.length ?? 1,
     }));
+
+    recentCourses.value = [...(coursesRes?.data || [])]
+      .sort((a, b) => Number(Boolean(b.thumbnail)) - Number(Boolean(a.thumbnail)))
+      .slice(0, 6);
+
+    const feedItems = resourcesRes?.data?.items || [];
+    const prioritizePreview = (items: any[]) =>
+      [...items].sort((a, b) => Number(Boolean(b.previewUrl)) - Number(Boolean(a.previewUrl)));
+    discoveryAssets.value = prioritizePreview(
+      feedItems.filter((item: any) => item.kind === 'asset'),
+    ).slice(0, 6);
+    discoveryMaterials.value = prioritizePreview(
+      feedItems.filter((item: any) => item.kind === 'material'),
+    ).slice(0, 6);
+    discoveryPlugins.value = prioritizePreview(
+      feedItems.filter((item: any) => item.kind === 'plugin'),
+    ).slice(0, 6);
+    discoverySoftwares.value = prioritizePreview(
+      feedItems.filter((item: any) => item.kind === 'software'),
+    ).slice(0, 6);
 
     lastUpdatedAt.value = new Date();
   } catch (error) {
@@ -343,15 +387,14 @@ onUnmounted(() => {
       :subtitle="`${currentDateLabel} · ${lastUpdatedText}`"
       :icon="Gauge"
     >
-      <el-date-picker
-        v-model="selectedDate"
-        type="date"
-        class="dashboard-date-picker"
-        placeholder="选择日期"
-        :clearable="false"
-        :disabled-date="disabledDate"
-        popper-class="custom-date-popper"
-      />
+      <div class="shrink-0 w-36">
+        <CustomDatePicker
+          v-model="selectedDateString"
+          placeholder="选择日期"
+          :clearable="false"
+          :disabled-date="disabledDate"
+        />
+      </div>
       <Button
         :loading="isLoading"
         aria-label="刷新"
@@ -410,6 +453,18 @@ onUnmounted(() => {
           <DashboardLeaderboard :leaderboard-top="leaderboard" />
           <DashboardActivityStream :unified-feed="unifiedFeed" @navigate="navigateTo" />
         </template>
+
+        <template #main-bottom>
+          <DashboardDiscoveryPanel
+            :recent-courses="recentCourses"
+            :discovery-assets="discoveryAssets"
+            :discovery-materials="discoveryMaterials"
+            :discovery-plugins="discoveryPlugins"
+            :discovery-softwares="discoverySoftwares"
+            :is-loading="isLoading"
+            @navigate="navigateTo"
+          />
+        </template>
       </DashboardWorkbench>
     </main>
 
@@ -431,6 +486,18 @@ onUnmounted(() => {
   overflow: hidden;
   color: var(--text-primary);
   position: relative;
+  background:
+    radial-gradient(
+      circle at 8% 0%,
+      color-mix(in srgb, var(--primary) 11%, transparent),
+      transparent 27rem
+    ),
+    radial-gradient(
+      circle at 88% 14%,
+      color-mix(in srgb, #8b5cf6 9%, transparent),
+      transparent 24rem
+    ),
+    var(--bg-app);
 }
 
 .dashboard-date-picker {
@@ -441,26 +508,13 @@ onUnmounted(() => {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px 20px 24px;
+  padding: 20px 24px 28px;
   position: relative;
   z-index: 10;
 }
-
-.dashboard-date-picker :deep(.el-input__wrapper) {
-  border: 1px solid var(--border-base) !important;
-  border-radius: 8px !important;
-  background: var(--bg-subtle) !important;
-  box-shadow: none !important;
-  transition: border-color 0.2s ease;
-}
-
-.dashboard-date-picker :deep(.el-input__wrapper):hover {
-  border-color: var(--border-strong) !important;
-}
-
 @media (max-width: 720px) {
   .dashboard-date-picker {
     flex: 1;
@@ -470,18 +524,5 @@ onUnmounted(() => {
   .dashboard-scroll {
     padding: 12px 12px 20px;
   }
-}
-</style>
-
-<style>
-.custom-date-popper {
-  overflow: hidden !important;
-  border: 1px solid var(--border-base) !important;
-  border-radius: 8px !important;
-  box-shadow: var(--card-shadow-hover) !important;
-}
-
-.custom-date-popper .el-picker-panel {
-  border: none !important;
 }
 </style>

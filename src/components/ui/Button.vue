@@ -45,17 +45,17 @@ const variantClasses = computed(() => {
     case 'primary':
       return 'bg-accent text-white shadow-sm hover:bg-accent-hover hover:shadow-[0_0_12px_rgba(var(--accent-rgb),0.3)] focus-visible:ring-accent/50 focus-visible:ring-offset-bg-app border border-transparent';
     case 'outline':
-      return 'bg-transparent text-secondary border border-strong hover:bg-hover hover:text-primary focus-visible:ring-strong/50 focus-visible:ring-offset-bg-app';
+      return 'bg-transparent text-secondary-foreground border border-input hover:bg-hover hover:text-foreground focus-visible:ring-ring/50 focus-visible:ring-offset-bg-app';
     case 'danger':
       return 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white hover:border-transparent focus-visible:ring-red-500/50 focus-visible:ring-offset-bg-app dark:bg-red-500/20';
     case 'link':
-      return 'bg-transparent text-secondary hover:text-primary p-0 rounded-none border-b border-transparent hover:border-current active:scale-100 disabled:hover:border-transparent';
+      return 'bg-transparent text-secondary-foreground hover:text-foreground p-0 rounded-none border-b border-transparent hover:border-current active:scale-100 disabled:hover:border-transparent';
     case 'glass':
       return 'bg-white/10 dark:bg-white/5 text-primary border border-white/20 dark:border-white/10 hover:bg-white/20 dark:hover:bg-white/10 hover:border-white/30 backdrop-blur-md shadow-[0_4px_12px_rgba(0,0,0,0.1)] focus-visible:ring-white/30';
     case 'secondary':
     default:
       // Premium glass look mapping to tokens.css variables
-      return 'bg-subtle text-secondary border border-base hover:bg-hover hover:text-primary hover:border-strong focus-visible:ring-base/50 focus-visible:ring-offset-bg-app';
+      return 'bg-subtle text-secondary-foreground border border-border hover:bg-hover hover:text-foreground hover:border-input focus-visible:ring-ring/50 focus-visible:ring-offset-bg-app';
   }
 });
 

@@ -9,7 +9,7 @@ import {
   CheckCircle,
   FileJson,
 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import type { AiBotIntegration, PayloadPreview } from '../../aiRobotAccessModel';
 
 defineProps<{

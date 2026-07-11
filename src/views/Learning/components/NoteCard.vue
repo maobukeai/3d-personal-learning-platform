@@ -251,17 +251,17 @@ const toggleVisibility = () => {
             props.note.userId === authStore.user?.id || authStore.user?.role === 'ADMIN',
         }"
       >
-        <el-tag
+        <Badge
           v-if="props.note.isPopular && props.activeTab !== 'POPULAR'"
           type="warning"
           size="small"
           round
           effect="dark"
           class="px-1 md:px-2"
-          >热</el-tag
+          >热</Badge
         >
 
-        <el-tag
+        <Badge
           v-if="props.note.isGithub"
           type="info"
           size="small"
@@ -271,7 +271,7 @@ const toggleVisibility = () => {
           title="GitHub 导入的笔记"
         >
           <Github class="w-3.5 h-3.5 shrink-0" />
-        </el-tag>
+        </Badge>
 
         <!-- Custom Visibility Badge -->
         <span

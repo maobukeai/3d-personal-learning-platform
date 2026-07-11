@@ -16,10 +16,11 @@ import {
   UserRound,
   X,
 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import UserAvatar from '@/components/UserAvatar.vue';
+import CustomDatePicker from '@/components/ui/CustomDatePicker.vue';
 import type { User } from '@/types';
 import { useAuditLogHelpers, AUDIT_MODULES } from '@/composables/useAuditLogHelpers';
 
@@ -314,43 +315,23 @@ onBeforeUnmount(() => {
       <!-- Sub-header for Search & Quick Strip inside a Card -->
       <Card padding="sm" class="audit-command-card">
         <div v-show="showAdvancedFilters" class="advanced-filters-grid mb-3">
-          <label class="filter-field">
-            <Filter />
-            <select v-model="moduleFilter">
-              <option v-for="item in AUDIT_MODULES" :key="item.value" :value="item.value">
-                {{ item.label }}
-              </option>
-            </select>
-          </label>
+          <Select v-model="moduleFilter" size="small" class="w-40 font-medium">
+            <SelectOption
+              v-for="item in AUDIT_MODULES"
+              :key="item.value"
+              :value="item.value"
+              :label="item.label"
+            />
+          </Select>
           <label class="filter-field">
             <FileSearch />
             <input v-model="actionFilter" type="text" placeholder="动作，例如 LOGIN" />
           </label>
           <div class="date-range-container">
             <Clock3 class="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0" />
-            <input
-              v-model="dateFrom"
-              type="date"
-              class="cursor-pointer text-center"
-              @click="
-                (e) => {
-                  const target = e.target as HTMLInputElement & { showPicker?: () => void };
-                  target.showPicker?.();
-                }
-              "
-            />
+            <CustomDatePicker v-model="dateFrom" placeholder="开始日期" size="sm" />
             <span class="text-slate-400 text-xs shrink-0 px-0.5">-</span>
-            <input
-              v-model="dateTo"
-              type="date"
-              class="cursor-pointer text-center"
-              @click="
-                (e) => {
-                  const target = e.target as HTMLInputElement & { showPicker?: () => void };
-                  target.showPicker?.();
-                }
-              "
-            />
+            <CustomDatePicker v-model="dateTo" placeholder="结束日期" size="sm" />
           </div>
         </div>
 
@@ -394,7 +375,7 @@ onBeforeUnmount(() => {
         <!-- Reusable Card for the event ledger table -->
         <Card padding="none" class="ledger-panel">
           <div class="table-wrap flex-1 min-h-0 overflow-auto">
-            <el-table
+            <Table
               v-loading="isLoading"
               :data="logs"
               class="user-table w-full mobile-table"
@@ -403,17 +384,17 @@ onBeforeUnmount(() => {
               @row-click="(row) => (selectedLog = row)"
             >
               <!-- Time Column -->
-              <el-table-column label="时间" width="118">
+              <TableColumn label="时间" width="118">
                 <template #default="{ row }">
                   <div class="time-container">
                     <strong>{{ formatShortDate(row.createdAt) }}</strong>
                     <span class="relative-time">{{ formatRelative(row.createdAt) }}</span>
                   </div>
                 </template>
-              </el-table-column>
+              </TableColumn>
 
               <!-- Actor Column -->
-              <el-table-column label="操作者" width="150">
+              <TableColumn label="操作者" width="150">
                 <template #default="{ row }">
                   <div class="user-cell">
                     <UserAvatar :user="row.user" size="xs" />
@@ -422,19 +403,19 @@ onBeforeUnmount(() => {
                     </div>
                   </div>
                 </template>
-              </el-table-column>
+              </TableColumn>
 
               <!-- Module Column -->
-              <el-table-column label="模块" width="96">
+              <TableColumn label="模块" width="96">
                 <template #default="{ row }">
                   <span class="status-pill" :class="getModuleTone(row.module)">
                     {{ getModuleLabel(row.module) }}
                   </span>
                 </template>
-              </el-table-column>
+              </TableColumn>
 
               <!-- Action Column -->
-              <el-table-column label="动作" width="130">
+              <TableColumn label="动作" width="130">
                 <template #default="{ row }">
                   <div class="action-cell-content">
                     <button
@@ -447,19 +428,19 @@ onBeforeUnmount(() => {
                     <small class="action-raw-code">{{ row.action }}</small>
                   </div>
                 </template>
-              </el-table-column>
+              </TableColumn>
 
               <!-- Risk Column -->
-              <el-table-column label="风险" width="60">
+              <TableColumn label="风险" width="60">
                 <template #default="{ row }">
                   <span class="risk-pill" :class="`risk-${getSeverity(row.action)}`">
                     {{ getSeverityLabel(row.action) }}
                   </span>
                 </template>
-              </el-table-column>
+              </TableColumn>
 
               <!-- Source Column -->
-              <el-table-column label="来源" width="130">
+              <TableColumn label="来源" width="130">
                 <template #default="{ row }">
                   <div class="source-cell-content">
                     <button
@@ -472,19 +453,19 @@ onBeforeUnmount(() => {
                     <small class="agent-label-text">{{ getAgentLabel(row.userAgent) }}</small>
                   </div>
                 </template>
-              </el-table-column>
+              </TableColumn>
 
               <!-- Description Column -->
-              <el-table-column label="描述" min-width="200">
+              <TableColumn label="描述" min-width="200">
                 <template #default="{ row }">
                   <p class="description-cell" :title="row.description || ''">
                     {{ row.description || '-' }}
                   </p>
                 </template>
-              </el-table-column>
+              </TableColumn>
 
               <!-- Detail Action Column -->
-              <el-table-column label="详情" width="55" align="right">
+              <TableColumn label="详情" width="55" align="right">
                 <template #default="{ row }">
                   <button
                     type="button"
@@ -495,15 +476,15 @@ onBeforeUnmount(() => {
                     <Eye class="w-3.5 h-3.5" />
                   </button>
                 </template>
-              </el-table-column>
-            </el-table>
+              </TableColumn>
+            </Table>
           </div>
 
           <!-- Pagination wrap -->
           <div
             class="pagination-wrap mt-4 flex items-center justify-between p-3 border-t border-slate-100 dark:border-white/5 bg-white/40 dark:bg-transparent mobile-row"
           >
-            <el-pagination
+            <Pagination
               v-model:current-page="currentPage"
               v-model:page-size="pageSize"
               :page-sizes="[25, 50, 100, 200]"
@@ -919,31 +900,6 @@ button:disabled {
   overflow: hidden;
 }
 
-.user-table :deep(.el-table__header th) {
-  height: 40px;
-  background: var(--bg-subtle) !important;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.user-table :deep(.el-table__row) {
-  height: 48px;
-  cursor: pointer;
-}
-
-.user-table :deep(.el-table__cell) {
-  padding: 4px 0;
-}
-
-.user-table :deep(.selected-row > td.el-table__cell) {
-  background-color: rgba(var(--accent-rgb), 0.08) !important;
-}
-
-.user-table :deep(.el-table__row:hover > td.el-table__cell) {
-  background-color: rgba(var(--accent-rgb), 0.05) !important;
-}
-
 .time-container {
   display: flex;
   flex-direction: column;
@@ -1322,7 +1278,6 @@ button:disabled {
   /* @keyframes spin provided globally; only duration differs from the 1s default */
   animation-duration: 0.9s;
 }
-
 @media (max-width: 1280px) {
   .audit-body {
     grid-template-columns: 1fr;
@@ -1333,7 +1288,6 @@ button:disabled {
     overflow: visible;
   }
 }
-
 @media (max-width: 980px) {
   .title-row,
   .workbench-header {
@@ -1352,7 +1306,6 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
-
 @media (max-width: 640px) {
   .audit-command,
   .audit-body {

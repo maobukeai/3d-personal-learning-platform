@@ -40,8 +40,13 @@ const toggleCollapse = () => {
 <template>
   <aside class="filter-panel" :class="{ open: isOpen, collapsed: isCollapsed }">
     <!-- Top Toggle Bar -->
-    <div class="panel-header-toggle flex items-center justify-between w-full pb-0.5 border-b border-[var(--border-base)]/50">
-      <span v-if="!isCollapsed" class="text-[11px] font-bold text-[var(--text-secondary)] tracking-wider">
+    <div
+      class="panel-header-toggle flex items-center justify-between w-full pb-0.5 border-b border-[var(--border-base)]/50"
+    >
+      <span
+        v-if="!isCollapsed"
+        class="text-[11px] font-bold text-[var(--text-secondary)] tracking-wider"
+      >
         {{ title }}
       </span>
       <button
@@ -75,12 +80,12 @@ const toggleCollapse = () => {
   padding: 8px;
   box-shadow: var(--shadow-card);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  width: 156px;
+  width: 200px;
   overflow: hidden;
 }
 
 .filter-panel.collapsed {
-  display: none !important;
+  display: none;
 }
 
 .filter-panel-content {
@@ -103,7 +108,7 @@ const toggleCollapse = () => {
     border: 0;
     background: var(--bg-card);
     overflow: auto;
-    width: 100% !important;
+    width: 100%;
   }
 }
 </style>

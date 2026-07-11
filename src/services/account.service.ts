@@ -3,6 +3,10 @@ import api from '@/utils/api';
 export interface TrustedDevice {
   id: string;
   createdAt?: string | null;
+  lastUsedAt?: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  isCurrent?: boolean;
 }
 
 export interface RecoveryCodeSummary {
@@ -57,8 +61,10 @@ export const sendEmailChangeCode = (newEmail: string) =>
 export const changeEmail = (newEmail: string, code: string) =>
   api.put('/api/auth/email/change', { newEmail, code });
 
-export const fetchTrustedDevices = async (): Promise<TrustedDevice[]> => {
-  const { data } = await api.get('/api/auth/trusted-devices');
+export const fetchTrustedDevices = async (currentToken?: string): Promise<TrustedDevice[]> => {
+  const { data } = await api.get('/api/auth/trusted-devices', {
+    params: currentToken ? { currentToken } : undefined,
+  });
   return data;
 };
 

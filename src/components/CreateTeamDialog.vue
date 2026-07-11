@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { Plus, Users, Check } from 'lucide-vue-next';
 import api from '@/utils/api';
 import Modal from '@/components/ui/Modal.vue';
@@ -79,7 +79,7 @@ const handleCreate = async () => {
 </script>
 
 <template>
-  <Modal :show="visible" :title="t('team.createTitle')" size="md" glass-card @close="handleClose">
+  <Modal :show="visible" :title="t('team.createTitle')" size="md" @close="handleClose">
     <div class="space-y-4 md:space-y-6 py-2 text-left">
       <Input
         v-model="teamName"
@@ -105,18 +105,18 @@ const handleCreate = async () => {
         <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{{
           t('team.category')
         }}</label>
-        <el-select
+        <Select
           v-model="teamCategory"
           class="w-full custom-select"
           :placeholder="t('team.categoryPlaceholder')"
         >
-          <el-option
+          <SelectOption
             v-for="cat in categories"
             :key="cat.value"
             :label="cat.label"
             :value="cat.value"
           />
-        </el-select>
+        </Select>
       </div>
 
       <div class="space-y-2">
@@ -203,23 +203,4 @@ const handleCreate = async () => {
   </Modal>
 </template>
 
-<style scoped>
-.custom-select :deep(.el-select__wrapper) {
-  border-radius: 1rem !important;
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: none !important;
-  height: 48px;
-  transition: all 0.2s ease !important;
-}
-.dark .custom-select :deep(.el-select__wrapper) {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.custom-select :deep(.el-select__wrapper.is-focused) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
-}
-</style>
+<style scoped></style>

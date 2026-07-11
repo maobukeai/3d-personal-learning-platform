@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { Database, Upload, Loader2 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
@@ -169,38 +169,22 @@ async function submit() {
           class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
           >{{ $t('admin.status') }}</label
         >
-        <select
-          v-model="formData.status"
-          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
-          style="
-            background-color: var(--bg-app);
-            border-color: var(--border-base);
-            color: var(--text-primary);
-          "
-        >
-          <option value="ACTIVE">{{ $t('admin.enable') }}</option>
-          <option value="DISABLED">{{ $t('admin.disable') }}</option>
-        </select>
+        <Select v-model="formData.status" class="w-full" size="large">
+          <SelectOption value="ACTIVE" :label="$t('admin.enable')" />
+          <SelectOption value="DISABLED" :label="$t('admin.disable')" />
+        </Select>
       </div>
       <div>
         <label
           class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
           >{{ $t('admin.membership_restrictions') }}</label
         >
-        <select
-          v-model="formData.minPlanPriority"
-          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
-          style="
-            background-color: var(--bg-app);
-            border-color: var(--border-base);
-            color: var(--text-primary);
-          "
-        >
-          <option :value="0">{{ $t('admin.free_users_and_above') }}</option>
-          <option :value="1">{{ $t('admin.standard_member_and_above') }}</option>
-          <option :value="2">{{ $t('admin.professional_member_and_above') }}</option>
-          <option :value="3">{{ $t('admin.diamond_members_and_above') }}</option>
-        </select>
+        <Select v-model="formData.minPlanPriority" class="w-full" size="large">
+          <SelectOption :value="0" :label="$t('admin.free_users_and_above')" />
+          <SelectOption :value="1" :label="$t('admin.standard_member_and_above')" />
+          <SelectOption :value="2" :label="$t('admin.professional_member_and_above')" />
+          <SelectOption :value="3" :label="$t('admin.diamond_members_and_above')" />
+        </Select>
       </div>
       <div>
         <label

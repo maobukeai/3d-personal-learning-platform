@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onUnmounted, watch, computed } from 'vue';
 import { logError } from '@/utils/error';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import { useSystemStore } from '@/stores/system';
@@ -559,9 +559,9 @@ onUnmounted(() => {
   <!-- Smart Import Dialog -->
   <Modal
     :show="visible"
-    :size="useTraditionalImport ? (isHelpOpen ? 'xxl' : 'lg') : importStep === 2 ? 'xxl' : 'lg'"
+    :size="useTraditionalImport ? (isHelpOpen ? 'xxl' : 'lg') : importStep === 2 ? 'xxl' : 'md'"
     padding="none"
-    glass-card
+    :show-close="false"
     @close="emit('update:visible', false)"
   >
     <div

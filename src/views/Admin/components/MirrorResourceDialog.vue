@@ -28,7 +28,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <Modal :show="show" size="lg" glass-card padding="md" @close="show = false">
+  <Modal :show="show" size="lg" padding="md" @close="show = false">
     <template #header>
       <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
         <FileText class="w-5 h-5 text-cyan-500" />
@@ -64,15 +64,15 @@ const emit = defineEmits<{
           <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
             >分类</label
           >
-          <select
-            v-model="form.categoryId"
-            class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-          >
-            <option value="">未分类</option>
-            <option v-for="cat in formattedCategories" :key="cat.id" :value="cat.id">
-              {{ cat.name }}
-            </option>
-          </select>
+          <Select v-model="form.categoryId" class="w-full" size="large">
+            <SelectOption value="" label="未分类" />
+            <SelectOption
+              v-for="cat in formattedCategories"
+              :key="cat.id"
+              :value="cat.id"
+              :label="cat.name"
+            />
+          </Select>
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"

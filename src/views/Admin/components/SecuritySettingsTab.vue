@@ -72,19 +72,14 @@ const sessionTimeoutOptions = [
               <Clock class="w-3.5 h-3.5" />
               会话超时时间
             </label>
-            <select
-              v-model="localSettings.SESSION_TIMEOUT"
-              class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all appearance-none cursor-pointer"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            >
-              <option v-for="opt in sessionTimeoutOptions" :key="opt.value" :value="opt.value">
-                {{ opt.label }}
-              </option>
-            </select>
+            <Select v-model="localSettings.SESSION_TIMEOUT" class="w-full" size="large">
+              <SelectOption
+                v-for="opt in sessionTimeoutOptions"
+                :key="opt.value"
+                :value="opt.value"
+                :label="opt.label"
+              />
+            </Select>
             <p class="text-[10px] px-1" style="color: var(--text-muted)">
               用户登录后保持登录状态的时间
             </p>
@@ -106,7 +101,7 @@ const sessionTimeoutOptions = [
                 </p>
               </div>
             </div>
-            <el-switch v-model="localSettings.AUTO_APPROVE_MATERIALS" active-color="#8b5cf6" />
+            <Switch v-model="localSettings.AUTO_APPROVE_MATERIALS" active-color="#8b5cf6" />
           </div>
 
           <div
@@ -123,7 +118,7 @@ const sessionTimeoutOptions = [
                 </p>
               </div>
             </div>
-            <el-switch v-model="localSettings.AUTO_APPROVE_SHOWCASES" active-color="#06b6d4" />
+            <Switch v-model="localSettings.AUTO_APPROVE_SHOWCASES" active-color="#06b6d4" />
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
@@ -109,11 +109,11 @@ defineExpose({ open });
           class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
           >当前状态</label
         >
-        <el-select v-model="editTaskForm.status" class="!w-full custom-select">
-          <el-option label="待处理" value="TODO" />
-          <el-option label="进行中" value="IN_PROGRESS" />
-          <el-option label="已完成" value="DONE" />
-        </el-select>
+        <Select v-model="editTaskForm.status" class="!w-full custom-select">
+          <SelectOption label="待处理" value="TODO" />
+          <SelectOption label="进行中" value="IN_PROGRESS" />
+          <SelectOption label="已完成" value="DONE" />
+        </Select>
       </div>
 
       <div>
@@ -121,13 +121,13 @@ defineExpose({ open });
           class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
           >委派给</label
         >
-        <el-select
+        <Select
           v-model="editTaskForm.assigneeId"
           class="!w-full custom-select"
           placeholder="选择执行者"
           clearable
         >
-          <el-option
+          <SelectOption
             v-for="m in props.members"
             :key="m.userId"
             :label="m.user?.name || m.user?.email"
@@ -137,8 +137,8 @@ defineExpose({ open });
               <UserAvatar :user="m.user" size="xs" />
               <span class="font-bold text-xs sm:text-sm">{{ m.user?.name || m.user?.email }}</span>
             </div>
-          </el-option>
-        </el-select>
+          </SelectOption>
+        </Select>
       </div>
 
       <div>
@@ -146,13 +146,13 @@ defineExpose({ open });
           class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
           >参与人员</label
         >
-        <el-select
+        <Select
           v-model="editTaskForm.participantIds"
           multiple
           placeholder="选择参与人员"
           class="!w-full custom-select"
         >
-          <el-option
+          <SelectOption
             v-for="m in props.members"
             :key="m.userId"
             :label="m.user?.name || m.user?.email"
@@ -162,8 +162,8 @@ defineExpose({ open });
               <UserAvatar :user="m.user" size="xs" />
               <span class="font-bold text-xs sm:text-sm">{{ m.user?.name || m.user?.email }}</span>
             </div>
-          </el-option>
-        </el-select>
+          </SelectOption>
+        </Select>
       </div>
 
       <div>
@@ -171,7 +171,7 @@ defineExpose({ open });
           class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
           >Deadline</label
         >
-        <el-date-picker
+        <DatePicker
           v-model="editTaskForm.dueDate"
           type="date"
           placeholder="最后期限"
@@ -195,50 +195,4 @@ defineExpose({ open });
   </Modal>
 </template>
 
-<style scoped>
-.custom-select :deep(.el-select__wrapper) {
-  border-radius: 1rem !important;
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: none !important;
-  height: 52px;
-  transition: all 0.2s ease !important;
-}
-.dark .custom-select :deep(.el-select__wrapper) {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.custom-select :deep(.el-select__wrapper.is-focused) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
-}
-
-.custom-date-picker :deep(.el-input__wrapper) {
-  border-radius: 1rem !important;
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: none !important;
-  height: 52px;
-  transition: all 0.2s ease !important;
-}
-.dark .custom-date-picker :deep(.el-input__wrapper) {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.custom-date-picker :deep(.el-input__wrapper.is-focus) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.15) !important;
-}
-
-@media (max-width: 768px) {
-  .custom-date-picker :deep(.el-input__wrapper),
-  .custom-select :deep(.el-select__wrapper) {
-    height: 38px !important;
-    border-radius: 0.75rem !important;
-  }
-}
-</style>
+<style scoped></style>

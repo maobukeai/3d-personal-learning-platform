@@ -143,32 +143,32 @@ const _formatRelativeDate = (value?: string | null) => {
           :glass="false"
           class="min-w-[200px]"
         />
-        <el-select v-model="status" class="custom-select toolbar-select !w-36">
-          <el-option
+        <Select v-model="status" class="custom-select toolbar-select !w-36">
+          <SelectOption
             v-for="item in statusOptions"
             :key="item.value"
             :label="item.label"
             :value="item.value"
           />
-        </el-select>
-        <el-select v-model="type" class="custom-select toolbar-select !w-36">
-          <el-option label="全部类型" value="ALL" />
-          <el-option
+        </Select>
+        <Select v-model="type" class="custom-select toolbar-select !w-36">
+          <SelectOption label="全部类型" value="ALL" />
+          <SelectOption
             v-for="item in typeOptions"
             :key="item.value"
             :label="item.label"
             :value="item.value"
           />
-        </el-select>
-        <el-select v-model="priority" class="custom-select toolbar-select !w-36">
-          <el-option label="全部优先级" value="ALL" />
-          <el-option
+        </Select>
+        <Select v-model="priority" class="custom-select toolbar-select !w-36">
+          <SelectOption label="全部优先级" value="ALL" />
+          <SelectOption
             v-for="item in priorityOptions"
             :key="item.value"
             :label="item.label"
             :value="item.value"
           />
-        </el-select>
+        </Select>
       </div>
 
       <div v-if="isLoadingHistory" class="loading-state">

@@ -1,3 +1,6 @@
+import { useAuthStore } from '@/stores/auth';
+import { preferences } from '@/utils/preferences';
+
 export interface ResearchSourceItem {
   title: string;
   link: string;
@@ -28,9 +31,13 @@ export const createJsonHeaders = (
   extraHeaders: Record<string, string> = {},
 ): Record<string, string> => {
   const csrfToken = getCsrfToken();
+  const authStore = useAuthStore();
+  const activeWorkspaceId = preferences.getActiveWorkspaceId();
   return {
     'Content-Type': 'application/json',
     ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
+    ...(authStore.accessToken && { Authorization: `Bearer ${authStore.accessToken}` }),
+    ...(activeWorkspaceId && { 'X-Workspace-Id': activeWorkspaceId }),
     ...extraHeaders,
   };
 };

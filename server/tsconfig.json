@@ -23,6 +23,16 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": false,
 
+    // Module Resolution
+    "baseUrl": ".",
+    "paths": {
+      // redlock v5's package.json `exports` field omits a `types` condition,
+      // so under the default module resolution the compiler cannot locate
+      // ./dist/index.d.ts. Map the bare specifier directly to the bundled
+      // declarations. Runtime resolution is unaffected (paths is TS-only).
+      "redlock": ["./node_modules/redlock/dist/index.d.ts"]
+    },
+
     // Style Options
     // "noImplicitReturns": true,
     // "noImplicitOverride": true,
@@ -33,7 +43,7 @@
 
     // Recommended Options
     "strict": true,
-    "types": ["node", "jest"],
+    "types": ["node", "jest", "multer"],
     "verbatimModuleSyntax": false,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,

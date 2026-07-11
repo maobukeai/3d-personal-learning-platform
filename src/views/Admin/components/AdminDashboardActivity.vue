@@ -117,7 +117,7 @@ const getStatusBadgeVariant = (status?: string) => {
               查看资产审核
             </Button>
           </div>
-          <div class="asset-grid">
+          <div class="asset-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             <button
               v-for="asset in recentAssets"
               :key="asset.id"
@@ -126,9 +126,14 @@ const getStatusBadgeVariant = (status?: string) => {
               @click="emit('navigate', '/admin/audits?tab=assets')"
             >
               <span
-                class="asset-thumb border border-base flex items-center justify-center shrink-0"
+                class="asset-thumb border border-base flex items-center justify-center shrink-0 w-10 h-10 rounded-md overflow-hidden bg-slate-100 dark:bg-zinc-800"
               >
-                <img v-if="asset.thumbnail" :src="asset.thumbnail" :alt="asset.title" />
+                <img
+                  v-if="asset.thumbnail"
+                  :src="asset.thumbnail"
+                  :alt="asset.title"
+                  class="w-full h-full object-cover"
+                />
                 <Box v-else class="h-4 w-4 text-slate-400" />
               </span>
               <span class="min-w-0 flex-1 text-left">

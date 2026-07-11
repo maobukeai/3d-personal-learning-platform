@@ -1,4 +1,4 @@
-import type { Asset } from '@/types';
+﻿import type { Asset } from '@/types';
 
 export type ViewMode = 'solid' | 'wireframe' | 'solid+wireframe';
 export type CameraPresetKey = 'iso' | 'front' | 'side' | 'top';
@@ -70,6 +70,8 @@ export type AssetDetail = Asset & {
   formats?: string[] | string | null;
   maxTextureRes?: number | null;
   performanceReport?: PerformanceReport | null;
+  bilibiliUrl?: string | null;
+  thumbnailUrl?: string | null;
 };
 
 export type AssetVersion = {
@@ -117,3 +119,5 @@ export type AssetAnnotation = {
   userId: string;
   user?: { name: string; avatarUrl: string | null };
 };
+
+export type AssetDetailResource = AssetDetail;

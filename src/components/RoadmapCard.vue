@@ -42,7 +42,7 @@ const progressOffset = computed(() => {
     :class="
       active
         ? 'border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-900/10 shadow-lg shadow-emerald-500/5'
-        : 'border-transparent'
+        : 'border-border'
     "
     @click="$emit('click')"
   >

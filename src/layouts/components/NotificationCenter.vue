@@ -1,8 +1,8 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { Bell, Loader2 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
 import api from '@/utils/api';
@@ -252,17 +252,17 @@ defineExpose({
   border-bottom: 1px solid var(--border-base);
 }
 :deep(.dark) .notification-header {
-  border-bottom-color: var(--border-base) !important;
+  border-bottom-color: var(--border-base);
 }
 
 .notification-item {
   transition: background-color 0.2s ease;
 }
 .notification-item:hover {
-  background: var(--bg-subtle) !important;
+  background: var(--bg-subtle);
 }
 :deep(.dark) .notification-item:hover {
-  background: var(--bg-subtle) !important;
+  background: var(--bg-subtle);
 }
 
 .topbar-icon-btn:hover {
@@ -278,35 +278,4 @@ defineExpose({
 }
 
 /* Glassmorphism theme integration */
-</style>
-
-<style>
-/* Global override for Element Plus Dropdown Popper */
-.notification-glass.el-popper {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  border-radius: 16px !important; /* rounded-2xl */
-}
-
-.notification-glass .el-dropdown-menu {
-  background: transparent !important;
-  padding: 0 !important;
-  border: none !important;
-  border-radius: 16px !important;
-}
-
-/* Align and color the popover indicator arrow */
-.notification-glass.el-popper[data-popper-placement^='bottom'] .el-popper__arrow::before {
-  background: var(--bg-card) !important;
-  border-left-color: var(--border-base) !important;
-  border-top-color: var(--border-base) !important;
-}
-
-.notification-glass.el-popper[data-popper-placement^='top'] .el-popper__arrow::before {
-  background: var(--bg-card) !important;
-  border-right-color: var(--border-base) !important;
-  border-bottom-color: var(--border-base) !important;
-}
 </style>

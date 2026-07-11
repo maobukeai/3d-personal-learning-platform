@@ -40,13 +40,7 @@ const metricLine = (item: ContentItem) => {
 </script>
 
 <template>
-  <Modal
-    :show="modelValue"
-    title="资源详情"
-    size="md"
-    glass-card
-    @close="emit('update:modelValue', false)"
-  >
+  <Modal :show="modelValue" title="资源详情" size="md" @close="emit('update:modelValue', false)">
     <template v-if="item">
       <div class="flex flex-col gap-4 text-left">
         <!-- Media Preview -->
@@ -169,12 +163,12 @@ const metricLine = (item: ContentItem) => {
 
 <style scoped>
 .danger-action {
-  background: rgba(220, 38, 38, 0.05) !important;
-  color: var(--danger) !important;
-  border-color: rgba(220, 38, 38, 0.15) !important;
+  background: rgba(220, 38, 38, 0.05);
+  color: var(--danger);
+  border-color: rgba(220, 38, 38, 0.15);
 }
 
 .danger-action:hover {
-  background: rgba(220, 38, 38, 0.1) !important;
+  background: rgba(220, 38, 38, 0.1);
 }
 </style>

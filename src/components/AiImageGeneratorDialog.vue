@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { Sparkles, Wand2, Check } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { useSystemStore } from '@/stores/system';
 import type { AiModelFamilyCandidate } from '@/utils/aiModelFamilies';
 
@@ -215,18 +215,18 @@ const handleSave = async () => {
           <label class="text-xs font-bold text-[var(--text-secondary)] ml-1"
             >选择生图 AI 模型</label
           >
-          <el-select
+          <Select
             v-model="selectedModelId"
             class="w-full custom-dialog-input"
             placeholder="选择 AI 模型"
           >
-            <el-option
+            <SelectOption
               v-for="m in imageModels"
               :key="m.id"
               :label="`${m.name} (${m.provider})`"
               :value="m.id"
             />
-          </el-select>
+          </Select>
         </div>
 
         <!-- Prompt Textarea -->

@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { Cloud } from 'lucide-vue-next';
 import FormDialog from '@/components/FormDialog.vue';
 import UiInput from '@/components/ui/Input.vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 
 interface SrvData {
   service: string;
@@ -431,52 +431,40 @@ const close = () => {
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
             >类型</label
           >
-          <select
-            v-model="dnsForm.type"
-            class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-          >
-            <option value="A">A</option>
-            <option value="AAAA">AAAA</option>
-            <option value="CNAME">CNAME</option>
-            <option value="TXT">TXT</option>
-            <option value="MX">MX</option>
-            <option value="NS">NS</option>
-            <option value="SRV">SRV</option>
-            <option value="CAA">CAA</option>
-          </select>
+          <Select v-model="dnsForm.type" class="w-full" size="large">
+            <SelectOption value="A" label="A" />
+            <SelectOption value="AAAA" label="AAAA" />
+            <SelectOption value="CNAME" label="CNAME" />
+            <SelectOption value="TXT" label="TXT" />
+            <SelectOption value="MX" label="MX" />
+            <SelectOption value="NS" label="NS" />
+            <SelectOption value="SRV" label="SRV" />
+            <SelectOption value="CAA" label="CAA" />
+          </Select>
         </div>
         <div>
           <label
             class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
             >TTL</label
           >
-          <select
+          <Select
             v-model="dnsForm.ttl"
             :disabled="['A', 'AAAA', 'CNAME'].includes(dnsForm.type) && dnsForm.proxied"
-            class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
+            class="w-full"
+            size="large"
           >
-            <option :value="1">Auto (自动)</option>
-            <option :value="120">2 minutes</option>
-            <option :value="300">5 minutes</option>
-            <option :value="600">10 minutes</option>
-            <option :value="900">15 minutes</option>
-            <option :value="1800">30 minutes</option>
-            <option :value="3600">1 hour</option>
-            <option :value="7200">2 hours</option>
-            <option :value="18000">5 hours</option>
-            <option :value="43200">12 hours</option>
-            <option :value="86400">1 day</option>
-          </select>
+            <SelectOption :value="1" label="Auto (自动)" />
+            <SelectOption :value="120" label="2 minutes" />
+            <SelectOption :value="300" label="5 minutes" />
+            <SelectOption :value="600" label="10 minutes" />
+            <SelectOption :value="900" label="15 minutes" />
+            <SelectOption :value="1800" label="30 minutes" />
+            <SelectOption :value="3600" label="1 hour" />
+            <SelectOption :value="7200" label="2 hours" />
+            <SelectOption :value="18000" label="5 hours" />
+            <SelectOption :value="43200" label="12 hours" />
+            <SelectOption :value="86400" label="1 day" />
+          </Select>
         </div>
       </div>
 
@@ -498,19 +486,11 @@ const close = () => {
               class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
               >协议 (Protocol) *</label
             >
-            <select
-              v-model="dnsForm.srvProtocol"
-              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            >
-              <option value="_tcp">_tcp</option>
-              <option value="_udp">_udp</option>
-              <option value="_tls">_tls</option>
-            </select>
+            <Select v-model="dnsForm.srvProtocol" class="w-full" size="large">
+              <SelectOption value="_tcp" label="_tcp" />
+              <SelectOption value="_udp" label="_udp" />
+              <SelectOption value="_tls" label="_tls" />
+            </Select>
           </div>
         </div>
         <div>
@@ -583,19 +563,11 @@ const close = () => {
               class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
               >标签 (Tag) *</label
             >
-            <select
-              v-model="dnsForm.caaTag"
-              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            >
-              <option value="issue">issue (允许单个 CA)</option>
-              <option value="issuewild">issuewild (允许通配符证书)</option>
-              <option value="iodef">iodef (报告违规行为 URL)</option>
-            </select>
+            <Select v-model="dnsForm.caaTag" class="w-full" size="large">
+              <SelectOption value="issue" label="issue (允许单个 CA)" />
+              <SelectOption value="issuewild" label="issuewild (允许通配符证书)" />
+              <SelectOption value="iodef" label="iodef (报告违规行为 URL)" />
+            </Select>
           </div>
         </div>
         <div>
@@ -692,7 +664,7 @@ const close = () => {
                 </div>
               </div>
             </div>
-            <el-switch v-model="dnsForm.proxied" active-color="#f97316" inactive-color="#94a3b8" />
+            <Switch v-model="dnsForm.proxied" active-color="#f97316" inactive-color="#94a3b8" />
           </div>
         </div>
       </template>

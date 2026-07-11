@@ -7,50 +7,63 @@ import { buildDecryptedStorageConfig } from './crypto';
 import unzipper from 'unzipper';
 import axios from 'axios';
 import iconv from 'iconv-lite';
-import type { Request } from 'express';
 import type { UploadedFile } from '../types/upload';
 
 /**
- * Returns the public URL for an uploaded file.
- * Prefers the cloud storage URL (R2/S3) if available,
- * otherwise constructs a local URL from the request context.
- *
- * @param req      - Express Request (used to build the fallback URL)
- * @param file     - Multer file object (may have an `.url` property after cloud upload)
- * @param subfolder - The uploads subfolder (e.g. 'assets', 'materials', 'tasks')
+ * Async delete-if-exists. Swallows ENOENT so callers don't need existsSync.
+ * Use this instead of `fs.existsSync(p) + fs.unlinkSync(p)` in request
+ * handlers — sync fs calls block the event loop (铁律七·1).
  */
-export function getUploadedFileUrl(
-  req: Request,
-  file: Express.Multer.File,
-  subfolder: string,
-): string {
-  return (
-    (file as UploadedFile).url ||
-    `${req.protocol}://${req.get('host')}/uploads/${subfolder}/${file.filename}`
-  );
+export const safeUnlink = (p: string | undefined | null): Promise<void> => {
+  if (!p) return Promise.resolve();
+  return fs.promises.unlink(p).catch((err: unknown) => {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    if (code !== 'ENOENT') {
+      logger.error(`[file] Failed to unlink ${p}:`, err);
+    }
+  });
+};
+
+/**
+ * Returns the public URL for an uploaded file.
+ * With zero-local-IO (memoryStorage), the cloud storage URL (R2/S3) is the
+ * only valid URL — there is no local `/uploads/` static server anymore.
+ * If the cloud URL is missing, the upload middleware failed to upload, so we
+ * throw to surface the problem instead of silently returning a broken path.
+ *
+ * @param req      - Express Request (kept for signature compatibility)
+ * @param file     - Multer file object (must have `.url` set after cloud upload)
+ * @param subfolder - The uploads subfolder (kept for signature compatibility)
+ */
+export function getUploadedFileUrl(req: unknown, file: UploadedFile, subfolder: string): string {
+  const url = file.url;
+  if (!url) {
+    throw new Error(
+      `文件上传失败：未获取到云存储地址 (field=${file.fieldname}, subfolder=${subfolder})`,
+    );
+  }
+  return url;
 }
 
 /**
  * Moves a temporary file from uploads/temp to a target subfolder inside uploads.
  * If the file is a remote URL or not found locally, returns it unmodified.
+ *
+ * @deprecated 铁律二·1 — 零本地 IO 策略：本地磁盘转移已被禁用，所有持久化资产
+ * 必须直接上传至云存储。此函数保留仅为向后兼容，对本地路径直接抛错以暴露问题。
  */
-export function moveTempFileToDestination(req: Request, urlOrPath: string, subfolder: string): string {
+export function moveTempFileToDestination(
+  req: unknown,
+  urlOrPath: string,
+  subfolder: string,
+): string {
   if (!urlOrPath) return '';
-  
-  const localPath = urlToPath(urlOrPath);
-  if (localPath && fs.existsSync(localPath)) {
-    const filename = path.basename(localPath);
-    const destDir = path.resolve(process.cwd(), 'uploads', subfolder);
-    if (!fs.existsSync(destDir)) {
-      fs.mkdirSync(destDir, { recursive: true });
-    }
-    const destPath = path.join(destDir, filename);
-    fs.renameSync(localPath, destPath);
-    
-    return `${req.protocol}://${req.get('host')}/uploads/${subfolder}/${filename}`;
-  }
-  
-  return urlOrPath;
+  // Cloud URL — return as-is (already uploaded to R2 by middleware)
+  if (/^https?:\/\//i.test(urlOrPath)) return urlOrPath;
+  // Local path — forbidden under zero-local-IO policy
+  throw new Error(
+    `moveTempFileToDestination 拒绝本地文件操作 (铁律二·1)：url=${urlOrPath}, subfolder=${subfolder}。请使用 storageService.uploadBuffer 上传至云存储。`,
+  );
 }
 
 const uploadsRoot = path.resolve(process.cwd(), 'uploads');
@@ -58,6 +71,9 @@ const uploadsRoot = path.resolve(process.cwd(), 'uploads');
 /**
  * Converts a URL (e.g., http://localhost:3000/uploads/assets/file.glb)
  * to a local file path relative to the project root.
+ *
+ * @deprecated 铁律二·1 — 零本地 IO 策略：本地 `/uploads/` 路径已不再用于持久化资产。
+ * 此函数保留仅为兼容少量遗留读取场景（如临时文件下载），对持久化资产 URL 应返回 null。
  */
 export function urlToPath(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -179,20 +195,10 @@ export async function deleteCloudOrLocalFileByUrl(
       }
     }
 
-    // Fallback: Delete from local disk (use async fs.promises to avoid blocking the event loop).
-    const filePath = urlToPath(url);
-    if (filePath) {
-      try {
-        await fs.promises.unlink(filePath);
-        logger.info(`[FileUtil] Deleted local file: ${filePath}`);
-        return true;
-      } catch (err: unknown) {
-        const code = (err as NodeJS.ErrnoException)?.code;
-        // ENOENT means the file is already gone — not an error.
-        if (code !== 'ENOENT') {
-          logger.error(`[FileUtil] Failed to delete local file at ${filePath}:`, err);
-        }
-      }
+    // 铁律二·1 — 本地磁盘删除分支已移除，所有持久化资产必须通过云存储 API 删除。
+    // 若 URL 既非云地址也未被上面的循环处理，则记录警告并返回 false。
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      logger.warn(`[FileUtil] deleteCloudOrLocalFileByUrl 拒绝非云 URL: ${url}`);
     }
   } catch (err) {
     logger.error(`[FileUtil] Error in deleteCloudOrLocalFileByUrl for url ${url}:`, err);
@@ -210,7 +216,12 @@ const zipFilesCache = new Map<string, CacheEntry>();
 const MAX_CACHE_SIZE = 200;
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
-const decodeEntryPath = (file: any): string => {
+const decodeEntryPath = (file: {
+  pathBuffer?: Buffer;
+  path: string;
+  isUnicode?: boolean | number;
+  props?: { pathBuffer?: Buffer; flags?: { isUnicode?: boolean | number } };
+}): string => {
   const pathBuffer = file.pathBuffer || file.props?.pathBuffer;
   const isUnicode = file.isUnicode ?? file.props?.flags?.isUnicode;
   if (pathBuffer && !isUnicode) {
@@ -225,13 +236,12 @@ const decodeEntryPath = (file: any): string => {
 };
 
 /**
- * Safely parses a local ZIP file and returns a list of files.
+ * P5：纯内存 Buffer ZIP 解析 —— 替代 parseZipLocal 的 tmpdir 写入路径。
+ * 使用 unzipper.Open.buffer 直接从内存中的 ZIP Buffer 提取文件列表。
  */
-export const parseZipLocal = async (localFilePath: string): Promise<string[]> => {
+export const parseZipBuffer = async (zipBuffer: Buffer): Promise<string[]> => {
   try {
-    // unzipper.Open.file throws ENOENT if the file is missing — no need for
-    // a prior fs.existsSync (which is a sync call that blocks the event loop).
-    const directory = await unzipper.Open.file(localFilePath);
+    const directory = await unzipper.Open.buffer(zipBuffer);
     return directory.files
       .map((file) => decodeEntryPath(file))
       .filter((filePath) => {
@@ -239,13 +249,16 @@ export const parseZipLocal = async (localFilePath: string): Promise<string[]> =>
         return !name.includes('__macosx') && !name.includes('.ds_store') && !filePath.endsWith('/');
       });
   } catch (error) {
-    logger.error(`[FileUtil] Failed to parse local ZIP package at ${localFilePath}:`, error);
+    logger.error('[FileUtil] Failed to parse ZIP from buffer:', error);
   }
   return [];
 };
 
 /**
- * Safely opens a remote or local ZIP package file and returns its directory.
+ * Safely opens a remote ZIP package file and returns its directory.
+ *
+ * 铁律二·1 — 本地 `/uploads/` ZIP 读取分支已移除，所有 ZIP 包必须托管在云存储
+ * 并通过 http(s) URL 访问。此函数现在只处理远程 URL。
  */
 export const getZipFileDirectory = async (
   packageUrl: string | null,
@@ -253,27 +266,15 @@ export const getZipFileDirectory = async (
   if (!packageUrl) return null;
 
   try {
-    // If it's a local uploads file URL, extract the path and open it locally
-    if (packageUrl.includes('/uploads/')) {
-      const relativePart = packageUrl.split('/uploads/').pop();
-      if (relativePart) {
-        const localPath = path.join(process.cwd(), 'uploads', relativePart);
-        // unzipper.Open.file throws if the file is missing — catch and treat
-        // as "not found" rather than calling fs.existsSync synchronously.
-        try {
-          return await unzipper.Open.file(localPath);
-        } catch (openErr) {
-          const code = (openErr as NodeJS.ErrnoException)?.code;
-          if (code !== 'ENOENT') throw openErr;
-        }
-      }
-    }
-
     if (packageUrl.startsWith('http://') || packageUrl.startsWith('https://')) {
       const lowerUrl = packageUrl.toLowerCase();
-      const isZip = lowerUrl.endsWith('.zip') || lowerUrl.includes('.zip?') ||
-                    lowerUrl.endsWith('.rar') || lowerUrl.includes('.rar?') ||
-                    lowerUrl.endsWith('.7z') || lowerUrl.includes('.7z?');
+      const isZip =
+        lowerUrl.endsWith('.zip') ||
+        lowerUrl.includes('.zip?') ||
+        lowerUrl.endsWith('.rar') ||
+        lowerUrl.includes('.rar?') ||
+        lowerUrl.endsWith('.7z') ||
+        lowerUrl.includes('.7z?');
       if (!isZip) {
         return null;
       }
@@ -281,6 +282,9 @@ export const getZipFileDirectory = async (
       const response = await axios.get(packageUrl, { responseType: 'arraybuffer', timeout: 15000 });
       return await unzipper.Open.buffer(response.data);
     }
+
+    // 非 http(s) URL — 铁律二·1 下不再支持本地路径
+    logger.warn(`[FileUtil] getZipFileDirectory 拒绝非云 URL: ${packageUrl}`);
   } catch (error) {
     logger.error(`[FileUtil] Failed to open ZIP directory for ${packageUrl}:`, error);
   }
@@ -383,7 +387,10 @@ export async function getFileSizeInMb(urlOrPath: string | null | undefined): Pro
                 return parseFloat((sizeBytes / (1024 * 1024)).toFixed(2));
               }
             } catch (r2Err) {
-              logger.warn(`[FileUtil] Failed to fetch object metadata from R2 config ${config.name} for key ${key}:`, r2Err);
+              logger.warn(
+                `[FileUtil] Failed to fetch object metadata from R2 config ${config.name} for key ${key}:`,
+                r2Err,
+              );
             }
           }
         }
@@ -436,14 +443,11 @@ export async function getFileSizeInMb(urlOrPath: string | null | undefined): Pro
   // 2. If it's a local file path or resolved from URL
   const localPath = urlToPath(urlOrPath) || urlOrPath;
   try {
-    if (fs.existsSync(localPath)) {
-      const sizeBytes = fs.statSync(localPath).size;
-      return parseFloat((sizeBytes / (1024 * 1024)).toFixed(2));
-    }
+    const stat = await fs.promises.stat(localPath);
+    return parseFloat((stat.size / (1024 * 1024)).toFixed(2));
   } catch (err) {
     logger.error(`[FileUtil] Error getting local file size for ${localPath}:`, err);
   }
 
   return 0;
 }
-

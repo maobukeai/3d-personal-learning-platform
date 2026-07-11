@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { Wand2, Copy, RefreshCw } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import type { AiBotTemplate } from '../../aiRobotAccessModel';
 
 const props = defineProps<{

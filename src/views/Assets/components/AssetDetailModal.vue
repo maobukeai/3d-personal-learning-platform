@@ -31,7 +31,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import { getApiErrorMessage } from '@/utils/error';
 import api, { getAssetUrl } from '@/utils/api';
 import { useLabel } from '@/utils/i18n';
@@ -440,7 +440,7 @@ watch(
   () => asset.value?.id,
   () => {
     activePreviewTab.value = '3d';
-  }
+  },
 );
 const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
   if (!url) return undefined;
@@ -543,7 +543,11 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
           <button
             type="button"
             class="px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer border-none"
-            :class="activePreviewTab === '3d' ? 'bg-teal-500 text-white shadow-sm' : 'bg-transparent text-slate-400 hover:text-white'"
+            :class="
+              activePreviewTab === '3d'
+                ? 'bg-teal-500 text-white shadow-sm'
+                : 'bg-transparent text-slate-400 hover:text-white'
+            "
             @click="activePreviewTab = '3d'"
           >
             3D 互动预览
@@ -551,7 +555,11 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
           <button
             type="button"
             class="px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer border-none"
-            :class="activePreviewTab === 'video' ? 'bg-teal-500 text-white shadow-sm' : 'bg-transparent text-slate-400 hover:text-white'"
+            :class="
+              activePreviewTab === 'video'
+                ? 'bg-teal-500 text-white shadow-sm'
+                : 'bg-transparent text-slate-400 hover:text-white'
+            "
             @click="activePreviewTab = 'video'"
           >
             视频演示
@@ -599,44 +607,44 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
             class="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/70 border border-white/10 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           >
             <!-- View Mode Dropdown -->
-            <el-tooltip :content="label('渲染/着色模式', 'Rendering Mode')" placement="top">
-              <el-dropdown trigger="click" @command="handleViewModeChange">
+            <Tooltip :content="label('渲染/着色模式', 'Rendering Mode')" placement="top">
+              <Dropdown trigger="click" @command="(cmd) => handleViewModeChange(cmd as any)">
                 <button
                   class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors cursor-pointer"
                 >
                   <Layers class="h-4 w-4" />
                 </button>
                 <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item
+                  <DropdownMenu>
+                    <DropdownItem
                       command="solid"
                       :class="{
                         'text-indigo-400 font-bold': currentViewMode === 'solid' && !isClayMode,
                       }"
                     >
                       {{ label('着色模式 (Solid)', 'Shaded') }}
-                    </el-dropdown-item>
-                    <el-dropdown-item
+                    </DropdownItem>
+                    <DropdownItem
                       command="wireframe"
                       :class="{ 'text-indigo-400 font-bold': currentViewMode === 'wireframe' }"
                     >
                       {{ label('网格线模式 (Wireframe)', 'Wireframe') }}
-                    </el-dropdown-item>
-                    <el-dropdown-item
+                    </DropdownItem>
+                    <DropdownItem
                       command="solid+wireframe"
                       :class="{
                         'text-indigo-400 font-bold': currentViewMode === 'solid+wireframe',
                       }"
                     >
                       {{ label('着色+网格线', 'Shaded + Wireframe') }}
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
+                    </DropdownItem>
+                  </DropdownMenu>
                 </template>
-              </el-dropdown>
-            </el-tooltip>
+              </Dropdown>
+            </Tooltip>
 
             <!-- Clay mode toggle -->
-            <el-tooltip :content="label('白模模式 (Clay)', 'Clay Mode')" placement="top">
+            <Tooltip :content="label('白模模式 (Clay)', 'Clay Mode')" placement="top">
               <button
                 class="w-8 h-8 flex items-center justify-center rounded-full transition-colors cursor-pointer"
                 :class="
@@ -648,80 +656,78 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
               >
                 <Box class="h-4 w-4" />
               </button>
-            </el-tooltip>
+            </Tooltip>
 
             <div class="w-[1px] h-4 bg-white/10"></div>
 
             <!-- Environment Selection -->
-            <el-tooltip :content="label('环境与光照', 'Environment Map')" placement="top">
-              <el-dropdown trigger="click" @command="changeEnvironment">
+            <Tooltip :content="label('环境与光照', 'Environment Map')" placement="top">
+              <Dropdown trigger="click" @command="(cmd) => changeEnvironment(cmd as any)">
                 <button
                   class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors cursor-pointer"
                 >
                   <Globe class="h-4 w-4" />
                 </button>
                 <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item
+                  <DropdownMenu>
+                    <DropdownItem
                       command="studio"
                       :class="{ 'text-indigo-400 font-bold': currentEnvironment === 'studio' }"
                     >
                       {{ label('写字楼影棚 (Studio)', 'Studio') }}
-                    </el-dropdown-item>
-                    <el-dropdown-item
+                    </DropdownItem>
+                    <DropdownItem
                       command="sunset"
                       :class="{ 'text-indigo-400 font-bold': currentEnvironment === 'sunset' }"
                     >
                       {{ label('威尼斯日落 (Sunset)', 'Venice Sunset') }}
-                    </el-dropdown-item>
-                    <el-dropdown-item
+                    </DropdownItem>
+                    <DropdownItem
                       command="forest"
                       :class="{ 'text-indigo-400 font-bold': currentEnvironment === 'forest' }"
                     >
                       {{ label('户外森林 (Forest)', 'Forest') }}
-                    </el-dropdown-item>
-                    <el-dropdown-item
+                    </DropdownItem>
+                    <DropdownItem
                       command="room"
                       :class="{ 'text-indigo-400 font-bold': currentEnvironment === 'room' }"
                     >
                       {{ label('采石场室内 (Room)', 'Room') }}
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
+                    </DropdownItem>
+                  </DropdownMenu>
                 </template>
-              </el-dropdown>
-            </el-tooltip>
+              </Dropdown>
+            </Tooltip>
 
             <div class="w-[1px] h-4 bg-white/10"></div>
 
             <!-- Preset Camera Angles -->
-            <el-tooltip :content="label('预设视角', 'Camera Presets')" placement="top">
-              <el-dropdown trigger="click" @command="applyCameraPreset">
+            <Tooltip :content="label('预设视角', 'Camera Presets')" placement="top">
+              <Dropdown trigger="click" @command="(cmd) => applyCameraPreset(cmd as any)">
                 <button
                   class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors cursor-pointer"
                 >
                   <RefreshCw class="h-4 w-4" />
                 </button>
                 <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="iso">{{
+                  <DropdownMenu>
+                    <DropdownItem command="iso">{{
                       label('等轴视角 (ISO)', 'Isometry')
-                    }}</el-dropdown-item>
-                    <el-dropdown-item command="front">{{
+                    }}</DropdownItem>
+                    <DropdownItem command="front">{{
                       label('正前视角 (Front)', 'Front')
-                    }}</el-dropdown-item>
-                    <el-dropdown-item command="side">{{
+                    }}</DropdownItem>
+                    <DropdownItem command="side">{{
                       label('侧面视角 (Side)', 'Side')
-                    }}</el-dropdown-item>
-                    <el-dropdown-item command="top">{{
-                      label('俯视视角 (Top)', 'Top')
-                    }}</el-dropdown-item>
-                  </el-dropdown-menu>
+                    }}</DropdownItem>
+                    <DropdownItem command="top">{{ label('俯视视角 (Top)', 'Top') }}</DropdownItem>
+                  </DropdownMenu>
                 </template>
-              </el-dropdown>
-            </el-tooltip>
+              </Dropdown>
+            </Tooltip>
 
             <!-- Auto-Rotate -->
-            <el-tooltip :content="label('自动旋转', 'Auto Rotate')" placement="top">
+            <Tooltip :content="label('自动旋转', 'Auto Rotate')" placement="top">
               <button
                 class="w-8 h-8 flex items-center justify-center rounded-full transition-colors cursor-pointer"
                 :class="
@@ -736,13 +742,13 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
                   :class="{ 'animate-none': !autoRotate }"
                 />
               </button>
-            </el-tooltip>
+            </Tooltip>
 
             <div class="w-[1px] h-4 bg-white/10"></div>
 
             <!-- Ground helpers & Background setting dropdown -->
-            <el-tooltip :content="label('视图与场景设置', 'Scene Settings')" placement="top">
-              <el-dropdown trigger="click" :hide-on-click="false">
+            <Tooltip :content="label('视图与场景设置', 'Scene Settings')" placement="top">
+              <Dropdown trigger="click" :hide-on-click="false">
                 <button
                   class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors cursor-pointer"
                 >
@@ -764,7 +770,7 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
                       <span class="text-slate-300 font-semibold">{{
                         label('显示地面网格', 'Ground Grid')
                       }}</span>
-                      <el-switch v-model="showGrid" size="small" />
+                      <Switch v-model="showGrid" size="small" />
                     </div>
 
                     <!-- Axes Helper Switch -->
@@ -772,7 +778,7 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
                       <span class="text-slate-300 font-semibold">{{
                         label('显示世界坐标轴', 'Coordinate Axes')
                       }}</span>
-                      <el-switch v-model="showAxes" size="small" />
+                      <Switch v-model="showAxes" size="small" />
                     </div>
 
                     <div class="h-[1px] bg-white/10"></div>
@@ -805,7 +811,7 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
                         <span class="font-semibold">{{ label('场景亮度', 'Brightness') }}</span>
                         <span class="text-[10px] font-mono">{{ exposure.toFixed(1) }}x</span>
                       </div>
-                      <el-slider
+                      <Slider
                         v-model="exposure"
                         :min="0.2"
                         :max="2.5"
@@ -816,20 +822,20 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
                     </div>
                   </div>
                 </template>
-              </el-dropdown>
-            </el-tooltip>
+              </Dropdown>
+            </Tooltip>
 
             <div class="w-[1px] h-4 bg-white/10"></div>
 
             <!-- Fullscreen -->
-            <el-tooltip :content="label('全屏预览', 'Fullscreen')" placement="top">
+            <Tooltip :content="label('全屏预览', 'Fullscreen')" placement="top">
               <button
                 class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors cursor-pointer"
                 @click="triggerFullscreen"
               >
                 <Maximize2 class="h-4 w-4" />
               </button>
-            </el-tooltip>
+            </Tooltip>
           </div>
           <div v-else-if="asset.thumbnail || asset.thumbnailUrl" class="w-full h-full relative">
             <img
@@ -1514,7 +1520,7 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
 }
 
 .viewer-canvas :deep(.absolute.right-4.top-4) {
-  display: none !important;
+  display: none;
 }
 
 @keyframes spin-slow {

@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { Globe, UserPlus, Lock } from 'lucide-vue-next';
-import { ElMessageBox } from 'element-plus';
+import { ElMessageBox } from '@/utils/feedbackBridge';
 import { useSettingsSync } from '@/composables/useSettingsSync';
 
 const props = defineProps<{
@@ -96,19 +96,14 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
             $t('admin.new_user_default_role')
           }}</label>
-          <select
-            v-model="localSettings.DEFAULT_USER_ROLE"
-            class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all appearance-none cursor-pointer"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-          >
-            <option v-for="opt in defaultRoleOptions" :key="opt.value" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
+          <Select v-model="localSettings.DEFAULT_USER_ROLE" class="w-full" size="large">
+            <SelectOption
+              v-for="opt in defaultRoleOptions"
+              :key="opt.value"
+              :value="opt.value"
+              :label="opt.label"
+            />
+          </Select>
         </div>
 
         <div class="flex flex-col justify-center space-y-4 md:col-span-2">
@@ -126,7 +121,7 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
                 </p>
               </div>
             </div>
-            <el-switch v-model="localSettings.ALLOW_REGISTRATION" active-color="#10b981" />
+            <Switch v-model="localSettings.ALLOW_REGISTRATION" active-color="#10b981" />
           </div>
 
           <div
@@ -143,7 +138,7 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
                 </p>
               </div>
             </div>
-            <el-switch
+            <Switch
               v-model="localSettings.MAINTENANCE_MODE"
               active-color="#f43f5e"
               @change="handleToggleMaintenance"

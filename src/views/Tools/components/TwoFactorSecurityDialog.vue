@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { Shield, Clock, ShieldCheck, Download, Upload, Lock, RefreshCw } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
@@ -326,7 +326,7 @@ async function submitImport() {
 </script>
 
 <template>
-  <Modal :show="visible" title="2FA 安全中心" size="md" glass-card @close="visible = false">
+  <Modal :show="visible" title="2FA 安全中心" size="md" @close="visible = false">
     <div class="mobile-adaptive">
       <!-- Tab Navigation -->
       <div class="flex border-b mb-4" style="border-color: var(--border-base)">
@@ -413,13 +413,13 @@ async function submitImport() {
           style="border-color: var(--border-base)"
         >
           <span class="text-xs font-bold text-slate-300">启用密码加密</span>
-          <el-switch v-model="exportForm.encrypt" active-color="#6366f1" />
+          <Switch v-model="exportForm.encrypt" active-color="#6366f1" />
         </div>
 
         <div v-if="exportForm.encrypt" class="space-y-3">
           <div class="flex flex-col gap-1.5">
             <label class="text-xs font-bold text-slate-400">设置加密密码</label>
-            <el-input
+            <Input
               v-model="exportForm.password"
               type="password"
               show-password
@@ -430,7 +430,7 @@ async function submitImport() {
 
           <div class="flex flex-col gap-1.5">
             <label class="text-xs font-bold text-slate-400">确认加密密码</label>
-            <el-input
+            <Input
               v-model="exportForm.confirmPassword"
               type="password"
               show-password
@@ -486,7 +486,7 @@ async function submitImport() {
           </div>
           <div class="flex flex-col gap-1.5">
             <label class="text-xs font-bold text-slate-400">解密密码</label>
-            <el-input
+            <Input
               v-model="decryptPassword"
               type="password"
               show-password

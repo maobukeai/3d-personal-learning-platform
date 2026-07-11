@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import zlib from 'zlib';
 import Components from 'unplugin-vue-components/vite';
-import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
+import AutoImport from 'unplugin-auto-import/vite';
 
 // Custom high-performance compression plugin using Node.js native zlib.
 // Generates both Gzip (.gz) and Brotli (.br) pre-compressed static assets.
@@ -61,10 +61,10 @@ function customCompressPlugin() {
         return results;
       };
 
-      console.log('⚡ Generating Gzip and Brotli pre-compressed static assets...');
+      console.debug('⚡ Generating Gzip and Brotli pre-compressed static assets...');
       const files = await collectFiles(distDir);
       await Promise.all(files.map(compressFile));
-      console.log(`✓ Compression complete. Compressed ${files.length} file(s).`);
+      console.debug(`✓ Compression complete. Compressed ${files.length} file(s).`);
     },
   };
 }
@@ -75,9 +75,11 @@ export default defineConfig(({ mode }) => {
   const apiTarget = env.VITE_API_URL || 'http://localhost:3001';
 
   const vendorChunks: Array<[string, string[]]> = [
-    ['vue-core', ['vue', '@vue', 'vue-router', 'pinia', 'vue-i18n', '@intlify']],
-    ['element-plus', ['element-plus', '@element-plus']],
-    ['icons', ['lucide-vue-next', '@element-plus/icons-vue']],
+    // P-6.2: Consolidate Vue ecosystem into a single vendor-vue chunk
+    ['vendor-vue', ['vue', '@vue', '@intlify', 'vue-router', 'pinia', 'vue-i18n']],
+    // P-6.2: UI component libraries in a single vendor-ui chunk
+    ['vendor-ui', ['radix-vue', 'lucide-vue-next']],
+    // P-6.2: Markdown parsers (md-editor-v3 stack + marked/turndown/katex)
     [
       'markdown-parser',
       [
@@ -89,6 +91,9 @@ export default defineConfig(({ mode }) => {
         'punycode.js',
         'xss',
         'md-editor-v3',
+        'marked',
+        'turndown',
+        'katex',
       ],
     ],
     ['codemirror-core', ['@codemirror', 'codemirror']],
@@ -106,7 +111,9 @@ export default defineConfig(({ mode }) => {
   const getVendorChunkName = (id: string): string | undefined => {
     const normalizedId = normalizeModuleId(id);
     if (!normalizedId.includes('/node_modules/')) return;
+    // three.js is handled by dedicated codeSplitting groups (below)
     if (normalizedId.includes('/node_modules/three/')) return;
+    if (normalizedId.includes('/node_modules/three-mesh-bvh/')) return;
 
     const matchedChunk = vendorChunks.find(([, deps]) =>
       deps.some((dep) => normalizedId.includes(`/node_modules/${dep}/`)),
@@ -135,8 +142,12 @@ export default defineConfig(({ mode }) => {
     plugins: [
       vue(),
       tailwindcss(),
+      AutoImport({
+        imports: ['vue', 'vue-router', 'pinia'],
+        dts: 'src/auto-imports.d.ts',
+        eslintrc: { enabled: false },
+      }),
       Components({
-        resolvers: [ElementPlusResolver()],
         dts: 'src/components.d.ts',
       }),
       customCompressPlugin(),
@@ -147,17 +158,11 @@ export default defineConfig(({ mode }) => {
       // excluded: three is too large (~600KB) and its loaders are already
       // dynamically imported; the others are only needed after login or in
       // specific sub-routes, so Vite will discover them on-demand.
-      include: [
-        'vue',
-        'vue-router',
-        'pinia',
-        'vue-i18n',
-        'element-plus',
-        'axios',
-        'dompurify',
-      ],
+      include: ['vue', 'vue-router', 'pinia', 'vue-i18n', 'axios', 'dompurify'],
     },
     server: {
+      // 监听 0.0.0.0 以便宿主/容器/局域网可访问，便于 E2E 视觉验证与团队预览
+      host: true,
       proxy: {
         '/api/projects/ai-chat': createStreamingProxy(300000),
         '/api/projects/co-plan-chat': createStreamingProxy(300000),
@@ -185,6 +190,9 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       chunkSizeWarningLimit: 800,
+      // 生成 manifest.json，供 scripts/assert-bundle-size.mjs 读取入口依赖树、
+      // 计算每条路由 gzip/brotli 体积并检测 3D/编辑器 chunk 是否泄漏到首屏。
+      manifest: 'manifest.json',
       // Split CSS per chunk so lazy-loaded routes only pull in their own styles.
       cssCodeSplit: true,
       // Inject a polyfill for <link rel="modulepreload"> so older Safari versions
@@ -192,24 +200,38 @@ export default defineConfig(({ mode }) => {
       modulePreload: { polyfill: true },
       rolldownOptions: {
         output: {
+          // Route 3D / editor heavy deps into dedicated chunks so they never
+          // leak into the entry or non-related route bundles.
+          // Uses rolldown's native codeSplitting.groups API which correctly
+          // preserves the static/dynamic import boundary — unlike
+          // manualChunks (function form) which can create spurious static
+          // import edges between shared vendor chunks and the entry.
           codeSplitting: {
             includeDependenciesRecursively: false,
             groups: [
               {
                 name: 'three-examples',
-                priority: 4,
+                priority: 6,
                 test(moduleId) {
                   return normalizeModuleId(moduleId).includes('/node_modules/three/examples/');
                 },
               },
               {
+                name: 'three-mesh-bvh',
+                priority: 5,
+                test(moduleId) {
+                  return normalizeModuleId(moduleId).includes('/node_modules/three-mesh-bvh/');
+                },
+              },
+              {
                 name: 'three-core',
-                priority: 3,
+                priority: 4,
                 test(moduleId) {
                   const normalizedId = normalizeModuleId(moduleId);
                   return (
                     normalizedId.includes('/node_modules/three/') &&
-                    !normalizedId.includes('/node_modules/three/examples/')
+                    !normalizedId.includes('/node_modules/three/examples/') &&
+                    !normalizedId.includes('/node_modules/three-mesh-bvh/')
                   );
                 },
               },

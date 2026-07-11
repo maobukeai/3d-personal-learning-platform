@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/auth';
 import { Calendar, UserPlus } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import api from '@/utils/api';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { getTaskDayIndex, getTaskTime } from '@/utils/taskSort';
 import type { Project, Task } from '@/types';
 

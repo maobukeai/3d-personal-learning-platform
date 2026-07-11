@@ -85,7 +85,7 @@ const copyTooltip = computed(() => {
             $t('tools.email.title')
           }}</span>
         </div>
-        <el-tooltip :content="$t('tools.email.refresh_tooltip')" placement="top">
+        <Tooltip :content="$t('tools.email.refresh_tooltip')" placement="top">
           <button
             type="button"
             class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-500 rounded-lg transition-colors duration-200"
@@ -93,7 +93,7 @@ const copyTooltip = computed(() => {
           >
             <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isAccountsLoading }" />
           </button>
-        </el-tooltip>
+        </Tooltip>
       </div>
 
       <div class="grid grid-cols-2 gap-2 mt-1">
@@ -215,7 +215,7 @@ const copyTooltip = computed(() => {
                   >
                     {{ acc.email }}
                   </span>
-                  <el-tooltip :content="copyTooltip" placement="top">
+                  <Tooltip :content="copyTooltip" placement="top">
                     <button
                       type="button"
                       class="p-0.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-500 rounded transition-colors shrink-0 opacity-0 group-hover:opacity-100 duration-200 ml-auto cursor-pointer"
@@ -223,11 +223,11 @@ const copyTooltip = computed(() => {
                     >
                       <Copy class="w-3.5 h-3.5" />
                     </button>
-                  </el-tooltip>
+                  </Tooltip>
                 </div>
 
                 <!-- Status Dot -->
-                <el-tooltip
+                <Tooltip
                   :content="acc.statusMessage || (acc.status === 'ACTIVE' ? '正常' : '异常')"
                   placement="right"
                 >
@@ -243,7 +243,7 @@ const copyTooltip = computed(() => {
                       ]"
                     ></span>
                   </span>
-                </el-tooltip>
+                </Tooltip>
               </div>
 
               <!-- Daily sends & Limits telemetry -->

@@ -30,8 +30,9 @@ import {
   Layers3,
   Puzzle,
   Sparkles,
+  MonitorPlay,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api, { getAssetUrl } from '@/utils/api';
 import axios from 'axios';
 import { downloadFileMultiThreaded } from '@/utils/downloadHelper';
@@ -242,30 +243,6 @@ const hydrateEditForm = (target: ShowcaseItem) => {
   editImages.value = [];
 };
 
-const watchTrigger = computed(() => props.item?.id);
-watch(
-  watchTrigger,
-  (newId) => {
-    if (newId && props.item) {
-      fetchComments(newId);
-      fetchRelatedShowcases(newId);
-      hydrateEditForm(props.item);
-      currentImageIndex.value = 0;
-      isEditingDetail.value = false;
-      activeMediaTab.value = 'renders';
-      if (availableModels.value.length > 0) {
-        selectedModelId.value = availableModels.value[0].id;
-      } else {
-        selectedModelId.value = '';
-      }
-    } else {
-      comments.value = [];
-      newComment.value = '';
-    }
-  },
-  { immediate: true },
-);
-
 const isIframeVideo = computed(() => {
   const url = props.item?.videoUrl;
   if (!url) return false;
@@ -319,6 +296,30 @@ const fetchRelatedShowcases = async (showcaseId: string) => {
     }
   }
 };
+
+const watchTrigger = computed(() => props.item?.id);
+watch(
+  watchTrigger,
+  (newId) => {
+    if (newId && props.item) {
+      fetchComments(newId);
+      fetchRelatedShowcases(newId);
+      hydrateEditForm(props.item);
+      currentImageIndex.value = 0;
+      isEditingDetail.value = false;
+      activeMediaTab.value = 'renders';
+      if (availableModels.value.length > 0) {
+        selectedModelId.value = availableModels.value[0].id;
+      } else {
+        selectedModelId.value = '';
+      }
+    } else {
+      comments.value = [];
+      newComment.value = '';
+    }
+  },
+  { immediate: true },
+);
 
 const closeDetail = () => {
   emit('update:isOpen', false);
@@ -554,7 +555,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
 </script>
 
 <template>
-  <Modal :show="isOpen" :glass-card="true" size="xxl" padding="none" @close="closeDetail">
+  <Modal :show="isOpen" size="xxl" padding="none" @close="closeDetail">
     <template #header>
       <div class="flex items-center justify-between w-full">
         <div class="flex items-center gap-3">
@@ -842,7 +843,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
 
               <label>
                 <span>嵌入已发布3D模型</span>
-                <el-select
+                <Select
                   v-model="editForm.linkedAssetIds"
                   multiple
                   filterable
@@ -851,18 +852,18 @@ const handleStartChat = async (user: ShowcaseUser) => {
                   placeholder="选择想展示在帖子里的已发布3D模型(可多选)"
                   class="w-full custom-select-v2 mt-1"
                 >
-                  <el-option
+                  <SelectOption
                     v-for="asset in myApprovedAssets"
                     :key="asset.id"
                     :label="asset.title"
                     :value="asset.id"
                   />
-                </el-select>
+                </Select>
               </label>
 
               <label class="mt-2 block">
                 <span>嵌入已发布材质</span>
-                <el-select
+                <Select
                   v-model="editForm.linkedMaterialIds"
                   multiple
                   filterable
@@ -871,18 +872,18 @@ const handleStartChat = async (user: ShowcaseUser) => {
                   placeholder="选择想展示在帖子里的已发布材质(可多选)"
                   class="w-full custom-select-v2 mt-1"
                 >
-                  <el-option
+                  <SelectOption
                     v-for="mat in myApprovedMaterials"
                     :key="mat.id"
                     :label="mat.title"
                     :value="mat.id"
                   />
-                </el-select>
+                </Select>
               </label>
 
               <label class="mt-2 block">
                 <span>嵌入已发布插件</span>
-                <el-select
+                <Select
                   v-model="editForm.linkedPluginIds"
                   multiple
                   filterable
@@ -891,13 +892,13 @@ const handleStartChat = async (user: ShowcaseUser) => {
                   placeholder="选择想展示在帖子里的已发布插件(可多选)"
                   class="w-full custom-select-v2 mt-1"
                 >
-                  <el-option
+                  <SelectOption
                     v-for="plugin in myApprovedPlugins"
                     :key="plugin.id"
                     :label="plugin.title"
                     :value="plugin.id"
                   />
-                </el-select>
+                </Select>
               </label>
 
               <label>
@@ -1345,18 +1346,6 @@ const handleStartChat = async (user: ShowcaseUser) => {
   color: var(--text-muted);
   font-size: 11px;
 }
-.custom-select-v2 :deep(.el-input__wrapper),
-.custom-select-v2 :deep(.el-select__wrapper) {
-  border-radius: 12px !important;
-  background-color: var(--bg-surface) !important;
-  box-shadow: 0 0 0 1px var(--border-base) inset !important;
-  padding: 8px 12px !important;
-  min-height: 44px !important;
-  height: 44px !important;
-}
-.custom-select-v2 :deep(.el-input__inner) {
-  height: 100% !important;
-}
 
 /* Modal layout style overrides */
 .showcase-detail-modal-body::-webkit-scrollbar {
@@ -1607,9 +1596,9 @@ const handleStartChat = async (user: ShowcaseUser) => {
 
 /* Markdown preview transparent overrides */
 .md-preview-showcase {
-  background: transparent !important;
-  color: var(--text-primary) !important;
-  padding: 0 !important;
+  background: transparent;
+  color: var(--text-primary);
+  padding: 0;
 }
 .md-preview-showcase :deep(.md-editor-preview),
 .md-preview-showcase :deep(.md-editor-previewWrapper),
@@ -1617,7 +1606,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
 .md-preview-showcase :deep(.md-preview-body),
 .md-preview-showcase :deep(pre),
 .md-preview-showcase :deep(code) {
-  background: transparent !important;
-  color: var(--text-primary) !important;
+  background: transparent;
+  color: var(--text-primary);
 }
 </style>

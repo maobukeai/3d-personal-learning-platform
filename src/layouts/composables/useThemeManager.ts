@@ -1,5 +1,9 @@
 import { ref } from 'vue';
-import { preferences, type ThemePreference } from '@/utils/preferences';
+import {
+  preferences,
+  type ThemePreference,
+  type ThemeBackgroundPreference,
+} from '@/utils/preferences';
 import {
   applyAccentColorToDocument,
   applyThemeToDocument,
@@ -8,6 +12,7 @@ import {
 
 export function useThemeManager() {
   const currentTheme = ref<ThemePreference>(preferences.getTheme());
+  const currentBackground = ref<ThemeBackgroundPreference>(preferences.getBackground());
   const isDark = ref(false);
 
   const updateIsDark = () => {
@@ -64,6 +69,22 @@ export function useThemeManager() {
     applyAccentColorToDocument(randomColor);
   };
 
+  const applyRandomBackground = () => {
+    const backgrounds: ThemeBackgroundPreference[] = [
+      'grid',
+      'aurora',
+      'blobs',
+      'dots',
+      'prism',
+      'solid',
+    ];
+    const current = currentBackground.value;
+    const candidates = backgrounds.filter((background) => background !== current);
+    const next = candidates[Math.floor(Math.random() * candidates.length)] || current;
+    preferences.setBackground(next);
+    applyBackground(next);
+  };
+
   const startAutoAccentInterval = (intervalStr: string) => {
     stopAutoAccentInterval();
     applyRandomAccentColor();
@@ -95,8 +116,16 @@ export function useThemeManager() {
     applyAccentColorToDocument(color);
   };
 
+  const applyBackground = (bg: ThemeBackgroundPreference) => {
+    currentBackground.value = bg;
+  };
+
   const handleThemeChangeExternal = (e: Event) => {
     applyTheme((e as CustomEvent<ThemePreference>).detail);
+  };
+
+  const handleBackgroundChangeExternal = (e: Event) => {
+    applyBackground((e as CustomEvent<ThemeBackgroundPreference>).detail);
   };
 
   const handleAccentChangeExternal = (e: Event) => {
@@ -130,6 +159,9 @@ export function useThemeManager() {
     } else if (mode === 'refresh') {
       stopAutoAccentInterval();
       applyRandomAccentColor();
+      if (!window.location.pathname.includes('/share/')) {
+        applyRandomBackground();
+      }
     } else if (mode === 'interval') {
       startAutoAccentInterval(interval);
     }
@@ -137,14 +169,19 @@ export function useThemeManager() {
 
   const initTheme = () => {
     const storedTheme = preferences.getTheme();
+    const storedBg = preferences.getBackground();
+    applyBackground(storedBg);
     applyTheme(storedTheme);
     initAccent();
+
     window.addEventListener('theme-changed', handleThemeChangeExternal);
+    window.addEventListener('background-changed', handleBackgroundChangeExternal);
     window.addEventListener('accent-settings-changed', handleAccentChangeExternal);
   };
 
   const cleanupTheme = () => {
     window.removeEventListener('theme-changed', handleThemeChangeExternal);
+    window.removeEventListener('background-changed', handleBackgroundChangeExternal);
     window.removeEventListener('accent-settings-changed', handleAccentChangeExternal);
     stopAutoThemeInterval();
     stopAutoAccentInterval();
@@ -152,9 +189,11 @@ export function useThemeManager() {
 
   return {
     currentTheme,
+    currentBackground,
     isDark,
     applyTheme,
     applyAccentColor,
+    applyBackground,
     initTheme,
     cleanupTheme,
   };

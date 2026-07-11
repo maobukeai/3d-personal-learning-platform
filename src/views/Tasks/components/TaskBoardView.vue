@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import draggable from 'vuedraggable';
 import { Plus } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from '@/utils/feedbackBridge';
 import { useI18n } from 'vue-i18n';
 import TaskCard from '@/components/TaskCard.vue';
 import api from '@/utils/api';
@@ -181,7 +181,7 @@ const openUserProfile = (userId: string) => {
       <div
         v-for="col in activeColumns"
         :key="col.id"
-        class="flex flex-col min-w-[240px] sm:min-w-[260px] h-full rounded-lg sm:rounded-xl transition-colors duration-300 overflow-hidden flex-1 relative border"
+        class="task-board-column flex flex-col min-w-[240px] sm:min-w-[260px] h-full rounded-lg sm:rounded-xl transition-colors duration-300 overflow-hidden flex-1 relative border"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <!-- Column Header -->

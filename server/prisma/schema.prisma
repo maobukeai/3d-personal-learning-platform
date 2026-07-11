@@ -350,11 +350,13 @@ model Asset {
   tags                      String?                   @db.Text // JSON string of tag names (e.g., ["scifi", "character"])
 
   // 鐗堟潈涓庢巿鏉?  originality               String?                   @default("ORIGINAL") // "ORIGINAL", "AUTHORIZED", "REMIX"
+  originality               String?                   @default("ORIGINAL")
   originalAuthor            String?
   originalLink              String?
   license                   String?                   @default("CC_BY") // "CC_BY", "CC_BY_NC", etc.
 
   // 3D 瑙勬牸涓庝紭鍖?  meshType                  String?                   @default("LOW_POLY") // "LOW_POLY", "HIGH_POLY", "CAD"
+  meshType                  String?                   @default("LOW_POLY")
   uvUnwrapped               Boolean                   @default(true)
   uvOverlapping             Boolean                   @default(false)
   pbrChannels               String?                   @db.Text // JSON string of selected channels
@@ -362,6 +364,7 @@ model Asset {
   gameReady                 Boolean                   @default(false)
 
   // 3D 瑙嗗彛鍒濆鍖栭厤缃?  defaultCameraPos          String?                   // JSON string
+  defaultCameraPos          String?                   // JSON string
   defaultCameraTarget       String?                   // JSON string
   defaultEnvironment        String?                   @default("studio")
   defaultExposure           Float?                    @default(1.0)
@@ -856,6 +859,7 @@ model Material {
   bilibiliUrl               String?
 
   // 鐗堟潈涓庢巿鏉?  originality               String?                   @default("ORIGINAL")
+  originality               String?                   @default("ORIGINAL")
   originalAuthor            String?
   originalLink              String?
   license                   String?                   @default("CC_BY")

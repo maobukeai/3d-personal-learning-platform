@@ -1,4 +1,4 @@
-﻿// This is your Prisma schema file,
+// This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
@@ -366,7 +366,8 @@ model Asset {
   defaultEnvironment        String?                   @default("studio")
   defaultExposure           Float?                    @default(1.0)
 
-  // 鍏宠仈鏁欏涓庤鏃?  linkedCourseId            String?
+  // Association with a course and its lesson.
+  linkedCourseId            String?
   linkedCourse              Course?                   @relation("CourseAssets", fields: [linkedCourseId], references: [id], onDelete: SetNull)
   linkedLessonId            String?
   linkedLesson              Lesson?                   @relation("LessonAssets", fields: [linkedLessonId], references: [id], onDelete: SetNull)
@@ -860,7 +861,8 @@ model Material {
   license                   String?                   @default("CC_BY")
   isFree                    Boolean                   @default(true)
 
-  // 鍏宠仈鏁欏涓庤鏃?  linkedCourseId            String?
+  // Association with a course and its lesson.
+  linkedCourseId            String?
   linkedCourse              Course?                   @relation("CourseMaterials", fields: [linkedCourseId], references: [id], onDelete: SetNull)
   linkedLessonId            String?
   linkedLesson              Lesson?                   @relation("LessonMaterials", fields: [linkedLessonId], references: [id], onDelete: SetNull)
@@ -1380,7 +1382,7 @@ model AiMessage {
   content                   String                    @db.Text
   reasoning                 String?                   @db.Text
   sessionId                 String                    @default("default")
-  sessionTitle              String                    @default("鏂板璇?)
+  sessionTitle              String                    @default("New conversation")
   createdAt                 DateTime                  @default(now())
 
   @@index([userId, createdAt])
@@ -1527,7 +1529,8 @@ model Plugin {
   license                   String?                   @default("CC_BY")
   isFree                    Boolean                   @default(true)
 
-  // 鍏宠仈鏁欏涓庤鏃?  linkedCourseId            String?
+  // Association with a course and its lesson.
+  linkedCourseId            String?
   linkedCourse              Course?                   @relation("CoursePlugins", fields: [linkedCourseId], references: [id], onDelete: SetNull)
   linkedLessonId            String?
   linkedLesson              Lesson?                   @relation("LessonPlugins", fields: [linkedLessonId], references: [id], onDelete: SetNull)
@@ -1655,7 +1658,7 @@ model GoogleWarmingAccount {
   country                   String?
   note                      String?
   backupCodes               String?
-  category                  String?                   @default("鏈垎绫?)
+  category                  String?                   @default("Uncategorized")
   status                    String                    @default("warming") // "warming", "completed", "paused"
   createdAt                 DateTime                  @default(now())
   updatedAt                 DateTime                  @updatedAt
@@ -1718,7 +1721,7 @@ model AiChatSession {
   id                        String                    @default(uuid())
   userId                    String
   user                      User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title                     String                    @default("鏂板璇?)
+  title                     String                    @default("New conversation")
   summary                   String?                   @db.Text
   tags                      String?                   @db.Text
   mode                      String                    @default("default")
@@ -1968,7 +1971,8 @@ model Software {
   license                   String?                   @default("CC_BY")
   isFree                    Boolean                   @default(true)
 
-  // 鍏宠仈鏁欏涓庤鏃?  linkedCourseId            String?
+  // Association with a course and its lesson.
+  linkedCourseId            String?
   linkedCourse              Course?                   @relation("CourseSoftwares", fields: [linkedCourseId], references: [id], onDelete: SetNull)
   linkedLessonId            String?
   linkedLesson              Lesson?                   @relation("LessonSoftwares", fields: [linkedLessonId], references: [id], onDelete: SetNull)
@@ -2112,5 +2116,3 @@ model Job {
 
   @@index([status, runAt])
 }
-
-

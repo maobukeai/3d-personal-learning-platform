@@ -17,6 +17,9 @@ SWAP_SIZE="${SWAP_SIZE:-2G}"
 # Skip frontend type-checking by default to keep memory use within the
 # production server's limit. Set SKIP_TYPECHECK=0 for a full release check.
 SKIP_TYPECHECK="${SKIP_TYPECHECK:-1}"
+# Use only while recovering a failed migration history. The database migration
+# must then be completed manually before the next normal deployment.
+SKIP_MIGRATIONS="${SKIP_MIGRATIONS:-0}"
 
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=$NODE_BUILD_MEMORY_MB}"
 export PRISMA_ENGINES_MIRROR="${PRISMA_ENGINES_MIRROR:-https://registry.npmmirror.com/-/binary/prisma}"
@@ -157,7 +160,11 @@ main() {
   install_server_dependencies
   generate_client
   build_server
-  run_migrations
+  if [ "$SKIP_MIGRATIONS" = "1" ]; then
+    log "Skipping database migrations for recovery. Run prisma migrate deploy manually before the next normal deployment."
+  else
+    run_migrations
+  fi
 
   echo "================================================"
   reload_service

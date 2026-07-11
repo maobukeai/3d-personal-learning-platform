@@ -267,6 +267,20 @@
   background: transparent !important;
 }
 
+/* Make app-shell transparent in glass theme so enterprise-canvas shows through */
+.theme-glass .app-shell {
+  background-color: transparent !important;
+}
+
+/* Give body a solid base in glass theme — enterprise-canvas overlays this with patterns */
+html.theme-glass body {
+  background: #f0f2f7 !important;
+}
+
+html.theme-glass.dark body {
+  background: #0c1018 !important;
+}
+
 /* Frosted glass effect for sidebar in glass theme */
 .theme-glass .glass-sidebar {
   background-color: rgba(248, 250, 252, 0.22) !important;
@@ -312,7 +326,10 @@ html.theme-glass .content-surface > main {
 
 /* 1. Translucent variable overrides for light & dark glass modes (increased opacity for better legibility) */
 html.theme-glass {
-  --bg-app: transparent !important;
+  /* --bg-app must remain the solid light base (#f0f2f7) so enterprise-canvas
+     bg-style-* patterns (which use var(--bg-app) as their base color) render
+     correctly. DO NOT set to transparent — that made everything glass-clear. */
+  --bg-app: #f0f2f7 !important;
   --bg-card: rgba(255, 255, 255, 0.68) !important;
   --bg-elevated: rgba(255, 255, 255, 0.78) !important;
   --bg-sidebar: rgba(248, 250, 252, 0.35) !important;
@@ -327,7 +344,10 @@ html.theme-glass {
 }
 
 html.theme-glass.dark {
-  --bg-app: transparent !important;
+  /* --bg-app must remain the solid dark base (#0c1018) so enterprise-canvas
+     bg-style-* patterns (which use var(--bg-app) as their base color) render
+     correctly in dark glass mode. DO NOT set to transparent. */
+  --bg-app: #0c1018 !important;
   --bg-card: rgba(20, 26, 38, 0.68) !important;
   --bg-elevated: rgba(28, 36, 50, 0.78) !important;
   --bg-sidebar: rgba(7, 10, 19, 0.55) !important;

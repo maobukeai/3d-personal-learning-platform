@@ -69,6 +69,30 @@ function customCompressPlugin() {
   };
 }
 
+// Service Worker version injection plugin.
+// At build time, replaces the /* SW_VERSION_INJECT */ marker in dist/sw.js
+// with a unique timestamp so each new deploy busts the browser SW cache.
+function swVersionPlugin() {
+  const version = `${Date.now()}-prod`;
+  return {
+    name: 'sw-version-inject',
+    apply: 'build' as const,
+    async closeBundle() {
+      const swPath = path.resolve(__dirname, 'dist/sw.js');
+      if (!fs.existsSync(swPath)) return;
+      const content = await fs.promises.readFile(swPath, 'utf-8');
+      // Replace: /* SW_VERSION_INJECT */ 'dev-' + Date.now()
+      // With:    '1720000000000-prod'  (unique per build)
+      const injected = content.replace(
+        /\/\* SW_VERSION_INJECT \*\/ 'dev-' \+ Date\.now\(\)/,
+        JSON.stringify(version),
+      );
+      await fs.promises.writeFile(swPath, injected, 'utf-8');
+      console.debug(`✓ SW version injected: ${version}`);
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -151,6 +175,7 @@ export default defineConfig(({ mode }) => {
         dts: 'src/components.d.ts',
       }),
       customCompressPlugin(),
+      swVersionPlugin(),
     ],
     optimizeDeps: {
       // Pre-bundle deps that are needed on the FIRST page load.

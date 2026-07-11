@@ -590,3 +590,17 @@ html.theme-glass.dark .content-surface .mobile-adaptive .rounded-tl-sm {
   color: var(--accent) !important;
   opacity: 0.8;
 }
+
+/* Fallback: Make background more opaque when backdrop-filter is unsupported */
+@supports not (backdrop-filter: blur(1px)) {
+  @supports not (-webkit-backdrop-filter: blur(1px)) {
+    :root {
+      --glass-modal-surface: rgba(255, 255, 255, 0.85) !important;
+      --glass-popover-surface: rgba(255, 255, 255, 0.9) !important;
+    }
+    .dark {
+      --glass-modal-surface: rgba(20, 26, 38, 0.85) !important;
+      --glass-popover-surface: rgba(28, 36, 50, 0.9) !important;
+    }
+  }
+}

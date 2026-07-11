@@ -393,16 +393,16 @@
   /* Physical glass tokens - dark mode (Apple dark frosted glass) */
   --glass-modal-bg: rgba(22, 26, 32, 0.6);
   --glass-popover-bg: rgba(18, 22, 28, 0.7);
-  /* Surface: dark milky tint — frosted glass in dark mode has soft dark haze */
+  /* Surface: dark frosted base with soft dark haze */
   --glass-modal-surface: linear-gradient(
     160deg,
-    rgba(255, 255, 255, 0.09) 0%,
-    rgba(255, 255, 255, 0.04) 100%
+    rgba(20, 26, 38, 0.6) 0%,
+    rgba(12, 16, 24, 0.7) 100%
   );
   --glass-popover-surface: linear-gradient(
     160deg,
-    rgba(255, 255, 255, 0.12) 0%,
-    rgba(255, 255, 255, 0.06) 100%
+    rgba(20, 26, 38, 0.75) 0%,
+    rgba(12, 16, 24, 0.85) 100%
   );
   /* Specular: very subtle top-left sheen — dark frosted barely reflects */
   --glass-specular:

@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import {
   preferences,
   type ThemePreference,
@@ -9,11 +9,39 @@ import {
   applyThemeToDocument,
   accentColors,
 } from '@/composables/useAppearance';
+import { useSystemStore } from '@/stores/system';
 
 export function useThemeManager() {
   const currentTheme = ref<ThemePreference>(preferences.getTheme());
   const currentBackground = ref<ThemeBackgroundPreference>(preferences.getBackground());
   const isDark = ref(false);
+
+  const systemStore = useSystemStore();
+
+  const updateGlassDegradation = (degraded: boolean) => {
+    const root = document.documentElement;
+    if (degraded) {
+      root.style.setProperty('--glass-blur', 'none');
+      if (root.classList.contains('dark')) {
+        root.style.setProperty('--glass-modal-surface', 'rgba(20, 26, 38, 0.85)');
+        root.style.setProperty('--glass-popover-surface', 'rgba(28, 36, 50, 0.9)');
+      } else {
+        root.style.setProperty('--glass-modal-surface', 'rgba(255, 255, 255, 0.85)');
+        root.style.setProperty('--glass-popover-surface', 'rgba(255, 255, 255, 0.9)');
+      }
+    } else {
+      root.style.removeProperty('--glass-blur');
+      root.style.removeProperty('--glass-modal-surface');
+      root.style.removeProperty('--glass-popover-surface');
+    }
+  };
+
+  watch(
+    () => systemStore.isGlassDegraded,
+    (degraded) => {
+      updateGlassDegradation(degraded);
+    },
+  );
 
   const updateIsDark = () => {
     isDark.value = document.documentElement.classList.contains('dark');
@@ -110,6 +138,7 @@ export function useThemeManager() {
       applyThemeToDocument(theme);
       updateIsDark();
     }
+    updateGlassDegradation(systemStore.isGlassDegraded);
   };
 
   const applyAccentColor = (color: string) => {
@@ -185,6 +214,11 @@ export function useThemeManager() {
     window.removeEventListener('accent-settings-changed', handleAccentChangeExternal);
     stopAutoThemeInterval();
     stopAutoAccentInterval();
+
+    const root = document.documentElement;
+    root.style.removeProperty('--glass-blur');
+    root.style.removeProperty('--glass-modal-surface');
+    root.style.removeProperty('--glass-popover-surface');
   };
 
   return {

@@ -272,13 +272,19 @@
   background-color: transparent !important;
 }
 
-/* Give body a solid base in glass theme — enterprise-canvas overlays this with patterns */
-html.theme-glass body {
-  background: #f0f2f7 !important;
+/* ─── Critical fix: give enterprise-canvas a solid base background ──────────────
+   Without this, bg-style-blobs / aurora / grid etc have no opaque color for
+   backdrop-filter to blur over, making all glass elements look fully transparent.
+   The `contain: strict` on the canvas element isolates it from the body background,
+   so the body background rule (html.theme-glass body { background }) is NOT sufficient.
+   We must set the background directly on the element that serves as the "backplate".
+   ──────────────────────────────────────────────────────────────────────────────── */
+.theme-glass .enterprise-canvas {
+  background-color: #f0f2f7 !important;
 }
 
-html.theme-glass.dark body {
-  background: #0c1018 !important;
+.theme-glass.dark .enterprise-canvas {
+  background-color: #0c1018 !important;
 }
 
 /* Frosted glass effect for sidebar in glass theme */

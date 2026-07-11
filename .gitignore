@@ -37,6 +37,9 @@ server/openapi.json
 server/openapi.yaml
 dist-tsbuildinfo/
 3d-learning-platform-design/
+.agents/
+GEMINI.md
+docs/superpowers/
 
 node_modules
 dist

@@ -517,7 +517,7 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
 
     // 物理删除
     try {
-      await deleteCloudOrLocalFileByUrl(file.url, file.storageConfigId);
+      await deleteCloudOrLocalFileByUrl(file.url, file.size);
 
       // 扣减配额
       if (file.storageConfigId) {

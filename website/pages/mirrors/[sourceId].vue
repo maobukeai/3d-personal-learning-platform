@@ -54,6 +54,7 @@ const showDetail = async (resource: ResourceItem) => {
     selected.value = await platform.getMirrorResource(sourceId.value, resource.id);
   } finally {
     detailLoading.value = false;
+  }
 };
 const cleanContentHtml = computed(() => {
   const html = selected.value?.contentHtml || '';

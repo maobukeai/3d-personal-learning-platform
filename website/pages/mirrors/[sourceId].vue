@@ -326,8 +326,8 @@ useSeoMeta({
 .detail-modal {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(240px, 0.75fr) 1.25fr;
-  max-width: 940px;
+  grid-template-columns: 1fr;
+  max-width: 600px;
   width: 100%;
   height: min(760px, calc(100vh - 48px));
   overflow: hidden;
@@ -360,6 +360,7 @@ useSeoMeta({
   background: rgba(255, 255, 255, 0.95);
 }
 .modal-cover {
+  display: none;
   height: 100%;
   overflow: hidden;
   background: #edf1ff;
@@ -456,6 +457,10 @@ useSeoMeta({
   }
   .detail-modal {
     grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+  .modal-cover {
+    display: block;
   }
   .modal-cover img {
     max-height: 220px;

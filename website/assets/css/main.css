@@ -35,6 +35,9 @@ input:focus-visible {
     radial-gradient(circle at 82% 4%, rgba(210, 223, 255, 0.72) 0, transparent 30rem),
     radial-gradient(circle at 12% 42%, rgba(225, 247, 241, 0.55) 0, transparent 24rem), var(--paper);
 }
+main {
+  padding-top: 96px;
+}
 .section-wrap {
   width: min(1180px, calc(100% - 48px));
   margin-inline: auto;
@@ -216,7 +219,7 @@ input:focus-visible {
   grid-template-columns: 0.94fr 1.16fr;
   gap: 52px;
   min-height: 620px;
-  padding: 95px 0 70px;
+  padding: 40px 0 70px;
 }
 .eyebrow {
   margin: 0 0 18px;
@@ -937,6 +940,78 @@ h2 {
   width: 56%;
   background: #7cba9d;
 }
+/* Platform Highlights (Apple Minimalist Feature Grid) */
+.platform-highlights {
+  padding: 80px 0 110px;
+  border-top: 1px solid var(--line);
+}
+.highlight-heading {
+  margin-bottom: 56px;
+  max-width: 620px;
+}
+.highlight-heading h2 {
+  font-size: clamp(34px, 4vw, 48px);
+  font-weight: 700;
+  color: #1d1d1f;
+  margin: 12px 0 16px;
+  line-height: 1.2;
+}
+.highlight-heading p {
+  font-size: 16px;
+  color: var(--muted);
+  line-height: 1.65;
+  margin: 0;
+}
+.highlight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 40px;
+}
+.highlight-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 30px;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 20px;
+  transition:
+    transform 0.25s,
+    box-shadow 0.25s;
+}
+.highlight-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.03);
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+.item-icon {
+  font-size: 28px;
+  margin-bottom: 18px;
+}
+.highlight-item h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin: 0 0 10px;
+}
+.highlight-item p {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .highlight-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .highlight-item {
+    padding: 24px;
+  }
+}
+
 .capability-section {
   padding: 118px 0 125px;
   background: #20242e;
@@ -1246,7 +1321,7 @@ h2 {
   font-size: 12px;
 }
 .page-heading {
-  padding: 60px 0 40px;
+  padding: 30px 0 40px;
   border-bottom: 1px solid var(--line);
 }
 .page-heading h1 {
@@ -1467,7 +1542,7 @@ h2 {
   }
   .hero {
     grid-template-columns: 1fr;
-    padding: 55px 0;
+    padding: 40px 0 55px;
   }
   .hero-art {
     min-height: 340px;
@@ -1606,7 +1681,7 @@ h2 {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 110px 0 80px;
+  padding: 40px 0 80px;
   min-height: calc(100vh - 120px);
   background: #fbfbfd;
 }
@@ -2006,7 +2081,7 @@ h2 {
 /* Media Query Adaptations for Netdisk */
 @media (max-width: 720px) {
   .netdisk-wrap {
-    padding: 80px 16px 40px;
+    padding: 24px 16px 40px;
   }
   .netdisk-container {
     padding: 20px;

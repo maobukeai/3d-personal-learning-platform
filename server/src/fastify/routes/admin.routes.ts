@@ -816,6 +816,10 @@ export const registerAdminRoutes = (app: FastifyInstance): void => {
     return cloudflareController.getConfig(request, reply);
   });
 
+  app.get('/admin/cloudflare/config/reveal-secrets', { ...auth }, async (request, reply) => {
+    return cloudflareController.revealConfigSecrets(request, reply);
+  });
+
   app.put('/admin/cloudflare/config', { ...auth }, async (request, reply) => {
     return cloudflareController.saveConfig(request, reply);
   });

@@ -51,6 +51,7 @@ import { registerManualRoutes } from './routes/manual.routes';
 import { registerTemporaryNetdiskRoutes } from './routes/temporary-netdisk.routes';
 import { registerPluginRoutes } from './routes/plugin.routes';
 import { registerSoftwareRoutes } from './routes/software.routes';
+import { registerWebsiteRoutes } from './routes/website.routes';
 import { registerSlowLogHook } from './middlewares/slow-log.hook';
 import { fastifyMaintenance } from './middlewares/maintenance.hook';
 
@@ -562,6 +563,7 @@ const startFastifyInternal = async (): Promise<void> => {
       registerTwoFactorRoutes(scope); // /two-factor/*
       registerMirrorRoutes(scope); // /mirror/*
       registerManualRoutes(scope); // /manual/*
+      registerWebsiteRoutes(scope); // /website/* and /admin/website/*
       registerTemporaryNetdiskRoutes(scope); // /netdisk/*
       registerLessonRoutes(scope); // /lessons/*
       registerResourceRoutes(scope); // /resources/*

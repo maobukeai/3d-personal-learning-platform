@@ -161,6 +161,7 @@ export function useSidebarMenus() {
     {
       title: label('运营管理', 'Operations'),
       items: [
+        { name: label('官网运营', 'Official Site'), icon: Globe2, path: '/admin/website' },
         { name: label('轮播管理', 'Banners'), icon: ImageIcon, path: '/admin/banners' },
         {
           name: label('订阅管理', 'Subscriptions'),

@@ -11,6 +11,8 @@ import {
   Pause,
   Play,
   Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
@@ -155,12 +157,36 @@ const sslStatusLabel = (status: string) => {
   return map[status] || status || '未知';
 };
 
+const loadingRevealedSecrets = ref(false);
+const showPlaintextSecrets = ref(false);
+
+const handleRevealSecrets = async () => {
+  if (showPlaintextSecrets.value) {
+    showPlaintextSecrets.value = false;
+    apiTokenInput.value = '';
+    return;
+  }
+
+  loadingRevealedSecrets.value = true;
+  try {
+    const { data } = await api.get('/api/admin/cloudflare/config/reveal-secrets');
+    apiTokenInput.value = data.apiToken || '';
+    showPlaintextSecrets.value = true;
+    ElMessage.success('已成功解密并解封显示 Cloudflare API Token！');
+  } catch (err) {
+    ElMessage.error(getApiErrorMessage(err, '读取或解密密钥失败'));
+  } finally {
+    loadingRevealedSecrets.value = false;
+  }
+};
+
 const fetchConfig = async () => {
   try {
     const { data } = await api.get('/api/admin/cloudflare/config');
     hasToken.value = !!data.hasToken;
     accountId.value = data.accountId || '';
     apiTokenInput.value = '';
+    showPlaintextSecrets.value = false;
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, '获取 Cloudflare 配置失败'));
   }
@@ -183,6 +209,7 @@ const saveConfig = async () => {
     hasToken.value = !!data.hasToken;
     accountId.value = data.accountId || '';
     apiTokenInput.value = '';
+    showPlaintextSecrets.value = false;
     ElMessage.success('Cloudflare 配置已保存');
     await fetchZones();
   } catch (error) {
@@ -213,6 +240,7 @@ const clearConfig = async () => {
     hasToken.value = false;
     accountId.value = '';
     apiTokenInput.value = '';
+    showPlaintextSecrets.value = false;
     zones.value = [];
     selectedZone.value = null;
     dnsRecords.value = [];
@@ -446,32 +474,52 @@ onMounted(async () => {
           <Card padding="md" class="blender-card mb-3">
             <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] gap-4">
               <div class="space-y-3">
-                <div
-                  class="flex items-center gap-2 text-xs font-bold"
-                  style="color: var(--text-primary)"
-                >
-                  <KeyRound class="w-4 h-4 text-accent" />
-                  API Token 配置
-                  <span
+                <div class="flex items-center justify-between gap-2">
+                  <div
+                    class="flex items-center gap-2 text-xs font-bold"
+                    style="color: var(--text-primary)"
+                  >
+                    <KeyRound class="w-4 h-4 text-accent" />
+                    API Token 配置
+                    <span
+                      v-if="hasToken"
+                      class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600"
+                    >
+                      已配置
+                    </span>
+                    <span
+                      v-else
+                      class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600"
+                    >
+                      未配置
+                    </span>
+                  </div>
+
+                  <button
                     v-if="hasToken"
-                    class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600"
+                    type="button"
+                    class="text-[11px] text-indigo-500 hover:text-indigo-400 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-1 cursor-pointer bg-transparent border-none p-0 font-medium transition-colors outline-none"
+                    @click="handleRevealSecrets"
                   >
-                    已配置
-                  </span>
-                  <span
-                    v-else
-                    class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600"
-                  >
-                    未配置
-                  </span>
+                    <component :is="showPlaintextSecrets ? EyeOff : Eye" class="w-3.5 h-3.5" />
+                    <span>{{
+                      loadingRevealedSecrets
+                        ? '正在解密...'
+                        : showPlaintextSecrets
+                          ? '隐藏明文 Token'
+                          : '管理员查看已存密钥'
+                    }}</span>
+                  </button>
                 </div>
 
                 <UiInput
                   v-model="apiTokenInput"
-                  type="password"
+                  :type="showPlaintextSecrets ? 'text' : 'password'"
                   :placeholder="
                     hasToken
-                      ? '已保存 Token，输入新 Token 可覆盖'
+                      ? showPlaintextSecrets
+                        ? '已成功解密 API Token，可直接编辑修改'
+                        : '已保存 Token，输入新 Token 可覆盖'
                       : 'Cloudflare API Token（Zone:Read, DNS:Edit）'
                   "
                   :glass="false"

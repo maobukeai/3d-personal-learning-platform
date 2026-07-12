@@ -24,6 +24,17 @@ export const getConfig = async (req: AdminRequest, reply: FastifyReply) => {
   }
 };
 
+export const revealConfigSecrets = async (req: AdminRequest, reply: FastifyReply) => {
+  try {
+    const config = await cloudflareAdminService.getConfig();
+    reply.send({
+      apiToken: config.apiToken,
+    });
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const saveConfig = async (req: AdminRequest, reply: FastifyReply) => {
   try {
     const { apiToken, accountId } = req.body as { apiToken?: string; accountId?: string | null };

@@ -11,6 +11,7 @@ set -Eeuo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVER_DIR="$APP_DIR/server"
+WEBSITE_DIR="$APP_DIR/website"
 PM2_APP_NAME="${PM2_APP_NAME:-3d-lms-api}"
 NODE_BUILD_MEMORY_MB="${NODE_BUILD_MEMORY_MB:-1536}"
 SWAP_SIZE="${SWAP_SIZE:-2G}"
@@ -76,6 +77,22 @@ build_frontend() {
     npm run build
   fi
   log "✅ 前端构建完成，产物位于 /dist 目录。"
+}
+
+build_official_site() {
+  if [ ! -f "$WEBSITE_DIR/package.json" ]; then
+    log "-> Official site directory not present; skipping official site build."
+    return
+  fi
+
+  log "-> Installing official site dependencies..."
+  cd "$WEBSITE_DIR"
+  npm config set registry https://registry.npmmirror.com
+  npm ci --include=dev --no-audit --no-fund
+
+  log "-> Building official site (Nuxt SSR)..."
+  npm run build
+  log "✓ Official site build complete: website/.output"
 }
 
 install_server_dependencies() {
@@ -154,6 +171,10 @@ main() {
   echo "🎨 开始构建前端 (Vue 3 + Vite)..."
   install_root_dependencies
   build_frontend
+
+  echo "================================================"
+  echo "🌐 Building official site (Nuxt)..."
+  build_official_site
 
   echo "================================================"
   echo "🛠️ 开始构建后端 (Node.js + Express)..."

@@ -399,6 +399,12 @@ const router = createRouter({
               meta: { requiresAdmin: true },
             },
             {
+              path: 'admin/website',
+              name: 'AdminWebsite',
+              component: () => import('@/views/Admin/AdminWebsiteView.vue'),
+              meta: { requiresAdmin: true },
+            },
+            {
               path: 'admin/mirror',
               name: 'AdminMirror',
               component: () => import('@/views/Admin/AdminMirrorView.vue'),

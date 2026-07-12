@@ -127,7 +127,13 @@ useSeoMeta({
           class="resource-card"
           @click="showDetail(resource)"
         >
-          <img v-if="resource.thumbnailUrl" :src="resource.thumbnailUrl" :alt="resource.title" />
+          <img
+            v-if="resource.thumbnailUrl"
+            :src="resource.thumbnailUrl"
+            :alt="resource.title"
+            loading="lazy"
+            decoding="async"
+          />
           <div v-else class="resource-placeholder">✦</div>
           <p>{{ resource.category?.name || resource.resourceType || 'RESOURCE' }}</p>
           <h2>{{ resource.title }}</h2>
@@ -151,6 +157,7 @@ useSeoMeta({
               v-if="selected.thumbnailUrl"
               :src="selected.thumbnailUrl"
               :alt="selected.title"
+              decoding="async"
             /><span v-else>✦</span>
           </div>
           <div class="modal-body">

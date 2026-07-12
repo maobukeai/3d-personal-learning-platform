@@ -13,6 +13,7 @@ const siteName = computed(
 );
 
 const logoLoadFailed = ref(false);
+const menuOpen = ref(false);
 
 const getAssetUrl = (url?: string | null) => {
   if (!url) return '';
@@ -119,8 +120,20 @@ const nav = [
         <span v-else class="brand-mark">S</span>
         <span>{{ siteName }}</span>
       </NuxtLink>
-      <nav aria-label="主导航">
-        <NuxtLink v-for="item in nav" :key="item.to" :to="item.to">{{ item.label }}</NuxtLink>
+      <button
+        class="menu-toggle"
+        type="button"
+        :aria-expanded="menuOpen"
+        aria-controls="site-navigation"
+        aria-label="切换主导航"
+        @click="menuOpen = !menuOpen"
+      >
+        <span></span><span></span>
+      </button>
+      <nav id="site-navigation" :class="{ 'is-open': menuOpen }" aria-label="主导航">
+        <NuxtLink v-for="item in nav" :key="item.to" :to="item.to" @click="menuOpen = false">{{
+          item.label
+        }}</NuxtLink>
       </nav>
       <a class="header-action" :href="config.public.appBase">进入平台 <span>↗</span></a>
     </header>

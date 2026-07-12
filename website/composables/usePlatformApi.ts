@@ -53,6 +53,23 @@ export interface ResourceDetail extends ResourceItem {
   source: { id: string; displayName: string };
 }
 
+export interface PlatformPreviewItem {
+  id: string;
+  title: string;
+  description?: string | null;
+  thumbnail?: string | null;
+  previewUrl?: string | null;
+  category?: string | null;
+  difficulty?: string | null;
+  resolution?: string | null;
+}
+
+export interface PlatformListResponse<T> {
+  items?: T[];
+  assets?: T[];
+  plugins?: T[];
+}
+
 export const usePlatformApi = () => {
   const { public: publicConfig } = useRuntimeConfig();
   const api = <T>(path: string) => $fetch<T>(`${publicConfig.apiBase}${path}`);
@@ -78,5 +95,9 @@ export const usePlatformApi = () => {
     },
     getMirrorResource: (sourceId: string, resourceId: string) =>
       api<ResourceDetail>(`/website/mirrors/${sourceId}/resources/${resourceId}`),
+    getCourses: () => api<PlatformPreviewItem[]>('/courses'),
+    getAssets: () => api<PlatformListResponse<PlatformPreviewItem>>('/assets/public?limit=8'),
+    getMaterials: () => api<PlatformListResponse<PlatformPreviewItem>>('/materials?limit=8'),
+    getPlugins: () => api<PlatformListResponse<PlatformPreviewItem>>('/plugins?limit=8'),
   };
 };

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { PlatformPreviewItem } from '~/composables/usePlatformApi';
-import mirrorBanner from '~/assets/images/mirror_network_banner.jpg';
 
 const platform = usePlatformApi();
 const config = useRuntimeConfig();
@@ -437,8 +436,25 @@ const capabilityGroups = [
             <span class="feat-item">💾 离线高速缓存</span>
           </div>
         </div>
-        <div class="promo-image-container">
-          <img :src="mirrorBanner" alt="Mirror Network Visual" loading="lazy" />
+        <div class="promo-visual-container">
+          <div class="terminal-mock">
+            <div class="terminal-header">
+              <span class="dot red"></span>
+              <span class="dot yellow"></span>
+              <span class="dot green"></span>
+              <span class="terminal-title">mirror-sync.sh</span>
+            </div>
+            <div class="terminal-body">
+              <div class="line"><span class="cmd">$</span> ./sync-nodes.sh --draco-level=10</div>
+              <div class="line success">✓ Resolving global nodes... (3 active)</div>
+              <div class="line info">↳ hk-node.platform.net [8.2ms]</div>
+              <div class="line info">↳ sg-node.platform.net [14.5ms]</div>
+              <div class="line info">↳ us-node.platform.net [45.1ms]</div>
+              <div class="line success">✓ Optimizing textures (WebP)...</div>
+              <div class="line success">✓ Compressing geometries (Draco 10)...</div>
+              <div class="line flash">● Syncing mirror network... [100%]</div>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -12,6 +12,7 @@ async function focusInsideDialog(page: Page): Promise<boolean> {
 
 test.describe('Drawer 键盘无障碍', () => {
   test.beforeEach(async ({ page }) => {
+    await page.bringToFront();
     await page.route('**/api/**', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
     );

@@ -25,6 +25,9 @@ async function waitTransition(page: Page) {
 
 test.describe('Modal 键盘无障碍', () => {
   test.beforeEach(async ({ page }) => {
+    page.on('console', (msg) => {
+      console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`);
+    });
     // Ensure window has focus
     await page.bringToFront();
     // Mock API to prevent router-guard delays (no backend in dev/test)
@@ -34,6 +37,10 @@ test.describe('Modal 键盘无障碍', () => {
     await page.goto(A11Y_PAGE);
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByTestId('a11y-test-page')).toBeVisible();
+    // Force active focus on the document
+    await page.locator('body').click();
+    const hasFocus = await page.evaluate(() => document.hasFocus());
+    console.log('[Test Setup] document.hasFocus():', hasFocus);
   });
 
   // ── 打开 + 初始焦点 ──────────────────────────────────────────────

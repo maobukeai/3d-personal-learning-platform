@@ -10,6 +10,7 @@ const tooltipText = 'Helpful tooltip text';
 
 test.describe('Tooltip 键盘无障碍', () => {
   test.beforeEach(async ({ page }) => {
+    await page.bringToFront();
     await page.route('**/api/**', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
     );
@@ -40,8 +41,8 @@ test.describe('Tooltip 键盘无障碍', () => {
   test('失焦后 tooltip 消失', async ({ page }) => {
     await page.getByTestId('tooltip-trigger').focus();
     await expect(page.getByText(tooltipText)).toBeVisible();
-    // Tab away to blur the trigger
-    await page.keyboard.press('Tab');
+    // Focus theme toggle button to blur the trigger reliably across all browsers
+    await page.getByTestId('theme-toggle-btn').focus();
     await expect(page.getByText(tooltipText)).toBeHidden();
   });
 

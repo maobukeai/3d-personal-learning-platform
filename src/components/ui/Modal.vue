@@ -108,6 +108,27 @@ watch(
       if (!overlayId.value) {
         overlayId.value = register('modal');
       }
+      // Manual focus fallback after transition (crucial for Firefox headless autofocus stability)
+      setTimeout(() => {
+        if (props.initialFocus === 'auto') return;
+
+        if (props.initialFocus === 'title') {
+          if (titleRef.value) {
+            titleRef.value.focus();
+          }
+          return;
+        }
+
+        const body = bodyRef.value;
+        if (body) {
+          const selector =
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+          const focusable = body.querySelector<HTMLElement>(selector);
+          if (focusable) {
+            focusable.focus();
+          }
+        }
+      }, 150);
     } else {
       if (overlayId.value) {
         unregister(overlayId.value);
@@ -246,7 +267,10 @@ const onOpenAutoFocus = (event: Event) => {
   if (props.initialFocus === 'title') {
     if (titleRef.value) {
       event.preventDefault();
-      titleRef.value.focus();
+      const el = titleRef.value;
+      setTimeout(() => {
+        el.focus();
+      }, 50);
     }
     return;
   }
@@ -258,7 +282,9 @@ const onOpenAutoFocus = (event: Event) => {
     const focusable = body.querySelector<HTMLElement>(selector);
     if (focusable) {
       event.preventDefault();
-      focusable.focus();
+      setTimeout(() => {
+        focusable.focus();
+      }, 50);
     }
   }
 };
@@ -275,7 +301,7 @@ const onOpenAutoFocus = (event: Event) => {
         :aria-modal="true"
         @interact-outside="onInteractOutside"
         @escape-key-down="onEscapeKeyDown"
-        @open-auto-focus="onOpenAutoFocus"
+        @openAutoFocus="onOpenAutoFocus"
       >
         <div :class="surfaceClasses" :style="surfaceStyle">
           <!-- Screen-reader-only DialogTitle (renders when no visible title) -->

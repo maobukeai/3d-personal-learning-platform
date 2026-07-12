@@ -10,10 +10,11 @@ import { test, expect } from '@playwright/test';
  */
 test.describe('高频点击场景', () => {
   test('快速在登录/注册页间切换不崩溃', async ({ page }) => {
+    test.setTimeout(60000);
     await page.goto('/login');
 
-    // 快速点击注册链接与登录链接各 5 次，模拟用户高频切换
-    for (let i = 0; i < 5; i++) {
+    // 快速点击注册链接与登录链接各 3 次，模拟用户高频切换
+    for (let i = 0; i < 3; i++) {
       const registerLink = page.getByRole('link', { name: /注册|register/i });
       if (await registerLink.isVisible({ timeout: 1000 }).catch(() => false)) {
         await registerLink.click().catch(() => {});

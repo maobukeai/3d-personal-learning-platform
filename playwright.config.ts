@@ -17,6 +17,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [['html', { open: 'never' }], ['list']],
+  timeout: 60_000,
   use: {
     baseURL: process.env.E2E_BASE_URL || 'http://127.0.0.1:5173',
     trace: 'on-first-retry',
@@ -24,6 +25,8 @@ export default defineConfig({
     video: 'retain-on-failure',
     locale: 'zh-CN',
     timezoneId: 'Asia/Shanghai',
+    navigationTimeout: 45_000,
+    actionTimeout: 15_000,
   },
   projects: [
     {

@@ -6,8 +6,8 @@ import { logger } from '../../utils/logger';
 import { auditService, AuditModule } from '../../services/audit.service';
 import { AppError } from '../../utils/error';
 import { encrypt, buildDecryptedStorageConfig } from '../../utils/crypto';
+import { resolveCloudflareApiToken } from '../../utils/cloudflare-r2';
 import { gbToBytes } from '../../utils/quota';
-import { QueueService } from '../../services/queue.service';
 import { Prisma, type StorageConfig } from '@prisma/client';
 
 type AdminRequest = FastifyRequest & {
@@ -630,27 +630,31 @@ export const syncActualSize = async (req: AdminRequest, reply: FastifyReply) => 
     const raw = await prisma.storageConfig.findUnique({ where: { id } });
     if (!raw) throw new AppError('配置未找到', 404);
 
-    const idempotencyKey = `sync-size:${id}-${Date.now()}`;
-    const job = await QueueService.enqueue(
-      'r2-storage-sync-single',
-      {
-        id,
-        type,
-        userId: req.userId,
-        ipAddress: req.ip || req.socket?.remoteAddress || null,
-        userAgent: req.headers['user-agent'] || null,
-      },
-      {
-        idempotencyKey,
-        type: 'r2-storage-sync-single',
-      },
-    );
+    const config = buildDecryptedStorageConfig(raw);
+    const sharedApiTokens = await getSharedCloudflareApiTokens();
+    const usage = await storageService.getBucketUsage(config, {
+      sharedApiTokens,
+      scan: type === 'scanned',
+    });
 
-    if (!job) {
-      throw new AppError('任务队列加入失败', 500);
-    }
+    const bytesToSync =
+      type === 'official' ? usage.dashboardBytes : (usage.scannedBytes ?? usage.dashboardBytes);
 
-    reply.status(202).send({ jobId: job.id, status: 'PENDING' });
+    await prisma.storageConfig.update({
+      where: { id },
+      data: { usedBytes: bytesToSync },
+    });
+
+    await auditService.log({
+      req,
+      userId: req.userId,
+      module: AuditModule.SETTINGS,
+      action: 'SYNC_STORAGE_SIZE',
+      description: `Synchronized storage config ${raw.name} capacity to ${type === 'official' ? 'official' : 'scanned'} size: ${bytesToSync} bytes (${usage.source})`,
+      newValue: { id, usedBytes: bytesToSync, source: usage.source, type },
+    });
+
+    reply.send({ success: true, usedBytes: bytesToSync });
   } catch (error) {
     throw error;
   }
@@ -658,25 +662,87 @@ export const syncActualSize = async (req: AdminRequest, reply: FastifyReply) => 
 
 export const syncAllActualSizes = async (req: AdminRequest, reply: FastifyReply) => {
   try {
-    const idempotencyKey = `sync-size-all:${Date.now()}`;
-    const job = await QueueService.enqueue(
-      'r2-storage-sync-all',
-      {
-        userId: req.userId,
-        ipAddress: req.ip || req.socket?.remoteAddress || null,
-        userAgent: req.headers['user-agent'] || null,
-      },
-      {
-        idempotencyKey,
-        type: 'r2-storage-sync-all',
-      },
-    );
+    const configs = await prisma.storageConfig.findMany({
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+    });
+    const sharedApiTokens = await getSharedCloudflareApiTokens();
 
-    if (!job) {
-      throw new AppError('任务队列加入失败', 500);
+    const results: Array<{
+      id: string;
+      name: string;
+      bucketName: string;
+      status: 'synced' | 'skipped' | 'failed';
+      reason?: string;
+      dashboardBytes?: number;
+      source?: string;
+    }> = [];
+
+    for (const raw of configs) {
+      const config = buildDecryptedStorageConfig(raw);
+      const apiToken = resolveCloudflareApiToken(config.cloudflareApiToken, sharedApiTokens);
+
+      if (!apiToken) {
+        results.push({
+          id: raw.id,
+          name: raw.name,
+          bucketName: raw.bucketName,
+          status: 'skipped',
+          reason: '未配置 Cloudflare API Token',
+        });
+        continue;
+      }
+
+      try {
+        const usage = await storageService.getBucketUsage(config, {
+          sharedApiTokens,
+          scan: false,
+        });
+
+        await prisma.storageConfig.update({
+          where: { id: raw.id },
+          data: { usedBytes: usage.dashboardBytes },
+        });
+
+        results.push({
+          id: raw.id,
+          name: raw.name,
+          bucketName: raw.bucketName,
+          status: 'synced',
+          dashboardBytes: usage.dashboardBytes,
+          source: usage.source,
+        });
+      } catch (error) {
+        results.push({
+          id: raw.id,
+          name: raw.name,
+          bucketName: raw.bucketName,
+          status: 'failed',
+          reason: error instanceof Error ? error.message : '同步失败',
+        });
+      }
     }
 
-    reply.status(202).send({ jobId: job.id, status: 'PENDING' });
+    const synced = results.filter((item) => item.status === 'synced').length;
+    const skipped = results.filter((item) => item.status === 'skipped').length;
+    const failed = results.filter((item) => item.status === 'failed').length;
+
+    await auditService.log({
+      req,
+      userId: req.userId,
+      module: AuditModule.SETTINGS,
+      action: 'SYNC_ALL_STORAGE_SIZE',
+      description: `Bulk synced R2 storage usage via Cloudflare API: synced=${synced}, skipped=${skipped}, failed=${failed}`,
+      newValue: { synced, skipped, failed },
+    });
+
+    reply.send({
+      success: true,
+      synced,
+      skipped,
+      failed,
+      total: results.length,
+      results,
+    });
   } catch (error) {
     throw error;
   }

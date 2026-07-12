@@ -365,7 +365,7 @@ const startFastifyInternal = async (): Promise<void> => {
 
   // CSRF protection hook
   const fastifyCsrf = async (request: FastifyRequest) => {
-    if (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'test') {
       return;
     }
     const method = request.method;
@@ -373,6 +373,16 @@ const startFastifyInternal = async (): Promise<void> => {
     if (safeMethods.includes(method)) {
       return;
     }
+
+    // Bearer credentials are attached explicitly by the SPA and are not sent
+    // automatically by browsers on cross-site requests. CSRF protection is
+    // therefore only required for cookie-authenticated mutations. Route-level
+    // authentication still validates the token after this hook.
+    const authorization = request.headers.authorization;
+    if (typeof authorization === 'string' && /^Bearer\s+\S+$/i.test(authorization)) {
+      return;
+    }
+
     const bypassUrls = [
       '/api/auth/login',
       '/api/auth/login/2fa',

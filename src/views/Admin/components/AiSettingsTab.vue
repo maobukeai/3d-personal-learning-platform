@@ -488,15 +488,17 @@ const submitCategoryDialog = () => {
     ElMessage.success('自定义分类创建成功，请将模型拖拽至此分类');
   } else {
     const groupKey = categoryDialog.value.groupKey;
-    const existing = customCategories.value.find((c) => c.key === groupKey);
-    if (existing) {
-      existing.label = name;
-    } else {
-      customCategories.value.push({ key: groupKey, label: name });
-    }
+    const targetGroup = modelFamilyGroups.value.find((group) => group.key === groupKey);
+    const targetModelIds = new Set(targetGroup?.models.map((model) => model.id) || []);
+
+    customCategories.value = [
+      ...customCategories.value.filter((category) => category.key !== groupKey),
+      { key: groupKey, label: name },
+    ];
 
     localAiModelConfigs.value.forEach((model) => {
-      if (model.customFamilyKey === groupKey) {
+      if (targetModelIds.has(model.id) || model.customFamilyKey === groupKey) {
+        model.customFamilyKey = groupKey;
         model.customFamilyLabel = name;
       }
     });

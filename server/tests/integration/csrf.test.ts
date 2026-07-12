@@ -65,6 +65,15 @@ describe('CSRF Protection Integration', () => {
     expect(res.body.code).toBe('TOKEN_REQUIRED');
   });
 
+  it('should bypass CSRF for explicitly bearer-authenticated requests', async () => {
+    const res = await request(app)
+      .post('/api/admin/settings')
+      .set('Authorization', 'Bearer test-access-token')
+      .send({ key: 'value' });
+
+    expect(res.body.code).not.toBe('CSRF_VALIDATION_FAILED');
+  });
+
   it('should bypass CSRF for shared note AI summarization POST requests', async () => {
     const res = await request(app)
       .post('/api/notes/share/nonexistent-share-id/ai-summarize')

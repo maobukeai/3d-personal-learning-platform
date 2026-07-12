@@ -169,7 +169,9 @@ export const useAiSettingsMeta = () => {
   ];
 
   const getModelFamilyMeta = (key: string, customLabel?: string) => {
-    if (modelFamilyMeta[key]) return modelFamilyMeta[key];
+    if (modelFamilyMeta[key]) {
+      return customLabel ? { ...modelFamilyMeta[key], label: customLabel } : modelFamilyMeta[key];
+    }
     const hash = Array.from(key).reduce((sum, char) => sum + char.charCodeAt(0), 0);
     const palette = modelFamilyPalette[hash % modelFamilyPalette.length];
     return {

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import * as cheerio from 'cheerio';
 import fs from 'fs';
 import prisma from '../../services/prisma';
+import { config } from '../../config/env';
 import { fastifyAuthenticate, fastifyRequireAdmin } from '../auth/fastify-auth';
 import { storageService } from '../../services/storage.service';
 import { AppError } from '../../utils/error';
@@ -126,6 +127,131 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
         activeMirrors: mirrors._count.id,
         mirroredResources: mirrors._sum.totalResources || 0,
       };
+    },
+  );
+
+  /**
+   * 将任意图片 URL 标准化为可被浏览器直接访问的绝对 HTTPS URL。
+   *
+   * 规则:
+   *  - 已是 http(s):// 绝对 URL → 直接返回（如 R2 CDN 地址）
+   *  - /uploads/... 相对路径 → 拼接 BACKEND_URL 变为主平台绝对 URL
+   *  - null/undefined → null
+   */
+  const toAbsoluteImageUrl = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+    if (/^https?:\/\//i.test(url)) return url;
+    // relative /uploads/... path → main platform absolute URL
+    const base = (config.BACKEND_URL || '').replace(/\/$/, '');
+    return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
+  // Official-site presentation-only preview of courses (no auth required)
+  // Only PUBLISHED courses; never exposes lesson content or enrollment data.
+  app.get(
+    '/website/preview/courses',
+    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+    async (_request, reply) => {
+      try {
+        const courses = await prisma.course.findMany({
+          where: { status: 'PUBLISHED' },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            thumbnail: true,
+            difficulty: true,
+            category: { select: { name: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 8,
+        });
+        return reply.send(
+          courses.map((c) => ({
+            id: c.id,
+            title: c.title,
+            description: c.description,
+            thumbnail: toAbsoluteImageUrl(c.thumbnail),
+            difficulty: c.difficulty,
+            category: c.category?.name ?? null,
+          })),
+        );
+      } catch (err) {
+        logger.error('[website] preview/courses error:', err);
+        throw err;
+      }
+    },
+  );
+
+  // Official-site presentation-only preview of platform resources (assets/materials/plugins)
+  // Only APPROVED public items; never exposes download URLs or file content.
+  app.get(
+    '/website/preview/resources',
+    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+    async (_request, reply) => {
+      try {
+        const [assets, materials, plugins] = await Promise.all([
+          prisma.asset.findMany({
+            where: { status: 'APPROVED', teamId: null },
+            select: { id: true, title: true, description: true, thumbnail: true, type: true },
+            orderBy: { createdAt: 'desc' },
+            take: 8,
+          }),
+          prisma.material.findMany({
+            where: { status: 'APPROVED' },
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              thumbnail: true,
+              category: true,
+              resolution: true,
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 8,
+          }),
+          prisma.plugin.findMany({
+            where: { status: 'APPROVED' },
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              thumbnail: true,
+              category: true,
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 8,
+          }),
+        ]);
+
+        return reply.send({
+          assets: assets.map((a) => ({
+            id: a.id,
+            title: a.title,
+            description: a.description,
+            thumbnail: toAbsoluteImageUrl(a.thumbnail),
+            category: a.type ?? null,
+          })),
+          materials: materials.map((m) => ({
+            id: m.id,
+            title: m.title,
+            description: m.description,
+            thumbnail: toAbsoluteImageUrl(m.thumbnail),
+            category: m.category ?? null,
+            resolution: m.resolution ?? null,
+          })),
+          plugins: plugins.map((p) => ({
+            id: p.id,
+            title: p.title,
+            description: p.description,
+            thumbnail: toAbsoluteImageUrl(p.thumbnail),
+            category: p.category ?? null,
+          })),
+        });
+      } catch (err) {
+        logger.error('[website] preview/resources error:', err);
+        throw err;
+      }
     },
   );
 

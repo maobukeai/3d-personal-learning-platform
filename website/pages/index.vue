@@ -12,16 +12,16 @@ const { data: courses } = await useAsyncData('website-courses-preview', () =>
   platform.getCourses(),
 );
 const { data: showcase } = await useAsyncData('website-home-showcase', async () => {
-  const [materials, plugins, assets] = await Promise.allSettled([
-    platform.getMaterials(),
-    platform.getPlugins(),
-    platform.getAssets(),
-  ]);
-  return {
-    materials: materials.status === 'fulfilled' ? materials.value.items || [] : [],
-    plugins: plugins.status === 'fulfilled' ? plugins.value.plugins || [] : [],
-    assets: assets.status === 'fulfilled' ? assets.value.items || [] : [],
-  };
+  try {
+    const resources = await platform.getResources();
+    return {
+      materials: resources.materials || [],
+      plugins: resources.plugins || [],
+      assets: resources.assets || [],
+    };
+  } catch {
+    return { materials: [], plugins: [], assets: [] };
+  }
 });
 
 const copy = computed(() => ({
@@ -85,8 +85,8 @@ const mockupPreviews = computed(() => [
 ]);
 const secureImageUrl = (url?: string | null) => {
   if (!url) return '';
-  // Always return a full HTTPS URL so images load correctly on all devices,
-  // including real mobile phones that cannot reach the Nitro proxy at /uploads/.
+  // New /website/preview/* API already returns absolute HTTPS URLs.
+  // Keep http→https upgrade as a safety net for any legacy data.
   return url.replace(/^http:\/\//, 'https://');
 };
 const previewImage = (item?: PlatformPreviewItem) =>

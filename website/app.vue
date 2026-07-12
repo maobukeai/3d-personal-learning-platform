@@ -120,10 +120,12 @@ onBeforeUnmount(() => {
 
 const getAssetUrl = (url?: string | null) => {
   if (!url) return '';
-  // Always use the full URL (convert http to https). The old /uploads/ relative-path
-  // logic relied on Nitro proxy which only works on localhost — not on real mobile devices.
+  if (url.includes('/uploads/')) {
+    const match = url.match(/\/uploads\/.+/);
+    if (match) return match[0];
+  }
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
-    return url.replace(/^http:\/\//, 'https://');
+    return url;
   }
   const path = url.startsWith('/') ? url : `/${url}`;
   return `${config.public.apiBase}${path}`;

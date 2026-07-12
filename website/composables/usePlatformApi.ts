@@ -74,10 +74,10 @@ export interface PlatformPreviewItem {
   resolution?: string | null;
 }
 
-export interface PlatformListResponse<T> {
-  items?: T[];
-  assets?: T[];
-  plugins?: T[];
+export interface WebsitePreviewResources {
+  assets: PlatformPreviewItem[];
+  materials: PlatformPreviewItem[];
+  plugins: PlatformPreviewItem[];
 }
 
 export const usePlatformApi = () => {
@@ -106,9 +106,21 @@ export const usePlatformApi = () => {
     },
     getMirrorResource: (sourceId: string, resourceId: string) =>
       api<ResourceDetail>(`/website/mirrors/${sourceId}/resources/${resourceId}`),
-    getCourses: () => api<PlatformPreviewItem[]>('/courses'),
-    getAssets: () => api<PlatformListResponse<PlatformPreviewItem>>('/assets/public?limit=8'),
-    getMaterials: () => api<PlatformListResponse<PlatformPreviewItem>>('/materials?limit=8'),
-    getPlugins: () => api<PlatformListResponse<PlatformPreviewItem>>('/plugins?limit=8'),
+    // 官网专用预览接口 — 无需认证，图片 URL 已在后端处理为主平台绝对 HTTPS URL
+    getCourses: () => api<PlatformPreviewItem[]>('/website/preview/courses'),
+    getResources: () => api<WebsitePreviewResources>('/website/preview/resources'),
+    // 兼容旧接口：从 getResources 中拆分出来
+    getAssets: () =>
+      api<WebsitePreviewResources>('/website/preview/resources').then((r) => ({
+        assets: r.assets,
+      })),
+    getMaterials: () =>
+      api<WebsitePreviewResources>('/website/preview/resources').then((r) => ({
+        items: r.materials,
+      })),
+    getPlugins: () =>
+      api<WebsitePreviewResources>('/website/preview/resources').then((r) => ({
+        plugins: r.plugins,
+      })),
   };
 };

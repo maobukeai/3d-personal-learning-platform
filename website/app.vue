@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const config = useRuntimeConfig();
 const platform = usePlatformApi();
+const route = useRoute();
 
 const { data: platformSettings } = await useAsyncData('platform-settings', () =>
   platform.getSettings(),
@@ -14,6 +15,16 @@ const siteName = computed(
 
 const logoLoadFailed = ref(false);
 const menuOpen = ref(false);
+const isDropdownOpen = ref(false);
+
+// Automatically close mobile menu and dropdowns when navigating to another page
+watch(
+  () => route.path,
+  () => {
+    menuOpen.value = false;
+    isDropdownOpen.value = false;
+  },
+);
 
 const getAssetUrl = (url?: string | null) => {
   if (!url) return '';
@@ -62,23 +73,20 @@ const getFaviconMimeType = (url: string): string => {
 
 useHead(() => {
   const link: Array<Record<string, string>> = [];
-  if (faviconUrl.value) {
+  const settings = platformSettings.value;
+  const logo = settings?.PLATFORM_LOGO_URL;
+  const icon = settings?.PLATFORM_FAVICON_URL;
+
+  if (icon || logo) {
     const mimeType = getFaviconMimeType(faviconUrl.value);
-    // Primary icon tag
     link.push({
       rel: 'icon',
       type: mimeType,
       href: faviconUrl.value,
     });
-    // Shortcut icon for older browsers
     link.push({
       rel: 'shortcut icon',
       type: mimeType,
-      href: faviconUrl.value,
-    });
-    // Apple touch icon
-    link.push({
-      rel: 'apple-touch-icon',
       href: faviconUrl.value,
     });
   } else {
@@ -86,6 +94,13 @@ useHead(() => {
       rel: 'icon',
       type: 'image/svg+xml',
       href: '/favicon.svg',
+    });
+  }
+
+  if (logo) {
+    link.push({
+      rel: 'apple-touch-icon',
+      href: faviconUrl.value,
     });
   }
   return {
@@ -128,12 +143,40 @@ const nav = [
         aria-label="切换主导航"
         @click="menuOpen = !menuOpen"
       >
-        <span></span><span></span>
+        <span></span><span></span><span></span>
       </button>
       <nav id="site-navigation" :class="{ 'is-open': menuOpen }" aria-label="主导航">
         <NuxtLink v-for="item in nav" :key="item.to" :to="item.to" @click="menuOpen = false">{{
           item.label
         }}</NuxtLink>
+
+        <!-- Desktop tools hover dropdown -->
+        <div
+          class="nav-dropdown"
+          @mouseenter="isDropdownOpen = true"
+          @mouseleave="isDropdownOpen = false"
+        >
+          <button class="dropdown-trigger" :class="{ active: isDropdownOpen }" type="button">
+            工具 <span class="arrow-icon">▼</span>
+          </button>
+          <div class="dropdown-panel" :class="{ show: isDropdownOpen }">
+            <a :href="`${config.public.appBase}/temporary-netdisk`" target="_blank" rel="noopener"
+              >临时网盘</a
+            >
+          </div>
+        </div>
+
+        <!-- Mobile inline tools menu -->
+        <div class="mobile-tools-group">
+          <div class="mobile-tools-title">工具</div>
+          <a
+            :href="`${config.public.appBase}/temporary-netdisk`"
+            class="mobile-sub-link"
+            target="_blank"
+            rel="noopener"
+            >临时网盘</a
+          >
+        </div>
       </nav>
       <a class="header-action" :href="config.public.appBase">进入平台 <span>↗</span></a>
     </header>

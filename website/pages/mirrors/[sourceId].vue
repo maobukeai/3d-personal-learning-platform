@@ -328,8 +328,9 @@ useSeoMeta({
   display: grid;
   grid-template-columns: minmax(240px, 0.75fr) 1.25fr;
   max-width: 940px;
-  max-height: min(760px, calc(100vh - 48px));
-  overflow: auto;
+  width: 100%;
+  height: min(760px, calc(100vh - 48px));
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 24px;
   background: #fafafb;
@@ -337,7 +338,7 @@ useSeoMeta({
 }
 .close {
   position: absolute;
-  z-index: 2;
+  z-index: 200;
   right: 14px;
   top: 12px;
   width: 32px;
@@ -349,37 +350,53 @@ useSeoMeta({
   font-size: 25px;
   line-height: 1;
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition:
+    background 0.15s,
+    transform 0.15s;
+}
+.close:hover {
+  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.95);
 }
 .modal-cover {
-  min-height: 100%;
+  height: 100%;
+  overflow: hidden;
   background: #edf1ff;
 }
 .modal-cover img {
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 300px;
   object-fit: cover;
 }
 .modal-cover span {
   display: grid;
   place-items: center;
-  min-height: 300px;
+  height: 100%;
   color: #8291c8;
   font-size: 32px;
 }
 .modal-body {
   padding: 42px 38px;
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 .modal-body h2 {
-  font-size: 34px;
-  line-height: 1.12;
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.2;
 }
 .description {
+  margin: 0;
   color: var(--muted);
   line-height: 1.75;
 }
 .tags {
+  margin: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
@@ -392,6 +409,7 @@ useSeoMeta({
   font-size: 11px;
 }
 .browse-only {
+  margin: 0;
   padding: 12px;
   border: 1px solid #dce3f9;
   border-radius: 11px;

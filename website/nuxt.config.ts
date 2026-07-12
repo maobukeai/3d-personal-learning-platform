@@ -4,7 +4,10 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: 'zh-CN' },
-      meta: [{ name: 'theme-color', content: '#f6f7fb' }],
+      meta: [
+        { name: 'theme-color', content: '#f6f7fb' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
+      ],
     },
   },
   runtimeConfig: {

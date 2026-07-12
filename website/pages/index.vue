@@ -4,6 +4,9 @@ import type { PlatformPreviewItem } from '~/composables/usePlatformApi';
 const platform = usePlatformApi();
 const config = useRuntimeConfig();
 const { data: home } = await useAsyncData('website-home', () => platform.getHome());
+const { data: websiteOverview } = await useAsyncData('website-overview', () =>
+  platform.getWebsiteOverview(),
+);
 const { data: mirrors } = await useAsyncData('website-mirrors', () => platform.getMirrors());
 const { data: courses } = await useAsyncData('website-courses-preview', () =>
   platform.getCourses(),
@@ -26,6 +29,11 @@ const copy = computed(() => ({
     home.value?.subtitle ||
       '一个将课程、资源、3D 创作与协作串联起来的个人学习空间。更专注，也更自由。',
   ),
+}));
+const moduleVisibility = computed(() => ({
+  courses: home.value?.showCoursePreview !== false,
+  capabilities: home.value?.showCapabilityMap !== false,
+  mirrors: home.value?.showMirrorPreview !== false,
 }));
 useSeoMeta({
   title: '首页',
@@ -55,6 +63,11 @@ const resourcePreviews = computed(() => [
 const secureImageUrl = (url?: string | null) => url?.replace(/^http:\/\//, 'https://') || '';
 const previewImage = (item?: PlatformPreviewItem) =>
   secureImageUrl(item?.previewUrl || item?.thumbnail);
+const brokenPreviews = ref(new Set<string>());
+const previewFailed = (key: string) => brokenPreviews.value.has(key);
+const markPreviewFailed = (key: string) => {
+  brokenPreviews.value = new Set([...brokenPreviews.value, key]);
+};
 const capabilityGroups = [
   {
     number: '01',
@@ -140,11 +153,11 @@ const capabilityGroups = [
           <div class="dashboard-course">
             <div class="hero-media-fallback">LEARNING PATH</div>
             <img
-              v-if="featuredCourse?.thumbnail"
+              v-if="featuredCourse?.thumbnail && !previewFailed('hero-course')"
               :src="secureImageUrl(featuredCourse.thumbnail)"
               alt=""
               decoding="async"
-              @error="($event.target as HTMLImageElement).style.display = 'none'"
+              @error="markPreviewFailed('hero-course')"
             />
             <span>继续学习</span
             ><strong>{{ featuredCourse?.title || '把课程、笔记和创作放在一起' }}</strong>
@@ -152,7 +165,7 @@ const capabilityGroups = [
           <div class="dashboard-side">
             <div>
               <span>资源沉淀</span
-              ><strong>{{ mirrors?.[0]?.totalResources?.toLocaleString() || '—' }}</strong
+              ><strong>{{ websiteOverview?.mirroredResources?.toLocaleString() || '—' }}</strong
               ><small>公开资源</small>
             </div>
             <div>
@@ -163,10 +176,11 @@ const capabilityGroups = [
         <div class="dashboard-tray">
           <div v-for="preview in resourcePreviews" :key="preview.key" class="dashboard-resource">
             <img
-              v-if="previewImage(preview.item)"
+              v-if="previewImage(preview.item) && !previewFailed(`hero-${preview.key}`)"
               :src="previewImage(preview.item)"
               alt=""
               decoding="async"
+              @error="markPreviewFailed(`hero-${preview.key}`)"
             />
             <span v-else>{{ preview.fallback }}</span>
             <b>{{ preview.label }}</b>
@@ -191,7 +205,30 @@ const capabilityGroups = [
     <p>作品沉淀</p>
   </section>
 
-  <section class="section-wrap course-preview">
+  <section class="section-wrap platform-metrics" aria-label="平台实时数据">
+    <div>
+      <strong>{{ websiteOverview?.courses || 0 }}</strong
+      ><span>公开课程</span>
+    </div>
+    <div>
+      <strong>{{ websiteOverview?.assets || 0 }}</strong
+      ><span>模型资产</span>
+    </div>
+    <div>
+      <strong>{{ websiteOverview?.materials || 0 }}</strong
+      ><span>材料资源</span>
+    </div>
+    <div>
+      <strong>{{ (websiteOverview?.plugins || 0) + (websiteOverview?.softwares || 0) }}</strong
+      ><span>工具与软件</span>
+    </div>
+    <div>
+      <strong>{{ websiteOverview?.activeMirrors || 0 }}</strong
+      ><span>在线镜像源</span>
+    </div>
+  </section>
+
+  <section v-if="moduleVisibility.courses" class="section-wrap course-preview">
     <div class="section-heading">
       <div>
         <p class="eyebrow">LEARNING LIBRARY</p>
@@ -207,11 +244,12 @@ const capabilityGroups = [
         :href="`${config.public.appBase}/academy/course/${course.id}`"
       >
         <img
-          v-if="course.thumbnail"
+          v-if="course.thumbnail && !previewFailed(`course-${course.id}`)"
           :src="secureImageUrl(course.thumbnail)"
           :alt="course.title"
           loading="lazy"
           decoding="async"
+          @error="markPreviewFailed(`course-${course.id}`)"
         />
         <div v-else class="course-cover"><span>COURSE</span></div>
         <div class="course-meta">
@@ -244,11 +282,12 @@ const capabilityGroups = [
     </div>
     <a class="bento-card bento-course" :href="`${config.public.appBase}/academy`">
       <img
-        v-if="featuredCourse?.thumbnail"
+        v-if="featuredCourse?.thumbnail && !previewFailed('bento-course')"
         :src="secureImageUrl(featuredCourse.thumbnail)"
         alt=""
         loading="lazy"
         decoding="async"
+        @error="markPreviewFailed('bento-course')"
       />
       <div>
         <span>01 · 学习学院</span>
@@ -261,11 +300,12 @@ const capabilityGroups = [
       <div class="bento-resource-stack">
         <div v-for="preview in resourcePreviews" :key="preview.key">
           <img
-            v-if="previewImage(preview.item)"
+            v-if="previewImage(preview.item) && !previewFailed(`bento-${preview.key}`)"
             :src="previewImage(preview.item)"
             alt=""
             loading="lazy"
             decoding="async"
+            @error="markPreviewFailed(`bento-${preview.key}`)"
           />
           <span v-else>{{ preview.fallback }}</span>
           <b>{{ preview.label }}</b>
@@ -281,7 +321,7 @@ const capabilityGroups = [
     </a>
   </section>
 
-  <section class="capability-section">
+  <section v-if="moduleVisibility.capabilities" class="capability-section">
     <div class="section-wrap">
       <div class="capability-heading">
         <div>
@@ -317,7 +357,7 @@ const capabilityGroups = [
     </div>
   </section>
 
-  <section class="section-wrap mirror-preview">
+  <section v-if="moduleVisibility.mirrors" class="section-wrap mirror-preview">
     <div class="section-heading">
       <div>
         <p class="eyebrow">MIRROR NETWORK</p>

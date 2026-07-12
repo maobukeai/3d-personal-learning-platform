@@ -11,6 +11,9 @@ const defaultHome = {
   title: '把每一次学习，\n变成看得见的成长。',
   subtitle: '一个将课程、资源、3D 创作与协作串联起来的个人学习空间。更专注，也更自由。',
   featuredMirrorId: null as string | null,
+  showCoursePreview: true,
+  showCapabilityMap: true,
+  showMirrorPreview: true,
 };
 
 const homeSchema = z.object({
@@ -18,6 +21,9 @@ const homeSchema = z.object({
   title: z.string().trim().min(1).max(160),
   subtitle: z.string().trim().min(1).max(300),
   featuredMirrorId: z.string().trim().nullable().optional(),
+  showCoursePreview: z.boolean().optional(),
+  showCapabilityMap: z.boolean().optional(),
+  showMirrorPreview: z.boolean().optional(),
 });
 
 const sourceParamsSchema = z.object({ sourceId: z.string().min(1) });
@@ -65,6 +71,35 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
     },
   );
 
+  app.get(
+    '/website/overview',
+    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+    async () => {
+      const [courses, assets, materials, plugins, softwares, mirrors] = await Promise.all([
+        prisma.course.count({ where: { status: 'PUBLISHED' } }),
+        prisma.asset.count({ where: { status: 'APPROVED' } }),
+        prisma.material.count({ where: { status: 'APPROVED' } }),
+        prisma.plugin.count({ where: { status: 'APPROVED' } }),
+        prisma.software.count({ where: { status: 'APPROVED' } }),
+        prisma.mirrorSource.aggregate({
+          where: { status: 'ACTIVE' },
+          _count: { id: true },
+          _sum: { totalResources: true },
+        }),
+      ]);
+
+      return {
+        courses,
+        assets,
+        materials,
+        plugins,
+        softwares,
+        activeMirrors: mirrors._count.id,
+        mirroredResources: mirrors._sum.totalResources || 0,
+      };
+    },
+  );
+
   // These endpoints deliberately expose a presentation-only projection of mirror data.
   // In particular, contentUrl, externalData and download/extract operations are never sent to the official site.
   app.get(
@@ -99,11 +134,26 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
         select: { id: true },
       });
       if (!source) return reply.status(404).send({ error: '镜像站不存在或未公开' });
-      return prisma.mirrorCategory.findMany({
+      const categories = await prisma.mirrorCategory.findMany({
         where: { sourceId },
-        select: { id: true, name: true, parentExternalId: true, order: true, resourceCount: true },
+        select: {
+          id: true,
+          name: true,
+          parentExternalId: true,
+          order: true,
+          _count: {
+            select: { resources: true },
+          },
+        },
         orderBy: [{ order: 'asc' }, { name: 'asc' }],
       });
+      return categories.map((cat) => ({
+        id: cat.id,
+        name: cat.name,
+        parentExternalId: cat.parentExternalId,
+        order: cat.order,
+        resourceCount: cat._count.resources,
+      }));
     },
   );
 

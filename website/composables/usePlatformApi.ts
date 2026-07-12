@@ -27,6 +27,16 @@ export interface PublicPlatformSettings {
   PLATFORM_FAVICON_URL?: string;
 }
 
+export interface WebsiteOverview {
+  courses: number;
+  assets: number;
+  materials: number;
+  plugins: number;
+  softwares: number;
+  activeMirrors: number;
+  mirroredResources: number;
+}
+
 export interface MirrorCategory {
   id: string;
   name: string;
@@ -76,6 +86,7 @@ export const usePlatformApi = () => {
 
   return {
     getHome: () => api<Record<string, unknown>>('/website/home'),
+    getWebsiteOverview: () => api<WebsiteOverview>('/website/overview'),
     getSettings: () => api<PublicPlatformSettings>('/auth/settings'),
     getMirrors: () => api<MirrorItem[]>('/mirror/sources'),
     getMirror: (sourceId: string) => api<MirrorDetail>(`/website/mirrors/${sourceId}`),

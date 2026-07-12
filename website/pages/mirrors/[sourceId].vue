@@ -54,8 +54,14 @@ const showDetail = async (resource: ResourceItem) => {
     selected.value = await platform.getMirrorResource(sourceId.value, resource.id);
   } finally {
     detailLoading.value = false;
-  }
 };
+const cleanContentHtml = computed(() => {
+  const html = selected.value?.contentHtml || '';
+  return html.replace(
+    /<!-- MANUAL_DOWNLOAD_LINK_START -->[\s\S]*?<!-- MANUAL_DOWNLOAD_LINK_END -->/g,
+    '',
+  );
+});
 useSeoMeta({
   title: () => mirror.value?.displayName || '镜像站',
 });
@@ -134,11 +140,7 @@ useSeoMeta({
           </div>
           <p class="browse-only">公开详情仅提供介绍与预览，不包含资源链接或提取功能。</p>
           <p v-if="detailLoading" class="loading">正在加载详情…</p>
-          <div
-            v-else-if="selected.contentHtml"
-            class="article-content"
-            v-html="selected.contentHtml"
-          ></div>
+          <div v-else-if="cleanContentHtml" class="article-content" v-html="cleanContentHtml"></div>
         </div>
       </article></div
   ></Teleport>

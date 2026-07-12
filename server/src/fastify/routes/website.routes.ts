@@ -264,7 +264,13 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
       void prisma.mirrorResource
         .update({ where: { id: resourceId }, data: { viewCount: { increment: 1 } } })
         .catch(() => undefined);
-      return { ...resource, contentHtml: safeHtml(resource.contentHtml) };
+      const cleanContentHtml = resource.contentHtml
+        ? resource.contentHtml.replace(
+            /<!-- MANUAL_DOWNLOAD_LINK_START -->[\s\S]*?<!-- MANUAL_DOWNLOAD_LINK_END -->/g,
+            '',
+          )
+        : '';
+      return { ...resource, contentHtml: safeHtml(cleanContentHtml) };
     },
   );
 

@@ -85,10 +85,8 @@ const mockupPreviews = computed(() => [
 ]);
 const secureImageUrl = (url?: string | null) => {
   if (!url) return '';
-  if (url.includes('/uploads/')) {
-    const match = url.match(/\/uploads\/.+/);
-    if (match) return match[0];
-  }
+  // Always return a full HTTPS URL so images load correctly on all devices,
+  // including real mobile phones that cannot reach the Nitro proxy at /uploads/.
   return url.replace(/^http:\/\//, 'https://');
 };
 const previewImage = (item?: PlatformPreviewItem) =>

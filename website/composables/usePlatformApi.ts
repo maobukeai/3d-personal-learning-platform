@@ -24,6 +24,7 @@ export interface MirrorItem {
 export interface PublicPlatformSettings {
   PLATFORM_NAME?: string;
   PLATFORM_LOGO_URL?: string;
+  PLATFORM_FAVICON_URL?: string;
 }
 
 export interface MirrorCategory {

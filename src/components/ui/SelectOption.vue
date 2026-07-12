@@ -55,7 +55,7 @@ onBeforeUnmount(() => {
   <!-- Otherwise fall back to radix-vue SelectItem for single select -->
   <SelectItem
     v-else
-    :value="String(value)"
+    :value="String(value) === '' ? '____EMPTY_VALUE____' : String(value)"
     :disabled="disabled"
     class="relative flex items-center justify-between px-8 py-2 rounded-lg text-sm text-[var(--text-primary)] hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer outline-none select-none disabled:opacity-50 disabled:cursor-not-allowed data-[state=checked]:text-[var(--accent)] font-medium"
   >

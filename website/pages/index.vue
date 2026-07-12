@@ -13,7 +13,7 @@ const copy = computed(() => ({
   ),
 }));
 useSeoMeta({
-  title: '3D Personal Learning Platform — 让成长被看见',
+  title: '首页',
   description: '聚合学习、3D 资源与创作协作的一体化个人学习平台。',
 });
 </script>
@@ -80,7 +80,7 @@ useSeoMeta({
         v-for="mirror in mirrors?.slice(0, 3)"
         :key="mirror.id"
         class="mirror-card"
-        :to="`/mirrors#${mirror.id}`"
+        :to="`/mirrors/${mirror.id}`"
       >
         <img v-if="mirror.iconUrl" :src="mirror.iconUrl" :alt="mirror.displayName" /><span
           v-else

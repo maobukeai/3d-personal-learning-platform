@@ -806,6 +806,12 @@ const _inlineRuntimeConfig = {
           _proxyStripBase: '/api',
         },
       },
+      '/uploads/**': {
+        proxy: {
+          to: 'http://127.0.0.1:3001/uploads/**',
+          _proxyStripBase: '/uploads',
+        },
+      },
       '/_nuxt/builds/meta/**': {
         headers: {
           'cache-control': 'public, max-age=31536000, immutable',
@@ -820,7 +826,7 @@ const _inlineRuntimeConfig = {
   },
   public: {
     apiBase: '/api',
-    appBase: 'https://app.example.com',
+    appBase: 'http://localhost:5173',
   },
 };
 const envOptions = {

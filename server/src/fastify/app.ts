@@ -545,6 +545,31 @@ const startFastifyInternal = async (): Promise<void> => {
     return reply.send('3D Personal Learning Platform API');
   });
 
+  // Serve uploads directory static files as a fallback in development/local mode
+  fapp.get('/uploads/*', async (request, reply) => {
+    const wildcard = (request.params as { '*': string })['*'];
+    const safePath = path.normalize(wildcard).replace(/^(\.\.[\/\\])+/, '');
+    const filePath = path.join(process.cwd(), 'uploads', safePath);
+    if (!fs.existsSync(filePath)) {
+      return reply.status(404).send('File not found');
+    }
+    const stat = fs.statSync(filePath);
+    if (!stat.isFile()) {
+      return reply.status(404).send('Not a file');
+    }
+    const ext = path.extname(filePath).toLowerCase();
+    let contentType = 'application/octet-stream';
+    if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
+    else if (ext === '.png') contentType = 'image/png';
+    else if (ext === '.gif') contentType = 'image/gif';
+    else if (ext === '.svg') contentType = 'image/svg+xml';
+    else if (ext === '.ico') contentType = 'image/x-icon';
+    else if (ext === '.webp') contentType = 'image/webp';
+
+    reply.header('Content-Type', contentType);
+    return reply.send(fs.createReadStream(filePath));
+  });
+
   // ── A 组：路由内部已有完整路径，直接挂裸前缀 ─────────────────────────────
   fapp.register(
     (scope, _opts, done) => {

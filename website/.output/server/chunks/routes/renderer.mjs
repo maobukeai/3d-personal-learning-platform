@@ -7,13 +7,13 @@ import {
 import {
   j as joinRelativeURL,
   u as useRuntimeConfig,
-  e as encodePath,
-  c as defineRenderHandler,
-  g as getQuery,
-  f as createError,
-  h as getRouteRules,
-  i as getResponseStatusText,
-  k as getResponseStatus,
+  f as encodePath,
+  g as defineRenderHandler,
+  h as getQuery,
+  i as createError,
+  k as getRouteRules,
+  l as getResponseStatusText,
+  m as getResponseStatus,
   b as useNitroApp,
 } from '../_/nitro.mjs';
 import { renderToString } from 'vue/server-renderer';
@@ -559,5 +559,5 @@ const renderer = /*#__PURE__*/ Object.freeze(
   ),
 );
 
-export { useSeoMeta as a, baseURL as b, headSymbol as h, renderer as r, useHead as u };
+export { useHead as a, baseURL as b, headSymbol as h, renderer as r, useSeoMeta as u };
 //# sourceMappingURL=renderer.mjs.map

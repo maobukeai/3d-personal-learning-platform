@@ -26,6 +26,8 @@ import {
   withAsyncContext,
   mergeProps,
   withCtx,
+  openBlock,
+  createBlock,
   createVNode,
   toDisplayString,
   createTextVNode,
@@ -42,31 +44,36 @@ import {
   toRaw,
 } from 'vue';
 import {
-  p as parseQuery,
-  l as getContext,
-  m as hasProtocol,
-  n as joinURL,
-  o as parseURL,
-  e as encodePath,
-  q as decodePath,
-  r as isScriptProtocol,
-  w as withQuery,
-  f as createError$1,
-  v as withTrailingSlash,
-  x as withoutTrailingSlash,
-  y as sanitizeStatusCode,
+  n as parseQuery,
+  o as hasProtocol,
+  q as joinURL,
+  r as parseURL,
+  f as encodePath,
+  v as decodePath,
+  w as isScriptProtocol,
+  x as withQuery,
+  y as getContext,
+  i as createError$1,
+  z as withTrailingSlash,
+  A as withoutTrailingSlash,
+  B as sanitizeStatusCode,
   $ as $fetch$1,
-  z as executeAsync,
-  A as defu,
+  C as executeAsync,
+  D as defu,
 } from '../_/nitro.mjs';
-import { b as baseURL } from '../routes/renderer.mjs';
+import {
+  u as useSeoMeta$1,
+  a as useHead$1,
+  h as headSymbol,
+  b as baseURL,
+} from '../routes/renderer.mjs';
 import { RouterView, createMemoryHistory, createRouter, START_LOCATION } from 'vue-router';
 import {
   ssrRenderAttrs,
   ssrRenderComponent,
+  ssrRenderAttr,
   ssrInterpolate,
   ssrRenderList,
-  ssrRenderAttr,
   ssrRenderSuspense,
   ssrRenderVNode,
 } from 'vue/server-renderer';
@@ -797,6 +804,8 @@ const matcher = /* @__PURE__ */ (() => {
     if (l > 1) {
       if (s[1] === 'api') {
         r.unshift({ data: $0, params: { _: s.slice(2).join('/') } });
+      } else if (s[1] === 'uploads') {
+        r.unshift({ data: $0, params: { _: s.slice(2).join('/') } });
       }
     }
     return r;
@@ -823,24 +832,22 @@ const _routes = [
   {
     name: 'index',
     path: '/',
-    component: () => import('./index-CnpzYPoL.mjs'),
-  },
-  {
-    name: 'mirrors',
-    path: '/mirrors',
-    component: () => import('./mirrors-HVzEBKpq.mjs'),
-    children: [
-      {
-        name: 'mirrors-sourceId',
-        path: ':sourceId()',
-        component: () => import('./_sourceId_-dP-z8BRt.mjs'),
-      },
-    ],
+    component: () => import('./index-DT-OJ8F_.mjs'),
   },
   {
     name: 'resources',
     path: '/resources',
-    component: () => import('./resources-Bl7eTGg8.mjs'),
+    component: () => import('./resources-6n21vMNm.mjs'),
+  },
+  {
+    name: 'mirrors',
+    path: '/mirrors',
+    component: () => import('./index-XKvEXVmQ.mjs'),
+  },
+  {
+    name: 'mirrors-sourceId',
+    path: '/mirrors/:sourceId()',
+    component: () => import('./_sourceId_-CzF0h1dI.mjs'),
   },
 ];
 const ROUTE_KEY_PARENTHESES_RE = /(:\w+)\([^)]+\)/g;
@@ -1226,6 +1233,29 @@ const plugin = /* @__PURE__ */ defineNuxtPlugin({
     return { provide: { router } };
   },
 });
+function injectHead(nuxtApp) {
+  const nuxt = nuxtApp || tryUseNuxtApp();
+  return (
+    nuxt?.ssrContext?.head ||
+    nuxt?.runWithContext(() => {
+      if (hasInjectionContext()) {
+        return inject(headSymbol);
+      }
+    })
+  );
+}
+function useHead(input, options = {}) {
+  const head = injectHead(options.nuxt);
+  if (head) {
+    return useHead$1(input, { head, ...options });
+  }
+}
+function useSeoMeta(input, options = {}) {
+  const head = injectHead(options.nuxt);
+  if (head) {
+    return useSeoMeta$1(input, { head, ...options });
+  }
+}
 function definePayloadReducer(name, reduce) {
   {
     useNuxtApp().ssrContext['~payloadReducers'][name] = reduce;
@@ -2097,6 +2127,42 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
     const siteName = computed(
       () => platformSettings.value?.PLATFORM_NAME || '3D Personal Learning Platform',
     );
+    const logoLoadFailed = ref(false);
+    const getAssetUrl = (url) => {
+      if (!url) return '';
+      if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+        return url;
+      }
+      const path = url.startsWith('/') ? url : `/${url}`;
+      if (path.startsWith('/uploads/')) {
+        return path;
+      }
+      return `${config.public.apiBase}${path}`;
+    };
+    const faviconUrl = computed(() => {
+      const settings = platformSettings.value;
+      const url = settings?.PLATFORM_FAVICON_URL || settings?.PLATFORM_LOGO_URL;
+      return getAssetUrl(url);
+    });
+    useHead(() => {
+      const link = [];
+      if (faviconUrl.value) {
+        link.push({
+          rel: 'icon',
+          type: faviconUrl.value.endsWith('.svg') ? 'image/svg+xml' : 'image/x-icon',
+          href: faviconUrl.value,
+        });
+      } else {
+        link.push({
+          rel: 'icon',
+          type: 'image/svg+xml',
+          href: '/favicon.svg',
+        });
+      }
+      return {
+        link,
+      };
+    });
     const nav = [
       { label: '首页', to: '/' },
       { label: '资源中心', to: '/resources' },
@@ -2106,7 +2172,7 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
       const _component_NuxtLink = __nuxt_component_0;
       const _component_NuxtPage = __nuxt_component_1;
       _push(
-        `<div${ssrRenderAttrs(mergeProps({ class: 'site-shell' }, _attrs))}><header class="site-header">`,
+        `<div${ssrRenderAttrs(mergeProps({ class: 'site-shell' }, _attrs))} data-v-000a18cb><header class="site-header" data-v-000a18cb>`,
       );
       _push(
         ssrRenderComponent(
@@ -2119,13 +2185,49 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
           {
             default: withCtx((_, _push2, _parent2, _scopeId) => {
               if (_push2) {
-                _push2(
-                  `<span class="brand-mark"${_scopeId}>S</span><span${_scopeId}>${ssrInterpolate(unref(siteName))}</span>`,
-                );
+                if (unref(platformSettings)?.PLATFORM_LOGO_URL && !logoLoadFailed.value) {
+                  _push2(
+                    `<div class="brand-mark-logo-container" data-v-000a18cb${_scopeId}><img alt="Logo"${ssrRenderAttr('src', getAssetUrl(unref(platformSettings).PLATFORM_LOGO_URL))} class="brand-mark-logo" data-v-000a18cb${_scopeId}></div>`,
+                  );
+                } else {
+                  _push2(`<span class="brand-mark" data-v-000a18cb${_scopeId}>S</span>`);
+                }
+                _push2(`<span data-v-000a18cb${_scopeId}>${ssrInterpolate(siteName.value)}</span>`);
               } else {
                 return [
-                  createVNode('span', { class: 'brand-mark' }, 'S'),
-                  createVNode('span', null, toDisplayString(unref(siteName)), 1),
+                  unref(platformSettings)?.PLATFORM_LOGO_URL && !logoLoadFailed.value
+                    ? (openBlock(),
+                      createBlock(
+                        'div',
+                        {
+                          key: 0,
+                          class: 'brand-mark-logo-container',
+                        },
+                        [
+                          createVNode(
+                            'img',
+                            {
+                              alt: 'Logo',
+                              src: getAssetUrl(unref(platformSettings).PLATFORM_LOGO_URL),
+                              class: 'brand-mark-logo',
+                              onError: ($event) => (logoLoadFailed.value = true),
+                            },
+                            null,
+                            40,
+                            ['src', 'onError'],
+                          ),
+                        ],
+                      ))
+                    : (openBlock(),
+                      createBlock(
+                        'span',
+                        {
+                          key: 1,
+                          class: 'brand-mark',
+                        },
+                        'S',
+                      )),
+                  createVNode('span', null, toDisplayString(siteName.value), 1),
                 ];
               }
             }),
@@ -2134,7 +2236,7 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
           _parent,
         ),
       );
-      _push(`<nav aria-label="主导航"><!--[-->`);
+      _push(`<nav aria-label="主导航" data-v-000a18cb><!--[-->`);
       ssrRenderList(nav, (item) => {
         _push(
           ssrRenderComponent(
@@ -2158,21 +2260,29 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
         );
       });
       _push(
-        `<!--]--></nav><a class="header-action"${ssrRenderAttr('href', unref(config).public.appBase)}>进入平台 <span>↗</span></a></header><main>`,
+        `<!--]--></nav><a class="header-action"${ssrRenderAttr('href', unref(config).public.appBase)} data-v-000a18cb>进入平台 <span data-v-000a18cb>↗</span></a></header><main data-v-000a18cb>`,
       );
       _push(ssrRenderComponent(_component_NuxtPage, null, null, _parent));
       _push(
-        `</main><footer class="site-footer"><span>© ${ssrInterpolate(/* @__PURE__ */ new Date().getFullYear())} ${ssrInterpolate(unref(siteName))}</span><span>为持续学习而设计</span></footer></div>`,
+        `</main><footer class="site-footer" data-v-000a18cb><span data-v-000a18cb>© ${ssrInterpolate(/* @__PURE__ */ new Date().getFullYear())} ${ssrInterpolate(siteName.value)}</span><span data-v-000a18cb>为持续学习而设计</span></footer></div>`,
       );
     };
   },
 });
+const _export_sfc = (sfc, props) => {
+  const target = sfc.__vccOpts || sfc;
+  for (const [key, val] of props) {
+    target[key] = val;
+  }
+  return target;
+};
 const _sfc_setup$2 = _sfc_main$2.setup;
 _sfc_main$2.setup = (props, ctx) => {
   const ssrContext = useSSRContext();
   (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add('app.vue');
   return _sfc_setup$2 ? _sfc_setup$2(props, ctx) : void 0;
 };
+const AppComponent = /* @__PURE__ */ _export_sfc(_sfc_main$2, [['__scopeId', 'data-v-000a18cb']]);
 const _sfc_main$1 = {
   __name: 'nuxt-error-page',
   __ssrInlineRender: true,
@@ -2187,8 +2297,8 @@ const _sfc_main$1 = {
     const statusText = _error.statusMessage ?? (is404 ? 'Page Not Found' : 'Internal Server Error');
     const description = _error.message || _error.toString();
     const stack = void 0;
-    const _Error404 = defineAsyncComponent(() => import('./error-404-95G7280I.mjs'));
-    const _Error = defineAsyncComponent(() => import('./error-500-BU40mTGc.mjs'));
+    const _Error404 = defineAsyncComponent(() => import('./error-404-dv9nsqTq.mjs'));
+    const _Error = defineAsyncComponent(() => import('./error-500-ydMnvszc.mjs'));
     const ErrorTemplate = is404 ? _Error404 : _Error;
     return (_ctx, _push, _parent, _attrs) => {
       _push(
@@ -2278,7 +2388,7 @@ const _sfc_main = {
               _parent,
             );
           } else {
-            _push(ssrRenderComponent(unref(_sfc_main$2), null, null, _parent));
+            _push(ssrRenderComponent(unref(AppComponent), null, null, _parent));
           }
         },
         _: 1,
@@ -2315,12 +2425,14 @@ let entry;
 const entry_default = (ssrContext) => entry(ssrContext);
 
 export {
-  __nuxt_component_0 as _,
-  useAsyncData as a,
-  useRuntimeConfig as b,
-  useRoute as c,
+  _export_sfc as _,
+  __nuxt_component_0 as a,
+  usePlatformApi as b,
+  useAsyncData as c,
+  useSeoMeta as d,
   entry_default as default,
-  tryUseNuxtApp as t,
-  usePlatformApi as u,
+  useRuntimeConfig as e,
+  useRoute as f,
+  useHead as u,
 };
 //# sourceMappingURL=server.mjs.map

@@ -1,0 +1,5 @@
+const app_vue_vue_type_style_index_0_scoped_000a18cb_lang =
+  '.brand-mark-logo-container[data-v-000a18cb]{align-items:center;background:transparent;border-radius:8px;display:flex;height:25px;justify-content:center;overflow:hidden;width:25px}.brand-mark-logo[data-v-000a18cb]{height:100%;-o-object-fit:contain;object-fit:contain;width:100%}';
+
+export { app_vue_vue_type_style_index_0_scoped_000a18cb_lang as a };
+//# sourceMappingURL=entry-styles-2.mjs-18jEZX8Z.mjs.map

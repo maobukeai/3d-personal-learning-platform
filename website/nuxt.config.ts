@@ -17,6 +17,7 @@ export default defineNuxtConfig({
     compressPublicAssets: true,
     routeRules: {
       '/api/**': { proxy: 'http://127.0.0.1:3001/api/**' },
+      '/uploads/**': { proxy: 'http://127.0.0.1:3001/uploads/**' },
     },
   },
   compatibilityDate: '2026-07-12',

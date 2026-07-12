@@ -31,7 +31,7 @@ const destinations = [
   },
 ];
 useSeoMeta({
-  title: '资源中心 — 3D Personal Learning Platform',
+  title: '资源中心',
   description: '进入个人学习平台，管理所有创作与学习资源。',
 });
 </script>

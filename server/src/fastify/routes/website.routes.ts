@@ -10,12 +10,14 @@ const defaultHome = {
   eyebrow: 'PERSONAL LEARNING PLATFORM',
   title: '把每一次学习，\n变成看得见的成长。',
   subtitle: '一个将课程、资源、3D 创作与协作串联起来的个人学习空间。更专注，也更自由。',
+  featuredMirrorId: null as string | null,
 };
 
 const homeSchema = z.object({
   eyebrow: z.string().trim().min(1).max(80),
   title: z.string().trim().min(1).max(160),
   subtitle: z.string().trim().min(1).max(300),
+  featuredMirrorId: z.string().trim().nullable().optional(),
 });
 
 const sourceParamsSchema = z.object({ sourceId: z.string().min(1) });

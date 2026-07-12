@@ -10,17 +10,14 @@ const page = ref(1);
 const selected = ref<ResourceDetail | null>(null);
 const detailLoading = ref(false);
 
-const { data: mirror } = await useAsyncData(
-  () => `mirror-${sourceId.value}`,
-  () => platform.getMirror(sourceId.value),
+const { data: mirror } = await useAsyncData(`mirror-${sourceId.value}`, () =>
+  platform.getMirror(sourceId.value),
 );
-const { data: categories } = await useAsyncData(
-  () => `mirror-categories-${sourceId.value}`,
-  () => platform.getMirrorCategories(sourceId.value),
+const { data: categories } = await useAsyncData(`mirror-categories-${sourceId.value}`, () =>
+  platform.getMirrorCategories(sourceId.value),
 );
 const { data: result, refresh } = await useAsyncData(
-  () =>
-    `mirror-resources-${sourceId.value}-${categoryId.value || 'all'}-${page.value}-${query.value}`,
+  `mirror-resources-${sourceId.value}`,
   () =>
     platform.getMirrorResources(sourceId.value, {
       page: page.value,
@@ -28,6 +25,9 @@ const { data: result, refresh } = await useAsyncData(
       categoryId: categoryId.value,
       q: query.value,
     }),
+  {
+    watch: [categoryId, page],
+  },
 );
 const tags = computed(() => {
   try {
@@ -57,7 +57,7 @@ const showDetail = async (resource: ResourceItem) => {
   }
 };
 useSeoMeta({
-  title: () => `${mirror.value?.displayName || '镜像站'} — 3D Personal Learning Platform`,
+  title: () => mirror.value?.displayName || '镜像站',
 });
 </script>
 
@@ -146,23 +146,24 @@ useSeoMeta({
 
 <style scoped>
 .mirror-hero {
-  padding: 70px 0 42px;
+  padding: 38px 0 24px;
   border-bottom: 1px solid var(--line);
 }
 .mirror-hero h1 {
-  margin: 8px 0 14px;
-  font-size: clamp(42px, 5vw, 68px);
-  letter-spacing: -0.07em;
+  margin: 6px 0 10px;
+  font-size: clamp(28px, 3.5vw, 42px);
+  letter-spacing: -0.05em;
 }
 .mirror-hero > p:not(.eyebrow) {
   max-width: 600px;
   margin: 0;
   color: var(--muted);
-  line-height: 1.7;
+  font-size: 14px;
+  line-height: 1.6;
 }
 .back-link {
   display: inline-block;
-  margin-bottom: 42px;
+  margin-bottom: 24px;
   color: var(--muted);
   font-size: 13px;
   text-decoration: none;

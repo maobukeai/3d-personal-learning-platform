@@ -63,17 +63,26 @@ const slots = useSlots();
 
 const val = computed({
   get: () => {
-    return props.modelValue !== undefined && props.modelValue !== null
-      ? String(props.modelValue)
-      : undefined;
+    if (props.modelValue === undefined || props.modelValue === null) return undefined;
+    const stringVal = String(props.modelValue);
+    return stringVal === '' ? '____EMPTY_VALUE____' : stringVal;
   },
   set: (v) => {
-    if (v === undefined || v === null || v === '') {
+    if (v === '____EMPTY_VALUE____' || v === '') {
+      emit('update:modelValue', '');
+      emit('change', '');
+      return;
+    }
+    if (v === undefined || v === null) {
       emit('update:modelValue', undefined);
       emit('change', undefined);
       return;
     }
-    const originalOption = props.options.find((opt) => String(opt.value) === v);
+    const originalOption = props.options.find((opt) => {
+      const optStr = String(opt.value);
+      const comparisonVal = optStr === '' ? '____EMPTY_VALUE____' : optStr;
+      return comparisonVal === v;
+    });
     const finalValue = originalOption ? originalOption.value : v;
     emit('update:modelValue', finalValue);
     emit('change', finalValue);
@@ -206,7 +215,7 @@ const singleSelectedLabel = computed(() => {
             <SelectItem
               v-for="opt in options"
               :key="opt.value"
-              :value="String(opt.value)"
+              :value="String(opt.value) === '' ? '____EMPTY_VALUE____' : String(opt.value)"
               :disabled="opt.disabled"
               class="relative flex items-center justify-between px-8 py-2 rounded-lg text-sm text-[var(--text-primary)] hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer outline-none select-none disabled:opacity-50 disabled:cursor-not-allowed data-[state=checked]:text-[var(--accent)] font-medium"
             >

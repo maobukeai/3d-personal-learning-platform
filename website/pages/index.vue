@@ -383,6 +383,31 @@ const capabilityGroups = [
         <p>{{ mirror.description || '持续同步的精选学习资源。' }}</p>
         <small>{{ mirror.totalResources.toLocaleString() }} 项资源</small>
       </NuxtLink>
+
+      <!-- Promo Card for Spacing Fill (Spans 2 columns if 1 mirror exists, 1 column if 2 mirrors exist) -->
+      <div
+        v-if="mirrors && mirrors.length > 0 && mirrors.length < 3"
+        class="mirror-promo-card"
+        :class="{ 'span-2': mirrors.length === 1 }"
+      >
+        <div class="promo-content">
+          <span class="promo-badge">FEATURED</span>
+          <h3>高速全球节点同步</h3>
+          <p>
+            主站云端存储与离线镜像站双向打通，集成 Draco 10 级 3D 模型高压缩算法，贴图自适应 WebP
+            格式化，为您的学习与创作提供最优质、最快速的网络加载性能。
+          </p>
+          <div class="promo-features">
+            <span class="feat-item">⚡ Draco 压缩</span>
+            <span class="feat-item">🌍 多分发节点</span>
+            <span class="feat-item">💾 离线高速缓存</span>
+          </div>
+        </div>
+        <div class="promo-image-container">
+          <img src="/images/mirror_network_banner.jpg" alt="Mirror Network Visual" loading="lazy" />
+        </div>
+      </div>
+
       <div v-if="!mirrors?.length" class="mirror-empty">镜像站正在准备中，敬请期待。</div>
     </div>
   </section>

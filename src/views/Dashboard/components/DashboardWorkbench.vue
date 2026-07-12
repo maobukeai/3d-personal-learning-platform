@@ -156,14 +156,16 @@ function isProjectAtRisk(project: ProjectSummary) {
 </script>
 
 <template>
-  <div
-    class="dashboard-workbench grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start"
-  >
+  <div class="dashboard-workbench grid grid-cols-1 gap-5 xl:gap-6 items-start">
     <!-- Main Column -->
-    <div class="flex flex-col gap-4 min-w-0">
-      <slot name="main-top"></slot>
+    <div class="dashboard-main-grid min-w-0">
+      <div class="dashboard-main-hero min-w-0">
+        <slot name="main-top"></slot>
+      </div>
 
-      <slot name="main-bottom"></slot>
+      <div class="dashboard-main-discovery min-w-0">
+        <slot name="main-bottom"></slot>
+      </div>
     </div>
 
     <!-- Sidebar Column -->
@@ -198,6 +200,32 @@ function isProjectAtRisk(project: ProjectSummary) {
 .dashboard-sidebar {
   position: sticky;
   top: 4px;
+}
+
+.dashboard-main-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 1280px) {
+  .dashboard-workbench {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 400px);
+  }
+}
+
+@media (min-width: 1500px) {
+  .dashboard-main-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 18px;
+  }
+
+  .dashboard-main-discovery,
+  .dashboard-main-discovery :deep(.dashboard-discovery-panel) {
+    display: contents;
+  }
 }
 
 @media (max-width: 1279px) {

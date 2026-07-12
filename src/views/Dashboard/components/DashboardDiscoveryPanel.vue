@@ -56,7 +56,7 @@ function getDifficultyClass(diff?: string) {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="dashboard-discovery-panel">
     <!-- Section 1: Newly Updated Courses -->
     <Card
       surface="glass"
@@ -93,10 +93,7 @@ function getDifficultyClass(diff?: string) {
         </div>
       </div>
 
-      <div
-        v-else-if="recentCourses.length"
-        class="discovery-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3"
-      >
+      <div v-else-if="recentCourses.length" class="discovery-grid grid">
         <div
           v-for="course in recentCourses"
           :key="course.id"
@@ -186,10 +183,7 @@ function getDifficultyClass(diff?: string) {
         </div>
       </div>
 
-      <div
-        v-else-if="discoveryAssets.length"
-        class="discovery-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3"
-      >
+      <div v-else-if="discoveryAssets.length" class="discovery-grid grid">
         <div
           v-for="res in discoveryAssets"
           :key="res.id"
@@ -268,10 +262,7 @@ function getDifficultyClass(diff?: string) {
         </div>
       </div>
 
-      <div
-        v-else-if="discoveryMaterials.length"
-        class="discovery-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3"
-      >
+      <div v-else-if="discoveryMaterials.length" class="discovery-grid grid">
         <div
           v-for="res in discoveryMaterials"
           :key="res.id"
@@ -348,10 +339,7 @@ function getDifficultyClass(diff?: string) {
         </div>
       </div>
 
-      <div
-        v-else-if="discoveryPlugins.length"
-        class="discovery-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3"
-      >
+      <div v-else-if="discoveryPlugins.length" class="discovery-grid grid">
         <div
           v-for="res in discoveryPlugins"
           :key="res.id"
@@ -430,10 +418,7 @@ function getDifficultyClass(diff?: string) {
         </div>
       </div>
 
-      <div
-        v-else-if="discoverySoftwares.length"
-        class="discovery-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3"
-      >
+      <div v-else-if="discoverySoftwares.length" class="discovery-grid grid">
         <div
           v-for="res in discoverySoftwares"
           :key="res.id"
@@ -479,6 +464,12 @@ function getDifficultyClass(diff?: string) {
 </template>
 
 <style scoped>
+.dashboard-discovery-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .discovery-section {
   position: relative;
   overflow: hidden;
@@ -497,5 +488,33 @@ function getDifficultyClass(diff?: string) {
 
 .discovery-grid > div {
   min-width: 0;
+  min-height: 142px;
+}
+
+.discovery-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.discovery-grid h4 {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.discovery-grid > div > div:last-child {
+  padding: 9px;
+}
+
+@media (max-width: 1100px) {
+  .discovery-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .discovery-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

@@ -149,6 +149,15 @@ function getTrendClass(trend?: string) {
   gap: 12px;
 }
 
+.metric-strip.sidebar-layout {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.metric-strip.sidebar-layout .metric-tile {
+  min-height: 86px;
+}
+
 .metric-tile {
   display: flex;
   align-items: center;
@@ -211,10 +220,18 @@ function getTrendClass(trend?: string) {
   .metric-strip {
     grid-template-columns: 1fr;
   }
+
+  .metric-strip.sidebar-layout {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
   .metric-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric-strip.sidebar-layout {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

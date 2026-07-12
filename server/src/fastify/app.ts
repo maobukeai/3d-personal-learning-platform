@@ -393,6 +393,10 @@ const startFastifyInternal = async (): Promise<void> => {
       '/api/projects/ai-chat',
       '/api/projects/ai-chat/upload',
       '/api/plugins/client/feedback',
+      // AI 接口均由 JWT Bearer token 鉴权，无需额外 CSRF cookie 校验
+      '/api/ai/optimize-prompt',
+      '/api/ai/generate-image',
+      '/api/ai/write-assist',
     ];
     const requestPath = request.url.split('?')[0] || request.url;
     const isSharedNoteAiSummarize = /^\/api\/notes\/share\/[^/]+\/ai-summarize$/.test(requestPath);

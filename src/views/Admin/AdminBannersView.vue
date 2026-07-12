@@ -333,7 +333,7 @@ onMounted(() => {
                 <TableColumn label="预览" width="160">
                   <template #default="{ row }">
                     <div
-                      class="w-28 aspect-video rounded-lg overflow-hidden border border-white/10 bg-slate-800 flex items-center justify-center relative"
+                      class="w-28 aspect-video rounded-lg overflow-hidden bg-slate-800 flex items-center justify-center relative"
                     >
                       <img
                         v-if="row.imageUrl"

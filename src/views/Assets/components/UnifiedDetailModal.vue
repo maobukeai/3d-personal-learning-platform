@@ -882,7 +882,13 @@ const copyIntegrationCode = async () => {
     v-bind="
       inline
         ? { class: 'w-full' }
-        : { show: show && !!plugin, size: 'xxl', padding: 'md', glassCard: true }
+        : {
+            show: show && !!plugin,
+            size: 'xxl',
+            padding: 'md',
+            glassCard: true,
+            contentClass: 'unified-detail-modal-shell',
+          }
     "
     @close="emit('close')"
   >
@@ -2070,6 +2076,18 @@ const copyIntegrationCode = async () => {
 </template>
 
 <style scoped>
+:global(.unified-detail-modal-shell) {
+  width: min(1280px, calc(100vw - 48px));
+  height: min(820px, calc(100dvh - 48px));
+}
+
+@media (max-width: 720px) {
+  :global(.unified-detail-modal-shell) {
+    width: calc(100vw - 24px);
+    height: calc(100dvh - 24px);
+  }
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.55;

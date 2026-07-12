@@ -401,6 +401,19 @@ async function renameCategory(oldName: string) {
       }),
     );
     await Promise.all(promises);
+
+    // Update pendingCategories in localStorage if it exists
+    if (pendingCategories.value.includes(oldName)) {
+      const updatedPending = pendingCategories.value.map((p) =>
+        p === oldName ? newName.trim() : p,
+      );
+      pendingCategories.value = Array.from(new Set(updatedPending));
+      localStorage.setItem(
+        'two_factor_pending_categories',
+        JSON.stringify(pendingCategories.value),
+      );
+    }
+
     ElMessage.success(`成功将分组 "${oldName}" 重命名为 "${newName.trim()}"`);
     if (selectedCategory.value === oldName) {
       selectedCategory.value = newName.trim();

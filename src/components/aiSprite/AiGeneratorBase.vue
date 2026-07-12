@@ -27,7 +27,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <Modal :show="show" :size="size" @close="emit('close')">
+  <Modal :show="show" :size="size" :show-close="false" @close="emit('close')">
     <div class="relative p-6 max-h-[90vh] overflow-y-auto scrollbar-hide text-left">
       <!-- Close Button -->
       <button

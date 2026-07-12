@@ -160,9 +160,9 @@ const handleQuickSettings = (ws: Workspace) => {
         side="bottom"
         align="start"
         :side-offset="6"
-        class="glass-popover glass-panel-extreme z-[var(--z-dropdown)] workspace-switcher-popper w-72 max-w-[calc(100vw-16px)] p-3 outline-none"
+        class="glass-popover glass-panel-extreme z-[var(--z-dropdown)] workspace-switcher-popper w-56 max-w-[calc(100vw-16px)] p-2 outline-none animate-in fade-in slide-in-from-top-1 duration-150"
       >
-        <div class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+        <div class="px-2 py-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
           {{ $t('layout.switchWorkspace') }}
         </div>
 
@@ -170,35 +170,34 @@ const handleQuickSettings = (ws: Workspace) => {
         <DropdownMenuItem
           v-for="ws in normalWorkspaces"
           :key="ws.id"
-          class="flex min-h-9 items-center outline-none rounded-xl my-1 p-2 group transition-all duration-200 relative overflow-hidden pl-4 cursor-pointer data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50"
+          class="flex min-h-8 items-center outline-none rounded-lg my-0.5 p-1.5 group transition-all duration-150 relative overflow-hidden pl-3 cursor-pointer data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 hover:scale-[1.01]"
           :class="
             workspaceStore.activeWorkspaceId === ws.id
-              ? 'bg-accent/8 text-accent'
-              : 'text-slate-700 dark:text-slate-200 data-[highlighted]:bg-slate-100/50 dark:data-[highlighted]:bg-white/5'
+              ? 'bg-gradient-to-r from-accent/12 to-accent/4 text-accent shadow-sm shadow-accent/10'
+              : 'text-slate-700 dark:text-slate-200 data-[highlighted]:bg-slate-100/60 dark:data-[highlighted]:bg-white/6'
           "
           @click="handleSwitchWorkspace(ws, $event)"
         >
           <!-- Active vertical indicator pill on the left of item -->
           <div
             v-if="workspaceStore.activeWorkspaceId === ws.id"
-            class="absolute left-1 top-2.5 bottom-2.5 w-1 bg-accent rounded-full"
+            class="absolute left-0.5 top-2 bottom-2 w-0.5 bg-accent rounded-full shadow-[0_0_6px_rgba(var(--color-accent),0.6)]"
           ></div>
 
           <div class="flex items-center justify-between w-full">
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
               <div class="relative shrink-0">
                 <img
                   v-if="ws.avatarUrl && ws.type !== 'personal'"
                   alt=""
                   :src="getAssetUrl(ws.avatarUrl)"
-                  class="w-8 h-8 rounded-lg object-cover shrink-0 border border-slate-200/50 dark:border-white/10"
+                  class="w-7 h-7 rounded-md object-cover shrink-0 border border-slate-200/50 dark:border-white/10"
                 />
-                <!-- Custom styled icons per type -->
                 <div
                   v-else-if="ws.type === 'personal'"
-                  class="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-900 shrink-0 border border-white/5 shadow-inner"
+                  class="w-7 h-7 rounded-md flex items-center justify-center bg-slate-900 shrink-0 border border-white/5 shadow-[0_0_8px_rgba(245,121,42,0.3)]"
                 >
-                  <svg class="w-6 h-6" viewBox="0 0 128 128" fill="none">
+                  <svg class="w-5 h-5" viewBox="0 0 128 128" fill="none">
                     <path
                       d="M66.332 70.032c.24-4.242 2.327-7.987 5.485-10.634 3.094-2.602 7.248-4.193 11.809-4.193 4.537 0 8.69 1.59 11.78 4.193 3.163 2.647 5.237 6.392 5.485 10.634.24 4.35-1.523 8.41-4.605 11.417-3.158 3.05-7.627 4.977-12.66 4.977-5.037 0-9.526-1.915-12.664-4.977-3.094-3.006-4.853-7.044-4.606-11.397zm0 0"
                       fill="#235785"
@@ -211,21 +210,21 @@ const handleQuickSettings = (ws: Workspace) => {
                 </div>
                 <div
                   v-else-if="ws.type === 'mirror'"
-                  class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#EAB308] shrink-0 border border-yellow-400/20 shadow-inner"
+                  class="w-7 h-7 rounded-md flex items-center justify-center bg-[#EAB308] shrink-0 border border-yellow-400/20 shadow-[0_0_8px_rgba(234,179,8,0.4)]"
                 >
-                  <GraduationCap class="w-4 h-4 text-white" />
+                  <GraduationCap class="w-3.5 h-3.5 text-white" />
                 </div>
                 <div
                   v-else-if="ws.type === 'manual'"
-                  class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#3B82F6] shrink-0 border border-blue-400/20 shadow-inner"
+                  class="w-7 h-7 rounded-md flex items-center justify-center bg-[#3B82F6] shrink-0 border border-blue-400/20 shadow-[0_0_8px_rgba(59,130,246,0.4)]"
                 >
-                  <Box class="w-4 h-4 text-white" />
+                  <Box class="w-3.5 h-3.5 text-white" />
                 </div>
                 <div
                   v-else-if="ws.type === 'team'"
-                  class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#A855F7] shrink-0 border border-purple-400/20 shadow-inner"
+                  class="w-7 h-7 rounded-md flex items-center justify-center bg-[#A855F7] shrink-0 border border-purple-400/20 shadow-[0_0_8px_rgba(168,85,247,0.4)]"
                 >
-                  <Briefcase class="w-4 h-4 text-white" />
+                  <Briefcase class="w-3.5 h-3.5 text-white" />
                 </div>
                 <div
                   v-if="ws.badgeCount"
@@ -234,9 +233,9 @@ const handleQuickSettings = (ws: Workspace) => {
                   {{ ws.badgeCount > 99 ? '99+' : ws.badgeCount }}
                 </div>
               </div>
-              <div class="flex flex-col text-left">
+              <div class="flex flex-col text-left min-w-0">
                 <span
-                  class="font-semibold text-xs"
+                  class="font-semibold text-[11px] truncate"
                   :class="
                     workspaceStore.activeWorkspaceId === ws.id
                       ? 'text-accent'
@@ -245,18 +244,18 @@ const handleQuickSettings = (ws: Workspace) => {
                 >
                   {{ ws.name }}
                 </span>
-                <span class="text-[9px] text-slate-500 font-medium">
+                <span class="text-[9px] text-slate-400 dark:text-slate-500 font-medium truncate">
                   {{ ws.description }}
                 </span>
               </div>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1 shrink-0">
               <!-- Pin button (Set default workspace) -->
               <button
                 v-if="authStore.isAuthenticated"
                 type="button"
                 data-action="pin"
-                class="p-1.5 rounded-md hover:bg-white/8 transition-all duration-200"
+                class="p-1 rounded-md hover:bg-white/8 transition-all duration-150"
                 :class="
                   authStore.user?.defaultWorkspaceId === ws.id
                     ? 'text-accent opacity-100'
@@ -279,7 +278,7 @@ const handleQuickSettings = (ws: Workspace) => {
                 v-if="ws.type === 'personal' || ws.type === 'team'"
                 type="button"
                 data-action="settings"
-                class="p-1.5 rounded-md hover:bg-white/8 text-slate-400 hover:text-accent transition-colors opacity-40 group-hover:opacity-100"
+                class="p-1 rounded-md hover:bg-white/8 text-slate-400 hover:text-accent transition-colors opacity-40 group-hover:opacity-100"
                 @click="handleQuickSettings(ws)"
               >
                 <Settings class="w-3.5 h-3.5" />
@@ -294,31 +293,31 @@ const handleQuickSettings = (ws: Workspace) => {
 
         <!-- Divider and Admin Workspace (if exists) -->
         <template v-if="adminWorkspace">
-          <div class="border-t border-slate-100 dark:border-white/6 my-2"></div>
+          <div class="border-t border-slate-100 dark:border-white/6 my-1.5"></div>
 
           <DropdownMenuItem
             :key="adminWorkspace.id"
-            class="flex min-h-9 items-center outline-none rounded-xl my-1 p-2 group transition-all duration-200 relative overflow-hidden pl-4 cursor-pointer data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50"
+            class="flex min-h-8 items-center outline-none rounded-lg my-0.5 p-1.5 group transition-all duration-150 relative overflow-hidden pl-3 cursor-pointer data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 hover:scale-[1.01]"
             :class="
               workspaceStore.activeWorkspaceId === adminWorkspace.id
-                ? 'bg-accent/8 text-accent'
-                : 'text-slate-700 dark:text-slate-200 data-[highlighted]:bg-slate-100/50 dark:data-[highlighted]:bg-white/5'
+                ? 'bg-gradient-to-r from-accent/12 to-accent/4 text-accent shadow-sm shadow-accent/10'
+                : 'text-slate-700 dark:text-slate-200 data-[highlighted]:bg-slate-100/60 dark:data-[highlighted]:bg-white/6'
             "
             @click="handleSwitchWorkspace(adminWorkspace, $event)"
           >
             <!-- Active vertical indicator pill for admin -->
             <div
               v-if="workspaceStore.activeWorkspaceId === adminWorkspace.id"
-              class="absolute left-1 top-2.5 bottom-2.5 w-1 bg-accent rounded-full"
+              class="absolute left-0.5 top-2 bottom-2 w-0.5 bg-accent rounded-full shadow-[0_0_6px_rgba(var(--color-accent),0.6)]"
             ></div>
 
             <div class="flex items-center justify-between w-full">
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-2">
                 <div class="relative shrink-0">
                   <div
-                    class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#10B981] shrink-0 border border-emerald-400/20 shadow-inner"
+                    class="w-7 h-7 rounded-md flex items-center justify-center bg-[#10B981] shrink-0 border border-emerald-400/20 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
                   >
-                    <UserIcon class="w-4 h-4 text-white" />
+                    <UserIcon class="w-3.5 h-3.5 text-white" />
                   </div>
                   <div
                     v-if="adminWorkspace.badgeCount"
@@ -327,9 +326,9 @@ const handleQuickSettings = (ws: Workspace) => {
                     {{ adminWorkspace.badgeCount > 99 ? '99+' : adminWorkspace.badgeCount }}
                   </div>
                 </div>
-                <div class="flex flex-col text-left">
+                <div class="flex flex-col text-left min-w-0">
                   <span
-                    class="font-semibold text-xs"
+                    class="font-semibold text-[11px] truncate"
                     :class="
                       workspaceStore.activeWorkspaceId === adminWorkspace.id
                         ? 'text-accent'
@@ -338,18 +337,18 @@ const handleQuickSettings = (ws: Workspace) => {
                   >
                     {{ $t('layout.adminWorkspace') }}
                   </span>
-                  <span class="text-[9px] text-slate-500 font-medium">
+                  <span class="text-[9px] text-slate-400 dark:text-slate-500 font-medium truncate">
                     {{ adminWorkspace.description }}
                   </span>
                 </div>
               </div>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1 shrink-0">
                 <!-- Pin button (Set default workspace) -->
                 <button
                   v-if="authStore.isAuthenticated"
                   type="button"
                   data-action="pin"
-                  class="p-1.5 rounded-md hover:bg-white/8 transition-all duration-200"
+                  class="p-1 rounded-md hover:bg-white/8 transition-all duration-150"
                   :class="
                     authStore.user?.defaultWorkspaceId === adminWorkspace.id
                       ? 'text-accent opacity-100'
@@ -382,14 +381,20 @@ const handleQuickSettings = (ws: Workspace) => {
           </DropdownMenuItem>
         </template>
 
-        <div class="border-t border-slate-100 dark:border-white/6 my-2"></div>
+        <div class="border-t border-slate-100 dark:border-white/6 my-1.5"></div>
         <DropdownMenuItem
-          class="flex min-h-9 items-center outline-none rounded-xl my-0.5 p-2 group transition-all duration-200 relative overflow-hidden cursor-pointer pl-4 text-slate-700 dark:text-slate-200 data-[highlighted]:bg-slate-100/50 dark:data-[highlighted]:bg-white/5"
+          class="flex min-h-8 items-center outline-none rounded-lg my-0.5 p-1.5 group transition-all duration-150 relative overflow-hidden cursor-pointer pl-3 text-slate-700 dark:text-slate-200 data-[highlighted]:bg-slate-100/60 dark:data-[highlighted]:bg-white/6 hover:scale-[1.01]"
           @click="router.push('/explore-teams')"
         >
-          <div class="flex items-center gap-3 py-1 text-slate-500">
-            <Plus class="w-4 h-4" />
-            <span class="font-medium">{{ $t('layout.createOrJoinTeam') }}</span>
+          <div
+            class="flex items-center gap-2 py-0.5 text-slate-500 group-hover:text-accent transition-colors duration-150"
+          >
+            <div
+              class="w-5 h-5 rounded-md bg-slate-100 dark:bg-white/8 flex items-center justify-center group-hover:bg-accent/15 transition-colors duration-150"
+            >
+              <Plus class="w-3 h-3" />
+            </div>
+            <span class="font-medium text-[11px]">{{ $t('layout.createOrJoinTeam') }}</span>
           </div>
         </DropdownMenuItem>
       </DropdownMenuContent>

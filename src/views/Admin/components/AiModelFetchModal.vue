@@ -76,21 +76,22 @@ const filteredOptions = computed(() => {
             class="flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 transition-colors hover:bg-white/60 dark:hover:bg-white/5"
             style="border-color: var(--border-base)"
           >
-            <Checkbox :value="option.id" />
-            <span class="min-w-0 flex-1">
-              <span
-                class="block text-xs font-bold font-mono truncate"
-                style="color: var(--text-primary)"
-                >{{ option.id }}</span
-              >
-              <span
-                v-if="option.name || option.ownedBy"
-                class="block text-[10px] truncate"
-                style="color: var(--text-muted)"
-              >
-                {{ [option.name, option.ownedBy].filter(Boolean).join(' / ') }}
+            <Checkbox :label="option.id" class="w-full">
+              <span class="min-w-0 flex-1 block text-left">
+                <span
+                  class="block text-xs font-bold font-mono truncate"
+                  style="color: var(--text-primary)"
+                  >{{ option.id }}</span
+                >
+                <span
+                  v-if="option.name || option.ownedBy"
+                  class="block text-[10px] truncate"
+                  style="color: var(--text-muted)"
+                >
+                  {{ [option.name, option.ownedBy].filter(Boolean).join(' / ') }}
+                </span>
               </span>
-            </span>
+            </Checkbox>
           </div>
         </CheckboxGroup>
 

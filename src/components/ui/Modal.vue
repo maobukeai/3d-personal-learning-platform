@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, useSlots, watch } from 'vue';
+import type { CSSProperties } from 'vue';
 import {
   DialogRoot,
   DialogPortal,
@@ -54,6 +55,8 @@ interface Props {
   showClose?: boolean;
   /** Optional class applied to the dialog surface for product-specific sizing. */
   contentClass?: string;
+  /** Optional inline style applied to the dialog surface. */
+  surfaceStyle?: CSSProperties;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -222,9 +225,9 @@ const surfaceClasses = computed(() => {
 });
 
 const surfaceStyle = computed(() => {
-  const s: Record<string, string> = {};
+  const s: CSSProperties = {};
   if (sizeMaxWidth.value) s.maxWidth = sizeMaxWidth.value;
-  return s;
+  return { ...s, ...props.surfaceStyle };
 });
 
 const contentClasses = computed(() => {

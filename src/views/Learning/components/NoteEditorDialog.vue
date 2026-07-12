@@ -137,20 +137,27 @@ defineExpose({ open });
 </script>
 
 <template>
-  <Modal :show="visible" fullscreen padding="none" @close="visible = false">
-    <div class="h-screen flex flex-col bg-[var(--bg-app)] overflow-y-auto custom-scrollbar">
+  <Modal
+    :show="visible"
+    size="presentation"
+    variant="glass"
+    padding="none"
+    :show-close="false"
+    content-class="note-editor-modal-shell"
+    :surface-style="{
+      width: 'calc(100dvw - clamp(16px, 3vw, 48px))',
+      height: 'calc(100dvh - clamp(16px, 3vw, 48px))',
+      maxWidth: 'none',
+      maxHeight: 'none',
+    }"
+    @close="visible = false"
+  >
+    <div class="h-full min-h-0 flex flex-col bg-transparent overflow-hidden">
       <header
-        class="sticky top-0 z-50 h-14 md:h-16 flex items-center justify-between px-3 md:px-8 bg-[var(--bg-app)]/80 backdrop-blur-md border-b border-[var(--border-base)]"
+        class="shrink-0 z-50 h-14 md:h-16 flex items-center justify-between px-3 md:px-8 bg-white/15 dark:bg-black/10 backdrop-blur-md border-b border-[var(--border-base)]"
       >
-        <div class="flex items-center gap-2 md:gap-4">
-          <Button
-            variant="secondary"
-            size="sm"
-            :icon="X"
-            class="!rounded-full hover:bg-slate-100 dark:hover:bg-white/10 shrink-0 !p-0 flex items-center justify-center h-8 w-8"
-            @click="visible = false"
-          />
-        </div>
+        <!-- Left spacer to push content to the right -->
+        <div class="flex items-center"></div>
 
         <div class="mobile-row flex items-center gap-2 md:gap-3 min-w-0">
           <SegmentedControl v-model="previewMode" :options="modeOptions" size="sm" />
@@ -235,14 +242,25 @@ defineExpose({ open });
           >
             发布
           </Button>
+
+          <!-- Close Button on the right -->
+          <Button
+            variant="secondary"
+            size="sm"
+            :icon="X"
+            class="!rounded-full hover:bg-slate-100 dark:hover:bg-white/10 shrink-0 !p-0 flex items-center justify-center h-8 w-8"
+            @click="visible = false"
+          />
         </div>
       </header>
 
-      <main class="max-w-[1550px] mx-auto px-3 md:px-6 pb-20 md:pb-32 pt-4 lg:pt-8 w-full">
+      <main
+        class="flex-1 min-h-0 overflow-y-auto custom-scrollbar max-w-[1550px] mx-auto px-3 md:px-6 pb-20 md:pb-24 pt-4 lg:pt-8 w-full"
+      >
         <div class="flex flex-col lg:flex-row gap-6 items-start">
           <!-- Left Column: Writing area -->
           <div
-            class="flex-1 min-w-0 w-full bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-2xl min-h-[85vh] px-4 md:px-8 lg:px-10 py-6 md:py-12"
+            class="glass-real-physical flex-1 min-w-0 w-full border border-[var(--border-base)] shadow-sm rounded-2xl min-h-[80vh] px-4 md:px-8 lg:px-10 py-6 md:py-12"
           >
             <input
               v-model="formTitle"
@@ -280,7 +298,7 @@ defineExpose({ open });
 
           <!-- Right Column: Permanent sidebar settings on desktop (lg and up) -->
           <aside
-            class="hidden lg:flex flex-col w-80 shrink-0 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl p-5 space-y-5 shadow-sm sticky top-20"
+            class="glass-real-physical hidden lg:flex flex-col w-80 shrink-0 border border-[var(--border-base)] rounded-2xl p-5 space-y-5 shadow-sm sticky top-4"
           >
             <div class="border-b border-[var(--border-base)] pb-3">
               <h3
@@ -359,6 +377,10 @@ defineExpose({ open });
 </template>
 
 <style scoped>
+:global(.note-editor-modal-shell) {
+  border-radius: 20px;
+}
+
 .preview-mode-toggle {
   background-color: var(--bg-app);
   padding: 2px;

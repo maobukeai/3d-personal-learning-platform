@@ -9,6 +9,7 @@ import { useSpriteDraggable } from '@/composables/useSpriteDraggable';
 import { preferences } from '@/utils/preferences';
 import { logError } from '@/utils/error';
 import api from '@/utils/api';
+import Modal from '@/components/ui/Modal.vue';
 import SpriteSidebar from './aiSprite/SpriteSidebar.vue';
 import SpriteChatArea from './aiSprite/SpriteChatArea.vue';
 import SpriteUsageDialog from './aiSprite/SpriteUsageDialog.vue';
@@ -134,6 +135,17 @@ const {
   startDragSpriteTouch,
   clampSpritePosition,
 } = useSpriteDraggable(isMobile, isFullscreen);
+
+const aiModalSurfaceStyle = computed(() => {
+  if (isFullscreen.value || isMobile.value) return {};
+  return {
+    width: `${width.value}px`,
+    height: `${height.value}px`,
+    maxWidth: 'calc(100vw - 40px)',
+    maxHeight: 'calc(100dvh - 40px)',
+    transform: `translate(${offsetX.value}px, ${offsetY.value}px)`,
+  };
+});
 
 const updateWindowSize = () => {
   windowWidth.value = window.innerWidth;
@@ -300,122 +312,105 @@ onUnmounted(() => {
       </div>
     </Transition>
 
-    <Transition name="panel-fade">
-      <div
-        v-if="isOpen"
-        :class="[
-          'fixed inset-0 z-[100] flex items-center justify-center transition-all duration-200',
-          isFullscreen || isMobile ? 'p-0' : 'p-3 md:p-5 pointer-events-none',
-        ]"
-      >
-        <div class="ai-overlay absolute inset-0 pointer-events-auto" @click="isOpen = false"></div>
+    <Modal
+      :show="isOpen"
+      :size="isFullscreen || isMobile ? 'fullscreen' : 'presentation'"
+      variant="glass"
+      padding="none"
+      :show-close="false"
+      content-class="ai-sprite-modal-shell"
+      :surface-style="aiModalSurfaceStyle"
+      @close="isOpen = false"
+    >
+      <div class="ai-shell relative flex w-full h-full min-h-0 overflow-hidden">
+        <SpriteSidebar
+          v-model:show-mobile-sidebar="showMobileSidebar"
+          v-model:history-search="historySearch"
+          :is-mobile="isMobile"
+          :current-session-id="currentSessionId"
+          :recent-prompts="recentPrompts"
+          :chat-sessions="chatSessions"
+          :is-vip="isVip"
+          :vip-plan-name="vipPlanName"
+          @new-session="startNewChat"
+          @select-session="selectSession"
+          @delete-session="deleteSession"
+          @fetch-usage="fetchUsageLimit"
+          @go-to-billing="goToBilling"
+        />
 
+        <SpriteChatArea
+          ref="chatAreaRef"
+          v-model:show-mobile-sidebar="showMobileSidebar"
+          v-model:is-fullscreen="isFullscreen"
+          v-model:is-open="isOpen"
+          v-model:input-message="inputMessage"
+          v-model:chat-mode="chatMode"
+          v-model:show-model-dropdown="showModelDropdown"
+          :is-mobile="isMobile"
+          :current-conversation-title="currentConversationTitle"
+          :current-conversation-meta="currentConversationMeta"
+          :should-show-landing-state="shouldShowLandingState"
+          :active-session-messages="activeSessionMessages"
+          :current-session-id="currentSessionId"
+          :is-generating="isGeneratingMap[currentSessionId]"
+          :is-typing="isTypingMap[currentSessionId]"
+          :uploaded-images="uploadedImages"
+          :is-uploading="isUploading"
+          :upload-error="uploadError"
+          :available-ai-models="availableAiModels"
+          :current-model="currentModel"
+          :is-dark="isDark"
+          :copied-index="copiedIndex"
+          @select-model="selectedModelId = $event"
+          @start-new-chat="startNewChat"
+          @clear-history="clearHistory"
+          @copy-message="copyMessage"
+          @regenerate-response="regenerateResponse"
+          @drag-start="startDrag"
+          @upload-files="handleUploadFiles"
+          @remove-image="removeUploadedImage"
+          @handle-send="handleSend(route.path)"
+          @handle-stop="handleStop()"
+          @paste="handlePaste"
+          @edit-message="editMessage"
+        />
+
+        <!-- Resize Handle (Desktop floating window only) -->
         <div
-          :class="[
-            'ai-shell relative flex overflow-hidden border pointer-events-auto shadow-2xl transition-all duration-200',
-            isFullscreen || isMobile
-              ? 'w-full h-full rounded-none border-none max-w-none max-h-none'
-              : 'rounded-[24px]',
-          ]"
-          :style="
-            isFullscreen || isMobile
-              ? {}
-              : {
-                  width: width + 'px',
-                  height: height + 'px',
-                  transform: `translate(${offsetX}px, ${offsetY}px)`,
-                }
-          "
+          v-if="!isFullscreen && !isMobile"
+          class="absolute bottom-0 right-0 h-4 w-4 cursor-se-resize z-50 flex items-end justify-end p-0.5"
+          @mousedown.stop="startResize"
         >
-          <SpriteSidebar
-            v-model:show-mobile-sidebar="showMobileSidebar"
-            v-model:history-search="historySearch"
-            :is-mobile="isMobile"
-            :current-session-id="currentSessionId"
-            :recent-prompts="recentPrompts"
-            :chat-sessions="chatSessions"
-            :is-vip="isVip"
-            :vip-plan-name="vipPlanName"
-            @new-session="startNewChat"
-            @select-session="selectSession"
-            @delete-session="deleteSession"
-            @fetch-usage="fetchUsageLimit"
-            @go-to-billing="goToBilling"
-          />
-
-          <SpriteChatArea
-            ref="chatAreaRef"
-            v-model:show-mobile-sidebar="showMobileSidebar"
-            v-model:is-fullscreen="isFullscreen"
-            v-model:is-open="isOpen"
-            v-model:input-message="inputMessage"
-            v-model:chat-mode="chatMode"
-            v-model:show-model-dropdown="showModelDropdown"
-            :is-mobile="isMobile"
-            :current-conversation-title="currentConversationTitle"
-            :current-conversation-meta="currentConversationMeta"
-            :should-show-landing-state="shouldShowLandingState"
-            :active-session-messages="activeSessionMessages"
-            :current-session-id="currentSessionId"
-            :is-generating="isGeneratingMap[currentSessionId]"
-            :is-typing="isTypingMap[currentSessionId]"
-            :uploaded-images="uploadedImages"
-            :is-uploading="isUploading"
-            :upload-error="uploadError"
-            :available-ai-models="availableAiModels"
-            :current-model="currentModel"
-            :is-dark="isDark"
-            :copied-index="copiedIndex"
-            @select-model="selectedModelId = $event"
-            @start-new-chat="startNewChat"
-            @clear-history="clearHistory"
-            @copy-message="copyMessage"
-            @regenerate-response="regenerateResponse"
-            @drag-start="startDrag"
-            @upload-files="handleUploadFiles"
-            @remove-image="removeUploadedImage"
-            @handle-send="handleSend(route.path)"
-            @handle-stop="handleStop()"
-            @paste="handlePaste"
-            @edit-message="editMessage"
-          />
-
-          <!-- Resize Handle (Desktop floating window only) -->
-          <div
-            v-if="!isFullscreen && !isMobile"
-            class="absolute bottom-0 right-0 h-4 w-4 cursor-se-resize z-50 flex items-end justify-end p-0.5"
-            @mousedown.stop="startResize"
+          <svg
+            width="8"
+            height="8"
+            viewBox="0 0 8 8"
+            fill="none"
+            class="text-slate-400 dark:text-slate-600"
           >
-            <svg
-              width="8"
-              height="8"
-              viewBox="0 0 8 8"
-              fill="none"
-              class="text-slate-400 dark:text-slate-600"
-            >
-              <line
-                x1="6"
-                y1="1"
-                x2="1"
-                y2="6"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-              />
-              <line
-                x1="7"
-                y1="4"
-                x2="4"
-                y2="7"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-              />
-            </svg>
-          </div>
+            <line
+              x1="6"
+              y1="1"
+              x2="1"
+              y2="6"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
+            <line
+              x1="7"
+              y1="4"
+              x2="4"
+              y2="7"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
+          </svg>
         </div>
       </div>
-    </Transition>
+    </Modal>
 
     <button
       v-if="!isOpen"
@@ -445,33 +440,8 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.ai-overlay {
-  background:
-    radial-gradient(circle at top left, rgba(244, 114, 182, 0.08), transparent 32%),
-    rgba(248, 250, 252, 0.5);
-  backdrop-filter: blur(8px);
-}
-
 .ai-shell {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.96) 0%,
-    rgba(255, 251, 248, 0.98) 58%,
-    rgba(255, 255, 255, 0.94) 100%
-  );
-  border-color: rgba(255, 255, 255, 0.7);
-  box-shadow: 0 35px 80px rgba(15, 23, 42, 0.16);
-  backdrop-filter: blur(24px);
-}
-
-.dark .ai-shell {
-  background: linear-gradient(
-    135deg,
-    rgba(15, 23, 42, 0.94) 0%,
-    rgba(30, 41, 59, 0.96) 58%,
-    rgba(17, 24, 39, 0.94) 100%
-  );
-  border-color: rgba(148, 163, 184, 0.16);
+  background: transparent;
 }
 
 .ai-sidebar {

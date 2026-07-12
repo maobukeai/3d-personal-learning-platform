@@ -83,7 +83,14 @@ const mockupPreviews = computed(() => [
   resourcePreviews.value[1], // materials
   resourcePreviews.value[2], // plugins
 ]);
-const secureImageUrl = (url?: string | null) => url?.replace(/^http:\/\//, 'https://') || '';
+const secureImageUrl = (url?: string | null) => {
+  if (!url) return '';
+  if (url.includes('/uploads/')) {
+    const match = url.match(/\/uploads\/.+/);
+    if (match) return match[0];
+  }
+  return url.replace(/^http:\/\//, 'https://');
+};
 const previewImage = (item?: PlatformPreviewItem) =>
   secureImageUrl(item?.previewUrl || item?.thumbnail);
 const brokenPreviews = ref(new Set<string>());

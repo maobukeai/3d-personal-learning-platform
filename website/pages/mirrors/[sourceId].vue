@@ -63,6 +63,14 @@ const cleanContentHtml = computed(() => {
     '',
   );
 });
+const secureImageUrl = (url?: string | null) => {
+  if (!url) return '';
+  if (url.includes('/uploads/')) {
+    const match = url.match(/\/uploads\/.+/);
+    if (match) return match[0];
+  }
+  return url.replace(/^http:\/\//, 'https://');
+};
 useSeoMeta({
   title: () => mirror.value?.displayName || '镜像站',
 });
@@ -104,7 +112,11 @@ useSeoMeta({
         class="resource-card"
         @click="showDetail(resource)"
       >
-        <img v-if="resource.thumbnailUrl" :src="resource.thumbnailUrl" :alt="resource.title" />
+        <img
+          v-if="resource.thumbnailUrl"
+          :src="secureImageUrl(resource.thumbnailUrl)"
+          :alt="resource.title"
+        />
         <div v-else class="resource-placeholder">✦</div>
         <p>{{ resource.category?.name || resource.resourceType || 'RESOURCE' }}</p>
         <h2>{{ resource.title }}</h2>
@@ -126,7 +138,7 @@ useSeoMeta({
         <div class="modal-cover">
           <img
             v-if="selected.thumbnailUrl"
-            :src="selected.thumbnailUrl"
+            :src="secureImageUrl(selected.thumbnailUrl)"
             :alt="selected.title"
           /><span v-else>✦</span>
         </div>

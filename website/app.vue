@@ -28,13 +28,14 @@ watch(
 
 const getAssetUrl = (url?: string | null) => {
   if (!url) return '';
+  if (url.includes('/uploads/')) {
+    const match = url.match(/\/uploads\/.+/);
+    if (match) return match[0];
+  }
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
     return url;
   }
   const path = url.startsWith('/') ? url : `/${url}`;
-  if (path.startsWith('/uploads/')) {
-    return path;
-  }
   return `${config.public.apiBase}${path}`;
 };
 

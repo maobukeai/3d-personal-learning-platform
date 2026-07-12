@@ -61,7 +61,14 @@ const currentLibrary = computed(
   () => libraries.value.find((library) => library.id === activeLibrary.value) || libraries.value[0],
 );
 const visibleItems = computed(() => currentLibrary.value.items.slice(0, 4));
-const secureImageUrl = (url?: string | null) => url?.replace(/^http:\/\//, 'https://') || '';
+const secureImageUrl = (url?: string | null) => {
+  if (!url) return '';
+  if (url.includes('/uploads/')) {
+    const match = url.match(/\/uploads\/.+/);
+    if (match) return match[0];
+  }
+  return url.replace(/^http:\/\//, 'https://');
+};
 const previewImage = (item: PlatformPreviewItem) =>
   secureImageUrl(item.previewUrl || item.thumbnail);
 const itemHref = (item: PlatformPreviewItem) => {

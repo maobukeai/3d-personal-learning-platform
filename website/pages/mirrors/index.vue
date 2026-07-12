@@ -83,6 +83,14 @@ const showDetail = async (resource: ResourceItem) => {
   }
 };
 
+const secureImageUrl = (url?: string | null) => {
+  if (!url) return '';
+  if (url.includes('/uploads/')) {
+    const match = url.match(/\/uploads\/.+/);
+    if (match) return match[0];
+  }
+  return url.replace(/^http:\/\//, 'https://');
+};
 useSeoMeta({
   title: () => mirror.value?.displayName || '镜像站',
 });
@@ -129,7 +137,7 @@ useSeoMeta({
         >
           <img
             v-if="resource.thumbnailUrl"
-            :src="resource.thumbnailUrl"
+            :src="secureImageUrl(resource.thumbnailUrl)"
             :alt="resource.title"
             loading="lazy"
             decoding="async"
@@ -155,7 +163,7 @@ useSeoMeta({
           <div class="modal-cover">
             <img
               v-if="selected.thumbnailUrl"
-              :src="selected.thumbnailUrl"
+              :src="secureImageUrl(selected.thumbnailUrl)"
               :alt="selected.title"
               decoding="async"
             /><span v-else>✦</span>

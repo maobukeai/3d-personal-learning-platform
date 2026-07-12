@@ -140,7 +140,7 @@ useSeoMeta({
 
 <style scoped>
 .resource-showcase {
-  padding: 46px 0 120px;
+  padding: 30px 0 120px;
 }
 .library-tabs {
   display: flex;

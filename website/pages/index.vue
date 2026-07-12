@@ -404,7 +404,11 @@ const capabilityGroups = [
           </div>
         </div>
         <div class="promo-image-container">
-          <img src="/images/mirror_network_banner.jpg" alt="Mirror Network Visual" loading="lazy" />
+          <img
+            :src="'/images/mirror_network_banner.jpg'"
+            alt="Mirror Network Visual"
+            loading="lazy"
+          />
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 
 const config = useRuntimeConfig();
 const platform = usePlatformApi();
@@ -25,6 +25,98 @@ watch(
     isDropdownOpen.value = false;
   },
 );
+
+const navContainer = ref<HTMLElement | null>(null);
+const navLinks = ref<any[]>([]);
+const dropdownLink = ref<HTMLElement | null>(null);
+
+const activeIndex = computed(() => {
+  const path = route.path;
+  if (path === '/') return 0;
+  if (path.startsWith('/resources')) return 1;
+  if (path.startsWith('/mirrors')) return 2;
+  if (path.startsWith('/temporary-netdisk')) return 3;
+  return -1;
+});
+
+const hoverIndex = ref<number | null>(null);
+const targetIndex = computed(() => {
+  return hoverIndex.value !== null ? hoverIndex.value : activeIndex.value;
+});
+
+interface IndicatorStyle {
+  left: string;
+  width: string;
+  opacity: number;
+}
+
+const indicatorStyle = ref<IndicatorStyle>({
+  left: '0px',
+  width: '0px',
+  opacity: 0,
+});
+
+const updateIndicator = () => {
+  if (!import.meta.client) return;
+  const idx = targetIndex.value;
+  if (idx === -1) {
+    indicatorStyle.value = {
+      left: '0px',
+      width: '0px',
+      opacity: 0,
+    };
+    return;
+  }
+
+  nextTick(() => {
+    let targetEl: HTMLElement | null = null;
+    if (idx >= 0 && idx < 3) {
+      const refVal = navLinks.value[idx];
+      if (refVal) {
+        targetEl = refVal.$el || refVal;
+      }
+    } else if (idx === 3) {
+      targetEl = dropdownLink.value;
+    }
+
+    if (targetEl && navContainer.value) {
+      const containerRect = navContainer.value.getBoundingClientRect();
+      const targetRect = targetEl.getBoundingClientRect();
+
+      indicatorStyle.value = {
+        left: `${targetRect.left - containerRect.left}px`,
+        width: `${targetRect.width}px`,
+        opacity: 1,
+      };
+    } else {
+      indicatorStyle.value = {
+        left: '0px',
+        width: '0px',
+        opacity: 0,
+      };
+    }
+  });
+};
+
+watch(targetIndex, () => {
+  updateIndicator();
+});
+
+watch(
+  () => route.path,
+  () => {
+    updateIndicator();
+  },
+);
+
+onMounted(() => {
+  updateIndicator();
+  window.addEventListener('resize', updateIndicator);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateIndicator);
+});
 
 const getAssetUrl = (url?: string | null) => {
   if (!url) return '';
@@ -146,18 +238,40 @@ const nav = [
       >
         <span></span><span></span><span></span>
       </button>
-      <nav id="site-navigation" :class="{ 'is-open': menuOpen }" aria-label="主导航">
-        <NuxtLink v-for="item in nav" :key="item.to" :to="item.to" @click="menuOpen = false">{{
-          item.label
-        }}</NuxtLink>
+      <nav
+        id="site-navigation"
+        ref="navContainer"
+        :class="{ 'is-open': menuOpen }"
+        aria-label="主导航"
+        @mouseleave="hoverIndex = null"
+      >
+        <div class="nav-indicator" :style="indicatorStyle"></div>
+
+        <NuxtLink
+          v-for="(item, index) in nav"
+          :key="item.to"
+          :to="item.to"
+          ref="navLinks"
+          @click="menuOpen = false"
+          @mouseenter="hoverIndex = index"
+          >{{ item.label }}</NuxtLink
+        >
 
         <!-- Desktop tools hover dropdown -->
         <div
           class="nav-dropdown"
-          @mouseenter="isDropdownOpen = true"
+          ref="dropdownLink"
+          @mouseenter="
+            isDropdownOpen = true;
+            hoverIndex = 3;
+          "
           @mouseleave="isDropdownOpen = false"
         >
-          <button class="dropdown-trigger" :class="{ active: isDropdownOpen }" type="button">
+          <button
+            class="dropdown-trigger"
+            :class="{ active: isDropdownOpen || route.path.startsWith('/temporary-netdisk') }"
+            type="button"
+          >
             工具 <span class="arrow-icon">▼</span>
           </button>
           <div class="dropdown-panel" :class="{ show: isDropdownOpen }">

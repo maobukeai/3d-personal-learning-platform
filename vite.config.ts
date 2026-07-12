@@ -216,6 +216,7 @@ export default defineConfig(({ mode }) => {
       ],
     },
     build: {
+      assetsDir: 'static-chunks',
       chunkSizeWarningLimit: 800,
       // Revert CSS minifier to esbuild to prevent LightningCSS from stripping standard backdrop-filter properties.
       cssMinify: 'esbuild',

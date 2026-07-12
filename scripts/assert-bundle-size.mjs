@@ -17,7 +17,7 @@
  *  5. 保留原有首屏体积断言 + 重型 chunk 泄漏检测
  *
  * 兼容性：当 manifest.json 不存在时 (旧构建产物)，自动回退到原有逻辑，
- * 仅对 dist/assets 下的 index-*.js / vue-core-*.js 做体积断言。
+ * 仅对 dist/static-chunks 下的 index-*.js / vue-core-*.js 做体积断言。
  */
 import { readdir, readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
@@ -129,7 +129,7 @@ const VIEW_TO_ROUTE = {
 
 const projectRoot = process.cwd();
 const distDir = join(projectRoot, 'dist');
-const assetsDir = join(distDir, 'assets');
+const assetsDir = join(distDir, 'static-chunks');
 const manifestPath = join(distDir, 'manifest.json');
 const reportPath = join(distDir, 'budget-report.json');
 

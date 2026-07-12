@@ -14,6 +14,10 @@ interface NetdiskFile {
   size: number;
   mimeType: string;
   createdAt: string;
+  shares?: {
+    id: string;
+    password?: string | null;
+  }[];
 }
 
 const files = ref<NetdiskFile[]>([]);
@@ -30,6 +34,16 @@ const uploadProgress = ref(0);
 const uploadStatusText = ref('');
 const uploadSpeedStr = ref('');
 const fileInput = ref<HTMLInputElement | null>(null);
+
+// Share dialog states
+const shareDialogVisible = ref(false);
+const usePassword = ref(false);
+const sharePassword = ref('');
+const shareCreated = ref(false);
+const isCreatingShare = ref(false);
+const generatedShareUrl = ref('');
+const selectedFile = ref<NetdiskFile | null>(null);
+const copyButtonText = ref('复制链接');
 
 let activeXhr: XMLHttpRequest | null = null;
 
@@ -78,6 +92,64 @@ const deleteFile = async (id: string) => {
     fetchFiles();
   } catch (err: any) {
     alert(err.data?.error || '删除失败，请稍后重试');
+  }
+};
+
+// Open share dialog
+const openShareDialog = (file: NetdiskFile) => {
+  selectedFile.value = file;
+  usePassword.value = false;
+  sharePassword.value = '';
+  generatedShareUrl.value = '';
+  shareCreated.value = false;
+  copyButtonText.value = '复制链接';
+  shareDialogVisible.value = true;
+};
+
+const closeShareDialog = () => {
+  shareDialogVisible.value = false;
+};
+
+// Generate share link via backend
+const generateShare = async () => {
+  if (!selectedFile.value) return;
+  isCreatingShare.value = true;
+  try {
+    const shareRes = await $fetch<{ id: string }>(
+      `${config.public.apiBase}/website/netdisk/shares`,
+      {
+        method: 'POST',
+        body: {
+          fileId: selectedFile.value.id,
+          password: usePassword.value ? sharePassword.value.trim() : undefined,
+        },
+      },
+    );
+    generatedShareUrl.value = `${config.public.appBase}/share/temporary/${shareRes.id}`;
+    shareCreated.value = true;
+    fetchFiles(); // Refresh count
+  } catch (err: any) {
+    alert(err.data?.error || '生成分享失败，请重试');
+  } finally {
+    isCreatingShare.value = false;
+  }
+};
+
+// Copy share text to clipboard
+const copyShareLink = async () => {
+  if (!selectedFile.value) return;
+  let text = `分享文件: ${selectedFile.value.name}\n下载链接: ${generatedShareUrl.value}`;
+  if (usePassword.value && sharePassword.value.trim()) {
+    text += `\n提取码: ${sharePassword.value.trim()}`;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    copyButtonText.value = '已复制！';
+    setTimeout(() => {
+      copyButtonText.value = '复制链接';
+    }, 2000);
+  } catch (err) {
+    alert('复制失败，请手动选择复制：\n' + text);
   }
 };
 
@@ -395,11 +467,17 @@ onMounted(fetchFiles);
             <div v-for="file in filteredFiles" :key="file.id" class="finder-row">
               <div class="col-name">
                 <span class="file-icon">📄</span>
-                <span class="file-name" :title="file.name">{{ file.name }}</span>
+                <div class="file-name-container">
+                  <span class="file-name" :title="file.name">{{ file.name }}</span>
+                  <span v-if="file.shares && file.shares.length > 0" class="share-badge">
+                    已生成 {{ file.shares.length }} 个分享
+                  </span>
+                </div>
               </div>
               <div class="col-size text-center">{{ formatSize(file.size) }}</div>
               <div class="col-date text-center">{{ formatDate(file.createdAt) }}</div>
               <div class="col-actions text-right">
+                <button class="btn-pill" type="button" @click="openShareDialog(file)">分享</button>
                 <a :href="getDownloadUrl(file)" class="btn-pill" target="_blank" rel="noopener">
                   下载
                 </a>
@@ -415,6 +493,78 @@ onMounted(fetchFiles);
         <div v-else class="empty-state">
           <div class="empty-icon">📁</div>
           <p>{{ searchQuery ? '未找到符合条件的文件' : '网盘中暂无任何共享文件' }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Apple style minimalist share modal -->
+    <div v-if="shareDialogVisible" class="modal-overlay" @click="closeShareDialog">
+      <div class="modal-card" @click.stop>
+        <div class="modal-header">
+          <h3>创建分享链接</h3>
+          <button class="btn-close-modal" type="button" @click="closeShareDialog">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <template v-if="!shareCreated">
+            <div class="form-group">
+              <label class="checkbox-container">
+                <input type="checkbox" v-model="usePassword" />
+                <span class="checkbox-label">启用提取码保护</span>
+              </label>
+            </div>
+
+            <div v-if="usePassword" class="form-group slide-fade">
+              <input
+                v-model="sharePassword"
+                type="text"
+                placeholder="输入 4 位自定义提取码 (可选)"
+                maxlength="8"
+                class="modal-input"
+              />
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="share-success-info">
+              <div class="success-icon">✓</div>
+              <p class="success-title">分享链接创建成功</p>
+              <p class="success-desc">
+                主站下载页面已对接到位，任何人均可通过此链接下载该共享文件。
+              </p>
+            </div>
+
+            <div class="share-result-box">
+              <div class="result-row">
+                <span class="result-label">链接：</span>
+                <span class="result-value select-all">{{ generatedShareUrl }}</span>
+              </div>
+              <div v-if="usePassword && sharePassword" class="result-row">
+                <span class="result-label">提取码：</span>
+                <span class="result-value font-bold">{{ sharePassword }}</span>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <div class="modal-footer">
+          <template v-if="!shareCreated">
+            <button class="btn-modal-cancel" type="button" @click="closeShareDialog">取消</button>
+            <button
+              class="btn-modal-primary"
+              type="button"
+              :disabled="isCreatingShare"
+              @click="generateShare"
+            >
+              {{ isCreatingShare ? '创建中...' : '生成链接' }}
+            </button>
+          </template>
+          <template v-else>
+            <button class="btn-modal-cancel" type="button" @click="closeShareDialog">完成</button>
+            <button class="btn-modal-primary" type="button" @click="copyShareLink">
+              {{ copyButtonText }}
+            </button>
+          </template>
         </div>
       </div>
     </div>

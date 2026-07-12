@@ -335,6 +335,16 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
 
     const files = await prisma.temporaryFile.findMany({
       where: { userId },
+      include: {
+        shares: {
+          select: {
+            id: true,
+            password: true,
+            createdAt: true,
+            expiresAt: true,
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -582,4 +592,56 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
     const fileStream = fs.createReadStream(localPath);
     return reply.send(fileStream);
   });
+
+  // POST /website/netdisk/shares —— 创建共享网盘文件分享
+  app.post(
+    '/website/netdisk/shares',
+    {
+      schema: {
+        body: z.object({
+          fileId: z.string(),
+          password: z.string().optional(),
+          expiresDays: z.union([z.number(), z.string()]).optional(),
+        }),
+      },
+    },
+    async (request, reply) => {
+      const userId = await getGuestUserId();
+      if (!userId) {
+        throw new AppError('系统管理员账户未初始化', 400);
+      }
+
+      const { fileId, password, expiresDays } = request.body as {
+        fileId: string;
+        password?: string;
+        expiresDays?: string | number;
+      };
+
+      const file = await prisma.temporaryFile.findFirst({
+        where: { id: fileId, userId },
+      });
+
+      if (!file) {
+        throw new AppError('文件不存在或无权操作', 404);
+      }
+
+      let expiresAt: Date | null = null;
+      const numericExpiresDays =
+        typeof expiresDays === 'string' ? parseInt(expiresDays, 10) : expiresDays;
+      if (numericExpiresDays && numericExpiresDays > 0) {
+        expiresAt = new Date(Date.now() + numericExpiresDays * 24 * 60 * 60 * 1000);
+      }
+
+      const share = await prisma.temporaryShare.create({
+        data: {
+          fileId,
+          userId,
+          password: password || null,
+          expiresAt,
+        },
+      });
+
+      return reply.status(201).send(share);
+    },
+  );
 };

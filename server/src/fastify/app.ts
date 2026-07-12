@@ -417,6 +417,7 @@ const startFastifyInternal = async (): Promise<void> => {
     const isNetdiskShareVerify = /^\/api\/temporary-netdisk\/share\/[^/]+\/verify$/.test(
       requestPath,
     );
+    const isWebsiteNetdisk = requestPath.startsWith('/api/website/netdisk/');
 
     if (
       bypassUrls.includes(requestPath) ||
@@ -424,7 +425,8 @@ const startFastifyInternal = async (): Promise<void> => {
       isRegularNoteAiSummarize ||
       isAiBotCallback ||
       isR2Webhook ||
-      isNetdiskShareVerify
+      isNetdiskShareVerify ||
+      isWebsiteNetdisk
     ) {
       return;
     }

@@ -89,3 +89,7 @@ server/scripts/test-ai-stream.js
 server/test_*.js
 server/scripts/test_*.ts
 server/scripts/list_functions.ts
+
+# Website build outputs
+website/.nuxt/
+website/.output/

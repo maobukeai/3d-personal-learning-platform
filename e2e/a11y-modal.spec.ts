@@ -19,7 +19,8 @@ async function focusInsideDialog(page: Page): Promise<boolean> {
 
 async function waitTransition(page: Page) {
   // Wait for opening animations to complete and focus trap to activate
-  await page.waitForTimeout(300);
+  // Use a longer timeout on CI (like 600ms) since virtual machines can be slower
+  await page.waitForTimeout(process.env.CI ? 600 : 300);
 }
 
 test.describe('Modal 键盘无障碍', () => {
@@ -229,7 +230,7 @@ test.describe('Modal 键盘无障碍', () => {
     await page.keyboard.press('Tab');
     await expect(page.getByTestId('modal-nested-close')).toBeFocused();
     await page.keyboard.press('Tab');
-    await expect(nestedModal.getByRole('button', { name: 'Close' })).toBeFocused();
+    await expect(nestedModal.getByRole('button', { name: 'Close', exact: true })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(page.getByTestId('modal-nested-input')).toBeFocused();
 
@@ -248,14 +249,12 @@ test.describe('Modal 键盘无障碍', () => {
 
     // 测试 Select 嵌套
     const selectTrigger = page.getByTestId('modal-select-container').locator('.select-trigger');
-    await selectTrigger.click();
-    await page.waitForTimeout(100);
-
-    // 验证 Select 下拉展开并能选择
+    await selectTrigger.focus();
+    await page.keyboard.press('ArrowDown'); // open, focus Apple
+    await expect(page.getByRole('option').nth(0)).toBeFocused();
+    await page.keyboard.press('ArrowDown'); // move to Banana
+    await page.keyboard.press('Enter'); // select
     const selectContent = page.locator('[role="listbox"]').first();
-    await expect(selectContent).toBeVisible();
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('Enter');
     await expect(selectContent).toBeHidden();
 
     // 测试 Dropdown 嵌套

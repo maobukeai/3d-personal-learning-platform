@@ -26,6 +26,7 @@ export default [
       'commitlint.config.cjs',
       'eslint-rules/**',
       'test-results/**',
+      'website/**',
     ],
   },
   js.configs.recommended,

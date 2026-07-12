@@ -33,7 +33,7 @@ test.describe('极端网络环境', () => {
     await context.setOffline(true);
 
     // 离线状态下尝试提交空表单
-    const loginButton = page.getByRole('button', { name: /登录|sign\s*in/i });
+    const loginButton = page.getByRole('button', { name: /进入平台|登录|sign\s*in/i });
     await loginButton.click().catch(() => {});
 
     // 页面不应崩溃或白屏
@@ -64,7 +64,7 @@ test.describe('极端网络环境', () => {
     await page.locator('input[type="email"]').fill('test@example.com');
     await page.locator('input[type="password"]').fill('password123');
     await page
-      .getByRole('button', { name: /登录|sign\s*in/i })
+      .getByRole('button', { name: /进入平台|登录|sign\s*in/i })
       .click()
       .catch(() => {});
 
@@ -93,7 +93,7 @@ test.describe('极端网络环境', () => {
 
   test('网络超时时登录页不卡死', async ({ page }) => {
     // 模拟 API 请求超时（不响应）
-    await page.route('**/api/**', (route) => {
+    await page.route('**/api/auth/login', (route) => {
       // 不调用 route.continue() 也不调用 route.fulfill()，模拟请求挂起
       // Playwright 会在默认超时后自动处理
     });
@@ -107,7 +107,7 @@ test.describe('极端网络环境', () => {
 
     // 提交后不应卡死页面（页面应保持响应）
     await page
-      .getByRole('button', { name: /登录|sign\s*in/i })
+      .getByRole('button', { name: /进入平台|登录|sign\s*in/i })
       .click()
       .catch(() => {});
 

@@ -51,6 +51,10 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: '3002',
+        // 「进入平台」按钮跳转地址，改成你的主平台正式域名
+        NUXT_PUBLIC_APP_BASE: 'https://mao.591595.xyz',
+        // 官网调用后端 API 的地址（与 Nginx 反向代理路径一致）
+        NUXT_PUBLIC_API_BASE: '/api',
       },
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       error_file: '../logs/official-site-error.log',

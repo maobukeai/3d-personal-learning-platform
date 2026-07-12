@@ -18,7 +18,7 @@ test.describe('高频点击场景', () => {
       if (await registerLink.isVisible({ timeout: 1000 }).catch(() => false)) {
         await registerLink.click().catch(() => {});
       }
-      const loginLink = page.getByRole('link', { name: /登录|sign\s*in/i });
+      const loginLink = page.getByRole('link', { name: /进入平台|点此登录|登录|sign\s*in/i });
       if (await loginLink.isVisible({ timeout: 1000 }).catch(() => false)) {
         await loginLink.click().catch(() => {});
       }
@@ -40,7 +40,7 @@ test.describe('高频点击场景', () => {
       }
     });
 
-    const loginButton = page.getByRole('button', { name: /登录|sign\s*in/i });
+    const loginButton = page.getByRole('button', { name: /进入平台|登录|sign\s*in/i });
 
     // 快速连续点击 10 次（模拟高频点击）
     for (let i = 0; i < 10; i++) {

@@ -18,7 +18,7 @@ test.describe('登录页', () => {
     await page.goto('/login');
 
     // 点击登录按钮（无输入）
-    await page.getByRole('button', { name: /登录|sign\s*in/i }).click();
+    await page.getByRole('button', { name: /进入平台|登录|sign\s*in/i }).click();
 
     // 应该出现某种错误提示（具体的 toast/inline error 因实现而异）
     // 至少不应导航离开 /login

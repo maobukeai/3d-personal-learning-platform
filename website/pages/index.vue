@@ -326,46 +326,42 @@ const capabilityGroups = [
   <section class="section-wrap platform-highlights">
     <div class="highlight-heading">
       <p class="eyebrow">FEATURES OVERVIEW</p>
-      <h2>赋能 3D 创作者的全能工作台。</h2>
-      <p>
-        打破零散工具的限制，将灵感收集、知识管理、协作开发和物理资产沉淀融合于一体，为您提供极致的一站式学习创作生态。
-      </p>
+      <h2>一个工作台，<br />串联 3D 创作的每个环节。</h2>
+      <p>打破零散工具的界限。将课程学习、协同笔记、3D 资产管理与团队协作融于一体。</p>
     </div>
 
     <div class="highlight-grid">
       <div class="highlight-item">
-        <div class="item-icon">📚</div>
-        <h3>模块化课程与路线图</h3>
+        <span class="item-num">01</span>
+        <h3>模块化课程体系</h3>
         <p>
-          提供从基础到进阶实战的 3D
-          课程体系，集成学习进度自动跟踪、笔记双向关联和个人知识树生成，让每一阶段的成长都切实可见。
+          从基础到进阶的 3D
+          实战开发体系，集成进度自动跟踪与个人知识树生成，让每次学习成长都切实可见。
         </p>
       </div>
 
       <div class="highlight-item">
-        <div class="item-icon">🌱</div>
-        <h3>双向关联的 Yjs 知识库</h3>
+        <span class="item-num">02</span>
+        <h3>双向协同知识库</h3>
         <p>
-          基于冲突解决的 Yjs
-          多人同步笔记，轻松关联您的课程进度、临时云盘文件与团队项目卡片，助您自主编织多维的立体知识网络。
+          基于 Yjs 协同技术，轻松关联课程进度、临时云盘文件与项目卡片，助您自主编织立体的知识网络。
         </p>
       </div>
 
       <div class="highlight-item">
-        <div class="item-icon">💎</div>
-        <h3>Draco 10 级 3D 压缩引擎</h3>
+        <span class="item-num">03</span>
+        <h3>Draco 3D 压缩引擎</h3>
         <p>
-          无缝整合 R2 存储通道，通过 gltf-transform 进行模型 Draco 10 级无损轻量化压缩，贴图 WebP
-          自适应转换，让高精度 3D 资产实现秒级加载。
+          整合云端 R2 存储通道，通过 Draco 10 级压缩与 WebP 自适应转换，让高精度 3D
+          资产在网页端秒级呈现。
         </p>
       </div>
 
       <div class="highlight-item">
-        <div class="item-icon">👥</div>
-        <h3>多租户团队项目协作</h3>
+        <span class="item-num">04</span>
+        <h3>多租户团队协作</h3>
         <p>
-          内置看板任务调度与后台 BullMQ
-          队列服务，支持大文件贴图的自动压缩任务，无论是个人创作还是团队大文件项目开发，都能在云端空间流式协作。
+          内置看板任务调度与 BullMQ 队列服务，支持贴图的自动压缩任务，实现个人与团队的云端高效协作。
         </p>
       </div>
     </div>

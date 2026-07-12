@@ -160,21 +160,15 @@ const nav = [
             工具 <span class="arrow-icon">▼</span>
           </button>
           <div class="dropdown-panel" :class="{ show: isDropdownOpen }">
-            <a :href="`${config.public.appBase}/temporary-netdisk`" target="_blank" rel="noopener"
-              >临时网盘</a
-            >
+            <NuxtLink to="/temporary-netdisk">临时网盘</NuxtLink>
           </div>
         </div>
 
         <!-- Mobile inline tools menu -->
         <div class="mobile-tools-group">
           <div class="mobile-tools-title">工具</div>
-          <a
-            :href="`${config.public.appBase}/temporary-netdisk`"
-            class="mobile-sub-link"
-            target="_blank"
-            rel="noopener"
-            >临时网盘</a
+          <NuxtLink to="/temporary-netdisk" class="mobile-sub-link" @click="menuOpen = false"
+            >临时网盘</NuxtLink
           >
         </div>
       </nav>

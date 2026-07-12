@@ -93,3 +93,5 @@ server/scripts/list_functions.ts
 # Website build outputs
 website/.nuxt/
 website/.output/
+# Nuxt build artifact when --prerender flag is passed 'false' as string
+website/false/

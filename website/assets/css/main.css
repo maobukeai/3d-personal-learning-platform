@@ -886,27 +886,27 @@ h2 {
   font-size: 10px;
 }
 .bento-work {
-  grid-column: span 2;
   padding: 25px;
   background: linear-gradient(120deg, #edf8f3, #d9eee6);
 }
 .bento-work h3 {
-  max-width: 280px;
-  margin-top: 19px;
-  font-size: 26px;
+  max-width: 175px;
+  margin-top: 15px;
+  font-size: 20px;
+  line-height: 1.35;
 }
 .bento-work > b {
   position: absolute;
-  right: 25px;
+  left: 25px;
   bottom: 25px;
 }
 .work-lines {
   position: absolute;
-  right: 25px;
-  top: 46px;
+  right: 20px;
+  top: 40px;
   display: grid;
   gap: 8px;
-  width: 135px;
+  width: 90px;
 }
 .work-lines i {
   height: 12px;

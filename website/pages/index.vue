@@ -194,18 +194,6 @@ const capabilityGroups = [
     </div>
   </section>
 
-  <section class="section-wrap platform-proof">
-    <p>课程路径</p>
-    <i></i>
-    <p>3D 资产</p>
-    <i></i>
-    <p>材料与插件</p>
-    <i></i>
-    <p>任务协作</p>
-    <i></i>
-    <p>作品沉淀</p>
-  </section>
-
   <section class="section-wrap platform-metrics" aria-label="平台实时数据">
     <div>
       <strong>{{ websiteOverview?.courses || 0 }}</strong

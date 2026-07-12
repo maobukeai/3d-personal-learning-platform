@@ -556,25 +556,7 @@ main {
   border-radius: inherit;
   background: #8799e6;
 }
-.platform-proof {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 25px 0 90px;
-  color: #717582;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-.platform-proof p {
-  margin: 0;
-}
-.platform-proof i {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #aeb4c5;
-}
+
 .platform-metrics {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -1561,13 +1543,7 @@ h2 {
   .dashboard-course span {
     margin-top: 110px;
   }
-  .platform-proof {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px 13px;
-    padding: 0 0 68px;
-    text-align: center;
-  }
+
   .platform-metrics {
     grid-template-columns: repeat(2, 1fr);
     margin-bottom: 75px;

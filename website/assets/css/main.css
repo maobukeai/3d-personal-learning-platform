@@ -1475,45 +1475,48 @@ h2 {
 }
 
 /* ==========================================================================
-   Temporary Netdisk Styling
+   Temporary Netdisk Styling (Apple Minimalist)
    ========================================================================== */
 .netdisk-wrap {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 100px 0 60px;
+  padding: 110px 0 80px;
   min-height: calc(100vh - 120px);
+  background: #fbfbfd;
 }
 .netdisk-container {
   width: 100%;
-  max-width: 900px;
-  padding: 40px;
-  border-radius: 24px;
+  max-width: 860px;
+  padding: 48px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.02);
 }
 .netdisk-header {
-  margin-bottom: 28px;
+  margin-bottom: 30px;
 }
 .netdisk-header h1 {
   margin: 0 0 8px;
-  font-size: 32px;
-  font-weight: 800;
-  color: var(--ink);
-  letter-spacing: -0.03em;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1d1d1f;
+  letter-spacing: -0.015em;
 }
 .netdisk-header p {
   margin: 0;
   font-size: 14px;
-  color: var(--muted);
+  color: #86868b;
   line-height: 1.5;
 }
 
 /* Quota Indicator styling */
 .quota-container {
-  margin-bottom: 30px;
+  margin-bottom: 32px;
   padding: 16px 20px;
-  border: 1px solid rgba(24, 25, 30, 0.04);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.35);
+  border-radius: 12px;
+  background: #f5f5f7;
 }
 .quota-info {
   display: flex;
@@ -1521,34 +1524,35 @@ h2 {
   align-items: center;
   margin-bottom: 8px;
   font-size: 13px;
-  color: var(--muted);
+  color: #515154;
+  font-weight: 500;
 }
 .quota-text strong {
-  color: var(--ink);
-  font-weight: 700;
+  color: #1d1d1f;
+  font-weight: 600;
 }
 .quota-percent-label {
-  font-weight: 700;
-  color: var(--accent);
+  font-weight: 600;
+  color: #0071e3;
 }
 .quota-bar-bg {
   width: 100%;
-  height: 6px;
-  background: rgba(24, 25, 30, 0.05);
-  border-radius: 99px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 2px;
   overflow: hidden;
 }
 .quota-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #5169f6, #3b82f6);
-  border-radius: 99px;
+  background: #0071e3;
+  border-radius: 2px;
   transition: width 0.4s cubic-bezier(0.1, 0.8, 0.3, 1);
 }
 .quota-bar-fill.warning {
-  background: linear-gradient(90deg, #f59e0b, #eab308);
+  background: #ff9f0a;
 }
 .quota-bar-fill.danger {
-  background: linear-gradient(90deg, #ef4444, #f43f5e);
+  background: #ff3b30;
 }
 
 /* Upload Dropzone styling */
@@ -1557,57 +1561,52 @@ h2 {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  min-height: 180px;
+  min-height: 150px;
   padding: 30px;
-  border: 2px dashed rgba(24, 25, 30, 0.12);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 14px;
+  background: #f5f5f7;
   cursor: pointer;
   text-align: center;
   transition:
-    border-color 0.2s,
-    background-color 0.2s;
+    background-color 0.2s,
+    border-color 0.2s;
 }
-.upload-dropzone:hover,
+.upload-dropzone:hover {
+  background: #ececf0;
+  border-color: rgba(0, 0, 0, 0.2);
+}
 .upload-dropzone.dragging {
-  border-color: var(--accent);
-  background: rgba(81, 105, 246, 0.03);
+  background: #e3e3e8;
+  border-color: #0071e3;
 }
 .upload-dropzone.uploading {
-  border-style: solid;
-  border-color: rgba(24, 25, 30, 0.06);
-  background: rgba(255, 255, 255, 0.4);
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
   cursor: default;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 .dropzone-idle {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
-.upload-icon {
-  font-size: 36px;
+.upload-arrow-svg {
+  width: 28px;
+  height: 28px;
+  color: #86868b;
   margin-bottom: 12px;
-  animation: floatIcon 3s ease-in-out infinite;
-}
-@keyframes floatIcon {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
-  }
 }
 .upload-title {
   display: block;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ink);
-  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1d1d1f;
 }
 .upload-limit {
   font-size: 12px;
-  color: var(--muted);
+  color: #86868b;
+  margin-top: 4px;
 }
 
 /* Upload progress styling */
@@ -1616,13 +1615,13 @@ h2 {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 460px;
+  max-width: 440px;
 }
 .upload-loader {
-  width: 32px;
-  height: 32px;
-  border: 3px solid rgba(81, 105, 246, 0.15);
-  border-top-color: var(--accent);
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid rgba(0, 113, 227, 0.1);
+  border-top-color: #0071e3;
   border-radius: 50%;
   animation: spinner 0.8s linear infinite;
   margin-bottom: 12px;
@@ -1633,91 +1632,88 @@ h2 {
   }
 }
 .uploading-text {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--ink);
-  margin-bottom: 16px;
+  color: #1d1d1f;
+  margin-bottom: 14px;
 }
 .upload-progress-container {
   width: 100%;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 .upload-progress-bar {
   width: 100%;
-  height: 6px;
-  background: rgba(24, 25, 30, 0.05);
-  border-radius: 99px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 2px;
   overflow: hidden;
   margin-bottom: 6px;
 }
 .upload-progress-fill {
   height: 100%;
-  background: var(--accent);
-  border-radius: 99px;
+  background: #0071e3;
+  border-radius: 2px;
   transition: width 0.15s linear;
 }
 .progress-details {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
-  color: var(--muted);
+  font-size: 11px;
+  color: #86868b;
 }
 .btn-cancel {
-  padding: 6px 16px;
-  border: 1px solid rgba(24, 25, 30, 0.12);
-  border-radius: 8px;
-  color: #555;
-  background: #fff;
+  padding: 6px 18px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 99px;
+  color: #1d1d1f;
+  background: #ffffff;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition:
-    background 0.15s,
-    color 0.15s;
+  transition: all 0.2s;
 }
 .btn-cancel:hover {
-  background: #fafafb;
-  color: var(--ink);
+  background: #f5f5f7;
+  border-color: rgba(0, 0, 0, 0.3);
 }
 
 /* File list section */
 .file-list-section {
-  margin-top: 40px;
+  margin-top: 44px;
 }
 .list-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
+  align-items: flex-end;
+  margin-bottom: 20px;
   flex-wrap: wrap;
   gap: 12px;
 }
 .list-title {
   margin: 0;
   font-size: 18px;
-  font-weight: 700;
-  color: var(--ink);
+  font-weight: 600;
+  color: #1d1d1f;
 }
 .search-box {
   position: relative;
-  width: 240px;
+  width: 220px;
 }
 .search-input {
   width: 100%;
-  padding: 8px 12px 8px 32px;
-  border: 1px solid rgba(24, 25, 30, 0.08);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.4);
-  color: var(--ink);
+  padding: 8px 12px 8px 30px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #f5f5f7;
+  color: #1d1d1f;
   font-size: 13px;
   outline: none;
-  transition:
-    border-color 0.2s,
-    background-color 0.2s;
+  transition: all 0.2s;
 }
 .search-input:focus {
-  border-color: var(--accent);
-  background: #fff;
+  background: #ffffff;
+  border-color: #0071e3;
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
 }
 .search-icon {
   position: absolute;
@@ -1725,46 +1721,50 @@ h2 {
   top: 50%;
   transform: translateY(-50%);
   font-size: 12px;
-  color: var(--muted);
+  color: #86868b;
 }
 
-/* File Table styling */
-.table-container {
-  overflow-x: auto;
-  border: 1px solid rgba(24, 25, 30, 0.05);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.3);
-}
-.file-table {
+/* Finder-like List styling */
+.finder-list {
   width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 13px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
 }
-.file-table th {
-  padding: 12px 16px;
+.finder-thead {
+  display: grid;
+  grid-template-columns: 1.8fr 0.8fr 1fr 1fr;
+  background: #f5f5f7;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 10px 18px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--muted);
-  border-bottom: 1px solid rgba(24, 25, 30, 0.05);
-  background: rgba(24, 25, 30, 0.02);
+  color: #86868b;
 }
-.file-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(24, 25, 30, 0.04);
-  color: #4a4d55;
-  white-space: nowrap;
+.finder-row {
+  display: grid;
+  grid-template-columns: 1.8fr 0.8fr 1fr 1fr;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: 13px;
+  color: #1d1d1f;
+  align-items: center;
+  transition: background-color 0.15s;
 }
-.file-table tr:last-child td {
+.finder-row:last-child {
   border-bottom: none;
 }
-.file-table tr:hover td {
-  background: rgba(255, 255, 255, 0.4);
+.finder-row:hover {
+  background: #f5f5f7;
 }
-.file-name-cell {
+.col-name {
   display: flex;
   align-items: center;
-  gap: 8px;
-  max-width: 320px;
+  gap: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .file-icon {
   font-size: 16px;
@@ -1774,47 +1774,52 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 500;
-  color: var(--ink);
+  color: #1d1d1f;
 }
-.action-btn {
+.col-size,
+.col-date {
+  color: #515154;
+}
+.btn-pill {
   display: inline-flex;
   align-items: center;
-  padding: 6px 12px;
+  justify-content: center;
+  padding: 6px 14px;
   border: 0;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
+  border-radius: 99px;
+  background: #f5f5f7;
+  color: #0071e3;
+  font-size: 12px;
+  font-weight: 550;
   text-decoration: none;
   cursor: pointer;
-  transition:
-    transform 0.1s,
-    opacity 0.15s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   margin-left: 6px;
 }
-.action-btn:hover {
-  opacity: 0.9;
+.btn-pill:hover {
+  background: #0071e3;
+  color: #ffffff !important;
 }
-.action-btn:active {
-  transform: scale(0.97);
+.btn-pill:active {
+  transform: scale(0.96);
 }
-.action-btn.download {
-  color: #fff !important;
-  background: #3b82f6;
+.btn-pill.btn-danger {
+  color: #ff3b30;
 }
-.action-btn.delete {
-  color: #fff !important;
-  background: #ef4444;
+.btn-pill.btn-danger:hover {
+  background: #ff3b30;
+  color: #ffffff !important;
 }
 
 /* Skeleton Loading styling */
 .loading-skeleton {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   padding: 16px;
-  border: 1px solid rgba(24, 25, 30, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.3);
+  background: #ffffff;
 }
 .skeleton-row {
   display: flex;
@@ -1825,9 +1830,9 @@ h2 {
 .sk-cell {
   background: linear-gradient(
     90deg,
-    rgba(24, 25, 30, 0.04) 25%,
-    rgba(24, 25, 30, 0.08) 50%,
-    rgba(24, 25, 30, 0.04) 75%
+    rgba(0, 0, 0, 0.03) 25%,
+    rgba(0, 0, 0, 0.06) 50%,
+    rgba(0, 0, 0, 0.03) 75%
   );
   background-size: 200% 100%;
   animation: skeletonGlow 1.5s infinite;
@@ -1858,35 +1863,28 @@ h2 {
   align-items: center;
   padding: 40px;
   text-align: center;
-  border: 1px dashed rgba(24, 25, 30, 0.06);
+  border: 1px dashed rgba(0, 0, 0, 0.1);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.15);
+  background: #f5f5f7;
 }
 .empty-icon {
   font-size: 28px;
   margin-bottom: 8px;
-  opacity: 0.7;
+  opacity: 0.6;
 }
 .empty-state p {
   margin: 0;
   font-size: 13px;
-  color: var(--muted);
+  color: #86868b;
 }
 
 /* Media Query Adaptations for Netdisk */
 @media (max-width: 720px) {
   .netdisk-wrap {
-    padding: 80px 0 40px;
+    padding: 80px 16px 40px;
   }
   .netdisk-container {
-    padding: 24px 16px;
-    border-radius: 16px;
-  }
-  .netdisk-header h1 {
-    font-size: 24px;
-  }
-  .quota-container {
-    padding: 12px 14px;
+    padding: 20px;
   }
   .list-header {
     flex-direction: column;
@@ -1895,11 +1893,15 @@ h2 {
   .search-box {
     width: 100%;
   }
-  .file-name-cell {
-    max-width: 180px;
+  .finder-thead {
+    grid-template-columns: 2fr 1fr 1.2fr;
   }
-  .file-table th:nth-child(3),
-  .file-table td:nth-child(3) {
+  .finder-row {
+    grid-template-columns: 2fr 1fr 1.2fr;
+    padding: 12px 10px;
+  }
+  .finder-thead .col-date,
+  .finder-row .col-date {
     display: none; /* Hide date on small screen */
   }
 }

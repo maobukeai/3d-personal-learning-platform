@@ -33,23 +33,19 @@ const fileInput = ref<HTMLInputElement | null>(null);
 
 let activeXhr: XMLHttpRequest | null = null;
 
+// Format file size (identical to main platform)
 const formatSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B';
+  if (bytes <= 0) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+// Format date (identical to main platform)
 const formatDate = (dateStr: string): string => {
-  const date = new Date(dateStr);
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
 const fetchFiles = async () => {
@@ -74,7 +70,7 @@ const fetchFiles = async () => {
 };
 
 const deleteFile = async (id: string) => {
-  if (!confirm('确定要永久删除此文件吗？共享容量中的文件删除后不可恢复。')) return;
+  if (!confirm('确定要删除此共享文件吗？删除后所有网盘访客将无法下载。')) return;
   try {
     await $fetch(`${config.public.apiBase}/website/netdisk/files/${id}`, {
       method: 'DELETE',
@@ -93,11 +89,11 @@ const filteredFiles = computed(() => {
 });
 
 // Quota calculations
-const usedGb = computed(() => (usedBytes.value / (1024 * 1024 * 1024)).toFixed(3));
 const quotaPercent = computed(() => {
   const totalLimitBytes = limitGb.value * 1024 * 1024 * 1024;
   if (totalLimitBytes <= 0) return 0;
-  return Math.min(Math.round((usedBytes.value / totalLimitBytes) * 100), 100);
+  const pct = (usedBytes.value / totalLimitBytes) * 100;
+  return Math.min(100, parseFloat(pct.toFixed(1)));
 });
 
 // Drag and drop handlers
@@ -152,14 +148,13 @@ const handleFileUpload = async (file: File) => {
   isUploading.value = true;
   uploadProgress.value = 0;
   uploadSpeedStr.value = '';
-  uploadStatusText.value = '申请直传授权中...';
+  uploadStatusText.value = '授权中...';
 
   const startTime = Date.now();
   let lastLoaded = 0;
   let lastTime = Date.now();
 
   try {
-    // 1. Get Upload Authorization
     const authRes = await $fetch<{
       isDirect: boolean;
       uploadUrl?: string;
@@ -172,9 +167,7 @@ const handleFileUpload = async (file: File) => {
 
     if (authRes.isDirect && authRes.uploadUrl && authRes.key) {
       const { uploadUrl, key } = authRes;
-
-      // 2. Direct S3/R2 upload using XMLHttpRequest to track progress natively
-      uploadStatusText.value = '正在直传云存储...';
+      uploadStatusText.value = '正在上传云端存储...';
 
       activeXhr = new XMLHttpRequest();
       activeXhr.open('PUT', uploadUrl, true);
@@ -204,20 +197,20 @@ const handleFileUpload = async (file: File) => {
 
       activeXhr.onload = async () => {
         if (activeXhr && activeXhr.status >= 200 && activeXhr.status < 300) {
-          uploadStatusText.value = '同步数据库中...';
+          uploadStatusText.value = '同步校验中...';
           try {
             await $fetch(`${config.public.apiBase}/website/netdisk/complete-single`, {
               method: 'POST',
               body: { filename, key, size, mimetype },
             });
             uploadProgress.value = 100;
-            uploadStatusText.value = '上传完成！';
+            uploadStatusText.value = '已完成';
             setTimeout(() => {
               isUploading.value = false;
               fetchFiles();
-            }, 800);
+            }, 600);
           } catch (err: any) {
-            alert('文件写入记录失败: ' + (err.data?.error || err.message));
+            alert('同步失败: ' + (err.data?.error || err.message));
             cancelUpload();
           }
         } else {
@@ -227,14 +220,14 @@ const handleFileUpload = async (file: File) => {
       };
 
       activeXhr.onerror = () => {
-        alert('文件传输过程中发生网络错误');
+        alert('文件直传发生网络错误');
         cancelUpload();
       };
 
       activeXhr.send(file);
     } else {
-      // 3. Fallback upload to backend server directly via FormData
-      uploadStatusText.value = '正在分段传输到服务器...';
+      // Fallback
+      uploadStatusText.value = '直传服务器中...';
       const formData = new FormData();
       formData.append('temporary_file', file);
 
@@ -266,26 +259,26 @@ const handleFileUpload = async (file: File) => {
       activeXhr.onload = () => {
         if (activeXhr && activeXhr.status >= 200 && activeXhr.status < 300) {
           uploadProgress.value = 100;
-          uploadStatusText.value = '上传完成！';
+          uploadStatusText.value = '已完成';
           setTimeout(() => {
             isUploading.value = false;
             fetchFiles();
-          }, 800);
+          }, 600);
         } else {
-          alert('服务器上传失败，状态码: ' + activeXhr?.status);
+          alert('上传失败，状态码: ' + activeXhr?.status);
           cancelUpload();
         }
       };
 
       activeXhr.onerror = () => {
-        alert('文件传输过程中发生网络错误');
+        alert('上传发生网络错误');
         cancelUpload();
       };
 
       activeXhr.send(formData);
     }
   } catch (err: any) {
-    alert(err.data?.error || '获取直传授权失败，请稍后重试');
+    alert(err.data?.error || '授权失败，请稍后重试');
     cancelUpload();
   }
 };
@@ -300,17 +293,16 @@ onMounted(fetchFiles);
 <template>
   <div class="netdisk-wrap page-content-wrap">
     <div class="netdisk-container glass-real-physical glass-panel-extreme">
+      <!-- Minimalist apple style Header -->
       <div class="netdisk-header">
         <h1>临时云网盘</h1>
-        <p>免登录、高速公共临时共享网盘，所有上传文件将在每日凌晨 3 点自动清空。</p>
+        <p>提供极简、高速的免登录共享存储空间。系统每日凌晨 3:00 自动清理所有文件。</p>
       </div>
 
-      <!-- Quota Capacity indicator bar -->
+      <!-- Storage Quota bar with unified formatSize -->
       <div class="quota-container">
         <div class="quota-info">
-          <span class="quota-text"
-            >存储配额已用：<strong>{{ usedGb }} GB</strong> / {{ limitGb }} GB</span
-          >
+          <span class="quota-text"> 已使用 {{ formatSize(usedBytes) }}，共 {{ limitGb }} GB </span>
           <span class="quota-percent-label">{{ quotaPercent }}%</span>
         </div>
         <div class="quota-bar-bg">
@@ -322,7 +314,7 @@ onMounted(fetchFiles);
         </div>
       </div>
 
-      <!-- Drag & Drop upload Zone -->
+      <!-- Minimal drag & drop area -->
       <div
         class="upload-dropzone"
         :class="{ dragging: isDragging, uploading: isUploading }"
@@ -334,9 +326,19 @@ onMounted(fetchFiles);
         <input ref="fileInput" type="file" class="hidden" @change="onFileSelected" />
 
         <div v-if="!isUploading" class="dropzone-idle">
-          <div class="upload-icon">☁️</div>
-          <span class="upload-title">拖拽文件到此处，或点击选择文件上传</span>
-          <span class="upload-limit">最大支持直传 2GB 的单文件</span>
+          <svg
+            class="upload-arrow-svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="16 16 12 12 8 16"></polyline>
+            <line x1="12" y1="12" x2="12" y2="21"></line>
+            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+          </svg>
+          <span class="upload-title">拖拽文件到此处，或点击上传</span>
+          <span class="upload-limit">单个文件限额 2GB</span>
         </div>
 
         <div v-else class="dropzone-uploading" @click.stop>
@@ -351,26 +353,26 @@ onMounted(fetchFiles);
               <span class="upload-speed">{{ uploadSpeedStr }}</span>
             </div>
           </div>
-          <button class="btn-cancel" type="button" @click="cancelUpload">取消上传</button>
+          <button class="btn-cancel" type="button" @click="cancelUpload">取消</button>
         </div>
       </div>
 
-      <!-- Search & File lists -->
+      <!-- Finder style File list -->
       <div class="file-list-section">
         <div class="list-header">
-          <h2 class="list-title">公共共享文件 ({{ filteredFiles.length }})</h2>
+          <h2 class="list-title">文件列表 ({{ filteredFiles.length }})</h2>
           <div class="search-box">
+            <span class="search-icon">🔍</span>
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="搜索文件名..."
+              placeholder="搜索文件名"
               class="search-input"
             />
-            <span class="search-icon">🔍</span>
           </div>
         </div>
 
-        <!-- Skeleton loader -->
+        <!-- Skeleton loaders -->
         <div v-if="loading && files.length === 0" class="loading-skeleton">
           <div v-for="i in 3" :key="i" class="skeleton-row">
             <div class="sk-cell sk-name"></div>
@@ -380,53 +382,39 @@ onMounted(fetchFiles);
           </div>
         </div>
 
-        <!-- File lists table -->
-        <div v-else-if="filteredFiles.length > 0" class="table-container">
-          <table class="file-table">
-            <thead>
-              <tr>
-                <th>文件名</th>
-                <th>大小</th>
-                <th>上传时间</th>
-                <th class="text-right">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="file in filteredFiles" :key="file.id">
-                <td class="file-name-cell">
-                  <span class="file-icon">📄</span>
-                  <span class="file-name" :title="file.name">{{ file.name }}</span>
-                </td>
-                <td class="file-size-cell">{{ formatSize(file.size) }}</td>
-                <td class="file-date-cell">{{ formatDate(file.createdAt) }}</td>
-                <td class="file-actions-cell text-right">
-                  <a
-                    :href="getDownloadUrl(file)"
-                    class="action-btn download"
-                    target="_blank"
-                    rel="noopener"
-                    title="下载文件"
-                  >
-                    下载 📥
-                  </a>
-                  <button
-                    class="action-btn delete"
-                    type="button"
-                    title="删除文件"
-                    @click="deleteFile(file.id)"
-                  >
-                    删除 🗑️
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- Finder Row list -->
+        <div v-else-if="filteredFiles.length > 0" class="finder-list">
+          <div class="finder-thead">
+            <div class="col-name">文件名</div>
+            <div class="col-size text-center">大小</div>
+            <div class="col-date text-center">上传时间</div>
+            <div class="col-actions text-right">操作</div>
+          </div>
+
+          <div class="finder-tbody">
+            <div v-for="file in filteredFiles" :key="file.id" class="finder-row">
+              <div class="col-name">
+                <span class="file-icon">📄</span>
+                <span class="file-name" :title="file.name">{{ file.name }}</span>
+              </div>
+              <div class="col-size text-center">{{ formatSize(file.size) }}</div>
+              <div class="col-date text-center">{{ formatDate(file.createdAt) }}</div>
+              <div class="col-actions text-right">
+                <a :href="getDownloadUrl(file)" class="btn-pill" target="_blank" rel="noopener">
+                  下载
+                </a>
+                <button class="btn-pill btn-danger" type="button" @click="deleteFile(file.id)">
+                  删除
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Empty state -->
         <div v-else class="empty-state">
           <div class="empty-icon">📁</div>
-          <p>{{ searchQuery ? '未找到符合条件的文件' : '网盘里空空的，快去上传第一个文件吧' }}</p>
+          <p>{{ searchQuery ? '未找到符合条件的文件' : '网盘中暂无任何共享文件' }}</p>
         </div>
       </div>
     </div>

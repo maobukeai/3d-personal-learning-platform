@@ -169,64 +169,106 @@ export interface FullOptimizationResult {
   compressionRatio: number; // compressedSizeBytes / originalSizeBytes
 }
 
+export async function processFull3DOptimization(filePath: string): Promise<FullOptimizationResult>;
+export async function processFull3DOptimization(
+  buffer: Buffer,
+  ext: '.glb' | '.gltf',
+): Promise<FullOptimizationResult>;
 /**
- * Unified 3D asset optimization pipeline:
- * 1. optimize3DAsset (gltf-transform: weld, resample, prune, dedup, quantize, textureCompress)
- * 2. compressGltfDraco (Draco compression)
- * 3. executeAssetAnalysis (metadata extraction)
+ * Unified 3D asset optimization pipeline.
  *
- * Works with a temp file path (created by caller from buffer or multer file).
- * Returns the optimized buffer and analysis metadata.
+ * Accepts either:
+ *  - a file-system path (string): processes the file in-place.
+ *  - a Buffer + ext: writes to a temp file, processes, then cleans up.
+ *
+ * Steps:
+ *  1. gltf-transform optimizations (weld, resample, prune, dedup, quantize, textureCompress)
+ *  2. Draco compression via gltf-pipeline
+ *  3. Metadata extraction (executeAssetAnalysis)
  */
-export async function processFull3DOptimization(filePath: string): Promise<FullOptimizationResult> {
-  // 1. Read original file to get original size
-  const originalBuffer = await fs.promises.readFile(filePath);
-  const originalSizeBytes = originalBuffer.length;
+export async function processFull3DOptimization(
+  filePathOrBuffer: string | Buffer,
+  ext?: '.glb' | '.gltf',
+): Promise<FullOptimizationResult> {
+  let tempFilePath: string | null = null;
+  let filePath: string;
 
-  // 2. optimize3DAsset(filePath) — modifies file in place
-  try {
-    await optimize3DAsset(filePath);
-  } catch (err) {
-    logger.error(`[AssetProcessor] optimize3DAsset failed during full pipeline:`, err);
-    // Continue with the un-optimized file — Draco compression + analysis can still run.
-  }
-
-  // 3. Read optimized file, compressGltfDraco(buffer, ext) — returns compressed buffer
-  const ext = path.extname(filePath).toLowerCase();
-  let compressedBuffer: Buffer;
-  if (ext === '.glb' || ext === '.gltf') {
-    const optimizedBuffer = await fs.promises.readFile(filePath);
-    compressedBuffer = await compressGltfDraco(optimizedBuffer, ext as '.glb' | '.gltf');
-    // 4. Write compressed buffer back to filePath (for analysis step)
-    await fs.promises.writeFile(filePath, compressedBuffer);
+  // ── If a Buffer was supplied, write it to a temp file first ────────────────
+  if (Buffer.isBuffer(filePathOrBuffer)) {
+    const os = await import('os');
+    const safeExt = ext ?? '.glb';
+    tempFilePath = path.join(
+      os.tmpdir(),
+      `asset-${Date.now()}-${Math.random().toString(36).slice(2)}${safeExt}`,
+    );
+    await fs.promises.writeFile(tempFilePath, filePathOrBuffer);
+    filePath = tempFilePath;
   } else {
-    // Non-GLB/GLTF files: skip Draco compression, use the (optimized) buffer as-is.
-    compressedBuffer = await fs.promises.readFile(filePath);
+    filePath = filePathOrBuffer;
   }
 
-  // 5. executeAssetAnalysis(filePath) — extract metadata
-  const metadata = await executeAssetAnalysis(filePath);
+  try {
+    // 1. Read original file to get original size
+    const originalBuffer = await fs.promises.readFile(filePath);
+    const originalSizeBytes = originalBuffer.length;
 
-  const compressedSizeBytes = compressedBuffer.length;
-  const compressionRatio = originalSizeBytes > 0 ? compressedSizeBytes / originalSizeBytes : 0;
+    // 2. optimize3DAsset(filePath) — modifies file in place
+    try {
+      await optimize3DAsset(filePath);
+    } catch (err) {
+      logger.error(`[AssetProcessor] optimize3DAsset failed during full pipeline:`, err);
+      // Continue with the un-optimized file — Draco compression + analysis can still run.
+    }
 
-  return {
-    buffer: compressedBuffer,
-    analysis: metadata
-      ? {
-          vertices: metadata.vertices,
-          faces: metadata.faces,
-          materials: metadata.materials,
-          animations: metadata.animations,
-          hasAnimations: metadata.hasAnimations,
-          dimensions: metadata.dimensions || null,
-          maxTextureRes: metadata.maxTextureRes || null,
+    // 3. Read optimized file, compressGltfDraco(buffer, ext) — returns compressed buffer
+    const fileExt = (ext ?? path.extname(filePath).toLowerCase()) as '.glb' | '.gltf';
+    let compressedBuffer: Buffer;
+    if (fileExt === '.glb' || fileExt === '.gltf') {
+      const optimizedBuffer = await fs.promises.readFile(filePath);
+      compressedBuffer = await compressGltfDraco(optimizedBuffer, fileExt);
+      // 4. Write compressed buffer back to filePath (for analysis step)
+      await fs.promises.writeFile(filePath, compressedBuffer);
+    } else {
+      // Non-GLB/GLTF files: skip Draco compression, use the (optimized) buffer as-is.
+      compressedBuffer = await fs.promises.readFile(filePath);
+    }
+
+    // 5. executeAssetAnalysis(filePath) — extract metadata
+    const metadata = await executeAssetAnalysis(filePath);
+
+    const compressedSizeBytes = compressedBuffer.length;
+    const compressionRatio = originalSizeBytes > 0 ? compressedSizeBytes / originalSizeBytes : 0;
+
+    return {
+      buffer: compressedBuffer,
+      analysis: metadata
+        ? {
+            vertices: metadata.vertices,
+            faces: metadata.faces,
+            materials: metadata.materials,
+            animations: metadata.animations,
+            hasAnimations: metadata.hasAnimations,
+            dimensions: metadata.dimensions || null,
+            maxTextureRes: metadata.maxTextureRes || null,
+          }
+        : null,
+      originalSizeBytes,
+      compressedSizeBytes,
+      compressionRatio,
+    };
+  } finally {
+    // Clean up the temp file created from buffer input
+    if (tempFilePath) {
+      try {
+        await fs.promises.unlink(tempFilePath);
+      } catch (cleanupErr: unknown) {
+        const code = (cleanupErr as NodeJS.ErrnoException)?.code;
+        if (code !== 'ENOENT') {
+          logger.warn(`[AssetProcessor] Failed to clean up temp file ${tempFilePath}:`, cleanupErr);
         }
-      : null,
-    originalSizeBytes,
-    compressedSizeBytes,
-    compressionRatio,
-  };
+      }
+    }
+  }
 }
 
 // Master Thread / API Entrypoint

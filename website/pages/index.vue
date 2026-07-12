@@ -12,13 +12,15 @@ const { data: courses } = await useAsyncData('website-courses-preview', () =>
   platform.getCourses(),
 );
 const { data: showcase } = await useAsyncData('website-home-showcase', async () => {
-  const [materials, plugins] = await Promise.allSettled([
+  const [materials, plugins, assets] = await Promise.allSettled([
     platform.getMaterials(),
     platform.getPlugins(),
+    platform.getAssets(),
   ]);
   return {
     materials: materials.status === 'fulfilled' ? materials.value.items || [] : [],
     plugins: plugins.status === 'fulfilled' ? plugins.value.plugins || [] : [],
+    assets: assets.status === 'fulfilled' ? assets.value.items || [] : [],
   };
 });
 
@@ -42,9 +44,18 @@ useSeoMeta({
 
 const coursePreview = computed(() => (courses.value || []).slice(0, 3));
 const featuredCourse = computed(() => coursePreview.value[0]);
+const featuredAsset = computed(() => showcase.value?.assets[0]);
 const featuredMaterial = computed(() => showcase.value?.materials[0]);
 const featuredPlugin = computed(() => showcase.value?.plugins[0]);
+
 const resourcePreviews = computed(() => [
+  {
+    key: 'assets',
+    label: '模型库',
+    path: '/resources?type=model',
+    item: featuredAsset.value,
+    fallback: 'MODEL',
+  },
   {
     key: 'materials',
     label: '材料库',
@@ -59,6 +70,18 @@ const resourcePreviews = computed(() => [
     item: featuredPlugin.value,
     fallback: 'PLUGIN',
   },
+  {
+    key: 'softwares',
+    label: '软件库',
+    path: '/resources?type=software',
+    item: null,
+    fallback: 'SOFTWARE',
+  },
+]);
+
+const mockupPreviews = computed(() => [
+  resourcePreviews.value[1], // materials
+  resourcePreviews.value[2], // plugins
 ]);
 const secureImageUrl = (url?: string | null) => url?.replace(/^http:\/\//, 'https://') || '';
 const previewImage = (item?: PlatformPreviewItem) =>
@@ -174,7 +197,7 @@ const capabilityGroups = [
           </div>
         </div>
         <div class="dashboard-tray">
-          <div v-for="preview in resourcePreviews" :key="preview.key" class="dashboard-resource">
+          <div v-for="preview in mockupPreviews" :key="preview.key" class="dashboard-resource">
             <img
               v-if="previewImage(preview.item) && !previewFailed(`hero-${preview.key}`)"
               :src="previewImage(preview.item)"
@@ -295,7 +318,7 @@ const capabilityGroups = [
             decoding="async"
             @error="markPreviewFailed(`bento-${preview.key}`)"
           />
-          <span v-else>{{ preview.fallback }}</span>
+          <span v-else class="fallback-thumb">{{ preview.fallback.substring(0, 1) }}</span>
           <b>{{ preview.label }}</b>
         </div>
       </div>

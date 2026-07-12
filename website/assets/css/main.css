@@ -748,7 +748,7 @@ h2 {
 .platform-bento {
   display: grid;
   grid-template-columns: 1.1fr 1fr 1fr;
-  grid-template-rows: 285px 205px;
+  grid-template-rows: 285px 235px;
   gap: 14px;
   padding: 18px 0 135px;
 }
@@ -846,44 +846,67 @@ h2 {
 .bento-resource {
   padding: 22px;
   background: linear-gradient(145deg, #f5f6fe, #e2e9ff);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 .bento-resource-head {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+}
+.bento-resource-head span {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #6676ab;
 }
 .bento-resource-head b {
   color: #6676ab;
   font-weight: 500;
+  font-size: 11px;
 }
 .bento-resource-stack {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
-  margin: 20px 0;
+  margin: 10px 0;
 }
 .bento-resource-stack > div {
-  flex: 1;
-  overflow: hidden;
-  border-radius: 11px;
-  background: #ccd7fb;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 10px;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+.bento-resource-stack > div:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 1);
 }
 .bento-resource-stack img,
-.bento-resource-stack span {
-  display: block;
-  width: 100%;
-  height: 70px;
+.bento-resource-stack .fallback-thumb {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
   object-fit: cover;
-}
-.bento-resource-stack span {
-  display: grid;
-  place-items: center;
-  color: #52679f;
-  font-size: 8px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 24, 44, 0.05);
+  font-size: 9px;
   font-weight: 700;
+  color: #6676ab;
 }
 .bento-resource-stack b {
-  display: block;
-  padding: 7px;
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #293052;
 }
 .bento-work {
   padding: 25px;

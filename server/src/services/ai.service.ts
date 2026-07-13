@@ -1213,6 +1213,11 @@ export async function callLLM(
   if (isImageGenerationModel(modelName, overrides?.capabilities, url)) {
     try {
       const imgUrl = cleanImageEndpointUrl(url);
+      const isSenseNova =
+        provider === 'CUSTOM' &&
+        (modelName.toLowerCase().includes('sensenova') ||
+          url.toLowerCase().includes('sensenova.cn'));
+      const testSize = isSenseNova ? '2048x2048' : '256x256';
       logger.info(
         `[AI Service Image Test] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(imgUrl)}`,
       );
@@ -1223,7 +1228,7 @@ export async function callLLM(
           model: modelName,
           prompt: 'a white dot',
           n: 1,
-          size: '256x256',
+          size: testSize,
         },
         {
           headers,
@@ -1552,6 +1557,13 @@ export async function streamLLMChat(
       const sizeMatch = cleanPrompt.match(/(\d{3,4})[xX](\d{3,4})/);
       if (sizeMatch) {
         size = `${sizeMatch[1]}x${sizeMatch[2]}`;
+      }
+      const isSenseNova =
+        provider === 'CUSTOM' &&
+        (modelName.toLowerCase().includes('sensenova') ||
+          url.toLowerCase().includes('sensenova.cn'));
+      if (isSenseNova && size === '1024x1024') {
+        size = '2048x2048';
       }
 
       // 2. Base64 vs URL return format (Base64返回 / 网址返回)
@@ -2241,6 +2253,19 @@ export async function generateImage(
   const isDalle3 = modelLower.includes('dall-e-3') || modelLower.includes('dalle3');
   const isDalle2 =
     modelLower.includes('dall-e-2') || modelLower.includes('dalle2') || modelLower === 'dall-e';
+  const isSenseNova =
+    provider === 'CUSTOM' &&
+    (modelLower.includes('sensenova') || endpoint.toLowerCase().includes('sensenova.cn'));
+
+  // SenseNova image models reject the common OpenAI sizes and only accept
+  // their own fixed aspect-ratio/size set.
+  if (isSenseNova) {
+    if (finalSize === '1024x1024') {
+      finalSize = '2048x2048';
+    } else if (finalSize === '1792x768') {
+      finalSize = '2752x1536';
+    }
+  }
 
   if (isDalle3) {
     if (finalSize === '1792x768') {

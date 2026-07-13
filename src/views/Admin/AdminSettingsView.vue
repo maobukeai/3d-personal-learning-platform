@@ -123,6 +123,7 @@ const defaultSettings = {
   AI_MODEL_NAME: 'deepseek-chat',
   AI_MODEL_OPTIONS: '[]',
   AI_MODEL_CUSTOM_CATEGORIES: '[]',
+  AI_MODEL_DISABLED_GROUPS: '[]',
   TEMPORARY_NETDISK_CLEANUP_TIME: '03:00',
 };
 

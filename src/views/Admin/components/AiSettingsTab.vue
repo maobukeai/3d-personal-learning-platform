@@ -512,15 +512,21 @@ const submitCategoryDialog = () => {
 
 const disabledGroupKeys = ref<string[]>([]);
 
-const restoreDisabledGroups = () => {
-  const stored = localStorage.getItem('ai_model_disabled_groups');
-  if (stored) {
-    try {
-      disabledGroupKeys.value = JSON.parse(stored);
-    } catch {
-      disabledGroupKeys.value = [];
-    }
+const parseDisabledGroupKeys = (value: unknown): string[] => {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
+  } catch {
+    return [];
   }
+};
+
+const restoreDisabledGroups = () => {
+  const persisted = parseDisabledGroupKeys(localSettings.AI_MODEL_DISABLED_GROUPS);
+  const legacy = parseDisabledGroupKeys(localStorage.getItem('ai_model_disabled_groups'));
+  disabledGroupKeys.value = persisted.length > 0 ? persisted : legacy;
 };
 
 const toggleGroupEnabled = (key: string, enabled: boolean) => {
@@ -550,8 +556,19 @@ watch(
   disabledGroupKeys,
   (newKeys) => {
     localStorage.setItem('ai_model_disabled_groups', JSON.stringify(newKeys));
+    localSettings.AI_MODEL_DISABLED_GROUPS = JSON.stringify(newKeys);
   },
   { deep: true },
+);
+
+watch(
+  () => localSettings.AI_MODEL_DISABLED_GROUPS,
+  (value) => {
+    const incoming = parseDisabledGroupKeys(value);
+    if (JSON.stringify(incoming) !== JSON.stringify(disabledGroupKeys.value)) {
+      disabledGroupKeys.value = incoming;
+    }
+  },
 );
 
 const LOCAL_STORAGE_KEY = 'admin_ai_expanded_family_groups';
@@ -1055,6 +1072,7 @@ const importAiSettingsFile = async (event: Event) => {
       const importedConfigs = JSON.parse(data.AI_MODEL_OPTIONS);
       if (Array.isArray(importedConfigs)) {
         localAiModelConfigs.value = importedConfigs;
+        disabledGroupKeys.value = parseDisabledGroupKeys(data.AI_MODEL_DISABLED_GROUPS);
         syncAiModelsToSettings();
         ElMessage.success('成功从文件导入 AI 模型配置');
       }
@@ -1076,6 +1094,7 @@ const exportAiSettings = () => {
       AI_MODEL_NAME: localSettings.AI_MODEL_NAME,
       AI_MODEL_OPTIONS: localSettings.AI_MODEL_OPTIONS,
       AI_MODEL_CUSTOM_CATEGORIES: localSettings.AI_MODEL_CUSTOM_CATEGORIES,
+      AI_MODEL_DISABLED_GROUPS: JSON.stringify(disabledGroupKeys.value),
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

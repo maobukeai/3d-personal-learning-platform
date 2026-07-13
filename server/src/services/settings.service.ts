@@ -53,6 +53,7 @@ export interface SystemSettings {
   AI_MODEL_NAME: string;
   AI_MODEL_OPTIONS: string;
   AI_MODEL_CUSTOM_CATEGORIES: string;
+  AI_MODEL_DISABLED_GROUPS: string;
   TEMPORARY_NETDISK_CLEANUP_TIME: string;
   LAST_NETDISK_CLEANUP_DATE: string;
 }
@@ -296,6 +297,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
     },
   ]),
   AI_MODEL_CUSTOM_CATEGORIES: '[]',
+  AI_MODEL_DISABLED_GROUPS: '[]',
 };
 
 const normalizeAIModelOptions = (value: unknown): AIModelOption[] => {

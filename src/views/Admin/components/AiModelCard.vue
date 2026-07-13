@@ -496,24 +496,24 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
             <div class="flex items-center gap-3 mt-1 flex-wrap">
               <Checkbox
                 :model-value="props.model.capabilities.includes('chat')"
-                label="对话 (Chat)"
                 @change="(checked: unknown) => updateCapability('chat', checked)"
-              />
+                >对话 (Chat)</Checkbox
+              >
               <Checkbox
                 :model-value="props.model.capabilities.includes('image')"
-                label="画图 (Image)"
                 @change="(checked: unknown) => updateCapability('image', checked)"
-              />
+                >画图 (Image)</Checkbox
+              >
               <Checkbox
                 :model-value="props.model.capabilities.includes('video')"
-                label="视频 (Video)"
                 @change="(checked: unknown) => updateCapability('video', checked)"
-              />
+                >视频 (Video)</Checkbox
+              >
               <Checkbox
                 :model-value="props.model.capabilities.includes('translate')"
-                label="翻译 (Translate)"
                 @change="(checked: unknown) => updateCapability('translate', checked)"
-              />
+                >翻译 (Translate)</Checkbox
+              >
             </div>
           </div>
 

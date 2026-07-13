@@ -259,7 +259,7 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
     const setting = await prisma.systemSetting.findUnique({
       where: { key: WEBSITE_ANALYTICS_KEY },
     });
-    let events: Record<string, number> = {};
+    let events: Record<string, number>;
     try {
       events = setting ? JSON.parse(setting.value) : {};
     } catch {
@@ -295,7 +295,7 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
     const setting = await prisma.systemSetting.findUnique({
       where: { key: WEBSITE_ANALYTICS_KEY },
     });
-    let events: Record<string, number> = {};
+    let events: Record<string, number>;
     try {
       events = setting ? JSON.parse(setting.value) : {};
     } catch {

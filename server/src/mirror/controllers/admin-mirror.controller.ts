@@ -676,8 +676,13 @@ export const matchLinks = async (req: MirrorRequest, reply: FastifyReply) => {
       return reply.status(400).send({ error: '请上传Excel文件' });
     }
 
+    const getFileName = (file: UploadedFile) =>
+      typeof file.originalname === 'string' && file.originalname.trim()
+        ? file.originalname
+        : file.filename || 'uploaded.xlsx';
+
     const unsupportedFile = filesArray.find(
-      (file) => path.extname(file.originalname).toLowerCase() !== '.xlsx',
+      (file) => path.extname(getFileName(file)).toLowerCase() !== '.xlsx',
     );
     if (unsupportedFile) {
       await cleanUpFiles(filesArray);
@@ -715,7 +720,14 @@ export const matchLinks = async (req: MirrorRequest, reply: FastifyReply) => {
 
     for (const file of filesArray) {
       try {
-        const rawData = await readSpreadsheetRows(file.buffer!);
+        const fileName = getFileName(file);
+        const spreadsheetInput =
+          file.buffer ?? (file.path ? await fs.promises.readFile(file.path) : undefined);
+        if (!spreadsheetInput) {
+          throw new Error(`上传文件 "${fileName}" 内容为空`);
+        }
+
+        const rawData = await readSpreadsheetRows(spreadsheetInput);
 
         for (const row of rawData) {
           const courseName = (row['课程名称'] || row['名称'] || row['课程'] || '')
@@ -810,12 +822,12 @@ export const matchLinks = async (req: MirrorRequest, reply: FastifyReply) => {
         }
       } catch (fileError) {
         logger.error(
-          `[MirrorLinkMatch] Failed to parse Excel file ${file.originalname}:`,
+          `[MirrorLinkMatch] Failed to parse Excel file ${getFileName(file)}:`,
           fileError,
         );
         await cleanUpFiles(filesArray);
         return reply.status(400).send({
-          error: `解析文件 "${file.originalname}" 失败，请检查文件格式或是否损坏。错误信息: ${fileError instanceof Error ? fileError.message : String(fileError)}`,
+          error: `解析文件 "${getFileName(file)}" 失败，请检查文件格式或是否损坏。错误信息: ${fileError instanceof Error ? fileError.message : String(fileError)}`,
         });
       }
     }

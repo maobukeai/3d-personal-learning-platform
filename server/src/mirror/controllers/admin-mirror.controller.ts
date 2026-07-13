@@ -645,6 +645,26 @@ export const getSyncLogs = async (req: MirrorRequest, reply: FastifyReply) => {
 export const matchLinks = async (req: MirrorRequest, reply: FastifyReply) => {
   const filesArray: UploadedFile[] = [];
 
+  const encodedFiles = Array.isArray(req.body?.files) ? req.body.files : [];
+  for (const encodedFile of encodedFiles) {
+    if (
+      !encodedFile ||
+      typeof encodedFile.name !== 'string' ||
+      typeof encodedFile.data !== 'string'
+    ) {
+      continue;
+    }
+    const buffer = Buffer.from(encodedFile.data, 'base64');
+    filesArray.push({
+      fieldname: 'files',
+      originalname: encodedFile.name,
+      mimetype:
+        typeof encodedFile.type === 'string' ? encodedFile.type : 'application/octet-stream',
+      size: buffer.length,
+      buffer,
+    });
+  }
+
   if (req.file) {
     filesArray.push(req.file);
   }

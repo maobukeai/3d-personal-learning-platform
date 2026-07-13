@@ -295,7 +295,7 @@ async function uploadAndMatch() {
   }
 
   isUploading.value = true;
-  const formData = new FormData();
+  const files: Array<{ name: string; type: string; data: string }> = [];
   for (const file of excelFiles.value) {
     const fileBytes = await file.arrayBuffer();
     if (fileBytes.byteLength === 0) {
@@ -303,20 +303,19 @@ async function uploadAndMatch() {
       isUploading.value = false;
       return;
     }
-    formData.append(
-      'files',
-      new Blob([fileBytes], {
-        type: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      }),
-      file.name,
-    );
+    const bytes = new Uint8Array(fileBytes);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+    }
+    files.push({ name: file.name, type: file.type, data: btoa(binary) });
   }
 
   try {
-    const res = await api.post(
-      `/api/admin/mirror/sources/${selectedSource.value.id}/match-links`,
-      formData,
-    );
+    const res = await api.post(`/api/admin/mirror/sources/${selectedSource.value.id}/match-links`, {
+      files,
+    });
     ElMessage.success(res.data.message || '匹配成功');
     matchResult.value = {
       totalLinks: res.data.totalLinks,

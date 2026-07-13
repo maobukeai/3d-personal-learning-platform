@@ -167,6 +167,10 @@ export const preferences = {
   setDeviceToken: (token: string) => setItem(storageKeys.deviceToken, token),
   clearDeviceToken: () => removeItem(storageKeys.deviceToken),
 
+  getRefreshToken: () => getItem(storageKeys.refreshToken),
+  setRefreshToken: (token: string) => setItem(storageKeys.refreshToken, token),
+  clearRefreshToken: () => removeItem(storageKeys.refreshToken),
+
   clearLegacyAuthTokens: () => {
     removeItem(storageKeys.token);
     removeItem(storageKeys.refreshToken);

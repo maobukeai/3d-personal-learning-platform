@@ -101,6 +101,9 @@ export const useAuthStore = defineStore('auth', {
       if (response.data.accessToken) {
         this.accessToken = response.data.accessToken;
       }
+      if (response.data.refreshToken) {
+        preferences.setRefreshToken(response.data.refreshToken);
+      }
       return response.data;
     },
     async register(userData: RegisterPayload) {
@@ -181,6 +184,12 @@ export const useAuthStore = defineStore('auth', {
       const response = await api.post('/api/auth/login/2fa', { userId, code, rememberDevice });
       this.user = response.data.user;
       preferences.setUser(this.user);
+      if (response.data.accessToken) {
+        this.accessToken = response.data.accessToken;
+      }
+      if (response.data.refreshToken) {
+        preferences.setRefreshToken(response.data.refreshToken);
+      }
       if (response.data.deviceToken) {
         this.deviceToken = response.data.deviceToken;
         preferences.setDeviceToken(this.deviceToken);
@@ -189,12 +198,19 @@ export const useAuthStore = defineStore('auth', {
     },
     async refreshAccessToken() {
       try {
-        const response = await api.post('/api/auth/refresh');
+        const refreshToken = preferences.getRefreshToken();
+        const response = await api.post(
+          '/api/auth/refresh',
+          refreshToken ? { refreshToken } : undefined,
+        );
         // The server returns the new access token in response.data.accessToken
         // (or bare response.data when the body is the token string directly).
         const token: string | null =
           typeof response.data === 'string' ? response.data : (response.data?.accessToken ?? null);
         this.accessToken = token;
+        if (response.data?.refreshToken) {
+          preferences.setRefreshToken(response.data.refreshToken);
+        }
         // Reconnect the socket with the fresh token so the handshake succeeds.
         if (token) {
           const { socketService } = await import('@/utils/socket');

@@ -296,9 +296,21 @@ async function uploadAndMatch() {
 
   isUploading.value = true;
   const formData = new FormData();
-  excelFiles.value.forEach((file) => {
-    formData.append('files', file);
-  });
+  for (const file of excelFiles.value) {
+    const fileBytes = await file.arrayBuffer();
+    if (fileBytes.byteLength === 0) {
+      ElMessage.error(`文件“${file.name}”内容为空，请重新选择后再上传`);
+      isUploading.value = false;
+      return;
+    }
+    formData.append(
+      'files',
+      new Blob([fileBytes], {
+        type: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }),
+      file.name,
+    );
+  }
 
   try {
     const res = await api.post(

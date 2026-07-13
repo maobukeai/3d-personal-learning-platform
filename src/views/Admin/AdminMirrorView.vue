@@ -304,11 +304,6 @@ async function uploadAndMatch() {
     const res = await api.post(
       `/api/admin/mirror/sources/${selectedSource.value.id}/match-links`,
       formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      },
     );
     ElMessage.success(res.data.message || '匹配成功');
     matchResult.value = {

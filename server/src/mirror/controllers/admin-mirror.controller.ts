@@ -723,7 +723,7 @@ export const matchLinks = async (req: MirrorRequest, reply: FastifyReply) => {
         const fileName = getFileName(file);
         const spreadsheetInput =
           file.buffer ?? (file.path ? await fs.promises.readFile(file.path) : undefined);
-        if (!spreadsheetInput) {
+        if (!spreadsheetInput || spreadsheetInput.length === 0) {
           throw new Error(`上传文件 "${fileName}" 内容为空`);
         }
 

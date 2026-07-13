@@ -2,6 +2,14 @@
 import { confirms, removeConfirm, type ConfirmItem } from '@/utils/feedbackStore';
 import { CheckCircle2, AlertCircle, Info, XCircle } from 'lucide-vue-next';
 import { ref, computed, watch } from 'vue';
+import {
+  DialogRoot,
+  DialogPortal,
+  DialogOverlay,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from 'radix-vue';
 
 const iconMap = { success: CheckCircle2, warning: AlertCircle, info: Info, error: XCircle };
 const colorMap = {
@@ -12,6 +20,24 @@ const colorMap = {
 };
 
 const activeItem = computed(() => confirms.value[confirms.value.length - 1]);
+const isOpen = computed(() => !!activeItem.value);
+
+const localActiveItem = ref<ConfirmItem | null>(null);
+watch(
+  activeItem,
+  (newItem) => {
+    if (newItem) {
+      localActiveItem.value = newItem;
+    }
+  },
+  { immediate: true },
+);
+
+const onOpenChange = (open: boolean) => {
+  if (!open && activeItem.value) {
+    handleCancel(activeItem.value);
+  }
+};
 
 const inputValues = ref<Record<number, string>>({});
 watch(
@@ -47,89 +73,68 @@ const confirmButtonClasses = (item: ConfirmItem) =>
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="confirm">
-      <div
-        v-if="activeItem"
-        :key="activeItem.id"
-        class="fixed inset-0 z-[4000] flex items-center justify-center p-4"
+  <DialogRoot :open="isOpen" @update:open="onOpenChange">
+    <DialogPortal>
+      <DialogOverlay class="modal-overlay !z-[4000]" />
+      <DialogContent
+        class="modal-content !z-[4000] focus:outline-none"
+        @interact-outside.prevent
+        @escape-key-down="activeItem && handleCancel(activeItem)"
       >
         <div
-          class="absolute inset-0"
-          style="background-color: var(--glass-overlay-bg)"
-          @pointerdown="handleCancel(activeItem)"
-        />
-        <div class="relative bg-card border border-base shadow-lg w-full max-w-md p-6 rounded-2xl">
+          v-if="localActiveItem"
+          class="relative bg-card border border-base shadow-lg w-full max-w-md p-6 rounded-2xl"
+        >
           <div class="flex items-start gap-3 mb-4">
             <component
-              :is="iconMap[activeItem.type]"
-              v-if="activeItem.type"
+              :is="iconMap[localActiveItem.type || 'warning']"
+              v-if="localActiveItem.type"
               class="w-6 h-6 shrink-0 mt-0.5"
-              :class="colorMap[activeItem.type]"
+              :class="colorMap[localActiveItem.type || 'warning']"
             />
             <div class="flex-1">
-              <h3 class="font-bold text-base text-[var(--text-primary)] mb-1">
-                {{ activeItem.title }}
-              </h3>
-              <div
-                v-if="typeof activeItem.message === 'string'"
-                class="text-sm text-[var(--text-secondary)]"
-              >
-                {{ activeItem.message }}
-              </div>
-              <component
-                :is="() => activeItem.message"
-                v-else
-                class="text-sm text-[var(--text-secondary)]"
-              />
+              <DialogTitle class="font-bold text-base text-[var(--text-primary)] mb-1">
+                {{ localActiveItem.title }}
+              </DialogTitle>
+              <DialogDescription as-child>
+                <div class="text-sm text-[var(--text-secondary)]">
+                  <div v-if="typeof localActiveItem.message === 'string'">
+                    {{ localActiveItem.message }}
+                  </div>
+                  <component :is="() => localActiveItem!.message" v-else />
+                </div>
+              </DialogDescription>
             </div>
           </div>
           <input
-            v-if="activeItem.showInput"
-            v-model="inputValues[activeItem.id]"
-            :placeholder="activeItem.inputPlaceholder"
+            v-if="localActiveItem.showInput"
+            v-model="inputValues[localActiveItem.id]"
+            :placeholder="localActiveItem.inputPlaceholder"
             class="w-full px-3 py-2 mb-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/10 dark:bg-black/20 text-[var(--text-primary)] outline-none focus:border-[var(--accent)] text-sm"
-            @keyup.enter="handleConfirm(activeItem)"
+            @keyup.enter="handleConfirm(localActiveItem)"
           />
           <div class="flex justify-end gap-2">
             <button
-              v-if="activeItem.cancelButtonText"
-              class="px-4 py-2 rounded-lg text-sm font-semibold text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-              @click="handleCancel(activeItem)"
+              v-if="localActiveItem.cancelButtonText"
+              class="px-4 py-2 rounded-lg text-sm font-semibold text-[var(--text-secondary)] hover:bg-slate-100 dark:hover:bg-white/5 transition-colors border-0 bg-transparent cursor-pointer"
+              @click="handleCancel(localActiveItem)"
             >
-              {{ activeItem.cancelButtonText }}
+              {{ localActiveItem.cancelButtonText }}
             </button>
-            <button :class="confirmButtonClasses(activeItem)" @click="handleConfirm(activeItem)">
-              {{ activeItem.confirmButtonText }}
+            <button
+              class="border-0 cursor-pointer"
+              :class="confirmButtonClasses(localActiveItem)"
+              @click="handleConfirm(localActiveItem)"
+            >
+              {{ localActiveItem.confirmButtonText }}
             </button>
           </div>
         </div>
-      </div>
-    </Transition>
-  </Teleport>
+      </DialogContent>
+    </DialogPortal>
+  </DialogRoot>
 </template>
 
 <style scoped>
-.confirm-enter-active,
-.confirm-leave-active {
-  transition: opacity 0.15s linear;
-  will-change: opacity;
-}
-.confirm-enter-from,
-.confirm-leave-to {
-  opacity: 0;
-}
-
-.confirm-enter-active .bg-card,
-.confirm-leave-active .bg-card {
-  transition:
-    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.15s ease;
-  will-change: transform, opacity;
-}
-.confirm-enter-from .bg-card,
-.confirm-leave-to .bg-card {
-  transform: scale(0.96);
-  opacity: 0;
-}
+/* Animated natively via global .modal-overlay / .modal-content state triggers */
 </style>

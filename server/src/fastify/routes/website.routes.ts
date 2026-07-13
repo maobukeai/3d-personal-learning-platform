@@ -1,9 +1,10 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import * as cheerio from 'cheerio';
+import axios from 'axios';
 import fs from 'fs';
 import prisma from '../../services/prisma';
-import { config } from '../../config/env';
 import { fastifyAuthenticate, fastifyRequireAdmin } from '../auth/fastify-auth';
 import { storageService } from '../../services/storage.service';
 import { AppError } from '../../utils/error';
@@ -35,6 +36,8 @@ interface UploadedFile {
 }
 
 const WEBSITE_HOME_KEY = 'WEBSITE_HOME_CONFIG';
+const WEBSITE_BANNERS_KEY = 'WEBSITE_BANNERS_CONFIG';
+const WEBSITE_ANALYTICS_KEY = 'WEBSITE_ANALYTICS_EVENTS';
 
 const defaultHome = {
   eyebrow: 'PERSONAL LEARNING PLATFORM',
@@ -44,6 +47,19 @@ const defaultHome = {
   showCoursePreview: true,
   showCapabilityMap: true,
   showMirrorPreview: true,
+  showDiscovery: true,
+  showLatest: true,
+  showTrending: true,
+  bannerImage: null as string | null,
+  featuredResourceIds: {
+    courses: [] as string[],
+    assets: [] as string[],
+    materials: [] as string[],
+    plugins: [] as string[],
+    softwares: [] as string[],
+  },
+  recommendedCategories: [] as string[],
+  moduleOrder: ['hero', 'metrics', 'latest', 'trending', 'courses', 'capabilities', 'mirrors'],
 };
 
 const homeSchema = z.object({
@@ -54,7 +70,33 @@ const homeSchema = z.object({
   showCoursePreview: z.boolean().optional(),
   showCapabilityMap: z.boolean().optional(),
   showMirrorPreview: z.boolean().optional(),
+  showDiscovery: z.boolean().optional(),
+  showLatest: z.boolean().optional(),
+  showTrending: z.boolean().optional(),
+  bannerImage: z.string().trim().nullable().optional(),
+  featuredResourceIds: z
+    .object({
+      courses: z.array(z.string().min(1)).max(12).default([]),
+      assets: z.array(z.string().min(1)).max(12).default([]),
+      materials: z.array(z.string().min(1)).max(12).default([]),
+      plugins: z.array(z.string().min(1)).max(12).default([]),
+      softwares: z.array(z.string().min(1)).max(12).default([]),
+    })
+    .optional(),
+  recommendedCategories: z.array(z.string().trim().min(1)).max(30).optional(),
+  moduleOrder: z.array(z.string().trim().min(1)).max(20).optional(),
 });
+const bannerSchema = z.object({
+  id: z.string().min(1),
+  imageUrl: z.string().trim().min(1).max(1000),
+  title: z.string().trim().max(160).default(''),
+  subtitle: z.string().trim().max(300).default(''),
+  buttonLabel: z.string().trim().max(40).default('探索资源'),
+  href: z.string().trim().max(500).default('/resources'),
+  enabled: z.boolean().default(true),
+  order: z.number().int().min(0).max(99).default(0),
+});
+const bannersSchema = z.array(bannerSchema).max(12);
 
 const sourceParamsSchema = z.object({ sourceId: z.string().min(1) });
 const resourceParamsSchema = z.object({
@@ -65,6 +107,8 @@ const resourcesQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(30).default(18),
   categoryId: z.string().min(1).optional(),
+  parentCategoryId: z.string().min(1).optional(),
+  categoryIds: z.string().trim().max(4000).optional(),
   q: z.string().trim().max(100).optional(),
 });
 
@@ -78,6 +122,64 @@ const safeHtml = (html: string | null): string | null => {
   });
   $('*').removeAttr('href download target onclick onload');
   return $('body').html() || null;
+};
+
+const officialMediaParamsSchema = z.object({
+  kind: z.enum(['asset', 'material', 'plugin', 'software', 'course']),
+  id: z.string().min(1),
+});
+const publicCatalogParamsSchema = z.object({
+  kind: z.enum(['course', 'asset', 'material', 'plugin', 'software']),
+  id: z.string().min(1),
+});
+const publicSearchQuerySchema = z.object({
+  q: z.string().trim().max(100).default(''),
+  type: z
+    .enum(['all', 'course', 'asset', 'material', 'plugin', 'software', 'mirror'])
+    .default('all'),
+  category: z.string().trim().max(100).optional(),
+  tag: z.string().trim().max(100).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(30).default(18),
+});
+
+const resolveOfficialPreviewUrl = async (url: string, storageType: string): Promise<string> => {
+  if (!/^https?:\/\//i.test(url)) return url;
+
+  try {
+    const storage = await getDecryptedActiveStorageConfig(storageType);
+    if (!storage) return url;
+    const source = new URL(url);
+    const publicHost = new URL(
+      /^https?:\/\//i.test(storage.raw.publicUrl)
+        ? storage.raw.publicUrl
+        : `https://${storage.raw.publicUrl}`,
+    ).host;
+    if (source.host !== publicHost) return url;
+
+    const key = decodeURIComponent(source.pathname.replace(/^\//, ''));
+    return key ? storageService.getPresignedViewUrl(storage.config, key, 900) : url;
+  } catch {
+    return url;
+  }
+};
+
+const canProxyExternalPreview = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    return (
+      (parsed.protocol === 'https:' || parsed.protocol === 'http:') &&
+      host !== 'localhost' &&
+      host !== '::1' &&
+      host !== '127.0.0.1' &&
+      !host.startsWith('10.') &&
+      !host.startsWith('192.168.') &&
+      !/^172\.(1[6-9]|2\d|3[01])\./.test(host)
+    );
+  } catch {
+    return false;
+  }
 };
 
 /**
@@ -130,30 +232,128 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
     },
   );
 
-  /**
-   * 将任意图片 URL 标准化为可被浏览器直接访问的绝对 HTTPS URL。
-   *
-   * 规则:
-   *  - 已是 http(s):// 绝对 URL → 直接返回（如 R2 CDN 地址）
-   *  - /uploads/... 相对路径 → 拼接 BACKEND_URL 变为主平台绝对 URL
-   *  - null/undefined → null
-   */
-  const toAbsoluteImageUrl = (url: string | null | undefined): string | null => {
-    if (!url) return null;
-    if (/^https?:\/\//i.test(url)) return url;
-    // relative /uploads/... path → main platform absolute URL
-    const base = (config.BACKEND_URL || '').replace(/\/$/, '');
-    return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
-  };
+  app.get('/website/banners', async () => {
+    const setting = await prisma.systemSetting.findUnique({ where: { key: WEBSITE_BANNERS_KEY } });
+    if (!setting) return [];
+    try {
+      return bannersSchema
+        .parse(JSON.parse(setting.value))
+        .filter((banner) => banner.enabled)
+        .sort((a, b) => a.order - b.order);
+    } catch {
+      return [];
+    }
+  });
 
-  // Official-site presentation-only preview of courses (no auth required)
-  // Only PUBLISHED courses; never exposes lesson content or enrollment data.
+  app.post('/website/events', async (request, reply) => {
+    const body = z
+      .object({
+        event: z.enum(['page_view', 'search', 'resource_click', 'category_click', 'banner_click']),
+        resourceType: z.string().trim().max(30).optional(),
+        resourceId: z.string().trim().max(100).optional(),
+        sourceId: z.string().trim().max(100).optional(),
+        queryHash: z.string().trim().max(128).optional(),
+      })
+      .safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ error: 'Invalid event' });
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: WEBSITE_ANALYTICS_KEY },
+    });
+    let events: Record<string, number> = {};
+    try {
+      events = setting ? JSON.parse(setting.value) : {};
+    } catch {
+      events = {};
+    }
+    const day = new Date().toISOString().slice(0, 10);
+    const key = [
+      day,
+      body.data.event,
+      body.data.resourceType || '',
+      body.data.resourceId || '',
+      body.data.sourceId || '',
+      body.data.queryHash || '',
+    ].join('|');
+    events[key] = Math.min((events[key] || 0) + 1, 1000000);
+    const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+    const retained = Object.fromEntries(
+      Object.entries(events).filter(([entryKey]) => {
+        const timestamp = Date.parse(`${entryKey.slice(0, 10)}T00:00:00Z`);
+        return Number.isNaN(timestamp) || timestamp >= cutoff;
+      }),
+    );
+    await prisma.systemSetting.upsert({
+      where: { key: WEBSITE_ANALYTICS_KEY },
+      create: { key: WEBSITE_ANALYTICS_KEY, value: JSON.stringify(retained) },
+      update: { value: JSON.stringify(retained) },
+    });
+    return { accepted: true };
+  });
+
+  app.get('/website/trends', async (request) => {
+    const parsed = z.object({ range: z.enum(['7d', '30d']).default('7d') }).parse(request.query);
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: WEBSITE_ANALYTICS_KEY },
+    });
+    let events: Record<string, number> = {};
+    try {
+      events = setting ? JSON.parse(setting.value) : {};
+    } catch {
+      events = {};
+    }
+    const days = parsed.range === '30d' ? 30 : 7;
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    const daily: Record<string, number> = {};
+    const popular: Record<string, number> = {};
+    const searches: Record<string, number> = {};
+    Object.entries(events).forEach(([key, count]) => {
+      const [day, event, resourceType, resourceId, sourceId, queryHash] = key.split('|');
+      if (!day) return;
+      const timestamp = Date.parse(`${day}T00:00:00Z`);
+      if (!Number.isNaN(timestamp) && timestamp < cutoff) return;
+      daily[day] = (daily[day] || 0) + count;
+      if (event === 'resource_click' && resourceId)
+        popular[`${resourceType}:${resourceId}`] =
+          (popular[`${resourceType}:${resourceId}`] || 0) + count;
+      if (event === 'search' && queryHash) searches[queryHash] = (searches[queryHash] || 0) + count;
+      void sourceId;
+    });
+    return {
+      range: parsed.range,
+      daily: Object.entries(daily)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, count]) => ({ date, count })),
+      popular: Object.entries(popular)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([key, count]) => ({ key, count })),
+      searches: Object.entries(searches)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([queryHash, count]) => ({ queryHash, count })),
+    };
+  });
+
+  const mapPublicPreview = (kind: string, item: any) => ({
+    id: item.id,
+    type: kind,
+    title: item.title,
+    description: item.description || null,
+    category: item.category?.name || item.category || item.type || null,
+    tags: item.tags || null,
+    thumbnail: item.thumbnail || item.previewUrl || item.thumbnailUrl || null,
+    officialPreviewUrl: `/api/website/media/${kind}/${item.id}`,
+    updatedAt: item.updatedAt || item.createdAt,
+    createdAt: item.createdAt,
+    popularity: item.downloads ?? item.viewCount ?? 0,
+  });
+
   app.get(
-    '/website/preview/courses',
+    '/website/discovery',
     { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
-    async (_request, reply) => {
-      try {
-        const courses = await prisma.course.findMany({
+    async () => {
+      const [courses, assets, materials, plugins, softwares, mirrors] = await Promise.all([
+        prisma.course.findMany({
           where: { status: 'PUBLISHED' },
           select: {
             id: true,
@@ -162,95 +362,439 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
             thumbnail: true,
             difficulty: true,
             category: { select: { name: true } },
+            createdAt: true,
+            updatedAt: true,
           },
-          orderBy: { createdAt: 'desc' },
-          take: 8,
-        });
-        return reply.send(
-          courses.map((c) => ({
-            id: c.id,
-            title: c.title,
-            description: c.description,
-            thumbnail: toAbsoluteImageUrl(c.thumbnail),
-            difficulty: c.difficulty,
-            category: c.category?.name ?? null,
-          })),
-        );
-      } catch (err) {
-        logger.error('[website] preview/courses error:', err);
-        throw err;
+          orderBy: { updatedAt: 'desc' },
+          take: 12,
+        }),
+        prisma.asset.findMany({
+          where: { status: 'APPROVED' },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            thumbnail: true,
+            type: true,
+            tags: true,
+            downloads: true,
+            viewCount: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: 12,
+        }),
+        prisma.material.findMany({
+          where: { status: 'APPROVED' },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            previewUrl: true,
+            category: true,
+            tags: true,
+            downloads: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: 12,
+        }),
+        prisma.plugin.findMany({
+          where: { status: 'APPROVED' },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            previewUrl: true,
+            category: true,
+            tags: true,
+            downloads: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: 12,
+        }),
+        prisma.software.findMany({
+          where: { status: 'APPROVED' },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            previewUrl: true,
+            category: true,
+            tags: true,
+            downloads: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: 12,
+        }),
+        prisma.mirrorResource.findMany({
+          where: { source: { status: 'ACTIVE' } },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            thumbnailUrl: true,
+            resourceType: true,
+            tags: true,
+            viewCount: true,
+            publishedAt: true,
+            createdAt: true,
+            updatedAt: true,
+            category: { select: { name: true } },
+            source: { select: { id: true, displayName: true } },
+          },
+          orderBy: [{ viewCount: 'desc' }, { publishedAt: 'desc' }],
+          take: 12,
+        }),
+      ]);
+      const setting = await prisma.systemSetting.findUnique({ where: { key: WEBSITE_HOME_KEY } });
+      let featuredIds = defaultHome.featuredResourceIds;
+      try {
+        featuredIds = {
+          ...featuredIds,
+          ...(setting
+            ? homeSchema.partial().parse(JSON.parse(setting.value)).featuredResourceIds || {}
+            : {}),
+        };
+      } catch {
+        /* use defaults */
       }
+      const latest = [
+        ...courses.map((item) => mapPublicPreview('course', item)),
+        ...assets.map((item) => mapPublicPreview('asset', item)),
+        ...materials.map((item) => mapPublicPreview('material', item)),
+        ...plugins.map((item) => mapPublicPreview('plugin', item)),
+        ...softwares.map((item) => mapPublicPreview('software', item)),
+      ]
+        .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())
+        .slice(0, 24);
+      const mirrorItems = mirrors.map((item) => ({
+        ...mapPublicPreview('mirror', item),
+        sourceId: item.source.id,
+        sourceName: item.source.displayName,
+        officialPreviewUrl: item.thumbnailUrl || null,
+      }));
+      const selectFeatured = (kind: string, items: any[], ids: string[]) => {
+        const selected = ids.map((id) => items.find((item) => item.id === id)).filter(Boolean);
+        return (selected.length ? selected : items.slice(0, 4)).map((item) =>
+          mapPublicPreview(kind, item),
+        );
+      };
+      return {
+        latest,
+        trending: [...latest].sort((a, b) => b.popularity - a.popularity).slice(0, 12),
+        courses: courses.slice(0, 8).map((item) => mapPublicPreview('course', item)),
+        assets: assets.slice(0, 8).map((item) => mapPublicPreview('asset', item)),
+        materials: materials.slice(0, 8).map((item) => mapPublicPreview('material', item)),
+        plugins: plugins.slice(0, 8).map((item) => mapPublicPreview('plugin', item)),
+        softwares: softwares.slice(0, 8).map((item) => mapPublicPreview('software', item)),
+        mirrors: mirrorItems,
+        featured: {
+          courses: selectFeatured('course', courses, featuredIds.courses),
+          assets: selectFeatured('asset', assets, featuredIds.assets),
+          materials: selectFeatured('material', materials, featuredIds.materials),
+          plugins: selectFeatured('plugin', plugins, featuredIds.plugins),
+          softwares: selectFeatured('software', softwares, featuredIds.softwares),
+        },
+      };
     },
   );
 
-  // Official-site presentation-only preview of platform resources (assets/materials/plugins)
-  // Only APPROVED public items; never exposes download URLs or file content.
   app.get(
-    '/website/preview/resources',
-    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
-    async (_request, reply) => {
-      try {
-        const [assets, materials, plugins] = await Promise.all([
-          prisma.asset.findMany({
-            where: { status: 'APPROVED', teamId: null },
-            select: { id: true, title: true, description: true, thumbnail: true, type: true },
-            orderBy: { createdAt: 'desc' },
-            take: 8,
-          }),
-          prisma.material.findMany({
-            where: { status: 'APPROVED' },
-            select: {
-              id: true,
-              title: true,
-              description: true,
-              thumbnail: true,
-              category: true,
-              resolution: true,
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 8,
-          }),
-          prisma.plugin.findMany({
-            where: { status: 'APPROVED' },
-            select: {
-              id: true,
-              title: true,
-              description: true,
-              thumbnail: true,
-              category: true,
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 8,
-          }),
-        ]);
-
-        return reply.send({
-          assets: assets.map((a) => ({
-            id: a.id,
-            title: a.title,
-            description: a.description,
-            thumbnail: toAbsoluteImageUrl(a.thumbnail),
-            category: a.type ?? null,
-          })),
-          materials: materials.map((m) => ({
-            id: m.id,
-            title: m.title,
-            description: m.description,
-            thumbnail: toAbsoluteImageUrl(m.thumbnail),
-            category: m.category ?? null,
-            resolution: m.resolution ?? null,
-          })),
-          plugins: plugins.map((p) => ({
-            id: p.id,
-            title: p.title,
-            description: p.description,
-            thumbnail: toAbsoluteImageUrl(p.thumbnail),
-            category: p.category ?? null,
-          })),
+    '/website/search',
+    {
+      schema: { querystring: publicSearchQuerySchema },
+      config: { rateLimit: { max: 90, timeWindow: '1 minute' } },
+    },
+    async (request) => {
+      const { q, type, category, tag, page, pageSize } = request.query as z.infer<
+        typeof publicSearchQuerySchema
+      >;
+      const text = q
+        ? {
+            OR: [
+              { title: { contains: q } },
+              { description: { contains: q } },
+              { tags: { contains: q } },
+            ],
+          }
+        : {};
+      const results: any[] = [];
+      const take = Math.min(pageSize * page, 60);
+      if (type === 'all' || type === 'course') {
+        const courseText = q
+          ? { OR: [{ title: { contains: q } }, { description: { contains: q } }] }
+          : {};
+        const rows = await prisma.course.findMany({
+          where: {
+            status: 'PUBLISHED',
+            ...courseText,
+            ...(category ? { category: { name: category } } : {}),
+          },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            thumbnail: true,
+            category: { select: { name: true } },
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { updatedAt: 'desc' },
+          take,
         });
-      } catch (err) {
-        logger.error('[website] preview/resources error:', err);
-        throw err;
+        results.push(...rows.map((item) => mapPublicPreview('course', item)));
+      }
+      const resourceKinds = type === 'all' ? ['asset', 'material', 'plugin', 'software'] : [type];
+      for (const kind of resourceKinds) {
+        if (!['asset', 'material', 'plugin', 'software'].includes(kind)) continue;
+        const model = prisma[kind as 'asset' | 'material' | 'plugin' | 'software'] as any;
+        const categoryWhere = category
+          ? kind === 'asset'
+            ? { category: { name: category } }
+            : { category }
+          : {};
+        const rows = await model.findMany({
+          where: {
+            status: 'APPROVED',
+            ...text,
+            ...categoryWhere,
+            ...(tag ? { tags: { contains: tag } } : {}),
+          },
+          orderBy: { updatedAt: 'desc' },
+          take,
+        });
+        results.push(...rows.map((item: any) => mapPublicPreview(kind, item)));
+      }
+      if (type === 'all' || type === 'mirror') {
+        const rows = await prisma.mirrorResource.findMany({
+          where: {
+            source: { status: 'ACTIVE' },
+            ...text,
+            ...(category ? { category: { name: category } } : {}),
+            ...(tag ? { tags: { contains: tag } } : {}),
+          },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            thumbnailUrl: true,
+            resourceType: true,
+            tags: true,
+            viewCount: true,
+            publishedAt: true,
+            createdAt: true,
+            updatedAt: true,
+            category: { select: { name: true } },
+            source: { select: { id: true, displayName: true } },
+          },
+          orderBy: { viewCount: 'desc' },
+          take,
+        });
+        results.push(
+          ...rows.map((item: any) => ({
+            ...mapPublicPreview('mirror', item),
+            sourceId: item.source.id,
+            sourceName: item.source.displayName,
+            officialPreviewUrl: item.thumbnailUrl,
+          })),
+        );
+      }
+      results.sort(
+        (a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
+      );
+      const total = results.length;
+      return {
+        items: results.slice((page - 1) * pageSize, page * pageSize),
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      };
+    },
+  );
+
+  app.get(
+    '/website/catalog/:kind/:id',
+    { schema: { params: publicCatalogParamsSchema } },
+    async (request, reply) => {
+      const { kind, id } = request.params as z.infer<typeof publicCatalogParamsSchema>;
+      let item: any = null;
+      if (kind === 'course')
+        item = await prisma.course.findFirst({
+          where: { id, status: 'PUBLISHED' },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            thumbnail: true,
+            difficulty: true,
+            category: { select: { id: true, name: true } },
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+      if (kind === 'asset')
+        item = await prisma.asset.findFirst({
+          where: { id, status: 'APPROVED' },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            thumbnail: true,
+            type: true,
+            tags: true,
+            viewCount: true,
+            createdAt: true,
+            updatedAt: true,
+            category: { select: { id: true, name: true } },
+          },
+        });
+      if (kind === 'material' || kind === 'plugin' || kind === 'software')
+        item = await (prisma[kind] as any).findFirst({
+          where: { id, status: 'APPROVED' },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            previewUrl: true,
+            category: true,
+            tags: true,
+            downloads: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+      if (!item) return reply.status(404).send({ error: 'Resource not found' });
+      let related: any[] = [];
+      if (kind === 'course' && item.category?.id)
+        related = await prisma.course.findMany({
+          where: { status: 'PUBLISHED', categoryId: item.category.id, id: { not: id } },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            thumbnail: true,
+            category: { select: { name: true } },
+            createdAt: true,
+            updatedAt: true,
+          },
+          take: 4,
+        });
+      if (kind === 'asset' && item.category?.id)
+        related = await prisma.asset.findMany({
+          where: { status: 'APPROVED', categoryId: item.category.id, id: { not: id } },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            thumbnail: true,
+            type: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          take: 4,
+        });
+      if (['material', 'plugin', 'software'].includes(kind) && item.category)
+        related = await (prisma[kind] as any).findMany({
+          where: { status: 'APPROVED', category: item.category, id: { not: id } },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            previewUrl: true,
+            category: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          take: 4,
+        });
+      return {
+        ...mapPublicPreview(kind, item),
+        detail: true,
+        related: related.map((entry) => mapPublicPreview(kind, entry)),
+      };
+    },
+  );
+
+  app.get(
+    '/website/media/:kind/:id',
+    {
+      schema: { params: officialMediaParamsSchema },
+      config: { rateLimit: { max: 180, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const { kind, id } = request.params as z.infer<typeof officialMediaParamsSchema>;
+      const record = await (async () => {
+        if (kind === 'asset') {
+          return prisma.asset.findFirst({
+            where: { id, status: 'APPROVED' },
+            select: { thumbnail: true },
+          });
+        }
+        if (kind === 'material') {
+          return prisma.material.findFirst({
+            where: { id, status: 'APPROVED' },
+            select: { previewUrl: true },
+          });
+        }
+        if (kind === 'plugin') {
+          return prisma.plugin.findFirst({
+            where: { id, status: 'APPROVED' },
+            select: { previewUrl: true },
+          });
+        }
+        if (kind === 'software') {
+          return prisma.software.findFirst({
+            where: { id, status: 'APPROVED' },
+            select: { previewUrl: true },
+          });
+        }
+        return prisma.course.findFirst({
+          where: { id, status: 'PUBLISHED' },
+          select: { thumbnail: true },
+        });
+      })();
+
+      const rawUrl = record && ('previewUrl' in record ? record.previewUrl : record.thumbnail);
+      if (!rawUrl) return reply.status(404).send({ error: 'Preview not available' });
+
+      const storageType = kind === 'course' ? 'ALL' : kind.toUpperCase();
+      const previewUrl = await resolveOfficialPreviewUrl(rawUrl, storageType);
+      // Only course thumbnails need an external-media proxy (for example Bilibili hotlink
+      // protection). Assets, materials, plugins and software keep their existing direct or
+      // presigned delivery paths, which avoids unnecessary proxy traffic.
+      if (kind !== 'course' || previewUrl !== rawUrl || !canProxyExternalPreview(rawUrl)) {
+        reply.header('Cache-Control', 'private, no-store');
+        return reply.redirect(previewUrl);
+      }
+
+      try {
+        const upstream = await axios.get(rawUrl, {
+          responseType: 'stream',
+          timeout: 12_000,
+          maxRedirects: 0,
+          headers: {
+            // Course thumbnails commonly originate from video platforms that reject bare image requests.
+            'User-Agent': 'Mozilla/5.0 (compatible; PersonalLearningPlatform/1.0)',
+            Referer: 'https://www.bilibili.com/',
+            Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+          },
+        });
+        reply.header('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+        reply.header('Content-Type', upstream.headers['content-type'] || 'image/jpeg');
+        if (upstream.headers['content-length']) {
+          reply.header('Content-Length', upstream.headers['content-length']);
+        }
+        return reply.send(upstream.data);
+      } catch {
+        return reply.status(502).send({ error: 'Preview temporarily unavailable' });
       }
     },
   );
@@ -266,6 +810,7 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
         where: { id: sourceId, status: 'ACTIVE' },
         select: {
           id: true,
+          externalId: true,
           name: true,
           displayName: true,
           description: true,
@@ -293,6 +838,7 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
         where: { sourceId },
         select: {
           id: true,
+          externalId: true,
           name: true,
           parentExternalId: true,
           order: true,
@@ -304,6 +850,7 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
       });
       return categories.map((cat) => ({
         id: cat.id,
+        externalId: cat.externalId,
         name: cat.name,
         parentExternalId: cat.parentExternalId,
         order: cat.order,
@@ -317,18 +864,35 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
     { schema: { params: sourceParamsSchema, querystring: resourcesQuerySchema } },
     async (request, reply) => {
       const { sourceId } = request.params as z.infer<typeof sourceParamsSchema>;
-      const { page, pageSize, categoryId, q } = request.query as z.infer<
-        typeof resourcesQuerySchema
-      >;
+      const { page, pageSize, categoryId, parentCategoryId, categoryIds, q } =
+        request.query as z.infer<typeof resourcesQuerySchema>;
       const source = await prisma.mirrorSource.findFirst({
         where: { id: sourceId, status: 'ACTIVE' },
         select: { id: true },
       });
       if (!source) return reply.status(404).send({ error: '镜像站不存在或未公开' });
 
+      let categoryWhere: Prisma.MirrorResourceWhereInput = categoryId ? { categoryId } : {};
+      if (!categoryId && parentCategoryId) {
+        const parent = await prisma.mirrorCategory.findFirst({
+          where: { id: parentCategoryId, sourceId },
+          select: { id: true, externalId: true },
+        });
+        if (parent) {
+          const children = await prisma.mirrorCategory.findMany({
+            where: { sourceId, parentExternalId: parent.externalId },
+            select: { id: true },
+          });
+          categoryWhere = { categoryId: { in: [parent.id, ...children.map((child) => child.id)] } };
+        }
+      } else if (!categoryId && categoryIds) {
+        const ids = categoryIds.split(',').filter(Boolean);
+        if (ids.length) categoryWhere = { categoryId: { in: ids } };
+      }
+
       const where = {
         sourceId,
-        ...(categoryId ? { categoryId } : {}),
+        ...categoryWhere,
         ...(q
           ? {
               OR: [
@@ -401,6 +965,65 @@ export const registerWebsiteRoutes = (app: FastifyInstance): void => {
   );
 
   const adminOnly = { preHandler: [fastifyAuthenticate, fastifyRequireAdmin] };
+
+  app.get('/admin/website/catalog-options', adminOnly, async () => {
+    const [courses, assets, materials, plugins, softwares] = await Promise.all([
+      prisma.course.findMany({
+        where: { status: 'PUBLISHED' },
+        select: { id: true, title: true, thumbnail: true },
+        orderBy: { updatedAt: 'desc' },
+        take: 50,
+      }),
+      prisma.asset.findMany({
+        where: { status: 'APPROVED' },
+        select: { id: true, title: true, thumbnail: true },
+        orderBy: { updatedAt: 'desc' },
+        take: 50,
+      }),
+      prisma.material.findMany({
+        where: { status: 'APPROVED' },
+        select: { id: true, title: true, previewUrl: true },
+        orderBy: { updatedAt: 'desc' },
+        take: 50,
+      }),
+      prisma.plugin.findMany({
+        where: { status: 'APPROVED' },
+        select: { id: true, title: true, previewUrl: true },
+        orderBy: { updatedAt: 'desc' },
+        take: 50,
+      }),
+      prisma.software.findMany({
+        where: { status: 'APPROVED' },
+        select: { id: true, title: true, previewUrl: true },
+        orderBy: { updatedAt: 'desc' },
+        take: 50,
+      }),
+    ]);
+    return { courses, assets, materials, plugins, softwares };
+  });
+
+  app.get('/admin/website/banners', adminOnly, async () => {
+    const setting = await prisma.systemSetting.findUnique({ where: { key: WEBSITE_BANNERS_KEY } });
+    try {
+      return setting ? bannersSchema.parse(JSON.parse(setting.value)) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  app.put(
+    '/admin/website/banners',
+    { ...adminOnly, schema: { body: bannersSchema } },
+    async (request) => {
+      const content = request.body as z.infer<typeof bannersSchema>;
+      await prisma.systemSetting.upsert({
+        where: { key: WEBSITE_BANNERS_KEY },
+        create: { key: WEBSITE_BANNERS_KEY, value: JSON.stringify(content) },
+        update: { value: JSON.stringify(content) },
+      });
+      return content;
+    },
+  );
 
   app.get('/admin/website/home', adminOnly, async () => {
     const setting = await prisma.systemSetting.findUnique({ where: { key: WEBSITE_HOME_KEY } });

@@ -287,6 +287,7 @@ const nav = [
           >
         </div>
       </nav>
+      <NuxtLink class="header-search-link" to="/search">搜索</NuxtLink>
       <a class="header-action" :href="config.public.appBase">进入平台 <span>↗</span></a>
     </header>
 
@@ -300,6 +301,12 @@ const nav = [
 </template>
 
 <style scoped>
+.header-search-link {
+  margin-right: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+}
 .brand-mark-logo-container {
   display: flex;
   align-items: center;

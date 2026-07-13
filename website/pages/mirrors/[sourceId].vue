@@ -16,6 +16,13 @@ const { data: mirror } = await useAsyncData(`mirror-${sourceId.value}`, () =>
 const { data: categories } = await useAsyncData(`mirror-categories-${sourceId.value}`, () =>
   platform.getMirrorCategories(sourceId.value),
 );
+const tags = computed(() => {
+  try {
+    return JSON.parse(selected.value?.tags || '[]') as string[];
+  } catch {
+    return [];
+  }
+});
 const { data: result, refresh } = await useAsyncData(
   `mirror-resources-${sourceId.value}`,
   () =>
@@ -29,13 +36,6 @@ const { data: result, refresh } = await useAsyncData(
     watch: [categoryId, page],
   },
 );
-const tags = computed(() => {
-  try {
-    return JSON.parse(selected.value?.tags || '[]') as string[];
-  } catch {
-    return [];
-  }
-});
 const selectCategory = (next?: string) => {
   categoryId.value = next;
   page.value = 1;
@@ -94,12 +94,14 @@ useSeoMeta({
       </form>
     </header>
     <div class="category-rail">
-      <button :class="{ active: !categoryId }" @click="selectCategory()">
-        全部 <small>{{ mirror?.totalResources || 0 }}</small></button
-      ><button
+      <button :class="{ active: !categoryId }" type="button" @click="selectCategory()">
+        全部 <small>{{ mirror?.totalResources || 0 }}</small>
+      </button>
+      <button
         v-for="category in categories"
         :key="category.id"
         :class="{ active: categoryId === category.id }"
+        type="button"
         @click="selectCategory(category.id)"
       >
         {{ category.name }} <small>{{ category.resourceCount }}</small>
@@ -469,6 +471,13 @@ useSeoMeta({
   }
   .resource-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .category-children {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .category-children .category-rail {
+    width: 100%;
   }
   .detail-modal {
     grid-template-columns: 1fr;

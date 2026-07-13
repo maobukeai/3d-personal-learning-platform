@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PlatformPreviewItem } from '~/composables/usePlatformApi';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 const config = useRuntimeConfig();
 const platform = usePlatformApi();
@@ -18,6 +19,10 @@ const { data: previewData } = await useAsyncData('website-resource-preview', asy
 });
 
 const activeLibrary = ref('assets');
+const tabContainer = ref<HTMLElement | null>(null);
+const tabRefs = ref<HTMLElement[]>([]);
+const indicatorStyle = ref({ left: '0px', width: '0px', opacity: 0 });
+const slideTransition = ref('slide-forward');
 const libraries = computed(() => [
   {
     id: 'assets',
@@ -60,6 +65,35 @@ const libraries = computed(() => [
 const currentLibrary = computed(
   () => libraries.value.find((library) => library.id === activeLibrary.value) || libraries.value[0],
 );
+const activeIndex = computed(() =>
+  libraries.value.findIndex((library) => library.id === activeLibrary.value),
+);
+const updateTabIndicator = () => {
+  nextTick(() => {
+    const tab = tabRefs.value[activeIndex.value];
+    const container = tabContainer.value;
+    if (!tab || !container) return;
+    const containerRect = container.getBoundingClientRect();
+    const tabRect = tab.getBoundingClientRect();
+    indicatorStyle.value = {
+      left: `${tabRect.left - containerRect.left + container.scrollLeft}px`,
+      width: `${tabRect.width}px`,
+      opacity: 1,
+    };
+  });
+};
+watch(activeLibrary, (next, previous) => {
+  slideTransition.value =
+    activeIndex.value >= libraries.value.findIndex((library) => library.id === previous)
+      ? 'slide-forward'
+      : 'slide-back';
+  updateTabIndicator();
+});
+onMounted(() => {
+  updateTabIndicator();
+  window.addEventListener('resize', updateTabIndicator);
+});
+onBeforeUnmount(() => window.removeEventListener('resize', updateTabIndicator));
 const visibleItems = computed(() => currentLibrary.value.items.slice(0, 4));
 const secureImageUrl = (url?: string | null) => {
   if (!url) return '';
@@ -70,7 +104,7 @@ const secureImageUrl = (url?: string | null) => {
   return url.replace(/^http:\/\//, 'https://');
 };
 const previewImage = (item: PlatformPreviewItem) =>
-  secureImageUrl(item.previewUrl || item.thumbnail);
+  secureImageUrl(item.officialPreviewUrl || item.previewUrl || item.thumbnail);
 const itemHref = (item: PlatformPreviewItem) => {
   const path = currentLibrary.value.path;
   if (currentLibrary.value.id === 'assets') return `${config.public.appBase}/assets/${item.id}`;
@@ -91,10 +125,16 @@ useSeoMeta({
   </section>
 
   <section class="resource-showcase section-wrap">
-    <div class="library-tabs" role="tablist" aria-label="资源库分类">
+    <div ref="tabContainer" class="library-tabs" role="tablist" aria-label="资源库分类">
+      <div class="library-tab-indicator" :style="indicatorStyle"></div>
       <button
-        v-for="library in libraries"
+        v-for="(library, index) in libraries"
         :key="library.id"
+        :ref="
+          (element) => {
+            if (element) tabRefs[index] = element as HTMLElement;
+          }
+        "
         :class="{ active: activeLibrary === library.id }"
         type="button"
         role="tab"
@@ -106,58 +146,97 @@ useSeoMeta({
       </button>
     </div>
 
-    <div class="library-heading">
-      <div>
-        <p class="eyebrow">{{ currentLibrary.label }}</p>
-        <h2>{{ currentLibrary.title }}</h2>
-        <p>{{ currentLibrary.description }}</p>
-      </div>
-      <a :href="`${config.public.appBase}${currentLibrary.path}`"
-        >进入{{ currentLibrary.title }} <span>→</span></a
-      >
-    </div>
+    <Transition :name="slideTransition" mode="out-in">
+      <div :key="activeLibrary" class="library-content">
+        <div class="library-heading">
+          <div>
+            <p class="eyebrow">{{ currentLibrary.label }}</p>
+            <h2>{{ currentLibrary.title }}</h2>
+            <p>{{ currentLibrary.description }}</p>
+          </div>
+          <a :href="`${config.public.appBase}${currentLibrary.path}`"
+            >进入{{ currentLibrary.title }} <span>→</span></a
+          >
+        </div>
 
-    <div v-if="visibleItems.length" class="library-grid">
-      <a v-for="item in visibleItems" :key="item.id" class="library-card" :href="itemHref(item)">
-        <img
-          v-if="previewImage(item)"
-          :src="previewImage(item)"
-          :alt="item.title"
-          loading="lazy"
-          decoding="async"
-        />
-        <div v-else class="library-cover">
+        <div v-if="visibleItems.length" class="library-grid">
+          <a
+            v-for="item in visibleItems"
+            :key="item.id"
+            class="library-card"
+            :href="itemHref(item)"
+          >
+            <img
+              v-if="previewImage(item)"
+              :src="previewImage(item)"
+              :alt="item.title"
+              loading="lazy"
+              decoding="async"
+            />
+            <div v-else class="library-cover">
+              <span>{{ currentLibrary.label }}</span>
+            </div>
+            <div class="library-card-copy">
+              <p>{{ item.category || item.resolution || currentLibrary.title }}</p>
+              <h3>{{ item.title }}</h3>
+              <span>{{ item.description || '查看资源详情与使用信息。' }}</span>
+            </div>
+          </a>
+        </div>
+        <a v-else class="library-empty" :href="`${config.public.appBase}${currentLibrary.path}`">
           <span>{{ currentLibrary.label }}</span>
-        </div>
-        <div class="library-card-copy">
-          <p>{{ item.category || item.resolution || currentLibrary.title }}</p>
-          <h3>{{ item.title }}</h3>
-          <span>{{ item.description || '查看资源详情与使用信息。' }}</span>
-        </div>
-      </a>
-    </div>
-    <a v-else class="library-empty" :href="`${config.public.appBase}${currentLibrary.path}`">
-      <span>{{ currentLibrary.label }}</span>
-      <strong>{{ currentLibrary.title }}正在整理中</strong>
-      <p>进入平台查看最新内容，或添加你的第一份资源。</p>
-      <em>打开{{ currentLibrary.title }} →</em>
-    </a>
+          <strong>{{ currentLibrary.title }}正在整理中</strong>
+          <p>进入平台查看最新内容，或添加你的第一份资源。</p>
+          <em>打开{{ currentLibrary.title }} →</em>
+        </a>
+      </div>
+    </Transition>
   </section>
 </template>
 
 <style scoped>
+.page-heading {
+  padding: 18px 0 22px;
+}
+.page-heading h1 {
+  font-size: clamp(38px, 4.5vw, 56px);
+  line-height: 1.02;
+}
+.page-heading > p:last-child {
+  margin-top: 14px;
+  font-size: 14px;
+  line-height: 1.55;
+}
 .resource-showcase {
-  padding: 30px 0 120px;
+  padding: 18px 0 90px;
 }
 .library-tabs {
+  position: relative;
   display: flex;
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 7px;
 }
+.library-tab-indicator {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--ink);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    left 0.18s cubic-bezier(0.22, 0.8, 0.3, 1),
+    width 0.18s cubic-bezier(0.22, 0.8, 0.3, 1),
+    opacity 0.12s ease;
+}
 .library-tabs button {
+  position: relative;
+  z-index: 1;
   flex: 0 0 auto;
-  padding: 11px 15px;
+  padding: 9px 13px;
   border: 1px solid var(--line);
   border-radius: 99px;
   color: var(--muted);
@@ -165,9 +244,9 @@ useSeoMeta({
   cursor: pointer;
 }
 .library-tabs button.active {
-  border-color: var(--ink);
+  border-color: transparent;
   color: #fff;
-  background: var(--ink);
+  background: transparent;
 }
 .library-tabs small {
   margin-right: 8px;
@@ -178,17 +257,44 @@ useSeoMeta({
   align-items: end;
   justify-content: space-between;
   gap: 30px;
-  padding: 48px 0 28px;
+  padding: 28px 0 18px;
+}
+.library-content {
+  min-height: 320px;
+}
+.slide-forward-enter-active,
+.slide-forward-leave-active,
+.slide-back-enter-active,
+.slide-back-leave-active {
+  transition:
+    opacity 0.16s ease,
+    transform 0.18s cubic-bezier(0.22, 0.8, 0.3, 1);
+}
+.slide-forward-enter-from {
+  opacity: 0;
+  transform: translateX(24px);
+}
+.slide-forward-leave-to {
+  opacity: 0;
+  transform: translateX(-24px);
+}
+.slide-back-enter-from {
+  opacity: 0;
+  transform: translateX(-24px);
+}
+.slide-back-leave-to {
+  opacity: 0;
+  transform: translateX(24px);
 }
 .library-heading .eyebrow {
   margin-bottom: 10px;
 }
 .library-heading h2 {
-  font-size: clamp(31px, 4vw, 48px);
+  font-size: clamp(28px, 3.5vw, 42px);
 }
 .library-heading > div > p:last-child {
   max-width: 480px;
-  margin: 13px 0 0;
+  margin: 9px 0 0;
   color: var(--muted);
   font-size: 15px;
   line-height: 1.65;
@@ -302,10 +408,17 @@ useSeoMeta({
   }
 }
 @media (max-width: 720px) {
+  .page-heading {
+    padding-top: 14px;
+    padding-bottom: 18px;
+  }
+  .page-heading h1 {
+    font-size: 36px;
+  }
   .library-heading {
     align-items: start;
     flex-direction: column;
-    padding-top: 36px;
+    padding-top: 24px;
   }
 }
 </style>

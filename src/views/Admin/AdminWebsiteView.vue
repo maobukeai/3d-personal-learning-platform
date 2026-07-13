@@ -16,9 +16,32 @@ interface WebOverview {
   activeMirrors: number;
   mirroredResources: number;
 }
+type FeaturedResourceIds = {
+  courses: string[];
+  assets: string[];
+  materials: string[];
+  plugins: string[];
+  softwares: string[];
+};
 
 const loading = ref(false);
 const saving = ref(false);
+const featuredResourceIdsText = ref('{}');
+const catalogOptions = ref<Record<string, { id: string; title: string }[]>>({});
+const banners = ref<
+  Array<{
+    id: string;
+    imageUrl: string;
+    title: string;
+    subtitle: string;
+    buttonLabel: string;
+    href: string;
+    enabled: boolean;
+    order: number;
+  }>
+>([]);
+const selectedCatalogKind = ref('courses');
+const catalogFilter = ref('');
 const mirrors = ref<{ id: string; displayName: string }[]>([]);
 const stats = ref<WebOverview | null>(null);
 
@@ -30,6 +53,19 @@ const form = ref({
   showCoursePreview: true,
   showCapabilityMap: true,
   showMirrorPreview: true,
+  showDiscovery: true,
+  showLatest: true,
+  showTrending: true,
+  bannerImage: null as string | null,
+  featuredResourceIds: {
+    courses: [] as string[],
+    assets: [] as string[],
+    materials: [] as string[],
+    plugins: [] as string[],
+    softwares: [] as string[],
+  } as FeaturedResourceIds,
+  recommendedCategories: [] as string[],
+  moduleOrder: ['hero', 'metrics', 'latest', 'trending', 'courses', 'capabilities', 'mirrors'],
 });
 
 const officialSiteUrl =
@@ -38,25 +74,60 @@ const officialSiteUrl =
 const load = async () => {
   loading.value = true;
   try {
-    const [homeRes, mirrorsRes, overviewRes] = await Promise.all([
+    const [homeRes, mirrorsRes, overviewRes, catalogRes, bannersRes] = await Promise.all([
       api.get('/api/admin/website/home'),
       api.get('/api/admin/mirror/sources'),
       api.get('/website/overview'),
+      api.get('/api/admin/website/catalog-options'),
+      api.get('/api/admin/website/banners'),
     ]);
     form.value = { ...form.value, ...homeRes.data };
+    featuredResourceIdsText.value = JSON.stringify(form.value.featuredResourceIds || {}, null, 2);
     mirrors.value = mirrorsRes.data || [];
     stats.value = overviewRes.data;
+    catalogOptions.value = catalogRes.data || {};
+    banners.value = bannersRes.data || [];
   } catch {
     ElMessage.error('官网配置加载失败');
   } finally {
     loading.value = false;
   }
 };
+const catalogItems = computed(() =>
+  (catalogOptions.value[selectedCatalogKind.value] || []).filter(
+    (item) =>
+      !catalogFilter.value || item.title.toLowerCase().includes(catalogFilter.value.toLowerCase()),
+  ),
+);
+const isFeatured = (id: string) =>
+  (
+    form.value.featuredResourceIds?.[
+      selectedCatalogKind.value as keyof typeof form.value.featuredResourceIds
+    ] || []
+  ).includes(id);
+const toggleFeatured = (id: string) => {
+  const key = selectedCatalogKind.value as keyof typeof form.value.featuredResourceIds;
+  const current = [...(form.value.featuredResourceIds?.[key] || [])];
+  form.value.featuredResourceIds = {
+    ...form.value.featuredResourceIds,
+    [key]: current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+  };
+  featuredResourceIdsText.value = JSON.stringify(form.value.featuredResourceIds, null, 2);
+};
 
 const save = async () => {
   saving.value = true;
   try {
-    await api.put('/api/admin/website/home', form.value);
+    let featuredResourceIds = form.value.featuredResourceIds;
+    try {
+      featuredResourceIds = JSON.parse(featuredResourceIdsText.value || '{}');
+    } catch {
+      ElMessage.error('精选资源 JSON 格式不正确');
+      saving.value = false;
+      return;
+    }
+    await api.put('/api/admin/website/home', { ...form.value, featuredResourceIds });
+    await api.put('/api/admin/website/banners', banners.value);
     ElMessage.success('官网首页已保存');
   } catch {
     ElMessage.error('官网配置保存失败');
@@ -205,7 +276,97 @@ onMounted(load);
                     <small>在首页直接呈现公开镜像源及精选分类</small>
                   </div>
                 </label>
+                <label class="switch-item">
+                  <input v-model="form.showDiscovery" type="checkbox" />
+                  <div class="switch-info">
+                    <strong>资源发现流</strong><small>显示最新收录、热门资源和趋势内容</small>
+                  </div>
+                </label>
+                <label class="switch-item">
+                  <input v-model="form.showLatest" type="checkbox" />
+                  <div class="switch-info">
+                    <strong>最近更新</strong><small>在官网首页展示最近更新的公开内容</small>
+                  </div>
+                </label>
+                <label class="switch-item">
+                  <input v-model="form.showTrending" type="checkbox" />
+                  <div class="switch-info">
+                    <strong>本周热门</strong><small>按公开浏览量和下载热度展示热门内容</small>
+                  </div>
+                </label>
               </fieldset>
+            </div>
+            <div class="form-group mt-6">
+              <label class="form-label">编辑精选资源 ID</label>
+              <label class="form-label">首页 Banner</label>
+              <div v-for="banner in banners" :key="banner.id" class="banner-editor">
+                <input v-model="banner.imageUrl" class="form-input" placeholder="图片地址" /><input
+                  v-model="banner.title"
+                  class="form-input"
+                  placeholder="标题"
+                /><input v-model="banner.subtitle" class="form-input" placeholder="副标题" />
+                <div class="banner-editor-row">
+                  <input
+                    v-model="banner.buttonLabel"
+                    class="form-input"
+                    placeholder="按钮文字"
+                  /><input v-model="banner.href" class="form-input" placeholder="跳转地址" /><label
+                    ><input v-model="banner.enabled" type="checkbox" /> 显示</label
+                  >
+                </div>
+              </div>
+              <button
+                type="button"
+                class="preview-link"
+                @click="
+                  banners.push({
+                    id: `banner-${Date.now()}`,
+                    imageUrl: '',
+                    title: '',
+                    subtitle: '',
+                    buttonLabel: '探索资源',
+                    href: '/resources',
+                    enabled: true,
+                    order: banners.length,
+                  })
+                "
+              >
+                + 添加 Banner
+              </button>
+              <label class="form-label mt-4 block">可视化精选资源</label>
+              <div class="featured-picker">
+                <div class="featured-picker-toolbar">
+                  <select v-model="selectedCatalogKind" class="form-select">
+                    <option value="courses">课程</option>
+                    <option value="assets">模型</option>
+                    <option value="materials">材料</option>
+                    <option value="plugins">插件</option>
+                    <option value="softwares">软件</option></select
+                  ><input v-model="catalogFilter" class="form-input" placeholder="搜索资源标题" />
+                </div>
+                <div class="featured-picker-list">
+                  <label
+                    v-for="item in catalogItems.slice(0, 20)"
+                    :key="item.id"
+                    class="featured-picker-item"
+                    ><input
+                      type="checkbox"
+                      :checked="isFeatured(item.id)"
+                      @change="toggleFeatured(item.id)"
+                    /><span>{{ item.title }}</span></label
+                  >
+                </div>
+              </div>
+              <span class="form-help">勾选后会同步写入精选配置，首页优先展示这些资源。</span>
+              <textarea
+                v-model="featuredResourceIdsText"
+                rows="6"
+                class="form-textarea"
+                placeholder='{ "courses": [], "assets": [] }'
+              />
+              <span class="form-help"
+                >按类型填写公开资源 ID 数组；留空时自动使用最新内容补位。</span
+              >
             </div>
           </div>
 
@@ -238,6 +399,52 @@ onMounted(load);
   border-radius: 12px;
   background: var(--card);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+.featured-picker {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-main);
+}
+.banner-editor {
+  display: grid;
+  gap: 7px;
+  margin: 8px 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-main);
+}
+.banner-editor-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 7px;
+  align-items: center;
+}
+.featured-picker-toolbar {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px;
+}
+.featured-picker-list {
+  display: grid;
+  gap: 6px;
+  max-height: 190px;
+  overflow: auto;
+  margin-top: 8px;
+}
+.featured-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 7px;
+  border-radius: 7px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.featured-picker-item:hover {
+  background: var(--card);
 }
 .stats-label {
   color: var(--text-secondary);

@@ -37,8 +37,39 @@ export interface WebsiteOverview {
   mirroredResources: number;
 }
 
+export interface WebsitePreviewItem extends PlatformPreviewItem {
+  type: string;
+  tags?: string | null;
+  updatedAt?: string;
+  createdAt?: string;
+  popularity?: number;
+  sourceId?: string;
+  sourceName?: string;
+}
+
+export interface WebsiteDiscovery {
+  latest: WebsitePreviewItem[];
+  trending: WebsitePreviewItem[];
+  courses: WebsitePreviewItem[];
+  assets: WebsitePreviewItem[];
+  materials: WebsitePreviewItem[];
+  plugins: WebsitePreviewItem[];
+  softwares: WebsitePreviewItem[];
+  mirrors: WebsitePreviewItem[];
+  featured?: Record<string, WebsitePreviewItem[]>;
+}
+
+export interface WebsiteSearchResponse {
+  items: WebsitePreviewItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface MirrorCategory {
   id: string;
+  externalId: string;
   name: string;
   parentExternalId?: string | null;
   order: number;
@@ -72,21 +103,60 @@ export interface PlatformPreviewItem {
   category?: string | null;
   difficulty?: string | null;
   resolution?: string | null;
+  officialPreviewUrl?: string;
 }
 
-export interface WebsitePreviewResources {
-  assets: PlatformPreviewItem[];
-  materials: PlatformPreviewItem[];
-  plugins: PlatformPreviewItem[];
+export interface PlatformListResponse<T> {
+  items?: T[];
+  assets?: T[];
+  plugins?: T[];
 }
 
 export const usePlatformApi = () => {
   const { public: publicConfig } = useRuntimeConfig();
   const api = <T>(path: string) => $fetch<T>(`${publicConfig.apiBase}${path}`);
+  const withOfficialPreview = <T extends PlatformPreviewItem>(kind: string, item: T): T => ({
+    ...item,
+    officialPreviewUrl: `${publicConfig.apiBase}/website/media/${kind}/${item.id}`,
+  });
 
   return {
     getHome: () => api<Record<string, unknown>>('/website/home'),
     getWebsiteOverview: () => api<WebsiteOverview>('/website/overview'),
+    getWebsiteDiscovery: () => api<WebsiteDiscovery>('/website/discovery'),
+    getWebsiteBanners: () =>
+      api<
+        Array<{
+          id: string;
+          imageUrl: string;
+          title: string;
+          subtitle: string;
+          buttonLabel: string;
+          href: string;
+        }>
+      >('/website/banners'),
+    getWebsiteTrends: (range: '7d' | '30d' = '7d') =>
+      api<{
+        range: string;
+        daily: Array<{ date: string; count: number }>;
+        popular: Array<{ key: string; count: number }>;
+        searches: Array<{ queryHash: string; count: number }>;
+      }>(`/website/trends?range=${range}`),
+    trackWebsiteEvent: (event: Record<string, string | undefined>) =>
+      $fetch(`${publicConfig.apiBase}/website/events`, { method: 'POST', body: event }).catch(
+        () => undefined,
+      ),
+    searchWebsite: (query: Record<string, string | number | undefined>) => {
+      const params = new URLSearchParams();
+      Object.entries(query).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') params.set(key, String(value));
+      });
+      return api<WebsiteSearchResponse>(`/website/search?${params.toString()}`);
+    },
+    getPublicCatalogItem: (kind: string, id: string) =>
+      api<WebsitePreviewItem & { detail?: boolean; related?: WebsitePreviewItem[] }>(
+        `/website/catalog/${kind}/${id}`,
+      ),
     getSettings: () => api<PublicPlatformSettings>('/auth/settings'),
     getMirrors: () => api<MirrorItem[]>('/mirror/sources'),
     getMirror: (sourceId: string) => api<MirrorDetail>(`/website/mirrors/${sourceId}`),
@@ -106,21 +176,30 @@ export const usePlatformApi = () => {
     },
     getMirrorResource: (sourceId: string, resourceId: string) =>
       api<ResourceDetail>(`/website/mirrors/${sourceId}/resources/${resourceId}`),
-    // 官网专用预览接口 — 无需认证，图片 URL 已在后端处理为主平台绝对 HTTPS URL
-    getCourses: () => api<PlatformPreviewItem[]>('/website/preview/courses'),
-    getResources: () => api<WebsitePreviewResources>('/website/preview/resources'),
-    // 兼容旧接口：从 getResources 中拆分出来
-    getAssets: () =>
-      api<WebsitePreviewResources>('/website/preview/resources').then((r) => ({
-        assets: r.assets,
-      })),
-    getMaterials: () =>
-      api<WebsitePreviewResources>('/website/preview/resources').then((r) => ({
-        items: r.materials,
-      })),
-    getPlugins: () =>
-      api<WebsitePreviewResources>('/website/preview/resources').then((r) => ({
-        plugins: r.plugins,
-      })),
+    getCourses: async () =>
+      (await api<PlatformPreviewItem[]>('/courses')).map((item) =>
+        withOfficialPreview('course', item),
+      ),
+    getAssets: async () => {
+      const result = await api<PlatformListResponse<PlatformPreviewItem>>('/assets/public?limit=8');
+      return {
+        ...result,
+        assets: (result.assets || []).map((item) => withOfficialPreview('asset', item)),
+      };
+    },
+    getMaterials: async () => {
+      const result = await api<PlatformListResponse<PlatformPreviewItem>>('/materials?limit=8');
+      return {
+        ...result,
+        items: (result.items || []).map((item) => withOfficialPreview('material', item)),
+      };
+    },
+    getPlugins: async () => {
+      const result = await api<PlatformListResponse<PlatformPreviewItem>>('/plugins?limit=8');
+      return {
+        ...result,
+        plugins: (result.plugins || []).map((item) => withOfficialPreview('plugin', item)),
+      };
+    },
   };
 };

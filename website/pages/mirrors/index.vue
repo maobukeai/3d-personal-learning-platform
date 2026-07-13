@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ResourceDetail, ResourceItem } from '~/composables/usePlatformApi';
+import type { Ref } from 'vue';
 
 const platform = usePlatformApi();
 const { data: homeSettings } = await useAsyncData('website-home', () => platform.getHome());
@@ -15,6 +16,12 @@ const sourceId = computed(() => {
 });
 
 const categoryId = ref<string | undefined>();
+const groupId = ref<string | undefined>();
+const mobileFilterOpen = ref(false);
+const parentCategoryContainer = ref<HTMLElement | null>(null);
+const childCategoryContainer = ref<HTMLElement | null>(null);
+const parentIndicatorStyle = ref({ left: '0px', width: '0px', opacity: 0 });
+const childIndicatorStyle = ref({ left: '0px', width: '0px', opacity: 0 });
 const query = ref('');
 const page = ref(1);
 const selected = ref<ResourceDetail | null>(null);
@@ -32,6 +39,77 @@ const { data: categories } = await useAsyncData(
   { watch: [sourceId] },
 );
 
+const categoryGroups = computed(() => {
+  const rules = [
+    {
+      id: 'three-d',
+      label: '\u4e09\u7ef4\u521b\u4f5c',
+      test: /3d|\u5efa\u6a21|\u6a21\u578b|\u6e32\u67d3|\u5ba4\u5185|\u6750\u8d28|\u573a\u666f/i,
+    },
+    {
+      id: 'visual',
+      label: '\u89c6\u89c9\u8bbe\u8ba1',
+      test: /ui|\u5e73\u9762|\u8bbe\u8ba1|\u4fee\u56fe|\u6444\u5f71|\u7ed8\u753b|\u63d2\u753b|\u7535\u5546/i,
+    },
+    {
+      id: 'media',
+      label: '\u5f71\u89c6\u4e0e AIGC',
+      test: /aigc|\u526a\u8f91|\u52a8\u753b|\u540e\u671f|\u5f71\u89c6|\u89c6\u9891/i,
+    },
+    { id: 'tools', label: '\u8f6f\u4ef6\u4e0e\u5176\u4ed6', test: /\u8f6f\u4ef6/i },
+  ];
+  const remaining = [...(categories.value || [])];
+  const groups = rules
+    .map((rule) => {
+      const items = remaining.filter((category) => rule.test.test(category.name));
+      items.forEach((category) => remaining.splice(remaining.indexOf(category), 1));
+      return { id: rule.id, label: rule.label, categories: items };
+    })
+    .filter((group) => group.categories.length);
+  if (remaining.length)
+    groups.push({ id: 'other', label: '\u5176\u4ed6\u8d44\u6e90', categories: remaining });
+  return groups;
+});
+const activeGroup = computed(() =>
+  categoryGroups.value.find((group) => group.id === groupId.value),
+);
+const groupCategoryIds = computed(() =>
+  activeGroup.value?.categories.map((category) => category.id).join(','),
+);
+watch(
+  categoryGroups,
+  (groups) => {
+    if (!groupId.value && groups.length) groupId.value = groups[0].id;
+  },
+  { immediate: true },
+);
+const updateCategoryIndicators = () => {
+  nextTick(() => {
+    const measure = (
+      container: HTMLElement | null,
+      target: Ref<{ left: string; width: string; opacity: number }>,
+    ) => {
+      const active = container?.querySelector<HTMLElement>('button.active');
+      if (!active || !container) return;
+      const parentRect = container.getBoundingClientRect();
+      const activeRect = active.getBoundingClientRect();
+      target.value = {
+        left: `${activeRect.left - parentRect.left + container.scrollLeft}px`,
+        width: `${activeRect.width}px`,
+        opacity: 1,
+      };
+    };
+    measure(parentCategoryContainer.value, parentIndicatorStyle);
+    measure(childCategoryContainer.value, childIndicatorStyle);
+  });
+};
+watch([groupId, categoryId], updateCategoryIndicators);
+onMounted(() => {
+  updateCategoryIndicators();
+  window.addEventListener('resize', updateCategoryIndicators);
+});
+onBeforeUnmount(() => window.removeEventListener('resize', updateCategoryIndicators));
+
 const { data: result, refresh } = await useAsyncData(
   () => `mirror-resources-${sourceId.value}`,
   () =>
@@ -40,10 +118,11 @@ const { data: result, refresh } = await useAsyncData(
           page: page.value,
           pageSize: 20,
           categoryId: categoryId.value,
+          categoryIds: groupCategoryIds.value,
           q: query.value,
         })
       : Promise.resolve(null),
-  { watch: [sourceId, categoryId, page] },
+  { watch: [sourceId, categoryId, groupId, page] },
 );
 
 const tags = computed(() => {
@@ -56,11 +135,17 @@ const tags = computed(() => {
 
 watch(sourceId, () => {
   categoryId.value = undefined;
+  groupId.value = undefined;
   page.value = 1;
 });
 
 const selectCategory = (next?: string) => {
   categoryId.value = next;
+  page.value = 1;
+};
+const selectGroup = (next?: string) => {
+  groupId.value = next;
+  categoryId.value = undefined;
   page.value = 1;
 };
 
@@ -115,19 +200,95 @@ useSeoMeta({
           <input v-model="query" placeholder="搜索资源" /><button type="submit">搜索</button>
         </form>
       </header>
-      <div class="category-rail">
-        <button :class="{ active: !categoryId }" @click="selectCategory()">
-          全部 <small>{{ mirror?.totalResources || 0 }}</small>
-        </button>
-        <button
-          v-for="category in categories"
-          :key="category.id"
-          :class="{ active: categoryId === category.id }"
-          @click="selectCategory(category.id)"
-        >
-          {{ category.name }} <small>{{ category.resourceCount }}</small>
-        </button>
+      <div class="category-browser" aria-label="\u8d44\u6e90\u5206\u7c7b">
+        <div ref="parentCategoryContainer" class="category-rail category-parents">
+          <div class="mirror-tab-indicator" :style="parentIndicatorStyle"></div>
+          <button :class="{ active: !categoryId && !groupId }" @click="selectGroup()">
+            全部 <small>{{ mirror?.totalResources || 0 }}</small>
+          </button>
+          <button
+            v-for="group in categoryGroups"
+            :key="group.id"
+            :class="{ active: groupId === group.id }"
+            @click="selectGroup(group.id)"
+          >
+            {{ group.label }}
+            <small>{{
+              group.categories.reduce((total, category) => total + category.resourceCount, 0)
+            }}</small>
+          </button>
+        </div>
+        <Transition name="subcategory-slide">
+          <div v-if="activeGroup" class="category-children">
+            <span class="category-level-label">{{ activeGroup.label }}</span>
+            <div ref="childCategoryContainer" class="category-rail">
+              <div class="mirror-tab-indicator" :style="childIndicatorStyle"></div>
+              <button :class="{ active: !categoryId }" @click="selectCategory()">
+                全部{{ activeGroup.label }}
+              </button>
+              <button
+                v-for="category in activeGroup.categories"
+                :key="category.id"
+                :class="{ active: categoryId === category.id }"
+                @click="selectCategory(category.id)"
+              >
+                {{ category.name }} <small>{{ category.resourceCount }}</small>
+              </button>
+            </div>
+          </div>
+        </Transition>
       </div>
+      <button class="mobile-filter-trigger" type="button" @click="mobileFilterOpen = true">
+        筛选分类 · {{ activeGroup?.label || '全部' }}
+      </button>
+      <Teleport to="body">
+        <div
+          v-if="mobileFilterOpen"
+          class="mobile-filter-backdrop"
+          @click.self="mobileFilterOpen = false"
+        >
+          <div class="mobile-filter-sheet">
+            <div class="mobile-filter-head">
+              <strong>筛选资源</strong
+              ><button type="button" @click="mobileFilterOpen = false">关闭</button>
+            </div>
+            <div class="mobile-filter-groups">
+              <button
+                v-for="group in categoryGroups"
+                :key="group.id"
+                :class="{ active: groupId === group.id }"
+                type="button"
+                @click="selectGroup(group.id)"
+              >
+                {{ group.label }}
+              </button>
+            </div>
+            <div v-if="activeGroup" class="mobile-filter-children">
+              <button
+                :class="{ active: !categoryId }"
+                type="button"
+                @click="
+                  selectCategory();
+                  mobileFilterOpen = false;
+                "
+              >
+                全部{{ activeGroup.label }}</button
+              ><button
+                v-for="category in activeGroup.categories"
+                :key="category.id"
+                :class="{ active: categoryId === category.id }"
+                type="button"
+                @click="
+                  selectCategory(category.id);
+                  mobileFilterOpen = false;
+                "
+              >
+                {{ category.name }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
       <div class="resource-grid">
         <button
           v-for="resource in result?.resources"
@@ -145,6 +306,14 @@ useSeoMeta({
           <div v-else class="resource-placeholder">✦</div>
           <p>{{ resource.category?.name || resource.resourceType || 'RESOURCE' }}</p>
           <h2>{{ resource.title }}</h2>
+          <small class="resource-stats"
+            >{{ resource.viewCount || 0 }} 次浏览 ·
+            {{
+              resource.publishedAt
+                ? new Date(resource.publishedAt).toLocaleDateString()
+                : '最近更新'
+            }}</small
+          >
           <span>{{ resource.description || '点击查看资源介绍与预览。' }}</span>
         </button>
       </div>
@@ -254,11 +423,70 @@ useSeoMeta({
   cursor: pointer;
 }
 .category-rail {
+  position: relative;
   display: flex;
   gap: 8px;
   overflow: auto;
   margin: 28px 0 20px;
   padding-bottom: 4px;
+}
+.mirror-tab-indicator {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--ink);
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    left 0.18s cubic-bezier(0.22, 0.8, 0.3, 1),
+    width 0.18s cubic-bezier(0.22, 0.8, 0.3, 1),
+    opacity 0.12s ease;
+}
+.category-browser {
+  margin: 28px 0 20px;
+  padding: 10px;
+  border: 1px solid rgba(24, 25, 30, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.38);
+}
+.category-browser .category-rail {
+  margin: 0;
+}
+.category-parents {
+  padding-bottom: 1px;
+}
+.category-children {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 10px;
+  padding: 10px 0 0;
+  border-top: 1px solid rgba(24, 25, 30, 0.08);
+}
+.category-children .category-rail {
+  flex: 1;
+}
+.category-level-label {
+  flex: 0 0 auto;
+  padding: 7px 9px;
+  border-radius: 8px;
+  color: #5d6b9b;
+  background: #e7ecfb;
+  font-size: 11px;
+  font-weight: 700;
+}
+.subcategory-slide-enter-active,
+.subcategory-slide-leave-active {
+  transition:
+    opacity 0.14s ease,
+    transform 0.16s cubic-bezier(0.22, 0.8, 0.3, 1);
+}
+.subcategory-slide-enter-from,
+.subcategory-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 .category-rail button {
   white-space: nowrap;
@@ -272,13 +500,25 @@ useSeoMeta({
   cursor: pointer;
 }
 .category-rail button.active {
-  border-color: var(--ink);
+  border-color: transparent;
   color: #fff;
-  background: var(--ink);
+  background: transparent;
+  position: relative;
+  z-index: 1;
 }
 .category-rail small {
   margin-left: 5px;
   opacity: 0.7;
+}
+.resource-stats {
+  display: block;
+  margin-top: 9px;
+  color: #8a91a6;
+  font-size: 11px;
+}
+.mobile-filter-trigger,
+.mobile-filter-backdrop {
+  display: none;
 }
 .resource-grid {
   display: grid;
@@ -491,6 +731,77 @@ useSeoMeta({
   }
 }
 @media (max-width: 720px) {
+  .category-browser {
+    display: none;
+  }
+  .mobile-filter-trigger {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    color: var(--ink);
+    background: rgba(255, 255, 255, 0.65);
+    font: inherit;
+    text-align: left;
+  }
+  .mobile-filter-backdrop {
+    position: fixed;
+    z-index: 1200;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    background: rgba(20, 22, 30, 0.28);
+    backdrop-filter: blur(5px);
+  }
+  .mobile-filter-sheet {
+    width: 100%;
+    max-height: 72vh;
+    overflow: auto;
+    padding: 20px;
+    border-radius: 24px 24px 0 0;
+    background: #fafbff;
+    box-shadow: 0 -20px 60px rgba(20, 25, 45, 0.18);
+  }
+  .mobile-filter-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .mobile-filter-head button {
+    border: 0;
+    color: var(--muted);
+    background: transparent;
+    font: inherit;
+  }
+  .mobile-filter-groups,
+  .mobile-filter-children {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .mobile-filter-children {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+  .mobile-filter-groups button,
+  .mobile-filter-children button {
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    color: var(--muted);
+    background: #fff;
+    font: inherit;
+    font-size: 13px;
+  }
+  .mobile-filter-groups button.active,
+  .mobile-filter-children button.active {
+    color: #fff;
+    border-color: var(--ink);
+    background: var(--ink);
+  }
   .browser-header {
     align-items: stretch;
     flex-direction: column;

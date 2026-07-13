@@ -8,20 +8,24 @@ const { data: websiteOverview } = await useAsyncData('website-overview', () =>
   platform.getWebsiteOverview(),
 );
 const { data: mirrors } = await useAsyncData('website-mirrors', () => platform.getMirrors());
+const { data: discovery } = await useAsyncData('website-discovery', () =>
+  platform.getWebsiteDiscovery(),
+);
+const { data: banners } = await useAsyncData('website-banners', () => platform.getWebsiteBanners());
 const { data: courses } = await useAsyncData('website-courses-preview', () =>
   platform.getCourses(),
 );
 const { data: showcase } = await useAsyncData('website-home-showcase', async () => {
-  try {
-    const resources = await platform.getResources();
-    return {
-      materials: resources.materials || [],
-      plugins: resources.plugins || [],
-      assets: resources.assets || [],
-    };
-  } catch {
-    return { materials: [], plugins: [], assets: [] };
-  }
+  const [materials, plugins, assets] = await Promise.allSettled([
+    platform.getMaterials(),
+    platform.getPlugins(),
+    platform.getAssets(),
+  ]);
+  return {
+    materials: materials.status === 'fulfilled' ? materials.value.items || [] : [],
+    plugins: plugins.status === 'fulfilled' ? plugins.value.plugins || [] : [],
+    assets: assets.status === 'fulfilled' ? assets.value.items || [] : [],
+  };
 });
 
 const copy = computed(() => ({
@@ -36,6 +40,9 @@ const moduleVisibility = computed(() => ({
   courses: home.value?.showCoursePreview !== false,
   capabilities: home.value?.showCapabilityMap !== false,
   mirrors: home.value?.showMirrorPreview !== false,
+  discovery: home.value?.showDiscovery !== false,
+  latest: home.value?.showLatest !== false,
+  trending: home.value?.showTrending !== false,
 }));
 useSeoMeta({
   title: '首页',
@@ -47,6 +54,22 @@ const featuredCourse = computed(() => coursePreview.value[0]);
 const featuredAsset = computed(() => showcase.value?.assets[0]);
 const featuredMaterial = computed(() => showcase.value?.materials[0]);
 const featuredPlugin = computed(() => showcase.value?.plugins[0]);
+const latestItems = computed(() => discovery.value?.latest?.slice(0, 8) || []);
+const trendingItems = computed(() => discovery.value?.trending?.slice(0, 6) || []);
+const featuredItems = computed(() =>
+  Object.values(discovery.value?.featured || {})
+    .flat()
+    .slice(0, 6),
+);
+const activeBanner = computed(() => banners.value?.[0]);
+const discoveryImage = (item: any) => secureImageUrl(item?.officialPreviewUrl || item?.thumbnail);
+const discoveryHref = (item: any) =>
+  item?.type === 'mirror'
+    ? `/mirrors/${item.sourceId}/resources/${item.id}`
+    : `/resources/${item.type}/${item.id}`;
+onMounted(() => {
+  void platform.trackWebsiteEvent({ event: 'page_view' });
+});
 
 const resourcePreviews = computed(() => [
   {
@@ -85,12 +108,14 @@ const mockupPreviews = computed(() => [
 ]);
 const secureImageUrl = (url?: string | null) => {
   if (!url) return '';
-  // New /website/preview/* API already returns absolute HTTPS URLs.
-  // Keep http→https upgrade as a safety net for any legacy data.
+  if (url.includes('/uploads/')) {
+    const match = url.match(/\/uploads\/.+/);
+    if (match) return match[0];
+  }
   return url.replace(/^http:\/\//, 'https://');
 };
 const previewImage = (item?: PlatformPreviewItem) =>
-  secureImageUrl(item?.previewUrl || item?.thumbnail);
+  secureImageUrl(item?.officialPreviewUrl || item?.previewUrl || item?.thumbnail);
 const brokenPreviews = ref(new Set<string>());
 const previewFailed = (key: string) => brokenPreviews.value.has(key);
 const markPreviewFailed = (key: string) => {
@@ -182,7 +207,7 @@ const capabilityGroups = [
             <div class="hero-media-fallback">LEARNING PATH</div>
             <img
               v-if="featuredCourse?.thumbnail && !previewFailed('hero-course')"
-              :src="secureImageUrl(featuredCourse.thumbnail)"
+              :src="previewImage(featuredCourse)"
               alt=""
               decoding="async"
               @error="markPreviewFailed('hero-course')"
@@ -219,6 +244,26 @@ const capabilityGroups = [
         </div>
       </div>
     </div>
+  </section>
+
+  <section v-if="activeBanner" class="section-wrap official-banner">
+    <div class="official-banner-copy">
+      <p class="eyebrow">FEATURED NOW</p>
+      <h2>{{ activeBanner.title }}</h2>
+      <p>{{ activeBanner.subtitle }}</p>
+      <a
+        class="button button-primary"
+        :href="activeBanner.href"
+        @click="platform.trackWebsiteEvent({ event: 'banner_click', resourceId: activeBanner.id })"
+        >{{ activeBanner.buttonLabel }} <span>↗</span></a
+      >
+    </div>
+    <img
+      :src="activeBanner.imageUrl"
+      :alt="activeBanner.title"
+      loading="eager"
+      fetchpriority="high"
+    />
   </section>
 
   <section class="section-wrap platform-metrics" aria-label="平台实时数据">
@@ -261,7 +306,7 @@ const capabilityGroups = [
       >
         <img
           v-if="course.thumbnail && !previewFailed(`course-${course.id}`)"
-          :src="secureImageUrl(course.thumbnail)"
+          :src="previewImage(course)"
           :alt="course.title"
           loading="lazy"
           decoding="async"
@@ -285,6 +330,93 @@ const capabilityGroups = [
     </div>
   </section>
 
+  <section v-if="moduleVisibility.discovery" class="section-wrap discovery-stream">
+    <div v-if="featuredItems.length" class="section-heading">
+      <div>
+        <p class="eyebrow">EDITOR'S PICKS</p>
+        <h2>编辑精选</h2>
+      </div>
+    </div>
+    <div v-if="featuredItems.length" class="discovery-grid discovery-featured-grid">
+      <NuxtLink
+        v-for="item in featuredItems"
+        :key="`featured-${item.type}-${item.id}`"
+        class="discovery-card"
+        :to="discoveryHref(item)"
+        ><div class="discovery-cover">
+          <img
+            v-if="discoveryImage(item)"
+            :src="discoveryImage(item)"
+            :alt="item.title"
+            loading="lazy"
+          /><span v-else>{{ item.type.toUpperCase() }}</span>
+        </div>
+        <div class="discovery-copy">
+          <div>
+            <span>{{ item.type }}</span
+            ><small>{{ item.category || '精选' }}</small>
+          </div>
+          <h3>{{ item.title }}</h3>
+        </div></NuxtLink
+      >
+    </div>
+    <div v-if="moduleVisibility.latest" class="section-heading">
+      <div>
+        <p class="eyebrow">LATEST UPDATES</p>
+        <h2>最近收录的内容</h2>
+      </div>
+      <NuxtLink to="/resources">浏览资源中心 <span>↗</span></NuxtLink>
+    </div>
+    <div v-if="moduleVisibility.latest" class="discovery-grid">
+      <NuxtLink
+        v-for="item in latestItems"
+        :key="`${item.type}-${item.id}`"
+        class="discovery-card"
+        :to="discoveryHref(item)"
+      >
+        <div class="discovery-cover">
+          <img
+            v-if="discoveryImage(item)"
+            :src="discoveryImage(item)"
+            :alt="item.title"
+            loading="lazy"
+            decoding="async"
+          />
+          <span v-else>{{ item.type.toUpperCase() }}</span>
+        </div>
+        <div class="discovery-copy">
+          <div>
+            <span>{{ item.type }}</span
+            ><small>{{ item.category || '公开资源' }}</small>
+          </div>
+          <h3>{{ item.title }}</h3>
+          <p>{{ item.description || '查看公开资源介绍与预览。' }}</p>
+        </div>
+      </NuxtLink>
+    </div>
+    <div v-if="moduleVisibility.trending" class="section-heading discovery-trending-heading">
+      <div>
+        <p class="eyebrow">WEEKLY TRENDING</p>
+        <h2>本周热门</h2>
+      </div>
+    </div>
+    <div v-if="moduleVisibility.trending" class="trending-row">
+      <NuxtLink
+        v-for="(item, index) in trendingItems"
+        :key="`trend-${item.type}-${item.id}`"
+        class="trending-card"
+        :to="discoveryHref(item)"
+      >
+        <strong>{{ String(index + 1).padStart(2, '0') }}</strong>
+        <div>
+          <span>{{ item.type }} · {{ item.category || '精选' }}</span>
+          <h3>{{ item.title }}</h3>
+        </div>
+        <em>{{ item.popularity || 0 }}</em>
+      </NuxtLink>
+    </div>
+  </section>
+
   <section class="section-wrap platform-bento">
     <div class="bento-intro">
       <p class="eyebrow">ONE PLATFORM, IN MOTION</p>
@@ -299,7 +431,7 @@ const capabilityGroups = [
     <a class="bento-card bento-course" :href="`${config.public.appBase}/academy`">
       <img
         v-if="featuredCourse?.thumbnail && !previewFailed('bento-course')"
-        :src="secureImageUrl(featuredCourse.thumbnail)"
+        :src="previewImage(featuredCourse)"
         alt=""
         loading="lazy"
         decoding="async"

@@ -645,6 +645,13 @@ export const getSyncLogs = async (req: MirrorRequest, reply: FastifyReply) => {
 export const matchLinks = async (req: MirrorRequest, reply: FastifyReply) => {
   const filesArray: UploadedFile[] = [];
 
+  const isUploadedFile = (value: unknown): value is UploadedFile =>
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as UploadedFile).originalname === 'string' &&
+    (Buffer.isBuffer((value as UploadedFile).buffer) ||
+      typeof (value as UploadedFile).path === 'string');
+
   const encodedFiles = Array.isArray(req.body?.files) ? req.body.files : [];
   for (const encodedFile of encodedFiles) {
     if (
@@ -665,7 +672,9 @@ export const matchLinks = async (req: MirrorRequest, reply: FastifyReply) => {
     });
   }
 
-  if (req.file) {
+  // @fastify/multipart decorates every request with a `file()` method. Only
+  // accept an actual upload object that our fastifyUpload middleware created.
+  if (isUploadedFile(req.file)) {
     filesArray.push(req.file);
   }
 
@@ -674,11 +683,11 @@ export const matchLinks = async (req: MirrorRequest, reply: FastifyReply) => {
       filesArray.push(...req.files);
     } else {
       const dictionary = req.files as { [fieldname: string]: UploadedFile[] };
-      if (dictionary['file']) {
-        filesArray.push(...dictionary['file']);
+      if (Array.isArray(dictionary['file'])) {
+        filesArray.push(...dictionary['file'].filter(isUploadedFile));
       }
-      if (dictionary['files']) {
-        filesArray.push(...dictionary['files']);
+      if (Array.isArray(dictionary['files'])) {
+        filesArray.push(...dictionary['files'].filter(isUploadedFile));
       }
     }
   }

@@ -207,12 +207,22 @@ export const useWorkspaceStore = defineStore('workspace', {
       } else if (currentPath?.startsWith('/manual/station/')) {
         const stationId = currentPath.split('/')[3];
         this.activeWorkspaceId = `manual-${stationId}`;
-      } else if (this.activeWorkspaceId === 'admin-workspace') {
-        const authStore = useAuthStore();
-        if (authStore.user?.defaultWorkspaceId !== 'admin-workspace') {
+      } else if (currentPath?.startsWith('/mirror/resource/')) {
+        // Keep mirror workspace if already active
+      } else if (currentPath?.startsWith('/manual/resource/')) {
+        // Keep manual workspace if already active
+      } else {
+        const isSpecialWorkspace =
+          this.activeWorkspaceId === 'admin-workspace' ||
+          this.activeWorkspaceId?.startsWith('mirror-') ||
+          this.activeWorkspaceId?.startsWith('manual-');
+        if (isSpecialWorkspace) {
           const personalWs =
             this.rawWorkspaces.find((ws) => ws.type === 'personal') ||
-            this.rawWorkspaces.find((ws) => ws.type !== 'admin');
+            this.rawWorkspaces.find((ws) => ws.type === 'team') ||
+            this.rawWorkspaces.find(
+              (ws) => ws.type !== 'admin' && ws.type !== 'mirror' && ws.type !== 'manual',
+            );
           if (personalWs) {
             this.activeWorkspaceId = personalWs.id;
           }

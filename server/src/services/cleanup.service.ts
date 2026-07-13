@@ -167,6 +167,26 @@ export const cleanupTempUploads = async (forceAll = false) => {
   }
 };
 
+export const cleanupExpiredFeedbacks = async () => {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  try {
+    const deleted = await prisma.pluginFeedback.deleteMany({
+      where: {
+        createdAt: {
+          lt: sevenDaysAgo,
+        },
+      },
+    });
+    if (deleted.count > 0) {
+      logger.info(
+        `[Cleanup] Auto-deleted ${deleted.count} expired plugin feedback logs (older than 7 days).`,
+      );
+    }
+  } catch (error) {
+    logger.error('[Cleanup Error] Failed to run plugin feedback cleanup:', error);
+  }
+};
+
 export const cleanupExpiredData = async (forceAll = false) => {
   const now = new Date();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -177,6 +197,8 @@ export const cleanupExpiredData = async (forceAll = false) => {
     await cleanupLeftoverUploads(forceAll);
     // Clean up temporary uploads
     await cleanupTempUploads(forceAll);
+    // Clean up expired plugin feedbacks (logs older than 7 days)
+    await cleanupExpiredFeedbacks();
 
     // Daily Temporary Netdisk Cleanup
     try {

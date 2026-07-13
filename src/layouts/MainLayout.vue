@@ -440,12 +440,27 @@ watch(
     } else if (path.startsWith('/manual/station/')) {
       const stationId = path.split('/')[3];
       workspaceStore.setWorkspaceById(`manual-${stationId}`);
-    } else if (workspaceStore.activeWorkspaceId === 'admin-workspace') {
-      const personalWs =
-        workspaceStore.rawWorkspaces.find((ws) => ws.type === 'personal') ||
-        workspaceStore.rawWorkspaces.find((ws) => ws.type !== 'admin');
-      if (personalWs) {
-        workspaceStore.setWorkspaceById(personalWs.id);
+    } else if (path.startsWith('/mirror/resource/')) {
+      // Keep mirror workspace if already active
+    } else if (path.startsWith('/manual/resource/')) {
+      // Keep manual workspace if already active
+    } else {
+      // For general routes (dashboard, softwares, assets, etc.), if the active workspace is admin, mirror, or manual,
+      // switch it back to a personal/team workspace.
+      const isSpecialWorkspace =
+        workspaceStore.activeWorkspaceId === 'admin-workspace' ||
+        workspaceStore.activeWorkspaceId?.startsWith('mirror-') ||
+        workspaceStore.activeWorkspaceId?.startsWith('manual-');
+      if (isSpecialWorkspace) {
+        const personalWs =
+          workspaceStore.rawWorkspaces.find((ws) => ws.type === 'personal') ||
+          workspaceStore.rawWorkspaces.find((ws) => ws.type === 'team') ||
+          workspaceStore.rawWorkspaces.find(
+            (ws) => ws.type !== 'admin' && ws.type !== 'mirror' && ws.type !== 'manual',
+          );
+        if (personalWs) {
+          workspaceStore.setWorkspaceById(personalWs.id);
+        }
       }
     }
   },

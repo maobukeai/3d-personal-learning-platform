@@ -349,8 +349,8 @@ model Asset {
   formats                   String?                   @db.Text // 瀛樺偍 JSON 瀛楃涓诧紝濡?["FBX", "OBJ"]
   tags                      String?                   @db.Text // JSON string of tag names (e.g., ["scifi", "character"])
 
-  // 鐗堟潈涓庢巿鏉?  originality               String?                   @default("ORIGINAL") // "ORIGINAL", "AUTHORIZED", "REMIX"
-  originality               String?                   @default("ORIGINAL")
+  // 鐗堟潈涓庢巿鏉?
+  originality               String?                   @default("ORIGINAL") // "ORIGINAL", "AUTHORIZED", "REMIX"
   originalAuthor            String?
   originalLink              String?
   license                   String?                   @default("CC_BY") // "CC_BY", "CC_BY_NC", etc.
@@ -858,7 +858,7 @@ model Material {
   updatedAt                 DateTime                  @updatedAt
   bilibiliUrl               String?
 
-  // 鐗堟潈涓庢巿鏉?  originality               String?                   @default("ORIGINAL")
+  // 鐗堟潈涓庢巿鏉?
   originality               String?                   @default("ORIGINAL")
   originalAuthor            String?
   originalLink              String?
@@ -1455,7 +1455,8 @@ model AssetVersion {
   thumbnail                 String?
   size                      Float?
 
-  // 鐗堟湰鐗瑰畾鐗堟潈涓庤鏍?  originality               String?                   @default("ORIGINAL")
+  // 鐗堟湰鐗瑰畾鐗堟潈涓庤鏍?
+  originality               String?                   @default("ORIGINAL")
   originalAuthor            String?
   originalLink              String?
   license                   String?                   @default("CC_BY")
@@ -1527,7 +1528,8 @@ model Plugin {
   createdAt                 DateTime                  @default(now())
   updatedAt                 DateTime                  @updatedAt
 
-  // 鐗堟潈涓庢巿鏉?  originality               String?                   @default("ORIGINAL")
+  // 鐗堟潈涓庢巿鏉?
+  originality               String?                   @default("ORIGINAL")
   originalAuthor            String?
   originalLink              String?
   license                   String?                   @default("CC_BY")
@@ -1969,7 +1971,8 @@ model Software {
   createdAt                 DateTime                  @default(now())
   updatedAt                 DateTime                  @updatedAt
 
-  // 鐗堟潈涓庢巿鏉?  originality               String?                   @default("ORIGINAL")
+  // 鐗堟潈涓庢巿鏉?
+  originality               String?                   @default("ORIGINAL")
   originalAuthor            String?
   originalLink              String?
   license                   String?                   @default("CC_BY")

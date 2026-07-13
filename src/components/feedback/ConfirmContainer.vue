@@ -50,7 +50,7 @@ const confirmButtonClasses = (item: ConfirmItem) =>
         <div
           class="absolute inset-0"
           style="background-color: var(--glass-overlay-bg)"
-          @click="item.cancelButtonText ? handleCancel(item) : null"
+          @pointerdown="handleCancel(item)"
         />
         <div class="relative bg-card border border-base shadow-lg w-full max-w-md p-6 rounded-2xl">
           <div class="flex items-start gap-3 mb-4">

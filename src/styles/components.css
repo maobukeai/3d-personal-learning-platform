@@ -536,7 +536,7 @@ html.theme-glass .search-box input[type='text']:focus {
   inset: 0;
   z-index: var(--z-modal-content);
   overflow-y: auto;
-  pointer-events: none;
+  pointer-events: auto;
   display: flex;
   align-items: center;
   justify-content: center;

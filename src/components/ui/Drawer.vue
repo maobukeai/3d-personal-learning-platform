@@ -71,6 +71,8 @@ const onOpenChange = (open: boolean) => {
   if (!open) close();
 };
 
+const onOverlayClick = () => close();
+
 // ── Overlay Stack Management ─────────────────────────────────────────
 const { register, unregister, activeOverlays } = useOverlayManager();
 const overlayId = ref<symbol | null>(null);
@@ -236,6 +238,7 @@ const surfaceClass = computed(() => {
       <DialogOverlay
         class="modal-overlay data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
         :style="{ zIndex: overlayZIndex }"
+        @pointerdown="onOverlayClick"
       />
 
       <!-- Drawer Panel -->

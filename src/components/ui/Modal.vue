@@ -91,6 +91,18 @@ const onInteractOutside = (event: Event) => {
   }
 };
 
+const onOverlayClick = () => {
+  if (props.closeOnOutsideClick) close();
+};
+
+const onContentPointerDown = (event: PointerEvent) => {
+  if (!props.closeOnOutsideClick) return;
+  const target = event.target;
+  if (!(target instanceof Element) || !target.closest('.modal-surface')) {
+    close();
+  }
+};
+
 const onEscapeKeyDown = (event: KeyboardEvent) => {
   if (!props.closeOnEscape) {
     event.preventDefault();
@@ -293,12 +305,13 @@ const onOpenAutoFocus = (event: Event) => {
 <template>
   <DialogRoot :open="show" @update:open="onOpenChange">
     <DialogPortal>
-      <DialogOverlay class="modal-overlay" :style="overlayStyle" />
+      <DialogOverlay class="modal-overlay" :style="overlayStyle" @pointerdown="onOverlayClick" />
 
       <DialogContent
         :class="contentClasses"
         :style="contentStyle"
         :aria-modal="true"
+        @pointerdown="onContentPointerDown"
         @interact-outside="onInteractOutside"
         @escape-key-down="onEscapeKeyDown"
         @openAutoFocus="onOpenAutoFocus"

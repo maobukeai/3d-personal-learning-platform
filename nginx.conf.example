@@ -116,6 +116,14 @@ server {
     # -------------------------------------------------------
     # 5. 静态资源缓存优化（JS/CSS/图片/3D模型文件）
     # -------------------------------------------------------
+    location ^~ /static-chunks/ {
+        root /path/to/your/project/dist;
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        access_log off;
+        try_files $uri =404;
+    }
+
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2|woff|ttf|glb|gltf|bin|hdr)$ {
         # ⚠️ 与 location / 一致，替换为前端 dist 目录的绝对路径
         root /path/to/your/project/dist;

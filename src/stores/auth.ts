@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import api from '@/utils/api';
 import { preferences } from '@/utils/preferences';
-import { socketService } from '@/utils/socket';
 import { logError } from '@/utils/error';
 import type { User } from '@/types';
 
@@ -256,6 +255,7 @@ export const useAuthStore = defineStore('auth', {
       return response.data;
     },
     async logout() {
+      const { socketService } = await import('@/utils/socket');
       socketService.disconnect();
       api.post('/api/auth/logout').catch((err) => {
         logError(err, { operation: 'auth.logout', component: 'authStore' });

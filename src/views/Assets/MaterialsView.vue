@@ -29,18 +29,24 @@ import MaterialFiltersPanel from './components/MaterialFiltersPanel.vue';
 import MaterialControlToolbar from './components/MaterialControlToolbar.vue';
 import MaterialStateBar from './components/MaterialStateBar.vue';
 import MaterialsGrid from './components/MaterialsGrid.vue';
-import MaterialDetailPanel from './components/MaterialDetailPanel.vue';
 
 const PublishWorkDialog = defineAsyncComponent(() => import('@/components/PublishWorkDialog.vue'));
 const EditWorkDialog = defineAsyncComponent(() => import('./components/EditWorkDialog.vue'));
+const MaterialDetailPanel = defineAsyncComponent(
+  () => import('./components/MaterialDetailPanel.vue'),
+);
+const HelpRequestsForum = defineAsyncComponent(() => import('./components/HelpRequestsForum.vue'));
+const HelpRequestPostModal = defineAsyncComponent(
+  () => import('./components/HelpRequestPostModal.vue'),
+);
+const HelpRequestDetailModal = defineAsyncComponent(
+  () => import('./components/HelpRequestDetailModal.vue'),
+);
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
 import { normalizeMaterialWork } from './myWorksModel';
 import type { UnifiedWork } from './myWorksModel';
-import HelpRequestsForum from './components/HelpRequestsForum.vue';
-import HelpRequestPostModal from './components/HelpRequestPostModal.vue';
-import HelpRequestDetailModal from './components/HelpRequestDetailModal.vue';
 import MaterialLibraryHeader from './components/MaterialLibraryHeader.vue';
 import { useLabel } from '@/utils/i18n';
 
@@ -1709,6 +1715,7 @@ onUnmounted(() => {
 
     <!-- Help Request Detail Modal -->
     <HelpRequestDetailModal
+      v-if="showHelpRequestDetailModal"
       :show="showHelpRequestDetailModal"
       :request="selectedHelpRequest"
       :replies="helpRequestReplies"
@@ -1727,6 +1734,7 @@ onUnmounted(() => {
 
     <!-- Help Request Post Modal -->
     <HelpRequestPostModal
+      v-if="showHelpRequestPostDialog"
       :show="showHelpRequestPostDialog"
       :is-submitting="isSubmittingHelpRequest"
       :modal-title="label('发布新材质求助帖', 'Create Help Request')"

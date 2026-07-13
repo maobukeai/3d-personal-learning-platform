@@ -79,7 +79,10 @@ self.addEventListener('fetch', (event) => {
   // Skip upload paths.
   if (url.pathname.startsWith('/uploads/')) return;
 
-  const isHashedAsset = url.pathname.startsWith('/assets/') || url.pathname.startsWith('/libs/');
+  const isHashedAsset =
+    url.pathname.startsWith('/static-chunks/') ||
+    url.pathname.startsWith('/assets/') ||
+    url.pathname.startsWith('/libs/');
 
   const isStaticFile =
     url.pathname.endsWith('.svg') ||

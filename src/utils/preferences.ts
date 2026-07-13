@@ -99,7 +99,7 @@ export const preferences = {
 
   getTheme: (): ThemePreference => {
     const theme = getItem(storageKeys.theme);
-    return isThemePreference(theme) ? theme : 'glass-dark';
+    return isThemePreference(theme) ? theme : 'glass-light';
   },
   setTheme: (theme: ThemePreference) => setItem(storageKeys.theme, theme),
 

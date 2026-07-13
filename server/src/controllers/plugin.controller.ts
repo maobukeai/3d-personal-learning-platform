@@ -577,6 +577,9 @@ export const uploadPlugin = async (request: FastifyRequest, reply: FastifyReply)
       fileSizeMb = await getFileSizeInMb(tempPluginPath);
     }
   }
+  if (!Number.isFinite(fileSizeMb) || fileSizeMb < 0) {
+    fileSizeMb = 0;
+  }
 
   const previewUrl = previewFile
     ? getUploadedFileUrl(asExpressReq(request), previewFile, 'plugins')
